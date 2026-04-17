@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Inlined from shadcn-svelte/dist/tailwind.css — package only exports under "style" condition,
+   incompatible with Tailwind v4 Vite plugin which uses "import" condition */
+@theme inline {
+  @keyframes accordion-down {
+    from { height: 0; }
+    to   { height: var(--bits-accordion-content-height, var(--accordion-panel-height, auto)); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--bits-accordion-content-height, var(--accordion-panel-height, auto)); }
+    to   { height: 0; }
+  }
+}
+
+@custom-variant data-open    { &:where([data-state="open"]),   &:where([data-open]:not([data-open="false"]))     { @slot; } }
+@custom-variant data-closed  { &:where([data-state="closed"]), &:where([data-closed]:not([data-closed="false"])) { @slot; } }
+@custom-variant data-checked { &:where([data-state="checked"]),&:where([data-checked]:not([data-checked="false"])) { @slot; } }
+@custom-variant data-unchecked { &:where([data-state="unchecked"]),&:where([data-unchecked]:not([data-unchecked="false"])) { @slot; } }
+@custom-variant data-disabled { &:where([data-disabled="true"]),&:where([data-disabled]:not([data-disabled="false"])) { @slot; } }
+@custom-variant data-active   { &:where([data-state="active"]), &:where([data-active]:not([data-active="false"])) { @slot; } }
+@custom-variant data-horizontal { &:where([data-orientation="horizontal"]) { @slot; } }
+@custom-variant data-vertical   { &:where([data-orientation="vertical"])   { @slot; } }
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+@theme inline {
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+
+  --color-background:         #f2f0f4;
+  --color-foreground:         #1e1e28;
+  --color-card:               #ffffff;
+  --color-card-foreground:    #1e1e28;
+  --color-popover:            #ffffff;
+  --color-popover-foreground: #1e1e28;
+  --color-primary:            #c8847a;
+  --color-primary-foreground: #ffffff;
+  --color-secondary:          #f2f0f4;
+  --color-secondary-foreground: #1e1e28;
+  --color-muted:              #f2f0f4;
+  --color-muted-foreground:   #9a90a8;
+  --color-accent:             #f2f0f4;
+  --color-accent-foreground:  #1e1e28;
+  --color-destructive:        #b83040;
+  --color-destructive-foreground: #ffffff;
+  --color-border:             #e4e0e8;
+  --color-input:              #e4e0e8;
+  --color-ring:               #c8847a;
+  --color-sidebar:            #1e1e28;
+  --color-sidebar-foreground: #7a7090;
+  --color-amber:              #8a6000;
+  --color-amber-bg:           #fff8e1;
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    min-height: 100vh;
+    display: flex;
+  }
+}
