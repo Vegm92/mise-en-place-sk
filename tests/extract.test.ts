@@ -1,5 +1,5 @@
 /**
- * Extraction pipeline tests — mocks the Anthropic client and pdf-parse
+ * Extraction pipeline tests — mocks the Gemini client and pdf-parse
  * so no real API calls or file I/O are needed.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -26,17 +26,11 @@ const MOCK_INVOICE_DATA = {
   ],
 };
 
-function makeAnthropicMock(responseText: string) {
-  const mockResponse = { content: [{ type: 'text', text: responseText }] };
+function makeGeminiMock(responseText: string) {
   return {
-    messages: {
-      create: vi.fn().mockResolvedValue(mockResponse),
-    },
-    beta: {
-      messages: {
-        create: vi.fn().mockResolvedValue(mockResponse),
-      },
-    },
+    generateContent: vi.fn().mockResolvedValue({
+      response: { text: () => responseText },
+    }),
   };
 }
 
@@ -57,7 +51,7 @@ beforeEach(() => {
 });
 
 describe('extractInvoice — text PDF path', () => {
-  it('calls Claude with text content and returns parsed data', async () => {
+  it('calls Gemini with text content and returns parsed data', async () => {
     vi.mocked(pdfParse).mockResolvedValue({
       text: 'FACTURA\nProveedor Test S.L.\nTotal: 1250.00 EUR\n'.repeat(5),
       numpages: 1,
@@ -67,24 +61,24 @@ describe('extractInvoice — text PDF path', () => {
       version: '1.10.100',
     });
 
-    const client = makeAnthropicMock(JSON.stringify(MOCK_INVOICE_DATA));
-    const result = await extractInvoice('/fake/invoice.pdf', client as never);
+    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/invoice.pdf', model as never);
 
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
     expect(result.total_amount).toBe(1250.00);
     expect(result.currency).toBe('EUR');
     expect(result.confidence).toBe(0.92);
     expect(result.line_items).toHaveLength(2);
-    expect(client.messages.create).toHaveBeenCalledOnce();
+    expect(model.generateContent).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(client.messages.create).mock.calls[0][0] as { messages: Array<{ content: string }> };
-    expect(typeof call.messages[0].content).toBe('string');
-    expect(call.messages[0].content).toContain('INVOICE TEXT:');
+    const call = vi.mocked(model.generateContent).mock.calls[0][0] as string;
+    expect(typeof call).toBe('string');
+    expect(call).toContain('INVOICE TEXT:');
   });
 });
 
 describe('extractInvoice — scanned PDF path', () => {
-  it('calls Claude with image content when PDF has little text', async () => {
+  it('calls Gemini with inline PDF data when PDF has little text', async () => {
     vi.mocked(pdfParse).mockResolvedValue({
       text: 'scan',
       numpages: 1,
@@ -94,64 +88,63 @@ describe('extractInvoice — scanned PDF path', () => {
       version: '1.10.100',
     });
 
-    const client = makeAnthropicMock(JSON.stringify(MOCK_INVOICE_DATA));
-    const result = await extractInvoice('/fake/scanned.pdf', client as never);
+    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/scanned.pdf', model as never);
 
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
-    expect(client.beta.messages.create).toHaveBeenCalledOnce();
+    expect(model.generateContent).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(client.beta.messages.create).mock.calls[0][0] as { messages: Array<{ content: unknown[] }> };
-    const content = call.messages[0].content as Array<{ type: string }>;
-    expect(Array.isArray(content)).toBe(true);
-    expect(content[0].type).toBe('document');
+    const call = vi.mocked(model.generateContent).mock.calls[0][0] as Array<unknown>;
+    expect(Array.isArray(call)).toBe(true);
+    const first = call[0] as { inlineData: { mimeType: string } };
+    expect(first.inlineData.mimeType).toBe('application/pdf');
   });
 });
 
 describe('extractInvoice — image path', () => {
-  it('calls Claude with image content for JPG files', async () => {
-    const client = makeAnthropicMock(JSON.stringify(MOCK_INVOICE_DATA));
-    const result = await extractInvoice('/fake/invoice.jpg', client as never);
+  it('calls Gemini with inline image data for JPG files', async () => {
+    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/invoice.jpg', model as never);
 
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
-    expect(client.messages.create).toHaveBeenCalledOnce();
+    expect(model.generateContent).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(client.messages.create).mock.calls[0][0] as { messages: Array<{ content: unknown[] }> };
-    const content = call.messages[0].content as Array<{ type: string; source?: { media_type: string } }>;
-    expect(content[0].type).toBe('image');
-    expect(content[0].source?.media_type).toBe('image/jpeg');
+    const call = vi.mocked(model.generateContent).mock.calls[0][0] as Array<unknown>;
+    const first = call[0] as { inlineData: { mimeType: string } };
+    expect(first.inlineData.mimeType).toBe('image/jpeg');
   });
 
-  it('calls Claude with correct media type for PNG files', async () => {
-    const client = makeAnthropicMock(JSON.stringify(MOCK_INVOICE_DATA));
-    await extractInvoice('/fake/invoice.png', client as never);
+  it('calls Gemini with correct media type for PNG files', async () => {
+    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
+    await extractInvoice('/fake/invoice.png', model as never);
 
-    const call = vi.mocked(client.messages.create).mock.calls[0][0] as { messages: Array<{ content: unknown[] }> };
-    const content = call.messages[0].content as Array<{ type: string; source?: { media_type: string } }>;
-    expect(content[0].source?.media_type).toBe('image/png');
+    const call = vi.mocked(model.generateContent).mock.calls[0][0] as Array<unknown>;
+    const first = call[0] as { inlineData: { mimeType: string } };
+    expect(first.inlineData.mimeType).toBe('image/png');
   });
 });
 
 describe('extractInvoice — response parsing', () => {
-  it('strips markdown fences from Claude response', async () => {
+  it('strips markdown fences from Gemini response', async () => {
     vi.mocked(pdfParse).mockResolvedValue({
       text: 'x'.repeat(100),
       numpages: 1, numrender: 1, info: {}, metadata: null, version: '1.10.100',
     });
 
     const fenced = `\`\`\`json\n${JSON.stringify(MOCK_INVOICE_DATA)}\n\`\`\``;
-    const client = makeAnthropicMock(fenced);
-    const result = await extractInvoice('/fake/invoice.pdf', client as never);
+    const model = makeGeminiMock(fenced);
+    const result = await extractInvoice('/fake/invoice.pdf', model as never);
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
   });
 
-  it('throws on invalid JSON from Claude', async () => {
+  it('throws on invalid JSON from Gemini', async () => {
     vi.mocked(pdfParse).mockResolvedValue({
       text: 'x'.repeat(100),
       numpages: 1, numrender: 1, info: {}, metadata: null, version: '1.10.100',
     });
 
-    const client = makeAnthropicMock('not valid json at all');
-    await expect(extractInvoice('/fake/invoice.pdf', client as never)).rejects.toThrow();
+    const model = makeGeminiMock('not valid json at all');
+    await expect(extractInvoice('/fake/invoice.pdf', model as never)).rejects.toThrow();
   });
 });
 

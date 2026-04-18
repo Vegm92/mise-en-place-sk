@@ -1,11 +1,11 @@
 /**
- * Invoice extraction — classifies a file, prepares input for Claude,
+ * Invoice extraction — classifies a file, prepares input for Gemini,
  * and returns structured invoice data. No DB access, no side effects.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import Anthropic from '@anthropic-ai/sdk';
-import { ANTHROPIC_API_KEY } from './env';
+import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import { GEMINI_API_KEY } from './env';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist. Extract all relevant information from this invoice and return it as a JSON object.
 
@@ -59,9 +59,9 @@ const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 	png:  'image/png',
 };
 
-function getClient(): Anthropic {
-	if (!ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set');
-	return new Anthropic({ apiKey: ANTHROPIC_API_KEY, baseURL: 'https://api.anthropic.com' });
+function getModel(): GenerativeModel {
+	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
+	return new GoogleGenerativeAI(GEMINI_API_KEY).getGenerativeModel({ model: 'gemini-2.0-flash' });
 }
 
 const PDF_PARSE_TIMEOUT_MS = 15_000;
@@ -94,97 +94,56 @@ function stripFences(raw: string): string {
 	const trimmed = raw.trim();
 	if (trimmed.startsWith('```')) {
 		const lines = trimmed.split('\n');
-		// Remove opening fence line and closing fence line
 		const inner = lines.slice(1, lines.at(-1)?.trim() === '```' ? -1 : undefined);
 		return inner.join('\n').trim();
 	}
 	return trimmed;
 }
 
-async function callClaude(
-	client: Anthropic,
+async function callGemini(
+	model: GenerativeModel,
 	classified: ClassifiedFile,
 	filePath: string
 ): Promise<ExtractedInvoice> {
-	let response: Anthropic.Message;
+	let rawText: string;
 
 	if (classified.type === 'text_pdf') {
-		response = await client.messages.create({
-			model: 'claude-opus-4-6',
-			max_tokens: 2048,
-			messages: [{
-				role: 'user',
-				content: `${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`,
-			}],
-		});
+		const result = await model.generateContent(
+			`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`
+		);
+		rawText = result.response.text();
 	} else if (classified.type === 'scanned_pdf') {
-		// PDF that couldn't yield enough text — use the beta PDF document block.
-		// Requires the pdfs-2024-09-25 beta header; use client.beta.messages.create.
 		const pdfData = readFileSync(filePath).toString('base64');
-		const betaResp = await client.beta.messages.create({
-			model: 'claude-opus-4-6',
-			max_tokens: 2048,
-			betas: ['pdfs-2024-09-25'],
-			messages: [{
-				role: 'user',
-				content: [
-					{
-						type: 'document',
-						source: { type: 'base64', media_type: 'application/pdf', data: pdfData },
-					},
-					{ type: 'text', text: EXTRACTION_PROMPT },
-				],
-			}],
-		});
-		const betaText = betaResp.content?.find((b) => b.type === 'text');
-		if (betaText?.type !== 'text') {
-			throw new Error('Claude returned no text block for PDF document');
-		}
-		const rawBeta = stripFences(betaText.text);
-		try {
-			return JSON.parse(rawBeta) as ExtractedInvoice;
-		} catch {
-			throw new Error(`Claude returned invalid JSON: ${rawBeta.slice(0, 200)}`);
-		}
+		const result = await model.generateContent([
+			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
+			{ text: EXTRACTION_PROMPT },
+		]);
+		rawText = result.response.text();
 	} else {
 		// Image file (jpg/png)
 		const ext = path.extname(filePath).toLowerCase().replace('.', '');
-		const mediaType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
+		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
 		const imageData = readFileSync(filePath).toString('base64');
-		response = await client.messages.create({
-			model: 'claude-opus-4-6',
-			max_tokens: 2048,
-			messages: [{
-				role: 'user',
-				content: [
-					{
-						type: 'image',
-						source: { type: 'base64', media_type: mediaType, data: imageData },
-					},
-					{ type: 'text', text: EXTRACTION_PROMPT },
-				],
-			}],
-		});
+		const result = await model.generateContent([
+			{ inlineData: { data: imageData, mimeType } },
+			{ text: EXTRACTION_PROMPT },
+		]);
+		rawText = result.response.text();
 	}
 
-	const textBlock = response.content?.find((b) => b.type === 'text');
-	if (textBlock?.type !== 'text') {
-		throw new Error('Claude returned no text block');
-	}
-
-	const raw = stripFences(textBlock.text);
+	const raw = stripFences(rawText);
 	try {
 		return JSON.parse(raw) as ExtractedInvoice;
 	} catch {
-		throw new Error(`Claude returned invalid JSON: ${raw.slice(0, 200)}`);
+		throw new Error(`Gemini returned invalid JSON: ${raw.slice(0, 200)}`);
 	}
 }
 
 export async function extractInvoice(
 	filePath: string,
-	clientOverride?: Anthropic
+	modelOverride?: GenerativeModel
 ): Promise<ExtractedInvoice> {
-	const client = clientOverride ?? getClient();
+	const model = modelOverride ?? getModel();
 	const classified = await classifyFile(filePath);
-	return callClaude(client, classified, filePath);
+	return callGemini(model, classified, filePath);
 }
