@@ -22,7 +22,7 @@
 
 		const labels = buckets.map((b) => b.label);
 		const values = buckets.map((b) => b.total);
-		const colors = buckets.map((b) => b.is_current ? '#6b5ea8' : '#d5d0e8');
+		const colors = buckets.map((b) => b.is_current ? '#4A9FD8' : '#E5E7EB');
 
 		if (chart) {
 			chart.data.labels = labels;
@@ -70,17 +70,17 @@
 	onDestroy(() => { chart?.destroy(); });
 </script>
 
-<div class="py-[.7rem] px-4 border-b flex items-center justify-between">
-	<span class="text-[.72rem] font-bold tracking-[.06em] uppercase text-muted-foreground">Spend</span>
-	<div class="flex gap-[.25rem]">
+<div class="py-3 px-4 border-b border-[#E5E7EB] flex items-center justify-between">
+	<span class="text-[11px] font-bold tracking-[0.06em] uppercase text-[#888888]">Spend</span>
+	<div class="flex gap-1">
 		{#each ['daily','weekly','monthly','yearly'] as s}
 			<button
 				type="button"
 				onclick={() => setScale(s)}
-				class="text-[.7rem] font-semibold px-[.55rem] py-[.2rem] rounded border cursor-pointer transition-colors
+				class="text-[11px] font-semibold px-2 py-[3px] rounded-[4px] border cursor-pointer transition-colors
 				       {activeScale === s
-				         ? 'bg-primary text-primary-foreground border-primary'
-				         : 'bg-transparent text-muted-foreground border-border hover:bg-secondary'}"
+				         ? 'bg-[#4A9FD8] text-white border-[#4A9FD8]'
+				         : 'bg-transparent text-[#888888] border-[#E5E7EB] hover:bg-[#F9FAFB]'}"
 			>{s.charAt(0).toUpperCase() + s.slice(1)}</button>
 		{/each}
 	</div>

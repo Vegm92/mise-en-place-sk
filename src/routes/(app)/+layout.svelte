@@ -110,8 +110,10 @@
     </div>
 
     <!-- Page content -->
-    <div class="flex-1 p-6 max-md:p-4">
-      {@render children()}
+    <div class="flex-1 p-6 max-md:p-4 overflow-auto">
+      <div class="mx-auto w-full max-w-[1280px]">
+        {@render children()}
+      </div>
     </div>
 
   </div>
