@@ -17,6 +17,7 @@
       placeholder:      'tu@email.com',
       submit:           'Apuntarme',
       success:          '¡Estás dentro! Te avisaremos en cuanto abramos el acceso anticipado.',
+      alreadyRegistered:'Ya estás en la lista. Te avisaremos en cuanto abramos el acceso.',
       errRequired:      'Introduce tu email para continuar.',
       errInvalid:       'Ese email no parece válido.',
       incentive:        'Incentivo exclusivo: Los primeros 50 registros obtienen 1 mes gratis y setup prioritario.',
@@ -52,6 +53,7 @@
       placeholder:      'you@email.com',
       submit:           'Sign me up',
       success:          'You\'re in! We\'ll reach out as soon as early access opens.',
+      alreadyRegistered:'You\'re already on the list. We\'ll reach out when early access opens.',
       errRequired:      'Enter your email to continue.',
       errInvalid:       'That doesn\'t look like a valid email.',
       incentive:        'Exclusive incentive: First 50 sign-ups get 1 month free and priority setup.',
@@ -128,7 +130,7 @@
   <div class="mt-10 max-w-md mx-auto w-full">
     {#if form?.success}
       <div class="bg-[#2a2a38] border border-[#0d9488]/40 rounded-xl px-6 py-5 text-[#5eead4] text-sm leading-relaxed">
-        {t.success}
+        {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyRegistered : t.success}
       </div>
     {:else}
       <form
@@ -283,7 +285,7 @@
   <div class="mt-10 max-w-md mx-auto">
     {#if form?.success}
       <div class="bg-[#2a2a38] border border-[#0d9488]/40 rounded-xl px-6 py-5 text-[#5eead4] text-sm leading-relaxed">
-        {t.success}
+        {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyRegistered : t.success}
       </div>
     {:else}
       <form

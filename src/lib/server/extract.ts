@@ -64,17 +64,21 @@ function getClient(): Anthropic {
 	return new Anthropic({ apiKey: ANTHROPIC_API_KEY, baseURL: 'https://api.anthropic.com' });
 }
 
+const PDF_PARSE_TIMEOUT_MS = 15_000;
+
 async function classifyPdf(filePath: string): Promise<ClassifiedFile> {
 	// Dynamic import so pdf-parse can be mocked in tests.
 	const pdfParse = (await import('pdf-parse')).default;
 	const buf = readFileSync(filePath);
 	try {
-		const result = await pdfParse(buf);
+		const timeout = new Promise<never>((_, rej) =>
+			setTimeout(() => rej(new Error('pdf-parse timeout')), PDF_PARSE_TIMEOUT_MS)
+		);
+		const result = await Promise.race([pdfParse(buf), timeout]);
 		const text = result.text.trim();
 		return text.length >= 50 ? { type: 'text_pdf', text } : { type: 'scanned_pdf' };
 	} catch {
-		// pdf-parse fails on some real-world PDFs (e.g. "Command token too long").
-		// Fall back to vision — send as image and let Claude read it visually.
+		// pdf-parse fails or times out on some PDFs — fall back to vision.
 		return { type: 'scanned_pdf' };
 	}
 }
@@ -136,7 +140,12 @@ async function callClaude(
 		if (betaText?.type !== 'text') {
 			throw new Error('Claude returned no text block for PDF document');
 		}
-		return JSON.parse(stripFences(betaText.text)) as ExtractedInvoice;
+		const rawBeta = stripFences(betaText.text);
+		try {
+			return JSON.parse(rawBeta) as ExtractedInvoice;
+		} catch {
+			throw new Error(`Claude returned invalid JSON: ${rawBeta.slice(0, 200)}`);
+		}
 	} else {
 		// Image file (jpg/png)
 		const ext = path.extname(filePath).toLowerCase().replace('.', '');
@@ -163,7 +172,12 @@ async function callClaude(
 		throw new Error('Claude returned no text block');
 	}
 
-	return JSON.parse(stripFences(textBlock.text)) as ExtractedInvoice;
+	const raw = stripFences(textBlock.text);
+	try {
+		return JSON.parse(raw) as ExtractedInvoice;
+	} catch {
+		throw new Error(`Claude returned invalid JSON: ${raw.slice(0, 200)}`);
+	}
 }
 
 export async function extractInvoice(

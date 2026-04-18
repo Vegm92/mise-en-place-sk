@@ -10,6 +10,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { join } from 'node:path';
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
+import { cleanupStaleSessions } from './sessions';
 
 const rawUrl = env.DATABASE_URL ?? 'mise_en_place.db';
 const url = rawUrl.startsWith('/') ? rawUrl : join(process.cwd(), rawUrl);
@@ -136,3 +137,4 @@ function runMigrations() {
 }
 
 runMigrations();
+cleanupStaleSessions();

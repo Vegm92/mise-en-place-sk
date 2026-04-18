@@ -12,7 +12,11 @@ export const actions: Actions = {
     if (!email) return fail(422, { error: 'required' });
     if (!EMAIL_RE.test(email)) return fail(422, { error: 'invalid' });
 
-    insertEmail.run(email);
+    const result = insertEmail.run(email);
+
+    if (result.changes === 0) {
+      return { success: true, alreadyRegistered: true };
+    }
 
     return { success: true };
   }

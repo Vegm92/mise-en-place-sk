@@ -25,9 +25,15 @@
 
     let files: File[] = [];
 
+    const MAX_FILE_BYTES = 20 * 1024 * 1024;
+
     function addFiles(newFiles: FileList | null) {
       if (!newFiles) return;
       for (const f of Array.from(newFiles)) {
+        if (f.size > MAX_FILE_BYTES) {
+          alert(`'${f.name}' exceeds the 20 MB limit and was not added.`);
+          continue;
+        }
         if (!files.some(e => e.name === f.name && e.size === f.size)) files.push(f);
       }
       render();
