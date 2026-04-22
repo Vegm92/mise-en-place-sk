@@ -61,7 +61,7 @@ const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 
 function getModel(): GenerativeModel {
 	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
-	return new GoogleGenerativeAI(GEMINI_API_KEY).getGenerativeModel({ model: 'gemini-2.0-flash' });
+	return new GoogleGenerativeAI(GEMINI_API_KEY).getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
 }
 
 const PDF_PARSE_TIMEOUT_MS = 15_000;
