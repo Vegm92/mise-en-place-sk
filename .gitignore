@@ -18,10 +18,7 @@ Thumbs.db
 !.env.example
 !.env.test
 
-# Vite
-vite.config.js.timestamp-*
-vite.config.ts.timestamp-*
-
-# Runtime data — never commit uploads or session data
-/uploads/
-/data/
+# Project documentation (for eyes only - don't track)
+CLAUDE.md
+REFERENCES.md
+CONTEXT.md
