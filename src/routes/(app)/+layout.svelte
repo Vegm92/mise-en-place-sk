@@ -71,7 +71,7 @@
                  transition-colors duration-100
                  {item.active()
                    ? 'bg-[#1A1A1A] text-white'
-                   : 'text-[#666666] hover:bg-[#141414] hover:text-[#AAAAAA]'}"
+                   : 'text-[#999999] hover:bg-[#141414] hover:text-[#CCCCCC]'}"
         >
           <svelte:component this={item.icon} size={15} class={item.active() ? 'text-[#4A9FD8]' : 'text-current'} />
           {item.label}
@@ -85,8 +85,8 @@
         href="/"
         onclick={() => sidebarOpen = false}
         class="flex items-center justify-center gap-[8px] w-full py-[9px] rounded-[8px]
-               bg-[#4A9FD8] text-white text-[13px] font-semibold no-underline
-               hover:bg-[#3d8ec7] transition-colors"
+               bg-[#2271B1] text-white text-[13px] font-semibold no-underline
+               hover:bg-[#1A5E90] transition-colors"
       >
         <Upload size={14} />
         Upload Invoice
