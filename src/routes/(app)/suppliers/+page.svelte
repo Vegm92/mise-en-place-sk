@@ -1,56 +1,57 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import * as Card from '$lib/components/ui/card';
-	import { Badge } from '$lib/components/ui/badge';
+  import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+  let { data }: { data: PageData } = $props();
 
-	const badgeClass: Record<string, string> = {
-		overdue:  'bg-red-50 text-red-700 border-transparent',
-		due_soon: 'bg-[var(--color-amber-bg)] text-[var(--color-amber)] border-transparent',
-		paid_up:  'bg-green-50 text-green-700 border-transparent',
-	};
+  const badgeCls: Record<string, string> = {
+    overdue:  'bg-[#FFF1F0] text-[#E05555]',
+    due_soon: 'bg-[#FFF8EE] text-[#C8843A]',
+    paid_up:  'bg-[#F0FDF4] text-[#3A8C5C]',
+  };
+  const badgeLabel: Record<string, string> = {
+    overdue: 'Overdue', due_soon: 'Due soon', paid_up: 'Paid up',
+  };
 </script>
 
 {#if !data.suppliers.length}
-	<p class="text-center py-16 text-muted-foreground">No suppliers yet. Upload an invoice to add one.</p>
+  <p class="text-center py-16 text-[#888888] text-[13px]">No suppliers yet. Upload an invoice to add one.</p>
 {:else}
-	<div class="grid grid-cols-3 gap-[.85rem] max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
-		{#each data.suppliers as s (s.id)}
-			<Card.Root class="p-[1rem_1.1rem] transition-[border-color,box-shadow] hover:border-primary hover:shadow-md">
-				<p class="text-[.62rem] font-bold tracking-[.07em] uppercase mb-[.2rem]" style="color:{s.color}">{s.category}</p>
-				<p class="text-[.95rem] font-semibold mb-[.65rem]">{s.name}</p>
-				<div class="grid grid-cols-3 gap-[.4rem] mb-[.65rem]">
-					<div>
-						<p class="text-[.62rem] text-muted-foreground">This month</p>
-						<p class="text-[.82rem] font-semibold">{Math.round(s.month_spend)}</p>
-					</div>
-					<div>
-						<p class="text-[.62rem] text-muted-foreground">Open inv.</p>
-						<p class="text-[.82rem] font-semibold">{s.open_count}</p>
-					</div>
-					<div>
-						<p class="text-[.62rem] text-muted-foreground">Last invoice</p>
-						<p class="text-[.82rem] font-semibold">{s.last_invoice_date ?? '—'}</p>
-					</div>
-				</div>
-				<div class="flex items-center justify-between">
-					<Badge class={badgeClass[s.badge] ?? ''}>
-						{#if s.badge === 'overdue'}Overdue{:else if s.badge === 'due_soon'}Due soon{:else}Paid up{/if}
-					</Badge>
-					<form method="post" action="?/setCategory">
-						<input type="hidden" name="supplier_id" value={s.id} />
-						<select name="category"
-							class="text-[.75rem] py-[.28rem] px-2 border border-border rounded-md bg-secondary text-secondary-foreground cursor-pointer font-[inherit] focus:outline-none focus:border-primary"
-							onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.submit()}>
-							<option value="">— set category —</option>
-							{#each data.categories as cat}
-								<option value={cat} selected={s.category === cat}>{cat}</option>
-							{/each}
-						</select>
-					</form>
-				</div>
-			</Card.Root>
-		{/each}
-	</div>
+  <div class="grid grid-cols-3 gap-3 max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
+    {#each data.suppliers as s (s.id)}
+      <div class="bg-white rounded-[12px] border border-[#E5E7EB] p-4 transition-[border-color,box-shadow] hover:border-[#4A9FD8] hover:shadow-md">
+        <p class="text-[11px] font-bold tracking-[0.07em] uppercase mb-1" style="color:{s.color}">{s.category}</p>
+        <p class="text-[15px] font-semibold text-[#1A1A1A] mb-4">{s.name}</p>
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <div>
+            <p class="text-[11px] text-[#888888]">This month</p>
+            <p class="text-[13px] font-semibold text-[#1A1A1A]">{Math.round(s.month_spend)}</p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888888]">Open inv.</p>
+            <p class="text-[13px] font-semibold text-[#1A1A1A]">{s.open_count}</p>
+          </div>
+          <div>
+            <p class="text-[11px] text-[#888888]">Last invoice</p>
+            <p class="text-[13px] font-semibold text-[#1A1A1A]">{s.last_invoice_date ?? '—'}</p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] font-semibold px-2 py-[2px] rounded-full {badgeCls[s.badge] ?? 'bg-[#F3F4F6] text-[#666666]'}">
+            {badgeLabel[s.badge] ?? s.badge}
+          </span>
+          <form method="post" action="?/setCategory">
+            <input type="hidden" name="supplier_id" value={s.id} />
+            <select name="category"
+                    class="text-[12px] py-1 px-2 border border-[#E5E7EB] rounded-[6px] bg-[#F9FAFB] text-[#666666] cursor-pointer font-[inherit] focus:outline-none focus:border-[#4A9FD8]"
+                    onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.submit()}>
+              <option value="">— set category —</option>
+              {#each data.categories as cat}
+                <option value={cat} selected={s.category === cat}>{cat}</option>
+              {/each}
+            </select>
+          </form>
+        </div>
+      </div>
+    {/each}
+  </div>
 {/if}

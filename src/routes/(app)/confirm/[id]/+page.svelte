@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { PageData } from './$types';
-  import * as Card from '$lib/components/ui/card';
-  import { Button } from '$lib/components/ui/button';
 
   const { data }: { data: PageData } = $props();
 
@@ -28,15 +26,16 @@
     function renderAdd() {
       if (!addFileList || !addSubmitBtn) return;
       addFileList.innerHTML = addFiles.map((f, i) => `
-        <div class="flex items-center gap-2 text-sm bg-secondary rounded px-2 py-1">
+        <div class="flex items-center gap-2 text-[13px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-[6px] px-3 py-2">
           <span>${f.name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}</span>
-          <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">${f.name}</span>
-          <button type="button" class="bg-transparent border-none cursor-pointer text-muted-foreground hover:text-destructive" data-idx="${i}">✕</button>
+          <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[#1A1A1A]">${f.name}</span>
+          <button type="button" class="bg-transparent border-none cursor-pointer text-[#888888] hover:text-[#E05555] transition-colors" data-idx="${i}">✕</button>
         </div>`).join('');
       addFileList.querySelectorAll('[data-idx]').forEach(btn => {
         btn.addEventListener('click', () => { addFiles.splice(Number((btn as HTMLElement).dataset.idx), 1); renderAdd(); });
       });
       addSubmitBtn.disabled = addFiles.length === 0;
+      addSubmitBtn.style.opacity = addFiles.length === 0 ? '0.5' : '1';
       addSubmitBtn.textContent = addFiles.length === 0 ? 'Add to invoice' : addFiles.length === 1 ? 'Add 1 file' : `Add ${addFiles.length} files`;
     }
 
@@ -67,91 +66,102 @@
     addBrowseInput?.addEventListener('change', () => { pushFiles(addBrowseInput.files); addBrowseInput.value = ''; });
 
     if (addDropArea) {
-      addDropArea.addEventListener('dragover', e => { e.preventDefault(); addDropArea.classList.add('border-primary'); });
-      addDropArea.addEventListener('dragleave', () => addDropArea.classList.remove('border-primary'));
-      addDropArea.addEventListener('drop', e => { e.preventDefault(); addDropArea.classList.remove('border-primary'); pushFiles((e as DragEvent).dataTransfer?.files ?? null); });
+      addDropArea.addEventListener('dragover', e => { e.preventDefault(); addDropArea.classList.add('border-[#4A9FD8]', 'bg-[#EFF8FF]'); });
+      addDropArea.addEventListener('dragleave', () => addDropArea.classList.remove('border-[#4A9FD8]', 'bg-[#EFF8FF]'));
+      addDropArea.addEventListener('drop', e => {
+        e.preventDefault();
+        addDropArea.classList.remove('border-[#4A9FD8]', 'bg-[#EFF8FF]');
+        pushFiles((e as DragEvent).dataTransfer?.files ?? null);
+      });
     }
   });
 </script>
 
 <!-- Overlay -->
 <div id="overlay" class="hidden fixed inset-0 bg-white/85 z-10 flex-col items-center justify-center gap-4">
-  <div class="w-9 h-9 border-[3px] border-border border-t-primary rounded-full animate-spin"></div>
-  <p class="text-[.9375rem] text-secondary-foreground">Extracting invoice data…</p>
+  <div class="w-9 h-9 border-[3px] border-[#E5E7EB] border-t-[#4A9FD8] rounded-full animate-spin"></div>
+  <p class="text-[14px] text-[#666666]">Extracting invoice data…</p>
 </div>
 
-<div class="flex items-start justify-center">
-  <Card.Root class="w-full max-w-[500px]">
-    <Card.Header>
-      <Card.Title>Review Files</Card.Title>
-      <Card.Description>{data.files.length} file{data.files.length !== 1 ? 's' : ''} uploaded.</Card.Description>
-    </Card.Header>
-    <Card.Content class="flex flex-col gap-4">
+<div class="flex items-start justify-center pt-4">
+  <div class="w-full max-w-[480px] bg-white rounded-[12px] border border-[#E5E7EB]">
 
-      <div class="flex flex-col gap-[.4rem]">
+    <div class="px-6 pt-6 pb-4 border-b border-[#F3F4F6]">
+      <h1 class="text-[16px] font-semibold text-[#1A1A1A]">Review Files</h1>
+      <p class="text-[13px] text-[#888888] mt-[2px]">{data.files.length} file{data.files.length !== 1 ? 's' : ''} uploaded.</p>
+    </div>
+
+    <div class="px-6 py-5 flex flex-col gap-4">
+
+      <div class="flex flex-col gap-2">
         {#each data.files as file}
-          <div class="grid grid-cols-[auto_1fr_auto] items-center gap-[.6rem] bg-secondary rounded-lg px-3 py-[.55rem] text-[.82rem]">
-            <span class="text-lg">{file.type === 'PDF' ? '📄' : '🖼️'}</span>
+          <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[8px] px-3 py-3">
+            <span class="text-xl">{file.type === 'PDF' ? '📄' : '🖼️'}</span>
             <div class="min-w-0">
-              <p class="font-medium overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</p>
-              <p class="text-[.7rem] text-muted-foreground mt-[.1rem]">{file.type} · {file.size}</p>
+              <p class="font-medium text-[13px] text-[#1A1A1A] overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</p>
+              <p class="text-[11px] text-[#888888] mt-[2px]">{file.type} · {file.size}</p>
             </div>
             <form method="POST" action="?/remove">
               <input type="hidden" name="filename" value={file.name} />
-              <button type="submit" class="bg-transparent border-none cursor-pointer text-muted-foreground hover:text-destructive text-base p-0 leading-none">✕</button>
+              <button type="submit" class="bg-transparent border-none cursor-pointer text-[#888888] hover:text-[#E05555] text-[16px] p-0 leading-none transition-colors">✕</button>
             </form>
           </div>
         {/each}
       </div>
 
-      <div class="flex gap-[.65rem]">
+      <div class="flex gap-3">
         <form method="POST" action="?/extract" class="flex-1"
               onsubmit={() => { const o = document.getElementById('overlay'); if(o) { o.classList.remove('hidden'); o.classList.add('flex'); } }}>
-          <Button type="submit" class="w-full">
+          <button type="submit"
+                  class="w-full h-10 bg-[#4A9FD8] text-white rounded-[8px] text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors">
             {data.files.length === 1 ? 'Extract Invoice' : `Extract ${data.files.length} invoices`}
-          </Button>
+          </button>
         </form>
         <form method="POST" action="?/discard" class="flex-1">
-          <Button type="submit" variant="outline" class="w-full">Discard All</Button>
+          <button type="submit"
+                  class="w-full h-10 border border-[#E5E7EB] bg-white text-[#1A1A1A] rounded-[8px] text-[13px] font-semibold cursor-pointer hover:bg-[#F9FAFB] transition-colors">
+            Discard All
+          </button>
         </form>
       </div>
 
       <div>
         <button type="button"
-                class="text-[.82rem] font-semibold text-primary bg-transparent border-none cursor-pointer p-0 font-[inherit] hover:underline"
+                class="text-[13px] font-semibold text-[#4A9FD8] bg-transparent border-none cursor-pointer p-0 font-[inherit] hover:underline"
                 onclick={() => addMoreOpen = !addMoreOpen}>
           {addMoreOpen ? '− Add more files' : '+ Add more files'}
         </button>
 
         {#if addMoreOpen}
-          <div class="mt-[.65rem] bg-secondary rounded-lg p-[.85rem]">
-            <div id="addCaptureRow" class="hidden gap-[.6rem] mb-[.65rem]">
-              <label class="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-lg border-[1.5px] border-dashed border-border bg-card cursor-pointer text-muted-foreground text-[.75rem] font-semibold hover:border-primary">
+          <div class="mt-3 bg-[#F9FAFB] rounded-[10px] p-4 border border-[#E5E7EB]">
+            <div id="addCaptureRow" class="hidden gap-3 mb-3">
+              <label class="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-[8px] border-2 border-dashed border-[#E5E7EB] bg-white cursor-pointer text-[#888888] text-[12px] font-semibold hover:border-[#4A9FD8] hover:bg-[#EFF8FF] hover:text-[#4A9FD8] transition-colors">
                 <span class="text-xl">📷</span> Take Photo
                 <input type="file" id="addCameraInput" class="hidden" accept="image/*" capture="environment" />
               </label>
-              <label class="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-lg border-[1.5px] border-dashed border-border bg-card cursor-pointer text-muted-foreground text-[.75rem] font-semibold hover:border-primary">
+              <label class="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-[8px] border-2 border-dashed border-[#E5E7EB] bg-white cursor-pointer text-[#888888] text-[12px] font-semibold hover:border-[#4A9FD8] hover:bg-[#EFF8FF] hover:text-[#4A9FD8] transition-colors">
                 <span class="text-xl">📁</span> Browse
                 <input type="file" id="addBrowseInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
               </label>
             </div>
             <div id="addDropArea"
-                 class="border-[1.5px] border-dashed border-border rounded-lg py-3 px-4 text-center cursor-pointer hover:border-primary"
+                 class="border-2 border-dashed border-[#E5E7EB] rounded-[8px] py-4 px-4 text-center cursor-pointer transition-colors hover:border-[#4A9FD8] hover:bg-[#EFF8FF]"
                  onclick={() => (document.getElementById('addFileInput') as HTMLInputElement)?.click()}
                  role="button" tabindex="0"
                  onkeydown={(e) => e.key === 'Enter' && (document.getElementById('addFileInput') as HTMLInputElement)?.click()}>
               <input type="file" id="addFileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
-              <p class="text-[.8rem] text-muted-foreground">Drop files or <span class="text-primary underline">browse</span></p>
+              <p class="text-[13px] text-[#666666]">Drop files or <span class="text-[#4A9FD8] underline">browse</span></p>
             </div>
-            <div id="addFileList" class="mt-2 flex flex-col gap-1"></div>
-            <Button id="addSubmitBtn" disabled class="w-full mt-[.65rem]"
+            <div id="addFileList" class="mt-2 flex flex-col gap-2"></div>
+            <button id="addSubmitBtn" disabled
+                    class="w-full h-10 mt-3 bg-[#4A9FD8] text-white rounded-[8px] text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors opacity-50"
                     onclick={() => (window as Window & { submitAddFiles?: () => void }).submitAddFiles?.()}>
               Add to invoice
-            </Button>
+            </button>
           </div>
         {/if}
       </div>
 
-    </Card.Content>
-  </Card.Root>
+    </div>
+  </div>
 </div>

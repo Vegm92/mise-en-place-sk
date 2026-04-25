@@ -7,6 +7,7 @@ import { UPLOADS_DIR } from '$lib/server/env';
 import { writeSession } from '$lib/server/sessions';
 
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 export const load: PageServerLoad = async ({ url }) => {
 	return {
@@ -32,6 +33,10 @@ async function saveUploadedFiles(files: File[]): Promise<{ saved: string[]; erro
 		const ext = path.extname(file.name).toLowerCase();
 		if (!ALLOWED_EXTENSIONS.has(ext)) {
 			errors.push(`'${file.name}': unsupported type '${ext}'`);
+			continue;
+		}
+		if (file.size > MAX_FILE_BYTES) {
+			errors.push(`'${file.name}': exceeds the 20 MB limit`);
 			continue;
 		}
 		let dest = path.join(dir, file.name);
