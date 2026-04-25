@@ -4,8 +4,10 @@
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY } from './env';
+
+const MODEL = 'gemini-2.5-flash';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist. Extract all relevant information from this invoice and return it as a JSON object.
 
@@ -59,9 +61,19 @@ const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 	png:  'image/png',
 };
 
-function getModel(): GenerativeModel {
+// Abstracted generate function — decoupled from SDK so tests can inject a mock.
+export type GenerateFn = (content: string | object[]) => Promise<string>;
+
+function getGenerateFn(): GenerateFn {
 	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
-	return new GoogleGenerativeAI(GEMINI_API_KEY).getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+	return async (content) => {
+		const contents = typeof content === 'string'
+			? content
+			: [{ role: 'user', parts: content }];
+		const response = await ai.models.generateContent({ model: MODEL, contents });
+		return response.text ?? '';
+	};
 }
 
 const PDF_PARSE_TIMEOUT_MS = 15_000;
@@ -101,34 +113,28 @@ function stripFences(raw: string): string {
 }
 
 async function callGemini(
-	model: GenerativeModel,
+	generate: GenerateFn,
 	classified: ClassifiedFile,
 	filePath: string
 ): Promise<ExtractedInvoice> {
 	let rawText: string;
 
 	if (classified.type === 'text_pdf') {
-		const result = await model.generateContent(
-			`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`
-		);
-		rawText = result.response.text();
+		rawText = await generate(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`);
 	} else if (classified.type === 'scanned_pdf') {
 		const pdfData = readFileSync(filePath).toString('base64');
-		const result = await model.generateContent([
+		rawText = await generate([
 			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
 			{ text: EXTRACTION_PROMPT },
 		]);
-		rawText = result.response.text();
 	} else {
-		// Image file (jpg/png)
 		const ext = path.extname(filePath).toLowerCase().replace('.', '');
 		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
 		const imageData = readFileSync(filePath).toString('base64');
-		const result = await model.generateContent([
+		rawText = await generate([
 			{ inlineData: { data: imageData, mimeType } },
 			{ text: EXTRACTION_PROMPT },
 		]);
-		rawText = result.response.text();
 	}
 
 	const raw = stripFences(rawText);
@@ -141,9 +147,9 @@ async function callGemini(
 
 export async function extractInvoice(
 	filePath: string,
-	modelOverride?: GenerativeModel
+	generateOverride?: GenerateFn
 ): Promise<ExtractedInvoice> {
-	const model = modelOverride ?? getModel();
+	const generate = generateOverride ?? getGenerateFn();
 	const classified = await classifyFile(filePath);
-	return callGemini(model, classified, filePath);
+	return callGemini(generate, classified, filePath);
 }

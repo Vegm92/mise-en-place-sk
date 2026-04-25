@@ -1,5 +1,5 @@
 /**
- * Extraction pipeline tests — mocks the Gemini client and pdf-parse
+ * Extraction pipeline tests — mocks the generate function and pdf-parse
  * so no real API calls or file I/O are needed.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -9,7 +9,7 @@ vi.mock('pdf-parse', () => ({
   default: vi.fn(),
 }));
 
-import { extractInvoice, classifyFile } from '../src/lib/server/extract';
+import { extractInvoice, classifyFile, type GenerateFn } from '../src/lib/server/extract';
 import pdfParse from 'pdf-parse';
 
 const MOCK_INVOICE_DATA = {
@@ -26,12 +26,8 @@ const MOCK_INVOICE_DATA = {
   ],
 };
 
-function makeGeminiMock(responseText: string) {
-  return {
-    generateContent: vi.fn().mockResolvedValue({
-      response: { text: () => responseText },
-    }),
-  };
+function makeGenerateFn(responseText: string): GenerateFn {
+  return vi.fn<Parameters<GenerateFn>, ReturnType<GenerateFn>>().mockResolvedValue(responseText);
 }
 
 // Spy on fs.readFileSync to avoid real disk access
@@ -61,17 +57,17 @@ describe('extractInvoice — text PDF path', () => {
       version: '1.10.100',
     });
 
-    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
-    const result = await extractInvoice('/fake/invoice.pdf', model as never);
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/invoice.pdf', generate);
 
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
     expect(result.total_amount).toBe(1250.00);
     expect(result.currency).toBe('EUR');
     expect(result.confidence).toBe(0.92);
     expect(result.line_items).toHaveLength(2);
-    expect(model.generateContent).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(model.generateContent).mock.calls[0][0] as string;
+    const call = vi.mocked(generate).mock.calls[0][0] as string;
     expect(typeof call).toBe('string');
     expect(call).toContain('INVOICE TEXT:');
   });
@@ -88,13 +84,13 @@ describe('extractInvoice — scanned PDF path', () => {
       version: '1.10.100',
     });
 
-    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
-    const result = await extractInvoice('/fake/scanned.pdf', model as never);
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/scanned.pdf', generate);
 
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
-    expect(model.generateContent).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(model.generateContent).mock.calls[0][0] as Array<unknown>;
+    const call = vi.mocked(generate).mock.calls[0][0] as Array<unknown>;
     expect(Array.isArray(call)).toBe(true);
     const first = call[0] as { inlineData: { mimeType: string } };
     expect(first.inlineData.mimeType).toBe('application/pdf');
@@ -103,22 +99,22 @@ describe('extractInvoice — scanned PDF path', () => {
 
 describe('extractInvoice — image path', () => {
   it('calls Gemini with inline image data for JPG files', async () => {
-    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
-    const result = await extractInvoice('/fake/invoice.jpg', model as never);
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/invoice.jpg', generate);
 
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
-    expect(model.generateContent).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledOnce();
 
-    const call = vi.mocked(model.generateContent).mock.calls[0][0] as Array<unknown>;
+    const call = vi.mocked(generate).mock.calls[0][0] as Array<unknown>;
     const first = call[0] as { inlineData: { mimeType: string } };
     expect(first.inlineData.mimeType).toBe('image/jpeg');
   });
 
   it('calls Gemini with correct media type for PNG files', async () => {
-    const model = makeGeminiMock(JSON.stringify(MOCK_INVOICE_DATA));
-    await extractInvoice('/fake/invoice.png', model as never);
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    await extractInvoice('/fake/invoice.png', generate);
 
-    const call = vi.mocked(model.generateContent).mock.calls[0][0] as Array<unknown>;
+    const call = vi.mocked(generate).mock.calls[0][0] as Array<unknown>;
     const first = call[0] as { inlineData: { mimeType: string } };
     expect(first.inlineData.mimeType).toBe('image/png');
   });
@@ -132,8 +128,8 @@ describe('extractInvoice — response parsing', () => {
     });
 
     const fenced = `\`\`\`json\n${JSON.stringify(MOCK_INVOICE_DATA)}\n\`\`\``;
-    const model = makeGeminiMock(fenced);
-    const result = await extractInvoice('/fake/invoice.pdf', model as never);
+    const generate = makeGenerateFn(fenced);
+    const result = await extractInvoice('/fake/invoice.pdf', generate);
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
   });
 
@@ -143,8 +139,8 @@ describe('extractInvoice — response parsing', () => {
       numpages: 1, numrender: 1, info: {}, metadata: null, version: '1.10.100',
     });
 
-    const model = makeGeminiMock('not valid json at all');
-    await expect(extractInvoice('/fake/invoice.pdf', model as never)).rejects.toThrow();
+    const generate = makeGenerateFn('not valid json at all');
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow();
   });
 });
 
