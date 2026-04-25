@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
 import { UPLOADS_DIR } from '$lib/server/env';
@@ -23,6 +23,12 @@ function toFloat(value: unknown): number | null {
 	return isNaN(n) ? null : n;
 }
 
+function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
+	if (confidence >= 0.85) return 'high';
+	if (confidence >= 0.6) return 'medium';
+	return 'low';
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	const session = readSession(params.id);
 	if (!session || !session.files.length) {
@@ -36,25 +42,9 @@ export const load: PageServerLoad = async ({ params }) => {
 		redirect(303, '/?error=Files+not+found');
 	}
 
-	const inserted = await db
-		.insert(pendingProcessedInvoices)
-		.values({
-			sessionId: params.id,
-			originalFilePath: session.files[0],
-			status: 'PENDING_REVIEW',
-		})
-		.returning({ id: pendingProcessedInvoices.id });
+	let extractedData: Record<string, unknown> = {};
+	let extractError: string | null = null;
 
-	const newPendingId = inserted[0].id;
-
-	setImmediate(() => {
-		void runInference(newPendingId, existingPaths, dir);
-	});
-
-	redirect(303, `/pending/${newPendingId}`);
-};
-
-async function runInference(pendingId: number, filenames: string[], dir: string): Promise<void> {
 	try {
 		const firstFile = path.join(dir, existingPaths[0]);
 		const result = await extractInvoice(firstFile);
@@ -68,7 +58,6 @@ async function runInference(pendingId: number, filenames: string[], dir: string)
 	const supplierName = (extractedData.supplier_name as string) ?? '';
 	const rawItems = (extractedData.line_items as unknown[]) ?? [];
 
-	// Normalise raw items from Python extraction to our interface shape
 	const lineItems = rawItems.map((i) => {
 		const item = i as Record<string, unknown>;
 		return {
@@ -82,7 +71,6 @@ async function runInference(pendingId: number, filenames: string[], dir: string)
 
 	const { enriched, conversionNotes } = annotateLineItems(supplierName, lineItems);
 
-	// Re-serialise enriched items back to snake_case for the template
 	extractedData.line_items = enriched.map((item) => ({
 		description: item.description,
 		quantity: item.quantity,
@@ -117,8 +105,8 @@ export const actions: Actions = {
 		const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
 		const invoiceDate = (formData.get('invoice_date') as string) || null;
 		const dueDate = (formData.get('due_date') as string) || null;
-		const totalAmount = toFloat(formData.get('total_amount') as string);
-		const confidenceRaw = toFloat(formData.get('confidence') as string);
+		const totalAmount = toFloat(formData.get('total_amount'));
+		const confidenceRaw = toFloat(formData.get('confidence'));
 		const notesRaw = (formData.get('notes') as string) ?? '';
 		const notes = notesRaw.slice(0, 250) || null;
 
@@ -143,8 +131,13 @@ export const actions: Actions = {
 			supplierId = inserted[0].id;
 		}
 
-		const raw = await resp.json();
-		const data: Record<string, unknown> = Array.isArray(raw) ? (raw[0] ?? {}) : raw;
+		// Check for duplicate invoice number
+		if (invoiceNumber.trim()) {
+			const duplicate = await db
+				.select()
+				.from(invoices)
+				.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
+				.limit(1);
 
 			if (duplicate.length > 0) {
 				const remaining = session?.remaining ?? [];
@@ -154,19 +147,22 @@ export const actions: Actions = {
 			}
 		}
 
-		await db
-			.update(pendingProcessedInvoices)
-			.set({
-				rawLlmJson: rawJson,
-				status: 'PENDING_REVIEW',
-				confidenceScore: confidence,
-				inferredSupplierName: supplierName,
-				invoiceNumber,
+		const primaryFile = session?.files[0] ?? null;
+
+		const insertedInvoice = await db
+			.insert(invoices)
+			.values({
+				supplierId,
+				invoiceNumber: invoiceNumber || null,
 				invoiceDate,
+				dueDate,
 				totalAmount,
-				isDuplicate,
+				status: 'pending',
+				sourceFile: primaryFile,
+				confidence: confidenceRaw,
+				notes,
 			})
-			.where(eq(pendingProcessedInvoices.id, pendingId));
+			.returning({ id: invoices.id });
 
 		const invoiceId = insertedInvoice[0].id;
 
@@ -185,8 +181,9 @@ export const actions: Actions = {
 			const rule = unitVal ? resolveUnit(supplierName, desc, unitVal) : null;
 			const canonicalUnit = rule?.canonicalUnit ?? null;
 			const requiresConv = !rule && !!unitVal ? 1 : 0;
-			const convertedQty = rule && qtyFloat != null ? Math.round(qtyFloat * rule.conversionFactor * 10000) / 10000 : null;
-			const convertedPrice = rule && unitPriceFloat != null ? Math.round((unitPriceFloat / rule.conversionFactor) * 10000) / 10000 : null;
+			const factor = rule?.conversionFactor ?? 0;
+			const convertedQty = rule && factor > 0 && qtyFloat != null ? Math.round(qtyFloat * factor * 10000) / 10000 : null;
+			const convertedPrice = rule && factor > 0 && unitPriceFloat != null ? Math.round((unitPriceFloat / factor) * 10000) / 10000 : null;
 
 			await db.insert(invoiceLineItems).values({
 				invoiceId,

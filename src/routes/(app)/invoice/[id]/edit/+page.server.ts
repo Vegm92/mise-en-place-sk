@@ -1,8 +1,8 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db, dbClient } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, ne } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const id = Number(params.id);
@@ -86,6 +86,18 @@ export const actions: Actions = {
 			} else {
 				const inserted = await db.insert(suppliers).values({ name: supplierName }).returning({ id: suppliers.id });
 				supplierId = inserted[0].id;
+			}
+		}
+
+		// Duplicate invoice number check (exclude current record)
+		if (supplierId && invoiceNumber) {
+			const duplicate = await db
+				.select({ id: invoices.id })
+				.from(invoices)
+				.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber), ne(invoices.id, id)))
+				.limit(1);
+			if (duplicate.length > 0) {
+				return fail(409, { error: 'Invoice number already exists for this supplier.' });
 			}
 		}
 

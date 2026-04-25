@@ -1,42 +1,39 @@
-# sv
+# Mise en Place
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A smart kitchen and recipe management application that uses AI to simplify the process of meal planning, grocery list generation, and recipe organization.
 
-## Creating a project
+## Overview
 
-If you're seeing this, you've probably already done this step. Congrats!
+Mise en Place (French for "everything in its place") is a SvelteKit-powered application designed for home cooks and culinary professionals. It leverages **Gemini AI** to parse unstructured recipe text, suggest modifications, and optimize kitchen workflows.
 
-```sh
-# create a new project
-npx sv create my-app
-```
+## Objective
 
-To recreate this project with the same configuration:
+The objective was to solve the "messy recipe" problem. By using AI, the app can take a screenshot of a recipe or a disorganized block of text and instantly turn it into a structured, searchable, and actionable format.
 
-```sh
-# recreate this project
-npx sv@0.14.1 create --template minimal --types ts --install npm mise_en_place_sk
-```
+## Why we built it
 
-## Developing
+- **AI-Powered Extraction**: To avoid manual typing by using Gemini's multimodal capabilities to read recipes from images or text.
+- **Performance**: Built with SvelteKit for an extremely fast and reactive user experience.
+- **Reliability**: Uses Drizzle ORM and SQLite for a robust, local-first data layer.
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Technology Stack
 
-```sh
-npm run dev
+- **SvelteKit**: The framework for the web application.
+- **Gemini AI (Google)**: For recipe parsing, intelligent substitution suggestions, and meal planning.
+- **Drizzle ORM**: Type-safe database interactions.
+- **SQLite**: Reliable local data storage.
+- **Vite**: Modern build tool.
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
+## Key Features
 
-## Building
+- **Smart Import**: Paste a URL or text, and AI extracts the ingredients and instructions perfectly.
+- **Recipe Management**: Tag, search, and organize your culinary library.
+- **Dynamic Portions**: Instantly scale ingredient amounts based on serving size.
+- **AI Kitchen Assistant**: Ask questions about your recipes or get substitution ideas.
 
-To create a production version of your app:
+## Getting Started
 
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+1.  Clone the repository.
+2.  Install dependencies: `npm install`.
+3.  Configure your Google AI API key in `.env`.
+4.  Run the development server: `npm run dev`.

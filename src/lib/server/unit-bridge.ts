@@ -27,12 +27,13 @@ export function resolveUnit(
 	description: string,
 	unit: string
 ): { canonicalUnit: string; conversionFactor: number } | null {
+	const normalizedSupplier = supplierName.trim().toLowerCase();
 	const rows = db
 		.select()
 		.from(unitConversions)
 		.where(
 			and(
-				eq(unitConversions.supplierName, supplierName),
+				eq(unitConversions.supplierName, normalizedSupplier),
 				eq(unitConversions.ingredient, description),
 				eq(unitConversions.purchaseUnit, unit)
 			)
@@ -58,14 +59,14 @@ export function annotateLineItems(
 
 		const rule = resolveUnit(supplierName, description, unit);
 
-		if (rule) {
+		if (rule && rule.conversionFactor > 0) {
 			const factor = rule.conversionFactor;
 			return {
 				...item,
 				canonicalUnit: rule.canonicalUnit,
 				requiresUnitConversion: false,
-				convertedQuantity: item.quantity != null ? Math.round(item.quantity * factor * 10000) / 10000 : null,
-				convertedUnitPrice: item.unitPrice != null ? Math.round((item.unitPrice / factor) * 10000) / 10000 : null,
+				convertedQuantity: item.quantity == null ? null : Math.round(item.quantity * factor * 10000) / 10000,
+				convertedUnitPrice: item.unitPrice == null ? null : Math.round((item.unitPrice / factor) * 10000) / 10000,
 			};
 		}
 

@@ -4,7 +4,6 @@
 
   const { form }: { form: ActionData } = $props();
 
-  // ── i18n ──────────────────────────────────────────────────────────────────
   const copy = {
     es: {
       lang:             'EN',
@@ -17,6 +16,7 @@
       placeholder:      'tu@email.com',
       submit:           'Apuntarme',
       success:          '¡Estás dentro! Te avisaremos en cuanto abramos el acceso anticipado.',
+      alreadyRegistered:'Ya estás en la lista. Te avisaremos en cuanto abramos el acceso.',
       errRequired:      'Introduce tu email para continuar.',
       errInvalid:       'Ese email no parece válido.',
       incentive:        'Incentivo exclusivo: Los primeros 50 registros obtienen 1 mes gratis y setup prioritario.',
@@ -52,6 +52,7 @@
       placeholder:      'you@email.com',
       submit:           'Sign me up',
       success:          'You\'re in! We\'ll reach out as soon as early access opens.',
+      alreadyRegistered:'You\'re already on the list. We\'ll reach out when early access opens.',
       errRequired:      'Enter your email to continue.',
       errInvalid:       'That doesn\'t look like a valid email.',
       incentive:        'Exclusive incentive: First 50 sign-ups get 1 month free and priority setup.',
@@ -60,9 +61,9 @@
       painEyebrow:      'The problem',
       painHead:         'Every week you lose time and money without knowing it.',
       pain: [
-        { display: '4–6h', title: 'Hours lost, every week',                    body: 'Every invoice ends up in a spreadsheet — or worse, in a drawer. Your team spends 4 to 6 hours a week entering data by hand. That time is yours to take back.', dark: false },
-        { display: '¿0?',  title: 'Real-time spend visibility',                body: 'How much did you spend on meat this week? Without a tool, answering that takes minutes. With Mise en Place, it\'s instant.',                                      dark: true  },
-        { display: '+8%',  title: 'Price hikes you don\'t see coming',         body: 'Your supplier raises olive oil 8% and you find out three months later. Mise en Place detects the change and alerts you automatically.',                          dark: false },
+        { display: '4–6h', title: 'Hours lost, every week',             body: 'Every invoice ends up in a spreadsheet — or worse, in a drawer. Your team spends 4 to 6 hours a week entering data by hand. That time is yours to take back.', dark: false },
+        { display: '¿0?',  title: 'Real-time spend visibility',         body: 'How much did you spend on meat this week? Without a tool, answering that takes minutes. With Mise en Place, it\'s instant.',                                      dark: true  },
+        { display: '+8%',  title: 'Price hikes you don\'t see coming',  body: 'Your supplier raises olive oil 8% and you find out three months later. Mise en Place detects the change and alerts you automatically.',                          dark: false },
       ],
       howTitle:         'That simple',
       steps: [
@@ -72,8 +73,8 @@
       ],
       testimonialsTitle: 'What chefs tell us',
       testimonials: [
-        { quote: 'Every week I lose hours entering invoices by hand. If this works the way you describe, I\'d sign up right now.',                  name: 'Jordi M.', role: 'Head Chef · Set-menu restaurant, Barcelona',    initials: 'JM', dark: false },
-        { quote: 'The hard part isn\'t spending — it\'s knowing what you\'re spending on. I never have that visibility in real time.',              name: 'Ana R.',   role: 'Purchasing Manager · Boutique hotel, Costa Brava', initials: 'AR', dark: true  },
+        { quote: 'Every week I lose hours entering invoices by hand. If this works the way you describe, I\'d sign up right now.',             name: 'Jordi M.', role: 'Head Chef · Set-menu restaurant, Barcelona',    initials: 'JM', dark: false },
+        { quote: 'The hard part isn\'t spending — it\'s knowing what you\'re spending on. I never have that visibility in real time.',         name: 'Ana R.',   role: 'Purchasing Manager · Boutique hotel, Costa Brava', initials: 'AR', dark: true  },
       ],
     },
   } as const;
@@ -103,32 +104,32 @@
 
 <svelte:head><title>{t.pageTitle}</title></svelte:head>
 
-<!-- ── Lang toggle ──────────────────────────────────────────────────────── -->
+<!-- Lang toggle -->
 <div class="fixed top-4 right-5 z-50">
   <button
     onclick={toggleLocale}
-    class="text-xs font-semibold tracking-widest uppercase px-3 py-1.5 rounded-full
-           border border-[#3e3850] text-[#9a90a8] bg-[#1e1e28]/80 backdrop-blur
-           hover:text-[#e8b4a0] hover:border-[#c8847a] transition-colors"
+    class="text-[11px] font-semibold tracking-widest uppercase px-3 py-[6px] rounded-full
+           border border-[#2A2A2A] text-[#888888] bg-[#0A0A0A]/80 backdrop-blur
+           hover:text-white hover:border-[#4A9FD8] transition-colors"
   >{t.lang}</button>
 </div>
 
-<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
-<section class="bg-[#1e1e28] text-white px-6 pt-24 pb-20 text-center">
-  <p class="text-[.68rem] font-bold tracking-[.22em] uppercase text-[#c8847a] mb-6">{t.eyebrow}</p>
+<!-- Hero -->
+<section class="bg-[#0A0A0A] text-white px-6 pt-24 pb-20 text-center">
+  <p class="text-[11px] font-bold tracking-[0.22em] uppercase text-[#4A9FD8] mb-6">{t.eyebrow}</p>
 
-  <h1 class="text-[2.6rem] md:text-5xl lg:text-[3.75rem] font-extrabold leading-[1.08] max-w-3xl mx-auto text-[#f0ece8] tracking-tight">
+  <h1 class="text-[2.6rem] md:text-5xl lg:text-[3.75rem] font-extrabold leading-[1.08] max-w-3xl mx-auto text-white tracking-tight">
     {t.headline}
   </h1>
 
-  <p class="mt-6 text-base md:text-lg text-[#9a90a8] max-w-lg mx-auto leading-relaxed">
+  <p class="mt-6 text-base md:text-lg text-[#888888] max-w-lg mx-auto leading-relaxed">
     {t.sub}
   </p>
 
   <div class="mt-10 max-w-md mx-auto w-full">
     {#if form?.success}
-      <div class="bg-[#2a2a38] border border-[#0d9488]/40 rounded-xl px-6 py-5 text-[#5eead4] text-sm leading-relaxed">
-        {t.success}
+      <div class="bg-[#1A1A1A] border border-[#4A9FD8]/40 rounded-[12px] px-6 py-5 text-[#4A9FD8] text-[13px] leading-relaxed">
+        {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyRegistered : t.success}
       </div>
     {:else}
       <form
@@ -142,65 +143,64 @@
       >
         <div class="flex-1 flex flex-col gap-1">
           <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
-            class="w-full rounded-xl px-4 py-[.8rem] text-sm bg-[#2a2a38] border border-[#3e3850]
-                   text-[#f0ece8] placeholder-[#5a5068]
-                   focus:outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488] transition-colors"
+            class="w-full rounded-[10px] px-4 py-3 text-[13px] bg-[#1A1A1A] border border-[#2A2A2A]
+                   text-white placeholder-[#555555]
+                   focus:outline-none focus:border-[#4A9FD8] transition-colors"
             oninput={() => { emailError = ''; }}
           />
           {#if emailError || serverError()}
-            <p class="text-xs text-[#e8887e] text-left px-1">{emailError || serverError()}</p>
+            <p class="text-[12px] text-[#E05555] text-left px-1">{emailError || serverError()}</p>
           {/if}
         </div>
         <button type="submit"
-          class="shrink-0 rounded-xl px-6 py-[.8rem] text-sm font-bold
-                 bg-[#0d9488] text-white hover:bg-[#0f766e] active:bg-[#134e4a]
+          class="shrink-0 rounded-[10px] px-6 py-3 text-[13px] font-bold
+                 bg-[#4A9FD8] text-white hover:bg-[#3d8ec7] active:bg-[#3480b8]
                  transition-colors w-full sm:w-auto"
         >{t.submit}</button>
       </form>
-      <p class="mt-3 text-[.72rem] text-[#5eead4] font-medium">✦ {t.incentive}</p>
-      <p class="mt-2 text-[.7rem] text-[#4a4060]">{t.footerNote}</p>
+      <p class="mt-3 text-[11px] text-[#4A9FD8] font-medium">✦ {t.incentive}</p>
+      <p class="mt-2 text-[11px] text-[#444444]">{t.footerNote}</p>
     {/if}
   </div>
 </section>
 
-<!-- ── Integrations strip ─────────────────────────────────────────────────── -->
-<div class="bg-[#16161e] border-y border-[#2a2a38] px-6 py-4">
+<!-- Integrations strip -->
+<div class="bg-[#111111] border-y border-[#1A1A1A] px-6 py-4">
   <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-10">
-    <p class="text-[.65rem] font-bold tracking-[.18em] uppercase text-[#5a5068] shrink-0">{t.integrationsLabel}</p>
-    <div class="flex items-center gap-4 flex-wrap justify-center">
+    <p class="text-[10px] font-bold tracking-[0.18em] uppercase text-[#444444] shrink-0">{t.integrationsLabel}</p>
+    <div class="flex items-center gap-3 flex-wrap justify-center">
       {#each ['Square', 'Revo TPV', 'Excel / CSV'] as tool}
-        <div class="flex items-center gap-2 px-4 py-[.45rem] rounded-lg bg-[#2a2a38] border border-[#3e3850]">
-          <span class="w-2 h-2 rounded-full bg-[#2dd4bf] shrink-0"></span>
-          <span class="text-[.75rem] font-semibold text-[#9a90a8]">{tool}</span>
+        <div class="flex items-center gap-2 px-3 py-[6px] rounded-[8px] bg-[#1A1A1A] border border-[#2A2A2A]">
+          <span class="w-2 h-2 rounded-full bg-[#4A9FD8] shrink-0"></span>
+          <span class="text-[12px] font-semibold text-[#888888]">{tool}</span>
         </div>
       {/each}
     </div>
   </div>
 </div>
 
-<!-- ── Pain points ───────────────────────────────────────────────────────── -->
-<section class="bg-[#f2f0f4] px-6 pt-20 pb-24">
+<!-- Pain points -->
+<section class="bg-[#F0F2F5] px-6 pt-20 pb-24">
   <div class="max-w-5xl mx-auto">
-    <p class="text-[.68rem] font-bold tracking-[.22em] uppercase text-[#c8847a] mb-4 text-center">{t.painEyebrow}</p>
-    <h2 class="text-3xl md:text-4xl font-extrabold text-[#1e1e28] text-center max-w-2xl mx-auto leading-[1.15] mb-14 tracking-tight">
+    <p class="text-[11px] font-bold tracking-[0.22em] uppercase text-[#4A9FD8] mb-4 text-center">{t.painEyebrow}</p>
+    <h2 class="text-3xl md:text-4xl font-extrabold text-[#1A1A1A] text-center max-w-2xl mx-auto leading-[1.15] mb-14 tracking-tight">
       {t.painHead}
     </h2>
 
-    <div class="grid md:grid-cols-3 rounded-2xl overflow-hidden shadow-md">
+    <div class="grid md:grid-cols-3 rounded-[16px] overflow-hidden shadow-md">
       {#each t.pain as item}
         <div class="flex flex-col gap-5 px-10 py-12
-                    {item.dark ? 'bg-[#1e1e28]' : 'bg-white'}
-                    border border-[#e8e4ec] md:border-0 md:border-r md:last:border-r-0
-                    {item.dark ? 'md:border-r-[#3e3850]' : 'md:border-r-[#eceaf0]'}">
-          <span class="text-[4.5rem] font-black leading-none tracking-tighter
-                       {item.dark ? 'text-[#c8847a]' : 'text-[#c8847a]'}">
+                    {item.dark ? 'bg-[#0A0A0A]' : 'bg-white'}
+                    border border-[#E5E7EB] md:border-0 md:border-r md:last:border-r-0
+                    {item.dark ? 'md:border-r-[#2A2A2A]' : 'md:border-r-[#E5E7EB]'}">
+          <span class="text-[4.5rem] font-black leading-none tracking-tighter text-[#4A9FD8]">
             {item.display}
           </span>
           <div class="flex flex-col gap-3">
-            <h3 class="text-[1.05rem] font-bold leading-snug {item.dark ? 'text-[#f0ece8]' : 'text-[#1e1e28]'}">
+            <h3 class="text-[1.05rem] font-bold leading-snug {item.dark ? 'text-white' : 'text-[#1A1A1A]'}">
               {item.title}
             </h3>
-            <p class="text-sm leading-relaxed {item.dark ? 'text-[#7a7090]' : 'text-[#6a607a]'}">
+            <p class="text-[13px] leading-relaxed {item.dark ? 'text-[#888888]' : 'text-[#666666]'}">
               {item.body}
             </p>
           </div>
@@ -210,27 +210,27 @@
   </div>
 </section>
 
-<!-- ── Feature showcase ──────────────────────────────────────────────────── -->
-<section class="bg-[#1e1e28] px-6 pt-20 pb-28">
-  <p class="text-[.68rem] font-bold tracking-[.22em] uppercase text-[#c8847a] mb-20 text-center">{t.howTitle}</p>
+<!-- Feature showcase -->
+<section class="bg-[#0A0A0A] px-6 pt-20 pb-28">
+  <p class="text-[11px] font-bold tracking-[0.22em] uppercase text-[#4A9FD8] mb-20 text-center">{t.howTitle}</p>
 
   <div class="max-w-5xl mx-auto flex flex-col gap-28">
     {#each t.steps as step, i}
       <div class="grid md:grid-cols-2 gap-10 md:gap-24 items-center">
 
         <div class="flex flex-col gap-6 {i % 2 === 1 ? 'md:order-2' : ''}">
-          <div class="w-9 h-9 rounded-full bg-[#c8847a]/15 border border-[#c8847a]/30
-                      flex items-center justify-center text-[#e8b4a0] font-bold text-sm shrink-0">
+          <div class="w-9 h-9 rounded-full bg-[#4A9FD8]/15 border border-[#4A9FD8]/30
+                      flex items-center justify-center text-[#4A9FD8] font-bold text-[13px] shrink-0">
             {step.num}
           </div>
-          <h3 class="text-[1.75rem] md:text-[2.1rem] font-extrabold text-[#f0ece8] leading-[1.12] tracking-tight">
+          <h3 class="text-[1.75rem] md:text-[2.1rem] font-extrabold text-white leading-[1.12] tracking-tight">
             {step.title}
           </h3>
-          <p class="text-[.95rem] text-[#7a7090] leading-[1.7]">{step.body}</p>
+          <p class="text-[15px] text-[#888888] leading-[1.7]">{step.body}</p>
         </div>
 
         <div class="{i % 2 === 1 ? 'md:order-1' : ''}">
-          <div class="rounded-2xl overflow-hidden border border-[#3e3850] shadow-[0_20px_64px_rgba(0,0,0,0.45)]">
+          <div class="rounded-[16px] overflow-hidden border border-[#2A2A2A] shadow-[0_20px_64px_rgba(0,0,0,0.45)]">
             <img src={step.img} alt={step.alt} class="w-full object-cover object-top block" loading="lazy" />
           </div>
         </div>
@@ -240,31 +240,31 @@
   </div>
 </section>
 
-<!-- ── Testimonials ───────────────────────────────────────────────────────── -->
-<section class="bg-[#f2f0f4] px-6 py-24">
-  <h2 class="text-center text-3xl md:text-[2.2rem] font-extrabold text-[#1e1e28] mb-14 tracking-tight">
+<!-- Testimonials -->
+<section class="bg-[#F0F2F5] px-6 py-24">
+  <h2 class="text-center text-3xl md:text-[2.2rem] font-extrabold text-[#1A1A1A] mb-14 tracking-tight">
     {t.testimonialsTitle}
   </h2>
 
   <div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
     {#each t.testimonials as item}
-      <div class="rounded-2xl px-10 py-10 flex flex-col gap-6
+      <div class="rounded-[16px] px-10 py-10 flex flex-col gap-6
                   {item.dark
-                    ? 'bg-[#1e1e28] border border-[#3e3850]'
-                    : 'bg-white border border-[#e4e0e8] shadow-sm'}">
-        <span class="text-[3.5rem] leading-[0.75] font-black text-[#c8847a] select-none">"</span>
-        <p class="text-[.975rem] leading-[1.7] {item.dark ? 'text-[#c8c0d8]' : 'text-[#2e2840]'}">
+                    ? 'bg-[#0A0A0A] border border-[#2A2A2A]'
+                    : 'bg-white border border-[#E5E7EB] shadow-sm'}">
+        <span class="text-[3.5rem] leading-[0.75] font-black text-[#4A9FD8] select-none">"</span>
+        <p class="text-[15px] leading-[1.7] {item.dark ? 'text-[#AAAAAA]' : 'text-[#1A1A1A]'}">
           {item.quote}
         </p>
-        <div class="pt-5 border-t {item.dark ? 'border-[#2a2a38]' : 'border-[#f0ece8]'}
+        <div class="pt-5 border-t {item.dark ? 'border-[#2A2A2A]' : 'border-[#F3F4F6]'}
                     flex items-center gap-3 mt-auto">
-          <div class="w-11 h-11 rounded-full bg-[#c8847a]/15 border border-[#c8847a]/30
-                      flex items-center justify-center text-[#c8847a] font-bold text-xs shrink-0">
+          <div class="w-11 h-11 rounded-full bg-[#4A9FD8]/15 border border-[#4A9FD8]/30
+                      flex items-center justify-center text-[#4A9FD8] font-bold text-[12px] shrink-0">
             {item.initials}
           </div>
           <div>
-            <p class="text-sm font-bold {item.dark ? 'text-[#f0ece8]' : 'text-[#1e1e28]'}">{item.name}</p>
-            <p class="text-xs {item.dark ? 'text-[#7a7090]' : 'text-[#9a90a8]'}">{item.role}</p>
+            <p class="text-[13px] font-bold {item.dark ? 'text-white' : 'text-[#1A1A1A]'}">{item.name}</p>
+            <p class="text-[12px] {item.dark ? 'text-[#888888]' : 'text-[#888888]'}">{item.role}</p>
           </div>
         </div>
       </div>
@@ -272,18 +272,18 @@
   </div>
 </section>
 
-<!-- ── Bottom CTA ────────────────────────────────────────────────────────── -->
-<section class="bg-[#1e1e28] px-6 py-24 text-center">
-  <div class="w-12 h-1 bg-[#0d9488] rounded-full mx-auto mb-8"></div>
-  <h2 class="text-3xl md:text-[2.5rem] font-extrabold text-[#f0ece8] max-w-xl mx-auto leading-[1.12] tracking-tight">
+<!-- Bottom CTA -->
+<section class="bg-[#0A0A0A] px-6 py-24 text-center">
+  <div class="w-12 h-1 bg-[#4A9FD8] rounded-full mx-auto mb-8"></div>
+  <h2 class="text-3xl md:text-[2.5rem] font-extrabold text-white max-w-xl mx-auto leading-[1.12] tracking-tight">
     {t.ctaHeadline}
   </h2>
-  <p class="mt-4 text-sm text-[#9a90a8] max-w-sm mx-auto leading-relaxed">{t.ctaSub}</p>
+  <p class="mt-4 text-[13px] text-[#888888] max-w-sm mx-auto leading-relaxed">{t.ctaSub}</p>
 
   <div class="mt-10 max-w-md mx-auto">
     {#if form?.success}
-      <div class="bg-[#2a2a38] border border-[#0d9488]/40 rounded-xl px-6 py-5 text-[#5eead4] text-sm leading-relaxed">
-        {t.success}
+      <div class="bg-[#1A1A1A] border border-[#4A9FD8]/40 rounded-[12px] px-6 py-5 text-[#4A9FD8] text-[13px] leading-relaxed">
+        {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyRegistered : t.success}
       </div>
     {:else}
       <form
@@ -297,29 +297,34 @@
       >
         <div class="flex-1 flex flex-col gap-1">
           <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
-            class="w-full rounded-xl px-4 py-[.8rem] text-sm bg-[#2a2a38] border border-[#3e3850]
-                   text-[#f0ece8] placeholder-[#5a5068]
-                   focus:outline-none focus:border-[#0d9488] focus:ring-1 focus:ring-[#0d9488] transition-colors"
+            class="w-full rounded-[10px] px-4 py-3 text-[13px] bg-[#1A1A1A] border border-[#2A2A2A]
+                   text-white placeholder-[#555555]
+                   focus:outline-none focus:border-[#4A9FD8] transition-colors"
             oninput={() => { emailError = ''; }}
           />
           {#if emailError || serverError()}
-            <p class="text-xs text-[#e8887e] text-left px-1">{emailError || serverError()}</p>
+            <p class="text-[12px] text-[#E05555] text-left px-1">{emailError || serverError()}</p>
           {/if}
         </div>
         <button type="submit"
-          class="shrink-0 rounded-xl px-6 py-[.8rem] text-sm font-bold
-                 bg-[#0d9488] text-white hover:bg-[#0f766e] active:bg-[#134e4a]
+          class="shrink-0 rounded-[10px] px-6 py-3 text-[13px] font-bold
+                 bg-[#4A9FD8] text-white hover:bg-[#3d8ec7] active:bg-[#3480b8]
                  transition-colors w-full sm:w-auto"
         >{t.submit}</button>
       </form>
-      <p class="mt-3 text-[.72rem] text-[#5eead4] font-medium">✦ {t.incentive}</p>
-      <p class="mt-2 text-[.7rem] text-[#4a4060]">{t.footerNote}</p>
+      <p class="mt-3 text-[11px] text-[#4A9FD8] font-medium">✦ {t.incentive}</p>
+      <p class="mt-2 text-[11px] text-[#444444]">{t.footerNote}</p>
     {/if}
   </div>
 </section>
 
-<!-- ── Footer ────────────────────────────────────────────────────────────── -->
-<footer class="bg-[#13131a] px-6 py-10 text-center">
-  <p class="text-[.65rem] font-bold tracking-[.18em] uppercase text-[#3e3850]">Mise en Place</p>
-  <p class="text-[.6rem] text-[#2e2840] mt-1">Barcelona · {new Date().getFullYear()}</p>
+<!-- Footer -->
+<footer class="bg-[#060606] px-6 py-10 text-center">
+  <div class="flex items-center justify-center gap-2 mb-2">
+    <div class="w-5 h-5 rounded-[5px] bg-[#4A9FD8] flex items-center justify-center shrink-0">
+      <span class="text-white text-[9px] font-bold leading-none">M</span>
+    </div>
+    <span class="text-[12px] font-semibold text-[#2A2A2A]">Mise en Place</span>
+  </div>
+  <p class="text-[11px] text-[#222222]">Barcelona · {new Date().getFullYear()}</p>
 </footer>

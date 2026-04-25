@@ -83,358 +83,99 @@
     row.totalPrice = computeTotal(row.quantity, row.unitPrice);
     rows = [...rows];
   }
+
+  const inputCls = 'w-full py-1 px-2 border border-[#E5E7EB] rounded-[4px] text-[13px] font-[inherit] bg-white text-[#1A1A1A] focus:outline-none focus:border-[#4A9FD8]';
 </script>
 
-<style>
-  .page-title {
-    font-size: 1.1rem;
-    font-weight: 700;
-    margin-bottom: 1.25rem;
-    color: var(--text-primary);
-  }
-
-  .banner {
-    border-radius: 8px;
-    padding: .75rem 1rem;
-    font-size: .875rem;
-    margin-bottom: 1rem;
-    font-weight: 500;
-  }
-
-  .banner-warn {
-    background: var(--amber-bg);
-    border: 1px solid #fde047;
-    color: var(--amber);
-  }
-
-  .banner-danger {
-    background: #fee2e2;
-    border: 1px solid #fca5a5;
-    color: var(--danger);
-  }
-
-  .card {
-    background: var(--bg-card);
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    padding: 1.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .card-title {
-    font-size: .875rem;
-    font-weight: 700;
-    margin-bottom: 1.1rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: .06em;
-  }
-
-  .field-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: .3rem;
-  }
-
-  .field.full {
-    grid-column: 1 / -1;
-  }
-
-  .field-label {
-    font-size: .78rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-
-  .field-input {
-    padding: .45rem .65rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: .875rem;
-    font-family: inherit;
-    background: var(--bg-page);
-    color: var(--text-primary);
-    width: 100%;
-  }
-
-  .field-input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  .table-wrap {
-    overflow-x: auto;
-    margin-top: .25rem;
-  }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: .82rem;
-  }
-
-  th {
-    text-align: left;
-    padding: .45rem .65rem;
-    background: var(--bg-page);
-    font-weight: 700;
-    font-size: .72rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    white-space: nowrap;
-  }
-
-  td {
-    padding: .45rem .65rem;
-    border-top: 1px solid var(--border);
-    vertical-align: middle;
-  }
-
-  td input {
-    width: 100%;
-    padding: .3rem .45rem;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: .82rem;
-    font-family: inherit;
-    background: var(--bg-page);
-    color: var(--text-primary);
-  }
-
-  td input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
-
-  td input[readonly] {
-    background: var(--bg-page);
-    color: var(--text-muted);
-    cursor: default;
-    border-color: transparent;
-  }
-
-  .raw-desc {
-    font-size: .75rem;
-    color: var(--text-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 160px;
-    display: block;
-  }
-
-  .badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .3rem;
-    margin-top: .25rem;
-  }
-
-  .badge-match {
-    display: inline-block;
-    font-size: .65rem;
-    font-weight: 700;
-    padding: .12rem .4rem;
-    border-radius: 99px;
-    background: #dcfce7;
-    color: #166534;
-    white-space: nowrap;
-  }
-
-  .badge-price {
-    display: inline-block;
-    font-size: .65rem;
-    font-weight: 700;
-    padding: .12rem .4rem;
-    border-radius: 99px;
-    background: #fee2e2;
-    color: var(--danger);
-    white-space: nowrap;
-  }
-
-  .actions {
-    display: flex;
-    gap: .75rem;
-    align-items: center;
-    margin-top: 1.25rem;
-    flex-wrap: wrap;
-  }
-
-  .processing-overlay {
-    position: fixed; inset: 0;
-    background: rgba(20,20,30,.6);
-    z-index: 100;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: .75rem;
-  }
-  .spinner {
-    width: 40px; height: 40px;
-    border: 3px solid rgba(255,255,255,.2);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .processing-main { font-size: .9375rem; font-weight: 600; color: #fff; }
-  .processing-sub  { font-size: .8rem; color: rgba(255,255,255,.6); }
-
-  @media (max-width: 640px) {
-    .field-grid { grid-template-columns: 1fr; }
-    .field.full { grid-column: 1 / -1; }
-  }
-</style>
-
 {#if isProcessing}
-  <div class="processing-overlay">
-    <div class="spinner"></div>
-    <p class="processing-main">Procesando factura con IA...</p>
-    <p class="processing-sub">Esto puede tardar unos segundos.</p>
+  <div class="fixed inset-0 bg-black/60 z-[100] flex flex-col items-center justify-center gap-3">
+    <div class="w-10 h-10 border-[3px] border-white/20 border-t-[#4A9FD8] rounded-full animate-spin"></div>
+    <p class="text-[15px] font-semibold text-white">Procesando factura con IA...</p>
+    <p class="text-[13px] text-white/60">Esto puede tardar unos segundos.</p>
   </div>
 {/if}
 
-<div>
-  <h1 class="page-title">Revisar Factura Pendiente</h1>
+<div class="max-w-[700px] mx-auto">
+  <h1 class="text-[18px] font-bold text-[#1A1A1A] mb-5">Revisar Factura Pendiente</h1>
 
   {#if data.isManualReview}
-    <div class="banner banner-warn">
+    <div class="bg-[#FFF8EE] border border-[#F5D08A] text-[#C8843A] rounded-[8px] px-4 py-3 text-[13px] font-medium mb-4">
       La IA no pudo leer bien la factura. Por favor revisa los datos manualmente.
     </div>
   {/if}
 
   {#if data.pending.isDuplicate}
-    <div class="banner banner-danger">
+    <div class="bg-[#FFF1F0] border border-[#FECACA] text-[#E05555] rounded-[8px] px-4 py-3 text-[13px] font-medium mb-4">
       Posible factura duplicada detectada.
     </div>
   {/if}
 
-  <div class="card">
-    <div class="card-title">Datos de la Factura</div>
-    <div class="field-grid">
-      <div class="field full">
-        <label class="field-label" for="supplierName">Proveedor</label>
-        <input
-          id="supplierName"
-          class="field-input"
-          type="text"
-          bind:value={supplierName}
-          form="commit-form"
-          name="supplierName"
-        />
+  <div class="bg-white rounded-[12px] border border-[#E5E7EB] px-5 py-5 mb-4">
+    <p class="text-[11px] font-bold uppercase tracking-[0.05em] text-[#888888] mb-4">Datos de la Factura</p>
+    <div class="grid grid-cols-2 gap-4 max-[640px]:grid-cols-1">
+      <div class="col-span-2 max-[640px]:col-span-1 flex flex-col gap-1">
+        <label class="text-[11px] font-semibold text-[#888888]" for="supplierName">Proveedor</label>
+        <input id="supplierName" type="text" form="commit-form" name="supplierName"
+               bind:value={supplierName} class={inputCls} />
       </div>
-      <div class="field">
-        <label class="field-label" for="invoiceNumber">Numero de Factura</label>
-        <input
-          id="invoiceNumber"
-          class="field-input"
-          type="text"
-          bind:value={invoiceNumber}
-          form="commit-form"
-          name="invoiceNumber"
-        />
+      <div class="flex flex-col gap-1">
+        <label class="text-[11px] font-semibold text-[#888888]" for="invoiceNumber">Numero de Factura</label>
+        <input id="invoiceNumber" type="text" form="commit-form" name="invoiceNumber"
+               bind:value={invoiceNumber} class={inputCls} />
       </div>
-      <div class="field">
-        <label class="field-label" for="invoiceDate">Fecha de Factura</label>
-        <input
-          id="invoiceDate"
-          class="field-input"
-          type="text"
-          bind:value={invoiceDate}
-          form="commit-form"
-          name="invoiceDate"
-          placeholder="YYYY-MM-DD"
-        />
+      <div class="flex flex-col gap-1">
+        <label class="text-[11px] font-semibold text-[#888888]" for="invoiceDate">Fecha de Factura</label>
+        <input id="invoiceDate" type="text" form="commit-form" name="invoiceDate"
+               bind:value={invoiceDate} placeholder="YYYY-MM-DD" class={inputCls} />
       </div>
-      <div class="field">
-        <label class="field-label" for="totalAmount">Importe Total</label>
-        <input
-          id="totalAmount"
-          class="field-input"
-          type="text"
-          bind:value={totalAmount}
-          form="commit-form"
-          name="totalAmount"
-        />
+      <div class="flex flex-col gap-1">
+        <label class="text-[11px] font-semibold text-[#888888]" for="totalAmount">Importe Total</label>
+        <input id="totalAmount" type="text" form="commit-form" name="totalAmount"
+               bind:value={totalAmount} class={inputCls} />
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Lineas de Factura</div>
-    <div class="table-wrap">
-      <table>
+  <div class="bg-white rounded-[12px] border border-[#E5E7EB] px-5 py-5 mb-4">
+    <p class="text-[11px] font-bold uppercase tracking-[0.05em] text-[#888888] mb-4">Lineas de Factura</p>
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
           <tr>
-            <th>Descripcion original</th>
-            <th>Descripcion</th>
-            <th>Cant.</th>
-            <th>Unidad</th>
-            <th>P. unitario</th>
-            <th>Total</th>
+            {#each ['Descripcion original','Descripcion','Cant.','Unidad','P. unitario','Total'] as h}
+              <th class="text-left py-2 px-2 bg-[#F9FAFB] text-[11px] font-bold uppercase tracking-[0.04em] text-[#888888] whitespace-nowrap border-b border-[#E5E7EB]">{h}</th>
+            {/each}
           </tr>
         </thead>
         <tbody>
           {#each rows as row, i}
             <tr>
-              <td>
-                <span class="raw-desc" title={row.rawDescription}>{row.rawDescription}</span>
-                <div class="badges">
+              <td class="py-2 px-2 border-b border-[#F3F4F6] align-middle">
+                <span class="text-[12px] text-[#888888] whitespace-nowrap overflow-hidden text-ellipsis max-w-[160px] block" title={row.rawDescription}>{row.rawDescription}</span>
+                <div class="flex flex-wrap gap-1 mt-1">
                   {#if row.fuzzyScore >= 0.8 && row.suggestedName}
-                    <span class="badge-match">Match: {row.suggestedName}</span>
+                    <span class="text-[10px] font-bold px-[6px] py-[2px] rounded-full bg-[#DCFCE7] text-[#166534] whitespace-nowrap">Match: {row.suggestedName}</span>
                   {/if}
                   {#if row.priceWarning}
-                    <span class="badge-price">⚠ Precio anómalo</span>
+                    <span class="text-[10px] font-bold px-[6px] py-[2px] rounded-full bg-[#FFF1F0] text-[#E05555] whitespace-nowrap">⚠ Precio anómalo</span>
                   {/if}
                 </div>
               </td>
-              <td>
-                <input
-                  type="text"
-                  form="commit-form"
-                  name="line_descriptions[]"
-                  bind:value={row.description}
-                />
+              <td class="py-2 px-2 border-b border-[#F3F4F6] align-middle">
+                <input type="text" form="commit-form" name="line_descriptions[]" bind:value={row.description} class={inputCls} />
               </td>
-              <td>
-                <input
-                  type="text"
-                  form="commit-form"
-                  name="line_quantities[]"
-                  bind:value={row.quantity}
-                  oninput={() => recomputeRow(i)}
-                />
+              <td class="py-2 px-2 border-b border-[#F3F4F6] align-middle">
+                <input type="text" form="commit-form" name="line_quantities[]" bind:value={row.quantity} oninput={() => recomputeRow(i)} class={inputCls} />
               </td>
-              <td>
-                <input
-                  type="text"
-                  form="commit-form"
-                  name="line_units[]"
-                  bind:value={row.unit}
-                />
+              <td class="py-2 px-2 border-b border-[#F3F4F6] align-middle">
+                <input type="text" form="commit-form" name="line_units[]" bind:value={row.unit} class={inputCls} />
               </td>
-              <td>
-                <input
-                  type="text"
-                  form="commit-form"
-                  name="line_unit_prices[]"
-                  bind:value={row.unitPrice}
-                  oninput={() => recomputeRow(i)}
-                />
+              <td class="py-2 px-2 border-b border-[#F3F4F6] align-middle">
+                <input type="text" form="commit-form" name="line_unit_prices[]" bind:value={row.unitPrice} oninput={() => recomputeRow(i)} class={inputCls} />
               </td>
-              <td>
-                <input
-                  type="text"
-                  form="commit-form"
-                  name="line_total_prices[]"
-                  value={row.totalPrice}
-                  readonly
-                />
+              <td class="py-2 px-2 border-b border-[#F3F4F6] align-middle">
+                <input type="text" form="commit-form" name="line_total_prices[]" value={row.totalPrice} readonly
+                       class="w-full py-1 px-2 border border-transparent rounded-[4px] text-[13px] bg-[#F9FAFB] text-[#888888] cursor-default" />
               </td>
             </tr>
           {/each}
@@ -445,12 +186,16 @@
 
   <form id="commit-form" method="POST" action="?/commit"></form>
 
-  <div class="actions">
-    <button type="submit" form="commit-form" class="btn-primary">
+  <div class="flex gap-3 flex-wrap">
+    <button type="submit" form="commit-form"
+            class="h-9 bg-[#4A9FD8] text-white rounded-[8px] px-4 text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors">
       Aprobar y Guardar
     </button>
     <form method="POST" action="?/reject">
-      <button type="submit" class="btn-secondary">Rechazar</button>
+      <button type="submit"
+              class="h-9 border border-[#E5E7EB] bg-white text-[#1A1A1A] rounded-[8px] px-4 text-[13px] font-semibold cursor-pointer hover:bg-[#F9FAFB] transition-colors">
+        Rechazar
+      </button>
     </form>
   </div>
 </div>

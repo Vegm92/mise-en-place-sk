@@ -1,65 +1,69 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import * as Card from '$lib/components/ui/card';
-	import { Badge } from '$lib/components/ui/badge';
+  import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
+  let { data }: { data: PageData } = $props();
 </script>
 
 {#if !data.overdue.length && !data.due_soon.length}
-	<p class="text-center py-12 text-muted-foreground text-[.9rem]">No pending invoices due in the next 7 days.</p>
+  <p class="text-center py-12 text-[#888888] text-[13px]">No pending invoices due in the next 7 days.</p>
 {:else}
-	<div class="flex gap-3 mb-5 flex-wrap">
-		{#if data.overdue.length}
-			<div class="bg-red-50 border border-red-200 rounded-lg py-[.55rem] px-[.9rem] text-[.8rem] text-secondary-foreground">
-				<strong class="text-destructive">{data.overdue.length}</strong> overdue
-			</div>
-		{/if}
-		<div class="bg-card border border-border rounded-lg py-[.55rem] px-[.9rem] text-[.8rem] text-secondary-foreground">
-			<strong>{data.due_soon.length}</strong> due this week
-		</div>
-		<div class="bg-card border border-border rounded-lg py-[.55rem] px-[.9rem] text-[.8rem] text-secondary-foreground">
-			Total pending: <strong>{Math.round(data.total_amount)} EUR</strong>
-		</div>
-	</div>
+  <div class="flex gap-2 mb-5 flex-wrap">
+    {#if data.overdue.length}
+      <div class="bg-[#FFF1F0] border border-[#FECACA] rounded-[8px] py-2 px-3 text-[13px] text-[#888888]">
+        <strong class="text-[#E05555]">{data.overdue.length}</strong> overdue
+      </div>
+    {/if}
+    <div class="bg-white border border-[#E5E7EB] rounded-[8px] py-2 px-3 text-[13px] text-[#888888]">
+      <strong class="text-[#1A1A1A]">{data.due_soon.length}</strong> due this week
+    </div>
+    <div class="bg-white border border-[#E5E7EB] rounded-[8px] py-2 px-3 text-[13px] text-[#888888]">
+      Total pending: <strong class="text-[#1A1A1A]">{Math.round(data.total_amount)} EUR</strong>
+    </div>
+  </div>
 
-	<Card.Root>
-		{#if data.overdue.length}
-			<div class="text-[.68rem] font-bold tracking-[.07em] uppercase text-muted-foreground px-4 py-2 bg-secondary border-b border-border">Overdue</div>
-			{#each data.overdue as r (r.id)}
-				<div class="grid grid-cols-[1fr_120px_100px_90px_auto] items-center gap-3 px-4 py-[.65rem] border-b border-secondary hover:bg-[#faf8fc]">
-					<div>
-						<p class="font-semibold text-[.875rem]">{r.supplier_name ?? '—'}</p>
-						<p class="text-[.75rem] text-muted-foreground mt-[.1rem]">{r.invoice_number ?? 'No invoice #'}</p>
-					</div>
-					<p class="font-bold text-[.875rem] text-right">{Math.round(r.display_amount)} EUR</p>
-					<p class="text-[.78rem] text-secondary-foreground text-right">{r.due_date}</p>
-					<Badge class="bg-red-50 text-red-700 border-transparent">{Math.abs(r.days_delta)}d overdue</Badge>
-					<form method="post" action="?/markPaid">
-						<input type="hidden" name="invoiceId" value={r.id} />
-						<button type="submit" class="text-[.72rem] font-semibold py-1 px-[.65rem] bg-green-50 text-green-700 border-none rounded cursor-pointer hover:bg-green-100 whitespace-nowrap">✓ Mark paid</button>
-					</form>
-				</div>
-			{/each}
-		{/if}
+  <div class="bg-white rounded-[12px] border border-[#E5E7EB] overflow-hidden">
+    {#if data.overdue.length}
+      <div class="text-[11px] font-bold tracking-[0.07em] uppercase text-[#888888] px-4 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB]">Overdue</div>
+      {#each data.overdue as r (r.id)}
+        <div class="grid grid-cols-[1fr_120px_100px_auto_auto] items-center gap-3 px-4 py-3 border-b border-[#F3F4F6] hover:bg-[#FAFAFA] max-md:grid-cols-[1fr_auto]">
+          <div>
+            <p class="font-semibold text-[13px] text-[#1A1A1A]">{r.supplier_name ?? '—'}</p>
+            <p class="text-[12px] text-[#888888] mt-[2px]">{r.invoice_number ?? 'No invoice #'}</p>
+          </div>
+          <p class="font-bold text-[13px] text-right text-[#1A1A1A]">{Math.round(r.display_amount)} EUR</p>
+          <p class="text-[12px] text-[#888888] text-right max-md:hidden">{r.due_date}</p>
+          <span class="text-[10px] font-semibold px-2 py-[2px] rounded-full bg-[#FFF1F0] text-[#E05555]">{Math.abs(r.days_delta)}d overdue</span>
+          <form method="post" action="?/markPaid">
+            <input type="hidden" name="invoiceId" value={r.id} />
+            <button type="submit"
+                    class="text-[12px] font-semibold py-1 px-3 bg-[#F0FDF4] text-[#3A8C5C] border-none rounded-[6px] cursor-pointer hover:bg-[#DCFCE7] whitespace-nowrap transition-colors">
+              ✓ Mark paid
+            </button>
+          </form>
+        </div>
+      {/each}
+    {/if}
 
-		{#if data.due_soon.length}
-			<div class="text-[.68rem] font-bold tracking-[.07em] uppercase text-muted-foreground px-4 py-2 bg-secondary border-b border-border">Due this week</div>
-			{#each data.due_soon as r (r.id)}
-				<div class="grid grid-cols-[1fr_120px_100px_90px_auto] items-center gap-3 px-4 py-[.65rem] border-b border-secondary last:border-0 hover:bg-[#faf8fc]">
-					<div>
-						<p class="font-semibold text-[.875rem]">{r.supplier_name ?? '—'}</p>
-						<p class="text-[.75rem] text-muted-foreground mt-[.1rem]">{r.invoice_number ?? 'No invoice #'}</p>
-					</div>
-					<p class="font-bold text-[.875rem] text-right">{Math.round(r.display_amount)} EUR</p>
-					<p class="text-[.78rem] text-secondary-foreground text-right">{r.due_date}</p>
-					<Badge class="bg-[var(--color-amber-bg)] text-[var(--color-amber)] border-transparent">{r.days_delta}d left</Badge>
-					<form method="post" action="?/markPaid">
-						<input type="hidden" name="invoiceId" value={r.id} />
-						<button type="submit" class="text-[.72rem] font-semibold py-1 px-[.65rem] bg-green-50 text-green-700 border-none rounded cursor-pointer hover:bg-green-100 whitespace-nowrap">✓ Mark paid</button>
-					</form>
-				</div>
-			{/each}
-		{/if}
-	</Card.Root>
+    {#if data.due_soon.length}
+      <div class="text-[11px] font-bold tracking-[0.07em] uppercase text-[#888888] px-4 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB]">Due this week</div>
+      {#each data.due_soon as r (r.id)}
+        <div class="grid grid-cols-[1fr_120px_100px_auto_auto] items-center gap-3 px-4 py-3 border-b border-[#F3F4F6] last:border-0 hover:bg-[#FAFAFA] max-md:grid-cols-[1fr_auto]">
+          <div>
+            <p class="font-semibold text-[13px] text-[#1A1A1A]">{r.supplier_name ?? '—'}</p>
+            <p class="text-[12px] text-[#888888] mt-[2px]">{r.invoice_number ?? 'No invoice #'}</p>
+          </div>
+          <p class="font-bold text-[13px] text-right text-[#1A1A1A]">{Math.round(r.display_amount)} EUR</p>
+          <p class="text-[12px] text-[#888888] text-right max-md:hidden">{r.due_date}</p>
+          <span class="text-[10px] font-semibold px-2 py-[2px] rounded-full bg-[#FFF8EE] text-[#C8843A]">{r.days_delta}d left</span>
+          <form method="post" action="?/markPaid">
+            <input type="hidden" name="invoiceId" value={r.id} />
+            <button type="submit"
+                    class="text-[12px] font-semibold py-1 px-3 bg-[#F0FDF4] text-[#3A8C5C] border-none rounded-[6px] cursor-pointer hover:bg-[#DCFCE7] whitespace-nowrap transition-colors">
+              ✓ Mark paid
+            </button>
+          </form>
+        </div>
+      {/each}
+    {/if}
+  </div>
 {/if}

@@ -67,5 +67,6 @@
     color: var(--color-foreground);
     min-height: 100vh;
     display: flex;
+    flex-direction: column;
   }
 }

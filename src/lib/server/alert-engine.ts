@@ -81,7 +81,7 @@ export function runStockForecast(lineItems: EnrichedLineItem[]): Alert[] {
 			canonical_unit: string | null;
 		} | undefined;
 
-		if (!row || row.daily_burn_rate === 0) continue;
+		if (row?.current_stock == null || row.daily_burn_rate == null || row.daily_burn_rate === 0) continue;
 
 		const addedQty = item.convertedQuantity ?? item.quantity ?? 0;
 		const projectedStock = row.current_stock + addedQty;
