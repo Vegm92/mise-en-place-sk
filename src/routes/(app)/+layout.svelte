@@ -3,10 +3,10 @@
   import { onMount } from 'svelte';
   import {
     LayoutDashboard, FileText, Users, TrendingUp, Wallet,
-    Bell, Download, Upload, Settings, ChevronRight, Menu
+    Bell, Download, Upload, Settings, ChevronRight, Menu, LogOut
   } from 'lucide-svelte';
 
-  const { children } = $props();
+  const { children, data } = $props();
 
   const p = $derived($page.url.pathname);
   const is = (path: string) => p === path || p.startsWith(path + '/');
@@ -79,8 +79,8 @@
       {/each}
     </div>
 
-    <!-- Upload button at bottom -->
-    <div class="px-3 pb-5 shrink-0">
+    <!-- Upload + logout at bottom -->
+    <div class="px-3 pb-5 shrink-0 flex flex-col gap-[6px]">
       <a
         href="/"
         onclick={() => sidebarOpen = false}
@@ -91,6 +91,17 @@
         <Upload size={14} />
         Upload Invoice
       </a>
+      <form method="POST" action="/logout">
+        <button
+          type="submit"
+          class="flex items-center gap-[10px] w-full px-3 py-[9px] rounded-[8px]
+                 text-[#666666] hover:bg-[#141414] hover:text-[#CCCCCC]
+                 text-[13px] font-[500] bg-transparent border-none cursor-pointer transition-colors"
+        >
+          <LogOut size={15} />
+          Sign out{data?.user?.name ? ` (${data.user.name})` : ''}
+        </button>
+      </form>
     </div>
   </nav>
 

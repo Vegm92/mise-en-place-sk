@@ -82,3 +82,81 @@ export const stockLevels = sqliteTable('stock_levels', {
 	dailyBurnRate: real('daily_burn_rate').default(0),
 	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
+
+// Tables created by runMigrations() in db.ts
+export const pendingProcessedInvoices = sqliteTable('pending_processed_invoices', {
+	id:                    integer('id').primaryKey({ autoIncrement: true }),
+	sessionId:             text('session_id'),
+	originalFilePath:      text('original_file_path'),
+	rawLlmJson:            text('raw_llm_json'),
+	status:                text('status').default('PENDING_REVIEW'),
+	confidenceScore:       real('confidence_score'),
+	supplierId:            integer('supplier_id').references(() => suppliers.id),
+	inferredSupplierName:  text('inferred_supplier_name'),
+	invoiceNumber:         text('invoice_number'),
+	invoiceDate:           text('invoice_date'),
+	totalAmount:           real('total_amount'),
+	isDuplicate:           integer('is_duplicate').default(0),
+	createdAt:             text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	committedAt:           text('committed_at'),
+});
+
+export const pendingLineItems = sqliteTable('pending_line_items', {
+	id:                  integer('id').primaryKey({ autoIncrement: true }),
+	pendingInvoiceId:    integer('pending_invoice_id').references(() => pendingProcessedInvoices.id),
+	rawDescription:      text('raw_description'),
+	matchedIngredientId: integer('matched_ingredient_id'),
+	suggestedName:       text('suggested_name'),
+	quantity:            real('quantity'),
+	unit:                text('unit'),
+	unitPrice:           real('unit_price'),
+	fuzzyScore:          real('fuzzy_score'),
+	priceWarning:        integer('price_warning').default(0),
+});
+
+// BetterAuth tables
+export const user = sqliteTable('user', {
+	id:            text('id').primaryKey(),
+	name:          text('name').notNull(),
+	email:         text('email').notNull().unique(),
+	emailVerified: integer('emailVerified', { mode: 'boolean' }).notNull().default(false),
+	image:         text('image'),
+	createdAt:     text('createdAt').notNull(),
+	updatedAt:     text('updatedAt').notNull(),
+});
+
+export const session = sqliteTable('session', {
+	id:        text('id').primaryKey(),
+	expiresAt: text('expiresAt').notNull(),
+	token:     text('token').notNull().unique(),
+	createdAt: text('createdAt').notNull(),
+	updatedAt: text('updatedAt').notNull(),
+	ipAddress: text('ipAddress'),
+	userAgent: text('userAgent'),
+	userId:    text('userId').notNull().references(() => user.id),
+});
+
+export const verification = sqliteTable('verification', {
+	id:         text('id').primaryKey(),
+	identifier: text('identifier').notNull(),
+	value:      text('value').notNull(),
+	expiresAt:  text('expiresAt').notNull(),
+	createdAt:  text('createdAt'),
+	updatedAt:  text('updatedAt'),
+});
+
+export const account = sqliteTable('account', {
+	id:                    text('id').primaryKey(),
+	accountId:             text('accountId').notNull(),
+	providerId:            text('providerId').notNull(),
+	userId:                text('userId').notNull().references(() => user.id),
+	accessToken:           text('accessToken'),
+	refreshToken:          text('refreshToken'),
+	idToken:               text('idToken'),
+	accessTokenExpiresAt:  text('accessTokenExpiresAt'),
+	refreshTokenExpiresAt: text('refreshTokenExpiresAt'),
+	scope:                 text('scope'),
+	password:              text('password'),
+	createdAt:             text('createdAt').notNull(),
+	updatedAt:             text('updatedAt').notNull(),
+});

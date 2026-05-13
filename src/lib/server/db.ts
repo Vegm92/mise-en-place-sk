@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
 import { cleanupStaleSessions } from './sessions';
+import { seedAdminUser } from './auth-seed';
 
 const rawUrl = env.DATABASE_URL ?? 'mise_en_place.db';
 const url = rawUrl.startsWith('/') ? rawUrl : join(process.cwd(), rawUrl);
@@ -137,4 +138,32 @@ function runMigrations() {
 }
 
 runMigrations();
+
+// BetterAuth tables
+dbClient.exec(`
+  CREATE TABLE IF NOT EXISTS "user" (
+    id TEXT PRIMARY KEY, name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE, emailVerified INTEGER NOT NULL DEFAULT 0,
+    image TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS session (
+    id TEXT PRIMARY KEY, expiresAt TEXT NOT NULL,
+    token TEXT NOT NULL UNIQUE, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL,
+    ipAddress TEXT, userAgent TEXT,
+    userId TEXT NOT NULL REFERENCES "user"(id)
+  );
+  CREATE TABLE IF NOT EXISTS verification (
+    id TEXT PRIMARY KEY, identifier TEXT NOT NULL, value TEXT NOT NULL,
+    expiresAt TEXT NOT NULL, createdAt TEXT, updatedAt TEXT
+  );
+  CREATE TABLE IF NOT EXISTS account (
+    id TEXT PRIMARY KEY, accountId TEXT NOT NULL, providerId TEXT NOT NULL,
+    userId TEXT NOT NULL REFERENCES "user"(id),
+    accessToken TEXT, refreshToken TEXT, idToken TEXT,
+    accessTokenExpiresAt TEXT, refreshTokenExpiresAt TEXT,
+    scope TEXT, password TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+  );
+`);
+
 cleanupStaleSessions();
+seedAdminUser().catch(e => console.error('[auth-seed]', e));
