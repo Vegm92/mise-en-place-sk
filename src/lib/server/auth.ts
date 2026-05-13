@@ -19,6 +19,10 @@ export const auth = betterAuth({
 			verification: schema.verification,
 			account:      schema.account,
 		},
+		// Required for findUserByEmail to include accounts in the same query.
+		// Without this, credential sign-in always fails with "account not found".
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		...(({ experimental: { joins: true } }) as any),
 	}),
 	emailAndPassword: {
 		enabled:       true,
