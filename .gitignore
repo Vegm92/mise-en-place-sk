@@ -18,6 +18,11 @@ Thumbs.db
 !.env.example
 !.env.test
 
+# SQLite databases (local dev only)
+*.db
+*.db-shm
+*.db-wal
+
 # Project documentation (for eyes only - don't track)
 CLAUDE.md
 REFERENCES.md
