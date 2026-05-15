@@ -27,3 +27,9 @@ Thumbs.db
 CLAUDE.md
 REFERENCES.md
 CONTEXT.md
+
+# Synthetic generator output and virtualenv
+/synth/output/
+/synth/.venv/
+synth/**/__pycache__/
+synth/**/*.pyc
