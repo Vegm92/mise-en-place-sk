@@ -11,7 +11,11 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		"synth:generate": "cd synth && python -m synth generate --count 50 --difficulty mixed --output ./output/run_$(date +%Y%m%d)",
+		"synth:bench": "cd synth && python -m synth bench --input $(ls -dt output/run_* 2>/dev/null | head -1) --backend gemini",
+		"synth:e2e": "npm run synth:generate && npm run synth:bench",
+		"synth:validate": "cd synth && python -m synth validate-output $(ls -dt output/run_* 2>/dev/null | head -1)"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
