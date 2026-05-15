@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="{{ css_path }}/thermal.css">
+</head>
+<body>
+
+<div class="supplier-name">{{ spec.supplier.name|upper }}</div>
+<div class="supplier-sub">{{ spec.supplier.address.city }} · Tel: {{ spec.supplier.phone }}</div>
+
+<hr class="divider">
+
+<div class="doc-header">ALBARÁN DE ENTREGA</div>
+<div class="doc-number">Nº {{ spec.albaran_number }}</div>
+<div class="dates">
+  Fecha: {{ date_format(spec.delivery_date) }}<br>
+  Cliente: {{ spec.buyer_name }}
+</div>
+
+<hr class="divider">
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:50%">Artículo</th>
+      <th class="right" style="width:12%">Cant</th>
+      <th style="width:10%">Ud</th>
+      {% if spec.has_prices %}
+      <th class="right" style="width:14%">P.U.</th>
+      <th class="right" style="width:14%">Importe</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in spec.items %}
+    <tr>
+      <td>{{ item.description }}</td>
+      <td class="right">{{ format_qty(item.quantity) }}</td>
+      <td>{{ item.unit }}</td>
+      {% if spec.has_prices %}
+      <td class="right">{{ format_money(item.unit_price) if item.unit_price else '-' }}</td>
+      <td class="right">{{ format_money(item.total_price) if item.total_price else '-' }}</td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<hr class="divider">
+
+{% if spec.has_total and spec.has_prices %}
+<div class="totals">
+  <div class="total-row grand">
+    <span>TOTAL ALBARÁN</span>
+    <span>{{ format_money(spec.items | sum(attribute='total_price')) }} EUR</span>
+  </div>
+</div>
+{% else %}
+<div style="font-size:6pt;text-align:center;margin-top:1mm;">
+  (Factura pendiente de emisión)
+</div>
+{% endif %}
+
+<hr class="divider">
+<div class="footer">
+  Recibí conforme: _______________<br>
+  Firma y sello
+</div>
+
+</body>
+</html>
