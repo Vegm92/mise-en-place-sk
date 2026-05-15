@@ -9,7 +9,24 @@ import { GEMINI_API_KEY } from './env';
 
 const MODEL = 'gemini-2.5-flash';
 
-const EXTRACTION_PROMPT = `You are an invoice data extraction specialist. Extract all relevant information from this invoice and return it as a JSON object.
+const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spanish restaurants. Extract all relevant information from this document and return it as a JSON object.
+
+The document may be a FACTURA (invoice) or an ALBARÁN (delivery note / nota de entrega). Both are common in Spanish restaurant supplier workflows:
+- Facturas include IVA breakdowns (base imponible, cuota IVA, tipo IVA), número de factura, fecha de vencimiento, and CIF/NIF for both parties.
+- Albaranes are delivery notes: they list delivered products with quantities and sometimes unit prices, but may lack a total, IVA breakdown, or formal invoice number. Use the albarán number (nº albarán, nº pedido, referencia) as the invoice_number if no factura number is present.
+
+Key Spanish field names to look for:
+- Supplier: razón social, proveedor, emisor, nombre empresa, denominación social
+- Invoice/delivery number: nº factura, número de factura, nº albarán, referencia, nº pedido
+- Date: fecha de emisión, fecha factura, fecha entrega, fecha albarán
+- Due date: fecha de vencimiento, vence el, fecha límite pago
+- Tax IDs: CIF, NIF, NIF/CIF (format: letter + 8 digits, e.g. B12345678 or 12345678A)
+- Taxable base: base imponible, base gravable
+- VAT amount: cuota IVA, importe IVA, IVA (rates: 21% general, 10% reducido for food/restaurants, 4% superreducido for basic staples)
+- Total: total factura, total albarán, importe total, total a pagar
+- Line items: descripción, artículo, referencia, cantidad (qty), unidad (ud, kg, L, caja, garrafa, botella, pack, bandeja), precio unitario (P.U., precio/ud), importe, subtotal
+
+Common Spanish supplier units to recognise: ud (unidad), kg, g, L, ml, caja, garrafa, botella, pack, bandeja, saco, palé, docena, media caja, bulto.
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -18,7 +35,7 @@ Return ONLY valid JSON with this exact structure:
   "invoice_date": "YYYY-MM-DD or null",
   "due_date": "YYYY-MM-DD or null",
   "total_amount": number or null,
-  "currency": "3-letter code e.g. USD, EUR, MXN",
+  "currency": "3-letter code, almost always EUR for Spanish documents",
   "line_items": [
     {
       "description": "string",
@@ -31,10 +48,17 @@ Return ONLY valid JSON with this exact structure:
   "confidence": 0.0 to 1.0
 }
 
-The confidence score should reflect how certain you are about the extracted data:
+Rules:
+- total_amount must be the final amount INCLUDING IVA (total a pagar), not the base imponible.
+- If IVA is shown separately, sum base imponible + cuota IVA to get total_amount.
+- If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
+- Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
+- Do not invent values — use null for any field not clearly present.
+
+Confidence score:
 - 0.85+ : All key fields clearly visible and readable
 - 0.60-0.84 : Most fields readable, some ambiguity
-- below 0.60 : Poor quality, missing critical fields`;
+- below 0.60 : Poor quality, missing critical fields, or handwritten document`;
 
 export interface ExtractedInvoice {
 	supplier_name: string | null;
