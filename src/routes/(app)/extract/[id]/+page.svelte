@@ -57,7 +57,12 @@
 
   {#if data.error}
     <div class="bg-[#FFF1F0] border border-[#FECACA] text-[#E05555] rounded-[8px] p-4 text-[13px] mb-4">
-      <strong>Extraction failed</strong> {data.error}
+      <strong class="block mb-1">Extraction failed</strong>
+      <p class="mb-3">{data.error}</p>
+      <a href="/extract/{data.id}"
+         class="inline-block bg-[#E05555] text-white rounded-[6px] px-3 py-1 text-[12px] font-semibold hover:bg-[#c94444] transition-colors no-underline">
+        Try again
+      </a>
     </div>
   {/if}
 

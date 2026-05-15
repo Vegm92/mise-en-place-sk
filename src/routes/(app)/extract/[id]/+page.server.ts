@@ -2,9 +2,10 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
-import { UPLOADS_DIR } from '$lib/server/env';
+import { UPLOADS_DIR, MAX_CONCURRENT_EXTRACTIONS } from '$lib/server/env';
 import { extractInvoice } from '$lib/server/extract';
-import { readSession, deleteSession } from '$lib/server/sessions';
+import { readSession, writeSession, deleteSession } from '$lib/server/sessions';
+import { tryAcquireExtraction, releaseExtraction } from '$lib/server/rate-limiter';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
@@ -45,13 +46,31 @@ export const load: PageServerLoad = async ({ params }) => {
 	let extractedData: Record<string, unknown> = {};
 	let extractError: string | null = null;
 
-	try {
-		const firstFile = path.join(dir, existingPaths[0]);
-		const result = await extractInvoice(firstFile);
-		extractedData = result as unknown as Record<string, unknown>;
-	} catch (err) {
-		extractError = err instanceof Error ? err.message : String(err);
-		console.error('[extract] Extraction failed for', existingPaths[0], err);
+	if (session.extractedData && Object.keys(session.extractedData).length > 0) {
+		extractedData = session.extractedData;
+	} else {
+		const acquired = tryAcquireExtraction(MAX_CONCURRENT_EXTRACTIONS);
+		if (!acquired) {
+			extractError = 'The system is currently processing too many invoices. Please try again in a moment.';
+		} else {
+			try {
+				const firstFile = path.join(dir, existingPaths[0]);
+				const result = await extractInvoice(firstFile);
+				extractedData = result as unknown as Record<string, unknown>;
+				writeSession({ ...session, extractedData });
+			} catch (err) {
+				const status = (err as { status?: number }).status;
+				extractError =
+					status === 429
+						? 'The AI service is currently busy — please try again in a moment.'
+						: status === 503
+							? 'The AI service is temporarily unavailable — please try again shortly.'
+							: 'Extraction failed — please try again, or contact support if the issue persists.';
+				console.error('[extract] Extraction failed for', existingPaths[0], err);
+			} finally {
+				releaseExtraction();
+			}
+		}
 	}
 
 	// Run unit bridge on extracted line items
