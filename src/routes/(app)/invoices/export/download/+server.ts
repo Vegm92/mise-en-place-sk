@@ -1,5 +1,7 @@
 import type { RequestHandler } from './$types';
-import { dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { invoices, suppliers } from '$lib/server/schema';
+import { and, desc, eq, gte, lte, SQL } from 'drizzle-orm';
 
 export const GET: RequestHandler = ({ url }) => {
 	const status     = url.searchParams.get('status') ?? '';
@@ -7,33 +9,28 @@ export const GET: RequestHandler = ({ url }) => {
 	const dateFrom   = url.searchParams.get('date_from') ?? '';
 	const dateTo     = url.searchParams.get('date_to') ?? '';
 
-	const filters: string[] = [];
-	const params: (string | number)[] = [];
+	const conditions: SQL[] = [];
+	if (status)     conditions.push(eq(invoices.status, status));
+	if (supplierId) conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
+	if (dateFrom)   conditions.push(gte(invoices.invoiceDate, dateFrom));
+	if (dateTo)     conditions.push(lte(invoices.invoiceDate, dateTo));
 
-	if (status)     { filters.push('i.status = ?');       params.push(status); }
-	if (supplierId) { filters.push('i.supplier_id = ?');  params.push(parseInt(supplierId, 10)); }
-	if (dateFrom)   { filters.push('i.invoice_date >= ?'); params.push(dateFrom); }
-	if (dateTo)     { filters.push('i.invoice_date <= ?'); params.push(dateTo); }
-
-	const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-
-	const rows = dbClient.prepare(`
-		SELECT i.id, s.name AS supplier, i.invoice_number, i.invoice_date, i.due_date,
-		       i.total_amount, i.status, i.created_at
-		FROM invoices i
-		LEFT JOIN suppliers s ON s.id = i.supplier_id
-		${where}
-		ORDER BY i.invoice_date DESC
-	`).all(...params) as {
-		id: number;
-		supplier: string | null;
-		invoice_number: string | null;
-		invoice_date: string | null;
-		due_date: string | null;
-		total_amount: number | null;
-		status: string | null;
-		created_at: string | null;
-	}[];
+	const rows = db
+		.select({
+			id:             invoices.id,
+			supplier:       suppliers.name,
+			invoice_number: invoices.invoiceNumber,
+			invoice_date:   invoices.invoiceDate,
+			due_date:       invoices.dueDate,
+			total_amount:   invoices.totalAmount,
+			status:         invoices.status,
+			created_at:     invoices.createdAt,
+		})
+		.from(invoices)
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(conditions.length ? and(...conditions) : undefined)
+		.orderBy(desc(invoices.invoiceDate))
+		.all();
 
 	const header = 'id,supplier,invoice_number,invoice_date,due_date,total_amount,status,created_at\r\n';
 	const lines = rows.map((r) =>

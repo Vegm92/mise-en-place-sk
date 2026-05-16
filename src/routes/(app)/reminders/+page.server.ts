@@ -1,6 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { invoices, suppliers } from '$lib/server/schema';
+import { and, asc, eq, isNotNull, lte, sql } from 'drizzle-orm';
 
 type ReminderRow = {
 	id: number;
@@ -18,26 +20,35 @@ export const load: PageServerLoad = async () => {
 	const todayIso = today.toISOString().split('T')[0];
 	const weekEnd = new Date(today.getTime() + 7 * 86400_000).toISOString().split('T')[0];
 
-	const rows = dbClient.prepare(`
-		SELECT i.id, s.name AS supplier_name, i.invoice_number,
-		       i.due_date, COALESCE(i.total_amount, 0) AS display_amount
-		FROM invoices i
-		LEFT JOIN suppliers s ON s.id = i.supplier_id
-		WHERE i.status = 'pending'
-		  AND i.due_date IS NOT NULL
-		  AND i.due_date <= ?
-		ORDER BY i.due_date ASC
-	`).all(weekEnd) as { id: number; supplier_name: string | null; invoice_number: string | null; due_date: string; display_amount: number }[];
+	const rows = db
+		.select({
+			id:             invoices.id,
+			supplier_name:  suppliers.name,
+			invoice_number: invoices.invoiceNumber,
+			due_date:       invoices.dueDate,
+			display_amount: sql<number>`COALESCE(${invoices.totalAmount}, 0)`,
+		})
+		.from(invoices)
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(
+			and(
+				eq(invoices.status, 'pending'),
+				isNotNull(invoices.dueDate),
+				lte(invoices.dueDate, weekEnd)
+			)
+		)
+		.orderBy(asc(invoices.dueDate))
+		.all();
 
 	const enriched: ReminderRow[] = rows.map((r) => {
 		const dueDays = Math.round(
-			(new Date(r.due_date).getTime() - today.getTime()) / 86400_000
+			(new Date(r.due_date!).getTime() - today.getTime()) / 86400_000
 		);
-		return { ...r, days_delta: dueDays, overdue: dueDays < 0 };
+		return { ...r, due_date: r.due_date!, days_delta: dueDays, overdue: dueDays < 0 };
 	});
 
-	const overdue = enriched.filter((r) => r.overdue);
-	const due_soon = enriched.filter((r) => !r.overdue);
+	const overdue    = enriched.filter((r) => r.overdue);
+	const due_soon   = enriched.filter((r) => !r.overdue);
 	const total_amount = enriched.reduce((sum, r) => sum + r.display_amount, 0);
 
 	return {
@@ -53,7 +64,7 @@ export const actions: Actions = {
 	markPaid: async ({ request }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		dbClient.prepare("UPDATE invoices SET status = 'paid' WHERE id = ?").run(id);
+		db.update(invoices).set({ status: 'paid' }).where(eq(invoices.id, id)).run();
 		redirect(303, '/reminders');
 	},
 };

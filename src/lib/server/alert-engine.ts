@@ -3,7 +3,9 @@
  * runPriceShock: detects >15% unit price deviation vs last recorded price.
  * runStockForecast: projects days-of-stock after purchase; alerts if < 3 days.
  */
-import { dbClient } from './db';
+import { db } from './db';
+import { invoiceLineItems, invoices, suppliers, stockLevels } from './schema';
+import { and, desc, eq, isNotNull, ne } from 'drizzle-orm';
 import type { EnrichedLineItem } from './unit-bridge';
 
 const PRICE_SHOCK_THRESHOLD = 0.15;
@@ -22,28 +24,31 @@ export function runPriceShock(
 ): Alert[] {
 	const alerts: Alert[] = [];
 
-	const stmt = dbClient.prepare<[string, string, number]>(`
-		SELECT li.unit_price
-		FROM invoice_line_items li
-		JOIN invoices i ON li.invoice_id = i.id
-		JOIN suppliers s ON i.supplier_id = s.id
-		WHERE li.description = ?
-		  AND s.name = ?
-		  AND li.invoice_id != ?
-		  AND li.unit_price IS NOT NULL
-		ORDER BY i.invoice_date DESC, i.id DESC
-		LIMIT 1
-	`);
-
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();
 		const newPrice = item.unitPrice;
 		if (!description || newPrice == null) continue;
 
-		const row = stmt.get(description, supplierName, invoiceId) as { unit_price: number } | undefined;
-		if (!row) continue;
+		const rows = db
+			.select({ unitPrice: invoiceLineItems.unitPrice })
+			.from(invoiceLineItems)
+			.innerJoin(invoices, eq(invoiceLineItems.invoiceId, invoices.id))
+			.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
+			.where(
+				and(
+					eq(invoiceLineItems.description, description),
+					eq(suppliers.name, supplierName),
+					ne(invoiceLineItems.invoiceId, invoiceId),
+					isNotNull(invoiceLineItems.unitPrice)
+				)
+			)
+			.orderBy(desc(invoices.invoiceDate), desc(invoices.id))
+			.limit(1)
+			.all();
 
-		const oldPrice = row.unit_price;
+		if (!rows[0]) continue;
+
+		const oldPrice = rows[0].unitPrice!;
 		if (oldPrice === 0) continue;
 
 		const deviation = (newPrice - oldPrice) / oldPrice;
@@ -65,27 +70,27 @@ export function runPriceShock(
 export function runStockForecast(lineItems: EnrichedLineItem[]): Alert[] {
 	const alerts: Alert[] = [];
 
-	const stmt = dbClient.prepare<[string]>(`
-		SELECT current_stock, daily_burn_rate, canonical_unit
-		FROM stock_levels
-		WHERE ingredient = ?
-	`);
-
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();
 		if (!description) continue;
 
-		const row = stmt.get(description) as {
-			current_stock: number;
-			daily_burn_rate: number;
-			canonical_unit: string | null;
-		} | undefined;
+		const rows = db
+			.select({
+				currentStock: stockLevels.currentStock,
+				dailyBurnRate: stockLevels.dailyBurnRate,
+				canonicalUnit: stockLevels.canonicalUnit,
+			})
+			.from(stockLevels)
+			.where(eq(stockLevels.ingredient, description))
+			.limit(1)
+			.all();
 
-		if (row?.current_stock == null || row.daily_burn_rate == null || row.daily_burn_rate === 0) continue;
+		const row = rows[0];
+		if (row?.currentStock == null || row.dailyBurnRate == null || row.dailyBurnRate === 0) continue;
 
 		const addedQty = item.convertedQuantity ?? item.quantity ?? 0;
-		const projectedStock = row.current_stock + addedQty;
-		const daysRemaining = projectedStock / row.daily_burn_rate;
+		const projectedStock = row.currentStock + addedQty;
+		const daysRemaining = projectedStock / row.dailyBurnRate;
 
 		if (daysRemaining >= LOW_STOCK_DAYS) continue;
 
@@ -95,10 +100,10 @@ export function runStockForecast(lineItems: EnrichedLineItem[]): Alert[] {
 			payload: {
 				ingredient: description,
 				projectedDays: Math.round(daysRemaining * 10) / 10,
-				currentStock: row.current_stock,
+				currentStock: row.currentStock,
 				addedQuantity: addedQty,
-				dailyBurnRate: row.daily_burn_rate,
-				unit: row.canonical_unit,
+				dailyBurnRate: row.dailyBurnRate,
+				unit: row.canonicalUnit,
 			},
 		});
 	}

@@ -1,11 +1,17 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { settings } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
+
+const THRESHOLD_KEY = 'budget_warning_threshold';
 
 export const load: PageServerLoad = async () => {
-	const row = dbClient
-		.prepare("SELECT value FROM settings WHERE key = 'budget_warning_threshold'")
-		.get() as { value: string } | undefined;
+	const row = db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(eq(settings.key, THRESHOLD_KEY))
+		.get();
 
 	return {
 		title: 'Settings',
@@ -18,9 +24,12 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const raw = Number(data.get('value'));
 		const clamped = Math.max(1, Math.min(99, raw || 80));
-		dbClient.prepare(
-			"INSERT OR REPLACE INTO settings (key, value) VALUES ('budget_warning_threshold', ?)"
-		).run(String(clamped));
+
+		db.insert(settings)
+			.values({ key: THRESHOLD_KEY, value: String(clamped) })
+			.onConflictDoUpdate({ target: settings.key, set: { value: String(clamped) } })
+			.run();
+
 		redirect(303, '/settings');
 	},
 };
