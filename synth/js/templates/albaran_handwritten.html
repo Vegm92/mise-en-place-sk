@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
+* { box-sizing: border-box; }
+body { font-family: 'Caveat', cursive; font-size: 14pt; padding: 18mm;
+  background: #fffef8; color: #1a1a1a; }
+.title { font-size: 20pt; font-weight: 700; text-decoration: underline;
+  margin-bottom: 4mm; }
+.meta { font-size: 13pt; margin-bottom: 2mm; }
+.table-border { border: 2px solid #333; border-collapse: collapse; width: 100%;
+  margin: 4mm 0; }
+.table-border th, .table-border td { border: 1px solid #555; padding: 1.5mm 2mm;
+  font-size: 13pt; }
+.table-border th { background: #eee; font-weight: 700; }
+.right { text-align: right; }
+.sig { margin-top: 8mm; font-size: 13pt; }
+.total-line { font-size: 16pt; font-weight: 700; margin-top: 3mm; }
+</style>
+</head>
+<body>
+
+<div class="title">Albarán</div>
+
+<div class="meta">Proveedor: {{ spec.supplier.name }}</div>
+<div class="meta">Nº: {{ spec.albaran_number }} &nbsp;&nbsp; Fecha: {{ date_format(spec.delivery_date) }}</div>
+<div class="meta">Para: {{ spec.buyer_name }}</div>
+
+<table class="table-border">
+  <thead>
+    <tr>
+      <th style="width:50%">Artículo</th>
+      <th class="right" style="width:15%">Cant.</th>
+      <th style="width:10%">Ud.</th>
+      {% if spec.has_prices %}
+      <th class="right" style="width:12%">P.U.</th>
+      <th class="right" style="width:13%">Total</th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in spec.items %}
+    <tr>
+      <td>{{ item.description }}</td>
+      <td class="right">{{ format_qty(item.quantity) }}</td>
+      <td>{{ item.unit }}</td>
+      {% if spec.has_prices %}
+      <td class="right">{{ format_money(item.unit_price) if item.unit_price else '-' }}</td>
+      <td class="right">{{ format_money(item.total_price) if item.total_price else '-' }}</td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if spec.has_total and spec.has_prices %}
+<div class="total-line">
+  Total: {{ format_money(spec.items | sumattr('total_price')) }} €
+</div>
+{% endif %}
+
+<div class="sig">
+  <br>
+  Firma recepción: _______________________
+</div>
+
+</body>
+</html>
