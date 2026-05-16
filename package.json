@@ -15,7 +15,11 @@
 		"synth:generate": "cd synth && python -m synth generate --count 50 --difficulty mixed --output ./output/run_$(date +%Y%m%d)",
 		"synth:bench": "cd synth && python -m synth bench --input $(ls -dt output/run_* 2>/dev/null | head -1) --backend gemini",
 		"synth:e2e": "npm run synth:generate && npm run synth:bench",
-		"synth:validate": "cd synth && python -m synth validate-output $(ls -dt output/run_* 2>/dev/null | head -1)"
+		"synth:validate": "cd synth && python -m synth validate-output $(ls -dt output/run_* 2>/dev/null | head -1)",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:studio": "drizzle-kit studio",
+		"db:push": "drizzle-kit push"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
