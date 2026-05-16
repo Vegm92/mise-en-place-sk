@@ -1,0 +1,29 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+@page { size: 80mm auto; margin: 3mm 2mm; }
+
+body {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 7pt;
+  color: #000;
+  background: #fff;
+  width: 76mm;
+}
+
+.supplier-name { font-size: 9pt; font-weight: bold; text-align: center; }
+.supplier-sub { font-size: 6pt; text-align: center; color: #333; }
+.divider { border: none; border-top: 1px dashed #000; margin: 1.5mm 0; }
+.doc-header { text-align: center; font-weight: bold; font-size: 8pt; margin: 1mm 0; }
+.doc-number { text-align: center; font-size: 7pt; }
+.dates { font-size: 6.5pt; margin: 1mm 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 6.5pt; }
+thead th { font-weight: bold; text-align: left; padding: 0.5mm 1mm; border-bottom: 1px solid #000; }
+thead th.right { text-align: right; }
+tbody td { padding: 0.5mm 1mm; vertical-align: top; }
+tbody td.right { text-align: right; }
+
+.totals { margin-top: 1mm; font-size: 7pt; }
+.total-row { display: flex; justify-content: space-between; padding: 0.3mm 0; }
+.total-row.grand { font-weight: bold; border-top: 1px solid #000; margin-top: 0.5mm; }
+.footer { text-align: center; font-size: 6pt; color: #555; margin-top: 2mm; }

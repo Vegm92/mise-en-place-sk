@@ -73,7 +73,7 @@
                    ? 'bg-[#1A1A1A] text-white'
                    : 'text-[#999999] hover:bg-[#141414] hover:text-[#CCCCCC]'}"
         >
-          <svelte:component this={item.icon} size={15} class={item.active() ? 'text-[#4A9FD8]' : 'text-current'} />
+          <item.icon size={15} class={item.active() ? 'text-[#4A9FD8]' : 'text-current'} />
           {item.label}
         </a>
       {/each}
