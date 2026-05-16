@@ -22,6 +22,16 @@ export interface EnrichedLineItem extends LineItem {
 	convertedUnitPrice?: number | null;
 }
 
+// Units that are already canonical — no DB rule needed, factor 1.
+const CANONICAL_UNITS = new Set([
+	'kg', 'g', 'mg',
+	'L', 'l', 'ml', 'mL',
+	'ud', 'uds', 'un', 'unidad', 'unidades',
+	'pz', 'pza', 'pieza', 'piezas',
+	'caja', 'cajas', 'bote', 'botes', 'bolsa', 'bolsas',
+	'sobre', 'sobres', 'lata', 'latas', 'botella', 'botellas',
+]);
+
 export function resolveUnit(
 	supplierName: string,
 	description: string,
@@ -40,7 +50,13 @@ export function resolveUnit(
 		)
 		.limit(1)
 		.all();
-	return rows[0] ?? null;
+	if (rows[0]) return rows[0];
+
+	// Fall back to pass-through for known canonical units.
+	if (CANONICAL_UNITS.has(unit.trim())) {
+		return { canonicalUnit: unit.trim(), conversionFactor: 1 };
+	}
+	return null;
 }
 
 export function annotateLineItems(

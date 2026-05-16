@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { fmt } from '$lib/formatters';
+  import { INVOICE_BADGE_CLS } from '$lib/constants';
 
   const { data }: { data: PageData } = $props();
   const { invoices, stats, suppliers, filters } = $derived(data);
@@ -47,8 +49,6 @@
     }
   }
 
-  function fmt(n: number | null) { return (n ?? 0).toFixed(2); }
-
   function handleBulkPaid() {
     if (!checkedIds.size) return;
     if (!confirm(`Mark ${checkedIds.size} invoice${checkedIds.size > 1 ? 's' : ''} as paid?`)) return;
@@ -60,12 +60,7 @@
     (document.getElementById('bulk-delete-form') as HTMLFormElement).submit();
   }
 
-  const badgeCls: Record<string, string> = {
-    pending:  'bg-[#FFF8EE] text-[#C8843A]',
-    paid:     'bg-[#F0FDF4] text-[#3A8C5C]',
-    overdue:  'bg-[#FFF1F0] text-[#E05555]',
-    due_soon: 'bg-[#FFF8EE] text-[#C8843A]',
-  };
+  const badgeCls = INVOICE_BADGE_CLS;
 </script>
 
 <div class="flex justify-end mb-4">

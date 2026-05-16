@@ -1,27 +1,21 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { PageData } from './$types';
+  import { initRows, addRow, removeRow, updateRow, calcTotal } from '$lib/invoice-items';
+  import type { Row } from '$lib/invoice-items';
 
   let { data }: { data: PageData } = $props();
 
   const { invoice } = $derived(data);
 
-  type Row = { description: string | null; quantity: number | string | null; unit: string | null; unit_price: number | string | null; total_price: number | string | null };
-  let items = $state<Row[]>(untrack(() => {
-    const li = data.lineItems;
-    return li.length > 0
-      ? li.map((l) => ({ description: l.description, quantity: l.quantity, unit: l.unit, unit_price: l.unit_price, total_price: l.total_price }))
-      : [{ description: '', quantity: '', unit: '', unit_price: '', total_price: '' }];
-  }));
+  let items = $state<Row[]>(untrack(() => initRows(data.lineItems)));
 
-  function addRow() {
-    items = [...items, { description: '', quantity: '', unit: '', unit_price: '', total_price: '' }];
-  }
-  function removeRow(idx: number) {
-    items = items.filter((_, i) => i !== idx);
-  }
+  const rowsWithTotals = $derived(
+    items.map(row => ({ ...row, total_price: calcTotal(row.quantity, row.unit_price) }))
+  );
 
   const inputCls = 'h-8 rounded-[6px] border border-[#E5E7EB] bg-white px-3 text-[13px] text-[#1A1A1A] focus:outline-none focus:border-[#4A9FD8] w-full';
+  const readonlyCls = inputCls + ' bg-[#F9FAFB] cursor-default';
 </script>
 
 <div class="max-w-[700px] mx-auto">
@@ -68,17 +62,26 @@
           <span class="text-[11px] font-semibold text-[#888888]">{h}</span>
         {/each}
       </div>
-      {#each items as item, idx (idx)}
+      {#each rowsWithTotals as row, idx (idx)}
         <div class="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-2 items-center mb-2">
-          <input type="text" name="line_descriptions" value={String(item.description ?? '')} class={inputCls} />
-          <input type="text" name="line_quantities" value={String(item.quantity ?? '')} class={inputCls} />
-          <input type="text" name="line_units" value={String(item.unit ?? '')} class={inputCls} />
-          <input type="text" name="line_unit_prices" value={String(item.unit_price ?? '')} class={inputCls} />
-          <input type="text" name="line_total_prices" value={String(item.total_price ?? '')} class={inputCls} />
-          <button type="button" class="bg-transparent border-none cursor-pointer text-[#E05555] text-[18px] px-1 pb-1 leading-none" onclick={() => removeRow(idx)}>×</button>
+          <input type="text" name="line_descriptions" value={row.description ?? ''}
+            oninput={(e) => { items = updateRow(items, idx, { description: (e.target as HTMLInputElement).value }); }}
+            class={inputCls} />
+          <input type="text" name="line_quantities" value={row.quantity ?? ''}
+            oninput={(e) => { items = updateRow(items, idx, { quantity: (e.target as HTMLInputElement).value }); }}
+            class={inputCls} />
+          <input type="text" name="line_units" value={row.unit ?? ''}
+            oninput={(e) => { items = updateRow(items, idx, { unit: (e.target as HTMLInputElement).value }); }}
+            class={inputCls} />
+          <input type="text" name="line_unit_prices" value={row.unit_price ?? ''}
+            oninput={(e) => { items = updateRow(items, idx, { unit_price: (e.target as HTMLInputElement).value }); }}
+            class={inputCls} />
+          <input type="text" value={row.total_price != null ? String(row.total_price) : ''} readonly tabindex="-1" class={readonlyCls} />
+          <input type="hidden" name="line_total_prices" value={row.total_price != null ? String(row.total_price) : ''} />
+          <button type="button" class="bg-transparent border-none cursor-pointer text-[#E05555] text-[18px] px-1 pb-1 leading-none" onclick={() => { items = removeRow(items, idx); }}>×</button>
         </div>
       {/each}
-      <button type="button" onclick={addRow}
+      <button type="button" onclick={() => { items = addRow(items); }}
               class="text-[13px] font-medium text-[#888888] bg-transparent border border-dashed border-[#E5E7EB] rounded-[6px] py-[5px] px-3 cursor-pointer mt-1 hover:bg-[#F9FAFB] transition-colors">
         + Add line
       </button>

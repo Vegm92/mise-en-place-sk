@@ -1,16 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { SUPPLIER_BADGE_CLS, SUPPLIER_BADGE_LABEL } from '$lib/constants';
 
   let { data }: { data: PageData } = $props();
 
-  const badgeCls: Record<string, string> = {
-    overdue:  'bg-[#FFF1F0] text-[#E05555]',
-    due_soon: 'bg-[#FFF8EE] text-[#C8843A]',
-    paid_up:  'bg-[#F0FDF4] text-[#3A8C5C]',
-  };
-  const badgeLabel: Record<string, string> = {
-    overdue: 'Overdue', due_soon: 'Due soon', paid_up: 'Paid up',
-  };
+  const badgeCls = SUPPLIER_BADGE_CLS;
+  const badgeLabel = SUPPLIER_BADGE_LABEL;
 </script>
 
 {#if !data.suppliers.length}

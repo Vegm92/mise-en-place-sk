@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import TrendChart from '$lib/components/TrendChart.svelte';
   import { Bell, TrendingUp, TriangleAlert, Upload, MessageCircle, X, Send } from 'lucide-svelte';
+  import { INVOICE_STATUS_BG, INVOICE_STATUS_COLOR } from '$lib/constants';
 
   let { data }: { data: PageData } = $props();
 
@@ -59,18 +60,8 @@
     return '#2271B1';
   }
 
-  const statusBg: Record<string, string> = {
-    pending:  '#F3F4F6',
-    paid:     '#F0FDF4',
-    overdue:  '#FFF1F0',
-    due_soon: '#FFFBEB',
-  };
-  const statusColor: Record<string, string> = {
-    pending:  '#555555',
-    paid:     '#166534',
-    overdue:  '#B91C1C',
-    due_soon: '#92400E',
-  };
+  const statusBg = INVOICE_STATUS_BG;
+  const statusColor = INVOICE_STATUS_COLOR;
 </script>
 
 <!-- Page header -->
@@ -432,6 +423,11 @@
           </div>
         {/if}
       </div>
+
+      <!-- Privacy notice -->
+      <p class="text-[10px] text-[#999999] text-center px-3 pt-2 pb-0 leading-tight">
+        Business data is shared with Google Gemini to answer questions.
+      </p>
 
       <!-- Input -->
       <div class="flex items-center gap-2 px-3 py-3 border-t border-[#F3F4F6]">
