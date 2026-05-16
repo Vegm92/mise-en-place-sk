@@ -1,16 +1,16 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { categoryBudgets } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 
 export const load: PageServerLoad = async () => {
-	const rows = dbClient
-		.prepare('SELECT category, monthly_budget FROM category_budgets')
-		.all() as { category: string; monthly_budget: number }[];
+	const rows = db.select().from(categoryBudgets).all();
 
 	const budgets: Record<string, number> = {};
 	for (const row of rows) {
-		budgets[row.category] = row.monthly_budget;
+		budgets[row.category] = row.monthlyBudget;
 	}
 
 	return {
@@ -29,11 +29,12 @@ export const actions: Actions = {
 			const raw = String(data.get(category) ?? '').trim();
 			const amount = parseFloat(raw);
 			if (!isNaN(amount) && amount >= 0) {
-				dbClient.prepare(
-					'INSERT OR REPLACE INTO category_budgets (category, monthly_budget) VALUES (?, ?)'
-				).run(category, amount);
+				db.insert(categoryBudgets)
+					.values({ category, monthlyBudget: amount })
+					.onConflictDoUpdate({ target: categoryBudgets.category, set: { monthlyBudget: amount } })
+					.run();
 			} else {
-				dbClient.prepare('DELETE FROM category_budgets WHERE category = ?').run(category);
+				db.delete(categoryBudgets).where(eq(categoryBudgets.category, category)).run();
 			}
 		}
 

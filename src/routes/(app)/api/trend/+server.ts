@@ -1,6 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { invoices } from '$lib/server/schema';
+import { sql } from 'drizzle-orm';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_ABBR   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -34,13 +36,16 @@ export const GET: RequestHandler = ({ url }) => {
 			d.setDate(today.getDate() - i);
 			keys.push(isoDate(d));
 		}
-		const rows = dbClient.prepare(`
-			SELECT strftime('%Y-%m-%d', invoice_date) AS key,
-			       COALESCE(SUM(COALESCE(total_amount, 0)), 0) AS total
-			FROM invoices
-			WHERE invoice_date >= date('now', '-13 days')
-			GROUP BY key ORDER BY key ASC
-		`).all() as { key: string; total: number }[];
+		const rows = db
+			.select({
+				key:   sql<string>`strftime('%Y-%m-%d', ${invoices.invoiceDate})`,
+				total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`,
+			})
+			.from(invoices)
+			.where(sql`${invoices.invoiceDate} >= date('now', '-13 days')`)
+			.groupBy(sql`strftime('%Y-%m-%d', ${invoices.invoiceDate})`)
+			.orderBy(sql`strftime('%Y-%m-%d', ${invoices.invoiceDate})`)
+			.all();
 		const map = Object.fromEntries(rows.map((r) => [r.key, r.total]));
 		const todayKey = isoDate(today);
 		buckets = keys.map((k) => {
@@ -55,13 +60,17 @@ export const GET: RequestHandler = ({ url }) => {
 			d.setDate(today.getDate() - i * 7);
 			mondays.push(isoDate(monday(d)));
 		}
-		const rows = dbClient.prepare(`
-			SELECT date(invoice_date, '-' || ((strftime('%w', invoice_date)+6)%7) || ' days') AS key,
-			       COALESCE(SUM(COALESCE(total_amount, 0)), 0) AS total
-			FROM invoices
-			WHERE invoice_date >= date('now', '-56 days')
-			GROUP BY key ORDER BY key ASC
-		`).all() as { key: string; total: number }[];
+		const weekKey = sql<string>`date(${invoices.invoiceDate}, '-' || ((strftime('%w', ${invoices.invoiceDate})+6)%7) || ' days')`;
+		const rows = db
+			.select({
+				key:   weekKey,
+				total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`,
+			})
+			.from(invoices)
+			.where(sql`${invoices.invoiceDate} >= date('now', '-56 days')`)
+			.groupBy(weekKey)
+			.orderBy(weekKey)
+			.all();
 		const map = Object.fromEntries(rows.map((r) => [r.key, r.total]));
 		const currentMonday = isoDate(monday(today));
 		buckets = mondays.map((k) => {
@@ -72,13 +81,17 @@ export const GET: RequestHandler = ({ url }) => {
 	} else if (scale === 'yearly') {
 		const year = today.getFullYear();
 		const keys = [year - 4, year - 3, year - 2, year - 1, year].map(String);
-		const rows = dbClient.prepare(`
-			SELECT strftime('%Y', invoice_date) AS key,
-			       COALESCE(SUM(COALESCE(total_amount, 0)), 0) AS total
-			FROM invoices
-			WHERE strftime('%Y', invoice_date) >= strftime('%Y', date('now', '-4 years'))
-			GROUP BY key ORDER BY key ASC
-		`).all() as { key: string; total: number }[];
+		const yearKey = sql<string>`strftime('%Y', ${invoices.invoiceDate})`;
+		const rows = db
+			.select({
+				key:   yearKey,
+				total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`,
+			})
+			.from(invoices)
+			.where(sql`strftime('%Y', ${invoices.invoiceDate}) >= strftime('%Y', date('now', '-4 years'))`)
+			.groupBy(yearKey)
+			.orderBy(yearKey)
+			.all();
 		const map = Object.fromEntries(rows.map((r) => [r.key, r.total]));
 		buckets = keys.map((k) => ({ label: k, total: map[k] ?? 0, pct: 0, is_current: k === String(year) }));
 
@@ -90,13 +103,17 @@ export const GET: RequestHandler = ({ url }) => {
 			while (month <= 0) { month += 12; year--; }
 			keys.push(`${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}`);
 		}
-		const rows = dbClient.prepare(`
-			SELECT strftime('%Y-%m', invoice_date) AS key,
-			       COALESCE(SUM(COALESCE(total_amount, 0)), 0) AS total
-			FROM invoices
-			WHERE strftime('%Y-%m', invoice_date) >= strftime('%Y-%m', date('now', '-11 months'))
-			GROUP BY key ORDER BY key ASC
-		`).all() as { key: string; total: number }[];
+		const monthKey = sql<string>`strftime('%Y-%m', ${invoices.invoiceDate})`;
+		const rows = db
+			.select({
+				key:   monthKey,
+				total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`,
+			})
+			.from(invoices)
+			.where(sql`strftime('%Y-%m', ${invoices.invoiceDate}) >= strftime('%Y-%m', date('now', '-11 months'))`)
+			.groupBy(monthKey)
+			.orderBy(monthKey)
+			.all();
 		const map = Object.fromEntries(rows.map((r) => [r.key, r.total]));
 		const currentKey = `${String(today.getFullYear()).padStart(4,'0')}-${String(today.getMonth()+1).padStart(2,'0')}`;
 		buckets = keys.map((k) => {

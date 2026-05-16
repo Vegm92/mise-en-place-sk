@@ -1,46 +1,49 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db, dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
-import { eq, and, ne } from 'drizzle-orm';
+import { asc, eq, and, ne } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const id = Number(params.id);
 
-	const row = dbClient.prepare(`
-		SELECT i.*, s.name AS supplier_name
-		FROM invoices i
-		LEFT JOIN suppliers s ON s.id = i.supplier_id
-		WHERE i.id = ?
-	`).get(id) as {
-		id: number;
-		supplier_id: number | null;
-		supplier_name: string | null;
-		invoice_number: string | null;
-		invoice_date: string | null;
-		due_date: string | null;
-		total_amount: number | null;
-		status: string | null;
-		source_file: string | null;
-		notes: string | null;
-		created_at: string | null;
-	} | undefined;
+	const row = db
+		.select({
+			id:             invoices.id,
+			supplier_id:    invoices.supplierId,
+			supplier_name:  suppliers.name,
+			invoice_number: invoices.invoiceNumber,
+			invoice_date:   invoices.invoiceDate,
+			due_date:       invoices.dueDate,
+			total_amount:   invoices.totalAmount,
+			status:         invoices.status,
+			source_file:    invoices.sourceFile,
+			notes:          invoices.notes,
+			created_at:     invoices.createdAt,
+		})
+		.from(invoices)
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(eq(invoices.id, id))
+		.get();
 
 	if (!row) {
 		redirect(303, '/invoices');
 	}
 
-	const lineItems = dbClient.prepare(
-		'SELECT * FROM invoice_line_items WHERE invoice_id = ? ORDER BY id'
-	).all(id) as {
-		id: number;
-		invoice_id: number;
-		description: string | null;
-		quantity: number | null;
-		unit: string | null;
-		unit_price: number | null;
-		total_price: number | null;
-	}[];
+	const lineItems = db
+		.select({
+			id:          invoiceLineItems.id,
+			invoice_id:  invoiceLineItems.invoiceId,
+			description: invoiceLineItems.description,
+			quantity:    invoiceLineItems.quantity,
+			unit:        invoiceLineItems.unit,
+			unit_price:  invoiceLineItems.unitPrice,
+			total_price: invoiceLineItems.totalPrice,
+		})
+		.from(invoiceLineItems)
+		.where(eq(invoiceLineItems.invoiceId, id))
+		.orderBy(asc(invoiceLineItems.id))
+		.all();
 
 	return {
 		title: 'Edit Invoice',
@@ -60,19 +63,19 @@ export const actions: Actions = {
 		const id = Number(params.id);
 		const data = await request.formData();
 
-		const supplierName = String(data.get('supplier_name') ?? '').trim();
+		const supplierName  = String(data.get('supplier_name') ?? '').trim();
 		const invoiceNumber = String(data.get('invoice_number') ?? '').trim() || null;
-		const invoiceDate = String(data.get('invoice_date') ?? '').trim() || null;
-		const dueDate = String(data.get('due_date') ?? '').trim() || null;
-		const totalAmount = toFloat(data.get('total_amount'));
-		const notesRaw = String(data.get('notes') ?? '').slice(0, 250);
-		const notes = notesRaw || null;
+		const invoiceDate   = String(data.get('invoice_date') ?? '').trim() || null;
+		const dueDate       = String(data.get('due_date') ?? '').trim() || null;
+		const totalAmount   = toFloat(data.get('total_amount'));
+		const notesRaw      = String(data.get('notes') ?? '').slice(0, 250);
+		const notes         = notesRaw || null;
 
 		const lineDescriptions = data.getAll('line_descriptions').map(String);
-		const lineQuantities = data.getAll('line_quantities').map(String);
-		const lineUnits = data.getAll('line_units').map(String);
-		const lineUnitPrices = data.getAll('line_unit_prices').map(String);
-		const lineTotalPrices = data.getAll('line_total_prices').map(String);
+		const lineQuantities   = data.getAll('line_quantities').map(String);
+		const lineUnits        = data.getAll('line_units').map(String);
+		const lineUnitPrices   = data.getAll('line_unit_prices').map(String);
+		const lineTotalPrices  = data.getAll('line_total_prices').map(String);
 
 		// Upsert supplier
 		let supplierId: number | null = null;
@@ -112,10 +115,10 @@ export const actions: Actions = {
 		const newItems = lineDescriptions
 			.map((desc, i) => ({
 				description: desc,
-				quantity: toFloat(lineQuantities[i] ?? null),
-				unit: lineUnits[i]?.trim() || null,
-				unitPrice: toFloat(lineUnitPrices[i] ?? null),
-				totalPrice: toFloat(lineTotalPrices[i] ?? null),
+				quantity:    toFloat(lineQuantities[i] ?? null),
+				unit:        lineUnits[i]?.trim() || null,
+				unitPrice:   toFloat(lineUnitPrices[i] ?? null),
+				totalPrice:  toFloat(lineTotalPrices[i] ?? null),
 			}))
 			.filter((item) => item.description.trim() !== '');
 

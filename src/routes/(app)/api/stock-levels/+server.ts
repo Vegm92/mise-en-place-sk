@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { stockLevels } from '$lib/server/schema';
-import { dbClient } from '$lib/server/db';
+import { sql } from 'drizzle-orm';
 
 /** GET /api/stock-levels — list all stock level entries. */
 export const GET: RequestHandler = async () => {
@@ -25,16 +25,28 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (isNaN(burnRate)) return json({ error: 'daily_burn_rate must be a number' }, { status: 422 });
 
 	const stock = parseFloat(current_stock ?? '0');
+	const stockVal = isNaN(stock) ? 0 : stock;
+	const canonUnit = canonical_unit?.trim() ?? null;
+	const trimmed = ingredient.trim();
 
-	dbClient.prepare(`
-		INSERT INTO stock_levels (ingredient, daily_burn_rate, current_stock, canonical_unit, updated_at)
-		VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-		ON CONFLICT(ingredient) DO UPDATE SET
-		    daily_burn_rate = excluded.daily_burn_rate,
-		    current_stock   = excluded.current_stock,
-		    canonical_unit  = excluded.canonical_unit,
-		    updated_at      = CURRENT_TIMESTAMP
-	`).run(ingredient.trim(), burnRate, isNaN(stock) ? 0 : stock, canonical_unit?.trim() ?? null);
+	db.insert(stockLevels)
+		.values({
+			ingredient:     trimmed,
+			dailyBurnRate:  burnRate,
+			currentStock:   stockVal,
+			canonicalUnit:  canonUnit,
+			updatedAt:      sql`CURRENT_TIMESTAMP`,
+		})
+		.onConflictDoUpdate({
+			target: stockLevels.ingredient,
+			set: {
+				dailyBurnRate: burnRate,
+				currentStock:  stockVal,
+				canonicalUnit: canonUnit,
+				updatedAt:     sql`CURRENT_TIMESTAMP`,
+			},
+		})
+		.run();
 
-	return json({ ok: true, ingredient: ingredient.trim(), daily_burn_rate: burnRate });
+	return json({ ok: true, ingredient: trimmed, daily_burn_rate: burnRate });
 };
