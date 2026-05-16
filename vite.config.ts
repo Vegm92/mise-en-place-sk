@@ -8,5 +8,12 @@ export default defineConfig({
 		include: ['tests/**/*.test.ts'],
 		environment: 'node',
 		globals: true,
+		coverage: {
+			provider: 'v8',
+			include: ['src/lib/server/**/*.ts'],
+			thresholds: {
+				lines: 70,
+			},
+		},
 	},
 });
