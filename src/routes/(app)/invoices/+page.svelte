@@ -171,10 +171,11 @@
   {#each invoices as inv (inv.id)}
     {@const noteVal = getNoteText(inv.id, inv.notes)}
     <div class="bg-white rounded-[8px] border border-[#E5E7EB] mb-2 overflow-hidden">
-      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-      <div class="grid grid-cols-[minmax(0,1fr)_95px_95px_120px_72px_auto] items-center px-4 py-3 gap-2 cursor-pointer select-none hover:bg-[#FAFAFA] transition-colors
+      <div role="button" tabindex="0"
+           class="grid grid-cols-[minmax(0,1fr)_95px_95px_120px_72px_auto] items-center px-4 py-3 gap-2 cursor-pointer select-none hover:bg-[#FAFAFA] transition-colors
                   max-md:grid-cols-[minmax(0,1fr)_auto] max-md:grid-rows-2"
-           onclick={() => toggleDrawer(inv.id)}>
+           onclick={() => toggleDrawer(inv.id)}
+           onkeydown={(e) => e.key === 'Enter' && toggleDrawer(inv.id)}>
         <div class="flex items-start gap-2">
           <input type="checkbox" class="cursor-pointer w-[15px] h-[15px] accent-[#4A9FD8] shrink-0 mt-[2px]"
                  checked={checkedIds.has(inv.id)}
@@ -197,8 +198,8 @@
             {inv.status ?? 'pending'}
           </span>
         </div>
-        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-        <div class="flex gap-1 justify-end items-center max-md:col-span-2 max-md:row-start-2 max-md:border-t max-md:border-[#F3F4F6] max-md:pt-2"
+        <div role="presentation"
+             class="flex gap-1 justify-end items-center max-md:col-span-2 max-md:row-start-2 max-md:border-t max-md:border-[#F3F4F6] max-md:pt-2"
              onclick={(e) => e.stopPropagation()}>
           {#if inv.status === 'pending'}
             <form method="post" action="?/markPaid">
