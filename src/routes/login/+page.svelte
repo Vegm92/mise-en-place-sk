@@ -10,6 +10,26 @@
 		error === 'invalid'  ? 'Invalid email or password.' :
 		null
 	);
+
+	async function handleSubmit(e: SubmitEvent) {
+		e.preventDefault();
+		const form = e.currentTarget as HTMLFormElement;
+		const body = new FormData(form);
+		const resp = await fetch('/login', { method: 'POST', body, redirect: 'follow' });
+		location.replace(resp.url || data.redirectTo);
+	}
+
+	async function signInWithGoogle() {
+		const resp = await fetch('/api/auth/sign-in/social', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ provider: 'google', callbackURL: data.redirectTo }),
+			redirect: 'manual',
+		});
+		const json = await resp.json().catch(() => null);
+		const url = json?.url ?? json?.redirect;
+		if (url) location.replace(url);
+	}
 </script>
 
 <svelte:head>
@@ -38,7 +58,7 @@
 				</div>
 			{/if}
 
-			<form method="POST" class="flex flex-col gap-4">
+			<form method="POST" onsubmit={handleSubmit} class="flex flex-col gap-4">
 				<input type="hidden" name="redirectTo" value={data.redirectTo} />
 
 				<div class="flex flex-col gap-1.5">
@@ -87,11 +107,12 @@
 			</div>
 
 			<!-- Google OAuth -->
-			<a
-				href="/api/auth/social/google?callbackURL={encodeURIComponent(data.redirectTo)}"
+			<button
+				type="button"
+				onclick={signInWithGoogle}
 				class="flex items-center justify-center gap-[10px] h-10 w-full rounded-[8px]
 				       border border-[#E5E7EB] bg-white text-[#374151] text-[13px] font-medium
-				       hover:bg-[#F9FAFB] transition-colors no-underline"
+				       hover:bg-[#F9FAFB] transition-colors cursor-pointer"
 			>
 				<!-- Google "G" logo -->
 				<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
@@ -101,7 +122,7 @@
 					<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
 				</svg>
 				Continue with Google
-			</a>
+			</button>
 		</div>
 
 	</div>
