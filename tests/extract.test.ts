@@ -27,7 +27,7 @@ const MOCK_INVOICE_DATA = {
 };
 
 function makeGenerateFn(responseText: string): GenerateFn {
-  return vi.fn<Parameters<GenerateFn>, ReturnType<GenerateFn>>().mockResolvedValue(responseText);
+  return vi.fn<GenerateFn>().mockResolvedValue(responseText);
 }
 
 // Spy on fs.readFileSync to avoid real disk access
@@ -54,7 +54,7 @@ describe('extractInvoice — text PDF path', () => {
       numrender: 1,
       info: {},
       metadata: null,
-      version: '1.10.100',
+      version: 'v1.10.100',
     });
 
     const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
@@ -81,7 +81,7 @@ describe('extractInvoice — scanned PDF path', () => {
       numrender: 1,
       info: {},
       metadata: null,
-      version: '1.10.100',
+      version: 'v1.10.100',
     });
 
     const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
@@ -124,7 +124,7 @@ describe('extractInvoice — response parsing', () => {
   it('strips markdown fences from Gemini response', async () => {
     vi.mocked(pdfParse).mockResolvedValue({
       text: 'x'.repeat(100),
-      numpages: 1, numrender: 1, info: {}, metadata: null, version: '1.10.100',
+      numpages: 1, numrender: 1, info: {}, metadata: null, version: 'v1.10.100',
     });
 
     const fenced = `\`\`\`json\n${JSON.stringify(MOCK_INVOICE_DATA)}\n\`\`\``;
@@ -136,7 +136,7 @@ describe('extractInvoice — response parsing', () => {
   it('throws on invalid JSON from Gemini', async () => {
     vi.mocked(pdfParse).mockResolvedValue({
       text: 'x'.repeat(100),
-      numpages: 1, numrender: 1, info: {}, metadata: null, version: '1.10.100',
+      numpages: 1, numrender: 1, info: {}, metadata: null, version: 'v1.10.100',
     });
 
     const generate = makeGenerateFn('not valid json at all');

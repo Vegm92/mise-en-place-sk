@@ -1,0 +1,16 @@
+{
+  "name": "synth-js",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Synthetic Spanish invoice/albarán generator — Node.js port, no degradations",
+  "bin": { "synth": "./js/cli.mjs" },
+  "scripts": {
+    "generate": "node js/cli.mjs generate",
+    "synth": "node js/cli.mjs"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "nunjucks": "^3.2.4",
+    "puppeteer": "^22.0.0"
+  }
+}
