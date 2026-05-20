@@ -7,11 +7,13 @@ import Database from 'better-sqlite3';
 
 let testClient: InstanceType<typeof Database>;
 
-vi.mock('../src/lib/server/db', () => ({
-	get dbClient() {
-		return testClient;
-	},
-}));
+vi.mock('../src/lib/server/db', async () => {
+	const { drizzle } = await import('drizzle-orm/better-sqlite3');
+	return {
+		get dbClient() { return testClient; },
+		get db() { return drizzle(testClient); },
+	};
+});
 
 import { runPriceShock, runStockForecast } from '../src/lib/server/alert-engine';
 

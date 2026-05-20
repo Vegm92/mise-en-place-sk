@@ -1,6 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { invoices, suppliers, categoryBudgets, settings } from '$lib/server/schema';
+import { asc, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
 
 function detectMissingInvoices(today: Date): {
@@ -10,13 +12,13 @@ function detectMissingInvoices(today: Date): {
 	days_late: number;
 	frequency: string;
 }[] {
-	const rows = dbClient.prepare(`
-		SELECT s.name AS supplier_name, i.invoice_date
-		FROM invoices i
-		JOIN suppliers s ON s.id = i.supplier_id
-		WHERE i.invoice_date IS NOT NULL
-		ORDER BY s.id, i.invoice_date ASC
-	`).all() as { supplier_name: string; invoice_date: string }[];
+	const rows = db
+		.select({ supplier_name: suppliers.name, invoice_date: invoices.invoiceDate })
+		.from(invoices)
+		.innerJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(isNotNull(invoices.invoiceDate))
+		.orderBy(asc(suppliers.id), asc(invoices.invoiceDate))
+		.all() as { supplier_name: string; invoice_date: string }[];
 
 	const supplierDates: Record<string, Set<string>> = {};
 	for (const row of rows) {
@@ -31,7 +33,7 @@ function detectMissingInvoices(today: Date): {
 		if (dateObjs.length < 2) continue;
 
 		const gaps = dateObjs.slice(1).map((d, i) =>
-			Math.round((d.getTime() - dateObjs[i].getTime()) / 86400000)
+			Math.round((d.getTime() - dateObjs[i]!.getTime()) / 86400000)
 		);
 		const sorted = [...gaps].sort((a, b) => a - b);
 		const n = sorted.length;
@@ -72,58 +74,63 @@ export const load: PageServerLoad = async () => {
 	const todayIso = today.toISOString().split('T')[0];
 	const weekEnd = new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0];
 
-	const overdue = dbClient.prepare(
-		"SELECT COUNT(*) AS count FROM invoices WHERE status='pending' AND due_date IS NOT NULL AND due_date < ?"
-	).get(todayIso) as { count: number };
+	const overdue = db.get<{ count: number }>(sql`
+		SELECT COUNT(*) AS count FROM ${invoices}
+		WHERE status='pending' AND due_date IS NOT NULL AND due_date < ${todayIso}
+	`) ?? { count: 0 };
 
-	const dueWeek = dbClient.prepare(
-		"SELECT COUNT(*) AS count, COALESCE(SUM(COALESCE(total_amount,0)),0) AS amount FROM invoices WHERE status='pending' AND due_date IS NOT NULL AND due_date BETWEEN ? AND ?"
-	).get(todayIso, weekEnd) as { count: number; amount: number };
+	const dueWeek = db.get<{ count: number; amount: number }>(sql`
+		SELECT COUNT(*) AS count, COALESCE(SUM(COALESCE(total_amount,0)),0) AS amount
+		FROM ${invoices}
+		WHERE status='pending' AND due_date IS NOT NULL AND due_date BETWEEN ${todayIso} AND ${weekEnd}
+	`) ?? { count: 0, amount: 0 };
 
-	const pending = dbClient.prepare(
-		"SELECT COALESCE(SUM(COALESCE(total_amount,0)),0) AS amount, COUNT(*) AS count FROM invoices WHERE status='pending'"
-	).get() as { amount: number; count: number };
+	const pending = db.get<{ amount: number; count: number }>(sql`
+		SELECT COALESCE(SUM(COALESCE(total_amount,0)),0) AS amount, COUNT(*) AS count
+		FROM ${invoices} WHERE status='pending'
+	`) ?? { amount: 0, count: 0 };
 
-	const paidMonth = dbClient.prepare(
-		"SELECT COALESCE(SUM(COALESCE(total_amount,0)),0) AS amount, COUNT(*) AS count FROM invoices WHERE status='paid' AND strftime('%Y-%m',invoice_date)=strftime('%Y-%m','now')"
-	).get() as { amount: number; count: number };
+	const paidMonth = db.get<{ amount: number; count: number }>(sql`
+		SELECT COALESCE(SUM(COALESCE(total_amount,0)),0) AS amount, COUNT(*) AS count
+		FROM ${invoices}
+		WHERE status='paid' AND strftime('%Y-%m',invoice_date)=strftime('%Y-%m','now')
+	`) ?? { amount: 0, count: 0 };
 
-	const supplierCount = (dbClient.prepare('SELECT COUNT(*) AS cnt FROM suppliers').get() as { cnt: number }).cnt;
+	const supplierCountRow = db.get<{ cnt: number }>(sql`SELECT COUNT(*) AS cnt FROM ${suppliers}`);
+	const supplierCount = supplierCountRow?.cnt ?? 0;
 
-	const supplierRows = dbClient.prepare(`
+	type SupplierCardRow = { id: number; name: string; category: string; month_spend: number; open_count: number; has_overdue: number; has_due_soon: number };
+	const supplierRows = db.all<SupplierCardRow>(sql`
 		SELECT
 			s.id, s.name,
 			COALESCE(s.category,'Other') AS category,
 			COALESCE(SUM(CASE WHEN strftime('%Y-%m',i.invoice_date)=strftime('%Y-%m','now') THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
 			COUNT(CASE WHEN i.status='pending' THEN 1 END) AS open_count,
-			MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ? THEN 1 ELSE 0 END) AS has_overdue,
-			MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ? AND ? THEN 1 ELSE 0 END) AS has_due_soon
-		FROM suppliers s
-		LEFT JOIN invoices i ON i.supplier_id = s.id
+			MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ${todayIso} THEN 1 ELSE 0 END) AS has_overdue,
+			MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ${todayIso} AND ${weekEnd} THEN 1 ELSE 0 END) AS has_due_soon
+		FROM ${suppliers} s
+		LEFT JOIN ${invoices} i ON i.supplier_id = s.id
 		GROUP BY s.id
 		ORDER BY month_spend DESC
 		LIMIT 6
-	`).all(todayIso, todayIso, weekEnd) as {
-		id: number; name: string; category: string;
-		month_spend: number; open_count: number;
-		has_overdue: number; has_due_soon: number;
-	}[];
+	`);
 
-	const suppliers = supplierRows.map((r) => ({
+	const supps = supplierRows.map((r) => ({
 		...r,
 		badge: r.has_overdue ? 'overdue' : r.has_due_soon ? 'due_soon' : 'paid_up',
 		color: CATEGORY_COLORS[r.category] ?? CATEGORY_COLORS['Other'],
 	}));
 
-	const catRows = dbClient.prepare(`
+	type CatRow = { category: string; total: number };
+	const catRows = db.all<CatRow>(sql`
 		SELECT COALESCE(s.category,'Other') AS category,
 		       COALESCE(SUM(COALESCE(i.total_amount,0)),0) AS total
-		FROM invoices i
-		JOIN suppliers s ON i.supplier_id = s.id
+		FROM ${invoices} i
+		JOIN ${suppliers} s ON i.supplier_id = s.id
 		WHERE strftime('%Y-%m',i.invoice_date)=strftime('%Y-%m','now')
 		GROUP BY COALESCE(s.category,'Other')
 		ORDER BY total DESC
-	`).all() as { category: string; total: number }[];
+	`);
 
 	const maxCat = Math.max(...catRows.map((c) => c.total), 1);
 	const categorySpend = catRows.map((cat) => ({
@@ -135,11 +142,19 @@ export const load: PageServerLoad = async () => {
 	const categorySpendMap: Record<string, number> = {};
 	for (const cat of categorySpend) categorySpendMap[cat.category] = cat.total;
 
-	const budgetRows = dbClient.prepare('SELECT category, monthly_budget FROM category_budgets').all() as { category: string; monthly_budget: number }[];
+	const budgetRows = db
+		.select({ category: categoryBudgets.category, monthly_budget: categoryBudgets.monthlyBudget })
+		.from(categoryBudgets)
+		.all();
 	const budgets: Record<string, number> = {};
 	for (const row of budgetRows) budgets[row.category] = row.monthly_budget;
 
-	const thresholdRow = dbClient.prepare("SELECT value FROM settings WHERE key='budget_warning_threshold'").get() as { value: string } | undefined;
+	const THRESHOLD_KEY = 'budget_warning_threshold';
+	const thresholdRow = db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(eq(settings.key, THRESHOLD_KEY))
+		.get();
 	const threshold = thresholdRow ? parseInt(thresholdRow.value, 10) : 80;
 
 	const totalBudget = Object.values(budgets).reduce((a, b) => a + b, 0);
@@ -147,49 +162,52 @@ export const load: PageServerLoad = async () => {
 	const totalPctActual = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100 * 10) / 10 : 0;
 	const totalPctBar = Math.min(totalPctActual, 100);
 
-	const recent = dbClient.prepare(`
+	type RecentRow = { id: number; supplier_name: string | null; invoice_date: string | null; display_amount: number; status: string };
+	const recent = db.all<RecentRow>(sql`
 		SELECT i.id, s.name AS supplier_name, i.invoice_date,
-		       COALESCE(i.total_amount,0) AS display_amount, i.status
-		FROM invoices i
-		LEFT JOIN suppliers s ON s.id = i.supplier_id
+		       COALESCE(i.total_amount,0) AS display_amount,
+		       COALESCE(i.status,'pending') AS status
+		FROM ${invoices} i
+		LEFT JOIN ${suppliers} s ON s.id = i.supplier_id
 		ORDER BY i.created_at DESC LIMIT 5
-	`).all() as { id: number; supplier_name: string | null; invoice_date: string | null; display_amount: number; status: string }[];
+	`);
 
 	const missingInvoices = detectMissingInvoices(today);
 
-	// Month-over-month spend
-	const momRow = dbClient.prepare(`
+	type MomRow = { this_month: number; last_month: number };
+	const momRow = db.get<MomRow>(sql`
 		SELECT
 			COALESCE(SUM(CASE WHEN strftime('%Y-%m',invoice_date)=strftime('%Y-%m','now') THEN COALESCE(total_amount,0) END),0) AS this_month,
 			COALESCE(SUM(CASE WHEN strftime('%Y-%m',invoice_date)=strftime('%Y-%m',date('now','-1 month')) THEN COALESCE(total_amount,0) END),0) AS last_month
-		FROM invoices WHERE invoice_date >= date('now','-2 months')
-	`).get() as { this_month: number; last_month: number };
+		FROM ${invoices} WHERE invoice_date >= date('now','-2 months')
+	`) ?? { this_month: 0, last_month: 0 };
 	const momPct = momRow.last_month > 0
 		? Math.round((momRow.this_month - momRow.last_month) / momRow.last_month * 100)
 		: null;
 
-	// Pending invoice aging buckets
-	const aging = dbClient.prepare(`
+	type AgingRow = { fresh: number; mid: number; old: number };
+	const aging = db.get<AgingRow>(sql`
 		SELECT
 			COUNT(CASE WHEN julianday('now')-julianday(COALESCE(invoice_date,created_at)) <= 7 THEN 1 END) AS fresh,
 			COUNT(CASE WHEN julianday('now')-julianday(COALESCE(invoice_date,created_at)) BETWEEN 8 AND 30 THEN 1 END) AS mid,
 			COUNT(CASE WHEN julianday('now')-julianday(COALESCE(invoice_date,created_at)) > 30 THEN 1 END) AS old
-		FROM invoices WHERE status='pending'
-	`).get() as { fresh: number; mid: number; old: number };
+		FROM ${invoices} WHERE status='pending'
+	`) ?? { fresh: 0, mid: 0, old: 0 };
 
-	// Average invoice value
-	const avgInvoice = (dbClient.prepare(
-		'SELECT ROUND(AVG(total_amount),0) AS avg FROM invoices WHERE total_amount IS NOT NULL'
-	).get() as { avg: number | null }).avg;
+	const avgInvoiceRow = db.get<{ avg: number | null }>(sql`
+		SELECT ROUND(AVG(total_amount),0) AS avg FROM ${invoices} WHERE total_amount IS NOT NULL
+	`);
+	const avgInvoice = avgInvoiceRow?.avg ?? null;
 
-	const reminderRows = dbClient.prepare(`
+	type ReminderRow = { id: number; supplier_name: string | null; invoice_number: string | null; due_date: string; display_amount: number };
+	const reminderRows = db.all<ReminderRow>(sql`
 		SELECT i.id, s.name AS supplier_name, i.invoice_number,
 		       i.due_date, COALESCE(i.total_amount,0) AS display_amount
-		FROM invoices i
-		LEFT JOIN suppliers s ON s.id = i.supplier_id
-		WHERE i.status='pending' AND i.due_date IS NOT NULL AND i.due_date <= ?
+		FROM ${invoices} i
+		LEFT JOIN ${suppliers} s ON s.id = i.supplier_id
+		WHERE i.status='pending' AND i.due_date IS NOT NULL AND i.due_date <= ${weekEnd}
 		ORDER BY i.due_date ASC
-	`).all(weekEnd) as { id: number; supplier_name: string | null; invoice_number: string | null; due_date: string; display_amount: number }[];
+	`);
 
 	const reminders = reminderRows.map((r) => {
 		const daysDelta = Math.round((new Date(r.due_date).getTime() - today.getTime()) / 86400000);
@@ -206,7 +224,7 @@ export const load: PageServerLoad = async () => {
 		pending,
 		paid_month: paidMonth,
 		supplier_count: supplierCount,
-		suppliers,
+		suppliers: supps,
 		category_spend: categorySpend,
 		recent_invoices: recent,
 		valid_categories: VALID_CATEGORIES,
@@ -229,13 +247,13 @@ export const actions: Actions = {
 	markPaid: async ({ request }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		dbClient.prepare("UPDATE invoices SET status='paid' WHERE id=?").run(id);
+		db.update(invoices).set({ status: 'paid' }).where(eq(invoices.id, id)).run();
 		redirect(303, '/dashboard');
 	},
 	markUnpaid: async ({ request }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		dbClient.prepare("UPDATE invoices SET status='pending' WHERE id=?").run(id);
+		db.update(invoices).set({ status: 'pending' }).where(eq(invoices.id, id)).run();
 		redirect(303, '/dashboard');
 	},
 };

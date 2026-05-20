@@ -1,4 +1,6 @@
-import { dbClient } from '$lib/server/db';
+import { db } from '$lib/server/db';
+import { invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
+import { sql } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
 interface PriceRow {
@@ -18,61 +20,55 @@ interface SupplierRow {
 	name: string;
 }
 
-const BASE_SQL = `
-	WITH history AS (
-		SELECT
-			ili.description,
-			s.id            AS supplier_id,
-			s.name          AS supplier_name,
-			i.invoice_date,
-			ili.unit_price,
-			ili.unit,
-			ROW_NUMBER() OVER (
-				PARTITION BY ili.description, s.id
-				ORDER BY i.invoice_date DESC
-			) AS rn
-		FROM invoice_line_items ili
-		JOIN invoices i ON i.id = ili.invoice_id
-		JOIN suppliers s ON s.id = i.supplier_id
-		WHERE ili.unit_price IS NOT NULL
-		  AND ili.description IS NOT NULL
-		  AND ili.description != ''
-		  {supplier_filter}
-	)
-	SELECT
-		l.description,
-		l.supplier_name,
-		l.supplier_id,
-		l.unit,
-		l.invoice_date  AS latest_date,
-		l.unit_price    AS latest_price,
-		p.unit_price    AS prev_price,
-		p.invoice_date  AS prev_date,
-		CASE
-			WHEN p.unit_price IS NOT NULL AND p.unit_price > 0
-			THEN ROUND((l.unit_price - p.unit_price) / p.unit_price * 100.0, 1)
-			ELSE NULL
-		END AS change_pct
-	FROM history l
-	LEFT JOIN history p
-	       ON p.description = l.description
-	      AND p.supplier_id  = l.supplier_id
-	      AND p.rn = 2
-	WHERE l.rn = 1
-`;
-
 export const load: PageServerLoad = async ({ url }) => {
 	const supplierIdParam = url.searchParams.get('supplier_id');
 	const supplierId = supplierIdParam ? Number(supplierIdParam) : null;
 
-	let rows: PriceRow[];
-	if (supplierId) {
-		const sql = BASE_SQL.replace('{supplier_filter}', 'AND s.id = @sid');
-		rows = dbClient.prepare(sql).all({ sid: supplierId }) as PriceRow[];
-	} else {
-		const sql = BASE_SQL.replace('{supplier_filter}', '');
-		rows = dbClient.prepare(sql).all() as PriceRow[];
-	}
+	const supplierFilter = supplierId ? sql`AND s.id = ${supplierId}` : sql``;
+
+	const rows = db.all<PriceRow>(sql`
+		WITH history AS (
+			SELECT
+				ili.description,
+				s.id            AS supplier_id,
+				s.name          AS supplier_name,
+				i.invoice_date,
+				ili.unit_price,
+				ili.unit,
+				ROW_NUMBER() OVER (
+					PARTITION BY ili.description, s.id
+					ORDER BY i.invoice_date DESC
+				) AS rn
+			FROM ${invoiceLineItems} ili
+			JOIN ${invoices} i ON i.id = ili.invoice_id
+			JOIN ${suppliers} s ON s.id = i.supplier_id
+			WHERE ili.unit_price IS NOT NULL
+			  AND ili.description IS NOT NULL
+			  AND ili.description != ''
+			  ${supplierFilter}
+		)
+		SELECT
+			l.description,
+			l.supplier_name,
+			l.supplier_id,
+			l.unit,
+			l.invoice_date  AS latest_date,
+			l.unit_price    AS latest_price,
+			p.unit_price    AS prev_price,
+			p.invoice_date  AS prev_date,
+			CASE
+				WHEN p.unit_price IS NOT NULL AND p.unit_price > 0
+				THEN ROUND((l.unit_price - p.unit_price) / p.unit_price * 100.0, 1)
+				ELSE NULL
+			END AS change_pct
+		FROM history l
+		LEFT JOIN history p
+		       ON p.description = l.description
+		      AND p.supplier_id  = l.supplier_id
+		      AND p.rn = 2
+		WHERE l.rn = 1
+		ORDER BY ABS(COALESCE(change_pct, 0)) DESC
+	`);
 
 	const items = rows.sort((a, b) => {
 		const aAbs = a.change_pct !== null ? Math.abs(a.change_pct) : -1;
@@ -86,15 +82,16 @@ export const load: PageServerLoad = async ({ url }) => {
 		.sort((a, b) => (a.change_pct ?? 0) - (b.change_pct ?? 0))
 		.slice(0, 3);
 
-	const suppliers = dbClient
-		.prepare('SELECT id, name FROM suppliers ORDER BY name')
+	const supplierList = db.select({ id: suppliers.id, name: suppliers.name })
+		.from(suppliers)
+		.orderBy(suppliers.name)
 		.all() as SupplierRow[];
 
 	return {
 		title: 'Price Tracking',
 		subtitle: 'Unit price changes across suppliers',
 		items,
-		suppliers,
+		suppliers: supplierList,
 		top_increases,
 		top_decreases,
 		selected_supplier: supplierId,
