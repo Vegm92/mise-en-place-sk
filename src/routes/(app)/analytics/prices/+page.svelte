@@ -1,12 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { truncate, fmt as fmtPrice } from '$lib/formatters';
 
   let { data }: { data: PageData } = $props();
-
-  function truncate(str: string, len: number) {
-    return str.length > len ? str.slice(0, len) + '…' : str;
-  }
-  function fmtPrice(n: number) { return n.toFixed(2); }
 </script>
 
 <!-- KPI strip -->

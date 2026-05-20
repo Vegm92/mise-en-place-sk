@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="{{ css_path }}/legacy.css">
+</head>
+<body>
+
+<div class="header-box">
+  <div class="supplier-name">{{ spec.supplier.name | upper }}</div>
+  <div class="supplier-detail">
+    {{ spec.supplier.address.street }} - {{ spec.supplier.address.postal_code }} {{ spec.supplier.address.city | upper }}<br>
+    TEL.: {{ spec.supplier.phone }} · {{ cif_label }}: {{ spec.supplier.cif }}
+  </div>
+</div>
+
+<div class="doc-label">Factura</div>
+
+<div class="doc-meta">
+  NUMERO FACTURA: <span>{{ spec.invoice_number }}</span> &nbsp;&nbsp;
+  FECHA: <span>{{ date_format(spec.invoice_date) }}</span>
+  {% if spec.due_date %}&nbsp;&nbsp; VENCIMIENTO: <span>{{ date_format(spec.due_date) }}</span>{% endif %}
+</div>
+
+<div class="doc-meta">
+  CLIENTE: <span>{{ spec.buyer_name }}</span> &nbsp;&nbsp;
+  CIF/NIF: <span>{{ spec.buyer_cif }}</span>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width:48%">DESCRIPCION</th>
+      <th class="right" style="width:10%">CANT.</th>
+      <th style="width:8%">UD.</th>
+      <th class="right" style="width:14%">P.UNIT.</th>
+      <th class="right" style="width:10%">%IVA</th>
+      <th class="right" style="width:10%">IMPORTE</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in spec.items %}
+    <tr>
+      <td>{{ item.description | upper }}</td>
+      <td class="right">{{ format_qty(item.quantity) }}</td>
+      <td>{{ item.unit | upper }}</td>
+      <td class="right">{{ format_money(item.unit_price) }}</td>
+      <td class="right">{{ (item.iva_rate * 100) | int }}%</td>
+      <td class="right">{{ format_money(item.total_price) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="totals">
+  {% for b in spec.totals.iva_breakdown %}
+  <div class="total-row">
+    <span>BASE IMP. {{ (b.rate * 100) | int }}%</span>
+    <span>{{ format_money(b.base) }}</span>
+  </div>
+  <div class="total-row">
+    <span>IVA {{ (b.rate * 100) | int }}%</span>
+    <span>{{ format_money(b.cuota) }}</span>
+  </div>
+  {% endfor %}
+  <div class="total-row grand">
+    <span>TOTAL FACTURA</span>
+    <span>{{ format_money(spec.totals.displayed_grand_total) }} EUROS</span>
+  </div>
+</div>
+
+{% if spec.notes %}
+<div class="footer">{{ spec.notes }}</div>
+{% endif %}
+
+</body>
+</html>

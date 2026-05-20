@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { PageData, ActionData } from './$types';
+  import { fmtSize } from '$lib/formatters';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -35,11 +36,6 @@
 
     function removeFile(idx: number) { files.splice(idx, 1); render(); }
     function iconFor(name: string) { return name.split('.').pop()?.toLowerCase() === 'pdf' ? '📄' : '🖼️'; }
-    function fmtSize(bytes: number) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / 1024 / 1024).toFixed(1) + ' MB';
-    }
 
     function render() {
       fileList.innerHTML = files.map((f, i) => `

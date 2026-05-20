@@ -1,9 +1,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { unitConversions, invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
-import { dbClient } from '$lib/server/db';
+import { unitConversions } from '$lib/server/schema';
+import { sql } from 'drizzle-orm';
 
 /** POST /api/unit-conversions — save a new UoM rule and clear pending flags. */
 export const POST: RequestHandler = async ({ request }) => {
@@ -21,29 +20,40 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'conversion_factor must be a positive number' }, { status: 422 });
 	}
 
-	// Upsert the conversion rule
-	dbClient.prepare(`
-		INSERT INTO unit_conversions (supplier_name, ingredient, purchase_unit, canonical_unit, conversion_factor)
-		VALUES (?, ?, ?, ?, ?)
-		ON CONFLICT(supplier_name, ingredient, purchase_unit)
-		DO UPDATE SET canonical_unit = excluded.canonical_unit,
-		              conversion_factor = excluded.conversion_factor
-	`).run(supplier_name.trim(), ingredient.trim(), purchase_unit.trim(), canonical_unit.trim(), factor);
+	const sName      = supplier_name.trim();
+	const sIngredient = ingredient.trim();
+	const sPurchase  = purchase_unit.trim();
+	const sCanonical = canonical_unit.trim();
 
-	// Clear pending flags only for the matching supplier's line items
-	dbClient.prepare(`
+	// Upsert the conversion rule
+	db.insert(unitConversions)
+		.values({
+			supplierName:     sName,
+			ingredient:       sIngredient,
+			purchaseUnit:     sPurchase,
+			canonicalUnit:    sCanonical,
+			conversionFactor: factor,
+		})
+		.onConflictDoUpdate({
+			target: [unitConversions.supplierName, unitConversions.ingredient, unitConversions.purchaseUnit],
+			set:    { canonicalUnit: sCanonical, conversionFactor: factor },
+		})
+		.run();
+
+	// Clear pending flags for matching supplier's line items (subquery requires sql tag)
+	db.run(sql`
 		UPDATE invoice_line_items
 		SET requires_unit_conversion = 0,
-		    canonical_unit = ?
-		WHERE description = ?
-		  AND unit = ?
+		    canonical_unit = ${sCanonical}
+		WHERE description = ${sIngredient}
+		  AND unit = ${sPurchase}
 		  AND requires_unit_conversion = 1
 		  AND invoice_id IN (
 		      SELECT i.id FROM invoices i
 		      JOIN suppliers s ON i.supplier_id = s.id
-		      WHERE s.name = ?
+		      WHERE s.name = ${sName}
 		  )
-	`).run(canonical_unit.trim(), ingredient.trim(), purchase_unit.trim(), supplier_name.trim());
+	`);
 
-	return json({ ok: true, message: `Rule saved: 1 ${purchase_unit} = ${factor} ${canonical_unit}` });
+	return json({ ok: true, message: `Rule saved: 1 ${sPurchase} = ${factor} ${sCanonical}` });
 };

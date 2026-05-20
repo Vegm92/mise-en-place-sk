@@ -5,9 +5,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_API_KEY } from './env';
-
-const MODEL = 'gemini-2.5-flash';
+import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spanish restaurants. Extract all relevant information from this document and return it as a JSON object.
 
@@ -95,7 +93,7 @@ function getGenerateFn(): GenerateFn {
 		const contents = typeof content === 'string'
 			? content
 			: [{ role: 'user', parts: content }];
-		const response = await ai.models.generateContent({ model: MODEL, contents });
+		const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents });
 		return response.text ?? '';
 	};
 }
@@ -136,18 +134,36 @@ function stripFences(raw: string): string {
 	return trimmed;
 }
 
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+	const MAX_RETRIES = 3;
+	let lastError: unknown;
+	for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+		try {
+			return await fn();
+		} catch (err) {
+			lastError = err;
+			const status = (err as { status?: number }).status;
+			const isTransient = status === 429 || status === 503;
+			if (!isTransient || attempt === MAX_RETRIES) throw err;
+			await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, attempt)));
+		}
+	}
+	throw lastError;
+}
+
 async function callGemini(
 	generate: GenerateFn,
 	classified: ClassifiedFile,
 	filePath: string
 ): Promise<ExtractedInvoice> {
+	const generateWithRetry: GenerateFn = (content) => withRetry(() => generate(content));
 	let rawText: string;
 
 	if (classified.type === 'text_pdf') {
-		rawText = await generate(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`);
+		rawText = await generateWithRetry(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`);
 	} else if (classified.type === 'scanned_pdf') {
 		const pdfData = readFileSync(filePath).toString('base64');
-		rawText = await generate([
+		rawText = await generateWithRetry([
 			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
 			{ text: EXTRACTION_PROMPT },
 		]);
@@ -155,7 +171,7 @@ async function callGemini(
 		const ext = path.extname(filePath).toLowerCase().replace('.', '');
 		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
 		const imageData = readFileSync(filePath).toString('base64');
-		rawText = await generate([
+		rawText = await generateWithRetry([
 			{ inlineData: { data: imageData, mimeType } },
 			{ text: EXTRACTION_PROMPT },
 		]);

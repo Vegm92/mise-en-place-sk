@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { PageData } from './$types';
+  import { str } from '$lib/formatters';
+  import { CONFIDENCE_BADGE_CLS } from '$lib/constants';
 
   const { data }: { data: PageData } = $props();
 
@@ -18,16 +20,7 @@
   const confidenceDisplay = $derived((confidence * 100).toFixed(0) + '%');
   const needsReview = (val: unknown) => !val;
 
-  function str(val: unknown): string {
-    if (val === null || val === undefined) return '';
-    return String(val);
-  }
-
-  const confBadgeCls = $derived(
-    data.confidenceLevel === 'high'   ? 'bg-[#F0FDF4] text-[#3A8C5C]'
-    : data.confidenceLevel === 'medium' ? 'bg-[#FFF8EE] text-[#C8843A]'
-    : 'bg-[#FFF1F0] text-[#E05555]'
-  );
+  const confBadgeCls = $derived(CONFIDENCE_BADGE_CLS[data.confidenceLevel ?? 'low'] ?? CONFIDENCE_BADGE_CLS.low);
 
   const inputCls = 'h-9 rounded-[6px] border border-[#E5E7EB] bg-white px-3 text-[13px] text-[#1A1A1A] focus:outline-none focus:border-[#4A9FD8] w-full';
   const warnCls  = 'h-9 rounded-[6px] border border-[#F5D08A] bg-[#FFFBEB] px-3 text-[13px] text-[#1A1A1A] focus:outline-none focus:border-[#C8843A] w-full';
@@ -57,7 +50,12 @@
 
   {#if data.error}
     <div class="bg-[#FFF1F0] border border-[#FECACA] text-[#E05555] rounded-[8px] p-4 text-[13px] mb-4">
-      <strong>Extraction failed</strong> {data.error}
+      <strong class="block mb-1">Extraction failed</strong>
+      <p class="mb-3">{data.error}</p>
+      <a href="/extract/{data.id}"
+         class="inline-block bg-[#E05555] text-white rounded-[6px] px-3 py-1 text-[12px] font-semibold hover:bg-[#c94444] transition-colors no-underline">
+        Try again
+      </a>
     </div>
   {/if}
 
