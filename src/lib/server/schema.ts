@@ -4,7 +4,7 @@
  * Columns marked with legacy comments exist in the live DB but are unused
  * by the application since the currency removal refactor.
  */
-import { integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 export const suppliers = sqliteTable('suppliers', {
@@ -23,7 +23,7 @@ export const invoices = sqliteTable('invoices', {
 	dueDate: text('due_date'),
 	totalAmount: real('total_amount'),
 	currency: text('currency'),           // legacy — kept for DB compatibility
-	status: text('status').default("'pending'"),
+	status: text('status').default('pending'),
 	sourceFile: text('source_file'),
 	confidence: real('confidence'),
 	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
@@ -62,7 +62,9 @@ export const unitConversions = sqliteTable('unit_conversions', {
 	canonicalUnit: text('canonical_unit').notNull(),
 	conversionFactor: real('conversion_factor').notNull(),
 	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-});
+}, (t) => [
+	uniqueIndex('unit_conversions_supplier_ingredient_unit_unique').on(t.supplierName, t.ingredient, t.purchaseUnit),
+]);
 
 export const systemNotifications = sqliteTable('system_notifications', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
