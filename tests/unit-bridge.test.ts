@@ -61,7 +61,7 @@ describe('resolveUnit', () => {
 	});
 
 	it('returns null when no rule exists', () => {
-		const result = resolveUnit('Proveedor SA', 'Producto desconocido', 'caja');
+		const result = resolveUnit('Proveedor SA', 'Producto desconocido', 'barril');
 		expect(result).toBeNull();
 	});
 
@@ -98,13 +98,13 @@ describe('annotateLineItems', () => {
 
 	it('marks item as requiring conversion when no rule exists', () => {
 		const { enriched, conversionNotes } = annotateLineItems('Proveedor SA', [
-			{ description: 'Producto nuevo', quantity: 3, unit: 'caja', unitPrice: 10, totalPrice: 30 },
+			{ description: 'Producto nuevo', quantity: 3, unit: 'barril', unitPrice: 10, totalPrice: 30 },
 		]);
 
 		expect(enriched[0].requiresUnitConversion).toBe(true);
 		expect(enriched[0].canonicalUnit).toBeNull();
 		expect(conversionNotes).toHaveLength(1);
-		expect(conversionNotes[0]).toContain('caja');
+		expect(conversionNotes[0]).toContain('barril');
 	});
 
 	it('skips conversion for items with no unit', () => {
