@@ -3,8 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
 import { randomBytes } from 'crypto';
-import { UPLOADS_DIR } from '$lib/server/env';
-import { writeSession } from '$lib/server/sessions';
+import { writeSession, uploadsDir } from '$lib/server/sessions';
 
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
@@ -17,10 +16,6 @@ export const load: PageServerLoad = async ({ url }) => {
 		duplicate: url.searchParams.get('duplicate_inv') === '1',
 	};
 };
-
-function uploadsDir(): string {
-	return path.resolve(process.cwd(), UPLOADS_DIR);
-}
 
 async function saveUploadedFiles(files: File[]): Promise<{ saved: string[]; errors: string[] }> {
 	const dir = uploadsDir();

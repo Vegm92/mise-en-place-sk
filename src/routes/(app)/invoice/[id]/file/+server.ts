@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import path from 'path';
 import type { RequestHandler } from './$types';
-import { UPLOADS_DIR } from '$lib/server/env';
+import { uploadsDir } from '$lib/server/sessions';
 import { db } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -26,13 +26,10 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	if (!rows.length || !rows[0].sourceFile) error(404, 'No source file for this invoice');
 
-	const uploadsDir = path.resolve(process.cwd(), UPLOADS_DIR);
-	const filePath   = path.resolve(uploadsDir, rows[0].sourceFile);
+	const dir      = uploadsDir();
+	const filePath = path.resolve(dir, rows[0].sourceFile);
 
-	// Prevent directory traversal
-	if (!filePath.startsWith(uploadsDir + path.sep) && filePath !== uploadsDir) {
-		error(403, 'Forbidden');
-	}
+	if (!filePath.startsWith(dir + path.sep) && filePath !== dir) error(403, 'Forbidden');
 
 	if (!fs.existsSync(filePath)) error(404, 'File not found on disk');
 

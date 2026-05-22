@@ -3,14 +3,9 @@ import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
 import { randomBytes } from 'crypto';
-import { UPLOADS_DIR } from '$lib/server/env';
-import { readSession, writeSession, deleteSession } from '$lib/server/sessions';
+import { readSession, writeSession, deleteSession, uploadsDir } from '$lib/server/sessions';
 
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
-
-function uploadsDir(): string {
-	return path.resolve(process.cwd(), UPLOADS_DIR);
-}
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -51,29 +46,33 @@ async function saveUploadedFiles(files: File[]): Promise<{ saved: string[]; erro
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-	const session = readSession(params.id);
-	if (!session) {
-		redirect(303, '/?error=Session+not+found');
+	try {
+		const session = readSession(params.id);
+		if (!session) redirect(303, '/?error=Session+not+found');
+
+		const dir = uploadsDir();
+		const files = session.files.map((name) => {
+			const fp = path.join(dir, name);
+			let size = '—';
+			let type = 'FILE';
+			if (fs.existsSync(fp)) {
+				const stat = fs.statSync(fp);
+				size = humanSize(stat.size);
+				type = fileType(path.extname(name));
+			}
+			return { name, size, type };
+		});
+
+		return {
+			title: 'Review Files',
+			id: params.id,
+			files,
+		};
+	} catch (e) {
+		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
+		console.error('[confirm] load failed', e);
+		error(500, 'Failed to load upload session');
 	}
-
-	const dir = uploadsDir();
-	const files = session.files.map((name) => {
-		const fp = path.join(dir, name);
-		let size = '—';
-		let type = 'FILE';
-		if (fs.existsSync(fp)) {
-			const stat = fs.statSync(fp);
-			size = humanSize(stat.size);
-			type = fileType(path.extname(name));
-		}
-		return { name, size, type };
-	});
-
-	return {
-		title: 'Review Files',
-		id: params.id,
-		files,
-	};
 };
 
 export const actions: Actions = {
