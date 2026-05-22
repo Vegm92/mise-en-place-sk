@@ -182,10 +182,7 @@
             <div class="num" style="font-size:12px;color:var(--mep-fg-3);">{data.files[0]?.size ?? ''}</div>
           </div>
           <span class="badge badge-pending" style="gap:4px;">
-            <svg width="11" height="11" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
-              <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="2" />
-              <path d="M14 8a6 6 0 00-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-            </svg>
+            <Sparkle size={11} />
             Procesando
           </span>
         </div>

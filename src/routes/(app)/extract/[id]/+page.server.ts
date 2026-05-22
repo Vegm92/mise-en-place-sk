@@ -81,6 +81,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			unit: (item.unit as string | null) ?? null,
 			unitPrice: (item.unit_price as number | null) ?? null,
 			totalPrice: (item.total_price as number | null) ?? null,
+			itemConfidence: typeof item.confidence === 'number' ? item.confidence : undefined,
 		};
 	});
 
@@ -94,9 +95,11 @@ export const load: PageServerLoad = async ({ params }) => {
 		total_price: item.totalPrice,
 		canonical_unit: item.canonicalUnit,
 		requires_unit_conversion: item.requiresUnitConversion,
+		confidence: (item as Record<string, unknown>).itemConfidence,
 	}));
 
 	const confidence = typeof extractedData.confidence === 'number' ? extractedData.confidence : 0;
+	const fieldConfidences = (extractedData.field_confidences as Record<string, number> | undefined) ?? {};
 
 	return {
 		title: 'Review Extraction',
@@ -104,6 +107,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		filenames: session.files,
 		data: extractedData,
 		confidenceLevel: confidenceLevel(confidence),
+		fieldConfidences,
 		error: extractError,
 		invoiceIndex: session.invoiceIndex ?? 1,
 		totalInvoices: session.totalInvoices ?? 1,
