@@ -15,6 +15,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	if (!body?.message || typeof body.message !== 'string') {
 		throw error(400, 'message is required');
 	}
+	const message = (body.message as string).slice(0, 2000);
 	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
 
 	const key = getClientAddress();
@@ -29,7 +30,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		const response = await ai.models.generateContent({
 			model: GEMINI_MODEL,
 			config: { systemInstruction: `${SYSTEM_PROMPT}\n\nDATA SNAPSHOT:\n${context}` },
-			contents: body.message as string,
+			contents: message,
 		});
 		return json({ reply: response.text ?? 'No response generated.' });
 	} catch (err) {

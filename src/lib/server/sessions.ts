@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
+import { randomBytes } from 'crypto';
 import { SK_SESSIONS_DIR, UPLOADS_DIR } from './env';
+
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 export function uploadsDir(): string {
 	return path.resolve(process.cwd(), UPLOADS_DIR);
@@ -62,6 +66,37 @@ export function deleteSession(id: string): void {
 	} catch {
 		// file may already be gone
 	}
+}
+
+export async function saveUploadedFiles(files: File[]): Promise<{ saved: string[]; errors: string[] }> {
+	const dir = uploadsDir();
+	fs.mkdirSync(dir, { recursive: true });
+	const saved: string[] = [];
+	const errors: string[] = [];
+
+	for (const file of files) {
+		if (!file.name) continue;
+		const ext = path.extname(file.name).toLowerCase();
+		if (!ALLOWED_EXTENSIONS.has(ext)) {
+			errors.push(`'${file.name}': unsupported type '${ext}'`);
+			continue;
+		}
+		if (file.size > MAX_FILE_BYTES) {
+			errors.push(`'${file.name}': exceeds the 20 MB limit`);
+			continue;
+		}
+		let dest = path.join(dir, file.name);
+		if (fs.existsSync(dest)) {
+			const suffix = randomBytes(3).toString('hex');
+			const stem = path.basename(file.name, ext);
+			dest = path.join(dir, `${stem}_${suffix}${ext}`);
+		}
+		const buf = Buffer.from(await file.arrayBuffer());
+		fs.writeFileSync(dest, buf);
+		saved.push(path.basename(dest));
+	}
+
+	return { saved, errors };
 }
 
 export function cleanupStaleSessions(): void {
