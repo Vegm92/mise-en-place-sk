@@ -27,6 +27,7 @@ Thumbs.db
 CLAUDE.md
 REFERENCES.md
 CONTEXT.md
+/docs/
 
 # Synthetic generator output and virtualenv
 /synth/output/
