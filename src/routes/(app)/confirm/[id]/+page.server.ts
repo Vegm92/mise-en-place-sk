@@ -2,10 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
-import { randomBytes } from 'crypto';
-import { readSession, writeSession, deleteSession, uploadsDir } from '$lib/server/sessions';
-
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
+import { readSession, writeSession, deleteSession, uploadsDir, resolveUploadPath, saveUploadedFiles } from '$lib/server/sessions';
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -16,33 +13,6 @@ function humanSize(bytes: number): string {
 function fileType(ext: string): string {
 	const e = ext.toLowerCase().replace('.', '');
 	return (e === 'jpeg' ? 'jpg' : e).toUpperCase();
-}
-
-async function saveUploadedFiles(files: File[]): Promise<{ saved: string[]; errors: string[] }> {
-	const dir = uploadsDir();
-	fs.mkdirSync(dir, { recursive: true });
-	const saved: string[] = [];
-	const errors: string[] = [];
-
-	for (const file of files) {
-		if (!file.name) continue;
-		const ext = path.extname(file.name).toLowerCase();
-		if (!ALLOWED_EXTENSIONS.has(ext)) {
-			errors.push(`'${file.name}': unsupported type '${ext}'`);
-			continue;
-		}
-		let dest = path.join(dir, file.name);
-		if (fs.existsSync(dest)) {
-			const suffix = randomBytes(3).toString('hex');
-			const stem = path.basename(file.name, ext);
-			dest = path.join(dir, `${stem}_${suffix}${ext}`);
-		}
-		const buf = Buffer.from(await file.arrayBuffer());
-		fs.writeFileSync(dest, buf);
-		saved.push(path.basename(dest));
-	}
-
-	return { saved, errors };
 }
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -104,10 +74,11 @@ export const actions: Actions = {
 		const filename = formData.get('filename') as string;
 		if (!filename) redirect(303, `/confirm/${params.id}`);
 
-		const dir = uploadsDir();
-		const fp = path.resolve(dir, filename);
-		if (fp.startsWith(dir) && fs.existsSync(fp)) {
-			fs.unlinkSync(fp);
+		try {
+			const fp = resolveUploadPath(filename);
+			if (fs.existsSync(fp)) fs.unlinkSync(fp);
+		} catch {
+			// path invalid — skip deletion
 		}
 
 		const remaining = session.files.filter((f) => f !== filename);
@@ -123,11 +94,12 @@ export const actions: Actions = {
 	discard: async ({ params }) => {
 		const session = readSession(params.id);
 		if (session) {
-			const dir = uploadsDir();
 			for (const name of session.files) {
-				const fp = path.resolve(dir, name);
-				if (fp.startsWith(dir) && fs.existsSync(fp)) {
-					fs.unlinkSync(fp);
+				try {
+					const fp = resolveUploadPath(name);
+					if (fs.existsSync(fp)) fs.unlinkSync(fp);
+				} catch {
+					// path invalid — skip
 				}
 			}
 			deleteSession(params.id);

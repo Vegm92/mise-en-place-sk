@@ -1,12 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import fs from 'fs';
-import path from 'path';
 import { randomBytes } from 'crypto';
-import { writeSession, uploadsDir } from '$lib/server/sessions';
-
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+import { writeSession, saveUploadedFiles } from '$lib/server/sessions';
 
 export const load: PageServerLoad = async ({ url }) => {
 	return {
@@ -16,37 +11,6 @@ export const load: PageServerLoad = async ({ url }) => {
 		duplicate: url.searchParams.get('duplicate_inv') === '1',
 	};
 };
-
-async function saveUploadedFiles(files: File[]): Promise<{ saved: string[]; errors: string[] }> {
-	const dir = uploadsDir();
-	fs.mkdirSync(dir, { recursive: true });
-	const saved: string[] = [];
-	const errors: string[] = [];
-
-	for (const file of files) {
-		if (!file.name) continue;
-		const ext = path.extname(file.name).toLowerCase();
-		if (!ALLOWED_EXTENSIONS.has(ext)) {
-			errors.push(`'${file.name}': unsupported type '${ext}'`);
-			continue;
-		}
-		if (file.size > MAX_FILE_BYTES) {
-			errors.push(`'${file.name}': exceeds the 20 MB limit`);
-			continue;
-		}
-		let dest = path.join(dir, file.name);
-		if (fs.existsSync(dest)) {
-			const suffix = randomBytes(3).toString('hex');
-			const stem = path.basename(file.name, ext);
-			dest = path.join(dir, `${stem}_${suffix}${ext}`);
-		}
-		const buf = Buffer.from(await file.arrayBuffer());
-		fs.writeFileSync(dest, buf);
-		saved.push(path.basename(dest));
-	}
-
-	return { saved, errors };
-}
 
 export const actions: Actions = {
 	upload: async ({ request }) => {
@@ -79,9 +43,25 @@ export const actions: Actions = {
 			return fail(400, { error: msg });
 		}
 
-		const id = randomBytes(16).toString('hex');
-		writeSession({ id, files: saved });
+		const firstId = randomBytes(16).toString('hex');
 
-		redirect(303, `/confirm/${id}`);
+		if (saved.length === 1) {
+			writeSession({ id: firstId, files: saved });
+		} else {
+			// Multi-file batch: one session per invoice, chained via `remaining`
+			const total = saved.length;
+			const ids = [firstId, ...saved.slice(1).map(() => randomBytes(16).toString('hex'))];
+			for (let i = 0; i < saved.length; i++) {
+				writeSession({
+					id: ids[i],
+					files: [saved[i]],
+					invoiceIndex: i + 1,
+					totalInvoices: total,
+					remaining: ids.slice(i + 1),
+				});
+			}
+		}
+
+		redirect(303, `/confirm/${firstId}`);
 	},
 };

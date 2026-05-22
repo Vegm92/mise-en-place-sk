@@ -1,5 +1,8 @@
 import { auth } from '$lib/server/auth';
 import { redirect, type Handle } from '@sveltejs/kit';
+import { cleanupStaleSessions } from '$lib/server/sessions';
+
+cleanupStaleSessions();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
@@ -31,7 +34,6 @@ function isPublicPath(path: string): boolean {
 		path === '/login'                        ||
 		path.startsWith('/api/auth/')            ||
 		path.startsWith('/waitlist')             ||
-		path.startsWith('/pending/')             ||
 		path.startsWith('/api/tpv/')             ||
 		path.startsWith('/api/inference-status/')
 	);

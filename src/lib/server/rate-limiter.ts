@@ -7,6 +7,15 @@ interface Bucket {
 }
 
 const buckets = new Map<string, Bucket>();
+const BUCKET_TTL_MS = 2 * 60 * 1000;
+
+// Sweep stale buckets every 2 minutes to prevent unbounded memory growth.
+setInterval(() => {
+	const cutoff = Date.now() - BUCKET_TTL_MS;
+	for (const [key, bucket] of buckets) {
+		if (bucket.lastRefill < cutoff) buckets.delete(key);
+	}
+}, BUCKET_TTL_MS).unref();
 
 export function checkRateLimit(key: string, maxPerMinute: number): boolean {
 	const now = Date.now();
