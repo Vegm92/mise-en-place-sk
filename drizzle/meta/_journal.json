@@ -8,6 +8,13 @@
       "when": 1779281150106,
       "tag": "0000_freezing_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1779466994529,
+      "tag": "0001_drop_legacy_currency_columns",
+      "breakpoints": true
     }
   ]
 }
