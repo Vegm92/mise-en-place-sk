@@ -124,5 +124,14 @@ export function buildChatContext(): string {
 		}
 	}
 
-	return lines.join('\n');
+	const context = lines.join('\n');
+
+	const TOKEN_LIMIT = 20_000;
+	const estimatedTokens = Math.ceil(context.length / 4);
+	if (estimatedTokens > TOKEN_LIMIT) {
+		console.warn(`[chat-context] estimated ${estimatedTokens} tokens — truncating to ~${TOKEN_LIMIT}`);
+		return context.slice(0, TOKEN_LIMIT * 4);
+	}
+
+	return context;
 }
