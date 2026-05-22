@@ -10,7 +10,7 @@ import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
 import { annotateLineItems, resolveUnit } from '$lib/server/unit-bridge';
-import { runPriceShock, runStockForecast } from '$lib/server/alert-engine';
+import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
 import type { EnrichedLineItem } from '$lib/server/unit-bridge';
 
@@ -236,7 +236,8 @@ export const actions: Actions = {
 		// Fire BI alerts
 		const priceAlerts = runPriceShock(invoiceId, supplierName, savedItems);
 		const stockAlerts = runStockForecast(savedItems);
-		saveAlerts(invoiceId, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts]);
+		const budgetAlerts = runBudgetCheck(invoiceId, supplierId);
+		saveAlerts(invoiceId, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
 
 		// Keep files on disk — sourceFile in DB points to them for "See original".
 		// Files are only deleted on discard.
