@@ -1,20 +1,43 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { PageData } from './$types';
+  import { Upload, Mail, Sparkle, X, Check, Clock } from 'lucide-svelte';
+  import { t } from '$lib/i18n';
 
   const { data }: { data: PageData } = $props();
 
   let addMoreOpen = $state(false);
+  let extracting  = $state(false);
+
+  const STEPS = ['Subir', 'Extraer', 'Revisar y guardar'];
+
+  // Step 2 animation — fake stages cycle while server extracts
+  const STAGES = [
+    'Leyendo documento',
+    'Identificando proveedor',
+    'Extrayendo cabecera',
+    'Extrayendo líneas de pedido',
+    'Verificando totales',
+  ];
+  let stageIdx = $state(0);
+  let stageInterval: ReturnType<typeof setInterval>;
+
+  function startExtracting() {
+    extracting = true;
+    stageInterval = setInterval(() => {
+      stageIdx = Math.min(stageIdx + 1, STAGES.length - 1);
+    }, 900);
+  }
 
   onMount(() => {
     const isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent);
-    const addCaptureRow = document.getElementById('addCaptureRow') as HTMLElement | null;
-    const addDropArea   = document.getElementById('addDropArea') as HTMLElement | null;
-    const addFileInput  = document.getElementById('addFileInput') as HTMLInputElement | null;
+    const addCaptureRow  = document.getElementById('addCaptureRow') as HTMLElement | null;
+    const addDropArea    = document.getElementById('addDropArea') as HTMLElement | null;
+    const addFileInput   = document.getElementById('addFileInput') as HTMLInputElement | null;
     const addCameraInput = document.getElementById('addCameraInput') as HTMLInputElement | null;
     const addBrowseInput = document.getElementById('addBrowseInput') as HTMLInputElement | null;
-    const addFileList   = document.getElementById('addFileList') as HTMLElement | null;
-    const addSubmitBtn  = document.getElementById('addSubmitBtn') as HTMLButtonElement | null;
+    const addFileList    = document.getElementById('addFileList') as HTMLElement | null;
+    const addSubmitBtn   = document.getElementById('addSubmitBtn') as HTMLButtonElement | null;
 
     if (isMobile && addCaptureRow && addDropArea) {
       addCaptureRow.classList.remove('hidden');
@@ -26,17 +49,21 @@
     function renderAdd() {
       if (!addFileList || !addSubmitBtn) return;
       addFileList.innerHTML = addFiles.map((f, i) => `
-        <div class="flex items-center gap-2 text-[13px] bg-[#F9FAFB] border border-[#E5E7EB] rounded-[6px] px-3 py-2">
-          <span>${f.name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}</span>
-          <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[#1A1A1A]">${f.name}</span>
-          <button type="button" class="bg-transparent border-none cursor-pointer text-[#888888] hover:text-[#E05555] transition-colors" data-idx="${i}">✕</button>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
+          <div style="width:28px;height:36px;border-radius:4px;flex-shrink:0;background:${f.name.toLowerCase().endsWith('.pdf') ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">
+            ${f.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMG'}
+          </div>
+          <span style="flex:1;font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>
+          <button type="button" data-idx="${i}" style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);font-size:14px;padding:0 2px;" title="Quitar">✕</button>
         </div>`).join('');
       addFileList.querySelectorAll('[data-idx]').forEach(btn => {
         btn.addEventListener('click', () => { addFiles.splice(Number((btn as HTMLElement).dataset.idx), 1); renderAdd(); });
       });
-      addSubmitBtn.disabled = addFiles.length === 0;
-      addSubmitBtn.style.opacity = addFiles.length === 0 ? '0.5' : '1';
-      addSubmitBtn.textContent = addFiles.length === 0 ? 'Add to invoice' : addFiles.length === 1 ? 'Add 1 file' : `Add ${addFiles.length} files`;
+      if (addSubmitBtn) {
+        addSubmitBtn.disabled = addFiles.length === 0;
+        addSubmitBtn.style.opacity = addFiles.length === 0 ? '0.5' : '1';
+        addSubmitBtn.textContent = addFiles.length === 0 ? 'Añadir archivos' : addFiles.length === 1 ? 'Añadir 1 archivo' : `Añadir ${addFiles.length} archivos`;
+      }
     }
 
     function pushFiles(newFiles: FileList | null) {
@@ -50,7 +77,7 @@
     (window as Window & { submitAddFiles?: () => Promise<void> }).submitAddFiles = async () => {
       if (addFiles.length === 0 || !addSubmitBtn) return;
       addSubmitBtn.disabled = true;
-      addSubmitBtn.textContent = 'Adding…';
+      addSubmitBtn.textContent = 'Añadiendo…';
       const fd = new FormData();
       for (const f of addFiles) fd.append('files', f);
       try {
@@ -66,102 +93,277 @@
     addBrowseInput?.addEventListener('change', () => { pushFiles(addBrowseInput.files); addBrowseInput.value = ''; });
 
     if (addDropArea) {
-      addDropArea.addEventListener('dragover', e => { e.preventDefault(); addDropArea.classList.add('border-[#4A9FD8]', 'bg-[#EFF8FF]'); });
-      addDropArea.addEventListener('dragleave', () => addDropArea.classList.remove('border-[#4A9FD8]', 'bg-[#EFF8FF]'));
+      addDropArea.addEventListener('dragover', e => { e.preventDefault(); addDropArea.classList.add('border-acc'); });
+      addDropArea.addEventListener('dragleave', () => addDropArea.classList.remove('border-acc'));
       addDropArea.addEventListener('drop', e => {
         e.preventDefault();
-        addDropArea.classList.remove('border-[#4A9FD8]', 'bg-[#EFF8FF]');
+        addDropArea.classList.remove('border-acc');
         pushFiles((e as DragEvent).dataTransfer?.files ?? null);
       });
     }
+
+    return () => clearInterval(stageInterval);
   });
 </script>
 
-<!-- Overlay -->
-<div id="overlay" class="hidden fixed inset-0 bg-white/85 z-10 flex-col items-center justify-center gap-4">
-  <div class="w-9 h-9 border-[3px] border-[#E5E7EB] border-t-[#4A9FD8] rounded-full animate-spin"></div>
-  <p class="text-[14px] text-[#666666]">Extracting invoice data…</p>
-</div>
-
-<div class="flex items-start justify-center pt-4">
-  <div class="w-full max-w-[480px] bg-white rounded-[12px] border border-[#E5E7EB]">
-
-    <div class="px-6 pt-6 pb-4 border-b border-[#F3F4F6]">
-      <h1 class="text-[16px] font-semibold text-[#1A1A1A]">Review Files</h1>
-      <p class="text-[13px] text-[#888888] mt-[2px]">{data.files.length} file{data.files.length !== 1 ? 's' : ''} uploaded.</p>
+<!-- Step 2: Extracting overlay -->
+{#if extracting}
+  <div style="position:fixed;inset:0;z-index:50;background:var(--mep-bg);display:flex;flex-direction:column;overflow:hidden;">
+    <!-- 3-step: step 1 done, step 2 active -->
+    <div style="padding:20px 32px 0;flex-shrink:0;display:flex;align-items:center;gap:12px;">
+      {#each STEPS as step, i}
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="num" style="
+            width:22px;height:22px;border-radius:11px;
+            background:{i === 0 ? 'var(--mep-pos)' : i === 1 ? 'var(--mep-acc)' : 'var(--mep-surface-2)'};
+            color:{i < 2 ? '#fff' : 'var(--mep-fg-3)'};
+            font-size:11px;font-weight:600;
+            display:inline-flex;align-items:center;justify-content:center;
+            border:{i < 2 ? 'none' : '1px solid var(--mep-divider)'};
+            flex-shrink:0;
+          ">
+            {#if i === 0}<Check size={12} />{:else}{i + 1}{/if}
+          </span>
+          <span style="font-size:13px;font-weight:{i === 1 ? 600 : 400};color:{i === 2 ? 'var(--mep-fg-3)' : 'var(--mep-fg)'};">{step}</span>
+        </div>
+        {#if i < STEPS.length - 1}
+          <div style="width:28px;height:1px;background:var(--mep-divider);"></div>
+        {/if}
+      {/each}
     </div>
 
-    <div class="px-6 py-5 flex flex-col gap-4">
-
-      <div class="flex flex-col gap-2">
-        {#each data.files as file}
-          <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[8px] px-3 py-3">
-            <span class="text-xl">{file.type === 'PDF' ? '📄' : '🖼️'}</span>
-            <div class="min-w-0">
-              <p class="font-medium text-[13px] text-[#1A1A1A] overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</p>
-              <p class="text-[11px] text-[#888888] mt-[2px]">{file.type} · {file.size}</p>
+    <!-- Two-column: queue + active panel -->
+    <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1fr 1.4fr;gap:16px;">
+      <!-- Queue with statuses -->
+      <div class="card" style="padding:16px 0 12px;display:flex;flex-direction:column;">
+        <div class="subtitle" style="padding:0 16px;margin-bottom:12px;">{data.files.length} {data.files.length === 1 ? 'factura' : 'facturas'}</div>
+        <div style="display:flex;flex-direction:column;">
+          {#each data.files as file, i}
+            {@const state = i < stageIdx / STAGES.length * data.files.length ? 'done' : i === Math.floor(stageIdx / STAGES.length * data.files.length) ? 'active' : 'pending'}
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--mep-divider);background:{state === 'active' ? 'var(--mep-acc-soft)' : 'transparent'};">
+              <div style="width:32px;height:40px;border-radius:4px;flex-shrink:0;background:{file.type === 'PDF' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">
+                {file.type}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{file.name}</div>
+                <div style="font-size:11.5px;color:var(--mep-fg-2);">
+                  {state === 'done' ? 'Datos extraídos' : state === 'active' ? 'Extrayendo líneas de pedido…' : 'En cola'}
+                </div>
+              </div>
+              <div style="flex-shrink:0;">
+                {#if state === 'done'}
+                  <div style="width:22px;height:22px;border-radius:11px;background:var(--mep-pos-soft);color:var(--mep-pos);display:flex;align-items:center;justify-content:center;">
+                    <Check size={13} />
+                  </div>
+                {:else if state === 'active'}
+                  <svg width="22" height="22" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;color:var(--mep-acc);">
+                    <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.2" stroke-width="2" />
+                    <path d="M14 8a6 6 0 00-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                  </svg>
+                {:else}
+                  <div style="width:22px;height:22px;border-radius:11px;border:1px dashed var(--mep-border);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;">
+                    <Clock size={12} />
+                  </div>
+                {/if}
+              </div>
             </div>
-            <form method="POST" action="?/remove">
+          {/each}
+        </div>
+      </div>
+
+      <!-- Active extraction stages panel -->
+      <div class="card" style="padding:20px 20px 16px;display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+          <div style="width:40px;height:50px;border-radius:4px;background:{data.files[0]?.type === 'PDF' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">
+            {data.files[0]?.type ?? 'PDF'}
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:var(--mep-fg);">{data.files[0]?.name ?? ''}</div>
+            <div class="num" style="font-size:12px;color:var(--mep-fg-3);">{data.files[0]?.size ?? ''}</div>
+          </div>
+          <span class="badge badge-pending" style="gap:4px;">
+            <svg width="11" height="11" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
+              <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="2" />
+              <path d="M14 8a6 6 0 00-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            Procesando
+          </span>
+        </div>
+
+        <!-- Extraction stages -->
+        <div style="flex:1;">
+          {#each STAGES as stage, i}
+            {@const sstate = i < stageIdx ? 'done' : i === stageIdx ? 'active' : 'pending'}
+            <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--mep-divider);">
+              <div style="width:18px;height:18px;flex-shrink:0;">
+                {#if sstate === 'done'}
+                  <div style="width:18px;height:18px;border-radius:9px;background:var(--mep-pos-soft);color:var(--mep-pos);display:flex;align-items:center;justify-content:center;">
+                    <Check size={11} />
+                  </div>
+                {:else if sstate === 'active'}
+                  <div style="width:18px;height:18px;border-radius:9px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;">
+                    <svg width="10" height="10" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;">
+                      <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="2" />
+                      <path d="M14 8a6 6 0 00-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                  </div>
+                {:else}
+                  <div style="width:18px;height:18px;border-radius:9px;border:1px dashed var(--mep-border);"></div>
+                {/if}
+              </div>
+              <div style="flex:1;font-size:13px;font-weight:500;color:{sstate === 'pending' ? 'var(--mep-fg-3)' : 'var(--mep-fg)'};">
+                {stage}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <div style="margin-top:12px;padding:12px 14px;background:var(--mep-surface-2);border-radius:8px;border:1px solid var(--mep-divider);">
+          <div class="label" style="margin-bottom:6px;">Redirigiendo al revisor…</div>
+          <div class="body" style="font-size:12px;color:var(--mep-fg-3);">Los datos extraídos aparecerán en breve para que los revises.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Main page (Step 1 with files loaded) -->
+<div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
+
+  <!-- 3-step indicator -->
+  <div style="padding:20px 32px 0;flex-shrink:0;display:flex;align-items:center;gap:12px;">
+    {#each STEPS as step, i}
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="num" style="
+          width:22px;height:22px;border-radius:11px;
+          background:{i === 0 ? 'var(--mep-acc)' : 'var(--mep-surface-2)'};
+          color:{i === 0 ? 'var(--mep-acc-fg)' : 'var(--mep-fg-3)'};
+          font-size:11px;font-weight:600;
+          display:inline-flex;align-items:center;justify-content:center;
+          border:{i === 0 ? 'none' : '1px solid var(--mep-divider)'};
+          flex-shrink:0;
+        ">{i + 1}</span>
+        <span style="font-size:13px;font-weight:{i === 0 ? 600 : 400};color:{i === 0 ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};">{step}</span>
+      </div>
+      {#if i < STEPS.length - 1}
+        <div style="width:28px;height:1px;background:var(--mep-divider);"></div>
+      {/if}
+    {/each}
+  </div>
+
+  <!-- Two-column grid -->
+  <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
+
+    <!-- Left: Add more files -->
+    <div class="card" style="padding:20px;display:flex;flex-direction:column;">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        id="addDropArea"
+        style="flex:1;border:1.5px dashed var(--mep-border-strong);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:var(--mep-surface-2);cursor:pointer;transition:border-color 150ms,background 150ms;"
+        role="button"
+        tabindex="0"
+        onclick={() => (document.getElementById('addFileInput') as HTMLInputElement)?.click()}
+        onkeydown={(e) => e.key === 'Enter' && (document.getElementById('addFileInput') as HTMLInputElement)?.click()}
+      >
+        <div style="width:48px;height:48px;border-radius:24px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0;">
+          <Upload size={20} />
+        </div>
+        <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">Añadir más archivos</div>
+        <div style="font-size:12.5px;color:var(--mep-fg-3);text-align:center;">Arrastra o elige archivos para añadir a esta sesión</div>
+
+        <div id="addCaptureRow" class="hidden" style="margin-top:12px;gap:8px;width:100%;max-width:280px;">
+          <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
+            📷 Foto
+            <input type="file" id="addCameraInput" class="hidden" accept="image/*" capture="environment" />
+          </label>
+          <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
+            📁 Buscar
+            <input type="file" id="addBrowseInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
+          </label>
+        </div>
+
+        <input type="file" id="addFileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.heic" multiple />
+      </div>
+
+      <div id="addFileList" class="flex flex-col gap-2 mt-3"></div>
+
+      {#if addMoreOpen}
+        <button id="addSubmitBtn" disabled
+          class="btn btn-primary mt-3 opacity-50"
+          style="height:38px;justify-content:center;"
+          onclick={() => (window as Window & { submitAddFiles?: () => void }).submitAddFiles?.()}>
+          Añadir archivos
+        </button>
+      {/if}
+
+      <!-- Toggle add more -->
+      <button type="button" class="btn btn-ghost mt-3" style="font-size:13px;color:var(--mep-acc);padding:0;"
+        onclick={() => addMoreOpen = !addMoreOpen}>
+        {addMoreOpen ? '− Ocultar' : '+ Añadir archivos'}
+      </button>
+
+      <!-- Email forwarding -->
+      <div style="margin-top:auto;padding-top:16px;border-top:1px solid var(--mep-divider);display:flex;align-items:center;gap:12px;">
+        <div style="width:36px;height:36px;border-radius:18px;flex-shrink:0;background:var(--mep-surface-2);border:1px solid var(--mep-divider);color:var(--mep-fg-2);display:flex;align-items:center;justify-content:center;">
+          <Mail size={16} />
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">O reenvía por email</div>
+          <div class="num" style="font-size:11px;color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">casa-lua-4f8a@inbox.miseenplace.es</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Queue with uploaded files -->
+    <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span class="subtitle">Cola de subida</span>
+        <span class="num" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--mep-acc-soft);color:var(--mep-acc);">{data.totalInvoices}</span>
+      </div>
+      <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
+        {#if data.totalInvoices > 1}
+          Factura {data.invoiceIndex} de {data.totalInvoices} · las demás se procesarán en orden
+        {:else}
+          1 archivo listo para extraer
+        {/if}
+      </div>
+
+      <!-- File list -->
+      <div style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;min-height:0;">
+        {#each data.files as file}
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
+            <div style="width:32px;height:40px;border-radius:4px;flex-shrink:0;background:{file.type === 'PDF' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">
+              {file.type}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{file.name}</div>
+              <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{file.type} · {file.size}</div>
+            </div>
+            <form method="POST" action="?/remove" style="flex-shrink:0;">
               <input type="hidden" name="filename" value={file.name} />
-              <button type="submit" class="bg-transparent border-none cursor-pointer text-[#888888] hover:text-[#E05555] text-[16px] p-0 leading-none transition-colors">✕</button>
+              <button type="submit" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;">
+                <X size={13} />
+              </button>
             </form>
           </div>
         {/each}
       </div>
 
-      <div class="flex gap-3">
-        <form method="POST" action="?/extract" class="flex-1"
-              onsubmit={() => { const o = document.getElementById('overlay'); if(o) { o.classList.remove('hidden'); o.classList.add('flex'); } }}>
-          <button type="submit"
-                  class="w-full h-10 bg-[#4A9FD8] text-white rounded-[8px] text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors">
-            {data.files.length === 1 ? 'Extract Invoice' : `Extract ${data.files.length} invoices`}
+      <!-- Extract + Discard -->
+      <div style="padding-top:12px;border-top:1px solid var(--mep-divider);margin-top:12px;display:flex;flex-direction:column;gap:6px;">
+        <form method="POST" action="?/extract" onsubmit={() => startExtracting()}>
+          <button type="submit" class="btn btn-primary" style="width:100%;height:38px;justify-content:center;font-weight:500;gap:6px;">
+            <Sparkle size={14} />
+            {data.totalInvoices === 1 ? 'Extraer factura' : `Extraer ${data.totalInvoices} facturas`}
           </button>
         </form>
-        <form method="POST" action="?/discard" class="flex-1">
-          <button type="submit"
-                  class="w-full h-10 border border-[#E5E7EB] bg-white text-[#1A1A1A] rounded-[8px] text-[13px] font-semibold cursor-pointer hover:bg-[#F9FAFB] transition-colors">
-            Discard All
+        <form method="POST" action="?/discard">
+          <button type="submit" class="btn btn-secondary" style="width:100%;height:32px;justify-content:center;font-size:12.5px;">
+            Descartar todo
           </button>
         </form>
       </div>
-
-      <div>
-        <button type="button"
-                class="text-[13px] font-semibold text-[#4A9FD8] bg-transparent border-none cursor-pointer p-0 font-[inherit] hover:underline"
-                onclick={() => addMoreOpen = !addMoreOpen}>
-          {addMoreOpen ? '− Add more files' : '+ Add more files'}
-        </button>
-
-        {#if addMoreOpen}
-          <div class="mt-3 bg-[#F9FAFB] rounded-[10px] p-4 border border-[#E5E7EB]">
-            <div id="addCaptureRow" class="hidden gap-3 mb-3">
-              <label class="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-[8px] border-2 border-dashed border-[#E5E7EB] bg-white cursor-pointer text-[#888888] text-[12px] font-semibold hover:border-[#4A9FD8] hover:bg-[#EFF8FF] hover:text-[#4A9FD8] transition-colors">
-                <span class="text-xl">📷</span> Take Photo
-                <input type="file" id="addCameraInput" class="hidden" accept="image/*" capture="environment" />
-              </label>
-              <label class="flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-[8px] border-2 border-dashed border-[#E5E7EB] bg-white cursor-pointer text-[#888888] text-[12px] font-semibold hover:border-[#4A9FD8] hover:bg-[#EFF8FF] hover:text-[#4A9FD8] transition-colors">
-                <span class="text-xl">📁</span> Browse
-                <input type="file" id="addBrowseInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
-              </label>
-            </div>
-            <div id="addDropArea"
-                 class="border-2 border-dashed border-[#E5E7EB] rounded-[8px] py-4 px-4 text-center cursor-pointer transition-colors hover:border-[#4A9FD8] hover:bg-[#EFF8FF]"
-                 onclick={() => (document.getElementById('addFileInput') as HTMLInputElement)?.click()}
-                 role="button" tabindex="0"
-                 onkeydown={(e) => e.key === 'Enter' && (document.getElementById('addFileInput') as HTMLInputElement)?.click()}>
-              <input type="file" id="addFileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
-              <p class="text-[13px] text-[#666666]">Drop files or <span class="text-[#4A9FD8] underline">browse</span></p>
-            </div>
-            <div id="addFileList" class="mt-2 flex flex-col gap-2"></div>
-            <button id="addSubmitBtn" disabled
-                    class="w-full h-10 mt-3 bg-[#4A9FD8] text-white rounded-[8px] text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors opacity-50"
-                    onclick={() => (window as Window & { submitAddFiles?: () => void }).submitAddFiles?.()}>
-              Add to invoice
-            </button>
-          </div>
-        {/if}
-      </div>
-
     </div>
+
   </div>
 </div>

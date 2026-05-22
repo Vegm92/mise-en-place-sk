@@ -37,6 +37,9 @@ export const load: PageServerLoad = async ({ params }) => {
 			title: 'Review Files',
 			id: params.id,
 			files,
+			invoiceIndex:  session.invoiceIndex  ?? 1,
+			totalInvoices: session.totalInvoices ?? 1,
+			remaining:     session.remaining     ?? [],
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
@@ -92,9 +95,17 @@ export const actions: Actions = {
 	},
 
 	discard: async ({ params }) => {
-		const session = readSession(params.id);
-		if (session) {
-			for (const name of session.files) {
+		// Walk the full chain and delete every session + its files
+		const toDelete: string[] = [params.id];
+		let cur = readSession(params.id);
+		while (cur?.remaining?.length) {
+			toDelete.push(...cur.remaining);
+			cur = readSession(cur.remaining[0]);
+		}
+		for (const id of toDelete) {
+			const s = readSession(id);
+			if (!s) continue;
+			for (const name of s.files) {
 				try {
 					const fp = resolveUploadPath(name);
 					if (fs.existsSync(fp)) fs.unlinkSync(fp);
@@ -102,7 +113,7 @@ export const actions: Actions = {
 					// path invalid — skip
 				}
 			}
-			deleteSession(params.id);
+			deleteSession(id);
 		}
 		redirect(303, '/');
 	},

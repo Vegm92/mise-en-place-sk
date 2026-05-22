@@ -1,90 +1,182 @@
 <script lang="ts">
-	import { onMount, onDestroy, untrack } from 'svelte';
-	import {
-		Chart, BarController, BarElement,
-		CategoryScale, LinearScale, Tooltip,
-	} from 'chart.js';
+	import { onMount } from 'svelte';
 
-	Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip);
+	let { initialScale = '30d' }: { initialScale?: string } = $props();
 
-	let { initialScale = 'monthly' }: { initialScale?: string } = $props();
+	type Segment = { category: string | null; amount: number };
+	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
 
-	let canvas: HTMLCanvasElement | undefined = $state();
-	let chart: Chart | undefined;
-	let activeScale = $state(untrack(() => initialScale));
+	let activeScale = $state(initialScale);
+	let buckets     = $state<Bucket[]>([]);
+	let categories  = $state<(string | null)[]>([]);
+	let loading     = $state(true);
 
-	type Bucket = { label: string; total: number; pct: number; is_current: boolean };
+	const SCALES = ['7d', '30d', '90d'] as const;
 
-	async function fetchAndRender(scale: string) {
+	const CAT_COLORS = [
+		'var(--mep-acc)',
+		'var(--mep-pos)',
+		'var(--mep-info)',
+		'var(--mep-neg)',
+		'var(--mep-warn)',
+		'var(--mep-fg-3)',
+	];
+
+	function catColor(index: number) {
+		return CAT_COLORS[index % CAT_COLORS.length];
+	}
+
+	async function fetchData(scale: string) {
+		loading = true;
 		const resp = await fetch(`/api/trend?scale=${scale}`);
-		if (!resp.ok) return;
-		const { buckets }: { scale: string; buckets: Bucket[] } = await resp.json();
-
-		const labels = buckets.map((b) => b.label);
-		const values = buckets.map((b) => b.total);
-		const colors = buckets.map((b) => b.is_current ? '#4A9FD8' : '#E5E7EB');
-
-		if (chart) {
-			chart.data.labels = labels;
-			(chart.data.datasets[0] as { data: number[]; backgroundColor: string[] }).data = values;
-			(chart.data.datasets[0] as { data: number[]; backgroundColor: string[] }).backgroundColor = colors;
-			chart.update('none');
-		} else if (canvas) {
-			chart = new Chart(canvas, {
-				type: 'bar',
-				data: {
-					labels,
-					datasets: [{
-						data: values,
-						backgroundColor: colors,
-						borderRadius: 3,
-						borderSkipped: false,
-					}],
-				},
-				options: {
-					responsive: true,
-					maintainAspectRatio: false,
-					plugins: {
-						legend: { display: false },
-						tooltip: {
-							callbacks: {
-								label: (ctx) => ` €${Math.round(ctx.parsed.y ?? 0).toLocaleString()}`,
-							},
-						},
-					},
-					scales: {
-						x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-						y: { display: false },
-					},
-				},
-			});
+		if (resp.ok) {
+			const data = await resp.json();
+			buckets    = data.buckets ?? [];
+			categories = data.categories ?? [];
 		}
+		loading = false;
 	}
 
 	async function setScale(scale: string) {
 		activeScale = scale;
-		await fetchAndRender(scale);
+		await fetchData(scale);
 	}
 
-	onMount(() => { fetchAndRender(activeScale); });
-	onDestroy(() => { chart?.destroy(); });
+	// SVG layout (pixel-based, viewBox width=500 for easy math)
+	const SVG_W   = 500;
+	const SVG_H   = 140;
+	const LABEL_H = 18;
+	const PAD_L   = 8;
+	const PAD_R   = 8;
+	const GAP_PCT = 0.15; // fraction of slot used as gap
+
+	const barRects = $derived.by(() => {
+		if (!buckets.length) return { segs: [], labels: [] };
+		const n        = buckets.length;
+		const maxTotal = Math.max(...buckets.map(b => b.total), 1);
+		const slotW    = (SVG_W - PAD_L - PAD_R) / n;
+
+		const segs: Array<{ x: number; y: number; w: number; h: number; color: string }> = [];
+		const labels: Array<{ x: number; label: string; bold: boolean }> = [];
+
+		for (let bi = 0; bi < n; bi++) {
+			const bucket = buckets[bi];
+			const slotX  = PAD_L + bi * slotW;
+			const barX   = slotX + slotW * (GAP_PCT / 2);
+			const barW   = slotW * (1 - GAP_PCT);
+			labels.push({ x: slotX + slotW / 2, label: bucket.label, bold: bucket.is_current });
+
+			let yOffset = 0;
+			for (let ci = 0; ci < categories.length; ci++) {
+				const cat = categories[ci];
+				const seg = bucket.segments.find(s => s.category === cat);
+				const amt = seg?.amount ?? 0;
+				if (amt <= 0) continue;
+				const h = (amt / maxTotal) * SVG_H;
+				const y = SVG_H - yOffset - h;
+				yOffset += h;
+				segs.push({ x: barX, y, w: barW, h, color: catColor(ci) });
+			}
+
+			// When no category data, render a flat total bar
+			if (yOffset === 0 && bucket.total > 0) {
+				const h = (bucket.total / maxTotal) * SVG_H;
+				segs.push({ x: barX, y: SVG_H - h, w: barW, h, color: catColor(0) });
+			}
+		}
+
+		return { segs, labels };
+	});
+
+	onMount(() => { fetchData(activeScale); });
 </script>
 
-<div class="py-3 px-4 border-b border-[#E5E7EB] flex items-center justify-between">
-	<span class="text-[11px] font-bold tracking-[0.06em] uppercase text-[#666666]">Spend</span>
-	<div class="flex gap-1">
-		{#each ['daily','weekly','monthly','yearly'] as s}
+<!-- Card header: title + pill selector -->
+<div class="card-header">
+	<div class="section-title">
+		<span class="subtitle">Spend</span>
+	</div>
+	<div style="display:flex;gap:4px;">
+		{#each SCALES as s}
 			<button
 				type="button"
 				onclick={() => setScale(s)}
-				class="text-[11px] font-semibold px-2 py-[3px] rounded-[4px] border cursor-pointer transition-colors
-				       {activeScale === s
-				         ? 'bg-[#2271B1] text-white border-[#2271B1]'
-				         : 'bg-transparent text-[#666666] border-[#E5E7EB] hover:bg-[#F9FAFB]'}"
-			>{s.charAt(0).toUpperCase() + s.slice(1)}</button>
+				style="
+					font-size:11px;font-weight:600;padding:3px 8px;border-radius:var(--mep-r-pill);
+					border:1px solid {activeScale === s ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
+					background:{activeScale === s ? 'var(--mep-acc-soft)' : 'transparent'};
+					color:{activeScale === s ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};
+					cursor:pointer;
+				"
+			>{s}</button>
 		{/each}
 	</div>
 </div>
-<div class="px-4 py-3" style="height:148px;position:relative">
-	<canvas bind:this={canvas}></canvas>
+
+<!-- Chart area -->
+<div style="padding:12px 0 0;position:relative;">
+	{#if loading}
+		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
+			<span class="label">Loading…</span>
+		</div>
+	{:else if !buckets.length || buckets.every(b => b.total === 0)}
+		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
+			<span class="label">No spend data</span>
+		</div>
+	{:else}
+		<svg
+			viewBox="0 0 {SVG_W} {SVG_H + LABEL_H}"
+			width="100%"
+			height={SVG_H + LABEL_H}
+			style="display:block;overflow:visible;"
+		>
+			<!-- 50% gridline -->
+			<line
+				x1={PAD_L} y1={SVG_H * 0.5}
+				x2={SVG_W - PAD_R} y2={SVG_H * 0.5}
+				stroke="var(--mep-divider)" stroke-width="1"
+			/>
+			<!-- Baseline -->
+			<line
+				x1={PAD_L} y1={SVG_H}
+				x2={SVG_W - PAD_R} y2={SVG_H}
+				stroke="var(--mep-divider)" stroke-width="1"
+			/>
+
+			<!-- Bars -->
+			{#each barRects.segs as seg}
+				<rect
+					x={seg.x} y={seg.y}
+					width={seg.w} height={Math.max(seg.h, 2)}
+					fill={seg.color}
+					rx="2"
+				/>
+			{/each}
+
+			<!-- X-axis labels -->
+			{#each barRects.labels as lbl}
+				<text
+					x={lbl.x}
+					y={SVG_H + LABEL_H - 2}
+					text-anchor="middle"
+					font-size="9"
+					fill={lbl.bold ? 'var(--mep-fg)' : 'var(--mep-fg-3)'}
+					font-weight={lbl.bold ? '600' : '400'}
+					font-family="inherit"
+				>{lbl.label}</text>
+			{/each}
+		</svg>
+	{/if}
 </div>
+
+<!-- Legend -->
+{#if categories.length > 0}
+	<div style="padding:8px 16px 14px;display:flex;flex-wrap:wrap;gap:8px;">
+		{#each categories as cat, ci}
+			<div style="display:flex;align-items:center;gap:5px;">
+				<span class="swatch" style="background:{catColor(ci)};"></span>
+				<span class="body" style="font-size:11px;">{cat ?? 'Uncategorised'}</span>
+			</div>
+		{/each}
+	</div>
+{/if}

@@ -2,130 +2,288 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import {
-    LayoutDashboard, FileText, Users, TrendingUp, Wallet,
-    Bell, Download, Upload, Settings, ChevronRight, Menu, LogOut
+    LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
+    Settings, HelpCircle, Upload, Sun, Moon, ChevronDown,
+    LogOut, Menu, X,
   } from 'lucide-svelte';
+  import { locale, t, initLocale } from '$lib/i18n';
+  import ChatFab from '$lib/components/mep/ChatFab.svelte';
+  import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
 
   const { children, data } = $props();
 
   const p = $derived($page.url.pathname);
   const is = (path: string) => p === path || p.startsWith(path + '/');
 
-  let sidebarOpen = $state(false);
+  let theme = $state<'light' | 'dark'>('light');
+  let mobileOpen = $state(false);
 
   onMount(() => {
-    const close = () => { sidebarOpen = false; };
+    const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
+    if (storedTheme) theme = storedTheme;
+    initLocale();
+    const close = () => { mobileOpen = false; };
     document.addEventListener('sveltekit:navigation-start', close);
     return () => document.removeEventListener('sveltekit:navigation-start', close);
   });
 
-  const nav = [
-    { href: '/dashboard',       icon: LayoutDashboard, label: 'Dashboard',     active: () => is('/dashboard') },
-    { href: '/invoices',        icon: FileText,        label: 'Invoices',       active: () => is('/invoices') && !is('/invoices/export') },
-    { href: '/suppliers',       icon: Users,           label: 'Suppliers',      active: () => is('/suppliers') },
-    { href: '/analytics/spend', icon: TrendingUp,      label: 'Analytics',      active: () => is('/analytics') },
-    { href: '/budgets',         icon: Wallet,          label: 'Budgets',        active: () => is('/budgets') },
-    { href: '/reminders',       icon: Bell,            label: 'Reminders',      active: () => is('/reminders') },
-    { href: '/invoices/export', icon: Download,        label: 'Export CSV',     active: () => is('/invoices/export') },
-    { href: '/settings',        icon: Settings,        label: 'Settings',       active: () => is('/settings') },
-  ];
+  function toggleTheme() {
+    theme = theme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('mep-theme', theme);
+  }
+
+  function toggleLocale() {
+    locale.update(l => l === 'es' ? 'en' : 'es');
+  }
+
+  const navItems = $derived([
+    { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
+    { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: 3 },
+    { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
+    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
+      sub: [
+        { href: '/analytics/spend',  label: $t('nav.analytics.spend') },
+        { href: '/analytics/prices', label: $t('nav.analytics.prices') },
+      ]
+    },
+    { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
+    { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: 2 },
+  ]);
+
+  const pageTitle = $derived($page.data.title ?? 'Mise en Place');
+  const userName  = $derived(data?.user?.name ?? 'Usuario');
+  const userInitials = $derived(
+    userName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
+  );
 </script>
 
 <svelte:head>
-  <title>{$page.data.title ?? 'Mise en Place'}</title>
+  <title>{pageTitle}</title>
 </svelte:head>
 
-<div class="flex min-h-screen bg-[#F0F2F5]">
+<div class="mep" data-theme={theme} data-accent="amber" data-density="default"
+  style="width:100%;height:100vh;display:flex;overflow:hidden;">
 
   <!-- Mobile overlay -->
-  {#if sidebarOpen}
+  {#if mobileOpen}
     <div
       class="fixed inset-0 z-[99] bg-black/60 md:hidden"
-      onclick={() => sidebarOpen = false}
+      onclick={() => mobileOpen = false}
       role="presentation"
     ></div>
   {/if}
 
-  <!-- Sidebar -->
-  <nav
-    class="w-[220px] shrink-0 flex flex-col h-screen sticky top-0 bg-[#0A0A0A] overflow-y-auto z-[100]
-           max-md:fixed max-md:left-0 max-md:top-0 max-md:bottom-0 max-md:h-full
-           max-md:transition-transform max-md:duration-200
-           {sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}"
+  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+  <aside
+    style="
+      width:232px;height:100%;flex-shrink:0;
+      background:var(--mep-surface);
+      border-right:1px solid var(--mep-divider);
+      display:flex;flex-direction:column;
+      padding:20px 12px 16px;
+      overflow-y:auto;
+    "
+    class="
+      max-md:fixed max-md:left-0 max-md:top-0 max-md:bottom-0 max-md:h-full max-md:z-[100]
+      max-md:transition-transform max-md:duration-200
+      {mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
+    "
   >
-    <!-- Logo -->
-    <div class="flex items-center gap-[10px] px-5 h-[60px] border-b border-[#1A1A1A] shrink-0">
-      <div class="w-7 h-7 rounded-[7px] bg-[#4A9FD8] flex items-center justify-center shrink-0">
-        <span class="text-white text-[11px] font-bold leading-none">M</span>
-      </div>
-      <span class="text-white text-[14px] font-semibold tracking-[-0.01em]">Mise en Place</span>
+    <!-- Brand -->
+    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
+        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
+        <rect x="10.5" y="3.5" width="3" height="13" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
+        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.2" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+      <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
+        Mise en Place
+      </span>
     </div>
 
-    <!-- Nav items -->
-    <div class="flex flex-col gap-[2px] px-3 pt-4 flex-1">
-      {#each nav as item}
+    <!-- Upload CTA (desktop primary action) -->
+    <a
+      href="/"
+      onclick={() => mobileOpen = false}
+      class="btn btn-primary"
+      style="height:38px;justify-content:center;margin-bottom:20px;width:100%;text-decoration:none;"
+    >
+      <Upload size={15} />
+      <span>{$t('action.upload')}</span>
+    </a>
+
+    <!-- Primary nav -->
+    <nav style="display:flex;flex-direction:column;gap:1px;">
+      {#each navItems as item}
+        {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
         <a
           href={item.href}
-          onclick={() => sidebarOpen = false}
-          class="flex items-center gap-[10px] px-3 py-[9px] rounded-[8px] text-[13px] font-[500] no-underline
-                 transition-colors duration-100
-                 {item.active()
-                   ? 'bg-[#1A1A1A] text-white'
-                   : 'text-[#999999] hover:bg-[#141414] hover:text-[#CCCCCC]'}"
+          onclick={() => mobileOpen = false}
+          style="
+            display:flex;align-items:center;gap:10px;
+            padding:7px 10px;height:32px;border-radius:6px;
+            cursor:pointer;text-decoration:none;
+            background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
+            color:{parentActive ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};
+            font-size:13.5px;font-weight:{parentActive ? 500 : 400};
+          "
         >
-          <item.icon size={15} class={item.active() ? 'text-[#4A9FD8]' : 'text-current'} />
-          {item.label}
+          <item.icon size={16} />
+          <span style="flex:1;">{item.label}</span>
+          {#if item.badge}
+            <span
+              class="num"
+              style="
+                font-size:10px;font-weight:600;min-width:16px;height:16px;
+                padding:0 5px;border-radius:8px;
+                background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
+                color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
+                display:inline-flex;align-items:center;justify-content:center;
+              "
+            >{item.badge}</span>
+          {/if}
         </a>
+
+        {#if item.sub && (is(item.href) || (item.sub?.some(s => is(s.href)) ?? false))}
+          <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
+            {#each item.sub as sub}
+              <a
+                href={sub.href}
+                onclick={() => mobileOpen = false}
+                style="
+                  padding:5px 10px;border-radius:5px;text-decoration:none;
+                  font-size:12.5px;
+                  color:{is(sub.href) ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
+                  font-weight:{is(sub.href) ? 500 : 400};
+                  background:{is(sub.href) ? 'var(--mep-hover)' : 'transparent'};
+                "
+              >{sub.label}</a>
+            {/each}
+          </div>
+        {/if}
       {/each}
+    </nav>
+
+    <div style="flex:1;"></div>
+
+    <!-- Quota widget -->
+    <div style="margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{$t('shell.plan')}</span>
+        <span class="num" style="font-size:11px;color:var(--mep-fg-3);">47/150</span>
+      </div>
+      <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
+        <div style="width:31%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
+      </div>
+      <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">{$t('shell.quota')}</div>
     </div>
 
-    <!-- Upload + logout at bottom -->
-    <div class="px-3 pb-5 shrink-0 flex flex-col gap-[6px]">
+    <!-- Util links -->
+    <div style="display:flex;flex-direction:column;gap:1px;">
       <a
-        href="/"
-        onclick={() => sidebarOpen = false}
-        class="flex items-center justify-center gap-[8px] w-full py-[9px] rounded-[8px]
-               bg-[#2271B1] text-white text-[13px] font-semibold no-underline
-               hover:bg-[#1A5E90] transition-colors"
+        href="/settings"
+        onclick={() => mobileOpen = false}
+        style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
       >
-        <Upload size={14} />
-        Upload Invoice
+        <Settings size={15} />
+        <span>{$t('nav.settings')}</span>
       </a>
-      <form method="POST" action="/logout">
+      <button
+        style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;background:transparent;border:none;cursor:pointer;width:100%;text-align:left;"
+      >
+        <HelpCircle size={15} />
+        <span>{$t('nav.help')}</span>
+      </button>
+    </div>
+
+    <!-- User chip -->
+    <div style="margin-top:10px;padding:8px;display:flex;align-items:center;gap:10px;border-radius:8px;">
+      <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#b8741a,#7a3a4a);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">
+        {userInitials}
+      </div>
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {userName}
+        </div>
+        <div style="font-size:11px;color:var(--mep-fg-3);">Casa Lúa</div>
+      </div>
+      <form method="POST" action="/logout" style="flex-shrink:0;">
         <button
           type="submit"
-          class="flex items-center gap-[10px] w-full px-3 py-[9px] rounded-[8px]
-                 text-[#666666] hover:bg-[#141414] hover:text-[#CCCCCC]
-                 text-[13px] font-[500] bg-transparent border-none cursor-pointer transition-colors"
+          title={$t('action.logout')}
+          style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;padding:2px;border-radius:4px;"
         >
-          <LogOut size={15} />
-          Sign out{data?.user?.name ? ` (${data.user.name})` : ''}
+          <LogOut size={13} />
         </button>
       </form>
     </div>
-  </nav>
+  </aside>
 
-  <!-- Main area -->
-  <div class="flex-1 flex flex-col min-w-0">
+  <!-- ── Main area ─────────────────────────────────────────────────── -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <!-- Mobile topbar -->
-    <div class="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-[#E5E7EB]">
+    <!-- TopBar -->
+    <header style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 24px;gap:12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
+
+      <!-- Mobile hamburger -->
       <button
-        class="bg-transparent border-none cursor-pointer p-1 text-[#666666]"
-        onclick={() => sidebarOpen = !sidebarOpen}
-        aria-label="Open menu"
+        class="md:hidden btn btn-ghost"
+        style="width:34px;height:34px;padding:0;justify-content:center;"
+        onclick={() => mobileOpen = !mobileOpen}
+        aria-label="Abrir menú"
       >
-        <Menu size={20} />
+        {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
       </button>
-      <span class="text-[15px] font-semibold text-[#1A1A1A]">{$page.data.title ?? 'Mise en Place'}</span>
-    </div>
+
+      <!-- Title -->
+      <h1 style="margin:0;flex:1;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">
+        {pageTitle}
+      </h1>
+
+      <!-- Period picker -->
+      <button class="btn btn-secondary" style="height:34px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2.5" y="4.5" width="15" height="13" rx="1.5"/><path d="M3 8h14M6.5 2.5v3M13.5 2.5v3"/>
+        </svg>
+        <span>{$t('shell.period')}</span>
+        <ChevronDown size={13} />
+      </button>
+
+      <!-- Language toggle -->
+      <button
+        class="btn btn-ghost"
+        style="height:34px;padding:0 10px;font-size:12px;font-weight:600;letter-spacing:0.02em;font-variant-numeric:tabular-nums;min-width:44px;justify-content:center;"
+        onclick={toggleLocale}
+        title="Switch language"
+      >
+        {$locale === 'es' ? 'EN' : 'ES'}
+      </button>
+
+      <!-- Notification bell -->
+      <NotificationBell notifications={data.notifications ?? []} />
+
+      <!-- Theme toggle -->
+      <button
+        class="btn btn-ghost"
+        style="width:34px;height:34px;padding:0;justify-content:center;"
+        onclick={toggleTheme}
+        title="Cambiar tema"
+      >
+        {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
+      </button>
+
+      <!-- Upload CTA — mobile only (sidebar handles desktop) -->
+      <a href="/" class="md:hidden btn btn-primary" style="height:34px;text-decoration:none;">
+        <Upload size={14} />
+      </a>
+    </header>
 
     <!-- Page content -->
-    <div class="flex-1 p-6 max-md:p-4 overflow-auto">
-      <div class="mx-auto w-full max-w-[1280px]">
-        {@render children()}
-      </div>
+    <div style="flex:1;overflow:auto;">
+      {@render children()}
     </div>
 
   </div>
+
+  <ChatFab />
 </div>

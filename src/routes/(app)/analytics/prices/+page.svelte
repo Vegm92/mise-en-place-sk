@@ -1,106 +1,108 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { truncate, fmt as fmtPrice } from '$lib/formatters';
+  import { t } from '$lib/i18n';
+  import SectionCard from '$lib/components/mep/SectionCard.svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
 
-<!-- KPI strip -->
-<div class="grid grid-cols-2 gap-3 mb-5 max-md:grid-cols-1">
-  <div class="bg-white rounded-[8px] border border-[#E5E7EB] py-3 px-4">
-    <p class="text-[11px] font-bold tracking-[0.07em] uppercase text-[#888888] mb-1">Biggest Increase</p>
-    {#if data.top_increases.length}
-      {@const t = data.top_increases[0]}
-      <p class="text-[16px] font-bold text-[#E05555]">↑ {t.change_pct}%</p>
-      <p class="text-[12px] text-[#888888]">{truncate(t.description, 32)}</p>
-      <p class="text-[12px] text-[#888888]">{t.supplier_name}</p>
-    {:else}
-      <p class="text-[14px] font-bold text-[#888888]">—</p>
-      <p class="text-[12px] text-[#888888]">Not enough data yet</p>
-    {/if}
-  </div>
-  <div class="bg-white rounded-[8px] border border-[#E5E7EB] py-3 px-4">
-    <p class="text-[11px] font-bold tracking-[0.07em] uppercase text-[#888888] mb-1">Biggest Decrease</p>
-    {#if data.top_decreases.length}
-      {@const t = data.top_decreases[0]}
-      <p class="text-[16px] font-bold text-[#3A8C5C]">↓ {Math.abs(t.change_pct ?? 0).toFixed(1)}%</p>
-      <p class="text-[12px] text-[#888888]">{truncate(t.description, 32)}</p>
-      <p class="text-[12px] text-[#888888]">{t.supplier_name}</p>
-    {:else}
-      <p class="text-[14px] font-bold text-[#888888]">—</p>
-      <p class="text-[12px] text-[#888888]">Not enough data yet</p>
-    {/if}
-  </div>
-</div>
+<div class="flex flex-col gap-4 p-6">
 
-<!-- Filter -->
-<form method="get" action="/analytics/prices" class="flex gap-2 flex-wrap items-end mb-4">
-  <div>
-    <label class="block text-[11px] font-semibold text-[#888888] uppercase tracking-[0.05em] mb-1" for="supplier_id">Supplier</label>
-    <select id="supplier_id" name="supplier_id"
-            class="h-8 rounded-[6px] border border-[#E5E7EB] bg-white px-2 text-[13px] text-[#1A1A1A] focus:outline-none focus:border-[#4A9FD8]">
-      <option value="">All suppliers</option>
-      {#each data.suppliers as s}
-        <option value={s.id} selected={data.selected_supplier === s.id}>{s.name}</option>
-      {/each}
-    </select>
-  </div>
-  <button type="submit"
-          class="h-8 bg-[#4A9FD8] text-white rounded-[8px] px-3 text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors">
-    Filter
-  </button>
-  {#if data.selected_supplier}
-    <a href="/analytics/prices"
-       class="h-8 flex items-center border border-[#E5E7EB] rounded-[8px] px-3 text-[13px] text-[#888888] bg-white no-underline hover:bg-[#F9FAFB] transition-colors">
-      Clear
-    </a>
-  {/if}
-</form>
+  <!-- KPI: biggest increase / decrease -->
+  <div class="grid grid-cols-2 gap-3 max-md:grid-cols-1">
 
-<!-- Table -->
-<div class="bg-white rounded-[12px] border border-[#E5E7EB] overflow-hidden">
-  <div class="px-4 py-3 border-b border-[#F3F4F6] flex items-center justify-between">
-    <p class="text-[11px] font-bold tracking-[0.06em] uppercase text-[#888888]">Price History</p>
-    <span class="text-[12px] text-[#888888]">{data.items.length} item{data.items.length !== 1 ? 's' : ''}</span>
+    <div class="card p-4">
+      <span class="label">{$t('prices.biggestIncrease')}</span>
+      {#if data.top_increases.length}
+        {@const top = data.top_increases[0]}
+        <div class="num text-neg mt-1.5" style="font-size:20px;font-weight:700;">↑ {top.change_pct}%</div>
+        <div class="body text-fg-2" style="font-size:12px;margin-top:3px;">{truncate(top.description, 32)}</div>
+        <div class="body text-fg-3" style="font-size:12px;">{top.supplier_name}</div>
+      {:else}
+        <div class="num text-fg-3 mt-1.5" style="font-size:16px;font-weight:700;">—</div>
+        <div class="body text-fg-3" style="font-size:12px;">{$t('prices.noData')}</div>
+      {/if}
+    </div>
+
+    <div class="card p-4">
+      <span class="label">{$t('prices.biggestDecrease')}</span>
+      {#if data.top_decreases.length}
+        {@const top = data.top_decreases[0]}
+        <div class="num text-pos mt-1.5" style="font-size:20px;font-weight:700;">↓ {Math.abs(top.change_pct ?? 0).toFixed(1)}%</div>
+        <div class="body text-fg-2" style="font-size:12px;margin-top:3px;">{truncate(top.description, 32)}</div>
+        <div class="body text-fg-3" style="font-size:12px;">{top.supplier_name}</div>
+      {:else}
+        <div class="num text-fg-3 mt-1.5" style="font-size:16px;font-weight:700;">—</div>
+        <div class="body text-fg-3" style="font-size:12px;">{$t('prices.noData')}</div>
+      {/if}
+    </div>
+
   </div>
-  <div class="overflow-x-auto">
-    {#if data.items.length}
-      <table class="w-full border-collapse text-[13px] min-w-[560px]">
-        <thead>
-          <tr>
-            {#each ['Description','Supplier','Unit','Latest Price','Prev Price','Change','Last Seen'] as h}
-              <th class="text-left py-2 px-3 bg-[#F9FAFB] text-[11px] font-bold uppercase tracking-[0.04em] text-[#888888] whitespace-nowrap border-b border-[#E5E7EB]">{h}</th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each data.items as item}
-            <tr class="hover:bg-[#FAFAFA]">
-              <td class="py-2 px-3 border-b border-[#F3F4F6] font-semibold text-[#1A1A1A]">{item.description}</td>
-              <td class="py-2 px-3 border-b border-[#F3F4F6] text-[#888888] text-[12px]">{item.supplier_name}</td>
-              <td class="py-2 px-3 border-b border-[#F3F4F6] text-[#888888] text-[12px]">{item.unit ?? '—'}</td>
-              <td class="py-2 px-3 border-b border-[#F3F4F6] font-semibold text-[#1A1A1A]">{fmtPrice(item.latest_price)} <span class="text-[11px] text-[#888888]">EUR</span></td>
-              <td class="py-2 px-3 border-b border-[#F3F4F6] text-[#888888]">{item.prev_price != null ? fmtPrice(item.prev_price) : '—'}</td>
-              <td class="py-2 px-3 border-b border-[#F3F4F6]">
-                {#if item.change_pct != null}
-                  {#if item.change_pct > 0}
-                    <span class="text-[#E05555] font-bold">↑ {item.change_pct}%</span>
-                  {:else if item.change_pct < 0}
-                    <span class="text-[#3A8C5C] font-bold">↓ {Math.abs(item.change_pct).toFixed(1)}%</span>
-                  {:else}
-                    <span class="text-[#888888]">→ 0%</span>
-                  {/if}
-                {:else}
-                  <span class="text-[#888888]">—</span>
-                {/if}
-              </td>
-              <td class="py-2 px-3 border-b border-[#F3F4F6] text-[#888888] text-[12px] whitespace-nowrap">{item.latest_date ?? '—'}</td>
+
+  <!-- Filter -->
+  <form method="get" action="/analytics/prices" class="flex gap-2 flex-wrap items-end">
+    <div class="flex flex-col gap-1">
+      <label class="label text-fg-3" style="font-size:10.5px;" for="supplier_id">{$t('inv.filter.supplier')}</label>
+      <select id="supplier_id" name="supplier_id" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
+        <option value="">{$t('inv.filter.all')}</option>
+        {#each data.suppliers as s}
+          <option value={s.id} selected={data.selected_supplier === s.id}>{s.name}</option>
+        {/each}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">{$t('inv.filter.apply')}</button>
+    {#if data.selected_supplier}
+      <a href="/analytics/prices" class="btn btn-ghost" style="height:32px;font-size:12.5px;text-decoration:none;">{$t('inv.filter.clear')}</a>
+    {/if}
+  </form>
+
+  <!-- Price history table -->
+  <SectionCard title={$t('nav.analytics.prices')} sub="{data.items.length} {$t('prices.count')}" noPad>
+    <div class="overflow-x-auto">
+      {#if data.items.length}
+        <table class="tbl" style="min-width:560px;">
+          <thead>
+            <tr>
+              <th>{$t('tbl.desc')}</th>
+              <th>{$t('tbl.supplier')}</th>
+              <th>{$t('tbl.unit')}</th>
+              <th class="num">{$t('tbl.latestPrice')}</th>
+              <th class="num">{$t('tbl.prevPrice')}</th>
+              <th class="num">{$t('tbl.change')}</th>
+              <th>{$t('tbl.lastSeen')}</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
-    {:else}
-      <p class="text-center py-16 text-[#888888] text-[13px]">No line item prices recorded yet. Upload some invoices to start tracking.</p>
-    {/if}
-  </div>
+          </thead>
+          <tbody>
+            {#each data.items as item}
+              <tr class="row">
+                <td class="body-strong">{item.description}</td>
+                <td class="body text-fg-2" style="font-size:12px;">{item.supplier_name}</td>
+                <td class="body text-fg-2" style="font-size:12px;">{item.unit ?? '—'}</td>
+                <td class="num font-semibold">{fmtPrice(item.latest_price)} <span class="text-fg-3" style="font-size:11px;">EUR</span></td>
+                <td class="num text-fg-2">{item.prev_price != null ? fmtPrice(item.prev_price) : '—'}</td>
+                <td class="num">
+                  {#if item.change_pct != null}
+                    {#if item.change_pct > 0}
+                      <span class="text-neg font-semibold">↑ {item.change_pct}%</span>
+                    {:else if item.change_pct < 0}
+                      <span class="text-pos font-semibold">↓ {Math.abs(item.change_pct).toFixed(1)}%</span>
+                    {:else}
+                      <span class="text-fg-3">→ 0%</span>
+                    {/if}
+                  {:else}
+                    <span class="text-fg-3">—</span>
+                  {/if}
+                </td>
+                <td class="body text-fg-2 whitespace-nowrap" style="font-size:12px;">{item.latest_date ?? '—'}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {:else}
+        <p class="body text-center py-16">{$t('prices.noDataDesc')}</p>
+      {/if}
+    </div>
+  </SectionCard>
+
 </div>

@@ -1,17 +1,20 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { stockLevels } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** GET /api/stock-levels — list all stock level entries. */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ getClientAddress }) => {
+	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rows = await db.select().from(stockLevels);
 	return json({ stock_levels: rows });
 };
 
 /** POST /api/stock-levels — upsert daily burn rate for an ingredient (TPV sync stub). */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
 

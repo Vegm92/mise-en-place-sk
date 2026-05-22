@@ -11,7 +11,6 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { resolve } from 'node:path';
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
-import { cleanupStaleSessions } from './sessions';
 import { seedAdminUser } from './auth-seed';
 
 const rawUrl = env.DATABASE_URL ?? 'mise_en_place.db';
@@ -25,5 +24,4 @@ export const db = drizzle(dbClient, { schema });
 
 migrate(db, { migrationsFolder: resolve(process.cwd(), 'drizzle') });
 
-cleanupStaleSessions();
 seedAdminUser().catch(e => console.error('[auth-seed]', e));
