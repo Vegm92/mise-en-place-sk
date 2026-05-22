@@ -1,48 +1,44 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { t } from '$lib/i18n';
 
   const { data }: { data: PageData } = $props();
 </script>
 
-<div class="max-w-[560px] mx-auto">
+<div class="flex items-start justify-center p-6">
+  <div class="w-full max-w-[520px] flex flex-col gap-4">
 
-  <div class="bg-white rounded-[12px] border border-[#E5E7EB] px-6 py-8 mb-4 text-center">
-    <div class="text-4xl mb-3">✅</div>
-    <h2 class="text-[16px] font-semibold text-[#1A1A1A] mb-2">Invoice saved successfully</h2>
-    <p class="text-[13px] text-[#888888]">
-      Invoice #{data.invoiceId} has been stored and is ready for review.
-    </p>
-  </div>
-
-  {#if data.alerts.length > 0}
-    <div class="bg-white rounded-[12px] border border-[#E5E7EB] px-6 py-5 mb-4">
-      <h2 class="text-[14px] font-semibold text-[#1A1A1A] mb-3">Alerts generated</h2>
-      <div class="flex flex-col gap-2">
-        {#each data.alerts as alert}
-          <div class="bg-[#FFF8EE] border border-[#F5D08A] text-[#C8843A] rounded-[8px] px-4 py-3 text-[13px]">
-            {alert.message}
-          </div>
-        {/each}
-      </div>
-      <p class="text-[12px] text-[#888888] mt-3">
-        These alerts have been queued for WhatsApp delivery.
+    <!-- Success card -->
+    <div class="card p-8 text-center">
+      <div class="text-4xl mb-3">✅</div>
+      <h2 class="body-strong mb-2" style="font-size:16px;">{$t('saved.title')}</h2>
+      <p class="body text-fg-2" style="font-size:13px;">
+        {$t('saved.desc').replace('{id}', String(data.invoiceId))}
       </p>
     </div>
-  {:else}
-    <div class="bg-[#EFF8FF] border border-[#BDE0F8] text-[#4A9FD8] rounded-[8px] px-4 py-3 text-[13px] mb-4">
-      No alerts for this invoice — all prices and stock levels look normal.
+
+    <!-- Alerts -->
+    {#if data.alerts.length > 0}
+      <div class="card p-5 flex flex-col gap-3">
+        <h2 class="body-strong" style="font-size:14px;">{$t('saved.alerts')}</h2>
+        <div class="flex flex-col gap-2">
+          {#each data.alerts as alert}
+            <div class="card p-3 bg-warn-soft border-warn text-warn" style="font-size:13px;">{alert.message}</div>
+          {/each}
+        </div>
+        <p class="body text-fg-3" style="font-size:12px;">{$t('saved.whatsapp')}</p>
+      </div>
+    {:else}
+      <div class="card p-3 bg-info-soft border-info text-info" style="font-size:13px;">
+        {$t('saved.noAlerts')}
+      </div>
+    {/if}
+
+    <!-- CTA row -->
+    <div class="flex gap-3">
+      <a href="/invoices" class="btn btn-primary" style="height:36px;text-decoration:none;">{$t('saved.goInvoices')}</a>
+      <a href="/" class="btn btn-secondary" style="height:36px;text-decoration:none;">{$t('saved.uploadAnother')}</a>
     </div>
-  {/if}
 
-  <div class="flex gap-3">
-    <a href="/invoices"
-       class="h-9 flex items-center bg-[#4A9FD8] text-white rounded-[8px] px-4 text-[13px] font-semibold no-underline hover:bg-[#3d8ec7] transition-colors">
-      Go to Invoices
-    </a>
-    <a href="/"
-       class="h-9 flex items-center bg-white border border-[#E5E7EB] text-[#1A1A1A] rounded-[8px] px-4 text-[13px] font-semibold no-underline hover:bg-[#F9FAFB] transition-colors">
-      Upload another
-    </a>
   </div>
-
 </div>

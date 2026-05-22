@@ -2,8 +2,9 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings } from '$lib/server/schema';
-import { asc, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
+import { asc, desc, eq, isNotNull, lte, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
+import { systemNotifications } from '$lib/server/schema';
 
 function detectMissingInvoices(today: Date): {
 	supplier_name: string;
@@ -175,6 +176,21 @@ export const load: PageServerLoad = async () => {
 
 	const missingInvoices = detectMissingInvoices(today);
 
+	const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
+	const priceShockRows = db.all<{ id: number; message: string; payload: string | null; createdAt: string | null }>(sql`
+		SELECT id, message, payload, created_at AS createdAt
+		FROM system_notifications
+		WHERE notification_type = 'price_shock'
+		  AND status = 'pending'
+		  AND date(created_at) >= ${sevenDaysAgo}
+		ORDER BY created_at DESC
+		LIMIT 10
+	`);
+	const priceShockAlerts = priceShockRows.map((r) => ({
+		...r,
+		payload: r.payload ? JSON.parse(r.payload) : null,
+	}));
+
 	type MomRow = { this_month: number; last_month: number };
 	const momRow = db.get<MomRow>(sql`
 		SELECT
@@ -237,6 +253,7 @@ export const load: PageServerLoad = async () => {
 		total_pct_bar: totalPctBar,
 		total_pct_actual: totalPctActual,
 		missing_invoices: missingInvoices,
+		price_shock_alerts: priceShockAlerts,
 		reminders,
 		mom: { this_month: momRow.this_month, last_month: momRow.last_month, pct_change: momPct },
 		aging,

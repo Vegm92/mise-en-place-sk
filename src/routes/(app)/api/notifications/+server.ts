@@ -1,11 +1,13 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** GET /api/notifications?status=pending — WhatsApp bot polls this. */
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, getClientAddress }) => {
+	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const status = url.searchParams.get('status') ?? 'pending';
 
 	const rows = await db
@@ -22,7 +24,8 @@ export const GET: RequestHandler = async ({ url }) => {
 };
 
 /** POST /api/notifications/:id/ack — mark a notification as sent. */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const body = await request.json().catch(() => ({}));
 	const id = body.id;
 	if (!id) return json({ error: 'id required' }, { status: 422 });

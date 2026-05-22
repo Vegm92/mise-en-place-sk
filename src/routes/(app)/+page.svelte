@@ -1,163 +1,236 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import type { PageData, ActionData } from './$types';
   import { fmtSize } from '$lib/formatters';
+  import { Upload, Mail, Sparkle, X, Check } from 'lucide-svelte';
+  import { t } from '$lib/i18n';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
 
   const errorMsg = $derived(form?.error ?? (data.error ? decodeURIComponent(data.error) : null));
 
-  onMount(() => {
-    const isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent);
-    const captureRow  = document.getElementById('captureRow') as HTMLElement;
-    const dropArea    = document.getElementById('dropArea') as HTMLElement;
-    const fileInput   = document.getElementById('fileInput') as HTMLInputElement;
-    const cameraInput = isMobile ? document.getElementById('cameraInput') as HTMLInputElement : null;
-    const browseInput = isMobile ? document.getElementById('browseInput') as HTMLInputElement : null;
-    const fileList    = document.getElementById('fileList') as HTMLElement;
-    const submitBtn   = document.getElementById('submitBtn') as HTMLButtonElement;
+  let files = $state<File[]>([]);
+  let isDragging = $state(false);
+  let uploading = $state(false);
+  let fileInputEl = $state<HTMLInputElement>();
+  const MAX_MB = 20;
 
-    if (isMobile) {
-      captureRow.classList.remove('hidden');
-      dropArea.classList.add('hidden');
+  const STEPS = ['Subir', 'Extraer', 'Revisar y guardar'];
+
+  function addFiles(newFiles: FileList | null) {
+    if (!newFiles) return;
+    for (const f of Array.from(newFiles)) {
+      if (f.size > MAX_MB * 1024 * 1024) { alert(`'${f.name}' supera el límite de ${MAX_MB} MB.`); continue; }
+      if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
     }
+  }
 
-    let files: File[] = [];
-    const MAX_FILE_BYTES = 20 * 1024 * 1024;
+  function removeFile(idx: number) { files = files.filter((_, i) => i !== idx); }
+  function fileKind(name: string) { return name.split('.').pop()?.toLowerCase() === 'pdf' ? 'pdf' : 'img'; }
 
-    function addFiles(newFiles: FileList | null) {
-      if (!newFiles) return;
-      for (const f of Array.from(newFiles)) {
-        if (f.size > MAX_FILE_BYTES) { alert(`'${f.name}' exceeds the 20 MB limit and was not added.`); continue; }
-        if (!files.some(e => e.name === f.name && e.size === f.size)) files.push(f);
+  async function doUpload() {
+    if (!files.length || uploading) return;
+    uploading = true;
+    const fd = new FormData();
+    for (const f of files) fd.append('files', f);
+    try {
+      const resp = await fetch('/?/upload', { method: 'POST', body: fd, redirect: 'follow' });
+      const result = await resp.json() as { type: string; location?: string; data?: { error?: string } };
+      if (result.type === 'redirect' && result.location) {
+        location.replace(result.location);
+      } else {
+        uploading = false;
+        if (result.data?.error) alert(result.data.error);
       }
-      render();
+    } catch (err) {
+      uploading = false;
+      alert('Error al subir: ' + (err as Error).message);
     }
+  }
 
-    function removeFile(idx: number) { files.splice(idx, 1); render(); }
-    function iconFor(name: string) { return name.split('.').pop()?.toLowerCase() === 'pdf' ? '📄' : '🖼️'; }
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+    addFiles(e.dataTransfer?.files ?? null);
+  }
 
-    function render() {
-      fileList.innerHTML = files.map((f, i) => `
-        <div class="flex items-center gap-2 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[8px] px-3 py-2 text-[13px]">
-          <span class="text-base shrink-0">${iconFor(f.name)}</span>
-          <span class="flex-1 font-medium overflow-hidden text-ellipsis whitespace-nowrap text-[#1A1A1A]">${f.name}</span>
-          <span class="text-[#888888] shrink-0 text-[11px]">${fmtSize(f.size)}</span>
-          <button type="button" class="bg-transparent border-none cursor-pointer text-[#888888] text-[13px] px-1 leading-none hover:text-[#E05555]" data-idx="${i}" title="Remove">✕</button>
-        </div>
-      `).join('');
-      fileList.querySelectorAll('[data-idx]').forEach(btn => {
-        btn.addEventListener('click', () => removeFile(Number((btn as HTMLElement).dataset.idx)));
-      });
-      submitBtn.disabled = files.length === 0;
-      submitBtn.textContent = files.length === 0 ? 'Upload' : files.length === 1 ? 'Upload 1 file' : `Upload ${files.length} files`;
-      submitBtn.style.opacity = files.length === 0 ? '0.5' : '1';
-    }
-
-    async function doUpload() {
-      if (files.length === 0) return;
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Uploading…';
-      const formData = new FormData();
-      for (const f of files) formData.append('files', f);
-      try {
-        const resp = await fetch('/?/upload', { method: 'POST', body: formData });
-        const result = await resp.json() as { type: string; location?: string; data?: { error?: string } };
-        if (result.type === 'redirect' && result.location) {
-          location.replace(result.location);
-        } else {
-          submitBtn.disabled = false;
-          render();
-          if (result.data?.error) alert(result.data.error);
-        }
-      } catch (err) {
-        submitBtn.disabled = false;
-        render();
-        alert('Upload failed: ' + (err as Error).message);
-      }
-    }
-
-    submitBtn.addEventListener('click', doUpload);
-    fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
-    if (cameraInput) cameraInput.addEventListener('change', () => { addFiles(cameraInput.files); cameraInput.value = ''; });
-    if (browseInput) browseInput.addEventListener('change', () => { addFiles(browseInput.files); browseInput.value = ''; });
-
-    dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.classList.add('border-[#4A9FD8]', 'bg-[#EFF8FF]'); });
-    dropArea.addEventListener('dragleave', () => dropArea.classList.remove('border-[#4A9FD8]', 'bg-[#EFF8FF]'));
-    dropArea.addEventListener('drop', e => {
-      e.preventDefault();
-      dropArea.classList.remove('border-[#4A9FD8]', 'bg-[#EFF8FF]');
-      addFiles(e.dataTransfer?.files ?? null);
-    });
-  });
+  function copyEmail() {
+    navigator.clipboard?.writeText('casa-lua-4f8a@inbox.miseenplace.es').catch(() => {});
+  }
 </script>
 
-<div class="flex items-start justify-center pt-4">
-  <div class="w-full max-w-[480px] bg-white rounded-[12px] border border-[#E5E7EB]">
+<div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
 
-    <div class="px-6 pt-6 pb-4 border-b border-[#F3F4F6]">
-      <h1 class="text-[16px] font-semibold text-[#1A1A1A]">Upload Invoice</h1>
-      <p class="text-[13px] text-[#888888] mt-[2px]">PDF, JPG or PNG — up to 20 MB</p>
-    </div>
+  <!-- 3-step indicator -->
+  <div style="padding:20px 32px 0;flex-shrink:0;display:flex;align-items:center;gap:12px;">
+    {#each STEPS as step, i}
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="num" style="
+          width:22px;height:22px;border-radius:11px;
+          background:{i === 0 ? 'var(--mep-acc)' : 'var(--mep-surface-2)'};
+          color:{i === 0 ? 'var(--mep-acc-fg)' : 'var(--mep-fg-3)'};
+          font-size:11px;font-weight:600;
+          display:inline-flex;align-items:center;justify-content:center;
+          border:{i === 0 ? 'none' : '1px solid var(--mep-divider)'};
+          flex-shrink:0;
+        ">{i + 1}</span>
+        <span style="font-size:13px;font-weight:{i === 0 ? 600 : 400};color:{i === 0 ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};">{step}</span>
+      </div>
+      {#if i < STEPS.length - 1}
+        <div style="width:28px;height:1px;background:var(--mep-divider);"></div>
+      {/if}
+    {/each}
+  </div>
 
-    <div class="px-6 py-5 flex flex-col gap-4">
-
+  <!-- Alerts -->
+  {#if data.saved || data.duplicate || errorMsg}
+    <div style="padding:12px 32px 0;flex-shrink:0;display:flex;flex-direction:column;gap:8px;">
       {#if data.saved}
-        <div class="bg-[#F0FDF4] border border-[#BBF7D0] text-[#3A8C5C] rounded-[8px] px-4 py-3 text-[13px]">
-          Invoice saved successfully.
-        </div>
+        <div class="card p-3 bg-pos-soft border-pos text-pos" style="font-size:13px;">{$t('upload.saved')}</div>
       {/if}
       {#if data.duplicate}
-        <div class="bg-[#FFF1F0] border border-[#FECACA] text-[#E05555] rounded-[8px] px-4 py-3 text-[13px]">
-          Duplicate invoice number — already exists for this supplier.
-        </div>
+        <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;">{$t('upload.duplicate')}</div>
       {/if}
       {#if errorMsg}
-        <div class="bg-[#FFF1F0] border border-[#FECACA] text-[#E05555] rounded-[8px] px-4 py-3 text-[13px]">
-          {errorMsg}
+        <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;">{errorMsg}</div>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- Two-column grid -->
+  <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
+
+    <!-- Left: Drop zone -->
+    <div class="card" style="padding:20px;display:flex;flex-direction:column;">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        style="
+          flex:1;border:1.5px dashed {isDragging ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
+          border-radius:10px;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          padding:32px 24px;
+          background:{isDragging ? 'var(--mep-acc-soft)' : 'var(--mep-surface-2)'};
+          cursor:pointer;
+          transition:border-color 150ms,background 150ms;
+          position:relative;
+        "
+        role="button"
+        tabindex="0"
+        onclick={() => fileInputEl?.click()}
+        onkeydown={(e) => e.key === 'Enter' && fileInputEl?.click()}
+        ondragover={(e) => { e.preventDefault(); isDragging = true; }}
+        ondragleave={() => isDragging = false}
+        ondrop={onDrop}
+      >
+        <!-- Upload icon circle -->
+        <div style="width:56px;height:56px;border-radius:28px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;margin-bottom:16px;flex-shrink:0;">
+          <Upload size={24} />
+        </div>
+
+        <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:6px;text-align:center;">
+          Suelta tus facturas aquí
+        </div>
+        <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:16px;text-align:center;max-width:360px;">
+          O <span style="color:var(--mep-acc);font-weight:500;">{$t('upload.dropBrowse')}</span> · acepta PDF, JPG, PNG, HEIC · hasta {MAX_MB} MB por archivo
+        </div>
+
+        <input
+          bind:this={fileInputEl}
+          type="file"
+          class="hidden"
+          accept=".pdf,.jpg,.jpeg,.png,.heic"
+          multiple
+          onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
+        />
+
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="height:36px;padding:0 14px;pointer-events:auto;"
+          onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
+        >
+          Examinar archivos
+        </button>
+
+        <!-- Email forwarding -->
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--mep-divider);width:100%;max-width:440px;display:flex;align-items:center;gap:12px;">
+          <div style="width:36px;height:36px;border-radius:18px;flex-shrink:0;background:var(--mep-surface);border:1px solid var(--mep-divider);color:var(--mep-fg-2);display:flex;align-items:center;justify-content:center;">
+            <Mail size={16} />
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">O reenvía por email</div>
+            <div class="num" style="font-size:11.5px;color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              casa-lua-4f8a@inbox.miseenplace.es
+            </div>
+          </div>
+          <button type="button" class="btn btn-ghost" style="height:28px;font-size:11.5px;padding:0 8px;" onclick={(e) => { e.stopPropagation(); copyEmail(); }}>
+            Copiar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Queue -->
+    <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span class="subtitle">Cola de subida</span>
+        {#if files.length > 0}
+          <span class="num" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--mep-acc-soft);color:var(--mep-acc);">{files.length}</span>
+        {/if}
+      </div>
+      <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
+        {files.length === 0 ? 'Añade facturas para continuar' : 'Aún no se ha empezado la extracción'}
+      </div>
+
+      <!-- File list -->
+      {#if files.length > 0}
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;min-height:0;">
+          {#each files as f, i}
+            {@const kind = fileKind(f.name)}
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
+              <div style="width:32px;height:40px;border-radius:4px;flex-shrink:0;background:{kind === 'pdf' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:0.04em;">
+                {kind === 'pdf' ? 'PDF' : 'IMG'}
+              </div>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
+                <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
+              </div>
+              <button type="button" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;" onclick={() => removeFile(i)}>
+                <X size={13} />
+              </button>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+          <div style="text-align:center;">
+            <div style="font-size:28px;margin-bottom:8px;opacity:0.3;">📂</div>
+            <span class="body" style="font-size:12px;color:var(--mep-fg-4);">Sin archivos aún</span>
+          </div>
         </div>
       {/if}
 
-      <!-- Mobile capture row -->
-      <div id="captureRow" class="hidden gap-3">
-        <label class="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-2 rounded-[10px]
-                      border-2 border-dashed border-[#E5E7EB] bg-[#F9FAFB] cursor-pointer
-                      text-[#888888] text-[12px] font-semibold transition-colors hover:border-[#4A9FD8] hover:bg-[#EFF8FF] hover:text-[#4A9FD8]">
-          <span class="text-xl">📷</span>
-          Take Photo
-          <input type="file" id="cameraInput" class="hidden" accept="image/*" capture="environment" />
-        </label>
-        <label class="flex-1 flex flex-col items-center justify-center gap-1 py-4 px-2 rounded-[10px]
-                      border-2 border-dashed border-[#E5E7EB] bg-[#F9FAFB] cursor-pointer
-                      text-[#888888] text-[12px] font-semibold transition-colors hover:border-[#4A9FD8] hover:bg-[#EFF8FF] hover:text-[#4A9FD8]">
-          <span class="text-xl">📁</span>
-          Browse Files
-          <input type="file" id="browseInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
-        </label>
+      <!-- Extract button -->
+      <div style="padding-top:12px;border-top:1px solid var(--mep-divider);margin-top:12px;">
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="width:100%;height:38px;justify-content:center;font-weight:500;gap:6px;"
+          disabled={files.length === 0 || uploading}
+          onclick={doUpload}
+        >
+          {#if uploading}
+            <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
+              <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="2" />
+              <path d="M14 8a6 6 0 00-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+            </svg>
+            Subiendo…
+          {:else}
+            <Sparkle size={14} />
+            {files.length === 0 ? 'Extraer datos' : `Extraer datos de ${files.length} factura${files.length > 1 ? 's' : ''}`}
+          {/if}
+        </button>
       </div>
-
-      <!-- Drop area -->
-      <div id="dropArea"
-           class="border-2 border-dashed border-[#E5E7EB] rounded-[10px] py-8 px-4 text-center cursor-pointer transition-colors hover:border-[#4A9FD8] hover:bg-[#EFF8FF]"
-           onclick={() => (document.getElementById('fileInput') as HTMLInputElement)?.click()}
-           role="button"
-           tabindex="0"
-           onkeydown={(e) => e.key === 'Enter' && (document.getElementById('fileInput') as HTMLInputElement)?.click()}
-      >
-        <input type="file" id="fileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
-        <div class="text-2xl mb-2">📂</div>
-        <p class="text-[13px] text-[#666666]">Drop files here or <span class="text-[#4A9FD8] underline">browse</span></p>
-        <p class="text-[11px] text-[#888888] mt-1">PDF, JPG, PNG · max 20 MB each</p>
-      </div>
-
-      <div id="fileList" class="flex flex-col gap-2"></div>
-
-      <button
-        id="submitBtn"
-        disabled
-        class="w-full h-10 bg-[#4A9FD8] text-white rounded-[8px] text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors opacity-50"
-      >Upload</button>
-
     </div>
+
   </div>
 </div>

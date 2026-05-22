@@ -2,176 +2,392 @@
   import { untrack } from 'svelte';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
-  import { CONFIDENCE_BADGE_CLS } from '$lib/constants';
+  import { ChevronLeft, RefreshCw, Check, Sparkle, Plus, Trash, AlertTriangle } from 'lucide-svelte';
 
   const { data }: { data: PageData } = $props();
 
-  type LineItem = { description?: string; quantity?: number | string; unit?: string; unit_price?: number | string; total_price?: number | string };
+  type LineItem = {
+    description?: string | null;
+    quantity?: number | string | null;
+    unit?: string | null;
+    unit_price?: number | string | null;
+    total_price?: number | string | null;
+  };
 
   let lineItems = $state<LineItem[]>(untrack(() => {
-    const items = Array.isArray(data.data?.line_items) ? (data.data.line_items as LineItem[]) : [];
+    const raw = data.data?.line_items;
+    const items = Array.isArray(raw) ? (raw as LineItem[]) : [];
     return items.length > 0 ? items : [];
   }));
 
-  function addRow() { lineItems = [...lineItems, { description: '', quantity: '', unit: '', unit_price: '', total_price: '' }]; }
-  function removeRow(idx: number) { lineItems = lineItems.filter((_, i) => i !== idx); }
+  function addRow() {
+    lineItems = [...lineItems, { description: '', quantity: '', unit: '', unit_price: '', total_price: '' }];
+  }
+  function removeRow(i: number) {
+    lineItems = lineItems.filter((_, j) => j !== i);
+  }
 
-  const confidence = $derived(typeof data.data?.confidence === 'number' ? (data.data.confidence as number) : 0);
-  const confidenceDisplay = $derived((confidence * 100).toFixed(0) + '%');
-  const needsReview = (val: unknown) => !val;
+  const confidence = $derived(
+    typeof data.data?.confidence === 'number' ? (data.data.confidence as number) : 0
+  );
+  const confidenceLabel = $derived(
+    data.confidenceLevel === 'high' ? 'alta confianza' :
+    data.confidenceLevel === 'medium' ? 'confianza media' : 'confianza baja'
+  );
 
-  const confBadgeCls = $derived(CONFIDENCE_BADGE_CLS[data.confidenceLevel ?? 'low'] ?? CONFIDENCE_BADGE_CLS.low);
+  const needsReview = (val: unknown) => !val && val !== 0;
 
-  const inputCls = 'h-9 rounded-[6px] border border-[#E5E7EB] bg-white px-3 text-[13px] text-[#1A1A1A] focus:outline-none focus:border-[#4A9FD8] w-full';
-  const warnCls  = 'h-9 rounded-[6px] border border-[#F5D08A] bg-[#FFFBEB] px-3 text-[13px] text-[#1A1A1A] focus:outline-none focus:border-[#C8843A] w-full';
+  const lineTotal = $derived.by(() =>
+    lineItems.reduce((s, item) => {
+      const n = parseFloat(String(item.total_price ?? ''));
+      return s + (isNaN(n) ? 0 : n);
+    }, 0)
+  );
+
+  const extractedTotal = $derived.by(() => {
+    const t = data.data?.total_amount;
+    if (typeof t === 'number') return t as number;
+    const n = parseFloat(String(t ?? ''));
+    return isNaN(n) ? 0 : n;
+  });
+
+  const discrepancy = $derived(Math.abs(lineTotal - extractedTotal));
+  const hasDiscrepancy = $derived(discrepancy > 0.01 && extractedTotal > 0);
+  const ivaAmt = $derived(lineTotal * 0.1);
+  const totalCalc = $derived(lineTotal + ivaAmt);
+  const filename = $derived(data.filenames?.[0] ?? 'factura.pdf');
+  const supplierName = $derived(str(data.data?.supplier_name) || '—');
+  const invoiceNumber = $derived(str(data.data?.invoice_number) || '—');
+
+  function fmt(n: number) { return n.toFixed(2).replace('.', ',') + ' €'; }
+  function fmtN(n: number) { return n.toFixed(2).replace('.', ','); }
 </script>
 
-<div class="max-w-[680px] mx-auto">
-
-  {#if data.totalInvoices > 1}
-    <div class="flex border border-[#E5E7EB] rounded-[8px] overflow-hidden mb-5">
-      {#each Array(data.totalInvoices) as _, i}
-        {@const step = i + 1}
-        <div class="flex-1 py-2 px-2 text-[12px] font-semibold text-center border-r border-[#E5E7EB] last:border-0
-                    {step < data.invoiceIndex ? 'bg-[#F0FDF4] text-[#3A8C5C]' : step === data.invoiceIndex ? 'bg-[#4A9FD8] text-white' : 'bg-[#F9FAFB] text-[#888888]'}">
-          {step < data.invoiceIndex ? '✓' : step}
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  <div class="flex flex-wrap gap-2 mb-5">
-    {#each data.filenames as name}
-      <span class="inline-flex items-center gap-1 bg-[#F9FAFB] border border-[#E5E7EB] rounded-[6px] px-3 py-1 text-[12px] text-[#666666]">
-        {name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'} {name}
-      </span>
-    {/each}
-  </div>
+<div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
 
   {#if data.error}
-    <div class="bg-[#FFF1F0] border border-[#FECACA] text-[#E05555] rounded-[8px] p-4 text-[13px] mb-4">
-      <strong class="block mb-1">Extraction failed</strong>
-      <p class="mb-3">{data.error}</p>
-      <a href="/extract/{data.id}"
-         class="inline-block bg-[#E05555] text-white rounded-[6px] px-3 py-1 text-[12px] font-semibold hover:bg-[#c94444] transition-colors no-underline">
-        Try again
-      </a>
+    <div style="padding:32px;display:flex;flex-direction:column;gap:12px;max-width:560px;">
+      <div class="card p-4" style="background:var(--mep-neg-soft);border-color:var(--mep-neg);">
+        <strong class="body-strong" style="color:var(--mep-neg);display:block;margin-bottom:6px;">Error de extracción</strong>
+        <p style="font-size:13px;color:var(--mep-neg);">{data.error}</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <a href="/extract/{data.id}" class="btn btn-primary" style="height:34px;text-decoration:none;font-size:13px;">
+          Reintentar
+        </a>
+        <form method="POST" action="?/discard">
+          <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">Descartar</button>
+        </form>
+      </div>
     </div>
-  {/if}
+  {:else}
 
-  {#if !data.error}
-    {#if data.confidenceLevel === 'low'}
-      <div class="bg-[#FFF1F0] border border-[#FECACA] text-[#E05555] rounded-[8px] px-4 py-3 text-[13px] mb-4">
-        <strong class="block mb-1">Low confidence — please review carefully</strong>
-        {str(data.data?.extraction_notes) || 'Several fields may be missing or inaccurate.'}
-      </div>
-    {:else if data.confidenceLevel === 'medium'}
-      <div class="bg-[#FFF8EE] border border-[#F5D08A] text-[#C8843A] rounded-[8px] px-4 py-3 text-[13px] mb-4">
-        <strong class="block mb-1">Some fields may need correction</strong>
-        {str(data.data?.extraction_notes)}
-      </div>
-    {/if}
+  <div style="flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:14px;min-height:0;overflow:hidden;">
 
-    {#if data.conversionNotes && data.conversionNotes.length > 0}
-      <div class="mb-4 flex flex-col gap-2">
-        {#each data.conversionNotes as note}
-          <div class="bg-[#FFF8EE] border border-[#F5D08A] text-[#C8843A] rounded-[8px] px-4 py-3 text-[13px]">
-            ⚠️ {note}
-          </div>
-        {/each}
-      </div>
-    {/if}
-
-    <form method="POST" action="?/save">
-      <input type="hidden" name="confidence" value={str(data.data?.confidence ?? 0)} />
-
-      <div class="bg-white rounded-[12px] border border-[#E5E7EB] px-5 py-5 mb-4">
-        <h2 class="text-[14px] font-semibold text-[#1A1A1A] mb-4 flex items-center gap-2">
-          Invoice Details
-          <span class="text-[10px] font-semibold px-2 py-[2px] rounded-full {confBadgeCls}">{confidenceDisplay} confidence</span>
-        </h2>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="col-span-2 flex flex-col gap-1">
-            <label class="text-[11px] font-semibold text-[#888888]" for="ext-supplier">Supplier</label>
-            <input id="ext-supplier" type="text" name="supplier_name" value={str(data.data?.supplier_name)}
-                   class={needsReview(data.data?.supplier_name) ? warnCls : inputCls} />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] font-semibold text-[#888888]" for="ext-inv-num">Invoice Number</label>
-            <input id="ext-inv-num" type="text" name="invoice_number" value={str(data.data?.invoice_number)}
-                   class={needsReview(data.data?.invoice_number) ? warnCls : inputCls} />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] font-semibold text-[#888888]" for="ext-inv-date">Invoice Date</label>
-            <input id="ext-inv-date" type="text" name="invoice_date" value={str(data.data?.invoice_date)} placeholder="YYYY-MM-DD"
-                   class={needsReview(data.data?.invoice_date) ? warnCls : inputCls} />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] font-semibold text-[#888888]" for="ext-due-date">Due Date</label>
-            <input id="ext-due-date" type="text" name="due_date" value={str(data.data?.due_date)} placeholder="YYYY-MM-DD"
-                   class={needsReview(data.data?.due_date) ? warnCls : inputCls} />
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-[11px] font-semibold text-[#888888]" for="ext-total">Total Amount</label>
-            <input id="ext-total" type="text" name="total_amount" value={str(data.data?.total_amount)}
-                   class={needsReview(data.data?.total_amount) ? warnCls : inputCls} />
-          </div>
-          <div class="col-span-2 flex flex-col gap-1">
-            <label class="text-[11px] font-semibold text-[#888888]" for="ext-notes">
-              Notes <span class="font-normal text-[#AAAAAA]">(optional · max 250 chars)</span>
-            </label>
-            <textarea id="ext-notes" name="notes" maxlength={250} rows={2} placeholder="Any additional context…"
-                      class="resize-y rounded-[6px] border border-[#E5E7EB] bg-white px-3 py-2 text-[13px] text-[#1A1A1A] focus:outline-none focus:border-[#4A9FD8]"></textarea>
-          </div>
+    <!-- Header bar -->
+    <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+      <a href="/confirm/{data.id}" class="btn btn-ghost" style="width:32px;height:32px;padding:0;justify-content:center;text-decoration:none;flex-shrink:0;">
+        <ChevronLeft size={15} />
+      </a>
+      <div style="flex:1;min-width:0;">
+        {#if data.totalInvoices > 1}
+          <div style="font-size:11.5px;color:var(--mep-fg-3);">Factura {data.invoiceIndex} de {data.totalInvoices}</div>
+        {/if}
+        <div style="font-size:16px;font-weight:600;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          Revisar {invoiceNumber} · {supplierName}
         </div>
       </div>
-
-      <div class="bg-white rounded-[12px] border border-[#E5E7EB] px-5 py-5 mb-4">
-        <h2 class="text-[14px] font-semibold text-[#1A1A1A] mb-4">Line Items</h2>
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse text-[13px]">
-            <thead>
-              <tr>
-                {#each ['Description','Qty','Unit','Unit Price','Total',''] as h}
-                  <th class="text-left py-2 px-2 bg-[#F9FAFB] text-[11px] font-bold uppercase tracking-[0.04em] text-[#888888] border-b border-[#E5E7EB]">{h}</th>
-                {/each}
-              </tr>
-            </thead>
-            <tbody>
-              {#each lineItems as item, i}
-                <tr>
-                  {#each [['line_descriptions', item.description], ['line_quantities', item.quantity], ['line_units', item.unit], ['line_unit_prices', item.unit_price], ['line_total_prices', item.total_price]] as [name, val] (name as string)}
-                    <td class="py-2 px-2 border-b border-[#F3F4F6]">
-                      <input type="text" name={name as string} value={str(val)}
-                             class="w-full py-1 px-2 border border-[#E5E7EB] rounded-[4px] bg-[#F9FAFB] text-[13px] focus:outline-none focus:border-[#4A9FD8]" />
-                    </td>
-                  {/each}
-                  <td class="py-2 px-2 border-b border-[#F3F4F6]">
-                    <button type="button" class="bg-transparent border-none cursor-pointer text-[#888888] hover:text-[#E05555] text-[14px] px-1 transition-colors" onclick={() => removeRow(i)}>✕</button>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        <button type="button" onclick={addRow}
-                class="mt-3 bg-transparent border border-dashed border-[#E5E7EB] rounded-[6px] text-[#4A9FD8] cursor-pointer font-[inherit] text-[13px] py-[5px] px-3 hover:bg-[#EFF8FF] transition-colors">
-          + Add row
-        </button>
-      </div>
-
-      <button type="submit"
-              class="h-9 bg-[#4A9FD8] text-white rounded-[8px] px-4 text-[13px] font-semibold border-none cursor-pointer hover:bg-[#3d8ec7] transition-colors">
-        Save Invoice
+      <span class="badge" style="background:var(--mep-acc-soft);color:var(--mep-acc);display:inline-flex;align-items:center;gap:5px;flex-shrink:0;">
+        <Sparkle size={11} />
+        Extraído por IA · {confidenceLabel}
+      </span>
+      <a href="/extract/{data.id}" class="btn btn-ghost" style="height:30px;font-size:12.5px;gap:5px;text-decoration:none;flex-shrink:0;">
+        <RefreshCw size={13} /> Reextraer
+      </a>
+      <form method="POST" action="?/discard" style="flex-shrink:0;">
+        <button type="submit" class="btn btn-secondary" style="height:30px;font-size:13px;">Descartar</button>
+      </form>
+      <button type="submit" form="save-form" class="btn btn-primary" style="height:30px;font-size:13px;gap:5px;flex-shrink:0;">
+        <Check size={14} /> Confirmar y guardar
       </button>
-    </form>
-  {/if}
+    </div>
 
-  <form method="POST" action="?/discard" class="mt-3">
-    <button type="submit"
-            class="h-9 border border-[#E5E7EB] bg-white text-[#1A1A1A] rounded-[8px] px-4 text-[13px] font-semibold cursor-pointer hover:bg-[#F9FAFB] transition-colors">
-      Discard
-    </button>
-  </form>
+    <!-- Two-column grid -->
+    <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:14px;flex:1;min-height:0;overflow:hidden;">
+
+      <!-- Left: doc viewer -->
+      <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
+        <div style="padding:10px 14px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <div style="flex:1;font-size:12px;color:var(--mep-fg-2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {filename} <span style="color:var(--mep-fg-3);font-weight:400;">· página 1</span>
+          </div>
+          <button type="button" class="btn btn-ghost" style="width:26px;height:26px;padding:0;justify-content:center;font-size:14px;">−</button>
+          <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);">100%</span>
+          <button type="button" class="btn btn-ghost" style="width:26px;height:26px;padding:0;justify-content:center;font-size:14px;">+</button>
+        </div>
+        <div style="flex:1;overflow:auto;padding:18px;background:var(--mep-surface-2);background-image:radial-gradient(circle, var(--mep-divider) 1px, transparent 1px);background-size:12px 12px;">
+          <!-- Faux Spanish invoice -->
+          <div style="background:#fff;color:#16181b;width:100%;max-width:480px;margin:0 auto;padding:24px 28px;box-shadow:0 10px 30px rgba(0,0,0,0.10),0 2px 6px rgba(0,0,0,0.06);border-radius:4px;font-family:var(--mep-font);font-size:10px;">
+            <div style="display:flex;justify-content:space-between;border-bottom:2px solid #16181b;padding-bottom:14px;margin-bottom:14px;">
+              <div>
+                <div style="font-size:15px;font-weight:700;letter-spacing:-0.4px;">{supplierName}</div>
+                <div style="font-size:9px;color:#555;margin-top:4px;line-height:1.5;">Proveedor verificado</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:9px;color:#555;text-transform:uppercase;letter-spacing:0.06em;">Factura</div>
+                <div class="num" style="font-size:13px;font-weight:600;">{invoiceNumber}</div>
+                <div class="num" style="font-size:9px;color:#555;margin-top:4px;">{str(data.data?.invoice_date) || '—'}</div>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;font-size:9px;">
+              <div>
+                <div style="color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Vencimiento</div>
+                <div class="num">{str(data.data?.due_date) || '—'}</div>
+              </div>
+              <div>
+                <div style="color:#888;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Forma de pago</div>
+                <div>Transferencia</div>
+              </div>
+            </div>
+
+            {#if lineItems.length > 0}
+              <table style="width:100%;border-collapse:collapse;font-size:9px;">
+                <thead>
+                  <tr style="background:#f3f1ec;">
+                    <th style="text-align:left;padding:5px 6px;font-weight:500;">Descripción</th>
+                    <th class="num" style="text-align:right;padding:5px 6px;font-weight:500;">Cant.</th>
+                    <th style="text-align:left;padding:5px 6px;font-weight:500;">Ud.</th>
+                    <th class="num" style="text-align:right;padding:5px 6px;font-weight:500;">P. Unit.</th>
+                    <th class="num" style="text-align:right;padding:5px 6px;font-weight:500;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each lineItems.slice(0, 8) as item}
+                    <tr style="border-bottom:1px solid #eee;">
+                      <td style="padding:4px 6px;">{str(item.description) || '—'}</td>
+                      <td class="num" style="text-align:right;padding:4px 6px;">{str(item.quantity) || '—'}</td>
+                      <td style="padding:4px 6px;color:#555;">{str(item.unit) || ''}</td>
+                      <td class="num" style="text-align:right;padding:4px 6px;">{str(item.unit_price) || '—'}</td>
+                      <td class="num" style="text-align:right;padding:4px 6px;">{str(item.total_price) || '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+              {#if lineItems.length > 8}
+                <div style="text-align:center;font-size:8px;color:#888;padding:8px 0;font-style:italic;">… continúa</div>
+              {/if}
+            {/if}
+
+            <div style="border-top:1px solid #ccc;padding-top:8px;margin-top:8px;">
+              <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:2px;">
+                <span>Base imponible</span><span class="num">{fmt(lineTotal)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:4px;">
+                <span>IVA (10%)</span><span class="num">{fmt(ivaAmt)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;padding-top:6px;border-top:1px solid #16181b;">
+                <span>TOTAL</span><span class="num">{fmt(extractedTotal > 0 ? extractedTotal : totalCalc)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: data panel (form) -->
+      <form id="save-form" method="POST" action="?/save" style="display:contents;">
+        <input type="hidden" name="confidence" value={str(confidence)} />
+
+        <div class="card" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
+
+          <!-- Cabecera -->
+          <div style="padding:14px 16px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <div class="subtitle">Cabecera</div>
+              <span style="font-size:11px;color:var(--mep-fg-3);">Tab para navegar entre campos</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
+
+              <!-- Proveedor -->
+              <div style="grid-column:span 2;">
+                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">Proveedor</div>
+                <input type="text" name="supplier_name" value={str(data.data?.supplier_name)}
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.supplier_name) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.supplier_name) ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                {#if needsReview(data.data?.supplier_name)}
+                  <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
+                    <AlertTriangle size={10} /> Campo vacío — introduce el proveedor
+                  </div>
+                {/if}
+              </div>
+
+              <!-- N.º factura -->
+              <div>
+                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">N.º factura</div>
+                <input type="text" name="invoice_number" value={str(data.data?.invoice_number)}
+                  class="num"
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_number) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_number) ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+              </div>
+
+              <!-- Fecha factura -->
+              <div>
+                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">Fecha factura</div>
+                <input type="text" name="invoice_date" value={str(data.data?.invoice_date)} placeholder="YYYY-MM-DD"
+                  class="num"
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_date) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_date) ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+              </div>
+
+              <!-- Vencimiento -->
+              <div>
+                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">Vencimiento</div>
+                <input type="text" name="due_date" value={str(data.data?.due_date)} placeholder="YYYY-MM-DD"
+                  class="num"
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);outline:none;font-family:var(--mep-font);" />
+              </div>
+
+              <!-- Total -->
+              <div>
+                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">Total</div>
+                <input type="text" name="total_amount" value={str(data.data?.total_amount)}
+                  class="num"
+                  style="width:100%;font-size:13.5px;font-weight:{hasDiscrepancy ? 600 : 500};color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{hasDiscrepancy ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{hasDiscrepancy ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                {#if hasDiscrepancy}
+                  <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
+                    <AlertTriangle size={10} /> No coincide con suma calculada ({fmt(totalCalc)}). Revisar.
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Notes -->
+              <div style="grid-column:span 2;">
+                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">Notas internas <span style="text-transform:none;letter-spacing:0;">(opcional)</span></div>
+                <textarea name="notes" maxlength={250} rows={2}
+                  placeholder="Observaciones sobre esta factura…"
+                  style="width:100%;font-size:13px;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);outline:none;font-family:var(--mep-font);resize:vertical;"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Line items -->
+          <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
+            <div style="padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+              <div class="subtitle">
+                Líneas <span class="num" style="color:var(--mep-fg-3);font-weight:400;">· {lineItems.length}</span>
+              </div>
+              <button type="button" class="btn btn-ghost" style="height:26px;font-size:12px;padding:0 8px;gap:5px;" onclick={addRow}>
+                <Plus size={12} /> Añadir línea
+              </button>
+            </div>
+            <div style="overflow:auto;flex:1;">
+              <table class="tbl" style="table-layout:fixed;width:100%;">
+                <thead>
+                  <tr>
+                    <th style="width:38%;">Descripción</th>
+                    <th class="num" style="width:60px;">Cant.</th>
+                    <th style="width:52px;">Unidad</th>
+                    <th class="num" style="width:86px;">P. unitario</th>
+                    <th class="num" style="width:86px;">Total</th>
+                    <th style="width:28px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each lineItems as item, i}
+                    {@const rowFlagged = needsReview(item.description) || needsReview(item.total_price)}
+                    <tr style="background:{rowFlagged ? 'var(--mep-warn-soft)' : 'transparent'};">
+                      <td style="padding:4px 8px;">
+                        <div style="display:flex;align-items:center;gap:5px;">
+                          <input type="text" name="line_descriptions" value={str(item.description)}
+                            style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;font-family:var(--mep-font);" />
+                          {#if rowFlagged}
+                            <span style="color:var(--mep-warn);display:inline-flex;flex-shrink:0;" title="Confianza baja">
+                              <AlertTriangle size={11} />
+                            </span>
+                          {/if}
+                        </div>
+                      </td>
+                      <td class="num" style="padding:4px 8px;">
+                        <input type="text" name="line_quantities" value={str(item.quantity)}
+                          class="num"
+                          style="width:100%;font-size:12px;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
+                      </td>
+                      <td style="padding:4px 8px;">
+                        <input type="text" name="line_units" value={str(item.unit)}
+                          style="width:100%;font-size:12px;color:var(--mep-fg-2);background:transparent;border:none;outline:none;font-family:var(--mep-font);" />
+                      </td>
+                      <td class="num" style="padding:4px 8px;">
+                        <input type="text" name="line_unit_prices" value={str(item.unit_price)}
+                          class="num"
+                          style="width:100%;font-size:12px;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
+                      </td>
+                      <td class="num" style="padding:4px 8px;">
+                        <input type="text" name="line_total_prices" value={str(item.total_price)}
+                          class="num"
+                          style="width:100%;font-size:12px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
+                      </td>
+                      <td style="padding:4px 8px;">
+                        <button type="button" class="btn btn-ghost" style="width:22px;height:22px;padding:0;justify-content:center;" onclick={() => removeRow(i)}>
+                          <Trash size={11} />
+                        </button>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Totals footer -->
+          <div style="padding:12px 16px;border-top:1px solid var(--mep-divider);background:var(--mep-surface-2);display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-shrink:0;">
+            <!-- Discrepancy -->
+            <div>
+              {#if hasDiscrepancy}
+                <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mep-warn);font-weight:500;">
+                  <AlertTriangle size={12} />
+                  Discrepancia · {fmt(discrepancy)}
+                </div>
+                <div style="font-size:11.5px;color:var(--mep-fg-2);margin-top:4px;line-height:1.4;">
+                  El total extraído no cuadra con la suma de las líneas + IVA. Revisa antes de confirmar.
+                </div>
+              {:else if lineItems.length > 0}
+                <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mep-pos);font-weight:500;">
+                  <Check size={12} />
+                  Totales cuadran
+                </div>
+                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:4px;">
+                  La suma de líneas coincide con el total extraído.
+                </div>
+              {:else}
+                <div style="font-size:12px;color:var(--mep-fg-3);">Sin líneas — añade artículos para verificar totales.</div>
+              {/if}
+            </div>
+
+            <!-- Totals breakdown -->
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                <span style="font-size:12.5px;color:var(--mep-fg-2);">Base imponible</span>
+                <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(lineTotal)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                <span style="font-size:12.5px;color:var(--mep-fg-2);">IVA (10%)</span>
+                <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(ivaAmt)}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                <span style="font-size:12.5px;color:var(--mep-fg);">Total calculado</span>
+                <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmt(totalCalc)}</span>
+              </div>
+              {#if hasDiscrepancy}
+                <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                  <span style="font-size:12.5px;color:var(--mep-fg-3);">Total extraído</span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg-3);text-decoration:line-through;">{fmt(extractedTotal)}</span>
+                </div>
+              {/if}
+            </div>
+          </div>
+
+        </div>
+      </form>
+
+    </div>
+  </div>
+  {/if}
 
 </div>

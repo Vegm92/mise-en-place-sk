@@ -1,11 +1,13 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { unitConversions } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** POST /api/unit-conversions — save a new UoM rule and clear pending flags. */
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+	if (!checkRateLimit(getClientAddress(), 30)) throw error(429, 'Too many requests');
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
 
