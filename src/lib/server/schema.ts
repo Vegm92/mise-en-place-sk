@@ -1,9 +1,4 @@
-/**
- * Drizzle schema — single source of truth for the SQLite database.
- * New tables and columns are bootstrapped in db.ts on startup.
- * Columns marked with legacy comments exist in the live DB but are unused
- * by the application since the currency removal refactor.
- */
+/** Drizzle schema — single source of truth for the SQLite database. */
 import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
@@ -22,13 +17,10 @@ export const invoices = sqliteTable('invoices', {
 	invoiceDate: text('invoice_date'),
 	dueDate: text('due_date'),
 	totalAmount: real('total_amount'),
-	currency: text('currency'),           // legacy — kept for DB compatibility
 	status: text('status').default('pending'),
 	sourceFile: text('source_file'),
 	confidence: real('confidence'),
 	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-	convertedAmount: real('converted_amount'), // legacy — kept for DB compatibility
-	exchangeRate: real('exchange_rate'),        // legacy — kept for DB compatibility
 	notes: text('notes'),
 });
 
