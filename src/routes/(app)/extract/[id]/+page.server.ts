@@ -2,9 +2,9 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
-import { UPLOADS_DIR, MAX_CONCURRENT_EXTRACTIONS } from '$lib/server/env';
+import { MAX_CONCURRENT_EXTRACTIONS } from '$lib/server/env';
 import { extractInvoice } from '$lib/server/extract';
-import { readSession, writeSession, deleteSession } from '$lib/server/sessions';
+import { readSession, writeSession, deleteSession, uploadsDir } from '$lib/server/sessions';
 import { tryAcquireExtraction, releaseExtraction } from '$lib/server/rate-limiter';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems } from '$lib/server/schema';
@@ -13,10 +13,6 @@ import { annotateLineItems, resolveUnit } from '$lib/server/unit-bridge';
 import { runPriceShock, runStockForecast } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
 import type { EnrichedLineItem } from '$lib/server/unit-bridge';
-
-function uploadsDir(): string {
-	return path.resolve(process.cwd(), UPLOADS_DIR);
-}
 
 function toFloat(value: unknown): number | null {
 	if (!value) return null;

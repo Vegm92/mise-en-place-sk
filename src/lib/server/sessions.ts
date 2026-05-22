@@ -1,6 +1,26 @@
 import fs from 'fs';
 import path from 'path';
-import { SK_SESSIONS_DIR } from './env';
+import { SK_SESSIONS_DIR, UPLOADS_DIR } from './env';
+
+export function uploadsDir(): string {
+	return path.resolve(process.cwd(), UPLOADS_DIR);
+}
+
+export function resolveUploadPath(filename: string): string {
+	const dir = uploadsDir();
+	const fp = path.resolve(dir, filename);
+	if (!fp.startsWith(dir + path.sep) && fp !== dir) throw new Error('Invalid file path');
+	return fp;
+}
+
+export function deleteUploadFile(filename: string): void {
+	try {
+		const fp = resolveUploadPath(filename);
+		if (fs.existsSync(fp)) fs.unlinkSync(fp);
+	} catch {
+		// ignore — file may already be gone or path invalid
+	}
+}
 
 export interface Session {
 	id: string;
