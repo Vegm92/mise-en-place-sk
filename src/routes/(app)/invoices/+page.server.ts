@@ -1,10 +1,11 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { and, asc, desc, eq, gte, inArray, lte, sql, SQL } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ url }) => {
+	try {
 	const status     = url.searchParams.get('status') ?? '';
 	const supplierId = url.searchParams.get('supplier_id') ?? '';
 	const dateFrom   = url.searchParams.get('date_from') ?? '';
@@ -99,6 +100,11 @@ export const load: PageServerLoad = async ({ url }) => {
 		suppliers: supplierRows,
 		filters: { status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo },
 	};
+	} catch (e) {
+		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
+		console.error('[invoices] load failed', e);
+		error(500, 'Failed to load invoices');
+	}
 };
 
 export const actions: Actions = {

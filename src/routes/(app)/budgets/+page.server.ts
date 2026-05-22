@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { categoryBudgets } from '$lib/server/schema';
@@ -6,19 +6,25 @@ import { eq } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 
 export const load: PageServerLoad = async () => {
-	const rows = db.select().from(categoryBudgets).all();
+	try {
+		const rows = db.select().from(categoryBudgets).all();
 
-	const budgets: Record<string, number> = {};
-	for (const row of rows) {
-		budgets[row.category] = row.monthlyBudget;
+		const budgets: Record<string, number> = {};
+		for (const row of rows) {
+			budgets[row.category] = row.monthlyBudget;
+		}
+
+		return {
+			title: 'Budgets',
+			subtitle: 'Set monthly spend limits per category. Warnings appear on the dashboard.',
+			categories: VALID_CATEGORIES,
+			budgets,
+		};
+	} catch (e) {
+		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
+		console.error('[budgets] load failed', e);
+		error(500, 'Failed to load budgets');
 	}
-
-	return {
-		title: 'Budgets',
-		subtitle: 'Set monthly spend limits per category. Warnings appear on the dashboard.',
-		categories: VALID_CATEGORIES,
-		budgets,
-	};
 };
 
 export const actions: Actions = {
