@@ -40,9 +40,17 @@ Return ONLY valid JSON with this exact structure:
       "quantity": number or null,
       "unit": "string or null",
       "unit_price": number or null,
-      "total_price": number or null
+      "total_price": number or null,
+      "confidence": 0.0 to 1.0
     }
   ],
+  "field_confidences": {
+    "supplier_name": 0.0 to 1.0,
+    "invoice_number": 0.0 to 1.0,
+    "invoice_date": 0.0 to 1.0,
+    "due_date": 0.0 to 1.0,
+    "total_amount": 0.0 to 1.0
+  },
   "confidence": 0.0 to 1.0
 }
 
@@ -53,10 +61,11 @@ Rules:
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
 
-Confidence score:
-- 0.85+ : All key fields clearly visible and readable
-- 0.60-0.84 : Most fields readable, some ambiguity
-- below 0.60 : Poor quality, missing critical fields, or handwritten document`;
+Confidence scores (document-level and per-field):
+- 0.85+ : Clearly visible and readable
+- 0.60-0.84 : Readable with some ambiguity (blur, partial occlusion, handwriting)
+- below 0.60 : Poor quality, missing, or illegible
+Per-field confidence reflects the legibility of that specific field. The document-level confidence is the overall assessment.`;
 
 export interface ExtractedInvoice {
 	supplier_name: string | null;
@@ -66,12 +75,20 @@ export interface ExtractedInvoice {
 	total_amount: number | null;
 	currency: string | null;
 	confidence: number;
+	field_confidences?: {
+		supplier_name?: number;
+		invoice_number?: number;
+		invoice_date?: number;
+		due_date?: number;
+		total_amount?: number;
+	};
 	line_items: Array<{
 		description: string;
 		quantity: number | null;
 		unit: string | null;
 		unit_price: number | null;
 		total_price: number | null;
+		confidence?: number;
 	}>;
 }
 
