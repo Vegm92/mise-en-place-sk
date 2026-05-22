@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
@@ -21,6 +22,7 @@ interface SupplierRow {
 }
 
 export const load: PageServerLoad = async ({ url }) => {
+	try {
 	const supplierIdParam = url.searchParams.get('supplier_id');
 	const supplierId = supplierIdParam ? Number(supplierIdParam) : null;
 
@@ -96,4 +98,9 @@ export const load: PageServerLoad = async ({ url }) => {
 		top_decreases,
 		selected_supplier: supplierId,
 	};
+	} catch (e) {
+		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
+		console.error('[analytics/prices] load failed', e);
+		error(500, 'Failed to load price analytics');
+	}
 };

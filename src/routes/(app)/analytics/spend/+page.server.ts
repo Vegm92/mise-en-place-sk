@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
@@ -12,6 +13,7 @@ const PERIOD_SQL: Record<string, ReturnType<typeof sql> | null> = {
 };
 
 export const load: PageServerLoad = async ({ url }) => {
+	try {
 	let period = url.searchParams.get('period') ?? 'month';
 	if (!(period in PERIOD_SQL)) period = 'month';
 
@@ -84,4 +86,9 @@ export const load: PageServerLoad = async ({ url }) => {
 		kpis: kpisRow ?? { total_items_spend: 0, total_line_items: 0, unique_items: 0, avg_invoice_items: null },
 		period,
 	};
+	} catch (e) {
+		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
+		console.error('[analytics/spend] load failed', e);
+		error(500, 'Failed to load spend analytics');
+	}
 };

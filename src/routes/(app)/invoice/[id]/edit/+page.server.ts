@@ -1,55 +1,59 @@
-import { redirect, fail } from '@sveltejs/kit';
+import { error, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { asc, eq, and, ne } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const id = Number(params.id);
+	try {
+		const id = Number(params.id);
 
-	const row = db
-		.select({
-			id:             invoices.id,
-			supplier_id:    invoices.supplierId,
-			supplier_name:  suppliers.name,
-			invoice_number: invoices.invoiceNumber,
-			invoice_date:   invoices.invoiceDate,
-			due_date:       invoices.dueDate,
-			total_amount:   invoices.totalAmount,
-			status:         invoices.status,
-			source_file:    invoices.sourceFile,
-			notes:          invoices.notes,
-			created_at:     invoices.createdAt,
-		})
-		.from(invoices)
-		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-		.where(eq(invoices.id, id))
-		.get();
+		const row = db
+			.select({
+				id:             invoices.id,
+				supplier_id:    invoices.supplierId,
+				supplier_name:  suppliers.name,
+				invoice_number: invoices.invoiceNumber,
+				invoice_date:   invoices.invoiceDate,
+				due_date:       invoices.dueDate,
+				total_amount:   invoices.totalAmount,
+				status:         invoices.status,
+				source_file:    invoices.sourceFile,
+				notes:          invoices.notes,
+				created_at:     invoices.createdAt,
+			})
+			.from(invoices)
+			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+			.where(eq(invoices.id, id))
+			.get();
 
-	if (!row) {
-		redirect(303, '/invoices');
+		if (!row) redirect(303, '/invoices');
+
+		const lineItems = db
+			.select({
+				id:          invoiceLineItems.id,
+				invoice_id:  invoiceLineItems.invoiceId,
+				description: invoiceLineItems.description,
+				quantity:    invoiceLineItems.quantity,
+				unit:        invoiceLineItems.unit,
+				unit_price:  invoiceLineItems.unitPrice,
+				total_price: invoiceLineItems.totalPrice,
+			})
+			.from(invoiceLineItems)
+			.where(eq(invoiceLineItems.invoiceId, id))
+			.orderBy(asc(invoiceLineItems.id))
+			.all();
+
+		return {
+			title: 'Edit Invoice',
+			invoice: row,
+			lineItems,
+		};
+	} catch (e) {
+		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
+		console.error('[invoice/edit] load failed', e);
+		error(500, 'Failed to load invoice');
 	}
-
-	const lineItems = db
-		.select({
-			id:          invoiceLineItems.id,
-			invoice_id:  invoiceLineItems.invoiceId,
-			description: invoiceLineItems.description,
-			quantity:    invoiceLineItems.quantity,
-			unit:        invoiceLineItems.unit,
-			unit_price:  invoiceLineItems.unitPrice,
-			total_price: invoiceLineItems.totalPrice,
-		})
-		.from(invoiceLineItems)
-		.where(eq(invoiceLineItems.invoiceId, id))
-		.orderBy(asc(invoiceLineItems.id))
-		.all();
-
-	return {
-		title: 'Edit Invoice',
-		invoice: row,
-		lineItems,
-	};
 };
 
 function toFloat(value: FormDataEntryValue | null): number | null {

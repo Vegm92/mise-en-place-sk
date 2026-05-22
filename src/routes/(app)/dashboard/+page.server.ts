@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings } from '$lib/server/schema';
@@ -69,6 +69,7 @@ function detectMissingInvoices(today: Date): {
 }
 
 export const load: PageServerLoad = async () => {
+	try {
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 	const todayIso = today.toISOString().split('T')[0];
@@ -241,6 +242,11 @@ export const load: PageServerLoad = async () => {
 		aging,
 		avg_invoice: avgInvoice,
 	};
+	} catch (e) {
+		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
+		console.error('[dashboard] load failed', e);
+		error(500, 'Failed to load dashboard');
+	}
 };
 
 export const actions: Actions = {
