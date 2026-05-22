@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
   import { t } from '$lib/i18n';
+  import { fmtEur, semColor } from '$lib/formatters';
 
   let { data }: { data: PageData } = $props();
 
@@ -20,16 +21,6 @@
   const totalLimit = $derived(rows.reduce((s, r) => s + r.limit, 0));
   const totalSpent = $derived(rows.reduce((s, r) => s + r.spent, 0));
   const totalPct   = $derived(totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0);
-
-  function fmtEur(n: number) {
-    return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ' €';
-  }
-
-  function semColor(pct: number) {
-    if (pct < 80)  return 'var(--mep-pos)';
-    if (pct <= 100) return 'var(--mep-warn)';
-    return 'var(--mep-neg)';
-  }
 
   const monthLabel = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 </script>

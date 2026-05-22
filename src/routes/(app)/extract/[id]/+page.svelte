@@ -2,6 +2,9 @@
   import { untrack, onMount } from 'svelte';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
+  import { confColor } from '$lib/status';
+  import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
+  import FieldInput from '$lib/components/mep/FieldInput.svelte';
   import { ChevronLeft, RefreshCw, Check, Sparkle, Plus, Trash, AlertTriangle } from 'lucide-svelte';
 
   const { data }: { data: PageData } = $props();
@@ -29,13 +32,6 @@
   }
 
   const fieldConf = $derived((data.fieldConfidences ?? {}) as Record<string, number>);
-
-  function confColor(c: number | undefined | null): string {
-    if (c == null) return 'transparent';
-    if (c >= 0.85) return 'var(--mep-pos)';
-    if (c >= 0.60) return 'var(--mep-warn)';
-    return 'var(--mep-neg)';
-  }
 
   const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'] as const;
 
@@ -252,79 +248,55 @@
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
 
-              <!-- Proveedor | N.º factura -->
-              <div>
-                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
-                  Proveedor
-                  {#if fieldConf.supplier_name != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.supplier_name)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.supplier_name ?? 1) * 100)}% confianza"></span>
-                  {/if}
-                </div>
-                <input type="text" name="supplier_name" value={str(data.data?.supplier_name)}
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.supplier_name) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.supplier_name) ? '2px solid var(--mep-warn)' : fieldConf.supplier_name != null && fieldConf.supplier_name < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
-                {#if needsReview(data.data?.supplier_name)}
-                  <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
-                    <AlertTriangle size={10} /> Campo vacío — introduce el proveedor
-                  </div>
-                {/if}
-              </div>
-              <div>
-                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
-                  N.º factura
-                  {#if fieldConf.invoice_number != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.invoice_number)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.invoice_number ?? 1) * 100)}% confianza"></span>
-                  {/if}
-                </div>
-                <input type="text" name="invoice_number" value={str(data.data?.invoice_number)}
-                  class="num"
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_number) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_number) ? '2px solid var(--mep-warn)' : fieldConf.invoice_number != null && fieldConf.invoice_number < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
-              </div>
+              <FieldInput
+                label="Proveedor"
+                name="supplier_name"
+                value={str(data.data?.supplier_name)}
+                confidence={fieldConf.supplier_name}
+                empty={needsReview(data.data?.supplier_name)}
+              />
+              <FieldInput
+                label="N.º factura"
+                name="invoice_number"
+                value={str(data.data?.invoice_number)}
+                confidence={fieldConf.invoice_number}
+                empty={needsReview(data.data?.invoice_number)}
+                num
+              />
 
-              <!-- Fecha factura | Vencimiento -->
-              <div>
-                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
-                  Fecha factura
-                  {#if fieldConf.invoice_date != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.invoice_date)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.invoice_date ?? 1) * 100)}% confianza"></span>
-                  {/if}
-                </div>
-                <input type="text" name="invoice_date" value={str(data.data?.invoice_date)} placeholder="YYYY-MM-DD"
-                  class="num"
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_date) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_date) ? '2px solid var(--mep-warn)' : fieldConf.invoice_date != null && fieldConf.invoice_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
-              </div>
-              <div>
-                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
-                  Vencimiento
-                  {#if fieldConf.due_date != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.due_date)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.due_date ?? 1) * 100)}% confianza"></span>
-                  {/if}
-                </div>
-                <input type="text" name="due_date" value={str(data.data?.due_date)} placeholder="YYYY-MM-DD"
-                  class="num"
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.due_date != null && fieldConf.due_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
-              </div>
+              <FieldInput
+                label="Fecha factura"
+                name="invoice_date"
+                value={str(data.data?.invoice_date)}
+                confidence={fieldConf.invoice_date}
+                empty={needsReview(data.data?.invoice_date)}
+                placeholder="YYYY-MM-DD"
+                num
+              />
+              <FieldInput
+                label="Vencimiento"
+                name="due_date"
+                value={str(data.data?.due_date)}
+                confidence={fieldConf.due_date}
+                placeholder="YYYY-MM-DD"
+                num
+              />
 
-              <!-- Moneda | Total -->
-              <div>
-                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">Moneda</div>
-                <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);">EUR</div>
-              </div>
-              <div>
-                <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
-                  Total
-                  {#if fieldConf.total_amount != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.total_amount)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.total_amount ?? 1) * 100)}% confianza"></span>
-                  {/if}
-                </div>
-                <input type="text" name="total_amount" value={str(data.data?.total_amount)}
-                  class="num"
-                  style="width:100%;font-size:13.5px;font-weight:{hasDiscrepancy ? 600 : 500};color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{hasDiscrepancy ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{hasDiscrepancy ? '2px solid var(--mep-warn)' : fieldConf.total_amount != null && fieldConf.total_amount < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
-                {#if hasDiscrepancy}
-                  <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
-                    <AlertTriangle size={10} /> No coincide con suma calculada ({fmt(totalCalc)}). Revisar.
-                  </div>
-                {/if}
-              </div>
+              <FieldInput
+                label="Moneda"
+                name="currency"
+                value="EUR"
+                num
+                readonly
+              />
+              <FieldInput
+                label="Total"
+                name="total_amount"
+                value={str(data.data?.total_amount)}
+                confidence={fieldConf.total_amount}
+                warnMsg={hasDiscrepancy ? `No coincide con suma calculada (${fmt(totalCalc)}). Revisar.` : undefined}
+                num
+              />
 
               <!-- Notes -->
               <div style="grid-column:span 2;">
@@ -368,9 +340,7 @@
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" value={str(item.description)}
                             style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;font-family:var(--mep-font);" />
-                          {#if itemConf != null}
-                            <span style="width:6px;height:6px;border-radius:50%;background:{confColor(itemConf)};display:inline-block;flex-shrink:0;" title="{Math.round(itemConf * 100)}% confianza"></span>
-                          {/if}
+                          <ConfidenceDot confidence={itemConf} size={6} />
                           {#if rowFlagged}
                             <span style="color:var(--mep-warn);display:inline-flex;flex-shrink:0;" title="Confianza baja">
                               <AlertTriangle size={11} />
