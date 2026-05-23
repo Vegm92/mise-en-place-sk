@@ -159,10 +159,12 @@ const translations = {
     'tbl.change':             'Variación',
     'tbl.lastSeen':           'Última vez',
     // Settings
-    'set.currency':          'La moneda está fijada a EUR (€). El umbral de alerta de presupuesto se puede ajustar abajo.',
-    'set.thresholdTitle':    'Umbral de alerta de presupuesto',
-    'set.thresholdDesc':     'Las tarjetas de proveedores y las barras de presupuesto muestran una advertencia cuando el gasto alcanza este % del presupuesto mensual.',
-    'set.save':              'Guardar',
+    'set.currency':               'La moneda está fijada a EUR (€). El umbral de alerta de presupuesto se puede ajustar abajo.',
+    'set.thresholdTitle':         'Umbral de alerta de presupuesto',
+    'set.thresholdDesc':          'Las tarjetas de proveedores y las barras de presupuesto muestran una advertencia cuando el gasto alcanza este % del presupuesto mensual.',
+    'set.priceThresholdTitle':    'Umbral de alerta de precio',
+    'set.priceThresholdDesc':     'Las alertas se disparan cuando el precio unitario de un artículo varía más de este porcentaje respecto al último precio registrado.',
+    'set.save':                   'Guardar',
     // Upload page
     'upload.title':     'Subir factura',
     'upload.sub':       'PDF, JPG o PNG — hasta 20 MB',
@@ -398,10 +400,12 @@ const translations = {
     'tbl.change':             'Change',
     'tbl.lastSeen':           'Last Seen',
     // Settings
-    'set.currency':          'Currency is fixed to EUR (€). Budget warning threshold can be adjusted below.',
-    'set.thresholdTitle':    'Budget Warning Threshold',
-    'set.thresholdDesc':     'Supplier cards and budget bars show a warning when spend reaches this % of the monthly budget.',
-    'set.save':              'Save',
+    'set.currency':               'Currency is fixed to EUR (€). Budget warning threshold can be adjusted below.',
+    'set.thresholdTitle':         'Budget Warning Threshold',
+    'set.thresholdDesc':          'Supplier cards and budget bars show a warning when spend reaches this % of the monthly budget.',
+    'set.priceThresholdTitle':    'Price Change Alert Threshold',
+    'set.priceThresholdDesc':     'Alerts fire when a line item\'s unit price changes by more than this percentage from the last recorded price.',
+    'set.save':                   'Save',
     // Upload page
     'upload.title':     'Upload Invoice',
     'upload.sub':       'PDF, JPG or PNG — up to 20 MB',
