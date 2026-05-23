@@ -9,7 +9,6 @@ import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, se
 import { and, desc, eq, isNotNull, ne, sql } from 'drizzle-orm';
 import type { EnrichedLineItem } from './unit-bridge';
 
-const PRICE_SHOCK_THRESHOLD = 0.15;
 const LOW_STOCK_DAYS = 3;
 
 export interface Alert {
@@ -24,6 +23,9 @@ export function runPriceShock(
 	lineItems: EnrichedLineItem[]
 ): Alert[] {
 	const alerts: Alert[] = [];
+
+	const thresholdRow = db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'price_alert_threshold')).limit(1).all();
+	const PRICE_SHOCK_THRESHOLD = thresholdRow[0] ? parseFloat(thresholdRow[0].value) : 0.15;
 
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();

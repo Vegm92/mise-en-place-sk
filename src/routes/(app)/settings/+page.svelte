@@ -25,5 +25,17 @@
       </form>
     </SectionCard>
 
+    <SectionCard title={$t('set.priceThresholdTitle')}>
+      <form method="post" action="?/savePriceThreshold" class="flex flex-col gap-3">
+        <div class="flex items-center gap-3">
+          <input type="number" name="value" min="1" max="99" value={data.priceThreshold}
+            class="input w-[90px]" style="height:36px;font-size:13px;" />
+          <span class="body text-fg-2" style="font-size:13px;">%</span>
+          <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.save')}</button>
+        </div>
+        <p class="body text-fg-3" style="font-size:12px;">{$t('set.priceThresholdDesc')}</p>
+      </form>
+    </SectionCard>
+
   </div>
 </div>

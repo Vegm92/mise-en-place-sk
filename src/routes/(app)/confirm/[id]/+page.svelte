@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import type { PageData } from './$types';
   import { Upload, Mail, Sparkle, X, Check, Clock } from 'lucide-svelte';
   import { t } from '$lib/i18n';
@@ -9,16 +10,16 @@
   let addMoreOpen = $state(false);
   let extracting  = $state(false);
 
-  const STEPS = ['Subir', 'Extraer', 'Revisar y guardar'];
+  const STEPS = $derived([$t('steps.upload'), $t('steps.extract'), $t('steps.review')]);
 
   // Step 2 animation — fake stages cycle while server extracts
-  const STAGES = [
-    'Leyendo documento',
-    'Identificando proveedor',
-    'Extrayendo cabecera',
-    'Extrayendo líneas de pedido',
-    'Verificando totales',
-  ];
+  const STAGES = $derived([
+    $t('confirm.stage.read'),
+    $t('confirm.stage.supplier'),
+    $t('confirm.stage.header'),
+    $t('confirm.stage.lines'),
+    $t('confirm.stage.verify'),
+  ]);
   let stageIdx = $state(0);
   let stageInterval: ReturnType<typeof setInterval>;
 
@@ -54,7 +55,7 @@
             ${f.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMG'}
           </div>
           <span style="flex:1;font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>
-          <button type="button" data-idx="${i}" style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);font-size:14px;padding:0 2px;" title="Quitar">✕</button>
+          <button type="button" data-idx="${i}" style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);font-size:14px;padding:0 2px;" title="${get(t)('confirm.remove')}">✕</button>
         </div>`).join('');
       addFileList.querySelectorAll('[data-idx]').forEach(btn => {
         btn.addEventListener('click', () => { addFiles.splice(Number((btn as HTMLElement).dataset.idx), 1); renderAdd(); });
@@ -62,7 +63,8 @@
       if (addSubmitBtn) {
         addSubmitBtn.disabled = addFiles.length === 0;
         addSubmitBtn.style.opacity = addFiles.length === 0 ? '0.5' : '1';
-        addSubmitBtn.textContent = addFiles.length === 0 ? 'Añadir archivos' : addFiles.length === 1 ? 'Añadir 1 archivo' : `Añadir ${addFiles.length} archivos`;
+        const tr = get(t);
+        addSubmitBtn.textContent = addFiles.length === 0 ? tr('confirm.addFile') : addFiles.length === 1 ? tr('confirm.addFile1') : tr('confirm.addFileN').replace('{n}', String(addFiles.length));
       }
     }
 
@@ -77,7 +79,7 @@
     (window as Window & { submitAddFiles?: () => Promise<void> }).submitAddFiles = async () => {
       if (addFiles.length === 0 || !addSubmitBtn) return;
       addSubmitBtn.disabled = true;
-      addSubmitBtn.textContent = 'Añadiendo…';
+      addSubmitBtn.textContent = get(t)('confirm.adding');
       const fd = new FormData();
       for (const f of addFiles) fd.append('files', f);
       try {
@@ -136,7 +138,7 @@
     <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1fr 1.4fr;gap:16px;">
       <!-- Queue with statuses -->
       <div class="card" style="padding:16px 0 12px;display:flex;flex-direction:column;">
-        <div class="subtitle" style="padding:0 16px;margin-bottom:12px;">{data.files.length} {data.files.length === 1 ? 'factura' : 'facturas'}</div>
+        <div class="subtitle" style="padding:0 16px;margin-bottom:12px;">{data.files.length} {data.files.length === 1 ? $t('misc.invoice') : $t('misc.invoices')}</div>
         <div style="display:flex;flex-direction:column;">
           {#each data.files as file, i}
             {@const state = i < stageIdx / STAGES.length * data.files.length ? 'done' : i === Math.floor(stageIdx / STAGES.length * data.files.length) ? 'active' : 'pending'}
@@ -147,7 +149,7 @@
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{file.name}</div>
                 <div style="font-size:11.5px;color:var(--mep-fg-2);">
-                  {state === 'done' ? 'Datos extraídos' : state === 'active' ? 'Extrayendo líneas de pedido…' : 'En cola'}
+                  {state === 'done' ? $t('confirm.extractDone') : state === 'active' ? $t('confirm.extractActive') : $t('confirm.inQueue')}
                 </div>
               </div>
               <div style="flex-shrink:0;">
@@ -183,7 +185,7 @@
           </div>
           <span class="badge badge-pending" style="gap:4px;">
             <Sparkle size={11} />
-            Procesando
+            {$t('confirm.processing')}
           </span>
         </div>
 
@@ -216,8 +218,8 @@
         </div>
 
         <div style="margin-top:12px;padding:12px 14px;background:var(--mep-surface-2);border-radius:8px;border:1px solid var(--mep-divider);">
-          <div class="label" style="margin-bottom:6px;">Redirigiendo al revisor…</div>
-          <div class="body" style="font-size:12px;color:var(--mep-fg-3);">Los datos extraídos aparecerán en breve para que los revises.</div>
+          <div class="label" style="margin-bottom:6px;">{$t('confirm.redirecting')}</div>
+          <div class="body" style="font-size:12px;color:var(--mep-fg-3);">{$t('confirm.redirectingDesc')}</div>
         </div>
       </div>
     </div>
@@ -265,8 +267,8 @@
         <div style="width:48px;height:48px;border-radius:24px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0;">
           <Upload size={20} />
         </div>
-        <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">Añadir más archivos</div>
-        <div style="font-size:12.5px;color:var(--mep-fg-3);text-align:center;">Arrastra o elige archivos para añadir a esta sesión</div>
+        <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">{$t('confirm.addMoreTitle')}</div>
+        <div style="font-size:12.5px;color:var(--mep-fg-3);text-align:center;">{$t('confirm.addMoreSub')}</div>
 
         <div id="addCaptureRow" class="hidden" style="margin-top:12px;gap:8px;width:100%;max-width:280px;">
           <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
@@ -296,7 +298,7 @@
       <!-- Toggle add more -->
       <button type="button" class="btn btn-ghost mt-3" style="font-size:13px;color:var(--mep-acc);padding:0;"
         onclick={() => addMoreOpen = !addMoreOpen}>
-        {addMoreOpen ? '− Ocultar' : '+ Añadir archivos'}
+        {addMoreOpen ? $t('confirm.hideAdd') : $t('confirm.showAdd')}
       </button>
 
       <!-- Email forwarding -->
@@ -305,7 +307,7 @@
           <Mail size={16} />
         </div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">O reenvía por email</div>
+          <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{$t('upload.emailForward')}</div>
           <div class="num" style="font-size:11px;color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">casa-lua-4f8a@inbox.miseenplace.es</div>
         </div>
       </div>
@@ -314,14 +316,14 @@
     <!-- Right: Queue with uploaded files -->
     <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <span class="subtitle">Cola de subida</span>
+        <span class="subtitle">{$t('upload.queue')}</span>
         <span class="num" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--mep-acc-soft);color:var(--mep-acc);">{data.totalInvoices}</span>
       </div>
       <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
         {#if data.totalInvoices > 1}
-          Factura {data.invoiceIndex} de {data.totalInvoices} · las demás se procesarán en orden
+          {$t('confirm.queueOf').replace('{i}', String(data.invoiceIndex)).replace('{n}', String(data.totalInvoices))}
         {:else}
-          1 archivo listo para extraer
+          {$t('confirm.readyToExtract')}
         {/if}
       </div>
 
@@ -351,12 +353,12 @@
         <form method="POST" action="?/extract" onsubmit={() => startExtracting()}>
           <button type="submit" class="btn btn-primary" style="width:100%;height:38px;justify-content:center;font-weight:500;gap:6px;">
             <Sparkle size={14} />
-            {data.totalInvoices === 1 ? 'Extraer factura' : `Extraer ${data.totalInvoices} facturas`}
+            {data.totalInvoices === 1 ? $t('confirm.extract') : $t('confirm.extractN').replace('{n}', String(data.totalInvoices))}
           </button>
         </form>
         <form method="POST" action="?/discard">
           <button type="submit" class="btn btn-secondary" style="width:100%;height:32px;justify-content:center;font-size:12.5px;">
-            Descartar todo
+            {$t('confirm.discard')}
           </button>
         </form>
       </div>

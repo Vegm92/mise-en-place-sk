@@ -14,12 +14,12 @@
   let fileInputEl = $state<HTMLInputElement>();
   const MAX_MB = 20;
 
-  const STEPS = ['Subir', 'Extraer', 'Revisar y guardar'];
+  const STEPS = $derived([$t('steps.upload'), $t('steps.extract'), $t('steps.review')]);
 
   function addFiles(newFiles: FileList | null) {
     if (!newFiles) return;
     for (const f of Array.from(newFiles)) {
-      if (f.size > MAX_MB * 1024 * 1024) { alert(`'${f.name}' supera el límite de ${MAX_MB} MB.`); continue; }
+      if (f.size > MAX_MB * 1024 * 1024) { alert(`'${f.name}' supera el límite de ${MAX_MB} MB`); continue; }
       if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
     }
   }
@@ -127,10 +127,10 @@
         </div>
 
         <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:6px;text-align:center;">
-          Suelta tus facturas aquí
+          {$t('upload.dropHeadline')}
         </div>
         <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:16px;text-align:center;max-width:360px;">
-          O <span style="color:var(--mep-acc);font-weight:500;">{$t('upload.dropBrowse')}</span> · acepta PDF, JPG, PNG, HEIC · hasta {MAX_MB} MB por archivo
+          O <span style="color:var(--mep-acc);font-weight:500;">{$t('upload.dropBrowse')}</span> · {$t('upload.dropSub')}
         </div>
 
         <input
@@ -148,7 +148,7 @@
           style="height:36px;padding:0 14px;pointer-events:auto;"
           onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
         >
-          Examinar archivos
+          {$t('upload.browseFiles')}
         </button>
 
         <!-- Email forwarding -->
@@ -157,13 +157,13 @@
             <Mail size={16} />
           </div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">O reenvía por email</div>
+            <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{$t('upload.emailForward')}</div>
             <div class="num" style="font-size:11.5px;color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
               casa-lua-4f8a@inbox.miseenplace.es
             </div>
           </div>
           <button type="button" class="btn btn-ghost" style="height:28px;font-size:11.5px;padding:0 8px;" onclick={(e) => { e.stopPropagation(); copyEmail(); }}>
-            Copiar
+            {$t('upload.copy')}
           </button>
         </div>
       </div>
@@ -172,13 +172,13 @@
     <!-- Right: Queue -->
     <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <span class="subtitle">Cola de subida</span>
+        <span class="subtitle">{$t('upload.queue')}</span>
         {#if files.length > 0}
           <span class="num" style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--mep-acc-soft);color:var(--mep-acc);">{files.length}</span>
         {/if}
       </div>
       <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
-        {files.length === 0 ? 'Añade facturas para continuar' : 'Aún no se ha empezado la extracción'}
+        {files.length === 0 ? $t('upload.queueEmpty') : $t('upload.queueNotStarted')}
       </div>
 
       <!-- File list -->
@@ -204,7 +204,7 @@
         <div style="flex:1;display:flex;align-items:center;justify-content:center;">
           <div style="text-align:center;">
             <div style="font-size:28px;margin-bottom:8px;opacity:0.3;">📂</div>
-            <span class="body" style="font-size:12px;color:var(--mep-fg-4);">Sin archivos aún</span>
+            <span class="body" style="font-size:12px;color:var(--mep-fg-4);">{$t('upload.noFiles')}</span>
           </div>
         </div>
       {/if}
@@ -223,10 +223,10 @@
               <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-opacity="0.3" stroke-width="2" />
               <path d="M14 8a6 6 0 00-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
-            Subiendo…
+            {$t('upload.uploading')}
           {:else}
             <Sparkle size={14} />
-            {files.length === 0 ? 'Extraer datos' : `Extraer datos de ${files.length} factura${files.length > 1 ? 's' : ''}`}
+            {files.length === 0 ? $t('upload.extractData') : files.length === 1 ? $t('upload.extractData1') : $t('upload.extractDataN').replace('{n}', String(files.length))}
           {/if}
         </button>
       </div>
