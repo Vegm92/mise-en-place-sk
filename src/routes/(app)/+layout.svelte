@@ -253,6 +253,9 @@
         <ChevronDown size={13} />
       </button>
 
+      <!-- Chat -->
+      <ChatFab />
+
       <!-- Language toggle -->
       <button
         class="btn btn-ghost"
@@ -289,5 +292,4 @@
 
   </div>
 
-  <ChatFab />
 </div>

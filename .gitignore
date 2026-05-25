@@ -29,6 +29,7 @@ REFERENCES.md
 CONTEXT.md
 /docs/
 
+
 # Synthetic generator output and virtualenv
 /synth/output/
 /synth/.venv/

@@ -34,6 +34,10 @@ Return ONLY valid JSON with this exact structure:
   "due_date": "YYYY-MM-DD or null",
   "total_amount": number or null,
   "currency": "3-letter code, almost always EUR for Spanish documents",
+  "tax_base": total taxable amount before tax (sum of all line totals), or null if not present,
+  "tax_breakdown": [
+    {"rate": 0.21, "base": 100.00, "tax_amount": 21.00}
+  ] or null if no tax info is present. One entry per tax rate found. rate is a decimal (0.04, 0.10, 0.21 for Spain; use whatever rate is on the document for other countries),
   "line_items": [
     {
       "description": "string",
@@ -55,8 +59,9 @@ Return ONLY valid JSON with this exact structure:
 }
 
 Rules:
-- total_amount must be the final amount INCLUDING IVA (total a pagar), not the base imponible.
-- If IVA is shown separately, sum base imponible + cuota IVA to get total_amount.
+- total_amount must be the final amount INCLUDING all taxes (total a pagar), not the pre-tax base.
+- If tax is shown separately, sum tax_base + all tax_amount values to get total_amount.
+- tax_breakdown must reflect what is explicitly printed on the document — do not invent rates.
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
@@ -74,6 +79,8 @@ export interface ExtractedInvoice {
 	due_date: string | null;
 	total_amount: number | null;
 	currency: string | null;
+	tax_base: number | null;
+	tax_breakdown: Array<{ rate: number; base: number; tax_amount: number }> | null;
 	confidence: number;
 	field_confidences?: {
 		supplier_name?: number;

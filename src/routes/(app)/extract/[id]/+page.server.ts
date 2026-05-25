@@ -10,7 +10,7 @@ import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
 import { annotateLineItems, resolveUnit } from '$lib/server/unit-bridge';
-import { runPriceShock, runStockForecast } from '$lib/server/alert-engine';
+import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
 import type { EnrichedLineItem } from '$lib/server/unit-bridge';
 
@@ -134,6 +134,12 @@ export const actions: Actions = {
 		const lineUnits = formData.getAll('line_units') as string[];
 		const lineUnitPrices = formData.getAll('line_unit_prices') as string[];
 		const lineTotalPrices = formData.getAll('line_total_prices') as string[];
+		const lineTaxRates = formData.getAll('line_tax_rates') as string[];
+
+		const extractedData = session?.extractedData as Record<string, unknown> | undefined;
+		const taxBase = toFloat(extractedData?.tax_base);
+		const taxBreakdownRaw = extractedData?.tax_breakdown;
+		const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 
 		// Upsert supplier
 		let supplierId: number;
@@ -176,6 +182,8 @@ export const actions: Actions = {
 				invoiceDate,
 				dueDate,
 				totalAmount,
+				taxBase,
+				taxBreakdown,
 				status: 'pending',
 				sourceFile: primaryFile,
 				confidence: confidenceRaw,
@@ -211,6 +219,7 @@ export const actions: Actions = {
 				unit: unitVal,
 				unitPrice: unitPriceFloat,
 				totalPrice: toFloat(lineTotalPrices[i]),
+				taxRate: toFloat(lineTaxRates[i]),
 				requiresUnitConversion: requiresConv,
 				canonicalUnit,
 			});
@@ -240,7 +249,8 @@ export const actions: Actions = {
 		// Fire BI alerts
 		const priceAlerts = runPriceShock(invoiceId, supplierName, savedItems);
 		const stockAlerts = runStockForecast(savedItems);
-		saveAlerts(invoiceId, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts]);
+		const budgetAlerts = runBudgetCheck(invoiceId, supplierId);
+		saveAlerts(invoiceId, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
 
 		// Keep files on disk — sourceFile in DB points to them for "See original".
 		// Files are only deleted on discard.
