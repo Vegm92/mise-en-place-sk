@@ -21,17 +21,31 @@ export const load: PageServerLoad = async ({ params }) => {
 		if (!session) redirect(303, '/?error=Session+not+found');
 
 		const dir = uploadsDir();
-		const files = session.files.map((name) => {
-			const fp = path.join(dir, name);
-			let size = '—';
-			let type = 'FILE';
-			if (fs.existsSync(fp)) {
-				const stat = fs.statSync(fp);
-				size = humanSize(stat.size);
-				type = fileType(path.extname(name));
-			}
-			return { name, size, type };
-		});
+
+		function mapFiles(names: string[], queued: boolean) {
+			return names.map((name) => {
+				const fp = path.join(dir, name);
+				let size = '—';
+				let type = 'FILE';
+				if (fs.existsSync(fp)) {
+					const stat = fs.statSync(fp);
+					size = humanSize(stat.size);
+					type = fileType(path.extname(name));
+				}
+				return { name, size, type, queued };
+			});
+		}
+
+		const files = mapFiles(session.files, false);
+
+		// Include files from remaining sessions so the queue shows the full batch
+		let cur = session;
+		while (cur.remaining?.length) {
+			const next = readSession(cur.remaining[0]);
+			if (!next) break;
+			files.push(...mapFiles(next.files, true));
+			cur = next;
+		}
 
 		return {
 			title: 'Review Files',

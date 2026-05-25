@@ -330,20 +330,26 @@
       <!-- File list -->
       <div style="display:flex;flex-direction:column;gap:6px;flex:1;overflow-y:auto;min-height:0;">
         {#each data.files as file}
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
-            <div style="width:32px;height:40px;border-radius:4px;flex-shrink:0;background:{file.type === 'PDF' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:{file.queued ? 'var(--mep-surface-2)' : 'var(--mep-surface)'};">
+            <div style="width:32px;height:40px;border-radius:4px;flex-shrink:0;background:{file.type === 'PDF' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;opacity:{file.queued ? 0.6 : 1};">
               {file.type}
             </div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{file.name}</div>
+              <div style="font-size:12.5px;font-weight:500;color:{file.queued ? 'var(--mep-fg-2)' : 'var(--mep-fg)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{file.name}</div>
               <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{file.type} · {file.size}</div>
             </div>
-            <form method="POST" action="?/remove" style="flex-shrink:0;">
-              <input type="hidden" name="filename" value={file.name} />
-              <button type="submit" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;">
-                <X size={13} />
-              </button>
-            </form>
+            {#if file.queued}
+              <span style="font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:var(--mep-surface-2);color:var(--mep-fg-3);border:1px solid var(--mep-divider);flex-shrink:0;">
+                {$t('confirm.inQueue')}
+              </span>
+            {:else}
+              <form method="POST" action="?/remove" style="flex-shrink:0;">
+                <input type="hidden" name="filename" value={file.name} />
+                <button type="submit" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;">
+                  <X size={13} />
+                </button>
+              </form>
+            {/if}
           </div>
         {/each}
       </div>
