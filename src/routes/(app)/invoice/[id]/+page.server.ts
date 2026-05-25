@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
-import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
+import { invoices, invoiceLineItems, suppliers, systemNotifications } from '$lib/server/schema';
 import { asc, eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -58,6 +58,7 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	delete: async ({ params }) => {
 		const id = Number(params.id);
+		await db.delete(systemNotifications).where(eq(systemNotifications.invoiceId, id));
 		await db.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id));
 		await db.delete(invoices).where(eq(invoices.id, id));
 		redirect(303, '/invoices');
