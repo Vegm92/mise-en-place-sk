@@ -13,6 +13,7 @@
     unit?: string | null;
     unit_price?: number | string | null;
     total_price?: number | string | null;
+    tax_rate?: number | null;
     confidence?: number | null;
   };
 
@@ -86,10 +87,17 @@
     return isNaN(n) ? 0 : n;
   });
 
-  const discrepancy = $derived(Math.abs(lineTotal - extractedTotal));
+  const taxBreakdown = $derived.by(() => {
+    const raw = data.data?.tax_breakdown;
+    if (!Array.isArray(raw) || raw.length === 0) return null;
+    return raw as Array<{ rate: number; base: number; tax_amount: number }>;
+  });
+  const taxTotal = $derived(
+    taxBreakdown ? taxBreakdown.reduce((s, b) => s + ((b as { tax_amount: number }).tax_amount ?? 0), 0) : 0
+  );
+  const totalCalc = $derived(lineTotal + taxTotal);
+  const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
   const hasDiscrepancy = $derived(discrepancy > 0.01 && extractedTotal > 0);
-  const ivaAmt = $derived(lineTotal * 0.1);
-  const totalCalc = $derived(lineTotal + ivaAmt);
   const filename = $derived(data.filenames?.[0] ?? 'factura.pdf');
   const supplierName = $derived(str(data.data?.supplier_name) || '—');
   const invoiceNumber = $derived(str(data.data?.invoice_number) || '—');
@@ -337,6 +345,7 @@
                           style="width:100%;font-size:12px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                       </td>
                       <td style="padding:4px 8px;">
+                        <input type="hidden" name="line_tax_rates" value={str(item.tax_rate ?? '')} />
                         <button type="button" class="btn btn-ghost" style="width:22px;height:22px;padding:0;justify-content:center;" onclick={() => removeRow(i)}>
                           <Trash size={11} />
                         </button>
@@ -379,10 +388,19 @@
                 <span style="font-size:12.5px;color:var(--mep-fg-2);">{$t('extract.taxBase')}</span>
                 <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(lineTotal)}</span>
               </div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;">
-                <span style="font-size:12.5px;color:var(--mep-fg-2);">{$t('extract.vat')}</span>
-                <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(ivaAmt)}</span>
-              </div>
+              {#if taxBreakdown}
+                {#each taxBreakdown as b}
+                  <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                    <span style="font-size:12.5px;color:var(--mep-fg-2);">{$t('extract.vat')} ({(b.rate * 100).toFixed(0)}%)</span>
+                    <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(b.tax_amount)}</span>
+                  </div>
+                {/each}
+              {:else if taxTotal > 0}
+                <div style="display:flex;justify-content:space-between;padding:2px 0;">
+                  <span style="font-size:12.5px;color:var(--mep-fg-2);">{$t('extract.vat')}</span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(taxTotal)}</span>
+                </div>
+              {/if}
               <div style="display:flex;justify-content:space-between;padding:2px 0;">
                 <span style="font-size:12.5px;color:var(--mep-fg);">{$t('extract.calcTotal')}</span>
                 <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmt(totalCalc)}</span>
