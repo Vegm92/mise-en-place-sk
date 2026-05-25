@@ -16,3 +16,22 @@ export function str(val: unknown): string {
 	if (val === null || val === undefined) return '';
 	return String(val);
 }
+
+const EUR_FMT = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** Full precision EUR: 1234.56 → "1.234,56 €" */
+export function fmtEur(n: number): string {
+	return EUR_FMT.format(n) + ' €';
+}
+
+/** Rounded EUR: 1234.56 → "1.235 €" */
+export function fmtEurCompact(n: number): string {
+	return Math.round(n).toLocaleString('es-ES') + ' €';
+}
+
+/** Traffic-light color for a budget percentage (0-100+). */
+export function semColor(pct: number): string {
+	if (pct < 80) return 'var(--mep-pos)';
+	if (pct <= 100) return 'var(--mep-warn)';
+	return 'var(--mep-neg)';
+}

@@ -10,9 +10,16 @@ export default defineConfig({
 		globals: true,
 		coverage: {
 			provider: 'v8',
-			include: ['src/lib/server/**/*.ts'],
+			include: [
+				'src/lib/formatters.ts',
+				'src/lib/status.ts',
+				'src/lib/server/extract.ts',
+				'src/lib/server/unit-bridge.ts',
+				'src/lib/server/alert-engine.ts',
+				'src/lib/server/db.ts',
+			],
 			thresholds: {
-				lines: 70,
+				lines: 80,
 			},
 		},
 	},

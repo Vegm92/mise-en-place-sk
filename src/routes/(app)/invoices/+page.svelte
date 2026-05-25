@@ -4,6 +4,7 @@
   import { t } from '$lib/i18n';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { ChevronDown, FileDown, Trash2, Check, RotateCcw, ExternalLink, ChevronRight } from 'lucide-svelte';
 
   const { data }: { data: PageData } = $props();
@@ -67,20 +68,6 @@
     (document.getElementById('bulk-delete-form') as HTMLFormElement).submit();
   }
 
-  function badgeClass(s: string) {
-    if (s === 'overdue')   return 'badge badge-overdue';
-    if (s === 'pending')   return 'badge badge-pending';
-    if (s === 'exported')  return 'badge badge-exported';
-    if (s === 'paid')      return 'badge badge-confirmed';
-    return 'badge badge-pending';
-  }
-  function statusKey(s: string) {
-    const map: Record<string, string> = {
-      pending: 'status.pending', confirmed: 'status.confirmed',
-      exported: 'status.exported', overdue: 'status.overdue', paid: 'status.paid',
-    };
-    return map[s] ?? s;
-  }
 </script>
 
 <div class="flex flex-col gap-4 p-6">
@@ -249,7 +236,7 @@
 
             <!-- Status badge -->
             <div class="max-[800px]:hidden">
-              <span class={badgeClass(inv.status ?? 'pending')}>{$t(statusKey(inv.status ?? 'pending'))}</span>
+              <StatusBadge status={inv.status ?? 'pending'} />
             </div>
 
             <!-- Expand chevron -->

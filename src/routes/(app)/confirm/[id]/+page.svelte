@@ -185,7 +185,7 @@
           </div>
           <span class="badge badge-pending" style="gap:4px;">
             <Sparkle size={11} />
-            {$t('confirm.processing')}
+            Procesando
           </span>
         </div>
 

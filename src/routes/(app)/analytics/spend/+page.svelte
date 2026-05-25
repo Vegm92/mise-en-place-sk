@@ -1,85 +1,121 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { t } from '$lib/i18n';
-  import KpiCard from '$lib/components/mep/KpiCard.svelte';
-  import SectionCard from '$lib/components/mep/SectionCard.svelte';
 
   let { data }: { data: PageData } = $props();
 
   const periods: Array<[string, string]> = [
-    ['month',   'spend.period.month'],
-    ['quarter', 'spend.period.quarter'],
-    ['half',    'spend.period.half'],
-    ['all',     'spend.period.all'],
+    ['month',   '30 d'],
+    ['quarter', '90 d'],
+    ['half',    '6 m'],
+    ['all',     'Todo'],
   ];
+
+  function fmtEur(n: number | null | undefined) {
+    return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
+  }
 </script>
 
-<div class="flex flex-col gap-4 p-6">
+<div style="height:100%;overflow:auto;">
+  <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
-  <!-- Period picker -->
-  <div class="flex gap-2 flex-wrap">
-    {#each periods as [val, key]}
-      <a href="?period={val}"
-        class="btn {data.period === val ? 'btn-primary' : 'btn-ghost'}"
-        style="height:32px;font-size:12.5px;text-decoration:none;">
-        {$t(key)}
-      </a>
-    {/each}
-  </div>
+    <!-- Header + period picker -->
+    <div style="display:flex;align-items:center;gap:12px;">
+      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">¿Dónde va el dinero?</h2>
+      <div style="flex:1;"></div>
+      <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
+        {#each periods as [val, short]}
+          <a href="?period={val}" style="
+            background:{data.period === val ? 'var(--mep-surface)' : 'transparent'};
+            color:{data.period === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
+            font-size:12px;font-weight:{data.period === val ? 500 : 400};
+            padding:5px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;
+            box-shadow:{data.period === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
+            font-family:inherit;
+          ">{short}</a>
+        {/each}
+      </div>
+    </div>
 
-  <!-- KPI strip -->
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
-    <KpiCard label={$t('spend.totalSpend')} value="€{Math.round(data.kpis.total_items_spend ?? 0).toLocaleString()}" />
-    <KpiCard label={$t('spend.lineItems')}  value={data.kpis.total_line_items} />
-    <KpiCard label={$t('spend.uniqueItems')} value={data.kpis.unique_items} />
-    <KpiCard label={$t('spend.avgItems')}
-      value={data.kpis.avg_invoice_items != null ? data.kpis.avg_invoice_items.toFixed(1) : '—'} />
-  </div>
-
-  <!-- Charts row -->
-  <div class="grid gap-3 max-md:grid-cols-1" style="grid-template-columns:3fr 2fr;">
-
-    <SectionCard title={$t('spend.topItems')}>
-      {#if !data.top_items.length}
-        <p class="body">{$t('spend.noItems')}</p>
-      {:else}
-        <div class="flex flex-col gap-3">
-          {#each data.top_items as item (item.description)}
-            <div class="flex items-center gap-3">
-              <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap flex-shrink-0"
-                style="width:160px;font-size:13px;" title={item.description}>{item.description}</span>
-              <div class="flex-1 bg-divider rounded-sm h-1.5 overflow-hidden">
-                <div class="h-full rounded-sm bg-acc" style="width:{item.pct}%"></div>
-              </div>
-              <span class="num font-semibold flex-shrink-0" style="width:70px;text-align:right;font-size:13px;">
-                €{Math.round(item.total_spend)}
-              </span>
-            </div>
-          {/each}
+    <!-- KPI row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">{$t('spend.totalSpend')}</div>
+        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{fmtEur(data.kpis.total_items_spend)}</div>
+      </div>
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">{$t('spend.lineItems')}</div>
+        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.kpis.total_line_items}</div>
+      </div>
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">{$t('spend.uniqueItems')}</div>
+        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.kpis.unique_items}</div>
+      </div>
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">{$t('spend.avgItems')}</div>
+        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
+          {data.kpis.avg_invoice_items != null ? data.kpis.avg_invoice_items.toFixed(1) : '—'}
         </div>
-      {/if}
-    </SectionCard>
+      </div>
+    </div>
 
-    <SectionCard title={$t('spend.byCategory')}>
-      {#if !data.category_spend.length}
-        <p class="body">{$t('spend.noCategory')}</p>
-      {:else}
-        <div class="flex flex-col gap-3">
-          {#each data.category_spend as cat (cat.category)}
-            <div class="flex items-center gap-3">
-              <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap flex-shrink-0"
-                style="width:160px;font-size:13px;color:{cat.color};" title={cat.category}>{cat.category}</span>
-              <div class="flex-1 bg-divider rounded-sm h-1.5 overflow-hidden">
-                <div class="h-full rounded-sm" style="width:{cat.pct}%;background:{cat.color};"></div>
+    <!-- Charts row -->
+    <div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;">
+
+      <!-- Top items -->
+      <div class="card" style="padding:16px;">
+        <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
+        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">Top productos por gasto en el período</div>
+        {#if !data.top_items.length}
+          <p class="body" style="color:var(--mep-fg-3);">{$t('spend.noItems')}</p>
+        {:else}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {#each data.top_items.slice(0, 10) as item}
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                  <span style="font-size:12.5px;font-weight:500;color:var(--mep-fg);
+                    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;"
+                    title={item.description}>{item.description}</span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);flex-shrink:0;margin-left:8px;">
+                    {fmtEur(item.total_spend)}
+                  </span>
+                </div>
+                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
+                  <div style="width:{item.pct}%;height:100%;background:var(--mep-acc);border-radius:4px;"></div>
+                </div>
               </div>
-              <span class="num font-semibold flex-shrink-0" style="width:70px;text-align:right;font-size:13px;">
-                €{Math.round(cat.total)}
-              </span>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </SectionCard>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+      <!-- By category -->
+      <div class="card" style="padding:16px;">
+        <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
+        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">Gasto por categoría de proveedor</div>
+        {#if !data.category_spend.length}
+          <p class="body" style="color:var(--mep-fg-3);">{$t('spend.noCategory')}</p>
+        {:else}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {#each data.category_spend as cat}
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                  <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mep-fg-2);">
+                    <span style="width:10px;height:10px;border-radius:2px;background:{cat.color};display:inline-block;flex-shrink:0;"></span>
+                    {cat.category}
+                  </span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmtEur(cat.total)}</span>
+                </div>
+                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
+                  <div style="width:{cat.pct}%;height:100%;background:{cat.color};border-radius:4px;"></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+    </div>
 
   </div>
 </div>

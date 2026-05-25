@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
   import {
     LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
     Settings, HelpCircle, Upload, Sun, Moon, ChevronDown,
@@ -15,12 +16,14 @@
   const p = $derived($page.url.pathname);
   const is = (path: string) => p === path || p.startsWith(path + '/');
 
-  let theme = $state<'light' | 'dark'>('light');
+  let theme = $state<'light' | 'dark'>(
+    browser ? ((document.documentElement.dataset.theme as 'light' | 'dark') || 'light') : 'light'
+  );
   let mobileOpen = $state(false);
 
   onMount(() => {
     const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
-    if (storedTheme) theme = storedTheme;
+    if (storedTheme && storedTheme !== theme) theme = storedTheme;
     initLocale();
     const close = () => { mobileOpen = false; };
     document.addEventListener('sveltekit:navigation-start', close);
@@ -30,6 +33,7 @@
   function toggleTheme() {
     theme = theme === 'light' ? 'dark' : 'light';
     localStorage.setItem('mep-theme', theme);
+    document.documentElement.dataset.theme = theme;
   }
 
   function toggleLocale() {
