@@ -134,6 +134,12 @@ export const actions: Actions = {
 		const lineUnits = formData.getAll('line_units') as string[];
 		const lineUnitPrices = formData.getAll('line_unit_prices') as string[];
 		const lineTotalPrices = formData.getAll('line_total_prices') as string[];
+		const lineTaxRates = formData.getAll('line_tax_rates') as string[];
+
+		const extractedData = session?.extractedData as Record<string, unknown> | undefined;
+		const taxBase = toFloat(extractedData?.tax_base);
+		const taxBreakdownRaw = extractedData?.tax_breakdown;
+		const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 
 		// Upsert supplier
 		let supplierId: number;
@@ -176,6 +182,8 @@ export const actions: Actions = {
 				invoiceDate,
 				dueDate,
 				totalAmount,
+				taxBase,
+				taxBreakdown,
 				status: 'pending',
 				sourceFile: primaryFile,
 				confidence: confidenceRaw,
@@ -211,6 +219,7 @@ export const actions: Actions = {
 				unit: unitVal,
 				unitPrice: unitPriceFloat,
 				totalPrice: toFloat(lineTotalPrices[i]),
+				taxRate: toFloat(lineTaxRates[i]),
 				requiresUnitConversion: requiresConv,
 				canonicalUnit,
 			});

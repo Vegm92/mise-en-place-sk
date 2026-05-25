@@ -17,6 +17,8 @@ export const invoices = sqliteTable('invoices', {
 	invoiceDate: text('invoice_date'),
 	dueDate: text('due_date'),
 	totalAmount: real('total_amount'),
+	taxBase: real('tax_base'),
+	taxBreakdown: text('tax_breakdown'),
 	status: text('status').default('pending'),
 	sourceFile: text('source_file'),
 	confidence: real('confidence'),
@@ -32,6 +34,7 @@ export const invoiceLineItems = sqliteTable('invoice_line_items', {
 	unit: text('unit'),
 	unitPrice: real('unit_price'),
 	totalPrice: real('total_price'),
+	taxRate: real('tax_rate'),
 	requiresUnitConversion: integer('requires_unit_conversion').default(0),
 	canonicalUnit: text('canonical_unit'),
 });

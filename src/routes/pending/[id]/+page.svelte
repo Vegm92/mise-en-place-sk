@@ -49,25 +49,25 @@
 
   let rows = $state<LineItemRow[]>(
     data.lineItems.map((li: {
-      id: string;
-      rawDescription: string;
+      id: number | string;
+      rawDescription: string | null;
       suggestedName: string | null;
       quantity: number | string | null;
       unit: string | null;
       unitPrice: number | string | null;
-      fuzzyScore: number;
-      priceWarning: boolean;
+      fuzzyScore: number | null;
+      priceWarning: number | boolean | null;
     }) => ({
-      id: li.id,
-      rawDescription: li.rawDescription,
-      description: li.suggestedName ?? li.rawDescription,
+      id: String(li.id),
+      rawDescription: li.rawDescription ?? '',
+      description: li.suggestedName ?? li.rawDescription ?? '',
       quantity: String(li.quantity ?? ''),
       unit: li.unit ?? '',
       unitPrice: String(li.unitPrice ?? ''),
       totalPrice: computeTotal(li.quantity, li.unitPrice),
-      fuzzyScore: li.fuzzyScore,
+      fuzzyScore: li.fuzzyScore ?? 0,
       suggestedName: li.suggestedName,
-      priceWarning: li.priceWarning,
+      priceWarning: !!li.priceWarning,
     }))
   );
 
