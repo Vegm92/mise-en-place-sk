@@ -28,7 +28,7 @@
 }
 
 /* Light */
-.mep[data-theme="light"] {
+:root[data-theme="light"], .mep[data-theme="light"] {
   --mep-bg:       #f5f4f0;
   --mep-surface:  #ffffff;
   --mep-surface-2:#fafaf7;
@@ -50,7 +50,7 @@
 }
 
 /* Dark */
-.mep[data-theme="dark"] {
+:root[data-theme="dark"], .mep[data-theme="dark"] {
   --mep-bg:       #16151a;
   --mep-surface:  #1e1d23;
   --mep-surface-2:#25242b;

@@ -45,7 +45,6 @@ Return ONLY valid JSON with this exact structure:
       "unit": "string or null",
       "unit_price": number or null,
       "total_price": number or null,
-      "tax_rate": applicable tax rate as decimal (e.g. 0.21 for 21%), or null if not specified per line,
       "confidence": 0.0 to 1.0
     }
   ],
@@ -96,7 +95,6 @@ export interface ExtractedInvoice {
 		unit: string | null;
 		unit_price: number | null;
 		total_price: number | null;
-		tax_rate?: number | null;
 		confidence?: number;
 	}>;
 }

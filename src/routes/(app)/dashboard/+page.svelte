@@ -4,8 +4,10 @@
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import SupplierRow from '$lib/components/mep/SupplierRow.svelte';
+  import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { Bell, TriangleAlert, ChevronRight, X, TrendingUp } from 'lucide-svelte';
   import { t } from '$lib/i18n';
+  import { fmtEur, fmtEurCompact } from '$lib/formatters';
 
   let { data }: { data: PageData } = $props();
 
@@ -28,25 +30,6 @@
     return 'var(--mep-acc)';
   }
 
-  function eur(n: number) {
-    return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-  }
-  function eurc(n: number) { return Math.round(n).toLocaleString('es-ES') + ' €'; }
-
-  function badgeClass(s: string) {
-    if (s === 'overdue')   return 'badge badge-overdue';
-    if (s === 'pending')   return 'badge badge-pending';
-    if (s === 'exported')  return 'badge badge-exported';
-    return 'badge badge-confirmed';
-  }
-  function statusKey(s: string) {
-    const map: Record<string, string> = {
-      pending: 'status.pending', confirmed: 'status.confirmed',
-      exported: 'status.exported', overdue: 'status.overdue',
-    };
-    return map[s] ?? s;
-  }
-
   let dismissedShocks = $state<Set<number>>(new Set());
   const visibleShocks = $derived(
     data.price_shock_alerts.filter((a: { id: number }) => !dismissedShocks.has(a.id))
@@ -61,18 +44,16 @@
     });
   }
 
-  // Derived supplier stats
-  const supplierRows = $derived(
-    data.suppliers.slice(0, 6).map((s: { name: string; color: string; month_spend: number }) => ({
+  // Derived supplier stats — pre-compute aggregates once to avoid O(n²)
+  const supplierRows = $derived.by(() => {
+    const totalSpend = data.suppliers.reduce((a: number, x: { month_spend: number }) => a + x.month_spend, 0);
+    const maxSpend   = Math.max(0, ...data.suppliers.map((x: { month_spend: number }) => x.month_spend));
+    return data.suppliers.slice(0, 6).map((s: { name: string; color: string; month_spend: number }) => ({
       ...s,
-      pct: data.suppliers.reduce((a: number, x: { month_spend: number }) => a + x.month_spend, 0) > 0
-        ? (s.month_spend / data.suppliers.reduce((a: number, x: { month_spend: number }) => a + x.month_spend, 0)) * 100
-        : 0,
-      barWidth: Math.max(...data.suppliers.map((x: { month_spend: number }) => x.month_spend)) > 0
-        ? (s.month_spend / Math.max(...data.suppliers.map((x: { month_spend: number }) => x.month_spend))) * 100
-        : 0,
-    }))
-  );
+      pct:      totalSpend > 0 ? (s.month_spend / totalSpend) * 100 : 0,
+      barWidth: maxSpend   > 0 ? (s.month_spend / maxSpend)   * 100 : 0,
+    }));
+  });
 </script>
 
 <div class="flex flex-col gap-4 p-6">
@@ -109,18 +90,18 @@
     />
     <KpiCard
       label={$t('dash.kpi.dueWeek')}
-      value={eurc(data.due_week.amount)}
+      value={fmtEurCompact(data.due_week.amount)}
       sub="{data.due_week.count} {data.due_week.count === 1 ? $t('misc.invoice') : $t('misc.invoices')}"
       variant={data.due_week.count > 0 ? 'warn' : 'default'}
     />
     <KpiCard
       label={$t('dash.kpi.pending')}
-      value={eurc(data.pending.amount)}
+      value={fmtEurCompact(data.pending.amount)}
       sub="{data.pending.count} {data.pending.count === 1 ? $t('misc.invoice') : $t('misc.invoices')}"
     />
     <KpiCard
       label={$t('dash.kpi.paidMonth')}
-      value={eurc(data.paid_month.amount)}
+      value={fmtEurCompact(data.paid_month.amount)}
       sub="{data.paid_month.count} {data.paid_month.count === 1 ? $t('misc.invoice') : $t('misc.invoices')}"
       variant="pos"
     />
@@ -142,7 +123,7 @@
         <div class="grid" style="grid-template-columns:repeat(3,1fr);">
           {#each [
             { label: $t('dash.kpi.mom'),        value: momLabel(data.mom.pct_change),                             sub: $t('dash.kpi.mom.sub'),   variant: momVariant(data.mom.pct_change) },
-            { label: $t('dash.kpi.avgInvoice'),  value: data.avg_invoice != null ? eurc(data.avg_invoice) : '—', sub: 'EUR',                     variant: 'default' as const },
+            { label: $t('dash.kpi.avgInvoice'),  value: data.avg_invoice != null ? fmtEurCompact(data.avg_invoice) : '—', sub: 'EUR',                     variant: 'default' as const },
             { label: $t('dash.kpi.suppliers'),   value: String(data.supplier_count),                              sub: $t('dash.kpi.active'),    variant: 'default' as const, last: true },
           ] as kpi}
             <div class="flex flex-col gap-1.5 p-3.5 {kpi.last ? '' : 'border-r border-divider'}">
@@ -195,7 +176,7 @@
             {#each data.reminders as r (r.id)}
               <div class="flex items-center gap-2 py-2.5 border-b border-divider last:border-0">
                 <span class="flex-1 body-strong overflow-hidden text-ellipsis whitespace-nowrap text-sm">{r.supplier_name ?? '—'}</span>
-                <span class="num text-fg" style="font-size:12.5px;font-weight:500;">{eur(r.display_amount)}</span>
+                <span class="num text-fg" style="font-size:12.5px;font-weight:500;">{fmtEur(r.display_amount)}</span>
                 {#if r.overdue}
                   <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('misc.daysLate')}</span>
                 {:else}
@@ -231,7 +212,7 @@
             spend={s.month_spend}
             pct={s.pct}
             barWidth={s.barWidth}
-            formatEur={eur}
+            formatEur={fmtEur}
           />
         {/each}
       {:else}
@@ -267,8 +248,8 @@
                     </span>
                   </div>
                 </td>
-                <td class="num" style="font-weight:500;">{eur(inv.display_amount)}</td>
-                <td><span class={badgeClass(inv.status)}>{$t(statusKey(inv.status))}</span></td>
+                <td class="num" style="font-weight:500;">{fmtEur(inv.display_amount)}</td>
+                <td><StatusBadge status={inv.status} /></td>
               </tr>
             {/each}
           </tbody>
@@ -295,7 +276,7 @@
           <div class="flex flex-col gap-1.5">
             <div class="flex justify-between items-center">
               <span class="body" style="font-size:11px;">{Math.round(data.total_pct_actual)}% {$t('dash.budget.used')}</span>
-              <span class="num body" style="font-size:11px;">{eurc(data.total_spent)} / {eurc(data.total_budget)}</span>
+              <span class="num body" style="font-size:11px;">{fmtEurCompact(data.total_spent)} / {fmtEurCompact(data.total_budget)}</span>
             </div>
             <div class="h-1.5 bg-divider rounded-full overflow-hidden">
               <div class="h-full rounded-full bg-acc" style="width:{data.total_pct_bar}%;"></div>
@@ -333,7 +314,7 @@
               <div class="flex-1 h-1.5 bg-divider rounded-full overflow-hidden">
                 <div class="h-full rounded-full" style="width:{cat.pct}%;background:{cat.color};"></div>
               </div>
-              <span class="num text-fg font-semibold w-[60px] text-right flex-shrink-0 text-xs">{eurc(cat.total)}</span>
+              <span class="num text-fg font-semibold w-[60px] text-right flex-shrink-0 text-xs">{fmtEurCompact(cat.total)}</span>
             </div>
           {/each}
         </div>

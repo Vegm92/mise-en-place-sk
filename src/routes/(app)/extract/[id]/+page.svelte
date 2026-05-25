@@ -2,6 +2,9 @@
   import { untrack, onMount } from 'svelte';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
+  import { confColor } from '$lib/status';
+  import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
+  import FieldInput from '$lib/components/mep/FieldInput.svelte';
   import { ChevronLeft, RefreshCw, Check, Sparkle, Plus, Trash, AlertTriangle } from 'lucide-svelte';
   import { t } from '$lib/i18n';
 
@@ -31,13 +34,6 @@
   }
 
   const fieldConf = $derived((data.fieldConfidences ?? {}) as Record<string, number>);
-
-  function confColor(c: number | undefined | null): string {
-    if (c == null) return 'transparent';
-    if (c >= 0.85) return 'var(--mep-pos)';
-    if (c >= 0.60) return 'var(--mep-warn)';
-    return 'var(--mep-neg)';
-  }
 
   const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'] as const;
 
