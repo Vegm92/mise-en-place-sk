@@ -34,10 +34,21 @@
   }
 </script>
 
-<div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+<div style="position:relative;">
+
+  <button
+    onclick={() => chatOpen = !chatOpen}
+    class="btn btn-ghost"
+    style="width:34px;height:34px;padding:0;justify-content:center;{chatOpen ? 'background:var(--mep-acc-soft);color:var(--mep-acc);' : ''}"
+    aria-label={$t('chat.title')}
+    title={$t('chat.title')}
+  >
+    {#if chatOpen}<X size={16} />{:else}<MessageCircle size={16} />{/if}
+  </button>
 
   {#if chatOpen}
-    <div class="card flex flex-col overflow-hidden shadow-pop" style="width:340px;max-height:480px;">
+    <div class="card flex flex-col overflow-hidden shadow-pop"
+      style="position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:480px;z-index:200;">
 
       <div class="card-header bg-surface-2">
         <div class="flex items-center gap-2">
@@ -99,14 +110,5 @@
       </div>
     </div>
   {/if}
-
-  <button
-    onclick={() => chatOpen = !chatOpen}
-    class="btn btn-primary shadow-pop"
-    style="width:46px;height:46px;padding:0;justify-content:center;border-radius:var(--mep-r-pill);"
-    aria-label={$t('chat.title')}
-  >
-    {#if chatOpen}<X size={18} />{:else}<MessageCircle size={18} />{/if}
-  </button>
 
 </div>
