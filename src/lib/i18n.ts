@@ -25,7 +25,6 @@ const translations = {
     'action.allAlerts':      'Ver todas las alertas',
     // Shell
     'shell.quota':           'facturas este mes',
-    'shell.period':          'Mayo 2026',
     // Dashboard page
     'dashboard.title':       'Resumen',
     'dash.kpi.overdue':      'Vencidas',
@@ -348,7 +347,6 @@ const translations = {
     'action.allAlerts':      'View all alerts',
     // Shell
     'shell.quota':           'invoices this month',
-    'shell.period':          'May 2026',
     // Dashboard page
     'dashboard.title':       'Dashboard',
     'dash.kpi.overdue':      'Overdue',

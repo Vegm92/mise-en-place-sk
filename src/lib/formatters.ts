@@ -29,9 +29,13 @@ export function fmtEurCompact(n: number): string {
 	return Math.round(n).toLocaleString('es-ES') + ' €';
 }
 
+// Matches the budget_warning_threshold default in the settings table (80 %).
+const BUDGET_WARN_PCT = 80;
+const BUDGET_OVER_PCT = 100;
+
 /** Traffic-light color for a budget percentage (0-100+). */
 export function semColor(pct: number): string {
-	if (pct < 80) return 'var(--mep-pos)';
-	if (pct <= 100) return 'var(--mep-warn)';
+	if (pct < BUDGET_WARN_PCT) return 'var(--mep-pos)';
+	if (pct <= BUDGET_OVER_PCT) return 'var(--mep-warn)';
 	return 'var(--mep-neg)';
 }
