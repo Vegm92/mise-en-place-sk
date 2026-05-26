@@ -55,7 +55,7 @@
           <span class="num">{fmtEur(totalLimit - totalSpent)} restante</span>
         </div>
       {:else}
-        <div style="font-size:13px;color:var(--mep-fg-3);">Define presupuestos para ver el progreso.</div>
+        <div style="font-size:13px;color:var(--mep-fg-3);">Define presupuestos mensuales por categoría para controlar tu gasto. Edita los campos en la tabla y guarda.</div>
       {/if}
     </div>
 

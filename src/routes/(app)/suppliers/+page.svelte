@@ -75,9 +75,16 @@
     <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
       <div style="overflow:auto;flex:1;">
         {#if !filtered.length}
-          <p class="body text-center py-16" style="color:var(--mep-fg-3);">
-            {search ? 'Sin resultados para "' + search + '"' : $t('sup.empty')}
-          </p>
+          <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+            {#if search}
+              <p class="body" style="color:var(--mep-fg-3);">Sin resultados para "{search}"</p>
+            {:else}
+              <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
+              <p class="body-strong" style="color:var(--mep-fg-2);">Aún no hay proveedores</p>
+              <p class="body" style="color:var(--mep-fg-3);max-width:320px;">Sube tu primera factura y crearemos los proveedores automáticamente a partir de los datos extraídos.</p>
+              <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;margin-top:8px;">Subir factura</a>
+            {/if}
+          </div>
         {:else}
           <table class="tbl" style="table-layout:fixed;">
             <thead>
