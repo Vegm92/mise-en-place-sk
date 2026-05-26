@@ -50,6 +50,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		sql`SELECT value FROM settings WHERE key = 'restaurant_name'`
 	);
 
+	const onboardingRow = db.get<{ value: string }>(
+		sql`SELECT value FROM settings WHERE key = 'has_completed_onboarding'`
+	);
+
 	return {
 		user: {
 			id:    locals.user.id,
@@ -60,8 +64,9 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		invoiceBadge:   invoiceBadgeRow?.cnt   ?? 0,
 		reminderBadge:  reminderBadgeRow?.cnt  ?? 0,
 		quotaUsed:      quotaUsedRow?.cnt       ?? 0,
-		quotaLimit:     quotaLimitRow   ? Number(quotaLimitRow.value)  : 150,
-		planName:       planNameRow?.value      ?? 'Plan Restaurante',
-		restaurantName: restaurantNameRow?.value ?? 'Casa Lúa',
+		quotaLimit:              quotaLimitRow   ? Number(quotaLimitRow.value)  : 150,
+		planName:                planNameRow?.value      ?? 'Plan Restaurante',
+		restaurantName:          restaurantNameRow?.value ?? 'Casa Lúa',
+		hasCompletedOnboarding:  onboardingRow?.value === 'true',
 	};
 };

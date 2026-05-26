@@ -12,6 +12,7 @@
   let { data }: { data: PageData } = $props();
 
   let remindersDismissed = $state(false);
+  let firstInvoiceDismissed = $state(false);
 
   function momLabel(pct: number | null) {
     if (pct === null) return '—';
@@ -57,6 +58,24 @@
 </script>
 
 <div class="flex flex-col gap-4 p-6">
+
+  <!-- ── First Invoice Congratulations Banner ───────────────────── -->
+  {#if data.firstInvoice && !firstInvoiceDismissed}
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;background:var(--mep-pos-soft);border-left:3px solid var(--mep-pos);">
+      <span style="font-size:18px;flex-shrink:0;line-height:1.2;">🎉</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--mep-pos);margin-bottom:2px;">Tu primera factura está guardada</div>
+        <div style="font-size:12.5px;color:var(--mep-fg-2);">Este es tu panel de compras — se enriquece con cada factura que añadas. Sube más facturas para ver tendencias de gasto, alertas de precio y análisis de proveedores.</div>
+      </div>
+      <button
+        style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;"
+        onclick={() => firstInvoiceDismissed = true}
+        aria-label="Cerrar"
+      >
+        <X size={13} />
+      </button>
+    </div>
+  {/if}
 
   <!-- ── Price Shock Alerts ───────────────────────────────────────── -->
   {#if visibleShocks.length > 0}

@@ -75,7 +75,8 @@ function detectMissingInvoices(today: Date): {
 	return alerts.sort((a, b) => b.days_late - a.days_late);
 }
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ url }) => {
+	const firstInvoice = url.searchParams.get('first_invoice') === '1';
 	try {
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
@@ -242,6 +243,7 @@ export const load: PageServerLoad = async () => {
 	return {
 		title: 'Dashboard',
 		subtitle: nowMonth + ' · EUR',
+		firstInvoice,
 		overdue,
 		due_week: dueWeek,
 		pending,
