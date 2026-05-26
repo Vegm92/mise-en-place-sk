@@ -80,6 +80,17 @@ export const stockLevels = sqliteTable('stock_levels', {
 	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const extractionCorrections = sqliteTable('extraction_corrections', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	invoiceId: integer('invoice_id').references(() => invoices.id),
+	supplierId: integer('supplier_id').references(() => suppliers.id),
+	fieldName: text('field_name').notNull(),
+	originalValue: text('original_value'),
+	correctedValue: text('corrected_value'),
+	lineItemIndex: integer('line_item_index'),
+	correctedAt: text('corrected_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
 // Tables created by runMigrations() in db.ts
 export const pendingProcessedInvoices = sqliteTable('pending_processed_invoices', {
 	id:                    integer('id').primaryKey({ autoIncrement: true }),
@@ -141,6 +152,22 @@ export const verification = sqliteTable('verification', {
 	expiresAt:  integer('expiresAt', { mode: 'timestamp' }).notNull(),
 	createdAt:  integer('createdAt', { mode: 'timestamp' }),
 	updatedAt:  integer('updatedAt', { mode: 'timestamp' }),
+});
+
+export const chatSessions = sqliteTable('chat_sessions', {
+	id:        integer('id').primaryKey({ autoIncrement: true }),
+	title:     text('title').notNull().default('Nueva conversación'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const chatMessages = sqliteTable('chat_messages', {
+	id:        integer('id').primaryKey({ autoIncrement: true }),
+	sessionId: integer('session_id').references(() => chatSessions.id, { onDelete: 'cascade' }),
+	role:      text('role').notNull(),
+	text:      text('text').notNull(),
+	actions:   text('actions'),
+	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const account = sqliteTable('account', {

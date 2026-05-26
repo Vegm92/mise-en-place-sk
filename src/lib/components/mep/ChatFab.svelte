@@ -1,32 +1,55 @@
 <script lang="ts">
-  import { MessageCircle, X, Send } from 'lucide-svelte';
+  import { MessageCircle, X, Send, ExternalLink } from 'lucide-svelte';
+  import { goto } from '$app/navigation';
   import { t } from '$lib/i18n';
+
+  type ChatAction = { label: string; href: string; variant: 'primary' | 'secondary' };
 
   let chatOpen  = $state(false);
   let chatInput = $state('');
   let chatLoading = $state(false);
-  type Message = { role: 'user' | 'assistant'; text: string };
+  type Message = { role: 'user' | 'assistant'; text: string; actions?: ChatAction[] };
   let messages = $state<Message[]>([]);
+  let sessionId = $state<number | null>(null);
+  let messagesEl = $state<HTMLDivElement | null>(null);
 
-  async function sendMessage() {
-    const text = chatInput.trim();
-    if (!text || chatLoading) return;
+  const STARTER_CHIPS = [
+    'chat.chip.spend',
+    'chat.chip.overdue',
+    'chat.chip.budget',
+    'chat.chip.price',
+  ];
+
+  async function sendMessage(text?: string) {
+    const msg = (text ?? chatInput).trim();
+    if (!msg || chatLoading) return;
     chatInput = '';
-    messages = [...messages, { role: 'user', text }];
+    messages = [...messages, { role: 'user', text: msg }];
     chatLoading = true;
     try {
-      const res  = await fetch('/api/chat', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: msg, sessionId }),
       });
-      const json = await res.json();
-      messages = [...messages, { role: 'assistant', text: json.reply ?? $t('chat.error') }];
+      const data = await res.json();
+      if (data.sessionId) sessionId = data.sessionId;
+      messages = [...messages, {
+        role: 'assistant',
+        text: data.reply ?? $t('chat.error'),
+        actions: data.actions,
+      }];
     } catch {
       messages = [...messages, { role: 'assistant', text: $t('chat.error') }];
     } finally {
       chatLoading = false;
+      setTimeout(() => { if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight; }, 50);
     }
+  }
+
+  function handleAction(action: ChatAction) {
+    chatOpen = false;
+    goto(action.href);
   }
 
   function onKeydown(e: KeyboardEvent) {
@@ -48,7 +71,7 @@
 
   {#if chatOpen}
     <div class="card flex flex-col overflow-hidden shadow-pop"
-      style="position:absolute;top:calc(100% + 8px);right:0;width:340px;max-height:480px;z-index:200;">
+      style="position:absolute;top:calc(100% + 8px);right:0;width:360px;max-height:520px;z-index:200;">
 
       <div class="card-header bg-surface-2">
         <div class="flex items-center gap-2">
@@ -57,23 +80,54 @@
           </div>
           <span class="body-strong">{$t('chat.title')}</span>
         </div>
-        <button onclick={() => chatOpen = false} class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;">
-          <X size={14} />
-        </button>
+        <div class="flex items-center gap-1">
+          <a
+            href="/chat"
+            class="btn btn-ghost"
+            style="width:28px;height:28px;padding:0;justify-content:center;"
+            title={$t('chat.openFull')}
+            onclick={() => chatOpen = false}
+          >
+            <ExternalLink size={13} />
+          </a>
+          <button onclick={() => chatOpen = false} class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;">
+            <X size={14} />
+          </button>
+        </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5 min-h-[180px]">
+      <div bind:this={messagesEl} class="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5 min-h-[180px]">
         {#if messages.length === 0}
-          <p class="body text-center m-auto text-sm">{$t('chat.empty')}</p>
+          <p class="body text-center text-sm" style="color:var(--mep-fg-3);margin-bottom:8px;">{$t('chat.empty')}</p>
+          <div class="flex flex-wrap gap-1.5 justify-center">
+            {#each STARTER_CHIPS as key}
+              <button
+                onclick={() => sendMessage($t(key))}
+                class="btn btn-secondary"
+                style="font-size:11px;height:28px;padding:0 10px;border-radius:99px;"
+              >{$t(key)}</button>
+            {/each}
+          </div>
         {/if}
         {#each messages as msg (msg)}
-          <div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
+          <div class="flex flex-col {msg.role === 'user' ? 'items-end' : 'items-start'} gap-1">
             <div class="
               max-w-[82%] px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap
               {msg.role === 'user'
                 ? 'bg-acc text-acc-fg rounded-br-sm'
                 : 'bg-surface-2 text-fg rounded-bl-sm'}
             ">{msg.text}</div>
+            {#if msg.actions && msg.actions.length > 0}
+              <div class="flex gap-1.5 flex-wrap max-w-[82%]">
+                {#each msg.actions as action}
+                  <button
+                    onclick={() => handleAction(action)}
+                    class="btn {action.variant === 'primary' ? 'btn-primary' : 'btn-secondary'}"
+                    style="font-size:11px;height:26px;padding:0 10px;border-radius:6px;"
+                  >{action.label}</button>
+                {/each}
+              </div>
+            {/if}
           </div>
         {/each}
         {#if chatLoading}
@@ -100,7 +154,7 @@
           style="height:34px;"
         />
         <button
-          onclick={sendMessage}
+          onclick={() => sendMessage()}
           disabled={!chatInput.trim() || chatLoading}
           class="btn btn-primary flex-shrink-0"
           style="width:34px;height:34px;padding:0;justify-content:center;"
