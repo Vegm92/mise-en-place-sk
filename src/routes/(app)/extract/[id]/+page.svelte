@@ -398,10 +398,6 @@
                 </div>
               {/if}
               <div style="display:flex;justify-content:space-between;padding:2px 0;">
-                <span style="font-size:12.5px;color:var(--mep-fg-2);">{$t('extract.vat')}</span>
-                <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(ivaAmt)}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;padding:2px 0;">
                 <span style="font-size:12.5px;color:var(--mep-fg);">{$t('extract.calcTotal')}</span>
                 <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmt(totalCalc)}</span>
               </div>

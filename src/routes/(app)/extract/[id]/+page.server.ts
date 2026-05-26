@@ -7,7 +7,7 @@ import { extractInvoice } from '$lib/server/extract';
 import { readSession, writeSession, deleteSession, uploadsDir } from '$lib/server/sessions';
 import { tryAcquireExtraction, releaseExtraction } from '$lib/server/rate-limiter';
 import { db } from '$lib/server/db';
-import { suppliers, invoices, invoiceLineItems } from '$lib/server/schema';
+import { suppliers, invoices, invoiceLineItems, extractionCorrections } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
 import { annotateLineItems, resolveUnit } from '$lib/server/unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
@@ -114,6 +114,89 @@ export const load: PageServerLoad = async ({ params }) => {
 		conversionNotes,
 	};
 };
+
+type HeaderSnapshot = {
+	supplierName: string;
+	invoiceNumber: string;
+	invoiceDate: string | null;
+	dueDate: string | null;
+	totalAmount: number | null;
+};
+
+type LineSnapshot = {
+	lineDescriptions: string[];
+	lineQuantities: string[];
+	lineUnits: string[];
+	lineUnitPrices: string[];
+	lineTotalPrices: string[];
+};
+
+function normalizeStr(v: unknown): string {
+	return String(v ?? '').trim().toLowerCase();
+}
+
+function normalizeNum(v: unknown): string {
+	const n = parseFloat(String(v ?? ''));
+	return isNaN(n) ? '' : n.toString();
+}
+
+async function logExtractionCorrections(
+	invoiceId: number,
+	supplierId: number,
+	originalData: Record<string, unknown> | undefined,
+	submitted: HeaderSnapshot,
+	submittedLines: LineSnapshot,
+) {
+	if (!originalData) return;
+
+	type CorrectionRow = typeof extractionCorrections.$inferInsert;
+	const rows: CorrectionRow[] = [];
+
+	const headerComparisons: Array<{ field: string; origRaw: unknown; submittedVal: string; numeric?: boolean }> = [
+		{ field: 'supplier_name',  origRaw: originalData.supplier_name,  submittedVal: submitted.supplierName },
+		{ field: 'invoice_number', origRaw: originalData.invoice_number, submittedVal: submitted.invoiceNumber },
+		{ field: 'invoice_date',   origRaw: originalData.invoice_date,   submittedVal: submitted.invoiceDate ?? '' },
+		{ field: 'due_date',       origRaw: originalData.due_date,       submittedVal: submitted.dueDate ?? '' },
+		{ field: 'total_amount',   origRaw: originalData.total_amount,   submittedVal: String(submitted.totalAmount ?? ''), numeric: true },
+	];
+
+	for (const { field, origRaw, submittedVal, numeric } of headerComparisons) {
+		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
+		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
+		if (orig !== sub) {
+			rows.push({ invoiceId, supplierId, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex: null });
+		}
+	}
+
+	const originalLines = Array.isArray(originalData.line_items)
+		? (originalData.line_items as Array<Record<string, unknown>>)
+		: [];
+
+	const { lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices } = submittedLines;
+	const compareCount = Math.min(lineDescriptions.length, originalLines.length);
+
+	for (let i = 0; i < compareCount; i++) {
+		const orig = originalLines[i];
+		const lineFields: Array<{ field: string; origRaw: unknown; subVal: string; numeric?: boolean }> = [
+			{ field: 'line_item.description', origRaw: orig.description, subVal: lineDescriptions[i] ?? '' },
+			{ field: 'line_item.quantity',    origRaw: orig.quantity,    subVal: lineQuantities[i] ?? '',    numeric: true },
+			{ field: 'line_item.unit',        origRaw: orig.unit,        subVal: lineUnits[i] ?? '' },
+			{ field: 'line_item.unit_price',  origRaw: orig.unit_price,  subVal: lineUnitPrices[i] ?? '',   numeric: true },
+			{ field: 'line_item.total_price', origRaw: orig.total_price, subVal: lineTotalPrices[i] ?? '',  numeric: true },
+		];
+		for (const { field, origRaw, subVal, numeric } of lineFields) {
+			const o = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
+			const s = numeric ? normalizeNum(subVal)  : normalizeStr(subVal);
+			if (o !== s) {
+				rows.push({ invoiceId, supplierId, fieldName: field, originalValue: o || null, correctedValue: s || null, lineItemIndex: i });
+			}
+		}
+	}
+
+	if (rows.length > 0) {
+		await db.insert(extractionCorrections).values(rows);
+	}
+}
 
 export const actions: Actions = {
 	save: async ({ params, request }) => {
@@ -251,6 +334,15 @@ export const actions: Actions = {
 		const stockAlerts = runStockForecast(savedItems);
 		const budgetAlerts = runBudgetCheck(invoiceId, supplierId);
 		saveAlerts(invoiceId, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
+
+		// Log field corrections (original AI values vs user-submitted values)
+		await logExtractionCorrections(
+			invoiceId,
+			supplierId,
+			extractedData,
+			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+		);
 
 		// Keep files on disk — sourceFile in DB points to them for "See original".
 		// Files are only deleted on discard.

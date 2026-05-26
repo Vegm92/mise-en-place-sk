@@ -6,6 +6,12 @@ import { asc, desc, eq, isNotNull, lte, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
 import { systemNotifications } from '$lib/server/schema';
 
+const MIN_SUPPLIER_GAP_DAYS      = 3;   // ignore suppliers invoiced more often than this
+const MISSING_INVOICE_MULTIPLIER = 1.5; // flag when days since last > N × median gap
+const WEEKLY_THRESHOLD_DAYS      = 10;
+const BIWEEKLY_THRESHOLD_DAYS    = 20;
+const MONTHLY_THRESHOLD_DAYS     = 45;
+
 function detectMissingInvoices(today: Date): {
 	supplier_name: string;
 	last_invoice: string;
@@ -42,20 +48,20 @@ function detectMissingInvoices(today: Date): {
 			? ((sorted[n / 2 - 1] ?? 0) + (sorted[n / 2] ?? 0)) / 2
 			: sorted[Math.floor(n / 2)] ?? 0;
 
-		if (medianGap < 3) continue;
+		if (medianGap < MIN_SUPPLIER_GAP_DAYS) continue;
 
 		const last = dateObjs[dateObjs.length - 1];
 		if (!last) continue;
 		const daysSinceLast = Math.round((today.getTime() - last.getTime()) / 86400000);
-		if (daysSinceLast <= 1.5 * medianGap) continue;
+		if (daysSinceLast <= MISSING_INVOICE_MULTIPLIER * medianGap) continue;
 
 		const expectedBy = new Date(last.getTime() + medianGap * 86400000);
 		const daysLate = Math.round((today.getTime() - expectedBy.getTime()) / 86400000);
 
 		let frequency = 'periodic';
-		if (medianGap <= 10) frequency = 'weekly';
-		else if (medianGap <= 20) frequency = 'biweekly';
-		else if (medianGap <= 45) frequency = 'monthly';
+		if (medianGap <= WEEKLY_THRESHOLD_DAYS)    frequency = 'weekly';
+		else if (medianGap <= BIWEEKLY_THRESHOLD_DAYS) frequency = 'biweekly';
+		else if (medianGap <= MONTHLY_THRESHOLD_DAYS)  frequency = 'monthly';
 
 		alerts.push({
 			supplier_name: name,
