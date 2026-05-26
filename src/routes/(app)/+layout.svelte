@@ -5,7 +5,7 @@
   import {
     LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
     Settings, HelpCircle, Upload, Sun, Moon, ChevronDown,
-    LogOut, Menu, X,
+    LogOut, Menu, X, MessageCircle,
   } from 'lucide-svelte';
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
@@ -42,7 +42,7 @@
 
   const navItems = $derived([
     { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
-    { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: 3 },
+    { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: data.invoiceBadge },
     { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
     { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
       sub: [
@@ -51,7 +51,8 @@
       ]
     },
     { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
-    { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: 2 },
+    { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
+    { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
   ]);
 
   const pageTitle = $derived($page.data.title ?? 'Mise en Place');
@@ -173,11 +174,11 @@
     <!-- Quota widget -->
     <div style="margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{$t('shell.plan')}</span>
-        <span class="num" style="font-size:11px;color:var(--mep-fg-3);">47/150</span>
+        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{data.planName}</span>
+        <span class="num" style="font-size:11px;color:var(--mep-fg-3);">{data.quotaUsed}/{data.quotaLimit}</span>
       </div>
       <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-        <div style="width:31%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
+        <div style="width:{Math.round(data.quotaUsed / data.quotaLimit * 100)}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
       </div>
       <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">{$t('shell.quota')}</div>
     </div>
@@ -209,7 +210,7 @@
         <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           {userName}
         </div>
-        <div style="font-size:11px;color:var(--mep-fg-3);">Casa Lúa</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);">{data.restaurantName}</div>
       </div>
       <form method="POST" action="/logout" style="flex-shrink:0;">
         <button
