@@ -55,6 +55,11 @@
     { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
   ]);
 
+  const currentPeriod = $derived.by(() => {
+    const s = new Intl.DateTimeFormat($locale === 'es' ? 'es-ES' : 'en-US', { month: 'long', year: 'numeric' }).format(new Date());
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  });
+
   const pageTitle = $derived($page.data.title ?? 'Mise en Place');
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const userInitials = $derived(
@@ -66,7 +71,7 @@
   <title>{pageTitle}</title>
 </svelte:head>
 
-<div class="mep" data-theme={theme} data-accent="amber" data-density="default"
+<div class="mep" data-accent="amber" data-density="default"
   style="width:100%;height:100vh;display:flex;overflow:hidden;">
 
   <!-- Mobile overlay -->
@@ -250,7 +255,7 @@
         <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
           <rect x="2.5" y="4.5" width="15" height="13" rx="1.5"/><path d="M3 8h14M6.5 2.5v3M13.5 2.5v3"/>
         </svg>
-        <span>{$t('shell.period')}</span>
+        <span>{currentPeriod}</span>
         <ChevronDown size={13} />
       </button>
 
