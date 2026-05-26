@@ -48,9 +48,9 @@ export const VALID_CATEGORIES: string[] = [
 ];
 
 export const CATEGORY_COLORS: Record<string, string> = {
-	'Wine & Spirits': '#8B3530',
+	'Wine & Spirits': '#6B4423',
 	Seafood: '#2C5F8A',
-	Meat: '#6B4423',
+	Meat: '#8B3530',
 	Produce: '#3B6B20',
 	'Dry Goods': '#3A5E28',
 	Beverages: '#1B5E5E',
