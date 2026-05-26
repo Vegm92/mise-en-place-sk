@@ -66,7 +66,7 @@
   <title>{pageTitle}</title>
 </svelte:head>
 
-<div class="mep" data-theme={theme} data-accent="amber" data-density="default"
+<div class="mep" data-accent="amber" data-density="default"
   style="width:100%;height:100vh;display:flex;overflow:hidden;">
 
   <!-- Mobile overlay -->
