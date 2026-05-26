@@ -8,7 +8,7 @@ import { readSession, writeSession, deleteSession, uploadsDir } from '$lib/serve
 import { tryAcquireExtraction, releaseExtraction } from '$lib/server/rate-limiter';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems, extractionCorrections } from '$lib/server/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { annotateLineItems, resolveUnit } from '$lib/server/unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
@@ -346,10 +346,19 @@ export const actions: Actions = {
 
 		// Keep files on disk — sourceFile in DB points to them for "See original".
 		// Files are only deleted on discard.
+		const onboardingRow = db.get<{ value: string }>(
+			sql`SELECT value FROM settings WHERE key = 'has_completed_onboarding'`
+		);
+		const isFirstInvoice = onboardingRow?.value !== 'true';
+		if (isFirstInvoice) {
+			db.run(sql`UPDATE settings SET value = 'true' WHERE key = 'has_completed_onboarding'`);
+		}
+
 		const remaining = session?.remaining ?? [];
 		deleteSession(params.id);
 
 		if (remaining.length > 0) redirect(303, `/extract/${remaining[0]}`);
+		if (isFirstInvoice) redirect(303, '/dashboard?first_invoice=1');
 		redirect(303, `/save-confirmation/${invoiceId}`);
 	},
 

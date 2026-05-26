@@ -127,10 +127,14 @@
         </div>
 
         <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:6px;text-align:center;">
-          {$t('upload.dropHeadline')}
+          {data.hasCompletedOnboarding ? $t('upload.dropHeadline') : 'Procesa tu primera factura'}
         </div>
         <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:16px;text-align:center;max-width:360px;">
-          O <span style="color:var(--mep-acc);font-weight:500;">{$t('upload.dropBrowse')}</span> · {$t('upload.dropSub')}
+          {#if data.hasCompletedOnboarding}
+            O <span style="color:var(--mep-acc);font-weight:500;">{$t('upload.dropBrowse')}</span> · {$t('upload.dropSub')}
+          {:else}
+            Sube cualquier factura de proveedor — PDF, foto o escaneo. La IA extraerá todos los datos automáticamente.
+          {/if}
         </div>
 
         <input

@@ -67,7 +67,12 @@
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">Top productos por gasto en el período</div>
         {#if !data.top_items.length}
-          <p class="body" style="color:var(--mep-fg-3);">{$t('spend.noItems')}</p>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
+            <div style="font-size:24px;opacity:0.25;">📊</div>
+            <p class="body-strong" style="color:var(--mep-fg-3);">Sin datos aún</p>
+            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:240px;">Los análisis aparecen una vez que tengas facturas confirmadas.</p>
+            <a href="/" style="font-size:12px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">Subir primera factura →</a>
+          </div>
         {:else}
           <div style="display:flex;flex-direction:column;gap:10px;">
             {#each data.top_items.slice(0, 10) as item}
@@ -94,7 +99,10 @@
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">Gasto por categoría de proveedor</div>
         {#if !data.category_spend.length}
-          <p class="body" style="color:var(--mep-fg-3);">{$t('spend.noCategory')}</p>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
+            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:200px;">Asigna categorías a tus proveedores para ver el desglose.</p>
+            <a href="/suppliers" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">Ver proveedores →</a>
+          </div>
         {:else}
           <div style="display:flex;flex-direction:column;gap:10px;">
             {#each data.category_spend as cat}

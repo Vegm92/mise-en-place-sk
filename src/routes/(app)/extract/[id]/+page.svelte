@@ -123,6 +123,17 @@
 
   <div style="flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:14px;min-height:0;overflow:hidden;">
 
+    <!-- First-run onboarding callout -->
+    {#if !data.hasCompletedOnboarding}
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;background:var(--mep-acc-soft);border-left:3px solid var(--mep-acc);flex-shrink:0;">
+        <Sparkle size={13} style="flex-shrink:0;color:var(--mep-acc);" />
+        <span style="font-size:12.5px;color:var(--mep-acc);">
+          Esto es lo que encontró la IA. Revisa los campos y corrige cualquier error — solo tarda unos segundos.
+          Cuando estés listo, pulsa <strong>Confirmar y guardar</strong>.
+        </span>
+      </div>
+    {/if}
+
     <!-- Header bar -->
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
       <a href="/confirm/{data.id}" class="btn btn-ghost" style="width:32px;height:32px;padding:0;justify-content:center;text-decoration:none;flex-shrink:0;">
