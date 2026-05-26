@@ -1,9 +1,10 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { suppliers, invoices } from '$lib/server/schema';
+import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 
 export const load: PageServerLoad = async () => {
 	try {
@@ -22,6 +23,7 @@ export const load: PageServerLoad = async () => {
 				open_count: sql<number>`
 					COUNT(CASE WHEN ${invoices.status} = 'pending' THEN 1 END)
 				`.as('open_count'),
+				invoice_count: sql<number>`COUNT(${invoices.id})`.as('invoice_count'),
 				last_invoice_date: sql<string | null>`MAX(${invoices.invoiceDate})`.as('last_invoice_date'),
 				has_overdue: sql<number>`
 					MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} < ${today} THEN 1 ELSE 0 END)
@@ -36,6 +38,22 @@ export const load: PageServerLoad = async () => {
 			.orderBy(sql`month_spend DESC`, suppliers.name)
 			.all();
 
+		// Load all cached metrics
+		const metricsRows = db.select().from(supplierMetrics).all();
+		const metricsMap = new Map(metricsRows.map((m) => [m.supplierId, m]));
+
+		// Refresh stale scores (>24h old) for suppliers with enough invoices
+		const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+		for (const row of rows) {
+			if (row.invoice_count >= 3) {
+				const cached = metricsMap.get(row.id);
+				if (!cached || (cached.computedAt ?? '') < yesterday) {
+					const fresh = computeAndCacheReliabilityScore(row.id);
+					metricsMap.set(row.id, { id: 0, supplierId: row.id, ...fresh });
+				}
+			}
+		}
+
 		const supplierList = rows.map((r) => {
 			let badge: 'overdue' | 'due_soon' | 'paid_up';
 			if (r.has_overdue) badge = 'overdue';
@@ -43,10 +61,22 @@ export const load: PageServerLoad = async () => {
 			else badge = 'paid_up';
 
 			const cat = r.category ?? 'Other';
+			const metrics = metricsMap.get(r.id);
+
+			let stabilityLevel: 'stable' | 'moderate' | 'volatile' | null = null;
+			if (metrics && r.invoice_count >= 3) {
+				const cv = metrics.priceStabilityCv ?? 100;
+				if (cv < 5) stabilityLevel = 'stable';
+				else if (cv <= 15) stabilityLevel = 'moderate';
+				else stabilityLevel = 'volatile';
+			}
+
 			return {
 				...r,
 				badge,
 				color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
+				reliability_score: metrics && r.invoice_count >= 3 ? metrics.score : null,
+				stability_level: stabilityLevel,
 			};
 		});
 
@@ -70,7 +100,6 @@ export const actions: Actions = {
 		const category = String(data.get('category') ?? '');
 
 		const cat = VALID_CATEGORIES.includes(category) ? category : null;
-
 		db.update(suppliers).set({ category: cat }).where(eq(suppliers.id, supplierId)).run();
 
 		redirect(303, '/suppliers');

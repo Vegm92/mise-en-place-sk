@@ -47,6 +47,12 @@ export const VALID_CATEGORIES: string[] = [
 	'Other',
 ];
 
+export const PRICE_STABILITY_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+	stable:   { label: 'Stable prices',    color: '#3A8C5C', bg: '#F0FDF4' },
+	moderate: { label: 'Some variation',   color: '#C8843A', bg: '#FFF8EE' },
+	volatile: { label: 'Volatile pricing', color: '#E05555', bg: '#FFF1F0' },
+};
+
 export const CATEGORY_COLORS: Record<string, string> = {
 	'Wine & Spirits': '#6B4423',
 	Seafood: '#2C5F8A',

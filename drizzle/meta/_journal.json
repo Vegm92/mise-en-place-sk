@@ -43,6 +43,13 @@
       "when": 1748980000000,
       "tag": "0005_add_onboarding_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1748990000000,
+      "tag": "0006_supplier_metrics",
+      "breakpoints": true
     }
   ]
 }

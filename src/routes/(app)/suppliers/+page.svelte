@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { SUPPLIER_BADGE_CLS, SUPPLIER_BADGE_LABEL } from '$lib/constants';
-  import { t } from '$lib/i18n';
+  import { SUPPLIER_BADGE_CLS, SUPPLIER_BADGE_LABEL, PRICE_STABILITY_BADGE } from '$lib/constants';
   import { fmtEur } from '$lib/formatters';
   import { Search, ChevronRight } from 'lucide-svelte';
 
@@ -31,6 +30,12 @@
     return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   }
 
+  function scoreColor(score: number | null) {
+    if (score === null) return 'var(--mep-fg-3)';
+    if (score >= 70) return '#3A8C5C';
+    if (score >= 40) return '#C8843A';
+    return '#E05555';
+  }
 </script>
 
 <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
@@ -89,18 +94,20 @@
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:30%;">Proveedor</th>
-                <th style="width:160px;">Categoría</th>
-                <th class="num" style="width:100px;">Facturas</th>
-                <th class="num" style="width:140px;">Gasto (mes)</th>
-                <th style="width:100px;">Estado</th>
-                <th style="width:130px;">Último pedido</th>
-                <th style="width:40px;"></th>
+                <th style="width:28%;">Proveedor</th>
+                <th style="width:140px;">Categoría</th>
+                <th class="num" style="width:80px;">Facturas</th>
+                <th class="num" style="width:120px;">Gasto (mes)</th>
+                <th style="width:90px;">Estado</th>
+                <th style="width:110px;">Fiabilidad</th>
+                <th style="width:110px;">Precio</th>
+                <th style="width:110px;">Último pedido</th>
+                <th style="width:32px;"></th>
               </tr>
             </thead>
             <tbody>
               {#each filtered as s (s.id)}
-                <tr class="row">
+                <tr class="row" onclick={() => location.replace(`/suppliers/${s.id}`)} style="cursor:pointer;">
                   <td>
                     <div style="display:flex;align-items:center;gap:10px;">
                       <span style="
@@ -113,7 +120,7 @@
                         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</span>
                     </div>
                   </td>
-                  <td>
+                  <td onclick={(e) => e.stopPropagation()}>
                     <form method="post" action="?/setCategory">
                       <input type="hidden" name="supplier_id" value={s.id} />
                       <select name="category" class="input"
@@ -133,6 +140,34 @@
                       style="font-size:11px;padding:2px 7px;">
                       {SUPPLIER_BADGE_LABEL[s.badge] ?? s.badge}
                     </span>
+                  </td>
+                  <td>
+                    {#if s.reliability_score !== null}
+                      <span title="Reliability score based on price stability, invoice cadence, and payment history."
+                        style="
+                          display:inline-flex;align-items:center;justify-content:center;
+                          width:40px;height:40px;border-radius:50%;font-size:12px;font-weight:700;
+                          border:2px solid {scoreColor(s.reliability_score)};
+                          color:{scoreColor(s.reliability_score)};
+                        ">
+                        {s.reliability_score}
+                      </span>
+                    {:else}
+                      <span style="font-size:11px;color:var(--mep-fg-3);">—</span>
+                    {/if}
+                  </td>
+                  <td>
+                    {#if s.stability_level}
+                      {@const sb = PRICE_STABILITY_BADGE[s.stability_level]}
+                      <span style="
+                        display:inline-block;font-size:10.5px;font-weight:500;
+                        padding:2px 7px;border-radius:4px;
+                        background:{sb.bg};color:{sb.color};
+                        white-space:nowrap;
+                      ">{sb.label}</span>
+                    {:else}
+                      <span style="font-size:11px;color:var(--mep-fg-3);">Sin datos</span>
+                    {/if}
                   </td>
                   <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDate(s.last_invoice_date)}</td>
                   <td style="text-align:right;">

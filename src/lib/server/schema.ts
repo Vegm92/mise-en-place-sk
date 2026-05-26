@@ -8,6 +8,8 @@ export const suppliers = sqliteTable('suppliers', {
 	alias: text('alias'),
 	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
 	category: text('category').default(sql`NULL`),
+	contactEmail: text('contact_email'),
+	notes: text('notes'),
 });
 
 export const invoices = sqliteTable('invoices', {
@@ -37,6 +39,17 @@ export const invoiceLineItems = sqliteTable('invoice_line_items', {
 	taxRate: real('tax_rate'),
 	requiresUnitConversion: integer('requires_unit_conversion').default(0),
 	canonicalUnit: text('canonical_unit'),
+});
+
+export const supplierMetrics = sqliteTable('supplier_metrics', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	supplierId: integer('supplier_id').notNull().unique().references(() => suppliers.id),
+	score: integer('score').notNull().default(0),
+	priceStabilityScore: integer('price_stability_score').notNull().default(0),
+	frequencyScore: integer('frequency_score').notNull().default(0),
+	timelinessScore: integer('timeliness_score').notNull().default(0),
+	priceStabilityCv: real('price_stability_cv'),
+	computedAt: text('computed_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const settings = sqliteTable('settings', {
