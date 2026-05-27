@@ -2,33 +2,32 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	const rid = locals.restaurantId!;
 	try {
-		const rows = db.select().from(categoryBudgets).all();
+		const [rows, spendRows] = await Promise.all([
+			db.select().from(categoryBudgets).where(eq(categoryBudgets.restaurantId, rid)),
+
+			db.execute<{ category: string; total: number }>(sql`
+				SELECT COALESCE(s.category, 'Other') AS category,
+				       SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
+				FROM invoice_line_items ili
+				JOIN invoices i ON i.id = ili.invoice_id
+				JOIN suppliers s ON s.id = i.supplier_id
+				WHERE i.restaurant_id = ${rid}
+				  AND TO_CHAR(i.invoice_date::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
+				GROUP BY COALESCE(s.category, 'Other')
+			`),
+		]);
 
 		const budgets: Record<string, number> = {};
-		for (const row of rows) {
-			budgets[row.category] = row.monthlyBudget;
-		}
-
-		type SpendRow = { category: string; total: number };
-		const spendRows = db.all<SpendRow>(sql`
-			SELECT COALESCE(s.category, 'Other') AS category,
-			       SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
-			FROM ${invoiceLineItems} ili
-			JOIN ${invoices} i ON i.id = ili.invoice_id
-			JOIN ${suppliers} s ON s.id = i.supplier_id
-			WHERE strftime('%Y-%m', i.invoice_date) = strftime('%Y-%m', 'now')
-			GROUP BY COALESCE(s.category, 'Other')
-		`);
+		for (const row of rows) budgets[row.category] = row.monthlyBudget ?? 0;
 
 		const category_spend: Record<string, number> = {};
-		for (const row of spendRows) {
-			category_spend[row.category] = row.total;
-		}
+		for (const row of spendRows) category_spend[String(row.category)] = Number(row.total);
 
 		return {
 			title: 'Budgets',
@@ -46,21 +45,25 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	save: async ({ request }) => {
+	save: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
 		const data = await request.formData();
 
-		for (const category of VALID_CATEGORIES) {
+		await Promise.all(VALID_CATEGORIES.map(async (category) => {
 			const raw = String(data.get(category) ?? '').trim();
 			const amount = parseFloat(raw);
 			if (!isNaN(amount) && amount >= 0) {
-				db.insert(categoryBudgets)
-					.values({ category, monthlyBudget: amount })
-					.onConflictDoUpdate({ target: categoryBudgets.category, set: { monthlyBudget: amount } })
-					.run();
+				await db.insert(categoryBudgets)
+					.values({ restaurantId: rid, category, monthlyBudget: amount })
+					.onConflictDoUpdate({
+						target: [categoryBudgets.restaurantId, categoryBudgets.category],
+						set: { monthlyBudget: amount },
+					});
 			} else {
-				db.delete(categoryBudgets).where(eq(categoryBudgets.category, category)).run();
+				await db.delete(categoryBudgets)
+					.where(and(eq(categoryBudgets.restaurantId, rid), eq(categoryBudgets.category, category)));
 			}
-		}
+		}));
 
 		redirect(303, '/budgets');
 	},

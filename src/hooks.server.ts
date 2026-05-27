@@ -1,20 +1,48 @@
-import { auth } from '$lib/server/auth';
 import { redirect, type Handle } from '@sveltejs/kit';
+import { createSupabaseServerClient } from '$lib/server/supabase';
 import { cleanupStaleSessions } from '$lib/server/sessions';
+import { db } from '$lib/server/db';
+import { userRestaurants } from '$lib/server/schema';
+import { eq } from 'drizzle-orm';
 
 cleanupStaleSessions();
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
-	// Skip auth overhead for SvelteKit internals and static assets
 	if (path.startsWith('/_app/') || path === '/favicon.ico') {
 		return resolve(event);
 	}
 
-	const s = await auth.api.getSession({ headers: event.request.headers });
-	event.locals.user    = s?.user    ?? null;
-	event.locals.session = s?.session ?? null;
+	// Attach Supabase server client (handles cookie-based session)
+	event.locals.supabase = createSupabaseServerClient(event.cookies);
+
+	// Resolve authenticated user (validates JWT, not just cookie)
+	const { data: { user } } = await event.locals.supabase.auth.getUser();
+	event.locals.user = user;
+
+	// Resolve active restaurant for this request
+	if (user) {
+		const activeCookie = event.cookies.get('active_restaurant');
+
+		const memberships = await db
+			.select({ restaurantId: userRestaurants.restaurantId })
+			.from(userRestaurants)
+			.where(eq(userRestaurants.userId, user.id));
+
+		const ids = memberships.map(m => m.restaurantId);
+
+		if (ids.length > 0) {
+			// Use cookie preference if valid, else first restaurant
+			event.locals.restaurantId = (activeCookie && ids.includes(activeCookie))
+				? activeCookie
+				: (ids[0] ?? null);
+		} else {
+			event.locals.restaurantId = null;
+		}
+	} else {
+		event.locals.restaurantId = null;
+	}
 
 	if (!isPublicPath(path) && !event.locals.user) {
 		if (path.startsWith('/api/')) {
@@ -26,15 +54,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 		redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
 	}
 
-	return resolve(event);
+	return resolve(event, {
+		// Required for Supabase to propagate Set-Cookie headers
+		filterSerializedResponseHeaders: (name) =>
+			name === 'content-range' || name === 'x-supabase-api-version',
+	});
 };
 
 function isPublicPath(path: string): boolean {
 	return (
-		path === '/login'                        ||
-		path.startsWith('/api/auth/')            ||
-		path.startsWith('/waitlist')             ||
-		path.startsWith('/api/tpv/')             ||
+		path === '/login'             ||
+		path.startsWith('/auth/')     ||
+		path.startsWith('/waitlist')  ||
+		path.startsWith('/api/tpv/') ||
 		path.startsWith('/api/inference-status/')
 	);
 }

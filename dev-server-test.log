@@ -1,0 +1,34 @@
+
+> mise-en-place-sk@0.0.1 dev
+> vite dev
+
+Port 5173 is in use, trying another one...
+Port 5174 is in use, trying another one...
+
+  [32m[1mVITE[22m v7.3.2[39m  [2mready in [0m[1m1169[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5175[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m16:11:32[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2msrc/app.html[22m
+node:fs:442
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open 'C:\Users\victo\Proyectos\showcase-portfolio\mise_en_place_sk-PF\src\routes\(app)\chat\+page.server.ts'
+    at Object.readFileSync (node:fs:442:20)
+    at createProxy (file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/core/sync/write_types/index.js:535:31)
+    at ensureProxies (file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/core/sync/write_types/index.js:521:20)
+    at file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/core/sync/write_types/index.js:303:5
+    at Array.forEach (<anonymous>)
+    at update_types (file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/core/sync/write_types/index.js:292:29)
+    at write_types (file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/core/sync/write_types/index.js:156:2)
+    at Module.update (file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/core/sync/sync.js:64:2)
+    at file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:362:8
+    at FSWatcher.<anonymous> (file:///C:/Users/victo/Proyectos/showcase-portfolio/mise_en_place_sk-PF/node_modules/@sveltejs/kit/src/exports/vite/dev/index.js:335:5) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\victo\\Proyectos\\showcase-portfolio\\mise_en_place_sk-PF\\src\\routes\\(app)\\chat\\+page.server.ts'
+}
+
+Node.js v22.14.0

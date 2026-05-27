@@ -1,27 +1,15 @@
 /**
  * DB singleton — server-side only.
- * Import this only from +server.ts or +page.server.ts files, never from components.
- *
- * DATABASE_URL defaults to mise_en_place.db in the project root.
- * Override via .env for production deployments.
+ * Import only from +server.ts or +page.server.ts, never from components.
  */
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { resolve } from 'node:path';
+import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
-import { seedAdminUser } from './auth-seed';
 
-const rawUrl = env.DATABASE_URL ?? 'mise_en_place.db';
-const url = rawUrl.startsWith('/') ? rawUrl : resolve(process.cwd(), rawUrl);
+const connectionString = env.DATABASE_URL;
+if (!connectionString) throw new Error('DATABASE_URL is required');
 
-export const dbClient = new Database(url);
+const client = postgres(connectionString, { prepare: false });
 
-dbClient.pragma('journal_mode = WAL');
-
-export const db = drizzle(dbClient, { schema });
-
-migrate(db, { migrationsFolder: resolve(process.cwd(), 'drizzle') });
-
-seedAdminUser().catch(e => console.error('[auth-seed]', e));
+export const db = drizzle(client, { schema });

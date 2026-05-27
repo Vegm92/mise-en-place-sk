@@ -2,14 +2,15 @@ import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers, systemNotifications } from '$lib/server/schema';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, and } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
-		const id = Number(params.id);
+		const id  = Number(params.id);
+		const rid = locals.restaurantId!;
 
-		const row = db
-			.select({
+		const [rows, lineItems] = await Promise.all([
+			db.select({
 				id:             invoices.id,
 				supplier_id:    invoices.supplierId,
 				supplier_name:  suppliers.name,
@@ -22,15 +23,12 @@ export const load: PageServerLoad = async ({ params }) => {
 				notes:          invoices.notes,
 				created_at:     invoices.createdAt,
 			})
-			.from(invoices)
-			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(eq(invoices.id, id))
-			.get();
+				.from(invoices)
+				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+				.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)))
+				.limit(1),
 
-		if (!row) redirect(303, '/invoices');
-
-		const lineItems = db
-			.select({
+			db.select({
 				id:          invoiceLineItems.id,
 				description: invoiceLineItems.description,
 				quantity:    invoiceLineItems.quantity,
@@ -38,10 +36,13 @@ export const load: PageServerLoad = async ({ params }) => {
 				unit_price:  invoiceLineItems.unitPrice,
 				total_price: invoiceLineItems.totalPrice,
 			})
-			.from(invoiceLineItems)
-			.where(eq(invoiceLineItems.invoiceId, id))
-			.orderBy(asc(invoiceLineItems.id))
-			.all();
+				.from(invoiceLineItems)
+				.where(eq(invoiceLineItems.invoiceId, id))
+				.orderBy(asc(invoiceLineItems.id)),
+		]);
+
+		const row = rows[0];
+		if (!row) redirect(303, '/invoices');
 
 		return {
 			title: `Invoice ${row.invoice_number ?? row.id}`,
@@ -56,11 +57,13 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	delete: async ({ params }) => {
-		const id = Number(params.id);
+	delete: async ({ params, locals }) => {
+		const id  = Number(params.id);
+		const rid = locals.restaurantId!;
+
 		await db.delete(systemNotifications).where(eq(systemNotifications.invoiceId, id));
 		await db.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id));
-		await db.delete(invoices).where(eq(invoices.id, id));
+		await db.delete(invoices).where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
 		redirect(303, '/invoices');
 	},
 };

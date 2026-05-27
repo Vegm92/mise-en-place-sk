@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
 interface PriceRow {
@@ -21,14 +21,15 @@ interface SupplierRow {
 	name: string;
 }
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	try {
+	const rid = locals.restaurantId!;
 	const supplierIdParam = url.searchParams.get('supplier_id');
 	const supplierId = supplierIdParam ? Number(supplierIdParam) : null;
 
 	const supplierFilter = supplierId ? sql`AND s.id = ${supplierId}` : sql``;
 
-	const rows = db.all<PriceRow>(sql`
+	const rawRows = await db.execute(sql`
 		WITH history AS (
 			SELECT
 				ili.description,
@@ -47,6 +48,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			WHERE ili.unit_price IS NOT NULL
 			  AND ili.description IS NOT NULL
 			  AND ili.description != ''
+			  AND i.restaurant_id = ${rid}
 			  ${supplierFilter}
 		)
 		SELECT
@@ -71,6 +73,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		WHERE l.rn = 1
 		ORDER BY ABS(COALESCE(change_pct, 0)) DESC
 	`);
+	const rows = rawRows as unknown as PriceRow[];
 
 	const items = rows.sort((a, b) => {
 		const aAbs = a.change_pct !== null ? Math.abs(a.change_pct) : -1;
@@ -84,10 +87,10 @@ export const load: PageServerLoad = async ({ url }) => {
 		.sort((a, b) => (a.change_pct ?? 0) - (b.change_pct ?? 0))
 		.slice(0, 3);
 
-	const supplierList = db.select({ id: suppliers.id, name: suppliers.name })
+	const supplierList = await db.select({ id: suppliers.id, name: suppliers.name })
 		.from(suppliers)
-		.orderBy(suppliers.name)
-		.all() as SupplierRow[];
+		.where(eq(suppliers.restaurantId, rid))
+		.orderBy(suppliers.name) as SupplierRow[];
 
 	return {
 		title: 'Price Tracking',

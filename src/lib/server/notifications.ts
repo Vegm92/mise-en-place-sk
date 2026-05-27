@@ -5,17 +5,18 @@ import { db } from './db';
 import { systemNotifications } from './schema';
 import type { Alert } from './alert-engine';
 
-export function saveAlerts(invoiceId: number, alerts: Alert[]): void {
+export async function saveAlerts(invoiceId: number, restaurantId: string, alerts: Alert[]): Promise<void> {
 	if (alerts.length === 0) return;
-	db.transaction((tx) => {
+	await db.transaction(async (tx) => {
 		for (const alert of alerts) {
-			tx.insert(systemNotifications).values({
+			await tx.insert(systemNotifications).values({
 				invoiceId,
+				restaurantId,
 				notificationType: alert.notificationType,
 				message: alert.message,
 				payload: alert.payload ? JSON.stringify(alert.payload) : null,
 				status: 'pending',
-			}).run();
+			});
 		}
 	});
 }

@@ -7,8 +7,8 @@ import { extractInvoice } from '$lib/server/extract';
 import { readSession, writeSession, deleteSession, uploadsDir } from '$lib/server/sessions';
 import { tryAcquireExtraction, releaseExtraction } from '$lib/server/rate-limiter';
 import { db } from '$lib/server/db';
-import { suppliers, invoices, invoiceLineItems, extractionCorrections } from '$lib/server/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { suppliers, invoices, invoiceLineItems, extractionCorrections, settings } from '$lib/server/schema';
+import { eq, and } from 'drizzle-orm';
 import { annotateLineItems, resolveUnit } from '$lib/server/unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
@@ -26,7 +26,7 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 	return 'low';
 }
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	const session = readSession(params.id);
 	if (!session || !session.files.length) {
 		redirect(303, '/');
@@ -85,7 +85,8 @@ export const load: PageServerLoad = async ({ params }) => {
 		};
 	});
 
-	const { enriched, conversionNotes } = annotateLineItems(supplierName, lineItems);
+	const rid = locals.restaurantId ?? '';
+	const { enriched, conversionNotes } = await annotateLineItems(supplierName, lineItems, rid);
 
 	extractedData.line_items = enriched.map((item) => ({
 		description: item.description,
@@ -143,6 +144,7 @@ function normalizeNum(v: unknown): string {
 async function logExtractionCorrections(
 	invoiceId: number,
 	supplierId: number,
+	restaurantId: string,
 	originalData: Record<string, unknown> | undefined,
 	submitted: HeaderSnapshot,
 	submittedLines: LineSnapshot,
@@ -164,7 +166,7 @@ async function logExtractionCorrections(
 		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
 		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
 		if (orig !== sub) {
-			rows.push({ invoiceId, supplierId, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex: null });
+			rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex: null });
 		}
 	}
 
@@ -188,7 +190,7 @@ async function logExtractionCorrections(
 			const o = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
 			const s = numeric ? normalizeNum(subVal)  : normalizeStr(subVal);
 			if (o !== s) {
-				rows.push({ invoiceId, supplierId, fieldName: field, originalValue: o || null, correctedValue: s || null, lineItemIndex: i });
+				rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: o || null, correctedValue: s || null, lineItemIndex: i });
 			}
 		}
 	}
@@ -199,7 +201,7 @@ async function logExtractionCorrections(
 }
 
 export const actions: Actions = {
-	save: async ({ params, request }) => {
+	save: async ({ params, request, locals }) => {
 		const session = readSession(params.id);
 		const formData = await request.formData();
 
@@ -219,6 +221,7 @@ export const actions: Actions = {
 		const lineTotalPrices = formData.getAll('line_total_prices') as string[];
 		const lineTaxRates = formData.getAll('line_tax_rates') as string[];
 
+		const rid = locals.restaurantId!;
 		const extractedData = session?.extractedData as Record<string, unknown> | undefined;
 		const taxBase = toFloat(extractedData?.tax_base);
 		const taxBreakdownRaw = extractedData?.tax_breakdown;
@@ -229,13 +232,13 @@ export const actions: Actions = {
 		const existingSupplier = await db
 			.select()
 			.from(suppliers)
-			.where(eq(suppliers.name, supplierName))
+			.where(and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, rid)))
 			.limit(1);
 
 		if (existingSupplier.length > 0) {
 			supplierId = existingSupplier[0].id;
 		} else {
-			const inserted = await db.insert(suppliers).values({ name: supplierName }).returning({ id: suppliers.id });
+			const inserted = await db.insert(suppliers).values({ name: supplierName, restaurantId: rid }).returning({ id: suppliers.id });
 			supplierId = inserted[0].id;
 		}
 
@@ -260,6 +263,7 @@ export const actions: Actions = {
 		const insertedInvoice = await db
 			.insert(invoices)
 			.values({
+				restaurantId: rid,
 				supplierId,
 				invoiceNumber: invoiceNumber || null,
 				invoiceDate,
@@ -288,7 +292,7 @@ export const actions: Actions = {
 			const unitPriceFloat = toFloat(lineUnitPrices[i]);
 			const unitVal = lineUnits[i]?.trim() || null;
 
-			const rule = unitVal ? resolveUnit(supplierName, desc, unitVal) : null;
+			const rule = unitVal ? await resolveUnit(supplierName, desc, unitVal, rid) : null;
 			const canonicalUnit = rule?.canonicalUnit ?? null;
 			const requiresConv = !rule && !!unitVal ? 1 : 0;
 			const factor = rule?.conversionFactor ?? 0;
@@ -297,6 +301,7 @@ export const actions: Actions = {
 
 			await db.insert(invoiceLineItems).values({
 				invoiceId,
+				restaurantId: rid,
 				description: desc,
 				quantity: qtyFloat,
 				unit: unitVal,
@@ -330,28 +335,32 @@ export const actions: Actions = {
 		}
 
 		// Fire BI alerts
-		const priceAlerts = runPriceShock(invoiceId, supplierName, savedItems);
-		const stockAlerts = runStockForecast(savedItems);
-		const budgetAlerts = runBudgetCheck(invoiceId, supplierId);
-		saveAlerts(invoiceId, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
+		const priceAlerts = await runPriceShock(invoiceId, supplierName, savedItems, rid);
+		const stockAlerts = await runStockForecast(savedItems, rid);
+		const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
+		await saveAlerts(invoiceId, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
 
 		// Log field corrections (original AI values vs user-submitted values)
 		await logExtractionCorrections(
 			invoiceId,
 			supplierId,
+			rid,
 			extractedData,
 			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
 			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
 		);
 
-		// Keep files on disk — sourceFile in DB points to them for "See original".
-		// Files are only deleted on discard.
-		const onboardingRow = db.get<{ value: string }>(
-			sql`SELECT value FROM settings WHERE key = 'has_completed_onboarding'`
-		);
-		const isFirstInvoice = onboardingRow?.value !== 'true';
+		// Mark onboarding complete on first invoice save
+		const onboardingRows = await db
+			.select({ value: settings.value })
+			.from(settings)
+			.where(and(eq(settings.restaurantId, rid), eq(settings.key, 'has_completed_onboarding')))
+			.limit(1);
+		const isFirstInvoice = onboardingRows[0]?.value !== 'true';
 		if (isFirstInvoice) {
-			db.run(sql`UPDATE settings SET value = 'true' WHERE key = 'has_completed_onboarding'`);
+			await db.update(settings)
+				.set({ value: 'true' })
+				.where(and(eq(settings.restaurantId, rid), eq(settings.key, 'has_completed_onboarding')));
 		}
 
 		const remaining = session?.remaining ?? [];

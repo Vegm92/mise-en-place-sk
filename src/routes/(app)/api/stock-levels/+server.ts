@@ -2,19 +2,21 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { stockLevels } from '$lib/server/schema';
-import { sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
-/** GET /api/stock-levels — list all stock level entries. */
-export const GET: RequestHandler = async ({ getClientAddress }) => {
+/** GET /api/stock-levels — list all stock level entries for this restaurant. */
+export const GET: RequestHandler = async ({ getClientAddress, locals }) => {
 	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
-	const rows = await db.select().from(stockLevels);
+	const rid = locals.restaurantId!;
+	const rows = await db.select().from(stockLevels).where(eq(stockLevels.restaurantId, rid));
 	return json({ stock_levels: rows });
 };
 
 /** POST /api/stock-levels — upsert daily burn rate for an ingredient (TPV sync stub). */
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
 	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
+	const rid = locals.restaurantId!;
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
 
@@ -32,24 +34,24 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const canonUnit = canonical_unit?.trim() ?? null;
 	const trimmed = ingredient.trim();
 
-	db.insert(stockLevels)
+	await db.insert(stockLevels)
 		.values({
-			ingredient:     trimmed,
-			dailyBurnRate:  burnRate,
-			currentStock:   stockVal,
-			canonicalUnit:  canonUnit,
-			updatedAt:      sql`CURRENT_TIMESTAMP`,
+			restaurantId:  rid,
+			ingredient:    trimmed,
+			dailyBurnRate: burnRate,
+			currentStock:  stockVal,
+			canonicalUnit: canonUnit,
+			updatedAt:     sql`CURRENT_TIMESTAMP`,
 		})
 		.onConflictDoUpdate({
-			target: stockLevels.ingredient,
+			target: [stockLevels.restaurantId, stockLevels.ingredient],
 			set: {
 				dailyBurnRate: burnRate,
 				currentStock:  stockVal,
 				canonicalUnit: canonUnit,
 				updatedAt:     sql`CURRENT_TIMESTAMP`,
 			},
-		})
-		.run();
+		});
 
 	return json({ ok: true, ingredient: trimmed, daily_burn_rate: burnRate });
 };

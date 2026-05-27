@@ -41,13 +41,14 @@ function parseActionsBlock(raw: string): { text: string; actions: ChatAction[] }
 	}
 }
 
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
 	const body = await request.json().catch(() => null);
 	if (!body?.message || typeof body.message !== 'string') {
 		throw error(400, 'message is required');
 	}
 	const message = (body.message as string).slice(0, 2000);
 	const sessionId: number | null = typeof body.sessionId === 'number' ? body.sessionId : null;
+	const rid = locals.restaurantId!;
 
 	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
 
@@ -60,23 +61,20 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	let resolvedSessionId = sessionId;
 	if (!resolvedSessionId) {
 		const titleWords = message.slice(0, 60).replace(/\n/g, ' ');
-		const [newSession] = db.insert(chatSessions)
-			.values({ title: titleWords })
-			.returning({ id: chatSessions.id })
-			.all();
+		const [newSession] = await db.insert(chatSessions)
+			.values({ restaurantId: rid, title: titleWords })
+			.returning({ id: chatSessions.id });
 		resolvedSessionId = newSession.id;
 	} else {
-		// Touch updatedAt
-		db.update(chatSessions)
-			.set({ updatedAt: new Date().toISOString() })
-			.where(eq(chatSessions.id, resolvedSessionId))
-			.run();
+		await db.update(chatSessions)
+			.set({ updatedAt: new Date() })
+			.where(eq(chatSessions.id, resolvedSessionId));
 	}
 
 	// Persist user message
-	db.insert(chatMessages).values({ sessionId: resolvedSessionId, role: 'user', text: message }).run();
+	await db.insert(chatMessages).values({ sessionId: resolvedSessionId, role: 'user', text: message });
 
-	const context = buildChatContext();
+	const context = await buildChatContext(rid);
 	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 	try {
@@ -90,12 +88,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		const { text: reply, actions } = parseActionsBlock(raw);
 
 		// Persist assistant message
-		db.insert(chatMessages).values({
+		await db.insert(chatMessages).values({
 			sessionId: resolvedSessionId,
 			role: 'assistant',
 			text: reply,
 			actions: actions.length ? JSON.stringify(actions) : null,
-		}).run();
+		});
 
 		return json({ reply, actions: actions.length ? actions : undefined, sessionId: resolvedSessionId });
 	} catch (err) {
