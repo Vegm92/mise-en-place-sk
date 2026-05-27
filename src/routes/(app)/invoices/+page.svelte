@@ -5,6 +5,7 @@
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
   import { ChevronDown, FileDown, Trash2, Check, RotateCcw, ExternalLink, ChevronRight } from 'lucide-svelte';
 
   const { data }: { data: PageData } = $props();
@@ -70,10 +71,19 @@
 
 </script>
 
-<div class="flex flex-col gap-4 p-6">
+<!-- Mobile invoice list -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileInvoiceList
+    invoices={invoices}
+    hasAlert={stats.overdue_count > 0}
+  />
+</div>
+
+<!-- Desktop invoice list -->
+<div class="max-md:hidden flex flex-col gap-4 p-6">
 
   <!-- ── KPI Strip ───────────────────────────────────────────────── -->
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
+  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3">
     <KpiCard
       label={$t('inv.kpi.pending')}
       value={Math.round(stats.pending_amount) + ' €'}

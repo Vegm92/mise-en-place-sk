@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { t } from '$lib/i18n';
+  import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
 
   let { data }: { data: PageData } = $props();
   const { invoice, lineItems } = $derived(data);
@@ -33,6 +34,13 @@
   ]);
 </script>
 
+<!-- Mobile invoice detail -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileInvoiceDetail {invoice} {lineItems} />
+</div>
+
+<!-- Desktop invoice detail -->
+<div class="max-md:block hidden">
 <div style="padding:24px;display:flex;flex-direction:column;gap:16px;max-width:1100px;margin:0 auto;">
 
   <!-- Breadcrumb -->
@@ -244,3 +252,4 @@
   </div>
 
 </div>
+</div><!-- end desktop wrapper -->
