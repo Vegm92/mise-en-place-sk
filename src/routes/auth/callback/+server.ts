@@ -4,7 +4,9 @@ import type { RequestHandler } from './$types';
 /** Handles Supabase OAuth callback — exchanges code for session cookies. */
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const code  = url.searchParams.get('code');
-	const next  = url.searchParams.get('next') ?? '/';
+	const rawNext = url.searchParams.get('next') ?? '/';
+	// Only allow relative paths to prevent open-redirect attacks
+	const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
 	const error = url.searchParams.get('error');
 
 	if (error) {

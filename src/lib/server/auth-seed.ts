@@ -54,5 +54,5 @@ export async function seedAdminUser(): Promise<void> {
 		role:         'owner',
 	});
 
-	console.log(`[auth-seed] Admin seeded: ${email} → restaurant "${restaurantName}"`);
+	console.log(`[auth-seed] Admin seeded OK → restaurant "${restaurantName}"`);
 }
