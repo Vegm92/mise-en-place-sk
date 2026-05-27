@@ -48,7 +48,7 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	commit: async ({ params, request }) => {
+	commit: async ({ params, request, locals }) => {
 		const id = Number(params.id);
 		const formData = await request.formData();
 
@@ -56,6 +56,8 @@ export const actions: Actions = {
 		const invoiceNumber = String(formData.get('invoiceNumber') ?? '').trim() || null;
 		const invoiceDate = String(formData.get('invoiceDate') ?? '').trim() || null;
 		const totalAmount = toFloat(formData.get('totalAmount'));
+
+		const rid = locals.restaurantId!;
 
 		if (!supplierName) {
 			redirect(303, `/?error=Supplier+name+required`);
@@ -84,7 +86,7 @@ export const actions: Actions = {
 		const existingSupplier = await db
 			.select({ id: suppliers.id })
 			.from(suppliers)
-			.where(eq(suppliers.name, supplierName))
+			.where(and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, rid)))
 			.limit(1);
 
 		if (existingSupplier.length > 0) {
@@ -92,7 +94,7 @@ export const actions: Actions = {
 		} else {
 			const inserted = await db
 				.insert(suppliers)
-				.values({ name: supplierName })
+				.values({ name: supplierName, restaurantId: rid })
 				.returning({ id: suppliers.id });
 			supplierId = inserted[0].id;
 		}
@@ -102,7 +104,7 @@ export const actions: Actions = {
 			const duplicate = await db
 				.select({ id: invoices.id })
 				.from(invoices)
-				.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber)))
+				.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber), eq(invoices.restaurantId, rid)))
 				.limit(1);
 
 			if (duplicate.length > 0) {
@@ -114,6 +116,7 @@ export const actions: Actions = {
 		const insertedInvoice = await db
 			.insert(invoices)
 			.values({
+				restaurantId: rid,
 				supplierId,
 				invoiceNumber,
 				invoiceDate,
@@ -139,7 +142,7 @@ export const actions: Actions = {
 
 		if (validLines.length > 0) {
 			await db.insert(invoiceLineItems).values(
-				validLines.map((item) => ({ invoiceId, ...item }))
+				validLines.map((item) => ({ invoiceId, restaurantId: rid, ...item }))
 			);
 		}
 

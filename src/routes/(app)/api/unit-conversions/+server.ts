@@ -1,13 +1,14 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { unitConversions } from '$lib/server/schema';
-import { sql } from 'drizzle-orm';
+import { unitConversions, invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
+import { sql, eq, and } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** POST /api/unit-conversions — save a new UoM rule and clear pending flags. */
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
 	if (!checkRateLimit(getClientAddress(), 30)) throw error(429, 'Too many requests');
+	const rid = locals.restaurantId!;
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
 
@@ -27,9 +28,9 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 	const sPurchase  = purchase_unit.trim();
 	const sCanonical = canonical_unit.trim();
 
-	// Upsert the conversion rule
-	db.insert(unitConversions)
+	await db.insert(unitConversions)
 		.values({
+			restaurantId:     rid,
 			supplierName:     sName,
 			ingredient:       sIngredient,
 			purchaseUnit:     sPurchase,
@@ -37,13 +38,12 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 			conversionFactor: factor,
 		})
 		.onConflictDoUpdate({
-			target: [unitConversions.supplierName, unitConversions.ingredient, unitConversions.purchaseUnit],
+			target: [unitConversions.restaurantId, unitConversions.supplierName, unitConversions.ingredient, unitConversions.purchaseUnit],
 			set:    { canonicalUnit: sCanonical, conversionFactor: factor },
-		})
-		.run();
+		});
 
-	// Clear pending flags for matching supplier's line items (subquery requires sql tag)
-	db.run(sql`
+	// Clear pending flags for matching supplier's line items
+	await db.execute(sql`
 		UPDATE invoice_line_items
 		SET requires_unit_conversion = 0,
 		    canonical_unit = ${sCanonical}
@@ -54,6 +54,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
 		      SELECT i.id FROM invoices i
 		      JOIN suppliers s ON i.supplier_id = s.id
 		      WHERE s.name = ${sName}
+		        AND i.restaurant_id = ${rid}
 		  )
 	`);
 

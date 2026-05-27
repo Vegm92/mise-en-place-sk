@@ -82,7 +82,7 @@
     chatInput = '';
   }
 
-  function formatDate(iso: string | null | undefined) {
+  function formatDate(iso: Date | string | null | undefined) {
     if (!iso) return '';
     const d = new Date(iso);
     const now = new Date();

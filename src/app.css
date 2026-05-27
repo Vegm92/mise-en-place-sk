@@ -6,6 +6,7 @@
 
 .mep {
   font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mep-fs-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
   -webkit-font-smoothing: antialiased;
   color: var(--mep-fg);
   background: var(--mep-bg);
