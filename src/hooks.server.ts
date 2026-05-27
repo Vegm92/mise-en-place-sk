@@ -1,11 +1,13 @@
 import { redirect, type Handle } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { cleanupStaleSessions } from '$lib/server/sessions';
+import { seedAdminUser } from '$lib/server/auth-seed';
 import { db } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 
 cleanupStaleSessions();
+seedAdminUser().catch(e => console.error('[hooks] seed error:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
