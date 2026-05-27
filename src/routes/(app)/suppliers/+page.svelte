@@ -33,6 +33,11 @@
     return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   }
 
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  function isNew(createdAt: Date | null) {
+    return createdAt ? new Date(createdAt) >= thirtyDaysAgo : false;
+  }
+
   function deltaColor(v: number) {
     return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
   }
@@ -123,12 +128,13 @@
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:30%;">Proveedor</th>
-                <th style="width:130px;">Categoría</th>
-                <th class="num" style="width:80px;">Facturas</th>
-                <th class="num" style="width:120px;">Gasto (mes)</th>
-                <th class="num" style="width:70px;">Δ</th>
-                <th style="width:110px;">Último pedido</th>
+                <th style="width:28%;">Proveedor</th>
+                <th style="width:100px;">CIF/NIF</th>
+                <th style="width:120px;">Categoría</th>
+                <th class="num" style="width:75px;">Facturas</th>
+                <th class="num" style="width:115px;">Gasto (mes)</th>
+                <th class="num" style="width:65px;">Δ</th>
+                <th style="width:100px;">Último pedido</th>
                 <th style="width:32px;"></th>
               </tr>
             </thead>
@@ -145,8 +151,16 @@
                       ">{initials(s.name)}</span>
                       <span style="font-size:13px;font-weight:500;color:var(--mep-fg);
                         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</span>
+                      {#if isNew(s.createdAt)}
+                        <span style="
+                          flex-shrink:0;font-size:9px;font-weight:700;
+                          background:var(--mep-acc-soft);color:var(--mep-acc);
+                          padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
+                        ">NUEVO</span>
+                      {/if}
                     </div>
                   </td>
+                  <td style="font-size:12px;color:var(--mep-fg-3);">{s.cif ?? '—'}</td>
                   <td>
                     <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
                       color:{s.category === 'Other' ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};

@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { VALID_CATEGORIES, CATEGORY_COLORS, SUPPLIER_BADGE_CLS, SUPPLIER_BADGE_LABEL } from '$lib/constants';
   import { fmtEur } from '$lib/formatters';
-  import { ArrowLeft, ChevronRight, Pencil, Trash2, Mail } from 'lucide-svelte';
+  import { ArrowLeft, ChevronRight, Pencil, Trash2, Mail, Phone, Truck, CreditCard } from 'lucide-svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -173,8 +173,24 @@
                 </select>
               </div>
               <div>
+                <label for="edit-cif" class="label" style="display:block;margin-bottom:4px;">CIF/NIF</label>
+                <input id="edit-cif" class="input" name="cif" value={s.cif ?? ''} style="width:100%;" placeholder="B12345678" />
+              </div>
+              <div>
                 <label for="edit-email" class="label" style="display:block;margin-bottom:4px;">Email de contacto</label>
                 <input id="edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" placeholder="proveedor@ejemplo.com" />
+              </div>
+              <div>
+                <label for="edit-phone" class="label" style="display:block;margin-bottom:4px;">Teléfono</label>
+                <input id="edit-phone" class="input" name="contact_phone" type="tel" value={s.contactPhone ?? ''} style="width:100%;" placeholder="+34 600 000 000" />
+              </div>
+              <div>
+                <label for="edit-delivery" class="label" style="display:block;margin-bottom:4px;">Días de entrega</label>
+                <input id="edit-delivery" class="input" name="delivery_days" value={s.deliveryDays ?? ''} style="width:100%;" placeholder="Lun, Mié, Vie" />
+              </div>
+              <div>
+                <label for="edit-terms" class="label" style="display:block;margin-bottom:4px;">Condiciones de pago</label>
+                <input id="edit-terms" class="input" name="payment_terms" value={s.paymentTerms ?? ''} style="width:100%;" placeholder="30 días" />
               </div>
               <div>
                 <label for="edit-notes" class="label" style="display:block;margin-bottom:4px;">Notas</label>
@@ -362,7 +378,7 @@
             <!-- Info card -->
             <div class="card" style="padding:16px;">
               <div class="subtitle" style="margin-bottom:10px;">Información</div>
-              {#if !s.contactEmail && !s.notes && !s.alias}
+              {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
                 <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">Sin información de contacto registrada.</p>
                 <button class="btn btn-secondary" style="height:28px;font-size:12px;margin-top:8px;"
                   onclick={() => { editing = true; confirmDelete = false; }}>
@@ -376,6 +392,30 @@
                       <a href="mailto:{s.contactEmail}" style="color:var(--mep-fg-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                         {s.contactEmail}
                       </a>
+                    </div>
+                  {/if}
+                  {#if s.contactPhone}
+                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
+                      <Phone size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                      <a href="tel:{s.contactPhone}" style="color:var(--mep-fg-2);text-decoration:none;">{s.contactPhone}</a>
+                    </div>
+                  {/if}
+                  {#if s.cif}
+                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
+                      <CreditCard size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                      <span>CIF/NIF: {s.cif}</span>
+                    </div>
+                  {/if}
+                  {#if s.deliveryDays}
+                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
+                      <Truck size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                      <span>Entrega: {s.deliveryDays}</span>
+                    </div>
+                  {/if}
+                  {#if s.paymentTerms}
+                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
+                      <CreditCard size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                      <span>Pago: {s.paymentTerms}</span>
                     </div>
                   {/if}
                   {#if s.alias}
