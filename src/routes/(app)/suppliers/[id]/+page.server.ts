@@ -82,6 +82,10 @@ export const actions: Actions = {
 		const name         = String(data.get('name') ?? '').trim();
 		const category     = String(data.get('category') ?? '');
 		const contactEmail = String(data.get('contact_email') ?? '').trim() || null;
+		const contactPhone = String(data.get('contact_phone') ?? '').trim() || null;
+		const cif          = String(data.get('cif') ?? '').trim() || null;
+		const deliveryDays = String(data.get('delivery_days') ?? '').trim() || null;
+		const paymentTermms = String(data.get('payment_terms') ?? '').trim() || null;
 		const notes        = String(data.get('notes') ?? '').trim() || null;
 
 		if (!name) error(400, 'Name is required');
@@ -89,7 +93,7 @@ export const actions: Actions = {
 		const cat = VALID_CATEGORIES.includes(category) ? category : null;
 
 		await db.update(suppliers)
-			.set({ name, category: cat, contactEmail, notes })
+			.set({ name, category: cat, contactEmail, contactPhone, cif, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(and(eq(suppliers.id, id), eq(suppliers.restaurantId, rid)));
 
 		redirect(303, `/suppliers/${id}`);

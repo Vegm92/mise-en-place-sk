@@ -23,14 +23,18 @@ export const userRestaurants = pgTable('user_restaurants', {
 // ── Business tables (all scoped to restaurant_id) ──────────────────────────
 
 export const suppliers = pgTable('suppliers', {
-	id:           serial('id').primaryKey(),
-	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
-	name:         text('name').notNull(),
-	alias:        text('alias'),
-	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
-	category:     text('category'),
-	contactEmail: text('contact_email'),
-	notes:        text('notes'),
+	id:            serial('id').primaryKey(),
+	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	name:          text('name').notNull(),
+	alias:         text('alias'),
+	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+	category:      text('category'),
+	contactEmail:  text('contact_email'),
+	contactPhone:  text('contact_phone'),
+	cif:           text('cif'),
+	deliveryDays:  text('delivery_days'),
+	paymentTerms:  text('payment_terms'),
+	notes:         text('notes'),
 });
 
 export const invoices = pgTable('invoices', {

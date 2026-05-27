@@ -10,6 +10,7 @@
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
+  import MobileTabBar from '$lib/components/mobile/MobileTabBar.svelte';
 
   const { children, data } = $props();
 
@@ -232,10 +233,10 @@
   <!-- ── Main area ─────────────────────────────────────────────────── -->
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <!-- TopBar -->
-    <header style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 24px;gap:12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
+    <!-- TopBar (hidden on mobile — mobile pages have own headers) -->
+    <header class="max-md:hidden" style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 24px;gap:12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
 
-      <!-- Mobile hamburger -->
+      <!-- Mobile hamburger (kept for fallback pages not yet mobilised) -->
       <button
         class="md:hidden btn btn-ghost"
         style="width:34px;height:34px;padding:0;justify-content:center;"
@@ -272,8 +273,10 @@
         {$locale === 'es' ? 'EN' : 'ES'}
       </button>
 
-      <!-- Notification bell -->
-      <NotificationBell notifications={data.notifications ?? []} />
+      <!-- Notification bell — desktop only (mobile shell has its own bell) -->
+      <span class="max-md:hidden">
+        <NotificationBell notifications={data.notifications ?? []} />
+      </span>
 
       <!-- Theme toggle -->
       <button
@@ -299,3 +302,6 @@
   </div>
 
 </div>
+
+<!-- Mobile bottom tab bar (fixed, outside scroll container) -->
+<MobileTabBar alertBadge={data.reminderBadge} invBadge={data.invoiceBadge} />
