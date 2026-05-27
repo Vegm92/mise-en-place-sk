@@ -1,5 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
+import { error } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
@@ -20,9 +20,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				month_spend:      sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`.as('month_spend'),
 				open_count:       sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`.as('open_count'),
 				invoice_count:    sql<number>`COUNT(${invoices.id})`.as('invoice_count'),
-				last_invoice_date:sql<string | null>`MAX(${invoices.invoiceDate})`.as('last_invoice_date'),
-				has_overdue:      sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} < ${today} THEN 1 ELSE 0 END)`.as('has_overdue'),
-				has_due_soon:     sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} BETWEEN ${today} AND ${weekEnd} THEN 1 ELSE 0 END)`.as('has_due_soon'),
+				last_invoice_date:   sql<string | null>`MAX(${invoices.invoiceDate})`.as('last_invoice_date'),
+				has_overdue:         sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} < ${today} THEN 1 ELSE 0 END)`.as('has_overdue'),
+				has_due_soon:        sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} BETWEEN ${today} AND ${weekEnd} THEN 1 ELSE 0 END)`.as('has_due_soon'),
+				month_invoice_count: sql<number>`COALESCE(COUNT(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN 1 END),0)`.as('month_invoice_count'),
+				last_month_spend:    sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW()-INTERVAL'1 month','YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`.as('last_month_spend'),
 			})
 				.from(suppliers)
 				.leftJoin(invoices, and(eq(invoices.supplierId, suppliers.id), eq(invoices.restaurantId, rid)))
@@ -65,10 +67,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 				stabilityLevel = cv < 5 ? 'stable' : cv <= 15 ? 'moderate' : 'volatile';
 			}
 
+			const lastMonthSpend = Number(r.last_month_spend);
+			const deltaPct = lastMonthSpend > 0
+				? ((Number(r.month_spend) - lastMonthSpend) / lastMonthSpend) * 100
+				: null;
+
 			return {
 				...r,
 				invoice_count: invoiceCount,
+				open_count: Number(r.open_count),
 				month_spend: Number(r.month_spend),
+				month_invoice_count: Number(r.month_invoice_count),
+				last_month_spend: lastMonthSpend,
+				delta_pct: deltaPct,
 				badge,
 				color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
 				reliability_score: metrics && invoiceCount >= 3 ? metrics.score : null,
@@ -89,17 +100,3 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 };
 
-export const actions: Actions = {
-	setCategory: async ({ request, locals }) => {
-		const data = await request.formData();
-		const supplierId = Number(data.get('supplier_id'));
-		const category = String(data.get('category') ?? '');
-		const cat = VALID_CATEGORIES.includes(category) ? category : null;
-
-		await db.update(suppliers)
-			.set({ category: cat })
-			.where(and(eq(suppliers.id, supplierId), eq(suppliers.restaurantId, locals.restaurantId!)));
-
-		redirect(303, '/suppliers');
-	},
-};
