@@ -56,11 +56,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 		redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
 	}
 
-	return resolve(event, {
+	const response = await resolve(event, {
 		// Required for Supabase to propagate Set-Cookie headers
 		filterSerializedResponseHeaders: (name) =>
 			name === 'content-range' || name === 'x-supabase-api-version',
 	});
+
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+	return response;
 };
 
 function isPublicPath(path: string): boolean {
@@ -68,7 +75,6 @@ function isPublicPath(path: string): boolean {
 		path === '/login'             ||
 		path.startsWith('/auth/')     ||
 		path.startsWith('/waitlist')  ||
-		path.startsWith('/api/tpv/') ||
-		path.startsWith('/api/inference-status/')
+		path.startsWith('/api/tpv/')
 	);
 }
