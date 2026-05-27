@@ -6,7 +6,7 @@
     notificationType: string;
     message: string;
     payload: Record<string, unknown> | null;
-    createdAt: string | null;
+    createdAt: Date | null;
   };
 
   let { notifications: initial }: { notifications: Notif[] } = $props();

@@ -1,14 +1,11 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts
-import type { auth } from '$lib/server/auth';
-
-type Session = typeof auth.$Infer.Session.session;
-type User    = typeof auth.$Infer.Session.user;
+import type { SupabaseClient, User } from '@supabase/supabase-js';
 
 declare global {
 	namespace App {
 		interface Locals {
-			user:    User    | null;
-			session: Session | null;
+			supabase:     SupabaseClient;
+			user:         User | null;
+			restaurantId: string | null;
 		}
 		// interface Error {}
 		// interface PageData {}

@@ -1,130 +1,168 @@
-/** Drizzle schema — single source of truth for the SQLite database. */
-import { integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+/** Drizzle schema — PostgreSQL (Supabase). Single source of truth. */
+import {
+	boolean, integer, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
+} from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-export const suppliers = sqliteTable('suppliers', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	name: text('name').notNull(),
-	alias: text('alias'),
-	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-	category: text('category').default(sql`NULL`),
+// ── Multi-tenant core ──────────────────────────────────────────────────────
+
+export const restaurants = pgTable('restaurants', {
+	id:        uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	name:      text('name').notNull(),
+	slug:      text('slug').notNull().unique(),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const userRestaurants = pgTable('user_restaurants', {
+	userId:       text('user_id').notNull(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	role:         text('role').notNull().default('owner'), // 'owner' | 'member'
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── Business tables (all scoped to restaurant_id) ──────────────────────────
+
+export const suppliers = pgTable('suppliers', {
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	name:         text('name').notNull(),
+	alias:        text('alias'),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+	category:     text('category'),
 	contactEmail: text('contact_email'),
-	notes: text('notes'),
+	notes:        text('notes'),
 });
 
-export const invoices = sqliteTable('invoices', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	supplierId: integer('supplier_id').references(() => suppliers.id),
+export const invoices = pgTable('invoices', {
+	id:            serial('id').primaryKey(),
+	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	supplierId:    integer('supplier_id').references(() => suppliers.id),
 	invoiceNumber: text('invoice_number'),
-	invoiceDate: text('invoice_date'),
-	dueDate: text('due_date'),
-	totalAmount: real('total_amount'),
-	taxBase: real('tax_base'),
-	taxBreakdown: text('tax_breakdown'),
-	status: text('status').default('pending'),
-	sourceFile: text('source_file'),
-	confidence: real('confidence'),
-	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-	notes: text('notes'),
+	invoiceDate:   text('invoice_date'),
+	dueDate:       text('due_date'),
+	totalAmount:   real('total_amount'),
+	taxBase:       real('tax_base'),
+	taxBreakdown:  text('tax_breakdown'),
+	status:        text('status').default('pending'),
+	sourceFile:    text('source_file'),
+	confidence:    real('confidence'),
+	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+	notes:         text('notes'),
 });
 
-export const invoiceLineItems = sqliteTable('invoice_line_items', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	invoiceId: integer('invoice_id').references(() => invoices.id),
-	description: text('description'),
-	quantity: real('quantity'),
-	unit: text('unit'),
-	unitPrice: real('unit_price'),
-	totalPrice: real('total_price'),
-	taxRate: real('tax_rate'),
+export const invoiceLineItems = pgTable('invoice_line_items', {
+	id:                     serial('id').primaryKey(),
+	restaurantId:           uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	invoiceId:              integer('invoice_id').references(() => invoices.id, { onDelete: 'cascade' }),
+	description:            text('description'),
+	quantity:               real('quantity'),
+	unit:                   text('unit'),
+	unitPrice:              real('unit_price'),
+	totalPrice:             real('total_price'),
+	taxRate:                real('tax_rate'),
 	requiresUnitConversion: integer('requires_unit_conversion').default(0),
-	canonicalUnit: text('canonical_unit'),
+	canonicalUnit:          text('canonical_unit'),
 });
 
-export const supplierMetrics = sqliteTable('supplier_metrics', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	supplierId: integer('supplier_id').notNull().unique().references(() => suppliers.id),
-	score: integer('score').notNull().default(0),
+export const supplierMetrics = pgTable('supplier_metrics', {
+	id:                  serial('id').primaryKey(),
+	restaurantId:        uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	supplierId:          integer('supplier_id').notNull().unique().references(() => suppliers.id, { onDelete: 'cascade' }),
+	score:               integer('score').notNull().default(0),
 	priceStabilityScore: integer('price_stability_score').notNull().default(0),
-	frequencyScore: integer('frequency_score').notNull().default(0),
-	timelinessScore: integer('timeliness_score').notNull().default(0),
-	priceStabilityCv: real('price_stability_cv'),
-	computedAt: text('computed_at').default(sql`CURRENT_TIMESTAMP`),
+	frequencyScore:      integer('frequency_score').notNull().default(0),
+	timelinessScore:     integer('timeliness_score').notNull().default(0),
+	priceStabilityCv:    real('price_stability_cv'),
+	computedAt:          timestamp('computed_at', { withTimezone: true }).defaultNow(),
 });
 
-export const settings = sqliteTable('settings', {
-	key: text('key').primaryKey(),
-	value: text('value').notNull(),
-});
-
-export const categoryBudgets = sqliteTable('category_budgets', {
-	category: text('category').primaryKey(),
-	monthlyBudget: real('monthly_budget').notNull(),
-});
-
-export const unitConversions = sqliteTable('unit_conversions', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	supplierName: text('supplier_name').notNull(),
-	ingredient: text('ingredient').notNull(),
-	purchaseUnit: text('purchase_unit').notNull(),
-	canonicalUnit: text('canonical_unit').notNull(),
-	conversionFactor: real('conversion_factor').notNull(),
-	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+export const settings = pgTable('settings', {
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	key:          text('key').notNull(),
+	value:        text('value').notNull(),
 }, (t) => [
-	uniqueIndex('unit_conversions_supplier_ingredient_unit_unique').on(t.supplierName, t.ingredient, t.purchaseUnit),
+	uniqueIndex('settings_restaurant_key_unique').on(t.restaurantId, t.key),
 ]);
 
-export const systemNotifications = sqliteTable('system_notifications', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	invoiceId: integer('invoice_id').references(() => invoices.id),
+export const categoryBudgets = pgTable('category_budgets', {
+	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	category:      text('category').notNull(),
+	monthlyBudget: real('monthly_budget').notNull(),
+}, (t) => [
+	uniqueIndex('category_budgets_restaurant_category_unique').on(t.restaurantId, t.category),
+]);
+
+export const unitConversions = pgTable('unit_conversions', {
+	id:               serial('id').primaryKey(),
+	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	supplierName:     text('supplier_name').notNull(),
+	ingredient:       text('ingredient').notNull(),
+	purchaseUnit:     text('purchase_unit').notNull(),
+	canonicalUnit:    text('canonical_unit').notNull(),
+	conversionFactor: real('conversion_factor').notNull(),
+	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('unit_conversions_supplier_ingredient_unit_unique').on(
+		t.restaurantId, t.supplierName, t.ingredient, t.purchaseUnit
+	),
+]);
+
+export const systemNotifications = pgTable('system_notifications', {
+	id:               serial('id').primaryKey(),
+	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	invoiceId:        integer('invoice_id').references(() => invoices.id),
 	notificationType: text('notification_type').notNull(),
-	message: text('message').notNull(),
-	payload: text('payload'),
-	status: text('status').default('pending'),
-	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	message:          text('message').notNull(),
+	payload:          text('payload'),
+	status:           text('status').default('pending'),
+	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-export const stockLevels = sqliteTable('stock_levels', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	ingredient: text('ingredient').notNull().unique(),
+export const stockLevels = pgTable('stock_levels', {
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	ingredient:   text('ingredient').notNull(),
 	currentStock: real('current_stock').default(0),
 	canonicalUnit: text('canonical_unit'),
 	dailyBurnRate: real('daily_burn_rate').default(0),
-	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
-});
+	updatedAt:     timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('stock_levels_restaurant_ingredient_unique').on(t.restaurantId, t.ingredient),
+]);
 
-export const extractionCorrections = sqliteTable('extraction_corrections', {
-	id: integer('id').primaryKey({ autoIncrement: true }),
-	invoiceId: integer('invoice_id').references(() => invoices.id),
-	supplierId: integer('supplier_id').references(() => suppliers.id),
-	fieldName: text('field_name').notNull(),
-	originalValue: text('original_value'),
+export const extractionCorrections = pgTable('extraction_corrections', {
+	id:             serial('id').primaryKey(),
+	restaurantId:   uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	invoiceId:      integer('invoice_id').references(() => invoices.id),
+	supplierId:     integer('supplier_id').references(() => suppliers.id),
+	fieldName:      text('field_name').notNull(),
+	originalValue:  text('original_value'),
 	correctedValue: text('corrected_value'),
-	lineItemIndex: integer('line_item_index'),
-	correctedAt: text('corrected_at').default(sql`CURRENT_TIMESTAMP`),
+	lineItemIndex:  integer('line_item_index'),
+	correctedAt:    timestamp('corrected_at', { withTimezone: true }).defaultNow(),
 });
 
-// Tables created by runMigrations() in db.ts
-export const pendingProcessedInvoices = sqliteTable('pending_processed_invoices', {
-	id:                    integer('id').primaryKey({ autoIncrement: true }),
-	sessionId:             text('session_id'),
-	originalFilePath:      text('original_file_path'),
-	rawLlmJson:            text('raw_llm_json'),
-	status:                text('status').default('PENDING_REVIEW'),
-	confidenceScore:       real('confidence_score'),
-	supplierId:            integer('supplier_id').references(() => suppliers.id),
-	inferredSupplierName:  text('inferred_supplier_name'),
-	invoiceNumber:         text('invoice_number'),
-	invoiceDate:           text('invoice_date'),
-	totalAmount:           real('total_amount'),
-	isDuplicate:           integer('is_duplicate').default(0),
-	createdAt:             text('created_at').default(sql`CURRENT_TIMESTAMP`),
-	committedAt:           text('committed_at'),
+export const pendingProcessedInvoices = pgTable('pending_processed_invoices', {
+	id:                   serial('id').primaryKey(),
+	restaurantId:         uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	sessionId:            text('session_id'),
+	originalFilePath:     text('original_file_path'),
+	rawLlmJson:           text('raw_llm_json'),
+	status:               text('status').default('PENDING_REVIEW'),
+	confidenceScore:      real('confidence_score'),
+	supplierId:           integer('supplier_id').references(() => suppliers.id),
+	inferredSupplierName: text('inferred_supplier_name'),
+	invoiceNumber:        text('invoice_number'),
+	invoiceDate:          text('invoice_date'),
+	totalAmount:          real('total_amount'),
+	isDuplicate:          integer('is_duplicate').default(0),
+	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
+	committedAt:          text('committed_at'),
 });
 
-export const pendingLineItems = sqliteTable('pending_line_items', {
-	id:                  integer('id').primaryKey({ autoIncrement: true }),
-	pendingInvoiceId:    integer('pending_invoice_id').references(() => pendingProcessedInvoices.id),
+export const pendingLineItems = pgTable('pending_line_items', {
+	id:                  serial('id').primaryKey(),
+	pendingInvoiceId:    integer('pending_invoice_id').references(() => pendingProcessedInvoices.id, { onDelete: 'cascade' }),
 	rawDescription:      text('raw_description'),
 	matchedIngredientId: integer('matched_ingredient_id'),
 	suggestedName:       text('suggested_name'),
@@ -135,66 +173,25 @@ export const pendingLineItems = sqliteTable('pending_line_items', {
 	priceWarning:        integer('price_warning').default(0),
 });
 
-// BetterAuth tables — dates stored as Unix timestamps (integer) so that
-// BetterAuth's Date objects map cleanly through Drizzle's SQLite driver.
-export const user = sqliteTable('user', {
-	id:            text('id').primaryKey(),
-	name:          text('name').notNull(),
-	email:         text('email').notNull().unique(),
-	emailVerified: integer('emailVerified', { mode: 'boolean' }).notNull().default(false),
-	image:         text('image'),
-	createdAt:     integer('createdAt', { mode: 'timestamp' }).notNull(),
-	updatedAt:     integer('updatedAt', { mode: 'timestamp' }).notNull(),
+export const chatSessions = pgTable('chat_sessions', {
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	title:        text('title').notNull().default('Nueva conversación'),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt:    timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
-export const session = sqliteTable('session', {
-	id:        text('id').primaryKey(),
-	expiresAt: integer('expiresAt', { mode: 'timestamp' }).notNull(),
-	token:     text('token').notNull().unique(),
-	createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
-	updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull(),
-	ipAddress: text('ipAddress'),
-	userAgent: text('userAgent'),
-	userId:    text('userId').notNull().references(() => user.id),
-});
-
-export const verification = sqliteTable('verification', {
-	id:         text('id').primaryKey(),
-	identifier: text('identifier').notNull(),
-	value:      text('value').notNull(),
-	expiresAt:  integer('expiresAt', { mode: 'timestamp' }).notNull(),
-	createdAt:  integer('createdAt', { mode: 'timestamp' }),
-	updatedAt:  integer('updatedAt', { mode: 'timestamp' }),
-});
-
-export const chatSessions = sqliteTable('chat_sessions', {
-	id:        integer('id').primaryKey({ autoIncrement: true }),
-	title:     text('title').notNull().default('Nueva conversación'),
-	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
-});
-
-export const chatMessages = sqliteTable('chat_messages', {
-	id:        integer('id').primaryKey({ autoIncrement: true }),
+export const chatMessages = pgTable('chat_messages', {
+	id:        serial('id').primaryKey(),
 	sessionId: integer('session_id').references(() => chatSessions.id, { onDelete: 'cascade' }),
 	role:      text('role').notNull(),
 	text:      text('text').notNull(),
 	actions:   text('actions'),
-	createdAt: text('created_at').default(sql`CURRENT_TIMESTAMP`),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-export const account = sqliteTable('account', {
-	id:                    text('id').primaryKey(),
-	accountId:             text('accountId').notNull(),
-	providerId:            text('providerId').notNull(),
-	userId:                text('userId').notNull().references(() => user.id),
-	accessToken:           text('accessToken'),
-	refreshToken:          text('refreshToken'),
-	idToken:               text('idToken'),
-	accessTokenExpiresAt:  integer('accessTokenExpiresAt', { mode: 'timestamp' }),
-	refreshTokenExpiresAt: integer('refreshTokenExpiresAt', { mode: 'timestamp' }),
-	scope:                 text('scope'),
-	password:              text('password'),
-	createdAt:             integer('createdAt', { mode: 'timestamp' }).notNull(),
-	updatedAt:             integer('updatedAt', { mode: 'timestamp' }).notNull(),
+export const waitlist = pgTable('waitlist', {
+	id:        serial('id').primaryKey(),
+	email:     text('email').notNull().unique(),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

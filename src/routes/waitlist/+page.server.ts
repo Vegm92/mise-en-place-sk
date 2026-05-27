@@ -1,5 +1,5 @@
 import { fail } from '@sveltejs/kit';
-import { insertEmail } from '$lib/server/waitlist-db';
+import { insertWaitlistEmail } from '$lib/server/waitlist-db';
 import type { Actions } from './$types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -12,9 +12,9 @@ export const actions: Actions = {
     if (!email) return fail(422, { error: 'required' });
     if (!EMAIL_RE.test(email)) return fail(422, { error: 'invalid' });
 
-    const result = insertEmail.run(email);
+    const inserted = await insertWaitlistEmail(email);
 
-    if (result.changes === 0) {
+    if (!inserted) {
       return { success: true, alreadyRegistered: true };
     }
 

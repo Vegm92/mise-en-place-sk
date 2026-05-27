@@ -11,7 +11,7 @@
     if (n == null) return '—';
     return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
   }
-  function fmtDate(s: string | null | undefined) {
+  function fmtDate(s: Date | string | null | undefined) {
     if (!s) return '—';
     const d = new Date(s);
     return isNaN(d.getTime()) ? s : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });

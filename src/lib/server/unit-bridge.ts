@@ -32,24 +32,25 @@ const CANONICAL_UNITS = new Set([
 	'sobre', 'sobres', 'lata', 'latas', 'botella', 'botellas',
 ]);
 
-export function resolveUnit(
+export async function resolveUnit(
 	supplierName: string,
 	description: string,
-	unit: string
-): { canonicalUnit: string; conversionFactor: number } | null {
+	unit: string,
+	restaurantId: string,
+): Promise<{ canonicalUnit: string; conversionFactor: number } | null> {
 	const normalizedSupplier = supplierName.trim().toLowerCase();
-	const rows = db
+	const rows = await db
 		.select()
 		.from(unitConversions)
 		.where(
 			and(
+				eq(unitConversions.restaurantId, restaurantId),
 				eq(unitConversions.supplierName, normalizedSupplier),
 				eq(unitConversions.ingredient, description),
 				eq(unitConversions.purchaseUnit, unit)
 			)
 		)
-		.limit(1)
-		.all();
+		.limit(1);
 	if (rows[0]) return rows[0];
 
 	// Fall back to pass-through for known canonical units.
@@ -59,13 +60,14 @@ export function resolveUnit(
 	return null;
 }
 
-export function annotateLineItems(
+export async function annotateLineItems(
 	supplierName: string,
-	items: LineItem[]
-): { enriched: EnrichedLineItem[]; conversionNotes: string[] } {
+	items: LineItem[],
+	restaurantId: string,
+): Promise<{ enriched: EnrichedLineItem[]; conversionNotes: string[] }> {
 	const conversionNotes: string[] = [];
 
-	const enriched: EnrichedLineItem[] = items.map((item) => {
+	const enriched: EnrichedLineItem[] = await Promise.all(items.map(async (item) => {
 		const unit = (item.unit ?? '').trim();
 		const description = (item.description ?? '').trim();
 
@@ -73,7 +75,7 @@ export function annotateLineItems(
 			return { ...item, canonicalUnit: null, requiresUnitConversion: false };
 		}
 
-		const rule = resolveUnit(supplierName, description, unit);
+		const rule = await resolveUnit(supplierName, description, unit, restaurantId);
 
 		if (rule && rule.conversionFactor > 0) {
 			const factor = rule.conversionFactor;
@@ -90,7 +92,7 @@ export function annotateLineItems(
 			`Unit '${unit}' is unknown for '${description}' (supplier: ${supplierName}). Awaiting conversion rule.`
 		);
 		return { ...item, canonicalUnit: null, requiresUnitConversion: true };
-	});
+	}));
 
 	return { enriched, conversionNotes };
 }

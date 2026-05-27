@@ -2,16 +2,17 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
 		const invoiceId = parseInt(params.id, 10);
+		const rid       = locals.restaurantId!;
 
 		const rows = await db
 			.select()
 			.from(systemNotifications)
-			.where(eq(systemNotifications.invoiceId, invoiceId));
+			.where(and(eq(systemNotifications.invoiceId, invoiceId), eq(systemNotifications.restaurantId, rid)));
 
 		const alerts = rows.map((row) => ({
 			id: row.id,

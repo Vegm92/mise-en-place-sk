@@ -4,12 +4,13 @@ import { db } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { asc, eq, and, ne } from 'drizzle-orm';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
-		const id = Number(params.id);
+		const id  = Number(params.id);
+		const rid = locals.restaurantId!;
 
-		const row = db
-			.select({
+		const [rows, lineItems] = await Promise.all([
+			db.select({
 				id:             invoices.id,
 				supplier_id:    invoices.supplierId,
 				supplier_name:  suppliers.name,
@@ -22,15 +23,12 @@ export const load: PageServerLoad = async ({ params }) => {
 				notes:          invoices.notes,
 				created_at:     invoices.createdAt,
 			})
-			.from(invoices)
-			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(eq(invoices.id, id))
-			.get();
+				.from(invoices)
+				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+				.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)))
+				.limit(1),
 
-		if (!row) redirect(303, '/invoices');
-
-		const lineItems = db
-			.select({
+			db.select({
 				id:          invoiceLineItems.id,
 				invoice_id:  invoiceLineItems.invoiceId,
 				description: invoiceLineItems.description,
@@ -39,16 +37,15 @@ export const load: PageServerLoad = async ({ params }) => {
 				unit_price:  invoiceLineItems.unitPrice,
 				total_price: invoiceLineItems.totalPrice,
 			})
-			.from(invoiceLineItems)
-			.where(eq(invoiceLineItems.invoiceId, id))
-			.orderBy(asc(invoiceLineItems.id))
-			.all();
+				.from(invoiceLineItems)
+				.where(eq(invoiceLineItems.invoiceId, id))
+				.orderBy(asc(invoiceLineItems.id)),
+		]);
 
-		return {
-			title: 'Edit Invoice',
-			invoice: row,
-			lineItems,
-		};
+		const row = rows[0];
+		if (!row) redirect(303, '/invoices');
+
+		return { title: 'Edit Invoice', invoice: row, lineItems };
 	} catch (e) {
 		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
 		console.error('[invoice/edit] load failed', e);
@@ -63,8 +60,9 @@ function toFloat(value: FormDataEntryValue | null): number | null {
 }
 
 export const actions: Actions = {
-	save: async ({ request, params }) => {
-		const id = Number(params.id);
+	save: async ({ request, params, locals }) => {
+		const id  = Number(params.id);
+		const rid = locals.restaurantId!;
 		const data = await request.formData();
 
 		const supplierName  = String(data.get('supplier_name') ?? '').trim();
@@ -72,8 +70,7 @@ export const actions: Actions = {
 		const invoiceDate   = String(data.get('invoice_date') ?? '').trim() || null;
 		const dueDate       = String(data.get('due_date') ?? '').trim() || null;
 		const totalAmount   = toFloat(data.get('total_amount'));
-		const notesRaw      = String(data.get('notes') ?? '').slice(0, 250);
-		const notes         = notesRaw || null;
+		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
 
 		const lineDescriptions = data.getAll('line_descriptions').map(String);
 		const lineQuantities   = data.getAll('line_quantities').map(String);
@@ -81,39 +78,42 @@ export const actions: Actions = {
 		const lineUnitPrices   = data.getAll('line_unit_prices').map(String);
 		const lineTotalPrices  = data.getAll('line_total_prices').map(String);
 
-		// Upsert supplier
 		let supplierId: number | null = null;
 		if (supplierName) {
 			const existing = await db.query.suppliers.findFirst({
-				where: eq(suppliers.name, supplierName),
+				where: and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, rid)),
 				columns: { id: true },
 			});
 			if (existing) {
 				supplierId = existing.id;
 			} else {
-				const inserted = await db.insert(suppliers).values({ name: supplierName }).returning({ id: suppliers.id });
+				const inserted = await db.insert(suppliers)
+					.values({ name: supplierName, restaurantId: rid })
+					.returning({ id: suppliers.id });
 				supplierId = inserted[0].id;
 			}
 		}
 
-		// Duplicate invoice number check (exclude current record)
 		if (supplierId && invoiceNumber) {
 			const duplicate = await db
 				.select({ id: invoices.id })
 				.from(invoices)
-				.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber), ne(invoices.id, id)))
+				.where(and(
+					eq(invoices.supplierId, supplierId),
+					eq(invoices.invoiceNumber, invoiceNumber),
+					ne(invoices.id, id),
+					eq(invoices.restaurantId, rid),
+				))
 				.limit(1);
 			if (duplicate.length > 0) {
 				return fail(409, { error: 'Invoice number already exists for this supplier.' });
 			}
 		}
 
-		// Update invoice
 		await db.update(invoices)
 			.set({ supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes })
-			.where(eq(invoices.id, id));
+			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
 
-		// Replace line items
 		await db.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id));
 
 		const newItems = lineDescriptions
@@ -128,7 +128,7 @@ export const actions: Actions = {
 
 		if (newItems.length > 0) {
 			await db.insert(invoiceLineItems).values(
-				newItems.map((item) => ({ invoiceId: id, ...item }))
+				newItems.map((item) => ({ invoiceId: id, restaurantId: rid, ...item }))
 			);
 		}
 

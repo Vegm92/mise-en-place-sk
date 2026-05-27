@@ -1,33 +1,58 @@
 import { env } from '$env/dynamic/private';
+import { createSupabaseAdminClient } from './supabase';
 import { db } from './db';
-import { user, account } from './schema';
-import { eq, sql } from 'drizzle-orm';
-import { randomUUID } from 'crypto';
+import { restaurants, userRestaurants } from './schema';
+import { eq } from 'drizzle-orm';
 
+/**
+ * Seeds the initial admin user and default restaurant on first startup.
+ * Requires AUTH_ADMIN_EMAIL, AUTH_ADMIN_PASSWORD, and AUTH_ADMIN_RESTAURANT_NAME.
+ * No-ops if the user already exists in Supabase Auth.
+ */
 export async function seedAdminUser(): Promise<void> {
-	const email    = env.AUTH_ADMIN_EMAIL;
-	const password = env.AUTH_ADMIN_PASSWORD;
+	const email        = env.AUTH_ADMIN_EMAIL;
+	const password     = env.AUTH_ADMIN_PASSWORD;
+	const restaurantName = env.AUTH_ADMIN_RESTAURANT_NAME ?? 'Mi Restaurante';
+
 	if (!email || !password) return;
 
-	const existing = db.select({ id: user.id }).from(user).where(eq(user.email, email)).get();
-	if (existing) return;
+	const supabase = createSupabaseAdminClient();
 
-	const { hashPassword } = await import('better-auth/crypto');
-	const hashed  = await hashPassword(password);
-	const nowMs   = Date.now();   // BetterAuth stores timestamps as INTEGER Unix ms
-	const userId  = randomUUID();
-	const accId   = randomUUID();
+	// Check if user already exists
+	const { data: existing } = await supabase.auth.admin.listUsers();
+	const alreadyExists = existing?.users?.some(u => u.email === email);
+	if (alreadyExists) return;
 
-	// Use raw sql to preserve Unix-ms integer format BetterAuth expects
-	db.run(sql`
-		INSERT INTO ${user} (id, name, email, emailVerified, createdAt, updatedAt)
-		VALUES (${userId}, ${email.split('@')[0]}, ${email}, 1, ${nowMs}, ${nowMs})
-	`);
+	// Create the user in Supabase Auth
+	const { data: created, error } = await supabase.auth.admin.createUser({
+		email,
+		password,
+		email_confirm: true,
+	});
 
-	db.run(sql`
-		INSERT INTO ${account} (id, accountId, providerId, userId, password, createdAt, updatedAt)
-		VALUES (${accId}, ${email}, 'credential', ${userId}, ${hashed}, ${nowMs}, ${nowMs})
-	`);
+	if (error || !created?.user) {
+		console.error('[auth-seed] Failed to create admin user:', error?.message);
+		return;
+	}
 
-	console.log(`[auth] Admin user seeded: ${email}`);
+	// Create default restaurant
+	const slug = restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+	const [restaurant] = await db
+		.insert(restaurants)
+		.values({ name: restaurantName, slug })
+		.returning();
+
+	if (!restaurant) {
+		console.error('[auth-seed] Failed to create default restaurant');
+		return;
+	}
+
+	// Link user → restaurant
+	await db.insert(userRestaurants).values({
+		userId:       created.user.id,
+		restaurantId: restaurant.id,
+		role:         'owner',
+	});
+
+	console.log(`[auth-seed] Admin seeded: ${email} → restaurant "${restaurantName}"`);
 }

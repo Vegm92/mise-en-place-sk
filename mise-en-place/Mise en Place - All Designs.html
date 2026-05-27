@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mise en Place · All Designs</title>
+
+<!-- Mona Sans + JetBrains Mono -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Design tokens -->
+<link rel="stylesheet" href="app/tokens.css" />
+
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; }
+  body { font-family: 'Mona Sans', system-ui, sans-serif; }
+  @keyframes mepspin { to { transform: rotate(360deg); } }
+</style>
+
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Sample data (no Babel needed) -->
+<script src="app/data.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- ─── Component library (shared) ─── -->
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="app/icons.jsx"></script>
+<script type="text/babel" src="app/tweaks-panel.jsx"></script>
+
+<!-- Main app components -->
+<script type="text/babel" src="app/shell.jsx"></script>
+<script type="text/babel" src="app/dashboard.jsx"></script>
+<script type="text/babel" src="app/upload.jsx"></script>
+<script type="text/babel" src="app/invoice-list.jsx"></script>
+<script type="text/babel" src="app/invoice-detail.jsx"></script>
+<script type="text/babel" src="app/suppliers.jsx"></script>
+<script type="text/babel" src="app/budgets.jsx"></script>
+<script type="text/babel" src="app/analytics.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="app/mobile.jsx"></script>
+
+<!-- Admin -->
+<script type="text/babel" src="app/admin.jsx"></script>
+
+<!-- Waitlist -->
+<script type="text/babel" src="app/waitlist-shared.jsx"></script>
+<script type="text/babel" src="app/waitlist-variants-ab.jsx"></script>
+<script type="text/babel" src="app/waitlist-variant-c.jsx"></script>
+
+<!-- ─── Merged canvas (combines everything) ─── -->
+<script type="text/babel">
+const { X } = window.MEPIcons;
+
+// Desktop + iPhone artboard sizes (from app/canvas.jsx)
+const W       = 1440;
+const H_DASH  = 1100;
+const H_FLOW  = 900;
+const H_LIST  = 880;
+const H_DETAIL= 1100;
+const MOB_W   = 442;
+const MOB_H   = 914;
+
+// Wrapper — same as in app/canvas.jsx
+function Artboard({ theme = 'light', accent = 'amber', density = 'default',
+  active, title, crumbs, periodLabel = 'Mayo 2026', children, screenLabel,
+  actions }) {
+  return (
+    <MEPShell theme={theme} accent={accent} density={density} active={active} screenLabel={screenLabel}>
+      {({ theme: t, setTheme, isDark }) => (
+        <React.Fragment>
+          <MEPTopBar title={title} crumbs={crumbs} periodLabel={periodLabel}
+            isDark={isDark} onThemeToggle={() => setTheme(isDark ? 'light' : 'dark')}
+            actions={actions} />
+          {typeof children === 'function' ? children({ isDark }) : children}
+        </React.Fragment>
+      )}
+    </MEPShell>
+  );
+}
+
+function MobileArtboard({ dark = false, children, screenLabel }) {
+  return (
+    <div data-screen-label={screenLabel} style={{
+      width: '100%', height: '100%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: dark ? '#1f1b16' : '#f0eee9',
+    }}>
+      <IOSDevice width={402} height={874} dark={dark}>
+        {children}
+      </IOSDevice>
+    </div>
+  );
+}
+
+// Waitlist artboard sizing
+const WL_W = 1280;
+const WL_H = { A: 5200, B: 4700, C: 5300 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Section heading row inserted between major design areas. It uses a faux
+// DCSection wrapper (an extra-wide DCSection title) to act as a divider.
+// ─────────────────────────────────────────────────────────────────────────
+
+const SUITE_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "wlTheme": "auto",
+  "wlHeadline": "auto",
+  "wlShowFounder": true,
+  "wlShowFAQ": true,
+  "wlShowSpotCounter": true
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(SUITE_DEFAULTS);
+
+  const resolveTheme = (v) =>
+    tweaks.wlTheme === 'auto' ? (v === 'C' ? 'dark' : 'light') : tweaks.wlTheme;
+  const resolveHeadline = (v) =>
+    tweaks.wlHeadline === 'auto'
+      ? (v === 'A' ? 'brain' : v === 'B' ? 'craft' : 'direct')
+      : tweaks.wlHeadline;
+  const wlShow = {
+    founder:     tweaks.wlShowFounder,
+    faq:         tweaks.wlShowFAQ,
+    spotCounter: tweaks.wlShowSpotCounter,
+  };
+
+  return (
+    <React.Fragment>
+      <DesignCanvas minScale={0.03} maxScale={3}>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            PART I — PRODUCT (the main app)
+            ═══════════════════════════════════════════════════════════════ */}
+
+        <DCSection id="dashboard"
+          title="I.01 · Resumen — escritorio"
+          subtitle="Pantalla de inicio. Tres direcciones del mismo conjunto de datos.">
+
+          <DCArtboard id="dash-a-light" label="A · KPI strip + alertas (claro)"
+            width={W} height={H_DASH}>
+            <Artboard active="dashboard" title="Resumen" screenLabel="I.01 Dashboard · KPI strip · claro">
+              <MEPDashboardMain />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="dash-a-dark" label="A · KPI strip + alertas (oscuro)"
+            width={W} height={H_DASH}>
+            <Artboard theme="dark" active="dashboard" title="Resumen" screenLabel="I.01 Dashboard · KPI strip · oscuro">
+              <MEPDashboardMain />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="dash-b" label="B · Banner de alerta"
+            width={W} height={H_DASH}>
+            <Artboard active="dashboard" title="Resumen" screenLabel="I.01 Dashboard · alert-first">
+              <MEPDashboardAlertFirst />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="dash-c" label="C · Hoy / próximo / contexto"
+            width={W} height={H_DASH}>
+            <Artboard active="dashboard" title="Resumen" screenLabel="I.01 Dashboard · now/next/context">
+              <MEPDashboardNowNext />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="dash-c-dark" label="C · Oscuro"
+            width={W} height={H_DASH}>
+            <Artboard theme="dark" active="dashboard" title="Resumen" screenLabel="I.01 Dashboard · now/next/context · oscuro">
+              <MEPDashboardNowNext />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="upload"
+          title="I.02 · Subir factura — escritorio"
+          subtitle="Flujo de tres pasos: soltar, extraer, revisar.">
+
+          <DCArtboard id="up-1" label="① Soltar archivos" width={W} height={H_FLOW}>
+            <Artboard active="invoices" title="Subir factura" periodLabel={null}
+              crumbs={['Facturas', 'Nueva']}
+              actions={<button className="btn btn-ghost"><X size={14}/> Cancelar</button>}
+              screenLabel="I.02 Upload · paso 1 · soltar">
+              <MEPUploadDrop />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="up-2" label="② Extrayendo" width={W} height={H_FLOW}>
+            <Artboard active="invoices" title="Subir factura" periodLabel={null}
+              crumbs={['Facturas', 'Nueva']}
+              actions={<button className="btn btn-ghost"><X size={14}/> Cancelar</button>}
+              screenLabel="I.02 Upload · paso 2 · extrayendo">
+              <MEPUploadExtracting />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="up-3" label="③ Revisar datos" width={W} height={H_FLOW}>
+            <Artboard active="invoices" title="Subir factura" periodLabel={null}
+              crumbs={['Facturas', 'Nueva']}
+              actions={null}
+              screenLabel="I.02 Upload · paso 3 · revisar">
+              <MEPUploadReview />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="up-3-dark" label="③ Revisar (oscuro)" width={W} height={H_FLOW}>
+            <Artboard theme="dark" active="invoices" title="Subir factura" periodLabel={null}
+              crumbs={['Facturas', 'Nueva']}
+              actions={null}
+              screenLabel="I.02 Upload · paso 3 · revisar · oscuro">
+              <MEPUploadReview />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="list"
+          title="I.03 · Listado de facturas — escritorio"
+          subtitle="Vista de auditoría. Densidad alta, filtros visibles, acciones masivas.">
+
+          <DCArtboard id="list-light" label="Listado (claro)" width={W} height={H_LIST}>
+            <Artboard active="invoices" title="Facturas" screenLabel="I.03 Invoice list · claro">
+              <MEPInvoiceList />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="list-dark" label="Listado (oscuro)" width={W} height={H_LIST}>
+            <Artboard theme="dark" active="invoices" title="Facturas" screenLabel="I.03 Invoice list · oscuro">
+              <MEPInvoiceList />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="list-compact" label="Listado · densidad compacta" width={W} height={H_LIST}>
+            <Artboard active="invoices" title="Facturas" density="compact"
+              screenLabel="I.03 Invoice list · compacto">
+              <MEPInvoiceList />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="detail"
+          title="I.04 · Detalle de factura — escritorio"
+          subtitle="Documento + datos + historial.">
+
+          <DCArtboard id="det-light" label="Detalle (claro)" width={W} height={H_DETAIL}>
+            <Artboard active="invoices" title="Factura 2026-A-0471"
+              periodLabel={null} actions={null}
+              screenLabel="I.04 Invoice detail · claro">
+              <MEPInvoiceDetail />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="det-dark" label="Detalle (oscuro)" width={W} height={H_DETAIL}>
+            <Artboard theme="dark" active="invoices" title="Factura 2026-A-0471"
+              periodLabel={null} actions={null}
+              screenLabel="I.04 Invoice detail · oscuro">
+              <MEPInvoiceDetail />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="suppliers"
+          title="I.05 · Proveedores — escritorio"
+          subtitle="Listado completo + perfil con pestañas.">
+
+          <DCArtboard id="sup-list" label="Listado" width={W} height={H_LIST}>
+            <Artboard active="suppliers" title="Proveedores" periodLabel={null}
+              actions={null} screenLabel="I.05 Suppliers · listado">
+              <MEPSuppliersList />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="sup-list-dark" label="Listado (oscuro)" width={W} height={H_LIST}>
+            <Artboard theme="dark" active="suppliers" title="Proveedores" periodLabel={null}
+              actions={null} screenLabel="I.05 Suppliers · listado · oscuro">
+              <MEPSuppliersList />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="sup-profile" label="Perfil · Pescados Atlántico"
+            width={W} height={1280}>
+            <Artboard active="suppliers" title="Pescados Atlántico Vigo" periodLabel={null}
+              actions={null} screenLabel="I.05 Suppliers · perfil">
+              <MEPSupplierProfile />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="budgets"
+          title="I.06 · Presupuestos — escritorio"
+          subtitle="Una sola pantalla. Edición en línea, proyección de cierre, alerta global.">
+
+          <DCArtboard id="bud-light" label="Presupuestos (claro)" width={W} height={1080}>
+            <Artboard active="budgets" title="Presupuestos" periodLabel={null}
+              actions={null} screenLabel="I.06 Budgets · claro">
+              <MEPBudgets />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="bud-dark" label="Presupuestos (oscuro)" width={W} height={1080}>
+            <Artboard theme="dark" active="budgets" title="Presupuestos" periodLabel={null}
+              actions={null} screenLabel="I.06 Budgets · oscuro">
+              <MEPBudgets />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="analytics-spend"
+          title="I.07 · Análisis · Gasto"
+          subtitle="¿Dónde va el dinero? Stacked bars + supplier ranking + day-of-week + MoM.">
+
+          <DCArtboard id="ana-spend-light" label="Análisis de gasto" width={W} height={1300}>
+            <Artboard active="spend" title="Análisis · Gasto" periodLabel={null}
+              actions={null} screenLabel="I.07 Analytics · spend · claro">
+              <MEPAnalyticsSpend />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="ana-spend-dark" label="Análisis de gasto (oscuro)" width={W} height={1300}>
+            <Artboard theme="dark" active="spend" title="Análisis · Gasto" periodLabel={null}
+              actions={null} screenLabel="I.07 Analytics · spend · oscuro">
+              <MEPAnalyticsSpend />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="analytics-prices"
+          title="I.08 · Análisis · Precios"
+          subtitle="¿Qué precios están cambiando? Grid de tarjetas, ordenado por magnitud del cambio.">
+
+          <DCArtboard id="ana-prices-light" label="Análisis de precios" width={W} height={1280}>
+            <Artboard active="prices" title="Análisis · Precios" periodLabel={null}
+              actions={null} screenLabel="I.08 Analytics · prices · claro">
+              <MEPAnalyticsPrices />
+            </Artboard>
+          </DCArtboard>
+
+          <DCArtboard id="ana-prices-dark" label="Análisis de precios (oscuro)" width={W} height={1280}>
+            <Artboard theme="dark" active="prices" title="Análisis · Precios" periodLabel={null}
+              actions={null} screenLabel="I.08 Analytics · prices · oscuro">
+              <MEPAnalyticsPrices />
+            </Artboard>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="mobile"
+          title="I.09 · Móvil"
+          subtitle="iPhone — pensado para el restaurante en hora punta.">
+
+          <DCArtboard id="mob-dash" label="Resumen" width={MOB_W} height={MOB_H}>
+            <MobileArtboard screenLabel="I.09 Mobile · dashboard">
+              <MEPMobileShell title="Resumen" tab="home">
+                <MEPMobileDashboard />
+              </MEPMobileShell>
+            </MobileArtboard>
+          </DCArtboard>
+
+          <DCArtboard id="mob-dash-dark" label="Resumen (oscuro)" width={MOB_W} height={MOB_H}>
+            <MobileArtboard dark screenLabel="I.09 Mobile · dashboard · oscuro">
+              <MEPMobileShell title="Resumen" tab="home" theme="dark">
+                <MEPMobileDashboard />
+              </MEPMobileShell>
+            </MobileArtboard>
+          </DCArtboard>
+
+          <DCArtboard id="mob-camera" label="Capturar factura" width={MOB_W} height={MOB_H}>
+            <MobileArtboard dark screenLabel="I.09 Mobile · cámara">
+              <MEPMobileUploadCamera />
+            </MobileArtboard>
+          </DCArtboard>
+
+          <DCArtboard id="mob-review" label="Revisar extracción" width={MOB_W} height={MOB_H}>
+            <MobileArtboard screenLabel="I.09 Mobile · revisar">
+              <MEPMobileReview />
+            </MobileArtboard>
+          </DCArtboard>
+
+          <DCArtboard id="mob-list" label="Listado de facturas" width={MOB_W} height={MOB_H}>
+            <MobileArtboard screenLabel="I.09 Mobile · facturas">
+              <MEPMobileInvoiceList />
+            </MobileArtboard>
+          </DCArtboard>
+
+          <DCArtboard id="mob-detail" label="Detalle de factura" width={MOB_W} height={MOB_H}>
+            <MobileArtboard screenLabel="I.09 Mobile · detalle">
+              <MEPMobileInvoiceDetail />
+            </MobileArtboard>
+          </DCArtboard>
+        </DCSection>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            PART II — ADMIN
+            ═══════════════════════════════════════════════════════════════ */}
+
+        <DCSection id="admin-overview"
+          title="II.01 · Admin — Overview (/admin)"
+          subtitle="System-wide KPIs, pending alerts and a system-health summary. Light + dark.">
+
+          <DCArtboard id="adm-ov-light" label="Overview · light"
+            width={W} height={720}>
+            <AdminArtboard page="overview" theme="light"
+              screenLabel="II.01 Admin · overview · light" />
+          </DCArtboard>
+
+          <DCArtboard id="adm-ov-dark" label="Overview · dark"
+            width={W} height={720}>
+            <AdminArtboard page="overview" theme="dark"
+              screenLabel="II.01 Admin · overview · dark" />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="admin-health"
+          title="II.02 · Admin — Health (/admin/health)"
+          subtitle="Endpoint payload for external uptime monitors.">
+
+          <DCArtboard id="adm-hl-light" label="Health · OK (light)"
+            width={W} height={880}>
+            <AdminArtboard page="health" theme="light"
+              screenLabel="II.02 Admin · health · light" />
+          </DCArtboard>
+
+          <DCArtboard id="adm-hl-dark" label="Health · OK (dark)"
+            width={W} height={880}>
+            <AdminArtboard page="health" theme="dark"
+              screenLabel="II.02 Admin · health · dark" />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="admin-events"
+          title="II.03 · Admin — Events (/admin/events)"
+          subtitle="Greyed-out locked state until issue #29 ships the events table.">
+
+          <DCArtboard id="adm-ev-light" label="Events · locked (light)"
+            width={W} height={720}>
+            <AdminArtboard page="events" theme="light"
+              screenLabel="II.03 Admin · events · light" />
+          </DCArtboard>
+
+          <DCArtboard id="adm-ev-dark" label="Events · locked (dark)"
+            width={W} height={720}>
+            <AdminArtboard page="events" theme="dark"
+              screenLabel="II.03 Admin · events · dark" />
+          </DCArtboard>
+        </DCSection>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            PART III — WAITLIST
+            ═══════════════════════════════════════════════════════════════ */}
+
+        <DCSection id="wl-refined"
+          title="III.A · Waitlist — Refined"
+          subtitle="Centered hero, classic structure, light + one dark slab. The safe pick.">
+
+          <DCArtboard id="wl-refined-main" label="Refined · auto"
+            width={WL_W} height={WL_H.A}>
+            <WLVariantA theme={resolveTheme('A')} headlineKey={resolveHeadline('A')} show={wlShow} />
+          </DCArtboard>
+
+          <DCArtboard id="wl-refined-dark" label="Refined · dark"
+            width={WL_W} height={WL_H.A}>
+            <WLVariantA theme="dark" headlineKey={resolveHeadline('A')} show={wlShow} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="wl-editorial"
+          title="III.B · Waitlist — Editorial"
+          subtitle="Magazine-issue layout with masthead, byline rails, italic display.">
+
+          <DCArtboard id="wl-editorial-main" label="Editorial · auto"
+            width={WL_W} height={WL_H.B}>
+            <WLVariantB theme={resolveTheme('B')} headlineKey={resolveHeadline('B')} show={wlShow} />
+          </DCArtboard>
+
+          <DCArtboard id="wl-editorial-dark" label="Editorial · dark"
+            width={WL_W} height={WL_H.B}>
+            <WLVariantB theme="dark" headlineKey={resolveHeadline('B')} show={wlShow} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="wl-experimental"
+          title="III.C · Waitlist — Experimental"
+          subtitle="Dark-first split hero, floating product stack, live ticker, sticker callouts.">
+
+          <DCArtboard id="wl-exp-main" label="Experimental · auto"
+            width={WL_W} height={WL_H.C}>
+            <WLVariantC theme={resolveTheme('C')} headlineKey={resolveHeadline('C')} show={wlShow} />
+          </DCArtboard>
+
+          <DCArtboard id="wl-exp-light" label="Experimental · light"
+            width={WL_W} height={WL_H.C}>
+            <WLVariantC theme="light" headlineKey={resolveHeadline('C')} show={wlShow} />
+          </DCArtboard>
+        </DCSection>
+
+      </DesignCanvas>
+
+      {/* Tweaks panel — controls the waitlist artboards only */}
+      <TweaksPanel title="Suite tweaks">
+        <TweakSection label="Waitlist · theme">
+          <TweakRadio
+            label="Mode"
+            options={[
+              { value: 'auto',  label: 'Auto' },
+              { value: 'light', label: 'Light' },
+              { value: 'dark',  label: 'Dark' },
+            ]}
+            value={tweaks.wlTheme}
+            onChange={(v) => setTweak('wlTheme', v)} />
+        </TweakSection>
+
+        <TweakSection label="Waitlist · headline">
+          <TweakSelect
+            label="Variant"
+            options={[
+              { value: 'auto',   label: 'Auto · each variant picks its own' },
+              { value: 'brain',  label: 'El cerebro operativo de tu cocina.' },
+              { value: 'direct', label: 'Sabe en qué gasta tu cocina, antes que tú.' },
+              { value: 'craft',  label: 'Tus facturas, leídas. Tu margen, defendido.' },
+            ]}
+            value={tweaks.wlHeadline}
+            onChange={(v) => setTweak('wlHeadline', v)} />
+        </TweakSection>
+
+        <TweakSection label="Waitlist · sections">
+          <TweakToggle
+            label="Founder note"
+            value={tweaks.wlShowFounder}
+            onChange={(v) => setTweak('wlShowFounder', v)} />
+          <TweakToggle
+            label="FAQ accordion"
+            value={tweaks.wlShowFAQ}
+            onChange={(v) => setTweak('wlShowFAQ', v)} />
+          <TweakToggle
+            label="Spot counter (43 / 50)"
+            value={tweaks.wlShowSpotCounter}
+            onChange={(v) => setTweak('wlShowSpotCounter', v)} />
+        </TweakSection>
+      </TweaksPanel>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+
+</body>
+</html>

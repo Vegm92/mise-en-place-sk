@@ -17,28 +17,34 @@ export interface Alert {
 	payload: Record<string, unknown>;
 }
 
-export function runPriceShock(
+export async function runPriceShock(
 	invoiceId: number,
 	supplierName: string,
-	lineItems: EnrichedLineItem[]
-): Alert[] {
+	lineItems: EnrichedLineItem[],
+	restaurantId: string,
+): Promise<Alert[]> {
 	const alerts: Alert[] = [];
 
-	const thresholdRow = db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'price_alert_threshold')).limit(1).all();
-	const PRICE_SHOCK_THRESHOLD = thresholdRow[0] ? parseFloat(thresholdRow[0].value) : 0.15;
+	const thresholdRows = await db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(and(eq(settings.restaurantId, restaurantId), eq(settings.key, 'price_alert_threshold')))
+		.limit(1);
+	const PRICE_SHOCK_THRESHOLD = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
 
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();
 		const newPrice = item.unitPrice;
 		if (!description || newPrice == null) continue;
 
-		const rows = db
+		const rows = await db
 			.select({ unitPrice: invoiceLineItems.unitPrice })
 			.from(invoiceLineItems)
 			.innerJoin(invoices, eq(invoiceLineItems.invoiceId, invoices.id))
 			.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
 			.where(
 				and(
+					eq(invoices.restaurantId, restaurantId),
 					eq(invoiceLineItems.description, description),
 					eq(suppliers.name, supplierName),
 					ne(invoiceLineItems.invoiceId, invoiceId),
@@ -46,8 +52,7 @@ export function runPriceShock(
 				)
 			)
 			.orderBy(desc(invoices.invoiceDate), desc(invoices.id))
-			.limit(1)
-			.all();
+			.limit(1);
 
 		if (!rows[0]) continue;
 
@@ -70,23 +75,25 @@ export function runPriceShock(
 	return alerts;
 }
 
-export function runStockForecast(lineItems: EnrichedLineItem[]): Alert[] {
+export async function runStockForecast(lineItems: EnrichedLineItem[], restaurantId: string): Promise<Alert[]> {
 	const alerts: Alert[] = [];
 
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();
 		if (!description) continue;
 
-		const rows = db
+		const rows = await db
 			.select({
 				currentStock: stockLevels.currentStock,
 				dailyBurnRate: stockLevels.dailyBurnRate,
 				canonicalUnit: stockLevels.canonicalUnit,
 			})
 			.from(stockLevels)
-			.where(eq(stockLevels.ingredient, description))
-			.limit(1)
-			.all();
+			.where(and(
+				eq(stockLevels.restaurantId, restaurantId),
+				eq(stockLevels.ingredient, description),
+			))
+			.limit(1);
 
 		const row = rows[0];
 		if (row?.currentStock == null || row.dailyBurnRate == null || row.dailyBurnRate === 0) continue;
@@ -114,31 +121,45 @@ export function runStockForecast(lineItems: EnrichedLineItem[]): Alert[] {
 	return alerts;
 }
 
-export function runBudgetCheck(invoiceId: number, supplierId: number): Alert[] {
+export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
 	// 1. Supplier category
-	const supplierRow = db.select({ category: suppliers.category }).from(suppliers).where(eq(suppliers.id, supplierId)).limit(1).all();
-	const category = supplierRow[0]?.category;
+	const supplierRows = await db
+		.select({ category: suppliers.category })
+		.from(suppliers)
+		.where(and(eq(suppliers.restaurantId, restaurantId), eq(suppliers.id, supplierId)))
+		.limit(1);
+	const category = supplierRows[0]?.category;
 	if (!category) return [];
 
 	// 2. Warning threshold (stored as 0-100 integer in settings, default 80)
-	const thresholdRow = db.select({ value: settings.value }).from(settings).where(eq(settings.key, 'budget_warning_threshold')).limit(1).all();
-	const thresholdPct = thresholdRow[0] ? parseInt(thresholdRow[0].value, 10) : 80;
+	const thresholdRows = await db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(and(eq(settings.restaurantId, restaurantId), eq(settings.key, 'budget_warning_threshold')))
+		.limit(1);
+	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
 	const thresholdFrac = thresholdPct / 100;
 
 	// 3. Monthly budget for category
-	const budgetRow = db.select({ monthlyBudget: categoryBudgets.monthlyBudget }).from(categoryBudgets).where(eq(categoryBudgets.category, category)).limit(1).all();
-	const monthlyBudget = budgetRow[0]?.monthlyBudget;
+	const budgetRows = await db
+		.select({ monthlyBudget: categoryBudgets.monthlyBudget })
+		.from(categoryBudgets)
+		.where(and(eq(categoryBudgets.restaurantId, restaurantId), eq(categoryBudgets.category, category)))
+		.limit(1);
+	const monthlyBudget = budgetRows[0]?.monthlyBudget;
 	if (!monthlyBudget || monthlyBudget <= 0) return [];
 
-	// 4. This month's spend for category (all statuses, matching dashboard logic)
-	const spendRow = db.get<{ total: number }>(sql`
-		SELECT COALESCE(SUM(COALESCE(i.total_amount, 0)), 0) AS total
-		FROM ${invoices} i
-		JOIN ${suppliers} s ON i.supplier_id = s.id
-		WHERE COALESCE(s.category, 'Other') = ${category}
-		  AND strftime('%Y-%m', i.invoice_date) = strftime('%Y-%m', 'now')
-	`);
-	const totalSpend = spendRow?.total ?? 0;
+	// 4. This month's spend for category
+	const spendRows = await db
+		.select({ total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
+		.from(invoices)
+		.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
+		.where(and(
+			eq(invoices.restaurantId, restaurantId),
+			sql`COALESCE(${suppliers.category}, 'Other') = ${category}`,
+			sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
+		));
+	const totalSpend = spendRows[0]?.total ?? 0;
 	const pctFrac = totalSpend / monthlyBudget;
 
 	// 5. Determine alert level
@@ -147,11 +168,14 @@ export function runBudgetCheck(invoiceId: number, supplierId: number): Alert[] {
 
 	// 6. Dedup: one alert per category+level per calendar month
 	const monthPrefix = new Date().toISOString().slice(0, 7);
-	const existingRows = db.all<{ payload: string | null }>(sql`
-		SELECT payload FROM ${systemNotifications}
-		WHERE notification_type = 'budget_overage'
-		  AND strftime('%Y-%m', created_at) = ${monthPrefix}
-	`);
+	const existingRows = await db
+		.select({ payload: systemNotifications.payload })
+		.from(systemNotifications)
+		.where(and(
+			eq(systemNotifications.restaurantId, restaurantId),
+			eq(systemNotifications.notificationType, 'budget_overage'),
+			sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`
+		));
 	const alreadySent = existingRows.some(row => {
 		try {
 			const p = JSON.parse(row.payload ?? '{}');
