@@ -50,11 +50,18 @@
 
 <!-- Mobile suppliers -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileSuppliersList suppliers={data.suppliers} />
+  <MobileSuppliersList
+    suppliers={data.suppliers}
+    categories={data.categories}
+    totalSpend={totalSpend}
+    totalMonthInvoices={totalMonthInvoices}
+    unassigned={unassigned}
+    firstUnassigned={firstUnassigned}
+  />
 </div>
 
 <!-- Desktop suppliers -->
-<div class="max-md:hidden" style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
+<div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
     <!-- Filter bar -->
