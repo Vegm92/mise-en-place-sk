@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { fmtEur } from '$lib/formatters';
   import { Search, ChevronRight, Plus } from 'lucide-svelte';
+  import MobileSuppliersList from '$lib/components/mobile/MobileSuppliersList.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -33,6 +34,11 @@
     return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
   }
 
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  function isNew(createdAt: Date | null) {
+    return createdAt ? new Date(createdAt) >= thirtyDaysAgo : false;
+  }
+
   function deltaColor(v: number) {
     return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
   }
@@ -42,7 +48,13 @@
   }
 </script>
 
-<div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
+<!-- Mobile suppliers -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileSuppliersList suppliers={data.suppliers} />
+</div>
+
+<!-- Desktop suppliers -->
+<div class="max-md:hidden" style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
     <!-- Filter bar -->
@@ -67,7 +79,7 @@
         <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
       </div>
       <!-- Activity chip (cosmetic) -->
-      <button class="btn btn-secondary" style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;" disabled>
+      <button class="btn btn-secondary max-[1050px]:hidden" style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;white-space:nowrap;flex-shrink:0;" disabled>
         Actividad: Últimos 30 d <span style="font-size:10px;margin-left:2px;">▾</span>
       </button>
       <div style="flex:1;"></div>
@@ -77,7 +89,7 @@
     </div>
 
     <!-- Summary strip -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex-shrink:0;">
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">Proveedores activos</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.suppliers.length}</div>
@@ -123,12 +135,13 @@
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:30%;">Proveedor</th>
-                <th style="width:130px;">Categoría</th>
-                <th class="num" style="width:80px;">Facturas</th>
-                <th class="num" style="width:120px;">Gasto (mes)</th>
-                <th class="num" style="width:70px;">Δ</th>
-                <th style="width:110px;">Último pedido</th>
+                <th style="width:28%;">Proveedor</th>
+                <th style="width:100px;">CIF/NIF</th>
+                <th style="width:120px;">Categoría</th>
+                <th class="num" style="width:75px;">Facturas</th>
+                <th class="num" style="width:115px;">Gasto (mes)</th>
+                <th class="num" style="width:65px;">Δ</th>
+                <th style="width:100px;">Último pedido</th>
                 <th style="width:32px;"></th>
               </tr>
             </thead>
@@ -145,8 +158,16 @@
                       ">{initials(s.name)}</span>
                       <span style="font-size:13px;font-weight:500;color:var(--mep-fg);
                         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</span>
+                      {#if isNew(s.createdAt)}
+                        <span style="
+                          flex-shrink:0;font-size:9px;font-weight:700;
+                          background:var(--mep-acc-soft);color:var(--mep-acc);
+                          padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
+                        ">NUEVO</span>
+                      {/if}
                     </div>
                   </td>
+                  <td style="font-size:12px;color:var(--mep-fg-3);">{s.cif ?? '—'}</td>
                   <td>
                     <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
                       color:{s.category === 'Other' ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};

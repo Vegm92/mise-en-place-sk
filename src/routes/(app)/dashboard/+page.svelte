@@ -6,11 +6,20 @@
   import SupplierRow from '$lib/components/mep/SupplierRow.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import AlertRow from '$lib/components/mep/AlertRow.svelte';
+  import MobileDashboard from '$lib/components/mobile/MobileDashboard.svelte';
   import { Bell, TriangleAlert, ChevronRight, X } from 'lucide-svelte';
   import { t } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
 
   let { data }: { data: PageData } = $props();
+
+  const mobileAlertText = $derived.by(() => {
+    const shocks = (data.price_shock_alerts as Array<{ payload: { ingredient?: string; deviationPct?: number } | null }>)
+      .filter(a => a.payload?.ingredient)
+      .slice(0, 2)
+      .map(a => `${a.payload!.ingredient} ${(a.payload!.deviationPct ?? 0) > 0 ? '+' : ''}${Math.round(a.payload!.deviationPct ?? 0)}%`);
+    return shocks.length ? shocks.join(' · ') : 'Revisa tus alertas de precio';
+  });
 
   let remindersDismissed = $state(false);
   let firstInvoiceDismissed = $state(false);
@@ -81,7 +90,28 @@
   );
 </script>
 
-<div class="flex flex-col gap-4 p-6">
+<!-- Mobile dashboard -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileDashboard
+    monthSpend={data.mom.this_month}
+    monthDelta={data.mom.pct_change}
+    totalInvoices={data.pending.count + data.paid_month.count}
+    sparkData={data.spark_data}
+    pendingAmount={data.pending.amount}
+    pendingCount={data.pending.count}
+    budgetPct={data.total_pct_actual}
+    totalBudget={data.total_budget}
+    projectedEom={data.projection?.projected_eom ?? null}
+    highAlerts={data.alert_counts.high}
+    medAlerts={data.alert_counts.med}
+    alertText={mobileAlertText}
+    suppliers={supplierRows}
+    recentInvoices={data.recent_invoices}
+  />
+</div>
+
+<!-- Desktop dashboard -->
+<div class="max-md:hidden flex flex-col gap-4 p-6">
 
   <!-- ── First Invoice Banner ───────────────────────────────────────── -->
   {#if data.firstInvoice && !firstInvoiceDismissed}
@@ -201,6 +231,7 @@
       actionLabel="Ver todas"
       noPad
     >
+      <div class="overflow-x-auto">
       <table class="tbl" style="border-top:1px solid var(--mep-divider);">
         <thead>
           <tr>
@@ -235,6 +266,7 @@
           {/each}
         </tbody>
       </table>
+      </div>
     </SectionCard>
   {/if}
 
@@ -272,6 +304,7 @@
       noPad
     >
       {#if data.recent_invoices.length}
+        <div class="overflow-x-auto">
         <table class="tbl">
           <thead>
             <tr>
@@ -302,6 +335,7 @@
             {/each}
           </tbody>
         </table>
+        </div>
       {:else}
         <p class="body p-4">{$t('misc.noData')}</p>
       {/if}

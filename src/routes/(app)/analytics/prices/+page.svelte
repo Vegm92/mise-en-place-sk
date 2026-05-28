@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { t } from '$lib/i18n';
   import { Search } from 'lucide-svelte';
+  import MobileAnalyticsPrices from '$lib/components/mobile/MobileAnalyticsPrices.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -55,7 +56,18 @@
   ];
 </script>
 
-<div style="height:100%;overflow:auto;">
+<!-- Mobile prices analytics -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileAnalyticsPrices
+    items={data.items}
+    totalUp={totalUp}
+    totalDown={totalDown}
+    totalFlat={totalFlat}
+  />
+</div>
+
+<!-- Desktop prices analytics -->
+<div class="max-md:hidden" style="height:100%;overflow:auto;">
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <!-- Header -->
@@ -94,7 +106,7 @@
     </div>
 
     <!-- Summary strip -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">Productos seguidos</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.items.length}</div>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { t } from '$lib/i18n';
+  import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -16,7 +17,18 @@
   }
 </script>
 
-<div style="height:100%;overflow:auto;">
+<!-- Mobile spend analytics -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileAnalyticsSpend
+    period={data.period}
+    kpis={data.kpis}
+    top_items={data.top_items}
+    category_spend={data.category_spend}
+  />
+</div>
+
+<!-- Desktop spend analytics -->
+<div class="max-md:hidden" style="height:100%;overflow:auto;">
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <!-- Header + period picker -->
@@ -38,7 +50,7 @@
     </div>
 
     <!-- KPI row -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{$t('spend.totalSpend')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{fmtEur(data.kpis.total_items_spend)}</div>

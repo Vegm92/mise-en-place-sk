@@ -77,7 +77,7 @@
                 <th class="num" style="width:160px;">Presupuesto</th>
                 <th class="num" style="width:130px;">Gastado</th>
                 <th class="num" style="width:130px;">Restante</th>
-                <th style="width:100%;">Progreso</th>
+                <th style="min-width:120px;">Progreso</th>
                 <th class="num" style="width:70px;">%</th>
                 <th style="width:100px;">Proyección</th>
               </tr>

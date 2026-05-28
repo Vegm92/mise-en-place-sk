@@ -16,6 +16,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			db.select({
 				id:               suppliers.id,
 				name:             suppliers.name,
+				cif:              suppliers.cif,
+				createdAt:        suppliers.createdAt,
 				category:         sql<string>`COALESCE(${suppliers.category}, 'Other')`.as('category'),
 				month_spend:      sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`.as('month_spend'),
 				open_count:       sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`.as('open_count'),

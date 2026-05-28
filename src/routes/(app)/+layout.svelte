@@ -5,11 +5,13 @@
   import {
     LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
     Settings, HelpCircle, Upload, Sun, Moon, ChevronDown,
+    ChevronLeft, ChevronRight,
     LogOut, Menu, X, MessageCircle,
   } from 'lucide-svelte';
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
+  import MobileTabBar from '$lib/components/mobile/MobileTabBar.svelte';
 
   const { children, data } = $props();
 
@@ -55,10 +57,36 @@
     { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
   ]);
 
+  const isDashboard = $derived(p === '/dashboard');
+
+  function toMonthStr(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  function shiftMonth(ym: string, delta: number): string {
+    let year = parseInt(ym.slice(0, 4), 10);
+    let month = parseInt(ym.slice(5, 7), 10) + delta;
+    while (month <= 0) { month += 12; year--; }
+    while (month > 12) { month -= 12; year++; }
+    return `${year}-${String(month).padStart(2, '0')}`;
+  }
+
+  const currentMonthStr = $derived(toMonthStr(new Date()));
+  const selectedMonth = $derived(
+    ($page.data as { selectedMonth?: string }).selectedMonth
+    ?? $page.url.searchParams.get('month')
+    ?? currentMonthStr
+  );
+
   const currentPeriod = $derived.by(() => {
-    const s = new Intl.DateTimeFormat($locale === 'es' ? 'es-ES' : 'en-US', { month: 'long', year: 'numeric' }).format(new Date());
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y!, m! - 1, 2);
+    const s = new Intl.DateTimeFormat($locale === 'es' ? 'es-ES' : 'en-US', { month: 'long', year: 'numeric' }).format(d);
     return s.charAt(0).toUpperCase() + s.slice(1);
   });
+
+  const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);
+  const nextMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, 1)}`);
+  const canGoForward = $derived(selectedMonth < currentMonthStr);
 
   const pageTitle = $derived($page.data.title ?? 'Mise en Place');
   const userName  = $derived(data?.user?.name ?? 'Usuario');
@@ -232,10 +260,10 @@
   <!-- ── Main area ─────────────────────────────────────────────────── -->
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <!-- TopBar -->
-    <header style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 24px;gap:12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
+    <!-- TopBar (hidden on mobile — mobile pages have own headers) -->
+    <header class="max-md:hidden" style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 24px;gap:12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
 
-      <!-- Mobile hamburger -->
+      <!-- Mobile hamburger (kept for fallback pages not yet mobilised) -->
       <button
         class="md:hidden btn btn-ghost"
         style="width:34px;height:34px;padding:0;justify-content:center;"
@@ -246,18 +274,26 @@
       </button>
 
       <!-- Title -->
-      <h1 style="margin:0;flex:1;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">
+      <h1 style="margin:0;flex:1;min-width:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         {pageTitle}
       </h1>
 
-      <!-- Period picker -->
-      <button class="btn btn-secondary" style="height:34px;">
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="2.5" y="4.5" width="15" height="13" rx="1.5"/><path d="M3 8h14M6.5 2.5v3M13.5 2.5v3"/>
-        </svg>
-        <span>{currentPeriod}</span>
-        <ChevronDown size={13} />
-      </button>
+      <!-- Period picker (dashboard only) -->
+      {#if isDashboard}
+        <div style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:34px;flex-shrink:0;">
+          <a
+            href={prevMonthUrl}
+            style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:var(--mep-fg-3);text-decoration:none;border-right:1px solid var(--mep-border-strong);"
+            title="Mes anterior"
+          ><ChevronLeft size={13} /></a>
+          <span style="font-size:12px;font-weight:500;color:var(--mep-fg-2);padding:0 10px;white-space:nowrap;">{currentPeriod}</span>
+          <a
+            href={canGoForward ? nextMonthUrl : undefined}
+            style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:{canGoForward ? 'var(--mep-fg-3)' : 'var(--mep-fg-4)'};text-decoration:none;border-left:1px solid var(--mep-border-strong);pointer-events:{canGoForward ? 'auto' : 'none'};"
+            title="Mes siguiente"
+          ><ChevronRight size={13} /></a>
+        </div>
+      {/if}
 
       <!-- Chat -->
       <ChatFab />
@@ -272,8 +308,10 @@
         {$locale === 'es' ? 'EN' : 'ES'}
       </button>
 
-      <!-- Notification bell -->
-      <NotificationBell notifications={data.notifications ?? []} />
+      <!-- Notification bell — desktop only (mobile shell has its own bell) -->
+      <span class="max-md:hidden">
+        <NotificationBell notifications={data.notifications ?? []} />
+      </span>
 
       <!-- Theme toggle -->
       <button
@@ -299,3 +337,6 @@
   </div>
 
 </div>
+
+<!-- Mobile bottom tab bar (fixed, outside scroll container) -->
+<MobileTabBar alertBadge={data.reminderBadge} invBadge={data.invoiceBadge} />
