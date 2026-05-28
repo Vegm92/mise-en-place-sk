@@ -2,12 +2,19 @@
   import type { PageData } from './$types';
   import { t } from '$lib/i18n';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import MobileAlerts from '$lib/components/mobile/MobileAlerts.svelte';
   import { Check } from 'lucide-svelte';
 
   let { data }: { data: PageData } = $props();
 </script>
 
-<div class="p-6 flex flex-col gap-4">
+<!-- Mobile alerts -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileAlerts overdue={data.overdue} due_soon={data.due_soon} total_amount={data.total_amount} />
+</div>
+
+<!-- Desktop reminders -->
+<div class="max-md:hidden p-6 flex flex-col gap-4">
 
   {#if !data.overdue.length && !data.due_soon.length}
     <p class="body text-center py-16">{$t('rem.empty')}</p>

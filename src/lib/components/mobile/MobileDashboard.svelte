@@ -201,6 +201,7 @@
           </a>
         </div>
         {#each topSuppliers as s, i}
+          {@const sub = [s.cat, s.invoices ? `${s.invoices} facturas` : null].filter(Boolean).join(' · ')}
           <div style="
             display: flex; align-items: center; gap: 12px;
             padding: 8px 0;
@@ -211,8 +212,8 @@
               <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 {s.name}
               </div>
-              {#if s.cat}
-                <div style="font-size: 11px; color: var(--mep-fg-3);">{s.cat}</div>
+              {#if sub}
+                <div style="font-size: 11px; color: var(--mep-fg-3);">{sub}</div>
               {/if}
             </div>
             <div style="text-align: right; flex-shrink: 0;">
@@ -264,7 +265,7 @@
               <div class="num" style="font-size: 13.5px; font-weight: 600; color: var(--mep-fg);">
                 {inv.display_amount != null ? fmtEur(inv.display_amount) : '—'}
               </div>
-              <StatusBadge status={inv.status} style="font-size: 9.5px; padding: 1px 5px;" />
+              <StatusBadge status={inv.status ?? 'pending'} style="font-size: 9.5px; padding: 1px 5px;" />
             </div>
           </a>
         {/each}

@@ -274,13 +274,13 @@
       </button>
 
       <!-- Title -->
-      <h1 style="margin:0;flex:1;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">
+      <h1 style="margin:0;flex:1;min-width:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         {pageTitle}
       </h1>
 
       <!-- Period picker (dashboard only) -->
       {#if isDashboard}
-        <div style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:34px;">
+        <div style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:34px;flex-shrink:0;">
           <a
             href={prevMonthUrl}
             style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:var(--mep-fg-3);text-decoration:none;border-right:1px solid var(--mep-border-strong);"

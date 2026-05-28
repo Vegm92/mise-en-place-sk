@@ -101,12 +101,9 @@
 	onMount(() => { fetchData(activeScale); });
 </script>
 
-<!-- Card header: title + pill selector -->
-<div class="card-header">
-	<div class="section-title">
-		<span class="subtitle">Spend</span>
-	</div>
-	<div style="display:flex;gap:4px;">
+<!-- Chart area -->
+<div style="padding:4px 0 0;position:relative;">
+	<div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:8px;">
 		{#each SCALES as s}
 			<button
 				type="button"
@@ -121,10 +118,6 @@
 			>{s}</button>
 		{/each}
 	</div>
-</div>
-
-<!-- Chart area -->
-<div style="padding:12px 0 0;position:relative;">
 	{#if loading}
 		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
 			<span class="label">Loading…</span>

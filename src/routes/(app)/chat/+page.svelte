@@ -95,8 +95,8 @@
 
 <div style="display:flex;height:calc(100vh - 56px);overflow:hidden;">
 
-  <!-- Sidebar: session list -->
-  <aside style="width:260px;flex-shrink:0;border-right:1px solid var(--mep-divider);display:flex;flex-direction:column;background:var(--mep-surface-2);overflow:hidden;">
+  <!-- Sidebar: session list (hidden on mobile — full-width chat takes over) -->
+  <aside class="max-md:hidden" style="width:260px;flex-shrink:0;border-right:1px solid var(--mep-divider);display:flex;flex-direction:column;background:var(--mep-surface-2);overflow:hidden;">
     <div style="padding:16px 12px 8px;border-bottom:1px solid var(--mep-divider);">
       <button
         onclick={newChat}

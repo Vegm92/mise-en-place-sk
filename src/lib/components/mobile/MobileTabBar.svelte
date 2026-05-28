@@ -8,12 +8,11 @@
   const is = (path: string) => p === path || p.startsWith(path + '/');
 </script>
 
-<nav class="md:hidden" style="
+<nav class="md:hidden flex items-end justify-around" style="
   position: fixed; bottom: 0; left: 0; right: 0;
   padding-top: 8px; padding-bottom: 20px;
   background: var(--mep-surface);
   border-top: 1px solid var(--mep-divider);
-  display: flex; align-items: flex-end; justify-content: space-around;
   z-index: 50;
 ">
   <a href="/dashboard" style="

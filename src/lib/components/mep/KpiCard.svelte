@@ -48,7 +48,7 @@
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
     <span class="label {labelColor[variant]}">{label}</span>
     {#if spark && spark.length >= 2}
-      <Sparkline data={spark} width={64} height={24} />
+      <Sparkline data={spark} width={84} height={28} />
     {/if}
   </div>
   <span class="num {valueColor[variant]}" style="font-size:26px;font-weight:600;letter-spacing:-0.6px;line-height:1.1;">
