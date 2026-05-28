@@ -9,9 +9,9 @@
     supplier_name: string | null;
     total_amount: number | null;
     display_amount?: number | null;
-    status: string;
+    status: string | null;
     invoice_date: string | null;
-    line_items?: { id?: number }[];
+    line_items?: unknown[];
   }
 
   let {
@@ -29,6 +29,8 @@
     { id: 'month', label: 'Este mes' },
     { id: 'pending', label: 'Por revisar' },
     { id: 'overdue', label: 'Vencidas' },
+    { id: 'supplier', label: 'Por proveedor' },
+    { id: 'category', label: 'Por categoría' },
   ];
 
   const filtered = $derived.by(() => {
@@ -149,7 +151,7 @@
                     {inv.supplier_name ?? '—'}
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
-                    <StatusBadge status={inv.status} style="font-size: 9.5px; padding: 1px 5px;" />
+                    <StatusBadge status={inv.status ?? 'pending'} style="font-size: 9.5px; padding: 1px 5px;" />
                     <span class="num" style="font-size: 11px; color: var(--mep-fg-3);">
                       {inv.invoice_number ?? '—'}
                     </span>

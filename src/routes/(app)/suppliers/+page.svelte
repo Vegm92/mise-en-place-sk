@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { fmtEur } from '$lib/formatters';
   import { Search, ChevronRight, Plus } from 'lucide-svelte';
+  import MobileSuppliersList from '$lib/components/mobile/MobileSuppliersList.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -47,7 +48,13 @@
   }
 </script>
 
-<div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
+<!-- Mobile suppliers -->
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileSuppliersList suppliers={data.suppliers} />
+</div>
+
+<!-- Desktop suppliers -->
+<div class="max-md:hidden" style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
     <!-- Filter bar -->
@@ -72,7 +79,7 @@
         <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
       </div>
       <!-- Activity chip (cosmetic) -->
-      <button class="btn btn-secondary" style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;" disabled>
+      <button class="btn btn-secondary max-[1050px]:hidden" style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;white-space:nowrap;flex-shrink:0;" disabled>
         Actividad: Últimos 30 d <span style="font-size:10px;margin-left:2px;">▾</span>
       </button>
       <div style="flex:1;"></div>
@@ -82,7 +89,7 @@
     </div>
 
     <!-- Summary strip -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex-shrink:0;">
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">Proveedores activos</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.suppliers.length}</div>
