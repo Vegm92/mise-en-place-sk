@@ -1,5 +1,4 @@
 <script lang="ts">
-  import MobilePageHeader from './MobilePageHeader.svelte';
   import { fmtEur } from '$lib/formatters';
   import { ChevronRight } from 'lucide-svelte';
 
@@ -34,9 +33,7 @@
   }
 </script>
 
-<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
-  <MobilePageHeader title="Proveedores" />
-
+<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
   <!-- Search -->
   <div style="padding: 0 18px 10px; position: relative;">
     <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
@@ -53,7 +50,7 @@
   </div>
 
   <!-- List -->
-  <div style="flex: 1; overflow: auto; padding: 0 18px 90px; display: flex; flex-direction: column; gap: 8px;">
+  <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 8px;">
     {#if filtered.length === 0}
       <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
         Sin proveedores

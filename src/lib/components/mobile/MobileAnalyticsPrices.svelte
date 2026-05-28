@@ -1,6 +1,4 @@
 <script lang="ts">
-  import MobilePageHeader from './MobilePageHeader.svelte';
-
   interface PriceItem {
     description: string;
     supplier_name: string;
@@ -68,9 +66,7 @@
   ];
 </script>
 
-<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
-  <MobilePageHeader title="Precios" />
-
+<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
   <!-- Search -->
   <div style="padding: 0 18px 10px; position: relative;">
     <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
@@ -103,7 +99,7 @@
     {/each}
   </div>
 
-  <div style="flex: 1; overflow: auto; padding: 0 18px 90px; display: flex; flex-direction: column; gap: 14px;">
+  <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
     <!-- Summary 2-col -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
