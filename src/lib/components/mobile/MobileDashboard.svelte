@@ -3,8 +3,9 @@
   import Sparkline from '$lib/components/mep/Sparkline.svelte';
   import Delta from '$lib/components/mep/Delta.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
-  import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-svelte';
-  import { fmtEur, fmtEurCompact } from '$lib/formatters';
+  import { ChevronRight, AlertTriangle } from 'lucide-svelte';
+  import { fmtEur, fmtEurCompact, fmtDate, toMonthStr, shiftMonth } from '$lib/formatters';
+  import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
   interface Supplier {
     name: string;
@@ -65,26 +66,11 @@
     new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
   );
 
-  function fmtDate(s: string | null) {
-    if (!s) return '—';
-    return new Date(s).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
-  }
-
   const topSuppliers = $derived(
     [...suppliers].sort((a, b) => b.month_spend - a.month_spend).slice(0, 4)
   );
 
   // Period picker (self-contained — reads URL, generates prev/next links)
-  function toMonthStr(d: Date) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
-  function shiftMonth(ym: string, delta: number): string {
-    let year = parseInt(ym.slice(0, 4), 10);
-    let month = parseInt(ym.slice(5, 7), 10) + delta;
-    while (month <= 0) { month += 12; year--; }
-    while (month > 12) { month -= 12; year++; }
-    return `${year}-${String(month).padStart(2, '0')}`;
-  }
   const currentMonthStr = $derived(toMonthStr(new Date()));
   const selectedMonth = $derived(
     ($page.data as { selectedMonth?: string }).selectedMonth
@@ -111,15 +97,7 @@
       <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
         {greeting} · {dateStr}
       </div>
-      <div style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:28px;flex-shrink:0;">
-        <a href={prevMonthUrl} style="display:flex;align-items:center;justify-content:center;width:24px;height:100%;color:var(--mep-fg-3);text-decoration:none;border-right:1px solid var(--mep-border-strong);">
-          <ChevronLeft size={11} />
-        </a>
-        <span style="font-size:11.5px;font-weight:500;color:var(--mep-fg-2);padding:0 8px;white-space:nowrap;">{currentPeriod}</span>
-        <a href={canGoForward ? nextMonthUrl : undefined} style="display:flex;align-items:center;justify-content:center;width:24px;height:100%;color:{canGoForward ? 'var(--mep-fg-3)' : 'var(--mep-fg-4)'};text-decoration:none;border-left:1px solid var(--mep-border-strong);pointer-events:{canGoForward ? 'auto' : 'none'};">
-          <ChevronRight size={11} />
-        </a>
-      </div>
+      <PeriodPicker compact={true} prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
     </div>
 
     <!-- Hero spend card -->
