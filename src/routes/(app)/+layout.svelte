@@ -277,9 +277,9 @@
         {pageTitle}
       </h1>
 
-      <!-- Period picker (dashboard only) -->
+      <!-- Period picker (dashboard, desktop only — mobile shows it in the greeting row) -->
       {#if isDashboard}
-        <div style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:34px;flex-shrink:0;">
+        <div class="max-md:hidden" style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:34px;flex-shrink:0;">
           <a
             href={prevMonthUrl}
             style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:var(--mep-fg-3);text-decoration:none;border-right:1px solid var(--mep-border-strong);"

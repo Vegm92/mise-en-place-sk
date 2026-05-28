@@ -29,10 +29,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const category_spend: Record<string, number> = {};
 		for (const row of spendRows) category_spend[String(row.category)] = Number(row.total);
 
+		// Include any custom categories already stored in the DB for this restaurant
+		const storedCats = rows.map(r => r.category);
+		const categories = [
+			...VALID_CATEGORIES,
+			...storedCats.filter(c => !VALID_CATEGORIES.includes(c)),
+		];
+
 		return {
 			title: 'Budgets',
 			subtitle: 'Set monthly spend limits per category. Warnings appear on the dashboard.',
-			categories: VALID_CATEGORIES,
+			categories,
 			budgets,
 			category_spend,
 			colors: CATEGORY_COLORS,
@@ -49,7 +56,21 @@ export const actions: Actions = {
 		const rid = locals.restaurantId!;
 		const data = await request.formData();
 
-		await Promise.all(VALID_CATEGORIES.map(async (category) => {
+		// Categories list is passed from the form so new custom ones are included
+		let categories: string[];
+		try {
+			const raw = String(data.get('_categories') ?? '');
+			const parsed = JSON.parse(raw);
+			categories = Array.isArray(parsed)
+				? parsed
+					.map((c: unknown) => String(c).trim())
+					.filter(c => c.length > 0 && c.length <= 80)
+				: VALID_CATEGORIES;
+		} catch {
+			categories = VALID_CATEGORIES;
+		}
+
+		await Promise.all(categories.map(async (category) => {
 			const raw = String(data.get(category) ?? '').trim();
 			const amount = parseFloat(raw);
 			if (!isNaN(amount) && amount >= 0) {
