@@ -51,26 +51,28 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			  AND i.restaurant_id = ${rid}
 			  ${supplierFilter}
 		)
-		SELECT
-			l.description,
-			l.supplier_name,
-			l.supplier_id,
-			l.unit,
-			l.invoice_date  AS latest_date,
-			l.unit_price    AS latest_price,
-			p.unit_price    AS prev_price,
-			p.invoice_date  AS prev_date,
-			CASE
-				WHEN p.unit_price IS NOT NULL AND p.unit_price > 0
-				THEN ROUND((l.unit_price - p.unit_price) / p.unit_price * 100.0, 1)
-				ELSE NULL
-			END AS change_pct
-		FROM history l
-		LEFT JOIN history p
-		       ON p.description = l.description
-		      AND p.supplier_id  = l.supplier_id
-		      AND p.rn = 2
-		WHERE l.rn = 1
+		SELECT * FROM (
+			SELECT
+				l.description,
+				l.supplier_name,
+				l.supplier_id,
+				l.unit,
+				l.invoice_date  AS latest_date,
+				l.unit_price    AS latest_price,
+				p.unit_price    AS prev_price,
+				p.invoice_date  AS prev_date,
+				CASE
+					WHEN p.unit_price IS NOT NULL AND p.unit_price > 0
+					THEN ROUND(((l.unit_price - p.unit_price) / p.unit_price * 100.0)::numeric, 1)
+					ELSE NULL
+				END AS change_pct
+			FROM history l
+			LEFT JOIN history p
+			       ON p.description = l.description
+			      AND p.supplier_id  = l.supplier_id
+			      AND p.rn = 2
+			WHERE l.rn = 1
+		) sub
 		ORDER BY ABS(COALESCE(change_pct, 0)) DESC
 	`);
 	const rows = rawRows as unknown as PriceRow[];

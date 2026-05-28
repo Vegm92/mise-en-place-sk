@@ -43,18 +43,29 @@
 	}
 
 	// SVG layout (pixel-based, viewBox width=500 for easy math)
-	const SVG_W   = 500;
-	const SVG_H   = 140;
-	const LABEL_H = 18;
-	const PAD_L   = 8;
-	const PAD_R   = 8;
-	const GAP_PCT = 0.15; // fraction of slot used as gap
+	const SVG_W    = 500;
+	const SVG_H    = 140;
+	const LABEL_H  = 18;
+	const PAD_L    = 44; // wider left padding for Y-axis labels
+	const PAD_R    = 8;
+	const GAP_PCT  = 0.15; // fraction of slot used as gap
+
+	const maxTotal = $derived(buckets.length ? Math.max(...buckets.map(b => b.total), 1) : 1);
+
+	const gridLines = $derived.by(() => {
+		return [0, 1, 2, 3, 4].map(i => {
+			const fraction = i / 4;
+			const y   = SVG_H * (1 - fraction);
+			const val = maxTotal * fraction;
+			const label = val >= 1000 ? Math.round(val / 1000) + 'k' : Math.round(val).toString();
+			return { y, label, showLabel: i > 0 };
+		});
+	});
 
 	const barRects = $derived.by(() => {
 		if (!buckets.length) return { segs: [], labels: [] };
-		const n        = buckets.length;
-		const maxTotal = Math.max(...buckets.map(b => b.total), 1);
-		const slotW    = (SVG_W - PAD_L - PAD_R) / n;
+		const n     = buckets.length;
+		const slotW = (SVG_W - PAD_L - PAD_R) / n;
 
 		const segs: Array<{ x: number; y: number; w: number; h: number; color: string }> = [];
 		const labels: Array<{ x: number; label: string; bold: boolean }> = [];
@@ -78,7 +89,6 @@
 				segs.push({ x: barX, y, w: barW, h, color: catColor(ci) });
 			}
 
-			// When no category data, render a flat total bar
 			if (yOffset === 0 && bucket.total > 0) {
 				const h = (bucket.total / maxTotal) * SVG_H;
 				segs.push({ x: barX, y: SVG_H - h, w: barW, h, color: catColor(0) });
@@ -91,12 +101,9 @@
 	onMount(() => { fetchData(activeScale); });
 </script>
 
-<!-- Card header: title + pill selector -->
-<div class="card-header">
-	<div class="section-title">
-		<span class="subtitle">Spend</span>
-	</div>
-	<div style="display:flex;gap:4px;">
+<!-- Chart area -->
+<div style="padding:4px 0 0;position:relative;">
+	<div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:8px;">
 		{#each SCALES as s}
 			<button
 				type="button"
@@ -111,10 +118,6 @@
 			>{s}</button>
 		{/each}
 	</div>
-</div>
-
-<!-- Chart area -->
-<div style="padding:12px 0 0;position:relative;">
 	{#if loading}
 		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
 			<span class="label">Loading…</span>
@@ -130,18 +133,23 @@
 			height={SVG_H + LABEL_H}
 			style="display:block;overflow:visible;"
 		>
-			<!-- 50% gridline -->
-			<line
-				x1={PAD_L} y1={SVG_H * 0.5}
-				x2={SVG_W - PAD_R} y2={SVG_H * 0.5}
-				stroke="var(--mep-divider)" stroke-width="1"
-			/>
-			<!-- Baseline -->
-			<line
-				x1={PAD_L} y1={SVG_H}
-				x2={SVG_W - PAD_R} y2={SVG_H}
-				stroke="var(--mep-divider)" stroke-width="1"
-			/>
+			<!-- Gridlines + Y-axis labels -->
+			{#each gridLines as gl}
+				<line
+					x1={PAD_L} y1={gl.y}
+					x2={SVG_W - PAD_R} y2={gl.y}
+					stroke="var(--mep-divider)" stroke-width="1"
+				/>
+				{#if gl.showLabel}
+					<text
+						x={PAD_L - 5} y={gl.y + 3.5}
+						text-anchor="end"
+						font-size="8"
+						fill="var(--mep-fg-3)"
+						font-family="inherit"
+					>{gl.label}</text>
+				{/if}
+			{/each}
 
 			<!-- Bars -->
 			{#each barRects.segs as seg}
