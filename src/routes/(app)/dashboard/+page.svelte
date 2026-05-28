@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { page } from '$app/stores';
   import TrendChart from '$lib/components/TrendChart.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
@@ -7,11 +8,38 @@
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import AlertRow from '$lib/components/mep/AlertRow.svelte';
   import MobileDashboard from '$lib/components/mobile/MobileDashboard.svelte';
-  import { Bell, TriangleAlert, ChevronRight, X } from 'lucide-svelte';
+  import { Bell, TriangleAlert, ChevronLeft, ChevronRight, X } from 'lucide-svelte';
   import { t } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
 
   let { data }: { data: PageData } = $props();
+
+  // Period picker — shared logic for desktop section (mobile is self-contained in MobileDashboard)
+  function toMonthStr(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  function shiftMonth(ym: string, delta: number): string {
+    let year = parseInt(ym.slice(0, 4), 10);
+    let month = parseInt(ym.slice(5, 7), 10) + delta;
+    while (month <= 0) { month += 12; year--; }
+    while (month > 12) { month -= 12; year++; }
+    return `${year}-${String(month).padStart(2, '0')}`;
+  }
+  const currentMonthStr = $derived(toMonthStr(new Date()));
+  const selectedMonth = $derived(
+    (data as { selectedMonth?: string }).selectedMonth
+    ?? $page.url.searchParams.get('month')
+    ?? currentMonthStr
+  );
+  const currentPeriod = $derived.by(() => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y!, m! - 1, 2);
+    const s = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(d);
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  });
+  const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);
+  const nextMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, 1)}`);
+  const canGoForward = $derived(selectedMonth < currentMonthStr);
 
   const mobileAlertText = $derived.by(() => {
     const shocks = (data.price_shock_alerts as Array<{ payload: { ingredient?: string; deviationPct?: number } | null }>)
@@ -112,6 +140,19 @@
 
 <!-- Desktop dashboard -->
 <div class="max-md:hidden flex flex-col gap-4 p-6">
+
+  <!-- Period picker row -->
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:34px;flex-shrink:0;">
+      <a href={prevMonthUrl} style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:var(--mep-fg-3);text-decoration:none;border-right:1px solid var(--mep-border-strong);" title="Mes anterior">
+        <ChevronLeft size={13} />
+      </a>
+      <span style="font-size:12px;font-weight:500;color:var(--mep-fg-2);padding:0 10px;white-space:nowrap;">{currentPeriod}</span>
+      <a href={canGoForward ? nextMonthUrl : undefined} style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:{canGoForward ? 'var(--mep-fg-3)' : 'var(--mep-fg-4)'};text-decoration:none;border-left:1px solid var(--mep-border-strong);pointer-events:{canGoForward ? 'auto' : 'none'};" title="Mes siguiente">
+        <ChevronRight size={13} />
+      </a>
+    </div>
+  </div>
 
   <!-- ── First Invoice Banner ───────────────────────────────────────── -->
   {#if data.firstInvoice && !firstInvoiceDismissed}
