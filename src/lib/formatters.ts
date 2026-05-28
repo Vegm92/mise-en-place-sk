@@ -39,3 +39,34 @@ export function semColor(pct: number): string {
 	if (pct <= BUDGET_OVER_PCT) return 'var(--mep-warn)';
 	return 'var(--mep-neg)';
 }
+
+/** Full date with year: "19 may 2024" */
+export function fmtDate(d: string | null): string {
+	if (!d) return '—';
+	return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+/** Short date without year: "19 may" */
+export function fmtDateShort(d: string | null): string {
+	if (!d) return '—';
+	return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+}
+
+/** "AB" initials from a name */
+export function initials(name: string): string {
+	return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+/** "2024-05" from a Date */
+export function toMonthStr(d: Date): string {
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** Shift a "YYYY-MM" string by delta months */
+export function shiftMonth(ym: string, delta: number): string {
+	let year = parseInt(ym.slice(0, 4), 10);
+	let month = parseInt(ym.slice(5, 7), 10) + delta;
+	while (month <= 0) { month += 12; year--; }
+	while (month > 12) { month -= 12; year++; }
+	return `${year}-${String(month).padStart(2, '0')}`;
+}

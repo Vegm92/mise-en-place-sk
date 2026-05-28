@@ -12,15 +12,31 @@
     month_invoice_count: number | null;
   }
 
-  let { suppliers }: { suppliers: Supplier[] } = $props();
+  let {
+    suppliers,
+    categories = [],
+    totalSpend = 0,
+    totalMonthInvoices = 0,
+    unassigned = 0,
+    firstUnassigned = '',
+  }: {
+    suppliers: Supplier[];
+    categories?: string[];
+    totalSpend?: number;
+    totalMonthInvoices?: number;
+    unassigned?: number;
+    firstUnassigned?: string;
+  } = $props();
 
   let search = $state('');
+  let catFilter = $state('');
 
   const filtered = $derived(
     suppliers.filter(s => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
+      const matchCat = !catFilter || s.category === catFilter;
+      return matchSearch && matchCat;
     })
   );
 
@@ -34,6 +50,7 @@
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
+
   <!-- Search -->
   <div style="padding: 0 18px 10px; position: relative;">
     <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
@@ -47,6 +64,50 @@
       placeholder="Buscar proveedor o categoría…"
       bind:value={search}
     />
+  </div>
+
+  <!-- Category chips -->
+  <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none;">
+    <button
+      onclick={() => catFilter = ''}
+      style="
+        border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
+        background: {!catFilter ? 'var(--mep-acc)' : 'var(--mep-surface)'};
+        color: {!catFilter ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
+        font-size: 12px; font-weight: 500; font-family: inherit;
+        box-shadow: {!catFilter ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
+      "
+    >Todas</button>
+    {#each categories as cat}
+      <button
+        onclick={() => catFilter = catFilter === cat ? '' : cat}
+        style="
+          border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
+          background: {catFilter === cat ? 'var(--mep-acc)' : 'var(--mep-surface)'};
+          color: {catFilter === cat ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
+          font-size: 12px; font-weight: 500; font-family: inherit;
+          box-shadow: {catFilter === cat ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
+        "
+      >{cat}</button>
+    {/each}
+  </div>
+
+  <!-- Summary strip -->
+  <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
+    <div style="flex: 1; text-align: center;">
+      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{suppliers.length}</div>
+      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">Proveedores</div>
+    </div>
+    <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
+    <div style="flex: 1; text-align: center;">
+      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend)}</div>
+      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">Gasto mes</div>
+    </div>
+    <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
+    <div style="flex: 1; text-align: center;">
+      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{totalMonthInvoices}</div>
+      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">Facturas</div>
+    </div>
   </div>
 
   <!-- List -->
