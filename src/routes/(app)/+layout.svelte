@@ -4,8 +4,7 @@
   import { browser } from '$app/environment';
   import {
     LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
-    Settings, HelpCircle, Upload, Sun, Moon, ChevronDown,
-    ChevronLeft, ChevronRight,
+    Settings, HelpCircle, Upload, Sun, Moon,
     LogOut, Menu, X, MessageCircle,
   } from 'lucide-svelte';
   import { locale, t, initLocale } from '$lib/i18n';
@@ -55,37 +54,6 @@
     { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
     { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
   ]);
-
-  const isDashboard = $derived(p === '/dashboard');
-
-  function toMonthStr(d: Date) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
-  function shiftMonth(ym: string, delta: number): string {
-    let year = parseInt(ym.slice(0, 4), 10);
-    let month = parseInt(ym.slice(5, 7), 10) + delta;
-    while (month <= 0) { month += 12; year--; }
-    while (month > 12) { month -= 12; year++; }
-    return `${year}-${String(month).padStart(2, '0')}`;
-  }
-
-  const currentMonthStr = $derived(toMonthStr(new Date()));
-  const selectedMonth = $derived(
-    ($page.data as { selectedMonth?: string }).selectedMonth
-    ?? $page.url.searchParams.get('month')
-    ?? currentMonthStr
-  );
-
-  const currentPeriod = $derived.by(() => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const d = new Date(y!, m! - 1, 2);
-    const s = new Intl.DateTimeFormat($locale === 'es' ? 'es-ES' : 'en-US', { month: 'long', year: 'numeric' }).format(d);
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  });
-
-  const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);
-  const nextMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, 1)}`);
-  const canGoForward = $derived(selectedMonth < currentMonthStr);
 
   const pageTitle = $derived($page.data.title ?? 'Mise en Place');
   const userName  = $derived(data?.user?.name ?? 'Usuario');
@@ -276,23 +244,6 @@
       <h1 style="margin:0;flex:1;min-width:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         {pageTitle}
       </h1>
-
-      <!-- Period picker (dashboard, desktop only — mobile shows it in the greeting row) -->
-      {#if isDashboard}
-        <div class="max-md:hidden" style="display:flex;align-items:center;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;overflow:hidden;height:34px;flex-shrink:0;">
-          <a
-            href={prevMonthUrl}
-            style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:var(--mep-fg-3);text-decoration:none;border-right:1px solid var(--mep-border-strong);"
-            title="Mes anterior"
-          ><ChevronLeft size={13} /></a>
-          <span style="font-size:12px;font-weight:500;color:var(--mep-fg-2);padding:0 10px;white-space:nowrap;">{currentPeriod}</span>
-          <a
-            href={canGoForward ? nextMonthUrl : undefined}
-            style="display:flex;align-items:center;justify-content:center;width:28px;height:100%;color:{canGoForward ? 'var(--mep-fg-3)' : 'var(--mep-fg-4)'};text-decoration:none;border-left:1px solid var(--mep-border-strong);pointer-events:{canGoForward ? 'auto' : 'none'};"
-            title="Mes siguiente"
-          ><ChevronRight size={13} /></a>
-        </div>
-      {/if}
 
       <!-- Chat (desktop only — sidebar nav handles mobile) -->
       <span class="max-md:hidden"><ChatFab /></span>
