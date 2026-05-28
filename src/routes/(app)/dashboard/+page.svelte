@@ -231,6 +231,7 @@
       actionLabel="Ver todas"
       noPad
     >
+      <div class="overflow-x-auto">
       <table class="tbl" style="border-top:1px solid var(--mep-divider);">
         <thead>
           <tr>
@@ -265,6 +266,7 @@
           {/each}
         </tbody>
       </table>
+      </div>
     </SectionCard>
   {/if}
 
@@ -302,6 +304,7 @@
       noPad
     >
       {#if data.recent_invoices.length}
+        <div class="overflow-x-auto">
         <table class="tbl">
           <thead>
             <tr>
@@ -332,6 +335,7 @@
             {/each}
           </tbody>
         </table>
+        </div>
       {:else}
         <p class="body p-4">{$t('misc.noData')}</p>
       {/if}

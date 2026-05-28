@@ -77,6 +77,22 @@ async function detectMissingInvoices(today: Date, restaurantId: string): Promise
 	return alerts.sort((a, b) => b.days_late - a.days_late);
 }
 
+function parseMonthParam(param: string | null, currentMonth: string): string {
+	if (!param) return currentMonth;
+	if (!/^\d{4}-\d{2}$/.test(param)) return currentMonth;
+	const month = parseInt(param.slice(5, 7), 10);
+	if (month < 1 || month > 12) return currentMonth;
+	return param > currentMonth ? currentMonth : param;
+}
+
+function shiftMonth(ym: string, delta: number): string {
+	let year = parseInt(ym.slice(0, 4), 10);
+	let month = parseInt(ym.slice(5, 7), 10) + delta;
+	while (month <= 0) { month += 12; year--; }
+	while (month > 12) { month -= 12; year++; }
+	return `${year}-${String(month).padStart(2, '0')}`;
+}
+
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const firstInvoice = url.searchParams.get('first_invoice') === '1';
 	const rid = locals.restaurantId!;
@@ -87,6 +103,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const todayIso = today.toISOString().split('T')[0]!;
 		const weekEnd = new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0]!;
 		const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0]!;
+
+		const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+		const selectedMonth = parseMonthParam(url.searchParams.get('month'), currentMonth);
+		const prevMonth = shiftMonth(selectedMonth, -1);
 
 		const [
 			overdueRow, dueWeekRow, pendingRow, paidMonthRow,
@@ -124,31 +144,31 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(and(
 					eq(invoices.restaurantId, rid),
 					eq(invoices.status, 'paid'),
-					sql`TO_CHAR(${invoices.invoiceDate}::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')`
+					sql`TO_CHAR(${invoices.invoiceDate}::date, 'YYYY-MM') = ${selectedMonth}`
 				)),
 
 			db.select({
-				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) END),0)`,
-				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW()-INTERVAL '1 month','YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
 			})
 				.from(invoices)
 				.where(and(
 					eq(invoices.restaurantId, rid),
-					sql`${invoices.invoiceDate}::date >= NOW()-INTERVAL '2 months'`
+					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') >= ${prevMonth}`
 				)),
 
 			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)` })
 				.from(invoices)
 				.where(and(
 					eq(invoices.restaurantId, rid),
-					sql`${invoices.invoiceDate}::date >= NOW()-INTERVAL '13 days'`
+					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
 				))
 				.groupBy(sql`DATE(${invoices.invoiceDate})`)
 				.orderBy(sql`DATE(${invoices.invoiceDate}) ASC`),
 
 			db.select({
-				this_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN ${invoices.supplierId} END)`,
-				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW()-INTERVAL '1 month','YYYY-MM') THEN ${invoices.supplierId} END)`,
+				this_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${selectedMonth} THEN ${invoices.supplierId} END)`,
+				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN ${invoices.supplierId} END)`,
 			})
 				.from(invoices)
 				.where(eq(invoices.restaurantId, rid)),
@@ -160,8 +180,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute(sql`
 				SELECT s.id, s.name,
 					COALESCE(s.category,'Other') AS category,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=TO_CHAR(NOW()-INTERVAL '1 month','YYYY-MM') THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
 					COUNT(CASE WHEN i.status='pending' THEN 1 END) AS open_count,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ${todayIso} THEN 1 ELSE 0 END) AS has_overdue,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ${todayIso} AND ${weekEnd} THEN 1 ELSE 0 END) AS has_due_soon
@@ -177,7 +197,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				FROM invoices i
 				JOIN suppliers s ON i.supplier_id = s.id
 				WHERE i.restaurant_id = ${rid}
-				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = TO_CHAR(NOW(),'YYYY-MM')
+				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY COALESCE(s.category,'Other')
 				ORDER BY total DESC
 			`),
@@ -199,7 +219,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid}
-				GROUP BY i.id, s.name ORDER BY i.created_at DESC LIMIT 6
+				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
+				GROUP BY i.id, s.name ORDER BY i.invoice_date DESC, i.created_at DESC LIMIT 6
 			`),
 
 			db.execute(sql`
@@ -210,6 +231,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid} AND i.status = 'pending'
+				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY i.id, s.name ORDER BY i.created_at DESC LIMIT 5
 			`),
 
@@ -223,7 +245,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)` })
 				.from(invoices)
-				.where(and(eq(invoices.restaurantId, rid), isNotNull(invoices.totalAmount))),
+				.where(and(
+					eq(invoices.restaurantId, rid),
+					isNotNull(invoices.totalAmount),
+					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
+				)),
 
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number,
@@ -268,13 +294,19 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			? Math.round((Number(mom.this_month) - Number(mom.last_month)) / Number(mom.last_month) * 100)
 			: null;
 
-		// Sparkline — 14 day
+		const selYear = parseInt(selectedMonth.slice(0, 4), 10);
+		const selMonthNum = parseInt(selectedMonth.slice(5, 7), 10);
+		const daysInMonth = new Date(selYear, selMonthNum, 0).getDate();
+		const isCurrentMonth = selectedMonth === currentMonth;
+		const isPastMonth = selectedMonth < currentMonth;
+
+		// Sparkline — daily spend for selected month
 		const sparkMap: Record<string, number> = {};
 		for (const r of sparkRows) sparkMap[String(r.day)] = Number(r.total);
 		const sparkData: number[] = [];
-		for (let i = 13; i >= 0; i--) {
-			const d = new Date(today.getTime() - i * 86400000).toISOString().split('T')[0]!;
-			sparkData.push(sparkMap[d] ?? 0);
+		for (let d = 1; d <= daysInMonth; d++) {
+			const key = `${selectedMonth}-${String(d).padStart(2, '0')}`;
+			sparkData.push(sparkMap[key] ?? 0);
 		}
 
 		const activeSuppRow0 = activeSuppRow[0] ?? { this_month: 0, last_month: 0 };
@@ -287,12 +319,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const avgPerSupplierDelta = avgPerSupplier && avgPerSupplierLast && avgPerSupplierLast > 0
 			? Math.round((avgPerSupplier - avgPerSupplierLast) / avgPerSupplierLast * 100)
 			: null;
-
-		const daysElapsed = today.getDate();
-		const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-		const dailyRate = daysElapsed > 0 ? Number(mom.this_month) / daysElapsed : 0;
-		const projectedEom = Math.round(dailyRate * daysInMonth);
-		const projectedElapsedPct = Math.round((daysElapsed / daysInMonth) * 100);
+		const daysElapsed = isCurrentMonth ? today.getDate() : (isPastMonth ? daysInMonth : 0);
+		const dailyRate = isCurrentMonth && daysElapsed > 0 ? Number(mom.this_month) / daysElapsed : 0;
+		const projectedEom = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : Number(mom.this_month);
+		const projectedElapsedPct = isCurrentMonth ? Math.round((daysElapsed / daysInMonth) * 100) : (isPastMonth ? 100 : 0);
 
 		const supplierCount = Number(supplierCountRow[0]?.cnt ?? 0);
 
@@ -389,11 +419,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		});
 
 		const missingInvoices = await detectMissingInvoices(today, rid);
-		const nowMonth = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+		const displayMonth = new Date(selectedMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
 		type InvRow = { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; display_amount: number; status: string; item_count: number };
 		return {
-			title: 'Dashboard', subtitle: nowMonth + ' · EUR', firstInvoice,
+			title: 'Dashboard', subtitle: displayMonth + ' · EUR', firstInvoice,
+			selectedMonth, currentMonth,
 			overdue, due_week: dueWeek, pending, paid_month: paidMonth,
 			supplier_count: supplierCount, suppliers: supps, category_spend: categorySpend,
 			recent_invoices: recentRows as unknown as InvRow[],
