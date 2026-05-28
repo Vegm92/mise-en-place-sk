@@ -1,6 +1,4 @@
 <script lang="ts">
-  import MobilePageHeader from './MobilePageHeader.svelte';
-
   interface Kpis {
     total_items_spend: number | null;
     total_line_items: number | null;
@@ -44,9 +42,7 @@
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
-  <MobilePageHeader title="Gasto" />
-
-  <div style="flex: 1; overflow: auto; padding: 0 18px 90px; display: flex; flex-direction: column; gap: 14px;">
+  <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
     <!-- Period picker chips -->
     <div style="display: flex; gap: 6px; padding-top: 4px;">

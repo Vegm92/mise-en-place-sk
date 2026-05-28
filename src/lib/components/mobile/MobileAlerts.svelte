@@ -1,5 +1,4 @@
 <script lang="ts">
-  import MobilePageHeader from './MobilePageHeader.svelte';
   import { AlertTriangle, Clock, Check } from 'lucide-svelte';
 
   interface Reminder {
@@ -27,9 +26,7 @@
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
-  <MobilePageHeader title="Alertas" hasAlert={overdue.length > 0} />
-
-  <div style="flex: 1; overflow: auto; padding: 0 18px 90px; display: flex; flex-direction: column; gap: 14px;">
+  <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
     {#if !overdue.length && !due_soon.length}
       <div style="padding: 48px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">

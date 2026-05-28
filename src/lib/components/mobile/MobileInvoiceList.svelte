@@ -1,5 +1,4 @@
 <script lang="ts">
-  import MobilePageHeader from './MobilePageHeader.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { fmtEur } from '$lib/formatters';
 
@@ -16,11 +15,9 @@
 
   let {
     invoices,
-    hasAlert = false,
   }: {
     invoices: Invoice[];
-    hasAlert?: boolean;
-  } = $props();
+    } = $props();
 
   let searchQuery = $state('');
   let activeFilter = $state('month');
@@ -78,9 +75,7 @@
   });
 </script>
 
-<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
-  <MobilePageHeader title="Facturas" {hasAlert} />
-
+<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
   <!-- Search -->
   <div style="padding: 0 18px 10px; position: relative;">
     <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
@@ -114,7 +109,7 @@
   </div>
 
   <!-- Grouped invoice list -->
-  <div style="flex: 1; overflow: auto; padding-bottom: 90px;">
+  <div style="flex: 1; overflow: auto; padding-bottom: 24px;">
     {#if grouped.length === 0}
       <div style="padding: 40px 18px; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
         Sin facturas

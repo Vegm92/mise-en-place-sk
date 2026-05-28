@@ -1,5 +1,4 @@
 <script lang="ts">
-  import MobilePageHeader from './MobilePageHeader.svelte';
   import Sparkline from '$lib/components/mep/Sparkline.svelte';
   import Delta from '$lib/components/mep/Delta.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -76,9 +75,7 @@
 </script>
 
 <!-- Mobile-only wrapper, full height, scroll with bottom clearance -->
-<div style="height: 100%; overflow: auto; padding-bottom: 90px;">
-  <MobilePageHeader title="Resumen" hasAlert={highAlerts > 0} />
-
+<div style="height: 100%; overflow: auto; padding-bottom: 24px;">
   <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 14px;">
 
     <!-- Greeting -->

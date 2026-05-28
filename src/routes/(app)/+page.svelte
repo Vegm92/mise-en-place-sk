@@ -3,7 +3,6 @@
   import { fmtSize } from '$lib/formatters';
   import { Upload, Mail, Sparkle, X, Check } from 'lucide-svelte';
   import { t } from '$lib/i18n';
-  import MobilePageHeader from '$lib/components/mobile/MobilePageHeader.svelte';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -61,8 +60,6 @@
 
 <!-- ── Mobile upload ──────────────────────────────────────────────────── -->
 <div class="md:hidden flex flex-col" style="height:100%;overflow:hidden;">
-  <MobilePageHeader title="Subir factura" />
-
   <!-- Compact step indicator -->
   <div style="padding:0 18px 10px;flex-shrink:0;display:flex;align-items:center;gap:6px;">
     {#each STEPS as step, i}

@@ -73,10 +73,7 @@
 
 <!-- Mobile invoice list -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceList
-    invoices={invoices}
-    hasAlert={stats.overdue_count > 0}
-  />
+  <MobileInvoiceList invoices={invoices} />
 </div>
 
 <!-- Desktop invoice list -->
