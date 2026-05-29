@@ -46,8 +46,9 @@
     { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
     { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
       sub: [
-        { href: '/analytics/spend',  label: $t('nav.analytics.spend') },
-        { href: '/analytics/prices', label: $t('nav.analytics.prices') },
+        { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
+        { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
+        { href: '/analytics/extraction', label: $t('nav.analytics.extraction') },
       ]
     },
     { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
