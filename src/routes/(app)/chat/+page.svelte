@@ -95,27 +95,24 @@
 
 <div style="display:flex;height:calc(100vh - 56px);overflow:hidden;position:relative;">
 
-  <!-- Mobile backdrop (tap outside to close sidebar) -->
+  <!-- Backdrop (tap outside to close sidebar) -->
   {#if mobileSidebarOpen}
     <div
       role="presentation"
       onclick={() => (mobileSidebarOpen = false)}
       onkeydown={() => (mobileSidebarOpen = false)}
-      class="md:hidden"
       style="position:fixed;inset:0;top:56px;background:rgba(0,0,0,0.4);z-index:40;"
     ></div>
   {/if}
 
-  <!-- Sidebar: session list
-       Desktop (md+): normal flex child, always visible.
-       Mobile (<md): fixed slide-over from left, toggled by hamburger. -->
+  <!-- Sidebar: always a fixed slide-over from the left, toggled by Historial button -->
   <aside
     class="
-      max-md:fixed max-md:top-[56px] max-md:bottom-0 max-md:left-0 max-md:z-50
-      max-md:transition-transform max-md:duration-300
-      {mobileSidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
+      fixed top-[56px] bottom-0 left-0 z-50
+      transition-transform duration-300
+      {mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
     "
-    style="width:260px;flex-shrink:0;border-right:1px solid var(--mep-divider);display:flex;flex-direction:column;background:var(--mep-surface-2);overflow:hidden;"
+    style="width:260px;border-right:1px solid var(--mep-divider);display:flex;flex-direction:column;background:var(--mep-surface-2);overflow:hidden;"
   >
     <div style="padding:16px 12px 8px;border-bottom:1px solid var(--mep-divider);">
       <button
@@ -175,9 +172,8 @@
   <!-- Main chat area -->
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <!-- Mobile-only top bar: historial button + new chat button -->
+    <!-- Top bar: historial button + new chat button (all screen sizes) -->
     <div
-      class="md:hidden"
       style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;"
     >
       <button
