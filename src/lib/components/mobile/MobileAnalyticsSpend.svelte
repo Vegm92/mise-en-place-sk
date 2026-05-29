@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Sparkline from '$lib/components/Sparkline.svelte';
+
   interface Kpis {
     total_items_spend: number | null;
     total_line_items: number | null;
@@ -9,6 +11,7 @@
     description: string;
     total_spend: number;
     pct: number;
+    price_trend?: number[];
   }
   interface CategorySpend {
     category: string;
@@ -93,10 +96,13 @@
         <div style="display: flex; flex-direction: column; gap: 10px;">
           {#each top_items.slice(0, 10) as item}
             <div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <span style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;"
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; gap: 6px;">
+                <span style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;"
                   title={item.description}>{item.description}</span>
-                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0; margin-left: 8px;">
+                {#if item.price_trend && item.price_trend.length >= 2}
+                  <Sparkline values={item.price_trend} width={56} height={18} />
+                {/if}
+                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">
                   {fmtEur(item.total_spend)}
                 </span>
               </div>
