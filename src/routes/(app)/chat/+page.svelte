@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
-  import { MessageCircle, Send, Plus, Trash2, Menu, X } from 'lucide-svelte';
+  import { MessageCircle, Send, Plus, Trash2, History } from 'lucide-svelte';
   import { t } from '$lib/i18n';
 
   const { data } = $props();
@@ -175,26 +175,20 @@
   <!-- Main chat area -->
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <!-- Mobile-only top bar: hamburger + current chat title + new chat button -->
+    <!-- Mobile-only top bar: historial button + new chat button -->
     <div
       class="md:hidden"
-      style="height:44px;display:flex;align-items:center;gap:8px;padding:0 8px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;"
+      style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;"
     >
       <button
         onclick={() => (mobileSidebarOpen = !mobileSidebarOpen)}
         class="btn btn-ghost"
-        style="width:36px;height:36px;padding:0;justify-content:center;flex-shrink:0;"
-        aria-label="Toggle chat history"
+        style="height:32px;padding:0 10px;gap:6px;font-size:13px;font-weight:500;"
+        aria-label="Historial de conversaciones"
       >
-        {#if mobileSidebarOpen}
-          <X size={18} />
-        {:else}
-          <Menu size={18} />
-        {/if}
+        <History size={15} />
+        Historial
       </button>
-      <span style="flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--mep-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-        {data.sessions.find((s) => s.id === activeSessionId)?.title ?? $t('chat.title')}
-      </span>
       <button
         onclick={newChat}
         class="btn btn-ghost"
