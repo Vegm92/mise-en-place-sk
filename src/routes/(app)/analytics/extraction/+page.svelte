@@ -1,0 +1,208 @@
+<script lang="ts">
+  import type { PageData } from './$types';
+
+  let { data }: { data: PageData } = $props();
+
+  function fmtPct(n: number | null | undefined) {
+    if (n == null) return '—';
+    return n.toFixed(1) + '%';
+  }
+
+  function fmtNum(n: number | null | undefined) {
+    if (n == null) return '—';
+    return n.toFixed(2);
+  }
+
+  const maxCorrections = $derived(
+    data.field_corrections.length ? data.field_corrections[0].corrections : 1
+  );
+
+  const maxTrendRate = $derived(
+    data.trend.length
+      ? Math.max(...data.trend.map(t => t.auto_confirmed_rate ?? 0), 1)
+      : 100
+  );
+</script>
+
+<div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;height:100%;overflow:auto;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:8px;">
+    <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">
+      Precisión de extracción IA
+    </h2>
+  </div>
+
+  {#if !data.hasData}
+    <!-- Empty state -->
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px 0;text-align:center;">
+      <div style="font-size:36px;opacity:0.2;">🤖</div>
+      <p style="font-size:15px;font-weight:500;color:var(--mep-fg-2);margin:0;">Sin datos de extracción aún</p>
+      <p style="font-size:13px;color:var(--mep-fg-4);max-width:320px;margin:0;line-height:1.5;">
+        Los datos de precisión aparecen una vez que confirmes facturas extraídas por la IA.
+      </p>
+      <a href="/" style="font-size:13px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">
+        Subir primera factura →
+      </a>
+    </div>
+  {:else}
+
+    <!-- KPI row -->
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">Tasa auto-confirmadas</div>
+        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-acc);letter-spacing:-0.4px;line-height:1.1;">
+          {fmtPct(data.kpis.auto_confirmed_rate)}
+        </div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">sin correcciones</div>
+      </div>
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">Total procesadas</div>
+        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
+          {data.kpis.total_invoices}
+        </div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">facturas históricas</div>
+      </div>
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">Correcciones medias</div>
+        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
+          {fmtNum(data.kpis.avg_corrections)}
+        </div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">por factura (30 d)</div>
+      </div>
+      <div class="card" style="padding:14px;">
+        <div class="label" style="margin-bottom:6px;">Proveedor más preciso</div>
+        <div style="font-size:14px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {data.kpis.most_accurate_supplier ?? '—'}
+        </div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">menor tasa de error</div>
+      </div>
+    </div>
+
+    <!-- Middle row: most-corrected fields + accuracy trend -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" class="max-[900px]:grid-cols-1">
+
+      <!-- Most-corrected fields -->
+      <div class="card" style="padding:16px;">
+        <div class="subtitle" style="margin-bottom:4px;">Campos más corregidos</div>
+        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
+          Campos que los usuarios corrigen con más frecuencia
+        </div>
+        {#if !data.field_corrections.length}
+          <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:24px 0;">Sin correcciones registradas</p>
+        {:else}
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+            <thead>
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <th style="text-align:left;padding:4px 8px 8px 0;font-weight:500;color:var(--mep-fg-3);">Campo</th>
+                <th style="text-align:right;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Correcciones</th>
+                <th style="text-align:right;padding:4px 0 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">% facturas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each data.field_corrections as row}
+                <tr style="border-bottom:1px solid var(--mep-divider);">
+                  <td style="padding:7px 8px 7px 0;color:var(--mep-fg);">
+                    <div style="display:flex;flex-direction:column;gap:4px;">
+                      <span>{row.field_name}</span>
+                      <div style="height:4px;border-radius:2px;background:var(--mep-surface-2);overflow:hidden;">
+                        <div style="width:{Math.round(row.corrections / maxCorrections * 100)}%;height:100%;background:var(--mep-warn);border-radius:2px;"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="num" style="padding:7px 0;text-align:right;color:var(--mep-fg);font-weight:500;">{row.corrections}</td>
+                  <td class="num" style="padding:7px 0 7px 8px;text-align:right;color:var(--mep-fg-3);">{fmtPct(row.invoice_pct)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        {/if}
+      </div>
+
+      <!-- Accuracy trend -->
+      <div class="card" style="padding:16px;">
+        <div class="subtitle" style="margin-bottom:4px;">Tendencia de precisión</div>
+        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
+          Tasa de auto-confirmación mensual
+        </div>
+        {#if !data.trend.length}
+          <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:24px 0;">Sin datos de tendencia aún</p>
+        {:else}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {#each data.trend as point}
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                  <span style="font-size:12px;color:var(--mep-fg-2);">{point.month}</span>
+                  <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);">{fmtPct(point.auto_confirmed_rate)}</span>
+                </div>
+                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
+                  <div style="
+                    width:{Math.round((point.auto_confirmed_rate ?? 0) / maxTrendRate * 100)}%;
+                    height:100%;
+                    background:var(--mep-acc);
+                    border-radius:4px;
+                  "></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
+    </div>
+
+    <!-- Accuracy by supplier -->
+    <div class="card" style="padding:16px;">
+      <div class="subtitle" style="margin-bottom:4px;">Precisión por proveedor</div>
+      <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
+        Tasa de auto-confirmación y correcciones medias por proveedor
+      </div>
+      {#if !data.supplier_accuracy.length}
+        <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:16px 0;">Sin datos por proveedor</p>
+      {:else}
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <th style="text-align:left;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);">Proveedor</th>
+              <th style="text-align:right;padding:4px 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Facturas</th>
+              <th style="text-align:right;padding:4px 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Auto-confirmadas</th>
+              <th style="text-align:right;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Corr. medias</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each data.supplier_accuracy as row}
+              {@const lowAccuracy = (row.auto_confirmed_rate ?? 100) < 50}
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <td style="padding:8px 0;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="color:var(--mep-fg);font-weight:500;">{row.supplier_name}</span>
+                    {#if lowAccuracy}
+                      <span style="
+                        font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;
+                        background:var(--mep-warn-soft);color:var(--mep-warn);
+                      ">Revisar</span>
+                    {/if}
+                  </div>
+                </td>
+                <td class="num" style="padding:8px;text-align:right;color:var(--mep-fg-3);">{row.total_invoices}</td>
+                <td style="padding:8px;text-align:right;">
+                  <span class="num" style="
+                    font-weight:600;
+                    color:{lowAccuracy ? 'var(--mep-warn)' : 'var(--mep-acc)'};
+                  ">{fmtPct(row.auto_confirmed_rate)}</span>
+                </td>
+                <td class="num" style="padding:8px 0;text-align:right;color:var(--mep-fg-3);">{fmtNum(row.avg_corrections)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+        {#if data.supplier_accuracy.some(r => (r.auto_confirmed_rate ?? 100) < 50)}
+          <p style="margin:12px 0 0;font-size:12px;color:var(--mep-warn);padding:8px 12px;background:var(--mep-warn-soft);border-radius:6px;">
+            Las facturas de los proveedores marcados como «Revisar» suelen necesitar correcciones — comprueba su formato.
+          </p>
+        {/if}
+      {/if}
+    </div>
+
+  {/if}
+</div>
