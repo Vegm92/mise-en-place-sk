@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
-  import { MessageCircle, Send, Plus, Trash2 } from 'lucide-svelte';
+  import { MessageCircle, Send, Plus, Trash2, Menu, X } from 'lucide-svelte';
   import { t } from '$lib/i18n';
 
   const { data } = $props();
@@ -14,6 +14,7 @@
   let chatInput = $state('');
   let chatLoading = $state(false);
   let messagesEl = $state<HTMLDivElement | null>(null);
+  let mobileSidebarOpen = $state(false);
 
   const STARTER_CHIPS = [
     'chat.chip.spend',
@@ -23,7 +24,6 @@
   ];
 
   $effect(() => {
-    // When data reloads (page navigation), sync state
     messages = data.messages as Msg[];
     activeSessionId = data.activeSessionId;
   });
@@ -52,13 +52,12 @@
       const d = await res.json();
       if (d.sessionId && d.sessionId !== activeSessionId) {
         activeSessionId = d.sessionId;
-        // Update URL without reload
         const url = new URL($page.url);
         url.searchParams.set('session', String(d.sessionId));
         goto(url.toString(), { replaceState: true, noScroll: true });
       }
       messages = [...messages, { role: 'assistant', text: d.reply ?? $t('chat.error'), actions: d.actions }];
-      invalidateAll(); // refresh session list in sidebar
+      invalidateAll();
     } catch {
       messages = [...messages, { role: 'assistant', text: $t('chat.error') }];
     } finally {
@@ -80,6 +79,7 @@
     messages = [];
     activeSessionId = null;
     chatInput = '';
+    mobileSidebarOpen = false;
   }
 
   function formatDate(iso: Date | string | null | undefined) {
@@ -93,10 +93,30 @@
   }
 </script>
 
-<div style="display:flex;height:calc(100vh - 56px);overflow:hidden;">
+<div style="display:flex;height:calc(100vh - 56px);overflow:hidden;position:relative;">
 
-  <!-- Sidebar: session list (hidden on mobile — full-width chat takes over) -->
-  <aside class="max-md:hidden" style="width:260px;flex-shrink:0;border-right:1px solid var(--mep-divider);display:flex;flex-direction:column;background:var(--mep-surface-2);overflow:hidden;">
+  <!-- Mobile backdrop (tap outside to close sidebar) -->
+  {#if mobileSidebarOpen}
+    <div
+      role="presentation"
+      onclick={() => (mobileSidebarOpen = false)}
+      onkeydown={() => (mobileSidebarOpen = false)}
+      class="md:hidden"
+      style="position:fixed;inset:0;top:56px;background:rgba(0,0,0,0.4);z-index:40;"
+    ></div>
+  {/if}
+
+  <!-- Sidebar: session list
+       Desktop (md+): normal flex child, always visible.
+       Mobile (<md): fixed slide-over from left, toggled by hamburger. -->
+  <aside
+    class="
+      max-md:fixed max-md:top-[56px] max-md:bottom-0 max-md:left-0 max-md:z-50
+      max-md:transition-transform max-md:duration-300
+      {mobileSidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
+    "
+    style="width:260px;flex-shrink:0;border-right:1px solid var(--mep-divider);display:flex;flex-direction:column;background:var(--mep-surface-2);overflow:hidden;"
+  >
     <div style="padding:16px 12px 8px;border-bottom:1px solid var(--mep-divider);">
       <button
         onclick={newChat}
@@ -122,6 +142,7 @@
         >
           <a
             href="/chat?session={session.id}"
+            onclick={() => (mobileSidebarOpen = false)}
             style="
               flex:1;min-width:0;padding:8px 10px;text-decoration:none;border-radius:8px;
               display:block;
@@ -153,6 +174,37 @@
 
   <!-- Main chat area -->
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
+
+    <!-- Mobile-only top bar: hamburger + current chat title + new chat button -->
+    <div
+      class="md:hidden"
+      style="height:44px;display:flex;align-items:center;gap:8px;padding:0 8px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;"
+    >
+      <button
+        onclick={() => (mobileSidebarOpen = !mobileSidebarOpen)}
+        class="btn btn-ghost"
+        style="width:36px;height:36px;padding:0;justify-content:center;flex-shrink:0;"
+        aria-label="Toggle chat history"
+      >
+        {#if mobileSidebarOpen}
+          <X size={18} />
+        {:else}
+          <Menu size={18} />
+        {/if}
+      </button>
+      <span style="flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--mep-fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        {data.sessions.find((s) => s.id === activeSessionId)?.title ?? $t('chat.title')}
+      </span>
+      <button
+        onclick={newChat}
+        class="btn btn-ghost"
+        style="width:36px;height:36px;padding:0;justify-content:center;flex-shrink:0;"
+        aria-label={$t('chat.newChat')}
+        title={$t('chat.newChat')}
+      >
+        <Plus size={18} />
+      </button>
+    </div>
 
     <!-- Messages -->
     <div
