@@ -22,8 +22,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type TopItem = { description: string; total_spend: number; item_count: number; avg_unit_price: number | null; supplier_name: string };
 		type CatRow = { category: string; total: number; invoice_count: number };
 		type KpisRow = { total_items_spend: number | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
+		type ItemTrendRow = { item_key: string; month: string; avg_price: number };
 
-		const [topItems, categorySpend, kpisRows] = await Promise.all([
+		const [topItems, categorySpend, kpisRows, itemTrendRows] = await Promise.all([
 			db.execute<TopItem>(sql.raw(`
 				SELECT
 					MIN(ili.description) AS description,
@@ -70,14 +71,41 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				  AND i.restaurant_id = '${rid}'
 				  ${dateClause}
 			`)),
+
+			db.execute<ItemTrendRow>(sql.raw(`
+				SELECT
+					LOWER(TRIM(ili.description)) AS item_key,
+					TO_CHAR(i.invoice_date::date, 'YYYY-MM') AS month,
+					AVG(ili.unit_price) AS avg_price
+				FROM invoice_line_items ili
+				JOIN invoices i ON i.id = ili.invoice_id
+				WHERE ili.unit_price IS NOT NULL
+				  AND ili.description IS NOT NULL AND ili.description != ''
+				  AND i.restaurant_id = '${rid}'
+				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text
+				GROUP BY LOWER(TRIM(ili.description)), TO_CHAR(i.invoice_date::date, 'YYYY-MM')
+				ORDER BY item_key, month ASC
+			`)),
 		]);
 
+		const itemTrendMap = new Map<string, number[]>();
+		for (const row of itemTrendRows) {
+			const key = String(row.item_key);
+			if (!itemTrendMap.has(key)) itemTrendMap.set(key, []);
+			itemTrendMap.get(key)!.push(Number(row.avg_price));
+		}
+
 		const maxSpend = Number(topItems[0]?.total_spend) || 1;
-		const top_items = topItems.map(item => ({
-			...item,
-			total_spend: Number(item.total_spend),
-			pct: Math.round((Number(item.total_spend) || 0) / maxSpend * 100),
-		}));
+		const top_items = topItems.map(item => {
+			const key = item.description.toLowerCase().trim();
+			const rawTrend = itemTrendMap.get(key) ?? [];
+			return {
+				...item,
+				total_spend: Number(item.total_spend),
+				pct: Math.round((Number(item.total_spend) || 0) / maxSpend * 100),
+				price_trend: rawTrend.length >= 2 ? rawTrend : [],
+			};
+		});
 
 		const maxCat = Number(categorySpend[0]?.total) || 1;
 		const category_spend = categorySpend.map(cat => ({

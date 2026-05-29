@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fmtEur } from '$lib/formatters';
   import { ChevronRight } from 'lucide-svelte';
+  import Sparkline from '$lib/components/Sparkline.svelte';
 
   interface Supplier {
     id: number;
@@ -10,6 +11,7 @@
     month_spend: number | null;
     delta_pct: number | null;
     month_invoice_count: number | null;
+    price_trend?: number[];
   }
 
   let {
@@ -141,7 +143,7 @@
               {s.category && s.category !== 'Other' ? s.category : 'Sin categoría'}{s.month_invoice_count ? ` · ${s.month_invoice_count} facturas` : ''}
             </div>
           </div>
-          <div style="text-align: right; flex-shrink: 0;">
+          <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">
               {s.month_spend != null ? fmtEur(s.month_spend) : '—'}
             </div>
@@ -149,6 +151,9 @@
               <div class="num" style="font-size: 11px; color: {deltaColor(s.delta_pct)};">
                 {s.delta_pct > 0 ? '↑' : '↓'}{Math.abs(s.delta_pct).toFixed(1).replace('.', ',')}%
               </div>
+            {/if}
+            {#if s.price_trend && s.price_trend.length >= 3}
+              <Sparkline values={s.price_trend} width={64} height={20} />
             {/if}
           </div>
           <ChevronRight size={14} style="color: var(--mep-fg-3); flex-shrink: 0;" />

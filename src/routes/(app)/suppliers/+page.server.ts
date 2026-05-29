@@ -12,7 +12,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-		const [rows, metricsRows] = await Promise.all([
+		type PriceTrendRow = { supplier_id: number; month: string; avg_price: number };
+
+		const [rows, metricsRows, priceTrendRows] = await Promise.all([
 			db.select({
 				id:               suppliers.id,
 				name:             suppliers.name,
@@ -36,9 +38,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 			db.select().from(supplierMetrics)
 				.where(eq(supplierMetrics.restaurantId, rid)),
+
+			db.execute<PriceTrendRow>(sql.raw(`
+				SELECT
+					i.supplier_id,
+					TO_CHAR(i.invoice_date::date, 'YYYY-MM') AS month,
+					AVG(ili.unit_price) AS avg_price
+				FROM invoice_line_items ili
+				JOIN invoices i ON i.id = ili.invoice_id
+				WHERE ili.unit_price IS NOT NULL
+				  AND ili.description IS NOT NULL AND ili.description != ''
+				  AND i.restaurant_id = '${rid}'
+				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text
+				GROUP BY i.supplier_id, TO_CHAR(i.invoice_date::date, 'YYYY-MM')
+				ORDER BY i.supplier_id, month ASC
+			`)),
 		]);
 
 		const metricsMap = new Map(metricsRows.map((m) => [m.supplierId, m]));
+
+		const priceTrendMap = new Map<number, number[]>();
+		for (const row of priceTrendRows) {
+			const sid = Number(row.supplier_id);
+			if (!priceTrendMap.has(sid)) priceTrendMap.set(sid, []);
+			priceTrendMap.get(sid)!.push(Number(row.avg_price));
+		}
 
 		// Refresh stale scores (>24h old) for suppliers with enough invoices
 		const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -74,6 +98,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 				? ((Number(r.month_spend) - lastMonthSpend) / lastMonthSpend) * 100
 				: null;
 
+			const rawTrend = priceTrendMap.get(r.id) ?? [];
+			const price_trend = rawTrend.length >= 3 ? rawTrend : [];
+
 			return {
 				...r,
 				invoice_count: invoiceCount,
@@ -86,6 +113,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
 				reliability_score: metrics && invoiceCount >= 3 ? metrics.score : null,
 				stability_level: stabilityLevel,
+				price_trend,
 			};
 		});
 

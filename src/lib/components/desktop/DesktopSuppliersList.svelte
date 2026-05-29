@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
   import { Search, ChevronRight, Plus } from 'lucide-svelte';
+  import Sparkline from '$lib/components/Sparkline.svelte';
 
   interface Supplier {
     id: number;
@@ -14,6 +15,7 @@
     last_invoice_date: string | null;
     createdAt: Date | null;
     month_invoice_count: number | null;
+    price_trend?: number[];
   }
 
   let {
@@ -138,6 +140,7 @@
               <th style="width:120px;">Categoría</th>
               <th class="num" style="width:75px;">Facturas</th>
               <th class="num" style="width:115px;">Gasto (mes)</th>
+              <th style="width:90px;">Tendencia</th>
               <th class="num" style="width:65px;">Δ</th>
               <th style="width:100px;">Último pedido</th>
               <th style="width:32px;"></th>
@@ -176,6 +179,13 @@
                 </td>
                 <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>
                 <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0)}</td>
+                <td style="padding:0 8px;">
+                  {#if s.price_trend && s.price_trend.length >= 3}
+                    <Sparkline values={s.price_trend} width={80} height={24} />
+                  {:else}
+                    <span style="font-size:11.5px;color:var(--mep-fg-3);">—</span>
+                  {/if}
+                </td>
                 <td class="num">
                   {#if s.delta_pct === null || Math.abs(s.delta_pct) < 0.1}
                     <span style="font-size:11.5px;color:var(--mep-fg-3);">—</span>
