@@ -10,6 +10,6 @@ import * as schema from './schema';
 const connectionString = env.DATABASE_URL;
 if (!connectionString) throw new Error('DATABASE_URL is required');
 
-const client = postgres(connectionString, { prepare: false });
+const client = postgres(connectionString, { prepare: false, ssl: 'require' });
 
 export const db = drizzle(client, { schema });
