@@ -90,9 +90,10 @@
       overflow-y:auto;
     "
     class="
-      max-md:fixed max-md:left-0 max-md:top-0 max-md:bottom-0 max-md:h-full max-md:z-[100]
-      max-md:transition-transform max-md:duration-200
-      {mobileOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'}
+      fixed left-0 top-0 bottom-0 h-full z-[100]
+      transition-transform duration-200
+      md:static md:z-auto md:translate-x-0 md:transition-none
+      {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     "
   >
     <!-- Brand -->
@@ -247,7 +248,7 @@
       </h1>
 
       <!-- Chat (desktop only — sidebar nav handles mobile) -->
-      <span class="max-md:hidden"><ChatFab /></span>
+      <span class="hidden md:inline-flex"><ChatFab /></span>
 
       <!-- Language toggle -->
       <button

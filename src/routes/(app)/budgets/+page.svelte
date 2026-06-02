@@ -40,7 +40,7 @@
 </script>
 
 <!-- ── Desktop layout ──────────────────────────────────────────────────── -->
-<div class="layout-desktop" style="height:100%;flex-direction:column;overflow:hidden;">
+<div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
     <!-- Overall progress card -->
@@ -215,7 +215,7 @@
 </div>
 
 <!-- ── Mobile layout ───────────────────────────────────────────────────── -->
-<div class="layout-mobile" style="height:100%;flex-direction:column;overflow:hidden;">
+<div class="flex md:hidden" style="height:100%;flex-direction:column;overflow:hidden;">
   <form method="post" action="?/save" use:enhance style="display:contents;">
     <input type="hidden" name="_categories" value={JSON.stringify(allCategories)} />
 
@@ -373,11 +373,3 @@
   </form>
 </div>
 
-<style>
-  .layout-desktop { display: flex; }
-  .layout-mobile  { display: none; }
-  @media (max-width: 767px) {
-    .layout-desktop { display: none; }
-    .layout-mobile  { display: flex; }
-  }
-</style>

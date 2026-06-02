@@ -23,7 +23,7 @@
     <!-- Invoice details -->
     <div class="card p-5">
       <p class="label mb-4">{$t('edit.details').toUpperCase()}</p>
-      <div class="grid grid-cols-2 gap-4 max-md:grid-cols-1">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
           <label class="label" for="edit-supplier">{$t('field.supplier')}</label>
           <input id="edit-supplier" type="text" name="supplier_name" value={invoice.supplier_name ?? ''}
@@ -49,7 +49,7 @@
           <input id="edit-total" type="text" name="total_amount" value={String(invoice.total_amount ?? '')}
             class="input" style="height:36px;font-size:13px;" />
         </div>
-        <div class="col-span-2 max-md:col-span-1 flex flex-col gap-1">
+        <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
           <label class="label" for="edit-notes">
             {$t('edit.notes')} <span class="text-fg-3 font-normal">({$t('edit.notesHint')})</span>
           </label>
