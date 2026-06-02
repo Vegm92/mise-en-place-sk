@@ -256,6 +256,8 @@ const translations = {
     'steps.review':            'Revisar y guardar',
     // Upload page — drop zone & queue
     'upload.dropHeadline':     'Suelta tus facturas aquí',
+    'upload.onboardHint':      'Sube cualquier factura de proveedor — PDF, foto o escaneo. La IA extraerá todos los datos automáticamente.',
+    'upload.onboardHintShort': 'PDF, foto o escaneo — la IA extrae los datos.',
     'upload.emailForward':     'O reenvía por email',
     'upload.copy':             'Copiar',
     'upload.queue':            'Cola de subida',
@@ -268,6 +270,7 @@ const translations = {
     'upload.extractDataN':     'Extraer datos de {n} facturas',
     // Mobile camera capture
     'upload.cameraBtn':        'Tomar foto',
+    'upload.imageTooLarge':    'La imagen supera el límite de {mb} MB',
     'upload.captureTip':       'Coloca la factura sobre una superficie plana con buena luz. Asegúrate de que todos los bordes sean visibles.',
     'upload.captureTipTitle':  'Consejo para capturar',
     'upload.captureTipDismiss':'Entendido — tomar foto',
@@ -589,6 +592,8 @@ const translations = {
     'steps.review':            'Review & Save',
     // Upload page — drop zone & queue
     'upload.dropHeadline':     'Drop your invoices here',
+    'upload.onboardHint':      'Upload any supplier invoice — PDF, photo or scan. The AI will extract all the data automatically.',
+    'upload.onboardHintShort': 'PDF, photo or scan — the AI extracts the data.',
     'upload.emailForward':     'Or forward by email',
     'upload.copy':             'Copy',
     'upload.queue':            'Upload queue',
@@ -601,6 +606,7 @@ const translations = {
     'upload.extractDataN':     'Extract {n} invoices',
     // Mobile camera capture
     'upload.cameraBtn':        'Take Photo',
+    'upload.imageTooLarge':    'Image exceeds the {mb} MB limit',
     'upload.captureTip':       'Place the invoice on a flat surface in good light. Make sure all edges are visible.',
     'upload.captureTipTitle':  'Capture tip',
     'upload.captureTipDismiss':'Got it — take photo',
