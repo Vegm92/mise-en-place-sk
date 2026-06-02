@@ -5,7 +5,7 @@
   import {
     LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
     Settings, HelpCircle, Upload, Sun, Moon,
-    LogOut, Menu, X, MessageCircle,
+    LogOut, Menu, X, MessageCircle, Newspaper,
   } from 'lucide-svelte';
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
@@ -53,6 +53,7 @@
     },
     { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
     { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
+    { href: '/digest',          icon: Newspaper,       label: $t('nav.digest'),     badge: 0 },
     { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
   ]);
 
