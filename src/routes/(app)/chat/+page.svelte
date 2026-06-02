@@ -93,7 +93,7 @@
   }
 </script>
 
-<div style="display:flex;height:calc(100vh - 56px);overflow:hidden;position:relative;">
+<div style="display:flex;height:calc(100vh - 56px);height:calc(100dvh - 56px);overflow:hidden;position:relative;">
 
   <!-- Backdrop (tap outside to close sidebar) -->
   {#if mobileSidebarOpen}
