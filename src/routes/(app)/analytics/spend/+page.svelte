@@ -29,7 +29,7 @@
 </div>
 
 <!-- Desktop spend analytics -->
-<div class="max-md:hidden" style="height:100%;overflow:auto;">
+<div class="hidden md:block" style="height:100%;overflow:auto;">
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <!-- Header + period picker -->

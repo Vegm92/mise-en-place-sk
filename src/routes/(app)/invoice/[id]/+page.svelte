@@ -40,7 +40,7 @@
 </div>
 
 <!-- Desktop invoice detail -->
-<div class="max-md:block hidden">
+<div class="hidden md:block">
 <div style="padding:24px;display:flex;flex-direction:column;gap:16px;max-width:1100px;margin:0 auto;">
 
   <!-- Breadcrumb -->
