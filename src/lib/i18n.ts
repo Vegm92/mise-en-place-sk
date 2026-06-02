@@ -266,6 +266,16 @@ const translations = {
     'upload.extractData':      'Extraer datos',
     'upload.extractData1':     'Extraer datos de 1 factura',
     'upload.extractDataN':     'Extraer datos de {n} facturas',
+    // Mobile camera capture
+    'upload.cameraBtn':        'Tomar foto',
+    'upload.captureTip':       'Coloca la factura sobre una superficie plana con buena luz. Asegúrate de que todos los bordes sean visibles.',
+    'upload.captureTipTitle':  'Consejo para capturar',
+    'upload.captureTipDismiss':'Entendido — tomar foto',
+    'upload.previewUse':       'Usar esta foto',
+    'upload.previewRetake':    'Repetir foto',
+    'upload.offlineSaved':     'Guardado localmente — se subirá al restaurar la conexión',
+    'upload.offlineRetrying':  'Reintentando subida…',
+    'upload.offlineLimit':     'Límite alcanzado (máx. 3 facturas guardadas sin conexión)',
     // Confirm page — extraction stages
     'confirm.stage.read':      'Leyendo documento',
     'confirm.stage.supplier':  'Identificando proveedor',
@@ -589,6 +599,16 @@ const translations = {
     'upload.extractData':      'Extract data',
     'upload.extractData1':     'Extract 1 invoice',
     'upload.extractDataN':     'Extract {n} invoices',
+    // Mobile camera capture
+    'upload.cameraBtn':        'Take Photo',
+    'upload.captureTip':       'Place the invoice on a flat surface in good light. Make sure all edges are visible.',
+    'upload.captureTipTitle':  'Capture tip',
+    'upload.captureTipDismiss':'Got it — take photo',
+    'upload.previewUse':       'Use this photo',
+    'upload.previewRetake':    'Retake',
+    'upload.offlineSaved':     'Saved locally — will upload when connection is restored',
+    'upload.offlineRetrying':  'Retrying upload…',
+    'upload.offlineLimit':     'Limit reached (max 3 invoices saved offline)',
     // Confirm page — extraction stages
     'confirm.stage.read':      'Reading document',
     'confirm.stage.supplier':  'Identifying supplier',
