@@ -68,7 +68,7 @@
 </svelte:head>
 
 <div class="mep" data-accent="amber" data-density="default"
-  style="width:100%;height:100vh;display:flex;overflow:hidden;">
+  style="width:100%;height:100vh;height:100dvh;display:flex;overflow:hidden;">
 
   <!-- Mobile overlay -->
   {#if mobileOpen}
