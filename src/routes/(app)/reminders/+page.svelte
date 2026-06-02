@@ -14,7 +14,7 @@
 </div>
 
 <!-- Desktop reminders -->
-<div class="max-md:hidden p-6 flex flex-col gap-4">
+<div class="hidden md:flex flex-col gap-4 p-6">
 
   {#if !data.overdue.length && !data.due_soon.length}
     <p class="body text-center py-16">{$t('rem.empty')}</p>
