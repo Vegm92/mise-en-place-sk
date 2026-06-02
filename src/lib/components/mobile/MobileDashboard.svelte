@@ -39,6 +39,7 @@
     alertText,
     suppliers,
     recentInvoices,
+    weeklyDigest,
   }: {
     monthSpend: number;
     monthDelta: number | null;

@@ -31,9 +31,6 @@
   // Upload progress (shown in mobile only)
   let uploadProgress = $state(0);
 
-  // Camera availability (desktop shows camera button only when a camera is detected)
-  let hasCameraDevice = $state(false);
-
   const STEPS = $derived([$t('steps.upload'), $t('steps.extract'), $t('steps.review')]);
 
   // ── IndexedDB helpers ───────────────────────────────────────────────────
@@ -149,7 +146,7 @@
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) return;
-    if (f.size > MAX_MB * 1024 * 1024) { alert(`La imagen supera el límite de ${MAX_MB} MB`); return; }
+    if (f.size > MAX_MB * 1024 * 1024) { alert($t('upload.imageTooLarge').replace('{mb}', String(MAX_MB))); return; }
     previewUrl = URL.createObjectURL(f);
     previewFile = f;
   }
@@ -276,12 +273,6 @@
       pendingOfflineCount = n;
       if (n > 0 && navigator.onLine) retryOfflineUploads();
     });
-    // Detect camera devices for desktop conditional button
-    if (navigator.mediaDevices?.enumerateDevices) {
-      navigator.mediaDevices.enumerateDevices().then((devices) => {
-        hasCameraDevice = devices.some((d) => d.kind === 'videoinput');
-      }).catch(() => {});
-    }
     const onOnline = () => retryOfflineUploads();
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -388,7 +379,7 @@
           {#if data.hasCompletedOnboarding}
             <span style="color:var(--mep-acc);font-weight:500;">{$t('upload.dropBrowse')}</span> · {$t('upload.dropSub')}
           {:else}
-            PDF, foto o escaneo — la IA extrae los datos.
+            {$t('upload.onboardHintShort')}
           {/if}
         </div>
 
@@ -585,7 +576,7 @@
           {#if data.hasCompletedOnboarding}
             O <span style="color:var(--mep-acc);font-weight:500;">{$t('upload.dropBrowse')}</span> · {$t('upload.dropSub')}
           {:else}
-            Sube cualquier factura de proveedor — PDF, foto o escaneo. La IA extraerá todos los datos automáticamente.
+            {$t('upload.onboardHint')}
           {/if}
         </div>
 
@@ -598,27 +589,14 @@
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
 
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button
-            type="button"
-            class="btn btn-primary"
-            style="height:36px;padding:0 14px;pointer-events:auto;"
-            onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
-          >
-            {$t('upload.browseFiles')}
-          </button>
-          {#if hasCameraDevice}
-            <button
-              type="button"
-              class="btn btn-ghost"
-              style="height:36px;padding:0 12px;pointer-events:auto;gap:6px;display:flex;align-items:center;"
-              onclick={(e) => { e.stopPropagation(); openCamera(); }}
-            >
-              <Camera size={14} />
-              {$t('upload.cameraBtn')}
-            </button>
-          {/if}
-        </div>
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="height:36px;padding:0 14px;pointer-events:auto;"
+          onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
+        >
+          {$t('upload.browseFiles')}
+        </button>
 
         <!-- Email forwarding -->
         <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--mep-divider);width:100%;max-width:440px;display:flex;align-items:center;gap:12px;">
