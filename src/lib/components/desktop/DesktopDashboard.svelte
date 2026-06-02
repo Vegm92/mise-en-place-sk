@@ -139,7 +139,7 @@
   }
 </script>
 
-<div class="max-md:hidden flex flex-col gap-4 p-6">
+<div class="hidden md:flex flex-col gap-4 p-6">
 
   <!-- Period picker row -->
   <div style="display:flex;align-items:center;gap:10px;">

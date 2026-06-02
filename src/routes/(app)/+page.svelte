@@ -510,7 +510,7 @@
 </div>
 
 <!-- ── Desktop upload ─────────────────────────────────────────────────── -->
-<div class="max-md:hidden flex flex-col" style="height:100%;overflow:hidden;">
+<div class="hidden md:flex flex-col" style="height:100%;overflow:hidden;">
 
   <!-- 3-step indicator -->
   <div style="padding:20px 32px 0;flex-shrink:0;display:flex;align-items:center;gap:12px;">
