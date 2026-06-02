@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	} else {
 		const acquired = tryAcquireExtraction(MAX_CONCURRENT_EXTRACTIONS);
 		if (!acquired) {
-			extractError = 'The system is currently processing too many invoices. Please try again in a moment.';
+			extractError = 'extract.err.tooMany';
 		} else {
 			try {
 				const firstFile = path.join(dir, existingPaths[0]);
@@ -56,12 +56,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				writeSession({ ...session, extractedData });
 			} catch (err) {
 				const status = (err as { status?: number }).status;
+				const message = (err as { message?: string }).message ?? '';
 				extractError =
 					status === 429
-						? 'The AI service is currently busy — please try again in a moment.'
+						? 'extract.err.rateLimited'
 						: status === 503
-							? 'The AI service is temporarily unavailable — please try again shortly.'
-							: 'Extraction failed — please try again, or contact support if the issue persists.';
+							? 'extract.err.unavailable'
+							: message.includes('invalid JSON')
+								? 'extract.err.notInvoice'
+								: 'extract.err.generic';
 				console.error('[extract] Extraction failed for', existingPaths[0], err);
 			} finally {
 				releaseExtraction();

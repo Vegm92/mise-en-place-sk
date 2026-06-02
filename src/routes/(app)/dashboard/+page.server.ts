@@ -4,7 +4,6 @@ import { db } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
 import { asc, desc, eq, isNotNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
-import { getOrGenerateWeeklyDigest, dismissWeeklyDigest, isoWeek } from '$lib/server/weekly-digest';
 
 const MIN_SUPPLIER_GAP_DAYS      = 3;
 const MISSING_INVOICE_MULTIPLIER = 1.5;
@@ -420,8 +419,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		});
 
 		const missingInvoices = await detectMissingInvoices(today, rid);
-		const currentWeek = isoWeek(today);
-		const weeklyDigest = await getOrGenerateWeeklyDigest(rid, currentWeek);
 		const displayMonth = new Date(selectedMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
 		type InvRow = { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; display_amount: number; status: string; item_count: number };
@@ -445,7 +442,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			avg_per_supplier: avgPerSupplier, avg_per_supplier_delta: avgPerSupplierDelta,
 			spark_data: sparkData,
 			projection: { daily_rate: dailyRate, projected_eom: projectedEom, elapsed_pct: projectedElapsedPct, days_elapsed: daysElapsed, days_in_month: daysInMonth },
-			weekly_digest: weeklyDigest,
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
@@ -455,10 +451,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 };
 
 export const actions: Actions = {
-	dismissDigest: async ({ locals }) => {
-		await dismissWeeklyDigest(locals.restaurantId!);
-		redirect(303, '/dashboard');
-	},
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));

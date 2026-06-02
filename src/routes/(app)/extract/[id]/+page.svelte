@@ -108,7 +108,7 @@
     <div style="padding:32px;display:flex;flex-direction:column;gap:12px;max-width:560px;">
       <div class="card p-4" style="background:var(--mep-neg-soft);border-color:var(--mep-neg);">
         <strong class="body-strong" style="color:var(--mep-neg);display:block;margin-bottom:6px;">{$t('extract.error')}</strong>
-        <p style="font-size:13px;color:var(--mep-neg);">{data.error}</p>
+        <p style="font-size:13px;color:var(--mep-neg);">{$t(data.error ?? '')}</p>
       </div>
       <div style="display:flex;gap:8px;">
         <a href="/extract/{data.id}" class="btn btn-primary" style="height:34px;text-decoration:none;font-size:13px;">
