@@ -162,21 +162,6 @@
     </div>
   {/if}
 
-  <!-- ── Weekly Digest ─────────────────────────────────────────────── -->
-  {#if data.weekly_digest && !data.weekly_digest.dismissed}
-    <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:8px;background:var(--mep-card);border:1px solid var(--mep-border);border-left:3px solid var(--mep-accent);">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:600;color:var(--mep-accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Resumen semanal</div>
-        <div style="font-size:13px;color:var(--mep-fg-1);line-height:1.55;white-space:pre-wrap;">{data.weekly_digest.text}</div>
-      </div>
-      <form method="POST" action="?/dismissDigest" style="flex-shrink:0;">
-        <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;" aria-label="Cerrar">
-          <X size={13} />
-        </button>
-      </form>
-    </div>
-  {/if}
-
   <!-- ── KPI Strip ───────────────────────────────────────────────────── -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
     <KpiCard
