@@ -77,7 +77,7 @@
 </div>
 
 <!-- Desktop invoice list -->
-<div class="max-md:hidden flex flex-col gap-4 p-6">
+<div class="hidden md:flex flex-col gap-4 p-6">
 
   <!-- ── KPI Strip ───────────────────────────────────────────────── -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3">
