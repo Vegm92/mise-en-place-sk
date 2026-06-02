@@ -48,7 +48,7 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		LEFT JOIN ${invoices} i ON i.supplier_id = s.id
 			AND TO_CHAR(i.invoice_date::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
 		WHERE cb.restaurant_id = ${restaurantId}
-		GROUP BY cb.category
+		GROUP BY cb.category, cb.monthly_budget
 	`);
 
 	if (budgets.length) {

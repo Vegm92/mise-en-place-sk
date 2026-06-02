@@ -39,7 +39,6 @@
     alertText,
     suppliers,
     recentInvoices,
-    weeklyDigest,
   }: {
     monthSpend: number;
     monthDelta: number | null;
@@ -55,7 +54,6 @@
     alertText: string;
     suppliers: Supplier[];
     recentInvoices: RecentInvoice[];
-    weeklyDigest?: { text: string; dismissed: boolean } | null;
   } = $props();
 
   const greeting = $derived.by(() => {
@@ -146,17 +144,6 @@
         </div>
       {/if}
     </div>
-
-    <!-- Weekly digest card -->
-    {#if weeklyDigest && !weeklyDigest.dismissed}
-      <div style="padding:14px;border-radius:10px;background:var(--mep-card);border:1px solid var(--mep-border);border-left:3px solid var(--mep-accent);position:relative;">
-        <div style="font-size:11px;font-weight:600;color:var(--mep-accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Resumen semanal</div>
-        <div style="font-size:12.5px;color:var(--mep-fg-1);line-height:1.55;white-space:pre-wrap;">{weeklyDigest.text}</div>
-        <form method="POST" action="?/dismissDigest" style="position:absolute;top:10px;right:10px;">
-          <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:4px;line-height:1;" aria-label="Cerrar">✕</button>
-        </form>
-      </div>
-    {/if}
 
     <!-- Alert tile (only when there are high/med alerts) -->
     {#if highAlerts + medAlerts > 0}
