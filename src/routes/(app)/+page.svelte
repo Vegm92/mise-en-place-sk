@@ -31,6 +31,9 @@
   // Upload progress (shown in mobile only)
   let uploadProgress = $state(0);
 
+  // Camera availability (desktop shows camera button only when a camera is detected)
+  let hasCameraDevice = $state(false);
+
   const STEPS = $derived([$t('steps.upload'), $t('steps.extract'), $t('steps.review')]);
 
   // ── IndexedDB helpers ───────────────────────────────────────────────────
@@ -273,6 +276,12 @@
       pendingOfflineCount = n;
       if (n > 0 && navigator.onLine) retryOfflineUploads();
     });
+    // Detect camera devices for desktop conditional button
+    if (navigator.mediaDevices?.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices().then((devices) => {
+        hasCameraDevice = devices.some((d) => d.kind === 'videoinput');
+      }).catch(() => {});
+    }
     const onOnline = () => retryOfflineUploads();
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
@@ -412,14 +421,6 @@
           accept=".pdf,.jpg,.jpeg,.png,.heic"
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
-        />
-        <input
-          bind:this={cameraInputEl}
-          type="file"
-          class="hidden"
-          accept="image/*"
-          capture="environment"
-          onchange={onCameraCapture}
         />
 
         <!-- Email forwarding -->
@@ -597,14 +598,27 @@
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
 
-        <button
-          type="button"
-          class="btn btn-primary"
-          style="height:36px;padding:0 14px;pointer-events:auto;"
-          onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
-        >
-          {$t('upload.browseFiles')}
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button
+            type="button"
+            class="btn btn-primary"
+            style="height:36px;padding:0 14px;pointer-events:auto;"
+            onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
+          >
+            {$t('upload.browseFiles')}
+          </button>
+          {#if hasCameraDevice}
+            <button
+              type="button"
+              class="btn btn-ghost"
+              style="height:36px;padding:0 12px;pointer-events:auto;gap:6px;display:flex;align-items:center;"
+              onclick={(e) => { e.stopPropagation(); openCamera(); }}
+            >
+              <Camera size={14} />
+              {$t('upload.cameraBtn')}
+            </button>
+          {/if}
+        </div>
 
         <!-- Email forwarding -->
         <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--mep-divider);width:100%;max-width:440px;display:flex;align-items:center;gap:12px;">
@@ -689,6 +703,16 @@
 
   </div>
 </div>
+
+<!-- Camera input — shared between mobile and desktop, always in DOM -->
+<input
+  bind:this={cameraInputEl}
+  type="file"
+  class="hidden"
+  accept="image/*"
+  capture="environment"
+  onchange={onCameraCapture}
+/>
 
 <!-- ── Mobile overlays ────────────────────────────────────────────────── -->
 
