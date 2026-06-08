@@ -3,10 +3,11 @@ import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { restaurants, userRestaurants } from '$lib/server/schema';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(303, '/login');
-	if (locals.restaurantId) redirect(303, '/');
-	return {};
+	const preview = url.searchParams.get('preview') === '1';
+	if (locals.restaurantId && !preview) redirect(303, '/');
+	return { preview };
 };
 
 export const actions: Actions = {
