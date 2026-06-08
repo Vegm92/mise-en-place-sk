@@ -3,11 +3,11 @@
  * works from Node.js on Windows (IPv4, SSL, concurrency).
  */
 import { describe, it, expect, afterAll } from 'vitest';
-import { testSql, closeDb } from './helpers/test-db';
+import { testSql, closeDb, hasSupabaseEnv } from './helpers/test-db';
 
 afterAll(() => closeDb());
 
-describe('Database connection', () => {
+describe.skipIf(!hasSupabaseEnv)('Database connection', () => {
 	it('connects via Session Pooler and returns a basic query', async () => {
 		const [row] = await testSql`SELECT 1 AS ok`;
 		expect(Number(row.ok)).toBe(1);
