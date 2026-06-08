@@ -3,11 +3,11 @@
  * works from Node.js on Windows (IPv4, SSL, concurrency).
  */
 import { describe, it, expect, afterAll } from 'vitest';
-import { testSql, closeDb } from './helpers/test-db';
+import { testSql, closeDb, hasSupabaseEnv } from './helpers/test-db';
 
-afterAll(() => closeDb());
+afterAll(() => closeDb(), 15_000);
 
-describe('Database connection', () => {
+describe.skipIf(!hasSupabaseEnv)('Database connection', () => {
 	it('connects via Session Pooler and returns a basic query', async () => {
 		const [row] = await testSql`SELECT 1 AS ok`;
 		expect(Number(row.ok)).toBe(1);
@@ -35,7 +35,7 @@ describe('Database connection', () => {
 			testSql`SELECT 5 AS n`,
 		]);
 		expect(results.map(r => Number(r[0].n))).toEqual([1, 2, 3, 4, 5]);
-	});
+	}, 20_000);
 
 	it('reports Supabase PostgreSQL version', async () => {
 		const [row] = await testSql`SELECT version() AS v`;

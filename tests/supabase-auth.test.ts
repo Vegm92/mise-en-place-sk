@@ -5,13 +5,14 @@
  * Note: tests a real Supabase project; no mocks. Cleans up in afterAll.
  */
 import { describe, it, expect, afterAll } from 'vitest';
-import { supabaseAdmin, testSql, closeDb } from './helpers/test-db';
+import { supabaseAdmin, testSql, closeDb, hasSupabaseEnv } from './helpers/test-db';
 
 const TEST_EMAIL    = `test-vitest-auth-${Date.now()}@test.example`;
 const TEST_PASSWORD = 'TestPass2025!';
 let   createdUserId = '';
 
 afterAll(async () => {
+	if (!hasSupabaseEnv) return;
 	if (createdUserId) {
 		await supabaseAdmin.auth.admin.deleteUser(createdUserId);
 	}
@@ -22,7 +23,7 @@ afterAll(async () => {
 
 // ── Admin client ──────────────────────────────────────────────────────────────
 
-describe('Supabase Admin client', () => {
+describe.skipIf(!hasSupabaseEnv)('Supabase Admin client', () => {
 	it('createSupabaseAdminClient() returns a working client (can list users)', async () => {
 		const { data, error } = await supabaseAdmin.auth.admin.listUsers();
 		expect(error).toBeNull();
@@ -38,7 +39,7 @@ describe('Supabase Admin client', () => {
 
 // ── User creation ─────────────────────────────────────────────────────────────
 
-describe('Supabase Auth — user lifecycle', () => {
+describe.skipIf(!hasSupabaseEnv)('Supabase Auth — user lifecycle', () => {
 	it('createUser creates a new confirmed user', async () => {
 		const { data, error } = await supabaseAdmin.auth.admin.createUser({
 			email:         TEST_EMAIL,
@@ -110,7 +111,7 @@ describe('seedAdminUser — idempotency', () => {
 
 // ── Anon key (JWT structure) ──────────────────────────────────────────────────
 
-describe('Supabase JWT keys', () => {
+describe.skipIf(!hasSupabaseEnv)('Supabase JWT keys', () => {
 	function decodeJwtPayload(jwt: string) {
 		const [, payload] = jwt.split('.');
 		return JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));

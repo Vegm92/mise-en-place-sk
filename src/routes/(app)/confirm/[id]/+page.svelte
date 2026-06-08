@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { get } from 'svelte/store';
   import type { PageData } from './$types';
   import { Upload, Mail, Sparkle, X, Check, Clock } from 'lucide-svelte';
   import { t } from '$lib/i18n';
@@ -9,10 +8,13 @@
 
   let addMoreOpen = $state(false);
   let extracting  = $state(false);
+  let addFiles    = $state<File[]>([]);
+  let addSubmitting = $state(false);
+  let dropHighlight = $state(false);
+  let isMobile    = $state(false);
 
   const STEPS = $derived([$t('steps.upload'), $t('steps.extract'), $t('steps.review')]);
 
-  // Step 2 animation — fake stages cycle while server extracts
   const STAGES = $derived([
     $t('confirm.stage.read'),
     $t('confirm.stage.supplier'),
@@ -23,6 +25,13 @@
   let stageIdx = $state(0);
   let stageInterval: ReturnType<typeof setInterval>;
 
+  const addBtnLabel = $derived(
+    addSubmitting ? $t('confirm.adding')
+    : addFiles.length === 0 ? $t('confirm.addFile')
+    : addFiles.length === 1 ? $t('confirm.addFile1')
+    : $t('confirm.addFileN').replace('{n}', String(addFiles.length))
+  );
+
   function startExtracting() {
     extracting = true;
     stageInterval = setInterval(() => {
@@ -30,79 +39,40 @@
     }, 900);
   }
 
+  function pushFiles(newFiles: FileList | null) {
+    if (!newFiles) return;
+    const next = [...addFiles];
+    for (const f of Array.from(newFiles)) {
+      if (!next.some(e => e.name === f.name && e.size === f.size)) next.push(f);
+    }
+    addFiles = next;
+  }
+
+  function removeFile(idx: number) {
+    addFiles = addFiles.filter((_, i) => i !== idx);
+  }
+
+  function onFileInputChange(e: Event) {
+    const input = e.currentTarget as HTMLInputElement;
+    pushFiles(input.files);
+    input.value = '';
+  }
+
+  async function submitAddFiles() {
+    if (addFiles.length === 0 || addSubmitting) return;
+    addSubmitting = true;
+    const fd = new FormData();
+    for (const f of addFiles) fd.append('files', f);
+    try {
+      const resp = await fetch('?/add', { method: 'POST', body: fd });
+      const result = await resp.json() as { type: string; location?: string };
+      if (result.type === 'redirect' && result.location) location.replace(result.location);
+      else addSubmitting = false;
+    } catch { addSubmitting = false; }
+  }
+
   onMount(() => {
-    const isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent);
-    const addCaptureRow  = document.getElementById('addCaptureRow') as HTMLElement | null;
-    const addDropArea    = document.getElementById('addDropArea') as HTMLElement | null;
-    const addFileInput   = document.getElementById('addFileInput') as HTMLInputElement | null;
-    const addCameraInput = document.getElementById('addCameraInput') as HTMLInputElement | null;
-    const addBrowseInput = document.getElementById('addBrowseInput') as HTMLInputElement | null;
-    const addFileList    = document.getElementById('addFileList') as HTMLElement | null;
-    const addSubmitBtn   = document.getElementById('addSubmitBtn') as HTMLButtonElement | null;
-
-    if (isMobile && addCaptureRow && addDropArea) {
-      addCaptureRow.classList.remove('hidden');
-      addDropArea.classList.add('hidden');
-    }
-
-    let addFiles: File[] = [];
-
-    function renderAdd() {
-      if (!addFileList || !addSubmitBtn) return;
-      addFileList.innerHTML = addFiles.map((f, i) => `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
-          <div style="width:28px;height:36px;border-radius:4px;flex-shrink:0;background:${f.name.toLowerCase().endsWith('.pdf') ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">
-            ${f.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMG'}
-          </div>
-          <span style="flex:1;font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.name}</span>
-          <button type="button" data-idx="${i}" style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);font-size:14px;padding:0 2px;" title="${get(t)('confirm.remove')}">✕</button>
-        </div>`).join('');
-      addFileList.querySelectorAll('[data-idx]').forEach(btn => {
-        btn.addEventListener('click', () => { addFiles.splice(Number((btn as HTMLElement).dataset.idx), 1); renderAdd(); });
-      });
-      if (addSubmitBtn) {
-        addSubmitBtn.disabled = addFiles.length === 0;
-        addSubmitBtn.style.opacity = addFiles.length === 0 ? '0.5' : '1';
-        const tr = get(t);
-        addSubmitBtn.textContent = addFiles.length === 0 ? tr('confirm.addFile') : addFiles.length === 1 ? tr('confirm.addFile1') : tr('confirm.addFileN').replace('{n}', String(addFiles.length));
-      }
-    }
-
-    function pushFiles(newFiles: FileList | null) {
-      if (!newFiles) return;
-      for (const f of Array.from(newFiles)) {
-        if (!addFiles.some(e => e.name === f.name && e.size === f.size)) addFiles.push(f);
-      }
-      renderAdd();
-    }
-
-    (window as Window & { submitAddFiles?: () => Promise<void> }).submitAddFiles = async () => {
-      if (addFiles.length === 0 || !addSubmitBtn) return;
-      addSubmitBtn.disabled = true;
-      addSubmitBtn.textContent = get(t)('confirm.adding');
-      const fd = new FormData();
-      for (const f of addFiles) fd.append('files', f);
-      try {
-        const resp = await fetch('?/add', { method: 'POST', body: fd });
-        const result = await resp.json() as { type: string; location?: string };
-        if (result.type === 'redirect' && result.location) location.replace(result.location);
-        else { addSubmitBtn.disabled = false; renderAdd(); }
-      } catch { addSubmitBtn.disabled = false; renderAdd(); }
-    };
-
-    addFileInput?.addEventListener('change', () => { pushFiles(addFileInput.files); addFileInput.value = ''; });
-    addCameraInput?.addEventListener('change', () => { pushFiles(addCameraInput.files); addCameraInput.value = ''; });
-    addBrowseInput?.addEventListener('change', () => { pushFiles(addBrowseInput.files); addBrowseInput.value = ''; });
-
-    if (addDropArea) {
-      addDropArea.addEventListener('dragover', e => { e.preventDefault(); addDropArea.classList.add('border-acc'); });
-      addDropArea.addEventListener('dragleave', () => addDropArea.classList.remove('border-acc'));
-      addDropArea.addEventListener('drop', e => {
-        e.preventDefault();
-        addDropArea.classList.remove('border-acc');
-        pushFiles((e as DragEvent).dataTransfer?.files ?? null);
-      });
-    }
+    isMobile = navigator.maxTouchPoints > 0 || /Mobi|Android/i.test(navigator.userAgent);
 
     // Auto-extract on mobile — skips the manual confirm step
     if (isMobile) {
@@ -394,23 +364,34 @@
 
       {#if addMoreOpen}
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-          <div id="addCaptureRow" style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;">
             <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
               📷 Foto
-              <input type="file" id="addCameraInput" class="hidden" accept="image/*" capture="environment" />
+              <input type="file" class="hidden" accept="image/*" capture="environment" onchange={onFileInputChange} />
             </label>
             <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
               📁 Buscar
-              <input type="file" id="addBrowseInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
+              <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple onchange={onFileInputChange} />
             </label>
           </div>
-          <input type="file" id="addFileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.heic" multiple />
-          <div id="addFileList" class="flex flex-col gap-2"></div>
-          <button id="addSubmitBtn" disabled
-            class="btn btn-primary opacity-50"
-            style="height:38px;justify-content:center;"
-            onclick={() => (window as Window & { submitAddFiles?: () => void }).submitAddFiles?.()}>
-            {$t('confirm.addFile')}
+          <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.heic" multiple onchange={onFileInputChange} />
+          <div class="flex flex-col gap-2">
+            {#each addFiles as f, i}
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
+                <div style="width:28px;height:36px;border-radius:4px;flex-shrink:0;background:{f.name.toLowerCase().endsWith('.pdf') ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">
+                  {f.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMG'}
+                </div>
+                <span style="flex:1;font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</span>
+                <button type="button" onclick={() => removeFile(i)} style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);font-size:14px;padding:0 2px;" title={$t('confirm.remove')}>✕</button>
+              </div>
+            {/each}
+          </div>
+          <button
+            disabled={addFiles.length === 0 || addSubmitting}
+            class="btn btn-primary"
+            style="height:38px;justify-content:center;opacity:{addFiles.length === 0 ? '0.5' : '1'};"
+            onclick={submitAddFiles}>
+            {addBtnLabel}
           </button>
         </div>
       {/if}
@@ -475,13 +456,11 @@
     <!-- Left: Add more files -->
     <div class="card" style="padding:20px;display:flex;flex-direction:column;">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        id="addDropArea"
-        style="flex:1;border:1.5px dashed var(--mep-border-strong);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:var(--mep-surface-2);cursor:pointer;transition:border-color 150ms,background 150ms;"
-        role="button"
-        tabindex="0"
-        onclick={() => (document.getElementById('addFileInput') as HTMLInputElement)?.click()}
-        onkeydown={(e) => e.key === 'Enter' && (document.getElementById('addFileInput') as HTMLInputElement)?.click()}
+      <label
+        style="flex:1;border:1.5px dashed {dropHighlight ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;background:{dropHighlight ? 'var(--mep-acc-soft)' : 'var(--mep-surface-2)'};cursor:pointer;transition:border-color 150ms,background 150ms;"
+        ondragover={(e) => { e.preventDefault(); dropHighlight = true; }}
+        ondragleave={() => dropHighlight = false}
+        ondrop={(e) => { e.preventDefault(); dropHighlight = false; pushFiles(e.dataTransfer?.files ?? null); }}
       >
         <div style="width:48px;height:48px;border-radius:24px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0;">
           <Upload size={20} />
@@ -489,28 +468,41 @@
         <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">{$t('confirm.addMoreTitle')}</div>
         <div style="font-size:12.5px;color:var(--mep-fg-3);text-align:center;">{$t('confirm.addMoreSub')}</div>
 
-        <div id="addCaptureRow" class="hidden" style="margin-top:12px;gap:8px;width:100%;max-width:280px;">
-          <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
-            📷 Foto
-            <input type="file" id="addCameraInput" class="hidden" accept="image/*" capture="environment" />
-          </label>
-          <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
-            📁 Buscar
-            <input type="file" id="addBrowseInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple />
-          </label>
-        </div>
+        {#if isMobile}
+          <div style="margin-top:12px;display:flex;gap:8px;width:100%;max-width:280px;">
+            <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
+              📷 Foto
+              <input type="file" class="hidden" accept="image/*" capture="environment" onchange={onFileInputChange} />
+            </label>
+            <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-divider);cursor:pointer;font-size:11.5px;font-weight:500;color:var(--mep-fg-3);">
+              📁 Buscar
+              <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple onchange={onFileInputChange} />
+            </label>
+          </div>
+        {/if}
 
-        <input type="file" id="addFileInput" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.heic" multiple />
+        <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.heic" multiple onchange={onFileInputChange} />
+      </label>
+
+      <div class="flex flex-col gap-2 mt-3">
+        {#each addFiles as f, i}
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
+            <div style="width:28px;height:36px;border-radius:4px;flex-shrink:0;background:{f.name.toLowerCase().endsWith('.pdf') ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">
+              {f.name.toLowerCase().endsWith('.pdf') ? 'PDF' : 'IMG'}
+            </div>
+            <span style="flex:1;font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</span>
+            <button type="button" onclick={() => removeFile(i)} style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);font-size:14px;padding:0 2px;" title={$t('confirm.remove')}>✕</button>
+          </div>
+        {/each}
       </div>
 
-      <div id="addFileList" class="flex flex-col gap-2 mt-3"></div>
-
-      {#if addMoreOpen}
-        <button id="addSubmitBtn" disabled
-          class="btn btn-primary mt-3 opacity-50"
+      {#if addFiles.length > 0}
+        <button
+          disabled={addSubmitting}
+          class="btn btn-primary mt-3"
           style="height:38px;justify-content:center;"
-          onclick={() => (window as Window & { submitAddFiles?: () => void }).submitAddFiles?.()}>
-          Añadir archivos
+          onclick={submitAddFiles}>
+          {addBtnLabel}
         </button>
       {/if}
 
