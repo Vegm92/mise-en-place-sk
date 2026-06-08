@@ -16,6 +16,10 @@ export async function seedAdminUser(): Promise<void> {
 
 	if (!email || !password) return;
 
+	if (password === 'changeme' && process.env['NODE_ENV'] === 'production') {
+		throw new Error('[auth-seed] AUTH_ADMIN_PASSWORD is still the default "changeme" — refusing to start in production. Set a strong password in your environment.');
+	}
+
 	const supabase = createSupabaseAdminClient();
 
 	// Check if user already exists

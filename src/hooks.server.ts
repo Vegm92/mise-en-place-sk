@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/sveltekit';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { cleanupStaleSessions } from '$lib/server/sessions';
@@ -5,6 +6,25 @@ import { seedAdminUser } from '$lib/server/auth-seed';
 import { db } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
+import { isHttpError } from '@sveltejs/kit';
+
+const SENTRY_DSN = process.env['SENTRY_DSN'] ?? '';
+
+Sentry.init({
+	dsn: SENTRY_DSN,
+	tracesSampleRate: process.env['NODE_ENV'] === 'production' ? 0.1 : 1.0,
+	sendDefaultPii: false,
+	beforeSend(event) {
+		// Drop intentional SvelteKit redirects — not errors
+		if (event.exception?.values?.some(v => v.type === 'Redirect')) return null;
+		return event;
+	},
+});
+
+export const handleError = Sentry.handleErrorWithSentry(({ error }: { error: unknown }) => {
+	if (isHttpError(error) && error.status < 500) return;
+	console.error('[server error]', error);
+});
 
 cleanupStaleSessions();
 seedAdminUser().catch(e => console.error('[hooks] seed error:', e));

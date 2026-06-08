@@ -22,6 +22,13 @@ Thumbs.db
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Runtime data — never commit (sessions contain auth tokens, uploads are user PII)
+/data/sk_sessions/
+/uploads/
 
 # Project documentation (for eyes only - don't track)
 CLAUDE.md
