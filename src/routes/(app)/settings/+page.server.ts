@@ -60,4 +60,14 @@ export const actions: Actions = {
 
 		redirect(303, '/settings');
 	},
+	resetTutorial: async ({ locals }) => {
+		const rid = locals.restaurantId!;
+		await db.insert(settings)
+			.values({ restaurantId: rid, key: 'tutorial_step', value: '1' })
+			.onConflictDoUpdate({
+				target: [settings.restaurantId, settings.key],
+				set: { value: '1' },
+			});
+		redirect(303, '/');
+	},
 };

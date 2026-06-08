@@ -2,6 +2,8 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import CoachMark from '$lib/components/mep/CoachMark.svelte';
+  import { tutorialStep, setTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
   import {
     LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
     Settings, HelpCircle, Upload, Sun, Moon,
@@ -20,6 +22,23 @@
     browser ? ((document.documentElement.dataset.theme as 'light' | 'dark') || 'light') : 'light'
   );
   let mobileOpen = $state(false);
+
+  // Seed tutorial store from server data on each navigation
+  $effect(() => {
+    tutorialStep.set((data.tutorialStep as TutorialStep) ?? null);
+  });
+
+  const curPath = $derived($page.url.pathname);
+  const isFirstInvoice = $derived($page.url.searchParams.get('first_invoice') === '1');
+
+  // Show step 1 only on the upload page
+  const showStep1 = $derived($tutorialStep === '1' && curPath === '/');
+  // Show step 2 on any extract page
+  const showStep2 = $derived($tutorialStep === '2' && curPath.startsWith('/extract/'));
+  // Completion card: first invoice landed on dashboard
+  const showComplete = $derived(isFirstInvoice && $tutorialStep !== 'dismissed');
+
+  let completeDismissed = $state(false);
 
   onMount(() => {
     const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
@@ -288,3 +307,70 @@
   </div>
 
 </div>
+
+<!-- ── Tutorial coach marks ───────────────────────────────────────────── -->
+{#if browser}
+  {#if showStep1}
+    <CoachMark
+      selector="upload-zone"
+      title="Sube tu primera factura"
+      body="Arrastra un PDF, haz una foto con la cámara o reenvía la factura por email. La IA extrae todos los datos automáticamente."
+      stepNum={1}
+      totalSteps={2}
+      onNext={() => setTutorialStep('2')}
+      onSkip={() => setTutorialStep('dismissed')}
+    />
+  {/if}
+
+  {#if showStep2}
+    <CoachMark
+      selector="invoice-fields"
+      title="Revisa lo que encontró la IA"
+      body="Comprueba los campos extraídos y corrige cualquier error antes de guardar. Tus correcciones mejoran la precisión con el tiempo."
+      stepNum={2}
+      totalSteps={2}
+      nextLabel="Confirmar y guardar →"
+      onNext={() => setTutorialStep('done')}
+      onSkip={() => setTutorialStep('dismissed')}
+    />
+  {/if}
+
+  {#if showComplete && !completeDismissed}
+    <!-- Completion overlay -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
+      role="presentation"
+      onclick={() => completeDismissed = true}
+    >
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        style="
+          background:var(--mep-bg);border:1px solid var(--mep-border-strong);
+          border-radius:16px;padding:32px 28px;max-width:360px;width:100%;
+          box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
+        "
+        role="dialog"
+        aria-modal="true"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div style="font-size:36px;margin-bottom:12px;">🎉</div>
+        <div style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
+          ¡Primera factura guardada!
+        </div>
+        <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
+          El seguimiento de gastos ya ha comenzado. Añade más facturas para desbloquear tendencias, alertas de precios y análisis por proveedor.
+        </p>
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="width:100%;height:40px;justify-content:center;font-size:14px;"
+          onclick={() => completeDismissed = true}
+        >
+          Ir al dashboard
+        </button>
+      </div>
+    </div>
+  {/if}
+{/if}
