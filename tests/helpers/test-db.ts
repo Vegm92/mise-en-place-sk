@@ -31,7 +31,8 @@ const _realAdmin = hasSupabaseEnv
 export const supabaseAdmin = _realAdmin as NonNullable<typeof _realAdmin>;
 
 export async function closeDb() {
-	if (_client) await _client.end();
+	// timeout:5 force-closes after 5s so afterAll hooks never hang
+	if (_client) await _client.end({ timeout: 5 });
 }
 
 /** Creates a uniquely-slugged test restaurant and returns its id. */
