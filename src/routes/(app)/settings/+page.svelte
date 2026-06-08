@@ -37,5 +37,16 @@
       </form>
     </SectionCard>
 
+    <SectionCard title="Tour guiado">
+      <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">
+        Repasa el tutorial de inicio en cualquier momento.
+      </p>
+      <form method="POST" action="?/resetTutorial">
+        <button type="submit" class="btn btn-secondary" style="height:34px;font-size:13px;">
+          Repetir tour →
+        </button>
+      </form>
+    </SectionCard>
+
   </div>
 </div>

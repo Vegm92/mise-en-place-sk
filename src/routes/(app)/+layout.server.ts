@@ -12,7 +12,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/onboarding');
 
-	const [rawNotifs, invoiceBadgeRow, reminderBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, reminderBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(and(
@@ -60,7 +60,16 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		db.select({ name: restaurants.name })
 			.from(restaurants)
 			.where(eq(restaurants.id, rid)),
+
+		db.select({ value: settings.value })
+			.from(settings)
+			.where(and(eq(settings.restaurantId, rid), eq(settings.key, 'tutorial_step'))),
 	]);
+
+	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
+	// For existing users who never got a tutorial row, skip the tour silently
+	const rawTutorialStep = tutorialStepRow[0]?.value;
+	const tutorialStep = (rawTutorialStep ?? (hasCompletedOnboarding ? 'done' : '1')) as string;
 
 	const notifications = rawNotifs.map((n) => ({
 		...n,
@@ -81,6 +90,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		quotaLimit:              quotaLimitRow[0]   ? Number(quotaLimitRow[0].value)  : 150,
 		planName:                planNameRow[0]?.value      ?? 'Plan Restaurante',
 		restaurantName:          restaurantNameRow[0]?.value ?? '',
-		hasCompletedOnboarding:  onboardingRow[0]?.value === 'true',
+		hasCompletedOnboarding,
+		tutorialStep,
 	};
 };

@@ -191,7 +191,7 @@
         <div class="card" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
 
           <!-- Cabecera -->
-          <div style="padding:14px 16px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
+          <div data-coach="invoice-fields" style="padding:14px 16px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
               <div class="subtitle">{$t('extract.header')}</div>
               <span style="font-size:11px;color:var(--mep-fg-3);">{$t('extract.tabNav')}</span>
