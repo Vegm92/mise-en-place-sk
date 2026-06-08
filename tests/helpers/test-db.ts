@@ -11,6 +11,7 @@ import * as schema from '../../src/lib/server/schema';
 export const hasSupabaseEnv = !!(
 	process.env.DATABASE_URL &&
 	process.env.SUPABASE_URL &&
+	process.env.SUPABASE_ANON_KEY &&
 	process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
