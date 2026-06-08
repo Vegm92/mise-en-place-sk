@@ -361,9 +361,12 @@ export const actions: Actions = {
 			.limit(1);
 		const isFirstInvoice = onboardingRows[0]?.value !== 'true';
 		if (isFirstInvoice) {
-			await db.update(settings)
-				.set({ value: 'true' })
-				.where(and(eq(settings.restaurantId, rid), eq(settings.key, 'has_completed_onboarding')));
+			await db.insert(settings)
+				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
+				.onConflictDoUpdate({
+					target: [settings.restaurantId, settings.key],
+					set: { value: 'true' },
+				});
 		}
 
 		const remaining = session?.remaining ?? [];
