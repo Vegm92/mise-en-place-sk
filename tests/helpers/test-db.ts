@@ -8,19 +8,27 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { createClient } from '@supabase/supabase-js';
 import * as schema from '../../src/lib/server/schema';
 
-// max:2 per worker × 4 parallel test files = 8 connections, within Supabase free pool_size:15
-const _client = postgres(process.env.DATABASE_URL!, { ssl: 'require', max: 2, idle_timeout: 10 });
-
-export const testDb  = drizzle(_client, { schema });
-export const testSql = _client;
-
-export const supabaseAdmin = createClient(
-	process.env.SUPABASE_URL!,
-	process.env.SUPABASE_SERVICE_ROLE_KEY!,
+export const hasSupabaseEnv = !!(
+	process.env.DATABASE_URL &&
+	process.env.SUPABASE_URL &&
+	process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Only initialize if env vars are present — otherwise module load crashes in CI
+// max:2 per worker × 4 parallel test files = 8 connections, within Supabase free pool_size:15
+const _client = hasSupabaseEnv
+	? postgres(process.env.DATABASE_URL!, { ssl: 'require', max: 2, idle_timeout: 10 })
+	: null;
+
+export const testDb  = hasSupabaseEnv ? drizzle(_client!, { schema }) : null as any;
+export const testSql = _client as NonNullable<typeof _client>;
+
+export const supabaseAdmin = hasSupabaseEnv
+	? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+	: null as any;
+
 export async function closeDb() {
-	await _client.end();
+	if (_client) await _client.end();
 }
 
 /** Creates a uniquely-slugged test restaurant and returns its id. */
