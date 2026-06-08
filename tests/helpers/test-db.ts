@@ -20,12 +20,14 @@ const _client = hasSupabaseEnv
 	? postgres(process.env.DATABASE_URL!, { ssl: 'require', max: 2, idle_timeout: 10 })
 	: null;
 
-export const testDb  = hasSupabaseEnv ? drizzle(_client!, { schema }) : null as any;
+const _realDb = hasSupabaseEnv ? drizzle(_client!, { schema }) : null;
+export const testDb  = _realDb as NonNullable<typeof _realDb>;
 export const testSql = _client as NonNullable<typeof _client>;
 
-export const supabaseAdmin = hasSupabaseEnv
+const _realAdmin = hasSupabaseEnv
 	? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-	: null as any;
+	: null;
+export const supabaseAdmin = _realAdmin as NonNullable<typeof _realAdmin>;
 
 export async function closeDb() {
 	if (_client) await _client.end();
