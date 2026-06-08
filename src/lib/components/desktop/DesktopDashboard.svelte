@@ -53,7 +53,6 @@
     reminders: Reminder[];
     aging: Aging;
     missing_invoices: MissingInvoice[];
-    weekly_digest: { text: string; dismissed: boolean } | null;
   }
 
   let {
