@@ -349,7 +349,7 @@
   <div style="flex:1;overflow-y:auto;padding:0 18px 0;display:flex;flex-direction:column;gap:12px;padding-bottom:12px;">
 
     <!-- Upload zone -->
-    <div class="card" style="padding:16px;">
+    <div class="card" data-coach="upload-zone" style="padding:16px;">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         style="
@@ -543,7 +543,7 @@
   <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
 
     <!-- Left: Drop zone -->
-    <div class="card" style="padding:20px;display:flex;flex-direction:column;">
+    <div class="card" data-coach="upload-zone" style="padding:20px;display:flex;flex-direction:column;">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         style="
