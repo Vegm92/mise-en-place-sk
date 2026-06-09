@@ -66,7 +66,7 @@ Also worth fixing (lower): repo hygiene — dual lockfiles, committed `coverage/
 - **#28 (Sentry):** wired in `hooks.server.ts`/`hooks.client.ts` (commit `a148b3c`). Close.
 - **#63 (CI + password guard):** CI workflow exists and is green; `auth-seed.ts` refuses default password in production. The deploy-runbook half is still open (fold into #61).
 
-**Found in this audit but NOT tracked anywhere — file these:**
+**Found in this audit and since filed as issues #96–#109** (in the order below: #96 signup, #97 billing, #98 email, #99 IDOR/auth endpoints, #100 scheduled jobs, #101 i18n, #102 SEO, #103 N+1, #104 HSTS/CSP, #105 PWA/packaging, #106 CI silent-skip, #107 DB indexes, #108 WhatsApp copy, #109 waitlist hardening):
 1. No self-serve signup (Critical)
 2. No billing/Stripe/plans (Critical)
 3. No email/notification delivery infrastructure (Critical)
