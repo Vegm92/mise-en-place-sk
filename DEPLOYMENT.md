@@ -95,7 +95,7 @@ Google OAuth is configured in the **Supabase dashboard** (Authentication → Pro
 ## Production constraints (read before scaling)
 
 - **Single instance only, for now.** The rate limiter and extraction semaphore are in-memory per process, and upload sessions are local files. Running >1 instance silently breaks rate limiting and uploads. Distributed alternatives tracked in #68 / #62.
-- **Persistent volume** for `UPLOADS_DIR` and `SK_SESSIONS_DIR` (see above) + a backup policy for both the volume and the database.
+- **Persistent volume** for `UPLOADS_DIR` (see above) + a backup policy for both the volume and the database. Upload sessions are stored in Postgres and need no separate volume.
 - Scheduled work (weekly digest, reminders) currently runs on user visits only; cron wiring is tracked in #100.
 - Security headers: HSTS/CSP not yet set at app level (#104) — terminate TLS at a proxy that adds them, or wait for the app-level fix.
 - Rotate any Supabase keys/admin passwords that may have lived in the repo's git history (#60) before going live.

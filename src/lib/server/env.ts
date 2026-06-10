@@ -1,7 +1,6 @@
 import { env } from '$env/dynamic/private';
 
 export const UPLOADS_DIR = env.UPLOADS_DIR ?? 'uploads';
-export const SK_SESSIONS_DIR = env.SK_SESSIONS_DIR ?? 'data/sk_sessions';
 export const GEMINI_API_KEY = env.GEMINI_API_KEY ?? '';
 export const GEMINI_MODEL = env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 export const CHAT_RATE_LIMIT_RPM = parseInt(env.CHAT_RATE_LIMIT_RPM ?? '20', 10);
