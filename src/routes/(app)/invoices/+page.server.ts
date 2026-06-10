@@ -1,8 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { invoices, invoiceLineItems, suppliers, systemNotifications } from '$lib/server/schema';
-import { and, asc, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 
 const PAGE_SIZE = 50;
@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 		const offset     = (page - 1) * PAGE_SIZE;
 
-		const conditions: SQL[] = [eq(invoices.restaurantId, rid)];
+		const conditions: SQL[] = [eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)];
 		if (status)     conditions.push(eq(invoices.status, status));
 		if (supplierId) conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
 		if (dateFrom)   conditions.push(gte(invoices.invoiceDate, dateFrom));
@@ -51,7 +51,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(eq(invoices.restaurantId, rid)),
+				.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt))),
 
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(suppliers)
@@ -131,14 +131,21 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
-		// Verify ownership before delete
-		const [inv] = await db.select({ id: invoices.id })
+		const uid = locals.user!.id;
+		const [inv] = await db.select()
 			.from(invoices)
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)));
 		if (!inv) redirect(303, '/invoices');
-		await db.delete(systemNotifications).where(eq(systemNotifications.invoiceId, id));
-		await db.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id));
-		await db.delete(invoices).where(eq(invoices.id, id));
+		const now = new Date();
+		await db.update(invoices).set({ deletedAt: now })
+			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+		await db.insert(invoiceAuditLog).values({
+			restaurantId: rid,
+			invoiceId:    id,
+			action:       'soft_delete',
+			userId:       uid,
+			snapshot:     JSON.stringify(inv),
+		});
 		redirect(303, '/invoices');
 	},
 	bulkPaid: async ({ request, locals }) => {
@@ -154,16 +161,25 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
 		const rid = locals.restaurantId!;
+		const uid = locals.user!.id;
 		if (ids.length > 0) {
-			// Verify all IDs belong to this restaurant
-			const owned = await db.select({ id: invoices.id })
+			const owned = await db.select()
 				.from(invoices)
-				.where(and(inArray(invoices.id, ids), eq(invoices.restaurantId, rid)));
-			const ownedIds = owned.map(o => o.id);
-			if (ownedIds.length > 0) {
-				await db.delete(systemNotifications).where(inArray(systemNotifications.invoiceId, ownedIds));
-				await db.delete(invoiceLineItems).where(inArray(invoiceLineItems.invoiceId, ownedIds));
-				await db.delete(invoices).where(inArray(invoices.id, ownedIds));
+				.where(and(inArray(invoices.id, ids), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)));
+			if (owned.length > 0) {
+				const now = new Date();
+				const ownedIds = owned.map(o => o.id);
+				await db.update(invoices).set({ deletedAt: now })
+					.where(and(inArray(invoices.id, ownedIds), eq(invoices.restaurantId, rid)));
+				await db.insert(invoiceAuditLog).values(
+					owned.map(inv => ({
+						restaurantId: rid,
+						invoiceId:    inv.id,
+						action:       'soft_delete' as const,
+						userId:       uid,
+						snapshot:     JSON.stringify(inv),
+					}))
+				);
 			}
 		}
 		redirect(303, '/invoices');

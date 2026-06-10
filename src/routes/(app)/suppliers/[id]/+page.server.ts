@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, isNull } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 
@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			status:        invoices.status,
 		})
 			.from(invoices)
-			.where(and(eq(invoices.supplierId, id), eq(invoices.restaurantId, rid)))
+			.where(and(eq(invoices.supplierId, id), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)))
 			.orderBy(desc(invoices.invoiceDate)),
 
 		db.select().from(supplierMetrics)

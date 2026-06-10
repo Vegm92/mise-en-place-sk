@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
-import { and, asc, eq, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
@@ -26,6 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				eq(invoices.restaurantId, rid),
 				eq(invoices.status, 'pending'),
 				isNotNull(invoices.dueDate),
+				isNull(invoices.deletedAt),
 				lte(invoices.dueDate, weekEnd)
 			))
 			.orderBy(asc(invoices.dueDate));
