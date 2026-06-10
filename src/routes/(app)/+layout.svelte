@@ -319,8 +319,8 @@
   {#if showStep1}
     <CoachMark
       selector="upload-zone"
-      title="Sube tu primera factura"
-      body="Arrastra un PDF, haz una foto con la cámara o reenvía la factura por email. La IA extrae todos los datos automáticamente."
+      title={$t('tour.step1.title')}
+      body={$t('tour.step1.body')}
       stepNum={1}
       totalSteps={2}
       onNext={() => setTutorialStep('2')}
@@ -331,11 +331,11 @@
   {#if showStep2}
     <CoachMark
       selector="invoice-fields"
-      title="Revisa lo que encontró la IA"
-      body="Comprueba los campos extraídos y corrige cualquier error antes de guardar. Tus correcciones mejoran la precisión con el tiempo."
+      title={$t('tour.step2.title')}
+      body={$t('tour.step2.body')}
       stepNum={2}
       totalSteps={2}
-      nextLabel="Confirmar y guardar →"
+      nextLabel={$t('tour.step2.next')}
       onNext={() => setTutorialStep('done')}
       onSkip={() => setTutorialStep('dismissed')}
     />
@@ -363,10 +363,10 @@
       >
         <div style="font-size:36px;margin-bottom:12px;">🎉</div>
         <div style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
-          ¡Primera factura guardada!
+          {$t('tour.complete.title')}
         </div>
         <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
-          El seguimiento de gastos ya ha comenzado. Añade más facturas para desbloquear tendencias, alertas de precios y análisis por proveedor.
+          {$t('tour.complete.body')}
         </p>
         <button
           type="button"
@@ -374,7 +374,7 @@
           style="width:100%;height:40px;justify-content:center;font-size:14px;"
           onclick={() => completeDismissed = true}
         >
-          Ir al dashboard
+          {$t('tour.complete.btn')}
         </button>
       </div>
     </div>

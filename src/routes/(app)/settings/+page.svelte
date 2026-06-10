@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { get } from 'svelte/store';
   import { t } from '$lib/i18n';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
 
@@ -10,7 +11,8 @@
   let deleteError = $state('');
 
   async function handleDeleteAccount() {
-    if (deleteConfirm !== 'ELIMINAR') return;
+    const tFn = get(t);
+    if (deleteConfirm !== tFn('set.deleteConfirmWord')) return;
     deleting = true;
     deleteError = '';
     try {
@@ -23,10 +25,10 @@
         window.location.href = '/login';
       } else {
         const body = await res.json().catch(() => ({}));
-        deleteError = body.message ?? 'Error al eliminar la cuenta.';
+        deleteError = body.message ?? tFn('set.deleteErrorGeneric');
       }
     } catch {
-      deleteError = 'Error de red. Inténtalo de nuevo.';
+      deleteError = tFn('set.deleteErrorNetwork');
     } finally {
       deleting = false;
     }
@@ -64,25 +66,25 @@
       </form>
     </SectionCard>
 
-    <SectionCard title="Tour guiado">
+    <SectionCard title={$t('set.tourTitle')}>
       <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">
-        Repasa el tutorial de inicio en cualquier momento.
+        {$t('set.tourDesc')}
       </p>
       <form method="POST" action="?/resetTutorial">
         <button type="submit" class="btn btn-secondary" style="height:34px;font-size:13px;">
-          Repetir tour →
+          {$t('set.tourRepeat')}
         </button>
       </form>
     </SectionCard>
 
-    <SectionCard title="Privacidad y datos">
+    <SectionCard title={$t('set.privacyTitle')}>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div>
           <p class="body text-fg-2" style="font-size:13px;margin:0 0 8px;">
-            Descarga una copia de todos tus datos en formato JSON portable (RGPD Art. 20).
+            {$t('set.dataExportDesc')}
           </p>
           <a href="/api/user/export" download class="btn btn-secondary" style="height:34px;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;">
-            Exportar mis datos
+            {$t('set.dataExportBtn')}
           </a>
         </div>
 
@@ -90,15 +92,15 @@
 
         <div>
           <p class="body text-fg-2" style="font-size:13px;margin:0 0 4px;">
-            Elimina permanentemente tu cuenta y todos tus datos.
+            {$t('set.deleteDesc')}
           </p>
           <p class="body text-fg-3" style="font-size:12px;margin:0 0 10px;">
-            Escribe <strong>ELIMINAR</strong> para confirmar. Esta acción no se puede deshacer.
+            {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
           </p>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <input
               type="text"
-              placeholder="ELIMINAR"
+              placeholder={$t('set.deleteConfirmWord')}
               bind:value={deleteConfirm}
               class="input"
               style="height:34px;font-size:13px;width:140px;"
@@ -106,11 +108,11 @@
             <button
               type="button"
               onclick={handleDeleteAccount}
-              disabled={deleteConfirm !== 'ELIMINAR' || deleting}
+              disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
               class="btn"
-              style="height:34px;font-size:13px;background:var(--mep-danger,#c0392b);color:#fff;border:none;opacity:{deleteConfirm !== 'ELIMINAR' || deleting ? 0.5 : 1};"
+              style="height:34px;font-size:13px;background:var(--mep-danger,#c0392b);color:#fff;border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
             >
-              {deleting ? 'Eliminando…' : 'Eliminar cuenta'}
+              {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
             </button>
           </div>
           {#if deleteError}
@@ -119,8 +121,8 @@
         </div>
 
         <div style="display:flex;gap:12px;margin-top:4px;">
-          <a href="/privacy" style="font-size:12px;color:var(--mep-fg-3);">Política de Privacidad</a>
-          <a href="/terms"   style="font-size:12px;color:var(--mep-fg-3);">Términos de Servicio</a>
+          <a href="/privacy" style="font-size:12px;color:var(--mep-fg-3);">{$t('set.privacyLink')}</a>
+          <a href="/terms"   style="font-size:12px;color:var(--mep-fg-3);">{$t('set.termsLink')}</a>
         </div>
       </div>
     </SectionCard>
