@@ -211,3 +211,16 @@ export const uploadSessions = pgTable('upload_sessions', {
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+export const subscriptions = pgTable('subscriptions', {
+	id:                   serial('id').primaryKey(),
+	restaurantId:         uuid('restaurant_id').notNull().unique().references(() => restaurants.id, { onDelete: 'cascade' }),
+	stripeCustomerId:     text('stripe_customer_id').unique(),
+	stripeSubscriptionId: text('stripe_subscription_id').unique(),
+	stripePriceId:        text('stripe_price_id'),
+	status:               text('status').notNull().default('trialing'),
+	trialEndsAt:          timestamp('trial_ends_at', { withTimezone: true }),
+	currentPeriodEnd:     timestamp('current_period_end', { withTimezone: true }),
+	cancelAtPeriodEnd:    boolean('cancel_at_period_end').notNull().default(false),
+	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt:            timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});

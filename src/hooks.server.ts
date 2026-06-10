@@ -92,9 +92,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 function isPublicPath(path: string): boolean {
 	return (
-		path === '/login'             ||
-		path.startsWith('/auth/')     ||
-		path.startsWith('/waitlist')  ||
-		path.startsWith('/api/tpv/')
+		path === '/login'                       ||
+		path === '/signup'                      ||
+		path.startsWith('/auth/')               ||
+		path.startsWith('/waitlist')            ||
+		path.startsWith('/api/tpv/')            ||
+		path === '/api/stripe-webhook'
 	);
 }

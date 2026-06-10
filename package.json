@@ -55,6 +55,8 @@
 		"lucide-svelte": "^0.577.0",
 		"pdf-parse": "^1.1.1",
 		"postgres": "^3.4.9",
+		"resend": "^6.12.4",
+		"stripe": "^22.2.0",
 		"tailwind-merge": "^3.5.0",
 		"tailwind-variants": "^3.2.2"
 	}
