@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
 
 	const key = getClientAddress();
-	if (!checkRateLimit(key, CHAT_RATE_LIMIT_RPM)) {
+	if (!await checkRateLimit(key, CHAT_RATE_LIMIT_RPM)) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 

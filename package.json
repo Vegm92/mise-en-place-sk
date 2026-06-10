@@ -43,6 +43,8 @@
 	},
 	"dependencies": {
 		"@google/genai": "^1.50.1",
+		"@upstash/ratelimit": "^2.0.5",
+		"@upstash/redis": "^1.34.9",
 		"@internationalized/date": "^3.12.0",
 		"@lucide/svelte": "^1.8.0",
 		"@sentry/sveltekit": "^10.56.0",

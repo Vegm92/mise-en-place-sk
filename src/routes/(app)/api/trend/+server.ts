@@ -32,7 +32,7 @@ function buildSegments(
 }
 
 export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => {
-	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
+	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 
 	const VALID = new Set(['daily', 'weekly', 'monthly', 'yearly', '7d', '30d', '90d']);
