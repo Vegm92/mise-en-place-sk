@@ -1,9 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { safeRedirect } from '$lib/server/safe-redirect';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	if (locals.user) redirect(303, url.searchParams.get('redirectTo') ?? '/');
-	return { redirectTo: url.searchParams.get('redirectTo') ?? '/' };
+	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
+	return { redirectTo: safeRedirect(url.searchParams.get('redirectTo')) };
 };
 
 export const actions: Actions = {
@@ -11,7 +12,7 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const email    = (form.get('email')    as string)?.trim();
 		const password = form.get('password')  as string;
-		const redirectTo = (form.get('redirectTo') as string) || '/';
+		const redirectTo = safeRedirect(form.get('redirectTo') as string);
 
 		if (!email || !password) redirect(303, '/login?error=missing');
 
