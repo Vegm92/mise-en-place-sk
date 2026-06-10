@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
@@ -62,9 +62,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 						? 'extract.err.rateLimited'
 						: status === 503
 							? 'extract.err.unavailable'
-							: message.includes('invalid JSON')
-								? 'extract.err.notInvoice'
-								: 'extract.err.generic';
+							: (err as { code?: string }).code === 'GEMINI_TIMEOUT'
+								? 'extract.err.timeout'
+								: message.includes('invalid JSON')
+									? 'extract.err.notInvoice'
+									: 'extract.err.generic';
 				console.error('[extract] Extraction failed for', existingPaths[0], err);
 			} finally {
 				releaseExtraction();
@@ -216,6 +218,19 @@ export const actions: Actions = {
 		const confidenceRaw = toFloat(formData.get('confidence'));
 		const notesRaw = (formData.get('notes') as string) ?? '';
 		const notes = notesRaw.slice(0, 250) || null;
+
+		// Gate: block save if any header field is low-confidence and user hasn't acknowledged
+		const lowConfAck = formData.get('low_confidence_ack') === 'true';
+		if (!lowConfAck) {
+			const extractedData = session?.extractedData as Record<string, unknown> | undefined;
+			const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
+			const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
+			const hasLowConf = HEADER_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
+			const overallConf = typeof extractedData?.confidence === 'number' ? extractedData.confidence : 1;
+			if (hasLowConf || overallConf < 0.85) {
+				return fail(422, { lowConfidenceBlocked: true });
+			}
+		}
 
 		const lineDescriptions = formData.getAll('line_descriptions') as string[];
 		const lineQuantities = formData.getAll('line_quantities') as string[];

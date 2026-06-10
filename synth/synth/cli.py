@@ -167,10 +167,16 @@ def stats(directory):
 @click.option("--backend", default="gemini", type=click.Choice(["gemini", "claude", "both"]))
 @click.option("--limit", default=0, help="Max documents to benchmark (0 = all)")
 @click.option("--report", default="", help="Output report path (markdown)")
-def bench(input_dir, backend, limit, report):
-    """Benchmark extraction accuracy against generated documents."""
+@click.option("--threshold", default=0.80, show_default=True,
+              help="Minimum totals field-accuracy (0.0–1.0) required to pass CI gate")
+def bench(input_dir, backend, limit, report, threshold):
+    """Benchmark extraction accuracy against generated documents.
+
+    Exits with code 1 if total_amount accuracy falls below --threshold.
+    """
     from synth.bench.score import run_benchmark
-    run_benchmark(input_dir, backend=backend, limit=limit or None, report_path=report or None)
+    run_benchmark(input_dir, backend=backend, limit=limit or None,
+                  report_path=report or None, threshold=threshold)
 
 
 if __name__ == "__main__":
