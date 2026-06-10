@@ -1,4 +1,6 @@
-# Deployment Checklist
+# Deployment Runbook
+
+Stack: SvelteKit (`@sveltejs/adapter-node`) + Supabase (Postgres + Auth) + Gemini. Build artifact runs with `node build/index.js`.
 
 Copy `.env.example` to `.env` and fill in every value before starting the server.
 
@@ -6,69 +8,84 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 
 ## Required environment variables
 
-### BetterAuth (authentication)
+### Database (Supabase Postgres)
 
 | Variable | Required | Notes |
 |---|---|---|
-| `BETTER_AUTH_SECRET` | Yes | Min 32 chars. Generate with: `openssl rand -hex 32` |
-| `BETTER_AUTH_URL` | Yes | Full base URL, no trailing slash. E.g. `https://yourdomain.com` |
-| `AUTH_ADMIN_EMAIL` | Yes | Email of the seeded admin account (created on first startup) |
-| `AUTH_ADMIN_PASSWORD` | Yes | Password for the seeded admin account. Change after first login. |
-| `AUTH_ALLOWED_EMAILS` | Optional | Comma-separated allowlist for Google OAuth. Leave blank to allow any Google account. |
+| `DATABASE_URL` | Yes | Supabase **direct** connection string (not the pooler): `postgresql://postgres:…@db.<project-ref>.supabase.co:5432/postgres`. SSL is enforced by the client. The server throws at boot if missing. |
 
-### Google OAuth (social login)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-2. Create an OAuth 2.0 Client ID (Web application)
-3. Add authorised redirect URI: `{BETTER_AUTH_URL}/api/auth/callback/google`
-   - Local dev: `http://localhost:5173/api/auth/callback/google`
-   - Production: `https://yourdomain.com/api/auth/callback/google`
+### Supabase (auth + API)
 
 | Variable | Required | Notes |
 |---|---|---|
-| `GOOGLE_CLIENT_ID` | Optional | Required for Google OAuth login |
-| `GOOGLE_CLIENT_SECRET` | Optional | Required for Google OAuth login |
+| `SUPABASE_URL` | Yes | `https://<project-ref>.supabase.co` |
+| `SUPABASE_ANON_KEY` | Yes | "anon public" JWT (Project Settings → API) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes | service-role JWT — server-only, never expose to the client |
 
-If omitted, the "Continue with Google" button fails silently — email/password login still works.
+Google OAuth is configured in the **Supabase dashboard** (Authentication → Providers → Google), not via env vars. Set the redirect URL to `{your-origin}/auth/callback`.
 
-### Gemini API (invoice AI processing)
-
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey) → Create API key
+### Gemini (AI extraction, digest, chat)
 
 | Variable | Required | Notes |
 |---|---|---|
-| `GEMINI_API_KEY` | Yes | Required for invoice upload and AI line-item extraction |
-| `GEMINI_MODEL` | Optional | Defaults to `gemini-2.5-flash`. Update here when Google deprecates the model. |
+| `GEMINI_API_KEY` | Yes | From [Google AI Studio](https://aistudio.google.com/app/apikey). Boot logs a warning if missing; extraction fails without it. |
+| `GEMINI_MODEL` | Optional | Defaults to `gemini-2.5-flash`. Update when Google deprecates the model. |
 
-### Storage paths
+### File storage
 
 | Variable | Default | Notes |
 |---|---|---|
-| `DATABASE_URL` | `mise_en_place.db` | SQLite file path (relative to project root) |
-| `UPLOADS_DIR` | `uploads` | Directory for uploaded invoice files |
-| `SK_SESSIONS_DIR` | `data/sk_sessions` | Server-side session storage |
+| `UPLOADS_DIR` | `uploads` | Uploaded invoice files (PDF/JPG/PNG, 20 MB max each) |
+| `SK_SESSIONS_DIR` | `data/sk_sessions` | Upload-session metadata (JSON files, 24 h TTL) |
+
+> **Both directories MUST be on a persistent volume.** On ephemeral hosts (Render/Fly/Railway/containers without a mount) every redeploy deletes users' invoice files and breaks in-flight uploads. Migration to Supabase Storage is tracked in issue #62.
+
+### Observability
+
+| Variable | Default | Notes |
+|---|---|---|
+| `SENTRY_DSN` | empty | Server-side Sentry; empty = disabled (safe for local dev) |
+| `VITE_SENTRY_DSN` | empty | Client-side Sentry |
+
+### Admin seed (first boot)
+
+| Variable | Required | Notes |
+|---|---|---|
+| `AUTH_ADMIN_EMAIL` | Yes | Seeded admin account; also gates `/admin` (comma-separated list supported) |
+| `AUTH_ADMIN_PASSWORD` | Yes | **The server refuses to start in production while this is `changeme`.** |
+| `AUTH_ADMIN_RESTAURANT_NAME` | Yes | Name of the seeded restaurant |
 
 ### Tuning
 
 | Variable | Default | Notes |
 |---|---|---|
-| `CHAT_RATE_LIMIT_RPM` | `20` | Max chat requests per minute per user |
-| `MAX_CONCURRENT_EXTRACTIONS` | `3` | Max parallel invoice AI extractions |
+| `CHAT_RATE_LIMIT_RPM` | `20` | Chat requests/minute per IP |
+| `MAX_CONCURRENT_EXTRACTIONS` | `3` | Parallel Gemini extraction cap |
 
 ---
+
+## Deploy steps
+
+1. `pnpm install --frozen-lockfile`
+2. `pnpm db:migrate` — applies `drizzle/` migrations. **Verify the RLS migration (`0002_rls_policies.sql`) is applied to the production database**; tenant isolation depends on it.
+3. `pnpm build` (requires the env vars above at build time)
+4. `node build/index.js` with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed.
+5. Point your platform's health check at `GET /api/health` (note: currently a trivial 200 — richer checks tracked in #31).
 
 ## First startup
 
-On first `npm run dev` (or `node build/index.js` in production), the server will:
+1. Connects to Supabase Postgres (throws if `DATABASE_URL` missing/unreachable).
+2. Seeds the admin user + restaurant from `AUTH_ADMIN_*` (idempotent; logs once).
+3. Cleans stale upload sessions (older than 24 h).
 
-1. Create the SQLite database and all tables
-2. Seed the admin user from `AUTH_ADMIN_EMAIL` / `AUTH_ADMIN_PASSWORD`
-3. Log `[auth] Admin user seeded: <email>` once (idempotent — won't re-seed on restart)
+## Production constraints (read before scaling)
 
----
+- **Single instance only, for now.** The rate limiter and extraction semaphore are in-memory per process, and upload sessions are local files. Running >1 instance silently breaks rate limiting and uploads. Distributed alternatives tracked in #68 / #62.
+- **Persistent volume** for `UPLOADS_DIR` and `SK_SESSIONS_DIR` (see above) + a backup policy for both the volume and the database.
+- Scheduled work (weekly digest, reminders) currently runs on user visits only; cron wiring is tracked in #100.
+- Security headers: HSTS/CSP not yet set at app level (#104) — terminate TLS at a proxy that adds them, or wait for the app-level fix.
+- Rotate any Supabase keys/admin passwords that may have lived in the repo's git history (#60) before going live.
 
-## Production notes
+## CI
 
-- `BETTER_AUTH_URL` must exactly match the deployed origin (protocol + host + port). A mismatch causes cookie domain failures.
-- Set `NODE_ENV=production` so session cookies use the `Secure` flag.
-- The SQLite DB file is excluded from git. Provision persistent storage (volume mount, etc.) — the DB does not survive ephemeral deployments.
+`.github/workflows/ci.yml` runs typecheck, tests, and build on pushes/PRs to `main`. Integration tests require the Supabase secrets to be configured in repo settings — without them, 72 of 179 tests skip silently (#106).
