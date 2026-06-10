@@ -26,7 +26,7 @@ export const handleError = Sentry.handleErrorWithSentry(({ error }: { error: unk
 	console.error('[server error]', error);
 });
 
-cleanupStaleSessions();
+cleanupStaleSessions().catch(e => console.error('[hooks] session cleanup error:', e));
 seedAdminUser().catch(e => console.error('[hooks] seed error:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {

@@ -203,3 +203,11 @@ export const waitlist = pgTable('waitlist', {
 	email:     text('email').notNull().unique(),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export const uploadSessions = pgTable('upload_sessions', {
+	id:        text('id').primaryKey(),
+	data:      text('data').notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+

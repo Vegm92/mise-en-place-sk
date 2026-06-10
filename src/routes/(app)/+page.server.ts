@@ -46,13 +46,13 @@ export const actions: Actions = {
 		const firstId = randomBytes(16).toString('hex');
 
 		if (saved.length === 1) {
-			writeSession({ id: firstId, files: saved });
+			await writeSession({ id: firstId, files: saved });
 		} else {
 			// Multi-file batch: one session per invoice, chained via `remaining`
 			const total = saved.length;
 			const ids = [firstId, ...saved.slice(1).map(() => randomBytes(16).toString('hex'))];
 			for (let i = 0; i < saved.length; i++) {
-				writeSession({
+				await writeSession({
 					id: ids[i],
 					files: [saved[i]],
 					invoiceIndex: i + 1,
