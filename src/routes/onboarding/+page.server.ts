@@ -1,7 +1,9 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { restaurants, userRestaurants } from '$lib/server/schema';
+import { restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
+import { TRIAL_DAYS } from '$lib/server/billing';
+import { sendEmail, welcomeEmail } from '$lib/server/email';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(303, '/login');
@@ -38,6 +40,22 @@ export const actions: Actions = {
 			restaurantId: restaurant.id,
 			role: 'owner',
 		});
+
+		// Start 30-day free trial for new restaurant
+		const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+		await db.insert(subscriptions)
+			.values({ restaurantId: restaurant.id, status: 'trialing', trialEndsAt })
+			.onConflictDoUpdate({
+				target: subscriptions.restaurantId,
+				set: { updatedAt: new Date() },
+			});
+
+		// Send welcome email (fire-and-forget)
+		if (locals.user.email) {
+			sendEmail(welcomeEmail(locals.user.email, name)).catch(e =>
+				console.error('[onboarding] welcome email failed:', e)
+			);
+		}
 
 		redirect(303, '/');
 	},
