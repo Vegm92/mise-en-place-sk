@@ -17,7 +17,7 @@ function fileType(ext: string): string {
 
 export const load: PageServerLoad = async ({ params }) => {
 	try {
-		const session = readSession(params.id);
+		const session = await readSession(params.id);
 		if (!session) redirect(303, '/?error=Session+not+found');
 
 		const dir = uploadsDir();
@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		// Include files from remaining sessions so the queue shows the full batch
 		let cur = session;
 		while (cur.remaining?.length) {
-			const next = readSession(cur.remaining[0]);
+			const next = await readSession(cur.remaining[0]);
 			if (!next) break;
 			files.push(...mapFiles(next.files, true));
 			cur = next;
@@ -64,7 +64,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 export const actions: Actions = {
 	add: async ({ params, request }) => {
-		const session = readSession(params.id);
+		const session = await readSession(params.id);
 		if (!session) redirect(303, '/?error=Session+not+found');
 
 		const formData = await request.formData();
@@ -77,14 +77,14 @@ export const actions: Actions = {
 
 		const { saved } = await saveUploadedFiles(files);
 		if (saved.length > 0) {
-			writeSession({ ...session, files: [...session.files, ...saved] });
+			await writeSession({ ...session, files: [...session.files, ...saved] });
 		}
 
 		redirect(303, `/confirm/${params.id}`);
 	},
 
 	remove: async ({ params, request }) => {
-		const session = readSession(params.id);
+		const session = await readSession(params.id);
 		if (!session) redirect(303, '/');
 
 		const formData = await request.formData();
@@ -100,24 +100,24 @@ export const actions: Actions = {
 
 		const remaining = session.files.filter((f) => f !== filename);
 		if (remaining.length === 0) {
-			deleteSession(params.id);
+			await deleteSession(params.id);
 			redirect(303, '/');
 		}
 
-		writeSession({ ...session, files: remaining });
+		await writeSession({ ...session, files: remaining });
 		redirect(303, `/confirm/${params.id}`);
 	},
 
 	discard: async ({ params }) => {
 		// Walk the full chain and delete every session + its files
 		const toDelete: string[] = [params.id];
-		let cur = readSession(params.id);
+		let cur = await readSession(params.id);
 		while (cur?.remaining?.length) {
 			toDelete.push(...cur.remaining);
-			cur = readSession(cur.remaining[0]);
+			cur = await readSession(cur.remaining[0]);
 		}
 		for (const id of toDelete) {
-			const s = readSession(id);
+			const s = await readSession(id);
 			if (!s) continue;
 			for (const name of s.files) {
 				try {
@@ -127,7 +127,7 @@ export const actions: Actions = {
 					// path invalid — skip
 				}
 			}
-			deleteSession(id);
+			await deleteSession(id);
 		}
 		redirect(303, '/');
 	},

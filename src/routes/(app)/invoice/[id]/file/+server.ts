@@ -5,7 +5,7 @@ import type { RequestHandler } from './$types';
 import { uploadsDir } from '$lib/server/sessions';
 import { db } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 const MIME: Record<string, string> = {
 	pdf:  'application/pdf',
@@ -15,13 +15,16 @@ const MIME: Record<string, string> = {
 	webp: 'image/webp',
 };
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
+	const rid = locals.restaurantId;
+	if (!rid) error(401, 'Unauthorized');
+
 	const id = parseInt(params.id, 10);
 	if (isNaN(id)) error(400, 'Invalid invoice id');
 
 	const rows = await db.select({ sourceFile: invoices.sourceFile })
 		.from(invoices)
-		.where(eq(invoices.id, id))
+		.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)))
 		.limit(1);
 
 	if (!rows.length || !rows[0].sourceFile) error(404, 'No source file for this invoice');
@@ -41,7 +44,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		headers: {
 			'Content-Type':        mimeType,
 			'Content-Disposition': `inline; filename="${path.basename(filePath)}"`,
-			'Cache-Control':       'private, max-age=3600',
+			'Cache-Control':       'private, no-store',
 		},
 	});
 };

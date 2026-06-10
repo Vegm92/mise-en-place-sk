@@ -36,9 +36,23 @@ Google OAuth is configured in the **Supabase dashboard** (Authentication → Pro
 | Variable | Default | Notes |
 |---|---|---|
 | `UPLOADS_DIR` | `uploads` | Uploaded invoice files (PDF/JPG/PNG, 20 MB max each) |
-| `SK_SESSIONS_DIR` | `data/sk_sessions` | Upload-session metadata (JSON files, 24 h TTL) |
 
-> **Both directories MUST be on a persistent volume.** On ephemeral hosts (Render/Fly/Railway/containers without a mount) every redeploy deletes users' invoice files and breaks in-flight uploads. Migration to Supabase Storage is tracked in issue #62.
+> **`UPLOADS_DIR` MUST be on a persistent volume.** On ephemeral hosts (Render/Fly/Railway/containers without a mount) every redeploy deletes users' invoice files. Upload sessions are now stored in Postgres (table `upload_sessions`) and survive restarts automatically. File migration to Supabase Storage is tracked in #62.
+
+### Billing (Stripe)
+
+| Variable | Required | Notes |
+|---|---|---|
+| `STRIPE_SECRET_KEY` | Recommended | `sk_live_…` or `sk_test_…` from Stripe Dashboard → Developers → API Keys. If absent, billing is disabled (users see a "contact support" message). |
+| `STRIPE_PRICE_ID` | Recommended | Monthly subscription price ID (e.g. `price_…`). Create in Stripe Dashboard → Products. |
+| `STRIPE_WEBHOOK_SECRET` | Recommended | `whsec_…`. Configure the endpoint `{your-origin}/api/stripe-webhook` in Stripe Dashboard → Webhooks; send: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. |
+
+### Email (Resend)
+
+| Variable | Required | Notes |
+|---|---|---|
+| `RESEND_API_KEY` | Recommended | `re_…` from [Resend Dashboard](https://resend.com). If absent, emails are no-ops (logged to console). |
+| `EMAIL_FROM` | Optional | Sender address. Defaults to `Mise en Place <noreply@miseenplace.app>`. Must match a verified domain in Resend. |
 
 ### Observability
 

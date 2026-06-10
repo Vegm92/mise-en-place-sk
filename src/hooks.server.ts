@@ -26,7 +26,7 @@ export const handleError = Sentry.handleErrorWithSentry(({ error }: { error: unk
 	console.error('[server error]', error);
 });
 
-cleanupStaleSessions();
+cleanupStaleSessions().catch(e => console.error('[hooks] session cleanup error:', e));
 seedAdminUser().catch(e => console.error('[hooks] seed error:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -92,9 +92,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 function isPublicPath(path: string): boolean {
 	return (
-		path === '/login'             ||
-		path.startsWith('/auth/')     ||
-		path.startsWith('/waitlist')  ||
-		path.startsWith('/api/tpv/')
+		path === '/login'                       ||
+		path === '/signup'                      ||
+		path.startsWith('/auth/')               ||
+		path.startsWith('/waitlist')            ||
+		path.startsWith('/api/tpv/')            ||
+		path === '/api/stripe-webhook'
 	);
 }
