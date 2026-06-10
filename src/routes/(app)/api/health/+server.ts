@@ -1,5 +1,6 @@
-import { json } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 
-export async function GET() {
-	return json({ status: 'ok' });
+// Redirect authenticated callers to the public health endpoint.
+export function GET() {
+	redirect(307, '/api/health');
 }
