@@ -30,6 +30,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'No valid files received. Please select a PDF, JPG, or PNG.' });
 		}
 
+		const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+		const oversized = files.filter(f => f.size > MAX_UPLOAD_BYTES);
+		if (oversized.length > 0) {
+			const names = oversized.map(f => f.name).join(', ');
+			return fail(400, { error: `File${oversized.length > 1 ? 's' : ''} exceed the 20 MB limit: ${names}` });
+		}
+
 		let saved: string[];
 		let errors: string[];
 		try {

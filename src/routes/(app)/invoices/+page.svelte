@@ -6,10 +6,21 @@
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
-  import { ChevronDown, FileDown, Trash2, Check, RotateCcw, ExternalLink, ChevronRight } from 'lucide-svelte';
+  import { ChevronDown, ChevronLeft, ChevronRight, FileDown, Trash2, Check, RotateCcw, ExternalLink } from 'lucide-svelte';
 
   const { data }: { data: PageData } = $props();
-  const { invoices, stats, suppliers, filters } = $derived(data);
+  const { invoices, stats, suppliers, filters, pagination } = $derived(data);
+
+  function pageUrl(p: number): string {
+    const params = new URLSearchParams();
+    if (filters.status)      params.set('status', filters.status);
+    if (filters.supplier_id) params.set('supplier_id', filters.supplier_id);
+    if (filters.date_from)   params.set('date_from', filters.date_from);
+    if (filters.date_to)     params.set('date_to', filters.date_to);
+    if (p > 1)               params.set('page', String(p));
+    const qs = params.toString();
+    return '/invoices' + (qs ? '?' + qs : '');
+  }
   const hasFilters = $derived(!!(filters.status || filters.supplier_id || filters.date_from || filters.date_to));
 
   // Selection
@@ -347,6 +358,30 @@
           {/if}
         </div>
       {/each}
+    {/if}
+
+    <!-- Pagination -->
+    {#if pagination.totalPages > 1}
+      <div class="flex items-center justify-between px-4 py-3 border-t border-divider">
+        <span class="body text-fg-3" style="font-size:12px;">
+          {(pagination.page - 1) * pagination.pageSize + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} / {pagination.total}
+        </span>
+        <div class="flex items-center gap-1">
+          <a href={pageUrl(pagination.page - 1)}
+            class="btn btn-ghost {pagination.page <= 1 ? 'opacity-30 pointer-events-none' : ''}"
+            style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
+            aria-disabled={pagination.page <= 1}>
+            <ChevronLeft size={14} />
+          </a>
+          <span class="body" style="font-size:12px;padding:0 8px;">{pagination.page} / {pagination.totalPages}</span>
+          <a href={pageUrl(pagination.page + 1)}
+            class="btn btn-ghost {pagination.page >= pagination.totalPages ? 'opacity-30 pointer-events-none' : ''}"
+            style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
+            aria-disabled={pagination.page >= pagination.totalPages}>
+            <ChevronRight size={14} />
+          </a>
+        </div>
+      </div>
     {/if}
   </SectionCard>
 
