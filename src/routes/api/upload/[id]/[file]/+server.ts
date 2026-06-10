@@ -11,8 +11,10 @@ const MIME: Record<string, string> = {
 	'.png':  'image/png',
 };
 
-export const GET: RequestHandler = async ({ params }) => {
-	const session = readSession(params.id);
+export const GET: RequestHandler = async ({ params, locals }) => {
+	if (!locals.user) throw error(401, 'Unauthorized');
+
+	const session = await readSession(params.id);
 	if (!session) throw error(404, 'Session not found');
 
 	const filename = params.file;

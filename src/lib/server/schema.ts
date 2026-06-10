@@ -52,7 +52,11 @@ export const invoices = pgTable('invoices', {
 	confidence:    real('confidence'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 	notes:         text('notes'),
-});
+}, (t) => [
+	uniqueIndex('uq_invoices_rid_supplier_number')
+		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
+		.where(sql`${t.invoiceNumber} IS NOT NULL`),
+]);
 
 export const invoiceLineItems = pgTable('invoice_line_items', {
 	id:                     serial('id').primaryKey(),
@@ -198,4 +202,25 @@ export const waitlist = pgTable('waitlist', {
 	id:        serial('id').primaryKey(),
 	email:     text('email').notNull().unique(),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const uploadSessions = pgTable('upload_sessions', {
+	id:        text('id').primaryKey(),
+	data:      text('data').notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const subscriptions = pgTable('subscriptions', {
+	id:                   serial('id').primaryKey(),
+	restaurantId:         uuid('restaurant_id').notNull().unique().references(() => restaurants.id, { onDelete: 'cascade' }),
+	stripeCustomerId:     text('stripe_customer_id').unique(),
+	stripeSubscriptionId: text('stripe_subscription_id').unique(),
+	stripePriceId:        text('stripe_price_id'),
+	status:               text('status').notNull().default('trialing'),
+	trialEndsAt:          timestamp('trial_ends_at', { withTimezone: true }),
+	currentPeriodEnd:     timestamp('current_period_end', { withTimezone: true }),
+	cancelAtPeriodEnd:    boolean('cancel_at_period_end').notNull().default(false),
+	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt:            timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
