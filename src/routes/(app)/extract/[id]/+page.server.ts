@@ -405,7 +405,7 @@ export const actions: Actions = {
 		}
 
 		const remaining = session?.remaining ?? [];
-		deleteSession(params.id);
+		await deleteSession(params.id);
 
 		if (remaining.length > 0) redirect(303, `/extract/${remaining[0]}`);
 		if (isFirstInvoice) redirect(303, '/dashboard?first_invoice=1');
