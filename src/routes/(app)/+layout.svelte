@@ -223,6 +223,12 @@
       </button>
     </div>
 
+    <!-- Legal footer -->
+    <div style="display:flex;gap:10px;padding:8px 10px 0;flex-wrap:wrap;">
+      <a href="/privacy" style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">Privacidad</a>
+      <a href="/terms"   style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">Términos</a>
+    </div>
+
     <!-- User chip -->
     <div style="margin-top:10px;padding:8px;display:flex;align-items:center;gap:10px;border-radius:8px;">
       <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#b8741a,#7a3a4a);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">

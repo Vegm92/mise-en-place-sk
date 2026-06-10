@@ -2,7 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
-import { asc, desc, eq, isNotNull, sql, and } from 'drizzle-orm';
+import { asc, desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
 
 const MIN_SUPPLIER_GAP_DAYS      = 3;
@@ -24,7 +24,8 @@ async function detectMissingInvoices(today: Date, restaurantId: string): Promise
 		.innerJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 		.where(and(
 			eq(invoices.restaurantId, restaurantId),
-			isNotNull(invoices.invoiceDate)
+			isNotNull(invoices.invoiceDate),
+			isNull(invoices.deletedAt)
 		))
 		.orderBy(asc(suppliers.id), asc(invoices.invoiceDate));
 
@@ -123,6 +124,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					eq(invoices.restaurantId, rid),
 					eq(invoices.status, 'pending'),
 					isNotNull(invoices.dueDate),
+					isNull(invoices.deletedAt),
 					sql`${invoices.dueDate} < ${todayIso}`
 				)),
 
@@ -132,18 +134,20 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					eq(invoices.restaurantId, rid),
 					eq(invoices.status, 'pending'),
 					isNotNull(invoices.dueDate),
+					isNull(invoices.deletedAt),
 					sql`${invoices.dueDate} BETWEEN ${todayIso} AND ${weekEnd}`
 				)),
 
 			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
 				.from(invoices)
-				.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'))),
+				.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
 
 			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
 				.from(invoices)
 				.where(and(
 					eq(invoices.restaurantId, rid),
 					eq(invoices.status, 'paid'),
+					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date, 'YYYY-MM') = ${selectedMonth}`
 				)),
 
@@ -154,6 +158,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.from(invoices)
 				.where(and(
 					eq(invoices.restaurantId, rid),
+					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') >= ${prevMonth}`
 				)),
 
@@ -161,6 +166,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.from(invoices)
 				.where(and(
 					eq(invoices.restaurantId, rid),
+					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
 				))
 				.groupBy(sql`DATE(${invoices.invoiceDate})`)
@@ -171,7 +177,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN ${invoices.supplierId} END)`,
 			})
 				.from(invoices)
-				.where(eq(invoices.restaurantId, rid)),
+				.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt))),
 
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(suppliers)
@@ -186,7 +192,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ${todayIso} THEN 1 ELSE 0 END) AS has_overdue,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ${todayIso} AND ${weekEnd} THEN 1 ELSE 0 END) AS has_due_soon
 				FROM suppliers s
-				LEFT JOIN invoices i ON i.supplier_id = s.id AND i.restaurant_id = ${rid}
+				LEFT JOIN invoices i ON i.supplier_id = s.id AND i.restaurant_id = ${rid} AND i.deleted_at IS NULL
 				WHERE s.restaurant_id = ${rid}
 				GROUP BY s.id ORDER BY month_spend DESC LIMIT 6
 			`),
@@ -197,6 +203,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				FROM invoices i
 				JOIN suppliers s ON i.supplier_id = s.id
 				WHERE i.restaurant_id = ${rid}
+				  AND i.deleted_at IS NULL
 				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY COALESCE(s.category,'Other')
 				ORDER BY total DESC
@@ -219,6 +226,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid}
+				  AND i.deleted_at IS NULL
 				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY i.id, s.name ORDER BY i.invoice_date DESC, i.created_at DESC LIMIT 6
 			`),
@@ -231,6 +239,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid} AND i.status = 'pending'
+				  AND i.deleted_at IS NULL
 				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY i.id, s.name ORDER BY i.created_at DESC LIMIT 5
 			`),
@@ -241,13 +250,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				old:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) > 30 THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'))),
+				.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
 
 			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)` })
 				.from(invoices)
 				.where(and(
 					eq(invoices.restaurantId, rid),
 					isNotNull(invoices.totalAmount),
+					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
 				)),
 
@@ -257,6 +267,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				FROM invoices i
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
+				  AND i.deleted_at IS NULL
 				  AND i.status='pending' AND i.due_date IS NOT NULL AND i.due_date <= ${weekEnd}
 				ORDER BY i.due_date ASC
 			`),

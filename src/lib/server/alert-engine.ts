@@ -6,7 +6,7 @@
  */
 import { db } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
-import { and, desc, eq, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import type { EnrichedLineItem } from './unit-bridge';
 
 const LOW_STOCK_DAYS = 3;
@@ -48,7 +48,8 @@ export async function runPriceShock(
 					eq(invoiceLineItems.description, description),
 					eq(suppliers.name, supplierName),
 					ne(invoiceLineItems.invoiceId, invoiceId),
-					isNotNull(invoiceLineItems.unitPrice)
+					isNotNull(invoiceLineItems.unitPrice),
+					isNull(invoices.deletedAt)
 				)
 			)
 			.orderBy(desc(invoices.invoiceDate), desc(invoices.id))
@@ -156,6 +157,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
 		.where(and(
 			eq(invoices.restaurantId, restaurantId),
+			isNull(invoices.deletedAt),
 			sql`COALESCE(${suppliers.category}, 'Other') = ${category}`,
 			sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
 		));
