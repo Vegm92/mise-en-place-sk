@@ -36,14 +36,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	try {
 		const [kpisRows, fieldRows, supplierRows, trendRows] = await Promise.all([
-			db.execute<KpisRow>(sql.raw(`
+			db.execute<KpisRow>(sql`
 				WITH invoice_corrections AS (
 					SELECT
 						i.id AS invoice_id,
 						COUNT(ec.id) AS correction_count
 					FROM invoices i
-					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = '${rid}'
-					WHERE i.restaurant_id = '${rid}'
+					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = ${rid}
+					WHERE i.restaurant_id = ${rid}
 					GROUP BY i.id
 				),
 				supplier_stats AS (
@@ -54,7 +54,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 					FROM invoice_corrections ic
 					JOIN invoices i ON i.id = ic.invoice_id
 					JOIN suppliers s ON s.id = i.supplier_id
-					WHERE i.restaurant_id = '${rid}'
+					WHERE i.restaurant_id = ${rid}
 					GROUP BY s.name
 					ORDER BY (SUM(CASE WHEN ic.correction_count = 0 THEN 1 ELSE 0 END)::float / NULLIF(COUNT(DISTINCT ic.invoice_id), 0)) DESC
 					LIMIT 1
@@ -71,32 +71,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 					) AS avg_corrections,
 					(SELECT supplier_name FROM supplier_stats LIMIT 1) AS most_accurate_supplier
 				FROM invoice_corrections ic
-			`)),
+			`),
 
-			db.execute<FieldRow>(sql.raw(`
+			db.execute<FieldRow>(sql`
 				SELECT
 					ec.field_name,
 					COUNT(*) AS corrections,
 					ROUND(
 						(COUNT(DISTINCT ec.invoice_id)::float /
-						NULLIF((SELECT COUNT(*) FROM invoices WHERE restaurant_id = '${rid}'), 0) * 100)::numeric, 1
+						NULLIF((SELECT COUNT(*) FROM invoices WHERE restaurant_id = ${rid}), 0) * 100)::numeric, 1
 					) AS invoice_pct
 				FROM extraction_corrections ec
-				WHERE ec.restaurant_id = '${rid}'
+				WHERE ec.restaurant_id = ${rid}
 				GROUP BY ec.field_name
 				ORDER BY corrections DESC
 				LIMIT 10
-			`)),
+			`),
 
-			db.execute<SupplierRow>(sql.raw(`
+			db.execute<SupplierRow>(sql`
 				WITH invoice_corrections AS (
 					SELECT
 						i.id AS invoice_id,
 						i.supplier_id,
 						COUNT(ec.id) AS correction_count
 					FROM invoices i
-					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = '${rid}'
-					WHERE i.restaurant_id = '${rid}' AND i.supplier_id IS NOT NULL
+					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = ${rid}
+					WHERE i.restaurant_id = ${rid} AND i.supplier_id IS NOT NULL
 					GROUP BY i.id, i.supplier_id
 				)
 				SELECT
@@ -115,17 +115,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 				GROUP BY s.name
 				ORDER BY total_invoices DESC
 				LIMIT 20
-			`)),
+			`),
 
-			db.execute<TrendRow>(sql.raw(`
+			db.execute<TrendRow>(sql`
 				WITH invoice_corrections AS (
 					SELECT
 						i.id AS invoice_id,
 						DATE_TRUNC('month', i.created_at) AS month,
 						COUNT(ec.id) AS correction_count
 					FROM invoices i
-					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = '${rid}'
-					WHERE i.restaurant_id = '${rid}'
+					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = ${rid}
+					WHERE i.restaurant_id = ${rid}
 					GROUP BY i.id, DATE_TRUNC('month', i.created_at)
 				)
 				SELECT
@@ -140,7 +140,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				GROUP BY month
 				ORDER BY month ASC
 				LIMIT 12
-			`)),
+			`),
 		]);
 
 		const kpis = kpisRows[0] ?? {

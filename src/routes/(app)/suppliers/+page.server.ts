@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			db.select().from(supplierMetrics)
 				.where(eq(supplierMetrics.restaurantId, rid)),
 
-			db.execute<PriceTrendRow>(sql.raw(`
+			db.execute<PriceTrendRow>(sql`
 				SELECT
 					i.supplier_id,
 					TO_CHAR(i.invoice_date::date, 'YYYY-MM') AS month,
@@ -48,11 +48,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				WHERE ili.unit_price IS NOT NULL
 				  AND ili.description IS NOT NULL AND ili.description != ''
-				  AND i.restaurant_id = '${rid}'
+				  AND i.restaurant_id = ${rid}
 				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text
 				GROUP BY i.supplier_id, TO_CHAR(i.invoice_date::date, 'YYYY-MM')
 				ORDER BY i.supplier_id, month ASC
-			`)),
+			`),
 		]);
 
 		const metricsMap = new Map(metricsRows.map((m) => [m.supplierId, m]));

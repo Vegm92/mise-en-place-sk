@@ -2,8 +2,10 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers, systemNotifications } from '$lib/server/schema';
-import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
+
+const PAGE_SIZE = 50;
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
@@ -12,6 +14,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const supplierId = url.searchParams.get('supplier_id') ?? '';
 		const dateFrom   = url.searchParams.get('date_from') ?? '';
 		const dateTo     = url.searchParams.get('date_to') ?? '';
+		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
+		const offset     = (page - 1) * PAGE_SIZE;
 
 		const conditions: SQL[] = [eq(invoices.restaurantId, rid)];
 		if (status)     conditions.push(eq(invoices.status, status));
@@ -19,7 +23,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		if (dateFrom)   conditions.push(gte(invoices.invoiceDate, dateFrom));
 		if (dateTo)     conditions.push(lte(invoices.invoiceDate, dateTo));
 
-		const [invoiceRows, statsRow, supplierCountRow, supplierRows] = await Promise.all([
+		const [invoiceRows, statsRow, supplierCountRow, supplierRows, countRow] = await Promise.all([
 			db.select({
 				id:             invoices.id,
 				supplier_name:  suppliers.name,
@@ -36,7 +40,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 				.where(and(...conditions))
-				.orderBy(desc(invoices.createdAt)),
+				.orderBy(desc(invoices.createdAt))
+				.limit(PAGE_SIZE)
+				.offset(offset),
 
 			db.select({
 				pending_amount: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.status}='pending' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
@@ -55,9 +61,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.from(suppliers)
 				.where(eq(suppliers.restaurantId, rid))
 				.orderBy(asc(suppliers.name)),
+
+			db.select({ cnt: count() })
+				.from(invoices)
+				.where(and(...conditions)),
 		]);
 
-		// Fetch all line items in one query
+		// Line items only for the current page
 		const invoiceIds = invoiceRows.map(r => r.id);
 		const allLineItems = invoiceIds.length
 			? await db.select({
@@ -85,6 +95,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		}));
 
 		const stats = statsRow[0] ?? { pending_amount: 0, pending_count: 0, overdue_count: 0, paid_count: 0 };
+		const total = Number(countRow[0]?.cnt ?? 0);
 
 		return {
 			title: 'Invoices',
@@ -92,6 +103,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			stats: { ...stats, supplier_count: supplierCountRow[0]?.cnt ?? 0 },
 			suppliers: supplierRows,
 			filters: { status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo },
+			pagination: { page, pageSize: PAGE_SIZE, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) },
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;

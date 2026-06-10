@@ -31,18 +31,18 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 	if (!topItems.length) return { score: 20, cv: null };
 
 	const descriptions = topItems.map((t) => t.description);
-	const descList = descriptions.map((d) => `'${String(d).replace(/'/g, "''")}'`).join(',');
 
-	const prices = await db.execute<{ unit_price: number }>(sql.raw(`
+	const descParams = sql.join(descriptions.map(d => sql`${d}`), sql`, `);
+	const prices = await db.execute<{ unit_price: number }>(sql`
 		SELECT ili.unit_price
 		FROM invoice_line_items ili
 		JOIN invoices i ON i.id = ili.invoice_id
 		WHERE i.supplier_id = ${supplierId}
-		  AND i.restaurant_id = '${restaurantId}'
-		  AND i.invoice_date >= '${sixMonthsAgo}'
-		  AND ili.description IN (${descList})
+		  AND i.restaurant_id = ${restaurantId}
+		  AND i.invoice_date >= ${sixMonthsAgo}
+		  AND ili.description IN (${descParams})
 		  AND ili.unit_price > 0
-	`));
+	`);
 
 	if (prices.length < 2) return { score: 20, cv: null };
 

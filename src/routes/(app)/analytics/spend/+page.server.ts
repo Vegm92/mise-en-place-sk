@@ -17,7 +17,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	try {
 		let period = url.searchParams.get('period') ?? 'month';
 		if (!(period in PERIOD_CLAUSE)) period = 'month';
-		const dateClause = PERIOD_CLAUSE[period] ?? '';
+		// dateClause is a hardcoded literal from a fixed constant map — safe to inline as raw SQL
+		const dateFilter = sql.raw(PERIOD_CLAUSE[period] ?? '');
 
 		type TopItem = { description: string; total_spend: number; item_count: number; avg_unit_price: number | null; supplier_name: string };
 		type CatRow = { category: string; total: number; invoice_count: number };
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type ItemTrendRow = { item_key: string; month: string; avg_price: number };
 
 		const [topItems, categorySpend, kpisRows, itemTrendRows] = await Promise.all([
-			db.execute<TopItem>(sql.raw(`
+			db.execute<TopItem>(sql`
 				SELECT
 					MIN(ili.description) AS description,
 					SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total_spend,
@@ -36,14 +37,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE ili.description IS NOT NULL AND ili.description != ''
-				  AND i.restaurant_id = '${rid}'
-				  ${dateClause}
+				  AND i.restaurant_id = ${rid}
+				  ${dateFilter}
 				GROUP BY LOWER(TRIM(ili.description))
 				ORDER BY total_spend DESC
 				LIMIT 15
-			`)),
+			`),
 
-			db.execute<CatRow>(sql.raw(`
+			db.execute<CatRow>(sql`
 				SELECT
 					COALESCE(s.category, 'Other') AS category,
 					SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total,
@@ -52,13 +53,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE ili.description IS NOT NULL AND ili.description != ''
-				  AND i.restaurant_id = '${rid}'
-				  ${dateClause}
+				  AND i.restaurant_id = ${rid}
+				  ${dateFilter}
 				GROUP BY COALESCE(s.category, 'Other')
 				ORDER BY total DESC
-			`)),
+			`),
 
-			db.execute<KpisRow>(sql.raw(`
+			db.execute<KpisRow>(sql`
 				SELECT
 					SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total_items_spend,
 					COUNT(*) AS total_line_items,
@@ -68,11 +69,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE ili.description IS NOT NULL AND ili.description != ''
-				  AND i.restaurant_id = '${rid}'
-				  ${dateClause}
-			`)),
+				  AND i.restaurant_id = ${rid}
+				  ${dateFilter}
+			`),
 
-			db.execute<ItemTrendRow>(sql.raw(`
+			db.execute<ItemTrendRow>(sql`
 				SELECT
 					LOWER(TRIM(ili.description)) AS item_key,
 					TO_CHAR(i.invoice_date::date, 'YYYY-MM') AS month,
@@ -81,11 +82,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				WHERE ili.unit_price IS NOT NULL
 				  AND ili.description IS NOT NULL AND ili.description != ''
-				  AND i.restaurant_id = '${rid}'
+				  AND i.restaurant_id = ${rid}
 				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text
 				GROUP BY LOWER(TRIM(ili.description)), TO_CHAR(i.invoice_date::date, 'YYYY-MM')
 				ORDER BY item_key, month ASC
-			`)),
+			`),
 		]);
 
 		const itemTrendMap = new Map<string, number[]>();
