@@ -27,7 +27,7 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const session = readSession(params.id);
+	const session = await readSession(params.id);
 	if (!session || !session.files.length) {
 		redirect(303, '/');
 	}
@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				const firstFile = path.join(dir, existingPaths[0]);
 				const result = await extractInvoice(firstFile);
 				extractedData = result as unknown as Record<string, unknown>;
-				writeSession({ ...session, extractedData });
+				await writeSession({ ...session, extractedData });
 			} catch (err) {
 				const status = (err as { status?: number }).status;
 				const message = (err as { message?: string }).message ?? '';
@@ -205,7 +205,7 @@ async function logExtractionCorrections(
 
 export const actions: Actions = {
 	save: async ({ params, request, locals }) => {
-		const session = readSession(params.id);
+		const session = await readSession(params.id);
 		const formData = await request.formData();
 
 		const supplierName = (formData.get('supplier_name') as string) ?? '';
@@ -413,14 +413,14 @@ export const actions: Actions = {
 	},
 
 	discard: async ({ params }) => {
-		const session = readSession(params.id);
+		const session = await readSession(params.id);
 		if (session) {
 			const dir = uploadsDir();
 			for (const name of session.files) {
 				const fp = path.resolve(dir, name);
 				if (fp.startsWith(dir) && fs.existsSync(fp)) fs.unlinkSync(fp);
 			}
-			deleteSession(params.id);
+			await deleteSession(params.id);
 		}
 		redirect(303, '/');
 	},
