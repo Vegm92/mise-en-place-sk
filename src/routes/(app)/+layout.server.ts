@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { systemNotifications, invoices, settings, restaurants } from '$lib/server/schema';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, isNull, sql } from 'drizzle-orm';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -24,13 +24,14 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
 			.from(invoices)
-			.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'))),
+			.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
 			.from(invoices)
 			.where(and(
 				eq(invoices.restaurantId, rid),
 				eq(invoices.status, 'pending'),
+				isNull(invoices.deletedAt),
 				sql`${invoices.dueDate} BETWEEN CURRENT_DATE::text AND (CURRENT_DATE + INTERVAL '7 days')::text`
 			)),
 
@@ -38,6 +39,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.from(invoices)
 			.where(and(
 				eq(invoices.restaurantId, rid),
+				isNull(invoices.deletedAt),
 				sql`TO_CHAR(${invoices.createdAt}, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')`
 			)),
 

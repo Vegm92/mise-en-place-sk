@@ -1,6 +1,6 @@
 import { db } from './db';
 import { supplierMetrics, invoices, invoiceLineItems } from './schema';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, isNull } from 'drizzle-orm';
 
 interface ReliabilityResult {
 	score: number;
@@ -20,6 +20,7 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 		JOIN invoices i ON i.id = ili.invoice_id
 		WHERE i.supplier_id = ${supplierId}
 		  AND i.restaurant_id = ${restaurantId}
+		  AND i.deleted_at IS NULL
 		  AND i.invoice_date >= ${sixMonthsAgo}
 		  AND ili.unit_price > 0
 		  AND ili.description IS NOT NULL
@@ -39,6 +40,7 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 		JOIN invoices i ON i.id = ili.invoice_id
 		WHERE i.supplier_id = ${supplierId}
 		  AND i.restaurant_id = ${restaurantId}
+		  AND i.deleted_at IS NULL
 		  AND i.invoice_date >= ${sixMonthsAgo}
 		  AND ili.description IN (${descParams})
 		  AND ili.unit_price > 0
@@ -63,6 +65,7 @@ async function computeFrequencyScore(supplierId: number, restaurantId: string): 
 		.where(and(
 			eq(invoices.supplierId, supplierId),
 			eq(invoices.restaurantId, restaurantId),
+			isNull(invoices.deletedAt),
 			sql`${invoices.invoiceDate} IS NOT NULL`
 		))
 		.orderBy(invoices.invoiceDate);
@@ -99,6 +102,7 @@ async function computeTimelinessScore(supplierId: number, restaurantId: string):
 		FROM invoices
 		WHERE supplier_id = ${supplierId}
 		  AND restaurant_id = ${restaurantId}
+		  AND deleted_at IS NULL
 	`);
 
 	const r = row[0];

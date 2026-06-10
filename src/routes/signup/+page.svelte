@@ -127,6 +127,11 @@
 				<p style="text-align:center;font-size:12px;color:var(--mep-fg-4);margin:20px 0 0;">
 					Already have an account? <a href="/login" style="color:var(--mep-acc);">Sign in</a>
 				</p>
+				<p style="text-align:center;font-size:11px;color:var(--mep-fg-4);margin:16px 0 0;">
+					Al registrarte, aceptas nuestros
+					<a href="/terms"   style="color:var(--mep-fg-4);">Términos</a> y
+					<a href="/privacy" style="color:var(--mep-fg-4);">Política de Privacidad</a>.
+				</p>
 			{/if}
 		</div>
 

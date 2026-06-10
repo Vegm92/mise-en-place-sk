@@ -123,6 +123,7 @@ function getGenerateFn(): GenerateFn {
 }
 
 const PDF_PARSE_TIMEOUT_MS = 15_000;
+const GEMINI_TIMEOUT_MS = 60_000;
 
 async function classifyPdf(filePath: string): Promise<ClassifiedFile> {
 	// Dynamic import so pdf-parse can be mocked in tests.
@@ -215,5 +216,19 @@ export async function extractInvoice(
 ): Promise<ExtractedInvoice> {
 	const generate = generateOverride ?? getGenerateFn();
 	const classified = await classifyFile(filePath);
-	return callGemini(generate, classified, filePath);
+
+	let timeoutHandle: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_, rej) => {
+		timeoutHandle = setTimeout(() => {
+			const err = new Error(`Gemini extraction timed out after ${GEMINI_TIMEOUT_MS / 1000}s`);
+			(err as { code?: string }).code = 'GEMINI_TIMEOUT';
+			rej(err);
+		}, GEMINI_TIMEOUT_MS);
+	});
+
+	try {
+		return await Promise.race([callGemini(generate, classified, filePath), timeout]);
+	} finally {
+		clearTimeout(timeoutHandle!);
+	}
 }
