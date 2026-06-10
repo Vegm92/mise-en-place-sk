@@ -229,123 +229,158 @@ export const actions: Actions = {
 		const taxBase = toFloat(extractedData?.tax_base);
 		const taxBreakdownRaw = extractedData?.tax_breakdown;
 		const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
-
-		// Upsert supplier
-		let supplierId: number;
-		const existingSupplier = await db
-			.select()
-			.from(suppliers)
-			.where(and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, rid)))
-			.limit(1);
-
-		if (existingSupplier.length > 0) {
-			supplierId = existingSupplier[0].id;
-		} else {
-			const inserted = await db.insert(suppliers).values({ name: supplierName, restaurantId: rid }).returning({ id: suppliers.id });
-			supplierId = inserted[0].id;
-		}
-
-		// Check for duplicate invoice number
-		if (invoiceNumber.trim()) {
-			const duplicate = await db
-				.select()
-				.from(invoices)
-				.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
-				.limit(1);
-
-			if (duplicate.length > 0) {
-				const remaining = session?.remaining ?? [];
-				deleteSession(params.id);
-				if (remaining.length > 0) redirect(303, `/extract/${remaining[0]}`);
-				redirect(303, '/?duplicate_inv=1');
-			}
-		}
-
 		const primaryFile = session?.files[0] ?? null;
 
-		const insertedInvoice = await db
-			.insert(invoices)
-			.values({
-				restaurantId: rid,
-				supplierId,
-				invoiceNumber: invoiceNumber || null,
-				invoiceDate,
-				dueDate,
-				totalAmount,
-				taxBase,
-				taxBreakdown,
-				status: 'pending',
-				sourceFile: primaryFile,
-				confidence: confidenceRaw,
-				notes,
-			})
-			.returning({ id: invoices.id });
-
-		const invoiceId = insertedInvoice[0].id;
-
-		// Insert line items with unit bridge resolution
-		const savedItems: EnrichedLineItem[] = [];
-		const unitConversionAlerts = [];
-
+		// Pre-compute unit resolutions outside the transaction (read-only DB calls)
+		type LineInput = {
+			desc: string;
+			qtyFloat: number | null;
+			unitPriceFloat: number | null;
+			unitVal: string | null;
+			totalPriceVal: number | null;
+			taxRateVal: number | null;
+		};
+		const lineInputs: LineInput[] = [];
 		for (let i = 0; i < lineDescriptions.length; i++) {
 			const desc = lineDescriptions[i].trim();
 			if (!desc) continue;
-
-			const qtyFloat = toFloat(lineQuantities[i]);
-			const unitPriceFloat = toFloat(lineUnitPrices[i]);
-			const unitVal = lineUnits[i]?.trim() || null;
-
-			const rule = unitVal ? await resolveUnit(supplierName, desc, unitVal, rid) : null;
-			const canonicalUnit = rule?.canonicalUnit ?? null;
-			const requiresConv = !rule && !!unitVal ? 1 : 0;
-			const factor = rule?.conversionFactor ?? 0;
-			const convertedQty = rule && factor > 0 && qtyFloat != null ? Math.round(qtyFloat * factor * 10000) / 10000 : null;
-			const convertedPrice = rule && factor > 0 && unitPriceFloat != null ? Math.round((unitPriceFloat / factor) * 10000) / 10000 : null;
-
-			await db.insert(invoiceLineItems).values({
-				invoiceId,
-				restaurantId: rid,
-				description: desc,
-				quantity: qtyFloat,
-				unit: unitVal,
-				unitPrice: unitPriceFloat,
-				totalPrice: toFloat(lineTotalPrices[i]),
-				taxRate: toFloat(lineTaxRates[i]),
-				requiresUnitConversion: requiresConv,
-				canonicalUnit,
+			lineInputs.push({
+				desc,
+				qtyFloat: toFloat(lineQuantities[i]),
+				unitPriceFloat: toFloat(lineUnitPrices[i]),
+				unitVal: lineUnits[i]?.trim() || null,
+				totalPriceVal: toFloat(lineTotalPrices[i]),
+				taxRateVal: toFloat(lineTaxRates[i]),
 			});
+		}
+		const unitRules = await Promise.all(
+			lineInputs.map(item =>
+				item.unitVal ? resolveUnit(supplierName, item.desc, item.unitVal, rid) : Promise.resolve(null)
+			)
+		);
 
-			const enrichedItem: EnrichedLineItem = {
-				description: desc,
-				quantity: qtyFloat,
-				unit: unitVal,
-				unitPrice: unitPriceFloat,
-				totalPrice: toFloat(lineTotalPrices[i]),
-				canonicalUnit,
-				requiresUnitConversion: !!requiresConv,
-				convertedQuantity: convertedQty,
-				convertedUnitPrice: convertedPrice,
-			};
-			savedItems.push(enrichedItem);
+		// Transactional save: supplier upsert + invoice insert + line items
+		let supplierId = 0;
+		let invoiceId: number | null = null;
+		let isDuplicate = false;
+		const savedItems: EnrichedLineItem[] = [];
+		const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
 
-			if (requiresConv) {
-				unitConversionAlerts.push({
-					notificationType: 'unit_conversion_needed',
-					message: `Has comprado ${qtyFloat ?? '?'} ${unitVal} de '${desc}'. ¿Cuántos unidades base contiene este ${unitVal} para actualizar tu stock correctamente?`,
-					payload: { supplierName, ingredient: desc, purchaseUnit: unitVal, quantity: qtyFloat },
-				});
+		await db.transaction(async (tx) => {
+			// Upsert supplier
+			const existingSupplier = await tx
+				.select({ id: suppliers.id })
+				.from(suppliers)
+				.where(and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, rid)))
+				.limit(1);
+
+			if (existingSupplier.length > 0) {
+				supplierId = existingSupplier[0].id;
+			} else {
+				const ins = await tx.insert(suppliers).values({ name: supplierName, restaurantId: rid }).returning({ id: suppliers.id });
+				supplierId = ins[0].id;
 			}
+
+			// Duplicate check; onConflictDoNothing below handles the race condition
+			if (invoiceNumber.trim()) {
+				const dup = await tx
+					.select({ id: invoices.id })
+					.from(invoices)
+					.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim()), eq(invoices.restaurantId, rid)))
+					.limit(1);
+				if (dup.length > 0) {
+					isDuplicate = true;
+					return;
+				}
+			}
+
+			// Insert invoice — onConflictDoNothing guards against concurrent duplicate inserts
+			const insertedInvoice = await tx
+				.insert(invoices)
+				.values({
+					restaurantId: rid,
+					supplierId,
+					invoiceNumber: invoiceNumber || null,
+					invoiceDate,
+					dueDate,
+					totalAmount,
+					taxBase,
+					taxBreakdown,
+					status: 'pending',
+					sourceFile: primaryFile,
+					confidence: confidenceRaw,
+					notes,
+				})
+				.onConflictDoNothing()
+				.returning({ id: invoices.id });
+
+			if (!insertedInvoice.length) {
+				isDuplicate = true;
+				return;
+			}
+			invoiceId = insertedInvoice[0].id;
+
+			// Insert line items (unit rules pre-computed above)
+			for (let i = 0; i < lineInputs.length; i++) {
+				const item = lineInputs[i];
+				const rule = unitRules[i];
+				const canonicalUnit = rule?.canonicalUnit ?? null;
+				const requiresConv = !rule && !!item.unitVal ? 1 : 0;
+				const factor = rule?.conversionFactor ?? 0;
+				const convertedQty = rule && factor > 0 && item.qtyFloat != null ? Math.round(item.qtyFloat * factor * 10000) / 10000 : null;
+				const convertedPrice = rule && factor > 0 && item.unitPriceFloat != null ? Math.round((item.unitPriceFloat / factor) * 10000) / 10000 : null;
+
+				await tx.insert(invoiceLineItems).values({
+					invoiceId: invoiceId!,
+					restaurantId: rid,
+					description: item.desc,
+					quantity: item.qtyFloat,
+					unit: item.unitVal,
+					unitPrice: item.unitPriceFloat,
+					totalPrice: item.totalPriceVal,
+					taxRate: item.taxRateVal,
+					requiresUnitConversion: requiresConv,
+					canonicalUnit,
+				});
+
+				savedItems.push({
+					description: item.desc,
+					quantity: item.qtyFloat,
+					unit: item.unitVal,
+					unitPrice: item.unitPriceFloat,
+					totalPrice: item.totalPriceVal,
+					canonicalUnit,
+					requiresUnitConversion: !!requiresConv,
+					convertedQuantity: convertedQty,
+					convertedUnitPrice: convertedPrice,
+				});
+
+				if (requiresConv) {
+					unitConversionAlerts.push({
+						notificationType: 'unit_conversion_needed',
+						message: `Has comprado ${item.qtyFloat ?? '?'} ${item.unitVal} de '${item.desc}'. ¿Cuántos unidades base contiene este ${item.unitVal} para actualizar tu stock correctamente?`,
+						payload: { supplierName, ingredient: item.desc, purchaseUnit: item.unitVal, quantity: item.qtyFloat },
+					});
+				}
+			}
+		});
+
+		if (isDuplicate) {
+			const remaining = session?.remaining ?? [];
+			await deleteSession(params.id);
+			if (remaining.length > 0) redirect(303, `/extract/${remaining[0]}`);
+			redirect(303, '/?duplicate_inv=1');
 		}
 
-		// Fire BI alerts
-		const priceAlerts = await runPriceShock(invoiceId, supplierName, savedItems, rid);
+		// Post-commit: fire BI alerts (non-critical, runs after data is safely persisted)
+		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid);
 		const stockAlerts = await runStockForecast(savedItems, rid);
-		const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
-		await saveAlerts(invoiceId, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
+		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
+		await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
 
 		// Log field corrections (original AI values vs user-submitted values)
 		await logExtractionCorrections(
-			invoiceId,
+			invoiceId!,
 			supplierId,
 			rid,
 			extractedData,
