@@ -8,7 +8,17 @@
   import { ChevronLeft, RefreshCw, Check, Sparkle, Plus, Trash, AlertTriangle } from 'lucide-svelte';
   import { t } from '$lib/i18n';
 
-  const { data }: { data: PageData } = $props();
+  import type { ActionData } from './$types';
+  const { data, form }: { data: PageData; form: ActionData } = $props();
+
+  let lowConfAck = $state(false);
+  let showLowConfModal = $state(false);
+
+  $effect(() => {
+    if ((form as Record<string, unknown> | null)?.lowConfidenceBlocked) {
+      showLowConfModal = true;
+    }
+  });
 
   type LineItem = {
     description?: string | null;
@@ -187,6 +197,7 @@
       <!-- Right: data panel (form) -->
       <form id="save-form" method="POST" action="?/save" style="display:contents;">
         <input type="hidden" name="confidence" value={str(confidence)} />
+        <input type="hidden" name="low_confidence_ack" value={lowConfAck ? 'true' : 'false'} />
 
         <div class="card" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
 
@@ -429,3 +440,61 @@
   {/if}
 
 </div>
+
+<!-- Low-confidence review gate modal -->
+{#if showLowConfModal}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
+    role="presentation"
+    onclick={() => showLowConfModal = false}
+  >
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
+      role="dialog"
+      aria-modal="true"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <AlertTriangle size={18} style="color:var(--mep-warn);flex-shrink:0;" />
+        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">Campos con baja confianza</strong>
+      </div>
+      <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 16px;">
+        La IA detectó <strong>{uncertainCount}</strong> campo{uncertainCount !== 1 ? 's' : ''} con confianza baja.
+        Por favor, revísalos cuidadosamente antes de guardar la factura — los datos financieros incorrectos afectan a tus informes.
+      </p>
+      {#if uncertainHeaderFields.length > 0}
+        <ul style="font-size:12.5px;color:var(--mep-fg-3);margin:0 0 16px;padding-left:16px;">
+          {#each uncertainHeaderFields as f}
+            <li>{$t(`field.${f === 'supplier_name' ? 'supplier' : f === 'invoice_number' ? 'invoiceNum' : f === 'invoice_date' ? 'invoiceDate' : f === 'due_date' ? 'dueDate' : 'totalAmount'}`)}</li>
+          {/each}
+        </ul>
+      {/if}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          style="height:36px;font-size:13px;"
+          onclick={() => showLowConfModal = false}
+        >
+          Volver a revisar
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="height:36px;font-size:13px;"
+          onclick={() => {
+            lowConfAck = true;
+            showLowConfModal = false;
+            // Re-submit the form with the acknowledgment flag set
+            (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
+          }}
+        >
+          He revisado todos los campos
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

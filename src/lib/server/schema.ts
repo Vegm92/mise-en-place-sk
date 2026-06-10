@@ -52,11 +52,23 @@ export const invoices = pgTable('invoices', {
 	confidence:    real('confidence'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 	notes:         text('notes'),
+	deletedAt:     timestamp('deleted_at', { withTimezone: true }),
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
 		.where(sql`${t.invoiceNumber} IS NOT NULL`),
 ]);
+
+export const invoiceAuditLog = pgTable('invoice_audit_log', {
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	invoiceId:    integer('invoice_id').notNull(),
+	action:       text('action').notNull(), // 'soft_delete' | 'restore' | 'hard_delete'
+	userId:       text('user_id').notNull(),
+	reason:       text('reason'),
+	snapshot:     text('snapshot'),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
 
 export const invoiceLineItems = pgTable('invoice_line_items', {
 	id:                     serial('id').primaryKey(),

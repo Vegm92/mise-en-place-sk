@@ -94,6 +94,9 @@ function isPublicPath(path: string): boolean {
 	return (
 		path === '/login'                       ||
 		path === '/signup'                      ||
+		path === '/privacy'                     ||
+		path === '/terms'                       ||
+		path === '/api/health'                  ||
 		path.startsWith('/auth/')               ||
 		path.startsWith('/waitlist')            ||
 		path.startsWith('/api/tpv/')            ||

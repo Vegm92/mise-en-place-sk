@@ -109,6 +109,10 @@
 			<p style="text-align:center;font-size:12px;color:var(--mep-fg-4);margin:20px 0 0;">
 				Don't have an account? <a href="/signup" style="color:var(--mep-acc);">Create one</a>
 			</p>
+			<p style="text-align:center;font-size:11px;color:var(--mep-fg-4);margin:16px 0 0;">
+				<a href="/privacy" style="color:var(--mep-fg-4);">Privacidad</a> ·
+				<a href="/terms"   style="color:var(--mep-fg-4);">Términos</a>
+			</p>
 		</div>
 
 	</div>

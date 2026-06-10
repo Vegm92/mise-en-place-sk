@@ -7,7 +7,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** POST /api/unit-conversions — save a new UoM rule and clear pending flags. */
 export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
-	if (!checkRateLimit(getClientAddress(), 30)) throw error(429, 'Too many requests');
+	if (!await checkRateLimit(getClientAddress(), 30)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });

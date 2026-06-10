@@ -7,7 +7,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** GET /api/notifications?status=pending — WhatsApp bot polls this. */
 export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => {
-	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
+	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid    = locals.restaurantId!;
 	const status = url.searchParams.get('status') ?? 'pending';
 
@@ -26,7 +26,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 
 /** POST /api/notifications/:id/ack — mark a notification as sent. */
 export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
-	if (!checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
+	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid  = locals.restaurantId!;
 	const body = await request.json().catch(() => ({}));
 	const id   = body.id;
