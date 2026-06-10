@@ -118,7 +118,7 @@
   function addFiles(newFiles: FileList | null) {
     if (!newFiles) return;
     for (const f of Array.from(newFiles)) {
-      if (f.size > MAX_MB * 1024 * 1024) { alert(`'${f.name}' supera el límite de ${MAX_MB} MB`); continue; }
+      if (f.size > MAX_MB * 1024 * 1024) { alert($t('upload.imageTooLarge').replace('{mb}', String(MAX_MB))); continue; }
       if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
     }
   }
@@ -373,7 +373,7 @@
           <Upload size={22} />
         </div>
         <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:4px;text-align:center;">
-          {data.hasCompletedOnboarding ? $t('upload.dropHeadline') : 'Procesa tu primera factura'}
+          {data.hasCompletedOnboarding ? $t('upload.dropHeadline') : $t('dash.firstInvoice')}
         </div>
         <div style="font-size:12.5px;color:var(--mep-fg-2);margin-bottom:14px;text-align:center;">
           {#if data.hasCompletedOnboarding}
@@ -570,7 +570,7 @@
         </div>
 
         <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:6px;text-align:center;">
-          {data.hasCompletedOnboarding ? $t('upload.dropHeadline') : 'Procesa tu primera factura'}
+          {data.hasCompletedOnboarding ? $t('upload.dropHeadline') : $t('dash.firstInvoice')}
         </div>
         <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:16px;text-align:center;max-width:360px;">
           {#if data.hasCompletedOnboarding}
