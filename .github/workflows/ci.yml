@@ -50,3 +50,60 @@ jobs:
           AUTH_ADMIN_EMAIL: ci@example.com
           AUTH_ADMIN_PASSWORD: ci-password-not-used
           AUTH_ADMIN_RESTAURANT_NAME: CI
+
+  extraction-quality:
+    name: Extraction accuracy gate (totals ≥ 80%)
+    runs-on: ubuntu-latest
+    # Only run when a Gemini key is available — skipped on forks / PRs without secrets
+    if: ${{ secrets.GEMINI_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install Node dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install synth dependencies
+        run: pip install -e "synth[dev]"
+
+      - name: Generate synthetic test fixtures (10 docs, seed 99)
+        run: |
+          cd synth
+          python -m synth generate \
+            --count 10 \
+            --difficulty mixed \
+            --formats pdf \
+            --seed 99 \
+            --output ./output/ci_run
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Run extraction benchmark (gate totals ≥ 80%)
+        run: |
+          cd synth
+          python -m synth bench ./output/ci_run \
+            --backend gemini \
+            --threshold 0.80 \
+            --report ../extraction-quality-report.md
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extraction-quality-report
+          path: extraction-quality-report.md

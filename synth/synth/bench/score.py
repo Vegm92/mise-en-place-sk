@@ -117,8 +117,11 @@ def score_pair(doc_path: str, gt: dict, backend: str) -> ScoreCard:
     return card
 
 
+FIELD_ACCURACY_THRESHOLD = 0.80  # published target: totals ≥ 80% or CI fails
+
+
 def run_benchmark(input_dir: str, backend: str = "gemini", limit: int | None = None,
-                  report_path: str | None = None):
+                  report_path: str | None = None, threshold: float = FIELD_ACCURACY_THRESHOLD):
     from rich.console import Console
     from rich.table import Table
 
@@ -189,10 +192,30 @@ def run_benchmark(input_dir: str, backend: str = "gemini", limit: int | None = N
 
     console.print(table)
 
+    # Gate: compute totals accuracy and fail CI if below threshold
+    amount_vals = [c.total_amount_ok for c in cards if c.total_amount_ok is not None and not c.error]
+    amount_accuracy = sum(amount_vals) / len(amount_vals) if amount_vals else 0.0
+
+    console.print(f"\n[bold]Totals accuracy:[/bold] {amount_accuracy * 100:.0f}%  "
+                  f"(threshold: {threshold * 100:.0f}%)")
+
     if report_path:
         Path(report_path).write_text(
-            f"# Benchmark Report\n\nBackend: {backend}\nDocuments: {len(pairs)}\n\n"
+            f"# Benchmark Report\n\nBackend: {backend}\nDocuments: {len(pairs)}\n"
+            f"Totals accuracy: {amount_accuracy * 100:.0f}% (threshold {threshold * 100:.0f}%)\n\n"
             + "(Rich table — see terminal output)\n",
             encoding="utf-8"
         )
         console.print(f"[dim]Report written to {report_path}[/dim]")
+
+    if amount_accuracy < threshold:
+        console.print(
+            f"[bold red]✗ GATE FAILED: totals accuracy {amount_accuracy * 100:.0f}% "
+            f"< required {threshold * 100:.0f}%[/bold red]"
+        )
+        sys.exit(1)
+    else:
+        console.print(
+            f"[bold green]✓ Gate passed: totals accuracy {amount_accuracy * 100:.0f}% "
+            f"≥ {threshold * 100:.0f}%[/bold green]"
+        )
