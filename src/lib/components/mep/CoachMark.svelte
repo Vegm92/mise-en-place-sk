@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { browser } from '$app/environment';
+  import { t } from '$lib/i18n';
 
   interface Props {
     selector: string;
@@ -21,7 +22,7 @@
     totalSteps,
     onNext,
     onSkip,
-    nextLabel = 'Entendido →',
+    nextLabel,
   }: Props = $props();
 
   const PAD = 10;
@@ -150,7 +151,7 @@
         "
         onclick={onSkip}
       >
-        Saltar tour
+        {$t('coach.skip')}
       </button>
     </div>
 
@@ -169,7 +170,7 @@
       style="width:100%;height:36px;justify-content:center;font-size:13px;"
       onclick={onNext}
     >
-      {nextLabel}
+      {nextLabel ?? $t('coach.next')}
     </button>
   </div>
 {/if}

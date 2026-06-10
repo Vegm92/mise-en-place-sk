@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Bell, X, TrendingUp, Package, Ruler } from 'lucide-svelte';
+  import { t } from '$lib/i18n';
 
   type Notif = {
     id: number;
@@ -84,18 +85,18 @@
       "
     >
       <div style="padding:12px 14px 8px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:13px;font-weight:600;color:var(--mep-fg);">Alerts</span>
+        <span style="font-size:13px;font-weight:600;color:var(--mep-fg);">{$t('notif.title')}</span>
         {#if count > 0}
           <button
             style="font-size:11px;color:var(--mep-fg-3);background:none;border:none;cursor:pointer;padding:0;"
             onclick={async () => { for (const n of [...items]) await dismiss(n.id); }}
-          >Clear all</button>
+          >{$t('notif.clearAll')}</button>
         {/if}
       </div>
 
       {#if items.length === 0}
         <div style="padding:24px 14px;text-align:center;color:var(--mep-fg-3);font-size:13px;">
-          No pending alerts
+          {$t('notif.empty')}
         </div>
       {:else}
         {#each items as n (n.id)}

@@ -3,6 +3,7 @@
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import { ArrowLeft, ChevronRight, Pencil, Trash2, Mail, Phone, Truck, CreditCard } from 'lucide-svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import { t } from '$lib/i18n';
 
   interface Supplier {
     name: string;
@@ -78,11 +79,6 @@
     if (score >= 40) return '#C8843A';
     return '#E05555';
   }
-  function scoreLabel(score: number) {
-    if (score >= 70) return 'Muy fiable';
-    if (score >= 40) return 'Fiable';
-    return 'Poco fiable';
-  }
   function invoiceStatus(inv: Invoice): string {
     if (inv.status === 'paid') return 'paid';
     if (inv.dueDate && inv.dueDate < today) return 'overdue';
@@ -99,7 +95,7 @@
       <!-- Breadcrumb -->
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
         <a href="/suppliers" style="color:var(--mep-fg-3);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
-          <ArrowLeft size={12} /> Proveedores
+          <ArrowLeft size={12} /> {$t('nav.suppliers')}
         </a>
         <ChevronRight size={11} />
         <span style="color:var(--mep-fg-2);">{s.name}</span>
@@ -122,7 +118,7 @@
                 {s.category}
               </span>
             {:else}
-              <span style="font-style:italic;">Sin categoría</span>
+              <span style="font-style:italic;">{$t('sup.noCategory')}</span>
             {/if}
             {#if s.contactEmail}
               <span>· {s.contactEmail}</span>
@@ -134,16 +130,16 @@
             {#if s.contactEmail}
               <a href="mailto:{s.contactEmail}" class="btn btn-secondary"
                 style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
-                <Mail size={13} /> Contactar
+                <Mail size={13} /> {$t('sup.contact')}
               </a>
             {/if}
             <button class="btn btn-secondary" style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
               onclick={() => { editing = true; confirmDelete = false; }}>
-              <Pencil size={13} /> Editar
+              <Pencil size={13} /> {$t('action.edit')}
             </button>
             <button class="btn" style="height:32px;font-size:12.5px;color:#E05555;border-color:#E05555;display:inline-flex;align-items:center;gap:6px;"
               onclick={() => { confirmDelete = !confirmDelete; }}>
-              <Trash2 size={13} /> Eliminar
+              <Trash2 size={13} /> {$t('action.delete')}
             </button>
           </div>
         {/if}
@@ -152,17 +148,17 @@
       <!-- Delete confirmation -->
       {#if confirmDelete}
         <div class="card" style="padding:14px;border-left:3px solid #E05555;margin-bottom:14px;">
-          <p class="body-strong" style="color:#E05555;margin-bottom:8px;">¿Eliminar este proveedor?</p>
+          <p class="body-strong" style="color:#E05555;margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
           <p class="body" style="color:var(--mep-fg-3);font-size:12px;margin-bottom:12px;">
-            Las {invoices.length} facturas asociadas quedarán sin proveedor. Esta acción no se puede deshacer.
+            {$t('sup.confirmDelete.body').replace('{n}', String(invoices.length))}
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
               <button type="submit" class="btn" style="background:#E05555;color:#fff;border-color:#E05555;height:30px;font-size:12px;">
-                Sí, eliminar
+                {$t('sup.confirmDelete.yes')}
               </button>
             </form>
-            <button class="btn" style="height:30px;font-size:12px;" onclick={() => confirmDelete = false}>Cancelar</button>
+            <button class="btn" style="height:30px;font-size:12px;" onclick={() => confirmDelete = false}>{$t('edit.cancel')}</button>
           </div>
         </div>
       {/if}
@@ -170,50 +166,50 @@
       <!-- Edit form -->
       {#if editing}
         <div class="card" style="padding:20px;margin-bottom:14px;">
-          <p class="body-strong" style="margin-bottom:14px;">Editar proveedor</p>
+          <p class="body-strong" style="margin-bottom:14px;">{$t('sup.edit.title')}</p>
           <form method="post" action="?/update" style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div>
-                <label for="edit-name" class="label" style="display:block;margin-bottom:4px;">Nombre</label>
+                <label for="edit-name" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.name')}</label>
                 <input id="edit-name" class="input" name="name" value={s.name} required style="width:100%;" />
               </div>
               <div>
-                <label for="edit-category" class="label" style="display:block;margin-bottom:4px;">Categoría</label>
+                <label for="edit-category" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.category')}</label>
                 <select id="edit-category" class="input" name="category" style="width:100%;">
-                  <option value="">Sin categoría</option>
+                  <option value="">{$t('sup.noCategory')}</option>
                   {#each VALID_CATEGORIES as cat}
                     <option value={cat} selected={s.category === cat}>{cat}</option>
                   {/each}
                 </select>
               </div>
               <div>
-                <label for="edit-cif" class="label" style="display:block;margin-bottom:4px;">CIF/NIF</label>
+                <label for="edit-cif" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.cif')}</label>
                 <input id="edit-cif" class="input" name="cif" value={s.cif ?? ''} style="width:100%;" placeholder="B12345678" />
               </div>
               <div>
-                <label for="edit-email" class="label" style="display:block;margin-bottom:4px;">Email de contacto</label>
+                <label for="edit-email" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.email')}</label>
                 <input id="edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" placeholder="proveedor@ejemplo.com" />
               </div>
               <div>
-                <label for="edit-phone" class="label" style="display:block;margin-bottom:4px;">Teléfono</label>
+                <label for="edit-phone" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.phone')}</label>
                 <input id="edit-phone" class="input" name="contact_phone" type="tel" value={s.contactPhone ?? ''} style="width:100%;" placeholder="+34 600 000 000" />
               </div>
               <div>
-                <label for="edit-delivery" class="label" style="display:block;margin-bottom:4px;">Días de entrega</label>
+                <label for="edit-delivery" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.delivery')}</label>
                 <input id="edit-delivery" class="input" name="delivery_days" value={s.deliveryDays ?? ''} style="width:100%;" placeholder="Lun, Mié, Vie" />
               </div>
               <div>
-                <label for="edit-terms" class="label" style="display:block;margin-bottom:4px;">Condiciones de pago</label>
+                <label for="edit-terms" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.terms')}</label>
                 <input id="edit-terms" class="input" name="payment_terms" value={s.paymentTerms ?? ''} style="width:100%;" placeholder="30 días" />
               </div>
               <div>
-                <label for="edit-notes" class="label" style="display:block;margin-bottom:4px;">Notas</label>
+                <label for="edit-notes" class="label" style="display:block;margin-bottom:4px;">{$t('field.notes')}</label>
                 <input id="edit-notes" class="input" name="notes" value={s.notes ?? ''} style="width:100%;" placeholder="Notas internas…" />
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:4px;">
-              <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">Guardar</button>
-              <button type="button" class="btn" style="height:32px;font-size:12.5px;" onclick={() => editing = false}>Cancelar</button>
+              <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">{$t('set.save')}</button>
+              <button type="button" class="btn" style="height:32px;font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
             </div>
           </form>
         </div>
@@ -222,25 +218,25 @@
       <!-- Tabs -->
       <div style="display:flex;gap:0;border-bottom:1px solid var(--mep-divider);">
         {#each [
-          { id: 'resumen',      label: 'Resumen' },
-          { id: 'facturas',     label: 'Facturas',    count: invoices.length },
-          { id: 'productos',    label: 'Productos' },
-          { id: 'conversiones', label: 'Conversiones' },
-        ] as t}
+          { id: 'resumen',      label: $t('sup.tab.resumen') },
+          { id: 'facturas',     label: $t('nav.invoices'),    count: invoices.length },
+          { id: 'productos',    label: $t('sup.tab.productos') },
+          { id: 'conversiones', label: $t('sup.tab.conversiones') },
+        ] as tabItem}
           <button
             style="
               border:0;background:transparent;cursor:pointer;font-family:inherit;
               padding:10px 16px;margin-bottom:-1px;
-              border-bottom:{tab === t.id ? '2px solid var(--mep-acc)' : '2px solid transparent'};
-              font-size:13px;font-weight:{tab === t.id ? '600' : '500'};
-              color:{tab === t.id ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
+              border-bottom:{tab === tabItem.id ? '2px solid var(--mep-acc)' : '2px solid transparent'};
+              font-size:13px;font-weight:{tab === tabItem.id ? '600' : '500'};
+              color:{tab === tabItem.id ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
               display:inline-flex;align-items:center;gap:6px;
             "
-            onclick={() => tab = t.id as typeof tab}>
-            {t.label}
-            {#if t.count !== undefined}
+            onclick={() => tab = tabItem.id as typeof tab}>
+            {tabItem.label}
+            {#if tabItem.count !== undefined}
               <span style="font-size:11px;font-weight:500;padding:1px 6px;border-radius:999px;
-                background:var(--mep-surface-2);color:var(--mep-fg-3);">{t.count}</span>
+                background:var(--mep-surface-2);color:var(--mep-fg-3);">{tabItem.count}</span>
             {/if}
           </button>
         {/each}
@@ -261,13 +257,13 @@
             <div class="card" style="padding:16px 16px 12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                 <div>
-                  <div class="subtitle">Gasto mensual</div>
-                  <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">Últimos 7 meses</div>
+                  <div class="subtitle">{$t('sup.monthlySpend')}</div>
+                  <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{$t('sup.last7months')}</div>
                 </div>
                 {#if chartAvg > 0}
                   <div style="display:flex;align-items:baseline;gap:8px;">
                     <span class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;">{fmtEur(chartAvg)}</span>
-                    <span style="font-size:11.5px;color:var(--mep-fg-3);">media mensual</span>
+                    <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('sup.monthlyAvg')}</span>
                   </div>
                 {/if}
               </div>
@@ -305,27 +301,27 @@
             <!-- KPI strip -->
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
               <div class="card" style="padding:14px;">
-                <div class="label" style="margin-bottom:6px;">Valor medio factura</div>
+                <div class="label" style="margin-bottom:6px;">{$t('sup.avgInvoice')}</div>
                 <div class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
                   {fmtEur(avgInvoice)}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{invoices.length} facturas</div>
+                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{invoices.length} {$t('misc.invoices')}</div>
               </div>
               <div class="card" style="padding:14px;">
-                <div class="label" style="margin-bottom:6px;">Facturas abiertas</div>
+                <div class="label" style="margin-bottom:6px;">{$t('sup.openInvoices')}</div>
                 <div class="num" style="font-size:20px;font-weight:600;
                   color:{openCount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">
                   {openCount}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{paidCount} pagadas</div>
+                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{paidCount} {$t('sup.paid')}</div>
               </div>
               <div class="card" style="padding:14px;">
-                <div class="label" style="margin-bottom:6px;">Pendiente de pago</div>
+                <div class="label" style="margin-bottom:6px;">{$t('sup.pendingPayment')}</div>
                 <div class="num" style="font-size:20px;font-weight:600;
                   color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">
                   {fmtEur(pendingAmt)}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">importe abierto</div>
+                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('sup.openAmount')}</div>
               </div>
             </div>
 
@@ -334,8 +330,8 @@
               <div class="card" style="padding:20px;">
                 <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
                   <div>
-                    <div class="subtitle" style="margin-bottom:2px;">Puntuación de fiabilidad</div>
-                    <div style="font-size:11px;color:var(--mep-fg-3);">Basado en los últimos 6 meses</div>
+                    <div class="subtitle" style="margin-bottom:2px;">{$t('sup.reliability')}</div>
+                    <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.reliability.sub')}</div>
                   </div>
                   <div style="flex:1;"></div>
                   <div style="
@@ -346,31 +342,31 @@
                     <span style="font-size:15px;font-weight:700;color:{scoreColor(m.score)};line-height:1;">{m.score}</span>
                     <span style="font-size:9px;color:var(--mep-fg-3);">/100</span>
                   </div>
-                  <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{scoreLabel(m.score)}</span>
+                  <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{m.score >= 70 ? $t('sup.score.very') : m.score >= 40 ? $t('sup.score.ok') : $t('sup.score.poor')}</span>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                      <span class="label">Precios</span>
+                      <span class="label">{$t('sup.score.prices')}</span>
                       <span style="font-size:12px;font-weight:700;color:{scoreColor(m.priceStabilityScore * 3)};">{m.priceStabilityScore}/33</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">
-                      {#if m.priceStabilityCv !== null}CV: {m.priceStabilityCv.toFixed(1)}%{:else}Sin datos{/if}
+                      {#if m.priceStabilityCv !== null}CV: {m.priceStabilityCv.toFixed(1)}%{:else}{$t('sup.score.noData')}{/if}
                     </p>
                   </div>
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                      <span class="label">Regularidad</span>
+                      <span class="label">{$t('sup.score.regularity')}</span>
                       <span style="font-size:12px;font-weight:700;color:{scoreColor(m.frequencyScore * 3)};">{m.frequencyScore}/33</span>
                     </div>
-                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">Cadencia histórica</p>
+                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.historical')}</p>
                   </div>
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                      <span class="label">Puntualidad</span>
+                      <span class="label">{$t('sup.score.punctuality')}</span>
                       <span style="font-size:12px;font-weight:700;color:{scoreColor(m.timelinessScore * 2.9)};">{m.timelinessScore}/34</span>
                     </div>
-                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">Pagos antes de vencimiento</p>
+                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.timeliness')}</p>
                   </div>
                 </div>
               </div>
@@ -378,8 +374,8 @@
               <div class="card" style="padding:16px;display:flex;align-items:center;gap:10px;">
                 <span style="font-size:20px;opacity:0.4;">📊</span>
                 <div>
-                  <p class="body-strong" style="color:var(--mep-fg-2);">Datos insuficientes</p>
-                  <p style="font-size:12px;color:var(--mep-fg-3);">Se necesitan al menos 3 facturas para calcular la puntuación de fiabilidad.</p>
+                  <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.insufficient')}</p>
+                  <p style="font-size:12px;color:var(--mep-fg-3);">{$t('sup.insufficient.desc')}</p>
                 </div>
               </div>
             {/if}
@@ -391,12 +387,12 @@
 
             <!-- Info card -->
             <div class="card" style="padding:16px;">
-              <div class="subtitle" style="margin-bottom:10px;">Información</div>
+              <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
               {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
-                <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">Sin información de contacto registrada.</p>
+                <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{$t('sup.noContact')}</p>
                 <button class="btn btn-secondary" style="height:28px;font-size:12px;margin-top:8px;"
                   onclick={() => { editing = true; confirmDelete = false; }}>
-                  <Pencil size={11} /> Añadir datos
+                  <Pencil size={11} /> {$t('sup.addData')}
                 </button>
               {:else}
                 <div style="display:flex;flex-direction:column;gap:10px;">
@@ -421,17 +417,17 @@
                   {#if s.deliveryDays}
                     <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                       <Truck size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                      <span>Entrega: {s.deliveryDays}</span>
+                      <span>{$t('sup.deliveryPrefix')}: {s.deliveryDays}</span>
                     </div>
                   {/if}
                   {#if s.paymentTerms}
                     <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                       <CreditCard size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                      <span>Pago: {s.paymentTerms}</span>
+                      <span>{$t('sup.paymentPrefix')}: {s.paymentTerms}</span>
                     </div>
                   {/if}
                   {#if s.alias}
-                    <div style="font-size:12.5px;color:var(--mep-fg-3);">Alias: {s.alias}</div>
+                    <div style="font-size:12.5px;color:var(--mep-fg-3);">{$t('sup.aliasPrefix')}: {s.alias}</div>
                   {/if}
                   {#if s.notes}
                     <div style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{s.notes}</div>
@@ -443,17 +439,17 @@
             <!-- Recent invoices -->
             <div class="card" style="padding:0;overflow:hidden;">
               <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
-                <div class="subtitle">Facturas recientes</div>
+                <div class="subtitle">{$t('dash.invoices')}</div>
                 {#if invoices.length > 5}
                   <button style="font-size:12.5px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
                     onclick={() => tab = 'facturas'}>
-                    Ver todas ({invoices.length})
+                    {$t('sup.viewAll').replace('{n}', String(invoices.length))}
                   </button>
                 {/if}
               </div>
               {#if !invoices.length}
                 <div style="padding:16px 16px 20px;text-align:center;">
-                  <p style="font-size:12.5px;color:var(--mep-fg-3);">Sin facturas registradas</p>
+                  <p style="font-size:12.5px;color:var(--mep-fg-3);">{$t('sup.noInvoices')}</p>
                 </div>
               {:else}
                 {#each invoices.slice(0, 5) as inv (inv.id)}
@@ -482,18 +478,18 @@
       {:else if tab === 'facturas'}
         {#if !invoices.length}
           <div style="text-align:center;padding:48px 24px;">
-            <p style="font-size:13px;color:var(--mep-fg-3);">Sin facturas registradas</p>
+            <p style="font-size:13px;color:var(--mep-fg-3);">{$t('sup.noInvoices')}</p>
           </div>
         {:else}
           <div class="card" style="padding:0;overflow:hidden;">
             <table class="tbl" style="table-layout:fixed;">
               <thead>
                 <tr>
-                  <th style="width:150px;">Número</th>
-                  <th style="width:110px;">Fecha</th>
-                  <th style="width:110px;">Vencimiento</th>
-                  <th class="num" style="width:130px;">Importe</th>
-                  <th style="width:100px;">Estado</th>
+                  <th style="width:150px;">{$t('sup.tbl.number')}</th>
+                  <th style="width:110px;">{$t('tbl.date')}</th>
+                  <th style="width:110px;">{$t('tbl.due')}</th>
+                  <th class="num" style="width:130px;">{$t('sup.tbl.amount')}</th>
+                  <th style="width:100px;">{$t('tbl.status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -515,9 +511,9 @@
       {:else if tab === 'productos'}
         <div class="card" style="padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;">
           <div style="font-size:28px;opacity:0.3;margin-bottom:4px;">📦</div>
-          <p class="body-strong" style="color:var(--mep-fg-2);">Catálogo de productos</p>
+          <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.products.title')}</p>
           <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:340px;">
-            El análisis de productos por proveedor estará disponible cuando activemos la extracción de líneas de factura.
+            {$t('sup.products.desc')}
           </p>
         </div>
 
@@ -525,9 +521,9 @@
       {:else if tab === 'conversiones'}
         <div class="card" style="padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;">
           <div style="font-size:28px;opacity:0.3;margin-bottom:4px;">⚖️</div>
-          <p class="body-strong" style="color:var(--mep-fg-2);">Conversiones de unidad</p>
+          <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.conversions.title')}</p>
           <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:340px;">
-            Aquí aparecerán las equivalencias de unidad configuradas para este proveedor (p.ej. caja → kg).
+            {$t('sup.conversions.desc')}
           </p>
         </div>
       {/if}
