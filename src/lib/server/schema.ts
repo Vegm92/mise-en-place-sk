@@ -52,7 +52,11 @@ export const invoices = pgTable('invoices', {
 	confidence:    real('confidence'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 	notes:         text('notes'),
-});
+}, (t) => [
+	uniqueIndex('uq_invoices_rid_supplier_number')
+		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
+		.where(sql`${t.invoiceNumber} IS NOT NULL`),
+]);
 
 export const invoiceLineItems = pgTable('invoice_line_items', {
 	id:                     serial('id').primaryKey(),
