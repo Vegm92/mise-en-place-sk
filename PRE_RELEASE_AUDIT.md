@@ -62,7 +62,7 @@ Also worth fixing (lower): repo hygiene — dual lockfiles, committed `coverage/
 **Already tracked and still valid:** #60, #61, #62, #65 (partial), #66, #67, #68 (partial), #64 (partial), #69, #70, #71, #29, #31. Feature bets #25 (PO reconciliation) and #21 (spend concentration) are good post-launch differentiators — correctly parked.
 
 **Stale — appear already fixed, verify and close:**
-- **#75–#91 (all 17 RLS issues):** `drizzle/0002_rls_policies.sql` + commit `36397fb` enable RLS with restaurant-scoped policies on all tables. Verify the migration is applied to the live Supabase project, then close all 17.
+- **#75–#91 (all 17 RLS issues):** `drizzle/0002_rls_policies.sql` + commit `36397fb` enable RLS with restaurant-scoped policies on all tables. Verify the migration is applied to the live Supabase project, then close all 17. **Caveat (from the code-level audit below, F-A1):** RLS only protects the Supabase Data API path; the app itself connects via a direct Postgres connection (`src/lib/server/db.ts`) that **bypasses RLS**, so the live tenant boundary in the request path is still the hand-written `restaurantId` filter on every query.
 - **#28 (Sentry):** wired in `hooks.server.ts`/`hooks.client.ts` (commit `a148b3c`). Close.
 - **#63 (CI + password guard):** CI workflow exists and is green; `auth-seed.ts` refuses default password in production. The deploy-runbook half is still open (fold into #61).
 
@@ -121,3 +121,42 @@ Realistic 30-day outcome: first paying customers from the waitlist; more importa
 **The good news is unusual:** the hard part — a working AI extraction flow with confidence scoring, review UX, offline upload, multi-tenant RLS, alerts/digest/budgets — is built and decently engineered, and the issue tracker shows a team that finds and fixes its own P0s (17 RLS issues filed and fixed in days). The gaps are boring, well-understood SaaS plumbing: signup, Stripe, email, legal pages, storage durability. None of it is research; all of it is 4–6 focused weeks.
 
 **Verdict: requires major (but cheap) changes before launch.** With the 30-day plan executed, this moves from 38/100 to roughly 70/100 and becomes a credible niche SaaS for Spanish restaurants. The bigger long-term risks are (a) distribution — restaurant owners are hard to reach digitally; the gestoría/accountant channel is probably your real wedge — and (b) extraction trust — one wrong total in week one loses the customer, so the #67 quality gate matters more than any growth feature.
+
+---
+
+# Part 2 — Code-level audit (consolidated from TECHNICAL_AUDIT.md)
+
+*A separate code-level audit (PR #113, 2026-06-10) was merged into this document; the standalone file has been removed. Overlapping findings (IDOR → #99, `sql.raw` → #64, N+1 → #103, in-memory rate limiter → #68, ephemeral storage → #62, stale README → #61 [fixed], hardcoded Spanish → #101) are tracked in the issues already filed. The findings below are UNIQUE to that audit and not yet tracked as issues.*
+
+## Architecture
+
+- **F-A1 (HIGH) — RLS is authored but not enforced in the request path.** The app uses a direct Postgres connection (`src/lib/server/db.ts`) that connects as the table owner and **bypasses RLS**; the policies in `drizzle/0002_rls_policies.sql` only protect the Supabase Data API. The real tenant boundary is the hand-written `restaurantId` filter in ~40 call sites — and three were missing (#99). **Decide:** either route tenant queries through a connection that applies RLS (`SET LOCAL` / JWT claims), or stop treating RLS as a control and centralize scoping in a single `scoped()` query helper.
+- **F-A2 (HIGH) — Two half-finished extraction architectures coexist.** Inline synchronous Gemini call in `extract/[id]` page load (15–45 s inside the request) *and* an abandoned durable model (`pending_processed_invoices` + `/api/inference-status` polling + `/pending/[id]`) that the live path never writes to. Pick one — preferably the durable, off-request job model with persisted status/errors and per-tenant quota — and delete the other (~250 LOC + 2 tables).
+
+## Data integrity
+
+- **F-D1 (HIGH) — Invoice save is not transactional.** Supplier upsert → invoice insert → line items → alerts are separate awaits in `extract/[id]/+page.server.ts` and `pending/[id]/+page.server.ts:116-153`; a mid-sequence failure leaves orphaned partial records. Wrap in `db.transaction()`.
+- **F-D2 (HIGH) — Duplicate-invoice check is check-then-insert.** Race between SELECT and INSERT; add `UNIQUE(restaurant_id, supplier_id, invoice_number)` and handle conflict.
+- **F-D4 (MEDIUM) — Extraction failures only hit `console.error`**; navigating away loses them and re-entry re-bills Gemini. Persist extraction status/error.
+
+## Security (additive to #99/#104)
+
+- **F-S4 (HIGH) — Open redirect on login**: `redirectTo` used unvalidated in `login/+page.server.ts:5,21` (the `/auth/callback` validates; login does not).
+- **F-S6 (MEDIUM) — Chat prompt injection**: user message concatenated with system instruction + data snapshot (`(app)/api/chat/+server.ts:44-85`).
+- **F-S7 (MEDIUM) — Upload validation is extension-only**; no magic-byte check, files later served with asserted MIME.
+- **F-S9 (LOW) — `/api/tpv/sync` is a public-path-allowlisted 501 stub** — will ship unauthenticated by default when implemented.
+- **F-S10 (LOW)** — Unhandled `JSON.parse` on notification payloads (`(app)/+layout.server.ts:74-77`).
+
+## Dead weight (deletion list)
+
+`synth/js/` (~934 LOC dead duplicate of the Python tool), `chart.js` + `@sveltejs/adapter-auto` deps, one of the two icon packages (`lucide-svelte` vs `@lucide/svelte`), 5.6 MB unused PNGs in `static/`, committed logs/coverage (#71), one of the two same-named `Sparkline.svelte` components, completed `TODO.md`, `mise-en-place/` design exports. The upload page (`(app)/+page.svelte`, 782 LOC) duplicates ~70 % of its logic across mobile/desktop branches.
+
+## Additional performance notes
+
+Unit-bridge N+1 (`unit-bridge.ts:70-78`, on top of the alert-engine N+1 in #103); dashboard fan-out of 20+ parallel queries per load; verify indexes behind the analytics `sql.raw` aggregates (#107).
+
+## CTO-style scoring from that audit
+
+Architecture 62 · Maintainability 65 · Scalability 40 · Reliability 50 · Security 38 · Simplicity 60 · **Launch readiness 45/100** — directionally consistent with Part 1's 38/100 (Part 1 also scores business readiness: monetization, growth, legal).
+
+**Pre-launch hardening order (code-level):** (1) IDOR fixes incl. open redirect (#99 + F-S4), (2) transactional save + unique constraint (F-D1/D2), (3) RLS-or-`scoped()` decision (F-A1), (4) single extraction flow (F-A2), (5) out-of-process rate-limit/session state (#68/#62), (6) N+1 batching (#103), (7) kill `sql.raw` (#64), (8) deletion list.
