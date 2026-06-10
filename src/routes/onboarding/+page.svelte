@@ -1,6 +1,16 @@
 <script lang="ts">
 	import type { ActionData } from './$types';
+	import { onMount } from 'svelte';
+	import { locale, t, initLocale } from '$lib/i18n';
 	const { form }: { form: ActionData } = $props();
+
+	onMount(() => {
+		initLocale();
+	});
+
+	function toggleLocale() {
+		locale.update(l => l === 'es' ? 'en' : 'es');
+	}
 </script>
 
 <svelte:head>
@@ -12,6 +22,17 @@
 	       padding:24px;background:var(--mep-bg);">
 
 	<div style="width:100%;max-width:400px;">
+
+		<!-- Language toggle -->
+		<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+			<button
+				type="button"
+				onclick={toggleLocale}
+				style="font-size:12px;font-weight:600;color:var(--mep-fg-3);background:transparent;border:1px solid var(--mep-divider);border-radius:6px;padding:4px 10px;cursor:pointer;"
+			>
+				{$locale === 'es' ? 'EN' : 'ES'}
+			</button>
+		</div>
 
 		<!-- Logo -->
 		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
@@ -27,9 +48,9 @@
 
 		<!-- Card -->
 		<div class="card" style="padding:28px;">
-			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">Bienvenido</h1>
+			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{$t('onboard.title')}</h1>
 			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 24px;">
-				Para empezar, dinos cómo se llama tu restaurante.
+				{$t('onboard.subtitle')}
 			</p>
 
 			{#if form?.error}
@@ -42,7 +63,7 @@
 			<form method="POST" style="display:flex;flex-direction:column;gap:16px;">
 				<div style="display:flex;flex-direction:column;gap:6px;">
 					<label for="name" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">
-						Nombre del restaurante
+						{$t('onboard.nameLabel')}
 					</label>
 					<input
 						id="name"
@@ -51,14 +72,14 @@
 						required
 						maxlength="80"
 						autocomplete="organization"
-						placeholder="Ej. Casa Lua"
+						placeholder={$t('onboard.namePlaceholder')}
 						class="input"
 						style="height:36px;"
 					/>
 				</div>
 
 				<button type="submit" class="btn btn-primary" style="height:38px;justify-content:center;margin-top:4px;">
-					Crear restaurante
+					{$t('onboard.submit')}
 				</button>
 			</form>
 		</div>
