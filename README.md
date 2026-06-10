@@ -42,7 +42,7 @@ src/
 │   │   ├── alert-engine.ts  # price-shock / stock-forecast checks on invoice save
 │   │   ├── weekly-digest.ts # AI weekly summary (generated on dashboard visit)
 │   │   ├── chat-context.ts  # data snapshot for the chat assistant
-│   │   ├── sessions.ts      # upload sessions (file-based, SK_SESSIONS_DIR)
+│   │   ├── sessions.ts      # upload sessions (DB-backed, Postgres upload_sessions table)
 │   │   ├── rate-limiter.ts  # in-memory token bucket + extraction semaphore (single instance!)
 │   │   └── auth-seed.ts     # admin seeding; refuses default password in production
 │   ├── components/          # mep/* design system, mobile/* + desktop/* page variants, ui/* shadcn
