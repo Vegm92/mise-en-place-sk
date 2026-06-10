@@ -105,6 +105,10 @@
 					Continue with Google
 				</button>
 			</form>
+
+			<p style="text-align:center;font-size:12px;color:var(--mep-fg-4);margin:20px 0 0;">
+				Don't have an account? <a href="/signup" style="color:var(--mep-acc);">Create one</a>
+			</p>
 		</div>
 
 	</div>
