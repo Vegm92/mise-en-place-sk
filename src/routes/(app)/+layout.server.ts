@@ -1,8 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { systemNotifications, invoices, settings, restaurants } from '$lib/server/schema';
+import { systemNotifications, invoices, settings, restaurants, subscriptions } from '$lib/server/schema';
 import { eq, desc, and, isNull, sql } from 'drizzle-orm';
+import { TIERS, type PlanTier } from '$lib/server/billing';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -12,7 +13,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/onboarding');
 
-	const [rawNotifs, invoiceBadgeRow, reminderBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, reminderBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, subRow] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(and(
@@ -66,6 +67,11 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		db.select({ value: settings.value })
 			.from(settings)
 			.where(and(eq(settings.restaurantId, rid), eq(settings.key, 'tutorial_step'))),
+
+		db.select({ planTier: subscriptions.planTier })
+			.from(subscriptions)
+			.where(eq(subscriptions.restaurantId, rid))
+			.limit(1),
 	]);
 
 	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
@@ -78,6 +84,9 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		payload: n.payload ? JSON.parse(n.payload) : null,
 	}));
 
+	const planTier = (subRow?.[0]?.planTier ?? 'trial') as PlanTier;
+	const tierConfig = TIERS[planTier];
+
 	return {
 		user: {
 			id:    locals.user.id,
@@ -89,10 +98,12 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
 		reminderBadge:           reminderBadgeRow[0]?.cnt   ?? 0,
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
-		quotaLimit:              quotaLimitRow[0]   ? Number(quotaLimitRow[0].value)  : 150,
-		planName:                planNameRow[0]?.value      ?? 'Plan Restaurante',
+		quotaLimit:              quotaLimitRow[0]   ? Number(quotaLimitRow[0].value)  : tierConfig.monthlyInvoiceQuota ?? 150,
+		planName:                planNameRow[0]?.value      ?? tierConfig.name,
 		restaurantName:          restaurantNameRow[0]?.value ?? '',
 		hasCompletedOnboarding,
 		tutorialStep,
+		planTier,
+		features: tierConfig.features,
 	};
 };

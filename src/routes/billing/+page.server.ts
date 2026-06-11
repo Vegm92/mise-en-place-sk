@@ -1,6 +1,6 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { stripe, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed } from '$lib/server/billing';
+import { stripe, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, TIERS, type PlanTier } from '$lib/server/billing';
 import { db } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
@@ -24,6 +24,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const trialEndsAt = sub?.trialEndsAt ?? null;
 	const hasAccess = isAccessAllowed(status, trialEndsAt);
 	const stripeConfigured = !!stripe;
+	const currentTier = (sub?.planTier ?? 'trial') as PlanTier;
 
 	return {
 		status,
@@ -34,16 +35,30 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		stripeConfigured,
 		restaurantName: restaurant?.name ?? '',
 		checkoutSuccess: url.searchParams.get('checkout') === 'success',
+		currentTier,
+		tiers: Object.entries(TIERS)
+			.filter(([t]) => t !== 'trial')
+			.map(([tier, config]) => ({
+				tier,
+				name: config.name,
+				monthlyInvoiceQuota: config.monthlyInvoiceQuota,
+				features: config.features,
+				isCurrent: tier === currentTier,
+			})),
 	};
 };
 
 export const actions: Actions = {
-	checkout: async ({ locals, url }) => {
+	checkout: async ({ locals, url, request }) => {
 		if (!locals.user || !locals.restaurantId) redirect(303, '/login');
 		if (!stripe) error(503, 'Billing not configured — contact support');
 
 		const rid = locals.restaurantId;
 		const email = locals.user.email ?? '';
+
+		const formData = await request.formData();
+		const tierParam = (formData.get('tier') as string | null) ?? 'starter';
+		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : 'starter') as PlanTier;
 
 		const [restaurant] = await db.select({ name: restaurants.name })
 			.from(restaurants)
@@ -54,6 +69,7 @@ export const actions: Actions = {
 		const checkoutUrl = await createCheckoutSession(
 			rid,
 			customerId,
+			tier,
 			`${url.origin}/billing?checkout=success`,
 			`${url.origin}/billing`,
 		);

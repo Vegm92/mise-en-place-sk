@@ -1,11 +1,12 @@
 /**
- * Invoice extraction — classifies a file, prepares input for Gemini,
+ * Invoice extraction — classifies a file, prepares input for the LLM,
  * and returns structured invoice data. No DB access, no side effects.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
+import { createLLMProvider, type LLMProvider, type LLMUsage } from './llm-provider';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spanish restaurants. Extract all relevant information from this document and return it as a JSON object.
 
@@ -228,6 +229,72 @@ export async function extractInvoice(
 
 	try {
 		return await Promise.race([callGemini(generate, classified, filePath), timeout]);
+	} finally {
+		clearTimeout(timeoutHandle!);
+	}
+}
+
+// ── Provider-based extraction (production path — returns token usage) ─────────
+
+async function callProvider(
+	provider: LLMProvider,
+	classified: ClassifiedFile,
+	filePath: string,
+): Promise<{ invoice: ExtractedInvoice; usage: LLMUsage }> {
+	let lastUsage: LLMUsage = { inputTokens: 0, outputTokens: 0, model: provider.model };
+
+	const generateWithRetry = (content: string | object[]) =>
+		withRetry(async () => {
+			const resp = await provider.generate(content);
+			lastUsage = resp.usage;
+			return resp.text;
+		});
+
+	let rawText: string;
+	if (classified.type === 'text_pdf') {
+		rawText = await generateWithRetry(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`);
+	} else if (classified.type === 'scanned_pdf') {
+		const pdfData = readFileSync(filePath).toString('base64');
+		rawText = await generateWithRetry([
+			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
+			{ text: EXTRACTION_PROMPT },
+		]);
+	} else {
+		const ext = path.extname(filePath).toLowerCase().replace('.', '');
+		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
+		const imageData = readFileSync(filePath).toString('base64');
+		rawText = await generateWithRetry([
+			{ inlineData: { data: imageData, mimeType } },
+			{ text: EXTRACTION_PROMPT },
+		]);
+	}
+
+	const raw = stripFences(rawText);
+	try {
+		return { invoice: JSON.parse(raw) as ExtractedInvoice, usage: lastUsage };
+	} catch {
+		throw new Error(`LLM returned invalid JSON: ${raw.slice(0, 200)}`);
+	}
+}
+
+export async function extractWithProvider(
+	filePath: string,
+	provider?: LLMProvider,
+): Promise<{ invoice: ExtractedInvoice; usage: LLMUsage }> {
+	const resolvedProvider = provider ?? createLLMProvider();
+	const classified = await classifyFile(filePath);
+
+	let timeoutHandle: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_, rej) => {
+		timeoutHandle = setTimeout(() => {
+			const err = new Error(`LLM extraction timed out after ${GEMINI_TIMEOUT_MS / 1000}s`);
+			(err as { code?: string }).code = 'GEMINI_TIMEOUT';
+			rej(err);
+		}, GEMINI_TIMEOUT_MS);
+	});
+
+	try {
+		return await Promise.race([callProvider(resolvedProvider, classified, filePath), timeout]);
 	} finally {
 		clearTimeout(timeoutHandle!);
 	}
