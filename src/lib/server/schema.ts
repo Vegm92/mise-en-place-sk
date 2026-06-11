@@ -50,6 +50,7 @@ export const invoices = pgTable('invoices', {
 	status:        text('status').default('pending'),
 	sourceFile:    text('source_file'),
 	confidence:    real('confidence'),
+	contentHash:   text('content_hash'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 	notes:         text('notes'),
 	deletedAt:     timestamp('deleted_at', { withTimezone: true }),
