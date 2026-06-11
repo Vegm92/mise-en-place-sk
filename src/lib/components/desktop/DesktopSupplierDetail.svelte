@@ -3,7 +3,7 @@
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import { ArrowLeft, ChevronRight, Pencil, Trash2, Mail, Phone, Truck, CreditCard } from 'lucide-svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
-  import { t } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
 
   interface Supplier {
     name: string;
@@ -460,7 +460,7 @@
                       <div class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">
                         {inv.invoiceNumber ?? '—'}
                       </div>
-                      <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate)}</div>
+                      <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
                     </div>
                     <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">
                       {fmtEur(inv.totalAmount ?? 0)}
@@ -496,8 +496,8 @@
                 {#each invoices as inv (inv.id)}
                   <tr class="row" onclick={() => location.replace(`/invoice/${inv.id}`)} style="cursor:pointer;">
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{inv.invoiceNumber ?? '—'}</td>
-                    <td style="font-size:12.5px;">{fmtDate(inv.invoiceDate)}</td>
-                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDate(inv.dueDate)}</td>
+                    <td style="font-size:12.5px;">{fmtDate(inv.invoiceDate, $locale)}</td>
+                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDate(inv.dueDate, $locale)}</td>
                     <td class="num" style="font-weight:500;">{fmtEur(inv.totalAmount ?? 0)}</td>
                     <td><StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:2px 7px;" /></td>
                   </tr>

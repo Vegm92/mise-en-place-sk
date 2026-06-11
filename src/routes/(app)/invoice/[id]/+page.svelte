@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { t } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -15,7 +15,7 @@
   function fmtDate(s: Date | string | null | undefined) {
     if (!s) return '—';
     const d = new Date(s);
-    return isNaN(d.getTime()) ? s : d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+    return isNaN(d.getTime()) ? s : d.toLocaleDateString($locale, { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   const statusBadge: Record<string, string> = {

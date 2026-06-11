@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { t } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
   import { Search } from 'lucide-svelte';
   import MobileAnalyticsPrices from '$lib/components/mobile/MobileAnalyticsPrices.svelte';
 
@@ -31,7 +31,7 @@
 
   function fmtDate(d: string | null) {
     if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }); }
+    try { return new Date(d).toLocaleDateString($locale, { day: '2-digit', month: 'short' }); }
     catch { return d; }
   }
 

@@ -41,15 +41,15 @@ export function semColor(pct: number): string {
 }
 
 /** Full date with year: "19 may 2024" */
-export function fmtDate(d: string | null): string {
+export function fmtDate(d: string | null, locale = 'es-ES'): string {
 	if (!d) return '—';
-	return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+	return new Date(d).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 /** Short date without year: "19 may" */
-export function fmtDateShort(d: string | null): string {
+export function fmtDateShort(d: string | null, locale = 'es-ES'): string {
 	if (!d) return '—';
-	return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+	return new Date(d).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
 }
 
 /** "AB" initials from a name */
