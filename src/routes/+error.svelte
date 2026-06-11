@@ -4,8 +4,8 @@
 
 <div class="error-page">
 	<h1>{$page.status}</h1>
-	<p>{$page.error?.message ?? 'An unexpected error occurred.'}</p>
-	<a href="/">Go home</a>
+	<p>{$page.error?.message ?? 'Ha ocurrido un error inesperado.'}</p>
+	<a href="/">Ir al inicio</a>
 </div>
 
 <style>

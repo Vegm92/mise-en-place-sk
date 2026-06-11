@@ -4,8 +4,8 @@
 
 <div class="error-page">
 	<h1>{$page.status}</h1>
-	<p>{$page.error?.message ?? 'Something went wrong.'}</p>
-	<a href="/">Back to dashboard</a>
+	<p>{$page.error?.message ?? 'Ha ocurrido un error.'}</p>
+	<a href="/">Volver al panel</a>
 </div>
 
 <style>

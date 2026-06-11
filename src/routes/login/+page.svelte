@@ -1,20 +1,20 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { t, initLocale } from '$lib/i18n';
 
 	const { data }: { data: PageData } = $props();
 
+	onMount(() => {
+		initLocale();
+	});
+
 	const error = $derived($page.url.searchParams.get('error'));
-	const errorMessage = $derived(
-		error === 'missing' ? 'Email and password are required.' :
-		error === 'invalid' ? 'Invalid email or password.' :
-		error === 'oauth'   ? 'Google sign-in failed. Please try again.' :
-		null
-	);
 </script>
 
 <svelte:head>
-	<title>Sign in · Mise en Place</title>
+	<title>{$t('login.signIn')} · Mise en Place</title>
 </svelte:head>
 
 <div class="mep" data-accent="amber" data-density="default"
@@ -37,13 +37,13 @@
 
 		<!-- Card -->
 		<div class="card" style="padding:28px;">
-			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">Welcome back</h1>
-			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">Sign in to continue</p>
+			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{$t('login.welcome')}</h1>
+			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('login.sub')}</p>
 
-			{#if errorMessage}
+			{#if error}
 				<div style="background:var(--mep-neg-soft);border:1px solid var(--mep-neg);color:var(--mep-neg);
 				            border-radius:var(--mep-r-input);padding:10px 12px;font-size:13px;margin-bottom:16px;">
-					{errorMessage}
+					{$t(`login.err.${error}`)}
 				</div>
 			{/if}
 
@@ -51,7 +51,7 @@
 				<input type="hidden" name="redirectTo" value={data.redirectTo} />
 
 				<div style="display:flex;flex-direction:column;gap:6px;">
-					<label for="email" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">Email</label>
+					<label for="email" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">{$t('login.email')}</label>
 					<input
 						id="email"
 						name="email"
@@ -65,7 +65,7 @@
 				</div>
 
 				<div style="display:flex;flex-direction:column;gap:6px;">
-					<label for="password" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">Password</label>
+					<label for="password" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">{$t('login.password')}</label>
 					<input
 						id="password"
 						name="password"
@@ -78,14 +78,14 @@
 				</div>
 
 				<button type="submit" class="btn btn-primary" style="height:36px;justify-content:center;margin-top:4px;">
-					Sign in
+					{$t('login.signIn')}
 				</button>
 			</form>
 
 			<!-- Divider -->
 			<div style="display:flex;align-items:center;gap:10px;margin:18px 0;">
 				<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
-				<span style="font-size:11px;color:var(--mep-fg-4);text-transform:uppercase;letter-spacing:0.05em;">or</span>
+				<span style="font-size:11px;color:var(--mep-fg-4);text-transform:uppercase;letter-spacing:0.05em;">{$t('login.or')}</span>
 				<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
 			</div>
 
@@ -102,7 +102,7 @@
 						<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
 						<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
 					</svg>
-					Continue with Google
+					{$t('login.google')}
 				</button>
 			</form>
 
