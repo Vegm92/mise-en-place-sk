@@ -26,10 +26,10 @@
   };
 
   const timelineEvents = $derived([
-    { label: 'Uploaded',  ts: invoice.created_at },
-    { label: 'Extracted', ts: invoice.created_at },
+    { labelKey: 'inv.detail.uploaded',  ts: invoice.created_at },
+    { labelKey: 'inv.detail.extracted', ts: invoice.created_at },
     ...(invoice.status === 'confirmed' || invoice.status === 'exported'
-      ? [{ label: 'Confirmed', ts: null }]
+      ? [{ labelKey: 'inv.detail.confirmed', ts: null }]
       : []),
   ]);
 </script>
@@ -145,7 +145,7 @@
 
         {#if invoice.notes}
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">Notes</span>
+            <span class="label">{$t('inv.detail.notes')}</span>
             <span class="body" style="line-height:1.5;">{invoice.notes}</span>
           </div>
         {/if}
@@ -158,7 +158,7 @@
           class="btn btn-primary"
           style="text-decoration:none;"
         >
-          Edit
+          {$t('action.edit')}
         </a>
         {#if invoice.source_file}
           <a
@@ -167,7 +167,7 @@
             download
             style="text-decoration:none;"
           >
-            Download PDF
+            {$t('inv.detail.downloadPdf')}
           </a>
         {/if}
         {#if !confirmDelete}
@@ -176,16 +176,16 @@
             style="color:var(--mep-neg);"
             onclick={() => confirmDelete = true}
           >
-            Delete
+            {$t('inv.detail.delete')}
           </button>
         {:else}
           <form method="post" action="?/delete" style="display:flex;gap:6px;align-items:center;">
-            <span class="body" style="color:var(--mep-neg);font-size:12px;">Sure?</span>
+            <span class="body" style="color:var(--mep-neg);font-size:12px;">{$t('inv.detail.sure')}</span>
             <button type="submit" class="btn btn-secondary" style="color:var(--mep-neg);border-color:var(--mep-neg);">
-              Yes, delete
+              {$t('inv.detail.confirmDelete')}
             </button>
             <button type="button" class="btn btn-ghost" onclick={() => confirmDelete = false}>
-              Cancel
+              {$t('edit.cancel')}
             </button>
           </form>
         {/if}
@@ -198,17 +198,17 @@
     <div class="card" style="overflow:hidden;">
       <div class="card-header">
         <div class="section-title">
-          <span class="subtitle">Line Items</span>
+          <span class="subtitle">{$t('extract.lineItems')}</span>
         </div>
       </div>
       <table class="tbl">
         <thead>
           <tr>
-            <th>Description</th>
-            <th class="num">Qty</th>
-            <th>Unit</th>
-            <th class="num">Unit price</th>
-            <th class="num">Total</th>
+            <th>{$t('tbl.desc')}</th>
+            <th class="num">{$t('tbl.qty')}</th>
+            <th>{$t('tbl.unit')}</th>
+            <th class="num">{$t('tbl.unitPrice')}</th>
+            <th class="num">{$t('tbl.total')}</th>
           </tr>
         </thead>
         <tbody>
@@ -228,7 +228,7 @@
 
   <!-- Activity timeline -->
   <div class="card p-4" style="display:flex;flex-direction:column;gap:12px;">
-    <span class="subtitle" style="font-size:15px;">Activity</span>
+    <span class="subtitle" style="font-size:15px;">{$t('inv.detail.activity')}</span>
     <div style="display:flex;flex-direction:column;gap:0;">
       {#each timelineEvents as ev, i}
         <div style="display:flex;gap:12px;align-items:flex-start;{i < timelineEvents.length - 1 ? 'padding-bottom:14px;' : ''}">
@@ -241,7 +241,7 @@
           </div>
           <!-- Content -->
           <div style="display:flex;flex-direction:column;gap:1px;">
-            <span class="body-strong" style="font-size:12.5px;">{ev.label}</span>
+            <span class="body-strong" style="font-size:12.5px;">{$t(ev.labelKey)}</span>
             {#if ev.ts}
               <span class="body" style="font-size:11px;">{fmtDate(ev.ts)}</span>
             {/if}
