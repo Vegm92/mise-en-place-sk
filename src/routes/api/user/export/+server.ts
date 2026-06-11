@@ -43,9 +43,8 @@ export const GET: RequestHandler = async ({ locals }) => {
 		db.select().from(settings).where(inArray(settings.restaurantId, restaurantIds)),
 	]) : [[], [], [], [], [], [], [], [], [], []];
 
-	const sessionIds = chatSessionRows.map(s => s.id);
-	const messageRows = sessionIds.length > 0
-		? await db.select().from(chatMessages).where(inArray(chatMessages.sessionId, sessionIds))
+	const messageRows = restaurantIds.length > 0
+		? await db.select().from(chatMessages).where(inArray(chatMessages.restaurantId, restaurantIds))
 		: [];
 
 	const export_data = {
