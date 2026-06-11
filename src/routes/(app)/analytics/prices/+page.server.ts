@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
@@ -21,9 +21,11 @@ interface SupplierRow {
 	name: string;
 }
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	try {
 	const rid = locals.restaurantId!;
+	const { features } = await parent();
+	if (!features.supplierScores) redirect(303, '/billing?upgrade=prices');
 	const supplierIdParam = url.searchParams.get('supplier_id');
 	const supplierId = supplierIdParam ? Number(supplierIdParam) : null;
 

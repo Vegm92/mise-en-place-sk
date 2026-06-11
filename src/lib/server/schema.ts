@@ -1,6 +1,6 @@
 /** Drizzle schema — PostgreSQL (Supabase). Single source of truth. */
 import {
-	boolean, integer, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
+	boolean, integer, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -181,6 +181,26 @@ export const chatMessages = pgTable('chat_messages', {
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── LLM cost tracking ──────────────────────────────────────────────────────────
+
+export const llmUsageLog = pgTable('llm_usage_log', {
+	id:               serial('id').primaryKey(),
+	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	model:            text('model').notNull(),
+	inputTokens:      integer('input_tokens').notNull().default(0),
+	outputTokens:     integer('output_tokens').notNull().default(0),
+	estimatedCostUsd: numeric('estimated_cost_usd', { precision: 12, scale: 8 }).notNull().default('0'),
+	callerContext:    text('caller_context'),
+	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const tenantLlmQuotas = pgTable('tenant_llm_quotas', {
+	restaurantId:        uuid('restaurant_id').notNull().primaryKey().references(() => restaurants.id, { onDelete: 'cascade' }),
+	monthlyExtractions:  integer('monthly_extractions'),
+	monthlyCostLimitUsd: numeric('monthly_cost_limit_usd', { precision: 10, scale: 4 }),
+	updatedAt:           timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export const waitlist = pgTable('waitlist', {
 	id:        serial('id').primaryKey(),
 	email:     text('email').notNull().unique(),
@@ -200,6 +220,7 @@ export const subscriptions = pgTable('subscriptions', {
 	stripeCustomerId:     text('stripe_customer_id').unique(),
 	stripeSubscriptionId: text('stripe_subscription_id').unique(),
 	stripePriceId:        text('stripe_price_id'),
+	planTier:             text('plan_tier').notNull().default('trial'), // 'trial' | 'starter' | 'pro' | 'business'
 	status:               text('status').notNull().default('trialing'),
 	trialEndsAt:          timestamp('trial_ends_at', { withTimezone: true }),
 	currentPeriodEnd:     timestamp('current_period_end', { withTimezone: true }),
