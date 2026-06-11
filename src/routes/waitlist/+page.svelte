@@ -1,13 +1,16 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
-  import type { ActionData } from './$types';
+  import type { ActionData, PageData } from './$types';
 
-  const { form }: { form: ActionData } = $props();
+  const { form, data }: { form: ActionData; data: PageData } = $props();
 
   const copy = {
     es: {
       lang:              'EN',
-      pageTitle:         'Mise en Place — Lista de espera',
+      pageTitle:         'Mise en Place — Gestión de facturas para restaurantes',
+      metaDescription:   'Digitaliza tus albaranes en segundos. Detecta subidas de precio, controla el gasto por categoría y defiende tu margen. Edición de fundadores — 50 cocinas, Barcelona.',
+      ogTitle:           'Tus facturas, leídas. Tu margen, defendido.',
+      ogLocale:          'es_ES',
       edition:           'N.º 01 · Edición de fundadores',
       city:              'Barcelona',
       date:              'Mayo 2026',
@@ -70,7 +73,10 @@
     },
     en: {
       lang:              'ES',
-      pageTitle:         'Mise en Place — Waitlist',
+      pageTitle:         'Mise en Place — Invoice Management for Restaurants',
+      metaDescription:   'Digitise your delivery notes in seconds. Detect price rises, track spend by category and defend your margin. Founders edition — 50 kitchens, Barcelona.',
+      ogTitle:           'Your invoices, read. Your margin, defended.',
+      ogLocale:          'en_US',
       edition:           'No. 01 · Founders edition',
       city:              'Barcelona',
       date:              'May 2026',
@@ -197,7 +203,47 @@
   const svgH = CH + CPT + CPB;
 </script>
 
-<svelte:head><title>{t.pageTitle}</title></svelte:head>
+<svelte:head>
+  <title>{t.pageTitle}</title>
+  <meta name="description" content={t.metaDescription} />
+  <link rel="canonical" href={data.canonicalUrl} />
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content={data.canonicalUrl} />
+  <meta property="og:site_name"   content="Mise en Place" />
+  <meta property="og:title"       content={t.ogTitle} />
+  <meta property="og:description" content={t.metaDescription} />
+  <meta property="og:locale"      content={t.ogLocale} />
+
+  <!-- Twitter / X Card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content={t.ogTitle} />
+  <meta name="twitter:description" content={t.metaDescription} />
+
+  <!-- Structured data -->
+  {@html `<script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        name: 'Mise en Place',
+        url: data.canonicalUrl.replace('/waitlist', ''),
+        inLanguage: locale === 'es' ? 'es' : 'en',
+        potentialAction: { '@type': 'RegisterAction', target: data.canonicalUrl + '#join' },
+      },
+      {
+        '@type': 'SoftwareApplication',
+        name: 'Mise en Place',
+        description: t.metaDescription,
+        applicationCategory: 'BusinessApplication',
+        operatingSystem: 'Web',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', description: locale === 'es' ? 'Edición de fundadores — lista de espera' : 'Founders edition — waitlist' },
+        creator: { '@type': 'Organization', name: 'Mise en Place', address: { '@type': 'PostalAddress', addressLocality: 'Barcelona', addressCountry: 'ES' } },
+      },
+    ],
+  })}</script>`}
+</svelte:head>
 
 <div class="mep" data-accent="amber"
   style="width:100%;min-height:100vh;background:var(--mep-bg);color:var(--mep-fg);
