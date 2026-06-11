@@ -28,11 +28,19 @@ async function getBoss(): Promise<PgBoss> {
 	return startPromise;
 }
 
-export async function enqueueExtraction(sessionId: string, restaurantId: string): Promise<void> {
+// Returns true if the job was enqueued, false if a job for the same file
+// is already active (pg-boss singletonKey dedup).
+export async function enqueueExtraction(
+	sessionId: string,
+	restaurantId: string,
+	fileHash?: string,
+): Promise<boolean> {
 	const b = await getBoss();
-	await b.send(EXTRACTION_QUEUE, { sessionId, restaurantId }, {
+	const jobId = await b.send(EXTRACTION_QUEUE, { sessionId, restaurantId }, {
 		retryLimit: 2,
 		retryDelay: 30,
 		expireInSeconds: 600,
+		...(fileHash ? { singletonKey: fileHash } : {}),
 	});
+	return jobId !== null;
 }
