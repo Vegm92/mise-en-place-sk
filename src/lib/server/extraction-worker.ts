@@ -8,8 +8,9 @@ import os from 'node:os';
 import { readSession, writeSession, uploadsDir } from './sessions.js';
 import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
-import { extractInvoice, type GenerateFn } from './extract.js';
+import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
 import { annotateLineItems } from './unit-bridge.js';
+import { checkExtractionQuota, recordLlmUsage } from './llm-quota.js';
 
 export interface ExtractionJobData {
 	sessionId: string;
@@ -23,7 +24,7 @@ function classifyExtractionError(err: unknown): string {
 	if (status === 429) return 'extract.err.rateLimited';
 	if (status === 503) return 'extract.err.unavailable';
 	if (code === 'GEMINI_TIMEOUT') return 'extract.err.timeout';
-	if (message.includes('invalid JSON')) return 'extract.err.notInvoice';
+	if (message.includes('invalid JSON') || message.includes('LLM returned invalid JSON')) return 'extract.err.notInvoice';
 	return 'extract.err.generic';
 }
 
@@ -40,6 +41,17 @@ export async function processExtractionJob(
 	}
 
 	const key = session.fileKeys?.[0] ?? session.files[0];
+
+	// Check per-tenant quota before doing any work (skip in test path).
+	if (!generateOverride) {
+		const quotaResult = await checkExtractionQuota(restaurantId);
+		if (!quotaResult.allowed) {
+			console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason}`);
+			await writeSession({ ...session, extractionStatus: 'failed', extractError: 'extract.err.quotaExceeded' });
+			return;
+		}
+	}
+
 	await writeSession({ ...session, extractionStatus: 'extracting' });
 
 	// Resolve the file to a local path the extraction engine can read.
@@ -58,7 +70,17 @@ export async function processExtractionJob(
 	}
 
 	try {
-		const result = await extractInvoice(filePath, generateOverride);
+		let result;
+		if (generateOverride) {
+			// Test path — legacy GenerateFn, no token tracking.
+			const invoice = await extractInvoice(filePath, generateOverride);
+			result = invoice;
+		} else {
+			// Production path — LLMProvider with token usage tracking.
+			const { invoice, usage } = await extractWithProvider(filePath);
+			result = invoice;
+			await recordLlmUsage(restaurantId, usage, 'extraction-worker');
+		}
 
 		const supplierName = result.supplier_name ?? '';
 		const rawItems = result.line_items ?? [];
