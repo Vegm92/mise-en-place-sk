@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { readSession, writeSession, deleteSession, uploadsDir, resolveUploadPath, saveUploadedFiles } from '$lib/server/sessions';
 import { enqueueExtraction } from '$lib/server/queue';
+import { computeFileHash } from '$lib/server/dedup';
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -137,8 +138,19 @@ export const actions: Actions = {
 		const session = await readSession(params.id);
 		if (!session) redirect(303, '/?error=Session+not+found');
 		const rid = locals.restaurantId!;
+
+		// Compute file hash for in-flight dedup: if the exact same bytes are
+		// already being processed, pg-boss singletonKey silently drops the job.
+		// We detect that and mark the session as failed so the extract page can
+		// show the 'already extracting' error instead of polling forever.
+		const firstFilePath = path.join(uploadsDir(), session.files[0]);
+		const fileHash = fs.existsSync(firstFilePath) ? computeFileHash(firstFilePath) : undefined;
+
 		await writeSession({ ...session, extractionStatus: 'queued' });
-		await enqueueExtraction(params.id, rid);
+		const enqueued = await enqueueExtraction(params.id, rid, fileHash);
+		if (!enqueued) {
+			await writeSession({ ...session, extractionStatus: 'failed', extractError: 'extract.err.alreadyExtracting' });
+		}
 		redirect(303, `/extract/${params.id}`);
 	},
 };

@@ -1,9 +1,10 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { readSession, deleteSession, uploadsDir } from '$lib/server/sessions';
+import { computeInvoiceContentHash } from '$lib/server/dedup';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems, extractionCorrections, settings } from '$lib/server/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit } from '$lib/server/unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
@@ -193,6 +194,34 @@ export const actions: Actions = {
 		const lineTaxRates = formData.getAll('line_tax_rates') as string[];
 
 		const rid = locals.restaurantId!;
+
+		// Block 100%-exact content duplicates: compute a canonical hash of all
+		// user-confirmed fields and reject if a non-deleted invoice in this
+		// tenant already has the same hash.
+		const nonEmptyDescs = lineDescriptions.filter(d => d.trim());
+		const contentHash = computeInvoiceContentHash({
+			supplierName,
+			invoiceNumber,
+			invoiceDate,
+			dueDate,
+			totalAmount,
+			lineDescriptions: nonEmptyDescs,
+			lineQuantities:   nonEmptyDescs.map((_, i) => toFloat(lineQuantities[i])),
+			lineUnits:        nonEmptyDescs.map((_, i) => lineUnits[i]?.trim() || null),
+			lineUnitPrices:   nonEmptyDescs.map((_, i) => toFloat(lineUnitPrices[i])),
+			lineTotalPrices:  nonEmptyDescs.map((_, i) => toFloat(lineTotalPrices[i])),
+		});
+
+		const hashMatch = await db
+			.select({ id: invoices.id })
+			.from(invoices)
+			.where(and(eq(invoices.restaurantId, rid), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
+			.limit(1);
+
+		if (hashMatch.length > 0) {
+			return fail(422, { contentDuplicate: true, duplicateId: hashMatch[0].id });
+		}
+
 		const extractedData = session?.extractedData as Record<string, unknown> | undefined;
 		const taxBase = toFloat(extractedData?.tax_base);
 		const taxBreakdownRaw = extractedData?.tax_breakdown;
@@ -277,6 +306,7 @@ export const actions: Actions = {
 					status: 'pending',
 					sourceFile: primaryFile,
 					confidence: confidenceRaw,
+					contentHash,
 					notes,
 				})
 				.onConflictDoNothing()
