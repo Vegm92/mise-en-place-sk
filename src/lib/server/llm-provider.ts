@@ -21,13 +21,14 @@ export interface LLMProvider {
 	generate(content: string | object[]): Promise<LLMResponse>;
 }
 
-// Gemini 2.5 Flash pricing per million tokens (USD). Used for cost estimation.
+// Pricing per million tokens (USD) — verify against https://ai.google.dev/gemini-api/docs/pricing
 const COST_PER_MILLION: Record<string, { input: number; output: number }> = {
-	'gemini-2.5-flash':        { input: 0.075, output: 0.30 },
-	'gemini-2.5-flash-lite':   { input: 0.020, output: 0.08 },
-	'gemini-1.5-flash':        { input: 0.075, output: 0.30 },
-	'gemini-1.5-flash-8b':     { input: 0.0375, output: 0.15 },
-	'gemini-1.5-pro':          { input: 1.25,  output: 5.00 },
+	'gemini-2.5-flash':      { input: 0.30, output: 2.50 },
+	'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
+	'gemini-2.5-pro':        { input: 1.25, output: 10.00 },
+	'gemini-1.5-flash':      { input: 0.075, output: 0.30 },
+	'gemini-1.5-flash-8b':   { input: 0.0375, output: 0.15 },
+	'gemini-1.5-pro':        { input: 1.25, output: 5.00 },
 };
 
 export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {

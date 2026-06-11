@@ -4,11 +4,14 @@ import { db } from '$lib/server/db';
 import { stockLevels } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { getTierFeatures } from '$lib/server/billing';
 
 /** GET /api/stock-levels — list all stock level entries for this restaurant. */
 export const GET: RequestHandler = async ({ getClientAddress, locals }) => {
 	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
+	const features = await getTierFeatures(rid);
+	if (!features.stockTracking) throw error(403, 'Stock tracking requires a Pro plan or higher');
 	const rows = await db.select().from(stockLevels).where(eq(stockLevels.restaurantId, rid));
 	return json({ stock_levels: rows });
 };
