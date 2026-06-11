@@ -5,6 +5,7 @@
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { ChevronRight, AlertTriangle } from 'lucide-svelte';
   import { fmtEur, fmtEurCompact, fmtDate, toMonthStr, shiftMonth } from '$lib/formatters';
+  import { locale } from '$lib/i18n';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
   interface Supplier {
@@ -63,7 +64,7 @@
     return 'Buenas noches';
   });
   const dateStr = $derived(
-    new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
+    new Date().toLocaleDateString($locale, { weekday: 'long', day: 'numeric', month: 'long' })
   );
 
   const topSuppliers = $derived(
@@ -80,7 +81,7 @@
   const currentPeriod = $derived.by(() => {
     const [y, m] = selectedMonth.split('-').map(Number);
     const d = new Date(y!, m! - 1, 2);
-    const s = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(d);
+    const s = new Intl.DateTimeFormat($locale, { month: 'long', year: 'numeric' }).format(d);
     return s.charAt(0).toUpperCase() + s.slice(1);
   });
   const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);
@@ -272,7 +273,7 @@
                 {inv.supplier_name ?? '—'}
               </div>
               <div class="num" style="font-size: 11.5px; color: var(--mep-fg-3);">
-                {inv.invoice_number ?? '—'} · {fmtDate(inv.invoice_date)}
+                {inv.invoice_number ?? '—'} · {fmtDate(inv.invoice_date, $locale)}
               </div>
             </div>
             <div style="text-align: right; flex-shrink: 0;">
