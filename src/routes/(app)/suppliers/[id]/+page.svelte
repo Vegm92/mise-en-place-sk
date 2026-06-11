@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
+  import { locale } from '$lib/i18n';
   import { ArrowLeft, Pencil, Trash2, Mail, Phone, Truck, CreditCard } from 'lucide-svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import DesktopSupplierDetail from '$lib/components/desktop/DesktopSupplierDetail.svelte';
@@ -219,7 +220,7 @@
               onclick={() => location.replace(`/invoice/${inv.id}`)}>
               <div style="flex:1;min-width:0;">
                 <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
-                <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate)}</div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
               </div>
               <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
               <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
@@ -268,7 +269,7 @@
             onclick={() => location.replace(`/invoice/${inv.id}`)}>
             <div style="flex:1;min-width:0;">
               <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
-              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate)}{inv.dueDate ? ` · vence ${fmtDateShort(inv.dueDate)}` : ''}</div>
+              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · vence ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
             </div>
             <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
             <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />

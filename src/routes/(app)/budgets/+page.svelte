@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
-  import { t } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
   import { fmtEur, semColor } from '$lib/formatters';
 
   let { data }: { data: PageData } = $props();
@@ -36,7 +36,7 @@
   const totalSpent = $derived(rows.reduce((s, r) => s + r.spent, 0));
   const totalPct   = $derived(totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0);
 
-  const monthLabel = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+  const monthLabel = $derived(new Date().toLocaleString($locale, { month: 'long', year: 'numeric' }));
 </script>
 
 <!-- ── Desktop layout ──────────────────────────────────────────────────── -->
@@ -174,17 +174,15 @@
                 </tr>
               {:else}
                 <tr>
-                  <td colspan={7} style="padding:10px 12px;background:var(--mep-surface-2);cursor:pointer;
-                    color:var(--mep-fg-3);font-size:12.5px;font-weight:500;"
-                    role="button" tabindex="0"
-                    onclick={() => showAddForm = true}
-                    onkeydown={(e) => e.key === 'Enter' && (showAddForm = true)}>
-                    <span style="display:inline-flex;align-items:center;gap:6px;">
+                  <td colspan={7} style="padding:0;background:var(--mep-surface-2);">
+                    <button type="button"
+                      style="width:100%;text-align:left;padding:10px 12px;cursor:pointer;color:var(--mep-fg-3);font-size:12.5px;font-weight:500;background:transparent;border:none;font:inherit;display:flex;align-items:center;gap:6px;"
+                      onclick={() => showAddForm = true}>
                       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8">
                         <line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/>
                       </svg>
-                      Añadir categoría…
-                    </span>
+                      {$t('bud.addCategory')}
+                    </button>
                   </td>
                 </tr>
               {/if}

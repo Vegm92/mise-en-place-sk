@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { locale } from '$lib/i18n';
+
   interface PriceItem {
     description: string;
     supplier_name: string;
@@ -42,7 +44,7 @@
   }
   function fmtDate(d: string | null) {
     if (!d) return '—';
-    try { return new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }); }
+    try { return new Date(d).toLocaleDateString($locale, { day: '2-digit', month: 'short' }); }
     catch { return d; }
   }
   function chipBg(pct: number | null) {

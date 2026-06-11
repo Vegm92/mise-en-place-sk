@@ -6,7 +6,7 @@
   import { tutorialStep, setTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
   import {
     LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
-    Settings, HelpCircle, Upload, Sun, Moon,
+    Settings, Upload, Sun, Moon,
     LogOut, Menu, X, MessageCircle, Newspaper,
   } from 'lucide-svelte';
   import { locale, t, initLocale } from '$lib/i18n';
@@ -215,12 +215,6 @@
         <Settings size={15} />
         <span>{$t('nav.settings')}</span>
       </a>
-      <button
-        style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;background:transparent;border:none;cursor:pointer;width:100%;text-align:left;"
-      >
-        <HelpCircle size={15} />
-        <span>{$t('nav.help')}</span>
-      </button>
     </div>
 
     <!-- Legal footer -->

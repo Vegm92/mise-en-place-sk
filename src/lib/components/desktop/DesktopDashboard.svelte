@@ -7,7 +7,7 @@
   import AlertRow from '$lib/components/mep/AlertRow.svelte';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
   import { Bell, TriangleAlert, ChevronRight, X } from 'lucide-svelte';
-  import { t } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
 
   interface Mom { this_month: number; pct_change: number | null }
@@ -125,7 +125,7 @@
   }
   function fmtDate(iso: string | null) {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
   }
 
   async function dismissShock(id: number) {
