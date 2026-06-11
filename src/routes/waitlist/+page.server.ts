@@ -1,8 +1,12 @@
 import { fail } from '@sveltejs/kit';
 import { insertWaitlistEmail } from '$lib/server/waitlist-db';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export const load: PageServerLoad = async ({ url }) => {
+  return { canonicalUrl: `${url.origin}/waitlist` };
+};
 
 export const actions: Actions = {
   join: async ({ request }) => {
