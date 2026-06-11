@@ -12,7 +12,8 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 
 | Variable | Required | Notes |
 |---|---|---|
-| `DATABASE_URL` | Yes | Supabase **direct** connection string (not the pooler): `postgresql://postgres:…@db.<project-ref>.supabase.co:5432/postgres`. SSL is enforced by the client. The server throws at boot if missing. |
+| `DATABASE_URL` | Yes | Supabase **direct** connection string — used by drizzle-kit migrations and pg-boss: `postgresql://postgres:…@db.<project-ref>.supabase.co:5432/postgres`. SSL is enforced by the client. |
+| `DATABASE_POOL_URL` | No | Supabase **Session Mode pooler** (port 5432) or PgBouncer URL for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. |
 
 ### Supabase (auth + API)
 

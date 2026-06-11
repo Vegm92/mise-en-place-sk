@@ -14,11 +14,12 @@
 
   let lowConfAck = $state(false);
   let showLowConfModal = $state(false);
+  let showContentDuplicateModal = $state(false);
 
   $effect(() => {
-    if ((form as Record<string, unknown> | null)?.lowConfidenceBlocked) {
-      showLowConfModal = true;
-    }
+    const f = form as Record<string, unknown> | null;
+    if (f?.lowConfidenceBlocked) showLowConfModal = true;
+    if (f?.contentDuplicate) showContentDuplicateModal = true;
   });
 
   type LineItem = {
@@ -476,6 +477,43 @@
   {/if}
 
 </div>
+
+<!-- Content-duplicate block modal -->
+{#if showContentDuplicateModal}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
+    role="presentation"
+    onclick={() => showContentDuplicateModal = false}
+  >
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
+      role="dialog"
+      aria-modal="true"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;" />
+        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">Factura duplicada</strong>
+      </div>
+      <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">
+        Esta factura ya existe en el sistema — el proveedor, la fecha, el importe y todas las líneas
+        coinciden exactamente con una factura ya guardada. No se puede guardar una copia idéntica.
+      </p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button type="button" class="btn btn-secondary" style="height:36px;font-size:13px;"
+          onclick={() => showContentDuplicateModal = false}>
+          Volver a revisar
+        </button>
+        <a href="/" class="btn btn-primary" style="height:36px;font-size:13px;display:flex;align-items:center;">
+          Ir al inicio
+        </a>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <!-- Low-confidence review gate modal -->
 {#if showLowConfModal}
