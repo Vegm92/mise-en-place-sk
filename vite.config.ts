@@ -20,6 +20,7 @@ export default defineConfig({
 				'src/lib/server/unit-bridge.ts',
 				'src/lib/server/alert-engine.ts',
 				'src/lib/server/db.ts',
+				'src/lib/server/tenant.ts',
 			],
 			thresholds: {
 				lines: 80,
