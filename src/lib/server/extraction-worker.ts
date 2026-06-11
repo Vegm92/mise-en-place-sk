@@ -3,7 +3,11 @@
  * Reads the upload session, calls Gemini, writes enriched data back.
  */
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 import { readSession, writeSession, uploadsDir } from './sessions.js';
+import { getStorage } from './storage.js';
+import { STORAGE_DRIVER } from './env.js';
 import { extractInvoice, type GenerateFn } from './extract.js';
 import { annotateLineItems } from './unit-bridge.js';
 
@@ -35,10 +39,23 @@ export async function processExtractionJob(
 		return;
 	}
 
-	const dir = uploadsDir();
-	const filePath = path.join(dir, session.files[0]);
-
+	const key = session.fileKeys?.[0] ?? session.files[0];
 	await writeSession({ ...session, extractionStatus: 'extracting' });
+
+	// Resolve the file to a local path the extraction engine can read.
+	// For Supabase storage, download to a temp file; for local, compute the path directly.
+	let filePath: string;
+	let cleanupTmp: (() => void) | null = null;
+
+	if (STORAGE_DRIVER === 'supabase') {
+		const buf = await getStorage().read(key);
+		const tmpPath = path.join(os.tmpdir(), `mep_${sessionId}_${path.basename(key)}`);
+		fs.writeFileSync(tmpPath, buf);
+		filePath = tmpPath;
+		cleanupTmp = () => { try { fs.unlinkSync(tmpPath); } catch { /* ignore */ } };
+	} else {
+		filePath = path.join(uploadsDir(), key);
+	}
 
 	try {
 		const result = await extractInvoice(filePath, generateOverride);
@@ -84,5 +101,7 @@ export async function processExtractionJob(
 		console.error(`[worker] Extraction failed for session ${sessionId}:`, err);
 		await writeSession({ ...session, extractionStatus: 'failed', extractError });
 		// Do not re-throw — we store the error in the session; no pg-boss retry.
+	} finally {
+		cleanupTmp?.();
 	}
 }

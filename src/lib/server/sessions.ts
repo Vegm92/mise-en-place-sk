@@ -5,33 +5,21 @@ import { UPLOADS_DIR } from './env';
 import { db } from './db';
 import { uploadSessions } from './schema';
 import { eq, lt } from 'drizzle-orm';
+import { getStorage } from './storage';
 
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
+/** Local uploads directory — used by the local storage driver and for file stat display. */
 export function uploadsDir(): string {
 	return path.resolve(process.cwd(), UPLOADS_DIR);
-}
-
-export function resolveUploadPath(filename: string): string {
-	const dir = uploadsDir();
-	const fp = path.resolve(dir, filename);
-	if (!fp.startsWith(dir + path.sep) && fp !== dir) throw new Error('Invalid file path');
-	return fp;
-}
-
-export function deleteUploadFile(filename: string): void {
-	try {
-		const fp = resolveUploadPath(filename);
-		if (fs.existsSync(fp)) fs.unlinkSync(fp);
-	} catch {
-		// ignore — file may already be gone or path invalid
-	}
 }
 
 export interface Session {
 	id: string;
 	files: string[];
+	/** Storage keys parallel to `files`. Added for new uploads; absent on legacy sessions. */
+	fileKeys?: string[];
 	extractedData?: Record<string, unknown>;
 	conversionNotes?: string[];
 	extractionStatus?: 'queued' | 'extracting' | 'done' | 'failed';
@@ -73,10 +61,26 @@ export async function cleanupStaleSessions(): Promise<void> {
 	await db.delete(uploadSessions).where(lt(uploadSessions.updatedAt, cutoff));
 }
 
-export async function saveUploadedFiles(files: File[]): Promise<{ saved: string[]; errors: string[] }> {
-	const dir = uploadsDir();
-	fs.mkdirSync(dir, { recursive: true });
+export async function deleteUploadFile(key: string): Promise<void> {
+	await getStorage().delete(key);
+}
+
+/**
+ * Save uploaded files using the configured storage driver.
+ *
+ * @param files   Files to save.
+ * @param namespace  Prefix for storage keys, typically the session ID.
+ * @returns saved  Original (display) filenames with a uniqueness suffix.
+ * @returns keys   Storage keys (`namespace/filename`) parallel to `saved`.
+ * @returns errors Validation errors for rejected files.
+ */
+export async function saveUploadedFiles(
+	files: File[],
+	namespace: string,
+): Promise<{ saved: string[]; keys: string[]; errors: string[] }> {
+	const storage = getStorage();
 	const saved: string[] = [];
+	const keys: string[] = [];
 	const errors: string[] = [];
 
 	for (const file of files) {
@@ -90,16 +94,25 @@ export async function saveUploadedFiles(files: File[]): Promise<{ saved: string[
 			errors.push(`'${file.name}': exceeds the 20 MB limit`);
 			continue;
 		}
-		let dest = path.join(dir, file.name);
-		if (fs.existsSync(dest)) {
-			const suffix = randomBytes(3).toString('hex');
-			const stem = path.basename(file.name, ext);
-			dest = path.join(dir, `${stem}_${suffix}${ext}`);
-		}
+
+		const stem = path.basename(file.name, ext);
+		const suffix = randomBytes(3).toString('hex');
+		const filename = `${stem}_${suffix}${ext}`;
+		const key = `${namespace}/${filename}`;
+
 		const buf = Buffer.from(await file.arrayBuffer());
-		fs.writeFileSync(dest, buf);
-		saved.push(path.basename(dest));
+		await storage.save(key, buf);
+		saved.push(filename);
+		keys.push(key);
 	}
 
-	return { saved, errors };
+	return { saved, keys, errors };
+}
+
+/**
+ * Returns the local filesystem path for a storage key when using the local driver.
+ * Used only for file stat display in the confirm page.
+ */
+export function localFilePath(key: string): string {
+	return path.join(uploadsDir(), key);
 }
