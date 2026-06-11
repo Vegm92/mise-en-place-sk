@@ -6,6 +6,7 @@
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
+  import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
   import { ChevronDown, ChevronLeft, ChevronRight, FileDown, Trash2, Check, RotateCcw, ExternalLink } from 'lucide-svelte';
 
   const { data }: { data: PageData } = $props();
@@ -68,16 +69,35 @@
     }
   }
 
+  // Confirm dialogs
+  let confirmPaidOpen        = $state(false);
+  let confirmDeleteOpen      = $state(false);
+  let deleteInvoiceId        = $state<number | null>(null);
+  let confirmDeleteOneOpen   = $state(false);
+
   // Bulk actions
   function handleBulkPaid() {
     if (!checkedIds.size) return;
-    if (!confirm(`Mark ${checkedIds.size} invoice${checkedIds.size > 1 ? 's' : ''} as paid?`)) return;
-    (document.getElementById('bulk-paid-form') as HTMLFormElement).submit();
+    confirmPaidOpen = true;
   }
   function handleBulkDelete() {
     if (!checkedIds.size) return;
-    if (!confirm(`Delete ${checkedIds.size} invoice${checkedIds.size > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    confirmDeleteOpen = true;
+  }
+  function executeBulkPaid() {
+    (document.getElementById('bulk-paid-form') as HTMLFormElement).submit();
+  }
+  function executeBulkDelete() {
     (document.getElementById('bulk-delete-form') as HTMLFormElement).submit();
+  }
+  function requestDeleteInvoice(id: number) {
+    deleteInvoiceId = id;
+    confirmDeleteOneOpen = true;
+  }
+  function executeDeleteInvoice() {
+    if (deleteInvoiceId == null) return;
+    (document.getElementById(`delete-form-${deleteInvoiceId}`) as HTMLFormElement).submit();
+    deleteInvoiceId = null;
   }
 
 </script>
@@ -219,12 +239,11 @@
 
         <div class="border-b border-divider last:border-0">
           <!-- Main row -->
-          <div role="button" tabindex="0"
+          <button type="button"
             class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
                    max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
-            style="grid-template-columns:auto minmax(0,1fr) 95px 100px 110px 32px;"
-            onclick={() => toggleDrawer(inv.id)}
-            onkeydown={(e) => e.key === 'Enter' && toggleDrawer(inv.id)}>
+            style="grid-template-columns:auto minmax(0,1fr) 95px 100px 110px 32px;width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
+            onclick={() => toggleDrawer(inv.id)}>
 
             <!-- Checkbox -->
             <input type="checkbox"
@@ -261,7 +280,7 @@
             <div class="flex justify-end text-fg-3 transition-transform {expanded ? 'rotate-90' : ''}">
               <ChevronRight size={15} />
             </div>
-          </div>
+          </button>
 
           <!-- Expanded drawer -->
           {#if expanded}
@@ -297,10 +316,10 @@
                 <a href="/invoice/{inv.id}/edit" class="btn btn-ghost" style="height:28px;font-size:12px;text-decoration:none;">
                   {$t('action.edit')}
                 </a>
-                <form method="post" action="?/deleteInvoice"
-                  onsubmit={(e) => { if (!confirm($t('inv.confirm.del1'))) e.preventDefault(); }}>
+                <form id="delete-form-{inv.id}" method="post" action="?/deleteInvoice">
                   <input type="hidden" name="id" value={inv.id} />
-                  <button type="submit" class="btn btn-ghost text-neg" style="height:28px;font-size:12px;gap:5px;">
+                  <button type="button" class="btn btn-ghost text-neg" style="height:28px;font-size:12px;gap:5px;"
+                    onclick={() => requestDeleteInvoice(inv.id)}>
                     <Trash2 size={12} />
                     {$t('inv.delete')}
                   </button>
@@ -386,3 +405,23 @@
   </SectionCard>
 
 </div>
+
+<!-- Confirm dialogs -->
+<ConfirmDialog
+  bind:open={confirmPaidOpen}
+  message={$t('inv.confirm.paid').replace('{n}', String(checkedIds.size))}
+  onconfirm={executeBulkPaid}
+/>
+<ConfirmDialog
+  bind:open={confirmDeleteOpen}
+  message={$t('inv.confirm.delete').replace('{n}', String(checkedIds.size))}
+  danger={true}
+  onconfirm={executeBulkDelete}
+/>
+<ConfirmDialog
+  bind:open={confirmDeleteOneOpen}
+  message={$t('inv.confirm.del1')}
+  danger={true}
+  onconfirm={executeDeleteInvoice}
+  oncancel={() => { deleteInvoiceId = null; }}
+/>

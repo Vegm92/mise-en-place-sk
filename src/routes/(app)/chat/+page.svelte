@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { MessageCircle, Send, Plus, Trash2, History } from 'lucide-svelte';
   import { t } from '$lib/i18n';
+  import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
 
   const { data } = $props();
 
@@ -15,6 +16,8 @@
   let chatLoading = $state(false);
   let messagesEl = $state<HTMLDivElement | null>(null);
   let mobileSidebarOpen = $state(false);
+  let deleteSessionOpen = $state(false);
+  let deleteSessionId = $state<number | null>(null);
 
   const STARTER_CHIPS = [
     'chat.chip.spend',
@@ -152,14 +155,14 @@
             ">{session.title}</p>
             <p style="font-size:10px;color:var(--mep-fg-3);margin:0;">{formatDate(session.updatedAt)}</p>
           </a>
-          <form method="POST" action="?/deleteSession" style="flex-shrink:0;margin-right:4px;">
+          <form id="delete-session-{session.id}" method="POST" action="?/deleteSession" style="flex-shrink:0;margin-right:4px;">
             <input type="hidden" name="id" value={session.id} />
             <button
-              type="submit"
+              type="button"
               class="btn btn-ghost"
               style="width:24px;height:24px;padding:0;justify-content:center;opacity:0.5;"
-              title="Eliminar"
-              onclick={(e) => { if (!confirm($t('chat.confirmDelete'))) e.preventDefault(); }}
+              title={$t('action.irreversible')}
+              onclick={() => { deleteSessionId = session.id; deleteSessionOpen = true; }}
             >
               <Trash2 size={11} />
             </button>
@@ -302,3 +305,16 @@
 
   </div>
 </div>
+
+<ConfirmDialog
+  bind:open={deleteSessionOpen}
+  message={$t('chat.confirmDelete')}
+  danger={true}
+  onconfirm={() => {
+    if (deleteSessionId != null) {
+      (document.getElementById(`delete-session-${deleteSessionId}`) as HTMLFormElement).submit();
+      deleteSessionId = null;
+    }
+  }}
+  oncancel={() => { deleteSessionId = null; }}
+/>

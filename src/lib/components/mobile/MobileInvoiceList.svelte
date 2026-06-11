@@ -1,6 +1,7 @@
 <script lang="ts">
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { fmtEur } from '$lib/formatters';
+  import { locale, t } from '$lib/i18n';
 
   interface Invoice {
     id: number;
@@ -57,15 +58,15 @@
     const groups: Map<string, Invoice[]> = new Map();
     for (const inv of filtered) {
       const d = inv.invoice_date ? new Date(inv.invoice_date) : null;
-      let label = 'Sin fecha';
+      let label = $t('misc.noDate');
       if (d) {
         d.setHours(0, 0, 0, 0);
         if (d.getTime() === today.getTime()) {
-          label = `Hoy · ${today.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`;
+          label = `${$t('misc.today')} · ${today.toLocaleDateString($locale, { day: 'numeric', month: 'long' })}`;
         } else if (d.getTime() === yesterday.getTime()) {
-          label = `Ayer · ${yesterday.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`;
+          label = `${$t('misc.yesterday')} · ${yesterday.toLocaleDateString($locale, { day: 'numeric', month: 'long' })}`;
         } else {
-          label = d.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' });
+          label = d.toLocaleDateString($locale, { day: 'numeric', month: 'long' });
         }
       }
       if (!groups.has(label)) groups.set(label, []);

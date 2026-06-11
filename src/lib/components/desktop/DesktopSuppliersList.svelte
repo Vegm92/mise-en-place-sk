@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
+  import { locale } from '$lib/i18n';
   import { Search, ChevronRight, Plus } from 'lucide-svelte';
   import Sparkline from '$lib/components/Sparkline.svelte';
 
@@ -197,7 +198,7 @@
                     </span>
                   {/if}
                 </td>
-                <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDateShort(s.last_invoice_date)}</td>
+                <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDateShort(s.last_invoice_date, $locale)}</td>
                 <td style="text-align:right;">
                   <ChevronRight size={13} style="color:var(--mep-fg-3);" />
                 </td>

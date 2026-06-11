@@ -4,6 +4,7 @@
   import MobileDashboard from '$lib/components/mobile/MobileDashboard.svelte';
   import DesktopDashboard from '$lib/components/desktop/DesktopDashboard.svelte';
   import { toMonthStr, shiftMonth } from '$lib/formatters';
+  import { locale } from '$lib/i18n';
 
   let { data }: { data: PageData } = $props();
 
@@ -17,7 +18,7 @@
   const currentPeriod = $derived.by(() => {
     const [y, m] = selectedMonth.split('-').map(Number);
     const d = new Date(y!, m! - 1, 2);
-    const s = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(d);
+    const s = new Intl.DateTimeFormat($locale, { month: 'long', year: 'numeric' }).format(d);
     return s.charAt(0).toUpperCase() + s.slice(1);
   });
   const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);

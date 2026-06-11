@@ -1,6 +1,7 @@
 <script lang="ts">
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { ChevronLeft, MoreHorizontal, FileText, Edit, Download, Truck, Check } from 'lucide-svelte';
+  import { locale } from '$lib/i18n';
 
   interface LineItem {
     id: number;
@@ -39,7 +40,7 @@
   function fmtDate(s: Date | string | null | undefined) {
     if (!s) return '—';
     const d = new Date(s as string);
-    return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString($locale, { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   const shown = $derived(lineItems.slice(0, 5));

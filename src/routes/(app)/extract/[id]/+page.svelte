@@ -3,7 +3,6 @@
   import { invalidateAll } from '$app/navigation';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
-  import { confColor } from '$lib/status';
   import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
   import FieldInput from '$lib/components/mep/FieldInput.svelte';
   import { ChevronLeft, RefreshCw, Check, Sparkle, Plus, Trash, AlertTriangle } from 'lucide-svelte';
@@ -218,9 +217,6 @@
           <div style="flex:1;font-size:12px;color:var(--mep-fg-2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
             {filename} <span style="color:var(--mep-fg-3);font-weight:400;">· página 1</span>
           </div>
-          <button type="button" class="btn btn-ghost" style="width:26px;height:26px;padding:0;justify-content:center;font-size:14px;">−</button>
-          <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);">100%</span>
-          <button type="button" class="btn btn-ghost" style="width:26px;height:26px;padding:0;justify-content:center;font-size:14px;">+</button>
         </div>
         <div style="flex:1;overflow:hidden;background:var(--mep-surface-2);">
           <iframe
@@ -258,14 +254,13 @@
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                   {$t('field.supplier')}
-                  {#if fieldConf.supplier_name != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.supplier_name)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.supplier_name ?? 1) * 100)}{$t('extract.confTooltip')}"></span>
-                  {/if}
+                  <ConfidenceDot confidence={fieldConf.supplier_name} />
                 </div>
                 <input type="text" name="supplier_name" value={str(data.data?.supplier_name)}
+                  aria-describedby={needsReview(data.data?.supplier_name) ? 'err-supplier_name' : undefined}
                   style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:{needsReview(data.data?.supplier_name) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.supplier_name) ? '2px solid var(--mep-warn)' : fieldConf.supplier_name != null && fieldConf.supplier_name < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 {#if needsReview(data.data?.supplier_name)}
-                  <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
+                  <div id="err-supplier_name" style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
                     <AlertTriangle size={10} /> {$t('extract.fieldEmpty')}
                   </div>
                 {/if}
@@ -273,9 +268,7 @@
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                   {$t('field.invoiceNum')}
-                  {#if fieldConf.invoice_number != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.invoice_number)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.invoice_number ?? 1) * 100)}{$t('extract.confTooltip')}"></span>
-                  {/if}
+                  <ConfidenceDot confidence={fieldConf.invoice_number} />
                 </div>
                 <input type="text" name="invoice_number" value={str(data.data?.invoice_number)}
                   class="num"
@@ -286,9 +279,7 @@
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                   {$t('field.invoiceDate')}
-                  {#if fieldConf.invoice_date != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.invoice_date)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.invoice_date ?? 1) * 100)}{$t('extract.confTooltip')}"></span>
-                  {/if}
+                  <ConfidenceDot confidence={fieldConf.invoice_date} />
                 </div>
                 <input type="text" name="invoice_date" value={str(data.data?.invoice_date)} placeholder="YYYY-MM-DD"
                   class="num"
@@ -297,9 +288,7 @@
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                   {$t('extract.due')}
-                  {#if fieldConf.due_date != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.due_date)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.due_date ?? 1) * 100)}{$t('extract.confTooltip')}"></span>
-                  {/if}
+                  <ConfidenceDot confidence={fieldConf.due_date} />
                 </div>
                 <input type="text" name="due_date" value={str(data.data?.due_date)} placeholder="YYYY-MM-DD"
                   class="num"
@@ -314,15 +303,14 @@
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                   {$t('tbl.total')}
-                  {#if fieldConf.total_amount != null}
-                    <span style="width:7px;height:7px;border-radius:50%;background:{confColor(fieldConf.total_amount)};display:inline-block;flex-shrink:0;" title="{Math.round((fieldConf.total_amount ?? 1) * 100)}{$t('extract.confTooltip')}"></span>
-                  {/if}
+                  <ConfidenceDot confidence={fieldConf.total_amount} />
                 </div>
                 <input type="text" name="total_amount" value={str(data.data?.total_amount)}
                   class="num"
+                  aria-describedby={hasDiscrepancy ? 'err-total_amount' : undefined}
                   style="width:100%;font-size:13.5px;font-weight:{hasDiscrepancy ? 600 : 500};color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:{hasDiscrepancy ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{hasDiscrepancy ? '2px solid var(--mep-warn)' : fieldConf.total_amount != null && fieldConf.total_amount < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 {#if hasDiscrepancy}
-                  <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
+                  <div id="err-total_amount" style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
                     <AlertTriangle size={10} /> {$t('extract.mismatch')} ({fmt(totalCalc)})
                   </div>
                 {/if}
@@ -370,9 +358,7 @@
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" value={str(item.description)}
                             style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;font-family:var(--mep-font);" />
-                          {#if itemConf != null}
-                            <span style="width:6px;height:6px;border-radius:50%;background:{confColor(itemConf)};display:inline-block;flex-shrink:0;" title="{Math.round(itemConf * 100)}{$t('extract.confTooltip')}"></span>
-                          {/if}
+                          <ConfidenceDot confidence={itemConf} size={6} />
                           {#if rowFlagged}
                             <span style="color:var(--mep-warn);display:inline-flex;flex-shrink:0;" title={$t('extract.badge.low')}>
                               <AlertTriangle size={11} />
