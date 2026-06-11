@@ -168,11 +168,11 @@
 
   {:else}
 
-  <div style="flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:14px;min-height:0;overflow:hidden;">
+  <div style="flex:1;padding:20px 28px;display:flex;flex-direction:column;gap:16px;min-height:0;overflow:hidden;">
 
     <!-- First-run onboarding callout -->
     {#if !data.hasCompletedOnboarding}
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:6px;background:var(--mep-acc-soft);border-left:3px solid var(--mep-acc);flex-shrink:0;">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:6px;background:var(--mep-acc-soft);border-left:3px solid var(--mep-acc);flex-shrink:0;">
         <Sparkle size={13} style="flex-shrink:0;color:var(--mep-acc);" />
         <span style="font-size:12.5px;color:var(--mep-acc);">
           Esto es lo que encontró la IA. Revisa los campos y corrige cualquier error — solo tarda unos segundos.
@@ -182,7 +182,7 @@
     {/if}
 
     <!-- Header bar -->
-    <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
       <a href="/confirm/{data.id}" class="btn btn-ghost" style="width:32px;height:32px;padding:0;justify-content:center;text-decoration:none;flex-shrink:0;">
         <ChevronLeft size={15} />
       </a>
@@ -193,28 +193,28 @@
         <div style="font-size:16px;font-weight:600;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           {invoiceNumber} · {supplierName}
         </div>
+        <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
+          <Sparkle size={10} style="color:var(--mep-acc);flex-shrink:0;" />
+          <span style="font-size:11px;color:var(--mep-acc);">{$t('extract.aiExtracted')} · {$t(confidenceBadgeKey)}</span>
+        </div>
       </div>
-      <span class="badge" style="background:var(--mep-acc-soft);color:var(--mep-acc);display:inline-flex;align-items:center;gap:5px;flex-shrink:0;">
-        <Sparkle size={11} />
-        {$t('extract.aiExtracted')} · {$t(confidenceBadgeKey)}
-      </span>
-      <a href="/extract/{data.id}" class="btn btn-ghost" style="height:30px;font-size:12.5px;gap:5px;text-decoration:none;flex-shrink:0;">
-        <RefreshCw size={13} /> {$t('extract.reextract')}
+      <a href="/extract/{data.id}" class="btn btn-ghost" style="width:32px;height:32px;padding:0;justify-content:center;text-decoration:none;flex-shrink:0;" title={$t('extract.reextract')}>
+        <RefreshCw size={14} />
       </a>
       <form method="POST" action="?/discard" style="flex-shrink:0;">
-        <button type="submit" class="btn btn-secondary" style="height:30px;font-size:13px;">{$t('extract.discard')}</button>
+        <button type="submit" class="btn btn-secondary" style="height:34px;font-size:13px;padding:0 14px;">{$t('extract.discard')}</button>
       </form>
-      <button type="submit" form="save-form" class="btn btn-primary" style="height:30px;font-size:13px;gap:5px;flex-shrink:0;">
+      <button type="submit" form="save-form" class="btn btn-primary" style="height:34px;font-size:13px;gap:6px;flex-shrink:0;padding:0 16px;">
         <Check size={14} /> {$t('extract.confirmSave')}
       </button>
     </div>
 
     <!-- Two-column grid -->
-    <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:14px;flex:1;min-height:0;overflow:hidden;">
+    <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:20px;flex:1;min-height:0;overflow:hidden;">
 
       <!-- Left: doc viewer -->
       <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;">
-        <div style="padding:10px 14px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;gap:8px;flex-shrink:0;">
           <div style="flex:1;font-size:12px;color:var(--mep-fg-2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
             {filename} <span style="color:var(--mep-fg-3);font-weight:400;">· página 1</span>
           </div>
@@ -239,7 +239,7 @@
         <div class="card" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
 
           <!-- Cabecera -->
-          <div data-coach="invoice-fields" style="padding:14px 16px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
+          <div data-coach="invoice-fields" style="padding:18px 20px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
               <div class="subtitle">{$t('extract.header')}</div>
               <span style="font-size:11px;color:var(--mep-fg-3);">{$t('extract.tabNav')}</span>
@@ -252,7 +252,7 @@
               </div>
             {/if}
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;">
 
               <!-- Proveedor | N.º factura -->
               <div>
@@ -263,7 +263,7 @@
                   {/if}
                 </div>
                 <input type="text" name="supplier_name" value={str(data.data?.supplier_name)}
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.supplier_name) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.supplier_name) ? '2px solid var(--mep-warn)' : fieldConf.supplier_name != null && fieldConf.supplier_name < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:{needsReview(data.data?.supplier_name) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.supplier_name) ? '2px solid var(--mep-warn)' : fieldConf.supplier_name != null && fieldConf.supplier_name < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 {#if needsReview(data.data?.supplier_name)}
                   <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
                     <AlertTriangle size={10} /> {$t('extract.fieldEmpty')}
@@ -279,7 +279,7 @@
                 </div>
                 <input type="text" name="invoice_number" value={str(data.data?.invoice_number)}
                   class="num"
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_number) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_number) ? '2px solid var(--mep-warn)' : fieldConf.invoice_number != null && fieldConf.invoice_number < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_number) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_number) ? '2px solid var(--mep-warn)' : fieldConf.invoice_number != null && fieldConf.invoice_number < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
               </div>
 
               <!-- Fecha factura | Vencimiento -->
@@ -292,7 +292,7 @@
                 </div>
                 <input type="text" name="invoice_date" value={str(data.data?.invoice_date)} placeholder="YYYY-MM-DD"
                   class="num"
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_date) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_date) ? '2px solid var(--mep-warn)' : fieldConf.invoice_date != null && fieldConf.invoice_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:{needsReview(data.data?.invoice_date) ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{needsReview(data.data?.invoice_date) ? '2px solid var(--mep-warn)' : fieldConf.invoice_date != null && fieldConf.invoice_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
               </div>
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
@@ -303,13 +303,13 @@
                 </div>
                 <input type="text" name="due_date" value={str(data.data?.due_date)} placeholder="YYYY-MM-DD"
                   class="num"
-                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.due_date != null && fieldConf.due_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                  style="width:100%;font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.due_date != null && fieldConf.due_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
               </div>
 
               <!-- Moneda | Total -->
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">{$t('extract.currency')}</div>
-                <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);">EUR</div>
+                <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);">EUR</div>
               </div>
               <div>
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
@@ -320,7 +320,7 @@
                 </div>
                 <input type="text" name="total_amount" value={str(data.data?.total_amount)}
                   class="num"
-                  style="width:100%;font-size:13.5px;font-weight:{hasDiscrepancy ? 600 : 500};color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{hasDiscrepancy ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{hasDiscrepancy ? '2px solid var(--mep-warn)' : fieldConf.total_amount != null && fieldConf.total_amount < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                  style="width:100%;font-size:13.5px;font-weight:{hasDiscrepancy ? 600 : 500};color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:{hasDiscrepancy ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{hasDiscrepancy ? '2px solid var(--mep-warn)' : fieldConf.total_amount != null && fieldConf.total_amount < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 {#if hasDiscrepancy}
                   <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
                     <AlertTriangle size={10} /> {$t('extract.mismatch')} ({fmt(totalCalc)})
@@ -333,14 +333,14 @@
                 <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></div>
                 <textarea name="notes" maxlength={250} rows={2}
                   placeholder={$t('extract.notesPh')}
-                  style="width:100%;font-size:13px;color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);outline:none;font-family:var(--mep-font);resize:vertical;"></textarea>
+                  style="width:100%;font-size:13px;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);outline:none;font-family:var(--mep-font);resize:vertical;"></textarea>
               </div>
             </div>
           </div>
 
           <!-- Line items -->
           <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;">
-            <div style="padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <div style="padding:14px 20px 8px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
               <div class="subtitle">
                 {$t('extract.lineItems')} <span class="num" style="color:var(--mep-fg-3);font-weight:400;">· {lineItems.length}</span>
               </div>
@@ -366,7 +366,7 @@
                     {@const itemConf = typeof item.confidence === 'number' ? item.confidence : null}
                     {@const confLow = itemConf != null && itemConf < 0.85}
                     <tr style="background:{rowFlagged || confLow ? 'var(--mep-warn-soft)' : 'transparent'};">
-                      <td style="padding:4px 8px;">
+                      <td style="padding:7px 10px;">
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" value={str(item.description)}
                             style="flex:1;min-width:0;font-size:12.5px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;font-family:var(--mep-font);" />
@@ -380,26 +380,26 @@
                           {/if}
                         </div>
                       </td>
-                      <td class="num" style="padding:4px 8px;">
+                      <td class="num" style="padding:7px 10px;">
                         <input type="text" name="line_quantities" value={str(item.quantity)}
                           class="num"
                           style="width:100%;font-size:12px;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                       </td>
-                      <td style="padding:4px 8px;">
+                      <td style="padding:7px 10px;">
                         <input type="text" name="line_units" value={str(item.unit)}
                           style="width:100%;font-size:12px;color:var(--mep-fg-2);background:transparent;border:none;outline:none;font-family:var(--mep-font);" />
                       </td>
-                      <td class="num" style="padding:4px 8px;">
+                      <td class="num" style="padding:7px 10px;">
                         <input type="text" name="line_unit_prices" value={str(item.unit_price)}
                           class="num"
                           style="width:100%;font-size:12px;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                       </td>
-                      <td class="num" style="padding:4px 8px;">
+                      <td class="num" style="padding:7px 10px;">
                         <input type="text" name="line_total_prices" value={str(item.total_price)}
                           class="num"
                           style="width:100%;font-size:12px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                       </td>
-                      <td style="padding:4px 8px;">
+                      <td style="padding:7px 10px;">
                         <input type="hidden" name="line_tax_rates" value={str(item.tax_rate ?? '')} />
                         <button type="button" class="btn btn-ghost" style="width:22px;height:22px;padding:0;justify-content:center;" onclick={() => removeRow(i)}>
                           <Trash size={11} />
@@ -413,7 +413,7 @@
           </div>
 
           <!-- Totals footer -->
-          <div style="padding:12px 16px;border-top:1px solid var(--mep-divider);background:var(--mep-surface-2);display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-shrink:0;">
+          <div style="padding:16px 20px;border-top:1px solid var(--mep-divider);background:var(--mep-surface-2);display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-shrink:0;">
             <!-- Discrepancy -->
             <div>
               {#if hasDiscrepancy}
