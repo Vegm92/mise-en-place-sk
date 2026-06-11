@@ -2,9 +2,12 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getOrGenerateWeeklyDigest, dismissWeeklyDigest, isoWeek } from '$lib/server/weekly-digest';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/');
+
+	const { features } = await parent();
+	if (!features.weeklyDigest) redirect(303, '/billing?upgrade=digest');
 
 	const currentWeek = isoWeek(new Date());
 	const weeklyDigest = await getOrGenerateWeeklyDigest(rid, currentWeek);

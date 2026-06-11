@@ -220,6 +220,7 @@ export const subscriptions = pgTable('subscriptions', {
 	stripeCustomerId:     text('stripe_customer_id').unique(),
 	stripeSubscriptionId: text('stripe_subscription_id').unique(),
 	stripePriceId:        text('stripe_price_id'),
+	planTier:             text('plan_tier').notNull().default('trial'), // 'trial' | 'starter' | 'pro' | 'business'
 	status:               text('status').notNull().default('trialing'),
 	trialEndsAt:          timestamp('trial_ends_at', { withTimezone: true }),
 	currentPeriodEnd:     timestamp('current_period_end', { withTimezone: true }),
