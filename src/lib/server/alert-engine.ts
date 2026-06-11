@@ -6,7 +6,7 @@
  */
 import { db } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
-import { and, desc, eq, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { EnrichedLineItem } from './unit-bridge';
 
 const LOW_STOCK_DAYS = 3;
@@ -32,33 +32,38 @@ export async function runPriceShock(
 		.limit(1);
 	const PRICE_SHOCK_THRESHOLD = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
 
+	const descriptions = [...new Set(lineItems.map(i => (i.description ?? '').trim()).filter(Boolean))];
+	if (descriptions.length === 0) return [];
+
+	// Batch: one DISTINCT ON query for the latest unit price per description
+	const priceRows = await db.execute<{ description: string; unitPrice: number }>(sql`
+		SELECT DISTINCT ON (ili.description)
+			ili.description,
+			ili.unit_price AS "unitPrice"
+		FROM invoice_line_items ili
+		INNER JOIN invoices i ON ili.invoice_id = i.id
+		INNER JOIN suppliers s ON i.supplier_id = s.id
+		WHERE i.restaurant_id = ${restaurantId}
+			AND ili.description = ANY(${descriptions})
+			AND s.name = ${supplierName}
+			AND ili.invoice_id != ${invoiceId}
+			AND ili.unit_price IS NOT NULL
+			AND i.deleted_at IS NULL
+		ORDER BY ili.description, i.invoice_date DESC, i.id DESC
+	`);
+
+	const priceMap = new Map<string, number>();
+	for (const row of priceRows) {
+		priceMap.set(row.description, row.unitPrice);
+	}
+
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();
 		const newPrice = item.unitPrice;
 		if (!description || newPrice == null) continue;
 
-		const rows = await db
-			.select({ unitPrice: invoiceLineItems.unitPrice })
-			.from(invoiceLineItems)
-			.innerJoin(invoices, eq(invoiceLineItems.invoiceId, invoices.id))
-			.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
-			.where(
-				and(
-					eq(invoices.restaurantId, restaurantId),
-					eq(invoiceLineItems.description, description),
-					eq(suppliers.name, supplierName),
-					ne(invoiceLineItems.invoiceId, invoiceId),
-					isNotNull(invoiceLineItems.unitPrice),
-					isNull(invoices.deletedAt)
-				)
-			)
-			.orderBy(desc(invoices.invoiceDate), desc(invoices.id))
-			.limit(1);
-
-		if (!rows[0]) continue;
-
-		const oldPrice = rows[0].unitPrice!;
-		if (oldPrice === 0) continue;
+		const oldPrice = priceMap.get(description);
+		if (oldPrice == null || oldPrice === 0) continue;
 
 		const deviation = (newPrice - oldPrice) / oldPrice;
 		if (Math.abs(deviation) < PRICE_SHOCK_THRESHOLD) continue;
@@ -79,24 +84,30 @@ export async function runPriceShock(
 export async function runStockForecast(lineItems: EnrichedLineItem[], restaurantId: string): Promise<Alert[]> {
 	const alerts: Alert[] = [];
 
+	const descriptions = [...new Set(lineItems.map(i => (i.description ?? '').trim()).filter(Boolean))];
+	if (descriptions.length === 0) return [];
+
+	// Batch: one IN query for all stock levels
+	const stockRows = await db
+		.select({
+			ingredient: stockLevels.ingredient,
+			currentStock: stockLevels.currentStock,
+			dailyBurnRate: stockLevels.dailyBurnRate,
+			canonicalUnit: stockLevels.canonicalUnit,
+		})
+		.from(stockLevels)
+		.where(and(
+			eq(stockLevels.restaurantId, restaurantId),
+			inArray(stockLevels.ingredient, descriptions),
+		));
+
+	const stockMap = new Map(stockRows.map(r => [r.ingredient, r]));
+
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();
 		if (!description) continue;
 
-		const rows = await db
-			.select({
-				currentStock: stockLevels.currentStock,
-				dailyBurnRate: stockLevels.dailyBurnRate,
-				canonicalUnit: stockLevels.canonicalUnit,
-			})
-			.from(stockLevels)
-			.where(and(
-				eq(stockLevels.restaurantId, restaurantId),
-				eq(stockLevels.ingredient, description),
-			))
-			.limit(1);
-
-		const row = rows[0];
+		const row = stockMap.get(description);
 		if (row?.currentStock == null || row.dailyBurnRate == null || row.dailyBurnRate === 0) continue;
 
 		const addedQty = item.convertedQuantity ?? item.quantity ?? 0;

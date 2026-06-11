@@ -4,7 +4,7 @@
  */
 import { db } from './db';
 import { unitConversions } from './schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 export interface LineItem {
 	description: string;
@@ -60,6 +60,45 @@ export async function resolveUnit(
 	return null;
 }
 
+export async function loadConversionMap(
+	supplierName: string,
+	descriptions: string[],
+	restaurantId: string,
+): Promise<Map<string, { canonicalUnit: string; conversionFactor: number }>> {
+	const normalizedSupplier = supplierName.trim().toLowerCase();
+	if (descriptions.length === 0) return new Map();
+
+	const rows = await db
+		.select()
+		.from(unitConversions)
+		.where(
+			and(
+				eq(unitConversions.restaurantId, restaurantId),
+				eq(unitConversions.supplierName, normalizedSupplier),
+				inArray(unitConversions.ingredient, descriptions),
+			)
+		);
+
+	const map = new Map<string, { canonicalUnit: string; conversionFactor: number }>();
+	for (const row of rows) {
+		map.set(`${row.ingredient}::${row.purchaseUnit}`, { canonicalUnit: row.canonicalUnit, conversionFactor: row.conversionFactor });
+	}
+	return map;
+}
+
+export function resolveUnitFromMap(
+	conversionMap: Map<string, { canonicalUnit: string; conversionFactor: number }>,
+	description: string,
+	unit: string,
+): { canonicalUnit: string; conversionFactor: number } | null {
+	const rule = conversionMap.get(`${description}::${unit}`);
+	if (rule) return rule;
+	if (CANONICAL_UNITS.has(unit.trim())) {
+		return { canonicalUnit: unit.trim(), conversionFactor: 1 };
+	}
+	return null;
+}
+
 export async function annotateLineItems(
 	supplierName: string,
 	items: LineItem[],
@@ -67,7 +106,10 @@ export async function annotateLineItems(
 ): Promise<{ enriched: EnrichedLineItem[]; conversionNotes: string[] }> {
 	const conversionNotes: string[] = [];
 
-	const enriched: EnrichedLineItem[] = await Promise.all(items.map(async (item) => {
+	const descriptions = [...new Set(items.map(i => (i.description ?? '').trim()).filter(Boolean))];
+	const conversionMap = await loadConversionMap(supplierName, descriptions, restaurantId);
+
+	const enriched: EnrichedLineItem[] = items.map((item) => {
 		const unit = (item.unit ?? '').trim();
 		const description = (item.description ?? '').trim();
 
@@ -75,7 +117,7 @@ export async function annotateLineItems(
 			return { ...item, canonicalUnit: null, requiresUnitConversion: false };
 		}
 
-		const rule = await resolveUnit(supplierName, description, unit, restaurantId);
+		const rule = resolveUnitFromMap(conversionMap, description, unit);
 
 		if (rule && rule.conversionFactor > 0) {
 			const factor = rule.conversionFactor;
@@ -92,7 +134,7 @@ export async function annotateLineItems(
 			`Unit '${unit}' is unknown for '${description}' (supplier: ${supplierName}). Awaiting conversion rule.`
 		);
 		return { ...item, canonicalUnit: null, requiresUnitConversion: true };
-	}));
+	});
 
 	return { enriched, conversionNotes };
 }
