@@ -72,7 +72,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 	}
 
 	// Persist user message
-	await db.insert(chatMessages).values({ sessionId: resolvedSessionId, role: 'user', text: message });
+	await db.insert(chatMessages).values({ restaurantId: rid, sessionId: resolvedSessionId, role: 'user', text: message });
 
 	const context = await buildChatContext(rid);
 	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
@@ -103,6 +103,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 
 		// Persist assistant message
 		await db.insert(chatMessages).values({
+			restaurantId: rid,
 			sessionId: resolvedSessionId,
 			role: 'assistant',
 			text: reply,
