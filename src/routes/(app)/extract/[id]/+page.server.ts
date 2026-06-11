@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { readSession, deleteSession } from '$lib/server/sessions';
+import { trackEvent } from '$lib/server/events';
 import { computeInvoiceContentHash } from '$lib/server/dedup';
 import { getStorage } from '$lib/server/storage';
 import { db } from '$lib/server/db';
@@ -363,6 +364,7 @@ export const actions: Actions = {
 		});
 
 		if (isDuplicate) {
+			trackEvent('duplicate_detected', rid, { supplier: supplierName, amount: totalAmount });
 			const remaining = session?.remaining ?? [];
 			await deleteSession(params.id);
 			if (remaining.length > 0) redirect(303, `/extract/${remaining[0]}`);
@@ -374,6 +376,8 @@ export const actions: Actions = {
 		const stockAlerts = await runStockForecast(savedItems, rid);
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
+
+		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
 		// Log field corrections (original AI values vs user-submitted values)
 		await logExtractionCorrections(
@@ -409,9 +413,11 @@ export const actions: Actions = {
 		redirect(303, `/save-confirmation/${invoiceId}`);
 	},
 
-	discard: async ({ params }) => {
+	discard: async ({ params, locals }) => {
 		const session = await readSession(params.id);
 		if (session) {
+			const rid = locals.restaurantId;
+			if (rid) trackEvent('extraction_discarded', rid, { files: session.files });
 			const storage = getStorage();
 			const fileKeys = session.fileKeys ?? session.files;
 			for (const key of fileKeys) {
