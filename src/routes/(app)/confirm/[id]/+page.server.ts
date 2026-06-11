@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
 import { readSession, writeSession, deleteSession, uploadsDir, resolveUploadPath, saveUploadedFiles } from '$lib/server/sessions';
+import { enqueueExtraction } from '$lib/server/queue';
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -132,7 +133,12 @@ export const actions: Actions = {
 		redirect(303, '/');
 	},
 
-	extract: async ({ params }) => {
+	extract: async ({ params, locals }) => {
+		const session = await readSession(params.id);
+		if (!session) redirect(303, '/?error=Session+not+found');
+		const rid = locals.restaurantId!;
+		await writeSession({ ...session, extractionStatus: 'queued' });
+		await enqueueExtraction(params.id, rid);
 		redirect(303, `/extract/${params.id}`);
 	},
 };
