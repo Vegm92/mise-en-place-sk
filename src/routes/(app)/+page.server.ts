@@ -37,10 +37,14 @@ export const actions: Actions = {
 			return fail(400, { error: `File${oversized.length > 1 ? 's' : ''} exceed the 20 MB limit: ${names}` });
 		}
 
+		// Generate the first session ID before saving so it can be used as the storage namespace.
+		const firstId = randomBytes(16).toString('hex');
+
 		let saved: string[];
+		let keys: string[];
 		let errors: string[];
 		try {
-			({ saved, errors } = await saveUploadedFiles(files));
+			({ saved, keys, errors } = await saveUploadedFiles(files, firstId));
 		} catch (err) {
 			return fail(500, { error: `File save failed: ${err instanceof Error ? err.message : String(err)}` });
 		}
@@ -50,10 +54,8 @@ export const actions: Actions = {
 			return fail(400, { error: msg });
 		}
 
-		const firstId = randomBytes(16).toString('hex');
-
 		if (saved.length === 1) {
-			await writeSession({ id: firstId, files: saved });
+			await writeSession({ id: firstId, files: saved, fileKeys: keys });
 		} else {
 			// Multi-file batch: one session per invoice, chained via `remaining`
 			const total = saved.length;
@@ -62,6 +64,7 @@ export const actions: Actions = {
 				await writeSession({
 					id: ids[i],
 					files: [saved[i]],
+					fileKeys: [keys[i]],
 					invoiceIndex: i + 1,
 					totalInvoices: total,
 					remaining: ids.slice(i + 1),

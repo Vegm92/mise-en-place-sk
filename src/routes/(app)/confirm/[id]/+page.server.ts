@@ -2,9 +2,10 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
-import { readSession, writeSession, deleteSession, uploadsDir, resolveUploadPath, saveUploadedFiles } from '$lib/server/sessions';
+import { readSession, writeSession, deleteSession, localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/sessions';
 import { enqueueExtraction } from '$lib/server/queue';
 import { computeFileHash } from '$lib/server/dedup';
+import { STORAGE_DRIVER } from '$lib/server/env';
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -22,30 +23,35 @@ export const load: PageServerLoad = async ({ params }) => {
 		const session = await readSession(params.id);
 		if (!session) redirect(303, '/?error=Session+not+found');
 
-		const dir = uploadsDir();
-
-		function mapFiles(names: string[], queued: boolean) {
-			return names.map((name) => {
-				const fp = path.join(dir, name);
+		function mapFiles(names: string[], fileKeys: string[], queued: boolean) {
+			return names.map((name, i) => {
+				const key = fileKeys[i] ?? name;
 				let size = '—';
-				let type = 'FILE';
-				if (fs.existsSync(fp)) {
-					const stat = fs.statSync(fp);
-					size = humanSize(stat.size);
-					type = fileType(path.extname(name));
+				const type = fileType(path.extname(name));
+				if (STORAGE_DRIVER === 'local') {
+					try {
+						const fp = localFilePath(key);
+						if (fs.existsSync(fp)) {
+							size = humanSize(fs.statSync(fp).size);
+						}
+					} catch {
+						// ignore stat errors — size stays '—'
+					}
 				}
 				return { name, size, type, queued };
 			});
 		}
 
-		const files = mapFiles(session.files, false);
+		const sessionKeys = session.fileKeys ?? session.files;
+		const files = mapFiles(session.files, sessionKeys, false);
 
 		// Include files from remaining sessions so the queue shows the full batch
 		let cur = session;
 		while (cur.remaining?.length) {
 			const next = await readSession(cur.remaining[0]);
 			if (!next) break;
-			files.push(...mapFiles(next.files, true));
+			const nextKeys = next.fileKeys ?? next.files;
+			files.push(...mapFiles(next.files, nextKeys, true));
 			cur = next;
 		}
 
@@ -77,9 +83,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'No valid files received.' });
 		}
 
-		const { saved } = await saveUploadedFiles(files);
+		const { saved, keys } = await saveUploadedFiles(files, params.id);
 		if (saved.length > 0) {
-			await writeSession({ ...session, files: [...session.files, ...saved] });
+			await writeSession({
+				...session,
+				files: [...session.files, ...saved],
+				fileKeys: [...(session.fileKeys ?? session.files), ...keys],
+			});
 		}
 
 		redirect(303, `/confirm/${params.id}`);
@@ -93,20 +103,21 @@ export const actions: Actions = {
 		const filename = formData.get('filename') as string;
 		if (!filename) redirect(303, `/confirm/${params.id}`);
 
-		try {
-			const fp = resolveUploadPath(filename);
-			if (fs.existsSync(fp)) fs.unlinkSync(fp);
-		} catch {
-			// path invalid — skip deletion
+		const idx = session.files.indexOf(filename);
+		if (idx !== -1) {
+			const key = session.fileKeys?.[idx] ?? filename;
+			await deleteUploadFile(key);
 		}
 
-		const remaining = session.files.filter((f) => f !== filename);
-		if (remaining.length === 0) {
+		const remainingFiles = session.files.filter((f) => f !== filename);
+		const remainingKeys = (session.fileKeys ?? session.files).filter((_, i) => session.files[i] !== filename);
+
+		if (remainingFiles.length === 0) {
 			await deleteSession(params.id);
 			redirect(303, '/');
 		}
 
-		await writeSession({ ...session, files: remaining });
+		await writeSession({ ...session, files: remainingFiles, fileKeys: remainingKeys });
 		redirect(303, `/confirm/${params.id}`);
 	},
 
@@ -121,13 +132,9 @@ export const actions: Actions = {
 		for (const id of toDelete) {
 			const s = await readSession(id);
 			if (!s) continue;
-			for (const name of s.files) {
-				try {
-					const fp = resolveUploadPath(name);
-					if (fs.existsSync(fp)) fs.unlinkSync(fp);
-				} catch {
-					// path invalid — skip
-				}
+			const fileKeys = s.fileKeys ?? s.files;
+			for (const key of fileKeys) {
+				await deleteUploadFile(key);
 			}
 			await deleteSession(id);
 		}
@@ -143,8 +150,14 @@ export const actions: Actions = {
 		// already being processed, pg-boss singletonKey silently drops the job.
 		// We detect that and mark the session as failed so the extract page can
 		// show the 'already extracting' error instead of polling forever.
-		const firstFilePath = path.join(uploadsDir(), session.files[0]);
-		const fileHash = fs.existsSync(firstFilePath) ? computeFileHash(firstFilePath) : undefined;
+		// File hashing for in-flight dedup only works with local storage.
+		// With Supabase storage the file isn't on disk, so we skip it (dedup falls back to no singletonKey).
+		let fileHash: string | undefined;
+		if (STORAGE_DRIVER === 'local') {
+			const key = session.fileKeys?.[0] ?? session.files[0];
+			const firstFilePath = localFilePath(key);
+			if (fs.existsSync(firstFilePath)) fileHash = computeFileHash(firstFilePath);
+		}
 
 		await writeSession({ ...session, extractionStatus: 'queued' });
 		const enqueued = await enqueueExtraction(params.id, rid, fileHash);
