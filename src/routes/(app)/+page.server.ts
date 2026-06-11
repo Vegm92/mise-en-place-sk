@@ -1,7 +1,9 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { randomBytes } from 'crypto';
+import path from 'node:path';
 import { writeSession, saveUploadedFiles } from '$lib/server/sessions';
+import { trackEvent } from '$lib/server/events';
 
 export const load: PageServerLoad = async ({ url }) => {
 	return {
@@ -13,7 +15,7 @@ export const load: PageServerLoad = async ({ url }) => {
 };
 
 export const actions: Actions = {
-	upload: async ({ request }) => {
+	upload: async ({ request, locals }) => {
 		let formData: FormData;
 		try {
 			formData = await request.formData();
@@ -70,6 +72,12 @@ export const actions: Actions = {
 					remaining: ids.slice(i + 1),
 				});
 			}
+		}
+
+		const rid = locals.restaurantId;
+		if (rid) {
+			const exts = [...new Set(saved.map(f => path.extname(f).toLowerCase()))];
+			trackEvent('file_uploaded', rid, { count: saved.length, exts });
 		}
 
 		redirect(303, `/confirm/${firstId}`);
