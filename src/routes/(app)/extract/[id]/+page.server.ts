@@ -1,18 +1,15 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import fs from 'fs';
-import path from 'path';
-import { MAX_CONCURRENT_EXTRACTIONS } from '$lib/server/env';
-import { extractInvoice } from '$lib/server/extract';
-import { readSession, writeSession, deleteSession, uploadsDir } from '$lib/server/sessions';
-import { tryAcquireExtraction, releaseExtraction } from '$lib/server/rate-limiter';
+import { readSession, deleteSession, uploadsDir } from '$lib/server/sessions';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems, extractionCorrections, settings } from '$lib/server/schema';
 import { eq, and } from 'drizzle-orm';
-import { annotateLineItems, resolveUnit } from '$lib/server/unit-bridge';
+import { resolveUnit } from '$lib/server/unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
 import type { EnrichedLineItem } from '$lib/server/unit-bridge';
+import fs from 'fs';
+import path from 'path';
 
 function toFloat(value: unknown): number | null {
 	if (!value) return null;
@@ -26,84 +23,39 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 	return 'low';
 }
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params }) => {
 	const session = await readSession(params.id);
-	if (!session || !session.files.length) {
-		redirect(303, '/');
-	}
+	if (!session || !session.files.length) redirect(303, '/');
 
-	const dir = uploadsDir();
-	const existingPaths = session.files.filter((f) => fs.existsSync(path.join(dir, f)));
+	const status = session.extractionStatus ?? 'queued';
 
-	if (existingPaths.length === 0) {
-		redirect(303, '/?error=Files+not+found');
-	}
-
-	let extractedData: Record<string, unknown> = {};
-	let extractError: string | null = null;
-
-	if (session.extractedData && Object.keys(session.extractedData).length > 0) {
-		extractedData = session.extractedData;
-	} else {
-		const acquired = tryAcquireExtraction(MAX_CONCURRENT_EXTRACTIONS);
-		if (!acquired) {
-			extractError = 'extract.err.tooMany';
-		} else {
-			try {
-				const firstFile = path.join(dir, existingPaths[0]);
-				const result = await extractInvoice(firstFile);
-				extractedData = result as unknown as Record<string, unknown>;
-				await writeSession({ ...session, extractedData });
-			} catch (err) {
-				const status = (err as { status?: number }).status;
-				const message = (err as { message?: string }).message ?? '';
-				extractError =
-					status === 429
-						? 'extract.err.rateLimited'
-						: status === 503
-							? 'extract.err.unavailable'
-							: (err as { code?: string }).code === 'GEMINI_TIMEOUT'
-								? 'extract.err.timeout'
-								: message.includes('invalid JSON')
-									? 'extract.err.notInvoice'
-									: 'extract.err.generic';
-				console.error('[extract] Extraction failed for', existingPaths[0], err);
-			} finally {
-				releaseExtraction();
-			}
-		}
-	}
-
-	// Run unit bridge on extracted line items
-	const supplierName = (extractedData.supplier_name as string) ?? '';
-	const rawItems = (extractedData.line_items as unknown[]) ?? [];
-
-	const lineItems = rawItems.map((i) => {
-		const item = i as Record<string, unknown>;
+	// Not yet done — return minimal data so the svelte page can render a loading state.
+	if (status === 'queued' || status === 'extracting') {
 		return {
-			description: (item.description as string) ?? '',
-			quantity: (item.quantity as number | null) ?? null,
-			unit: (item.unit as string | null) ?? null,
-			unitPrice: (item.unit_price as number | null) ?? null,
-			totalPrice: (item.total_price as number | null) ?? null,
-			itemConfidence: typeof item.confidence === 'number' ? item.confidence : undefined,
+			title: 'Extrayendo factura…',
+			id: params.id,
+			filenames: session.files,
+			extractionStatus: status,
+			invoiceIndex: session.invoiceIndex ?? 1,
+			totalInvoices: session.totalInvoices ?? 1,
 		};
-	});
+	}
 
-	const rid = locals.restaurantId ?? '';
-	const { enriched, conversionNotes } = await annotateLineItems(supplierName, lineItems, rid);
+	if (status === 'failed') {
+		return {
+			title: 'Error de extracción',
+			id: params.id,
+			filenames: session.files,
+			extractionStatus: 'failed' as const,
+			error: session.extractError ?? 'extract.err.generic',
+			invoiceIndex: session.invoiceIndex ?? 1,
+			totalInvoices: session.totalInvoices ?? 1,
+		};
+	}
 
-	extractedData.line_items = enriched.map((item) => ({
-		description: item.description,
-		quantity: item.quantity,
-		unit: item.unit,
-		unit_price: item.unitPrice,
-		total_price: item.totalPrice,
-		canonical_unit: item.canonicalUnit,
-		requires_unit_conversion: item.requiresUnitConversion,
-		confidence: (item as Record<string, unknown>).itemConfidence,
-	}));
-
+	// status === 'done'
+	const extractedData = session.extractedData ?? {};
+	const conversionNotes = session.conversionNotes ?? [];
 	const confidence = typeof extractedData.confidence === 'number' ? extractedData.confidence : 0;
 	const fieldConfidences = (extractedData.field_confidences as Record<string, number> | undefined) ?? {};
 
@@ -111,10 +63,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		title: 'Review Extraction',
 		id: params.id,
 		filenames: session.files,
+		extractionStatus: 'done' as const,
 		data: extractedData,
 		confidenceLevel: confidenceLevel(confidence),
 		fieldConfidences,
-		error: extractError,
+		error: null,
 		invoiceIndex: session.invoiceIndex ?? 1,
 		totalInvoices: session.totalInvoices ?? 1,
 		conversionNotes,

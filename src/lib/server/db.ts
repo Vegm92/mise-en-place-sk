@@ -4,10 +4,9 @@
  */
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { env } from '$env/dynamic/private';
 import * as schema from './schema';
 
-const connectionString = env.DATABASE_URL;
+const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('DATABASE_URL is required');
 
 const client = postgres(connectionString, { prepare: false, ssl: 'require' });

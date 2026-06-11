@@ -33,6 +33,9 @@ export interface Session {
 	id: string;
 	files: string[];
 	extractedData?: Record<string, unknown>;
+	conversionNotes?: string[];
+	extractionStatus?: 'queued' | 'extracting' | 'done' | 'failed';
+	extractError?: string;
 	invoiceIndex?: number;
 	totalInvoices?: number;
 	remaining?: string[];
