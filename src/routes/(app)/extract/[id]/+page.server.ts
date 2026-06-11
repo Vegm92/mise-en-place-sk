@@ -1,7 +1,8 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { readSession, deleteSession, uploadsDir } from '$lib/server/sessions';
+import { readSession, deleteSession } from '$lib/server/sessions';
 import { computeInvoiceContentHash } from '$lib/server/dedup';
+import { getStorage } from '$lib/server/storage';
 import { db } from '$lib/server/db';
 import { suppliers, invoices, invoiceLineItems, extractionCorrections, settings } from '$lib/server/schema';
 import { eq, and, isNull } from 'drizzle-orm';
@@ -9,8 +10,6 @@ import { resolveUnit } from '$lib/server/unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from '$lib/server/alert-engine';
 import { saveAlerts } from '$lib/server/notifications';
 import type { EnrichedLineItem } from '$lib/server/unit-bridge';
-import fs from 'fs';
-import path from 'path';
 
 function toFloat(value: unknown): number | null {
 	if (!value) return null;
@@ -226,7 +225,7 @@ export const actions: Actions = {
 		const taxBase = toFloat(extractedData?.tax_base);
 		const taxBreakdownRaw = extractedData?.tax_breakdown;
 		const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
-		const primaryFile = session?.files[0] ?? null;
+		const primaryFile = (session?.fileKeys?.[0] ?? session?.files[0]) ?? null;
 
 		// Pre-compute unit resolutions outside the transaction (read-only DB calls)
 		type LineInput = {
@@ -413,10 +412,10 @@ export const actions: Actions = {
 	discard: async ({ params }) => {
 		const session = await readSession(params.id);
 		if (session) {
-			const dir = uploadsDir();
-			for (const name of session.files) {
-				const fp = path.resolve(dir, name);
-				if (fp.startsWith(dir) && fs.existsSync(fp)) fs.unlinkSync(fp);
+			const storage = getStorage();
+			const fileKeys = session.fileKeys ?? session.files;
+			for (const key of fileKeys) {
+				await storage.delete(key);
 			}
 			await deleteSession(params.id);
 		}
