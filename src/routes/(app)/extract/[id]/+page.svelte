@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack, onMount } from 'svelte';
+  import { invalidateAll } from '$app/navigation';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
   import { confColor } from '$lib/status';
@@ -60,13 +61,34 @@
   );
 
   onMount(() => {
-    if (firstUncertainField) {
+    // Focus first uncertain field when review form is visible
+    if (data.extractionStatus === 'done' && firstUncertainField) {
       const input = document.querySelector<HTMLElement>(`input[name="${firstUncertainField}"]`);
       if (input) {
         input.scrollIntoView({ block: 'center', behavior: 'smooth' });
         input.focus();
       }
     }
+
+    // Poll for extraction completion when job is in flight
+    let timer: ReturnType<typeof setInterval> | null = null;
+    if (data.extractionStatus === 'queued' || data.extractionStatus === 'extracting') {
+      timer = setInterval(async () => {
+        try {
+          const resp = await fetch(`/api/extraction-status/${data.id}`);
+          if (!resp.ok) return;
+          const body = await resp.json() as { status: string };
+          if (body.status === 'done' || body.status === 'failed') {
+            if (timer) clearInterval(timer);
+            await invalidateAll();
+          }
+        } catch {
+          // network error — keep polling
+        }
+      }, 3000);
+    }
+
+    return () => { if (timer) clearInterval(timer); };
   });
 
   const confidence = $derived(
@@ -114,14 +136,27 @@
 
 <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
 
-  {#if data.error}
+  {#if data.extractionStatus === 'queued' || data.extractionStatus === 'extracting'}
+    <div style="padding:48px 32px;display:flex;flex-direction:column;align-items:center;gap:20px;max-width:480px;margin:0 auto;text-align:center;">
+      <div style="width:48px;height:48px;border:3px solid var(--mep-acc);border-top-color:transparent;border-radius:50%;animation:spin 0.9s linear infinite;"></div>
+      <div>
+        <div style="font-size:16px;font-weight:600;color:var(--mep-fg);margin-bottom:6px;">Extrayendo factura…</div>
+        <div style="font-size:13px;color:var(--mep-fg-3);line-height:1.5;">La IA está procesando tu documento. Esto suele tardar entre 15 y 45 segundos.</div>
+      </div>
+      <form method="POST" action="?/discard">
+        <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">{$t('extract.discard')}</button>
+      </form>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+  {:else if data.error}
     <div style="padding:32px;display:flex;flex-direction:column;gap:12px;max-width:560px;">
       <div class="card p-4" style="background:var(--mep-neg-soft);border-color:var(--mep-neg);">
         <strong class="body-strong" style="color:var(--mep-neg);display:block;margin-bottom:6px;">{$t('extract.error')}</strong>
         <p style="font-size:13px;color:var(--mep-neg);">{$t(data.error ?? '')}</p>
       </div>
       <div style="display:flex;gap:8px;">
-        <a href="/extract/{data.id}" class="btn btn-primary" style="height:34px;text-decoration:none;font-size:13px;">
+        <a href="/confirm/{data.id}" class="btn btn-primary" style="height:34px;text-decoration:none;font-size:13px;">
           {$t('extract.retry')}
         </a>
         <form method="POST" action="?/discard">
@@ -129,6 +164,7 @@
         </form>
       </div>
     </div>
+
   {:else}
 
   <div style="flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:14px;min-height:0;overflow:hidden;">
