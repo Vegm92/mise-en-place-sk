@@ -2,6 +2,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
+import { trackEvent } from '$lib/server/events';
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 
@@ -116,15 +117,19 @@ export const actions: Actions = {
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
+		const rid = locals.restaurantId!;
 		await db.update(invoices).set({ status: 'paid' })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, locals.restaurantId!)));
+			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+		trackEvent('invoice_status_changed', rid, { to: 'paid' }, id);
 		redirect(303, '/invoices');
 	},
 	markUnpaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
+		const rid = locals.restaurantId!;
 		await db.update(invoices).set({ status: 'pending' })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, locals.restaurantId!)));
+			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+		trackEvent('invoice_status_changed', rid, { to: 'pending' }, id);
 		redirect(303, '/invoices');
 	},
 	deleteInvoice: async ({ request, locals }) => {
@@ -146,6 +151,7 @@ export const actions: Actions = {
 			userId:       uid,
 			snapshot:     JSON.stringify(inv),
 		});
+		trackEvent('invoice_status_changed', rid, { to: 'deleted' }, id);
 		redirect(303, '/invoices');
 	},
 	bulkPaid: async ({ request, locals }) => {
