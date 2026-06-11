@@ -1,6 +1,6 @@
 /** Drizzle schema — PostgreSQL (Supabase). Single source of truth. */
 import {
-	boolean, integer, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
+	boolean, integer, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -179,6 +179,26 @@ export const chatMessages = pgTable('chat_messages', {
 	text:      text('text').notNull(),
 	actions:   text('actions'),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── LLM cost tracking ──────────────────────────────────────────────────────────
+
+export const llmUsageLog = pgTable('llm_usage_log', {
+	id:               serial('id').primaryKey(),
+	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	model:            text('model').notNull(),
+	inputTokens:      integer('input_tokens').notNull().default(0),
+	outputTokens:     integer('output_tokens').notNull().default(0),
+	estimatedCostUsd: numeric('estimated_cost_usd', { precision: 12, scale: 8 }).notNull().default('0'),
+	callerContext:    text('caller_context'),
+	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const tenantLlmQuotas = pgTable('tenant_llm_quotas', {
+	restaurantId:        uuid('restaurant_id').notNull().primaryKey().references(() => restaurants.id, { onDelete: 'cascade' }),
+	monthlyExtractions:  integer('monthly_extractions'),
+	monthlyCostLimitUsd: numeric('monthly_cost_limit_usd', { precision: 10, scale: 4 }),
+	updatedAt:           timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
 export const waitlist = pgTable('waitlist', {
