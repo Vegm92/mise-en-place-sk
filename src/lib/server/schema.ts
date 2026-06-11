@@ -1,6 +1,6 @@
 /** Drizzle schema — PostgreSQL (Supabase). Single source of truth. */
 import {
-	boolean, integer, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
+	boolean, index, integer, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -58,6 +58,12 @@ export const invoices = pgTable('invoices', {
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
 		.where(sql`${t.invoiceNumber} IS NOT NULL`),
+	index('idx_invoices_deleted_at')
+		.on(t.restaurantId)
+		.where(sql`${t.deletedAt} IS NULL`),
+	index('invoices_content_hash_idx')
+		.on(t.restaurantId, t.contentHash)
+		.where(sql`${t.contentHash} IS NOT NULL`),
 ]);
 
 export const invoiceAuditLog = pgTable('invoice_audit_log', {
@@ -69,7 +75,10 @@ export const invoiceAuditLog = pgTable('invoice_audit_log', {
 	reason:       text('reason'),
 	snapshot:     text('snapshot'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('idx_invoice_audit_restaurant').on(t.restaurantId),
+	index('idx_invoice_audit_invoice').on(t.invoiceId),
+]);
 
 export const invoiceLineItems = pgTable('invoice_line_items', {
 	id:                     serial('id').primaryKey(),
@@ -173,13 +182,17 @@ export const chatSessions = pgTable('chat_sessions', {
 });
 
 export const chatMessages = pgTable('chat_messages', {
-	id:        serial('id').primaryKey(),
-	sessionId: integer('session_id').references(() => chatSessions.id, { onDelete: 'cascade' }),
-	role:      text('role').notNull(),
-	text:      text('text').notNull(),
-	actions:   text('actions'),
-	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	sessionId:    integer('session_id').references(() => chatSessions.id, { onDelete: 'cascade' }),
+	role:         text('role').notNull(),
+	text:         text('text').notNull(),
+	actions:      text('actions'),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	index('idx_chat_messages_restaurant').on(t.restaurantId),
+	index('idx_chat_messages_session').on(t.sessionId),
+]);
 
 // ── LLM cost tracking ──────────────────────────────────────────────────────────
 
@@ -192,7 +205,9 @@ export const llmUsageLog = pgTable('llm_usage_log', {
 	estimatedCostUsd: numeric('estimated_cost_usd', { precision: 12, scale: 8 }).notNull().default('0'),
 	callerContext:    text('caller_context'),
 	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('llm_usage_log_restaurant_month').on(t.restaurantId, t.createdAt),
+]);
 
 export const tenantLlmQuotas = pgTable('tenant_llm_quotas', {
 	restaurantId:        uuid('restaurant_id').notNull().primaryKey().references(() => restaurants.id, { onDelete: 'cascade' }),
@@ -212,7 +227,9 @@ export const uploadSessions = pgTable('upload_sessions', {
 	data:      text('data').notNull(),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('upload_sessions_updated_at_idx').on(t.updatedAt),
+]);
 
 export const subscriptions = pgTable('subscriptions', {
 	id:                   serial('id').primaryKey(),
