@@ -162,36 +162,6 @@ export const extractionCorrections = pgTable('extraction_corrections', {
 	correctedAt:    timestamp('corrected_at', { withTimezone: true }).defaultNow(),
 });
 
-export const pendingProcessedInvoices = pgTable('pending_processed_invoices', {
-	id:                   serial('id').primaryKey(),
-	restaurantId:         uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
-	sessionId:            text('session_id'),
-	originalFilePath:     text('original_file_path'),
-	rawLlmJson:           text('raw_llm_json'),
-	status:               text('status').default('PENDING_REVIEW'),
-	confidenceScore:      real('confidence_score'),
-	supplierId:           integer('supplier_id').references(() => suppliers.id),
-	inferredSupplierName: text('inferred_supplier_name'),
-	invoiceNumber:        text('invoice_number'),
-	invoiceDate:          text('invoice_date'),
-	totalAmount:          real('total_amount'),
-	isDuplicate:          integer('is_duplicate').default(0),
-	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
-	committedAt:          text('committed_at'),
-});
-
-export const pendingLineItems = pgTable('pending_line_items', {
-	id:                  serial('id').primaryKey(),
-	pendingInvoiceId:    integer('pending_invoice_id').references(() => pendingProcessedInvoices.id, { onDelete: 'cascade' }),
-	rawDescription:      text('raw_description'),
-	matchedIngredientId: integer('matched_ingredient_id'),
-	suggestedName:       text('suggested_name'),
-	quantity:            real('quantity'),
-	unit:                text('unit'),
-	unitPrice:           real('unit_price'),
-	fuzzyScore:          real('fuzzy_score'),
-	priceWarning:        integer('price_warning').default(0),
-});
 
 export const chatSessions = pgTable('chat_sessions', {
 	id:           serial('id').primaryKey(),

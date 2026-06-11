@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { invoices, suppliers, systemNotifications, restaurants, pendingProcessedInvoices } from '$lib/server/schema';
+import { invoices, suppliers, systemNotifications, restaurants, uploadSessions } from '$lib/server/schema';
 import { sql, count } from 'drizzle-orm';
 
 export const load: PageServerLoad = async () => {
@@ -40,10 +40,10 @@ export const load: PageServerLoad = async () => {
 			// Total restaurants
 			db.select({ cnt: count() }).from(restaurants),
 
-			// Pending (not yet committed/rejected) extractions
+			// Sessions currently being extracted by the worker
 			db.select({ cnt: sql<number>`COUNT(*)` })
-				.from(pendingProcessedInvoices)
-				.where(sql`${pendingProcessedInvoices.status} NOT IN ('COMMITTED','REJECTED')`),
+				.from(uploadSessions)
+				.where(sql`${uploadSessions.data}::jsonb->>'extractionStatus' IN ('queued','extracting')`),
 
 			// Most recently created restaurants
 			db.execute(sql`
