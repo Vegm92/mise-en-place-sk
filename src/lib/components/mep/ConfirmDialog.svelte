@@ -2,7 +2,7 @@
   import { t } from '$lib/i18n';
   import { AlertTriangle } from 'lucide-svelte';
 
-  const {
+  let {
     open = $bindable(false),
     message = '',
     danger = false,
