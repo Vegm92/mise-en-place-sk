@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, onMount, tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { invalidateAll } from '$app/navigation';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
@@ -31,11 +31,18 @@
     confidence?: number | null;
   };
 
-  let lineItems = $state<LineItem[]>(untrack(() => {
+  // Synced from server data via $effect (not initialized once): the page can
+  // mount in 'queued' state with no data, and only receive line items after
+  // polling flips the status to 'done' and invalidateAll() replaces `data` —
+  // a $state initializer would never re-run and the table would stay empty.
+  let lineItems = $state<LineItem[]>([]);
+  let lineItemsSource: unknown = null;
+  $effect(() => {
     const raw = data.data?.line_items;
-    const items = Array.isArray(raw) ? (raw as LineItem[]) : [];
-    return items.length > 0 ? items : [];
-  }));
+    if (raw === lineItemsSource) return; // keep user edits across unrelated reruns
+    lineItemsSource = raw;
+    lineItems = Array.isArray(raw) ? [...(raw as LineItem[])] : [];
+  });
 
   function addRow() {
     lineItems = [...lineItems, { description: '', quantity: '', unit: '', unit_price: '', total_price: '' }];
@@ -60,16 +67,24 @@
     HEADER_FIELDS.find(f => fieldConf[f] != null && fieldConf[f] < 0.85) ?? null
   );
 
-  onMount(() => {
-    // Focus first uncertain field when review form is visible
-    if (data.extractionStatus === 'done' && firstUncertainField) {
-      const input = document.querySelector<HTMLElement>(`input[name="${firstUncertainField}"]`);
+  // Focus the first uncertain field once the review form is visible — runs as
+  // an effect (not onMount) because the form may appear only after polling
+  // flips the status to 'done'.
+  let didFocusUncertain = false;
+  $effect(() => {
+    if (data.extractionStatus !== 'done' || !firstUncertainField || didFocusUncertain) return;
+    didFocusUncertain = true;
+    const fieldName = firstUncertainField;
+    tick().then(() => {
+      const input = document.querySelector<HTMLElement>(`input[name="${fieldName}"]`);
       if (input) {
         input.scrollIntoView({ block: 'center', behavior: 'smooth' });
         input.focus();
       }
-    }
+    });
+  });
 
+  onMount(() => {
     // Poll for extraction completion when job is in flight
     let timer: ReturnType<typeof setInterval> | null = null;
     if (data.extractionStatus === 'queued' || data.extractionStatus === 'extracting') {

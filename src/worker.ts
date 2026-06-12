@@ -38,11 +38,15 @@ await boss.start();
 await boss.createQueue(EXTRACTION_QUEUE);
 console.info('[worker] pg-boss started');
 
+// batchSize 1 — extractions run strictly one-by-one. Parallel extraction
+// multiplies Gemini rate-limit pressure and contradicts the sequential design.
 await boss.work<ExtractionJobData>(
 	EXTRACTION_QUEUE,
-	{ batchSize: 3 },
+	{ batchSize: 1 },
 	async (jobs) => {
-		await Promise.all(jobs.map((job) => processExtractionJob(job.data)));
+		for (const job of jobs) {
+			await processExtractionJob(job.data);
+		}
 	},
 );
 console.info(`[worker] Listening for "${EXTRACTION_QUEUE}" jobs`);

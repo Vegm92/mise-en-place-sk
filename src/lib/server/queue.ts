@@ -31,19 +31,19 @@ async function getBoss(): Promise<PgBoss> {
 	return startPromise;
 }
 
-// Returns true if the job was enqueued, false if a job for the same file
-// is already active (pg-boss singletonKey dedup).
+// Returns true if the job was enqueued, false if a job for the same session
+// is already pending/active (pg-boss singletonKey dedup). A deduped send is
+// expected on duplicate submits and must never be treated as a failure.
 export async function enqueueExtraction(
 	sessionId: string,
 	restaurantId: string,
-	fileHash?: string,
 ): Promise<boolean> {
 	const b = await getBoss();
 	const jobId = await b.send(EXTRACTION_QUEUE, { sessionId, restaurantId }, {
 		retryLimit: 2,
 		retryDelay: 30,
 		expireInSeconds: 600,
-		...(fileHash ? { singletonKey: fileHash } : {}),
+		singletonKey: sessionId,
 	});
 	return jobId !== null;
 }
