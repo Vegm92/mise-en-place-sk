@@ -54,32 +54,43 @@ jobs:
   extraction-quality:
     name: Extraction accuracy gate (totals ≥ 80%)
     runs-on: ubuntu-latest
-    # Only run when a Gemini key is available — skipped on forks / PRs without secrets
-    if: ${{ secrets.GEMINI_API_KEY != '' }}
+    # The `secrets` context is NOT available in job-level `if` — referencing it
+    # there invalidates the entire workflow file (every run fails in 0s with
+    # "workflow file issue"). Gate each step on a job-level env flag instead,
+    # so the job is skipped on forks / PRs without the Gemini secret.
+    env:
+      HAS_GEMINI: ${{ secrets.GEMINI_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
+        if: env.HAS_GEMINI == 'true'
 
       - uses: pnpm/action-setup@v4
+        if: env.HAS_GEMINI == 'true'
         with:
           version: 10
 
       - uses: actions/setup-node@v4
+        if: env.HAS_GEMINI == 'true'
         with:
           node-version: 22
           cache: pnpm
 
       - name: Install Node dependencies
+        if: env.HAS_GEMINI == 'true'
         run: pnpm install --frozen-lockfile
 
       - uses: actions/setup-python@v5
+        if: env.HAS_GEMINI == 'true'
         with:
           python-version: '3.12'
           cache: pip
 
       - name: Install synth dependencies
+        if: env.HAS_GEMINI == 'true'
         run: pip install -e "synth[dev]"
 
       - name: Generate synthetic test fixtures (10 docs, seed 99)
+        if: env.HAS_GEMINI == 'true'
         run: |
           cd synth
           python -m synth generate \
@@ -92,6 +103,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Run extraction benchmark (gate totals ≥ 80%)
+        if: env.HAS_GEMINI == 'true'
         run: |
           cd synth
           python -m synth bench ./output/ci_run \
@@ -102,7 +114,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Upload benchmark report
-        if: always()
+        if: always() && env.HAS_GEMINI == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: extraction-quality-report
