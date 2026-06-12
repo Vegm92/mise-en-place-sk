@@ -1,19 +1,18 @@
 /**
  * Worker entry point — run alongside the web process.
  *
- * Dev:  npx vite-node src/worker.ts
- * Prod: node build/worker.js  (built via `npm run build:worker`)
+ * Dev:  pnpm worker  (vite-node with vite.worker.config.ts)
+ * Prod: node build/worker.js  (built via pnpm build:worker)
  *
  * Requires all the same env vars as the web process (DATABASE_URL, GEMINI_API_KEY, etc.).
- * Load them via .env or your deployment platform before starting.
+ * In dev, dotenv/config loads .env automatically (first import below).
+ * In prod, the deployment platform injects env vars.
  */
 
-// In dev, vite-node loads .env; in prod, the deployment platform sets env vars.
-// Use dotenv only when not already set (e.g. local dev without vite-node).
-if (!process.env.DATABASE_URL) {
-	const { config } = await import('dotenv');
-	config();
-}
+// Must be the first import — populates process.env from .env before any
+// other module (db.ts etc.) is evaluated. ESM evaluates imports depth-first
+// in source order, so this runs before queue.ts / sessions.ts / db.ts.
+import 'dotenv/config';
 
 import { PgBoss } from 'pg-boss';
 import { EXTRACTION_QUEUE } from './lib/server/queue.js';
