@@ -62,7 +62,7 @@ Multi-tenancy: every business table carries `restaurant_id`; access is enforced 
 2. `cp .env.example .env` and fill every value (see [DEPLOYMENT.md](DEPLOYMENT.md) for the reference).
 3. `pnpm install`
 4. `pnpm db:migrate` (applies `drizzle/` migrations, including RLS policies)
-5. `pnpm dev` — first boot seeds the admin user from `AUTH_ADMIN_EMAIL` / `AUTH_ADMIN_PASSWORD`.
+5. `pnpm dev:all` — runs the web server **and** the extraction worker (both are required; `pnpm dev` alone leaves invoice extractions stuck in `queued`). First boot seeds the admin user from `AUTH_ADMIN_EMAIL` / `AUTH_ADMIN_PASSWORD`.
 6. Optional: `pnpm db:seed-demo` for demo data.
 
 ### Useful scripts
