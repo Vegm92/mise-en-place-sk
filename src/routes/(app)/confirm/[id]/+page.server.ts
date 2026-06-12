@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { readSession, writeSession, deleteSession, localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/sessions';
 import { enqueueExtraction } from '$lib/server/queue';
-import { computeFileHash } from '$lib/server/dedup';
+import { enqueueBatchExtraction } from '$lib/server/extract-batch';
 import { STORAGE_DRIVER } from '$lib/server/env';
 
 function humanSize(bytes: number): string {
@@ -146,24 +146,14 @@ export const actions: Actions = {
 		if (!session) redirect(303, '/?error=Session+not+found');
 		const rid = locals.restaurantId!;
 
-		// Compute file hash for in-flight dedup: if the exact same bytes are
-		// already being processed, pg-boss singletonKey silently drops the job.
-		// We detect that and mark the session as failed so the extract page can
-		// show the 'already extracting' error instead of polling forever.
-		// File hashing for in-flight dedup only works with local storage.
-		// With Supabase storage the file isn't on disk, so we skip it (dedup falls back to no singletonKey).
-		let fileHash: string | undefined;
-		if (STORAGE_DRIVER === 'local') {
-			const key = session.fileKeys?.[0] ?? session.files[0];
-			const firstFilePath = localFilePath(key);
-			if (fs.existsSync(firstFilePath)) fileHash = computeFileHash(firstFilePath);
-		}
-
-		await writeSession({ ...session, extractionStatus: 'queued' });
-		const enqueued = await enqueueExtraction(params.id, rid, fileHash);
-		if (!enqueued) {
-			await writeSession({ ...session, extractionStatus: 'failed', extractError: 'extract.err.alreadyExtracting' });
-		}
+		// Enqueue the whole batch (this session + every chained `remaining`
+		// session) in one go. Idempotent: duplicate submits are no-ops, and
+		// sessions the worker already owns (extracting/done) are not touched.
+		await enqueueBatchExtraction(params.id, rid, {
+			readSession,
+			writeSession,
+			enqueue: enqueueExtraction,
+		});
 		redirect(303, `/extract/${params.id}`);
 	},
 };
