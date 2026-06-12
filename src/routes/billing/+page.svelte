@@ -9,15 +9,30 @@
 	);
 	const periodEnd = $derived(data.currentPeriodEnd ? new Date(data.currentPeriodEnd) : null);
 	const fmt = (d: Date) => d.toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric' });
+
+	const upgradeMessages: Record<string, string> = {
+		digest: 'The weekly AI digest is a paid feature. Subscribe to unlock it.',
+		prices: 'Price shock & supplier score alerts are a paid feature. Subscribe to unlock them.',
+	};
+	const upgradeMessage = $derived(data.upgradeFor ? upgradeMessages[data.upgradeFor] ?? null : null);
 </script>
 
 <svelte:head>
 	<title>Billing · Mise en Place</title>
 </svelte:head>
 
-<div style="max-width:560px;margin:40px auto;padding:0 24px;">
-	<h1 style="font-size:20px;font-weight:600;margin-bottom:4px;">Billing</h1>
+<div class="mep" data-accent="amber" data-density="default"
+	style="min-height:100vh;background:var(--mep-bg);">
+<div style="max-width:560px;margin:0 auto;padding:40px 24px 64px;">
+	<h1 style="font-size:20px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">Billing</h1>
 	<p style="font-size:14px;color:var(--mep-fg-3);margin-bottom:28px;">{data.restaurantName}</p>
+
+	{#if upgradeMessage}
+		<div style="background:var(--mep-acc-soft);border:1px solid var(--mep-acc);color:var(--mep-acc);
+		            border-radius:var(--mep-r-input);padding:12px 16px;font-size:14px;margin-bottom:24px;">
+			{upgradeMessage}
+		</div>
+	{/if}
 
 	{#if data.checkoutSuccess}
 		<div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);color:var(--mep-pos);
@@ -93,4 +108,5 @@
 			</button>
 		</form>
 	{/if}
+</div>
 </div>
