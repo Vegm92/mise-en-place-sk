@@ -1,0 +1,16 @@
+# Production topology: one image, two services.
+# Works as-is on a VPS; on Railway/Render/Fly, create two services from the
+# same repo instead (web: `node build`, worker: `node build/worker.js`).
+services:
+  web:
+    build: .
+    env_file: .env
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: node build/worker.js
+    env_file: .env
+    restart: unless-stopped
