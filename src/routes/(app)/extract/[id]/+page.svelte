@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack, onMount } from 'svelte';
+  import { untrack, onMount, tick } from 'svelte';
   import { invalidateAll } from '$app/navigation';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
@@ -545,10 +545,10 @@
           type="button"
           class="btn btn-primary"
           style="height:36px;font-size:13px;"
-          onclick={() => {
+          onclick={async () => {
             lowConfAck = true;
             showLowConfModal = false;
-            // Re-submit the form with the acknowledgment flag set
+            await tick();
             (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
           }}
         >
