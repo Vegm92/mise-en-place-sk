@@ -35,6 +35,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		stripeConfigured,
 		restaurantName: restaurant?.name ?? '',
 		checkoutSuccess: url.searchParams.get('checkout') === 'success',
+		upgradeFor: url.searchParams.get('upgrade'),
 		currentTier,
 		tiers: Object.entries(TIERS)
 			.filter(([t]) => t !== 'trial')
