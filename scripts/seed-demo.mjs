@@ -13,6 +13,7 @@ import { createClient } from '@supabase/supabase-js';
 import { makeFactura } from '../synth/js/generators/factura.mjs';
 import { SeededRng } from '../synth/js/rng.mjs';
 import { randomSupplier } from '../synth/js/data/suppliers.mjs';
+import { DEFAULT_BUDGETS } from '../synth/js/data/budget-defaults.mjs';
 
 // ── Config ─────────────────────────────────────────────────────────────────
 const DEMO_EMAIL    = 'demo@mise-en-place.app';
@@ -227,25 +228,14 @@ async function seedInvoices(restaurantId, supplierPool, idMap) {
 
 // ── Step 5: Category budgets ───────────────────────────────────────────────
 async function seedBudgets(restaurantId) {
-  const budgets = [
-    ['Carnes y Derivados',       3200],
-    ['Pescados y Mariscos',      2400],
-    ['Frutas y Verduras',        1600],
-    ['Lácteos',                   900],
-    ['Bebidas',                   750],
-    ['Panadería y Bollería',      500],
-    ['Aceites y Conservas',       400],
-    ['Embutidos y Charcutería',   600],
-    ['Productos de Limpieza',     300],
-  ];
-  for (const [category, monthly_budget] of budgets) {
+  for (const [category, monthly_budget] of DEFAULT_BUDGETS) {
     await sql`
       INSERT INTO category_budgets (restaurant_id, category, monthly_budget)
       VALUES (${restaurantId}, ${category}, ${monthly_budget})
       ON CONFLICT (restaurant_id, category) DO UPDATE SET monthly_budget = EXCLUDED.monthly_budget
     `;
   }
-  console.log(`  ↳ ${budgets.length} category budgets upserted`);
+  console.log(`  ↳ ${DEFAULT_BUDGETS.length} category budgets upserted`);
 }
 
 // ── Step 6: Sample notifications ──────────────────────────────────────────
