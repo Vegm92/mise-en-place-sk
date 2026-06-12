@@ -13,6 +13,7 @@ const EXPECTED_TABLES = [
 	'user_restaurants',
 	'suppliers',
 	'invoices',
+	'invoice_audit_log',
 	'invoice_line_items',
 	'supplier_metrics',
 	'settings',
@@ -21,11 +22,13 @@ const EXPECTED_TABLES = [
 	'system_notifications',
 	'stock_levels',
 	'extraction_corrections',
-	'pending_processed_invoices',
-	'pending_line_items',
 	'chat_sessions',
 	'chat_messages',
+	'llm_usage_log',
+	'tenant_llm_quotas',
 	'waitlist',
+	'upload_sessions',
+	'subscriptions',
 ];
 
 async function getColumns(table: string) {
