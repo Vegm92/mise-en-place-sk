@@ -34,6 +34,9 @@ const boss = new PgBoss({
 boss.on('error', (err) => console.error('[worker] pg-boss error:', err));
 
 await boss.start();
+// pg-boss v10+ no longer auto-creates queues; work() requires the queue
+// to exist first. createQueue is idempotent.
+await boss.createQueue(EXTRACTION_QUEUE);
 console.info('[worker] pg-boss started');
 
 await boss.work<ExtractionJobData>(

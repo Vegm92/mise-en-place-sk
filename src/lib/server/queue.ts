@@ -21,6 +21,9 @@ async function getBoss(): Promise<PgBoss> {
 				max: 2,
 			});
 			await b.start();
+			// pg-boss v10+ no longer auto-creates queues; send() requires the
+			// queue to exist first. createQueue is idempotent.
+			await b.createQueue(EXTRACTION_QUEUE);
 			boss = b;
 			return b;
 		})();
