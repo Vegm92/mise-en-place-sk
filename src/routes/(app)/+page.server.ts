@@ -60,11 +60,11 @@ export const actions: Actions = {
 
 		const rid = locals.restaurantId!;
 		// One batch, one item per invoice — no chained sessions.
-		const { itemIds } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
+		const { batchId } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
 
 		const exts = [...new Set(saved.map(f => path.extname(f).toLowerCase()))];
 		trackEvent('file_uploaded', rid, { count: saved.length, exts });
 
-		redirect(303, `/confirm/${itemIds[0]}`);
+		redirect(303, `/batch/${batchId}`);
 	},
 };
