@@ -52,6 +52,16 @@ function asItem(row: Record<string, unknown>): BatchItem {
 	return row as unknown as BatchItem;
 }
 
+/**
+ * The item a review UI should surface: the first reviewable (`done`) open
+ * item, else the first failed one. Returns null while everything open is
+ * still pending or in flight.
+ */
+export function pickActiveItem(items: BatchItem[]): BatchItem | null {
+	const open = items.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
+	return open.find(i => i.status === 'done') ?? open.find(i => i.status === 'failed') ?? null;
+}
+
 export function createBatchStore(db: BatchDb) {
 	async function createBatch(
 		restaurantId: string,
