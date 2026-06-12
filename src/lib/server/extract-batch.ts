@@ -1,63 +1,41 @@
 /**
- * Batch extraction enqueueing — walks the upload-session chain and enqueues
- * one job per invoice, idempotently.
+ * Batch extraction enqueueing — marks every open item of a batch queued and
+ * sends one pg-boss job each, idempotently.
  *
- * Deps are injected (no module-level sessions/queue import) so this logic is
- * testable without a DB or pg-boss, mirroring the repo's pure-logic test style.
+ * Deps are injected (no module-level db/pg-boss import) so this logic is
+ * testable without infrastructure, mirroring the repo's pure-logic test style.
  */
-import type { Session } from './sessions';
+import type { BatchItem } from './batch-core';
 
-export interface BatchDeps {
-	readSession(id: string): Promise<Session | null>;
-	writeSession(session: Session): Promise<void>;
-	enqueue(sessionId: string, restaurantId: string): Promise<boolean>;
-}
-
-/** Hard cap on chain length — guards against a corrupted/cyclic `remaining` chain. */
-const MAX_CHAIN = 50;
-
-/** Collects the session id chain starting at `startId` (cycle-safe). */
-export async function collectBatchIds(
-	startId: string,
-	readSession: BatchDeps['readSession'],
-): Promise<string[]> {
-	const ids: string[] = [];
-	const seen = new Set<string>();
-	let cur: string | undefined = startId;
-	while (cur && !seen.has(cur) && ids.length < MAX_CHAIN) {
-		seen.add(cur);
-		const session = await readSession(cur);
-		if (!session) break;
-		ids.push(cur);
-		cur = session.remaining?.[0];
-	}
-	return ids;
+export interface BatchEnqueueDeps {
+	getItem(itemId: string): Promise<BatchItem | null>;
+	getBatchItems(batchId: string): Promise<BatchItem[]>;
+	/** Guarded pending/failed → queued; false when the item was not in those states. */
+	markQueued(itemId: string): Promise<boolean>;
+	enqueue(itemId: string, restaurantId: string): Promise<boolean>;
 }
 
 /**
- * Marks every session in the batch as queued and sends one pg-boss job each.
- *
- * Idempotent: sessions already `extracting` or `done` are left untouched
- * (the worker owns those transitions), `queued` sessions are re-sent but the
- * pg-boss singletonKey dedups, and a deduped send is never treated as a
- * failure. `failed` sessions are re-queued, which makes retry-after-error work.
+ * Idempotent: items the worker already owns (extracting) or that are settled
+ * (done/confirmed/discarded) are left untouched. `queued` items are re-sent —
+ * the pg-boss singletonKey dedups — and a deduped send is never an error.
+ * `failed` items re-queue, which is the retry path.
  */
 export async function enqueueBatchExtraction(
-	startId: string,
+	itemId: string,
 	restaurantId: string,
-	deps: BatchDeps,
+	deps: BatchEnqueueDeps,
 ): Promise<void> {
-	const ids = await collectBatchIds(startId, deps.readSession);
-	for (const id of ids) {
-		const session = await deps.readSession(id);
-		if (!session) continue;
+	const item = await deps.getItem(itemId);
+	if (!item) return;
 
-		const status = session.extractionStatus;
-		if (status === 'done' || status === 'extracting') continue;
-
-		if (status !== 'queued') {
-			await deps.writeSession({ ...session, extractionStatus: 'queued', extractError: undefined });
+	const items = await deps.getBatchItems(item.batchId);
+	for (const it of items) {
+		if (it.status === 'pending' || it.status === 'failed') {
+			await deps.markQueued(it.id);
+			await deps.enqueue(it.id, restaurantId);
+		} else if (it.status === 'queued') {
+			await deps.enqueue(it.id, restaurantId);
 		}
-		await deps.enqueue(id, restaurantId);
 	}
 }

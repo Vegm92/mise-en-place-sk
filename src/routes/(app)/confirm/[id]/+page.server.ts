@@ -2,7 +2,8 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
-import { readSession, writeSession, deleteSession, localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/sessions';
+import { localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/sessions';
+import { getItem, getBatchItems, addItems, removeItem, deleteBatch, markQueued } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
 import { STORAGE_DRIVER } from '$lib/server/env';
@@ -18,62 +19,52 @@ function fileType(ext: string): string {
 	return (e === 'jpeg' ? 'jpg' : e).toUpperCase();
 }
 
+function statSize(fileKey: string): string {
+	if (STORAGE_DRIVER !== 'local') return '—';
+	try {
+		const fp = localFilePath(fileKey);
+		if (fs.existsSync(fp)) return humanSize(fs.statSync(fp).size);
+	} catch {
+		// ignore stat errors — size stays '—'
+	}
+	return '—';
+}
+
 export const load: PageServerLoad = async ({ params }) => {
 	try {
-		const session = await readSession(params.id);
-		if (!session) redirect(303, '/?error=Session+not+found');
+		const item = await getItem(params.id);
+		if (!item) redirect(303, '/?error=Session+not+found');
 
-		function mapFiles(names: string[], fileKeys: string[], queued: boolean) {
-			return names.map((name, i) => {
-				const key = fileKeys[i] ?? name;
-				let size = '—';
-				const type = fileType(path.extname(name));
-				if (STORAGE_DRIVER === 'local') {
-					try {
-						const fp = localFilePath(key);
-						if (fs.existsSync(fp)) {
-							size = humanSize(fs.statSync(fp).size);
-						}
-					} catch {
-						// ignore stat errors — size stays '—'
-					}
-				}
-				return { name, size, type, queued };
-			});
-		}
+		const items = await getBatchItems(item.batchId);
+		const open = items.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
 
-		const sessionKeys = session.fileKeys ?? session.files;
-		const files = mapFiles(session.files, sessionKeys, false);
+		const files = open.map(i => ({
+			name: i.displayName,
+			size: statSize(i.fileKey),
+			type: fileType(path.extname(i.displayName)),
+			queued: i.id !== item.id,
+		}));
 
-		// Include files from remaining sessions so the queue shows the full batch
-		let cur = session;
-		while (cur.remaining?.length) {
-			const next = await readSession(cur.remaining[0]);
-			if (!next) break;
-			const nextKeys = next.fileKeys ?? next.files;
-			files.push(...mapFiles(next.files, nextKeys, true));
-			cur = next;
-		}
+		const idx = open.findIndex(i => i.id === item.id);
 
 		return {
 			title: 'Review Files',
 			id: params.id,
 			files,
-			invoiceIndex:  session.invoiceIndex  ?? 1,
-			totalInvoices: session.totalInvoices ?? 1,
-			remaining:     session.remaining     ?? [],
+			invoiceIndex:  idx === -1 ? 1 : idx + 1,
+			totalInvoices: open.length,
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
 		console.error('[confirm] load failed', e);
-		error(500, 'Failed to load upload session');
+		error(500, 'Failed to load upload batch');
 	}
 };
 
 export const actions: Actions = {
 	add: async ({ params, request }) => {
-		const session = await readSession(params.id);
-		if (!session) redirect(303, '/?error=Session+not+found');
+		const item = await getItem(params.id);
+		if (!item) redirect(303, '/?error=Session+not+found');
 
 		const formData = await request.formData();
 		const rawFiles = formData.getAll('files');
@@ -83,75 +74,63 @@ export const actions: Actions = {
 			return fail(400, { error: 'No valid files received.' });
 		}
 
-		const { saved, keys } = await saveUploadedFiles(files, params.id);
+		const { saved, keys } = await saveUploadedFiles(files, item.batchId);
 		if (saved.length > 0) {
-			await writeSession({
-				...session,
-				files: [...session.files, ...saved],
-				fileKeys: [...(session.fileKeys ?? session.files), ...keys],
-			});
+			await addItems(item.batchId, item.restaurantId, saved.map((name, i) => ({ key: keys[i], name })));
 		}
 
 		redirect(303, `/confirm/${params.id}`);
 	},
 
 	remove: async ({ params, request }) => {
-		const session = await readSession(params.id);
-		if (!session) redirect(303, '/');
+		const item = await getItem(params.id);
+		if (!item) redirect(303, '/');
 
 		const formData = await request.formData();
 		const filename = formData.get('filename') as string;
 		if (!filename) redirect(303, `/confirm/${params.id}`);
 
-		const idx = session.files.indexOf(filename);
-		if (idx !== -1) {
-			const key = session.fileKeys?.[idx] ?? filename;
-			await deleteUploadFile(key);
+		const items = await getBatchItems(item.batchId);
+		const target = items.find(i => i.displayName === filename && i.status === 'pending');
+		if (target) {
+			const removed = await removeItem(target.id);
+			if (removed) await deleteUploadFile(removed.fileKey);
 		}
 
-		const remainingFiles = session.files.filter((f) => f !== filename);
-		const remainingKeys = (session.fileKeys ?? session.files).filter((_, i) => session.files[i] !== filename);
-
-		if (remainingFiles.length === 0) {
-			await deleteSession(params.id);
+		const left = (await getBatchItems(item.batchId))
+			.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
+		if (left.length === 0) {
+			await deleteBatch(item.batchId);
 			redirect(303, '/');
 		}
-
-		await writeSession({ ...session, files: remainingFiles, fileKeys: remainingKeys });
+		// If the current item itself was removed, continue from the first open item.
+		if (!left.some(i => i.id === params.id)) redirect(303, `/confirm/${left[0].id}`);
 		redirect(303, `/confirm/${params.id}`);
 	},
 
 	discard: async ({ params }) => {
-		// Walk the full chain and delete every session + its files
-		const toDelete: string[] = [params.id];
-		let cur = await readSession(params.id);
-		while (cur?.remaining?.length) {
-			toDelete.push(...cur.remaining);
-			cur = await readSession(cur.remaining[0]);
-		}
-		for (const id of toDelete) {
-			const s = await readSession(id);
-			if (!s) continue;
-			const fileKeys = s.fileKeys ?? s.files;
-			for (const key of fileKeys) {
-				await deleteUploadFile(key);
+		const item = await getItem(params.id);
+		if (item) {
+			const items = await getBatchItems(item.batchId);
+			for (const i of items) {
+				if (i.status !== 'confirmed') await deleteUploadFile(i.fileKey);
 			}
-			await deleteSession(id);
+			await deleteBatch(item.batchId);
 		}
 		redirect(303, '/');
 	},
 
 	extract: async ({ params, locals }) => {
-		const session = await readSession(params.id);
-		if (!session) redirect(303, '/?error=Session+not+found');
+		const item = await getItem(params.id);
+		if (!item) redirect(303, '/?error=Session+not+found');
 		const rid = locals.restaurantId!;
 
-		// Enqueue the whole batch (this session + every chained `remaining`
-		// session) in one go. Idempotent: duplicate submits are no-ops, and
-		// sessions the worker already owns (extracting/done) are not touched.
+		// Enqueue the whole batch in one go. Idempotent: duplicate submits are
+		// no-ops, and items the worker already owns are not touched.
 		await enqueueBatchExtraction(params.id, rid, {
-			readSession,
-			writeSession,
+			getItem,
+			getBatchItems,
+			markQueued,
 			enqueue: enqueueExtraction,
 		});
 		redirect(303, `/extract/${params.id}`);
