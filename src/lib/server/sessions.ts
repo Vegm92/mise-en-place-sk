@@ -1,10 +1,11 @@
-import fs from 'fs';
+/**
+ * Upload file helpers — validation, storage-key generation, and local-path
+ * resolution for uploaded invoice files. Batch/queue state lives in batch.ts;
+ * the legacy JSON-blob session store this module once held is gone.
+ */
 import path from 'path';
 import { randomBytes } from 'crypto';
 import { UPLOADS_DIR } from './env';
-import { db } from './db';
-import { uploadSessions } from './schema';
-import { eq, lt } from 'drizzle-orm';
 import { getStorage } from './storage';
 
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
@@ -15,52 +16,6 @@ export function uploadsDir(): string {
 	return path.resolve(process.cwd(), UPLOADS_DIR);
 }
 
-export interface Session {
-	id: string;
-	files: string[];
-	/** Storage keys parallel to `files`. Added for new uploads; absent on legacy sessions. */
-	fileKeys?: string[];
-	extractedData?: Record<string, unknown>;
-	conversionNotes?: string[];
-	extractionStatus?: 'queued' | 'extracting' | 'done' | 'failed';
-	extractError?: string;
-	invoiceIndex?: number;
-	totalInvoices?: number;
-	remaining?: string[];
-}
-
-export async function readSession(id: string): Promise<Session | null> {
-	try {
-		const rows = await db.select({ data: uploadSessions.data })
-			.from(uploadSessions)
-			.where(eq(uploadSessions.id, id))
-			.limit(1);
-		if (!rows.length) return null;
-		return JSON.parse(rows[0].data) as Session;
-	} catch {
-		return null;
-	}
-}
-
-export async function writeSession(session: Session): Promise<void> {
-	const now = new Date();
-	await db.insert(uploadSessions)
-		.values({ id: session.id, data: JSON.stringify(session), updatedAt: now })
-		.onConflictDoUpdate({
-			target: uploadSessions.id,
-			set: { data: JSON.stringify(session), updatedAt: now },
-		});
-}
-
-export async function deleteSession(id: string): Promise<void> {
-	await db.delete(uploadSessions).where(eq(uploadSessions.id, id));
-}
-
-export async function cleanupStaleSessions(): Promise<void> {
-	const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-	await db.delete(uploadSessions).where(lt(uploadSessions.updatedAt, cutoff));
-}
-
 export async function deleteUploadFile(key: string): Promise<void> {
 	await getStorage().delete(key);
 }
@@ -69,7 +24,7 @@ export async function deleteUploadFile(key: string): Promise<void> {
  * Save uploaded files using the configured storage driver.
  *
  * @param files   Files to save.
- * @param namespace  Prefix for storage keys, typically the session ID.
+ * @param namespace  Prefix for storage keys, typically the batch ID.
  * @returns saved  Original (display) filenames with a uniqueness suffix.
  * @returns keys   Storage keys (`namespace/filename`) parallel to `saved`.
  * @returns errors Validation errors for rejected files.
@@ -111,7 +66,7 @@ export async function saveUploadedFiles(
 
 /**
  * Returns the local filesystem path for a storage key when using the local driver.
- * Used only for file stat display in the confirm page.
+ * Used only for file stat display on the batch page.
  */
 export function localFilePath(key: string): string {
 	return path.join(uploadsDir(), key);
