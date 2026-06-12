@@ -28,6 +28,8 @@ const EXPECTED_TABLES = [
 	'tenant_llm_quotas',
 	'waitlist',
 	'upload_sessions',
+	'upload_batches',
+	'batch_items',
 	'subscriptions',
 ];
 

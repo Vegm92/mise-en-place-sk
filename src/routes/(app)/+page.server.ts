@@ -2,7 +2,8 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { randomBytes } from 'crypto';
 import path from 'node:path';
-import { writeSession, saveUploadedFiles } from '$lib/server/sessions';
+import { saveUploadedFiles } from '$lib/server/sessions';
+import { createBatch } from '$lib/server/batch';
 import { trackEvent } from '$lib/server/events';
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -39,14 +40,15 @@ export const actions: Actions = {
 			return fail(400, { error: `File${oversized.length > 1 ? 's' : ''} exceed the 20 MB limit: ${names}` });
 		}
 
-		// Generate the first session ID before saving so it can be used as the storage namespace.
-		const firstId = randomBytes(16).toString('hex');
+		// Random storage namespace — generated before the batch exists so files
+		// can be saved first; it does not need to match the batch id.
+		const namespace = randomBytes(16).toString('hex');
 
 		let saved: string[];
 		let keys: string[];
 		let errors: string[];
 		try {
-			({ saved, keys, errors } = await saveUploadedFiles(files, firstId));
+			({ saved, keys, errors } = await saveUploadedFiles(files, namespace));
 		} catch (err) {
 			return fail(500, { error: `File save failed: ${err instanceof Error ? err.message : String(err)}` });
 		}
@@ -56,30 +58,13 @@ export const actions: Actions = {
 			return fail(400, { error: msg });
 		}
 
-		if (saved.length === 1) {
-			await writeSession({ id: firstId, files: saved, fileKeys: keys });
-		} else {
-			// Multi-file batch: one session per invoice, chained via `remaining`
-			const total = saved.length;
-			const ids = [firstId, ...saved.slice(1).map(() => randomBytes(16).toString('hex'))];
-			for (let i = 0; i < saved.length; i++) {
-				await writeSession({
-					id: ids[i],
-					files: [saved[i]],
-					fileKeys: [keys[i]],
-					invoiceIndex: i + 1,
-					totalInvoices: total,
-					remaining: ids.slice(i + 1),
-				});
-			}
-		}
+		const rid = locals.restaurantId!;
+		// One batch, one item per invoice — no chained sessions.
+		const { itemIds } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
 
-		const rid = locals.restaurantId;
-		if (rid) {
-			const exts = [...new Set(saved.map(f => path.extname(f).toLowerCase()))];
-			trackEvent('file_uploaded', rid, { count: saved.length, exts });
-		}
+		const exts = [...new Set(saved.map(f => path.extname(f).toLowerCase()))];
+		trackEvent('file_uploaded', rid, { count: saved.length, exts });
 
-		redirect(303, `/confirm/${firstId}`);
+		redirect(303, `/confirm/${itemIds[0]}`);
 	},
 };

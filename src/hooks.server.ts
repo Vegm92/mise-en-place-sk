@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { cleanupStaleSessions } from '$lib/server/sessions';
+import { cleanupStaleBatches } from '$lib/server/batch';
 import { seedAdminUser } from '$lib/server/auth-seed';
 import { db } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
@@ -27,6 +28,7 @@ export const handleError = Sentry.handleErrorWithSentry(({ error }: { error: unk
 });
 
 cleanupStaleSessions().catch(e => console.error('[hooks] session cleanup error:', e));
+cleanupStaleBatches().catch(e => console.error('[hooks] batch cleanup error:', e));
 seedAdminUser().catch(e => console.error('[hooks] seed error:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {

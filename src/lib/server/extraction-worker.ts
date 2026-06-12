@@ -1,11 +1,14 @@
 /**
  * Extraction job handler — runs in the worker process.
- * Reads the upload session, calls Gemini, writes enriched data back.
+ * Claims the batch item via a guarded queued→extracting transition, calls
+ * Gemini, and writes the result with markDone/markFailed. The worker only
+ * ever touches the columns it owns; web-side state can never be lost here.
  */
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
-import { readSession, writeSession, uploadsDir } from './sessions.js';
+import { uploadsDir } from './sessions.js';
+import { getItem, markExtracting, markDone, markFailed } from './batch.js';
 import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
 import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
@@ -13,7 +16,9 @@ import { annotateLineItems } from './unit-bridge.js';
 import { checkExtractionQuota, recordLlmUsage } from './llm-quota.js';
 
 export interface ExtractionJobData {
-	sessionId: string;
+	itemId?: string;
+	/** Legacy payload field — jobs enqueued before the batch_items migration. */
+	sessionId?: string;
 	restaurantId: string;
 }
 
@@ -32,27 +37,36 @@ export async function processExtractionJob(
 	jobData: ExtractionJobData,
 	generateOverride?: GenerateFn,
 ): Promise<void> {
-	const { sessionId, restaurantId } = jobData;
-
-	const session = await readSession(sessionId);
-	if (!session) {
-		console.warn(`[worker] Session ${sessionId} not found — skipping`);
+	const itemId = jobData.itemId ?? jobData.sessionId;
+	const { restaurantId } = jobData;
+	if (!itemId) {
+		console.warn('[worker] Job without itemId — skipping');
 		return;
 	}
 
-	const key = session.fileKeys?.[0] ?? session.files[0];
+	const item = await getItem(itemId);
+	if (!item) {
+		console.warn(`[worker] Batch item ${itemId} not found — skipping`);
+		return;
+	}
 
 	// Check per-tenant quota before doing any work (skip in test path).
 	if (!generateOverride) {
 		const quotaResult = await checkExtractionQuota(restaurantId);
 		if (!quotaResult.allowed) {
 			console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason}`);
-			await writeSession({ ...session, extractionStatus: 'failed', extractError: 'extract.err.quotaExceeded' });
+			await markFailed(itemId, 'extract.err.quotaExceeded');
 			return;
 		}
 	}
 
-	await writeSession({ ...session, extractionStatus: 'extracting' });
+	// Claim the item. A false here means it is no longer queued (discarded by
+	// the user, or already processed) — drop the job without side effects.
+	const claimed = await markExtracting(itemId);
+	if (!claimed) {
+		console.warn(`[worker] Item ${itemId} not in queued state — skipping`);
+		return;
+	}
 
 	// Resolve the file to a local path the extraction engine can read.
 	// For Supabase storage, download to a temp file; for local, compute the path directly.
@@ -60,13 +74,13 @@ export async function processExtractionJob(
 	let cleanupTmp: (() => void) | null = null;
 
 	if (STORAGE_DRIVER === 'supabase') {
-		const buf = await getStorage().read(key);
-		const tmpPath = path.join(os.tmpdir(), `mep_${sessionId}_${path.basename(key)}`);
+		const buf = await getStorage().read(item.fileKey);
+		const tmpPath = path.join(os.tmpdir(), `mep_${itemId}_${path.basename(item.fileKey)}`);
 		fs.writeFileSync(tmpPath, buf);
 		filePath = tmpPath;
 		cleanupTmp = () => { try { fs.unlinkSync(tmpPath); } catch { /* ignore */ } };
 	} else {
-		filePath = path.join(uploadsDir(), key);
+		filePath = path.join(uploadsDir(), item.fileKey);
 	}
 
 	try {
@@ -97,32 +111,25 @@ export async function processExtractionJob(
 
 		const extractedData: Record<string, unknown> = {
 			...result,
-			line_items: enriched.map((item) => ({
-				description: item.description,
-				quantity: item.quantity,
-				unit: item.unit,
-				unit_price: item.unitPrice,
-				total_price: item.totalPrice,
-				canonical_unit: item.canonicalUnit,
-				requires_unit_conversion: item.requiresUnitConversion,
-				confidence: (item as Record<string, unknown>).itemConfidence,
+			line_items: enriched.map((li) => ({
+				description: li.description,
+				quantity: li.quantity,
+				unit: li.unit,
+				unit_price: li.unitPrice,
+				total_price: li.totalPrice,
+				canonical_unit: li.canonicalUnit,
+				requires_unit_conversion: li.requiresUnitConversion,
+				confidence: (li as Record<string, unknown>).itemConfidence,
 			})),
 		};
 
-		await writeSession({
-			...session,
-			extractedData,
-			conversionNotes,
-			extractionStatus: 'done',
-			extractError: undefined,
-		});
-
-		console.info(`[worker] Extraction done for session ${sessionId}`);
+		await markDone(itemId, extractedData, conversionNotes);
+		console.info(`[worker] Extraction done for item ${itemId}`);
 	} catch (err) {
 		const extractError = classifyExtractionError(err);
-		console.error(`[worker] Extraction failed for session ${sessionId}:`, err);
-		await writeSession({ ...session, extractionStatus: 'failed', extractError });
-		// Do not re-throw — we store the error in the session; no pg-boss retry.
+		console.error(`[worker] Extraction failed for item ${itemId}:`, err);
+		await markFailed(itemId, extractError);
+		// Do not re-throw — the error is stored on the item; no pg-boss retry.
 	} finally {
 		cleanupTmp?.();
 	}
