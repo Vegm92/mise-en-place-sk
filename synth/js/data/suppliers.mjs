@@ -1,27 +1,12 @@
 import { fakeCif, fakeNifAutonomo } from './cifs.mjs';
 import { fakeAddress } from './addresses.mjs';
+import { COMMODITIES } from './commodities.mjs';
 
 const ADJECTIVES = [
   'Del Sur', 'Del Norte', 'Catalán', 'Mediterráneo', 'Fresco', 'Natural',
   'Premium', 'Selecto', 'Artesano', 'Ecológico', 'Local', 'Ibérico',
   'Del Maresme', 'Del Penedès', 'De La Ribera', "De L'Empordà",
 ];
-
-const COMMODITIES = {
-  frutas_verduras:     ['Frutas y Verduras',        0.10, false],
-  carnes:              ['Carnes y Derivados',        0.10, false],
-  pescados:            ['Pescados y Mariscos',       0.10, false],
-  lacteos:             ['Lácteos',                  0.10, false],
-  aceites:             ['Aceites y Conservas',       0.10, true],
-  bebidas_alcoholicas: ['Bebidas',                  0.21, true],
-  panaderia:           ['Panadería y Bollería',      0.04, true],
-  especias:            ['Especias y Condimentos',    0.10, false],
-  limpieza:            ['Productos de Limpieza',     0.21, false],
-  congelados:          ['Congelados',               0.10, false],
-  embutidos:           ['Embutidos y Charcutería',  0.10, false],
-  vinos:               ['Vinos y Cavas',            0.21, false],
-  cafe:                ['Café y Bebidas Calientes',  0.21, true],
-};
 
 const LEGAL_FORMS = ['S.L.', 'S.A.', 'S.C.P.', 'S.L.U.', 'Coop.'];
 
@@ -58,7 +43,7 @@ export function randomSupplier(rng) {
 
   return {
     name,
-    category: catKey,
+    category: catName, // display name — must match VALID_CATEGORIES (see constants.ts)
     cif,
     address: fakeAddress(rng),
     phone: fakePhone(rng),

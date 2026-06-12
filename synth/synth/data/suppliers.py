@@ -77,7 +77,7 @@ def random_supplier(rng: random.Random) -> SupplierProfile:
 
     return SupplierProfile(
         name=name,
-        category=cat_key,
+        category=cat_name,  # display name — must match VALID_CATEGORIES (constants.ts)
         cif=cif,
         address=fake_address(rng),
         phone=_fake_phone(rng),
