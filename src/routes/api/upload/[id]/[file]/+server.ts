@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import path from 'path';
-import { readSession } from '$lib/server/sessions';
+import { getItem } from '$lib/server/batch';
 import { getStorage } from '$lib/server/storage';
 import type { RequestHandler } from './$types';
 
@@ -14,14 +14,13 @@ const MIME: Record<string, string> = {
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) throw error(401, 'Unauthorized');
 
-	const session = await readSession(params.id);
-	if (!session) throw error(404, 'Session not found');
+	const item = await getItem(params.id);
+	if (!item || item.restaurantId !== locals.restaurantId) throw error(404, 'Item not found');
 
 	const filename = params.file;
-	const fileIdx = session.files.indexOf(filename);
-	if (fileIdx === -1) throw error(403, 'File not in session');
+	if (filename !== item.displayName) throw error(403, 'File not in batch item');
 
-	const key = session.fileKeys?.[fileIdx] ?? filename;
+	const key = item.fileKey;
 
 	const ext = path.extname(filename).toLowerCase();
 	const contentType = MIME[ext] ?? 'application/octet-stream';

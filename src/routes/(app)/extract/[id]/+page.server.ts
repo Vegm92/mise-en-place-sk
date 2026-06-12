@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { readSession, deleteSession } from '$lib/server/sessions';
+import { getItem, getBatchItems, nextReviewableItem, markConfirmed, markDiscarded, type BatchItem } from '$lib/server/batch';
 import { trackEvent } from '$lib/server/events';
 import { computeInvoiceContentHash } from '$lib/server/dedup';
 import { getStorage } from '$lib/server/storage';
@@ -24,21 +24,38 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 	return 'low';
 }
 
+/** 1-based index of this item among the batch's open items, and the open count. */
+async function batchPosition(item: BatchItem): Promise<{ invoiceIndex: number; totalInvoices: number }> {
+	const open = (await getBatchItems(item.batchId))
+		.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
+	const idx = open.findIndex(i => i.id === item.id);
+	return { invoiceIndex: idx === -1 ? 1 : idx + 1, totalInvoices: Math.max(open.length, 1) };
+}
+
 export const load: PageServerLoad = async ({ params }) => {
-	const session = await readSession(params.id);
-	if (!session || !session.files.length) redirect(303, '/');
+	const item = await getItem(params.id);
+	if (!item) redirect(303, '/');
 
-	const status = session.extractionStatus ?? 'queued';
+	// Already settled (e.g. revisited via back button) — continue with the batch.
+	if (item.status === 'confirmed' || item.status === 'discarded') {
+		const next = await nextReviewableItem(item.batchId, item.position);
+		if (next) redirect(303, `/extract/${next.id}`);
+		redirect(303, '/');
+	}
 
-	// Not yet done — return minimal data so the svelte page can render a loading state.
+	const { invoiceIndex, totalInvoices } = await batchPosition(item);
+	// `pending` renders as queued: the extract action queues the whole batch,
+	// so a pending item here only means the queue write hasn't landed yet.
+	const status = item.status === 'pending' ? 'queued' : item.status;
+
 	if (status === 'queued' || status === 'extracting') {
 		return {
 			title: 'Extrayendo factura…',
 			id: params.id,
-			filenames: session.files,
+			filenames: [item.displayName],
 			extractionStatus: status,
-			invoiceIndex: session.invoiceIndex ?? 1,
-			totalInvoices: session.totalInvoices ?? 1,
+			invoiceIndex,
+			totalInvoices,
 		};
 	}
 
@@ -46,31 +63,31 @@ export const load: PageServerLoad = async ({ params }) => {
 		return {
 			title: 'Error de extracción',
 			id: params.id,
-			filenames: session.files,
+			filenames: [item.displayName],
 			extractionStatus: 'failed' as const,
-			error: session.extractError ?? 'extract.err.generic',
-			invoiceIndex: session.invoiceIndex ?? 1,
-			totalInvoices: session.totalInvoices ?? 1,
+			error: item.extractError ?? 'extract.err.generic',
+			invoiceIndex,
+			totalInvoices,
 		};
 	}
 
 	// status === 'done'
-	const extractedData = session.extractedData ?? {};
-	const conversionNotes = session.conversionNotes ?? [];
+	const extractedData = item.extractedData ?? {};
+	const conversionNotes = item.conversionNotes ?? [];
 	const confidence = typeof extractedData.confidence === 'number' ? extractedData.confidence : 0;
 	const fieldConfidences = (extractedData.field_confidences as Record<string, number> | undefined) ?? {};
 
 	return {
 		title: 'Review Extraction',
 		id: params.id,
-		filenames: session.files,
+		filenames: [item.displayName],
 		extractionStatus: 'done' as const,
 		data: extractedData,
 		confidenceLevel: confidenceLevel(confidence),
 		fieldConfidences,
 		error: null,
-		invoiceIndex: session.invoiceIndex ?? 1,
-		totalInvoices: session.totalInvoices ?? 1,
+		invoiceIndex,
+		totalInvoices,
 		conversionNotes,
 	};
 };
@@ -161,7 +178,7 @@ async function logExtractionCorrections(
 
 export const actions: Actions = {
 	save: async ({ params, request, locals }) => {
-		const session = await readSession(params.id);
+		const item = await getItem(params.id);
 		const formData = await request.formData();
 
 		const supplierName = (formData.get('supplier_name') as string) ?? '';
@@ -176,7 +193,7 @@ export const actions: Actions = {
 		// Gate: block save if any header field is low-confidence and user hasn't acknowledged
 		const lowConfAck = formData.get('low_confidence_ack') === 'true';
 		if (!lowConfAck) {
-			const extractedData = session?.extractedData as Record<string, unknown> | undefined;
+			const extractedData = item?.extractedData ?? undefined;
 			const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
 			const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
 			const hasLowConf = HEADER_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
@@ -222,11 +239,11 @@ export const actions: Actions = {
 			return fail(422, { contentDuplicate: true, duplicateId: hashMatch[0].id });
 		}
 
-		const extractedData = session?.extractedData as Record<string, unknown> | undefined;
+		const extractedData = item?.extractedData ?? undefined;
 		const taxBase = toFloat(extractedData?.tax_base);
 		const taxBreakdownRaw = extractedData?.tax_breakdown;
 		const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
-		const primaryFile = (session?.fileKeys?.[0] ?? session?.files[0]) ?? null;
+		const primaryFile = item?.fileKey ?? null;
 
 		// Pre-compute unit resolutions outside the transaction (read-only DB calls)
 		type LineInput = {
@@ -365,9 +382,11 @@ export const actions: Actions = {
 
 		if (isDuplicate) {
 			trackEvent('duplicate_detected', rid, { supplier: supplierName, amount: totalAmount });
-			const remaining = session?.remaining ?? [];
-			await deleteSession(params.id);
-			if (remaining.length > 0) redirect(303, `/extract/${remaining[0]}`);
+			if (item) {
+				await markDiscarded(item.id);
+				const next = await nextReviewableItem(item.batchId, item.position);
+				if (next) redirect(303, `/extract/${next.id}`);
+			}
 			redirect(303, '/?duplicate_inv=1');
 		}
 
@@ -405,25 +424,25 @@ export const actions: Actions = {
 				});
 		}
 
-		const remaining = session?.remaining ?? [];
-		await deleteSession(params.id);
+		if (item) {
+			await markConfirmed(item.id);
+			const next = await nextReviewableItem(item.batchId, item.position);
+			if (next) redirect(303, `/extract/${next.id}`);
+		}
 
-		if (remaining.length > 0) redirect(303, `/extract/${remaining[0]}`);
 		if (isFirstInvoice) redirect(303, '/dashboard?first_invoice=1');
 		redirect(303, `/save-confirmation/${invoiceId}`);
 	},
 
 	discard: async ({ params, locals }) => {
-		const session = await readSession(params.id);
-		if (session) {
+		const item = await getItem(params.id);
+		if (item) {
 			const rid = locals.restaurantId;
-			if (rid) trackEvent('extraction_discarded', rid, { files: session.files });
-			const storage = getStorage();
-			const fileKeys = session.fileKeys ?? session.files;
-			for (const key of fileKeys) {
-				await storage.delete(key);
-			}
-			await deleteSession(params.id);
+			if (rid) trackEvent('extraction_discarded', rid, { files: [item.displayName] });
+			await getStorage().delete(item.fileKey);
+			await markDiscarded(item.id);
+			const next = await nextReviewableItem(item.batchId, item.position);
+			if (next) redirect(303, `/extract/${next.id}`);
 		}
 		redirect(303, '/');
 	},

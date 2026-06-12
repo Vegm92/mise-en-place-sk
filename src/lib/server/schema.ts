@@ -1,6 +1,6 @@
 /** Drizzle schema — PostgreSQL (Supabase). Single source of truth. */
 import {
-	boolean, index, integer, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
+	boolean, index, integer, jsonb, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -229,6 +229,39 @@ export const uploadSessions = pgTable('upload_sessions', {
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('upload_sessions_updated_at_idx').on(t.updatedAt),
+]);
+
+// ── Batch invoice uploads ──────────────────────────────────────────────────
+// Replaces the upload_sessions JSON-blob chain. One batch per upload, one
+// item per invoice. Status/error/extracted_data are separate columns so the
+// web and worker processes update only the fields they own — lost updates
+// from whole-blob read-modify-write are structurally impossible.
+
+export const uploadBatches = pgTable('upload_batches', {
+	id:           uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const batchItems = pgTable('batch_items', {
+	id:              uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	batchId:         uuid('batch_id').notNull().references(() => uploadBatches.id, { onDelete: 'cascade' }),
+	restaurantId:    uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	position:        integer('position').notNull(),
+	fileKey:         text('file_key').notNull(),
+	displayName:     text('display_name').notNull(),
+	// pending | queued | extracting | done | failed | confirmed | discarded
+	// Web owns: creation, pending→queued, done→confirmed/discarded.
+	// Worker owns: queued→extracting→done|failed and extracted_data.
+	status:          text('status').notNull().default('pending'),
+	extractedData:   jsonb('extracted_data'),
+	conversionNotes: jsonb('conversion_notes'),
+	extractError:    text('extract_error'),
+	createdAt:       timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt:       timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	index('batch_items_batch_id_idx').on(t.batchId),
+	index('batch_items_updated_at_idx').on(t.updatedAt),
 ]);
 
 export const subscriptions = pgTable('subscriptions', {
