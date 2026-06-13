@@ -7,10 +7,22 @@ const config = {
 		runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
 	},
 	kit: {
-		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
-		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
-		// See https://svelte.dev/docs/kit/adapters for more information about adapters.
-		adapter: adapter()
+		adapter: adapter(),
+		csp: {
+			mode: 'hash',
+			directives: {
+				'default-src':  ['self'],
+				'script-src':   ['self'],
+				'style-src':    ['self', 'unsafe-inline'],
+				'font-src':     ['self'],
+				'img-src':      ['self', 'data:'],
+				'connect-src':  ['self', 'https://*.sentry.io'],
+				'frame-src':    ['none'],
+				'object-src':   ['none'],
+				'base-uri':     ['self'],
+				'form-action':  ['self'],
+			},
+		},
 	}
 };
 
