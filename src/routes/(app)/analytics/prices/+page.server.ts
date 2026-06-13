@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
+import { suppliers } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
@@ -29,52 +29,24 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const supplierIdParam = url.searchParams.get('supplier_id');
 	const supplierId = supplierIdParam ? Number(supplierIdParam) : null;
 
-	const supplierFilter = supplierId ? sql`AND s.id = ${supplierId}` : sql``;
+	const supplierFilter = supplierId ? sql`AND supplier_id = ${supplierId}` : sql``;
 
+	// Read from mv_price_snapshots (pre-computed latest+prev price per item+supplier).
+	// Replaces the self-joining window CTE that scanned all invoice_line_items.
 	const rawRows = await db.execute(sql`
-		WITH history AS (
-			SELECT
-				ili.description,
-				s.id            AS supplier_id,
-				s.name          AS supplier_name,
-				i.invoice_date,
-				ili.unit_price,
-				ili.unit,
-				ROW_NUMBER() OVER (
-					PARTITION BY ili.description, s.id
-					ORDER BY i.invoice_date DESC
-				) AS rn
-			FROM ${invoiceLineItems} ili
-			JOIN ${invoices} i ON i.id = ili.invoice_id
-			JOIN ${suppliers} s ON s.id = i.supplier_id
-			WHERE ili.unit_price IS NOT NULL
-			  AND ili.description IS NOT NULL
-			  AND ili.description != ''
-			  AND i.restaurant_id = ${rid}
-			  ${supplierFilter}
-		)
-		SELECT * FROM (
-			SELECT
-				l.description,
-				l.supplier_name,
-				l.supplier_id,
-				l.unit,
-				l.invoice_date  AS latest_date,
-				l.unit_price    AS latest_price,
-				p.unit_price    AS prev_price,
-				p.invoice_date  AS prev_date,
-				CASE
-					WHEN p.unit_price IS NOT NULL AND p.unit_price > 0
-					THEN ROUND(((l.unit_price - p.unit_price) / p.unit_price * 100.0)::numeric, 1)
-					ELSE NULL
-				END AS change_pct
-			FROM history l
-			LEFT JOIN history p
-			       ON p.description = l.description
-			      AND p.supplier_id  = l.supplier_id
-			      AND p.rn = 2
-			WHERE l.rn = 1
-		) sub
+		SELECT
+			description,
+			supplier_name,
+			supplier_id,
+			unit,
+			latest_date,
+			latest_price,
+			prev_price,
+			prev_date,
+			change_pct
+		FROM mv_price_snapshots
+		WHERE restaurant_id = ${rid}
+		  ${supplierFilter}
 		ORDER BY ABS(COALESCE(change_pct, 0)) DESC
 	`);
 	const rows = rawRows as unknown as PriceRow[];

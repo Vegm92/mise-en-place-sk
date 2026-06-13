@@ -35,42 +35,35 @@ interface TrendRow extends Record<string, unknown> {
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	try {
+		// kpisRows, supplierRows, trendRows read from mv_extraction_stats (pre-aggregated).
+		// fieldRows still queries extraction_corrections directly (no rollup needed — it's a small table).
 		const [kpisRows, fieldRows, supplierRows, trendRows] = await Promise.all([
 			db.execute<KpisRow>(sql`
-				WITH invoice_corrections AS (
-					SELECT
-						i.id AS invoice_id,
-						COUNT(ec.id) AS correction_count
-					FROM invoices i
-					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = ${rid}
-					WHERE i.restaurant_id = ${rid}
-					GROUP BY i.id
-				),
-				supplier_stats AS (
-					SELECT
-						s.name AS supplier_name,
-						COUNT(DISTINCT ic.invoice_id) AS total_invoices,
-						SUM(CASE WHEN ic.correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed
-					FROM invoice_corrections ic
-					JOIN invoices i ON i.id = ic.invoice_id
-					JOIN suppliers s ON s.id = i.supplier_id
-					WHERE i.restaurant_id = ${rid}
-					GROUP BY s.name
-					ORDER BY (SUM(CASE WHEN ic.correction_count = 0 THEN 1 ELSE 0 END)::float / NULLIF(COUNT(DISTINCT ic.invoice_id), 0)) DESC
-					LIMIT 1
-				)
 				SELECT
-					COUNT(DISTINCT ic.invoice_id) AS total_invoices,
-					SUM(CASE WHEN ic.correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed,
+					COUNT(DISTINCT es.invoice_id) AS total_invoices,
+					SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed,
 					ROUND(
-						(SUM(CASE WHEN ic.correction_count = 0 THEN 1 ELSE 0 END)::float /
-						NULLIF(COUNT(DISTINCT ic.invoice_id), 0) * 100)::numeric, 1
+						(SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END)::float /
+						NULLIF(COUNT(DISTINCT es.invoice_id), 0) * 100)::numeric, 1
 					) AS auto_confirmed_rate,
 					ROUND(
-						(SUM(ic.correction_count)::float / NULLIF(COUNT(DISTINCT ic.invoice_id), 0))::numeric, 2
+						(SUM(es.correction_count)::float / NULLIF(COUNT(DISTINCT es.invoice_id), 0))::numeric, 2
 					) AS avg_corrections,
-					(SELECT supplier_name FROM supplier_stats LIMIT 1) AS most_accurate_supplier
-				FROM invoice_corrections ic
+					(
+						SELECT s.name
+						FROM mv_extraction_stats es2
+						JOIN suppliers s ON s.id = es2.supplier_id
+						WHERE es2.restaurant_id = ${rid}
+						  AND es2.supplier_id IS NOT NULL
+						GROUP BY s.id, s.name
+						ORDER BY (
+							SUM(CASE WHEN es2.correction_count = 0 THEN 1 ELSE 0 END)::float /
+							NULLIF(COUNT(DISTINCT es2.invoice_id), 0)
+						) DESC
+						LIMIT 1
+					) AS most_accurate_supplier
+				FROM mv_extraction_stats es
+				WHERE es.restaurant_id = ${rid}
 			`),
 
 			db.execute<FieldRow>(sql`
@@ -89,56 +82,39 @@ export const load: PageServerLoad = async ({ locals }) => {
 			`),
 
 			db.execute<SupplierRow>(sql`
-				WITH invoice_corrections AS (
-					SELECT
-						i.id AS invoice_id,
-						i.supplier_id,
-						COUNT(ec.id) AS correction_count
-					FROM invoices i
-					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = ${rid}
-					WHERE i.restaurant_id = ${rid} AND i.supplier_id IS NOT NULL
-					GROUP BY i.id, i.supplier_id
-				)
 				SELECT
 					s.name AS supplier_name,
-					COUNT(DISTINCT ic.invoice_id) AS total_invoices,
-					SUM(CASE WHEN ic.correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed,
+					COUNT(DISTINCT es.invoice_id) AS total_invoices,
+					SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed,
 					ROUND(
-						(SUM(CASE WHEN ic.correction_count = 0 THEN 1 ELSE 0 END)::float /
-						NULLIF(COUNT(DISTINCT ic.invoice_id), 0) * 100)::numeric, 1
+						(SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END)::float /
+						NULLIF(COUNT(DISTINCT es.invoice_id), 0) * 100)::numeric, 1
 					) AS auto_confirmed_rate,
 					ROUND(
-						(SUM(ic.correction_count)::float / NULLIF(COUNT(DISTINCT ic.invoice_id), 0))::numeric, 2
+						(SUM(es.correction_count)::float / NULLIF(COUNT(DISTINCT es.invoice_id), 0))::numeric, 2
 					) AS avg_corrections
-				FROM invoice_corrections ic
-				JOIN suppliers s ON s.id = ic.supplier_id
+				FROM mv_extraction_stats es
+				JOIN suppliers s ON s.id = es.supplier_id
+				WHERE es.restaurant_id = ${rid}
+				  AND es.supplier_id IS NOT NULL
 				GROUP BY s.name
 				ORDER BY total_invoices DESC
 				LIMIT 20
 			`),
 
 			db.execute<TrendRow>(sql`
-				WITH invoice_corrections AS (
-					SELECT
-						i.id AS invoice_id,
-						DATE_TRUNC('month', i.created_at) AS month,
-						COUNT(ec.id) AS correction_count
-					FROM invoices i
-					LEFT JOIN extraction_corrections ec ON ec.invoice_id = i.id AND ec.restaurant_id = ${rid}
-					WHERE i.restaurant_id = ${rid}
-					GROUP BY i.id, DATE_TRUNC('month', i.created_at)
-				)
 				SELECT
-					TO_CHAR(month, 'YYYY-MM') AS month,
-					COUNT(DISTINCT invoice_id) AS total_invoices,
-					SUM(CASE WHEN correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed,
+					TO_CHAR(es.month, 'YYYY-MM') AS month,
+					COUNT(DISTINCT es.invoice_id) AS total_invoices,
+					SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END) AS auto_confirmed,
 					ROUND(
-						(SUM(CASE WHEN correction_count = 0 THEN 1 ELSE 0 END)::float /
-						NULLIF(COUNT(DISTINCT invoice_id), 0) * 100)::numeric, 1
+						(SUM(CASE WHEN es.correction_count = 0 THEN 1 ELSE 0 END)::float /
+						NULLIF(COUNT(DISTINCT es.invoice_id), 0) * 100)::numeric, 1
 					) AS auto_confirmed_rate
-				FROM invoice_corrections
-				GROUP BY month
-				ORDER BY month ASC
+				FROM mv_extraction_stats es
+				WHERE es.restaurant_id = ${rid}
+				GROUP BY es.month
+				ORDER BY es.month ASC
 				LIMIT 12
 			`),
 		]);
