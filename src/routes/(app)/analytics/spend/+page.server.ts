@@ -2,23 +2,22 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, type SQL } from 'drizzle-orm';
 import { CATEGORY_COLORS } from '$lib/constants';
 
-const PERIOD_CLAUSE: Record<string, string> = {
-	month:   `AND i.invoice_date >= DATE_TRUNC('month', NOW())::text`,
-	quarter: `AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date::text`,
-	half:    `AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text`,
-	all:     '',
+const PERIOD_SQL: Record<string, SQL> = {
+	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::text`,
+	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date::text`,
+	half:    sql`AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text`,
+	all:     sql``,
 };
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	try {
 		let period = url.searchParams.get('period') ?? 'month';
-		if (!(period in PERIOD_CLAUSE)) period = 'month';
-		// dateClause is a hardcoded literal from a fixed constant map — safe to inline as raw SQL
-		const dateFilter = sql.raw(PERIOD_CLAUSE[period] ?? '');
+		if (!(period in PERIOD_SQL)) period = 'month';
+		const dateFilter = PERIOD_SQL[period]!;
 
 		type TopItem = { description: string; total_spend: number; item_count: number; avg_unit_price: number | null; supplier_name: string };
 		type CatRow = { category: string; total: number; invoice_count: number };
