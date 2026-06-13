@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fmtEur } from '$lib/formatters';
   import { ChevronRight } from 'lucide-svelte';
-  import Sparkline from '$lib/components/Sparkline.svelte';
+  import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
 
   interface Supplier {
     id: number;
