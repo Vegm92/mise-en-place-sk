@@ -64,6 +64,8 @@ export const invoices = pgTable('invoices', {
 	index('invoices_content_hash_idx')
 		.on(t.restaurantId, t.contentHash)
 		.where(sql`${t.contentHash} IS NOT NULL`),
+	index('idx_invoices_rid_status').on(t.restaurantId, t.status),
+	index('idx_invoices_rid_created_at').on(t.restaurantId, t.createdAt),
 ]);
 
 export const invoiceAuditLog = pgTable('invoice_audit_log', {
@@ -92,7 +94,11 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	taxRate:                real('tax_rate'),
 	requiresUnitConversion: integer('requires_unit_conversion').default(0),
 	canonicalUnit:          text('canonical_unit'),
-});
+}, (t) => [
+	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
+	// restaurant_id prefix lets RLS-scoped price-history queries skip the invoice join
+	index('idx_invoice_line_items_rid_description').on(t.restaurantId, t.description),
+]);
 
 export const supplierMetrics = pgTable('supplier_metrics', {
 	id:                  serial('id').primaryKey(),
@@ -146,7 +152,9 @@ export const systemNotifications = pgTable('system_notifications', {
 	payload:          text('payload'),
 	status:           text('status').default('pending'),
 	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('idx_system_notifications_rid_status_created').on(t.restaurantId, t.status, t.createdAt),
+]);
 
 export const stockLevels = pgTable('stock_levels', {
 	id:           serial('id').primaryKey(),
