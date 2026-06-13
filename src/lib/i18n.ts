@@ -244,7 +244,7 @@ const translations = {
     'saved.desc':          'La factura #{id} ha sido almacenada y está lista para su revisión.',
     'saved.alerts':        'Alertas generadas',
     'saved.noAlerts':      'Sin alertas para esta factura — precios y niveles de stock normales.',
-    'saved.whatsapp':      'Estas alertas han sido encoladas para entrega por WhatsApp.',
+    'saved.whatsapp':      'Estas alertas serán enviadas por WhatsApp a los contactos registrados del restaurante.',
     'saved.goInvoices':    'Ir a Facturas',
     'saved.uploadAnother': 'Subir otra',
     // Form field labels (shared across upload flow / edit)
@@ -741,7 +741,7 @@ const translations = {
     'saved.desc':          'Invoice #{id} has been stored and is ready for review.',
     'saved.alerts':        'Alerts generated',
     'saved.noAlerts':      'No alerts for this invoice — all prices and stock levels look normal.',
-    'saved.whatsapp':      'These alerts have been queued for WhatsApp delivery.',
+    'saved.whatsapp':      'These alerts will be sent via WhatsApp to the restaurant\'s registered contacts.',
     'saved.goInvoices':    'Go to Invoices',
     'saved.uploadAnother': 'Upload another',
     // Form field labels (shared across upload flow / edit)
