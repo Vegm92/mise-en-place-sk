@@ -25,7 +25,8 @@
 		"db:studio": "drizzle-kit studio",
 		"db:seed-demo": "node scripts/seed-demo.mjs",
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
-		"worker:prod": "node build/worker.js"
+		"worker:prod": "node build/worker.js",
+		"lint:no-sql-raw": "bash -c 'if grep -rn --include=\"*.ts\" --include=\"*.svelte\" \"sql\\.raw(\" src/; then echo \"Error: sql.raw() is banned — use parameterized sql\\`...\\` templates instead\" >&2 && exit 1; fi'"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",
