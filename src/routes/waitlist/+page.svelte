@@ -41,6 +41,7 @@
       alreadyReg:        'Ya estás en la lista. Te avisamos en cuanto abramos un sitio.',
       errRequired:       'Introduce tu email para continuar.',
       errInvalid:        'Ese email no parece válido.',
+      errRateLimited:    'Demasiados intentos. Por favor, espera un momento.',
       intLabel:          'Compatible con tu flujo',
       integrations:      ['Square POS', 'Revo TPV', 'Holded', 'Excel / CSV', 'WhatsApp Business'],
       painChapter:       'I · El problema',
@@ -107,6 +108,7 @@
       alreadyReg:        "You're already on the list. We'll let you know when a spot opens.",
       errRequired:       'Enter your email to continue.',
       errInvalid:        "That doesn't look like a valid email.",
+      errRateLimited:    'Too many attempts. Please wait a moment.',
       intLabel:          'Works with your workflow',
       integrations:      ['Square POS', 'Revo TPV', 'Holded', 'Excel / CSV', 'WhatsApp Business'],
       painChapter:       'I · The problem',
@@ -155,8 +157,10 @@
 
   function serverError(): string {
     if (!form || form.success) return '';
-    if ((form as { error?: string }).error === 'required') return t.errRequired;
-    if ((form as { error?: string }).error === 'invalid') return t.errInvalid;
+    const err = (form as { error?: string }).error;
+    if (err === 'required') return t.errRequired;
+    if (err === 'invalid') return t.errInvalid;
+    if (err === 'rate_limited') return t.errRateLimited;
     return '';
   }
 
@@ -361,6 +365,8 @@
                   if (emailError) e.preventDefault();
                 }}
                 style="display:flex;flex-direction:column;gap:8px;">
+                <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
+                  style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
                 <div style="display:flex;gap:8px;">
                   <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
                     class="input"
@@ -767,6 +773,8 @@
               if (err) { emailError = err; e.preventDefault(); }
             }}
             style="display:flex;flex-direction:column;gap:8px;">
+            <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
+              style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
             <div style="display:flex;gap:8px;">
               <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
                 style="flex:1;height:48px;padding:0 14px;font-size:14px;border-radius:6px;
