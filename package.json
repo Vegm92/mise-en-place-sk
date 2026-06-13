@@ -48,6 +48,7 @@
 		"vitest": "^3.0.0"
 	},
 	"dependencies": {
+		"@fontsource-variable/mona-sans": "^5.2.8",
 		"@google/genai": "^1.50.1",
 		"@internationalized/date": "^3.12.0",
 		"@lucide/svelte": "^1.8.0",
