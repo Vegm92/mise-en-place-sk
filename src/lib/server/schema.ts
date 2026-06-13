@@ -272,6 +272,35 @@ export const batchItems = pgTable('batch_items', {
 	index('batch_items_updated_at_idx').on(t.updatedAt),
 ]);
 
+// ── WhatsApp bot ───────────────────────────────────────────────────────────
+
+export const whatsappContacts = pgTable('whatsapp_contacts', {
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	// E.164 without leading '+', e.g. "34612345678"
+	phoneNumber:  text('phone_number').notNull(),
+	displayName:  text('display_name'),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('whatsapp_contacts_phone_unique').on(t.phoneNumber),
+	index('idx_whatsapp_contacts_restaurant').on(t.restaurantId),
+]);
+
+export const whatsappBotSessions = pgTable('whatsapp_bot_sessions', {
+	id:            uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	fromNumber:    text('from_number').notNull(),
+	extractedData: jsonb('extracted_data'),
+	fileKey:       text('file_key'),
+	// awaiting_confirmation | confirmed | discarded
+	status:        text('status').notNull().default('awaiting_confirmation'),
+	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+	expiresAt:     timestamp('expires_at', { withTimezone: true }),
+}, (t) => [
+	index('idx_whatsapp_sessions_from_status').on(t.fromNumber, t.status),
+	index('idx_whatsapp_sessions_expires').on(t.expiresAt),
+]);
+
 export const subscriptions = pgTable('subscriptions', {
 	id:                   serial('id').primaryKey(),
 	restaurantId:         uuid('restaurant_id').notNull().unique().references(() => restaurants.id, { onDelete: 'cascade' }),
