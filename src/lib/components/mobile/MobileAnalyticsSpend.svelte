@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Sparkline from '$lib/components/Sparkline.svelte';
+  import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
 
   interface Kpis {
     total_items_spend: number | null;

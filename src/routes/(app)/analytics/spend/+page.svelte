@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { t } from '$lib/i18n';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
-  import Sparkline from '$lib/components/Sparkline.svelte';
+  import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
 
   let { data }: { data: PageData } = $props();
 
