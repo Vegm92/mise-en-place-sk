@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint — ban sql.raw
+        run: pnpm lint:no-sql-raw
+
       - name: Type check
         run: pnpm check
 
