@@ -52,6 +52,13 @@ function asItem(row: Record<string, unknown>): BatchItem {
 	return row as unknown as BatchItem;
 }
 
+// Route params land here unvalidated; a non-UUID (e.g. a legacy session id
+// from an old link) would make Postgres throw on the uuid cast (22P02).
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(v: string): boolean {
+	return UUID_RE.test(v);
+}
+
 /**
  * The item a review UI should surface: the first reviewable (`done`) open
  * item, else the first failed one. Returns null while everything open is
@@ -106,12 +113,14 @@ export function createBatchStore(db: BatchDb) {
 	}
 
 	async function getItem(itemId: string): Promise<BatchItem | null> {
+		if (!isUuid(itemId)) return null;
 		const rows = await db.select(itemColumns).from(batchItems).where(eq(batchItems.id, itemId)).limit(1);
 		return rows.length ? asItem(rows[0]) : null;
 	}
 
 	/** All items of a batch in position order (including confirmed/discarded). */
 	async function getBatchItems(batchId: string): Promise<BatchItem[]> {
+		if (!isUuid(batchId)) return [];
 		const rows = await db
 			.select(itemColumns)
 			.from(batchItems)

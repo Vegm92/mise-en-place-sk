@@ -33,8 +33,8 @@
 
   // Show step 1 only on the upload page
   const showStep1 = $derived($tutorialStep === '1' && curPath === '/');
-  // Show step 2 on any extract page
-  const showStep2 = $derived($tutorialStep === '2' && curPath.startsWith('/extract/'));
+  // Show step 2 on the batch review page
+  const showStep2 = $derived($tutorialStep === '2' && curPath.startsWith('/batch/'));
   // Completion card: first invoice landed on dashboard
   const showComplete = $derived(isFirstInvoice && $tutorialStep !== 'dismissed');
 
