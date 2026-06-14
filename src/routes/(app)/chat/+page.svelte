@@ -1,7 +1,11 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/stores';
-  import { MessageCircle, Send, Plus, Trash2, History } from 'lucide-svelte';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import Send from '@lucide/svelte/icons/send';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import History from '@lucide/svelte/icons/history';
   import { t } from '$lib/i18n';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
 

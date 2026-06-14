@@ -4,11 +4,21 @@
   import { browser } from '$app/environment';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
   import { tutorialStep, setTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
-  import {
-    LayoutDashboard, FileText, Truck, TrendingUp, Tag, Bell,
-    Settings, Upload, Sun, Moon,
-    LogOut, Menu, X, MessageCircle, Newspaper,
-  } from 'lucide-svelte';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Truck from '@lucide/svelte/icons/truck';
+  import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import Tag from '@lucide/svelte/icons/tag';
+  import Bell from '@lucide/svelte/icons/bell';
+  import Settings from '@lucide/svelte/icons/settings';
+  import Upload from '@lucide/svelte/icons/upload';
+  import Sun from '@lucide/svelte/icons/sun';
+  import Moon from '@lucide/svelte/icons/moon';
+  import LogOut from '@lucide/svelte/icons/log-out';
+  import Menu from '@lucide/svelte/icons/menu';
+  import X from '@lucide/svelte/icons/x';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import Newspaper from '@lucide/svelte/icons/newspaper';
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';

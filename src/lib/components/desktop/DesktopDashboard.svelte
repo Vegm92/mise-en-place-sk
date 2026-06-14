@@ -6,7 +6,10 @@
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import AlertRow from '$lib/components/mep/AlertRow.svelte';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
-  import { Bell, TriangleAlert, ChevronRight, X } from 'lucide-svelte';
+  import Bell from '@lucide/svelte/icons/bell';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import X from '@lucide/svelte/icons/x';
   import { locale, t } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
 

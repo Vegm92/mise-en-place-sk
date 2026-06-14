@@ -3,7 +3,8 @@
   import Sparkline from '$lib/components/mep/Sparkline.svelte';
   import Delta from '$lib/components/mep/Delta.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
-  import { ChevronRight, AlertTriangle } from 'lucide-svelte';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import { fmtEur, fmtEurCompact, fmtDate, toMonthStr, shiftMonth } from '$lib/formatters';
   import { locale } from '$lib/i18n';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';

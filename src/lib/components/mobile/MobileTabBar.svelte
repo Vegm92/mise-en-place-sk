@@ -1,6 +1,10 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { LayoutDashboard, FileText, Plus, TrendingUp, Bell } from 'lucide-svelte';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Plus from '@lucide/svelte/icons/plus';
+  import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import Bell from '@lucide/svelte/icons/bell';
 
   let { alertBadge = 0, invBadge = 0 }: { alertBadge?: number; invBadge?: number } = $props();
 

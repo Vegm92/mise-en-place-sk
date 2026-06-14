@@ -4,7 +4,15 @@
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
   import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
-  import { Check, Clock, Sparkle, Plus, Trash, X, Upload, AlertTriangle, RefreshCw } from 'lucide-svelte';
+  import Check from '@lucide/svelte/icons/check';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Sparkle from '@lucide/svelte/icons/sparkle';
+  import Plus from '@lucide/svelte/icons/plus';
+  import Trash from '@lucide/svelte/icons/trash';
+  import X from '@lucide/svelte/icons/x';
+  import Upload from '@lucide/svelte/icons/upload';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import RefreshCw from '@lucide/svelte/icons/refresh-cw';
   import { t } from '$lib/i18n';
 
   import type { ActionData } from './$types';
