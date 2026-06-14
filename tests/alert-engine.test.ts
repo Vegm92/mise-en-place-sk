@@ -32,6 +32,9 @@ vi.mock('../src/lib/server/db', () => {
 			select: vi.fn(() => makeBuilder()),
 			execute: vi.fn().mockResolvedValue([]),
 		},
+		// db.ts re-exports forTenant from tenant.ts; include it in the mock so
+		// vitest's strict export-check passes when DATABASE_URL is set in CI.
+		forTenant: vi.fn(),
 	};
 });
 
