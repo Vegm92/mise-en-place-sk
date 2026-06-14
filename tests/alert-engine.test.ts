@@ -22,7 +22,7 @@ vi.mock('../src/lib/server/db', () => {
 		b.limit = vi.fn(self);
 		b.innerJoin = vi.fn(self);
 		// Thenable — `await builder` resolves to `rows`
-		(b as { then: (res: (v: unknown[]) => void, rej?: (e: unknown) => void) => Promise<unknown[]> }).then =
+		(b as { then: (res: (v: unknown[]) => void, rej?: (e: unknown) => void) => Promise<void> }).then =
 			(res, rej) => Promise.resolve(rows).then(res, rej);
 		return b;
 	}
