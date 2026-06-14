@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
 	testDb, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasSupabaseEnv,
+	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { suppliers } from '../src/lib/server/schema';
 import { forTenant } from '../src/lib/server/tenant';
@@ -18,7 +18,7 @@ import { forTenant } from '../src/lib/server/tenant';
 let rid1 = '', rid2 = '';
 
 beforeAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	const r1 = await createTestRestaurant('iso-a');
 	const r2 = await createTestRestaurant('iso-b');
 	rid1 = r1.id;
@@ -27,13 +27,13 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	await cleanupTestRestaurant(rid1);
 	await cleanupTestRestaurant(rid2);
 	await closeDb();
 });
 
-describe.skipIf(!hasSupabaseEnv)('forTenant() — cross-tenant isolation', () => {
+describe.skipIf(!hasDbEnv)('forTenant() — cross-tenant isolation', () => {
 	it('returns the correct tenant\'s data', async () => {
 		const tdb = forTenant(rid1);
 		const rows = await testDb

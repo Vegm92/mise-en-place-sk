@@ -8,20 +8,26 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { createClient } from '@supabase/supabase-js';
 import * as schema from '../../src/lib/server/schema';
 
+const _url = process.env.DATABASE_URL ?? '';
+const _isLocal = /localhost|127\.0\.0\.1/.test(_url);
+
+/** True when a plain Postgres connection is available (ephemeral CI or Supabase). */
+export const hasDbEnv = !!_url;
+
+/** True when Supabase-specific vars are present (auth tests, connection tests). */
 export const hasSupabaseEnv = !!(
-	process.env.DATABASE_URL &&
+	_url &&
 	process.env.SUPABASE_URL &&
 	process.env.SUPABASE_ANON_KEY &&
 	process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// Only initialize if env vars are present — otherwise module load crashes in CI
-// max:2 per worker × 4 parallel test files = 8 connections, within Supabase free pool_size:15
-const _client = hasSupabaseEnv
-	? postgres(process.env.DATABASE_URL!, { ssl: 'require', max: 2, idle_timeout: 10 })
+// max:2 per worker × 4 parallel test files = 8 connections, within pool_size:15
+const _client = hasDbEnv
+	? postgres(_url, { ssl: _isLocal ? false : 'require', max: 2, idle_timeout: 10 })
 	: null;
 
-const _realDb = hasSupabaseEnv ? drizzle(_client!, { schema }) : null;
+const _realDb = hasDbEnv ? drizzle(_client!, { schema }) : null;
 export const testDb  = _realDb as NonNullable<typeof _realDb>;
 export const testSql = _client as NonNullable<typeof _client>;
 

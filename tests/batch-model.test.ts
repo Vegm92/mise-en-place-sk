@@ -8,20 +8,20 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
-	testDb, closeDb, createTestRestaurant, cleanupTestRestaurant, hasSupabaseEnv,
+	testDb, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { createBatchStore } from '../src/lib/server/batch-core';
 
 let rid = '';
-const store = hasSupabaseEnv ? createBatchStore(testDb) : null!;
+const store = hasDbEnv ? createBatchStore(testDb) : null!;
 
 beforeAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	rid = (await createTestRestaurant('batch')).id;
 });
 
 afterAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	await cleanupTestRestaurant(rid); // batches/items cascade
 	await closeDb();
 });
@@ -33,7 +33,7 @@ function twoFiles() {
 	];
 }
 
-describe.skipIf(!hasSupabaseEnv)('batch creation and reads', () => {
+describe.skipIf(!hasDbEnv)('batch creation and reads', () => {
 	it('creates one batch with positioned items and reads them back in order', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
 		expect(itemIds).toHaveLength(2);
@@ -53,7 +53,7 @@ describe.skipIf(!hasSupabaseEnv)('batch creation and reads', () => {
 	});
 });
 
-describe.skipIf(!hasSupabaseEnv)('guarded status transitions', () => {
+describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 	it('walks the happy path: pending → queued → extracting → done → confirmed', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
 
@@ -117,7 +117,7 @@ describe.skipIf(!hasSupabaseEnv)('guarded status transitions', () => {
 	});
 });
 
-describe.skipIf(!hasSupabaseEnv)('batch lifecycle helpers', () => {
+describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 	it('removeItem only deletes pending/failed items', async () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles());
 		await store.markQueued(itemIds[0]);

@@ -9,6 +9,24 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mise_en_place_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    # All steps share the ephemeral DB URL; Supabase-specific tests skip
+    # automatically because SUPABASE_* vars are not set in this job.
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/mise_en_place_test
+
     steps:
       - uses: actions/checkout@v4
 
@@ -30,22 +48,22 @@ jobs:
       - name: Type check
         run: pnpm check
 
+      - name: Bootstrap CI database (auth stub for RLS migration)
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d mise_en_place_test -f scripts/ci-db-setup.sql
+
+      - name: Run migrations
+        run: pnpm db:migrate
+
       - name: Unit tests
         run: pnpm test
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          AUTH_ADMIN_EMAIL: ${{ secrets.AUTH_ADMIN_EMAIL }}
-          AUTH_ADMIN_PASSWORD: ${{ secrets.AUTH_ADMIN_PASSWORD }}
-          AUTH_ADMIN_RESTAURANT_NAME: ${{ secrets.AUTH_ADMIN_RESTAURANT_NAME }}
 
       - name: Build
         run: pnpm build
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

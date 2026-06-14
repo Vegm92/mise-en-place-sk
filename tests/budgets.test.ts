@@ -11,7 +11,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { eq, and } from 'drizzle-orm';
 import {
 	testDb, testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasSupabaseEnv,
+	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { categoryBudgets } from '../src/lib/server/schema';
 import { VALID_CATEGORIES } from '../src/lib/constants';
@@ -19,7 +19,7 @@ import { VALID_CATEGORIES } from '../src/lib/constants';
 let rid1 = '', rid2 = '';
 
 beforeAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	const r1 = await createTestRestaurant('budgets-a');
 	const r2 = await createTestRestaurant('budgets-b');
 	rid1 = r1.id;
@@ -27,7 +27,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	await cleanupTestRestaurant(rid1);
 	await cleanupTestRestaurant(rid2);
 	await closeDb();
@@ -35,7 +35,7 @@ afterAll(async () => {
 
 // ── Upsert / delete semantics ─────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('categoryBudgets — upsert and delete', () => {
+describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	it('inserts a budget for a VALID_CATEGORY', async () => {
 		const cat = VALID_CATEGORIES[0];
 		await testDb.insert(categoryBudgets)
@@ -101,7 +101,7 @@ describe.skipIf(!hasSupabaseEnv)('categoryBudgets — upsert and delete', () => 
 
 // ── Custom categories ─────────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('categoryBudgets — custom categories', () => {
+describe.skipIf(!hasDbEnv)('categoryBudgets — custom categories', () => {
 	const customCat = 'Postres Artesanales';
 
 	it('saves a budget for a category not in VALID_CATEGORIES', async () => {
@@ -159,7 +159,7 @@ describe.skipIf(!hasSupabaseEnv)('categoryBudgets — custom categories', () => 
 
 // ── Multi-tenancy ─────────────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('categoryBudgets — multi-tenancy isolation', () => {
+describe.skipIf(!hasDbEnv)('categoryBudgets — multi-tenancy isolation', () => {
 	const sharedName = 'Shared Category Name';
 
 	beforeAll(async () => {
@@ -209,7 +209,7 @@ describe.skipIf(!hasSupabaseEnv)('categoryBudgets — multi-tenancy isolation', 
 
 // ── _categories payload validation (mirrors the action's guard logic) ─────────
 
-describe.skipIf(!hasSupabaseEnv)('_categories payload parsing', () => {
+describe.skipIf(!hasDbEnv)('_categories payload parsing', () => {
 	/** Mirrors the parsing logic in the save action exactly. */
 	function parseCategories(raw: string | null): string[] {
 		try {
