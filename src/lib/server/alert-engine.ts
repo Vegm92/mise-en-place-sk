@@ -4,7 +4,7 @@
  * runStockForecast: projects days-of-stock after purchase; alerts if < 3 days.
  * runBudgetCheck: fires budget_overage when category monthly spend crosses threshold.
  */
-import { db } from './db';
+import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { EnrichedLineItem } from './unit-bridge';
@@ -23,12 +23,13 @@ export async function runPriceShock(
 	lineItems: EnrichedLineItem[],
 	restaurantId: string,
 ): Promise<Alert[]> {
+	const tdb = forTenant(restaurantId);
 	const alerts: Alert[] = [];
 
 	const thresholdRows = await db
 		.select({ value: settings.value })
 		.from(settings)
-		.where(and(eq(settings.restaurantId, restaurantId), eq(settings.key, 'price_alert_threshold')))
+		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'price_alert_threshold')))
 		.limit(1);
 	const PRICE_SHOCK_THRESHOLD = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
 
@@ -82,6 +83,7 @@ export async function runPriceShock(
 }
 
 export async function runStockForecast(lineItems: EnrichedLineItem[], restaurantId: string): Promise<Alert[]> {
+	const tdb = forTenant(restaurantId);
 	const alerts: Alert[] = [];
 
 	const descriptions = [...new Set(lineItems.map(i => (i.description ?? '').trim()).filter(Boolean))];
@@ -97,7 +99,7 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 		})
 		.from(stockLevels)
 		.where(and(
-			eq(stockLevels.restaurantId, restaurantId),
+			tdb.scope(stockLevels.restaurantId),
 			inArray(stockLevels.ingredient, descriptions),
 		));
 
@@ -134,11 +136,12 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 }
 
 export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
+	const tdb = forTenant(restaurantId);
 	// 1. Supplier category
 	const supplierRows = await db
 		.select({ category: suppliers.category })
 		.from(suppliers)
-		.where(and(eq(suppliers.restaurantId, restaurantId), eq(suppliers.id, supplierId)))
+		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
 		.limit(1);
 	const category = supplierRows[0]?.category;
 	if (!category) return [];
@@ -147,7 +150,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const thresholdRows = await db
 		.select({ value: settings.value })
 		.from(settings)
-		.where(and(eq(settings.restaurantId, restaurantId), eq(settings.key, 'budget_warning_threshold')))
+		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'budget_warning_threshold')))
 		.limit(1);
 	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
 	const thresholdFrac = thresholdPct / 100;
@@ -156,7 +159,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const budgetRows = await db
 		.select({ monthlyBudget: categoryBudgets.monthlyBudget })
 		.from(categoryBudgets)
-		.where(and(eq(categoryBudgets.restaurantId, restaurantId), eq(categoryBudgets.category, category)))
+		.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.category, category)))
 		.limit(1);
 	const monthlyBudget = budgetRows[0]?.monthlyBudget;
 	if (!monthlyBudget || monthlyBudget <= 0) return [];
@@ -167,7 +170,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		.from(invoices)
 		.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
 		.where(and(
-			eq(invoices.restaurantId, restaurantId),
+			tdb.scope(invoices.restaurantId),
 			isNull(invoices.deletedAt),
 			sql`COALESCE(${suppliers.category}, 'Other') = ${category}`,
 			sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
@@ -185,7 +188,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		.select({ payload: systemNotifications.payload })
 		.from(systemNotifications)
 		.where(and(
-			eq(systemNotifications.restaurantId, restaurantId),
+			tdb.scope(systemNotifications.restaurantId),
 			eq(systemNotifications.notificationType, 'budget_overage'),
 			sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`
 		));

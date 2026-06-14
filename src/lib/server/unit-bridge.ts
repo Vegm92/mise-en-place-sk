@@ -2,7 +2,7 @@
  * Unit Bridge — resolves purchase units (invoices) to canonical units.
  * Queries unit_conversions and annotates line items in place.
  */
-import { db } from './db';
+import { db, forTenant } from './db';
 import { unitConversions } from './schema';
 import { and, eq, inArray } from 'drizzle-orm';
 
@@ -38,13 +38,14 @@ export async function resolveUnit(
 	unit: string,
 	restaurantId: string,
 ): Promise<{ canonicalUnit: string; conversionFactor: number } | null> {
+	const tdb = forTenant(restaurantId);
 	const normalizedSupplier = supplierName.trim().toLowerCase();
 	const rows = await db
 		.select()
 		.from(unitConversions)
 		.where(
 			and(
-				eq(unitConversions.restaurantId, restaurantId),
+				tdb.scope(unitConversions.restaurantId),
 				eq(unitConversions.supplierName, normalizedSupplier),
 				eq(unitConversions.ingredient, description),
 				eq(unitConversions.purchaseUnit, unit)
@@ -65,6 +66,7 @@ export async function loadConversionMap(
 	descriptions: string[],
 	restaurantId: string,
 ): Promise<Map<string, { canonicalUnit: string; conversionFactor: number }>> {
+	const tdb = forTenant(restaurantId);
 	const normalizedSupplier = supplierName.trim().toLowerCase();
 	if (descriptions.length === 0) return new Map();
 
@@ -73,7 +75,7 @@ export async function loadConversionMap(
 		.from(unitConversions)
 		.where(
 			and(
-				eq(unitConversions.restaurantId, restaurantId),
+				tdb.scope(unitConversions.restaurantId),
 				eq(unitConversions.supplierName, normalizedSupplier),
 				inArray(unitConversions.ingredient, descriptions),
 			)

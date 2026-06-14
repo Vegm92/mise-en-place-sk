@@ -1,22 +1,23 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { settings } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	try {
 		const [row, priceRow] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
-				.where(and(eq(settings.restaurantId, rid), eq(settings.key, THRESHOLD_KEY))),
+				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
 			db.select({ value: settings.value })
 				.from(settings)
-				.where(and(eq(settings.restaurantId, rid), eq(settings.key, PRICE_ALERT_KEY))),
+				.where(tdb.scope(settings.restaurantId, eq(settings.key, PRICE_ALERT_KEY))),
 		]);
 
 		return {

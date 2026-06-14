@@ -1,20 +1,21 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** GET /api/notifications?status=pending — WhatsApp bot polls this. */
 export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => {
 	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid    = locals.restaurantId!;
+	const tdb    = forTenant(rid);
 	const status = url.searchParams.get('status') ?? 'pending';
 
 	const rows = await db
 		.select()
 		.from(systemNotifications)
-		.where(and(eq(systemNotifications.restaurantId, rid), eq(systemNotifications.status, status)));
+		.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, status)));
 
 	const items = rows.map((row) => ({
 		...row,
@@ -28,6 +29,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
 	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid  = locals.restaurantId!;
+	const tdb  = forTenant(rid);
 	const body = await request.json().catch(() => ({}));
 	const id   = body.id;
 	if (!id) return json({ error: 'id required' }, { status: 422 });
@@ -35,7 +37,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 	await db
 		.update(systemNotifications)
 		.set({ status: 'sent' })
-		.where(and(eq(systemNotifications.id, id), eq(systemNotifications.restaurantId, rid)));
+		.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.id, id)));
 
 	return json({ ok: true });
 };
