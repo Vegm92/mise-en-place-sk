@@ -9,7 +9,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { eq, and } from 'drizzle-orm';
 import {
 	testDb, testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasSupabaseEnv,
+	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import {
 	restaurants, suppliers, invoices, invoiceLineItems,
@@ -20,7 +20,7 @@ let rid1 = '', rid2 = '';
 let suppId1 = 0, invId1 = 0;
 
 beforeAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	const r1 = await createTestRestaurant('alpha');
 	const r2 = await createTestRestaurant('beta');
 	rid1 = r1.id;
@@ -28,7 +28,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	if (!hasSupabaseEnv) return;
+	if (!hasDbEnv) return;
 	await cleanupTestRestaurant(rid1);
 	await cleanupTestRestaurant(rid2);
 	await closeDb();
@@ -36,7 +36,7 @@ afterAll(async () => {
 
 // ── Restaurants ───────────────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('restaurants — basic CRUD', () => {
+describe.skipIf(!hasDbEnv)('restaurants — basic CRUD', () => {
 	it('both test restaurants exist', async () => {
 		const rows = await testDb.select().from(restaurants)
 			.where(eq(restaurants.id, rid1));
@@ -54,7 +54,7 @@ describe.skipIf(!hasSupabaseEnv)('restaurants — basic CRUD', () => {
 
 // ── Suppliers ─────────────────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('suppliers — insert and scope', () => {
+describe.skipIf(!hasDbEnv)('suppliers — insert and scope', () => {
 	it('inserts a supplier for restaurant 1', async () => {
 		const [row] = await testDb.insert(suppliers).values({
 			restaurantId: rid1,
@@ -92,7 +92,7 @@ describe.skipIf(!hasSupabaseEnv)('suppliers — insert and scope', () => {
 
 // ── Invoices + Line Items ─────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('invoices + line items — CRUD and scoping', () => {
+describe.skipIf(!hasDbEnv)('invoices + line items — CRUD and scoping', () => {
 	it('inserts an invoice for restaurant 1', async () => {
 		const [row] = await testDb.insert(invoices).values({
 			restaurantId:  rid1,
@@ -162,7 +162,7 @@ describe.skipIf(!hasSupabaseEnv)('invoices + line items — CRUD and scoping', (
 
 // ── Category Budgets ──────────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('category_budgets — upsert', () => {
+describe.skipIf(!hasDbEnv)('category_budgets — upsert', () => {
 	it('inserts a budget for rid1', async () => {
 		await testDb.insert(categoryBudgets).values({
 			restaurantId:  rid1,
@@ -201,7 +201,7 @@ describe.skipIf(!hasSupabaseEnv)('category_budgets — upsert', () => {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('settings — key-value store', () => {
+describe.skipIf(!hasDbEnv)('settings — key-value store', () => {
 	it('inserts and reads a setting', async () => {
 		await testDb.insert(settings).values({
 			restaurantId: rid1,
@@ -222,7 +222,7 @@ describe.skipIf(!hasSupabaseEnv)('settings — key-value store', () => {
 
 // ── System Notifications ──────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('system_notifications — scoping', () => {
+describe.skipIf(!hasDbEnv)('system_notifications — scoping', () => {
 	it('inserts and reads a notification scoped to rid1', async () => {
 		await testDb.insert(systemNotifications).values({
 			restaurantId:     rid1,
@@ -249,7 +249,7 @@ describe.skipIf(!hasSupabaseEnv)('system_notifications — scoping', () => {
 
 // ── Waitlist ──────────────────────────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('waitlist — upsert semantics', () => {
+describe.skipIf(!hasDbEnv)('waitlist — upsert semantics', () => {
 	const testEmail = `test-vitest-${Date.now()}@test.example`;
 
 	afterAll(async () => {
@@ -271,7 +271,7 @@ describe.skipIf(!hasSupabaseEnv)('waitlist — upsert semantics', () => {
 
 // ── Cascade delete — restaurant ───────────────────────────────────────────────
 
-describe.skipIf(!hasSupabaseEnv)('cascade delete — restaurant removal', () => {
+describe.skipIf(!hasDbEnv)('cascade delete — restaurant removal', () => {
 	it('deleting restaurant 1 cascades to all its tables', async () => {
 		// Insert fresh supplier + budget before the cascade test
 		const [s] = await testDb.insert(suppliers).values({

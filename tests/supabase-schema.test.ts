@@ -3,7 +3,7 @@
  * key columns exist in the live Supabase PostgreSQL database.
  */
 import { describe, it, expect, afterAll } from 'vitest';
-import { testSql, closeDb, hasSupabaseEnv } from './helpers/test-db';
+import { testSql, closeDb, hasDbEnv } from './helpers/test-db';
 
 afterAll(() => closeDb());
 
@@ -43,7 +43,7 @@ async function getColumns(table: string) {
 	return rows.map(r => r.column_name as string);
 }
 
-describe.skipIf(!hasSupabaseEnv)('Schema — all tables present', () => {
+describe.skipIf(!hasDbEnv)('Schema — all tables present', () => {
 	it('every expected table exists in public schema', async () => {
 		const rows = await testSql`
 			SELECT table_name FROM information_schema.tables
@@ -56,7 +56,7 @@ describe.skipIf(!hasSupabaseEnv)('Schema — all tables present', () => {
 	});
 });
 
-describe.skipIf(!hasSupabaseEnv)('Schema — column checks', () => {
+describe.skipIf(!hasDbEnv)('Schema — column checks', () => {
 	it('restaurants: id, name, slug, created_at', async () => {
 		const cols = await getColumns('restaurants');
 		['id', 'name', 'slug', 'created_at'].forEach(c => expect(cols).toContain(c));
@@ -111,7 +111,7 @@ describe.skipIf(!hasSupabaseEnv)('Schema — column checks', () => {
 	});
 });
 
-describe.skipIf(!hasSupabaseEnv)('Schema — foreign key constraints', () => {
+describe.skipIf(!hasDbEnv)('Schema — foreign key constraints', () => {
 	async function fkExists(fromTable: string, fromCol: string, toTable: string) {
 		const rows = await testSql`
 			SELECT ccu.table_name AS to_table
@@ -148,7 +148,7 @@ describe.skipIf(!hasSupabaseEnv)('Schema — foreign key constraints', () => {
 	});
 });
 
-describe.skipIf(!hasSupabaseEnv)('Schema — unique constraints', () => {
+describe.skipIf(!hasDbEnv)('Schema — unique constraints', () => {
 	it('restaurants.slug has a unique constraint', async () => {
 		const rows = await testSql`
 			SELECT constraint_name
