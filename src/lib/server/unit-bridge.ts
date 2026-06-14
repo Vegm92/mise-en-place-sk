@@ -4,7 +4,10 @@
  */
 import { db, forTenant } from './db';
 import { unitConversions } from './schema';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
+import { CANONICAL_UNITS, resolveUnitFromMap } from './unit-bridge-pure';
+
+export { resolveUnitFromMap } from './unit-bridge-pure';
 
 export interface LineItem {
 	description: string;
@@ -22,31 +25,29 @@ export interface EnrichedLineItem extends LineItem {
 	convertedUnitPrice?: number | null;
 }
 
-// Units that are already canonical — no DB rule needed, factor 1.
-const CANONICAL_UNITS = new Set([
-	'kg', 'g', 'mg',
-	'L', 'l', 'ml', 'mL',
-	'ud', 'uds', 'un', 'unidad', 'unidades',
-	'pz', 'pza', 'pieza', 'piezas',
-	'caja', 'cajas', 'bote', 'botes', 'bolsa', 'bolsas',
-	'sobre', 'sobres', 'lata', 'latas', 'botella', 'botellas',
-]);
-
 export async function resolveUnit(
 	supplierName: string,
 	description: string,
 	unit: string,
 	restaurantId: string,
+	supplierId?: number | null,
 ): Promise<{ canonicalUnit: string; conversionFactor: number } | null> {
 	const tdb = forTenant(restaurantId);
 	const normalizedSupplier = supplierName.trim().toLowerCase();
+	// When supplierId is known, match rules pinned by FK or pre-supplier name-only rules.
+	const supplierFilter = supplierId != null
+		? or(
+			eq(unitConversions.supplierId, supplierId),
+			and(isNull(unitConversions.supplierId), eq(unitConversions.supplierName, normalizedSupplier))
+		  )
+		: eq(unitConversions.supplierName, normalizedSupplier);
 	const rows = await db
 		.select()
 		.from(unitConversions)
 		.where(
 			and(
 				tdb.scope(unitConversions.restaurantId),
-				eq(unitConversions.supplierName, normalizedSupplier),
+				supplierFilter,
 				eq(unitConversions.ingredient, description),
 				eq(unitConversions.purchaseUnit, unit)
 			)
@@ -65,10 +66,18 @@ export async function loadConversionMap(
 	supplierName: string,
 	descriptions: string[],
 	restaurantId: string,
+	supplierId?: number | null,
 ): Promise<Map<string, { canonicalUnit: string; conversionFactor: number }>> {
 	const tdb = forTenant(restaurantId);
 	const normalizedSupplier = supplierName.trim().toLowerCase();
 	if (descriptions.length === 0) return new Map();
+
+	const supplierFilter = supplierId != null
+		? or(
+			eq(unitConversions.supplierId, supplierId),
+			and(isNull(unitConversions.supplierId), eq(unitConversions.supplierName, normalizedSupplier))
+		  )
+		: eq(unitConversions.supplierName, normalizedSupplier);
 
 	const rows = await db
 		.select()
@@ -76,7 +85,7 @@ export async function loadConversionMap(
 		.where(
 			and(
 				tdb.scope(unitConversions.restaurantId),
-				eq(unitConversions.supplierName, normalizedSupplier),
+				supplierFilter,
 				inArray(unitConversions.ingredient, descriptions),
 			)
 		);
@@ -88,28 +97,16 @@ export async function loadConversionMap(
 	return map;
 }
 
-export function resolveUnitFromMap(
-	conversionMap: Map<string, { canonicalUnit: string; conversionFactor: number }>,
-	description: string,
-	unit: string,
-): { canonicalUnit: string; conversionFactor: number } | null {
-	const rule = conversionMap.get(`${description}::${unit}`);
-	if (rule) return rule;
-	if (CANONICAL_UNITS.has(unit.trim())) {
-		return { canonicalUnit: unit.trim(), conversionFactor: 1 };
-	}
-	return null;
-}
-
 export async function annotateLineItems(
 	supplierName: string,
 	items: LineItem[],
 	restaurantId: string,
+	supplierId?: number | null,
 ): Promise<{ enriched: EnrichedLineItem[]; conversionNotes: string[] }> {
 	const conversionNotes: string[] = [];
 
 	const descriptions = [...new Set(items.map(i => (i.description ?? '').trim()).filter(Boolean))];
-	const conversionMap = await loadConversionMap(supplierName, descriptions, restaurantId);
+	const conversionMap = await loadConversionMap(supplierName, descriptions, restaurantId, supplierId);
 
 	const enriched: EnrichedLineItem[] = items.map((item) => {
 		const unit = (item.unit ?? '').trim();

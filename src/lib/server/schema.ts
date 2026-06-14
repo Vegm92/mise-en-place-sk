@@ -131,6 +131,7 @@ export const categoryBudgets = pgTable('category_budgets', {
 export const unitConversions = pgTable('unit_conversions', {
 	id:               serial('id').primaryKey(),
 	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	supplierId:       integer('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
 	supplierName:     text('supplier_name').notNull(),
 	ingredient:       text('ingredient').notNull(),
 	purchaseUnit:     text('purchase_unit').notNull(),
@@ -141,6 +142,9 @@ export const unitConversions = pgTable('unit_conversions', {
 	uniqueIndex('unit_conversions_supplier_ingredient_unit_unique').on(
 		t.restaurantId, t.supplierName, t.ingredient, t.purchaseUnit
 	),
+	index('unit_conversions_supplier_id_idx')
+		.on(t.restaurantId, t.supplierId, t.ingredient, t.purchaseUnit)
+		.where(sql`${t.supplierId} IS NOT NULL`),
 ]);
 
 export const systemNotifications = pgTable('system_notifications', {
