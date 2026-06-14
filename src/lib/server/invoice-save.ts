@@ -4,7 +4,7 @@
  * callers translate the outcome into fail()/redirect().
  */
 import { computeInvoiceContentHash } from './dedup';
-import { db } from './db';
+import { db, forTenant } from './db';
 import { suppliers, invoices, invoiceLineItems, extractionCorrections, settings } from './schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit } from './unit-bridge';
@@ -120,6 +120,7 @@ export async function saveReviewedInvoice(
 	formData: FormData,
 	rid: string,
 ): Promise<SaveOutcome> {
+	const tdb = forTenant(rid);
 	const supplierName = (formData.get('supplier_name') as string) ?? '';
 	const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
 	const invoiceDate = (formData.get('invoice_date') as string) || null;
@@ -169,7 +170,7 @@ export async function saveReviewedInvoice(
 	const hashMatch = await db
 		.select({ id: invoices.id })
 		.from(invoices)
-		.where(and(eq(invoices.restaurantId, rid), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
+		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
 		.limit(1);
 
 	if (hashMatch.length > 0) {
@@ -222,7 +223,7 @@ export async function saveReviewedInvoice(
 		const existingSupplier = await tx
 			.select({ id: suppliers.id })
 			.from(suppliers)
-			.where(and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, rid)))
+			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.name, supplierName)))
 			.limit(1);
 
 		if (existingSupplier.length > 0) {
@@ -237,7 +238,7 @@ export async function saveReviewedInvoice(
 			const dup = await tx
 				.select({ id: invoices.id })
 				.from(invoices)
-				.where(and(eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim()), eq(invoices.restaurantId, rid)))
+				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
 				.limit(1);
 			if (dup.length > 0) {
 				isDuplicate = true;
@@ -344,7 +345,7 @@ export async function saveReviewedInvoice(
 	const onboardingRows = await db
 		.select({ value: settings.value })
 		.from(settings)
-		.where(and(eq(settings.restaurantId, rid), eq(settings.key, 'has_completed_onboarding')))
+		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
 		.limit(1);
 	const isFirstInvoice = onboardingRows[0]?.value !== 'true';
 	if (isFirstInvoice) {

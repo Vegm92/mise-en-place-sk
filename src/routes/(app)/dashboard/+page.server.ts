@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
 import { asc, desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
@@ -18,12 +18,13 @@ async function detectMissingInvoices(today: Date, restaurantId: string): Promise
 	days_late: number;
 	frequency: string;
 }[]> {
+	const tdb = forTenant(restaurantId);
 	const rows = await db
 		.select({ supplier_name: suppliers.name, invoice_date: invoices.invoiceDate })
 		.from(invoices)
 		.innerJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 		.where(and(
-			eq(invoices.restaurantId, restaurantId),
+			tdb.scope(invoices.restaurantId),
 			isNotNull(invoices.invoiceDate),
 			isNull(invoices.deletedAt)
 		))
@@ -97,6 +98,7 @@ function shiftMonth(ym: string, delta: number): string {
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const firstInvoice = url.searchParams.get('first_invoice') === '1';
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 
 	try {
 		const today = new Date();
@@ -121,7 +123,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({ count: sql<number>`COUNT(*)` })
 				.from(invoices)
 				.where(and(
-					eq(invoices.restaurantId, rid),
+					tdb.scope(invoices.restaurantId),
 					eq(invoices.status, 'pending'),
 					isNotNull(invoices.dueDate),
 					isNull(invoices.deletedAt),
@@ -131,7 +133,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({ count: sql<number>`COUNT(*)`, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)` })
 				.from(invoices)
 				.where(and(
-					eq(invoices.restaurantId, rid),
+					tdb.scope(invoices.restaurantId),
 					eq(invoices.status, 'pending'),
 					isNotNull(invoices.dueDate),
 					isNull(invoices.deletedAt),
@@ -140,12 +142,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
 				.from(invoices)
-				.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
+				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
 
 			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
 				.from(invoices)
 				.where(and(
-					eq(invoices.restaurantId, rid),
+					tdb.scope(invoices.restaurantId),
 					eq(invoices.status, 'paid'),
 					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date, 'YYYY-MM') = ${selectedMonth}`
@@ -157,7 +159,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})
 				.from(invoices)
 				.where(and(
-					eq(invoices.restaurantId, rid),
+					tdb.scope(invoices.restaurantId),
 					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') >= ${prevMonth}`
 				)),
@@ -165,7 +167,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)` })
 				.from(invoices)
 				.where(and(
-					eq(invoices.restaurantId, rid),
+					tdb.scope(invoices.restaurantId),
 					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
 				))
@@ -177,11 +179,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN ${invoices.supplierId} END)`,
 			})
 				.from(invoices)
-				.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt))),
+				.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt))),
 
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(suppliers)
-				.where(eq(suppliers.restaurantId, rid)),
+				.where(tdb.scope(suppliers.restaurantId)),
 
 			db.execute(sql`
 				SELECT s.id, s.name,
@@ -211,11 +213,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.select({ category: categoryBudgets.category, monthly_budget: categoryBudgets.monthlyBudget })
 				.from(categoryBudgets)
-				.where(eq(categoryBudgets.restaurantId, rid)),
+				.where(tdb.scope(categoryBudgets.restaurantId)),
 
 			db.select({ value: settings.value })
 				.from(settings)
-				.where(and(eq(settings.restaurantId, rid), eq(settings.key, 'budget_warning_threshold'))),
+				.where(tdb.scope(settings.restaurantId, eq(settings.key, 'budget_warning_threshold'))),
 
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number, i.invoice_date,
@@ -250,12 +252,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				old:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) > 30 THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(and(eq(invoices.restaurantId, rid), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
+				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
 
 			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)` })
 				.from(invoices)
 				.where(and(
-					eq(invoices.restaurantId, rid),
+					tdb.scope(invoices.restaurantId),
 					isNotNull(invoices.totalAmount),
 					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
@@ -275,7 +277,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({ id: systemNotifications.id, message: systemNotifications.message, payload: systemNotifications.payload, createdAt: systemNotifications.createdAt })
 				.from(systemNotifications)
 				.where(and(
-					eq(systemNotifications.restaurantId, rid),
+					tdb.scope(systemNotifications.restaurantId),
 					eq(systemNotifications.notificationType, 'price_shock'),
 					eq(systemNotifications.status, 'pending'),
 					sql`DATE(${systemNotifications.createdAt}) >= ${sevenDaysAgo}::date`
@@ -286,7 +288,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({ id: systemNotifications.id, message: systemNotifications.message, payload: systemNotifications.payload, createdAt: systemNotifications.createdAt })
 				.from(systemNotifications)
 				.where(and(
-					eq(systemNotifications.restaurantId, rid),
+					tdb.scope(systemNotifications.restaurantId),
 					eq(systemNotifications.notificationType, 'budget_overage'),
 					eq(systemNotifications.status, 'pending'),
 					sql`DATE(${systemNotifications.createdAt}) >= ${sevenDaysAgo}::date`
@@ -465,17 +467,21 @@ export const actions: Actions = {
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		await db.update(invoices)
 			.set({ status: 'paid' })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, locals.restaurantId!)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		redirect(303, '/dashboard');
 	},
 	markUnpaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		await db.update(invoices)
 			.set({ status: 'pending' })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, locals.restaurantId!)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		redirect(303, '/dashboard');
 	},
 };

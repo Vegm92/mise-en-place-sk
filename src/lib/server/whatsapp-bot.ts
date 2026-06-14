@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, gt, isNull } from 'drizzle-orm';
+import { forTenant } from './db';
 import { sql } from 'drizzle-orm';
 import { db } from './db';
 import {
@@ -229,6 +230,7 @@ async function saveWhatsAppInvoice(
 	data: ExtractedInvoice,
 	fileKey: string | null | undefined,
 ): Promise<SaveResult> {
+	const tdb = forTenant(restaurantId);
 	const supplierName  = data.supplier_name?.trim()  || 'Desconocido';
 	const invoiceNumber = data.invoice_number?.trim() ?? '';
 	const invoiceDate   = data.invoice_date  ?? null;
@@ -254,7 +256,7 @@ async function saveWhatsAppInvoice(
 		.from(invoices)
 		.where(
 			and(
-				eq(invoices.restaurantId, restaurantId),
+				tdb.scope(invoices.restaurantId),
 				eq(invoices.contentHash, contentHash),
 				isNull(invoices.deletedAt),
 			),
@@ -271,7 +273,7 @@ async function saveWhatsAppInvoice(
 			const existingSupplier = await tx
 				.select({ id: suppliers.id })
 				.from(suppliers)
-				.where(and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, restaurantId)))
+				.where(tdb.scope(suppliers.restaurantId, eq(suppliers.name, supplierName)))
 				.limit(1);
 
 			let supplierId: number;
@@ -292,9 +294,9 @@ async function saveWhatsAppInvoice(
 					.from(invoices)
 					.where(
 						and(
+							tdb.scope(invoices.restaurantId),
 							eq(invoices.supplierId, supplierId),
 							eq(invoices.invoiceNumber, invoiceNumber),
-							eq(invoices.restaurantId, restaurantId),
 						),
 					)
 					.limit(1);

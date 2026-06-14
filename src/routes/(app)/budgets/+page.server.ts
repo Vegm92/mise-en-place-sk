@@ -1,15 +1,16 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	try {
 		const [rows, spendRows] = await Promise.all([
-			db.select().from(categoryBudgets).where(eq(categoryBudgets.restaurantId, rid)),
+			db.select().from(categoryBudgets).where(tdb.scope(categoryBudgets.restaurantId)),
 
 			db.execute<{ category: string; total: number }>(sql`
 				SELECT COALESCE(s.category, 'Other') AS category,
@@ -54,6 +55,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	save: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const data = await request.formData();
 
 		// Categories list is passed from the form so new custom ones are included
@@ -82,7 +84,7 @@ export const actions: Actions = {
 					});
 			} else {
 				await db.delete(categoryBudgets)
-					.where(and(eq(categoryBudgets.restaurantId, rid), eq(categoryBudgets.category, category)));
+					.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.category, category)));
 			}
 		}));
 

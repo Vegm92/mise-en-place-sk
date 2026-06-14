@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
@@ -34,6 +34,7 @@ function buildSegments(
 export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => {
 	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 
 	const VALID = new Set(['daily', 'weekly', 'monthly', 'yearly', '7d', '30d', '90d']);
 	let scale = url.searchParams.get('scale') ?? 'monthly';
@@ -59,7 +60,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 			.select({ key: dayKey, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 			.from(invoices)
 			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '6 days'`))
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '6 days'`))
 			.groupBy(dayKey, suppliers.category)
 			.orderBy(dayKey);
 		const todayKey = isoDate(today);
@@ -77,7 +78,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 			.select({ key: weekKey, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 			.from(invoices)
 			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '29 days'`))
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '29 days'`))
 			.groupBy(weekKey, suppliers.category)
 			.orderBy(weekKey);
 		const currentMonday = isoDate(monday(today));
@@ -98,7 +99,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 			.select({ key: monthKey, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 			.from(invoices)
 			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') >= TO_CHAR(CURRENT_DATE - INTERVAL '2 months', 'YYYY-MM')`))
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') >= TO_CHAR(CURRENT_DATE - INTERVAL '2 months', 'YYYY-MM')`))
 			.groupBy(monthKey, suppliers.category)
 			.orderBy(monthKey);
 		const currentKey = `${String(today.getFullYear()).padStart(4,'0')}-${String(today.getMonth()+1).padStart(2,'0')}`;
@@ -116,7 +117,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 		const rows = await db
 			.select({ key: dayKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 			.from(invoices)
-			.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '13 days'`))
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '13 days'`))
 			.groupBy(dayKey)
 			.orderBy(dayKey);
 		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));
@@ -134,7 +135,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 		const rows = await db
 			.select({ key: weekKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 			.from(invoices)
-			.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '56 days'`))
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '56 days'`))
 			.groupBy(weekKey)
 			.orderBy(weekKey);
 		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));
@@ -150,7 +151,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 		const rows = await db
 			.select({ key: yearKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 			.from(invoices)
-			.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY') >= TO_CHAR(CURRENT_DATE - INTERVAL '4 years', 'YYYY')`))
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY') >= TO_CHAR(CURRENT_DATE - INTERVAL '4 years', 'YYYY')`))
 			.groupBy(yearKey)
 			.orderBy(yearKey);
 		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));
@@ -166,7 +167,7 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 		const rows = await db
 			.select({ key: monthKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 			.from(invoices)
-			.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') >= TO_CHAR(CURRENT_DATE - INTERVAL '11 months', 'YYYY-MM')`))
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') >= TO_CHAR(CURRENT_DATE - INTERVAL '11 months', 'YYYY-MM')`))
 			.groupBy(monthKey)
 			.orderBy(monthKey);
 		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));

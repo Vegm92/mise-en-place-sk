@@ -1,18 +1,19 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { stripe, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, TIERS, type PlanTier } from '$lib/server/billing';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
 
 	const rid = locals.restaurantId;
+	const tdb = forTenant(rid);
 
 	const [sub] = await db.select()
 		.from(subscriptions)
-		.where(eq(subscriptions.restaurantId, rid))
+		.where(tdb.scope(subscriptions.restaurantId))
 		.limit(1);
 
 	const [restaurant] = await db.select({ name: restaurants.name })
@@ -83,9 +84,10 @@ export const actions: Actions = {
 		if (!stripe) error(503, 'Billing not configured — contact support');
 
 		const rid = locals.restaurantId;
+		const tdb = forTenant(rid);
 		const [sub] = await db.select({ stripeCustomerId: subscriptions.stripeCustomerId })
 			.from(subscriptions)
-			.where(eq(subscriptions.restaurantId, rid))
+			.where(tdb.scope(subscriptions.restaurantId))
 			.limit(1);
 
 		if (!sub?.stripeCustomerId) error(400, 'No billing account found. Subscribe first.');

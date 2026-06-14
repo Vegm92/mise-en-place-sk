@@ -1,11 +1,12 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { and, asc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	try {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from(invoices)
 			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 			.where(and(
-				eq(invoices.restaurantId, rid),
+				tdb.scope(invoices.restaurantId),
 				eq(invoices.status, 'pending'),
 				isNotNull(invoices.dueDate),
 				isNull(invoices.deletedAt),
@@ -54,8 +55,10 @@ export const actions: Actions = {
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		await db.update(invoices).set({ status: 'paid' })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, locals.restaurantId!)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		redirect(303, '/reminders');
 	},
 };

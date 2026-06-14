@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { suppliers } from '$lib/server/schema';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
 interface PriceRow {
@@ -24,6 +24,7 @@ interface SupplierRow {
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	try {
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	const { features } = await parent();
 	if (!features.supplierScores) redirect(303, '/billing?upgrade=prices');
 	const supplierIdParam = url.searchParams.get('supplier_id');
@@ -65,7 +66,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 	const supplierList = await db.select({ id: suppliers.id, name: suppliers.name })
 		.from(suppliers)
-		.where(eq(suppliers.restaurantId, rid))
+		.where(tdb.scope(suppliers.restaurantId))
 		.orderBy(suppliers.name) as SupplierRow[];
 
 	return {

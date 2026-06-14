@@ -2,9 +2,9 @@ import { error } from '@sveltejs/kit';
 import path from 'path';
 import type { RequestHandler } from './$types';
 import { getStorage } from '$lib/server/storage';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 const MIME: Record<string, string> = {
 	pdf:  'application/pdf',
@@ -21,9 +21,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const id = parseInt(params.id, 10);
 	if (isNaN(id)) error(400, 'Invalid invoice id');
 
+	const tdb = forTenant(rid);
 	const rows = await db.select({ sourceFile: invoices.sourceFile })
 		.from(invoices)
-		.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)))
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)))
 		.limit(1);
 
 	if (!rows.length || !rows[0].sourceFile) error(404, 'No source file for this invoice');

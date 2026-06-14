@@ -1,18 +1,19 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
 		const invoiceId = parseInt(params.id, 10);
 		const rid       = locals.restaurantId!;
+		const tdb       = forTenant(rid);
 
 		const rows = await db
 			.select()
 			.from(systemNotifications)
-			.where(and(eq(systemNotifications.invoiceId, invoiceId), eq(systemNotifications.restaurantId, rid)));
+			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.invoiceId, invoiceId)));
 
 		const alerts = rows.map((row) => ({
 			id: row.id,

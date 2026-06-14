@@ -1,4 +1,4 @@
-import { db } from './db';
+import { db, forTenant } from './db';
 import { supplierMetrics, invoices, invoiceLineItems } from './schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
 
@@ -59,12 +59,13 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 }
 
 async function computeFrequencyScore(supplierId: number, restaurantId: string): Promise<number> {
+	const tdb = forTenant(restaurantId);
 	const invoiceDates = await db
 		.select({ invoice_date: invoices.invoiceDate })
 		.from(invoices)
 		.where(and(
+			tdb.scope(invoices.restaurantId),
 			eq(invoices.supplierId, supplierId),
-			eq(invoices.restaurantId, restaurantId),
 			isNull(invoices.deletedAt),
 			sql`${invoices.invoiceDate} IS NOT NULL`
 		))

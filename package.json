@@ -26,7 +26,8 @@
 		"db:seed-demo": "node scripts/seed-demo.mjs",
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
 		"worker:prod": "node build/worker.js",
-		"lint:no-sql-raw": "bash -c 'if grep -rn --include=\"*.ts\" --include=\"*.svelte\" \"sql\\.raw(\" src/; then echo \"Error: sql.raw() is banned — use parameterized sql\\`...\\` templates instead\" >&2 && exit 1; fi'"
+		"lint:no-sql-raw": "bash -c 'if grep -rn --include=\"*.ts\" --include=\"*.svelte\" \"sql\\.raw(\" src/; then echo \"Error: sql.raw() is banned — use parameterized sql\\`...\\` templates instead\" >&2 && exit 1; fi'",
+		"lint:tenant-scope": "bash -c 'if grep -rn --include=\"*.ts\" \"eq([a-zA-Z]*\\.restaurantId,\" src/routes/ src/lib/server/ | grep -v \"/admin/\" | grep -v \"tenant.ts\"; then echo \"Error: raw eq(*.restaurantId,...) found — use forTenant().scope() instead (ADR-001 / issue #138)\" >&2 && exit 1; fi'"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^7.0.0",

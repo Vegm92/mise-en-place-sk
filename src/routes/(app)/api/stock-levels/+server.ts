@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { stockLevels } from '$lib/server/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { getTierFeatures } from '$lib/server/billing';
 
@@ -10,9 +10,10 @@ import { getTierFeatures } from '$lib/server/billing';
 export const GET: RequestHandler = async ({ getClientAddress, locals }) => {
 	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	const features = await getTierFeatures(rid);
 	if (!features.stockTracking) throw error(403, 'Stock tracking requires a Pro plan or higher');
-	const rows = await db.select().from(stockLevels).where(eq(stockLevels.restaurantId, rid));
+	const rows = await db.select().from(stockLevels).where(tdb.scope(stockLevels.restaurantId));
 	return json({ stock_levels: rows });
 };
 

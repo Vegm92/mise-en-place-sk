@@ -1,17 +1,18 @@
 import type { PageServerLoad, Actions } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	const sessionIdParam = url.searchParams.get('session');
 
 	const sessions = await db
 		.select()
 		.from(chatSessions)
-		.where(eq(chatSessions.restaurantId, rid))
+		.where(tdb.scope(chatSessions.restaurantId))
 		.orderBy(desc(chatSessions.updatedAt));
 
 	const activeId = sessionIdParam
@@ -36,10 +37,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 export const actions: Actions = {
 	deleteSession: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const data = await request.formData();
 		const id = parseInt(data.get('id') as string, 10);
 		if (!id) return fail(400, { error: 'id required' });
-		await db.delete(chatSessions).where(and(eq(chatSessions.id, id), eq(chatSessions.restaurantId, rid)));
+		await db.delete(chatSessions).where(tdb.scope(chatSessions.restaurantId, eq(chatSessions.id, id)));
 		return { success: true };
 	},
 };

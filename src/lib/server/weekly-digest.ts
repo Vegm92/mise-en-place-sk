@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
-import { and, eq } from 'drizzle-orm';
-import { db } from './db';
+import { eq } from 'drizzle-orm';
+import { db, forTenant } from './db';
 import { settings } from './schema';
 import { buildChatContext } from './chat-context';
 import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
@@ -15,9 +15,10 @@ export function isoWeek(date: Date): string {
 }
 
 async function getSetting(restaurantId: string, key: string): Promise<string | null> {
+	const tdb = forTenant(restaurantId);
 	const rows = await db.select({ value: settings.value })
 		.from(settings)
-		.where(and(eq(settings.restaurantId, restaurantId), eq(settings.key, key)));
+		.where(tdb.scope(settings.restaurantId, eq(settings.key, key)));
 	return rows[0]?.value ?? null;
 }
 

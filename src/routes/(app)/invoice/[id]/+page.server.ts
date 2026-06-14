@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { asc, eq, and, isNull } from 'drizzle-orm';
 
@@ -8,6 +8,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 
 		const [rows, lineItems] = await Promise.all([
 			db.select({
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			})
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-				.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)))
+				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt)))
 				.limit(1),
 
 			db.select({
@@ -60,15 +61,16 @@ export const actions: Actions = {
 	delete: async ({ params, locals }) => {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const uid = locals.user!.id;
 
 		const [inv] = await db.select()
 			.from(invoices)
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)));
+			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt)));
 		if (!inv) redirect(303, '/invoices');
 
 		await db.update(invoices).set({ deletedAt: new Date() })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		await db.insert(invoiceAuditLog).values({
 			restaurantId: rid,
 			invoiceId:    id,

@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { trackEvent } from '$lib/server/events';
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
@@ -10,6 +10,7 @@ const PAGE_SIZE = 50;
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	try {
 		const status     = url.searchParams.get('status') ?? '';
 		const supplierId = url.searchParams.get('supplier_id') ?? '';
@@ -18,7 +19,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 		const offset     = (page - 1) * PAGE_SIZE;
 
-		const conditions: SQL[] = [eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)];
+		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 		if (status)     conditions.push(eq(invoices.status, status));
 		if (supplierId) conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
 		if (dateFrom)   conditions.push(gte(invoices.invoiceDate, dateFrom));
@@ -52,15 +53,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(and(eq(invoices.restaurantId, rid), isNull(invoices.deletedAt))),
+				.where(tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))),
 
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(suppliers)
-				.where(eq(suppliers.restaurantId, rid)),
+				.where(tdb.scope(suppliers.restaurantId)),
 
 			db.select({ id: suppliers.id, name: suppliers.name })
 				.from(suppliers)
-				.where(eq(suppliers.restaurantId, rid))
+				.where(tdb.scope(suppliers.restaurantId))
 				.orderBy(asc(suppliers.name)),
 
 			db.select({ cnt: count() })
@@ -118,8 +119,9 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		await db.update(invoices).set({ status: 'paid' })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		trackEvent('invoice_status_changed', rid, { to: 'paid' }, id);
 		redirect(303, '/invoices');
 	},
@@ -127,8 +129,9 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		await db.update(invoices).set({ status: 'pending' })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		trackEvent('invoice_status_changed', rid, { to: 'pending' }, id);
 		redirect(303, '/invoices');
 	},
@@ -136,14 +139,15 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const uid = locals.user!.id;
 		const [inv] = await db.select()
 			.from(invoices)
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)));
+			.where(and(eq(invoices.id, id), tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))));
 		if (!inv) redirect(303, '/invoices');
 		const now = new Date();
 		await db.update(invoices).set({ deletedAt: now })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		await db.insert(invoiceAuditLog).values({
 			restaurantId: rid,
 			invoiceId:    id,
@@ -157,9 +161,11 @@ export const actions: Actions = {
 	bulkPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		if (ids.length > 0) {
 			await db.update(invoices).set({ status: 'paid' })
-				.where(and(inArray(invoices.id, ids), eq(invoices.restaurantId, locals.restaurantId!)));
+				.where(and(inArray(invoices.id, ids), tdb.scope(invoices.restaurantId)));
 		}
 		redirect(303, '/invoices');
 	},
@@ -167,16 +173,17 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const uid = locals.user!.id;
 		if (ids.length > 0) {
 			const owned = await db.select()
 				.from(invoices)
-				.where(and(inArray(invoices.id, ids), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)));
+				.where(and(inArray(invoices.id, ids), tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))));
 			if (owned.length > 0) {
 				const now = new Date();
 				const ownedIds = owned.map(o => o.id);
 				await db.update(invoices).set({ deletedAt: now })
-					.where(and(inArray(invoices.id, ownedIds), eq(invoices.restaurantId, rid)));
+					.where(and(inArray(invoices.id, ownedIds), tdb.scope(invoices.restaurantId)));
 				await db.insert(invoiceAuditLog).values(
 					owned.map(inv => ({
 						restaurantId: rid,
@@ -193,9 +200,11 @@ export const actions: Actions = {
 	saveNote: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const note = String(data.get('note') ?? '').slice(0, 250) || null;
 		await db.update(invoices).set({ notes: note })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, locals.restaurantId!)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 		return { ok: true };
 	},
 };

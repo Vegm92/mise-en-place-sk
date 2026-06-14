@@ -5,8 +5,8 @@
  * treated as unlimited. Checks are advisory (best-effort) and never block
  * the extraction path on DB errors.
  */
-import { and, eq, gte, sql } from 'drizzle-orm';
-import { db } from './db';
+import { and, gte, sql } from 'drizzle-orm';
+import { db, forTenant } from './db';
 import { llmUsageLog, tenantLlmQuotas } from './schema';
 import { estimateCostUsd, type LLMUsage } from './llm-provider';
 
@@ -16,8 +16,9 @@ export type QuotaResult =
 
 export async function checkExtractionQuota(restaurantId: string): Promise<QuotaResult> {
 	try {
+		const tdb = forTenant(restaurantId);
 		const quota = await db.query.tenantLlmQuotas.findFirst({
-			where: eq(tenantLlmQuotas.restaurantId, restaurantId),
+			where: tdb.scope(tenantLlmQuotas.restaurantId),
 		});
 		if (!quota) return { allowed: true };
 
@@ -30,7 +31,7 @@ export async function checkExtractionQuota(restaurantId: string): Promise<QuotaR
 				.select({ count: sql<number>`count(*)::int` })
 				.from(llmUsageLog)
 				.where(and(
-					eq(llmUsageLog.restaurantId, restaurantId),
+					tdb.scope(llmUsageLog.restaurantId),
 					gte(llmUsageLog.createdAt, monthStart),
 				));
 			const used = row?.count ?? 0;
@@ -45,7 +46,7 @@ export async function checkExtractionQuota(restaurantId: string): Promise<QuotaR
 				.select({ total: sql<string>`coalesce(sum(estimated_cost_usd), '0')` })
 				.from(llmUsageLog)
 				.where(and(
-					eq(llmUsageLog.restaurantId, restaurantId),
+					tdb.scope(llmUsageLog.restaurantId),
 					gte(llmUsageLog.createdAt, monthStart),
 				));
 			const used = parseFloat(row?.total ?? '0');
