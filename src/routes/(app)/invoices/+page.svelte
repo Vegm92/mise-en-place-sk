@@ -7,7 +7,14 @@
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
-  import { ChevronDown, ChevronLeft, ChevronRight, FileDown, Trash2, Check, RotateCcw, ExternalLink } from 'lucide-svelte';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import FileDown from '@lucide/svelte/icons/file-down';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Check from '@lucide/svelte/icons/check';
+  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
 
   const { data }: { data: PageData } = $props();
   const { invoices, stats, suppliers, filters, pagination } = $derived(data);

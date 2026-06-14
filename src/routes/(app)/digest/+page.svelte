@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { t } from '$lib/i18n';
-  import { X, Newspaper } from 'lucide-svelte';
+  import X from '@lucide/svelte/icons/x';
+  import Newspaper from '@lucide/svelte/icons/newspaper';
 
   let { data }: { data: PageData } = $props();
 </script>

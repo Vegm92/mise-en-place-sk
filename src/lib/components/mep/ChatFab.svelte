@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { MessageCircle, X, Send, ExternalLink } from 'lucide-svelte';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import X from '@lucide/svelte/icons/x';
+  import Send from '@lucide/svelte/icons/send';
+  import ExternalLink from '@lucide/svelte/icons/external-link';
   import { goto } from '$app/navigation';
   import { t } from '$lib/i18n';
 

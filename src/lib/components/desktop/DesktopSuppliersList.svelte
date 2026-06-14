@@ -1,7 +1,9 @@
 <script lang="ts">
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
   import { locale } from '$lib/i18n';
-  import { Search, ChevronRight, Plus } from 'lucide-svelte';
+  import Search from '@lucide/svelte/icons/search';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Plus from '@lucide/svelte/icons/plus';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
 
   interface Supplier {

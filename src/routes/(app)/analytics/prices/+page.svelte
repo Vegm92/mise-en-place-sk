@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { locale, t } from '$lib/i18n';
-  import { Search } from 'lucide-svelte';
+  import Search from '@lucide/svelte/icons/search';
   import MobileAnalyticsPrices from '$lib/components/mobile/MobileAnalyticsPrices.svelte';
 
   let { data }: { data: PageData } = $props();

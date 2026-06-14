@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fmtEur } from '$lib/formatters';
-  import { ChevronRight } from 'lucide-svelte';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
 
   interface Supplier {

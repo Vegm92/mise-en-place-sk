@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { Bell, X, TrendingUp, Package, Ruler } from 'lucide-svelte';
+  import Bell from '@lucide/svelte/icons/bell';
+  import X from '@lucide/svelte/icons/x';
+  import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import Package from '@lucide/svelte/icons/package';
+  import Ruler from '@lucide/svelte/icons/ruler';
   import { t } from '$lib/i18n';
 
   type Notif = {

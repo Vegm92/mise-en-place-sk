@@ -30,7 +30,6 @@
 		"lint:tenant-scope": "bash -c 'if grep -rn --include=\"*.ts\" \"eq([a-zA-Z]*\\.restaurantId,\" src/routes/ src/lib/server/ | grep -v \"/admin/\" | grep -v \"tenant.ts\"; then echo \"Error: raw eq(*.restaurantId,...) found — use forTenant().scope() instead (ADR-001 / issue #138)\" >&2 && exit 1; fi'"
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.50.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
@@ -64,7 +63,6 @@
 		"clsx": "^2.1.1",
 		"dotenv": "^17.4.2",
 		"drizzle-orm": "^0.45.2",
-		"lucide-svelte": "^0.577.0",
 		"pdf-parse": "^1.1.1",
 		"pg-boss": "^12.18.3",
 		"postgres": "^3.4.9",
