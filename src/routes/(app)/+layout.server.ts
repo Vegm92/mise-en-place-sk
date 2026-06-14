@@ -78,10 +78,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const rawTutorialStep = tutorialStepRow[0]?.value;
 	const tutorialStep = (rawTutorialStep ?? (hasCompletedOnboarding ? 'done' : '1')) as string;
 
-	const notifications = rawNotifs.map((n) => ({
-		...n,
-		payload: n.payload ? JSON.parse(n.payload) : null,
-	}));
+	const notifications = rawNotifs.flatMap((n) => {
+		let payload: unknown = null;
+		if (n.payload) {
+			try { payload = JSON.parse(n.payload); } catch { return []; }
+		}
+		return [{ ...n, payload }];
+	});
 
 	const planTier = (subRow?.[0]?.planTier ?? 'trial') as PlanTier;
 	const tierConfig = TIERS[planTier];

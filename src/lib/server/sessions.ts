@@ -11,6 +11,13 @@ import { getStorage } from './storage';
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
+const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
+	'.pdf':  (b) => b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46 && b[4] === 0x2D,
+	'.jpg':  (b) => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,
+	'.jpeg': (b) => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,
+	'.png':  (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 && b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A,
+};
+
 /** Local uploads directory — used by the local storage driver and for file stat display. */
 export function uploadsDir(): string {
 	return path.resolve(process.cwd(), UPLOADS_DIR);
@@ -56,6 +63,11 @@ export async function saveUploadedFiles(
 		const key = `${namespace}/${filename}`;
 
 		const buf = Buffer.from(await file.arrayBuffer());
+		const magicCheck = MAGIC_BYTES[ext];
+		if (magicCheck && !magicCheck(buf)) {
+			errors.push(`'${file.name}': file content does not match the declared type`);
+			continue;
+		}
 		await storage.save(key, buf);
 		saved.push(filename);
 		keys.push(key);
