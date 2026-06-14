@@ -3,7 +3,13 @@
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import { locale } from '$lib/i18n';
-  import { ArrowLeft, Pencil, Trash2, Mail, Phone, Truck, CreditCard } from 'lucide-svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Phone from '@lucide/svelte/icons/phone';
+  import Truck from '@lucide/svelte/icons/truck';
+  import CreditCard from '@lucide/svelte/icons/credit-card';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import DesktopSupplierDetail from '$lib/components/desktop/DesktopSupplierDetail.svelte';
 

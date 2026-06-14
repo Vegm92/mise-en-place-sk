@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { TrendingUp, Tag, Clock, Info } from 'lucide-svelte';
+  import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import Tag from '@lucide/svelte/icons/tag';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Info from '@lucide/svelte/icons/info';
 
   let {
     alert,

@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { AlertTriangle, Clock, Check } from 'lucide-svelte';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import Clock from '@lucide/svelte/icons/clock';
+  import Check from '@lucide/svelte/icons/check';
 
   interface Reminder {
     id: number;

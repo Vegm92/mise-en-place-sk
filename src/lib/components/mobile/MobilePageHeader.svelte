@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { Search, Bell } from 'lucide-svelte';
+  import Search from '@lucide/svelte/icons/search';
+  import Bell from '@lucide/svelte/icons/bell';
 
   let { title, hasAlert = false }: { title: string; hasAlert?: boolean } = $props();
 </script>

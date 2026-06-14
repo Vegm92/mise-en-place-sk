@@ -1,7 +1,14 @@
 <script lang="ts">
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
-  import { ArrowLeft, ChevronRight, Pencil, Trash2, Mail, Phone, Truck, CreditCard } from 'lucide-svelte';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Pencil from '@lucide/svelte/icons/pencil';
+  import Trash2 from '@lucide/svelte/icons/trash-2';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Phone from '@lucide/svelte/icons/phone';
+  import Truck from '@lucide/svelte/icons/truck';
+  import CreditCard from '@lucide/svelte/icons/credit-card';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { locale, t } from '$lib/i18n';
 

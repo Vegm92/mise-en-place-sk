@@ -1,6 +1,12 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
-  import { Upload, Mail, Sparkle, X, Check, Camera, WifiOff } from 'lucide-svelte';
+  import Upload from '@lucide/svelte/icons/upload';
+  import Mail from '@lucide/svelte/icons/mail';
+  import Sparkle from '@lucide/svelte/icons/sparkle';
+  import X from '@lucide/svelte/icons/x';
+  import Check from '@lucide/svelte/icons/check';
+  import Camera from '@lucide/svelte/icons/camera';
+  import WifiOff from '@lucide/svelte/icons/wifi-off';
   import { t } from '$lib/i18n';
 
   interface Props {

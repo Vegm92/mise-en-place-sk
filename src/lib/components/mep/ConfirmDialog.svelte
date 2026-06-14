@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from '$lib/i18n';
-  import { AlertTriangle } from 'lucide-svelte';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   let {
     open = $bindable(false),

@@ -3,7 +3,7 @@
   import { t } from '$lib/i18n';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import MobileAlerts from '$lib/components/mobile/MobileAlerts.svelte';
-  import { Check } from 'lucide-svelte';
+  import Check from '@lucide/svelte/icons/check';
 
   let { data }: { data: PageData } = $props();
 </script>

@@ -32,6 +32,13 @@ vi.mock('../src/lib/server/db', () => {
 			select: vi.fn(() => makeBuilder()),
 			execute: vi.fn().mockResolvedValue([]),
 		},
+		// db.ts re-exports forTenant from tenant.ts; include it in the mock so
+		// vitest's strict export-check passes when DATABASE_URL is set in CI.
+		// Must return { rid, scope } — alert-engine calls tdb.scope() directly.
+		forTenant: vi.fn((rid: string) => ({
+			rid,
+			scope: vi.fn((_col: unknown, extra?: unknown) => extra ?? true),
+		})),
 	};
 });
 

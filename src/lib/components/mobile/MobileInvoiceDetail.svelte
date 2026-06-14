@@ -1,6 +1,12 @@
 <script lang="ts">
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
-  import { ChevronLeft, MoreHorizontal, FileText, Edit, Download, Truck, Check } from 'lucide-svelte';
+  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
+  import FileText from '@lucide/svelte/icons/file-text';
+  import Edit from '@lucide/svelte/icons/edit';
+  import Download from '@lucide/svelte/icons/download';
+  import Truck from '@lucide/svelte/icons/truck';
+  import Check from '@lucide/svelte/icons/check';
   import { locale } from '$lib/i18n';
 
   interface LineItem {
