@@ -1,8 +1,9 @@
-import { db } from './db';
+import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, suppliers, categoryBudgets, stockLevels, systemNotifications } from './schema';
-import { eq, sql } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 
 export async function buildChatContext(restaurantId: string): Promise<string> {
+	const tdb = forTenant(restaurantId);
 	const lines: string[] = [];
 
 	type SummaryRow = { pending_count: number; pending_total: number; overdue_count: number; paid_this_month: number };
@@ -95,7 +96,7 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		current_stock:   stockLevels.currentStock,
 		daily_burn_rate: stockLevels.dailyBurnRate,
 		canonical_unit:  stockLevels.canonicalUnit,
-	}).from(stockLevels).where(eq(stockLevels.restaurantId, restaurantId)).orderBy(stockLevels.ingredient) as StockRow[];
+	}).from(stockLevels).where(tdb.scope(stockLevels.restaurantId)).orderBy(stockLevels.ingredient) as StockRow[];
 
 	if (stock.length) {
 		lines.push('\n## Stock Levels');

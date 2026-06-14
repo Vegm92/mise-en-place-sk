@@ -1,6 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { eq, desc, and, isNull } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
@@ -11,10 +11,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	if (!id || isNaN(id)) error(404, 'Supplier not found');
 
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 
 	const [supplierRows, supplierInvoices, metricsRows] = await Promise.all([
 		db.select().from(suppliers)
-			.where(and(eq(suppliers.id, id), eq(suppliers.restaurantId, rid)))
+			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)))
 			.limit(1),
 
 		db.select({
@@ -26,11 +27,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			status:        invoices.status,
 		})
 			.from(invoices)
-			.where(and(eq(invoices.supplierId, id), eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)))
+			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, id), isNull(invoices.deletedAt)))
 			.orderBy(desc(invoices.invoiceDate)),
 
 		db.select().from(supplierMetrics)
-			.where(and(eq(supplierMetrics.supplierId, id), eq(supplierMetrics.restaurantId, rid)))
+			.where(tdb.scope(supplierMetrics.restaurantId, eq(supplierMetrics.supplierId, id)))
 			.limit(1),
 	]);
 
@@ -77,6 +78,7 @@ export const actions: Actions = {
 	update: async ({ params, request, locals }) => {
 		const id = Number(params.id);
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const data = await request.formData();
 
 		const name         = String(data.get('name') ?? '').trim();
@@ -94,7 +96,7 @@ export const actions: Actions = {
 
 		await db.update(suppliers)
 			.set({ name, category: cat, contactEmail, contactPhone, cif, deliveryDays, paymentTerms: paymentTermms, notes })
-			.where(and(eq(suppliers.id, id), eq(suppliers.restaurantId, rid)));
+			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
 		redirect(303, `/suppliers/${id}`);
 	},
@@ -102,13 +104,14 @@ export const actions: Actions = {
 	delete: async ({ params, locals }) => {
 		const id = Number(params.id);
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 
 		await db.update(invoices).set({ supplierId: null })
-			.where(and(eq(invoices.supplierId, id), eq(invoices.restaurantId, rid)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.supplierId, id)));
 		await db.delete(supplierMetrics)
-			.where(and(eq(supplierMetrics.supplierId, id), eq(supplierMetrics.restaurantId, rid)));
+			.where(tdb.scope(supplierMetrics.restaurantId, eq(supplierMetrics.supplierId, id)));
 		await db.delete(suppliers)
-			.where(and(eq(suppliers.id, id), eq(suppliers.restaurantId, rid)));
+			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
 		redirect(303, '/suppliers');
 	},

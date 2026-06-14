@@ -5,9 +5,8 @@
  */
 import Stripe from 'stripe';
 import { env } from '$env/dynamic/private';
-import { db } from './db';
+import { db, forTenant } from './db';
 import { subscriptions, restaurants, settings } from './schema';
-import { eq } from 'drizzle-orm';
 
 const secretKey = env.STRIPE_SECRET_KEY ?? '';
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
@@ -91,9 +90,10 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 
 /** Look up the tier features for a restaurant. Fast enough for use in API request handlers. */
 export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
+	const tdb = forTenant(restaurantId);
 	const [row] = await db.select({ planTier: subscriptions.planTier })
 		.from(subscriptions)
-		.where(eq(subscriptions.restaurantId, restaurantId))
+		.where(tdb.scope(subscriptions.restaurantId))
 		.limit(1);
 	const tier = (row?.planTier ?? 'trial') as PlanTier;
 	return TIERS[tier].features;
@@ -109,9 +109,10 @@ export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | 
 export async function getOrCreateCustomer(restaurantId: string, email: string, restaurantName: string): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 
+	const tdb = forTenant(restaurantId);
 	const rows = await db.select({ stripeCustomerId: subscriptions.stripeCustomerId })
 		.from(subscriptions)
-		.where(eq(subscriptions.restaurantId, restaurantId))
+		.where(tdb.scope(subscriptions.restaurantId))
 		.limit(1);
 
 	if (rows[0]?.stripeCustomerId) return rows[0].stripeCustomerId;
@@ -252,7 +253,7 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 					cancelAtPeriodEnd: sub.cancel_at_period_end,
 					updatedAt: new Date(),
 				})
-				.where(eq(subscriptions.restaurantId, restaurantId));
+				.where(forTenant(restaurantId).scope(subscriptions.restaurantId));
 			if (sub.status === 'active') await applyTierSettings(restaurantId, tier);
 			break;
 		}

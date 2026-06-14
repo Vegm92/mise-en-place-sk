@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
@@ -8,6 +8,7 @@ import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliabilit
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
+	const tdb = forTenant(rid);
 	try {
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -31,13 +32,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 				last_month_spend:    sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=TO_CHAR(NOW()-INTERVAL'1 month','YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`.as('last_month_spend'),
 			})
 				.from(suppliers)
-				.leftJoin(invoices, and(eq(invoices.supplierId, suppliers.id), eq(invoices.restaurantId, rid)))
-				.where(eq(suppliers.restaurantId, rid))
+				.leftJoin(invoices, and(eq(invoices.supplierId, suppliers.id), tdb.scope(invoices.restaurantId)))
+				.where(tdb.scope(suppliers.restaurantId))
 				.groupBy(suppliers.id)
 				.orderBy(sql`month_spend DESC`, suppliers.name),
 
 			db.select().from(supplierMetrics)
-				.where(eq(supplierMetrics.restaurantId, rid)),
+				.where(tdb.scope(supplierMetrics.restaurantId)),
 
 			db.execute<PriceTrendRow>(sql`
 				SELECT

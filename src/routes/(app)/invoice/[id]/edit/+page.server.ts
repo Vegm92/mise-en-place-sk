@@ -1,6 +1,6 @@
 import { error, redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { asc, eq, and, ne } from 'drizzle-orm';
 
@@ -8,6 +8,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 
 		const [rows, lineItems] = await Promise.all([
 			db.select({
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			})
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-				.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)))
+				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)))
 				.limit(1),
 
 			db.select({
@@ -63,6 +64,7 @@ export const actions: Actions = {
 	save: async ({ request, params, locals }) => {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
 		const data = await request.formData();
 
 		const supplierName  = String(data.get('supplier_name') ?? '').trim();
@@ -81,7 +83,7 @@ export const actions: Actions = {
 		let supplierId: number | null = null;
 		if (supplierName) {
 			const existing = await db.query.suppliers.findFirst({
-				where: and(eq(suppliers.name, supplierName), eq(suppliers.restaurantId, rid)),
+				where: tdb.scope(suppliers.restaurantId, eq(suppliers.name, supplierName)),
 				columns: { id: true },
 			});
 			if (existing) {
@@ -99,10 +101,10 @@ export const actions: Actions = {
 				.select({ id: invoices.id })
 				.from(invoices)
 				.where(and(
+					tdb.scope(invoices.restaurantId),
 					eq(invoices.supplierId, supplierId),
 					eq(invoices.invoiceNumber, invoiceNumber),
 					ne(invoices.id, id),
-					eq(invoices.restaurantId, rid),
 				))
 				.limit(1);
 			if (duplicate.length > 0) {
@@ -112,7 +114,7 @@ export const actions: Actions = {
 
 		await db.update(invoices)
 			.set({ supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes })
-			.where(and(eq(invoices.id, id), eq(invoices.restaurantId, rid)));
+			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
 
 		await db.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id));
 
