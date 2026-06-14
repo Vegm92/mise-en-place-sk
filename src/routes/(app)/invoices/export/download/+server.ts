@@ -1,16 +1,17 @@
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { and, desc, eq, gte, isNull, lte, type SQL } from 'drizzle-orm';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const rid        = locals.restaurantId!;
+	const tdb        = forTenant(rid);
 	const status     = url.searchParams.get('status') ?? '';
 	const supplierId = url.searchParams.get('supplier_id') ?? '';
 	const dateFrom   = url.searchParams.get('date_from') ?? '';
 	const dateTo     = url.searchParams.get('date_to') ?? '';
 
-	const conditions: SQL[] = [eq(invoices.restaurantId, rid), isNull(invoices.deletedAt)];
+	const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 	if (status)     conditions.push(eq(invoices.status, status));
 	if (supplierId) conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
 	if (dateFrom)   conditions.push(gte(invoices.invoiceDate, dateFrom));
