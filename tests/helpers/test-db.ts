@@ -22,6 +22,19 @@ export const hasSupabaseEnv = !!(
 	process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// When REQUIRE_DB_TESTS=1 (set by CI when secrets are known to be configured),
+// missing Supabase vars are a hard failure rather than a silent skip. This
+// catches typo'd secret names or accidentally dropped env entries in the workflow.
+if (process.env.REQUIRE_DB_TESTS === '1' && !hasSupabaseEnv) {
+	const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'].filter(
+		(k) => !process.env[k]
+	);
+	throw new Error(
+		`\nREQUIRE_DB_TESTS=1 but required Supabase env vars are missing: ${missing.join(', ')}\n` +
+			'Ensure CI secrets are configured correctly, or remove REQUIRE_DB_TESTS to allow skipping.\n'
+	);
+}
+
 // max:2 per worker × 4 parallel test files = 8 connections, within pool_size:15
 const _client = hasDbEnv
 	? postgres(_url, { ssl: _isLocal ? false : 'require', max: 2, idle_timeout: 10 })

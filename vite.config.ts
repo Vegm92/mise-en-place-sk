@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
 		},
 		test: {
 			include: ['tests/**/*.test.ts'],
+			globalSetup: ['tests/setup/global-setup.ts'],
 			environment: 'node',
 			globals: true,
 			coverage: {
