@@ -5,6 +5,40 @@ import path from 'node:path';
 import { saveUploadedFiles } from '$lib/server/sessions';
 import { createBatch } from '$lib/server/batch';
 import { trackEvent } from '$lib/server/events';
+import { db, forTenant } from '$lib/server/db';
+import { invoices, settings } from '$lib/server/schema';
+import { and, isNull, eq, sql } from 'drizzle-orm';
+
+/**
+ * Returns the number of invoices the tenant can still add this calendar month,
+ * or null when no plan quota is configured (treated as unlimited). Best-effort:
+ * never blocks the upload path on a DB error.
+ */
+async function remainingMonthlyQuota(rid: string): Promise<number | null> {
+	try {
+		const tdb = forTenant(rid);
+		const [quotaRow] = await db
+			.select({ value: settings.value })
+			.from(settings)
+			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')));
+		if (!quotaRow?.value) return null;
+		const limit = Number(quotaRow.value);
+		if (!Number.isFinite(limit) || limit <= 0) return null;
+
+		const [usedRow] = await db
+			.select({ cnt: sql<number>`COUNT(*)::int` })
+			.from(invoices)
+			.where(and(
+				tdb.scope(invoices.restaurantId),
+				isNull(invoices.deletedAt),
+				sql`TO_CHAR(${invoices.createdAt}, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')`,
+			));
+		return Math.max(0, limit - (usedRow?.cnt ?? 0));
+	} catch (err) {
+		console.error('[upload] quota check failed (allowing upload):', err);
+		return null;
+	}
+}
 
 export const load: PageServerLoad = async ({ url }) => {
 	return {
@@ -12,6 +46,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		error: url.searchParams.get('error') ?? null,
 		saved: url.searchParams.get('saved') === '1',
 		duplicate: url.searchParams.get('duplicate_inv') === '1',
+		upgradeUrl: url.searchParams.get('upgrade') === '1' ? '/billing' : null,
 	};
 };
 
@@ -40,6 +75,20 @@ export const actions: Actions = {
 			return fail(400, { error: `File${oversized.length > 1 ? 's' : ''} exceed the 20 MB limit: ${names}` });
 		}
 
+		const rid = locals.restaurantId!;
+
+		// Plan quota gate — block before consuming any Gemini extraction and send
+		// the user to /billing to upgrade. Skipped when no quota is configured.
+		// Uses a redirect (not fail) so the message + upgrade CTA render reliably
+		// for both the XHR and no-JS submit paths via the page's error banner.
+		const remaining = await remainingMonthlyQuota(rid);
+		if (remaining !== null && files.length > remaining) {
+			const msg = remaining === 0
+				? 'Has alcanzado el límite de facturas de tu plan este mes. Mejora tu plan para seguir subiendo facturas.'
+				: `Solo te quedan ${remaining} factura${remaining === 1 ? '' : 's'} en tu plan este mes. Mejora tu plan para subir más.`;
+			redirect(303, `/?error=${encodeURIComponent(msg)}&upgrade=1`);
+		}
+
 		// Random storage namespace — generated before the batch exists so files
 		// can be saved first; it does not need to match the batch id.
 		const namespace = randomBytes(16).toString('hex');
@@ -58,7 +107,6 @@ export const actions: Actions = {
 			return fail(400, { error: msg });
 		}
 
-		const rid = locals.restaurantId!;
 		// One batch, one item per invoice — no chained sessions.
 		const { batchId } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
 
