@@ -267,7 +267,14 @@
     {:else if tab === 'facturas'}
 
       {#if !data.invoices.length}
-        <div style="padding:40px 0;text-align:center;color:var(--mep-fg-3);font-size:13px;">Sin facturas registradas</div>
+        <div style="padding:40px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div style="color:var(--mep-fg-3);font-size:13px;line-height:1.5;">
+            Aún no hay facturas de este proveedor.<br />Sube una factura para empezar a ver su histórico aquí.
+          </div>
+          <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;">
+            Subir factura
+          </a>
+        </div>
       {:else}
         {#each data.invoices as inv (inv.id)}
           <a href="/invoice/{inv.id}" class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
