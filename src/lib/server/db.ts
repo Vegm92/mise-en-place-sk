@@ -12,12 +12,32 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
 
-const connectionString = env.DATABASE_POOL_URL ?? env.DATABASE_URL;
-if (!connectionString) throw new Error('DATABASE_URL (or DATABASE_POOL_URL) is required');
+type DB = ReturnType<typeof drizzle<typeof schema>>;
 
-const client = postgres(connectionString, { prepare: false, ssl: 'require' });
+let _db: DB | null = null;
 
-export const db = drizzle(client, { schema });
+/**
+ * Lazily create the Drizzle client on first use. We intentionally do NOT
+ * connect at import time: SvelteKit's build/prerender-analyse step imports
+ * server modules without runtime env, and a throw here would break the build.
+ * The connection (and the missing-config error) is deferred to the first query.
+ */
+function getDb(): DB {
+	if (_db) return _db;
+	const connectionString = env.DATABASE_POOL_URL ?? env.DATABASE_URL;
+	if (!connectionString) throw new Error('DATABASE_URL (or DATABASE_POOL_URL) is required');
+	const client = postgres(connectionString, { prepare: false, ssl: 'require' });
+	_db = drizzle(client, { schema });
+	return _db;
+}
+
+// Proxy so existing `db.select(...)` call sites keep working while the
+// underlying client is created lazily on first property access.
+export const db: DB = new Proxy({} as DB, {
+	get(_target, prop, receiver) {
+		return Reflect.get(getDb() as object, prop, receiver);
+	}
+});
 
 // Tenant-scoped query helper — see ARCHITECTURE_DECISIONS.md ADR-001.
 export { forTenant } from './tenant';
