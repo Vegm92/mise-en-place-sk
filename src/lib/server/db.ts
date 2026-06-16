@@ -32,10 +32,14 @@ function getDb(): DB {
 }
 
 // Proxy so existing `db.select(...)` call sites keep working while the
-// underlying client is created lazily on first property access.
+// underlying client is created lazily on first property access. Methods are
+// bound to the real Drizzle instance so internal `this` references resolve
+// against it (not the proxy).
 export const db: DB = new Proxy({} as DB, {
-	get(_target, prop, receiver) {
-		return Reflect.get(getDb() as object, prop, receiver);
+	get(_target, prop) {
+		const real = getDb();
+		const value = Reflect.get(real as object, prop, real);
+		return typeof value === 'function' ? value.bind(real) : value;
 	}
 });
 
