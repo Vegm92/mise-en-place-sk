@@ -1,12 +1,16 @@
 /**
  * Invoice extraction — classifies a file, prepares input for the LLM,
  * and returns structured invoice data. No DB access, no side effects.
+ *
+ * XML path (Facturae / UBL): structured parser is used directly; Gemini is skipped.
+ * Image / PDF path: Gemini vision or text extraction as before.
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
 import { createLLMProvider, type LLMProvider, type LLMUsage } from './llm-provider';
+import { parseEinvoice } from './einvoice-parser';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spanish restaurants. Extract all relevant information from this document and return it as a JSON object.
 
@@ -71,7 +75,9 @@ Confidence scores (document-level and per-field):
 - 0.85+ : Clearly visible and readable
 - 0.60-0.84 : Readable with some ambiguity (blur, partial occlusion, handwriting)
 - below 0.60 : Poor quality, missing, or illegible
-Per-field confidence reflects the legibility of that specific field. The document-level confidence is the overall assessment.`;
+Per-field confidence reflects the legibility of that specific field. The document-level confidence is the overall assessment.
+
+QR code: If you can see and decode a QR code on the document, return the full decoded URL in the "qr_url" field. Spanish VERI*FACTU invoices carry an AEAT verification URL (e.g. https://www2.agenciatributaria.es/wlpl/TIKE-CONT/ValidarQR?nif=...&numserie=...&fecha=...&importe=...). If no QR is visible or decodable, set qr_url to null.`;
 
 export interface ExtractedInvoice {
 	supplier_name: string | null;
@@ -98,9 +104,22 @@ export interface ExtractedInvoice {
 		total_price: number | null;
 		confidence?: number;
 	}>;
+	// ── e-invoicing extensions (optional) ─────────────────────────────────
+	/** NIF extracted from structured XML (Facturae/UBL). */
+	supplier_nif?: string | null;
+	/** AEAT or TicketBAI QR verification URL decoded from the document image. */
+	qr_url?: string | null;
+	/** True when QR-decoded fields conflict with AI-extracted fields. */
+	qr_mismatch?: boolean;
+	/** Format of structured XML invoice, if parsed from XML rather than AI. */
+	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
 }
 
-type ClassifiedFile = { type: 'text_pdf'; text: string } | { type: 'scanned_pdf' } | { type: 'image' };
+type ClassifiedFile =
+	| { type: 'text_pdf'; text: string }
+	| { type: 'scanned_pdf' }
+	| { type: 'image' }
+	| { type: 'xml'; xml: string };
 
 const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 	jpg:  'image/jpeg',
@@ -147,6 +166,10 @@ export function classifyFile(filePath: string): Promise<ClassifiedFile> | Classi
 	const ext = path.extname(filePath).toLowerCase().replace('.', '');
 	if (ext === 'pdf') return classifyPdf(filePath);
 	if (ext in IMAGE_MEDIA_TYPES) return { type: 'image' };
+	if (ext === 'xml') {
+		const xml = readFileSync(filePath, 'utf-8');
+		return { type: 'xml', xml };
+	}
 	throw new Error(`Unsupported file type: .${ext}`);
 }
 
@@ -215,8 +238,16 @@ export async function extractInvoice(
 	filePath: string,
 	generateOverride?: GenerateFn
 ): Promise<ExtractedInvoice> {
-	const generate = generateOverride ?? getGenerateFn();
 	const classified = await classifyFile(filePath);
+
+	// Structured XML path — skip Gemini entirely, use deterministic parser.
+	if (classified.type === 'xml') {
+		const result = parseEinvoice(classified.xml);
+		if (!result) throw new Error('Unrecognised XML e-invoice format (not Facturae 3.2.x or UBL 2.1)');
+		return result;
+	}
+
+	const generate = generateOverride ?? getGenerateFn();
 
 	let timeoutHandle: ReturnType<typeof setTimeout>;
 	const timeout = new Promise<never>((_, rej) => {
@@ -281,8 +312,17 @@ export async function extractWithProvider(
 	filePath: string,
 	provider?: LLMProvider,
 ): Promise<{ invoice: ExtractedInvoice; usage: LLMUsage }> {
-	const resolvedProvider = provider ?? createLLMProvider();
 	const classified = await classifyFile(filePath);
+
+	// Structured XML path — no LLM tokens consumed.
+	if (classified.type === 'xml') {
+		const result = parseEinvoice(classified.xml);
+		if (!result) throw new Error('Unrecognised XML e-invoice format (not Facturae 3.2.x or UBL 2.1)');
+		const zeroUsage: LLMUsage = { inputTokens: 0, outputTokens: 0, model: 'xml-parser' };
+		return { invoice: result, usage: zeroUsage };
+	}
+
+	const resolvedProvider = provider ?? createLLMProvider();
 
 	let timeoutHandle: ReturnType<typeof setTimeout>;
 	const timeout = new Promise<never>((_, rej) => {
