@@ -94,6 +94,10 @@ export async function checkRateLimit(key: string, maxPerMinute: number): Promise
 }
 
 // ── Extraction concurrency semaphore ─────────────────────────────────────────
+// NOTE: this counter is in-process and therefore SINGLE-INSTANCE ONLY. With
+// multiple worker processes the effective concurrency against Gemini is
+// (process count × max). A distributed semaphore (e.g. Upstash Redis) would be
+// required to enforce a global cap across instances.
 
 let activeExtractions = 0;
 
