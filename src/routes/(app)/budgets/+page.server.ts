@@ -4,6 +4,7 @@ import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { trackEvent } from '$lib/server/events';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
@@ -72,6 +73,7 @@ export const actions: Actions = {
 			categories = VALID_CATEGORIES;
 		}
 
+		let setCount = 0;
 		await Promise.all(categories.map(async (category) => {
 			const raw = String(data.get(category) ?? '').trim();
 			const amount = parseFloat(raw);
@@ -82,11 +84,14 @@ export const actions: Actions = {
 						target: [categoryBudgets.restaurantId, categoryBudgets.category],
 						set: { monthlyBudget: amount },
 					});
+				setCount++;
 			} else {
 				await db.delete(categoryBudgets)
 					.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.category, category)));
 			}
 		}));
+
+		trackEvent('budget_set', rid, { categories_with_limit: setCount });
 
 		redirect(303, '/budgets');
 	},

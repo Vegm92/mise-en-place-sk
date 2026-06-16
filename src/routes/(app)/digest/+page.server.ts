@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getOrGenerateWeeklyDigest, dismissWeeklyDigest, isoWeek } from '$lib/server/weekly-digest';
+import { trackEvent } from '$lib/server/events';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const rid = locals.restaurantId;
@@ -11,6 +12,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	const currentWeek = isoWeek(new Date());
 	const weeklyDigest = await getOrGenerateWeeklyDigest(rid, currentWeek);
+	trackEvent('digest_viewed', rid, { week: currentWeek });
 
 	return {
 		title: 'Resumen semanal',

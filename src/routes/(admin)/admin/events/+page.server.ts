@@ -10,8 +10,16 @@ const VALID_TYPES = [
 	'price_shock',
 	'budget_overage',
 	'invoice_saved',
+	'invoice_corrected',
 	'extraction_failed',
+	'extraction_discarded',
 	'supplier_missing',
+	'file_uploaded',
+	'budget_set',
+	'chat_message_sent',
+	'plan_upgraded',
+	'digest_viewed',
+	'duplicate_detected',
 ] as const;
 
 export const load: PageServerLoad = async ({ url }) => {
