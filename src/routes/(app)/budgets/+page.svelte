@@ -307,8 +307,9 @@
 
           <!-- Budget input -->
           <div style="display:flex;align-items:center;gap:8px;">
-            <label style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">Presupuesto</label>
+            <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">Presupuesto</label>
             <input type="number" step="0.01" min="0"
+              id="budget-{r.cat}"
               name={r.cat}
               value={r.limit > 0 ? r.limit : ''}
               placeholder={$t('bud.noLimit')}

@@ -126,6 +126,7 @@
       box-shadow:0 8px 32px rgba(0,0,0,0.18);
     "
     role="dialog"
+    tabindex="-1"
     aria-modal="true"
     aria-label={title}
     onclick={(e) => e.stopPropagation()}

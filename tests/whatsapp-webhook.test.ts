@@ -15,7 +15,10 @@ const { handleMock } = vi.hoisted(() => ({
 	handleMock: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me' }));
+// WHATSAPP_APP_SECRET is intentionally empty here: with no secret the route
+// skips HMAC verification (dev behaviour), so these tests isolate the route
+// plumbing. Signature rejection is covered separately below.
+vi.mock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: '' }));
 vi.mock('$lib/server/whatsapp-bot', () => ({ handleWhatsAppMessage: handleMock }));
 
 import { GET, POST } from '../src/routes/api/whatsapp/webhook/+server';
@@ -24,13 +27,12 @@ import { GET, POST } from '../src/routes/api/whatsapp/webhook/+server';
 function getEvent(qs: string) {
 	return { url: new URL(`http://localhost/api/whatsapp/webhook?${qs}`) } as never;
 }
-function postEvent(body: unknown, opts: { invalidJson?: boolean } = {}) {
+function postEvent(body: unknown, opts: { invalidJson?: boolean; signature?: string } = {}) {
+	const raw = opts.invalidJson ? '{ not valid json' : JSON.stringify(body);
 	return {
 		request: {
-			json: async () => {
-				if (opts.invalidJson) throw new SyntaxError('bad json');
-				return body;
-			},
+			text: async () => raw,
+			headers: { get: (name: string) => (name.toLowerCase() === 'x-hub-signature-256' ? (opts.signature ?? null) : null) },
 		},
 	} as never;
 }
@@ -107,5 +109,24 @@ describe('POST — message fan-out', () => {
 		);
 		expect(res.status).toBe(200);
 		expect(handleMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('POST — signature verification', () => {
+	// Re-import the route against an env mock that DOES set an app secret, so the
+	// HMAC path is exercised. A bad/missing signature must be rejected with 401.
+	it('rejects a POST with a bad signature when the app secret is configured', async () => {
+		vi.resetModules();
+		vi.doMock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: 'super-secret' }));
+		vi.doMock('$lib/server/whatsapp-bot', () => ({ handleWhatsAppMessage: handleMock }));
+		const { POST: SignedPOST } = await import('../src/routes/api/whatsapp/webhook/+server');
+		const envelope = {
+			entry: [{ changes: [{ value: { messaging_product: 'whatsapp', messages: [{ from: '+34600000004', id: 'wamid.4', type: 'text', text: { body: 'hi' } }] } }] }],
+		};
+		const res = await SignedPOST(postEvent(envelope, { signature: 'sha256=deadbeef' }));
+		expect(res.status).toBe(401);
+		expect(handleMock).not.toHaveBeenCalled();
+		vi.doUnmock('$lib/server/env');
+		vi.doUnmock('$lib/server/whatsapp-bot');
 	});
 });

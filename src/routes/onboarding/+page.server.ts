@@ -2,7 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
-import { TRIAL_DAYS } from '$lib/server/billing';
+import { TRIAL_DAYS, applyTierSettings } from '$lib/server/billing';
 import { sendEmail, welcomeEmail } from '$lib/server/email';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -49,6 +49,10 @@ export const actions: Actions = {
 				target: subscriptions.restaurantId,
 				set: { updatedAt: new Date() },
 			});
+
+		// Persist plan_name / plan_quota so the trial counter and quota gate
+		// have data from day one (layout otherwise falls back to tier defaults).
+		await applyTierSettings(restaurant.id, 'trial');
 
 		// Send welcome email (fire-and-forget)
 		if (locals.user.email) {

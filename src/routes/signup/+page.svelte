@@ -7,17 +7,19 @@
 	const urlError = $derived($page.url.searchParams.get('error'));
 
 	const errorMessage = $derived(
-		form?.error === 'missing'            ? 'Email and password are required.' :
-		form?.error === 'password_too_short' ? 'Password must be at least 8 characters.' :
-		form?.error === 'already_registered' ? 'An account with this email already exists. Try signing in.' :
-		form?.error === 'generic'            ? 'Sign-up failed. Please try again.' :
-		urlError     === 'oauth'             ? 'Google sign-up failed. Please try again.' :
+		form?.error === 'missing'            ? 'El email y la contraseña son obligatorios.' :
+		form?.error === 'password_too_short' ? 'La contraseña debe tener al menos 8 caracteres.' :
+		form?.error === 'terms_required'     ? 'Debes aceptar los Términos y la Política de Privacidad.' :
+		form?.error === 'already_registered' ? 'Ya existe una cuenta con este email. Prueba a iniciar sesión.' :
+		form?.error === 'generic'            ? 'No se pudo crear la cuenta. Inténtalo de nuevo.' :
+		urlError     === 'oauth'             ? 'El registro con Google falló. Inténtalo de nuevo.' :
 		null
 	);
 </script>
 
 <svelte:head>
-	<title>Create account · Mise en Place</title>
+	<title>Crear cuenta · Mise en Place</title>
+	<meta name="description" content="Crea tu cuenta de Mise en Place y empieza tu prueba gratuita de 30 días. Digitaliza tus facturas de proveedores y controla el gasto de tu restaurante." />
 </svelte:head>
 
 <div class="mep" data-accent="amber" data-density="default"
@@ -45,18 +47,18 @@
 				<!-- Success state -->
 				<div style="text-align:center;padding:8px 0;">
 					<div style="font-size:32px;margin-bottom:12px;">📧</div>
-					<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 8px;">Check your email</h1>
+					<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 8px;">Revisa tu correo</h1>
 					<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 16px;line-height:1.5;">
-						We've sent a verification link to your email address.
-						Click it to activate your account and get started.
+						Te hemos enviado un enlace de verificación a tu email.
+						Haz clic en él para activar tu cuenta y empezar.
 					</p>
 					<p style="font-size:12px;color:var(--mep-fg-4);">
-						Already verified? <a href="/login" style="color:var(--mep-acc);">Sign in</a>
+						¿Ya lo verificaste? <a href="/login" style="color:var(--mep-acc);">Inicia sesión</a>
 					</p>
 				</div>
 			{:else}
-				<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">Create your account</h1>
-				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">Start your 30-day free trial</p>
+				<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">Crea tu cuenta</h1>
+				<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">Empieza tu prueba gratuita de 30 días</p>
 
 				{#if errorMessage}
 					<div style="background:var(--mep-neg-soft);border:1px solid var(--mep-neg);color:var(--mep-neg);
@@ -74,14 +76,14 @@
 							type="email"
 							required
 							autocomplete="email"
-							placeholder="you@restaurant.com"
+							placeholder="tu@restaurante.com"
 							class="input"
 							style="height:36px;"
 						/>
 					</div>
 
 					<div style="display:flex;flex-direction:column;gap:6px;">
-						<label for="password" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">Password</label>
+						<label for="password" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">Contraseña</label>
 						<input
 							id="password"
 							name="password"
@@ -89,21 +91,30 @@
 							required
 							autocomplete="new-password"
 							minlength="8"
-							placeholder="At least 8 characters"
+							placeholder="Mínimo 8 caracteres"
 							class="input"
 							style="height:36px;"
 						/>
 					</div>
 
+					<label for="terms" style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--mep-fg-3);line-height:1.5;cursor:pointer;">
+						<input id="terms" name="terms" type="checkbox" required style="margin-top:2px;flex-shrink:0;" />
+						<span>
+							Acepto los
+							<a href="/terms"   style="color:var(--mep-acc);">Términos</a> y la
+							<a href="/privacy" style="color:var(--mep-acc);">Política de Privacidad</a>.
+						</span>
+					</label>
+
 					<button type="submit" class="btn btn-primary" style="height:36px;justify-content:center;margin-top:4px;">
-						Create account
+						Crear cuenta
 					</button>
 				</form>
 
 				<!-- Divider -->
 				<div style="display:flex;align-items:center;gap:10px;margin:18px 0;">
 					<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
-					<span style="font-size:11px;color:var(--mep-fg-4);text-transform:uppercase;letter-spacing:0.05em;">or</span>
+					<span style="font-size:11px;color:var(--mep-fg-4);text-transform:uppercase;letter-spacing:0.05em;">o</span>
 					<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
 				</div>
 
@@ -120,17 +131,12 @@
 							<path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
 							<path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
 						</svg>
-						Continue with Google
+						Continuar con Google
 					</button>
 				</form>
 
 				<p style="text-align:center;font-size:12px;color:var(--mep-fg-4);margin:20px 0 0;">
-					Already have an account? <a href="/login" style="color:var(--mep-acc);">Sign in</a>
-				</p>
-				<p style="text-align:center;font-size:11px;color:var(--mep-fg-4);margin:16px 0 0;">
-					Al registrarte, aceptas nuestros
-					<a href="/terms"   style="color:var(--mep-fg-4);">Términos</a> y
-					<a href="/privacy" style="color:var(--mep-fg-4);">Política de Privacidad</a>.
+					¿Ya tienes cuenta? <a href="/login" style="color:var(--mep-acc);">Inicia sesión</a>
 				</p>
 			{/if}
 		</div>

@@ -11,11 +11,31 @@
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { WHATSAPP_VERIFY_TOKEN } from '$lib/server/env';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET } from '$lib/server/env';
 import {
 	handleWhatsAppMessage,
 	type WhatsAppInboundMessage,
 } from '$lib/server/whatsapp-bot';
+
+/**
+ * Verify Meta's X-Hub-Signature-256 HMAC over the raw request body.
+ * Returns true when the signature is valid, or when no app secret is
+ * configured (dev / not-yet-set-up) — in which case we log a warning so the
+ * gap is visible. A configured secret with a bad/missing signature is rejected.
+ */
+function verifySignature(rawBody: string, header: string | null): boolean {
+	if (!WHATSAPP_APP_SECRET) {
+		console.warn('[whatsapp-webhook] WHATSAPP_APP_SECRET not set — skipping signature verification');
+		return true;
+	}
+	if (!header?.startsWith('sha256=')) return false;
+	const expected = createHmac('sha256', WHATSAPP_APP_SECRET).update(rawBody).digest('hex');
+	const received = header.slice('sha256='.length);
+	const a = Buffer.from(expected, 'hex');
+	const b = Buffer.from(received, 'hex');
+	return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /** Meta calls GET to verify the webhook endpoint during setup. */
 export const GET: RequestHandler = async ({ url }) => {
@@ -31,9 +51,16 @@ export const GET: RequestHandler = async ({ url }) => {
 
 /** WhatsApp delivers message events here. We return 200 immediately. */
 export const POST: RequestHandler = async ({ request }) => {
+	// Read the raw body first — HMAC must be computed over the exact bytes Meta sent.
+	const rawBody = await request.text();
+
+	if (!verifySignature(rawBody, request.headers.get('x-hub-signature-256'))) {
+		return json({ error: 'invalid signature' }, { status: 401 });
+	}
+
 	let body: unknown;
 	try {
-		body = await request.json();
+		body = JSON.parse(rawBody);
 	} catch {
 		return json({ error: 'invalid json' }, { status: 400 });
 	}
