@@ -15,6 +15,7 @@
 
 <svelte:head>
 	<title>{$t('login.signIn')} · Mise en Place</title>
+	<meta name="description" content="Inicia sesión en Mise en Place para gestionar las facturas de tus proveedores, controlar el gasto y los presupuestos de tu restaurante." />
 </svelte:head>
 
 <div class="mep" data-accent="amber" data-density="default"
@@ -107,7 +108,7 @@
 			</form>
 
 			<p style="text-align:center;font-size:12px;color:var(--mep-fg-4);margin:20px 0 0;">
-				Don't have an account? <a href="/signup" style="color:var(--mep-acc);">Create one</a>
+				{$t('login.noAccount')} <a href="/signup" style="color:var(--mep-acc);">{$t('login.createOne')}</a>
 			</p>
 			<p style="text-align:center;font-size:11px;color:var(--mep-fg-4);margin:16px 0 0;">
 				<a href="/privacy" style="color:var(--mep-fg-4);">Privacidad</a> ·
