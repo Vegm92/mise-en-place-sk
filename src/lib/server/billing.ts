@@ -7,6 +7,7 @@ import Stripe from 'stripe';
 import { env } from '$env/dynamic/private';
 import { db, forTenant } from './db';
 import { subscriptions, restaurants, settings } from './schema';
+import { trackEvent } from './events';
 
 const secretKey = env.STRIPE_SECRET_KEY ?? '';
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
@@ -181,7 +182,13 @@ export async function createPortalSession(customerId: string, returnUrl: string)
 export async function handleWebhookEvent(body: string, signature: string): Promise<void> {
 	if (!stripe) return;
 	if (!WEBHOOK_SECRET) {
-		console.warn('[billing] STRIPE_WEBHOOK_SECRET not set — skipping signature verification');
+		// In production an unverified webhook is a security hole: forged events
+		// could mutate subscription state. Fail loudly instead of silently
+		// accepting/ignoring. In dev we allow skipping for local testing.
+		if (process.env.NODE_ENV === 'production') {
+			throw new Error('STRIPE_WEBHOOK_SECRET is required in production — refusing to process unverified webhook');
+		}
+		console.warn('[billing] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev only)');
 		return;
 	}
 
@@ -230,6 +237,7 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 					},
 				});
 			await applyTierSettings(restaurantId, tier);
+			trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
 			break;
 		}
 

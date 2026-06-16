@@ -222,15 +222,14 @@
             {/if}
           </div>
           {#each data.invoices.slice(0, 4) as inv (inv.id)}
-            <div style="padding:10px 14px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--mep-divider);cursor:pointer;"
-              onclick={() => location.replace(`/invoice/${inv.id}`)}>
+            <a href="/invoice/{inv.id}" style="padding:10px 14px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--mep-divider);text-decoration:none;color:inherit;">
               <div style="flex:1;min-width:0;">
                 <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
                 <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
               </div>
               <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
               <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
-            </div>
+            </a>
           {/each}
         </div>
       {/if}
@@ -268,18 +267,24 @@
     {:else if tab === 'facturas'}
 
       {#if !data.invoices.length}
-        <div style="padding:40px 0;text-align:center;color:var(--mep-fg-3);font-size:13px;">Sin facturas registradas</div>
+        <div style="padding:40px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div style="color:var(--mep-fg-3);font-size:13px;line-height:1.5;">
+            Aún no hay facturas de este proveedor.<br />Sube una factura para empezar a ver su histórico aquí.
+          </div>
+          <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;">
+            Subir factura
+          </a>
+        </div>
       {:else}
         {#each data.invoices as inv (inv.id)}
-          <div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;"
-            onclick={() => location.replace(`/invoice/${inv.id}`)}>
+          <a href="/invoice/{inv.id}" class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
             <div style="flex:1;min-width:0;">
               <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
               <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · vence ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
             </div>
             <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
             <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
-          </div>
+          </a>
         {/each}
       {/if}
 

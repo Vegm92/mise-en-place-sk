@@ -3,11 +3,17 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { userRestaurants, restaurants, subscriptions } from '$lib/server/schema';
 import { createSupabaseAdminClient } from '$lib/server/supabase';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 import { eq, inArray } from 'drizzle-orm';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
+
+	// Destructive + irreversible — cap attempts to blunt accidental/abusive bursts.
+	if (!(await checkRateLimit(`account-delete:${user.id}`, 3))) {
+		throw error(429, 'Too many requests — please wait a moment before trying again');
+	}
 
 	// Require explicit confirmation in request body
 	const body = await request.json().catch(() => ({}));

@@ -460,9 +460,8 @@
                 </div>
               {:else}
                 {#each invoices.slice(0, 5) as inv (inv.id)}
-                  <div style="padding:10px 16px;display:flex;align-items:center;gap:10px;
-                    border-top:1px solid var(--mep-divider);cursor:pointer;"
-                    onclick={() => location.replace(`/invoice/${inv.id}`)}>
+                  <a href="/invoice/{inv.id}" style="padding:10px 16px;display:flex;align-items:center;gap:10px;
+                    border-top:1px solid var(--mep-divider);text-decoration:none;color:inherit;">
                     <div style="flex:1;min-width:0;">
                       <div class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">
                         {inv.invoiceNumber ?? '—'}
@@ -473,7 +472,7 @@
                       {fmtEur(inv.totalAmount ?? 0)}
                     </div>
                     <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
-                  </div>
+                  </a>
                 {/each}
               {/if}
             </div>

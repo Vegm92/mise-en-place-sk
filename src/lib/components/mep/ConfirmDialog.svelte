@@ -42,6 +42,7 @@
     <div
       style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:380px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
       role="dialog"
+      tabindex="-1"
       aria-modal="true"
       onclick={(e) => e.stopPropagation()}
       onkeydown={(e) => { e.stopPropagation(); if (e.key === 'Escape') handleCancel(); }}

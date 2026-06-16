@@ -19,5 +19,8 @@ export const STRIPE_PRICE_ID_BUSINESS = process.env.STRIPE_PRICE_ID_BUSINESS ?? 
 export const WHATSAPP_ACCESS_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN    ?? '';
 export const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
 export const WHATSAPP_VERIFY_TOKEN    = process.env.WHATSAPP_VERIFY_TOKEN    ?? '';
+// App secret from Meta App Dashboard — used to verify X-Hub-Signature-256 on
+// inbound webhook POSTs. Without it, the webhook cannot authenticate Meta.
+export const WHATSAPP_APP_SECRET      = process.env.WHATSAPP_APP_SECRET      ?? '';
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');

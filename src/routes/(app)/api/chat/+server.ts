@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL, CHAT_RATE_LIMIT_RPM } from '$lib/server/env';
 import { buildChatContext } from '$lib/server/chat-context';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { trackEvent } from '$lib/server/events';
 import { db } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -73,6 +74,7 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 
 	// Persist user message
 	await db.insert(chatMessages).values({ restaurantId: rid, sessionId: resolvedSessionId, role: 'user', text: message });
+	trackEvent('chat_message_sent', rid, { session_id: resolvedSessionId, length: message.length });
 
 	const context = await buildChatContext(rid);
 	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });

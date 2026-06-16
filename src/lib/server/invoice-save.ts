@@ -107,6 +107,10 @@ async function logExtractionCorrections(
 
 	if (rows.length > 0) {
 		await db.insert(extractionCorrections).values(rows);
+		trackEvent('invoice_corrected', restaurantId, {
+			field_count: rows.length,
+			fields: rows.map((r) => r.fieldName),
+		}, invoiceId);
 	}
 }
 

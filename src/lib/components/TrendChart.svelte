@@ -6,6 +6,7 @@
 	type Segment = { category: string | null; amount: number };
 	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
 
+	// svelte-ignore state_referenced_locally — intentional: seed once from prop default
 	let activeScale = $state(initialScale);
 	let buckets     = $state<Bucket[]>([]);
 	let categories  = $state<(string | null)[]>([]);

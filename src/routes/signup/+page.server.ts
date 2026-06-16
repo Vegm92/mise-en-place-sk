@@ -1,6 +1,5 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { sendEmail, welcomeEmail } from '$lib/server/email';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
@@ -12,9 +11,12 @@ export const actions: Actions = {
 		const form = await request.formData();
 		const email    = (form.get('email')    as string)?.trim();
 		const password = form.get('password')  as string;
+		const terms    = form.get('terms');
 
 		if (!email || !password) return fail(422, { error: 'missing' });
 		if (password.length < 8) return fail(422, { error: 'password_too_short' });
+		// Explicit, recorded consent to Terms + Privacy Policy (GDPR).
+		if (terms !== 'on') return fail(422, { error: 'terms_required' });
 
 		const { error } = await locals.supabase.auth.signUp({
 			email,
@@ -31,8 +33,8 @@ export const actions: Actions = {
 			return fail(422, { error: 'generic' });
 		}
 
-		sendEmail(welcomeEmail(email)).catch(e => console.error('[signup] welcome email failed:', e));
-
+		// Welcome email is sent once, after onboarding completes (covers both
+		// email and Google sign-ups and fires when the account is actually active).
 		return { success: true };
 	},
 

@@ -10,13 +10,14 @@
   import { t } from '$lib/i18n';
 
   interface Props {
-    data: { saved: boolean; duplicate: boolean; error: string | null; hasCompletedOnboarding: boolean };
-    form: { error?: string } | null;
+    data: { saved: boolean; duplicate: boolean; error: string | null; hasCompletedOnboarding: boolean; upgradeUrl?: string | null };
+    form: { error?: string; upgradeUrl?: string } | null;
   }
 
   const { data, form }: Props = $props();
 
   const errorMsg = $derived(form?.error ?? (data.error ? decodeURIComponent(data.error) : null));
+  const upgradeUrl = $derived(form?.upgradeUrl ?? data.upgradeUrl ?? null);
 
   let files = $state<File[]>([]);
   let isDragging = $state(false);
@@ -323,7 +324,14 @@
         <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;">{$t('upload.duplicate')}</div>
       {/if}
       {#if errorMsg}
-        <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;">{errorMsg}</div>
+        <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;display:flex;flex-direction:column;gap:8px;">
+          <span>{errorMsg}</span>
+          {#if upgradeUrl}
+            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
+              {$t('upload.upgradeCta')}
+            </a>
+          {/if}
+        </div>
       {/if}
     </div>
   {/if}
@@ -539,7 +547,14 @@
         <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;">{$t('upload.duplicate')}</div>
       {/if}
       {#if errorMsg}
-        <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;">{errorMsg}</div>
+        <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;display:flex;flex-direction:column;gap:8px;">
+          <span>{errorMsg}</span>
+          {#if upgradeUrl}
+            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
+              {$t('upload.upgradeCta')}
+            </a>
+          {/if}
+        </div>
       {/if}
     </div>
   {/if}

@@ -361,6 +361,7 @@
           box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
         "
         role="dialog"
+        tabindex="-1"
         aria-modal="true"
         onclick={(e) => e.stopPropagation()}
         onkeydown={(e) => e.stopPropagation()}

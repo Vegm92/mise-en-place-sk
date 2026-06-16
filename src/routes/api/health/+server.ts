@@ -23,6 +23,18 @@ export async function GET() {
 		dbSizeMb = Math.round(Number(raw ?? 0) / (1024 * 1024));
 	} catch { /* dbReachable stays false */ }
 
+	// Worker / extraction queue depth (pg-boss). A growing backlog is the
+	// canonical signal that the worker process is down or wedged.
+	let queue: { reachable: boolean; pending: number } = { reachable: false, pending: 0 };
+	try {
+		const rows = await db.execute(
+			sql`SELECT COUNT(*)::int AS pending FROM pgboss.job
+			    WHERE name = 'extract-invoice' AND state IN ('created', 'active', 'retry')`
+		);
+		const pending = (rows as unknown as Array<{ pending: number }>)[0]?.pending ?? 0;
+		queue = { reachable: true, pending: Number(pending) };
+	} catch { /* pgboss schema not provisioned yet — reachable stays false */ }
+
 	// Active upload sessions (updated in last 24 h)
 	let activeCount = 0;
 	try {
@@ -55,12 +67,17 @@ export async function GET() {
 
 	const degraded = !dbReachable || uploadsDir?.writable === false;
 
-	return json({
-		status: degraded ? 'degraded' : 'ok',
-		db: { reachable: dbReachable, size_mb: dbSizeMb },
-		uploads_dir: uploadsDir,
-		sessions: { active_count: activeCount },
-		uptime_seconds: Math.floor((Date.now() - START_TIME) / 1000),
-		version,
-	});
+	return json(
+		{
+			status: degraded ? 'degraded' : 'ok',
+			db: { reachable: dbReachable, size_mb: dbSizeMb },
+			worker: queue,
+			uploads_dir: uploadsDir,
+			sessions: { active_count: activeCount },
+			uptime_seconds: Math.floor((Date.now() - START_TIME) / 1000),
+			version,
+		},
+		// Non-200 when degraded so load balancers / uptime monitors detect it.
+		{ status: degraded ? 503 : 200 }
+	);
 }

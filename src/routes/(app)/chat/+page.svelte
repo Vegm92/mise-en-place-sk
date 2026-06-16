@@ -14,7 +14,9 @@
   type ChatAction = { label: string; href: string; variant: 'primary' | 'secondary' };
   type Msg = { role: string; text: string; actions?: ChatAction[] };
 
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let messages = $state<Msg[]>(data.messages as Msg[]);
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let activeSessionId = $state<number | null>(data.activeSessionId);
   let chatInput = $state('');
   let chatLoading = $state(false);

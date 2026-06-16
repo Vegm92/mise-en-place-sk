@@ -10,12 +10,13 @@
     id: number;
     notificationType: string;
     message: string;
-    payload: Record<string, unknown> | null;
+    payload: unknown;
     createdAt: Date | null;
   };
 
   let { notifications: initial }: { notifications: Notif[] } = $props();
 
+  // svelte-ignore state_referenced_locally — intentional: seed once from prop
   let items = $state<Notif[]>(initial);
   let open = $state(false);
 
