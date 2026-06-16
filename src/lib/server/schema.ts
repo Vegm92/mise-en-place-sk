@@ -38,22 +38,39 @@ export const suppliers = pgTable('suppliers', {
 });
 
 export const invoices = pgTable('invoices', {
-	id:            serial('id').primaryKey(),
-	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
-	supplierId:    integer('supplier_id').references(() => suppliers.id),
-	invoiceNumber: text('invoice_number'),
-	invoiceDate:   text('invoice_date'),
-	dueDate:       text('due_date'),
-	totalAmount:   real('total_amount'),
-	taxBase:       real('tax_base'),
-	taxBreakdown:  text('tax_breakdown'),
-	status:        text('status').default('pending'),
-	sourceFile:    text('source_file'),
-	confidence:    real('confidence'),
-	contentHash:   text('content_hash'),
-	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
-	notes:         text('notes'),
-	deletedAt:     timestamp('deleted_at', { withTimezone: true }),
+	id:              serial('id').primaryKey(),
+	restaurantId:    uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	supplierId:      integer('supplier_id').references(() => suppliers.id),
+	invoiceNumber:   text('invoice_number'),
+	invoiceDate:     text('invoice_date'),
+	dueDate:         text('due_date'),
+	totalAmount:     real('total_amount'),
+	taxBase:         real('tax_base'),
+	taxBreakdown:    text('tax_breakdown'),
+	// ── status: 'pending' | 'accepted' | 'rejected' | 'paid' ──────────────
+	// 'pending' = received, awaiting acceptance (legacy behaviour preserved).
+	// 'accepted' | 'rejected': RD 238/2026 acceptance statuses.
+	// 'paid': full effective payment reported.
+	status:          text('status').default('pending'),
+	sourceFile:      text('source_file'),
+	confidence:      real('confidence'),
+	contentHash:     text('content_hash'),
+	createdAt:       timestamp('created_at', { withTimezone: true }).defaultNow(),
+	notes:           text('notes'),
+	deletedAt:       timestamp('deleted_at', { withTimezone: true }),
+	// ── e-invoicing extensions (issue #110, #111, #112) ───────────────────
+	/** Parsed from structured XML — 'facturae_322' | 'ubl_21'. Null for paper/photo. */
+	eInvoiceFormat:  text('e_invoice_format'),
+	/** Full AEAT/TicketBAI QR verification URL decoded from the invoice image. */
+	qrUrl:           text('qr_url'),
+	/** True when QR-decoded fields conflict with AI-extracted fields (blocking review). */
+	qrMismatch:      integer('qr_mismatch').default(0), // 0=no, 1=yes
+	/** ISO timestamp when the restaurant accepted this invoice (RD 238/2026). */
+	acceptedAt:      timestamp('accepted_at', { withTimezone: true }),
+	/** ISO timestamp when the restaurant rejected this invoice. */
+	rejectedAt:      timestamp('rejected_at', { withTimezone: true }),
+	/** ISO timestamp of full effective payment (paid date). */
+	paidAt:          timestamp('paid_at', { withTimezone: true }),
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
