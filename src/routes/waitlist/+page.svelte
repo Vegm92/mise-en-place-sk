@@ -71,6 +71,17 @@
       ctaHead2:          'Asegura la tuya.',
       ctaSub:            'Abrimos plazas por orden de lista. Déjanos tu email.',
       footerNote:        'Hecho en una cocina, no en una sala de juntas.',
+      readingLabel:      'Lectura',
+      mockWhatsappReply: 'Recibida ✓ · Procesando 14 líneas…',
+      mockConfirmed:     '✓ Confirmada',
+      mockExtractedIn:   'extraído en 2,3 s',
+      mockLinesVat:      '14 líneas · IVA 10 %',
+      mockSpendLabel:    'Gasto · últimas 7 semanas',
+      mockCatMeat:       'Carne',
+      mockCatFish:       'Pescado',
+      mockCatVeg:        'Verdura',
+      mockAlertTitle:    'Aceite de oliva virgen · +8,1 % esta semana',
+      mockReview:        'Revisar',
     },
     en: {
       lang:              'ES',
@@ -138,6 +149,17 @@
       ctaHead2:          'Claim yours.',
       ctaSub:            'We open spots in sign-up order. Leave your email.',
       footerNote:        'Built in a kitchen, not a boardroom.',
+      readingLabel:      'Reading',
+      mockWhatsappReply: 'Received ✓ · Processing 14 lines…',
+      mockConfirmed:     '✓ Confirmed',
+      mockExtractedIn:   'extracted in 2.3 s',
+      mockLinesVat:      '14 lines · 10% VAT',
+      mockSpendLabel:    'Spend · last 7 weeks',
+      mockCatMeat:       'Meat',
+      mockCatFish:       'Fish',
+      mockCatVeg:        'Vegetables',
+      mockAlertTitle:    'Virgin olive oil · +8.1% this week',
+      mockReview:        'Review',
     },
   } as const;
 
@@ -478,7 +500,7 @@
                       {i < 2 ? 'border-right:1px solid var(--mep-divider)' : ''}">
             <div style="font-size:10.5px;color:var(--mep-acc);font-family:var(--mep-fs-mono);
                         letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">
-              Lectura · 0{i + 1}
+              {t.readingLabel} · 0{i + 1}
             </div>
             <div style="display:flex;align-items:baseline;gap:6px;border-bottom:1px solid var(--mep-divider);
                         padding-bottom:12px;">
@@ -585,7 +607,7 @@
                                    justify-content:center;font-size:7px;font-weight:700;">M</span>
                       <span style="font-size:10px;font-weight:600;">Mise en Place</span>
                     </div>
-                    Recibida ✓ · Procesando 14 líneas…
+                    {t.mockWhatsappReply}
                     <div style="font-size:9.5px;color:#5a8a6f;margin-top:3px;font-family:var(--mep-fs-mono);">14:02</div>
                   </div>
                 </div>
@@ -605,12 +627,12 @@
                   <div style="flex:1;min-width:0;">
                     <div style="font-size:12px;font-weight:600;color:var(--mep-fg);">Cárnicas Ibérico Aranda</div>
                     <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
-                      2026-A-0471 · 19/05/2026 · extraído en 2,3 s
+                      2026-A-0471 · 19/05/2026 · {t.mockExtractedIn}
                     </div>
                   </div>
                   <span style="font-size:9.5px;font-weight:500;padding:2px 7px;border-radius:4px;
                                background:var(--mep-pos-soft);color:var(--mep-pos);display:inline-flex;align-items:center;gap:4px;">
-                    ✓ Confirmada
+                    {t.mockConfirmed}
                   </span>
                 </div>
                 {#each extractLines as line, li}
@@ -632,7 +654,7 @@
                 {/each}
                 <div style="padding:10px 16px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);
                             display:flex;align-items:center;justify-content:space-between;">
-                  <span style="font-size:11px;color:var(--mep-fg-3);">14 líneas · IVA 10 %</span>
+                  <span style="font-size:11px;color:var(--mep-fg-3);">{t.mockLinesVat}</span>
                   <span style="font-size:13px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">482,65 €</span>
                 </div>
               </div>
@@ -644,7 +666,7 @@
                   <div>
                     <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;
                                 letter-spacing:0.08em;font-weight:500;font-family:var(--mep-fs-mono);">
-                      Gasto · últimas 7 semanas
+                      {t.mockSpendLabel}
                     </div>
                     <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;">
                       <span style="font-size:22px;font-weight:700;color:var(--mep-fg);
@@ -657,7 +679,7 @@
                     </div>
                   </div>
                   <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                    {#each [{ k:'Carne', c:'#7a5b3a' }, { k:'Pescado', c:'#4d5b7a' }, { k:'Verdura', c:'#3d6b5a' }] as cat}
+                    {#each [{ k:t.mockCatMeat, c:'#7a5b3a' }, { k:t.mockCatFish, c:'#4d5b7a' }, { k:t.mockCatVeg, c:'#3d6b5a' }] as cat}
                       <div style="display:flex;align-items:center;gap:4px;">
                         <span style="width:8px;height:8px;border-radius:2px;background:{cat.c};flex-shrink:0;"></span>
                         <span style="font-size:10px;color:var(--mep-fg-3);">{cat.k}</span>
@@ -697,7 +719,7 @@
                   </svg>
                   <div style="flex:1;min-width:0;">
                     <div style="font-size:11.5px;color:var(--mep-fg);font-weight:600;">
-                      Aceite de oliva virgen · +8,1 % esta semana
+                      {t.mockAlertTitle}
                     </div>
                     <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
                       Aceites Gómez Hermanos · 4,80 € → 5,19 € / L
@@ -705,7 +727,7 @@
                   </div>
                   <span style="font-size:10px;font-weight:600;color:var(--mep-warn);
                                text-transform:uppercase;letter-spacing:0.06em;font-family:var(--mep-fs-mono);">
-                    Revisar
+                    {t.mockReview}
                   </span>
                 </div>
               </div>
