@@ -263,7 +263,7 @@
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         await handleOffline(files);
       } else {
-        alert('Error al subir: ' + (err as Error).message);
+        alert($ti('upload.uploadError', { msg: (err as Error).message }));
       }
     }
   }

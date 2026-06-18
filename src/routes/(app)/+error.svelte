@@ -1,11 +1,12 @@
 <script>
 	import { page } from '$app/stores';
+	import { t } from '$lib/i18n';
 </script>
 
 <div class="error-page">
 	<h1>{$page.status}</h1>
-	<p>{$page.error?.message ?? 'Ha ocurrido un error.'}</p>
-	<a href="/">Volver al panel</a>
+	<p>{$page.error?.message ?? $t('error.generic')}</p>
+	<a href="/">{$t('error.backToPanel')}</a>
 </div>
 
 <style>

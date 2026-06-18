@@ -4,7 +4,7 @@
   import MobileDashboard from '$lib/components/mobile/MobileDashboard.svelte';
   import DesktopDashboard from '$lib/components/desktop/DesktopDashboard.svelte';
   import { toMonthStr, shiftMonth } from '$lib/formatters';
-  import { locale } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
 
   let { data }: { data: PageData } = $props();
 
@@ -30,7 +30,7 @@
       .filter(a => a.payload?.ingredient)
       .slice(0, 2)
       .map(a => `${a.payload!.ingredient} ${(a.payload!.deviationPct ?? 0) > 0 ? '+' : ''}${Math.round(a.payload!.deviationPct ?? 0)}%`);
-    return shocks.length ? shocks.join(' · ') : 'Revisa tus alertas de precio';
+    return shocks.length ? shocks.join(' · ') : $t('dash.checkPriceAlerts');
   });
 </script>
 

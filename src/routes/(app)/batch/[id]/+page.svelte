@@ -202,7 +202,7 @@
               <div style="font-size:12.5px;font-weight:500;color:{q.status === 'confirmed' ? 'var(--mep-fg-3)' : 'var(--mep-fg)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{q.name}</div>
               <div class="num" style="font-size:11px;color:var(--mep-fg-3);">
                 {q.status === 'confirmed' ? $t('confirm.extractDone')
-                  : q.status === 'done' ? 'Lista para revisar'
+                  : q.status === 'done' ? $t('batch.queue.ready')
                   : q.status === 'extracting' ? $t('confirm.extractActive')
                   : q.status === 'queued' ? $t('confirm.inQueue')
                   : q.status === 'failed' ? $t('extract.error')
@@ -324,7 +324,7 @@
               {#if uncertainCount > 0}
                 <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--mep-warn);background:var(--mep-warn-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">
                   <AlertTriangle size={12} />
-                  {uncertainCount} campo{uncertainCount !== 1 ? 's' : ''} {$t('extract.lowConfFields')}
+                  {uncertainCount} {$tp('batch.field', uncertainCount)} {$t('extract.lowConfFields')}
                 </div>
               {/if}
 
@@ -498,11 +498,10 @@
         <div style="width:44px;height:44px;border:3px solid var(--mep-acc);border-top-color:transparent;border-radius:50%;animation:mepspin 0.9s linear infinite;"></div>
         <div>
           <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:6px;">
-            Extrayendo {extractingItem?.name ?? 'factura'}…
+            {$ti('batch.extracting', { name: extractingItem?.name ?? $t('misc.invoice') })}
           </div>
           <div style="font-size:13px;color:var(--mep-fg-3);line-height:1.5;">
-            {doneCount} de {data.queue.length} completadas · La IA procesa las facturas una a una.
-            Podrás revisar cada una en cuanto esté lista.
+            {$ti('batch.progress', { done: doneCount, total: data.queue.length })}
           </div>
         </div>
       </div>
@@ -515,9 +514,9 @@
         </div>
         <div>
           <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">
-            {data.openCount === 1 ? $t('confirm.readyToExtract') : `${data.openCount} facturas listas para extraer`}
+            {$tp('batch.readyToExtract', data.openCount)}
           </div>
-          <div style="font-size:13px;color:var(--mep-fg-3);">Se procesarán una a una; podrás revisar cada resultado.</div>
+          <div style="font-size:13px;color:var(--mep-fg-3);">{$t('batch.processOneByOne')}</div>
         </div>
         <form method="POST" action="?/extract">
           <button type="submit" class="btn btn-primary" style="height:40px;justify-content:center;font-weight:500;gap:6px;padding:0 20px;">
@@ -553,19 +552,18 @@
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;" />
-        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">Factura duplicada</strong>
+        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.dupTitle')}</strong>
       </div>
       <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">
-        Esta factura ya existe en el sistema — el proveedor, la fecha, el importe y todas las líneas
-        coinciden exactamente con una factura ya guardada. No se puede guardar una copia idéntica.
+        {$t('batch.dupBody')}
       </p>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button type="button" class="btn btn-secondary" style="height:36px;font-size:13px;"
           onclick={() => showContentDuplicateModal = false}>
-          Volver a revisar
+          {$t('batch.backToReview')}
         </button>
         <a href="/" class="btn btn-primary" style="height:36px;font-size:13px;display:flex;align-items:center;">
-          Ir al inicio
+          {$t('batch.goHome')}
         </a>
       </div>
     </div>
@@ -591,11 +589,10 @@
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         <AlertTriangle size={18} style="color:var(--mep-warn);flex-shrink:0;" />
-        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">Campos con baja confianza</strong>
+        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.lowConfTitle')}</strong>
       </div>
       <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 16px;">
-        La IA detectó <strong>{uncertainCount}</strong> campo{uncertainCount !== 1 ? 's' : ''} con confianza baja.
-        Por favor, revísalos cuidadosamente antes de guardar la factura — los datos financieros incorrectos afectan a tus informes.
+        {$t('batch.lowConfPre')} <strong>{uncertainCount}</strong> {$tp('batch.field', uncertainCount)} {$t('batch.lowConfPost')}
       </p>
       {#if uncertainHeaderFields.length > 0}
         <ul style="font-size:12.5px;color:var(--mep-fg-3);margin:0 0 16px;padding-left:16px;">
@@ -611,7 +608,7 @@
           style="height:36px;font-size:13px;"
           onclick={() => showLowConfModal = false}
         >
-          Volver a revisar
+          {$t('batch.backToReview')}
         </button>
         <button
           type="button"
@@ -624,7 +621,7 @@
             (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
           }}
         >
-          He revisado todos los campos
+          {$t('batch.reviewedAll')}
         </button>
       </div>
     </div>
