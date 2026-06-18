@@ -14,7 +14,7 @@
 </script>
 
 <svelte:head>
-	<title>Configura tu restaurante · Mise en Place</title>
+	<title>{$t('onboard.metaTitle')} · Mise en Place</title>
 </svelte:head>
 
 <div class="mep" data-accent="amber" data-density="default"
