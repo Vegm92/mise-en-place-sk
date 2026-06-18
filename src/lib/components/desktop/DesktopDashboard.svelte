@@ -10,7 +10,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import X from '@lucide/svelte/icons/x';
-  import { locale, t } from '$lib/i18n';
+  import { locale, t, tp } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
 
   interface Mom { this_month: number; pct_change: number | null }
@@ -184,7 +184,7 @@
     <KpiCard
       label={$t('dash.kpi.pending')}
       value={fmtEurCompact(data.pending.amount)}
-      sub="{data.pending.count} {data.pending.count === 1 ? $t('misc.invoice') : $t('misc.invoices')}"
+      sub={$tp('misc.invoice', data.pending.count)}
       variant={data.pending.count > 0 ? 'warn' : 'default'}
     />
     <KpiCard

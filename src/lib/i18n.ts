@@ -2,7 +2,7 @@ import { writable, derived } from 'svelte/store';
 
 export type Locale = 'es' | 'en';
 
-const translations = {
+export const translations = {
   es: {
     // Navigation
     'nav.dashboard':         'Resumen',
@@ -501,6 +501,23 @@ const translations = {
     'tour.complete.title':     '¡Primera factura guardada!',
     'tour.complete.body':      'El seguimiento de gastos ya ha comenzado. Añade más facturas para desbloquear tendencias, alertas de precios y análisis por proveedor.',
     'tour.complete.btn':       'Ir al dashboard',
+    // Pluralized / interpolated forms (issue #146)
+    'misc.invoice.zero':            'Sin facturas',
+    'misc.invoice.one':             '1 factura',
+    'misc.invoice.other':           '{n} facturas',
+    'inv.confirm.paid.one':         '¿Marcar 1 factura como pagada?',
+    'inv.confirm.paid.other':       '¿Marcar {n} facturas como pagadas?',
+    'inv.confirm.delete.one':       '¿Eliminar 1 factura? Esta acción no se puede deshacer.',
+    'inv.confirm.delete.other':     '¿Eliminar {n} facturas? Esta acción no se puede deshacer.',
+    'confirm.extract.one':          'Extraer factura',
+    'confirm.extract.other':        'Extraer {n} facturas',
+    'confirm.addFile.one':          'Añadir 1 archivo',
+    'confirm.addFile.other':        'Añadir {n} archivos',
+    'upload.extractData.zero':      'Extraer datos',
+    'upload.extractData.one':       'Extraer datos de 1 factura',
+    'upload.extractData.other':     'Extraer datos de {n} facturas',
+    'sup.confirmDelete.body.one':   'La factura asociada quedará sin proveedor. Esta acción no se puede deshacer.',
+    'sup.confirmDelete.body.other': 'Las {n} facturas asociadas quedarán sin proveedor. Esta acción no se puede deshacer.',
   },
 
   en: {
@@ -1001,6 +1018,23 @@ const translations = {
     'tour.complete.title':     'First invoice saved!',
     'tour.complete.body':      'Expense tracking has begun. Add more invoices to unlock trends, price alerts, and supplier analysis.',
     'tour.complete.btn':       'Go to dashboard',
+    // Pluralized / interpolated forms (issue #146)
+    'misc.invoice.zero':            'No invoices',
+    'misc.invoice.one':             '1 invoice',
+    'misc.invoice.other':           '{n} invoices',
+    'inv.confirm.paid.one':         'Mark 1 invoice as paid?',
+    'inv.confirm.paid.other':       'Mark {n} invoices as paid?',
+    'inv.confirm.delete.one':       'Delete 1 invoice? This cannot be undone.',
+    'inv.confirm.delete.other':     'Delete {n} invoices? This cannot be undone.',
+    'confirm.extract.one':          'Extract invoice',
+    'confirm.extract.other':        'Extract {n} invoices',
+    'confirm.addFile.one':          'Add 1 file',
+    'confirm.addFile.other':        'Add {n} files',
+    'upload.extractData.zero':      'Extract data',
+    'upload.extractData.one':       'Extract 1 invoice',
+    'upload.extractData.other':     'Extract {n} invoices',
+    'sup.confirmDelete.body.one':   'The associated invoice will be left without a supplier. This action cannot be undone.',
+    'sup.confirmDelete.body.other': 'The {n} associated invoices will be left without a supplier. This action cannot be undone.',
   },
 } satisfies Record<Locale, Record<string, string>>;
 
@@ -1009,6 +1043,51 @@ export const locale = writable<Locale>('es');
 export const t = derived(locale, ($locale) => (key: string): string => {
   return (translations[$locale] as Record<string, string>)[key] ?? key;
 });
+
+/**
+ * Interpolating translator: resolves a key and substitutes named
+ * placeholders written as `{name}` in the translation table.
+ *
+ *   $ti('saved.desc', { id: 42 })          → 'Invoice #42 has been stored…'
+ *   $ti('upload.imageTooLarge', { mb: 20 }) → 'Image exceeds the 20 MB limit'
+ *
+ * Reactive — use as `$ti(...)` in components so it follows locale changes.
+ */
+export const ti = derived(
+  t,
+  ($t) =>
+    (key: string, vars: Record<string, string | number>): string =>
+      Object.entries(vars).reduce(
+        (s, [k, v]) => s.replaceAll(`{${k}}`, String(v)),
+        $t(key),
+      ),
+);
+
+/**
+ * Pluralizing translator: picks the right plural form for `count` and
+ * interpolates the count as `{n}`.
+ *
+ *   $tp('misc.invoice', 0) → 'misc.invoice.zero'  (only if that form exists)
+ *   $tp('misc.invoice', 1) → 'misc.invoice.one'   → '1 invoice'
+ *   $tp('misc.invoice', 3) → 'misc.invoice.other' → '3 invoices'
+ *
+ * The optional `.zero` form lets a language phrase the empty case
+ * naturally ("No invoices" / "Sin facturas"); when absent, count 0
+ * falls back to the `.other` form.
+ */
+export const tp = derived(
+  t,
+  ($t) =>
+    (key: string, count: number): string => {
+      if (count === 0) {
+        const zeroKey = `${key}.zero`;
+        const zero = $t(zeroKey);
+        if (zero !== zeroKey) return zero.replaceAll('{n}', String(count));
+      }
+      const form = count === 1 ? 'one' : 'other';
+      return $t(`${key}.${form}`).replaceAll('{n}', String(count));
+    },
+);
 
 export function initLocale() {
   if (typeof localStorage === 'undefined') return;

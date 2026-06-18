@@ -10,7 +10,7 @@
   import Truck from '@lucide/svelte/icons/truck';
   import CreditCard from '@lucide/svelte/icons/credit-card';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
-  import { locale, t } from '$lib/i18n';
+  import { locale, t, ti, tp } from '$lib/i18n';
 
   interface Supplier {
     name: string;
@@ -157,7 +157,7 @@
         <div class="card" style="padding:14px;border-left:3px solid #E05555;margin-bottom:14px;">
           <p class="body-strong" style="color:#E05555;margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
           <p class="body" style="color:var(--mep-fg-3);font-size:12px;margin-bottom:12px;">
-            {$t('sup.confirmDelete.body').replace('{n}', String(invoices.length))}
+            {$tp('sup.confirmDelete.body', invoices.length)}
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
@@ -312,7 +312,7 @@
                 <div class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
                   {fmtEur(avgInvoice)}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{invoices.length} {$t('misc.invoices')}</div>
+                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$tp('misc.invoice', invoices.length)}</div>
               </div>
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{$t('sup.openInvoices')}</div>
@@ -450,7 +450,7 @@
                 {#if invoices.length > 5}
                   <button style="font-size:12.5px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
                     onclick={() => tab = 'facturas'}>
-                    {$t('sup.viewAll').replace('{n}', String(invoices.length))}
+                    {$ti('sup.viewAll', { n: invoices.length })}
                   </button>
                 {/if}
               </div>

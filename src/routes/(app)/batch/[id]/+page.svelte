@@ -13,7 +13,7 @@
   import Upload from '@lucide/svelte/icons/upload';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import RefreshCw from '@lucide/svelte/icons/refresh-cw';
-  import { t } from '$lib/i18n';
+  import { t, ti, tp } from '$lib/i18n';
 
   import type { ActionData } from './$types';
   const { data, form }: { data: PageData; form: ActionData } = $props();
@@ -256,7 +256,7 @@
           {/each}
           {#if addFiles.length > 0}
             <button disabled={addSubmitting} class="btn btn-primary" style="height:32px;justify-content:center;font-size:12.5px;" onclick={submitAddFiles}>
-              {addSubmitting ? $t('confirm.adding') : $t('confirm.addFileN').replace('{n}', String(addFiles.length))}
+              {addSubmitting ? $t('confirm.adding') : $tp('confirm.addFile', addFiles.length)}
             </button>
           {/if}
         {/if}
@@ -522,7 +522,7 @@
         <form method="POST" action="?/extract">
           <button type="submit" class="btn btn-primary" style="height:40px;justify-content:center;font-weight:500;gap:6px;padding:0 20px;">
             <Sparkle size={14} />
-            {data.openCount === 1 ? $t('confirm.extract') : $t('confirm.extractN').replace('{n}', String(data.openCount))}
+            {$tp('confirm.extract', data.openCount)}
           </button>
         </form>
       </div>
