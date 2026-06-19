@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { t } from '$lib/i18n';
 
   let { data }: { data: PageData } = $props();
 
@@ -29,7 +30,7 @@
   <!-- Header -->
   <div style="display:flex;align-items:center;gap:8px;">
     <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">
-      Precisión de extracción IA
+      {$t('extract.acc.title')}
     </h2>
   </div>
 
@@ -37,12 +38,12 @@
     <!-- Empty state -->
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px 0;text-align:center;">
       <div style="font-size:36px;opacity:0.2;">🤖</div>
-      <p style="font-size:15px;font-weight:500;color:var(--mep-fg-2);margin:0;">Sin datos de extracción aún</p>
+      <p style="font-size:15px;font-weight:500;color:var(--mep-fg-2);margin:0;">{$t('extract.acc.noData')}</p>
       <p style="font-size:13px;color:var(--mep-fg-4);max-width:320px;margin:0;line-height:1.5;">
-        Los datos de precisión aparecen una vez que confirmes facturas extraídas por la IA.
+        {$t('extract.acc.noDataHint')}
       </p>
       <a href="/" style="font-size:13px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">
-        Subir primera factura →
+        {$t('spend.uploadFirst')}
       </a>
     </div>
   {:else}
@@ -50,32 +51,32 @@
     <!-- KPI row -->
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Tasa auto-confirmadas</div>
+        <div class="label" style="margin-bottom:6px;">{$t('extract.acc.autoRate')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-acc);letter-spacing:-0.4px;line-height:1.1;">
           {fmtPct(data.kpis.auto_confirmed_rate)}
         </div>
-        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">sin correcciones</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('extract.acc.noCorrections')}</div>
       </div>
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Total procesadas</div>
+        <div class="label" style="margin-bottom:6px;">{$t('extract.acc.totalProcessed')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
           {data.kpis.total_invoices}
         </div>
-        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">facturas históricas</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('extract.acc.historicalInv')}</div>
       </div>
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Correcciones medias</div>
+        <div class="label" style="margin-bottom:6px;">{$t('extract.acc.avgCorrections')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
           {fmtNum(data.kpis.avg_corrections)}
         </div>
-        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">por factura (30 d)</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('extract.acc.perInvoice30d')}</div>
       </div>
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Proveedor más preciso</div>
+        <div class="label" style="margin-bottom:6px;">{$t('extract.acc.mostAccurate')}</div>
         <div style="font-size:14px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           {data.kpis.most_accurate_supplier ?? '—'}
         </div>
-        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">menor tasa de error</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('extract.acc.lowestError')}</div>
       </div>
     </div>
 
@@ -84,19 +85,19 @@
 
       <!-- Most-corrected fields -->
       <div class="card" style="padding:16px;">
-        <div class="subtitle" style="margin-bottom:4px;">Campos más corregidos</div>
+        <div class="subtitle" style="margin-bottom:4px;">{$t('extract.acc.mostCorrected')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
-          Campos que los usuarios corrigen con más frecuencia
+          {$t('extract.acc.mostCorrectedSub')}
         </div>
         {#if !data.field_corrections.length}
-          <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:24px 0;">Sin correcciones registradas</p>
+          <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:24px 0;">{$t('extract.acc.noCorrectionsRec')}</p>
         {:else}
           <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
             <thead>
               <tr style="border-bottom:1px solid var(--mep-divider);">
-                <th style="text-align:left;padding:4px 8px 8px 0;font-weight:500;color:var(--mep-fg-3);">Campo</th>
-                <th style="text-align:right;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Correcciones</th>
-                <th style="text-align:right;padding:4px 0 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">% facturas</th>
+                <th style="text-align:left;padding:4px 8px 8px 0;font-weight:500;color:var(--mep-fg-3);">{$t('extract.acc.colField')}</th>
+                <th style="text-align:right;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);" class="num">{$t('extract.acc.colCorrections')}</th>
+                <th style="text-align:right;padding:4px 0 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">{$t('extract.acc.colPctInvoices')}</th>
               </tr>
             </thead>
             <tbody>
@@ -121,12 +122,12 @@
 
       <!-- Accuracy trend -->
       <div class="card" style="padding:16px;">
-        <div class="subtitle" style="margin-bottom:4px;">Tendencia de precisión</div>
+        <div class="subtitle" style="margin-bottom:4px;">{$t('extract.acc.trend')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
-          Tasa de auto-confirmación mensual
+          {$t('extract.acc.trendSub')}
         </div>
         {#if !data.trend.length}
-          <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:24px 0;">Sin datos de tendencia aún</p>
+          <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:24px 0;">{$t('extract.acc.noTrend')}</p>
         {:else}
           <div style="display:flex;flex-direction:column;gap:10px;">
             {#each data.trend as point}
@@ -153,20 +154,20 @@
 
     <!-- Accuracy by supplier -->
     <div class="card" style="padding:16px;">
-      <div class="subtitle" style="margin-bottom:4px;">Precisión por proveedor</div>
+      <div class="subtitle" style="margin-bottom:4px;">{$t('extract.acc.bySupplier')}</div>
       <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
-        Tasa de auto-confirmación y correcciones medias por proveedor
+        {$t('extract.acc.bySupplierSub')}
       </div>
       {#if !data.supplier_accuracy.length}
-        <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:16px 0;">Sin datos por proveedor</p>
+        <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:16px 0;">{$t('extract.acc.noSupplierData')}</p>
       {:else}
         <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
           <thead>
             <tr style="border-bottom:1px solid var(--mep-divider);">
-              <th style="text-align:left;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);">Proveedor</th>
-              <th style="text-align:right;padding:4px 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Facturas</th>
-              <th style="text-align:right;padding:4px 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Auto-confirmadas</th>
-              <th style="text-align:right;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);" class="num">Corr. medias</th>
+              <th style="text-align:left;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);">{$t('extract.acc.colSupplier')}</th>
+              <th style="text-align:right;padding:4px 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">{$t('extract.acc.colInvoices')}</th>
+              <th style="text-align:right;padding:4px 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">{$t('extract.acc.colAutoConfirmed')}</th>
+              <th style="text-align:right;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);" class="num">{$t('extract.acc.colAvgCorr')}</th>
             </tr>
           </thead>
           <tbody>
@@ -180,7 +181,7 @@
                       <span style="
                         font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;
                         background:var(--mep-warn-soft);color:var(--mep-warn);
-                      ">Revisar</span>
+                      ">{$t('extract.acc.review')}</span>
                     {/if}
                   </div>
                 </td>
@@ -198,7 +199,7 @@
         </table>
         {#if data.supplier_accuracy.some(r => (r.auto_confirmed_rate ?? 100) < 50)}
           <p style="margin:12px 0 0;font-size:12px;color:var(--mep-warn);padding:8px 12px;background:var(--mep-warn-soft);border-radius:6px;">
-            Las facturas de los proveedores marcados como «Revisar» suelen necesitar correcciones — comprueba su formato.
+            {$t('extract.acc.reviewNote')}
           </p>
         {/if}
       {/if}

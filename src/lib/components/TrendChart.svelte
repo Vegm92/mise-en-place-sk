@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { t } from '$lib/i18n';
 
 	let { initialScale = '30d' }: { initialScale?: string } = $props();
 
@@ -125,7 +126,7 @@
 		</div>
 	{:else if !buckets.length || buckets.every(b => b.total === 0)}
 		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
-			<span class="label">No spend data</span>
+			<span class="label">{$t('chart.noSpendData')}</span>
 		</div>
 	{:else}
 		<svg

@@ -7,7 +7,7 @@
   import Check from '@lucide/svelte/icons/check';
   import Camera from '@lucide/svelte/icons/camera';
   import WifiOff from '@lucide/svelte/icons/wifi-off';
-  import { t } from '$lib/i18n';
+  import { t, ti, tp } from '$lib/i18n';
 
   interface Props {
     data: { saved: boolean; duplicate: boolean; error: string | null; hasCompletedOnboarding: boolean; upgradeUrl?: string | null };
@@ -125,7 +125,7 @@
   function addFiles(newFiles: FileList | null) {
     if (!newFiles) return;
     for (const f of Array.from(newFiles)) {
-      if (f.size > MAX_MB * 1024 * 1024) { alert($t('upload.imageTooLarge').replace('{mb}', String(MAX_MB))); continue; }
+      if (f.size > MAX_MB * 1024 * 1024) { alert($ti('upload.imageTooLarge', { mb: MAX_MB })); continue; }
       if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
     }
   }
@@ -153,7 +153,7 @@
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) return;
-    if (f.size > MAX_MB * 1024 * 1024) { alert($t('upload.imageTooLarge').replace('{mb}', String(MAX_MB))); return; }
+    if (f.size > MAX_MB * 1024 * 1024) { alert($ti('upload.imageTooLarge', { mb: MAX_MB })); return; }
     previewUrl = URL.createObjectURL(f);
     previewFile = f;
   }
@@ -263,7 +263,7 @@
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         await handleOffline(files);
       } else {
-        alert('Error al subir: ' + (err as Error).message);
+        alert($ti('upload.uploadError', { msg: (err as Error).message }));
       }
     }
   }
@@ -507,7 +507,7 @@
         {uploadProgress > 0 ? `${$t('upload.uploading')} ${uploadProgress}%` : $t('upload.uploading')}
       {:else}
         <Sparkle size={14} />
-        {files.length===0 ? $t('upload.extractData') : files.length===1 ? $t('upload.extractData1') : $t('upload.extractDataN').replace('{n}', String(files.length))}
+        {$tp('upload.extractData', files.length)}
       {/if}
     </button>
   </div>
@@ -691,7 +691,7 @@
             {$t('upload.uploading')}
           {:else}
             <Sparkle size={14} />
-            {files.length === 0 ? $t('upload.extractData') : files.length === 1 ? $t('upload.extractData1') : $t('upload.extractDataN').replace('{n}', String(files.length))}
+            {$tp('upload.extractData', files.length)}
           {/if}
         </button>
       </div>

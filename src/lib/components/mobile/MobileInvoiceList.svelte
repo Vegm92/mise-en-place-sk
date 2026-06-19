@@ -87,7 +87,7 @@
     <input
       class="input"
       style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
-      placeholder="Buscar N.º, proveedor…"
+      placeholder={$t('inv.searchPlaceholder')}
       bind:value={searchQuery}
     />
   </div>
@@ -113,7 +113,7 @@
   <div style="flex: 1; overflow: auto; padding-bottom: 24px;">
     {#if grouped.length === 0}
       <div style="padding: 40px 18px; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        Sin facturas
+        {$t('misc.invoice.zero')}
       </div>
     {:else}
       {#each grouped as [label, group]}

@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
-import { locale, t } from '../src/lib/i18n';
+import { locale, t, ti, tp, translations } from '../src/lib/i18n';
 
 // Resolve a key against the current locale via the derived `t` store.
 const tr = (key: string) => get(t)(key);
+// Interpolating / pluralizing resolvers via their derived stores.
+const tri = (key: string, vars: Record<string, string | number>) => get(ti)(key, vars);
+const trp = (key: string, count: number) => get(tp)(key, count);
 
 beforeEach(() => {
   // Tests mutate the shared locale store; reset to the default each time.
@@ -138,5 +141,118 @@ describe('locale key parity (es vs en)', () => {
     locale.set('en');
     const en = tr('upload.offlineLimit');
     expect(es).not.toBe(en);
+  });
+});
+
+describe('full locale parity (every key in both es and en)', () => {
+  // Stronger than the sampled check above: the entire catalog must be
+  // symmetric, so no key can ever render as a raw fallback in one language.
+  it('has the exact same set of keys in es and en', () => {
+    const esKeys = Object.keys(translations.es).sort();
+    const enKeys = Object.keys(translations.en).sort();
+    const missingInEn = esKeys.filter((k) => !(k in translations.en));
+    const missingInEs = enKeys.filter((k) => !(k in translations.es));
+    expect({ missingInEn, missingInEs }).toEqual({ missingInEn: [], missingInEs: [] });
+  });
+
+  it('never maps a key to an empty string in either locale', () => {
+    const blanks: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      for (const [k, v] of Object.entries(translations[lc])) {
+        if (v.trim() === '') blanks.push(`${lc}:${k}`);
+      }
+    }
+    expect(blanks).toEqual([]);
+  });
+
+  it('keeps {n} placeholders symmetric across locales for plural .other forms', () => {
+    const mismatched: string[] = [];
+    for (const k of Object.keys(translations.es)) {
+      if (!k.endsWith('.other')) continue;
+      const esHasN = translations.es[k as keyof typeof translations.es].includes('{n}');
+      const enHasN = translations.en[k as keyof typeof translations.en].includes('{n}');
+      if (esHasN !== enHasN) mismatched.push(k);
+    }
+    expect(mismatched).toEqual([]);
+  });
+});
+
+describe('ti (interpolating translator)', () => {
+  it('substitutes a single named placeholder', () => {
+    locale.set('en');
+    expect(tri('saved.desc', { id: 42 })).toBe(
+      'Invoice #42 has been stored and is ready for review.',
+    );
+  });
+
+  it('substitutes every occurrence and supports multiple vars', () => {
+    locale.set('en');
+    expect(tri('upload.imageTooLarge', { mb: 20 })).toBe('Image exceeds the 20 MB limit');
+    locale.set('es');
+    expect(tri('upload.imageTooLarge', { mb: 20 })).toBe('La imagen supera el límite de 20 MB');
+  });
+
+  it('reacts to locale changes', () => {
+    locale.set('es');
+    expect(tri('sup.viewAll', { n: 7 })).toBe('Ver todas (7)');
+    locale.set('en');
+    expect(tri('sup.viewAll', { n: 7 })).toBe('View all (7)');
+  });
+
+  it('leaves the raw key untouched when it does not exist', () => {
+    expect(tri('no.such.key', { n: 1 })).toBe('no.such.key');
+  });
+});
+
+describe('tp (pluralizing translator)', () => {
+  it('selects the .one form for a count of 1', () => {
+    locale.set('en');
+    expect(trp('misc.invoice', 1)).toBe('1 invoice');
+    locale.set('es');
+    expect(trp('misc.invoice', 1)).toBe('1 factura');
+  });
+
+  it('selects the .other form and interpolates the count', () => {
+    locale.set('en');
+    expect(trp('misc.invoice', 3)).toBe('3 invoices');
+    locale.set('es');
+    expect(trp('misc.invoice', 3)).toBe('3 facturas');
+  });
+
+  it('uses the .zero form when defined for a count of 0', () => {
+    locale.set('en');
+    expect(trp('misc.invoice', 0)).toBe('No invoices');
+    locale.set('es');
+    expect(trp('misc.invoice', 0)).toBe('Sin facturas');
+  });
+
+  it('falls back to the .other form at 0 when no .zero form exists', () => {
+    locale.set('en');
+    expect(trp('inv.confirm.delete', 0)).toBe('Delete 0 invoices? This cannot be undone.');
+  });
+
+  it('resolves every plural family in both locales', () => {
+    const families = [
+      'misc.invoice',
+      'inv.confirm.paid',
+      'inv.confirm.delete',
+      'confirm.extract',
+      'confirm.addFile',
+      'upload.extractData',
+      'sup.confirmDelete.body',
+    ];
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const fam of families) {
+        for (const count of [1, 2]) {
+          const out = trp(fam, count);
+          if (out.includes('.one') || out.includes('.other') || out.includes('{n}')) {
+            missing.push(`${lc}:${fam}:${count}`);
+          }
+        }
+      }
+    }
+    expect(missing).toEqual([]);
   });
 });

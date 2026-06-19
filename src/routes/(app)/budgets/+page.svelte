@@ -45,13 +45,13 @@
 
     <!-- Overall progress card -->
     <div class="card" style="padding:18px 20px;flex-shrink:0;">
-      <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · al día {today}</div>
+      <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;">
         <div class="num" style="font-size:32px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.7px;line-height:1;">
           {fmtEur(totalSpent)}
         </div>
         <div style="font-size:13px;color:var(--mep-fg-3);">
-          de <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit)}</span>
+          {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit)}</span>
         </div>
       </div>
       {#if totalLimit > 0}
@@ -65,12 +65,12 @@
         <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);margin-top:8px;">
           <span>
             <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
-            usado · proyección {(totalPct * 31 / today).toFixed(0)}% al cierre
+            {$t('bud.used')} · {$t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {$t('bud.atClose')}
           </span>
-          <span class="num">{fmtEur(totalLimit - totalSpent)} restante</span>
+          <span class="num">{fmtEur(totalLimit - totalSpent)} {$t('bud.remaining')}</span>
         </div>
       {:else}
-        <div style="font-size:13px;color:var(--mep-fg-3);">Define presupuestos mensuales por categoría para controlar tu gasto. Edita los campos en la tabla y guarda.</div>
+        <div style="font-size:13px;color:var(--mep-fg-3);">{$t('bud.emptyDesktop')}</div>
       {/if}
     </div>
 
@@ -78,8 +78,8 @@
     <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
       <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
         <div>
-          <div class="subtitle">Presupuesto por categoría</div>
-          <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">Edita el campo de presupuesto y guarda</div>
+          <div class="subtitle">{$t('bud.tableTitle')}</div>
+          <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{$t('bud.tableSub')}</div>
         </div>
       </div>
 
@@ -89,13 +89,13 @@
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:22%;">Categoría</th>
-                <th class="num" style="width:160px;">Presupuesto</th>
-                <th class="num" style="width:130px;">Gastado</th>
-                <th class="num" style="width:130px;">Restante</th>
-                <th style="min-width:120px;">Progreso</th>
+                <th style="width:22%;">{$t('bud.colCategory')}</th>
+                <th class="num" style="width:160px;">{$t('bud.colBudget')}</th>
+                <th class="num" style="width:130px;">{$t('bud.colSpent')}</th>
+                <th class="num" style="width:130px;">{$t('bud.colRemaining')}</th>
+                <th style="min-width:120px;">{$t('bud.colProgress')}</th>
                 <th class="num" style="width:70px;">%</th>
-                <th style="width:100px;">Proyección</th>
+                <th style="width:100px;">{$t('bud.colProjection')}</th>
               </tr>
             </thead>
             <tbody>
@@ -132,7 +132,7 @@
                         <div style="position:absolute;left:80%;top:-3px;bottom:-3px;width:1.5px;background:var(--mep-fg-3);opacity:0.4;"></div>
                       </div>
                     {:else}
-                      <span style="font-size:11.5px;color:var(--mep-fg-4);">Sin presupuesto</span>
+                      <span style="font-size:11.5px;color:var(--mep-fg-4);">{$t('bud.noBudget')}</span>
                     {/if}
                   </td>
                   <td class="num" style="color:{r.limit > 0 ? semColor(r.pct) : 'var(--mep-fg-3)'};font-weight:600;">
@@ -160,15 +160,15 @@
                       <input
                         type="text" maxlength="80"
                         bind:value={newCatName}
-                        placeholder="Nombre de categoría…"
+                        placeholder={$t('bud.namePlaceholder')}
                         class="input"
                         style="height:30px;font-size:12.5px;width:220px;"
                         onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
                       />
                       <button type="button" class="btn btn-primary" style="height:30px;font-size:12.5px;"
-                        onclick={addCategory}>Añadir</button>
+                        onclick={addCategory}>{$t('bud.add')}</button>
                       <button type="button" class="btn btn-ghost" style="height:30px;font-size:12.5px;"
-                        onclick={() => { showAddForm = false; newCatName = ''; }}>Cancelar</button>
+                        onclick={() => { showAddForm = false; newCatName = ''; }}>{$t('edit.cancel')}</button>
                     </div>
                   </td>
                 </tr>
@@ -190,7 +190,7 @@
             {#if totalLimit > 0}
               <tfoot>
                 <tr>
-                  <td style="font-weight:600;color:var(--mep-fg);font-size:13px;padding:12px;">Total</td>
+                  <td style="font-weight:600;color:var(--mep-fg);font-size:13px;padding:12px;">{$t('bud.total')}</td>
                   <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalLimit)}</td>
                   <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalSpent)}</td>
                   <td class="num" style="font-weight:600;font-size:13px;color:var(--mep-fg-2);">{fmtEur(totalLimit - totalSpent)}</td>
@@ -222,13 +222,13 @@
 
       <!-- Hero summary card -->
       <div class="card" style="padding:16px;">
-        <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · al día {today}</div>
+        <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;">
           <div class="num" style="font-size:30px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.6px;line-height:1;">
             {fmtEur(totalSpent)}
           </div>
           <div style="font-size:12.5px;color:var(--mep-fg-3);">
-            de <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit)}</span>
+            {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit)}</span>
           </div>
         </div>
         {#if totalLimit > 0}
@@ -243,20 +243,20 @@
           <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-3);">
             <span>
               <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
-              · proyección {(totalPct * 31 / today).toFixed(0)}% al cierre
+              · {$t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {$t('bud.atClose')}
             </span>
-            <span class="num">{fmtEur(totalLimit - totalSpent)} restante</span>
+            <span class="num">{fmtEur(totalLimit - totalSpent)} {$t('bud.remaining')}</span>
           </div>
         {:else}
           <div style="font-size:13px;color:var(--mep-fg-3);">
-            Define presupuestos por categoría para controlar tu gasto.
+            {$t('bud.emptyMobile')}
           </div>
         {/if}
       </div>
 
       <!-- Section header -->
       <div style="padding:4px 2px 0;">
-        <div class="subtitle" style="font-size:14px;">Presupuesto por categoría</div>
+        <div class="subtitle" style="font-size:14px;">{$t('bud.tableTitle')}</div>
       </div>
 
       <!-- Category cards -->
@@ -274,7 +274,7 @@
                 font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;flex-shrink:0;
                 background:{projOver ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)'};
                 color:{projOver ? 'var(--mep-neg)' : 'var(--mep-pos)'};
-              ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}% cierre</span>
+              ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}% {$t('bud.closeShort')}</span>
             {/if}
           </div>
 
@@ -307,7 +307,7 @@
 
           <!-- Budget input -->
           <div style="display:flex;align-items:center;gap:8px;">
-            <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">Presupuesto</label>
+            <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">{$t('bud.colBudget')}</label>
             <input type="number" step="0.01" min="0"
               id="budget-{r.cat}"
               name={r.cat}
@@ -322,11 +322,11 @@
       <!-- Add category card (mobile) -->
       {#if showAddForm}
         <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-          <div style="font-size:13px;font-weight:500;color:var(--mep-fg);">Nueva categoría</div>
+          <div style="font-size:13px;font-weight:500;color:var(--mep-fg);">{$t('bud.newCategory')}</div>
           <input
             type="text" maxlength="80"
             bind:value={newCatName}
-            placeholder="Nombre de categoría…"
+            placeholder={$t('bud.namePlaceholder')}
             class="input"
             style="height:40px;font-size:14px;"
             onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
@@ -334,10 +334,10 @@
           <div style="display:flex;gap:8px;">
             <button type="button" class="btn btn-primary"
               style="flex:2;height:40px;justify-content:center;font-size:14px;"
-              onclick={addCategory}>Añadir</button>
+              onclick={addCategory}>{$t('bud.add')}</button>
             <button type="button" class="btn btn-ghost"
               style="flex:1;height:40px;justify-content:center;font-size:14px;"
-              onclick={() => { showAddForm = false; newCatName = ''; }}>Cancelar</button>
+              onclick={() => { showAddForm = false; newCatName = ''; }}>{$t('edit.cancel')}</button>
           </div>
         </div>
       {:else}
@@ -350,7 +350,7 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
             <line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/>
           </svg>
-          Añadir categoría
+          {$t('bud.addCategory')}
         </button>
       {/if}
 

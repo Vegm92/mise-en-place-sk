@@ -1,5 +1,6 @@
 <script lang="ts">
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
+  import { t } from '$lib/i18n';
 
   interface Kpis {
     total_items_spend: number | null;
@@ -36,7 +37,7 @@
     ['month', '30 d'],
     ['quarter', '90 d'],
     ['half', '6 m'],
-    ['all', 'Todo'],
+    ['all', $t('spend.period.allShort')],
   ];
 
   function fmtEur(n: number | null | undefined) {
@@ -64,25 +65,25 @@
     <!-- KPI 2-col grid -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Gasto total</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.totalSpend')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {fmtEur(kpis?.total_items_spend)}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Líneas</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('tbl.lines')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.total_line_items ?? '—'}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Productos únicos</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.uniqueItems')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.unique_items ?? '—'}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Media por factura</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.avgItems')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.avg_invoice_items != null ? kpis.avg_invoice_items.toFixed(1) : '—'}
         </div>
@@ -92,7 +93,7 @@
     <!-- Top items -->
     {#if top_items?.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
-        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">Top productos</div>
+        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.topProducts')}</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
           {#each top_items.slice(0, 10) as item}
             <div>
@@ -118,7 +119,7 @@
     <!-- By category -->
     {#if category_spend?.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
-        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">Por categoría</div>
+        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.byCategory')}</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
           {#each category_spend as cat}
             <div>

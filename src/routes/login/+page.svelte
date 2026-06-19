@@ -15,7 +15,7 @@
 
 <svelte:head>
 	<title>{$t('login.signIn')} · Mise en Place</title>
-	<meta name="description" content="Inicia sesión en Mise en Place para gestionar las facturas de tus proveedores, controlar el gasto y los presupuestos de tu restaurante." />
+	<meta name="description" content={$t('login.metaDesc')} />
 </svelte:head>
 
 <div class="mep" data-accent="amber" data-density="default"
@@ -59,7 +59,7 @@
 						type="email"
 						required
 						autocomplete="email"
-						placeholder="you@example.com"
+						placeholder={$t('login.emailPlaceholder')}
 						class="input"
 						style="height:36px;"
 					/>
@@ -111,8 +111,8 @@
 				{$t('login.noAccount')} <a href="/signup" style="color:var(--mep-acc);">{$t('login.createOne')}</a>
 			</p>
 			<p style="text-align:center;font-size:11px;color:var(--mep-fg-4);margin:16px 0 0;">
-				<a href="/privacy" style="color:var(--mep-fg-4);">Privacidad</a> ·
-				<a href="/terms"   style="color:var(--mep-fg-4);">Términos</a>
+				<a href="/privacy" style="color:var(--mep-fg-4);">{$t('footer.privacy')}</a> ·
+				<a href="/terms"   style="color:var(--mep-fg-4);">{$t('footer.terms')}</a>
 			</p>
 		</div>
 

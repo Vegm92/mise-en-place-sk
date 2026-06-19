@@ -2,6 +2,7 @@
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import Clock from '@lucide/svelte/icons/clock';
   import Check from '@lucide/svelte/icons/check';
+  import { t } from '$lib/i18n';
 
   interface Reminder {
     id: number;
@@ -32,7 +33,7 @@
 
     {#if !overdue.length && !due_soon.length}
       <div style="padding: 48px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        Sin alertas pendientes
+        {$t('notif.empty')}
       </div>
     {:else}
 
@@ -41,17 +42,17 @@
         {#if overdue.length}
           <div style="padding: 6px 12px; border-radius: 8px; background: var(--mep-neg-soft); font-size: 12.5px;">
             <strong style="color: var(--mep-neg);">{overdue.length}</strong>
-            <span style="color: var(--mep-fg-2);"> vencidas</span>
+            <span style="color: var(--mep-fg-2);"> {$t('malert.overdueCount')}</span>
           </div>
         {/if}
         {#if due_soon.length}
           <div class="card" style="padding: 6px 12px; font-size: 12.5px;">
             <strong style="color: var(--mep-fg);">{due_soon.length}</strong>
-            <span style="color: var(--mep-fg-2);"> vencen esta semana</span>
+            <span style="color: var(--mep-fg-2);"> {$t('malert.dueWeekCount')}</span>
           </div>
         {/if}
         <div class="card" style="padding: 6px 12px; font-size: 12.5px;">
-          <span style="color: var(--mep-fg-2);">Total: </span>
+          <span style="color: var(--mep-fg-2);">{$t('tbl.total')}: </span>
           <strong class="num" style="color: var(--mep-fg);">{fmtAmount(total_amount)}</strong>
         </div>
       </div>
@@ -60,7 +61,7 @@
       {#if overdue.length}
         <div>
           <div style="font-size: 11.5px; color: var(--mep-neg); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <AlertTriangle size={13} /> Vencidas
+            <AlertTriangle size={13} /> {$t('rem.overdue')}
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each overdue as r}
@@ -76,13 +77,13 @@
                   </div>
                   <div style="text-align: right; flex-shrink: 0;">
                     <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                    <span class="badge badge-overdue" style="font-size: 9.5px;">{Math.abs(r.days_delta)}d venc.</span>
+                    <span class="badge badge-overdue" style="font-size: 9.5px;">{Math.abs(r.days_delta)}{$t('malert.dOverdue')}</span>
                   </div>
                 </div>
                 <form method="post" action="?/markPaid" style="margin-top: 10px;">
                   <input type="hidden" name="invoiceId" value={r.id} />
                   <button type="submit" class="btn btn-ghost" style="height: 30px; font-size: 12px; gap: 4px; width: 100%; justify-content: center; color: var(--mep-pos);">
-                    <Check size={12} /> Marcar como pagada
+                    <Check size={12} /> {$t('malert.markPaid')}
                   </button>
                 </form>
               </div>
@@ -95,7 +96,7 @@
       {#if due_soon.length}
         <div>
           <div style="font-size: 11.5px; color: var(--mep-warn); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-            <Clock size={13} /> Vencen esta semana
+            <Clock size={13} /> {$t('rem.dueWeek')}
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each due_soon as r}
@@ -111,13 +112,13 @@
                   </div>
                   <div style="text-align: right; flex-shrink: 0;">
                     <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                    <span class="badge badge-pending" style="font-size: 9.5px;">{r.days_delta}d restantes</span>
+                    <span class="badge badge-pending" style="font-size: 9.5px;">{r.days_delta}{$t('malert.dLeft')}</span>
                   </div>
                 </div>
                 <form method="post" action="?/markPaid" style="margin-top: 10px;">
                   <input type="hidden" name="invoiceId" value={r.id} />
                   <button type="submit" class="btn btn-ghost" style="height: 30px; font-size: 12px; gap: 4px; width: 100%; justify-content: center; color: var(--mep-pos);">
-                    <Check size={12} /> Marcar como pagada
+                    <Check size={12} /> {$t('malert.markPaid')}
                   </button>
                 </form>
               </div>

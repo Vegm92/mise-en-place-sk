@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { locale } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
 
   interface PriceItem {
     description: string;
@@ -61,10 +61,10 @@
   }
 
   const filterOptions: Array<[typeof filterChange, string]> = [
-    ['all',  'Todos'],
-    ['up',   'Subidas'],
-    ['down', 'Bajadas'],
-    ['flat', 'Estables'],
+    ['all',  $t('prices.filter.all')],
+    ['up',   $t('prices.filter.up')],
+    ['down', $t('prices.filter.down')],
+    ['flat', $t('prices.filter.stable')],
   ];
 </script>
 
@@ -79,7 +79,7 @@
     <input
       class="input"
       style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
-      placeholder="Buscar producto o proveedor…"
+      placeholder={$t('prices.searchPlaceholder')}
       bind:value={search}
     />
   </div>
@@ -106,13 +106,13 @@
     <!-- Summary 2-col -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Subidas</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('prices.up')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalUp > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'};">
           {totalUp}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Bajadas</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('prices.down')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalDown > 0 ? 'var(--mep-pos)' : 'var(--mep-fg)'};">
           {totalDown}
         </div>
@@ -121,7 +121,7 @@
 
     <!-- Price items list -->
     {#if filtered.length === 0}
-      <div style="padding: 32px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">Sin resultados</div>
+      <div style="padding: 32px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{$t('prices.noResults')}</div>
     {:else}
       <div style="display: flex; flex-direction: column; gap: 8px;">
         {#each filtered as item}
@@ -157,9 +157,9 @@
               {/if}
             </div>
             <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-              Último: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
+              {$t('prices.latest')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
               {#if item.prev_date}
-                · Anterior: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
+                · {$t('prices.previous')}: <span class="num" style="color: var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
               {/if}
             </div>
           </div>

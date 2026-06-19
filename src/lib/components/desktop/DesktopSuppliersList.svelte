@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
-  import { locale } from '$lib/i18n';
+  import { locale, t, ti } from '$lib/i18n';
   import Search from '@lucide/svelte/icons/search';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Plus from '@lucide/svelte/icons/plus';
@@ -67,13 +67,13 @@
         <Search size={14} />
       </span>
       <input class="input" style="padding-left:32px;width:100%;"
-        placeholder="Buscar por nombre o categoría…" bind:value={search} />
+        placeholder={$t('sup.searchPlaceholder')} bind:value={search} />
     </div>
     <div style="position:relative;">
       <select class="btn btn-secondary"
         style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
         bind:value={catFilter}>
-        <option value="">Categoría: Todas</option>
+        <option value="">{$t('sup.filterAllCategories')}</option>
         {#each categories as cat}
           <option value={cat}>{cat}</option>
         {/each}
@@ -82,39 +82,39 @@
     </div>
     <button class="btn btn-secondary max-[1050px]:hidden"
       style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;white-space:nowrap;flex-shrink:0;" disabled>
-      Actividad: Últimos 30 d <span style="font-size:10px;margin-left:2px;">▾</span>
+      {$t('dsup.activityFilter')} <span style="font-size:10px;margin-left:2px;">▾</span>
     </button>
     <div style="flex:1;"></div>
     <button class="btn btn-secondary"
       style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
-      <Plus size={13} /> Añadir proveedor
+      <Plus size={13} /> {$t('dsup.addSupplier')}
     </button>
   </div>
 
   <!-- Summary strip -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0">
     <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">Proveedores activos</div>
+      <div class="label" style="margin-bottom:6px;">{$t('dsup.activeSuppliers')}</div>
       <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{suppliers.length}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">en total</div>
+      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('dsup.inTotal')}</div>
     </div>
     <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">Gasto total</div>
+      <div class="label" style="margin-bottom:6px;">{$t('spend.totalSpend')}</div>
       <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{fmtEur(totalSpend)}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">este mes</div>
+      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('dash.category.sub')}</div>
     </div>
     <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">Facturas</div>
+      <div class="label" style="margin-bottom:6px;">{$t('nav.invoices')}</div>
       <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{totalMonthInvoices}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">este mes</div>
+      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('dash.category.sub')}</div>
     </div>
     <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">Sin asignar</div>
+      <div class="label" style="margin-bottom:6px;">{$t('dsup.unassigned')}</div>
       <div class="num" style="font-size:22px;font-weight:600;color:{unassigned > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">{unassigned}</div>
       <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        {#if unassigned === 0}todos asignados
+        {#if unassigned === 0}{$t('dsup.allAssigned')}
         {:else if unassigned === 1}{firstUnassigned}
-        {:else}{unassigned} proveedores
+        {:else}{$ti('dsup.nSuppliers', { n: unassigned })}
         {/if}
       </div>
     </div>
@@ -126,26 +126,26 @@
       {#if !filtered.length}
         <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
           {#if search || catFilter}
-            <p class="body" style="color:var(--mep-fg-3);">Sin resultados para la búsqueda actual</p>
+            <p class="body" style="color:var(--mep-fg-3);">{$t('sup.noResults')}</p>
           {:else}
             <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
-            <p class="body-strong" style="color:var(--mep-fg-2);">Aún no hay proveedores</p>
-            <p class="body" style="color:var(--mep-fg-3);max-width:320px;">Sube tu primera factura y crearemos los proveedores automáticamente a partir de los datos extraídos.</p>
-            <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;margin-top:8px;">Subir factura</a>
+            <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.emptyTitle')}</p>
+            <p class="body" style="color:var(--mep-fg-3);max-width:320px;">{$t('sup.emptyDesc')}</p>
+            <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;margin-top:8px;">{$t('action.upload')}</a>
           {/if}
         </div>
       {:else}
         <table class="tbl" style="table-layout:fixed;">
           <thead>
             <tr>
-              <th style="width:28%;">Proveedor</th>
-              <th style="width:100px;">CIF/NIF</th>
-              <th style="width:120px;">Categoría</th>
-              <th class="num" style="width:75px;">Facturas</th>
-              <th class="num" style="width:115px;">Gasto (mes)</th>
-              <th style="width:90px;">Tendencia</th>
+              <th style="width:28%;">{$t('tbl.supplier')}</th>
+              <th style="width:100px;">{$t('sup.field.cif')}</th>
+              <th style="width:120px;">{$t('sup.field.category')}</th>
+              <th class="num" style="width:75px;">{$t('nav.invoices')}</th>
+              <th class="num" style="width:115px;">{$t('tbl.spendMonth')}</th>
+              <th style="width:90px;">{$t('tbl.trend')}</th>
               <th class="num" style="width:65px;">Δ</th>
-              <th style="width:100px;">Último pedido</th>
+              <th style="width:100px;">{$t('tbl.lastOrder')}</th>
               <th style="width:32px;"></th>
             </tr>
           </thead>
@@ -167,7 +167,7 @@
                         flex-shrink:0;font-size:9px;font-weight:700;
                         background:var(--mep-acc-soft);color:var(--mep-acc);
                         padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
-                      ">NUEVO</span>
+                      ">{$t('dsup.newBadge')}</span>
                     {/if}
                   </div>
                 </td>

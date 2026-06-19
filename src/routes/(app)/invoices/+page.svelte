@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { fmt } from '$lib/formatters';
-  import { t } from '$lib/i18n';
+  import { t, tp } from '$lib/i18n';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -122,7 +122,7 @@
     <KpiCard
       label={$t('inv.kpi.pending')}
       value={Math.round(stats.pending_amount) + ' €'}
-      sub="{stats.pending_count} {stats.pending_count === 1 ? $t('misc.invoice') : $t('misc.invoices')}"
+      sub={$tp('misc.invoice', stats.pending_count)}
       variant={stats.pending_count > 0 ? 'warn' : 'default'}
     />
     <KpiCard
@@ -416,12 +416,12 @@
 <!-- Confirm dialogs -->
 <ConfirmDialog
   bind:open={confirmPaidOpen}
-  message={$t('inv.confirm.paid').replace('{n}', String(checkedIds.size))}
+  message={$tp('inv.confirm.paid', checkedIds.size)}
   onconfirm={executeBulkPaid}
 />
 <ConfirmDialog
   bind:open={confirmDeleteOpen}
-  message={$t('inv.confirm.delete').replace('{n}', String(checkedIds.size))}
+  message={$tp('inv.confirm.delete', checkedIds.size)}
   danger={true}
   onconfirm={executeBulkDelete}
 />
