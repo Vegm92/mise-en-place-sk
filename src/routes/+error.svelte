@@ -1,11 +1,12 @@
 <script>
 	import { page } from '$app/stores';
+	import { t } from '$lib/i18n';
 </script>
 
 <div class="error-page">
 	<h1>{$page.status}</h1>
-	<p>{$page.error?.message ?? 'Ha ocurrido un error inesperado.'}</p>
-	<a href="/">Ir al inicio</a>
+	<p>{$page.error?.message ?? $t('error.unexpected')}</p>
+	<a href="/">{$t('error.goHome')}</a>
 </div>
 
 <style>

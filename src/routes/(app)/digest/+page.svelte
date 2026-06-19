@@ -21,7 +21,7 @@
     <div style="padding:20px 22px;border-radius:10px;background:var(--mep-card);border:1px solid var(--mep-border);border-left:3px solid var(--mep-accent);position:relative;">
       {#if !data.weekly_digest.dismissed}
         <form method="POST" action="?/dismissDigest" style="position:absolute;top:12px;right:12px;">
-          <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:4px;line-height:1;" aria-label="Cerrar">
+          <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:4px;line-height:1;" aria-label={$t('a11y.close')}>
             <X size={13} />
           </button>
         </form>

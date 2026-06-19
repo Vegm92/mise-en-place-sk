@@ -7,7 +7,7 @@
   import Download from '@lucide/svelte/icons/download';
   import Truck from '@lucide/svelte/icons/truck';
   import Check from '@lucide/svelte/icons/check';
-  import { locale } from '$lib/i18n';
+  import { locale, t, ti } from '$lib/i18n';
 
   interface LineItem {
     id: number;
@@ -67,7 +67,7 @@
       background: transparent; color: var(--mep-fg); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       text-decoration: none; flex-shrink: 0;
-    " aria-label="Volver">
+    " aria-label={$t('mid.back')}>
       <ChevronLeft size={18} />
     </a>
     <div style="flex: 1; min-width: 0;">
@@ -82,7 +82,7 @@
       width: 36px; height: 36px; border-radius: 18px; border: 0;
       background: transparent; color: var(--mep-fg); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-    " aria-label="Más opciones">
+    " aria-label={$t('mid.moreOptions')}>
       <MoreHorizontal size={18} />
     </button>
   </div>
@@ -94,7 +94,7 @@
     <div class="card" style="padding: 16px;">
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
         <div>
-          <div class="label" style="margin-bottom: 6px;">Total con IVA</div>
+          <div class="label" style="margin-bottom: 6px;">{$t('mid.totalVat')}</div>
           <div class="num" style="font-size: 30px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.6px; line-height: 1;">
             {fmt(invoice.display_amount ?? invoice.total_amount)}
           </div>
@@ -107,15 +107,15 @@
         display: flex; justify-content: space-between; font-size: 12px;
       ">
         <div>
-          <div style="color: var(--mep-fg-3);">Emitida</div>
+          <div style="color: var(--mep-fg-3);">{$t('mid.issued')}</div>
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.invoice_date)}</div>
         </div>
         <div>
-          <div style="color: var(--mep-fg-3);">Vence</div>
+          <div style="color: var(--mep-fg-3);">{$t('tbl.due')}</div>
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.due_date)}</div>
         </div>
         <div>
-          <div style="color: var(--mep-fg-3);">Líneas</div>
+          <div style="color: var(--mep-fg-3);">{$t('tbl.lines')}</div>
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{lineItems.length}</div>
         </div>
       </div>
@@ -134,7 +134,7 @@
           </div>
           <a href="/invoice/{invoice.id}/file" target="_blank"
             style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none; flex-shrink: 0;">
-            Abrir
+            {$t('mid.open')}
           </a>
         </div>
         <div style="padding: 16px; background: var(--mep-surface-2); display: flex; align-items: center; justify-content: center;">
@@ -144,7 +144,7 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
           ">
             <FileText size={32} style="color: var(--mep-fg-3);" />
-            <span style="font-size: 11px; color: var(--mep-fg-3);">Vista previa</span>
+            <span style="font-size: 11px; color: var(--mep-fg-3);">{$t('mid.preview')}</span>
           </div>
         </div>
       </div>
@@ -180,7 +180,7 @@
             font-size: 12px; color: var(--mep-acc); font-weight: 500;
             border-top: 1px solid var(--mep-divider); text-decoration: none;
           ">
-            Ver las {lineItems.length} líneas
+            {$ti('mid.viewLines', { n: lineItems.length })}
           </a>
         {/if}
       </div>
@@ -189,9 +189,9 @@
     <!-- Action grid -->
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
       {#each [
-        { icon: Edit, label: 'Editar', href: `/invoice/${invoice.id}/edit` },
+        { icon: Edit, label: $t('mid.actionEdit'), href: `/invoice/${invoice.id}/edit` },
         { icon: Download, label: 'PDF', href: invoice.source_file ? `/invoice/${invoice.id}/file` : '#' },
-        { icon: Truck, label: 'Proveedor', href: invoice.supplier_id ? `/suppliers/${invoice.supplier_id}` : '/suppliers' },
+        { icon: Truck, label: $t('mid.actionSupplier'), href: invoice.supplier_id ? `/suppliers/${invoice.supplier_id}` : '/suppliers' },
       ] as action}
         <a
           href={action.href}

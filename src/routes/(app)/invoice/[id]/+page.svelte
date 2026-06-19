@@ -66,9 +66,9 @@
         </div>
         <!-- Zoom controls (decorative) -->
         <div style="display:flex;gap:4px;">
-          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title="Zoom out">−</button>
+          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title={$t('a11y.zoomOut')}>−</button>
           <span class="body" style="align-self:center;padding:0 4px;font-size:12px;">100%</span>
-          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title="Zoom in">+</button>
+          <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title={$t('a11y.zoomIn')}>+</button>
         </div>
       </div>
 
@@ -90,16 +90,16 @@
           padding:32px 24px;
           display:flex;flex-direction:column;gap:16px;
         ">
-          <div style="font-size:15px;font-weight:600;color:var(--mep-fg);">FACTURA</div>
+          <div style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('inv.docTitle')}</div>
           <div class="divider"></div>
           <div style="display:flex;flex-direction:column;gap:6px;">
-            <div class="body"><span class="label">Proveedor: </span>{invoice.supplier_name ?? '—'}</div>
-            <div class="body"><span class="label">Nº: </span>{invoice.invoice_number ?? '—'}</div>
-            <div class="body"><span class="label">Fecha: </span>{fmtDate(invoice.invoice_date)}</div>
+            <div class="body"><span class="label">{$t('field.supplier')}: </span>{invoice.supplier_name ?? '—'}</div>
+            <div class="body"><span class="label">{$t('tbl.invoice')}: </span>{invoice.invoice_number ?? '—'}</div>
+            <div class="body"><span class="label">{$t('tbl.date')}: </span>{fmtDate(invoice.invoice_date)}</div>
           </div>
           <div class="divider"></div>
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span class="label">Total</span>
+            <span class="label">{$t('tbl.total')}</span>
             <span class="num" style="font-size:18px;font-weight:700;color:var(--mep-fg);">{fmt(invoice.total_amount)}</span>
           </div>
         </div>

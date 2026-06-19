@@ -1,6 +1,7 @@
 <script lang="ts">
   import Search from '@lucide/svelte/icons/search';
   import Bell from '@lucide/svelte/icons/bell';
+  import { t } from '$lib/i18n';
 
   let { title, hasAlert = false }: { title: string; hasAlert?: boolean } = $props();
 </script>
@@ -19,7 +20,7 @@
       color: var(--mep-fg-2); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    " aria-label="Buscar">
+    " aria-label={$t('common.search')}>
       <Search size={16} />
     </button>
     <a href="/reminders" style="
@@ -28,7 +29,7 @@
       color: var(--mep-fg-2); cursor: pointer; position: relative;
       display: flex; align-items: center; justify-content: center;
       box-shadow: 0 1px 2px rgba(0,0,0,0.04); text-decoration: none;
-    " aria-label="Alertas">
+    " aria-label={$t('notif.title')}>
       <Bell size={16} />
       {#if hasAlert}
         <span style="

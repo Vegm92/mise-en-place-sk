@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fmtEur } from '$lib/formatters';
+  import { t } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
 
@@ -63,7 +64,7 @@
     <input
       class="input"
       style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
-      placeholder="Buscar proveedor o categoría…"
+      placeholder={$t('sup.searchPlaceholder')}
       bind:value={search}
     />
   </div>
@@ -79,7 +80,7 @@
         font-size: 12px; font-weight: 500; font-family: inherit;
         box-shadow: {!catFilter ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
       "
-    >Todas</button>
+    >{$t('sup.allChip')}</button>
     {#each categories as cat}
       <button
         onclick={() => catFilter = catFilter === cat ? '' : cat}
@@ -98,17 +99,17 @@
   <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{suppliers.length}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">Proveedores</div>
+      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.suppliersChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend)}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">Gasto mes</div>
+      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{totalMonthInvoices}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">Facturas</div>
+      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.invoicesList')}</div>
     </div>
   </div>
 
@@ -116,7 +117,7 @@
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 8px;">
     {#if filtered.length === 0}
       <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        Sin proveedores
+        {$t('sup.noSuppliers')}
       </div>
     {:else}
       {#each filtered as s}
@@ -140,7 +141,7 @@
               {s.name}
             </div>
             <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
-              {s.category && s.category !== 'Other' ? s.category : 'Sin categoría'}{s.month_invoice_count ? ` · ${s.month_invoice_count} facturas` : ''}
+              {s.category && s.category !== 'Other' ? s.category : $t('sup.noCategory')}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${$t('sup.invoicesSuffix')}` : ''}
             </div>
           </div>
           <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">

@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
-  import { locale } from '$lib/i18n';
+  import { locale, t, ti } from '$lib/i18n';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -39,10 +39,10 @@
     return '#E05555';
   }
 
-  function scoreLabel(score: number) {
-    if (score >= 70) return 'Muy fiable';
-    if (score >= 40) return 'Fiable';
-    return 'Poco fiable';
+  function scoreLabelKey(score: number) {
+    if (score >= 70) return 'sup.score.very';
+    if (score >= 40) return 'sup.score.ok';
+    return 'sup.score.poor';
   }
 
   function invoiceStatus(inv: typeof data.invoices[0]): string {
@@ -59,7 +59,7 @@
   <!-- Header -->
   <div style="padding:14px 18px 0;flex-shrink:0;">
     <a href="/suppliers" style="display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--mep-fg-3);text-decoration:none;margin-bottom:12px;">
-      <ArrowLeft size={14} /> Proveedores
+      <ArrowLeft size={14} /> {$t('sup.back')}
     </a>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
       <div style="
@@ -74,45 +74,45 @@
           {#if s.category}
             <span class="swatch" style="background:{color};"></span>{s.category}
           {:else}
-            <span style="font-style:italic;">Sin categoría</span>
+            <span style="font-style:italic;">{$t('sup.noCategory')}</span>
           {/if}
         </div>
       </div>
       <button class="btn btn-secondary" style="height:32px;font-size:12px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;"
         onclick={() => { editing = !editing; confirmDelete = false; }}>
-        <Pencil size={12} /> Editar
+        <Pencil size={12} /> {$t('action.edit')}
       </button>
     </div>
 
     <!-- Edit form (mobile) -->
     {#if editing}
       <div class="card" style="padding:16px;margin-bottom:12px;">
-        <p class="body-strong" style="margin-bottom:12px;">Editar proveedor</p>
+        <p class="body-strong" style="margin-bottom:12px;">{$t('sup.edit.title')}</p>
         <form method="post" action="?/update" style="display:flex;flex-direction:column;gap:10px;">
           <div>
-            <label for="m-edit-name" class="label" style="display:block;margin-bottom:4px;">Nombre</label>
+            <label for="m-edit-name" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.name')}</label>
             <input id="m-edit-name" class="input" name="name" value={s.name} required style="width:100%;" />
           </div>
           <div>
-            <label for="m-edit-category" class="label" style="display:block;margin-bottom:4px;">Categoría</label>
+            <label for="m-edit-category" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.category')}</label>
             <select id="m-edit-category" class="input" name="category" style="width:100%;">
-              <option value="">Sin categoría</option>
+              <option value="">{$t('sup.noCategory')}</option>
               {#each VALID_CATEGORIES as cat}
                 <option value={cat} selected={s.category === cat}>{cat}</option>
               {/each}
             </select>
           </div>
           <div>
-            <label for="m-edit-email" class="label" style="display:block;margin-bottom:4px;">Email</label>
+            <label for="m-edit-email" class="label" style="display:block;margin-bottom:4px;">{$t('sup.fieldEmail')}</label>
             <input id="m-edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" />
           </div>
           <div>
-            <label for="m-edit-phone" class="label" style="display:block;margin-bottom:4px;">Teléfono</label>
+            <label for="m-edit-phone" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.phone')}</label>
             <input id="m-edit-phone" class="input" name="contact_phone" type="tel" value={s.contactPhone ?? ''} style="width:100%;" />
           </div>
           <div style="display:flex;gap:8px;margin-top:4px;">
-            <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">Guardar</button>
-            <button type="button" class="btn" style="height:32px;font-size:12.5px;" onclick={() => editing = false}>Cancelar</button>
+            <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">{$t('set.save')}</button>
+            <button type="button" class="btn" style="height:32px;font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
           </div>
         </form>
       </div>
@@ -122,40 +122,40 @@
     <div class="card" style="margin-bottom:12px;padding:10px 14px;display:flex;align-items:center;">
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend)}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">Gasto total</div>
+        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.totalSpend')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{data.invoices.length}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">Facturas</div>
+        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.kpiInvoices')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.3px;">{fmtEur(pendingAmt)}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">Pendiente</div>
+        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.pending')}</div>
       </div>
     </div>
 
     <!-- Tabs -->
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;">
       {#each [
-        { id: 'resumen',  label: 'Resumen' },
-        { id: 'facturas', label: 'Facturas', count: data.invoices.length },
-        { id: 'productos', label: 'Productos' },
-      ] as t}
+        { id: 'resumen',  label: $t('sup.tab.resumen') },
+        { id: 'facturas', label: $t('nav.invoices'), count: data.invoices.length },
+        { id: 'productos', label: $t('sup.tab.productos') },
+      ] as tabItem}
         <button
-          onclick={() => tab = t.id as typeof tab}
+          onclick={() => tab = tabItem.id as typeof tab}
           style="
             border:0;height:30px;padding:0 12px;border-radius:15px;white-space:nowrap;cursor:pointer;font-family:inherit;
-            background:{tab === t.id ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-            color:{tab === t.id ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
+            background:{tab === tabItem.id ? 'var(--mep-acc)' : 'var(--mep-surface)'};
+            color:{tab === tabItem.id ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
             font-size:12px;font-weight:500;
-            box-shadow:{tab === t.id ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
+            box-shadow:{tab === tabItem.id ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
             display:inline-flex;align-items:center;gap:5px;
           ">
-          {t.label}
-          {#if t.count !== undefined}
-            <span class="num" style="font-size:10px;font-weight:600;">{t.count}</span>
+          {tabItem.label}
+          {#if tabItem.count !== undefined}
+            <span class="num" style="font-size:10px;font-weight:600;">{tabItem.count}</span>
           {/if}
         </button>
       {/each}
@@ -169,9 +169,9 @@
 
       <!-- Info card -->
       <div class="card" style="padding:14px;">
-        <div class="subtitle" style="margin-bottom:10px;">Información</div>
+        <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
         {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.deliveryDays && !s.paymentTerms}
-          <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">Sin información registrada.</p>
+          <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{$t('sup.infoEmpty')}</p>
         {:else}
           <div style="display:flex;flex-direction:column;gap:8px;">
             {#if s.contactEmail}
@@ -201,7 +201,7 @@
             {#if s.paymentTerms}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <CreditCard size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <span>Pago: {s.paymentTerms}</span>
+                <span>{$t('sup.paymentPrefix')}: {s.paymentTerms}</span>
               </div>
             {/if}
             {#if s.notes}
@@ -215,10 +215,10 @@
       {#if data.invoices.length}
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:12px 14px 8px;display:flex;align-items:center;justify-content:space-between;">
-            <div class="subtitle">Facturas recientes</div>
+            <div class="subtitle">{$t('sup.recentInvoices')}</div>
             {#if data.invoices.length > 4}
               <button style="font-size:12px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
-                onclick={() => tab = 'facturas'}>Ver todas ({data.invoices.length})</button>
+                onclick={() => tab = 'facturas'}>{$ti('sup.viewAll', { n: data.invoices.length })}</button>
             {/if}
           </div>
           {#each data.invoices.slice(0, 4) as inv (inv.id)}
@@ -238,7 +238,7 @@
       {#if m}
         <div class="card" style="padding:14px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-            <div class="subtitle" style="flex:1;">Fiabilidad</div>
+            <div class="subtitle" style="flex:1;">{$t('sup.reliabilityShort')}</div>
             <div style="
               width:42px;height:42px;border-radius:50%;
               border:3px solid {scoreColor(m.score)};
@@ -247,13 +247,13 @@
               <span style="font-size:13px;font-weight:700;color:{scoreColor(m.score)};line-height:1;">{m.score}</span>
               <span style="font-size:8px;color:var(--mep-fg-3);">/100</span>
             </div>
-            <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{scoreLabel(m.score)}</span>
+            <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             {#each [
-              { label: 'Precios', score: m.priceStabilityScore, max: 33 },
-              { label: 'Regularidad', score: m.frequencyScore, max: 33 },
-              { label: 'Puntualidad', score: m.timelinessScore, max: 34 },
+              { label: $t('sup.score.prices'), score: m.priceStabilityScore, max: 33 },
+              { label: $t('sup.score.regularity'), score: m.frequencyScore, max: 33 },
+              { label: $t('sup.score.punctuality'), score: m.timelinessScore, max: 34 },
             ] as kpi}
               <div style="padding:8px;background:var(--mep-surface-2);border-radius:8px;text-align:center;">
                 <div style="font-size:14px;font-weight:700;color:{scoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
@@ -269,10 +269,10 @@
       {#if !data.invoices.length}
         <div style="padding:40px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
           <div style="color:var(--mep-fg-3);font-size:13px;line-height:1.5;">
-            Aún no hay facturas de este proveedor.<br />Sube una factura para empezar a ver su histórico aquí.
+            {$t('sup.noInvoicesYet')}<br />{$t('sup.noInvoicesYetSub')}
           </div>
           <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;">
-            Subir factura
+            {$t('sup.uploadInvoice')}
           </a>
         </div>
       {:else}
@@ -280,7 +280,7 @@
           <a href="/invoice/{inv.id}" class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
             <div style="flex:1;min-width:0;">
               <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
-              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · vence ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
+              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · ${$t('sup.dueShort')} ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
             </div>
             <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
             <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
@@ -291,8 +291,8 @@
     {:else if tab === 'productos'}
       <div class="card" style="padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;">
         <div style="font-size:28px;opacity:0.3;">📦</div>
-        <p class="body-strong" style="color:var(--mep-fg-2);">Catálogo de productos</p>
-        <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:280px;">Disponible cuando activemos la extracción de líneas de factura.</p>
+        <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.products.title')}</p>
+        <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:280px;">{$t('sup.productsEmptyMobile')}</p>
       </div>
     {/if}
 

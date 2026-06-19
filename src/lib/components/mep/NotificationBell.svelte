@@ -54,8 +54,8 @@
     class="btn btn-ghost"
     style="width:34px;height:34px;padding:0;justify-content:center;position:relative;"
     onclick={toggleOpen}
-    title="Notifications"
-    aria-label="Notifications"
+    title={$t('a11y.notifications')}
+    aria-label={$t('a11y.notifications')}
   >
     <Bell size={15} />
     {#if count > 0}
@@ -126,7 +126,7 @@
             <button
               style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;margin-top:-1px;"
               onclick={() => dismiss(n.id)}
-              aria-label="Dismiss"
+              aria-label={$t('a11y.dismiss')}
             >
               <X size={12} />
             </button>

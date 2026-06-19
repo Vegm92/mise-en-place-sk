@@ -229,8 +229,8 @@
 
     <!-- Legal footer -->
     <div style="display:flex;gap:10px;padding:8px 10px 0;flex-wrap:wrap;">
-      <a href="/privacy" style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">Privacidad</a>
-      <a href="/terms"   style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">Términos</a>
+      <a href="/privacy" style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.privacy')}</a>
+      <a href="/terms"   style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.terms')}</a>
     </div>
 
     <!-- User chip -->
@@ -267,7 +267,7 @@
         class="md:hidden btn btn-ghost"
         style="width:34px;height:34px;padding:0;justify-content:center;"
         onclick={() => mobileOpen = !mobileOpen}
-        aria-label="Abrir menú"
+        aria-label={$t('a11y.openMenu')}
       >
         {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
       </button>
@@ -285,7 +285,7 @@
         class="btn btn-ghost"
         style="height:34px;padding:0 10px;font-size:12px;font-weight:600;letter-spacing:0.02em;font-variant-numeric:tabular-nums;min-width:44px;justify-content:center;"
         onclick={toggleLocale}
-        title="Switch language"
+        title={$t('a11y.switchLanguage')}
       >
         {$locale === 'es' ? 'EN' : 'ES'}
       </button>
@@ -298,7 +298,7 @@
         class="btn btn-ghost"
         style="width:34px;height:34px;padding:0;justify-content:center;"
         onclick={toggleTheme}
-        title="Cambiar tema"
+        title={$t('a11y.switchTheme')}
       >
         {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
       </button>

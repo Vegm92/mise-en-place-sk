@@ -189,10 +189,10 @@
         onclick={() => (mobileSidebarOpen = !mobileSidebarOpen)}
         class="btn btn-ghost"
         style="height:32px;padding:0 10px;gap:6px;font-size:13px;font-weight:500;"
-        aria-label="Historial de conversaciones"
+        aria-label={$t('chat.historyAria')}
       >
         <History size={15} />
-        Historial
+        {$t('chat.history')}
       </button>
       <button
         onclick={newChat}
@@ -242,7 +242,7 @@
               ">
                 <MessageCircle size={12} style="color:var(--mep-acc);" />
               </div>
-              <span style="font-size:11px;font-weight:600;color:var(--mep-fg-2);">Asistente</span>
+              <span style="font-size:11px;font-weight:600;color:var(--mep-fg-2);">{$t('chat.assistant')}</span>
             </div>
           {/if}
           <div style="

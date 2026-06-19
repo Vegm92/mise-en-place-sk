@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { t } from '$lib/i18n';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import FileText from '@lucide/svelte/icons/file-text';
   import Plus from '@lucide/svelte/icons/plus';
@@ -25,7 +26,7 @@
     text-decoration: none; padding: 4px 6px; min-width: 50px;
   ">
     <LayoutDashboard size={20} strokeWidth={is('/dashboard') ? 2 : 1.7} />
-    <span style="font-size: 10.5px; font-weight: {is('/dashboard') ? 600 : 500};">Resumen</span>
+    <span style="font-size: 10.5px; font-weight: {is('/dashboard') ? 600 : 500};">{$t('nav.dashboard')}</span>
   </a>
 
   <a href="/invoices" style="
@@ -45,7 +46,7 @@
         ">{invBadge}</span>
       {/if}
     </div>
-    <span style="font-size: 10.5px; font-weight: {is('/invoices') ? 600 : 500};">Facturas</span>
+    <span style="font-size: 10.5px; font-weight: {is('/invoices') ? 600 : 500};">{$t('nav.invoices')}</span>
   </a>
 
   <!-- Raised upload button -->
@@ -56,7 +57,7 @@
     display: flex; align-items: center; justify-content: center;
     text-decoration: none;
     box-shadow: 0 6px 16px rgba(184,116,26,0.40), 0 2px 4px rgba(0,0,0,0.10);
-  " aria-label="Subir factura">
+  " aria-label={$t('action.upload')}>
     <Plus size={22} strokeWidth={2} />
   </a>
 
@@ -66,7 +67,7 @@
     text-decoration: none; padding: 4px 6px; min-width: 50px;
   ">
     <TrendingUp size={20} strokeWidth={is('/analytics') ? 2 : 1.7} />
-    <span style="font-size: 10.5px; font-weight: {is('/analytics') ? 600 : 500};">Análisis</span>
+    <span style="font-size: 10.5px; font-weight: {is('/analytics') ? 600 : 500};">{$t('nav.analytics')}</span>
   </a>
 
   <a href="/reminders" style="
@@ -86,6 +87,6 @@
         ">{alertBadge}</span>
       {/if}
     </div>
-    <span style="font-size: 10.5px; font-weight: {is('/reminders') ? 600 : 500};">Alertas</span>
+    <span style="font-size: 10.5px; font-weight: {is('/reminders') ? 600 : 500};">{$t('notif.title')}</span>
   </a>
 </nav>

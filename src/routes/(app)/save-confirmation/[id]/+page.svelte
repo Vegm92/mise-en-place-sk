@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { t } from '$lib/i18n';
+  import { t, ti } from '$lib/i18n';
 
   const { data }: { data: PageData } = $props();
 </script>
@@ -13,7 +13,7 @@
       <div class="text-4xl mb-3">✅</div>
       <h2 class="body-strong mb-2" style="font-size:16px;">{$t('saved.title')}</h2>
       <p class="body text-fg-2" style="font-size:13px;">
-        {$t('saved.desc').replace('{id}', String(data.invoiceId))}
+        {$ti('saved.desc', { id: data.invoiceId })}
       </p>
     </div>
 

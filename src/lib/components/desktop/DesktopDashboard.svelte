@@ -10,7 +10,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import X from '@lucide/svelte/icons/x';
-  import { locale, t } from '$lib/i18n';
+  import { locale, t, ti, tp } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
 
   interface Mom { this_month: number; pct_change: number | null }
@@ -153,13 +153,13 @@
     <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;background:var(--mep-pos-soft);border-left:3px solid var(--mep-pos);">
       <span style="font-size:18px;flex-shrink:0;line-height:1.2;">🎉</span>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;color:var(--mep-pos);margin-bottom:2px;">Tu primera factura está guardada</div>
-        <div style="font-size:12.5px;color:var(--mep-fg-2);">Este es tu panel de compras — se enriquece con cada factura que añadas. Sube más facturas para ver tendencias de gasto, alertas de precio y análisis de proveedores.</div>
+        <div style="font-size:13px;font-weight:600;color:var(--mep-pos);margin-bottom:2px;">{$t('ddash.firstInvoiceTitle')}</div>
+        <div style="font-size:12.5px;color:var(--mep-fg-2);">{$t('ddash.firstInvoiceBody')}</div>
       </div>
       <button
         style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;"
         onclick={() => firstInvoiceDismissed = true}
-        aria-label="Cerrar"
+        aria-label={$t('ddash.close')}
       ><X size={13} /></button>
     </div>
   {/if}
@@ -167,30 +167,30 @@
   <!-- ── KPI Strip ───────────────────────────────────────────────────── -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
     <KpiCard
-      label="Gasto este mes"
+      label={$t('ddash.monthSpend')}
       value={data.mom.this_month > 0 ? fmtEurCompact(data.mom.this_month) : '—'}
       delta={data.mom.pct_change ?? undefined}
-      deltaCtx="vs. mes anterior"
-      sub="{data.pending.count + data.paid_month.count} facturas · {data.supplier_count} proveedores"
+      deltaCtx={$t('ddash.vsLastMonth')}
+      sub={$ti('ddash.invSupSub', { inv: data.pending.count + data.paid_month.count, sup: data.supplier_count })}
       spark={data.spark_data ?? undefined}
     />
     <KpiCard
-      label="Media por proveedor"
+      label={$t('ddash.avgPerSupplier')}
       value={data.avg_per_supplier != null ? fmtEurCompact(data.avg_per_supplier) : '—'}
       delta={data.avg_per_supplier_delta ?? undefined}
-      deltaCtx="vs. mes anterior"
+      deltaCtx={$t('ddash.vsLastMonth')}
       spark={data.spark_data?.map((v: number) => v / Math.max(data.supplier_count, 1)) ?? undefined}
     />
     <KpiCard
       label={$t('dash.kpi.pending')}
       value={fmtEurCompact(data.pending.amount)}
-      sub="{data.pending.count} {data.pending.count === 1 ? $t('misc.invoice') : $t('misc.invoices')}"
+      sub={$tp('misc.invoice', data.pending.count)}
       variant={data.pending.count > 0 ? 'warn' : 'default'}
     />
     <KpiCard
-      label="Presupuesto usado"
+      label={$t('ddash.budgetUsed')}
       value={data.total_budget > 0 ? (data.total_pct_actual + '%') : '—'}
-      sub={data.total_budget > 0 ? `de ${fmtEurCompact(data.total_budget)}` : 'Sin presupuesto'}
+      sub={data.total_budget > 0 ? $ti('ddash.ofBudget', { amount: fmtEurCompact(data.total_budget) }) : $t('ddash.noBudget')}
       variant={data.total_pct_actual >= 100 ? 'neg' : data.total_pct_actual >= data.budget_threshold ? 'warn' : 'default'}
       spark={data.total_budget > 0 ? [10, 22, 31, 39, 48, 56, 64, Number(data.total_pct_actual)] : undefined}
       invert
@@ -260,20 +260,20 @@
   <!-- ── "Por revisar" pending invoices ────────────────────────────── -->
   {#if data.pending_invoices.length > 0}
     <SectionCard
-      title="Por revisar"
-      sub="{data.pending_invoices.length} {data.pending_invoices.length === 1 ? 'factura extraída espera' : 'facturas extraídas esperan'} confirmación"
+      title={$t('ddash.toReview')}
+      sub={$tp('ddash.awaitingConfirm', data.pending_invoices.length)}
       href="/invoices"
-      actionLabel="Ver todas"
+      actionLabel={$t('action.viewAll')}
       noPad
     >
       <div class="overflow-x-auto">
       <table class="tbl" style="border-top:1px solid var(--mep-divider);">
         <thead>
           <tr>
-            <th>Proveedor · N.º</th>
-            <th>Fecha</th>
-            <th class="num">Líneas</th>
-            <th class="num">Total</th>
+            <th>{$t('ddash.colSupplierNum')}</th>
+            <th>{$t('tbl.date')}</th>
+            <th class="num">{$t('tbl.lines')}</th>
+            <th class="num">{$t('tbl.total')}</th>
             <th></th>
           </tr>
         </thead>
@@ -343,9 +343,9 @@
         <table class="tbl">
           <thead>
             <tr>
-              <th>Proveedor · N.º</th>
-              <th>Fecha</th>
-              <th class="num">Líneas</th>
+              <th>{$t('ddash.colSupplierNum')}</th>
+              <th>{$t('tbl.date')}</th>
+              <th class="num">{$t('tbl.lines')}</th>
               <th class="num">{$t('tbl.total')}</th>
               <th>{$t('tbl.status')}</th>
             </tr>
@@ -402,8 +402,8 @@
           {#if data.projection && data.projection.projected_eom > 0}
             <div style="padding:10px 12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
               <div class="flex justify-between" style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">
-                <span>Real ({data.projection.days_elapsed}d) <span class="num" style="color:var(--mep-fg);font-weight:500;margin-left:4px;">{fmtEurCompact(data.mom.this_month)}</span></span>
-                <span>Proyectado <span class="num" style="color:var(--mep-fg);font-weight:500;margin-left:4px;">{fmtEurCompact(data.projection.projected_eom)}</span></span>
+                <span>{$t('ddash.actual')} ({data.projection.days_elapsed}d) <span class="num" style="color:var(--mep-fg);font-weight:500;margin-left:4px;">{fmtEurCompact(data.mom.this_month)}</span></span>
+                <span>{$t('ddash.projected')} <span class="num" style="color:var(--mep-fg);font-weight:500;margin-left:4px;">{fmtEurCompact(data.projection.projected_eom)}</span></span>
               </div>
               <div style="position:relative;height:8px;border-radius:4px;background:var(--mep-divider);overflow:hidden;">
                 <div style="position:absolute;left:0;top:0;bottom:0;width:{projElapsedPct}%;background:var(--mep-acc);border-radius:4px 0 0 4px;"></div>
@@ -411,7 +411,7 @@
               </div>
               {#if projOverBudget}
                 <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">
-                  A este ritmo superarías el presupuesto en
+                  {$t('ddash.overBudgetPre')}
                   <span class="num" style="color:var(--mep-neg);font-weight:500;">{fmtEurCompact(projOverAmount)}</span>.
                 </div>
               {/if}
@@ -458,7 +458,7 @@
       {/if}
 
       {#if priceChanges.length > 0}
-        <SectionCard title="Cambios de precio" sub="últimas facturas procesadas">
+        <SectionCard title={$t('ddash.priceChanges')} sub={$t('ddash.priceChangesSub')}>
           <div class="flex flex-col">
             {#each priceChanges as pc, i (pc.name)}
               <div class="flex items-center gap-3 py-2 {i < priceChanges.length - 1 ? 'border-b border-divider' : ''}">

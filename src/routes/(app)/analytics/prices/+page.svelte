@@ -49,10 +49,10 @@
   }
 
   const filterOptions: Array<[typeof filterChange, string]> = [
-    ['all',  'Todos'],
-    ['up',   'Subidas'],
-    ['down', 'Bajadas'],
-    ['flat', 'Sin cambio'],
+    ['all',  $t('prices.filter.all')],
+    ['up',   $t('prices.filter.up')],
+    ['down', $t('prices.filter.down')],
+    ['flat', $t('prices.filter.flat')],
   ];
 </script>
 
@@ -72,7 +72,7 @@
 
     <!-- Header -->
     <div style="display:flex;align-items:center;gap:12px;">
-      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">¿Qué precios están cambiando?</h2>
+      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{$t('prices.question')}</h2>
     </div>
 
     <!-- Toolbar -->
@@ -82,12 +82,12 @@
           <Search size={14} />
         </span>
         <input class="input" style="padding-left:32px;width:100%;"
-          placeholder="Buscar producto o proveedor…" bind:value={search} />
+          placeholder={$t('prices.searchPlaceholder')} bind:value={search} />
       </div>
       <form method="get" action="/analytics/prices">
         <select name="supplier_id" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
           onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.submit()}>
-          <option value="">Todos los proveedores</option>
+          <option value="">{$t('prices.allSuppliers')}</option>
           {#each data.suppliers as s}
             <option value={s.id} selected={data.selected_supplier === s.id}>{s.name}</option>
           {/each}
@@ -108,24 +108,24 @@
     <!-- Summary strip -->
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Productos seguidos</div>
+        <div class="label" style="margin-bottom:6px;">{$t('prices.tracked')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.items.length}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">en total</div>
+        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('prices.inTotal')}</div>
       </div>
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Subidas</div>
+        <div class="label" style="margin-bottom:6px;">{$t('prices.up')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:{totalUp > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">{totalUp}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{totalUp > 0 ? 'precio al alza' : 'sin subidas'}</div>
+        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{totalUp > 0 ? $t('prices.upSub') : $t('prices.noUp')}</div>
       </div>
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Bajadas</div>
+        <div class="label" style="margin-bottom:6px;">{$t('prices.down')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:{totalDown > 0 ? 'var(--mep-pos)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">{totalDown}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{totalDown > 0 ? 'precio a la baja' : 'sin bajadas'}</div>
+        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{totalDown > 0 ? $t('prices.downSub') : $t('prices.noDown')}</div>
       </div>
       <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">Sin cambios</div>
+        <div class="label" style="margin-bottom:6px;">{$t('prices.noChange')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{totalFlat}</div>
-        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">precios estables</div>
+        <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('prices.stablePrices')}</div>
       </div>
     </div>
 
@@ -175,9 +175,9 @@
             </div>
 
             <div style="margin-top:6px;font-size:11px;color:var(--mep-fg-3);">
-              Último: <span class="num" style="color:var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
+              {$t('prices.latest')}: <span class="num" style="color:var(--mep-fg-2);">{fmtDate(item.latest_date)}</span>
               {#if item.prev_date}
-                · Anterior: <span class="num" style="color:var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
+                · {$t('prices.previous')}: <span class="num" style="color:var(--mep-fg-2);">{fmtDate(item.prev_date)}</span>
               {/if}
             </div>
 
@@ -185,17 +185,17 @@
               <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--mep-divider);display:flex;gap:16px;">
                 {#if item.prev_price !== null}
                   <div>
-                    <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">Precio anterior</div>
+                    <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.prevPrice')}</div>
                     <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-top:2px;">{fmtPrice(item.prev_price)}</div>
                   </div>
                 {/if}
                 <div>
-                  <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">Precio actual</div>
+                  <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.latestPrice')}</div>
                   <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-top:2px;">{fmtPrice(item.latest_price)}</div>
                 </div>
                 {#if pct !== null}
                   <div>
-                    <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">Variación</div>
+                    <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.variation')}</div>
                     <div class="num" style="font-size:13px;font-weight:500;color:{chipFg(pct)};margin-top:2px;">
                       {arrow(pct)} {flat ? '0%' : Math.abs(pct).toFixed(1).replace('.',',') + '%'}
                     </div>
