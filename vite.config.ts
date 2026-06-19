@@ -1,6 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
 	// Vite loads .env into import.meta.env / $env only — server modules that
@@ -11,7 +12,61 @@ export default defineConfig(({ mode }) => {
 	}
 
 	return {
-		plugins: [tailwindcss(), sveltekit()],
+		plugins: [
+			tailwindcss(),
+			sveltekit(),
+			VitePWA({
+				// SW updates silently in the background; new version activates on next visit.
+				registerType: 'autoUpdate',
+				// Null: we register manually in +layout.svelte to stay CSP-compatible.
+				injectRegister: null,
+				// We own the manifest (static/manifest.webmanifest); no plugin injection.
+				manifest: false,
+				workbox: {
+					// Precache JS bundles, CSS, fonts, and icons.
+					// HTML pages are SSR — skip them (no navigateFallback).
+					globPatterns: ['**/*.{js,css,woff2}', 'icons/**/*.png'],
+					navigateFallback: null,
+					cleanupOutdatedCaches: true,
+					runtimeCaching: [
+						{
+							// API routes: fresh data first, cached fallback within 10 s.
+							urlPattern: /^\/api\//,
+							handler: 'NetworkFirst',
+							options: {
+								cacheName: 'api-v1',
+								networkTimeoutSeconds: 10,
+								expiration: { maxEntries: 60, maxAgeSeconds: 5 * 60 },
+								cacheableResponse: { statuses: [0, 200] },
+							},
+						},
+						{
+							// SvelteKit immutable assets carry content hashes → cache forever.
+							urlPattern: /\/_app\/immutable\//,
+							handler: 'CacheFirst',
+							options: {
+								cacheName: 'sk-immutable-v1',
+								expiration: {
+									maxEntries: 300,
+									maxAgeSeconds: 365 * 24 * 60 * 60,
+								},
+								cacheableResponse: { statuses: [0, 200] },
+							},
+						},
+						{
+							// Fonts from self (woff2, etc.)
+							urlPattern: /\.woff2?$/,
+							handler: 'CacheFirst',
+							options: {
+								cacheName: 'fonts-v1',
+								expiration: { maxEntries: 20, maxAgeSeconds: 365 * 24 * 60 * 60 },
+								cacheableResponse: { statuses: [0, 200] },
+							},
+						},
+					],
+				},
+			}),
+		],
 		server: {
 			allowedHosts: true,
 		},

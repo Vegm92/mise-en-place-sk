@@ -32,7 +32,8 @@ seedAdminUser().catch(e => console.error('[hooks] seed error:', e));
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
-	if (path.startsWith('/_app/') || path === '/favicon.ico') {
+	if (path.startsWith('/_app/') || path === '/favicon.ico' ||
+	    path === '/sw.js' || path === '/manifest.webmanifest') {
 		return resolve(event);
 	}
 
