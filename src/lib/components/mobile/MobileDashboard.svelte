@@ -6,7 +6,7 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import { fmtEur, fmtEurCompact, fmtDate, toMonthStr, shiftMonth } from '$lib/formatters';
-  import { locale } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
   interface Supplier {
@@ -104,7 +104,7 @@
 
     <!-- Hero spend card -->
     <div class="card" style="padding: 16px;">
-      <div class="label" style="margin-bottom: 6px;">Gasto este mes</div>
+      <div class="label" style="margin-bottom: 6px;">{$t('ddash.monthSpend')}</div>
       <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
         <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.8px; line-height: 1;">
           {monthSpend > 0 ? fmtEurCompact(monthSpend) : '—'}
@@ -129,7 +129,7 @@
       {#if totalBudget > 0}
         <div style="margin-top: 14px;">
           <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 6px;">
-            <span style="color: var(--mep-fg-3);">Presupuesto del mes</span>
+            <span style="color: var(--mep-fg-3);">{$t('mdash.monthBudget')}</span>
             <span class="num" style="color: var(--mep-fg); font-weight: 500;">
               <span style="color: {budgetPct >= 90 ? 'var(--mep-neg)' : budgetPct >= 70 ? 'var(--mep-warn)' : 'var(--mep-acc)'};">
                 {budgetPct}%
@@ -182,7 +182,7 @@
     <!-- 2-col KPI row -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Pendiente pago</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
         <div class="num" style="
           font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
           color: {pendingAmount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
@@ -194,7 +194,7 @@
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">Por revisar</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('status.pending')}</div>
         <div class="num" style="
           font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
           color: {pendingCount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
@@ -211,7 +211,7 @@
     {#if topSuppliers.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-          <div class="subtitle" style="font-size: 15px;">Proveedores principales</div>
+          <div class="subtitle" style="font-size: 15px;">{$t('dash.suppliers')}</div>
           <a href="/suppliers" style="color: var(--mep-fg-3); text-decoration: none; display: flex;">
             <ChevronRight size={14} />
           </a>
@@ -249,8 +249,8 @@
     {#if recentInvoices.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <div class="subtitle" style="font-size: 15px;">Recientes</div>
-          <a href="/invoices" style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none;">Ver todas</a>
+          <div class="subtitle" style="font-size: 15px;">{$t('mdash.recent')}</div>
+          <a href="/invoices" style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none;">{$t('action.viewAll')}</a>
         </div>
         {#each recentInvoices.slice(0, 3) as inv, i}
           <a href="/invoice/{inv.id}" style="

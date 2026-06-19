@@ -195,7 +195,7 @@
               </div>
               <div>
                 <label for="edit-email" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.email')}</label>
-                <input id="edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" placeholder="proveedor@ejemplo.com" />
+                <input id="edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" placeholder={$t('sup.ph.email')} />
               </div>
               <div>
                 <label for="edit-phone" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.phone')}</label>
@@ -203,15 +203,15 @@
               </div>
               <div>
                 <label for="edit-delivery" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.delivery')}</label>
-                <input id="edit-delivery" class="input" name="delivery_days" value={s.deliveryDays ?? ''} style="width:100%;" placeholder="Lun, Mié, Vie" />
+                <input id="edit-delivery" class="input" name="delivery_days" value={s.deliveryDays ?? ''} style="width:100%;" placeholder={$t('sup.ph.delivery')} />
               </div>
               <div>
                 <label for="edit-terms" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.terms')}</label>
-                <input id="edit-terms" class="input" name="payment_terms" value={s.paymentTerms ?? ''} style="width:100%;" placeholder="30 días" />
+                <input id="edit-terms" class="input" name="payment_terms" value={s.paymentTerms ?? ''} style="width:100%;" placeholder={$t('sup.ph.terms')} />
               </div>
               <div>
                 <label for="edit-notes" class="label" style="display:block;margin-bottom:4px;">{$t('field.notes')}</label>
-                <input id="edit-notes" class="input" name="notes" value={s.notes ?? ''} style="width:100%;" placeholder="Notas internas…" />
+                <input id="edit-notes" class="input" name="notes" value={s.notes ?? ''} style="width:100%;" placeholder={$t('sup.ph.notes')} />
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:4px;">

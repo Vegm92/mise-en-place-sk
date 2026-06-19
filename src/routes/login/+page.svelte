@@ -59,7 +59,7 @@
 						type="email"
 						required
 						autocomplete="email"
-						placeholder="you@example.com"
+						placeholder={$t('login.emailPlaceholder')}
 						class="input"
 						style="height:36px;"
 					/>

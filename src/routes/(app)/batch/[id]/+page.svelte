@@ -292,7 +292,7 @@
           <div style="flex:1;overflow:hidden;background:var(--mep-surface-2);">
             <iframe
               src="/api/upload/{review.itemId}/{encodeURIComponent(review.filename)}"
-              title="Document preview"
+              title={$t('a11y.documentPreview')}
               style="width:100%;height:100%;border:none;display:block;min-height:260px;"
             ></iframe>
           </div>

@@ -452,7 +452,7 @@
             </div>
           {/each}
           <div style="display:flex;justify-content:space-between;padding-top:8px;font-family:var(--mep-fs-mono);">
-            <span style="font-size:10px;color:var(--mep-fg-3);">14 líneas · IVA 10 %</span>
+            <span style="font-size:10px;color:var(--mep-fg-3);">{t.mockLinesVat}</span>
             <span style="font-size:12px;font-weight:700;color:var(--mep-fg);">482,65 €</span>
           </div>
         </div>
