@@ -10,7 +10,7 @@
     ['month',   '30 d'],
     ['quarter', '90 d'],
     ['half',    '6 m'],
-    ['all',     'Todo'],
+    ['all',     $t('spend.period.allShort')],
   ];
 
   function fmtEur(n: number | null | undefined) {
@@ -34,7 +34,7 @@
 
     <!-- Header + period picker -->
     <div style="display:flex;align-items:center;gap:12px;">
-      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">¿Dónde va el dinero?</h2>
+      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{$t('spend.question')}</h2>
       <div style="flex:1;"></div>
       <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
         {#each periods as [val, short]}
@@ -78,13 +78,13 @@
       <!-- Top items -->
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
-        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">Top productos por gasto en el período</div>
+        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.topItemsSub')}</div>
         {#if !data.top_items.length}
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
             <div style="font-size:24px;opacity:0.25;">📊</div>
-            <p class="body-strong" style="color:var(--mep-fg-3);">Sin datos aún</p>
-            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:240px;">Los análisis aparecen una vez que tengas facturas confirmadas.</p>
-            <a href="/" style="font-size:12px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">Subir primera factura →</a>
+            <p class="body-strong" style="color:var(--mep-fg-3);">{$t('spend.noDataYet')}</p>
+            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:240px;">{$t('spend.emptyHint')}</p>
+            <a href="/" style="font-size:12px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">{$t('spend.uploadFirst')}</a>
           </div>
         {:else}
           <div style="display:flex;flex-direction:column;gap:10px;">
@@ -113,11 +113,11 @@
       <!-- By category -->
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
-        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">Gasto por categoría de proveedor</div>
+        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.byCategorySub')}</div>
         {#if !data.category_spend.length}
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
-            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:200px;">Asigna categorías a tus proveedores para ver el desglose.</p>
-            <a href="/suppliers" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">Ver proveedores →</a>
+            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:200px;">{$t('spend.assignCategories')}</p>
+            <a href="/suppliers" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">{$t('spend.viewSuppliers')}</a>
           </div>
         {:else}
           <div style="display:flex;flex-direction:column;gap:10px;">

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from '$lib/i18n';
+
   let {
     values,
     width = 80,
@@ -66,7 +68,7 @@
     style="display:block;overflow:visible;flex-shrink:0;"
   >
     {#if risingStreak >= 3}
-      <title>Los precios llevan subiendo 3+ meses — considera una conversación de precios con este proveedor</title>
+      <title>{$t('spark.risingTrend')}</title>
     {/if}
     <polyline
       fill="none"

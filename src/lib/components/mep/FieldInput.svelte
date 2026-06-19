@@ -1,6 +1,7 @@
 <script lang="ts">
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import ConfidenceDot from './ConfidenceDot.svelte';
+  import { t } from '$lib/i18n';
 
   type Props = {
     label: string;
@@ -55,7 +56,7 @@
 
   {#if empty}
     <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
-      <AlertTriangle size={10} /> Campo vacío
+      <AlertTriangle size={10} /> {$t('extract.fieldEmpty')}
     </div>
   {:else if warnMsg}
     <div style="font-size:11px;color:var(--mep-warn);margin-top:4px;display:flex;align-items:center;gap:4px;">
