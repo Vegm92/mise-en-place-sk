@@ -865,6 +865,12 @@ export const translations = {
     'admin.prev':                   '← Anterior',
     'admin.next':                   'Siguiente →',
     'admin.pageOf':                 'Página {page} de {total}',
+    // Mobile alerts list
+    'malert.overdueCount':          'vencidas',
+    'malert.dueWeekCount':          'vencen esta semana',
+    'malert.dOverdue':              'd venc.',
+    'malert.dLeft':                 'd restantes',
+    'malert.markPaid':              'Marcar como pagada',
   },
 
   en: {
@@ -1729,6 +1735,12 @@ export const translations = {
     'admin.prev':                   '← Prev',
     'admin.next':                   'Next →',
     'admin.pageOf':                 'Page {page} of {total}',
+    // Mobile alerts list
+    'malert.overdueCount':          'overdue',
+    'malert.dueWeekCount':          'due this week',
+    'malert.dOverdue':              'd overdue',
+    'malert.dLeft':                 'd left',
+    'malert.markPaid':              'Mark as paid',
   },
 } satisfies Record<Locale, Record<string, string>>;
 
