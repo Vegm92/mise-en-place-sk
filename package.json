@@ -27,7 +27,8 @@
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
 		"worker:prod": "node build/worker.js",
 		"lint:no-sql-raw": "bash -c 'if grep -rn --include=\"*.ts\" --include=\"*.svelte\" \"sql\\.raw(\" src/; then echo \"Error: sql.raw() is banned — use parameterized sql\\`...\\` templates instead\" >&2 && exit 1; fi'",
-		"lint:tenant-scope": "bash -c 'if grep -rn --include=\"*.ts\" \"eq([a-zA-Z]*\\.restaurantId,\" src/routes/ src/lib/server/ | grep -v \"/admin/\" | grep -v \"tenant.ts\"; then echo \"Error: raw eq(*.restaurantId,...) found — use forTenant().scope() instead (ADR-001 / issue #138)\" >&2 && exit 1; fi'"
+		"lint:tenant-scope": "bash -c 'if grep -rn --include=\"*.ts\" \"eq([a-zA-Z]*\\.restaurantId,\" src/routes/ src/lib/server/ | grep -v \"/admin/\" | grep -v \"tenant.ts\"; then echo \"Error: raw eq(*.restaurantId,...) found — use forTenant().scope() instead (ADR-001 / issue #138)\" >&2 && exit 1; fi'",
+		"icons:generate": "node scripts/generate-pwa-icons.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.5.4",
@@ -47,7 +48,9 @@
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1",
 		"vite-node": "^6.0.0",
-		"vitest": "^3.0.0"
+		"vite-plugin-pwa": "^1.3.0",
+		"vitest": "^3.0.0",
+		"workbox-window": "^7.4.1"
 	},
 	"dependencies": {
 		"@fontsource-variable/mona-sans": "^5.2.8",

@@ -113,6 +113,40 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 - Security headers: HSTS/CSP not yet set at app level (#104) — terminate TLS at a proxy that adds them, or wait for the app-level fix.
 - Rotate any Supabase keys/admin passwords that may have lived in the repo's git history (#60) before going live.
 
+## PWA / Service Worker (added in #105)
+
+The SvelteKit build now emits a Workbox service worker at `build/client/sw.js`.
+
+**Why this matters for traffic scale:**  
+After the first page load the SW precaches 100+ immutable JS/CSS bundles and all
+icon sizes into the user's browser. Repeat visits load assets entirely from the
+SW cache — zero server bandwidth for static files per returning user.
+
+**Required reverse-proxy headers** (nginx/Caddy — add to your TLS terminator):
+
+```nginx
+# Prevent browsers from caching a stale service worker.
+# Without this header the browser may serve an old SW for up to an hour.
+location = /sw.js {
+    add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+    proxy_pass http://app;
+}
+location = /manifest.webmanifest {
+    add_header Cache-Control "no-cache" always;
+    proxy_pass http://app;
+}
+```
+
+Caddy equivalent:
+```caddyfile
+@pwa path /sw.js /manifest.webmanifest
+header @pwa Cache-Control "no-cache, no-store, must-revalidate"
+```
+
+Without these headers the app still works correctly — browsers check SW updates
+on every navigation regardless of HTTP cache — but setting them explicitly
+prevents edge-case stale-SW bugs after deploys.
+
 ## CI
 
 `.github/workflows/ci.yml` runs typecheck, tests, and build on pushes/PRs to `main`. Integration tests require the Supabase secrets to be configured in repo settings — without them, 72 of 179 tests skip silently (#106).

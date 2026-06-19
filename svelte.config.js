@@ -17,6 +17,7 @@ const config = {
 				'font-src':     ['self'],
 				'img-src':      ['self', 'data:'],
 				'connect-src':  ['self', 'https://*.sentry.io'],
+				'worker-src':   ['self'],
 				'frame-src':    ['none'],
 				'object-src':   ['none'],
 				'base-uri':     ['self'],
