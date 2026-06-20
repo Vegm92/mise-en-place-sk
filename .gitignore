@@ -47,5 +47,3 @@ TODO.md
 synth/**/__pycache__/
 synth/**/*.pyc
 
-# Claude Code local settings (dev-only ponytail hook activation; opt in per-developer)
-.claude/settings.local.json
