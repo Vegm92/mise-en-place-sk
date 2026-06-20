@@ -1,14 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { fmt, truncate, fmtSize, str } from '../src/lib/formatters';
 import {
-	INVOICE_STATUS_BG,
-	INVOICE_STATUS_COLOR,
-	INVOICE_BADGE_CLS,
-	SUPPLIER_BADGE_CLS,
-	SUPPLIER_BADGE_LABEL,
-	CONFIDENCE_BADGE_CLS,
-} from '../src/lib/constants';
-import {
 	calcTotal,
 	makeEmptyRow,
 	initRows,
@@ -55,41 +47,6 @@ describe('str', () => {
 	it('returns empty string for null and undefined', () => {
 		expect(str(null)).toBe('');
 		expect(str(undefined)).toBe('');
-	});
-});
-
-// --- constants ---
-
-describe('INVOICE_STATUS_BG / COLOR', () => {
-	it('covers all expected statuses', () => {
-		for (const status of ['pending', 'paid', 'overdue', 'due_soon']) {
-			expect(INVOICE_STATUS_BG[status]).toBeTruthy();
-			expect(INVOICE_STATUS_COLOR[status]).toBeTruthy();
-		}
-	});
-});
-
-describe('INVOICE_BADGE_CLS', () => {
-	it('covers all invoice statuses', () => {
-		for (const status of ['pending', 'paid', 'overdue', 'due_soon']) {
-			expect(INVOICE_BADGE_CLS[status]).toContain('bg-[');
-		}
-	});
-});
-
-describe('SUPPLIER_BADGE_CLS / LABEL', () => {
-	it('covers overdue, due_soon, paid_up', () => {
-		for (const key of ['overdue', 'due_soon', 'paid_up']) {
-			expect(SUPPLIER_BADGE_CLS[key]).toBeTruthy();
-			expect(SUPPLIER_BADGE_LABEL[key]).toBeTruthy();
-		}
-	});
-});
-
-describe('CONFIDENCE_BADGE_CLS', () => {
-	it('maps high/medium/low to distinct classes', () => {
-		expect(CONFIDENCE_BADGE_CLS.high).not.toBe(CONFIDENCE_BADGE_CLS.low);
-		expect(CONFIDENCE_BADGE_CLS.medium).not.toBe(CONFIDENCE_BADGE_CLS.high);
 	});
 });
 

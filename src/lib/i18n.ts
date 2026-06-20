@@ -1782,17 +1782,18 @@ export const ti = derived(
  * falls back to the `.other` form.
  */
 export const tp = derived(
-  t,
-  ($t) =>
-    (key: string, count: number): string => {
+  [t, locale],
+  ([$t, $locale]) => {
+    const pr = new Intl.PluralRules($locale);
+    return (key: string, count: number): string => {
       if (count === 0) {
         const zeroKey = `${key}.zero`;
         const zero = $t(zeroKey);
         if (zero !== zeroKey) return zero.replaceAll('{n}', String(count));
       }
-      const form = count === 1 ? 'one' : 'other';
-      return $t(`${key}.${form}`).replaceAll('{n}', String(count));
-    },
+      return $t(`${key}.${pr.select(count)}`).replaceAll('{n}', String(count));
+    };
+  },
 );
 
 export function initLocale() {
