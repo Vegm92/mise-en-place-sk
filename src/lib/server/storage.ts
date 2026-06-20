@@ -3,13 +3,7 @@ import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { UPLOADS_DIR, STORAGE_DRIVER, STORAGE_BUCKET } from './env.js';
 
-export interface StorageDriver {
-	save(key: string, buf: Buffer): Promise<void>;
-	read(key: string): Promise<Buffer>;
-	delete(key: string): Promise<void>;
-}
-
-class LocalDriver implements StorageDriver {
+class LocalDriver {
 	private base: string;
 	constructor() { this.base = path.resolve(process.cwd(), UPLOADS_DIR); }
 
@@ -37,7 +31,7 @@ class LocalDriver implements StorageDriver {
 	}
 }
 
-class SupabaseStorageDriver implements StorageDriver {
+class SupabaseStorageDriver {
 	private client: ReturnType<typeof createClient>;
 
 	constructor() {
@@ -66,11 +60,5 @@ class SupabaseStorageDriver implements StorageDriver {
 	}
 }
 
-let instance: StorageDriver | null = null;
-
-export function getStorage(): StorageDriver {
-	if (!instance) {
-		instance = STORAGE_DRIVER === 'supabase' ? new SupabaseStorageDriver() : new LocalDriver();
-	}
-	return instance;
-}
+const _storage = STORAGE_DRIVER === 'supabase' ? new SupabaseStorageDriver() : new LocalDriver();
+export function getStorage() { return _storage; }
