@@ -322,6 +322,20 @@ export const whatsappBotSessions = pgTable('whatsapp_bot_sessions', {
 	index('idx_whatsapp_sessions_expires').on(t.expiresAt),
 ]);
 
+// ── GDPR consent audit trail (issue #201) ──────────────────────────────────
+// One row per user per policy version. Written server-side only; keyed by the
+// Supabase Auth user id (not restaurant-scoped — consent precedes onboarding).
+
+export const userConsents = pgTable('user_consents', {
+	id:            serial('id').primaryKey(),
+	userId:        text('user_id').notNull(),
+	policyVersion: text('policy_version').notNull(),
+	method:        text('method').notNull(), // 'signup_form' | 'oauth_signup' | 'onboarding'
+	acceptedAt:    timestamp('accepted_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('user_consents_user_version_unique').on(t.userId, t.policyVersion),
+]);
+
 export const subscriptions = pgTable('subscriptions', {
 	id:                   serial('id').primaryKey(),
 	restaurantId:         uuid('restaurant_id').notNull().unique().references(() => restaurants.id, { onDelete: 'cascade' }),

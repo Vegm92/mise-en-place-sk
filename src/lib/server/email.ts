@@ -1,6 +1,7 @@
 /**
  * Transactional email via Resend.
  * Set RESEND_API_KEY in the environment; if absent, emails are no-ops (dev mode).
+ * Copy is Spanish-first, matching the product's default locale (issue #202).
  */
 import { Resend } from 'resend';
 import { env } from '$env/dynamic/private';
@@ -35,37 +36,37 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 // ── Email templates ────────────────────────────────────────────────────────────
 
 export function welcomeEmail(email: string, restaurantName?: string): EmailPayload {
-	const name = restaurantName ?? 'your restaurant';
+	const name = restaurantName ?? 'tu restaurante';
 	return {
 		to: email,
-		subject: 'Welcome to Mise en Place 🎉',
+		subject: '¡Bienvenido a Mise en Place! 🎉',
 		html: `
-<p>Hi,</p>
-<p>Welcome to <strong>Mise en Place</strong>! Your account for <em>${name}</em> is now active.</p>
-<p>To get started, upload your first supplier invoice and we'll extract everything automatically.</p>
-<p><a href="https://miseenplace.app">Open the app →</a></p>
-<p>Your first 30 days are free — no card required.</p>
+<p>Hola:</p>
+<p>¡Bienvenido a <strong>Mise en Place</strong>! Tu cuenta para <em>${name}</em> ya está activa.</p>
+<p>Para empezar, sube tu primera factura de proveedor y extraeremos todos los datos automáticamente.</p>
+<p><a href="https://miseenplace.app">Abrir la aplicación →</a></p>
+<p>Tus primeros 30 días son gratis — sin tarjeta.</p>
 <hr />
-<p style="color:#888;font-size:12px;">Mise en Place · Supplier invoice intelligence for restaurants</p>
+<p style="color:#888;font-size:12px;">Mise en Place · Inteligencia de facturas de proveedores para restaurantes</p>
 `,
 	};
 }
 
 export function waitlistInviteEmail(email: string, couponCode?: string): EmailPayload {
 	const couponLine = couponCode
-		? `<p>As promised, use code <strong>${couponCode}</strong> at checkout for your first month free.</p>`
+		? `<p>Como prometimos, usa el código <strong>${couponCode}</strong> al pagar y tu primer mes es gratis.</p>`
 		: '';
 	return {
 		to: email,
-		subject: 'You\'re invited to Mise en Place',
+		subject: 'Tu invitación a Mise en Place',
 		html: `
-<p>Hi,</p>
-<p>You're on our waitlist — and we're ready for you.</p>
-<p><strong>Mise en Place</strong> is now live: AI-powered supplier invoice intelligence for independent restaurants.</p>
+<p>Hola:</p>
+<p>Estabas en nuestra lista de espera — y ya estamos listos para ti.</p>
+<p><strong>Mise en Place</strong> ya está disponible: inteligencia de facturas de proveedores con IA para restaurantes independientes.</p>
 ${couponLine}
-<p><a href="https://miseenplace.app/signup">Create your account →</a></p>
+<p><a href="https://miseenplace.app/signup">Crear tu cuenta →</a></p>
 <hr />
-<p style="color:#888;font-size:12px;">You're receiving this because you signed up at miseenplace.app/waitlist.</p>
+<p style="color:#888;font-size:12px;">Recibes este correo porque te apuntaste en miseenplace.app/waitlist.</p>
 `,
 	};
 }
@@ -73,49 +74,85 @@ ${couponLine}
 export function weeklyDigestEmail(email: string, restaurantName: string, digestHtml: string): EmailPayload {
 	return {
 		to: email,
-		subject: `Your weekly digest — ${restaurantName}`,
+		subject: `Tu resumen semanal — ${restaurantName}`,
 		html: `
-<p>Hi,</p>
-<p>Here's your weekly spending summary for <strong>${restaurantName}</strong>:</p>
+<p>Hola:</p>
+<p>Este es el resumen semanal de gastos de <strong>${restaurantName}</strong>:</p>
 ${digestHtml}
-<p><a href="https://miseenplace.app/digest">View full digest →</a></p>
+<p><a href="https://miseenplace.app/digest">Ver el resumen completo →</a></p>
 <hr />
 <p style="color:#888;font-size:12px;">
-  Mise en Place weekly digest ·
-  <a href="https://miseenplace.app/settings">Manage email preferences</a>
+  Resumen semanal de Mise en Place ·
+  <a href="https://miseenplace.app/settings">Gestionar preferencias de correo</a>
 </p>
 `,
 	};
 }
 
 export function overdueInvoiceEmail(email: string, restaurantName: string, overdueCount: number, totalOwed: string): EmailPayload {
+	const invoicesWord = overdueCount === 1 ? 'factura vencida' : 'facturas vencidas';
 	return {
 		to: email,
-		subject: `${overdueCount} overdue invoice${overdueCount !== 1 ? 's' : ''} — ${restaurantName}`,
+		subject: `${overdueCount} ${invoicesWord} — ${restaurantName}`,
 		html: `
-<p>Hi,</p>
-<p>You have <strong>${overdueCount} overdue invoice${overdueCount !== 1 ? 's' : ''}</strong> totalling <strong>${totalOwed}</strong> for ${restaurantName}.</p>
-<p><a href="https://miseenplace.app/reminders">Review and mark as paid →</a></p>
+<p>Hola:</p>
+<p>Tienes <strong>${overdueCount} ${invoicesWord}</strong> por un total de <strong>${totalOwed}</strong> en ${restaurantName}.</p>
+<p><a href="https://miseenplace.app/reminders">Revisar y marcar como pagadas →</a></p>
 <hr />
 <p style="color:#888;font-size:12px;">
   Mise en Place ·
-  <a href="https://miseenplace.app/settings">Manage email preferences</a>
+  <a href="https://miseenplace.app/settings">Gestionar preferencias de correo</a>
 </p>
 `,
 	};
 }
 
 export function trialExpiryEmail(email: string, restaurantName: string, daysLeft: number): EmailPayload {
+	const daysWord = daysLeft === 1 ? 'día' : 'días';
 	return {
 		to: email,
-		subject: `Your free trial ends in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — ${restaurantName}`,
+		subject: `Tu prueba gratuita termina en ${daysLeft} ${daysWord} — ${restaurantName}`,
 		html: `
-<p>Hi,</p>
-<p>Your Mise en Place free trial for <strong>${restaurantName}</strong> ends in <strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''}</strong>.</p>
-<p>Subscribe now to keep full access to your invoices, analytics, and alerts.</p>
-<p><a href="https://miseenplace.app/billing">Activate subscription →</a></p>
+<p>Hola:</p>
+<p>Tu prueba gratuita de Mise en Place para <strong>${restaurantName}</strong> termina en <strong>${daysLeft} ${daysWord}</strong>.</p>
+<p>Suscríbete ahora para mantener el acceso completo a tus facturas, analíticas y alertas.</p>
+<p><a href="https://miseenplace.app/billing">Activar suscripción →</a></p>
 <hr />
-<p style="color:#888;font-size:12px;">Mise en Place · €49/month per restaurant</p>
+<p style="color:#888;font-size:12px;">Mise en Place · Desde 49 €/mes por restaurante</p>
+`,
+	};
+}
+
+export function subscriptionConfirmationEmail(email: string, restaurantName: string, planName: string): EmailPayload {
+	return {
+		to: email,
+		subject: `Suscripción activada: plan ${planName} — ${restaurantName}`,
+		html: `
+<p>Hola:</p>
+<p>¡Gracias! Tu suscripción al plan <strong>${planName}</strong> para <strong>${restaurantName}</strong> ya está activa.</p>
+<p>Puedes consultar tu factura y gestionar la suscripción en cualquier momento desde la sección de facturación.</p>
+<p><a href="https://miseenplace.app/billing">Gestionar suscripción →</a></p>
+<hr />
+<p style="color:#888;font-size:12px;">Mise en Place · Inteligencia de facturas de proveedores para restaurantes</p>
+`,
+	};
+}
+
+export function quotaWarningEmail(email: string, restaurantName: string, used: number, limit: number): EmailPayload {
+	const pct = Math.round((used / limit) * 100);
+	return {
+		to: email,
+		subject: `Tu cuota de facturas está al ${pct} % — ${restaurantName}`,
+		html: `
+<p>Hola:</p>
+<p>Este mes has procesado <strong>${used} de ${limit} facturas</strong> incluidas en tu plan para <strong>${restaurantName}</strong> (${pct} %).</p>
+<p>Si superas el límite no podrás procesar más facturas hasta el mes siguiente. Puedes ampliar tu plan en cualquier momento:</p>
+<p><a href="https://miseenplace.app/billing">Ver planes →</a></p>
+<hr />
+<p style="color:#888;font-size:12px;">
+  Mise en Place ·
+  <a href="https://miseenplace.app/settings">Gestionar preferencias de correo</a>
+</p>
 `,
 	};
 }

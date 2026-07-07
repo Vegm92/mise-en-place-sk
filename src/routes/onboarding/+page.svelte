@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import { onMount } from 'svelte';
 	import { locale, t, initLocale } from '$lib/i18n';
-	const { form }: { form: ActionData } = $props();
+	const { data, form }: { data: PageData; form: ActionData } = $props();
 
 	onMount(() => {
 		initLocale();
@@ -77,6 +77,17 @@
 						style="height:36px;"
 					/>
 				</div>
+
+				{#if data.needsConsent}
+					<label for="terms" style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--mep-fg-3);line-height:1.5;cursor:pointer;">
+						<input id="terms" name="terms" type="checkbox" required style="margin-top:2px;flex-shrink:0;" />
+						<span>
+							{$t('signup.acceptPre')}
+							<a href="/terms"   style="color:var(--mep-acc);">{$t('footer.terms')}</a> {$t('signup.acceptMid')}
+							<a href="/privacy" style="color:var(--mep-acc);">{$t('set.privacyLink')}</a>.
+						</span>
+					</label>
+				{/if}
 
 				<button type="submit" class="btn btn-primary" style="height:38px;justify-content:center;margin-top:4px;">
 					{$t('onboard.submit')}

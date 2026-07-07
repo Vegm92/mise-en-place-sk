@@ -5,9 +5,11 @@
  */
 import Stripe from 'stripe';
 import { env } from '$env/dynamic/private';
+import { eq } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { subscriptions, restaurants, settings } from './schema';
 import { trackEvent } from './events';
+import { sendEmail, subscriptionConfirmationEmail } from './email';
 
 const secretKey = env.STRIPE_SECRET_KEY ?? '';
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
@@ -238,6 +240,19 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 				});
 			await applyTierSettings(restaurantId, tier);
 			trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
+
+			// Subscription-confirmation email (fire-and-forget, issue #202).
+			const customerEmail = session.customer_details?.email ?? session.customer_email;
+			if (customerEmail) {
+				const [restaurant] = await db.select({ name: restaurants.name })
+					.from(restaurants)
+					.where(eq(restaurants.id, restaurantId));
+				sendEmail(subscriptionConfirmationEmail(
+					customerEmail,
+					restaurant?.name ?? 'tu restaurante',
+					TIERS[tier].name,
+				)).catch(e => console.error('[billing] subscription confirmation email failed:', e));
+			}
 			break;
 		}
 

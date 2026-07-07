@@ -6,6 +6,10 @@
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
+	// Shared consent state: the Google OAuth form is separate markup, so it
+	// mirrors the checkbox via a hidden input and stays disabled until checked.
+	let termsAccepted = $state(false);
+
 	onMount(() => {
 		initLocale();
 	});
@@ -103,7 +107,7 @@
 					</div>
 
 					<label for="terms" style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--mep-fg-3);line-height:1.5;cursor:pointer;">
-						<input id="terms" name="terms" type="checkbox" required style="margin-top:2px;flex-shrink:0;" />
+						<input id="terms" name="terms" type="checkbox" required bind:checked={termsAccepted} style="margin-top:2px;flex-shrink:0;" />
 						<span>
 							{$t('signup.acceptPre')}
 							<a href="/terms"   style="color:var(--mep-acc);">{$t('footer.terms')}</a> {$t('signup.acceptMid')}
@@ -125,9 +129,12 @@
 
 				<!-- Google OAuth -->
 				<form method="POST" action="?/signUpWithGoogle">
+					<input type="hidden" name="terms" value={termsAccepted ? 'on' : ''} />
 					<button
 						type="submit"
 						class="btn btn-secondary"
+						disabled={!termsAccepted}
+						title={termsAccepted ? undefined : $t('signup.err.terms')}
 						style="height:36px;width:100%;justify-content:center;gap:10px;"
 					>
 						<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">

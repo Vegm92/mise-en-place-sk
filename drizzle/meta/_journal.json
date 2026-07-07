@@ -43,6 +43,27 @@
       "when": 1781362561000,
       "tag": "0005_analytics_rollups",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781362562000,
+      "tag": "0006_unit_conversions_supplier_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781362563000,
+      "tag": "0007_einvoicing",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781362564000,
+      "tag": "0008_user_consents",
+      "breakpoints": true
     }
   ]
 }
