@@ -1,5 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { recordConsent } from '$lib/server/consent';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
@@ -18,7 +19,7 @@ export const actions: Actions = {
 		// Explicit, recorded consent to Terms + Privacy Policy (GDPR).
 		if (terms !== 'on') return fail(422, { error: 'terms_required' });
 
-		const { error } = await locals.supabase.auth.signUp({
+		const { data, error } = await locals.supabase.auth.signUp({
 			email,
 			password,
 			options: {
@@ -33,15 +34,27 @@ export const actions: Actions = {
 			return fail(422, { error: 'generic' });
 		}
 
+		// Persist the checkbox acceptance (timestamp + policy version) for audit.
+		if (data.user?.id) {
+			await recordConsent(data.user.id, 'signup_form').catch(e =>
+				console.error('[signup] consent record failed:', e)
+			);
+		}
+
 		// Welcome email is sent once, after onboarding completes (covers both
 		// email and Google sign-ups and fires when the account is actually active).
 		return { success: true };
 	},
 
-	signUpWithGoogle: async ({ url, locals }) => {
+	signUpWithGoogle: async ({ request, url, locals }) => {
+		// OAuth sign-ups must accept the Terms too; the callback records the
+		// consent once the Supabase user exists (consent=1 flag).
+		const form = await request.formData();
+		if (form.get('terms') !== 'on') return fail(422, { error: 'terms_required' });
+
 		const { data, error } = await locals.supabase.auth.signInWithOAuth({
 			provider: 'google',
-			options: { redirectTo: `${url.origin}/auth/callback?next=/onboarding` },
+			options: { redirectTo: `${url.origin}/auth/callback?next=/onboarding&consent=1` },
 		});
 		if (error || !data.url) redirect(303, '/signup?error=oauth');
 		redirect(303, data.url);
