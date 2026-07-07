@@ -10,6 +10,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit } from './unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from './alert-engine';
 import { saveAlerts } from './notifications';
+import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import type { EnrichedLineItem } from './unit-bridge';
 import type { BatchItem } from './batch-core';
@@ -334,6 +335,9 @@ export async function saveReviewedInvoice(
 	await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
 
 	trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+
+	// Fire-and-forget: warn the owner when monthly usage nears the plan quota.
+	void maybeSendQuotaWarning(rid);
 
 	// Log field corrections (original AI values vs user-submitted values)
 	await logExtractionCorrections(

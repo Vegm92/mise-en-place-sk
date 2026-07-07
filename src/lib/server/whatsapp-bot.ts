@@ -21,6 +21,7 @@ import { computeInvoiceContentHash } from './dedup';
 import { extractWithProvider, type ExtractedInvoice } from './extract';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
+import { maybeSendQuotaWarning } from './quota-warning';
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -354,6 +355,10 @@ async function saveWhatsAppInvoice(
 	}
 
 	if (invoiceId === -1 || invoiceId === null) return { type: 'duplicate' };
+
+	// Fire-and-forget: warn the owner when monthly usage nears the plan quota.
+	void maybeSendQuotaWarning(restaurantId);
+
 	return { type: 'saved', invoiceId };
 }
 
