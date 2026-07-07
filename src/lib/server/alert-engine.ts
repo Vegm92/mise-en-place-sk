@@ -45,7 +45,7 @@ export async function runPriceShock(
 		INNER JOIN invoices i ON ili.invoice_id = i.id
 		INNER JOIN suppliers s ON i.supplier_id = s.id
 		WHERE i.restaurant_id = ${restaurantId}
-			AND ili.description = ANY(${descriptions})
+			AND ili.description IN (${sql.join(descriptions.map(d => sql`${d}`), sql`, `)})
 			AND s.name = ${supplierName}
 			AND ili.invoice_id != ${invoiceId}
 			AND ili.unit_price IS NOT NULL
