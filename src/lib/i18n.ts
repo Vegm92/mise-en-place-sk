@@ -268,6 +268,7 @@ export const translations = {
     'login.err.missing': 'El email y la contraseña son obligatorios.',
     'login.err.invalid': 'Email o contraseña incorrectos.',
     'login.err.oauth':   'Error al iniciar sesión con Google. Inténtalo de nuevo.',
+    'login.err.rate_limited': 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.',
     // Invoice detail page
     'inv.detail.downloadPdf':   'Descargar PDF',
     'inv.detail.delete':        'Eliminar',
@@ -596,6 +597,7 @@ export const translations = {
     'signup.err.exists':            'Ya existe una cuenta con este email. Prueba a iniciar sesión.',
     'signup.err.generic':           'No se pudo crear la cuenta. Inténtalo de nuevo.',
     'signup.err.oauth':             'El registro con Google falló. Inténtalo de nuevo.',
+    'signup.err.rateLimited':       'Demasiados intentos. Espera un minuto y vuelve a intentarlo.',
     // Analytics / spend — desktop & mobile (i18n completion)
     'spend.period.allShort':        'Todo',
     'spend.question':               '¿Dónde va el dinero?',
@@ -1138,6 +1140,7 @@ export const translations = {
     'login.err.missing': 'Email and password are required.',
     'login.err.invalid': 'Invalid email or password.',
     'login.err.oauth':   'Google sign-in failed. Please try again.',
+    'login.err.rate_limited': 'Too many attempts. Please wait a minute and try again.',
     // Invoice detail page
     'inv.detail.downloadPdf':   'Download PDF',
     'inv.detail.delete':        'Delete',
@@ -1466,6 +1469,7 @@ export const translations = {
     'signup.err.exists':            'An account with this email already exists. Try signing in.',
     'signup.err.generic':           'Could not create the account. Please try again.',
     'signup.err.oauth':             'Google sign-up failed. Please try again.',
+    'signup.err.rateLimited':       'Too many attempts. Please wait a minute and try again.',
     // Analytics / spend — desktop & mobile (i18n completion)
     'spend.period.allShort':        'All',
     'spend.question':               'Where is the money going?',

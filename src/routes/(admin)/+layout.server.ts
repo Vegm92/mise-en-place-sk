@@ -1,11 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { env } from '$env/dynamic/private';
+import { isAdminUser } from '$lib/server/admin';
 
 export const load: LayoutServerLoad = async ({ locals }) => {
-	const adminEmails = (env.AUTH_ADMIN_EMAIL ?? '').split(',').map(s => s.trim()).filter(Boolean);
-	if (!locals.user || !adminEmails.includes(locals.user.email ?? '')) {
+	if (!isAdminUser(locals.user)) {
 		redirect(303, '/');
 	}
-	return { adminEmail: locals.user.email ?? '' };
+	return { adminEmail: locals.user?.email ?? '' };
 };

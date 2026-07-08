@@ -22,6 +22,7 @@
 		form?.error === 'terms_required'     ? $t('signup.err.terms') :
 		form?.error === 'already_registered' ? $t('signup.err.exists') :
 		form?.error === 'generic'            ? $t('signup.err.generic') :
+		form?.error === 'rate_limited'       ? $t('signup.err.rateLimited') :
 		urlError     === 'oauth'             ? $t('signup.err.oauth') :
 		null
 	);

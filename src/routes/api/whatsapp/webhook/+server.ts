@@ -20,13 +20,19 @@ import {
 
 /**
  * Verify Meta's X-Hub-Signature-256 HMAC over the raw request body.
- * Returns true when the signature is valid, or when no app secret is
- * configured (dev / not-yet-set-up) — in which case we log a warning so the
- * gap is visible. A configured secret with a bad/missing signature is rejected.
+ * A configured secret with a bad/missing signature is rejected. A missing
+ * secret is tolerated only outside production (dev / not-yet-set-up): in
+ * production the webhook fails CLOSED, because an unauthenticated POST here
+ * can impersonate a registered WhatsApp number and inject invoices into that
+ * tenant (plus burn Gemini extraction quota).
  */
 function verifySignature(rawBody: string, header: string | null): boolean {
 	if (!WHATSAPP_APP_SECRET) {
-		console.warn('[whatsapp-webhook] WHATSAPP_APP_SECRET not set — skipping signature verification');
+		if (process.env['NODE_ENV'] === 'production') {
+			console.error('[whatsapp-webhook] WHATSAPP_APP_SECRET not set — rejecting unauthenticated webhook POST');
+			return false;
+		}
+		console.warn('[whatsapp-webhook] WHATSAPP_APP_SECRET not set — skipping signature verification (non-production only)');
 		return true;
 	}
 	if (!header?.startsWith('sha256=')) return false;
@@ -43,7 +49,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const token     = url.searchParams.get('hub.verify_token');
 	const challenge = url.searchParams.get('hub.challenge');
 
-	if (mode === 'subscribe' && token === WHATSAPP_VERIFY_TOKEN) {
+	if (mode === 'subscribe' && WHATSAPP_VERIFY_TOKEN && token === WHATSAPP_VERIFY_TOKEN) {
 		return new Response(challenge ?? '', { status: 200 });
 	}
 	return new Response('Forbidden', { status: 403 });

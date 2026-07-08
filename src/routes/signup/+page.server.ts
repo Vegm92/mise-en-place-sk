@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { recordConsent } from '$lib/server/consent';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
@@ -8,13 +9,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	signUp: async ({ request, locals, url }) => {
+	signUp: async ({ request, locals, url, getClientAddress }) => {
 		const form = await request.formData();
 		const email    = (form.get('email')    as string)?.trim();
 		const password = form.get('password')  as string;
 		const terms    = form.get('terms');
 
 		if (!email || !password) return fail(422, { error: 'missing' });
+
+		// Cap account-creation attempts per IP (abuse / user-enumeration control).
+		if (!(await checkRateLimit(`signup:ip:${getClientAddress()}`, 5))) {
+			return fail(429, { error: 'rate_limited' });
+		}
 		if (password.length < 8) return fail(422, { error: 'password_too_short' });
 		// Explicit, recorded consent to Terms + Privacy Policy (GDPR).
 		if (terms !== 'on') return fail(422, { error: 'terms_required' });

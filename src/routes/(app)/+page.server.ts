@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import path from 'node:path';
 import { saveUploadedFiles } from '$lib/server/sessions';
 import { createBatch } from '$lib/server/batch';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, settings } from '$lib/server/schema';
@@ -75,7 +76,14 @@ export const actions: Actions = {
 			return fail(400, { error: `File${oversized.length > 1 ? 's' : ''} exceed the 20 MB limit: ${names}` });
 		}
 
-		const rid = locals.restaurantId!;
+		const rid = locals.restaurantId;
+		if (!rid) return fail(403, { error: 'No active restaurant.' });
+
+		// Each upload consumes a paid Gemini extraction — cap batch submissions
+		// per tenant regardless of plan quota (quota is unlimited when unset).
+		if (!(await checkRateLimit(`upload:${rid}`, 10))) {
+			return fail(429, { error: 'Too many uploads — please wait a moment and try again.' });
+		}
 
 		// Plan quota gate — block before consuming any Gemini extraction and send
 		// the user to /billing to upgrade. Skipped when no quota is configured.
