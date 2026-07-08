@@ -5,7 +5,7 @@ import { GEMINI_API_KEY, GEMINI_MODEL, CHAT_RATE_LIMIT_RPM } from '$lib/server/e
 import { buildChatContext } from '$lib/server/chat-context';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { trackEvent } from '$lib/server/events';
-import { db } from '$lib/server/db';
+import { db, forTenant } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 
@@ -42,23 +42,26 @@ function parseActionsBlock(raw: string): { text: string; actions: ChatAction[] }
 	}
 }
 
-export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json().catch(() => null);
 	if (!body?.message || typeof body.message !== 'string') {
 		throw error(400, 'message is required');
 	}
 	const message = (body.message as string).slice(0, 2000);
-	const sessionId: number | null = typeof body.sessionId === 'number' ? body.sessionId : null;
-	const rid = locals.restaurantId!;
+	const sessionId: number | null = Number.isInteger(body.sessionId) ? body.sessionId : null;
+	const rid = locals.restaurantId;
+	if (!rid) throw error(403, 'No active restaurant');
+	const tdb = forTenant(rid);
 
 	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
 
-	const key = getClientAddress();
-	if (!await checkRateLimit(key, CHAT_RATE_LIMIT_RPM)) {
+	// Key by authenticated user, not client IP: behind a proxy every user shares
+	// one IP, which would let a single tenant exhaust the global chat budget.
+	if (!await checkRateLimit(`chat:${locals.user!.id}`, CHAT_RATE_LIMIT_RPM)) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 
-	// Resolve or create session
+	// Resolve or create session — an existing id must belong to this tenant
 	let resolvedSessionId = sessionId;
 	if (!resolvedSessionId) {
 		const titleWords = message.slice(0, 60).replace(/\n/g, ' ');
@@ -67,9 +70,11 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 			.returning({ id: chatSessions.id });
 		resolvedSessionId = newSession.id;
 	} else {
-		await db.update(chatSessions)
+		const updated = await db.update(chatSessions)
 			.set({ updatedAt: new Date() })
-			.where(eq(chatSessions.id, resolvedSessionId));
+			.where(tdb.scope(chatSessions.restaurantId, eq(chatSessions.id, resolvedSessionId)))
+			.returning({ id: chatSessions.id });
+		if (updated.length === 0) throw error(404, 'Chat session not found');
 	}
 
 	// Persist user message

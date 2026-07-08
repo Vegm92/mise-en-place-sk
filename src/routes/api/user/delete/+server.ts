@@ -4,7 +4,7 @@ import { db } from '$lib/server/db';
 import { userRestaurants, restaurants, subscriptions } from '$lib/server/schema';
 import { createSupabaseAdminClient } from '$lib/server/supabase';
 import { checkRateLimit } from '$lib/server/rate-limiter';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const user = locals.user;
@@ -31,11 +31,24 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		.filter(m => m.role === 'owner')
 		.map(m => m.restaurantId);
 
-	// Delete owned restaurants (cascades to all business data via FK)
+	// Delete owned restaurants (cascades to all business data via FK) — but
+	// only those where this user is the sole member. Restaurants with other
+	// members survive so one owner's account deletion can't wipe teammates' data.
 	if (ownedIds.length > 0) {
-		// Check no restaurant has other members before cascade-deleting
-		await db.delete(subscriptions).where(inArray(subscriptions.restaurantId, ownedIds));
-		await db.delete(restaurants).where(inArray(restaurants.id, ownedIds));
+		const otherMembers = await db
+			.select({ restaurantId: userRestaurants.restaurantId })
+			.from(userRestaurants)
+			.where(and(
+				inArray(userRestaurants.restaurantId, ownedIds),
+				ne(userRestaurants.userId, user.id),
+			));
+		const shared = new Set(otherMembers.map(m => m.restaurantId));
+		const soleOwnedIds = ownedIds.filter(id => !shared.has(id));
+
+		if (soleOwnedIds.length > 0) {
+			await db.delete(subscriptions).where(inArray(subscriptions.restaurantId, soleOwnedIds));
+			await db.delete(restaurants).where(inArray(restaurants.id, soleOwnedIds));
+		}
 	}
 
 	// Remove user from any restaurants they're a member of (but don't own)

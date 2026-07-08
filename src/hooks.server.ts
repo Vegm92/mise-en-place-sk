@@ -3,6 +3,7 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { cleanupStaleBatches } from '$lib/server/batch';
 import { seedAdminUser } from '$lib/server/auth-seed';
+import { isAdminUser } from '$lib/server/admin';
 import { db } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -65,6 +66,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 	} else {
 		event.locals.restaurantId = null;
+	}
+
+	// Request-level admin guard — defence in depth for the (admin) layout load,
+	// which does not rerun on every child navigation.
+	if ((path === '/admin' || path.startsWith('/admin/')) && !isAdminUser(event.locals.user)) {
+		redirect(303, '/');
 	}
 
 	if (!isPublicPath(path) && !event.locals.user) {
