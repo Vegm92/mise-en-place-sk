@@ -14,6 +14,14 @@ const _isLocal = /localhost|127\.0\.0\.1/.test(_url);
 /** True when a plain Postgres connection is available (ephemeral CI or Supabase). */
 export const hasDbEnv = !!_url;
 
+/**
+ * True when DATABASE_URL points at a local/ephemeral Postgres (CI service
+ * container or local dev), as opposed to a hosted Supabase pooler. Guards
+ * tests that run privileged DDL (roles, function redefinition) which must
+ * never touch a real Supabase database.
+ */
+export const isLocalDb = _isLocal;
+
 /** True when Supabase-specific vars are present (auth tests, connection tests). */
 export const hasSupabaseEnv = !!(
 	_url &&

@@ -91,13 +91,13 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 **Both must run in production.** Without the worker, uploads succeed but extractions stay `queued` forever.
 
 1. `pnpm install --frozen-lockfile`
-2. `pnpm db:migrate` — applies `drizzle/` migrations. **Verify the RLS migration (`0002_rls_policies.sql`) is applied to the production database**; tenant isolation depends on it.
+2. `pnpm db:migrate` — applies `drizzle/` migrations. **Verify the RLS migration (`0001_rls_policies.sql`) is applied to the production database** (`SELECT policyname FROM pg_policies WHERE schemaname='public';` should list policies for every business table); tenant isolation depends on it.
 3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
 4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
    - `node build` (web) and `node build/worker.js` (worker)
    - On Railway/Render/Fly: create two services from this repo, one per command.
    - On a VPS: `docker compose up -d` uses the included `Dockerfile` + `docker-compose.yml` (one image, web + worker services).
-5. Point your platform's health check at `GET /api/health` (note: currently a trivial 200 — richer checks tracked in #31). The worker has no HTTP port; rely on the platform's process supervision/restart policy.
+5. Point your platform's health check at `GET /api/health` — returns `200` healthy / `503` degraded and reports DB reachability, pg-boss queue depth, uploads-dir writability, and active sessions. The worker has no HTTP port; rely on the platform's process supervision/restart policy.
 
 ## First startup
 
