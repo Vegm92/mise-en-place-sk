@@ -5,6 +5,7 @@ import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotificat
 import { trackEvent } from '$lib/server/events';
 import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
+import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 
 const PAGE_SIZE = 50;
 
@@ -105,6 +106,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			stats: { ...stats, supplier_count: supplierCountRow[0]?.cnt ?? 0 },
 			suppliers: supplierRows,
 			filters: { status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo },
+			conflict: url.searchParams.get('conflict') === '1',
 			pagination: { page, pageSize: PAGE_SIZE, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) },
 		};
 	} catch (e) {
@@ -115,25 +117,23 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 };
 
 export const actions: Actions = {
+	// Guarded transitions (issue #243) — a stale tab gets a conflict banner
+	// instead of silently overwriting a change made elsewhere.
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		await db.update(invoices).set({ status: 'paid' })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		trackEvent('invoice_status_changed', rid, { to: 'paid' }, id);
-		redirect(303, '/invoices');
+		const ok = await markInvoicePaid(id, rid);
+		if (ok) trackEvent('invoice_status_changed', rid, { to: 'paid' }, id);
+		redirect(303, ok ? '/invoices' : '/invoices?conflict=1');
 	},
 	markUnpaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		await db.update(invoices).set({ status: 'pending' })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		trackEvent('invoice_status_changed', rid, { to: 'pending' }, id);
-		redirect(303, '/invoices');
+		const ok = await markInvoiceUnpaid(id, rid);
+		if (ok) trackEvent('invoice_status_changed', rid, { to: 'pending' }, id);
+		redirect(303, ok ? '/invoices' : '/invoices?conflict=1');
 	},
 	deleteInvoice: async ({ request, locals }) => {
 		const data = await request.formData();
@@ -161,12 +161,7 @@ export const actions: Actions = {
 	bulkPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
-		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		if (ids.length > 0) {
-			await db.update(invoices).set({ status: 'paid' })
-				.where(and(inArray(invoices.id, ids), tdb.scope(invoices.restaurantId)));
-		}
+		await markInvoicesPaidBulk(ids, locals.restaurantId!);
 		redirect(303, '/invoices');
 	},
 	bulkDelete: async ({ request, locals }) => {

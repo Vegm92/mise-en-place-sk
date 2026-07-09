@@ -54,6 +54,10 @@
   />
 </div>
 
+{#if $page.url.searchParams.get('conflict') === '1'}
+  <div class="card p-3 text-neg m-4 mb-0" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
+{/if}
+
 <!-- Desktop dashboard -->
 <DesktopDashboard
   {data}

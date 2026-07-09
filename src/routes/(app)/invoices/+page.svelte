@@ -117,6 +117,10 @@
 <!-- Desktop invoice list -->
 <div class="hidden md:flex flex-col gap-4 p-6">
 
+  {#if data.conflict}
+    <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
+  {/if}
+
   <!-- ── KPI Strip ───────────────────────────────────────────────── -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3">
     <KpiCard

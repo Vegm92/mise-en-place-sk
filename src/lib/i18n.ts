@@ -68,6 +68,7 @@ export const translations = {
     'dash.category.sub':     'este mes',
     // Invoice list page
     'inv.title':           'Facturas',
+    'inv.conflict':        'Esta factura ya fue modificada en otra pestaña o por otro usuario. Su estado no ha cambiado.',
     'inv.export':          'Exportar CSV',
     'inv.noInvoices':      'Sin facturas todavía.',
     'inv.selectAll':       'Seleccionar todo',
@@ -943,6 +944,7 @@ export const translations = {
     'dash.category.sub':     'this month',
     // Invoice list page
     'inv.title':           'Invoices',
+    'inv.conflict':        'This invoice was already changed in another tab or by another user. Its status was not changed.',
     'inv.export':          'Export CSV',
     'inv.noInvoices':      'No invoices yet.',
     'inv.selectAll':       'Select all',
