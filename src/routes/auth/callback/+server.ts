@@ -1,9 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { recordConsent } from '$lib/server/consent';
+import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 
 /** Handles Supabase OAuth callback — exchanges code for session cookies. */
-export const GET: RequestHandler = async ({ url, locals }) => {
+export const GET: RequestHandler = async ({ url, locals, getClientAddress }) => {
 	const code  = url.searchParams.get('code');
 	const rawNext = url.searchParams.get('next') ?? '/';
 	// Only allow relative paths to prevent open-redirect attacks
@@ -11,6 +12,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const error = url.searchParams.get('error');
 
 	if (error) {
+		// The provider handed us back an error (denied consent, misconfig, …).
+		logAuthEvent('oauth_error', { ipHash: hashIp(getClientAddress()), stage: 'callback_provider' });
 		redirect(303, `/login?error=oauth`);
 	}
 
@@ -26,6 +29,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			}
 			redirect(303, next);
 		}
+		logAuthEvent('oauth_error', { ipHash: hashIp(getClientAddress()), stage: 'code_exchange' });
 	}
 
 	redirect(303, '/login?error=oauth');

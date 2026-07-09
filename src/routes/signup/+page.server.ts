@@ -2,6 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { recordConsent } from '$lib/server/consent';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
@@ -19,6 +20,7 @@ export const actions: Actions = {
 
 		// Cap account-creation attempts per IP (abuse / user-enumeration control).
 		if (!(await checkRateLimit(`signup:ip:${getClientAddress()}`, 5))) {
+			logAuthEvent('signup_rate_limited', { ipHash: hashIp(getClientAddress()) });
 			return fail(429, { error: 'rate_limited' });
 		}
 		if (password.length < 8) return fail(422, { error: 'password_too_short' });
@@ -37,6 +39,9 @@ export const actions: Actions = {
 			if (error.message.toLowerCase().includes('already registered')) {
 				return fail(422, { error: 'already_registered' });
 			}
+			// A broken Supabase auth config shows up here as a generic failure —
+			// surface it so it's distinguishable from "no one is signing up".
+			logAuthEvent('signup_failed', { ipHash: hashIp(getClientAddress()) });
 			return fail(422, { error: 'generic' });
 		}
 
@@ -73,7 +78,7 @@ export const actions: Actions = {
 		return { success: true, email, resent: true };
 	},
 
-	signUpWithGoogle: async ({ request, url, locals }) => {
+	signUpWithGoogle: async ({ request, url, locals, getClientAddress }) => {
 		// OAuth sign-ups must accept the Terms too; the callback records the
 		// consent once the Supabase user exists (consent=1 flag).
 		const form = await request.formData();
@@ -83,7 +88,10 @@ export const actions: Actions = {
 			provider: 'google',
 			options: { redirectTo: `${url.origin}/auth/callback?next=/onboarding&consent=1` },
 		});
-		if (error || !data.url) redirect(303, '/signup?error=oauth');
+		if (error || !data.url) {
+			logAuthEvent('oauth_error', { ipHash: hashIp(getClientAddress()), stage: 'signup_start' });
+			redirect(303, '/signup?error=oauth');
+		}
 		redirect(303, data.url);
 	},
 };
