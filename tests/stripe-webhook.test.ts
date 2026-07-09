@@ -125,3 +125,71 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — signature verification gates plan
 		expect(map.plan_quota).toBe('300');
 	});
 });
+
+/**
+ * The remaining two handled branches. `checkout.session.completed` is the only
+ * branch that calls the live Stripe API (`subscriptions.retrieve`); we mock
+ * just that network boundary so the DB provisioning + settings sync are
+ * covered, while signature verification stays real. `customer.subscription.deleted`
+ * reads entirely from the payload (no API), like the updated branch.
+ */
+describe.skipIf(!hasDbEnv)('Stripe webhook — subscription lifecycle branches', () => {
+	it('checkout.session.completed provisions a fresh subscription row + settings', async () => {
+		const r = await createTestRestaurant('stripe-checkout');
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_checkout_1',
+			status: 'active',
+			cancel_at_period_end: false,
+			items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] },
+		} as never);
+		try {
+			const body = JSON.stringify({
+				id: 'evt_checkout', object: 'event', type: 'checkout.session.completed',
+				data: { object: {
+					id: 'cs_1', object: 'checkout.session',
+					metadata: { restaurantId: r.id }, subscription: 'sub_checkout_1',
+					customer: 'cus_checkout_1', customer_details: { email: 'owner@example.com' },
+				} },
+			});
+			const sig = stripe!.webhooks.generateTestHeaderString({ payload: body, secret: MODULE_SECRET });
+			await handleWebhookEvent(body, sig);
+
+			expect(retrieveSpy).toHaveBeenCalledWith('sub_checkout_1');
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.planTier).toBe('pro');
+			expect(row?.status).toBe('active');
+			expect(row?.stripeSubscriptionId).toBe('sub_checkout_1');
+			expect(row?.stripeCustomerId).toBe('cus_checkout_1');
+			const settingsRows = await testDb.select().from(settings).where(eq(settings.restaurantId, r.id));
+			expect(Object.fromEntries(settingsRows.map((s) => [s.key, s.value])).plan_name).toBe('Pro');
+		} finally {
+			retrieveSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('customer.subscription.deleted downgrades the tenant to trial', async () => {
+		const r = await createTestRestaurant('stripe-deleted');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'pro', status: 'active', stripePriceId: PRICE_PRO,
+		});
+		try {
+			const body = JSON.stringify({
+				id: 'evt_deleted', object: 'event', type: 'customer.subscription.deleted',
+				data: { object: {
+					id: 'sub_del_1', object: 'subscription', status: 'canceled',
+					cancel_at_period_end: false, metadata: { restaurantId: r.id },
+					items: { data: [{ price: { id: null }, current_period_end: null }] },
+				} },
+			});
+			const sig = stripe!.webhooks.generateTestHeaderString({ payload: body, secret: MODULE_SECRET });
+			await handleWebhookEvent(body, sig);
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.status).toBe('canceled');
+			expect(row?.planTier).toBe('trial'); // tierFromPriceId(null) → trial
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+});
