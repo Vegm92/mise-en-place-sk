@@ -5,9 +5,9 @@
  */
 import Stripe from 'stripe';
 import { env } from '$env/dynamic/private';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
-import { subscriptions, restaurants, settings } from './schema';
+import { subscriptions, restaurants, settings, stripeWebhookEvents } from './schema';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail } from './email';
 
@@ -16,6 +16,19 @@ export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
 
 export const WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET ?? '';
 export const TRIAL_DAYS  = 30;
+
+/**
+ * Thrown by handleWebhookEvent when the Stripe signature does not verify — an
+ * expected, un-retryable condition (400). Every other throw is a real handler
+ * failure the route must surface as 500 so Stripe retries and Sentry sees it
+ * (issue #253).
+ */
+export class WebhookSignatureError extends Error {
+	constructor(message: string, options?: { cause?: unknown }) {
+		super(message, options);
+		this.name = 'WebhookSignatureError';
+	}
+}
 
 export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete';
 export type PlanTier = 'trial' | 'starter' | 'pro' | 'business';
@@ -108,37 +121,50 @@ export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | 
 	return false;
 }
 
-/** Get or create a Stripe customer ID for a restaurant. */
+/**
+ * Get or create a Stripe customer ID for a restaurant.
+ *
+ * Serialized against itself (issue #239): two tabs clicking "checkout"
+ * concurrently must not both create a Stripe customer and orphan one. A
+ * per-restaurant advisory lock held for the length of the transaction makes the
+ * loser wait, re-read, and reuse the winner's customer id. The idempotency key
+ * on customers.create is a second guard against a proxy-level retry minting a
+ * duplicate customer.
+ */
 export async function getOrCreateCustomer(restaurantId: string, email: string, restaurantName: string): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 
 	const tdb = forTenant(restaurantId);
-	const rows = await db.select({ stripeCustomerId: subscriptions.stripeCustomerId })
-		.from(subscriptions)
-		.where(tdb.scope(subscriptions.restaurantId))
-		.limit(1);
+	return await db.transaction(async (tx) => {
+		await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'cust:' + restaurantId}))`);
 
-	if (rows[0]?.stripeCustomerId) return rows[0].stripeCustomerId;
+		const rows = await tx.select({ stripeCustomerId: subscriptions.stripeCustomerId })
+			.from(subscriptions)
+			.where(tdb.scope(subscriptions.restaurantId))
+			.limit(1);
 
-	const customer = await stripe.customers.create({
-		email,
-		name: restaurantName,
-		metadata: { restaurantId },
+		if (rows[0]?.stripeCustomerId) return rows[0].stripeCustomerId;
+
+		const customer = await stripe.customers.create({
+			email,
+			name: restaurantName,
+			metadata: { restaurantId },
+		}, { idempotencyKey: `cust:${restaurantId}` });
+
+		await tx.insert(subscriptions)
+			.values({
+				restaurantId,
+				stripeCustomerId: customer.id,
+				status: 'trialing',
+				trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
+			})
+			.onConflictDoUpdate({
+				target: subscriptions.restaurantId,
+				set: { stripeCustomerId: customer.id, updatedAt: new Date() },
+			});
+
+		return customer.id;
 	});
-
-	await db.insert(subscriptions)
-		.values({
-			restaurantId,
-			stripeCustomerId: customer.id,
-			status: 'trialing',
-			trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
-		})
-		.onConflictDoUpdate({
-			target: subscriptions.restaurantId,
-			set: { stripeCustomerId: customer.id, updatedAt: new Date() },
-		});
-
-	return customer.id;
 }
 
 /** Create a Stripe Checkout session for a specific tier. */
@@ -148,11 +174,14 @@ export async function createCheckoutSession(
 	tier: PlanTier,
 	successUrl: string,
 	cancelUrl: string,
+	idempotencyKey?: string,
 ): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 	const priceId = TIERS[tier].stripePriceId;
 	if (!priceId) throw new Error(`STRIPE_PRICE_ID_${tier.toUpperCase()} not configured`);
 
+	// Idempotency key (issue #239) — a proxy-level retry of this create must not
+	// mint a second Checkout session (and therefore a second subscription).
 	const session = await stripe.checkout.sessions.create({
 		customer: customerId,
 		mode: 'subscription',
@@ -164,7 +193,7 @@ export async function createCheckoutSession(
 		success_url: successUrl,
 		cancel_url: cancelUrl,
 		allow_promotion_codes: true,
-	});
+	}, idempotencyKey ? { idempotencyKey } : undefined);
 
 	return session.url!;
 }
@@ -217,86 +246,132 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 		event = stripe.webhooks.constructEvent(body, signature, WEBHOOK_SECRET);
 	} catch (err) {
 		console.error('[billing] webhook signature verification failed:', err);
-		throw err;
+		throw new WebhookSignatureError('Webhook signature verification failed', { cause: err });
 	}
 
-	switch (event.type) {
-		case 'checkout.session.completed': {
-			const session = event.data.object as Stripe.Checkout.Session;
-			const restaurantId = session.metadata?.restaurantId;
-			const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
-			if (!restaurantId || !subscriptionId) break;
+	// Event-id dedup (issue #240). Stripe retries deliveries for up to 3 days;
+	// claim the id and bail on a replay so we don't re-send emails or re-fire
+	// telemetry. Runs before the switch so every event type is covered.
+	const claimed = await db.insert(stripeWebhookEvents)
+		.values({ eventId: event.id })
+		.onConflictDoNothing()
+		.returning({ eventId: stripeWebhookEvents.eventId });
+	if (claimed.length === 0) {
+		console.info(`[billing] duplicate webhook event ${event.id} — skipping`);
+		return;
+	}
 
-			const sub = await stripe.subscriptions.retrieve(subscriptionId);
-			const priceId = sub.items.data[0]?.price?.id ?? null;
-			const tier = tierFromPriceId(priceId);
-			const periodEnd = sub.items.data[0]?.current_period_end
-				? new Date(sub.items.data[0].current_period_end * 1000)
-				: null;
-			await db.insert(subscriptions)
-				.values({
-					restaurantId,
-					stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? '',
-					stripeSubscriptionId: subscriptionId,
-					stripePriceId: priceId,
-					planTier: tier,
-					status: sub.status as SubscriptionStatus,
-					currentPeriodEnd: periodEnd,
-					cancelAtPeriodEnd: sub.cancel_at_period_end,
-				})
-				.onConflictDoUpdate({
-					target: subscriptions.restaurantId,
-					set: {
+	// Stripe event.created (seconds) — the ordering key for lifecycle events.
+	const eventCreatedAt = new Date(event.created * 1000);
+
+	try {
+		switch (event.type) {
+			case 'checkout.session.completed': {
+				const session = event.data.object as Stripe.Checkout.Session;
+				const restaurantId = session.metadata?.restaurantId;
+				const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
+				if (!restaurantId || !subscriptionId) break;
+
+				const sub = await stripe.subscriptions.retrieve(subscriptionId);
+				const priceId = sub.items.data[0]?.price?.id ?? null;
+				const tier = tierFromPriceId(priceId);
+				const periodEnd = sub.items.data[0]?.current_period_end
+					? new Date(sub.items.data[0].current_period_end * 1000)
+					: null;
+				await db.insert(subscriptions)
+					.values({
+						restaurantId,
+						stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? '',
 						stripeSubscriptionId: subscriptionId,
 						stripePriceId: priceId,
 						planTier: tier,
-						status: sub.status,
+						status: sub.status as SubscriptionStatus,
 						currentPeriodEnd: periodEnd,
 						cancelAtPeriodEnd: sub.cancel_at_period_end,
-						updatedAt: new Date(),
-					},
-				});
-			await applyTierSettings(restaurantId, tier);
-			trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
+						lastEventAt: eventCreatedAt,
+					})
+					.onConflictDoUpdate({
+						target: subscriptions.restaurantId,
+						set: {
+							stripeSubscriptionId: subscriptionId,
+							stripePriceId: priceId,
+							planTier: tier,
+							status: sub.status,
+							currentPeriodEnd: periodEnd,
+							cancelAtPeriodEnd: sub.cancel_at_period_end,
+							lastEventAt: eventCreatedAt,
+							updatedAt: new Date(),
+						},
+					});
+				await applyTierSettings(restaurantId, tier);
+				trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
 
-			// Subscription-confirmation email (fire-and-forget, issue #202).
-			const customerEmail = session.customer_details?.email ?? session.customer_email;
-			if (customerEmail) {
-				const [restaurant] = await db.select({ name: restaurants.name })
-					.from(restaurants)
-					.where(eq(restaurants.id, restaurantId));
-				sendEmail(subscriptionConfirmationEmail(
-					customerEmail,
-					restaurant?.name ?? 'tu restaurante',
-					TIERS[tier].name,
-				)).catch(e => console.error('[billing] subscription confirmation email failed:', e));
+				// Subscription-confirmation email (fire-and-forget, issue #202).
+				const customerEmail = session.customer_details?.email ?? session.customer_email;
+				if (customerEmail) {
+					const [restaurant] = await db.select({ name: restaurants.name })
+						.from(restaurants)
+						.where(eq(restaurants.id, restaurantId));
+					sendEmail(subscriptionConfirmationEmail(
+						customerEmail,
+						restaurant?.name ?? 'tu restaurante',
+						TIERS[tier].name,
+					)).catch(e => console.error('[billing] subscription confirmation email failed:', e));
+				}
+				break;
 			}
-			break;
-		}
 
-		case 'customer.subscription.updated':
-		case 'customer.subscription.deleted': {
-			const sub = event.data.object as Stripe.Subscription;
-			const restaurantId = sub.metadata?.restaurantId;
-			if (!restaurantId) break;
+			case 'customer.subscription.updated':
+			case 'customer.subscription.deleted': {
+				const sub = event.data.object as Stripe.Subscription;
+				const restaurantId = sub.metadata?.restaurantId;
+				if (!restaurantId) break;
 
-			const priceId = sub.items.data[0]?.price?.id ?? null;
-			const tier = tierFromPriceId(priceId);
-			const periodEnd = sub.items.data[0]?.current_period_end
-				? new Date(sub.items.data[0].current_period_end * 1000)
-				: null;
-			await db.update(subscriptions)
-				.set({
-					stripePriceId: priceId,
-					planTier: tier,
-					status: sub.status as SubscriptionStatus,
-					currentPeriodEnd: periodEnd,
-					cancelAtPeriodEnd: sub.cancel_at_period_end,
-					updatedAt: new Date(),
-				})
-				.where(forTenant(restaurantId).scope(subscriptions.restaurantId));
-			if (sub.status === 'active') await applyTierSettings(restaurantId, tier);
-			break;
+				const priceId = sub.items.data[0]?.price?.id ?? null;
+				const tier = tierFromPriceId(priceId);
+				const periodEnd = sub.items.data[0]?.current_period_end
+					? new Date(sub.items.data[0].current_period_end * 1000)
+					: null;
+				// Out-of-order protection (issue #240): a delayed updated(past_due)
+				// arriving after updated(active) must not revert a customer who just
+				// paid. Only apply when this event is at least as new as the last one
+				// we recorded. An empty RETURNING means the event was stale (or the
+				// row is gone) — skip the tier/telemetry side effects too.
+				const applied = await db.update(subscriptions)
+					.set({
+						stripePriceId: priceId,
+						planTier: tier,
+						status: sub.status as SubscriptionStatus,
+						currentPeriodEnd: periodEnd,
+						cancelAtPeriodEnd: sub.cancel_at_period_end,
+						lastEventAt: eventCreatedAt,
+						updatedAt: new Date(),
+					})
+					.where(and(
+						forTenant(restaurantId).scope(subscriptions.restaurantId),
+						or(isNull(subscriptions.lastEventAt), lte(subscriptions.lastEventAt, eventCreatedAt)),
+					))
+					.returning({ id: subscriptions.id });
+				if (applied.length === 0) break;
+
+				if (sub.status === 'active') await applyTierSettings(restaurantId, tier);
+
+				// Payment-lifecycle telemetry (issue #253) — a card going past_due or
+				// a customer cancelling was previously invisible.
+				if (event.type === 'customer.subscription.deleted' || sub.status === 'canceled') {
+					trackEvent('subscription_canceled', restaurantId, { tier, status: sub.status });
+				} else if (sub.status === 'past_due') {
+					trackEvent('payment_past_due', restaurantId, { tier, status: sub.status });
+				}
+				break;
+			}
 		}
+	} catch (err) {
+		// Processing failed — release the dedup claim so Stripe’s retry can
+		// reprocess this event instead of being suppressed as a duplicate, which
+		// would let payment state drift from Stripe (#240 + #253).
+		await db.delete(stripeWebhookEvents).where(eq(stripeWebhookEvents.eventId, event.id))
+			.catch((e) => console.error('[billing] failed to release webhook claim:', e));
+		throw err;
 	}
 }
