@@ -1,16 +1,18 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { t, initLocale } from '$lib/i18n';
 
-	const { data }: { data: PageData } = $props();
+	const { data, form }: { data: PageData; form: ActionData } = $props();
 
 	onMount(() => {
 		initLocale();
 	});
 
-	const error = $derived($page.url.searchParams.get('error'));
+	// Form failures carry the error inline (keeping the typed email); the query
+	// param remains for OAuth-callback redirects, which have no form state.
+	const error = $derived(form?.error ?? $page.url.searchParams.get('error'));
 </script>
 
 <svelte:head>
@@ -59,6 +61,7 @@
 						type="email"
 						required
 						autocomplete="email"
+						value={form?.email ?? ''}
 						placeholder={$t('login.emailPlaceholder')}
 						class="input"
 						style="height:36px;"

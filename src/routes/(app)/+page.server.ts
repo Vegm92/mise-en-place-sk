@@ -3,7 +3,9 @@ import type { Actions, PageServerLoad } from './$types';
 import { randomBytes } from 'crypto';
 import path from 'node:path';
 import { saveUploadedFiles } from '$lib/server/sessions';
-import { createBatch } from '$lib/server/batch';
+import { createBatch, getItem, getBatchItems, markQueued } from '$lib/server/batch';
+import { enqueueExtraction } from '$lib/server/queue';
+import { enqueueBatchExtraction } from '$lib/server/extract-batch';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
@@ -116,7 +118,16 @@ export const actions: Actions = {
 		}
 
 		// One batch, one item per invoice — no chained sessions.
-		const { batchId } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
+		const { batchId, itemIds } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
+
+		// Start extraction right away — the upload CTA promises "extract data",
+		// so landing on the batch page must not require a second click.
+		await enqueueBatchExtraction(itemIds[0], rid, {
+			getItem,
+			getBatchItems,
+			markQueued,
+			enqueue: enqueueExtraction,
+		});
 
 		const exts = [...new Set(saved.map(f => path.extname(f).toLowerCase()))];
 		trackEvent('file_uploaded', rid, { count: saved.length, exts });
