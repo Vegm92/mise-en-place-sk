@@ -13,7 +13,7 @@ import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
 import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
 import { annotateLineItems } from './unit-bridge.js';
-import { checkExtractionQuota, recordLlmUsage } from './llm-quota.js';
+import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 
 export interface ExtractionJobData {
 	itemId?: string;
@@ -50,7 +50,9 @@ export async function processExtractionJob(
 		return;
 	}
 
-	// Check per-tenant quota before doing any work (skip in test path).
+	// Money gate: atomically claim a monthly extraction slot against the plan
+	// quota BEFORE any Gemini spend (issue #244). Skipped in the test path.
+	let claimedMonthlySlot = false;
 	if (!generateOverride) {
 		const quotaResult = await checkExtractionQuota(restaurantId);
 		if (!quotaResult.allowed) {
@@ -58,13 +60,23 @@ export async function processExtractionJob(
 			await markFailed(itemId, 'extract.err.quotaExceeded');
 			return;
 		}
+
+		const claim = await claimMonthlyExtraction(restaurantId);
+		if (!claim.claimed) {
+			console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
+			await markFailed(itemId, 'extract.err.quotaExceeded');
+			return;
+		}
+		claimedMonthlySlot = true;
 	}
 
 	// Claim the item. A false here means it is no longer queued (discarded by
-	// the user, or already processed) — drop the job without side effects.
+	// the user, or already processed) — drop the job and release the slot we
+	// took, since no extraction happened.
 	const claimed = await markExtracting(itemId);
 	if (!claimed) {
 		console.warn(`[worker] Item ${itemId} not in queued state — skipping`);
+		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
 		return;
 	}
 
@@ -129,6 +141,9 @@ export async function processExtractionJob(
 		const extractError = classifyExtractionError(err);
 		console.error(`[worker] Extraction failed for item ${itemId}:`, err);
 		await markFailed(itemId, extractError);
+		// A failed extraction shouldn't count against the plan quota — give the
+		// claimed slot back (issue #244).
+		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
 		// Do not re-throw — the error is stored on the item; no pg-boss retry.
 	} finally {
 		cleanupTmp?.();

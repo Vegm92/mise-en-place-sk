@@ -249,6 +249,19 @@ export const tenantLlmQuotas = pgTable('tenant_llm_quotas', {
 	updatedAt:           timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// Atomic monthly extraction counter (issue #244). One row per tenant per
+// month; the worker claims a slot with a single increment-with-cap UPDATE
+// before spending a Gemini call, so N parallel uploads can't all read
+// "remaining = 1" and burst past the plan limit. The page-level invoice
+// count stays advisory UX only.
+export const monthlyUsage = pgTable('monthly_usage', {
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	month:        text('month').notNull(), // 'YYYY-MM'
+	used:         integer('used').notNull().default(0),
+}, (t) => [
+	uniqueIndex('monthly_usage_restaurant_month_unique').on(t.restaurantId, t.month),
+]);
+
 export const waitlist = pgTable('waitlist', {
 	id:        serial('id').primaryKey(),
 	email:     text('email').notNull().unique(),

@@ -71,6 +71,13 @@
 			"when": 1783605600000,
 			"tag": "0009_invoice_version",
 			"breakpoints": true
+		},
+		{
+			"idx": 10,
+			"version": "7",
+			"when": 1783606900000,
+			"tag": "0010_monthly_usage",
+			"breakpoints": true
 		}
 	]
 }
