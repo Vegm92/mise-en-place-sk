@@ -4,6 +4,7 @@
  * Copy is Spanish-first, matching the product's default locale (issue #202).
  */
 import { Resend } from 'resend';
+import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
 
 const apiKey = env.RESEND_API_KEY ?? '';
@@ -11,10 +12,16 @@ const FROM_ADDRESS = env.EMAIL_FROM ?? 'Mise en Place <noreply@miseenplace.app>'
 
 const resend = apiKey ? new Resend(apiKey) : null;
 
+export type EmailKind =
+	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
+	| 'trial_expiry' | 'subscription_confirmation' | 'quota_warning';
+
 export interface EmailPayload {
 	to: string;
 	subject: string;
 	html: string;
+	/** Coarse type for telemetry — tagged on Sentry, never the recipient (#257). */
+	kind?: EmailKind;
 }
 
 /** Mask an email for logs — keep the first char and domain (issue #254). */
@@ -36,7 +43,11 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 		html: payload.html,
 	});
 	if (error) {
+		// A silent Resend failure means the owner never gets a welcome /
+		// subscription / digest / quota email — report it (tagged by type, not
+		// recipient) so a broken key or provider outage surfaces (#257).
 		console.error('[email] send failed:', error);
+		Sentry.captureException(error, { tags: { emailKind: payload.kind ?? 'unknown' } });
 	}
 }
 
@@ -46,6 +57,7 @@ export function welcomeEmail(email: string, restaurantName?: string): EmailPaylo
 	const name = restaurantName ?? 'tu restaurante';
 	return {
 		to: email,
+		kind: 'welcome',
 		subject: '¡Bienvenido a Mise en Place! 🎉',
 		html: `
 <p>Hola:</p>
@@ -65,6 +77,7 @@ export function waitlistInviteEmail(email: string, couponCode?: string): EmailPa
 		: '';
 	return {
 		to: email,
+		kind: 'waitlist_invite',
 		subject: 'Tu invitación a Mise en Place',
 		html: `
 <p>Hola:</p>
@@ -81,6 +94,7 @@ ${couponLine}
 export function weeklyDigestEmail(email: string, restaurantName: string, digestHtml: string): EmailPayload {
 	return {
 		to: email,
+		kind: 'weekly_digest',
 		subject: `Tu resumen semanal — ${restaurantName}`,
 		html: `
 <p>Hola:</p>
@@ -100,6 +114,7 @@ export function overdueInvoiceEmail(email: string, restaurantName: string, overd
 	const invoicesWord = overdueCount === 1 ? 'factura vencida' : 'facturas vencidas';
 	return {
 		to: email,
+		kind: 'overdue_invoice',
 		subject: `${overdueCount} ${invoicesWord} — ${restaurantName}`,
 		html: `
 <p>Hola:</p>
@@ -118,6 +133,7 @@ export function trialExpiryEmail(email: string, restaurantName: string, daysLeft
 	const daysWord = daysLeft === 1 ? 'día' : 'días';
 	return {
 		to: email,
+		kind: 'trial_expiry',
 		subject: `Tu prueba gratuita termina en ${daysLeft} ${daysWord} — ${restaurantName}`,
 		html: `
 <p>Hola:</p>
@@ -133,6 +149,7 @@ export function trialExpiryEmail(email: string, restaurantName: string, daysLeft
 export function subscriptionConfirmationEmail(email: string, restaurantName: string, planName: string): EmailPayload {
 	return {
 		to: email,
+		kind: 'subscription_confirmation',
 		subject: `Suscripción activada: plan ${planName} — ${restaurantName}`,
 		html: `
 <p>Hola:</p>
@@ -149,6 +166,7 @@ export function quotaWarningEmail(email: string, restaurantName: string, used: n
 	const pct = Math.round((used / limit) * 100);
 	return {
 		to: email,
+		kind: 'quota_warning',
 		subject: `Tu cuota de facturas está al ${pct} % — ${restaurantName}`,
 		html: `
 <p>Hola:</p>

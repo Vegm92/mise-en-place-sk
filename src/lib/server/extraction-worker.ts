@@ -7,6 +7,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import * as Sentry from '@sentry/sveltekit';
 import { uploadsDir } from './sessions.js';
 import { getItem, markExtracting, markDone, markFailed } from './batch.js';
 import { getStorage } from './storage.js';
@@ -21,6 +22,13 @@ export interface ExtractionJobData {
 	sessionId?: string;
 	restaurantId: string;
 }
+
+// Transient LLM-degradation classes worth alerting on when they spike.
+const DEGRADATION_ERRORS = new Set([
+	'extract.err.rateLimited',
+	'extract.err.unavailable',
+	'extract.err.timeout',
+]);
 
 function classifyExtractionError(err: unknown): string {
 	const status = (err as { status?: number }).status;
@@ -64,6 +72,12 @@ export async function processExtractionJob(
 		const claim = await claimMonthlyExtraction(restaurantId);
 		if (!claim.claimed) {
 			console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
+			// Aggregate quota exhaustion (was a lone console.warn) so a tenant
+			// hitting the wall is visible, not only discovered from support (#257).
+			Sentry.captureMessage('extraction.quota_exhausted', {
+				level: 'warning',
+				tags: { restaurantId },
+			});
 			await markFailed(itemId, 'extract.err.quotaExceeded');
 			return;
 		}
@@ -140,6 +154,16 @@ export async function processExtractionJob(
 	} catch (err) {
 		const extractError = classifyExtractionError(err);
 		console.error(`[worker] Extraction failed for item ${itemId}:`, err);
+		// Tag Gemini degradation (timeout / 429 / 503) with its errorClass so an
+		// alert rule can catch a rate spike — "Gemini timing out for 2 hours"
+		// must not look like one flaky PDF (#257). Activates once the worker
+		// process initializes Sentry (#252); a no-op until then.
+		if (DEGRADATION_ERRORS.has(extractError)) {
+			Sentry.captureException(err, {
+				level: 'warning',
+				tags: { errorClass: extractError, restaurantId },
+			});
+		}
 		await markFailed(itemId, extractError);
 		// A failed extraction shouldn't count against the plan quota — give the
 		// claimed slot back (issue #244).
