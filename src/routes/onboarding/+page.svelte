@@ -4,6 +4,10 @@
 	import { locale, t, initLocale } from '$lib/i18n';
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
+	// Idempotency key (issue #250) — one per page load so a double-submit can't
+	// create two restaurants.
+	const idempotencyKey = crypto.randomUUID();
+
 	onMount(() => {
 		initLocale();
 	});
@@ -61,6 +65,7 @@
 			{/if}
 
 			<form method="POST" style="display:flex;flex-direction:column;gap:16px;">
+				<input type="hidden" name="idempotency_key" value={idempotencyKey} />
 				<div style="display:flex;flex-direction:column;gap:6px;">
 					<label for="name" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">
 						{$t('onboard.nameLabel')}

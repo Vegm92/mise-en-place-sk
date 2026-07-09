@@ -22,6 +22,7 @@
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
+  import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
 
   const { children, data } = $props();
 
@@ -309,9 +310,11 @@
       </a>
     </header>
 
-    <!-- Page content -->
+    <!-- Page content — boundary contains a post-hydration client render/effect
+         error (e.g. the /batch/[id] polling loop, the chat page) to this
+         region so the shell survives; +error.svelte still covers load errors. -->
     <div style="flex:1;overflow:auto;">
-      {@render children()}
+      <ErrorBoundary {children} />
     </div>
 
   </div>

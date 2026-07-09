@@ -12,13 +12,15 @@ import { runPriceShock, runStockForecast, runBudgetCheck } from './alert-engine'
 import { saveAlerts } from './notifications';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
+import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import type { EnrichedLineItem } from './unit-bridge';
-import type { BatchItem } from './batch-core';
+import type { BatchDb, BatchItem } from './batch-core';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
+	| { type: 'replay' }
 	| { type: 'saved'; invoiceId: number; isFirstInvoice: boolean };
 
 function toFloat(value: unknown): number | null {
@@ -117,14 +119,21 @@ async function logExtractionCorrections(
 
 /**
  * Validates and persists a reviewed invoice from the submitted form data.
- * Does NOT transition the batch item — callers decide what a duplicate or a
- * successful save means for the batch (discard/confirm + where to go next).
+ * Does NOT transition the batch item on duplicates — callers decide what a
+ * duplicate means for the batch (discard + where to go next). On a successful
+ * save, `onSaved` runs inside the same transaction, so callers can commit the
+ * batch-item confirm atomically with the invoice insert (issue #248) — a
+ * crash between the two can no longer strand the item as reviewable.
  */
 export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
 	rid: string,
+	onSaved?: (tx: BatchDb) => Promise<void>,
 ): Promise<SaveOutcome> {
+	// Idempotency key (issue #250) — claimed inside the save transaction below.
+	const idemKeyRaw = formData.get('idempotency_key');
+	const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
 	const tdb = forTenant(rid);
 	const supplierName = (formData.get('supplier_name') as string) ?? '';
 	const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
@@ -220,10 +229,18 @@ export async function saveReviewedInvoice(
 	let supplierId = 0;
 	let invoiceId: number | null = null;
 	let isDuplicate = false;
+	let isReplay = false;
 	const savedItems: EnrichedLineItem[] = [];
 	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
 
 	await db.transaction(async (tx) => {
+		// Idempotency claim first — a replayed submit (double-click, offline
+		// replay) finds the key present and skips the whole save (issue #250).
+		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
+			isReplay = true;
+			return;
+		}
+
 		// Upsert supplier
 		const existingSupplier = await tx
 			.select({ id: suppliers.id })
@@ -247,6 +264,9 @@ export async function saveReviewedInvoice(
 				.limit(1);
 			if (dup.length > 0) {
 				isDuplicate = true;
+				// Release the key so a corrected resubmit (fixed number) isn't
+				// skipped as a replay (issue #250).
+				if (idemKey) await releaseRequest(idemKey, tx);
 				return;
 			}
 		}
@@ -274,6 +294,7 @@ export async function saveReviewedInvoice(
 
 		if (!insertedInvoice.length) {
 			isDuplicate = true;
+			if (idemKey) await releaseRequest(idemKey, tx);
 			return;
 		}
 		invoiceId = insertedInvoice[0].id;
@@ -321,48 +342,59 @@ export async function saveReviewedInvoice(
 				});
 			}
 		}
+
+		if (onSaved) await onSaved(tx);
 	});
+
+	if (isReplay) return { type: 'replay' };
 
 	if (isDuplicate) {
 		trackEvent('duplicate_detected', rid, { supplier: supplierName, amount: totalAmount });
 		return { type: 'numberDuplicate' };
 	}
 
-	// Post-commit: fire BI alerts (non-critical, runs after data is safely persisted)
-	const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid);
-	const stockAlerts = await runStockForecast(savedItems, rid);
-	const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
-	await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
+	// Post-commit side effects are explicitly non-critical — the invoice is
+	// already persisted, so a failure here must not 500 the action and make a
+	// saved invoice look unsaved (issue #248).
+	let isFirstInvoice = false;
+	try {
+		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid);
+		const stockAlerts = await runStockForecast(savedItems, rid);
+		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
+		await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
 
-	trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
-	// Fire-and-forget: warn the owner when monthly usage nears the plan quota.
-	void maybeSendQuotaWarning(rid);
+		// Fire-and-forget: warn the owner when monthly usage nears the plan quota.
+		void maybeSendQuotaWarning(rid);
 
-	// Log field corrections (original AI values vs user-submitted values)
-	await logExtractionCorrections(
-		invoiceId!,
-		supplierId,
-		rid,
-		extractedData,
-		{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
-		{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
-	);
+		// Log field corrections (original AI values vs user-submitted values)
+		await logExtractionCorrections(
+			invoiceId!,
+			supplierId,
+			rid,
+			extractedData,
+			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+		);
 
-	// Mark onboarding complete on first invoice save
-	const onboardingRows = await db
-		.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
-		.limit(1);
-	const isFirstInvoice = onboardingRows[0]?.value !== 'true';
-	if (isFirstInvoice) {
-		await db.insert(settings)
-			.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: 'true' },
-			});
+		// Mark onboarding complete on first invoice save
+		const onboardingRows = await db
+			.select({ value: settings.value })
+			.from(settings)
+			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
+			.limit(1);
+		isFirstInvoice = onboardingRows[0]?.value !== 'true';
+		if (isFirstInvoice) {
+			await db.insert(settings)
+				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
+				.onConflictDoUpdate({
+					target: [settings.restaurantId, settings.key],
+					set: { value: 'true' },
+				});
+		}
+	} catch (err) {
+		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
 	}
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };

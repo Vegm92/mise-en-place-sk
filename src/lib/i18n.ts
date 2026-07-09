@@ -4,6 +4,9 @@ export type Locale = 'es' | 'en';
 
 export const translations = {
   es: {
+    // Error boundary
+    'boundary.failed':       'Este panel no se pudo mostrar.',
+    'boundary.retry':        'Reintentar',
     // Navigation
     'nav.dashboard':         'Resumen',
     'nav.invoices':          'Facturas',
@@ -68,6 +71,7 @@ export const translations = {
     'dash.category.sub':     'este mes',
     // Invoice list page
     'inv.title':           'Facturas',
+    'inv.conflict':        'Esta factura ya fue modificada en otra pestaña o por otro usuario. Su estado no ha cambiado.',
     'inv.export':          'Exportar CSV',
     'inv.noInvoices':      'Sin facturas todavía.',
     'inv.selectAll':       'Seleccionar todo',
@@ -879,6 +883,9 @@ export const translations = {
   },
 
   en: {
+    // Error boundary
+    'boundary.failed':       'This panel failed to load.',
+    'boundary.retry':        'Retry',
     // Navigation
     'nav.dashboard':         'Dashboard',
     'nav.invoices':          'Invoices',
@@ -943,6 +950,7 @@ export const translations = {
     'dash.category.sub':     'this month',
     // Invoice list page
     'inv.title':           'Invoices',
+    'inv.conflict':        'This invoice was already changed in another tab or by another user. Its status was not changed.',
     'inv.export':          'Export CSV',
     'inv.noInvoices':      'No invoices yet.',
     'inv.selectAll':       'Select all',

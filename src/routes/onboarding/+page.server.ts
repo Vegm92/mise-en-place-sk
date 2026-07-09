@@ -5,6 +5,7 @@ import { restaurants, userRestaurants, subscriptions } from '$lib/server/schema'
 import { TRIAL_DAYS, applyTierSettings } from '$lib/server/billing';
 import { sendEmail, welcomeEmail } from '$lib/server/email';
 import { hasConsent, recordConsent } from '$lib/server/consent';
+import { claimRequest, isValidKey } from '$lib/server/idempotency';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(303, '/login');
@@ -31,6 +32,15 @@ export const actions: Actions = {
 				return fail(422, { error: 'Debes aceptar los Términos y la Política de Privacidad.' });
 			}
 			await recordConsent(locals.user.id, 'onboarding');
+		}
+
+		// Idempotency key (issue #250) — claimed only after validation passes, so
+		// a double-submit can't create two restaurants (#241) while a corrected
+		// resubmit still goes through. A replay redirects to '/'.
+		const idemKeyRaw = data.get('idempotency_key');
+		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
+		if (idemKey && !(await claimRequest(idemKey, null))) {
+			redirect(303, '/');
 		}
 
 		const slug = name

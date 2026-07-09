@@ -71,6 +71,10 @@ export const invoices = pgTable('invoices', {
 	rejectedAt:      timestamp('rejected_at', { withTimezone: true }),
 	/** ISO timestamp of full effective payment (paid date). */
 	paidAt:          timestamp('paid_at', { withTimezone: true }),
+	/** Optimistic-concurrency counter — the edit form submits it and the
+	 *  UPDATE is guarded by it, so a stale tab gets a 409 instead of silently
+	 *  clobbering another tab's edit (issue #242). */
+	version:         integer('version').notNull().default(1),
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
@@ -245,6 +249,31 @@ export const tenantLlmQuotas = pgTable('tenant_llm_quotas', {
 	updatedAt:           timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// Atomic monthly extraction counter (issue #244). One row per tenant per
+// month; the worker claims a slot with a single increment-with-cap UPDATE
+// before spending a Gemini call, so N parallel uploads can't all read
+// "remaining = 1" and burst past the plan limit. The page-level invoice
+// count stays advisory UX only.
+export const monthlyUsage = pgTable('monthly_usage', {
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	month:        text('month').notNull(), // 'YYYY-MM'
+	used:         integer('used').notNull().default(0),
+}, (t) => [
+	uniqueIndex('monthly_usage_restaurant_month_unique').on(t.restaurantId, t.month),
+]);
+
+// Idempotency-key claim table (issue #250). Money-adjacent form actions
+// render a hidden per-submit UUID and claim it here; a replay (double-click,
+// offline-queue replay, proxy retry) finds the key already present and becomes
+// a transparent no-op instead of a second write. Pruned after 48h.
+export const processedRequests = pgTable('processed_requests', {
+	key:          uuid('key').primaryKey(),
+	restaurantId: uuid('restaurant_id').references(() => restaurants.id, { onDelete: 'cascade' }),
+	createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('idx_processed_requests_created').on(t.createdAt),
+]);
+
 export const waitlist = pgTable('waitlist', {
 	id:        serial('id').primaryKey(),
 	email:     text('email').notNull().unique(),
@@ -305,6 +334,16 @@ export const whatsappContacts = pgTable('whatsapp_contacts', {
 }, (t) => [
 	uniqueIndex('whatsapp_contacts_phone_unique').on(t.phoneNumber),
 	index('idx_whatsapp_contacts_restaurant').on(t.restaurantId),
+]);
+
+// Message-id dedup for WhatsApp webhooks (issue #245). Meta redelivers on
+// infra hiccups; a claim here (INSERT … ON CONFLICT DO NOTHING RETURNING)
+// makes a redelivered message a no-op instead of a second saved invoice.
+export const whatsappProcessedMessages = pgTable('whatsapp_processed_messages', {
+	messageId:  text('message_id').primaryKey(),
+	receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('idx_whatsapp_processed_received').on(t.receivedAt),
 ]);
 
 export const whatsappBotSessions = pgTable('whatsapp_bot_sessions', {

@@ -10,8 +10,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue } = vi.hoisted(() => {
+const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue, insertQueue } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
+	const insertQueue: unknown[][] = [];
 
 	// A chainable, thenable stub: every method returns itself; awaiting resolves
 	// to `result`. Used for select/update/insert builders.
@@ -35,8 +36,10 @@ const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue } = v
 	const dbMock = {
 		// Each select() consumes the next queued result set (FIFO).
 		select: vi.fn(() => chain(selectQueue.length ? selectQueue.shift() : [])),
-		update: vi.fn(() => chain([])),
-		insert: vi.fn(() => chain([])),
+		update: vi.fn(() => chain([{ id: 7 }])),
+		// insert() consumes the next queued result set; default non-empty so the
+		// message-id claim reads as a new (non-duplicate) message.
+		insert: vi.fn(() => chain(insertQueue.length ? insertQueue.shift() : [{ messageId: 'seed' }])),
 		transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
 			fn({ select: () => chain([]), insert: () => chain([{ id: 1 }]) }),
 		),
@@ -49,6 +52,7 @@ const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue } = v
 		extractMock: vi.fn(),
 		saveMock: vi.fn().mockResolvedValue(undefined),
 		selectQueue,
+		insertQueue,
 	};
 });
 
@@ -79,6 +83,24 @@ function repliesText() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	selectQueue.length = 0;
+	insertQueue.length = 0;
+});
+
+describe('message-id dedup (issue #245)', () => {
+	it('skips a redelivered message before any work when the id is already claimed', async () => {
+		insertQueue.push([]); // claim insert → empty = already processed
+		await handleWhatsAppMessage({ from: '+34600', id: 'dup-1', type: 'text', text: { body: 'Sí' } });
+		expect(dbMock.select).not.toHaveBeenCalled(); // never reached the contact lookup
+		expect(sendMock).not.toHaveBeenCalled();
+	});
+
+	it('processes a message whose id is new', async () => {
+		insertQueue.push([{ messageId: 'new-1' }]); // claim insert → new
+		queueSelects([]); // contact lookup → unregistered (stops early, enough to prove flow ran)
+		await handleWhatsAppMessage({ from: '+34699', id: 'new-1', type: 'text', text: { body: 'hola' } });
+		expect(dbMock.select).toHaveBeenCalled();
+		expect(repliesText()).toMatch(/no está autorizado/i);
+	});
 });
 
 describe('authorisation gate', () => {

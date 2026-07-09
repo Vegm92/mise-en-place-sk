@@ -7,13 +7,14 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
+import * as Sentry from '@sentry/sveltekit';
 import { uploadsDir } from './sessions.js';
 import { getItem, markExtracting, markDone, markFailed } from './batch.js';
 import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
 import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
 import { annotateLineItems } from './unit-bridge.js';
-import { checkExtractionQuota, recordLlmUsage } from './llm-quota.js';
+import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 
 export interface ExtractionJobData {
 	itemId?: string;
@@ -21,6 +22,13 @@ export interface ExtractionJobData {
 	sessionId?: string;
 	restaurantId: string;
 }
+
+// Transient LLM-degradation classes worth alerting on when they spike.
+const DEGRADATION_ERRORS = new Set([
+	'extract.err.rateLimited',
+	'extract.err.unavailable',
+	'extract.err.timeout',
+]);
 
 function classifyExtractionError(err: unknown): string {
 	const status = (err as { status?: number }).status;
@@ -50,7 +58,9 @@ export async function processExtractionJob(
 		return;
 	}
 
-	// Check per-tenant quota before doing any work (skip in test path).
+	// Money gate: atomically claim a monthly extraction slot against the plan
+	// quota BEFORE any Gemini spend (issue #244). Skipped in the test path.
+	let claimedMonthlySlot = false;
 	if (!generateOverride) {
 		const quotaResult = await checkExtractionQuota(restaurantId);
 		if (!quotaResult.allowed) {
@@ -58,13 +68,29 @@ export async function processExtractionJob(
 			await markFailed(itemId, 'extract.err.quotaExceeded');
 			return;
 		}
+
+		const claim = await claimMonthlyExtraction(restaurantId);
+		if (!claim.claimed) {
+			console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
+			// Aggregate quota exhaustion (was a lone console.warn) so a tenant
+			// hitting the wall is visible, not only discovered from support (#257).
+			Sentry.captureMessage('extraction.quota_exhausted', {
+				level: 'warning',
+				tags: { restaurantId },
+			});
+			await markFailed(itemId, 'extract.err.quotaExceeded');
+			return;
+		}
+		claimedMonthlySlot = true;
 	}
 
 	// Claim the item. A false here means it is no longer queued (discarded by
-	// the user, or already processed) — drop the job without side effects.
+	// the user, or already processed) — drop the job and release the slot we
+	// took, since no extraction happened.
 	const claimed = await markExtracting(itemId);
 	if (!claimed) {
 		console.warn(`[worker] Item ${itemId} not in queued state — skipping`);
+		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
 		return;
 	}
 
@@ -128,7 +154,20 @@ export async function processExtractionJob(
 	} catch (err) {
 		const extractError = classifyExtractionError(err);
 		console.error(`[worker] Extraction failed for item ${itemId}:`, err);
+		// Tag Gemini degradation (timeout / 429 / 503) with its errorClass so an
+		// alert rule can catch a rate spike — "Gemini timing out for 2 hours"
+		// must not look like one flaky PDF (#257). Activates once the worker
+		// process initializes Sentry (#252); a no-op until then.
+		if (DEGRADATION_ERRORS.has(extractError)) {
+			Sentry.captureException(err, {
+				level: 'warning',
+				tags: { errorClass: extractError, restaurantId },
+			});
+		}
 		await markFailed(itemId, extractError);
+		// A failed extraction shouldn't count against the plan quota — give the
+		// claimed slot back (issue #244).
+		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
 		// Do not re-throw — the error is stored on the item; no pg-boss retry.
 	} finally {
 		cleanupTmp?.();

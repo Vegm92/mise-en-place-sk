@@ -2,12 +2,14 @@ import * as Sentry from '@sentry/sveltekit';
 import { redirect, type Handle } from '@sveltejs/kit';
 import { createSupabaseServerClient } from '$lib/server/supabase';
 import { cleanupStaleBatches } from '$lib/server/batch';
+import { cleanupProcessedRequests } from '$lib/server/idempotency';
 import { seedAdminUser } from '$lib/server/auth-seed';
 import { isAdminUser } from '$lib/server/admin';
 import { db } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
+import { scrubSentryEvent } from '$lib/sentry-scrub';
 
 const SENTRY_DSN = process.env['SENTRY_DSN'] ?? '';
 
@@ -18,7 +20,8 @@ Sentry.init({
 	beforeSend(event) {
 		// Drop intentional SvelteKit redirects — not errors
 		if (event.exception?.values?.some(v => v.type === 'Redirect')) return null;
-		return event;
+		// Strip live OAuth codes / tokens / emails from attached request URLs.
+		return scrubSentryEvent(event);
 	},
 });
 
@@ -28,6 +31,7 @@ export const handleError = Sentry.handleErrorWithSentry(({ error }: { error: unk
 });
 
 cleanupStaleBatches().catch(e => console.error('[hooks] batch cleanup error:', e));
+cleanupProcessedRequests().catch(e => console.error('[hooks] idempotency cleanup error:', e));
 seedAdminUser().catch(e => console.error('[hooks] seed error:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {

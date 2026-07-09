@@ -4,8 +4,9 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { and, asc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { workingDaysUntilDeadline } from '$lib/server/working-days';
+import { markInvoicePaid, acceptInvoice, rejectInvoice } from '$lib/server/invoice-status';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	try {
@@ -59,6 +60,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			due_soon:      enriched.filter(r => !r.overdue),
 			total_amount:  enriched.reduce((sum, r) => sum + r.display_amount, 0),
 			today:         todayIso,
+			conflict:      url.searchParams.get('conflict') === '1',
 		};
 	} catch (e) {
 		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
@@ -67,39 +69,30 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 };
 
+// Guarded transitions (issue #243): a stale tab whose invoice was already
+// accepted/rejected/paid elsewhere gets a conflict banner, not a silent
+// overwrite of the other change.
 export const actions: Actions = {
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		await db.update(invoices)
-			.set({ status: 'paid', paidAt: new Date() })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		redirect(303, '/reminders');
+		const ok = await markInvoicePaid(id, locals.restaurantId!);
+		redirect(303, ok ? '/reminders' : '/reminders?conflict=1');
 	},
 
 	/** Accept an e-invoice — starts the paid-status obligation clock (RD 238/2026). */
 	acceptInvoice: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		await db.update(invoices)
-			.set({ status: 'accepted', acceptedAt: new Date() })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		redirect(303, '/reminders');
+		const ok = await acceptInvoice(id, locals.restaurantId!);
+		redirect(303, ok ? '/reminders' : '/reminders?conflict=1');
 	},
 
 	/** Reject an e-invoice — records the rejection date (RD 238/2026). */
 	rejectInvoice: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		await db.update(invoices)
-			.set({ status: 'rejected', rejectedAt: new Date() })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		redirect(303, '/reminders');
+		const ok = await rejectInvoice(id, locals.restaurantId!);
+		redirect(303, ok ? '/reminders' : '/reminders?conflict=1');
 	},
 };
