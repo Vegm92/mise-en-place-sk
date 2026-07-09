@@ -37,12 +37,25 @@
   }
 
   async function dismiss(id: number) {
+    const removed = items.find((n) => n.id === id);
+    const removedIndex = items.findIndex((n) => n.id === id);
     items = items.filter((n) => n.id !== id);
-    await fetch('/api/notifications', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
+    try {
+      const resp = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (!resp.ok) throw new Error(`dismiss failed: ${resp.status}`);
+    } catch {
+      // Offline or server error — restore the item at its place instead of
+      // silently losing the dismissal and leaving an unhandled rejection (#255).
+      if (removed && removedIndex >= 0) {
+        const next = [...items];
+        next.splice(removedIndex, 0, removed);
+        items = next;
+      }
+    }
   }
 
   function toggleOpen() { open = !open; }

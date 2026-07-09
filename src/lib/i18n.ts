@@ -4,6 +4,9 @@ export type Locale = 'es' | 'en';
 
 export const translations = {
   es: {
+    // Error boundary
+    'boundary.failed':       'Este panel no se pudo mostrar.',
+    'boundary.retry':        'Reintentar',
     // Navigation
     'nav.dashboard':         'Resumen',
     'nav.invoices':          'Facturas',
@@ -880,6 +883,9 @@ export const translations = {
   },
 
   en: {
+    // Error boundary
+    'boundary.failed':       'This panel failed to load.',
+    'boundary.retry':        'Retry',
     // Navigation
     'nav.dashboard':         'Dashboard',
     'nav.invoices':          'Invoices',
