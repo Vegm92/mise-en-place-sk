@@ -12,6 +12,7 @@ import { runPriceShock, runStockForecast, runBudgetCheck } from './alert-engine'
 import { saveAlerts } from './notifications';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
+import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import type { EnrichedLineItem } from './unit-bridge';
 import type { BatchDb, BatchItem } from './batch-core';
 
@@ -19,6 +20,7 @@ export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
+	| { type: 'replay' }
 	| { type: 'saved'; invoiceId: number; isFirstInvoice: boolean };
 
 function toFloat(value: unknown): number | null {
@@ -129,6 +131,9 @@ export async function saveReviewedInvoice(
 	rid: string,
 	onSaved?: (tx: BatchDb) => Promise<void>,
 ): Promise<SaveOutcome> {
+	// Idempotency key (issue #250) — claimed inside the save transaction below.
+	const idemKeyRaw = formData.get('idempotency_key');
+	const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
 	const tdb = forTenant(rid);
 	const supplierName = (formData.get('supplier_name') as string) ?? '';
 	const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
@@ -224,10 +229,18 @@ export async function saveReviewedInvoice(
 	let supplierId = 0;
 	let invoiceId: number | null = null;
 	let isDuplicate = false;
+	let isReplay = false;
 	const savedItems: EnrichedLineItem[] = [];
 	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
 
 	await db.transaction(async (tx) => {
+		// Idempotency claim first — a replayed submit (double-click, offline
+		// replay) finds the key present and skips the whole save (issue #250).
+		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
+			isReplay = true;
+			return;
+		}
+
 		// Upsert supplier
 		const existingSupplier = await tx
 			.select({ id: suppliers.id })
@@ -251,6 +264,9 @@ export async function saveReviewedInvoice(
 				.limit(1);
 			if (dup.length > 0) {
 				isDuplicate = true;
+				// Release the key so a corrected resubmit (fixed number) isn't
+				// skipped as a replay (issue #250).
+				if (idemKey) await releaseRequest(idemKey, tx);
 				return;
 			}
 		}
@@ -278,6 +294,7 @@ export async function saveReviewedInvoice(
 
 		if (!insertedInvoice.length) {
 			isDuplicate = true;
+			if (idemKey) await releaseRequest(idemKey, tx);
 			return;
 		}
 		invoiceId = insertedInvoice[0].id;
@@ -328,6 +345,8 @@ export async function saveReviewedInvoice(
 
 		if (onSaved) await onSaved(tx);
 	});
+
+	if (isReplay) return { type: 'replay' };
 
 	if (isDuplicate) {
 		trackEvent('duplicate_detected', rid, { supplier: supplierName, amount: totalAmount });

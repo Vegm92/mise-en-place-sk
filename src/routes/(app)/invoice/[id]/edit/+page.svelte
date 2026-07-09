@@ -11,6 +11,10 @@
 
   let items = $state<Row[]>(untrack(() => initRows(data.lineItems)));
 
+  // Idempotency key (issue #250) — one per loaded invoice; a validation-error
+  // retry reuses it (the failed save released the key), a fresh load mints one.
+  const idempotencyKey = $derived.by(() => { void invoice.id; return crypto.randomUUID(); });
+
   const rowsWithTotals = $derived(
     items.map(row => ({ ...row, total_price: calcTotal(row.quantity, row.unit_price) }))
   );
@@ -20,6 +24,7 @@
 <div class="w-full max-w-[700px]">
   <form method="post" action="?/save" class="flex flex-col gap-4">
     <input type="hidden" name="version" value={invoice.version} />
+    <input type="hidden" name="idempotency_key" value={idempotencyKey} />
 
     {#if form?.error}
       <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{form.error}</div>

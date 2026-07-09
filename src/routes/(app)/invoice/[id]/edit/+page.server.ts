@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { asc, eq, and, ne, sql } from 'drizzle-orm';
+import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
@@ -79,6 +80,10 @@ export const actions: Actions = {
 		// loaded; the UPDATE below only fires if it still matches.
 		const expectedVersion = Number(data.get('version'));
 
+		// Idempotency key (issue #250) — claimed inside the transaction below.
+		const idemKeyRaw = data.get('idempotency_key');
+		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
+
 		const lineDescriptions = data.getAll('line_descriptions').map(String);
 		const lineQuantities   = data.getAll('line_quantities').map(String);
 		const lineUnits        = data.getAll('line_units').map(String);
@@ -99,6 +104,12 @@ export const actions: Actions = {
 		// between the delete and the insert must not destroy the line items.
 		let conflict: 'duplicate' | 'stale' | null = null;
 		await db.transaction(async (tx) => {
+			// Idempotency claim first (#250) — a replayed submit skips the whole
+			// edit and falls through to the same /invoices redirect as success.
+			if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
+				return;
+			}
+
 			let supplierId: number | null = null;
 			if (supplierName) {
 				const existing = await tx.select({ id: suppliers.id })
@@ -128,6 +139,8 @@ export const actions: Actions = {
 					.limit(1);
 				if (duplicate.length > 0) {
 					conflict = 'duplicate';
+					// Release so a corrected resubmit isn't skipped as a replay (#250).
+					if (idemKey) await releaseRequest(idemKey, tx);
 					return;
 				}
 			}
@@ -146,6 +159,7 @@ export const actions: Actions = {
 				.returning({ id: invoices.id });
 			if (updated.length === 0) {
 				conflict = 'stale';
+				if (idemKey) await releaseRequest(idemKey, tx);
 				return;
 			}
 
@@ -165,6 +179,8 @@ export const actions: Actions = {
 			return fail(409, { error: 'This invoice was changed elsewhere (another tab or user). Reload the page before saving.' });
 		}
 
+		// Replay (#250) and success share the destination — the first submit
+		// already applied the edit.
 		redirect(303, '/invoices');
 	},
 };

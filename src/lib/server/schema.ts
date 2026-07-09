@@ -262,6 +262,18 @@ export const monthlyUsage = pgTable('monthly_usage', {
 	uniqueIndex('monthly_usage_restaurant_month_unique').on(t.restaurantId, t.month),
 ]);
 
+// Idempotency-key claim table (issue #250). Money-adjacent form actions
+// render a hidden per-submit UUID and claim it here; a replay (double-click,
+// offline-queue replay, proxy retry) finds the key already present and becomes
+// a transparent no-op instead of a second write. Pruned after 48h.
+export const processedRequests = pgTable('processed_requests', {
+	key:          uuid('key').primaryKey(),
+	restaurantId: uuid('restaurant_id').references(() => restaurants.id, { onDelete: 'cascade' }),
+	createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('idx_processed_requests_created').on(t.createdAt),
+]);
+
 export const waitlist = pgTable('waitlist', {
 	id:        serial('id').primaryKey(),
 	email:     text('email').notNull().unique(),

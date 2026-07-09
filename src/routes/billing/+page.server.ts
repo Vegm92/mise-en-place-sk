@@ -4,6 +4,7 @@ import { stripe, createCheckoutSession, createPortalSession, getOrCreateCustomer
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
+import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
@@ -62,19 +63,35 @@ export const actions: Actions = {
 		const tierParam = (formData.get('tier') as string | null) ?? 'starter';
 		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : 'starter') as PlanTier;
 
+		// Idempotency key (issue #250) — a double-submit must not spin up two
+		// Stripe checkout sessions. A replay lands back on /billing (a fresh page
+		// load mints a new key for a genuine retry).
+		const idemKeyRaw = formData.get('idempotency_key');
+		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
+		if (idemKey && !(await claimRequest(idemKey, rid))) {
+			redirect(303, '/billing');
+		}
+
 		const [restaurant] = await db.select({ name: restaurants.name })
 			.from(restaurants)
 			.where(eq(restaurants.id, rid))
 			.limit(1);
 
-		const customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
-		const checkoutUrl = await createCheckoutSession(
-			rid,
-			customerId,
-			tier,
-			`${url.origin}/billing?checkout=success`,
-			`${url.origin}/billing`,
-		);
+		let checkoutUrl: string;
+		try {
+			const customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
+			checkoutUrl = await createCheckoutSession(
+				rid,
+				customerId,
+				tier,
+				`${url.origin}/billing?checkout=success`,
+				`${url.origin}/billing`,
+			);
+		} catch (err) {
+			// Release the key so the user can retry after a Stripe hiccup.
+			if (idemKey) await releaseRequest(idemKey);
+			throw err;
+		}
 
 		redirect(303, checkoutUrl);
 	},

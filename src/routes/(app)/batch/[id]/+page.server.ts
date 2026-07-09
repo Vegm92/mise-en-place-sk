@@ -150,6 +150,10 @@ export const actions: Actions = {
 			await createBatchStore(tx).markConfirmed(item.id);
 		});
 
+		// A replayed submit (double-click, offline replay) already saved on the
+		// first pass — land on the batch page, which routes onward if settled.
+		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
+
 		if (outcome.type === 'lowConfidenceBlocked') return fail(422, { lowConfidenceBlocked: true });
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
 
