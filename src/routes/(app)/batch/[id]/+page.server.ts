@@ -5,10 +5,11 @@ import path from 'path';
 import { localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/sessions';
 import {
 	getItem, getBatchItems, addItems, removeItem, deleteBatch, isBatchSettled,
-	markQueued, markConfirmed, markDiscarded, pickActiveItem,
+	markQueued, markDiscarded, pickActiveItem,
 } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
+import { createBatchStore } from '$lib/server/batch-core';
 import { saveReviewedInvoice } from '$lib/server/invoice-save';
 import { trackEvent } from '$lib/server/events';
 import { getStorage } from '$lib/server/storage';
@@ -142,7 +143,12 @@ export const actions: Actions = {
 			redirect(303, `/batch/${params.id}`);
 		}
 
-		const outcome = await saveReviewedInvoice(item, formData, rid);
+		// The done→confirmed transition commits atomically with the invoice
+		// insert — a drop between them can no longer strand the item as
+		// reviewable and produce a confusing duplicate error (issue #248).
+		const outcome = await saveReviewedInvoice(item, formData, rid, async (tx) => {
+			await createBatchStore(tx).markConfirmed(item.id);
+		});
 
 		if (outcome.type === 'lowConfidenceBlocked') return fail(422, { lowConfidenceBlocked: true });
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
@@ -153,7 +159,6 @@ export const actions: Actions = {
 			redirect(303, `/batch/${params.id}`);
 		}
 
-		await markConfirmed(item.id);
 		if (!(await isBatchSettled(params.id))) redirect(303, `/batch/${params.id}`);
 
 		if (outcome.isFirstInvoice) redirect(303, '/dashboard?first_invoice=1');
