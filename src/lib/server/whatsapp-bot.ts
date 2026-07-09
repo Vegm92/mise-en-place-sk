@@ -16,6 +16,7 @@ import {
 	suppliers,
 	whatsappBotSessions,
 	whatsappContacts,
+	whatsappProcessedMessages,
 } from './schema';
 import { computeInvoiceContentHash } from './dedup';
 import { extractWithProvider, type ExtractedInvoice } from './extract';
@@ -35,7 +36,34 @@ export interface WhatsAppInboundMessage {
 	document?: { id: string; mime_type?: string; filename?: string };
 }
 
+/**
+ * Claims a WhatsApp message id so a redelivered webhook is processed once
+ * (issue #245). Returns false when the id was already seen. Fails open on a
+ * DB error — a rare duplicate is better than silently dropping a real invoice.
+ */
+async function claimMessageId(messageId: string | undefined): Promise<boolean> {
+	if (!messageId) return true;
+	try {
+		const rows = await db
+			.insert(whatsappProcessedMessages)
+			.values({ messageId })
+			.onConflictDoNothing()
+			.returning({ messageId: whatsappProcessedMessages.messageId });
+		return rows.length > 0;
+	} catch (err) {
+		console.error('[whatsapp-bot] message-id claim failed (processing anyway):', err);
+		return true;
+	}
+}
+
 export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
+	// Dedup on the WhatsApp message id before any side effect — Meta redelivers
+	// webhooks, and a duplicate "SÍ" must not save the invoice twice.
+	if (!(await claimMessageId(msg.id))) {
+		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
+		return;
+	}
+
 	const from = msg.from;
 
 	// Resolve which restaurant this number belongs to
@@ -180,14 +208,34 @@ async function handleTextReply(from: string, restaurantId: string, body: string)
 		return;
 	}
 
+	// Claim the session before saving (guarded awaiting_confirmation →
+	// confirmed) so two duplicate "SÍ" deliveries can't both save (issue #245).
+	// Only the winner proceeds; the content-hash index is the final backstop.
+	const claim = await db
+		.update(whatsappBotSessions)
+		.set({ status: 'confirmed' })
+		.where(and(
+			eq(whatsappBotSessions.id, session.id),
+			eq(whatsappBotSessions.status, 'awaiting_confirmation'),
+		))
+		.returning({ id: whatsappBotSessions.id });
+	if (claim.length === 0) {
+		// Another delivery already handled this confirmation.
+		return;
+	}
+
 	// Confirm: save to DB
 	const extracted = session.extractedData as unknown as ExtractedInvoice;
 	const result = await saveWhatsAppInvoice(restaurantId, extracted, session.fileKey);
 
-	await db
-		.update(whatsappBotSessions)
-		.set({ status: result.type === 'saved' ? 'confirmed' : 'discarded' })
-		.where(eq(whatsappBotSessions.id, session.id));
+	// Roll the claim back to discarded if the save didn't land, so the session
+	// doesn't sit as 'confirmed' with no invoice behind it.
+	if (result.type !== 'saved') {
+		await db
+			.update(whatsappBotSessions)
+			.set({ status: 'discarded' })
+			.where(eq(whatsappBotSessions.id, session.id));
+	}
 
 	if (result.type === 'saved') {
 		await sendWhatsAppMessage(

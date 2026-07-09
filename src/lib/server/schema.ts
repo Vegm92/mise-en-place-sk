@@ -324,6 +324,16 @@ export const whatsappContacts = pgTable('whatsapp_contacts', {
 	index('idx_whatsapp_contacts_restaurant').on(t.restaurantId),
 ]);
 
+// Message-id dedup for WhatsApp webhooks (issue #245). Meta redelivers on
+// infra hiccups; a claim here (INSERT … ON CONFLICT DO NOTHING RETURNING)
+// makes a redelivered message a no-op instead of a second saved invoice.
+export const whatsappProcessedMessages = pgTable('whatsapp_processed_messages', {
+	messageId:  text('message_id').primaryKey(),
+	receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('idx_whatsapp_processed_received').on(t.receivedAt),
+]);
+
 export const whatsappBotSessions = pgTable('whatsapp_bot_sessions', {
 	id:            uuid('id').primaryKey().default(sql`gen_random_uuid()`),
 	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
