@@ -8,6 +8,7 @@ import { db } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
+import { scrubSentryEvent } from '$lib/sentry-scrub';
 
 const SENTRY_DSN = process.env['SENTRY_DSN'] ?? '';
 
@@ -18,7 +19,8 @@ Sentry.init({
 	beforeSend(event) {
 		// Drop intentional SvelteKit redirects — not errors
 		if (event.exception?.values?.some(v => v.type === 'Redirect')) return null;
-		return event;
+		// Strip live OAuth codes / tokens / emails from attached request URLs.
+		return scrubSentryEvent(event);
 	},
 });
 

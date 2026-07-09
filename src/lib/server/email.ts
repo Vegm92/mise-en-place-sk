@@ -17,9 +17,16 @@ export interface EmailPayload {
 	html: string;
 }
 
+/** Mask an email for logs — keep the first char and domain (issue #254). */
+function maskEmail(to: string): string {
+	const at = to.indexOf('@');
+	if (at <= 0) return '***';
+	return `${to[0]}***${to.slice(at)}`;
+}
+
 export async function sendEmail(payload: EmailPayload): Promise<void> {
 	if (!resend) {
-		console.log(`[email] no-op (RESEND_API_KEY not set): ${payload.subject} → ${payload.to}`);
+		console.log(`[email] no-op (RESEND_API_KEY not set): ${payload.subject} → ${maskEmail(payload.to)}`);
 		return;
 	}
 	const { error } = await resend.emails.send({
