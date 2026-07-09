@@ -34,11 +34,19 @@ export async function maybeSendQuotaWarning(restaurantId: string): Promise<void>
 		const used = usedRow?.cnt ?? 0;
 		if (used < Math.ceil(limit * QUOTA_WARNING_THRESHOLD)) return;
 
-		// Send at most once per month per restaurant.
-		const [sentRow] = await db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, SENT_FLAG_KEY)));
-		if (sentRow?.value === currentMonth) return;
+		// Send at most once per month per restaurant. Claim the month flag
+		// BEFORE sending (guarded upsert, issue #249) — two concurrent invoice
+		// saves at the threshold would otherwise both pass a read-then-send
+		// check and email the owner twice.
+		const claimed = await db.insert(settings)
+			.values({ restaurantId, key: SENT_FLAG_KEY, value: currentMonth })
+			.onConflictDoUpdate({
+				target: [settings.restaurantId, settings.key],
+				set: { value: currentMonth },
+				setWhere: sql`${settings.value} <> ${currentMonth}`,
+			})
+			.returning({ value: settings.value });
+		if (claimed.length === 0) return;
 
 		const [owner] = await db.select({ userId: userRestaurants.userId })
 			.from(userRestaurants)
@@ -55,13 +63,6 @@ export async function maybeSendQuotaWarning(restaurantId: string): Promise<void>
 			.where(eq(restaurants.id, restaurantId));
 
 		await sendEmail(quotaWarningEmail(email, restaurant?.name ?? 'tu restaurante', used, limit));
-
-		await db.insert(settings)
-			.values({ restaurantId, key: SENT_FLAG_KEY, value: currentMonth })
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: currentMonth },
-			});
 	} catch (err) {
 		console.error('[quota-warning] check failed (non-fatal):', err);
 	}
