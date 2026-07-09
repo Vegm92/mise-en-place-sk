@@ -8,9 +8,14 @@ const MIME_TO_EXT: Record<string, string> = {
 	'application/pdf': 'pdf',
 };
 
+/** Mask a phone number for logs — keep only the last 4 digits (issue #254). */
+function maskPhone(to: string): string {
+	return `***${to.slice(-4)}`;
+}
+
 export async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
 	if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
-		console.warn('[whatsapp] Missing credentials — skipping message send to', to);
+		console.warn('[whatsapp] Missing credentials — skipping message send to', maskPhone(to));
 		return;
 	}
 	const res = await fetch(`${GRAPH_API_BASE}/${WHATSAPP_PHONE_NUMBER_ID}/messages`, {

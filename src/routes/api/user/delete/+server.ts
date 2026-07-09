@@ -3,8 +3,9 @@ import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { userRestaurants, restaurants, subscriptions } from '$lib/server/schema';
 import { createSupabaseAdminClient } from '$lib/server/supabase';
+import { cancelSubscription } from '$lib/server/billing';
 import { checkRateLimit } from '$lib/server/rate-limiter';
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const user = locals.user;
@@ -46,15 +47,39 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const soleOwnedIds = ownedIds.filter(id => !shared.has(id));
 
 		if (soleOwnedIds.length > 0) {
-			await db.delete(subscriptions).where(inArray(subscriptions.restaurantId, soleOwnedIds));
-			await db.delete(restaurants).where(inArray(restaurants.id, soleOwnedIds));
+			// Cancel live Stripe subscriptions BEFORE deleting the rows that link
+			// the Stripe customer to the tenant — otherwise the card keeps being
+			// charged for a deleted account and support can't trace it (issue #246).
+			// Immediate cancellation (GDPR deletion, not cancel-at-period-end).
+			const liveSubs = await db
+				.select({ stripeSubscriptionId: subscriptions.stripeSubscriptionId })
+				.from(subscriptions)
+				.where(and(
+					inArray(subscriptions.restaurantId, soleOwnedIds),
+					isNotNull(subscriptions.stripeSubscriptionId),
+				));
+			for (const s of liveSubs) {
+				if (s.stripeSubscriptionId) await cancelSubscription(s.stripeSubscriptionId);
+			}
 		}
+
+		// All row deletes commit atomically so a mid-flight failure leaves a
+		// clean state to retry from, not a half-deleted account.
+		await db.transaction(async (tx) => {
+			if (soleOwnedIds.length > 0) {
+				await tx.delete(subscriptions).where(inArray(subscriptions.restaurantId, soleOwnedIds));
+				await tx.delete(restaurants).where(inArray(restaurants.id, soleOwnedIds));
+			}
+			// Remove the user from any restaurants they're a member of (but don't own).
+			await tx.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
+		});
+	} else {
+		// No owned restaurants — still detach the user from shared ones.
+		await db.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
 	}
 
-	// Remove user from any restaurants they're a member of (but don't own)
-	await db.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
-
-	// Delete the Supabase Auth account (must be last)
+	// Delete the Supabase Auth account (must be last — keeps the endpoint
+	// retryable: the Stripe cancels and DB deletes above are all idempotent).
 	const admin = createSupabaseAdminClient();
 	const { error: authError } = await admin.auth.admin.deleteUser(user.id);
 	if (authError) {

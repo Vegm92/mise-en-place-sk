@@ -13,11 +13,16 @@
  * against the test database; `batch.ts` binds it to the app connection.
  */
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import type { ExtractTablesWithRelations } from 'drizzle-orm';
+import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
 import { uploadBatches, batchItems } from './schema';
 
-export type BatchDb = PostgresJsDatabase<typeof schema>;
+// Accepts a transaction too, so callers can run a guarded transition inside
+// an enclosing db.transaction (e.g. invoice save + item confirm, issue #248).
+export type BatchDb =
+	| PostgresJsDatabase<typeof schema>
+	| PostgresJsTransaction<typeof schema, ExtractTablesWithRelations<typeof schema>>;
 
 export type BatchItemStatus =
 	| 'pending' | 'queued' | 'extracting' | 'done' | 'failed' | 'confirmed' | 'discarded';

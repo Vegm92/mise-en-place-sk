@@ -169,6 +169,24 @@ export async function createCheckoutSession(
 	return session.url!;
 }
 
+/**
+ * Cancel a Stripe subscription immediately. Idempotent and safe to retry:
+ * an already-cancelled or missing subscription is treated as success so
+ * account deletion (issue #246) never wedges on a stale id. No-op when Stripe
+ * isn't configured (dev).
+ */
+export async function cancelSubscription(subscriptionId: string): Promise<void> {
+	if (!stripe) return;
+	try {
+		await stripe.subscriptions.cancel(subscriptionId);
+	} catch (err) {
+		const code = (err as { code?: string }).code;
+		// resource_missing → already gone; nothing to cancel.
+		if (code === 'resource_missing') return;
+		throw err;
+	}
+}
+
 /** Create a Stripe Customer Portal session to manage subscription. */
 export async function createPortalSession(customerId: string, returnUrl: string): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');

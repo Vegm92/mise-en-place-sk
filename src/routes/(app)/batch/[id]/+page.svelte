@@ -78,6 +78,9 @@
   }
 
   const review = $derived(data.review);
+  // One idempotency key per review item (issue #250) — regenerated only when
+  // the active item changes, so a retry after a validation error reuses it.
+  const idempotencyKey = $derived.by(() => { void review?.itemId; return crypto.randomUUID(); });
   const fieldConf = $derived((review?.fieldConfidences ?? {}) as Record<string, number>);
 
   const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'] as const;
@@ -304,6 +307,7 @@
         <!-- Review form -->
         <form id="save-form" method="POST" action="?/save" style="display:contents;">
           <input type="hidden" name="itemId" value={review.itemId} />
+          <input type="hidden" name="idempotency_key" value={idempotencyKey} />
           <input type="hidden" name="confidence" value={str(confidence)} />
           <input type="hidden" name="low_confidence_ack" value={lowConfAck ? 'true' : 'false'} />
 

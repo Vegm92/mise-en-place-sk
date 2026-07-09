@@ -16,6 +16,10 @@
 <!-- Desktop reminders -->
 <div class="hidden md:flex flex-col gap-4 p-6">
 
+  {#if data.conflict}
+    <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
+  {/if}
+
   {#if !data.overdue.length && !data.due_soon.length}
     <p class="body text-center py-16">{$t('rem.empty')}</p>
   {:else}

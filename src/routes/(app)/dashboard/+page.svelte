@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import MobileDashboard from '$lib/components/mobile/MobileDashboard.svelte';
   import DesktopDashboard from '$lib/components/desktop/DesktopDashboard.svelte';
+  import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
   import { toMonthStr, shiftMonth } from '$lib/formatters';
   import { locale, t } from '$lib/i18n';
 
@@ -54,11 +55,19 @@
   />
 </div>
 
+{#if $page.url.searchParams.get('conflict') === '1'}
+  <div class="card p-3 text-neg m-4 mb-0" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
+{/if}
+
 <!-- Desktop dashboard -->
-<DesktopDashboard
-  {data}
-  prevMonthUrl={prevMonthUrl}
-  nextMonthUrl={nextMonthUrl}
-  canGoForward={canGoForward}
-  currentPeriod={currentPeriod}
-/>
+<ErrorBoundary>
+  {#snippet children()}
+    <DesktopDashboard
+      {data}
+      prevMonthUrl={prevMonthUrl}
+      nextMonthUrl={nextMonthUrl}
+      canGoForward={canGoForward}
+      currentPeriod={currentPeriod}
+    />
+  {/snippet}
+</ErrorBoundary>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import TrendChart from '$lib/components/TrendChart.svelte';
+  import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import SupplierRow from '$lib/components/mep/SupplierRow.svelte';
@@ -201,7 +202,13 @@
   <div class="grid gap-3 max-[900px]:grid-cols-1" style="grid-template-columns:2fr 1fr;">
 
     <SectionCard title={$t('dash.chart')} sub={$t('dash.chart.sub')}>
-      <TrendChart initialScale="30d" />
+      <!-- Finer boundary: a chart crash (bad trend data) shows a chart-sized
+           fallback instead of blanking the dashboard (issue #255). -->
+      <ErrorBoundary>
+        {#snippet children()}
+          <TrendChart initialScale="30d" />
+        {/snippet}
+      </ErrorBoundary>
     </SectionCard>
 
     {#if data.dashboard_alerts.length > 0}

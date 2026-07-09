@@ -16,6 +16,10 @@
 			: data.upgradeFor === 'prices' ? $t('billing.upgrade.prices')
 			: null
 	);
+
+	// Idempotency key (issue #250) — one per page load so a double-submit can't
+	// spin up two Stripe checkout sessions.
+	const idempotencyKey = crypto.randomUUID();
 </script>
 
 <svelte:head>
@@ -92,6 +96,7 @@
 			</ul>
 			{#if data.stripeConfigured}
 				<form method="POST" action="?/checkout">
+					<input type="hidden" name="idempotency_key" value={idempotencyKey} />
 					<button type="submit" class="btn btn-primary" style="height:38px;justify-content:center;">
 						{data.status === 'trialing' && trialDaysLeft > 0 ? $t('billing.subscribeNow') : $t('billing.reactivate')}
 					</button>

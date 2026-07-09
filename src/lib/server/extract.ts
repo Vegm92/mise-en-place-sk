@@ -230,7 +230,9 @@ async function callGemini(
 	try {
 		return JSON.parse(raw) as ExtractedInvoice;
 	} catch {
-		throw new Error(`Gemini returned invalid JSON: ${raw.slice(0, 200)}`);
+		// Never embed the raw response — it's customer invoice content (supplier
+		// names, amounts, tax IDs) that would ship to logs/Sentry (issue #254).
+		throw new Error(`Gemini returned invalid JSON (${raw.length} chars)`);
 	}
 }
 
@@ -304,7 +306,8 @@ async function callProvider(
 	try {
 		return { invoice: JSON.parse(raw) as ExtractedInvoice, usage: lastUsage };
 	} catch {
-		throw new Error(`LLM returned invalid JSON: ${raw.slice(0, 200)}`);
+		// Never embed the raw response — it's customer invoice content (issue #254).
+		throw new Error(`LLM returned invalid JSON (${raw.length} chars)`);
 	}
 }
 

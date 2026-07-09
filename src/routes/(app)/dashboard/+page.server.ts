@@ -4,6 +4,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
 import { asc, desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
+import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 
 const MIN_SUPPLIER_GAP_DAYS      = 3;
 const MISSING_INVOICE_MULTIPLIER = 1.5;
@@ -463,25 +464,19 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	}
 };
 
+// Guarded transitions (issue #243) — markPaid now also records paidAt (the
+// reminders action always did) and markUnpaid clears the stale timestamps.
 export const actions: Actions = {
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		await db.update(invoices)
-			.set({ status: 'paid' })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		redirect(303, '/dashboard');
+		const ok = await markInvoicePaid(id, locals.restaurantId!);
+		redirect(303, ok ? '/dashboard' : '/dashboard?conflict=1');
 	},
 	markUnpaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
-		const rid = locals.restaurantId!;
-		const tdb = forTenant(rid);
-		await db.update(invoices)
-			.set({ status: 'pending' })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id)));
-		redirect(303, '/dashboard');
+		const ok = await markInvoiceUnpaid(id, locals.restaurantId!);
+		redirect(303, ok ? '/dashboard' : '/dashboard?conflict=1');
 	},
 };

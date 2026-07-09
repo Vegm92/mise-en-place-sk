@@ -106,12 +106,16 @@ export const actions: Actions = {
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 
-		await db.update(invoices).set({ supplierId: null })
-			.where(tdb.scope(invoices.restaurantId, eq(invoices.supplierId, id)));
-		await db.delete(supplierMetrics)
-			.where(tdb.scope(supplierMetrics.restaurantId, eq(supplierMetrics.supplierId, id)));
-		await db.delete(suppliers)
-			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
+		// One transaction — a crash between statements must not leave invoices
+		// detached from a supplier that still exists (issue #247).
+		await db.transaction(async (tx) => {
+			await tx.update(invoices).set({ supplierId: null })
+				.where(tdb.scope(invoices.restaurantId, eq(invoices.supplierId, id)));
+			await tx.delete(supplierMetrics)
+				.where(tdb.scope(supplierMetrics.restaurantId, eq(supplierMetrics.supplierId, id)));
+			await tx.delete(suppliers)
+				.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
+		});
 
 		redirect(303, '/suppliers');
 	},
