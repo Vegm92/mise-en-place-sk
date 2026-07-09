@@ -49,7 +49,28 @@ export const actions: Actions = {
 
 		// Welcome email is sent once, after onboarding completes (covers both
 		// email and Google sign-ups and fires when the account is actually active).
-		return { success: true };
+		return { success: true, email };
+	},
+
+	// Re-send the verification link from the "check your email" screen, so a
+	// lost or delayed email doesn't strand the user outside the app.
+	resend: async ({ request, locals, url, getClientAddress }) => {
+		const form = await request.formData();
+		const email = (form.get('email') as string)?.trim();
+		if (!email) return fail(422, { error: 'missing' });
+
+		// Success-shaped returns keep the "check your email" screen on screen;
+		// `resent` distinguishes a real send from a rate-limited attempt.
+		if (!(await checkRateLimit(`signup:resend:${getClientAddress()}`, 3))) {
+			return { success: true, email, resent: false };
+		}
+
+		await locals.supabase.auth.resend({
+			type: 'signup',
+			email,
+			options: { emailRedirectTo: `${url.origin}/auth/callback?next=/onboarding` },
+		});
+		return { success: true, email, resent: true };
 	},
 
 	signUpWithGoogle: async ({ request, url, locals }) => {

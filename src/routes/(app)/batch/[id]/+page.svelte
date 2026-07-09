@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { invalidateAll } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
   import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
@@ -171,8 +171,11 @@
     try {
       const resp = await fetch('?/add', { method: 'POST', body: fd, redirect: 'follow' });
       const result = await resp.json() as { type: string; location?: string };
-      if (result.type === 'redirect' && result.location) location.replace(result.location);
-      else { addFiles = []; addSubmitting = false; await invalidateAll(); }
+      if (result.type === 'redirect' && result.location) {
+        addFiles = [];
+        addSubmitting = false;
+        await goto(result.location, { invalidateAll: true });
+      } else { addFiles = []; addSubmitting = false; await invalidateAll(); }
     } catch { addSubmitting = false; }
   }
 

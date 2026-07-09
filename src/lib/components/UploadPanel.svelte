@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
+  import { goto } from '$app/navigation';
   import Upload from '@lucide/svelte/icons/upload';
-  import Mail from '@lucide/svelte/icons/mail';
   import Sparkle from '@lucide/svelte/icons/sparkle';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
@@ -226,7 +226,7 @@
         if (loc) {
           await removeFromOfflineQueue(item.id);
           pendingOfflineCount = await getQueuedCount();
-          location.replace(loc);
+          await goto(loc, { invalidateAll: true });
           return;
         }
       } catch {
@@ -252,7 +252,9 @@
     try {
       const loc = await uploadWithProgress(fd);
       if (loc) {
-        location.replace(loc);
+        // Client-side navigation keeps the app shell (and the user's momentum)
+        // intact — a hard reload here re-runs every layout query for nothing.
+        await goto(loc, { invalidateAll: true });
       } else {
         uploading = false;
         uploadProgress = 0;
@@ -272,10 +274,6 @@
     e.preventDefault();
     isDragging = false;
     addFiles(e.dataTransfer?.files ?? null);
-  }
-
-  function copyEmail() {
-    navigator.clipboard?.writeText('casa-lua-4f8a@inbox.miseenplace.es').catch(() => {});
   }
 
   // ── Lifecycle ────────────────────────────────────────────────────────────
@@ -428,21 +426,6 @@
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
 
-        <!-- Email forwarding -->
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--mep-divider);width:100%;display:flex;align-items:center;gap:10px;">
-          <div style="width:32px;height:32px;border-radius:16px;flex-shrink:0;background:var(--mep-surface);border:1px solid var(--mep-divider);color:var(--mep-fg-2);display:flex;align-items:center;justify-content:center;">
-            <Mail size={14} />
-          </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12px;font-weight:500;color:var(--mep-fg);">{$t('upload.emailForward')}</div>
-            <div class="num" style="font-size:10.5px;color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-              casa-lua-4f8a@inbox.miseenplace.es
-            </div>
-          </div>
-          <button type="button" class="btn btn-ghost" style="height:28px;font-size:11px;padding:0 8px;flex-shrink:0;" onclick={(e) => { e.stopPropagation(); copyEmail(); }}>
-            {$t('upload.copy')}
-          </button>
-        </div>
       </div>
     </div>
 
@@ -617,21 +600,6 @@
           {$t('upload.browseFiles')}
         </button>
 
-        <!-- Email forwarding -->
-        <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--mep-divider);width:100%;max-width:440px;display:flex;align-items:center;gap:12px;">
-          <div style="width:36px;height:36px;border-radius:18px;flex-shrink:0;background:var(--mep-surface);border:1px solid var(--mep-divider);color:var(--mep-fg-2);display:flex;align-items:center;justify-content:center;">
-            <Mail size={16} />
-          </div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{$t('upload.emailForward')}</div>
-            <div class="num" style="font-size:11.5px;color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-              casa-lua-4f8a@inbox.miseenplace.es
-            </div>
-          </div>
-          <button type="button" class="btn btn-ghost" style="height:28px;font-size:11.5px;padding:0 8px;" onclick={(e) => { e.stopPropagation(); copyEmail(); }}>
-            {$t('upload.copy')}
-          </button>
-        </div>
       </div>
     </div>
 
