@@ -2,6 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
+import { eq, sql } from 'drizzle-orm';
 import { TRIAL_DAYS, applyTierSettings } from '$lib/server/billing';
 import { sendEmail, welcomeEmail } from '$lib/server/email';
 import { hasConsent, recordConsent } from '$lib/server/consent';
@@ -34,15 +35,10 @@ export const actions: Actions = {
 			await recordConsent(locals.user.id, 'onboarding');
 		}
 
-		// Idempotency key (issue #250) — claimed only after validation passes, so
-		// a double-submit can't create two restaurants (#241) while a corrected
-		// resubmit still goes through. A replay redirects to '/'.
 		const idemKeyRaw = data.get('idempotency_key');
 		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
-		if (idemKey && !(await claimRequest(idemKey, null))) {
-			redirect(303, '/');
-		}
 
+		const userId = locals.user.id;
 		const slug = name
 			.toLowerCase()
 			.normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -51,35 +47,62 @@ export const actions: Actions = {
 			.slice(0, 60)
 			+ '-' + Math.random().toString(36).slice(2, 7);
 
-		const [restaurant] = await db
-			.insert(restaurants)
-			.values({ name, slug })
-			.returning({ id: restaurants.id });
+		// Idempotent creation (issue #241). A double-submit or the same form in
+		// two tabs must not create two restaurants + two trials + two welcome
+		// emails. The slug carries a random suffix so no unique constraint can
+		// fire, so we serialize per user with an advisory lock and re-check
+		// membership inside it — a replay finds the first submit's restaurant and
+		// becomes a no-op redirect to '/'. The #250 idempotency key is a second
+		// guard for the exact same submit.
+		let newRestaurantId: string | null = null;
+		await db.transaction(async (tx) => {
+			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
 
-		await db.insert(userRestaurants).values({
-			userId: locals.user.id,
-			restaurantId: restaurant.id,
-			role: 'owner',
-		});
+			const existing = await tx
+				.select({ restaurantId: userRestaurants.restaurantId })
+				.from(userRestaurants)
+				.where(eq(userRestaurants.userId, userId))
+				.limit(1);
+			if (existing.length > 0) return;
 
-		// Start 30-day free trial for new restaurant
-		const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-		await db.insert(subscriptions)
-			.values({ restaurantId: restaurant.id, status: 'trialing', trialEndsAt })
-			.onConflictDoUpdate({
-				target: subscriptions.restaurantId,
-				set: { updatedAt: new Date() },
+			if (idemKey && !(await claimRequest(idemKey, null, tx))) return;
+
+			const [restaurant] = await tx
+				.insert(restaurants)
+				.values({ name, slug })
+				.returning({ id: restaurants.id });
+
+			await tx.insert(userRestaurants).values({
+				userId,
+				restaurantId: restaurant.id,
+				role: 'owner',
 			});
 
-		// Persist plan_name / plan_quota so the trial counter and quota gate
-		// have data from day one (layout otherwise falls back to tier defaults).
-		await applyTierSettings(restaurant.id, 'trial');
+			// Start 30-day free trial for new restaurant
+			const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+			await tx.insert(subscriptions)
+				.values({ restaurantId: restaurant.id, status: 'trialing', trialEndsAt })
+				.onConflictDoUpdate({
+					target: subscriptions.restaurantId,
+					set: { updatedAt: new Date() },
+				});
 
-		// Send welcome email (fire-and-forget)
-		if (locals.user.email) {
-			sendEmail(welcomeEmail(locals.user.email, name)).catch(e =>
-				console.error('[onboarding] welcome email failed:', e)
-			);
+			newRestaurantId = restaurant.id;
+		});
+
+		// Side effects only for the submit that actually created the restaurant —
+		// a replay skips them so there is exactly one welcome email.
+		if (newRestaurantId) {
+			// Persist plan_name / plan_quota so the trial counter and quota gate
+			// have data from day one (layout otherwise falls back to tier defaults).
+			await applyTierSettings(newRestaurantId, 'trial');
+
+			// Send welcome email (fire-and-forget)
+			if (locals.user.email) {
+				sendEmail(welcomeEmail(locals.user.email, name)).catch(e =>
+					console.error('[onboarding] welcome email failed:', e)
+				);
+			}
 		}
 
 		redirect(303, '/');

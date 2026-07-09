@@ -163,6 +163,15 @@ export async function processExtractionJob(
 				level: 'warning',
 				tags: { errorClass: extractError, restaurantId },
 			});
+		} else {
+			// Report every other failure too, so a worker failing every job is
+			// visible (#252) - but WITHOUT the raw error: extract.ts embeds
+			// invoice text in some messages and that must not reach Sentry
+			// (PII, #254). Ship only the error class + ids.
+			Sentry.captureException(new Error(`extraction_failed:${extractError}`), {
+				level: 'error',
+				tags: { itemId, errorClass: extractError, restaurantId },
+			});
 		}
 		await markFailed(itemId, extractError);
 		// A failed extraction shouldn't count against the plan quota — give the

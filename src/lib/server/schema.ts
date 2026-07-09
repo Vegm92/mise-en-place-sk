@@ -1,6 +1,6 @@
 /** Drizzle schema — PostgreSQL (Supabase). Single source of truth. */
 import {
-	boolean, index, integer, jsonb, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid
+	boolean, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -18,7 +18,12 @@ export const userRestaurants = pgTable('user_restaurants', {
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	role:         text('role').notNull().default('owner'), // 'owner' | 'member'
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	// Composite PK — a double-submit of onboarding (or the same form in two
+	// tabs) can no longer write duplicate membership rows, which also kept the
+	// "sole member" count in account deletion honest (issue #241).
+	primaryKey({ columns: [t.userId, t.restaurantId] }),
+]);
 
 // ── Business tables (all scoped to restaurant_id) ──────────────────────────
 
@@ -35,7 +40,13 @@ export const suppliers = pgTable('suppliers', {
 	deliveryDays:  text('delivery_days'),
 	paymentTerms:  text('payment_terms'),
 	notes:         text('notes'),
-});
+}, (t) => [
+	// One supplier name per tenant, case-insensitive. The three get-or-create
+	// call sites now upsert via ON CONFLICT (restaurant_id, lower(name)), so
+	// concurrent saves of a new supplier converge on one row instead of racing
+	// to insert clones that would split invoice-number dedup (issue #238).
+	uniqueIndex('uq_suppliers_rid_name').on(t.restaurantId, sql`lower(${t.name})`),
+]);
 
 export const invoices = pgTable('invoices', {
 	id:              serial('id').primaryKey(),
@@ -82,9 +93,15 @@ export const invoices = pgTable('invoices', {
 	index('idx_invoices_deleted_at')
 		.on(t.restaurantId)
 		.where(sql`${t.deletedAt} IS NULL`),
-	index('invoices_content_hash_idx')
+	// UNIQUE (not plain): the content hash is the dedup constraint, not just a
+	// pre-check. A concurrent double-click save of a numberless invoice (NULL
+	// invoice_number, so uq_invoices_rid_supplier_number does not apply) now
+	// loses the race via onConflictDoNothing → empty RETURNING → duplicate
+	// (issue #237). Partial on live rows so a soft-deleted invoice can be
+	// re-saved.
+	uniqueIndex('uq_invoices_rid_content_hash')
 		.on(t.restaurantId, t.contentHash)
-		.where(sql`${t.contentHash} IS NOT NULL`),
+		.where(sql`${t.contentHash} IS NOT NULL AND ${t.deletedAt} IS NULL`),
 	index('idx_invoices_rid_status').on(t.restaurantId, t.status),
 	index('idx_invoices_rid_created_at').on(t.restaurantId, t.createdAt),
 ]);
@@ -388,4 +405,18 @@ export const subscriptions = pgTable('subscriptions', {
 	cancelAtPeriodEnd:    boolean('cancel_at_period_end').notNull().default(false),
 	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:            timestamp('updated_at', { withTimezone: true }).defaultNow(),
+	// Stripe `event.created` of the last lifecycle event applied to this row.
+	// The updated/deleted webhook branch skips events older than this so a
+	// delayed `updated(past_due)` can't clobber a newer `updated(active)`
+	// (out-of-order protection, issue #240).
+	lastEventAt:          timestamp('last_event_at', { withTimezone: true }),
+});
+
+// Stripe webhook event-id dedup (issue #240). Stripe retries deliveries for up
+// to 3 days; the handler claims each event id here (INSERT … ON CONFLICT DO
+// NOTHING RETURNING) and returns early on an empty result so retried events
+// don't re-send emails or re-fire telemetry. Written server-side only.
+export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
+	eventId:     text('event_id').primaryKey(),
+	processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
 });

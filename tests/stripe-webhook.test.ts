@@ -56,13 +56,18 @@ vi.mock('../src/lib/server/db', async () => {
 
 import { eq } from 'drizzle-orm';
 import { handleWebhookEvent, stripe, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
-import { subscriptions, settings } from '../src/lib/server/schema';
+import { subscriptions, settings, stripeWebhookEvents } from '../src/lib/server/schema';
 import { testDb, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
 
 let rid = '';
 
 /** A `customer.subscription.updated` event body for the given tenant/price/status. */
-function subscriptionUpdatedBody(restaurantId: string, priceId: string, status: string): string {
+function subscriptionUpdatedBody(
+	restaurantId: string,
+	priceId: string,
+	status: string,
+	opts?: { id?: string; created?: number },
+): string {
 	const sub = {
 		id: 'sub_test_123',
 		object: 'subscription',
@@ -73,7 +78,15 @@ function subscriptionUpdatedBody(restaurantId: string, priceId: string, status: 
 			data: [{ price: { id: priceId }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }],
 		},
 	};
-	return JSON.stringify({ id: 'evt_test', object: 'event', type: 'customer.subscription.updated', data: { object: sub } });
+	return JSON.stringify({
+		// Unique id by default so the #240 event-id dedup table doesn't treat a
+		// later test's event as an already-processed replay.
+		id: opts?.id ?? `evt_${Math.random().toString(36).slice(2)}`,
+		object: 'event',
+		type: 'customer.subscription.updated',
+		created: opts?.created ?? Math.floor(Date.now() / 1000),
+		data: { object: sub },
+	});
 }
 
 const planRow = async () =>
@@ -144,7 +157,8 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — subscription lifecycle branches',
 		} as never);
 		try {
 			const body = JSON.stringify({
-				id: 'evt_checkout', object: 'event', type: 'checkout.session.completed',
+				id: `evt_checkout_${Math.random().toString(36).slice(2)}`, object: 'event',
+				type: 'checkout.session.completed', created: Math.floor(Date.now() / 1000),
 				data: { object: {
 					id: 'cs_1', object: 'checkout.session',
 					metadata: { restaurantId: r.id }, subscription: 'sub_checkout_1',
@@ -175,7 +189,8 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — subscription lifecycle branches',
 		});
 		try {
 			const body = JSON.stringify({
-				id: 'evt_deleted', object: 'event', type: 'customer.subscription.deleted',
+				id: `evt_deleted_${Math.random().toString(36).slice(2)}`, object: 'event',
+				type: 'customer.subscription.deleted', created: Math.floor(Date.now() / 1000),
 				data: { object: {
 					id: 'sub_del_1', object: 'subscription', status: 'canceled',
 					cancel_at_period_end: false, metadata: { restaurantId: r.id },
@@ -188,6 +203,107 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — subscription lifecycle branches',
 			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
 			expect(row?.status).toBe('canceled');
 			expect(row?.planTier).toBe('trial'); // tierFromPriceId(null) → trial
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+});
+
+/** Sign a body with the module's webhook secret. */
+const sign = (body: string) =>
+	stripe!.webhooks.generateTestHeaderString({ payload: body, secret: MODULE_SECRET });
+
+/**
+ * #240 — Stripe retries deliveries for up to 3 days and does not guarantee
+ * ordering. The handler must (a) process each event id at most once and (b)
+ * ignore an event older than the last one it applied.
+ */
+describe.skipIf(!hasDbEnv)('Stripe webhook — dedup + out-of-order protection', () => {
+	it('processes a given event id only once (retried delivery is a no-op)', async () => {
+		const r = await createTestRestaurant('stripe-dedup');
+		await testDb.insert(subscriptions).values({ restaurantId: r.id, planTier: 'trial', status: 'trialing' });
+		try {
+			const eventId = `evt_dedup_${Math.random().toString(36).slice(2)}`;
+			const body = subscriptionUpdatedBody(r.id, PRICE_PRO, 'active', { id: eventId });
+			await handleWebhookEvent(body, sign(body));
+			const first = (await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id)))[0];
+			expect(first?.planTier).toBe('pro');
+
+			// Simulate drift, then redeliver the SAME event id: dedup must skip it,
+			// leaving our manual change untouched.
+			await testDb.update(subscriptions).set({ planTier: 'trial' }).where(eq(subscriptions.restaurantId, r.id));
+			await handleWebhookEvent(body, sign(body));
+			const second = (await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id)))[0];
+			expect(second?.planTier).toBe('trial'); // not re-applied
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('releases the dedup claim when processing throws, so a retry reprocesses', async () => {
+		const r = await createTestRestaurant('stripe-retry');
+		await testDb.insert(subscriptions).values({ restaurantId: r.id, planTier: 'trial', status: 'trialing' });
+		const eventId = `evt_retry_${Math.random().toString(36).slice(2)}`;
+		const body = JSON.stringify({
+			id: eventId, object: 'event', type: 'checkout.session.completed',
+			created: Math.floor(Date.now() / 1000),
+			data: { object: {
+				id: 'cs_retry', object: 'checkout.session',
+				metadata: { restaurantId: r.id }, subscription: 'sub_retry_1',
+				customer: 'cus_retry_1', customer_details: { email: 'owner@example.com' },
+			} },
+		});
+		try {
+			// First delivery: the Stripe API call inside the handler fails.
+			const failSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockRejectedValueOnce(new Error('stripe 503'));
+			await expect(handleWebhookEvent(body, sign(body))).rejects.toThrow('stripe 503');
+			failSpy.mockRestore();
+
+			// The claim must have been released — retry is not suppressed.
+			const claim = await testDb.select().from(stripeWebhookEvents).where(eq(stripeWebhookEvents.eventId, eventId));
+			expect(claim).toHaveLength(0);
+
+			// Retry with the API recovered: the event now processes.
+			const okSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+				id: 'sub_retry_1', status: 'active', cancel_at_period_end: false,
+				items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] },
+			} as never);
+			try {
+				await handleWebhookEvent(body, sign(body));
+				const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+				expect(row?.planTier).toBe('pro');
+			} finally {
+				okSpy.mockRestore();
+			}
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('ignores an event older than the last one applied', async () => {
+		const r = await createTestRestaurant('stripe-order');
+		await testDb.insert(subscriptions).values({ restaurantId: r.id, planTier: 'trial', status: 'trialing' });
+		try {
+			const t2 = Math.floor(Date.now() / 1000);
+			const t1 = t2 - 3600; // an hour earlier
+
+			// Newer event: active.
+			const active = subscriptionUpdatedBody(r.id, PRICE_PRO, 'active', { created: t2 });
+			await handleWebhookEvent(active, sign(active));
+			expect((await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id)))[0]?.status)
+				.toBe('active');
+
+			// Stale event (created earlier): must NOT revert the just-paid customer.
+			const stalePastDue = subscriptionUpdatedBody(r.id, PRICE_PRO, 'past_due', { created: t1 });
+			await handleWebhookEvent(stalePastDue, sign(stalePastDue));
+			expect((await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id)))[0]?.status)
+				.toBe('active'); // stale event skipped
+
+			// A genuinely newer past_due does apply.
+			const freshPastDue = subscriptionUpdatedBody(r.id, PRICE_PRO, 'past_due', { created: t2 + 3600 });
+			await handleWebhookEvent(freshPastDue, sign(freshPastDue));
+			expect((await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id)))[0]?.status)
+				.toBe('past_due');
 		} finally {
 			await cleanupTestRestaurant(r.id);
 		}
