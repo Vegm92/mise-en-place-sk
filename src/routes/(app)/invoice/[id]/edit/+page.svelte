@@ -1,11 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import type { PageData } from './$types';
+  import type { ActionData, PageData } from './$types';
   import { initRows, addRow, removeRow, updateRow, calcTotal } from '$lib/invoice-items';
   import type { Row } from '$lib/invoice-items';
   import { t } from '$lib/i18n';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
   const { invoice } = $derived(data);
 
@@ -19,6 +19,11 @@
 <div class="p-6 flex justify-center">
 <div class="w-full max-w-[700px]">
   <form method="post" action="?/save" class="flex flex-col gap-4">
+    <input type="hidden" name="version" value={invoice.version} />
+
+    {#if form?.error}
+      <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{form.error}</div>
+    {/if}
 
     <!-- Invoice details -->
     <div class="card p-5">

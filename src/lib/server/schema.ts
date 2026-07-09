@@ -71,6 +71,10 @@ export const invoices = pgTable('invoices', {
 	rejectedAt:      timestamp('rejected_at', { withTimezone: true }),
 	/** ISO timestamp of full effective payment (paid date). */
 	paidAt:          timestamp('paid_at', { withTimezone: true }),
+	/** Optimistic-concurrency counter — the edit form submits it and the
+	 *  UPDATE is guarded by it, so a stale tab gets a 409 instead of silently
+	 *  clobbering another tab's edit (issue #242). */
+	version:         integer('version').notNull().default(1),
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
