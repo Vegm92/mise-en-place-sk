@@ -4,6 +4,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { asc, eq, and, ne, sql } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
+import { getOrCreateSupplierId } from '$lib/server/supplier';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	try {
@@ -112,18 +113,8 @@ export const actions: Actions = {
 
 			let supplierId: number | null = null;
 			if (supplierName) {
-				const existing = await tx.select({ id: suppliers.id })
-					.from(suppliers)
-					.where(tdb.scope(suppliers.restaurantId, eq(suppliers.name, supplierName)))
-					.limit(1);
-				if (existing.length > 0) {
-					supplierId = existing[0].id;
-				} else {
-					const inserted = await tx.insert(suppliers)
-						.values({ name: supplierName, restaurantId: rid })
-						.returning({ id: suppliers.id });
-					supplierId = inserted[0].id;
-				}
+				// Atomic supplier get-or-create (issue #238).
+				supplierId = await getOrCreateSupplierId(rid, supplierName, tx);
 			}
 
 			if (supplierId && invoiceNumber) {

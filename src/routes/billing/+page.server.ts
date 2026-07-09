@@ -5,6 +5,7 @@ import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
+import { trackEvent } from '$lib/server/events';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
@@ -57,11 +58,34 @@ export const actions: Actions = {
 		if (!stripe) error(503, 'Billing not configured — contact support');
 
 		const rid = locals.restaurantId;
+		const tdb = forTenant(rid);
 		const email = locals.user.email ?? '';
 
 		const formData = await request.formData();
 		const tierParam = (formData.get('tier') as string | null) ?? 'starter';
 		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : 'starter') as PlanTier;
+
+		// Refuse a second checkout when the tenant already has a live subscription
+		// (issue #239). Without this, a user with an active plan — or one whose
+		// checkout.session.completed webhook is still in flight — could complete a
+		// second Checkout and hold two subscriptions charging the same card. Plan
+		// changes go through the Customer Portal instead.
+		const [existing] = await db.select({
+			status: subscriptions.status,
+			stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+			stripeCustomerId: subscriptions.stripeCustomerId,
+		})
+			.from(subscriptions)
+			.where(tdb.scope(subscriptions.restaurantId))
+			.limit(1);
+
+		if (existing && (existing.status === 'active' || existing.stripeSubscriptionId)) {
+			if (existing.stripeCustomerId) {
+				const portalUrl = await createPortalSession(existing.stripeCustomerId, `${url.origin}/billing`);
+				redirect(303, portalUrl);
+			}
+			redirect(303, '/billing');
+		}
 
 		// Idempotency key (issue #250) — a double-submit must not spin up two
 		// Stripe checkout sessions. A replay lands back on /billing (a fresh page
@@ -80,12 +104,18 @@ export const actions: Actions = {
 		let checkoutUrl: string;
 		try {
 			const customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
+			// checkout_started (issue #253) — lets checkout drop-off be measured
+			// against plan_upgraded, which only fires on webhook success.
+			trackEvent('checkout_started', rid, { tier });
 			checkoutUrl = await createCheckoutSession(
 				rid,
 				customerId,
 				tier,
 				`${url.origin}/billing?checkout=success`,
 				`${url.origin}/billing`,
+				// Reuse the per-submit idempotency key as the Stripe idempotency key
+				// so a proxy retry can't create a second Checkout session (#239).
+				idemKey ?? undefined,
 			);
 		} catch (err) {
 			// Release the key so the user can retry after a Stripe hiccup.

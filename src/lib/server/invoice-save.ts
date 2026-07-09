@@ -5,7 +5,7 @@
  */
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
-import { suppliers, invoices, invoiceLineItems, extractionCorrections, settings } from './schema';
+import { invoices, invoiceLineItems, extractionCorrections, settings } from './schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit } from './unit-bridge';
 import { runPriceShock, runStockForecast, runBudgetCheck } from './alert-engine';
@@ -13,6 +13,7 @@ import { saveAlerts } from './notifications';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
+import { getOrCreateSupplierId } from './supplier';
 import type { EnrichedLineItem } from './unit-bridge';
 import type { BatchDb, BatchItem } from './batch-core';
 
@@ -241,19 +242,9 @@ export async function saveReviewedInvoice(
 			return;
 		}
 
-		// Upsert supplier
-		const existingSupplier = await tx
-			.select({ id: suppliers.id })
-			.from(suppliers)
-			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.name, supplierName)))
-			.limit(1);
-
-		if (existingSupplier.length > 0) {
-			supplierId = existingSupplier[0].id;
-		} else {
-			const ins = await tx.insert(suppliers).values({ name: supplierName, restaurantId: rid }).returning({ id: suppliers.id });
-			supplierId = ins[0].id;
-		}
+		// Atomic supplier get-or-create — concurrent saves of a new supplier
+		// converge on one row instead of racing to insert clones (issue #238).
+		supplierId = await getOrCreateSupplierId(rid, supplierName, tx);
 
 		// Duplicate check; onConflictDoNothing below handles the race condition
 		if (invoiceNumber.trim()) {

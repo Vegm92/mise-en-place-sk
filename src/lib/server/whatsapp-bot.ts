@@ -13,12 +13,12 @@ import { db } from './db';
 import {
 	invoiceLineItems,
 	invoices,
-	suppliers,
 	whatsappBotSessions,
 	whatsappContacts,
 	whatsappProcessedMessages,
 } from './schema';
 import { computeInvoiceContentHash } from './dedup';
+import { getOrCreateSupplierId } from './supplier';
 import { extractWithProvider, type ExtractedInvoice } from './extract';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
@@ -318,23 +318,8 @@ async function saveWhatsAppInvoice(
 
 	try {
 		await db.transaction(async (tx) => {
-			// Upsert supplier
-			const existingSupplier = await tx
-				.select({ id: suppliers.id })
-				.from(suppliers)
-				.where(tdb.scope(suppliers.restaurantId, eq(suppliers.name, supplierName)))
-				.limit(1);
-
-			let supplierId: number;
-			if (existingSupplier.length > 0) {
-				supplierId = existingSupplier[0].id;
-			} else {
-				const ins = await tx
-					.insert(suppliers)
-					.values({ name: supplierName, restaurantId })
-					.returning({ id: suppliers.id });
-				supplierId = ins[0].id;
-			}
+			// Atomic supplier get-or-create (issue #238).
+			const supplierId = await getOrCreateSupplierId(restaurantId, supplierName, tx);
 
 			// Invoice number duplicate guard
 			if (invoiceNumber) {
