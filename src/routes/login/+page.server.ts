@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { safeRedirect } from '$lib/server/safe-redirect';
 import { checkRateLimit } from '$lib/server/rate-limiter';
@@ -15,15 +15,17 @@ export const actions: Actions = {
 		const password = form.get('password')  as string;
 		const redirectTo = safeRedirect(form.get('redirectTo') as string);
 
-		if (!email || !password) redirect(303, '/login?error=missing');
+		// Failures return fail() instead of redirecting so the form keeps the
+		// typed email — retyping it after a password slip is pure friction.
+		if (!email || !password) return fail(422, { error: 'missing', email: email ?? '' });
 
 		// Brute-force protection: per-IP and per-account attempt caps.
 		const ipOk    = await checkRateLimit(`login:ip:${getClientAddress()}`, 10);
 		const emailOk = await checkRateLimit(`login:email:${email.toLowerCase()}`, 5);
-		if (!ipOk || !emailOk) redirect(303, '/login?error=rate_limited');
+		if (!ipOk || !emailOk) return fail(429, { error: 'rate_limited', email });
 
 		const { error } = await locals.supabase.auth.signInWithPassword({ email, password });
-		if (error) redirect(303, '/login?error=invalid');
+		if (error) return fail(401, { error: 'invalid', email });
 
 		redirect(303, redirectTo);
 	},

@@ -59,9 +59,25 @@
 				<div style="text-align:center;padding:8px 0;">
 					<div style="font-size:32px;margin-bottom:12px;">📧</div>
 					<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 8px;">{$t('signup.checkEmail')}</h1>
-					<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 16px;line-height:1.5;">
+					<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 4px;line-height:1.5;">
 						{$t('signup.checkEmailBody')}
 					</p>
+					{#if form.email}
+						<p style="font-size:13px;font-weight:600;color:var(--mep-fg);margin:0 0 16px;">{form.email}</p>
+					{/if}
+
+					<form method="POST" action="?/resend" style="margin:0 0 12px;">
+						<input type="hidden" name="email" value={form.email ?? ''} />
+						<button type="submit" class="btn btn-secondary" style="height:34px;justify-content:center;width:100%;">
+							{$t('signup.resend')}
+						</button>
+					</form>
+					{#if form.resent === true}
+						<p style="font-size:12px;color:var(--mep-pos);margin:0 0 12px;">{$t('signup.resent')}</p>
+					{:else if form.resent === false}
+						<p style="font-size:12px;color:var(--mep-warn);margin:0 0 12px;">{$t('signup.resendWait')}</p>
+					{/if}
+
 					<p style="font-size:12px;color:var(--mep-fg-4);">
 						{$t('signup.alreadyVerified')} <a href="/login" style="color:var(--mep-acc);">{$t('signup.signInLink')}</a>
 					</p>
