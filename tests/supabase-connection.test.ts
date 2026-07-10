@@ -6,6 +6,11 @@ import { describe, it, expect, afterAll } from 'vitest';
 import postgres from 'postgres';
 import { testSql, closeDb, hasSupabaseEnv } from './helpers/test-db';
 
+// When CI points DATABASE_URL at the ephemeral local Postgres container (no TLS)
+// while Supabase secrets are also present, the pooler-specific assertions and a
+// hardcoded ssl:'require' connection don't apply. Mirror the helper's detection.
+const isLocalDb = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL ?? '');
+
 // 5s force-close + buffer; closeDb now uses end({ timeout:5 }) so this is always met
 afterAll(() => closeDb(), 12_000);
 
@@ -15,11 +20,11 @@ describe.skipIf(!hasSupabaseEnv)('Database connection', () => {
 		expect(Number(row.ok)).toBe(1);
 	});
 
-	it('DATABASE_URL points to the IPv4-accessible pooler hostname', () => {
+	it.skipIf(isLocalDb)('DATABASE_URL points to the IPv4-accessible pooler hostname', () => {
 		expect(process.env.DATABASE_URL).toMatch(/pooler\.supabase\.com/);
 	});
 
-	it('TLS is enforced via pooler (Session Pooler always uses TLS between client and proxy)', () => {
+	it.skipIf(isLocalDb)('TLS is enforced via pooler (Session Pooler always uses TLS between client and proxy)', () => {
 		// Supabase's Session Pooler terminates TLS at the PgBouncer proxy layer.
 		// pg_stat_ssl shows ssl=false for the backend connection — that is expected and correct.
 		// The guarantee is: pooler.supabase.com always requires TLS; no unencrypted path exists.
@@ -31,7 +36,7 @@ describe.skipIf(!hasSupabaseEnv)('Database connection', () => {
 	it('can run concurrent queries without connection errors', async () => {
 		// Dedicated client with max:5 so all queries run truly in parallel.
 		// The shared testSql cap (max:2) would force 3 serialised rounds, risking timeout.
-		const sql5 = postgres(process.env.DATABASE_URL!, { ssl: 'require', max: 5, idle_timeout: 5 });
+		const sql5 = postgres(process.env.DATABASE_URL!, { ssl: isLocalDb ? false : 'require', max: 5, idle_timeout: 5 });
 		try {
 			const results = await Promise.all([
 				sql5`SELECT 1 AS n`,
