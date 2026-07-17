@@ -1,4 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
@@ -9,7 +10,7 @@ import { trackEvent } from '$lib/server/events';
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	try {
+	return handleLoad('budgets', async () => {
 		const [rows, spendRows] = await Promise.all([
 			db.select().from(categoryBudgets).where(tdb.scope(categoryBudgets.restaurantId)),
 
@@ -46,11 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			category_spend,
 			colors: CATEGORY_COLORS,
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[budgets] load failed', e);
-		error(500, 'Failed to load budgets');
-	}
+	});
 };
 
 export const actions: Actions = {

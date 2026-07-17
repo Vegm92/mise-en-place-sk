@@ -1,11 +1,12 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad, Actions } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { asc, eq, and, isNull } from 'drizzle-orm';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	try {
+	return handleLoad('invoice/detail', async () => {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
@@ -50,11 +51,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			invoice: row,
 			lineItems,
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[invoice/detail] load failed', e);
-		error(500, 'Failed to load invoice');
-	}
+	});
 };
 
 export const actions: Actions = {

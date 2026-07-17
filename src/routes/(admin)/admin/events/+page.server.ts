@@ -1,4 +1,4 @@
-import { error } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { systemNotifications, restaurants } from '$lib/server/schema';
@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const typeParam = url.searchParams.get('type') ?? '';
 	const typeFilter = VALID_TYPES.includes(typeParam as typeof VALID_TYPES[number]) ? typeParam : '';
 
-	try {
+	return handleLoad('admin/events', async () => {
 		const offset = (page - 1) * PAGE_SIZE;
 
 		const whereClause = typeFilter
@@ -84,8 +84,5 @@ export const load: PageServerLoad = async ({ url }) => {
 			availableTypes: (typeRows as unknown as Array<{ notification_type: string; cnt: number }>)
 				.map(r => ({ type: r.notification_type, count: Number(r.cnt) })),
 		};
-	} catch (e) {
-		console.error('[admin/events] load failed', e);
-		error(500, 'Failed to load events');
-	}
+	});
 };

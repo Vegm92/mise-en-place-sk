@@ -1,4 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
@@ -101,7 +102,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 
-	try {
+	return handleLoad('dashboard', async () => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const todayIso = today.toISOString().split('T')[0]!;
@@ -457,11 +458,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			spark_data: sparkData,
 			projection: { daily_rate: dailyRate, projected_eom: projectedEom, elapsed_pct: projectedElapsedPct, days_elapsed: daysElapsed, days_in_month: daysInMonth },
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[dashboard] load failed', e);
-		error(500, 'Failed to load dashboard');
-	}
+	});
 };
 
 // Guarded transitions (issue #243) — markPaid now also records paidAt (the
