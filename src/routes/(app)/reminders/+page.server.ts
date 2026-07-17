@@ -1,4 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
@@ -9,7 +10,7 @@ import { markInvoicePaid, acceptInvoice, rejectInvoice } from '$lib/server/invoi
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	try {
+	return handleLoad('reminders', async () => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const todayIso = today.toISOString().split('T')[0]!;
@@ -62,11 +63,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			today:         todayIso,
 			conflict:      url.searchParams.get('conflict') === '1',
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[reminders] load failed', e);
-		error(500, 'Failed to load reminders');
-	}
+	});
 };
 
 // Guarded transitions (issue #243): a stale tab whose invoice was already

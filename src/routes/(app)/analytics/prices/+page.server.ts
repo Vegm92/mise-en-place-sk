@@ -1,4 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
@@ -22,7 +23,7 @@ interface SupplierRow {
 }
 
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
-	try {
+	return handleLoad('analytics/prices', async () => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	const { features } = await parent();
@@ -78,9 +79,5 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		top_decreases,
 		selected_supplier: supplierId,
 	};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[analytics/prices] load failed', e);
-		error(500, 'Failed to load price analytics');
-	}
+	});
 };

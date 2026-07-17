@@ -1,4 +1,5 @@
-import { error, redirect, fail } from '@sveltejs/kit';
+import { redirect, fail } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
@@ -7,7 +8,7 @@ import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotenc
 import { getOrCreateSupplierId } from '$lib/server/supplier';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	try {
+	return handleLoad('invoice/edit', async () => {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
@@ -50,11 +51,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		if (!row) redirect(303, '/invoices');
 
 		return { title: 'Edit Invoice', invoice: row, lineItems };
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[invoice/edit] load failed', e);
-		error(500, 'Failed to load invoice');
-	}
+	});
 };
 
 function toFloat(value: FormDataEntryValue | null): number | null {

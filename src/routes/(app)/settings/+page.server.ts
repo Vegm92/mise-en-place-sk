@@ -1,4 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { settings } from '$lib/server/schema';
@@ -10,7 +11,7 @@ const PRICE_ALERT_KEY = 'price_alert_threshold';
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	try {
+	return handleLoad('settings', async () => {
 		const [row, priceRow] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
@@ -25,11 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			threshold:      row[0]      ? parseInt(row[0].value, 10)          : 80,
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[settings] load failed', e);
-		error(500, 'Failed to load settings');
-	}
+	});
 };
 
 export const actions: Actions = {

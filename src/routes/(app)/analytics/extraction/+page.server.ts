@@ -1,5 +1,5 @@
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 
@@ -34,7 +34,7 @@ interface TrendRow extends Record<string, unknown> {
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
-	try {
+	return handleLoad('analytics/extraction', async () => {
 		// kpisRows, supplierRows, trendRows read from mv_extraction_stats (pre-aggregated).
 		// fieldRows still queries extraction_corrections directly (no rollup needed — it's a small table).
 		const [kpisRows, fieldRows, supplierRows, trendRows] = await Promise.all([
@@ -158,9 +158,5 @@ export const load: PageServerLoad = async ({ locals }) => {
 			})),
 			hasData,
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[analytics/extraction] load failed', e);
-		error(500, 'Failed to load extraction analytics');
-	}
+	});
 };

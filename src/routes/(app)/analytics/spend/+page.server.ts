@@ -1,5 +1,5 @@
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
 import { CATEGORY_COLORS } from '$lib/constants';
@@ -23,7 +23,7 @@ const PERIOD_MONTH_FILTER: Record<string, SQL | null> = {
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
-	try {
+	return handleLoad('analytics/spend', async () => {
 		let period = url.searchParams.get('period') ?? 'month';
 		if (!(period in PERIOD_MONTH_FILTER)) period = 'month';
 		const monthFilter = PERIOD_MONTH_FILTER[period];
@@ -122,9 +122,5 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const kpis = kpisRows[0] ?? { total_items_spend: 0, total_line_items: 0, unique_items: 0, avg_invoice_items: null };
 
 		return { title: 'Spend Analysis', top_items, category_spend, kpis, period };
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[analytics/spend] load failed', e);
-		error(500, 'Failed to load spend analytics');
-	}
+	});
 };

@@ -1,5 +1,5 @@
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
@@ -9,7 +9,7 @@ import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliabilit
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	try {
+	return handleLoad('suppliers', async () => {
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -124,10 +124,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 			suppliers: supplierList,
 			categories: VALID_CATEGORIES,
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[suppliers] load failed', e);
-		error(500, 'Failed to load suppliers');
-	}
+	});
 };
 

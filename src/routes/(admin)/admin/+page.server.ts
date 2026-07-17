@@ -1,11 +1,11 @@
-import { error } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { invoices, suppliers, systemNotifications, restaurants, uploadSessions } from '$lib/server/schema';
 import { sql, count } from 'drizzle-orm';
 
 export const load: PageServerLoad = async () => {
-	try {
+	return handleLoad('admin/overview', async () => {
 		const [
 			invoices7dRow,
 			activeRestaurants7dRow,
@@ -70,8 +70,5 @@ export const load: PageServerLoad = async () => {
 				invoice_count: number; supplier_count: number;
 			}>,
 		};
-	} catch (e) {
-		console.error('[admin/overview] load failed', e);
-		error(500, 'Failed to load admin overview');
-	}
+	});
 };

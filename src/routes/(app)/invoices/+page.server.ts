@@ -1,4 +1,5 @@
-import { error, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
@@ -12,7 +13,7 @@ const PAGE_SIZE = 50;
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	try {
+	return handleLoad('invoices', async () => {
 		const status     = url.searchParams.get('status') ?? '';
 		const supplierId = url.searchParams.get('supplier_id') ?? '';
 		const dateFrom   = url.searchParams.get('date_from') ?? '';
@@ -109,11 +110,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			conflict: url.searchParams.get('conflict') === '1',
 			pagination: { page, pageSize: PAGE_SIZE, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) },
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[invoices] load failed', e);
-		error(500, 'Failed to load invoices');
-	}
+	});
 };
 
 export const actions: Actions = {

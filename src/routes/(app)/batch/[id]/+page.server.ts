@@ -1,4 +1,5 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
+import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
@@ -44,7 +45,7 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-	try {
+	return handleLoad('batch', async () => {
 		const items = await getBatchItems(params.id);
 		if (!items.length) redirect(303, '/?error=Session+not+found');
 
@@ -93,11 +94,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			openCount: open.length,
 			reviewedCount: items.filter(i => i.status === 'confirmed').length,
 		};
-	} catch (e) {
-		if (e && typeof e === 'object' && ('status' in e || 'location' in e)) throw e;
-		console.error('[batch] load failed', e);
-		error(500, 'Failed to load upload batch');
-	}
+	});
 };
 
 async function settledRedirect(batchId: string): Promise<never> {
