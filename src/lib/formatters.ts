@@ -70,3 +70,12 @@ export function shiftMonth(ym: string, delta: number): string {
 	while (month > 12) { month -= 12; year++; }
 	return `${year}-${String(month).padStart(2, '0')}`;
 }
+
+/** Validate a "?month=YYYY-MM" query param, clamped to not-future */
+export function parseMonthParam(param: string | null, currentMonth: string): string {
+	if (!param) return currentMonth;
+	if (!/^\d{4}-\d{2}$/.test(param)) return currentMonth;
+	const month = parseInt(param.slice(5, 7), 10);
+	if (month < 1 || month > 12) return currentMonth;
+	return param > currentMonth ? currentMonth : param;
+}

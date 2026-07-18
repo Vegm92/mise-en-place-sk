@@ -1,18 +1,23 @@
-import { redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { trackEvent } from '$lib/server/events';
+import { toMonthStr, parseMonthParam } from '$lib/formatters';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
+	const currentMonth = toMonthStr(new Date());
+	const selectedMonth = parseMonthParam(url.searchParams.get('month'), currentMonth);
+
 	return handleLoad('budgets', async () => {
 		const [rows, spendRows] = await Promise.all([
-			db.select().from(categoryBudgets).where(tdb.scope(categoryBudgets.restaurantId)),
+			db.select().from(categoryBudgets)
+				.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.month, selectedMonth))),
 
 			db.execute<{ category: string; total: number }>(sql`
 				SELECT COALESCE(s.category, 'Other') AS category,
@@ -21,7 +26,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
-				  AND TO_CHAR(i.invoice_date::date, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')
+				  AND TO_CHAR(i.invoice_date::date, 'YYYY-MM') = ${selectedMonth}
 				GROUP BY COALESCE(s.category, 'Other')
 			`),
 		]);
@@ -46,6 +51,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			budgets,
 			category_spend,
 			colors: CATEGORY_COLORS,
+			selectedMonth,
+			currentMonth,
 		};
 	});
 };
@@ -55,6 +62,15 @@ export const actions: Actions = {
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
+
+		// Only the current month can ever be edited — a past-month submission
+		// (e.g. a stale tab left open across a month boundary) is rejected here
+		// rather than trusted from the client, which only hides the Save button.
+		const currentMonth = toMonthStr(new Date());
+		const submittedMonth = String(data.get('_month') ?? '');
+		if (submittedMonth !== currentMonth) {
+			return fail(403, { error: 'Only the current month can be edited.' });
+		}
 
 		// Categories list is passed from the form so new custom ones are included
 		let categories: string[];
@@ -76,15 +92,15 @@ export const actions: Actions = {
 			const amount = parseFloat(raw);
 			if (!isNaN(amount) && amount >= 0) {
 				await db.insert(categoryBudgets)
-					.values({ restaurantId: rid, category, monthlyBudget: amount })
+					.values({ restaurantId: rid, category, month: currentMonth, monthlyBudget: amount })
 					.onConflictDoUpdate({
-						target: [categoryBudgets.restaurantId, categoryBudgets.category],
+						target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 						set: { monthlyBudget: amount },
 					});
 				setCount++;
 			} else {
 				await db.delete(categoryBudgets)
-					.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.category, category)));
+					.where(tdb.scope(categoryBudgets.restaurantId, and(eq(categoryBudgets.category, category), eq(categoryBudgets.month, currentMonth))));
 			}
 		}));
 

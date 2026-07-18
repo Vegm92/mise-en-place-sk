@@ -161,9 +161,10 @@ export const settings = pgTable('settings', {
 export const categoryBudgets = pgTable('category_budgets', {
 	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	category:      text('category').notNull(),
+	month:         text('month').notNull(),
 	monthlyBudget: real('monthly_budget').notNull(),
 }, (t) => [
-	uniqueIndex('category_budgets_restaurant_category_unique').on(t.restaurantId, t.category),
+	uniqueIndex('category_budgets_restaurant_category_month_unique').on(t.restaurantId, t.category, t.month),
 ]);
 
 export const unitConversions = pgTable('unit_conversions', {
