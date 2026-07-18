@@ -49,6 +49,14 @@
 
   --mep-shadow-card: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);
   --mep-shadow-pop:  0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10);
+
+  /* Categorical series (fixed order, never cycled — see dataviz color formula) */
+  --mep-series-1: #2a78d6;
+  --mep-series-2: #008300;
+  --mep-series-3: #e87ba4;
+  --mep-series-4: #eda100;
+  --mep-series-5: #1baf7a;
+  --mep-series-other: #9aa3af;
 }
 
 /* Dark */
@@ -71,6 +79,14 @@
 
   --mep-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
   --mep-shadow-pop:  0 8px 24px rgba(0, 0, 0, 0.4), 0 16px 48px rgba(0, 0, 0, 0.4);
+
+  /* Categorical series — same 6 hues, stepped for the dark surface */
+  --mep-series-1: #3987e5;
+  --mep-series-2: #008300;
+  --mep-series-3: #d55181;
+  --mep-series-4: #c98500;
+  --mep-series-5: #199e70;
+  --mep-series-other: #6f6a62;
 
   /* WCAG AA-adjusted semantics for dark */
   --mep-pos:       #4cae7d;
