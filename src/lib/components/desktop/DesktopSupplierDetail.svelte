@@ -583,12 +583,12 @@
             <div class="subtitle" style="margin-bottom:12px;">{$t('sup.products.dominance')}</div>
             <div style="display:flex;gap:24px;align-items:center;">
               <!-- Donut -->
-              <div style="position:relative;flex-shrink:0;width:160px;height:160px;">
-                <svg width="160" height="160" viewBox="0 0 160 160" style="transform:rotate(-90deg);">
+              <div style="position:relative;flex-shrink:0;width:180px;height:180px;">
+                <svg width="180" height="180" viewBox="0 0 180 180" style="overflow:visible;transform:rotate(-90deg);">
                   {#each productDonut.slices as slice, i}
                     {@const CIRC = 2 * Math.PI * 70}
                     {@const GAP = productDonut.slices.length > 1 ? 2 : 0}
-                    <circle cx="80" cy="80" r="70" fill="none"
+                    <circle cx="90" cy="90" r="70" fill="none"
                       stroke={slice.color}
                       stroke-width={hoveredSlice === i ? 30 : 26}
                       stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"

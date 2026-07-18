@@ -328,12 +328,12 @@
         <div class="card" style="padding:14px;">
           <div class="subtitle" style="margin-bottom:12px;">{$t('sup.products.dominance')}</div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
-            <div style="position:relative;width:132px;height:132px;">
-              <svg width="132" height="132" viewBox="0 0 132 132" style="transform:rotate(-90deg);">
+            <div style="position:relative;width:156px;height:156px;">
+              <svg width="156" height="156" viewBox="0 0 156 156" style="overflow:visible;transform:rotate(-90deg);">
                 {#each productDonut.slices as slice}
                   {@const CIRC = 2 * Math.PI * 60}
                   {@const GAP = productDonut.slices.length > 1 ? 2 : 0}
-                  <circle cx="66" cy="66" r="60" fill="none"
+                  <circle cx="78" cy="78" r="60" fill="none"
                     stroke={slice.color} stroke-width="22"
                     stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
                     stroke-dashoffset={-slice.offset}
