@@ -31,13 +31,33 @@
 
   const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
 
-  const topProducts = $derived(
-    [...data.products]
+  // Product spend donut â€” top 5 + "Other", fixed categorical hue order (never cycled)
+  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
+  const productDonut = $derived((() => {
+    const ranked = [...data.products]
       .map(p => ({ ...p, spend: (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
-      .sort((a, b) => b.spend - a.spend)
-      .slice(0, 5)
-  );
-  const productMax = $derived(Math.max(...topProducts.map(p => p.spend), 1));
+      .sort((a, b) => b.spend - a.spend);
+    const total = ranked.reduce((a, p) => a + p.spend, 0);
+    if (total <= 0) return { slices: [], total: 0 };
+
+    const top = ranked.slice(0, 5);
+    const rest = ranked.slice(5);
+    const restSpend = rest.reduce((a, p) => a + p.spend, 0);
+
+    const entries = top.map((p, i) => ({ label: p.description ?? 'â€”', spend: p.spend, color: SERIES_COLORS[i] }));
+    if (restSpend > 0) entries.push({ label: $t('sup.products.other'), spend: restSpend, color: 'var(--mep-series-other)' });
+
+    let cursor = 0;
+    const CIRC = 2 * Math.PI * 60;
+    const slices = entries.map(e => {
+      const pct = e.spend / total;
+      const dash = pct * CIRC;
+      const slice = { ...e, pct, dash, offset: cursor };
+      cursor += dash;
+      return slice;
+    });
+    return { slices, total };
+  })());
 
   const today   = new Date().toISOString().slice(0, 10);
   const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
@@ -306,20 +326,35 @@
         </div>
       {:else}
         <div class="card" style="padding:14px;">
-          <div class="subtitle" style="margin-bottom:10px;">{$t('sup.products.topSpend')}</div>
-          <div style="display:flex;flex-direction:column;gap:9px;">
-            {#each topProducts as p (p.description + '|' + p.unit)}
-              {@const pct = productMax > 0 ? (p.spend / productMax) * 100 : 0}
-              <div>
-                <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-2);margin-bottom:3px;">
-                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{p.description ?? '—'}</span>
-                  <span class="num" style="flex-shrink:0;margin-left:8px;color:var(--mep-fg);font-weight:500;">{fmtEur(p.spend)}</span>
-                </div>
-                <div style="height:10px;background:var(--mep-surface-2);border-radius:3px;overflow:hidden;">
-                  <div style="height:100%;width:{pct}%;background:{color};border-radius:3px;"></div>
-                </div>
+          <div class="subtitle" style="margin-bottom:12px;">{$t('sup.products.dominance')}</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+            <div style="position:relative;width:156px;height:156px;">
+              <svg width="156" height="156" viewBox="0 0 156 156" style="overflow:visible;transform:rotate(-90deg);">
+                {#each productDonut.slices as slice}
+                  {@const CIRC = 2 * Math.PI * 60}
+                  {@const GAP = productDonut.slices.length > 1 ? 2 : 0}
+                  <circle cx="78" cy="78" r="60" fill="none"
+                    stroke={slice.color} stroke-width="22"
+                    stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
+                    stroke-dashoffset={-slice.offset}
+                    role="img" aria-label="{slice.label}: {fmtEur(slice.spend)} ({(slice.pct * 100).toFixed(0)}%)" />
+                {/each}
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total)}</span>
+                <span style="font-size:9.5px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
               </div>
-            {/each}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px;width:100%;">
+              {#each productDonut.slices as slice}
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="width:9px;height:9px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
+                  <span style="font-size:12px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{slice.label}</span>
+                  <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{(slice.pct * 100).toFixed(0)}%</span>
+                  <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:70px;text-align:right;">{fmtEur(slice.spend)}</span>
+                </div>
+              {/each}
+            </div>
           </div>
         </div>
         {#each data.products as prod ((prod.description ?? '') + '|' + (prod.unit ?? ''))}
