@@ -15,9 +15,9 @@ const PERIOD_DATE_SQL: Record<string, SQL> = {
 };
 
 const PERIOD_MONTH_FILTER: Record<string, SQL | null> = {
-	month:   sql`AND m.month = TO_CHAR(NOW(), 'YYYY-MM')`,
-	quarter: sql`AND m.month >= TO_CHAR((NOW() - INTERVAL '3 months')::date, 'YYYY-MM')`,
-	half:    sql`AND m.month >= TO_CHAR((NOW() - INTERVAL '6 months')::date, 'YYYY-MM')`,
+	month:   sql`AND month = TO_CHAR(NOW(), 'YYYY-MM')`,
+	quarter: sql`AND month >= TO_CHAR((NOW() - INTERVAL '3 months')::date, 'YYYY-MM')`,
+	half:    sql`AND month >= TO_CHAR((NOW() - INTERVAL '6 months')::date, 'YYYY-MM')`,
 	all:     null,
 };
 

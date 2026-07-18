@@ -20,10 +20,26 @@ export async function seedAdminUser(): Promise<void> {
 		throw new Error('[auth-seed] AUTH_ADMIN_PASSWORD is still the default "changeme" — refusing to start in production. Set a strong password in your environment.');
 	}
 
+	// Skip if Supabase is unreachable (local dev without credentials).
+	// Doing a DNS check avoids the SDK's retry loop which generates unhandled
+	// promise rejections as a side effect even when the final error is caught.
+	const supabaseHost = new URL(env.SUPABASE_URL!).hostname;
+	try {
+		const { promises: dns } = await import('dns');
+		await dns.lookup(supabaseHost);
+	} catch {
+		console.warn('[auth-seed] Supabase unreachable — skipping admin seed (local dev)');
+		return;
+	}
+
 	const supabase = createSupabaseAdminClient();
 
 	// Check if user already exists
-	const { data: existing } = await supabase.auth.admin.listUsers();
+	const { data: existing, error: listError } = await supabase.auth.admin.listUsers();
+	if (listError) {
+		console.warn('[auth-seed] Could not list users — skipping admin seed:', listError.message);
+		return;
+	}
 	const alreadyExists = existing?.users?.some(u => u.email === email);
 	if (alreadyExists) return;
 
