@@ -12,7 +12,7 @@
  * Factory over an injected drizzle instance so tests can run the real SQL
  * against the test database; `batch.ts` binds it to the app connection.
  */
-import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, lt, ne, sql } from 'drizzle-orm';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
@@ -162,7 +162,7 @@ export function createBatchStore(db: BatchDb) {
 
 	async function cleanupStaleBatches(): Promise<void> {
 		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-		await db.delete(uploadBatches).where(sql`${uploadBatches.createdAt} < ${cutoff}`);
+		await db.delete(uploadBatches).where(lt(uploadBatches.createdAt, cutoff));
 	}
 
 	// ── Guarded transitions ────────────────────────────────────────────────────

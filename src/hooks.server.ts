@@ -30,9 +30,14 @@ export const handleError = Sentry.handleErrorWithSentry(({ error }: { error: unk
 	console.error('[server error]', error);
 });
 
-cleanupStaleBatches().catch(e => console.error('[hooks] batch cleanup error:', e));
-cleanupProcessedRequests().catch(e => console.error('[hooks] idempotency cleanup error:', e));
-seedAdminUser().catch(e => console.error('[hooks] seed error:', e));
+function isNetworkUnreachable(e: unknown): boolean {
+	const msg = String(e instanceof Error ? ((e as NodeJS.ErrnoException).code ?? (e.cause as Error | undefined)?.message ?? e.message) : e);
+	return msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed');
+}
+
+cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
+cleanupProcessedRequests().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] idempotency cleanup error:', e); });
+seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
@@ -45,8 +50,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Attach Supabase server client (handles cookie-based session)
 	event.locals.supabase = createSupabaseServerClient(event.cookies);
 
-	// Resolve authenticated user (validates JWT, not just cookie)
-	const { data: { user } } = await event.locals.supabase.auth.getUser();
+	// Resolve authenticated user (validates JWT, not just cookie).
+	// Wrap in try-catch: Supabase auth-js retries on network failure and each
+	// retry attempt surfaces as a TypeError; catching here silences the flood
+	// in local dev when the remote Supabase project is unreachable.
+	let user: App.Locals['user'] = null;
+	try {
+		({ data: { user } } = await event.locals.supabase.auth.getUser());
+	} catch {
+		// Network unreachable — treat as unauthenticated
+	}
 	event.locals.user = user;
 
 	// Resolve active restaurant for this request
