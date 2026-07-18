@@ -39,12 +39,20 @@
     timelinessScore: number;
   }
   interface MonthlyBar { label: string; value: number; partial: boolean }
+  interface Conversion {
+    id: number;
+    ingredient: string;
+    purchaseUnit: string;
+    canonicalUnit: string;
+    conversionFactor: number;
+  }
 
   let {
     supplier: s,
     invoices,
     metrics: m,
     monthly,
+    conversions,
     tab       = $bindable<'resumen'|'facturas'|'productos'|'conversiones'>('resumen'),
     editing   = $bindable(false),
     confirmDelete = $bindable(false),
@@ -53,6 +61,7 @@
     invoices: Invoice[];
     metrics: Metrics | null;
     monthly: MonthlyBar[];
+    conversions: Conversion[];
     tab?: 'resumen'|'facturas'|'productos'|'conversiones';
     editing?: boolean;
     confirmDelete?: boolean;
@@ -525,12 +534,76 @@
 
       <!-- ── CONVERSIONES ── -->
       {:else if tab === 'conversiones'}
-        <div class="card" style="padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;">
-          <div style="font-size:28px;opacity:0.3;margin-bottom:4px;">⚖️</div>
-          <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.conversions.title')}</p>
-          <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:340px;">
-            {$t('sup.conversions.desc')}
-          </p>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+
+          {#if conversions.length > 0}
+            <div class="card" style="padding:0;overflow:hidden;">
+              <table class="tbl" style="table-layout:fixed;">
+                <thead>
+                  <tr>
+                    <th>{$t('sup.conv.ingredient')}</th>
+                    <th style="width:140px;">{$t('sup.conv.purchaseUnit')}</th>
+                    <th style="width:140px;">{$t('sup.conv.canonicalUnit')}</th>
+                    <th class="num" style="width:100px;">{$t('sup.conv.factor')}</th>
+                    <th style="width:80px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each conversions as conv (conv.id)}
+                    <tr>
+                      <td style="font-size:12.5px;">{conv.ingredient}</td>
+                      <td style="font-size:12.5px;color:var(--mep-fg-2);">{conv.purchaseUnit}</td>
+                      <td style="font-size:12.5px;color:var(--mep-fg-2);">{conv.canonicalUnit}</td>
+                      <td class="num" style="font-size:12.5px;">{conv.conversionFactor}</td>
+                      <td>
+                        <form method="post" action="?/deleteConversion" style="margin:0;">
+                          <input type="hidden" name="conversion_id" value={conv.id} />
+                          <button type="submit" class="btn"
+                            style="height:26px;font-size:11px;color:#E05555;border-color:#E05555;padding:0 8px;">
+                            {$t('sup.conv.delete')}
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {:else}
+            <div class="card" style="padding:20px;display:flex;align-items:center;gap:10px;">
+              <span style="font-size:22px;opacity:0.35;">⚖️</span>
+              <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.conv.empty')}</p>
+            </div>
+          {/if}
+
+          <!-- Add conversion form -->
+          <div class="card" style="padding:16px;">
+            <p class="body-strong" style="margin-bottom:12px;">{$t('sup.conv.add')}</p>
+            <form method="post" action="?/addConversion"
+              style="display:grid;grid-template-columns:1fr 1fr 1fr 100px auto;gap:8px;align-items:end;">
+              <div>
+                <label for="conv-ingredient" class="label" style="display:block;margin-bottom:3px;">{$t('sup.conv.ingredient')}</label>
+                <input id="conv-ingredient" class="input" name="ingredient" required placeholder={$t('sup.conv.ph.ingredient')} style="width:100%;" />
+              </div>
+              <div>
+                <label for="conv-purchase-unit" class="label" style="display:block;margin-bottom:3px;">{$t('sup.conv.purchaseUnit')}</label>
+                <input id="conv-purchase-unit" class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} style="width:100%;" />
+              </div>
+              <div>
+                <label for="conv-canonical-unit" class="label" style="display:block;margin-bottom:3px;">{$t('sup.conv.canonicalUnit')}</label>
+                <input id="conv-canonical-unit" class="input" name="canonical_unit" required placeholder={$t('sup.conv.ph.canonical')} style="width:100%;" />
+              </div>
+              <div>
+                <label for="conv-factor" class="label" style="display:block;margin-bottom:3px;">{$t('sup.conv.factor')}</label>
+                <input id="conv-factor" class="input" name="conversion_factor" type="number" min="0.001" step="any" required
+                  placeholder="1" style="width:100%;" />
+              </div>
+              <button type="submit" class="btn btn-primary" style="height:36px;font-size:12.5px;white-space:nowrap;">
+                + {$t('sup.conv.add')}
+              </button>
+            </form>
+          </div>
+
         </div>
       {/if}
 
