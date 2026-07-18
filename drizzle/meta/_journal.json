@@ -120,6 +120,13 @@
 			"when": 1783609380000,
 			"tag": "0016_stripe_webhook_dedup",
 			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "7",
+			"when": 1783609440000,
+			"tag": "0017_category_budgets_month",
+			"breakpoints": true
 		}
 	]
 }

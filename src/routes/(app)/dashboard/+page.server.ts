@@ -6,6 +6,7 @@ import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, syste
 import { asc, desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
+import { parseMonthParam, shiftMonth } from '$lib/formatters';
 
 const MIN_SUPPLIER_GAP_DAYS      = 3;
 const MISSING_INVOICE_MULTIPLIER = 1.5;
@@ -79,22 +80,6 @@ async function detectMissingInvoices(today: Date, restaurantId: string): Promise
 	}
 
 	return alerts.sort((a, b) => b.days_late - a.days_late);
-}
-
-function parseMonthParam(param: string | null, currentMonth: string): string {
-	if (!param) return currentMonth;
-	if (!/^\d{4}-\d{2}$/.test(param)) return currentMonth;
-	const month = parseInt(param.slice(5, 7), 10);
-	if (month < 1 || month > 12) return currentMonth;
-	return param > currentMonth ? currentMonth : param;
-}
-
-function shiftMonth(ym: string, delta: number): string {
-	let year = parseInt(ym.slice(0, 4), 10);
-	let month = parseInt(ym.slice(5, 7), 10) + delta;
-	while (month <= 0) { month += 12; year--; }
-	while (month > 12) { month -= 12; year++; }
-	return `${year}-${String(month).padStart(2, '0')}`;
 }
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -215,7 +200,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.select({ category: categoryBudgets.category, monthly_budget: categoryBudgets.monthlyBudget })
 				.from(categoryBudgets)
-				.where(tdb.scope(categoryBudgets.restaurantId)),
+				.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.month, selectedMonth))),
 
 			db.select({ value: settings.value })
 				.from(settings)

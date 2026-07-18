@@ -16,6 +16,8 @@ import {
 import { categoryBudgets } from '../src/lib/server/schema';
 import { VALID_CATEGORIES } from '../src/lib/constants';
 
+const MONTH = '2026-01';
+
 let rid1 = '', rid2 = '';
 
 beforeAll(async () => {
@@ -39,9 +41,9 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	it('inserts a budget for a VALID_CATEGORY', async () => {
 		const cat = VALID_CATEGORIES[0];
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid1, category: cat, monthlyBudget: 1500 })
+			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: 1500 })
 			.onConflictDoUpdate({
-				target: [categoryBudgets.restaurantId, categoryBudgets.category],
+				target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 				set: { monthlyBudget: 1500 },
 			});
 
@@ -55,9 +57,9 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	it('updates an existing budget via upsert', async () => {
 		const cat = VALID_CATEGORIES[0];
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid1, category: cat, monthlyBudget: 2000 })
+			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: 2000 })
 			.onConflictDoUpdate({
-				target: [categoryBudgets.restaurantId, categoryBudgets.category],
+				target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 				set: { monthlyBudget: 2000 },
 			});
 
@@ -71,9 +73,9 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	it('deletes a budget row when the amount is cleared', async () => {
 		const cat = VALID_CATEGORIES[1];
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid1, category: cat, monthlyBudget: 800 })
+			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: 800 })
 			.onConflictDoUpdate({
-				target: [categoryBudgets.restaurantId, categoryBudgets.category],
+				target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 				set: { monthlyBudget: 800 },
 			});
 
@@ -90,11 +92,11 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — upsert and delete', () => {
 	it('duplicate insert is rejected by the unique constraint', async () => {
 		const cat = VALID_CATEGORIES[2];
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid1, category: cat, monthlyBudget: 500 });
+			.values({ restaurantId: rid1, category: cat, month: MONTH, monthlyBudget: 500 });
 
 		await expect(
-			testSql`INSERT INTO category_budgets (restaurant_id, category, monthly_budget)
-			        VALUES (${rid1}, ${cat}, 600)`
+			testSql`INSERT INTO category_budgets (restaurant_id, category, month, monthly_budget)
+			        VALUES (${rid1}, ${cat}, ${MONTH}, 600)`
 		).rejects.toThrow();
 	});
 });
@@ -108,9 +110,9 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — custom categories', () => {
 		expect(VALID_CATEGORIES).not.toContain(customCat);
 
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid1, category: customCat, monthlyBudget: 350 })
+			.values({ restaurantId: rid1, category: customCat, month: MONTH, monthlyBudget: 350 })
 			.onConflictDoUpdate({
-				target: [categoryBudgets.restaurantId, categoryBudgets.category],
+				target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 				set: { monthlyBudget: 350 },
 			});
 
@@ -144,9 +146,9 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — custom categories', () => {
 
 	it('updates the custom category budget via upsert', async () => {
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid1, category: customCat, monthlyBudget: 500 })
+			.values({ restaurantId: rid1, category: customCat, month: MONTH, monthlyBudget: 500 })
 			.onConflictDoUpdate({
-				target: [categoryBudgets.restaurantId, categoryBudgets.category],
+				target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 				set: { monthlyBudget: 500 },
 			});
 
@@ -164,15 +166,15 @@ describe.skipIf(!hasDbEnv)('categoryBudgets — multi-tenancy isolation', () => 
 
 	beforeAll(async () => {
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid1, category: sharedName, monthlyBudget: 1000 })
+			.values({ restaurantId: rid1, category: sharedName, month: MONTH, monthlyBudget: 1000 })
 			.onConflictDoUpdate({
-				target: [categoryBudgets.restaurantId, categoryBudgets.category],
+				target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 				set: { monthlyBudget: 1000 },
 			});
 		await testDb.insert(categoryBudgets)
-			.values({ restaurantId: rid2, category: sharedName, monthlyBudget: 9999 })
+			.values({ restaurantId: rid2, category: sharedName, month: MONTH, monthlyBudget: 9999 })
 			.onConflictDoUpdate({
-				target: [categoryBudgets.restaurantId, categoryBudgets.category],
+				target: [categoryBudgets.restaurantId, categoryBudgets.category, categoryBudgets.month],
 				set: { monthlyBudget: 9999 },
 			});
 	});
