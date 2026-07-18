@@ -167,6 +167,7 @@ describe.skipIf(!hasDbEnv)('category_budgets — upsert', () => {
 		await testDb.insert(categoryBudgets).values({
 			restaurantId:  rid1,
 			category:      'Carnes y Derivados',
+			month:         '2026-01',
 			monthlyBudget: 3000,
 		});
 		const [row] = await testDb.select().from(categoryBudgets)
@@ -179,9 +180,9 @@ describe.skipIf(!hasDbEnv)('category_budgets — upsert', () => {
 
 	it('upsert updates the budget without inserting a duplicate', async () => {
 		await testSql`
-			INSERT INTO category_budgets (restaurant_id, category, monthly_budget)
-			VALUES (${rid1}, 'Carnes y Derivados', 3500)
-			ON CONFLICT (restaurant_id, category) DO UPDATE SET monthly_budget = EXCLUDED.monthly_budget
+			INSERT INTO category_budgets (restaurant_id, category, month, monthly_budget)
+			VALUES (${rid1}, 'Carnes y Derivados', '2026-01', 3500)
+			ON CONFLICT (restaurant_id, category, month) DO UPDATE SET monthly_budget = EXCLUDED.monthly_budget
 		`;
 		const rows = await testDb.select().from(categoryBudgets)
 			.where(and(
@@ -280,7 +281,7 @@ describe.skipIf(!hasDbEnv)('cascade delete — restaurant removal', () => {
 		}).returning();
 
 		await testDb.insert(categoryBudgets).values({
-			restaurantId: rid1, category: 'Bebidas', monthlyBudget: 500,
+			restaurantId: rid1, category: 'Bebidas', month: '2026-01', monthlyBudget: 500,
 		}).onConflictDoNothing();
 
 		// Delete restaurant — should cascade

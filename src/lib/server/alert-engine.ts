@@ -7,6 +7,7 @@
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { toMonthStr } from '$lib/formatters';
 import type { EnrichedLineItem } from './unit-bridge';
 
 const LOW_STOCK_DAYS = 3;
@@ -155,11 +156,12 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
 	const thresholdFrac = thresholdPct / 100;
 
-	// 3. Monthly budget for category
+	// 3. Monthly budget for category (current month only)
+	const currentMonth = toMonthStr(new Date());
 	const budgetRows = await db
 		.select({ monthlyBudget: categoryBudgets.monthlyBudget })
 		.from(categoryBudgets)
-		.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.category, category)))
+		.where(tdb.scope(categoryBudgets.restaurantId, and(eq(categoryBudgets.category, category), eq(categoryBudgets.month, currentMonth))))
 		.limit(1);
 	const monthlyBudget = budgetRows[0]?.monthlyBudget;
 	if (!monthlyBudget || monthlyBudget <= 0) return [];

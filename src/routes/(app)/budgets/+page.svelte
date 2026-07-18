@@ -2,7 +2,8 @@
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
   import { locale, t } from '$lib/i18n';
-  import { fmtEur, semColor } from '$lib/formatters';
+  import { fmtEur, semColor, shiftMonth } from '$lib/formatters';
+  import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -13,6 +14,11 @@
   let showAddForm = $state(false);
 
   const allCategories = $derived([...data.categories, ...customCategories]);
+
+  const isPastMonth = $derived(data.selectedMonth < data.currentMonth);
+  const prevMonthUrl = $derived(`/budgets?month=${shiftMonth(data.selectedMonth, -1)}`);
+  const nextMonthUrl = $derived(`/budgets?month=${shiftMonth(data.selectedMonth, 1)}`);
+  const canGoForward = $derived(data.selectedMonth < data.currentMonth);
 
   function addCategory() {
     const name = newCatName.trim();
@@ -36,7 +42,7 @@
   const totalSpent = $derived(rows.reduce((s, r) => s + r.spent, 0));
   const totalPct   = $derived(totalLimit > 0 ? (totalSpent / totalLimit) * 100 : 0);
 
-  const monthLabel = $derived(new Date().toLocaleString($locale, { month: 'long', year: 'numeric' }));
+  const monthLabel = $derived(new Date(data.selectedMonth + '-02').toLocaleString($locale, { month: 'long', year: 'numeric' }));
 </script>
 
 <!-- ── Desktop layout ──────────────────────────────────────────────────── -->
@@ -81,11 +87,13 @@
           <div class="subtitle">{$t('bud.tableTitle')}</div>
           <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{$t('bud.tableSub')}</div>
         </div>
+        <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} {canGoForward} label={monthLabel} compact />
       </div>
 
       <div style="overflow:auto;flex:1;">
         <form method="post" action="?/save" use:enhance>
           <input type="hidden" name="_categories" value={JSON.stringify(allCategories)} />
+          <input type="hidden" name="_month" value={data.selectedMonth} />
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
@@ -109,12 +117,18 @@
                     </div>
                   </td>
                   <td class="num">
-                    <input type="number" step="0.01" min="0"
-                      name={r.cat}
-                      value={r.limit > 0 ? r.limit : ''}
-                      placeholder={$t('bud.noLimit')}
-                      class="input"
-                      style="height:30px;font-size:12.5px;width:130px;text-align:right;" />
+                    {#if isPastMonth}
+                      <div class="num" style="height:30px;font-size:12.5px;width:130px;text-align:right;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:var(--mep-surface-2);border-bottom:1px solid var(--mep-divider);color:var(--mep-fg-2);">
+                        {r.limit > 0 ? r.limit : $t('bud.noLimit')}
+                      </div>
+                    {:else}
+                      <input type="number" step="0.01" min="0"
+                        name={r.cat}
+                        value={r.limit > 0 ? r.limit : ''}
+                        placeholder={$t('bud.noLimit')}
+                        class="input"
+                        style="height:30px;font-size:12.5px;width:130px;text-align:right;" />
+                    {/if}
                   </td>
                   <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent)}</td>
                   <td class="num" style="color:{r.limit > 0 && r.remaining < 0 ? 'var(--mep-neg)' : 'var(--mep-fg-2)'};font-weight:{r.limit > 0 && r.remaining < 0 ? 500 : 400};">
@@ -153,38 +167,40 @@
                 </tr>
               {/each}
               <!-- Add category row -->
-              {#if showAddForm}
-                <tr>
-                  <td colspan={7} style="padding:8px 12px;background:var(--mep-surface-2);">
-                    <div style="display:flex;align-items:center;gap:8px;">
-                      <input
-                        type="text" maxlength="80"
-                        bind:value={newCatName}
-                        placeholder={$t('bud.namePlaceholder')}
-                        class="input"
-                        style="height:30px;font-size:12.5px;width:220px;"
-                        onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
-                      />
-                      <button type="button" class="btn btn-primary" style="height:30px;font-size:12.5px;"
-                        onclick={addCategory}>{$t('bud.add')}</button>
-                      <button type="button" class="btn btn-ghost" style="height:30px;font-size:12.5px;"
-                        onclick={() => { showAddForm = false; newCatName = ''; }}>{$t('edit.cancel')}</button>
-                    </div>
-                  </td>
-                </tr>
-              {:else}
-                <tr>
-                  <td colspan={7} style="padding:0;background:var(--mep-surface-2);">
-                    <button type="button"
-                      style="width:100%;text-align:left;padding:10px 12px;cursor:pointer;color:var(--mep-fg-3);font-size:12.5px;font-weight:500;background:transparent;border:none;font:inherit;display:flex;align-items:center;gap:6px;"
-                      onclick={() => showAddForm = true}>
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8">
-                        <line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/>
-                      </svg>
-                      {$t('bud.addCategory')}
-                    </button>
-                  </td>
-                </tr>
+              {#if !isPastMonth}
+                {#if showAddForm}
+                  <tr>
+                    <td colspan={7} style="padding:8px 12px;background:var(--mep-surface-2);">
+                      <div style="display:flex;align-items:center;gap:8px;">
+                        <input
+                          type="text" maxlength="80"
+                          bind:value={newCatName}
+                          placeholder={$t('bud.namePlaceholder')}
+                          class="input"
+                          style="height:30px;font-size:12.5px;width:220px;"
+                          onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
+                        />
+                        <button type="button" class="btn btn-primary" style="height:30px;font-size:12.5px;"
+                          onclick={addCategory}>{$t('bud.add')}</button>
+                        <button type="button" class="btn btn-ghost" style="height:30px;font-size:12.5px;"
+                          onclick={() => { showAddForm = false; newCatName = ''; }}>{$t('edit.cancel')}</button>
+                      </div>
+                    </td>
+                  </tr>
+                {:else}
+                  <tr>
+                    <td colspan={7} style="padding:0;background:var(--mep-surface-2);">
+                      <button type="button"
+                        style="width:100%;text-align:left;padding:10px 12px;cursor:pointer;color:var(--mep-fg-3);font-size:12.5px;font-weight:500;background:transparent;border:none;font:inherit;display:flex;align-items:center;gap:6px;"
+                        onclick={() => showAddForm = true}>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/>
+                        </svg>
+                        {$t('bud.addCategory')}
+                      </button>
+                    </td>
+                  </tr>
+                {/if}
               {/if}
             </tbody>
             {#if totalLimit > 0}
@@ -202,9 +218,11 @@
               </tfoot>
             {/if}
           </table>
-          <div style="padding:14px 16px;border-top:1px solid var(--mep-divider);">
-            <button type="submit" class="btn btn-primary" style="height:36px;">{$t('bud.save')}</button>
-          </div>
+          {#if !isPastMonth}
+            <div style="padding:14px 16px;border-top:1px solid var(--mep-divider);">
+              <button type="submit" class="btn btn-primary" style="height:36px;">{$t('bud.save')}</button>
+            </div>
+          {/if}
         </form>
       </div>
     </div>
@@ -216,13 +234,17 @@
 <div class="flex md:hidden" style="height:100%;flex-direction:column;overflow:hidden;">
   <form method="post" action="?/save" use:enhance style="display:contents;">
     <input type="hidden" name="_categories" value={JSON.stringify(allCategories)} />
+    <input type="hidden" name="_month" value={data.selectedMonth} />
 
     <!-- Scrollable content -->
     <div style="flex:1;overflow-y:auto;padding:14px 16px 100px;display:flex;flex-direction:column;gap:12px;">
 
       <!-- Hero summary card -->
       <div class="card" style="padding:16px;">
-        <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div class="label">{$t('bud.atDay')} {today}</div>
+          <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} {canGoForward} label={monthLabel} compact />
+        </div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;">
           <div class="num" style="font-size:30px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.6px;line-height:1;">
             {fmtEur(totalSpent)}
@@ -308,18 +330,25 @@
           <!-- Budget input -->
           <div style="display:flex;align-items:center;gap:8px;">
             <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">{$t('bud.colBudget')}</label>
-            <input type="number" step="0.01" min="0"
-              id="budget-{r.cat}"
-              name={r.cat}
-              value={r.limit > 0 ? r.limit : ''}
-              placeholder={$t('bud.noLimit')}
-              class="input"
-              style="flex:1;height:34px;font-size:13px;text-align:right;" />
+            {#if isPastMonth}
+              <div class="num" style="flex:1;height:34px;font-size:13px;text-align:right;display:flex;align-items:center;justify-content:flex-end;padding:0 8px;background:var(--mep-surface-2);border-bottom:1px solid var(--mep-divider);color:var(--mep-fg-2);">
+                {r.limit > 0 ? r.limit : $t('bud.noLimit')}
+              </div>
+            {:else}
+              <input type="number" step="0.01" min="0"
+                id="budget-{r.cat}"
+                name={r.cat}
+                value={r.limit > 0 ? r.limit : ''}
+                placeholder={$t('bud.noLimit')}
+                class="input"
+                style="flex:1;height:34px;font-size:13px;text-align:right;" />
+            {/if}
           </div>
         </div>
       {/each}
 
       <!-- Add category card (mobile) -->
+      {#if !isPastMonth}
       {#if showAddForm}
         <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
           <div style="font-size:13px;font-weight:500;color:var(--mep-fg);">{$t('bud.newCategory')}</div>
@@ -353,9 +382,11 @@
           {$t('bud.addCategory')}
         </button>
       {/if}
+      {/if}
 
     </div>
 
+    {#if !isPastMonth}
     <!-- Sticky save button -->
     <div style="
       position:sticky;bottom:0;left:0;right:0;
@@ -368,6 +399,7 @@
         {$t('bud.save')}
       </button>
     </div>
+    {/if}
 
   </form>
 </div>
