@@ -1,8 +1,8 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { suppliers, invoices, supplierMetrics, unitConversions } from '$lib/server/schema';
-import { eq, desc, and, isNull, or } from 'drizzle-orm';
+import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems } from '$lib/server/schema';
+import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 
@@ -41,22 +41,41 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const supplier = supplierRows[0];
 	if (!supplier) error(404, 'Supplier not found');
 
-	const conversions = await db.select({
-		id:               unitConversions.id,
-		ingredient:       unitConversions.ingredient,
-		purchaseUnit:     unitConversions.purchaseUnit,
-		canonicalUnit:    unitConversions.canonicalUnit,
-		conversionFactor: unitConversions.conversionFactor,
-	})
-		.from(unitConversions)
-		.where(and(
-			tdb.scope(unitConversions.restaurantId),
-			or(
-				eq(unitConversions.supplierId, id),
-				and(isNull(unitConversions.supplierId), eq(unitConversions.supplierName, supplier.name)),
-			),
-		))
-		.orderBy(unitConversions.ingredient);
+	const [conversions, products] = await Promise.all([
+		db.select({
+			id:               unitConversions.id,
+			ingredient:       unitConversions.ingredient,
+			purchaseUnit:     unitConversions.purchaseUnit,
+			canonicalUnit:    unitConversions.canonicalUnit,
+			conversionFactor: unitConversions.conversionFactor,
+		})
+			.from(unitConversions)
+			.where(and(
+				tdb.scope(unitConversions.restaurantId),
+				or(
+					eq(unitConversions.supplierId, id),
+					and(isNull(unitConversions.supplierId), eq(unitConversions.supplierName, supplier.name)),
+				),
+			))
+			.orderBy(unitConversions.ingredient),
+
+		db.select({
+			description: invoiceLineItems.description,
+			unit:        invoiceLineItems.unit,
+			avgPrice:    sql<number>`AVG(${invoiceLineItems.unitPrice})`,
+			totalQty:    sql<number>`SUM(${invoiceLineItems.quantity})`,
+			lastDate:    sql<string>`MAX(${invoices.invoiceDate})`,
+		})
+			.from(invoiceLineItems)
+			.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+			.where(and(
+				eq(invoices.restaurantId, rid),
+				eq(invoices.supplierId, id),
+				isNull(invoices.deletedAt),
+			))
+			.groupBy(invoiceLineItems.description, invoiceLineItems.unit)
+			.orderBy(sql`MAX(${invoices.invoiceDate}) DESC`),
+	]);
 
 	let metrics = metricsRows[0] ?? null;
 
@@ -95,6 +114,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		monthly,
 		categories: VALID_CATEGORIES,
 		conversions,
+		products,
 		initialTab,
 	};
 };

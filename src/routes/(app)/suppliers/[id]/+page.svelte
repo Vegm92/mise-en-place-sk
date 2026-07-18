@@ -291,11 +291,25 @@
       {/if}
 
     {:else if tab === 'productos'}
-      <div class="card" style="padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;">
-        <div style="font-size:28px;opacity:0.3;">📦</div>
-        <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.products.title')}</p>
-        <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:280px;">{$t('sup.productsEmptyMobile')}</p>
-      </div>
+      {#if !data.products.length}
+        <div class="card" style="padding:20px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;opacity:0.35;">📦</span>
+          <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.products.empty')}</p>
+        </div>
+      {:else}
+        {#each data.products as prod ((prod.description ?? '') + '|' + (prod.unit ?? ''))}
+          <div class="card" style="padding:12px 14px;">
+            <div style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-bottom:3px;">
+              {prod.description ?? '—'}
+            </div>
+            <div style="display:flex;gap:10px;font-size:11.5px;color:var(--mep-fg-3);">
+              {#if prod.unit}<span>{prod.unit}</span>{/if}
+              {#if prod.avgPrice != null}<span>· {fmtEur(prod.avgPrice)}</span>{/if}
+              {#if prod.lastDate}<span>· {fmtDateShort(prod.lastDate, $locale)}</span>{/if}
+            </div>
+          </div>
+        {/each}
+      {/if}
 
     {:else if tab === 'conversiones'}
       {#if !data.conversions.length}
@@ -341,6 +355,7 @@
     metrics={data.metrics}
     monthly={data.monthly}
     conversions={data.conversions}
+    products={data.products}
     bind:tab
     bind:editing
     bind:confirmDelete
