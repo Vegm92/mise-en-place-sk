@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -46,6 +46,13 @@
     canonicalUnit: string;
     conversionFactor: number;
   }
+  interface Product {
+    description: string | null;
+    unit: string | null;
+    avgPrice: number | null;
+    totalQty: number | null;
+    lastDate: string | null;
+  }
 
   let {
     supplier: s,
@@ -53,6 +60,7 @@
     metrics: m,
     monthly,
     conversions,
+    products,
     tab       = $bindable<'resumen'|'facturas'|'productos'|'conversiones'>('resumen'),
     editing   = $bindable(false),
     confirmDelete = $bindable(false),
@@ -62,6 +70,7 @@
     metrics: Metrics | null;
     monthly: MonthlyBar[];
     conversions: Conversion[];
+    products: Product[];
     tab?: 'resumen'|'facturas'|'productos'|'conversiones';
     editing?: boolean;
     confirmDelete?: boolean;
@@ -137,7 +146,7 @@
               <span style="font-style:italic;">{$t('sup.noCategory')}</span>
             {/if}
             {#if s.contactEmail}
-              <span>· {s.contactEmail}</span>
+              <span>Â· {s.contactEmail}</span>
             {/if}
           </div>
         </div>
@@ -262,7 +271,7 @@
     <!-- Tab content -->
     <div style="flex:1;min-height:0;overflow:auto;padding:18px 24px 24px;">
 
-      <!-- ── RESUMEN ── -->
+      <!-- â”€â”€ RESUMEN â”€â”€ -->
       {#if tab === 'resumen'}
         <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start;">
 
@@ -388,7 +397,7 @@
               </div>
             {:else if invoices.length < 3}
               <div class="card" style="padding:16px;display:flex;align-items:center;gap:10px;">
-                <span style="font-size:20px;opacity:0.4;">📊</span>
+                <span style="font-size:20px;opacity:0.4;">ðŸ“Š</span>
                 <div>
                   <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.insufficient')}</p>
                   <p style="font-size:12px;color:var(--mep-fg-3);">{$t('sup.insufficient.desc')}</p>
@@ -473,7 +482,7 @@
                     border-top:1px solid var(--mep-divider);text-decoration:none;color:inherit;">
                     <div style="flex:1;min-width:0;">
                       <div class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">
-                        {inv.invoiceNumber ?? '—'}
+                        {inv.invoiceNumber ?? 'â€”'}
                       </div>
                       <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
                     </div>
@@ -489,7 +498,7 @@
           </div>
         </div>
 
-      <!-- ── FACTURAS ── -->
+      <!-- â”€â”€ FACTURAS â”€â”€ -->
       {:else if tab === 'facturas'}
         {#if !invoices.length}
           <div style="text-align:center;padding:48px 24px;">
@@ -510,7 +519,7 @@
               <tbody>
                 {#each invoices as inv (inv.id)}
                   <tr class="row" onclick={() => location.replace(`/invoice/${inv.id}`)} style="cursor:pointer;">
-                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{inv.invoiceNumber ?? '—'}</td>
+                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{inv.invoiceNumber ?? 'â€”'}</td>
                     <td style="font-size:12.5px;">{fmtDate(inv.invoiceDate, $locale)}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDate(inv.dueDate, $locale)}</td>
                     <td class="num" style="font-weight:500;">{fmtEur(inv.totalAmount ?? 0)}</td>
@@ -522,17 +531,41 @@
           </div>
         {/if}
 
-      <!-- ── PRODUCTOS ── -->
+      <!-- â”€â”€ PRODUCTOS â”€â”€ -->
       {:else if tab === 'productos'}
-        <div class="card" style="padding:32px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;">
-          <div style="font-size:28px;opacity:0.3;margin-bottom:4px;">📦</div>
-          <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.products.title')}</p>
-          <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:340px;">
-            {$t('sup.products.desc')}
-          </p>
-        </div>
+        {#if products.length === 0}
+          <div class="card" style="padding:24px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:22px;opacity:0.35;">ðŸ“¦</span>
+            <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.products.empty')}</p>
+          </div>
+        {:else}
+          <div class="card" style="padding:0;overflow:hidden;">
+            <table class="tbl" style="table-layout:fixed;">
+              <thead>
+                <tr>
+                  <th>{$t('tbl.desc')}</th>
+                  <th style="width:90px;">{$t('tbl.unit')}</th>
+                  <th class="num" style="width:130px;">{$t('sup.products.avgPrice')}</th>
+                  <th class="num" style="width:110px;">{$t('sup.products.totalQty')}</th>
+                  <th style="width:130px;">{$t('sup.products.lastDate')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each products as p (p.description + '|' + p.unit)}
+                  <tr>
+                    <td style="font-size:12.5px;">{p.description ?? 'â€”'}</td>
+                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.unit ?? 'â€”'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.avgPrice != null ? fmtEur(p.avgPrice) : 'â€”'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.totalQty != null ? p.totalQty.toFixed(2) : 'â€”'}</td>
+                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.lastDate ? fmtDateShort(p.lastDate, $locale) : 'â€”'}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
 
-      <!-- ── CONVERSIONES ── -->
+      <!-- â”€â”€ CONVERSIONES â”€â”€ -->
       {:else if tab === 'conversiones'}
         <div style="display:flex;flex-direction:column;gap:14px;">
 
@@ -571,7 +604,7 @@
             </div>
           {:else}
             <div class="card" style="padding:20px;display:flex;align-items:center;gap:10px;">
-              <span style="font-size:22px;opacity:0.35;">⚖️</span>
+              <span style="font-size:22px;opacity:0.35;">âš–ï¸</span>
               <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.conv.empty')}</p>
             </div>
           {/if}
@@ -610,3 +643,4 @@
     </div>
   </div>
 </div>
+
