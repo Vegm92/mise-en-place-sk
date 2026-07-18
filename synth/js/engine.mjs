@@ -17,7 +17,7 @@ const CSS_DIR = join(__dirname, '..', 'synth', 'templates', 'static', 'css');
 
 const MUTATOR_MAP = { ...WRONG_MATH_MAP, ...MISSING_MAP };
 
-function buildEnv() {
+export function buildEnv() {
   const env = nunjucks.configure(TEMPLATES_DIR, { autoescape: false });
   env.addFilter('int', v => Math.trunc(Number(v)));
   env.addFilter('sumattr', (arr, attr) =>
@@ -26,7 +26,7 @@ function buildEnv() {
   return env;
 }
 
-function inlineCSS(html) {
+export function inlineCSS(html) {
   return html.replace(
     /<link\s+rel=["']stylesheet["']\s+href=["'][^"']*\/([^/"']+\.css)["'][^>]*\/?>/g,
     (_match, filename) => {
@@ -37,7 +37,7 @@ function inlineCSS(html) {
   );
 }
 
-function buildContext(rng, spec) {
+export function buildContext(rng, spec) {
   const dateStyle = rng.choice(DATE_STYLES);
   const decStyle = rng.choice(DECIMAL_STYLES);
 

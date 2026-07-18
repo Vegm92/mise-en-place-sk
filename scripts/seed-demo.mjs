@@ -8,9 +8,14 @@
  */
 
 import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
 import postgres from 'postgres';
+import puppeteer from 'puppeteer';
 import { createClient } from '@supabase/supabase-js';
 import { makeFactura } from '../synth/js/generators/factura.mjs';
+import { buildEnv, buildContext, inlineCSS } from '../synth/js/engine.mjs';
+import { FACTURA_TEMPLATES } from '../synth/js/config.mjs';
 import { SeededRng } from '../synth/js/rng.mjs';
 import { randomSupplier } from '../synth/js/data/suppliers.mjs';
 import { DEFAULT_BUDGETS } from '../synth/js/data/budget-defaults.mjs';
@@ -24,6 +29,10 @@ const DEMO_SLUG     = 'restaurante-demo-el-mercado';
 const TOTAL_INVOICES    = 50;
 const MISTAKE_INVOICES  = 5;
 const SUPPLIER_COUNT    = 9;
+
+const STORAGE_DRIVER = process.env.STORAGE_DRIVER ?? 'local';
+const STORAGE_BUCKET = process.env.STORAGE_BUCKET ?? 'invoice-uploads';
+const UPLOADS_DIR    = process.env.UPLOADS_DIR ?? 'uploads';
 
 // ── Bootstrap DB and Supabase ──────────────────────────────────────────────
 const sql = postgres(process.env.DATABASE_URL, { ssl: 'require', max: 3 });
@@ -123,18 +132,49 @@ async function ensureSuppliers(restaurantId) {
   return { pool, idMap };
 }
 
+// ── PDF rendering + storage ─────────────────────────────────────────────────
+async function renderInvoicePdf(browser, env, rng, spec) {
+  const templateKey = rng.choice(FACTURA_TEMPLATES);
+  const ctx  = buildContext(rng, spec);
+  let html   = env.render(`${templateKey}.html`, ctx);
+  html       = inlineCSS(html);
+
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: 'networkidle2', timeout: 30000 });
+  const pdf  = await page.pdf({ format: 'A4', printBackground: true });
+  await page.close();
+  return pdf;
+}
+
+async function saveDemoFile(key, buf) {
+  if (STORAGE_DRIVER === 'supabase') {
+    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(key, buf, { upsert: true });
+    if (error) throw new Error(`Storage upload failed: ${error.message}`);
+    return;
+  }
+  const dest = path.join(process.cwd(), UPLOADS_DIR, key);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.writeFileSync(dest, buf);
+}
+
 // ── Step 4: Invoices ───────────────────────────────────────────────────────
 async function seedInvoices(restaurantId, supplierPool, idMap) {
   const rng = new SeededRng(42);
   const dates = spreadDates(TOTAL_INVOICES + MISTAKE_INVOICES, 365, new SeededRng(77));
+  const env = buildEnv();
+  const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
 
   let inserted = 0;
 
+  try {
   // ── 50 clean invoices ────────────────────────────────────────────────────
   for (let i = 0; i < TOTAL_INVOICES; i++) {
-    const supplier = supplierPool[i % supplierPool.length];
-    const spec     = makeFactura(new SeededRng(100 + i), 100 + i, 'easy', 'strict', supplier);
-    const gt       = spec.gt;
+    const supplier   = supplierPool[i % supplierPool.length];
+    const invoiceRng = new SeededRng(100 + i);
+    const spec       = makeFactura(invoiceRng, 100 + i, 'easy', 'strict', supplier);
+    const gt         = spec.gt;
 
     // Override date for realistic spread
     gt.invoice_date = dates[i];
@@ -142,6 +182,7 @@ async function seedInvoices(restaurantId, supplierPool, idMap) {
 
     const supplierId = idMap.get(supplier.name);
     const taxBreakdown = JSON.stringify(gt._meta.iva_breakdown ?? []);
+    const sourceFile = `demo/factura-${100 + i}.pdf`;
 
     const [{ id: invId }] = await sql`
       INSERT INTO invoices
@@ -150,9 +191,12 @@ async function seedInvoices(restaurantId, supplierPool, idMap) {
       VALUES
         (${restaurantId}, ${supplierId}, ${gt.invoice_number}, ${gt.invoice_date},
          ${gt.due_date ?? null}, ${gt.total_amount}, ${spec.spec.totals?.base_total ?? null},
-         ${taxBreakdown}, 'approved', ${gt.confidence ?? 1.0}, 'synth-demo.pdf')
+         ${taxBreakdown}, 'confirmed', ${gt.confidence ?? 1.0}, ${sourceFile})
       RETURNING id
     `;
+
+    const pdf = await renderInvoicePdf(browser, env, invoiceRng, spec.spec);
+    await saveDemoFile(sourceFile, pdf);
 
     for (const item of gt.line_items) {
       await sql`
@@ -172,9 +216,10 @@ async function seedInvoices(restaurantId, supplierPool, idMap) {
   let mistakes = 0;
   const mistakeInvIds = [];
   for (let i = 0; i < MISTAKE_INVOICES; i++) {
-    const supplier = supplierPool[(TOTAL_INVOICES + i) % supplierPool.length];
-    const spec     = makeFactura(new SeededRng(200 + i), 200 + i, 'hard', 'wrong_iva_sum', supplier);
-    const gt       = spec.gt;
+    const supplier   = supplierPool[(TOTAL_INVOICES + i) % supplierPool.length];
+    const invoiceRng = new SeededRng(200 + i);
+    const spec       = makeFactura(invoiceRng, 200 + i, 'hard', 'wrong_iva_sum', supplier);
+    const gt         = spec.gt;
 
     gt.invoice_date = dates[TOTAL_INVOICES + i];
     gt.due_date     = addDays(dates[TOTAL_INVOICES + i], 30);
@@ -182,6 +227,7 @@ async function seedInvoices(restaurantId, supplierPool, idMap) {
     const supplierId  = idMap.get(supplier.name);
     const confidence  = 0.65 + (i * 0.04); // 0.65 – 0.81
     const taxBreakdown = JSON.stringify(gt._meta.iva_breakdown ?? []);
+    const sourceFile = `demo/factura-err-${200 + i}.pdf`;
 
     const [{ id: invId }] = await sql`
       INSERT INTO invoices
@@ -190,11 +236,14 @@ async function seedInvoices(restaurantId, supplierPool, idMap) {
       VALUES
         (${restaurantId}, ${supplierId}, ${gt.invoice_number}, ${gt.invoice_date},
          ${gt.due_date}, ${gt.total_amount}, ${spec.spec.totals?.base_total ?? null},
-         ${taxBreakdown}, 'pending', ${confidence}, 'synth-demo-err.pdf',
+         ${taxBreakdown}, 'pending', ${confidence}, ${sourceFile},
          'Discrepancia detectada en total IVA — pendiente revisión')
       RETURNING id
     `;
     mistakeInvIds.push({ invId, supplierId, gt, spec });
+
+    const pdf = await renderInvoicePdf(browser, env, invoiceRng, spec.spec);
+    await saveDemoFile(sourceFile, pdf);
 
     for (const item of gt.line_items) {
       await sql`
@@ -224,6 +273,9 @@ async function seedInvoices(restaurantId, supplierPool, idMap) {
   }
   console.log(`  ↳ ${mistakes} mistake invoices inserted (status=pending)`);
   return mistakeInvIds;
+  } finally {
+    await browser.close();
+  }
 }
 
 // ── Step 5: Category budgets ───────────────────────────────────────────────

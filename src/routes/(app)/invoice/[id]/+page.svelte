@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { locale, t } from '$lib/i18n';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
+  import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
 
   let { data }: { data: PageData } = $props();
   const { invoice, lineItems } = $derived(data);
@@ -17,13 +18,6 @@
     const d = new Date(s);
     return isNaN(d.getTime()) ? s : d.toLocaleDateString($locale, { day: '2-digit', month: 'short', year: 'numeric' });
   }
-
-  const statusBadge: Record<string, string> = {
-    confirmed: 'badge badge-confirmed',
-    pending:   'badge badge-pending',
-    exported:  'badge badge-exported',
-    overdue:   'badge badge-overdue',
-  };
 
   const timelineEvents = $derived([
     { labelKey: 'inv.detail.uploaded',  ts: invoice.created_at },
@@ -72,38 +66,23 @@
         </div>
       </div>
 
-      <!-- Faux PDF area -->
-      <div style="
-        min-height:320px;
-        background-image: radial-gradient(circle, var(--mep-border) 1px, transparent 1px);
-        background-size: 20px 20px;
-        background-color: var(--mep-surface-2);
-        display:flex;align-items:center;justify-content:center;
-        padding:32px;
-      ">
+      <!-- Document preview -->
+      {#if invoice.source_file}
+        <iframe
+          src="/invoice/{invoice.id}/file"
+          title={invoice.source_file}
+          style="width:100%;min-height:320px;border:0;background:var(--mep-surface-2);"
+        ></iframe>
+      {:else}
         <div style="
-          background:var(--mep-surface);
-          border:1px solid var(--mep-border);
-          border-radius:var(--mep-r-card);
-          box-shadow:var(--mep-shadow-pop);
-          width:100%;max-width:320px;
-          padding:32px 24px;
-          display:flex;flex-direction:column;gap:16px;
+          min-height:320px;
+          background-color:var(--mep-surface-2);
+          display:flex;align-items:center;justify-content:center;
+          padding:32px;
         ">
-          <div style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('inv.docTitle')}</div>
-          <div class="divider"></div>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <div class="body"><span class="label">{$t('field.supplier')}: </span>{invoice.supplier_name ?? '—'}</div>
-            <div class="body"><span class="label">{$t('tbl.invoice')}: </span>{invoice.invoice_number ?? '—'}</div>
-            <div class="body"><span class="label">{$t('tbl.date')}: </span>{fmtDate(invoice.invoice_date)}</div>
-          </div>
-          <div class="divider"></div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span class="label">{$t('tbl.total')}</span>
-            <span class="num" style="font-size:18px;font-weight:700;color:var(--mep-fg);">{fmt(invoice.total_amount)}</span>
-          </div>
+          <span class="body" style="color:var(--mep-fg-4);">{$t('inv.detail.noFile')}</span>
         </div>
-      </div>
+      {/if}
     </div>
 
     <!-- Right: details + actions (55%) -->
@@ -113,9 +92,7 @@
       <div class="card p-4" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Invoice #${invoice.id}`}</span>
-          <span class={statusBadge[invoice.status ?? 'pending'] ?? 'badge badge-neutral'}>
-            {$t(`status.${invoice.status}` as `status.pending`)}
-          </span>
+          <StatusBadge status={invoice.status ?? 'pending'} />
         </div>
 
         <div class="divider"></div>
