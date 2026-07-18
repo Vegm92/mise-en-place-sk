@@ -274,6 +274,7 @@ export const translations = {
     'login.err.oauth':   'Error al iniciar sesión con Google. Inténtalo de nuevo.',
     'login.err.rate_limited': 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.',
     // Invoice detail page
+    'inv.detail.noFile':        'Sin documento adjunto',
     'inv.detail.downloadPdf':   'Descargar PDF',
     'inv.detail.delete':        'Eliminar',
     'inv.detail.sure':          '¿Seguro?',
@@ -1168,6 +1169,7 @@ export const translations = {
     'login.err.oauth':   'Google sign-in failed. Please try again.',
     'login.err.rate_limited': 'Too many attempts. Please wait a minute and try again.',
     // Invoice detail page
+    'inv.detail.noFile':        'No document attached',
     'inv.detail.downloadPdf':   'Download PDF',
     'inv.detail.delete':        'Delete',
     'inv.detail.sure':          'Sure?',
