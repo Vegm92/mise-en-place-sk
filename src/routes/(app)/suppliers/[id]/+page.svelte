@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import type { PageData } from './$types';
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
@@ -15,7 +16,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  let tab           = $state<'resumen' | 'facturas' | 'productos' | 'conversiones'>('resumen');
+  let tab = $state<'resumen' | 'facturas' | 'productos' | 'conversiones'>(untrack(() => data.initialTab));
   let editing       = $state(false);
   let confirmDelete = $state(false);
 
@@ -139,9 +140,10 @@
     <!-- Tabs -->
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;">
       {#each [
-        { id: 'resumen',  label: $t('sup.tab.resumen') },
-        { id: 'facturas', label: $t('nav.invoices'), count: data.invoices.length },
-        { id: 'productos', label: $t('sup.tab.productos') },
+        { id: 'resumen',      label: $t('sup.tab.resumen') },
+        { id: 'facturas',     label: $t('nav.invoices'), count: data.invoices.length },
+        { id: 'productos',    label: $t('sup.tab.productos') },
+        { id: 'conversiones', label: $t('sup.tab.conversiones'), count: data.conversions.length || undefined },
       ] as tabItem}
         <button
           onclick={() => tab = tabItem.id as typeof tab}
@@ -294,6 +296,38 @@
         <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.products.title')}</p>
         <p style="font-size:12.5px;color:var(--mep-fg-3);max-width:280px;">{$t('sup.productsEmptyMobile')}</p>
       </div>
+
+    {:else if tab === 'conversiones'}
+      {#if !data.conversions.length}
+        <div class="card" style="padding:20px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;opacity:0.35;">⚖️</span>
+          <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.conv.empty')}</p>
+        </div>
+      {:else}
+        {#each data.conversions as conv (conv.id)}
+          <div class="card" style="padding:12px 14px;">
+            <div style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-bottom:4px;">{conv.ingredient}</div>
+            <div style="font-size:11.5px;color:var(--mep-fg-3);">
+              {conv.purchaseUnit} → {conv.canonicalUnit} &nbsp;·&nbsp; ×{conv.conversionFactor}
+            </div>
+          </div>
+        {/each}
+      {/if}
+      <!-- Mobile add form -->
+      <div class="card" style="padding:14px;">
+        <p class="body-strong" style="margin-bottom:10px;font-size:12.5px;">{$t('sup.conv.add')}</p>
+        <form method="post" action="?/addConversion" style="display:flex;flex-direction:column;gap:8px;">
+          <input class="input" name="ingredient" required placeholder={$t('sup.conv.ph.ingredient')} />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <input class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} />
+            <input class="input" name="canonical_unit" required placeholder={$t('sup.conv.ph.canonical')} />
+          </div>
+          <input class="input" name="conversion_factor" type="number" min="0.001" step="any" required placeholder="Factor (p.ej. 6)" />
+          <button type="submit" class="btn btn-primary" style="height:34px;font-size:12.5px;">
+            + {$t('sup.conv.add')}
+          </button>
+        </form>
+      </div>
     {/if}
 
   </div>
@@ -306,6 +340,7 @@
     invoices={data.invoices}
     metrics={data.metrics}
     monthly={data.monthly}
+    conversions={data.conversions}
     bind:tab
     bind:editing
     bind:confirmDelete

@@ -1,12 +1,15 @@
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
-import { eq, desc, and, isNull } from 'drizzle-orm';
+import { suppliers, invoices, supplierMetrics, unitConversions } from '$lib/server/schema';
+import { eq, desc, and, isNull, or } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+const VALID_TABS = ['resumen', 'facturas', 'productos', 'conversiones'] as const;
+type Tab = typeof VALID_TABS[number];
+
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const id = Number(params.id);
 	if (!id || isNaN(id)) error(404, 'Supplier not found');
 
@@ -38,6 +41,23 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const supplier = supplierRows[0];
 	if (!supplier) error(404, 'Supplier not found');
 
+	const conversions = await db.select({
+		id:               unitConversions.id,
+		ingredient:       unitConversions.ingredient,
+		purchaseUnit:     unitConversions.purchaseUnit,
+		canonicalUnit:    unitConversions.canonicalUnit,
+		conversionFactor: unitConversions.conversionFactor,
+	})
+		.from(unitConversions)
+		.where(and(
+			tdb.scope(unitConversions.restaurantId),
+			or(
+				eq(unitConversions.supplierId, id),
+				and(isNull(unitConversions.supplierId), eq(unitConversions.supplierName, supplier.name)),
+			),
+		))
+		.orderBy(unitConversions.ingredient);
+
 	let metrics = metricsRows[0] ?? null;
 
 	if (supplierInvoices.length >= 3) {
@@ -65,12 +85,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		monthly.push({ key: ym, label, value: monthlyMap[ym] ?? 0, partial: i === 0 });
 	}
 
+	const rawTab = url.searchParams.get('tab');
+	const initialTab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : 'resumen';
+
 	return {
 		supplier,
 		invoices: supplierInvoices,
 		metrics: supplierInvoices.length >= 3 ? metrics ?? null : null,
 		monthly,
 		categories: VALID_CATEGORIES,
+		conversions,
+		initialTab,
 	};
 };
 
@@ -99,6 +124,60 @@ export const actions: Actions = {
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
 		redirect(303, `/suppliers/${id}`);
+	},
+
+	addConversion: async ({ params, request, locals }) => {
+		const id = Number(params.id);
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
+		const data = await request.formData();
+
+		const ingredient       = String(data.get('ingredient') ?? '').trim();
+		const purchaseUnit     = String(data.get('purchase_unit') ?? '').trim();
+		const canonicalUnit    = String(data.get('canonical_unit') ?? '').trim();
+		const conversionFactor = parseFloat(String(data.get('conversion_factor') ?? ''));
+
+		if (!ingredient || !purchaseUnit || !canonicalUnit || isNaN(conversionFactor) || conversionFactor <= 0) {
+			error(400, 'All conversion fields are required and factor must be positive');
+		}
+
+		const [supplierRow] = await db.select({ name: suppliers.name })
+			.from(suppliers)
+			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)))
+			.limit(1);
+		if (!supplierRow) error(404, 'Supplier not found');
+
+		await db.insert(unitConversions).values({
+			restaurantId:     rid,
+			supplierId:       id,
+			supplierName:     supplierRow.name,
+			ingredient,
+			purchaseUnit,
+			canonicalUnit,
+			conversionFactor,
+		}).onConflictDoUpdate({
+			target: [unitConversions.restaurantId, unitConversions.supplierName, unitConversions.ingredient, unitConversions.purchaseUnit],
+			set: { canonicalUnit, conversionFactor, supplierId: id },
+		});
+
+		redirect(303, `/suppliers/${id}?tab=conversiones`);
+	},
+
+	deleteConversion: async ({ params, request, locals }) => {
+		const id = Number(params.id);
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
+		const data = await request.formData();
+		const convId = Number(data.get('conversion_id'));
+		if (!convId || isNaN(convId)) error(400, 'Invalid conversion id');
+
+		await db.delete(unitConversions)
+			.where(and(
+				tdb.scope(unitConversions.restaurantId),
+				eq(unitConversions.id, convId),
+			));
+
+		redirect(303, `/suppliers/${id}?tab=conversiones`);
 	},
 
 	delete: async ({ params, locals }) => {
