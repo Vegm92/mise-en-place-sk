@@ -92,6 +92,14 @@
     return nonZero.length ? nonZero.reduce((s, m) => s + m.value, 0) / nonZero.length : 0;
   })());
 
+  const topProducts = $derived(
+    [...products]
+      .map(p => ({ ...p, spend: (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 8)
+  );
+  const productMax = $derived(Math.max(...topProducts.map(p => p.spend), 1));
+
   // SVG chart constants
   const CL = 40;
   const CW = 620;
@@ -539,6 +547,25 @@
             <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.products.empty')}</p>
           </div>
         {:else}
+          <div class="card" style="padding:16px;margin-bottom:14px;">
+            <div class="subtitle" style="margin-bottom:12px;">{$t('sup.products.topSpend')}</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              {#each topProducts as p (p.description + '|' + p.unit)}
+                {@const pct = productMax > 0 ? (p.spend / productMax) * 100 : 0}
+                <div style="display:grid;grid-template-columns:160px 1fr 90px;align-items:center;gap:10px;">
+                  <div style="font-size:12px;color:var(--mep-fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={p.description ?? ''}>
+                    {p.description ?? 'â€”'}
+                  </div>
+                  <div style="height:14px;background:var(--mep-surface-2);border-radius:4px;overflow:hidden;">
+                    <div style="height:100%;width:{pct}%;background:{color};border-radius:4px;"></div>
+                  </div>
+                  <div class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);text-align:right;">
+                    {fmtEur(p.spend)}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
           <div class="card" style="padding:0;overflow:hidden;">
             <table class="tbl" style="table-layout:fixed;">
               <thead>

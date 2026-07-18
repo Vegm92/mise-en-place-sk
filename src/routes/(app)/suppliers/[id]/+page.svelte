@@ -31,6 +31,14 @@
 
   const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
 
+  const topProducts = $derived(
+    [...data.products]
+      .map(p => ({ ...p, spend: (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 5)
+  );
+  const productMax = $derived(Math.max(...topProducts.map(p => p.spend), 1));
+
   const today   = new Date().toISOString().slice(0, 10);
   const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
@@ -297,6 +305,23 @@
           <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.products.empty')}</p>
         </div>
       {:else}
+        <div class="card" style="padding:14px;">
+          <div class="subtitle" style="margin-bottom:10px;">{$t('sup.products.topSpend')}</div>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            {#each topProducts as p (p.description + '|' + p.unit)}
+              {@const pct = productMax > 0 ? (p.spend / productMax) * 100 : 0}
+              <div>
+                <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mep-fg-2);margin-bottom:3px;">
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{p.description ?? '—'}</span>
+                  <span class="num" style="flex-shrink:0;margin-left:8px;color:var(--mep-fg);font-weight:500;">{fmtEur(p.spend)}</span>
+                </div>
+                <div style="height:10px;background:var(--mep-surface-2);border-radius:3px;overflow:hidden;">
+                  <div style="height:100%;width:{pct}%;background:{color};border-radius:3px;"></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
         {#each data.products as prod ((prod.description ?? '') + '|' + (prod.unit ?? ''))}
           <div class="card" style="padding:12px 14px;">
             <div style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-bottom:3px;">
