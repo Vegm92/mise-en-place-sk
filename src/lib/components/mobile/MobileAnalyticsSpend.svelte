@@ -1,5 +1,4 @@
 <script lang="ts">
-  import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
   import { t } from '$lib/i18n';
 
   interface Kpis {
@@ -12,6 +11,9 @@
     description: string;
     total_spend: number;
     pct: number;
+    item_count?: number | null;
+    avg_unit_price?: number | null;
+    supplier_name?: string | null;
     price_trend?: number[];
   }
   interface CategorySpend {
@@ -43,6 +45,32 @@
   function fmtEur(n: number | null | undefined) {
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
   }
+
+  // Spend donut — top 5 + "Other", fixed categorical hue order (never cycled)
+  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
+  const spendDonut = $derived((() => {
+    const ranked = [...top_items].sort((a, b) => b.total_spend - a.total_spend);
+    const total = ranked.reduce((a, p) => a + p.total_spend, 0);
+    if (total <= 0) return { slices: [], total: 0 };
+
+    const top = ranked.slice(0, 5);
+    const rest = ranked.slice(5);
+    const restSpend = rest.reduce((a, p) => a + p.total_spend, 0);
+
+    const entries = top.map((p, i) => ({ label: p.description, spend: p.total_spend, color: SERIES_COLORS[i] }));
+    if (restSpend > 0) entries.push({ label: $t('spend.other'), spend: restSpend, color: 'var(--mep-series-other)' });
+
+    let cursor = 0;
+    const CIRC = 2 * Math.PI * 60;
+    const slices = entries.map(e => {
+      const pct = e.spend / total;
+      const dash = pct * CIRC;
+      const slice = { ...e, pct, dash, offset: cursor };
+      cursor += dash;
+      return slice;
+    });
+    return { slices, total };
+  })());
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
@@ -92,26 +120,36 @@
 
     <!-- Top items -->
     {#if top_items?.length > 0}
-      <div class="card" style="padding: 14px 14px 6px;">
+      <div class="card" style="padding: 14px;">
         <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.topProducts')}</div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          {#each top_items.slice(0, 10) as item}
-            <div>
-              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; gap: 6px;">
-                <span style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;"
-                  title={item.description}>{item.description}</span>
-                {#if item.price_trend && item.price_trend.length >= 2}
-                  <Sparkline values={item.price_trend} width={56} height={18} />
-                {/if}
-                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">
-                  {fmtEur(item.total_spend)}
-                </span>
-              </div>
-              <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-                <div style="width: {item.pct}%; height: 100%; background: var(--mep-acc); border-radius: 3px;"></div>
-              </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
+          <div style="position: relative; width: 156px; height: 156px;">
+            <svg width="156" height="156" viewBox="0 0 156 156" style="overflow:visible;transform:rotate(-90deg);">
+              {#each spendDonut.slices as slice}
+                {@const CIRC = 2 * Math.PI * 60}
+                {@const GAP = spendDonut.slices.length > 1 ? 2 : 0}
+                <circle cx="78" cy="78" r="60" fill="none"
+                  stroke={slice.color} stroke-width="22"
+                  stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
+                  stroke-dashoffset={-slice.offset}
+                  role="img" aria-label="{slice.label}: {fmtEur(slice.spend)} ({(slice.pct * 100).toFixed(0)}%)" />
+              {/each}
+            </svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+              <span class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtEur(spendDonut.total)}</span>
+              <span style="font-size: 9.5px; color: var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
             </div>
-          {/each}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 7px; width: 100%;">
+            {#each spendDonut.slices as slice}
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 9px; height: 9px; border-radius: 2px; background: {slice.color}; flex-shrink: 0;"></span>
+                <span style="font-size: 12px; color: var(--mep-fg-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{slice.label}</span>
+                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{(slice.pct * 100).toFixed(0)}%</span>
+                <span class="num" style="font-size: 12px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0; width: 70px; text-align: right;">{fmtEur(slice.spend)}</span>
+              </div>
+            {/each}
+          </div>
         </div>
       </div>
     {/if}
