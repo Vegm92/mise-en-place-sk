@@ -121,6 +121,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		const kpis = kpisRows[0] ?? { total_items_spend: 0, total_line_items: 0, unique_items: 0, avg_invoice_items: null };
 
-		return { title: 'Spend Analysis', top_items, category_spend, kpis, period };
+		return { title: 'Análisis de gasto', top_items, category_spend, kpis, period };
 	});
 };
