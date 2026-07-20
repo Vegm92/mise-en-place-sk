@@ -82,7 +82,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		}
 
 		return {
-			title: 'Facturas',
+			title: 'inv.title',
 			batchId: params.id,
 			queue,
 			review,

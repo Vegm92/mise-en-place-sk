@@ -36,6 +36,7 @@ REFERENCES.md
 CONTEXT.md
 TODO.md
 /graphify-out
+.graphify_cached.json
 /docs/
 /mise-en-place
 

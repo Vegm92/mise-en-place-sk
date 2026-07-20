@@ -103,7 +103,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const total = Number(countRow[0]?.cnt ?? 0);
 
 		return {
-			title: 'Invoices',
+			title: 'inv.title',
 			invoices: invoiceList,
 			stats: { ...stats, supplier_count: supplierCountRow[0]?.cnt ?? 0 },
 			suppliers: supplierRows,

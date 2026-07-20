@@ -245,11 +245,12 @@
       </div>
 
       <!-- Invoice rows -->
+      <div class="grid gap-3 p-4 md:grid-cols-2">
       {#each invoices as inv (inv.id)}
         {@const noteVal = getNoteText(inv.id, inv.notes)}
         {@const expanded = openIds.has(inv.id)}
 
-        <div class="border-b border-divider last:border-0">
+        <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'md:col-span-2' : ''}">
           <!-- Main row -->
           <button type="button"
             class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
@@ -393,6 +394,7 @@
           {/if}
         </div>
       {/each}
+      </div>
     {/if}
 
     <!-- Pagination -->

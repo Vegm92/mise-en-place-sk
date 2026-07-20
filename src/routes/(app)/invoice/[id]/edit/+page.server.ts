@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const row = rows[0];
 		if (!row) redirect(303, '/invoices');
 
-		return { title: 'Edit Invoice', invoice: row, lineItems };
+		return { title: 'edit.pageTitle', invoice: row, lineItems };
 	});
 };
 

@@ -136,6 +136,25 @@
     return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
   }
 
+  // Category donut — fills the empty space below the KPI row on the
+  // no-alerts sidebar card (issue: blank space under "Variación mensual").
+  const CAT_DONUT_CIRC = 2 * Math.PI * 42;
+  const categoryDonut = $derived((() => {
+    const ranked = [...data.category_spend].filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
+    const total = ranked.reduce((a, c) => a + c.total, 0);
+    if (total <= 0) return { slices: [] as Array<{ category: string; total: number; pct: number; color: string; dash: number; offset: number }>, total: 0 };
+    let cursor = 0;
+    const slices = ranked.map((c) => {
+      const pct = c.total / total;
+      const dash = pct * CAT_DONUT_CIRC;
+      const slice = { category: c.category, total: c.total, pct, color: c.color, dash, offset: cursor };
+      cursor += dash;
+      return slice;
+    });
+    return { slices, total };
+  })());
+  let hoveredCatSlice = $state<number | null>(null);
+
   async function dismissShock(id: number) {
     dismissedShocks = new Set([...dismissedShocks, id]);
     await fetch('/api/notifications', {
@@ -249,7 +268,7 @@
       </div>
     {:else}
       <!-- Fallback secondary KPIs when no alerts -->
-      <div class="card overflow-hidden">
+      <div class="card overflow-hidden flex flex-col h-full">
         <div class="grid" style="grid-template-columns:repeat(3,1fr);">
           {#each [
             { label: $t('dash.kpi.mom'),       value: data.mom.pct_change != null ? (data.mom.pct_change >= 0 ? '+' : '') + data.mom.pct_change + '%' : '—', sub: $t('dash.kpi.mom.sub'), variant: momVariant(data.mom.pct_change) },
@@ -263,6 +282,50 @@
             </div>
           {/each}
         </div>
+
+        {#if categoryDonut.slices.length > 0}
+          <div class="flex flex-col flex-1" style="padding:14px;border-top:1px solid var(--mep-divider);gap:10px;min-height:0;">
+            <span class="label">{$t('dash.category')}</span>
+            <div class="flex items-center flex-1" style="gap:16px;min-height:0;">
+              <div style="position:relative;flex-shrink:0;width:104px;height:104px;">
+                <svg width="104" height="104" viewBox="0 0 104 104" style="overflow:visible;transform:rotate(-90deg);">
+                  {#each categoryDonut.slices as slice, i}
+                    {@const GAP = categoryDonut.slices.length > 1 ? 2 : 0}
+                    <circle cx="52" cy="52" r="42" fill="none"
+                      stroke={slice.color}
+                      stroke-width={hoveredCatSlice === i ? 16 : 13}
+                      stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CAT_DONUT_CIRC - slice.dash + GAP}"
+                      stroke-dashoffset={-slice.offset}
+                      opacity={hoveredCatSlice === null || hoveredCatSlice === i ? 1 : 0.35}
+                      style="cursor:pointer;transition:stroke-width 120ms,opacity 120ms;"
+                      role="img"
+                      aria-label="{slice.category}: {fmtEurCompact(slice.total)} ({Math.round(slice.pct * 100)}%)"
+                      onmouseenter={() => hoveredCatSlice = i}
+                      onmouseleave={() => hoveredCatSlice = null} />
+                  {/each}
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+                  {#if hoveredCatSlice !== null && categoryDonut.slices[hoveredCatSlice]}
+                    <span class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{Math.round(categoryDonut.slices[hoveredCatSlice].pct * 100)}%</span>
+                  {:else}
+                    <span class="num" style="font-size:12px;font-weight:600;color:var(--mep-fg);">{fmtEurCompact(categoryDonut.total)}</span>
+                  {/if}
+                </div>
+              </div>
+              <div class="flex flex-col flex-1" style="gap:5px;min-width:0;overflow-y:auto;">
+                {#each categoryDonut.slices as slice, i}
+                  <div class="flex items-center" style="gap:6px;cursor:default;"
+                    role="group" aria-label={slice.category}
+                    onmouseenter={() => hoveredCatSlice = i} onmouseleave={() => hoveredCatSlice = null}>
+                    <span style="width:7px;height:7px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
+                    <span class="body" style="font-size:11px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{slice.category}</span>
+                    <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{Math.round(slice.pct * 100)}%</span>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
     {/if}
 
@@ -451,6 +514,44 @@
     </SectionCard>
 
     <div class="flex flex-col gap-3">
+      {#if data.reminders.length && !remindersDismissed}
+        <div class="card overflow-hidden border-l-[3px] border-l-warn">
+          <div class="card-header" style="padding:10px 12px;">
+            <div class="flex items-center gap-2">
+              <Bell size={12} class="text-warn" />
+              <span class="subtitle text-warn" style="font-size:12.5px;">{$t('dash.reminders')}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <a href="/reminders" class="text-acc no-underline" style="font-size:11px;">{$t('misc.all')}</a>
+              <button
+                class="btn btn-ghost"
+                style="width:20px;height:20px;padding:0;justify-content:center;"
+                onclick={() => { remindersDismissed = true; sessionStorage.setItem('reminders-dismissed', '1'); }}
+              ><X size={11} /></button>
+            </div>
+          </div>
+          <div class="px-3">
+            {#each data.reminders as r (r.id)}
+              <div class="flex items-center gap-2 py-2 border-b border-divider last:border-0">
+                <div style="flex:1;min-width:0;">
+                  <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:12px;">{r.supplier_name ?? '—'}</div>
+                  {#if r.overdue}
+                    <span class="badge badge-overdue" style="font-size:10px;">{Math.abs(r.days_delta)}{$t('misc.daysLate')}</span>
+                  {:else}
+                    <span class="badge badge-pending" style="font-size:10px;">{r.days_delta}{$t('misc.daysLeft')}</span>
+                  {/if}
+                </div>
+                <span class="num text-fg" style="font-size:12px;font-weight:500;flex-shrink:0;">{fmtEur(r.display_amount ?? 0)}</span>
+                <form method="post" action="?/markPaid" class="m-0 flex-shrink-0">
+                  <input type="hidden" name="invoiceId" value={r.id} />
+                  <button type="submit" class="badge badge-confirmed" style="cursor:pointer;border:none;font-size:11px;">✓</button>
+                </form>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
       {#if data.category_spend.length}
         <SectionCard title={$t('dash.category')} sub={$t('dash.category.sub')}>
           <div class="flex flex-col gap-2.5">
@@ -488,43 +589,6 @@
     </div>
 
   </div>
-
-  <!-- ── Reminders ─────────────────────────────────────────────────── -->
-  {#if data.reminders.length && !remindersDismissed}
-    <div class="card overflow-hidden border-l-[3px] border-l-warn">
-      <div class="card-header">
-        <div class="flex items-center gap-2">
-          <Bell size={13} class="text-warn" />
-          <span class="subtitle text-warn" style="font-size:14px;">{$t('dash.reminders')}</span>
-        </div>
-        <div class="flex items-center gap-2.5">
-          <a href="/reminders" class="text-acc no-underline" style="font-size:12px;">{$t('misc.all')}</a>
-          <button
-            class="btn btn-ghost"
-            style="width:24px;height:24px;padding:0;justify-content:center;"
-            onclick={() => { remindersDismissed = true; sessionStorage.setItem('reminders-dismissed', '1'); }}
-          ><X size={12} /></button>
-        </div>
-      </div>
-      <div class="px-4">
-        {#each data.reminders as r (r.id)}
-          <div class="flex items-center gap-2 py-2.5 border-b border-divider last:border-0">
-            <span class="flex-1 body-strong overflow-hidden text-ellipsis whitespace-nowrap text-sm">{r.supplier_name ?? '—'}</span>
-            <span class="num text-fg" style="font-size:12.5px;font-weight:500;">{fmtEur(r.display_amount ?? 0)}</span>
-            {#if r.overdue}
-              <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('misc.daysLate')}</span>
-            {:else}
-              <span class="badge badge-pending">{r.days_delta}{$t('misc.daysLeft')}</span>
-            {/if}
-            <form method="post" action="?/markPaid" class="m-0 flex-shrink-0">
-              <input type="hidden" name="invoiceId" value={r.id} />
-              <button type="submit" class="badge badge-confirmed" style="cursor:pointer;border:none;">✓</button>
-            </form>
-          </div>
-        {/each}
-      </div>
-    </div>
-  {/if}
 
   <!-- ── Invoice aging ─────────────────────────────────────────────── -->
   <SectionCard title={$t('dash.aging')} sub={$t('dash.aging.pending')}>

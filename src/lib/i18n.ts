@@ -83,7 +83,7 @@ export const translations = {
     // Invoice list page
     'inv.title':           'Facturas',
     'inv.conflict':        'Esta factura ya fue modificada en otra pestaña o por otro usuario. Su estado no ha cambiado.',
-    'inv.export':          'Exportar CSV',
+    'inv.export':          'Exportar Excel',
     'inv.noInvoices':      'Sin facturas todavía.',
     'inv.selectAll':       'Seleccionar todo',
     'inv.selected':        'seleccionadas',
@@ -168,6 +168,7 @@ export const translations = {
     'rem.totalPending': 'Total pendiente',
     'rem.daysOverdue':  'd de retraso',
     // Analytics / spend
+    'spend.pageTitle':      'Análisis de gasto',
     'spend.period.month':   'Este mes',
     'spend.period.quarter': 'Trimestre',
     'spend.period.half':    '6 meses',
@@ -181,6 +182,7 @@ export const translations = {
     'spend.byCategory':     'Por categoría',
     'spend.noCategory':     'Sin datos.',
     // Analytics / prices
+    'prices.pageTitle':       'Seguimiento de precios',
     'prices.biggestIncrease': 'Mayor subida',
     'prices.biggestDecrease': 'Mayor bajada',
     'prices.noData':          'Datos insuficientes todavía',
@@ -239,6 +241,7 @@ export const translations = {
     'extract.notesHint':   'opcional · máx. 250 caracteres',
     'extract.notesPlaceholder': 'Contexto adicional…',
     // Edit invoice
+    'edit.pageTitle':  'Editar factura',
     'edit.details':    'Detalles de la factura',
     'edit.lineItems':  'Líneas de factura',
     'edit.save':       'Guardar cambios',
@@ -250,7 +253,7 @@ export const translations = {
     'export.title':       'Exportar facturas',
     'export.dateRange':   'Rango de fechas',
     'export.dateHint':    'Deja en blanco para incluir todas las fechas',
-    'export.download':    'Descargar CSV',
+    'export.download':    'Descargar Excel',
     'export.cancel':      'Cancelar',
     'export.backLabel':   '← Facturas',
     'export.allStatus':   'Todos',
@@ -604,7 +607,7 @@ export const translations = {
     'billing.feat.extraction':      'Extracción con IA + análisis de gasto',
     'billing.feat.alerts':          'Alertas de precio y presupuesto',
     'billing.feat.digest':          'Resumen semanal con IA',
-    'billing.feat.export':          'Exportación de datos (CSV)',
+    'billing.feat.export':          'Exportación de datos (Excel)',
     'billing.subscribeNow':         'Suscribirme ahora',
     'billing.reactivate':           'Reactivar suscripción',
     'billing.notConfigured':        'La facturación aún no está configurada. Contacta con soporte para suscribirte.',
@@ -674,6 +677,7 @@ export const translations = {
     'prices.previous':              'Anterior',
     'prices.noResults':             'Sin resultados',
     // Analytics / extraction
+    'extract.pageTitle':            'Extracción IA',
     'extract.acc.title':            'Precisión de extracción IA',
     'extract.acc.noData':           'Sin datos de extracción aún',
     'extract.acc.noDataHint':       'Los datos de precisión aparecen una vez que confirmes facturas extraídas por la IA.',
@@ -995,7 +999,7 @@ export const translations = {
     // Invoice list page
     'inv.title':           'Invoices',
     'inv.conflict':        'This invoice was already changed in another tab or by another user. Its status was not changed.',
-    'inv.export':          'Export CSV',
+    'inv.export':          'Export Excel',
     'inv.noInvoices':      'No invoices yet.',
     'inv.selectAll':       'Select all',
     'inv.selected':        'selected',
@@ -1080,6 +1084,7 @@ export const translations = {
     'rem.totalPending': 'Total pending',
     'rem.daysOverdue':  'd overdue',
     // Analytics / spend
+    'spend.pageTitle':      'Spend Analysis',
     'spend.period.month':   'This Month',
     'spend.period.quarter': 'Quarter',
     'spend.period.half':    '6 Months',
@@ -1093,6 +1098,7 @@ export const translations = {
     'spend.byCategory':     'By Category',
     'spend.noCategory':     'No data.',
     // Analytics / prices
+    'prices.pageTitle':       'Price Tracking',
     'prices.biggestIncrease': 'Biggest Increase',
     'prices.biggestDecrease': 'Biggest Decrease',
     'prices.noData':          'Not enough data yet',
@@ -1151,6 +1157,7 @@ export const translations = {
     'extract.notesHint':   'optional · max 250 chars',
     'extract.notesPlaceholder': 'Any additional context…',
     // Edit invoice
+    'edit.pageTitle':  'Edit Invoice',
     'edit.details':    'Invoice details',
     'edit.lineItems':  'Line items',
     'edit.save':       'Save changes',
@@ -1162,7 +1169,7 @@ export const translations = {
     'export.title':       'Export Invoices',
     'export.dateRange':   'Date range',
     'export.dateHint':    'Leave blank to include all dates',
-    'export.download':    'Download CSV',
+    'export.download':    'Download Excel',
     'export.cancel':      'Cancel',
     'export.backLabel':   '← Invoices',
     'export.allStatus':   'All',
@@ -1516,7 +1523,7 @@ export const translations = {
     'billing.feat.extraction':      'AI extraction + spend analytics',
     'billing.feat.alerts':          'Price shock & budget alerts',
     'billing.feat.digest':          'Weekly AI digest',
-    'billing.feat.export':          'Data export (CSV)',
+    'billing.feat.export':          'Data export (Excel)',
     'billing.subscribeNow':         'Subscribe now',
     'billing.reactivate':           'Reactivate subscription',
     'billing.notConfigured':        'Billing is not yet configured. Contact support to subscribe.',
@@ -1586,6 +1593,7 @@ export const translations = {
     'prices.previous':              'Previous',
     'prices.noResults':             'No results',
     // Analytics / extraction
+    'extract.pageTitle':            'AI Extraction',
     'extract.acc.title':            'AI extraction accuracy',
     'extract.acc.noData':           'No extraction data yet',
     'extract.acc.noDataHint':       'Accuracy data appears once you confirm AI-extracted invoices.',

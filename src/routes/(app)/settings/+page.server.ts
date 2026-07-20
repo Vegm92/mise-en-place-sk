@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		]);
 
 		return {
-			title: 'Settings',
+			title: 'nav.settings',
 			threshold:      row[0]      ? parseInt(row[0].value, 10)          : 80,
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
 		};

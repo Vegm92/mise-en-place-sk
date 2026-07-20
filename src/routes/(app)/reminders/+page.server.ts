@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		});
 
 		return {
-			title: 'Payment Reminders',
+			title: 'nav.reminders',
 			overdue:       enriched.filter(r => r.overdue),
 			due_soon:      enriched.filter(r => !r.overdue),
 			total_amount:  enriched.reduce((sum, r) => sum + r.display_amount, 0),
