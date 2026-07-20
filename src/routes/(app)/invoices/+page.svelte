@@ -245,17 +245,17 @@
       </div>
 
       <!-- Invoice rows -->
-      <div class="grid gap-3 p-4 md:grid-cols-2">
+      <div class="grid gap-3 p-4 xl:grid-cols-2">
       {#each invoices as inv (inv.id)}
         {@const noteVal = getNoteText(inv.id, inv.notes)}
         {@const expanded = openIds.has(inv.id)}
 
-        <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'md:col-span-2' : ''}">
+        <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'xl:col-span-2' : ''}">
           <!-- Main row -->
           <button type="button"
             class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
-                   max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
-            style="grid-template-columns:auto minmax(0,1fr) 95px 100px 110px 32px;width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
+                   grid-cols-[auto_minmax(0,1fr)_95px_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
+            style="width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
             onclick={() => toggleDrawer(inv.id)}>
 
             <!-- Checkbox -->
