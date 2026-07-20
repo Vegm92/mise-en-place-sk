@@ -76,7 +76,11 @@
   // into the next: `lowConfAck` in particular is sent straight through to the
   // server's low-confidence gate (invoice-save.ts), so a stale `true` would
   // silently bypass review for an item the user never actually acknowledged.
-  let lowConfAckItemId: string | null = null;
+  // Seeded with the current item, not null — a fresh mount (e.g. the full
+  // page reload after a failed non-enhanced form submit) must not read as an
+  // "item changed" event, or it clobbers the modal that the effect above just
+  // opened from the same submit's `form` result.
+  let lowConfAckItemId: string | null = data.review?.itemId ?? null;
   $effect(() => {
     const id = data.review?.itemId ?? null;
     if (id === lowConfAckItemId) return;
