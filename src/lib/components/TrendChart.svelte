@@ -1,17 +1,24 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { t } from '$lib/i18n';
-
-	let { initialScale = '30d' }: { initialScale?: string } = $props();
 
 	type Segment = { category: string | null; amount: number };
 	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
+	type InitialData = { scale: string; buckets: Bucket[]; categories: (string | null)[] };
 
-	// svelte-ignore state_referenced_locally — intentional: seed once from prop default
+	let { initialScale = '30d', initialData }: { initialScale?: string; initialData?: InitialData } = $props();
+
+	// svelte-ignore state_referenced_locally — intentional: seed once from props
 	let activeScale = $state(initialScale);
-	let buckets     = $state<Bucket[]>([]);
-	let categories  = $state<(string | null)[]>([]);
-	let loading     = $state(true);
+	// SSR'd by the dashboard load (issue: dashboard chart flashed "Loading…" on
+	// every visit because it fetched client-side in onMount instead of using
+	// data already computed server-side). Only re-fetches when the scale toggle
+	// is used — the initial render is fully server-rendered.
+	// svelte-ignore state_referenced_locally — intentional: seed once from props
+	let buckets     = $state<Bucket[]>(initialData?.buckets ?? []);
+	// svelte-ignore state_referenced_locally — intentional: seed once from props
+	let categories  = $state<(string | null)[]>(initialData?.categories ?? []);
+	// svelte-ignore state_referenced_locally — intentional: seed once from props
+	let loading     = $state(!initialData);
 
 	const SCALES = ['7d', '30d', '90d'] as const;
 
@@ -99,8 +106,6 @@
 
 		return { segs, labels };
 	});
-
-	onMount(() => { fetchData(activeScale); });
 </script>
 
 <!-- Chart area -->
@@ -122,7 +127,7 @@
 	</div>
 	{#if loading}
 		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
-			<span class="label">Loading…</span>
+			<span class="label">{$t('chart.loading')}</span>
 		</div>
 	{:else if !buckets.length || buckets.every(b => b.total === 0)}
 		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
