@@ -130,7 +130,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const hasData = Number(kpis.total_invoices) > 0;
 
 		return {
-			title: 'Extracción IA',
+			title: 'extract.pageTitle',
 			kpis: {
 				total_invoices: Number(kpis.total_invoices),
 				auto_confirmed: Number(kpis.auto_confirmed),

@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		: [];
 
 	return {
-		title: 'Asistente IA',
+		title: 'nav.chat',
 		sessions,
 		activeSessionId: activeId,
 		messages: messages.map((m) => ({

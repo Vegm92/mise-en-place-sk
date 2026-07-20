@@ -45,7 +45,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		];
 
 		return {
-			title: 'Budgets',
+			title: 'nav.budgets',
 			subtitle: 'Set monthly spend limits per category. Warnings appear on the dashboard.',
 			categories,
 			budgets,

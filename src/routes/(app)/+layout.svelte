@@ -87,7 +87,7 @@
     { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
   ]);
 
-  const pageTitle = $derived($page.data.title ?? 'Mise en Place');
+  const pageTitle = $derived($page.data.title ? $t($page.data.title) : 'Mise en Place');
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const userInitials = $derived(
     userName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()

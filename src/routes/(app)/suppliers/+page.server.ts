@@ -119,7 +119,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		});
 
 		return {
-			title: 'Suppliers',
+			title: 'nav.suppliers',
 			subtitle: 'All active suppliers',
 			suppliers: supplierList,
 			categories: VALID_CATEGORIES,

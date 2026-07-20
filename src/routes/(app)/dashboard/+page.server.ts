@@ -429,7 +429,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		type InvRow = { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; display_amount: number; status: string; item_count: number };
 		return {
-			title: 'Dashboard', subtitle: displayMonth + ' · EUR', firstInvoice,
+			title: 'dashboard.title', subtitle: displayMonth + ' · EUR', firstInvoice,
 			selectedMonth, currentMonth,
 			overdue, due_week: dueWeek, pending, paid_month: paidMonth,
 			supplier_count: supplierCount, suppliers: supps, category_spend: categorySpend,

@@ -9,7 +9,7 @@ export const load: PageServerLoad = async () => {
 		.orderBy(suppliers.name);
 
 	return {
-		title: 'Export CSV',
+		title: 'export.title',
 		suppliers: supplierList,
 	};
 };
