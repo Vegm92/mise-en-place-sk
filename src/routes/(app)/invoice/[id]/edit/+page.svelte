@@ -18,6 +18,16 @@
   const rowsWithTotals = $derived(
     items.map(row => ({ ...row, total_price: calcTotal(row.quantity, row.unit_price) }))
   );
+
+  // Older invoices can have a null stored total (extraction gap). Fall back to
+  // the sum of line totals so the field isn't blank when the data to fill it
+  // is right there in the table below.
+  const computedLineTotal = $derived(
+    Math.round(rowsWithTotals.reduce((s, r) => s + (r.total_price ?? 0), 0) * 100) / 100
+  );
+  const totalAmountDisplay = $derived(
+    invoice.total_amount != null ? invoice.total_amount : (computedLineTotal || null)
+  );
 </script>
 
 <div class="p-6 flex justify-center">
@@ -56,7 +66,7 @@
         </div>
         <div class="flex flex-col gap-1">
           <label class="label" for="edit-total">{$t('field.totalAmount')}</label>
-          <input id="edit-total" type="text" name="total_amount" value={String(invoice.total_amount ?? '')}
+          <input id="edit-total" type="text" name="total_amount" value={String(totalAmountDisplay ?? '')}
             class="input" style="height:36px;font-size:13px;" />
         </div>
         <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
