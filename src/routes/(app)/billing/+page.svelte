@@ -26,8 +26,7 @@
 	<title>{$t('billing.title')} · Mise en Place</title>
 </svelte:head>
 
-<div class="mep" data-accent="amber" data-density="default"
-	style="min-height:100vh;background:var(--mep-bg);">
+<div style="min-height:100%;background:var(--mep-bg);">
 <div style="max-width:560px;margin:0 auto;padding:40px 24px 64px;">
 	<h1 style="font-size:20px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">{$t('billing.title')}</h1>
 	<p style="font-size:14px;color:var(--mep-fg-3);margin-bottom:28px;">{data.restaurantName}</p>

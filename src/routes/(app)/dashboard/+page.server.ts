@@ -7,6 +7,7 @@ import { asc, desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
+import { getTrendData } from '$lib/server/trend';
 
 const MIN_SUPPLIER_GAP_DAYS      = 3;
 const MISSING_INVOICE_MULTIPLIER = 1.5;
@@ -106,6 +107,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			recentRows, pendingInvoiceRows,
 			agingRow, avgInvoiceRow, reminderRows,
 			priceShockRows, budgetAlertRows,
+			trend,
 		] = await Promise.all([
 			db.select({ count: sql<number>`COUNT(*)` })
 				.from(invoices)
@@ -282,6 +284,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				))
 				.orderBy(desc(systemNotifications.createdAt))
 				.limit(5),
+
+			// SSR'd so the trend chart renders with the rest of the dashboard
+			// instead of flashing a client-side "Loading…" state on every visit.
+			getTrendData(rid, '30d'),
 		]);
 
 		const overdue   = { count: Number(overdueRow[0]?.count    ?? 0) };
@@ -442,6 +448,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			avg_per_supplier: avgPerSupplier, avg_per_supplier_delta: avgPerSupplierDelta,
 			spark_data: sparkData,
 			projection: { daily_rate: dailyRate, projected_eom: projectedEom, elapsed_pct: projectedElapsedPct, days_elapsed: daysElapsed, days_in_month: daysInMonth },
+			trend,
 		};
 	});
 };
