@@ -1,18 +1,24 @@
 <script lang="ts">
-	import { t } from '$lib/i18n';
+	import { t, ti } from '$lib/i18n';
 
 	type Segment = { category: string | null; amount: number };
 	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
-	type InitialData = { scale: string; buckets: Bucket[]; categories: (string | null)[] };
+	type InitialData = { range: string; granularity: string; buckets: Bucket[]; categories: (string | null)[] };
 
-	let { initialScale = '30d', initialData }: { initialScale?: string; initialData?: InitialData } = $props();
+	let {
+		initialRange = '30d',
+		initialGranularity = 'weekly',
+		initialData,
+	}: { initialRange?: string; initialGranularity?: string; initialData?: InitialData } = $props();
 
-	// svelte-ignore state_referenced_locally — intentional: seed once from props
-	let activeScale = $state(initialScale);
+	// svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
+	let activeRange       = $state(initialRange);
+	// svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
+	let activeGranularity = $state(initialGranularity);
 	// SSR'd by the dashboard load (issue: dashboard chart flashed "Loading…" on
 	// every visit because it fetched client-side in onMount instead of using
-	// data already computed server-side). Only re-fetches when the scale toggle
-	// is used — the initial render is fully server-rendered.
+	// data already computed server-side). Only re-fetches when a range/granularity
+	// toggle is used — the initial render is fully server-rendered.
 	// svelte-ignore state_referenced_locally — intentional: seed once from props
 	let buckets     = $state<Bucket[]>(initialData?.buckets ?? []);
 	// svelte-ignore state_referenced_locally — intentional: seed once from props
@@ -20,7 +26,8 @@
 	// svelte-ignore state_referenced_locally — intentional: seed once from props
 	let loading     = $state(!initialData);
 
-	const SCALES = ['7d', '30d', '90d'] as const;
+	const RANGES       = ['7d', '30d', '90d', '1y', 'all'] as const;
+	const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const;
 
 	const CAT_COLORS = [
 		'var(--mep-acc)',
@@ -35,20 +42,29 @@
 		return CAT_COLORS[index % CAT_COLORS.length];
 	}
 
-	async function fetchData(scale: string) {
+	async function fetchData(range: string, granularity: string) {
 		loading = true;
-		const resp = await fetch(`/api/trend?scale=${scale}`);
+		const resp = await fetch(`/api/trend?range=${range}&granularity=${granularity}`);
 		if (resp.ok) {
 			const data = await resp.json();
 			buckets    = data.buckets ?? [];
 			categories = data.categories ?? [];
+		} else {
+			// Don't leave stale buckets on screen mismatched against the newly selected range/granularity
+			buckets    = [];
+			categories = [];
 		}
 		loading = false;
 	}
 
-	async function setScale(scale: string) {
-		activeScale = scale;
-		await fetchData(scale);
+	async function setRange(range: string) {
+		activeRange = range;
+		await fetchData(activeRange, activeGranularity);
+	}
+
+	async function setGranularity(granularity: string) {
+		activeGranularity = granularity;
+		await fetchData(activeRange, activeGranularity);
 	}
 
 	// SVG layout (pixel-based, viewBox width=500 for easy math)
@@ -106,23 +122,43 @@
 
 		return { segs, labels };
 	});
+
+	const rangeLabel = $derived($ti(`chart.gran.${activeGranularity}.sub`, { n: buckets.length }));
 </script>
 
 <!-- Chart area -->
 <div style="padding:4px 0 0;position:relative;">
+	<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:6px;">
+		<span class="body" style="font-size:12px;">{rangeLabel}</span>
+		<div style="display:flex;gap:4px;">
+			{#each GRANULARITIES as g}
+				<button
+					type="button"
+					onclick={() => setGranularity(g)}
+					style="
+						font-size:11px;font-weight:600;padding:3px 8px;border-radius:var(--mep-r-pill);
+						border:1px solid {activeGranularity === g ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
+						background:{activeGranularity === g ? 'var(--mep-acc-soft)' : 'transparent'};
+						color:{activeGranularity === g ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};
+						cursor:pointer;
+					"
+				>{$t(`chart.gran.${g}`)}</button>
+			{/each}
+		</div>
+	</div>
 	<div style="display:flex;justify-content:flex-end;gap:4px;margin-bottom:8px;">
-		{#each SCALES as s}
+		{#each RANGES as r}
 			<button
 				type="button"
-				onclick={() => setScale(s)}
+				onclick={() => setRange(r)}
 				style="
 					font-size:11px;font-weight:600;padding:3px 8px;border-radius:var(--mep-r-pill);
-					border:1px solid {activeScale === s ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
-					background:{activeScale === s ? 'var(--mep-acc-soft)' : 'transparent'};
-					color:{activeScale === s ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};
+					border:1px solid {activeRange === r ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
+					background:{activeRange === r ? 'var(--mep-acc-soft)' : 'transparent'};
+					color:{activeRange === r ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};
 					cursor:pointer;
 				"
-			>{s}</button>
+			>{$t(`chart.range.${r}`)}</button>
 		{/each}
 	</div>
 	{#if loading}
