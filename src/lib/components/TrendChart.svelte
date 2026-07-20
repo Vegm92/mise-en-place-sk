@@ -1,22 +1,30 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { t, ti } from '$lib/i18n';
+
+	type Segment = { category: string | null; amount: number };
+	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
+	type InitialData = { range: string; granularity: string; buckets: Bucket[]; categories: (string | null)[] };
 
 	let {
 		initialRange = '30d',
 		initialGranularity = 'weekly',
-	}: { initialRange?: string; initialGranularity?: string } = $props();
-
-	type Segment = { category: string | null; amount: number };
-	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
+		initialData,
+	}: { initialRange?: string; initialGranularity?: string; initialData?: InitialData } = $props();
 
 	// svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
 	let activeRange       = $state(initialRange);
 	// svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
 	let activeGranularity = $state(initialGranularity);
-	let buckets     = $state<Bucket[]>([]);
-	let categories  = $state<(string | null)[]>([]);
-	let loading     = $state(true);
+	// SSR'd by the dashboard load (issue: dashboard chart flashed "Loading…" on
+	// every visit because it fetched client-side in onMount instead of using
+	// data already computed server-side). Only re-fetches when a range/granularity
+	// toggle is used — the initial render is fully server-rendered.
+	// svelte-ignore state_referenced_locally — intentional: seed once from props
+	let buckets     = $state<Bucket[]>(initialData?.buckets ?? []);
+	// svelte-ignore state_referenced_locally — intentional: seed once from props
+	let categories  = $state<(string | null)[]>(initialData?.categories ?? []);
+	// svelte-ignore state_referenced_locally — intentional: seed once from props
+	let loading     = $state(!initialData);
 
 	const RANGES       = ['7d', '30d', '90d', '1y', 'all'] as const;
 	const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const;
@@ -115,8 +123,6 @@
 		return { segs, labels };
 	});
 
-	onMount(() => { fetchData(activeRange, activeGranularity); });
-
 	const rangeLabel = $derived($ti(`chart.gran.${activeGranularity}.sub`, { n: buckets.length }));
 </script>
 
@@ -157,7 +163,7 @@
 	</div>
 	{#if loading}
 		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">
-			<span class="label">Loading…</span>
+			<span class="label">{$t('chart.loading')}</span>
 		</div>
 	{:else if !buckets.length || buckets.every(b => b.total === 0)}
 		<div style="height:{SVG_H + LABEL_H}px;display:flex;align-items:center;justify-content:center;">

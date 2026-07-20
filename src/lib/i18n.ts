@@ -864,6 +864,7 @@ export const translations = {
     'dsup.nSuppliers':              '{n} proveedores',
     'dsup.newBadge':                'NUEVO',
     'chart.noSpendData':            'Sin datos de gasto',
+    'chart.loading':                'Cargando…',
     'login.emailPlaceholder':       'tu@email.com',
     // Internal admin area
     'admin.banner':                 'Admin',
@@ -1775,6 +1776,7 @@ export const translations = {
     'dsup.nSuppliers':              '{n} suppliers',
     'dsup.newBadge':                'NEW',
     'chart.noSpendData':            'No spend data',
+    'chart.loading':                'Loading…',
     'login.emailPlaceholder':       'you@email.com',
     // Internal admin area
     'admin.banner':                 'Admin',
