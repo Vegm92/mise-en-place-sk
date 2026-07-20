@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	trackEvent('digest_viewed', rid, { week: currentWeek });
 
 	return {
-		title: 'Resumen semanal',
+		title: 'nav.digest',
 		weekly_digest: weeklyDigest,
 		current_week: currentWeek,
 	};

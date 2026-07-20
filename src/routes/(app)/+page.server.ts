@@ -45,7 +45,7 @@ async function remainingMonthlyQuota(rid: string): Promise<number | null> {
 
 export const load: PageServerLoad = async ({ url }) => {
 	return {
-		title: 'Upload Invoice',
+		title: 'upload.title',
 		error: url.searchParams.get('error') ?? null,
 		saved: url.searchParams.get('saved') === '1',
 		duplicate: url.searchParams.get('duplicate_inv') === '1',

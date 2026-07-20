@@ -71,7 +71,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		.orderBy(suppliers.name) as SupplierRow[];
 
 	return {
-		title: 'Price Tracking',
+		title: 'prices.pageTitle',
 		subtitle: 'Unit price changes across suppliers',
 		items,
 		suppliers: supplierList,
