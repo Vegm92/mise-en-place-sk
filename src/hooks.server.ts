@@ -107,7 +107,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			name === 'content-range' || name === 'x-supabase-api-version',
 	});
 
-	response.headers.set('X-Frame-Options', 'DENY');
+	// The invoice PDF viewer embeds /api/upload/[id]/[file] in a same-origin
+	// iframe; DENY would block the browser from rendering its own preview.
+	response.headers.set('X-Frame-Options', path.startsWith('/api/upload/') ? 'SAMEORIGIN' : 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
