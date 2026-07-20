@@ -15,6 +15,9 @@ import { saveReviewedInvoice } from '$lib/server/invoice-save';
 import { trackEvent } from '$lib/server/events';
 import { getStorage } from '$lib/server/storage';
 import { STORAGE_DRIVER } from '$lib/server/env';
+import { db, forTenant } from '$lib/server/db';
+import { invoices, suppliers } from '$lib/server/schema';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -44,7 +47,36 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 	return 'low';
 }
 
-export const load: PageServerLoad = async ({ params }) => {
+/**
+ * Read-only heads-up for the review screen — same supplier (case-insensitive,
+ * matching the `uq_suppliers_rid_name` index) + same invoice number as an
+ * already-saved invoice. This is a coarser check than the exact-content-hash
+ * gate in invoice-save.ts (which fires on submit); it exists purely to flag
+ * the likely duplicate before the user spends time reviewing fields, so they
+ * can discard right away instead of hitting the block on confirm.
+ */
+async function findDuplicateInvoiceId(rid: string, supplierName: string, invoiceNumber: string): Promise<number | null> {
+	const supplier = supplierName.trim();
+	const number = invoiceNumber.trim();
+	if (!supplier || !number) return null;
+
+	const tdb = forTenant(rid);
+	const rows = await db
+		.select({ id: invoices.id })
+		.from(invoices)
+		.innerJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(and(
+			tdb.scope(invoices.restaurantId),
+			isNull(invoices.deletedAt),
+			eq(invoices.invoiceNumber, number),
+			sql`lower(${suppliers.name}) = lower(${supplier})`,
+		))
+		.limit(1);
+
+	return rows[0]?.id ?? null;
+}
+
+export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('batch', async () => {
 		const items = await getBatchItems(params.id);
 		if (!items.length) redirect(303, '/?error=Session+not+found');
@@ -71,6 +103,11 @@ export const load: PageServerLoad = async ({ params }) => {
 		if (active && active.status === 'done') {
 			const extractedData = active.extractedData ?? {};
 			const confidence = typeof extractedData.confidence === 'number' ? extractedData.confidence : 0;
+			const duplicateOfId = await findDuplicateInvoiceId(
+				locals.restaurantId!,
+				String(extractedData.supplier_name ?? ''),
+				String(extractedData.invoice_number ?? ''),
+			);
 			review = {
 				itemId: active.id,
 				filename: active.displayName,
@@ -78,6 +115,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				confidenceLevel: confidenceLevel(confidence),
 				fieldConfidences: (extractedData.field_confidences as Record<string, number> | undefined) ?? {},
 				conversionNotes: active.conversionNotes ?? [],
+				duplicateOfId,
 			};
 		}
 

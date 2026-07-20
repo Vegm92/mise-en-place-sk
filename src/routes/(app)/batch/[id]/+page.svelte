@@ -348,6 +348,15 @@
 
             <!-- Cabecera fields -->
             <div style="padding:14px 16px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;overflow-y:auto;">
+              {#if review.duplicateOfId}
+                <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mep-neg);background:var(--mep-neg-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">
+                  <AlertTriangle size={12} style="flex-shrink:0;" />
+                  <span style="flex:1;">{$t('batch.possibleDupWarning')}</span>
+                  <a href="/invoice/{review.duplicateOfId}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;flex-shrink:0;">
+                    {$t('batch.viewExisting')}
+                  </a>
+                </div>
+              {/if}
               {#if uncertainCount > 0}
                 <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--mep-warn);background:var(--mep-warn-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">
                   <AlertTriangle size={12} />
@@ -584,14 +593,15 @@
       <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">
         {$t('batch.dupBody')}
       </p>
-      <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
         <button type="button" class="btn btn-secondary" style="height:36px;font-size:13px;"
           onclick={() => showContentDuplicateModal = false}>
           {$t('batch.backToReview')}
         </button>
-        <a href="/" class="btn btn-primary" style="height:36px;font-size:13px;display:flex;align-items:center;">
-          {$t('batch.goHome')}
-        </a>
+        <button type="submit" form="discard-item-form" class="btn btn-primary" style="height:36px;font-size:13px;"
+          onclick={() => showContentDuplicateModal = false}>
+          {$t('extract.discard')}
+        </button>
       </div>
     </div>
   </div>
