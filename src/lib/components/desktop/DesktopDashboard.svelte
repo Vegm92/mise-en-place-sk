@@ -206,7 +206,7 @@
            fallback instead of blanking the dashboard (issue #255). -->
       <ErrorBoundary>
         {#snippet children()}
-          <TrendChart initialScale="30d" />
+          <TrendChart initialRange="30d" initialGranularity="weekly" />
         {/snippet}
       </ErrorBoundary>
     </SectionCard>

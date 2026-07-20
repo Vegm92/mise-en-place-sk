@@ -8,15 +8,33 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_ABBR   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+const RANGE_TO_DAYS: Record<string, number> = { '7d': 6, '30d': 29, '90d': 89, '1y': 364 };
+const VALID_RANGES = new Set(['7d', '30d', '90d', '1y', 'all']);
+const VALID_GRANULARITIES = new Set(['daily', 'weekly', 'monthly']);
+const MAX_BUCKETS = 400; // safety cap for pathological range+granularity combos (e.g. daily + all)
+
+function addDays(d: Date, days: number): Date {
+	const r = new Date(d); r.setDate(r.getDate() + days); return r;
+}
+
+function addMonths(d: Date, months: number): Date {
+	const r = new Date(d); r.setMonth(r.getMonth() + months); return r;
+}
+
 function monday(d: Date): Date {
-	const diff = (d.getDay() + 6) % 7;
-	const m = new Date(d);
-	m.setDate(d.getDate() - diff);
-	return m;
+	return addDays(d, -((d.getDay() + 6) % 7));
+}
+
+function firstOfMonth(d: Date): Date {
+	return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
 function isoDate(d: Date): string {
 	return d.toISOString().split('T')[0]!;
+}
+
+function monthKeyStr(d: Date): string {
+	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 type Segment = { category: string | null; amount: number };
@@ -36,147 +54,80 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 
-	const VALID = new Set(['daily', 'weekly', 'monthly', 'yearly', '7d', '30d', '90d']);
-	let scale = url.searchParams.get('scale') ?? 'monthly';
-	if (!VALID.has(scale)) scale = 'monthly';
+	let range = url.searchParams.get('range') ?? '30d';
+	if (!VALID_RANGES.has(range)) range = '30d';
+	let granularity = url.searchParams.get('granularity') ?? 'weekly';
+	if (!VALID_GRANULARITIES.has(granularity)) granularity = 'weekly';
 
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 
-	let buckets: Bucket[] = [];
+	let startDate: Date;
+	if (range === 'all') {
+		const [row] = await db
+			.select({ minDate: sql<string | null>`MIN((${invoices.invoiceDate})::date)::text` })
+			.from(invoices)
+			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)));
+		startDate = row?.minDate ? new Date(row.minDate) : addDays(today, -364);
+	} else {
+		startDate = addDays(today, -(RANGE_TO_DAYS[range] ?? 29));
+	}
 
 	// Postgres date key helpers
 	const dayKey   = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM-DD')`;
 	const weekKey  = sql<string>`DATE_TRUNC('week', (${invoices.invoiceDate})::date)::date::text`;
 	const monthKey = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM')`;
-	const yearKey  = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY')`;
 
-	if (scale === '7d') {
-		const keys: string[] = [];
-		for (let i = 6; i >= 0; i--) {
-			const d = new Date(today); d.setDate(today.getDate() - i); keys.push(isoDate(d));
-		}
-		const rows = await db
-			.select({ key: dayKey, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-			.from(invoices)
-			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '6 days'`))
-			.groupBy(dayKey, suppliers.category)
-			.orderBy(dayKey);
-		const todayKey = isoDate(today);
-		buckets = keys.map(k => {
-			const segs = buildSegments(rows, k);
-			return { label: `${DAY_ABBR[new Date(k).getDay()]} ${new Date(k).getDate()}`, total: segs.reduce((s, r) => s + r.amount, 0), pct: 0, is_current: k === todayKey, segments: segs };
-		});
-
-	} else if (scale === '30d') {
-		const mondays: string[] = [];
-		for (let i = 4; i >= 0; i--) {
-			const d = new Date(today); d.setDate(today.getDate() - i * 7); mondays.push(isoDate(monday(d)));
-		}
-		const rows = await db
-			.select({ key: weekKey, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-			.from(invoices)
-			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '29 days'`))
-			.groupBy(weekKey, suppliers.category)
-			.orderBy(weekKey);
-		const currentMonday = isoDate(monday(today));
-		buckets = mondays.map(k => {
-			const segs = buildSegments(rows, k);
-			const d = new Date(k);
-			return { label: `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`, total: segs.reduce((s, r) => s + r.amount, 0), pct: 0, is_current: k === currentMonday, segments: segs };
-		});
-
-	} else if (scale === '90d') {
-		const keys: string[] = [];
-		for (let i = 2; i >= 0; i--) {
-			let month = today.getMonth() + 1 - i; let year = today.getFullYear();
-			while (month <= 0) { month += 12; year--; }
-			keys.push(`${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}`);
-		}
-		const rows = await db
-			.select({ key: monthKey, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-			.from(invoices)
-			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') >= TO_CHAR(CURRENT_DATE - INTERVAL '2 months', 'YYYY-MM')`))
-			.groupBy(monthKey, suppliers.category)
-			.orderBy(monthKey);
-		const currentKey = `${String(today.getFullYear()).padStart(4,'0')}-${String(today.getMonth()+1).padStart(2,'0')}`;
-		buckets = keys.map(k => {
-			const segs = buildSegments(rows, k);
-			const monthNum = parseInt(k.substring(5, 7), 10) - 1;
-			return { label: MONTH_ABBR[monthNum]!, total: segs.reduce((s, r) => s + r.amount, 0), pct: 0, is_current: k === currentKey, segments: segs };
-		});
-
-	} else if (scale === 'daily') {
-		const keys: string[] = [];
-		for (let i = 13; i >= 0; i--) {
-			const d = new Date(today); d.setDate(today.getDate() - i); keys.push(isoDate(d));
-		}
-		const rows = await db
-			.select({ key: dayKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-			.from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '13 days'`))
-			.groupBy(dayKey)
-			.orderBy(dayKey);
-		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));
-		const todayKey = isoDate(today);
-		buckets = keys.map(k => {
-			const d = new Date(k);
-			return { label: `${DAY_ABBR[d.getDay()]} ${d.getDate()}`, total: map[k] ?? 0, pct: 0, is_current: k === todayKey, segments: [] };
-		});
-
-	} else if (scale === 'weekly') {
-		const mondays: string[] = [];
-		for (let i = 7; i >= 0; i--) {
-			const d = new Date(today); d.setDate(today.getDate() - i * 7); mondays.push(isoDate(monday(d)));
-		}
-		const rows = await db
-			.select({ key: weekKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-			.from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`(${invoices.invoiceDate})::date >= CURRENT_DATE - INTERVAL '56 days'`))
-			.groupBy(weekKey)
-			.orderBy(weekKey);
-		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));
-		const currentMonday = isoDate(monday(today));
-		buckets = mondays.map(k => {
-			const d = new Date(k);
-			return { label: `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`, total: map[k] ?? 0, pct: 0, is_current: k === currentMonday, segments: [] };
-		});
-
-	} else if (scale === 'yearly') {
-		const year = today.getFullYear();
-		const keys = [year - 4, year - 3, year - 2, year - 1, year].map(String);
-		const rows = await db
-			.select({ key: yearKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-			.from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY') >= TO_CHAR(CURRENT_DATE - INTERVAL '4 years', 'YYYY')`))
-			.groupBy(yearKey)
-			.orderBy(yearKey);
-		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));
-		buckets = keys.map(k => ({ label: k, total: map[k] ?? 0, pct: 0, is_current: k === String(year), segments: [] }));
-
-	} else { // monthly
-		const keys: string[] = [];
-		for (let i = 11; i >= 0; i--) {
-			let month = today.getMonth() + 1 - i; let year = today.getFullYear();
-			while (month <= 0) { month += 12; year--; }
-			keys.push(`${String(year).padStart(4,'0')}-${String(month).padStart(2,'0')}`);
-		}
-		const rows = await db
-			.select({ key: monthKey, total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-			.from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt), sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') >= TO_CHAR(CURRENT_DATE - INTERVAL '11 months', 'YYYY-MM')`))
-			.groupBy(monthKey)
-			.orderBy(monthKey);
-		const map = Object.fromEntries(rows.map((r: { key: string; total: number }) => [r.key, r.total]));
-		const currentKey = `${String(today.getFullYear()).padStart(4,'0')}-${String(today.getMonth()+1).padStart(2,'0')}`;
-		buckets = keys.map(k => {
-			const monthNum = parseInt(k.substring(5, 7), 10) - 1;
-			return { label: MONTH_ABBR[monthNum]!, total: map[k] ?? 0, pct: 0, is_current: k === currentKey, segments: [] };
-		});
+	// Build the list of bucket keys spanning [startDate, today] at the requested granularity
+	let keys: string[] = [];
+	if (granularity === 'daily') {
+		for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) keys.push(isoDate(d));
+	} else if (granularity === 'monthly') {
+		for (let d = firstOfMonth(startDate); d <= firstOfMonth(today); d = addMonths(d, 1)) keys.push(monthKeyStr(d));
+	} else {
+		for (let d = monday(startDate); d <= monday(today); d = addDays(d, 7)) keys.push(isoDate(d));
 	}
+	if (keys.length > MAX_BUCKETS) keys = keys.slice(keys.length - MAX_BUCKETS);
+	const clampedStart = keys.length ? keys[0]! : isoDate(startDate);
+
+	const keyExpr = granularity === 'daily' ? dayKey : granularity === 'monthly' ? monthKey : weekKey;
+	const rows = await db
+		.select({ key: keyExpr, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
+		.from(invoices)
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(and(
+			tdb.scope(invoices.restaurantId),
+			isNull(invoices.deletedAt),
+			sql`(${invoices.invoiceDate})::date >= ${clampedStart}::date`,
+		))
+		.groupBy(keyExpr, suppliers.category)
+		.orderBy(keyExpr);
+
+	const spansMultipleYears = startDate.getFullYear() !== today.getFullYear();
+
+	function labelFor(key: string): string {
+		if (granularity === 'daily') {
+			const d = new Date(key);
+			return `${DAY_ABBR[d.getDay()]} ${d.getDate()}`;
+		}
+		if (granularity === 'monthly') {
+			const monthNum = parseInt(key.substring(5, 7), 10) - 1;
+			const year = key.substring(2, 4);
+			return spansMultipleYears ? `${MONTH_ABBR[monthNum]} '${year}` : MONTH_ABBR[monthNum]!;
+		}
+		const d = new Date(key);
+		return `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
+	}
+
+	const currentKey =
+		granularity === 'daily'   ? isoDate(today) :
+		granularity === 'monthly' ? monthKeyStr(today) :
+		isoDate(monday(today));
+
+	const buckets: Bucket[] = keys.map(k => {
+		const segs = buildSegments(rows, k);
+		return { label: labelFor(k), total: segs.reduce((s, r) => s + r.amount, 0), pct: 0, is_current: k === currentKey, segments: segs };
+	});
 
 	const maxTotal = Math.max(...buckets.map(b => b.total), 1);
 	for (const b of buckets) b.pct = Math.round((b.total / maxTotal) * 100);
@@ -184,5 +135,5 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 	const catSet = new Set<string | null>();
 	for (const b of buckets) for (const s of b.segments) catSet.add(s.category);
 
-	return json({ scale, buckets, categories: [...catSet] });
+	return json({ range, granularity, buckets, categories: [...catSet] });
 };
