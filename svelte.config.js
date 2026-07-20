@@ -18,7 +18,9 @@ const config = {
 				'img-src':      ['self', 'data:'],
 				'connect-src':  ['self', 'https://*.sentry.io'],
 				'worker-src':   ['self'],
-				'frame-src':    ['none'],
+				// 'self' — the invoice PDF viewer embeds /api/upload/[id]/[file]
+				// in a same-origin iframe; still blocks third-party framing.
+				'frame-src':    ['self'],
 				'object-src':   ['none'],
 				'base-uri':     ['self'],
 				'form-action':  ['self'],
