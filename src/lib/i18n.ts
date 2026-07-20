@@ -167,6 +167,7 @@ export const translations = {
     'rem.dueWeek':      'Vence esta semana',
     'rem.totalPending': 'Total pendiente',
     'rem.daysOverdue':  'd de retraso',
+    'rem.markAllPaid':  'Marcar todas pagadas',
     // Analytics / spend
     'spend.pageTitle':      'Análisis de gasto',
     'spend.period.month':   'Este mes',
@@ -1085,6 +1086,7 @@ export const translations = {
     'rem.dueWeek':      'Due this week',
     'rem.totalPending': 'Total pending',
     'rem.daysOverdue':  'd overdue',
+    'rem.markAllPaid':  'Mark all paid',
     // Analytics / spend
     'spend.pageTitle':      'Spend Analysis',
     'spend.period.month':   'This Month',
