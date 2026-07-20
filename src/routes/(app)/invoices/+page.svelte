@@ -15,6 +15,7 @@
   import Check from '@lucide/svelte/icons/check';
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import ExternalLink from '@lucide/svelte/icons/external-link';
+  import Eye from '@lucide/svelte/icons/eye';
 
   const { data }: { data: PageData } = $props();
   const { invoices, stats, suppliers, filters, pagination } = $derived(data);
@@ -300,6 +301,10 @@
 
               <!-- Actions row -->
               <div class="flex items-center gap-2 flex-wrap">
+                <a href="/invoice/{inv.id}" class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
+                  <Eye size={12} />
+                  {$t('inv.viewDetail')}
+                </a>
                 {#if inv.source_file}
                   <a href="/invoice/{inv.id}/file" target="_blank" rel="noopener noreferrer"
                     class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
