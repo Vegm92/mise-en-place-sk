@@ -70,6 +70,22 @@
     lineItems = Array.isArray(raw) ? [...(raw as LineItem[])] : [];
   });
 
+  // The active review item changes in place (same component instance across
+  // batch items — moving to the next invoice is a redirect back to this same
+  // route, not a remount). Without this, an ack/modal from one item survives
+  // into the next: `lowConfAck` in particular is sent straight through to the
+  // server's low-confidence gate (invoice-save.ts), so a stale `true` would
+  // silently bypass review for an item the user never actually acknowledged.
+  let lowConfAckItemId: string | null = null;
+  $effect(() => {
+    const id = data.review?.itemId ?? null;
+    if (id === lowConfAckItemId) return;
+    lowConfAckItemId = id;
+    lowConfAck = false;
+    showLowConfModal = false;
+    showContentDuplicateModal = false;
+  });
+
   function addRow() {
     lineItems = [...lineItems, { description: '', quantity: '', unit: '', unit_price: '', total_price: '' }];
   }
