@@ -107,9 +107,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 			name === 'content-range' || name === 'x-supabase-api-version',
 	});
 
-	// The invoice PDF viewer embeds /api/upload/[id]/[file] in a same-origin
-	// iframe; DENY would block the browser from rendering its own preview.
-	response.headers.set('X-Frame-Options', path.startsWith('/api/upload/') ? 'SAMEORIGIN' : 'DENY');
+	// Two routes are embedded in a same-origin <iframe> by the app itself —
+	// the batch review PDF preview (/api/upload/[id]/[file]) and the saved
+	// invoice detail PDF preview (/invoice/[id]/file). DENY would block the
+	// browser from rendering the app's own preview on both.
+	const isFramedByApp = path.startsWith('/api/upload/') || /^\/invoice\/[^/]+\/file$/.test(path);
+	response.headers.set('X-Frame-Options', isFramedByApp ? 'SAMEORIGIN' : 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
