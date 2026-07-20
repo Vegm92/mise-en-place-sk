@@ -41,6 +41,10 @@
 			const data = await resp.json();
 			buckets    = data.buckets ?? [];
 			categories = data.categories ?? [];
+		} else {
+			// Don't leave stale buckets on screen mismatched against the newly selected range/granularity
+			buckets    = [];
+			categories = [];
 		}
 		loading = false;
 	}

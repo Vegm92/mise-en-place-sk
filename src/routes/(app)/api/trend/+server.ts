@@ -30,7 +30,12 @@ function firstOfMonth(d: Date): Date {
 }
 
 function isoDate(d: Date): string {
-	return d.toISOString().split('T')[0]!;
+	// Avoid toISOString(): it converts through UTC and silently rolls the
+	// calendar date back a day for any timezone ahead of UTC.
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
 }
 
 function monthKeyStr(d: Date): string {
@@ -78,17 +83,18 @@ export const GET: RequestHandler = async ({ url, getClientAddress, locals }) => 
 	const weekKey  = sql<string>`DATE_TRUNC('week', (${invoices.invoiceDate})::date)::date::text`;
 	const monthKey = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM')`;
 
-	// Build the list of bucket keys spanning [startDate, today] at the requested granularity
-	let keys: string[] = [];
+	// Build the list of bucket boundary dates spanning [startDate, today] at the requested granularity
+	let bucketDates: Date[] = [];
 	if (granularity === 'daily') {
-		for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) keys.push(isoDate(d));
+		for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) bucketDates.push(d);
 	} else if (granularity === 'monthly') {
-		for (let d = firstOfMonth(startDate); d <= firstOfMonth(today); d = addMonths(d, 1)) keys.push(monthKeyStr(d));
+		for (let d = firstOfMonth(startDate); d <= firstOfMonth(today); d = addMonths(d, 1)) bucketDates.push(d);
 	} else {
-		for (let d = monday(startDate); d <= monday(today); d = addDays(d, 7)) keys.push(isoDate(d));
+		for (let d = monday(startDate); d <= monday(today); d = addDays(d, 7)) bucketDates.push(d);
 	}
-	if (keys.length > MAX_BUCKETS) keys = keys.slice(keys.length - MAX_BUCKETS);
-	const clampedStart = keys.length ? keys[0]! : isoDate(startDate);
+	if (bucketDates.length > MAX_BUCKETS) bucketDates = bucketDates.slice(bucketDates.length - MAX_BUCKETS);
+	const clampedStart = bucketDates.length ? isoDate(bucketDates[0]!) : isoDate(startDate);
+	const keys = bucketDates.map(d => granularity === 'monthly' ? monthKeyStr(d) : isoDate(d));
 
 	const keyExpr = granularity === 'daily' ? dayKey : granularity === 'monthly' ? monthKey : weekKey;
 	const rows = await db
