@@ -29,7 +29,7 @@
   interface DashAlert { id: string; sev: 'high' | 'med' | 'low'; kind: 'price' | 'budget' | 'due' | 'info'; text: string; detail?: string; when?: string }
   interface TrendSegment { category: string | null; amount: number }
   interface TrendBucket { label: string; total: number; pct: number; is_current: boolean; segments: TrendSegment[] }
-  interface TrendData { scale: string; buckets: TrendBucket[]; categories: (string | null)[] }
+  interface TrendData { range: string; granularity: string; buckets: TrendBucket[]; categories: (string | null)[] }
 
   interface DashboardData {
     firstInvoice: boolean | null;
@@ -210,7 +210,7 @@
            fallback instead of blanking the dashboard (issue #255). -->
       <ErrorBoundary>
         {#snippet children()}
-          <TrendChart initialScale="30d" initialData={data.trend} />
+          <TrendChart initialRange="30d" initialGranularity="weekly" initialData={data.trend} />
         {/snippet}
       </ErrorBoundary>
     </SectionCard>

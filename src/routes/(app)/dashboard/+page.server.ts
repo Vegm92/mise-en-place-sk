@@ -7,7 +7,7 @@ import { asc, desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
-import { getTrendData } from '$lib/server/trend';
+import { getTrendDataByRange } from '$lib/server/trend';
 
 const MIN_SUPPLIER_GAP_DAYS      = 3;
 const MISSING_INVOICE_MULTIPLIER = 1.5;
@@ -287,7 +287,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			// SSR'd so the trend chart renders with the rest of the dashboard
 			// instead of flashing a client-side "Loading…" state on every visit.
-			getTrendData(rid, '30d'),
+			getTrendDataByRange(rid, '30d', 'weekly'),
 		]);
 
 		const overdue   = { count: Number(overdueRow[0]?.count    ?? 0) };
