@@ -167,6 +167,11 @@
               {#if item.unit}
                 <span style="font-size:12px;color:var(--mep-fg-3);">/ {item.unit}</span>
               {/if}
+              {#if item.latest_normalized_price !== null && item.base_unit}
+                <span class="num" title={$t('prices.perBaseHint')} style="font-size:12px;color:var(--mep-fg-3);border:1px solid var(--mep-divider);border-radius:6px;padding:1px 6px;">
+                  {fmtPrice(item.latest_normalized_price)}/{item.base_unit}
+                </span>
+              {/if}
               {#if item.prev_price !== null && !flat}
                 <span class="num" style="margin-left:auto;font-size:12.5px;color:var(--mep-fg-3);text-decoration:line-through;">
                   {fmtPrice(item.prev_price)}

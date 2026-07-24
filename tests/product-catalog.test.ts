@@ -11,7 +11,7 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import {
-	resolveLineProducts, confirmProductAlias, rejectProductAlias, FUZZY_THRESHOLD,
+	resolveLineProducts, confirmProductAlias, rejectProductAlias, mergeIntoProduct, FUZZY_THRESHOLD,
 } from '../src/lib/server/product-catalog';
 
 let rid = '';
@@ -181,6 +181,57 @@ describe.skipIf(!hasDbEnv)('confirmProductAlias / rejectProductAlias', () => {
 
 	it('returns not_found for an unknown description', async () => {
 		const res = await confirmProductAlias(testDb, rid, 'Producto que no existe xyz');
+		expect(res).toEqual({ ok: false, reason: 'not_found' });
+	});
+});
+
+describe.skipIf(!hasDbEnv)('resolveLineProducts — dictionary-assisted fuzzy (issue #300)', () => {
+	it('matches an abbreviated/SKU-prefixed line to an existing product', async () => {
+		const base = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Ternera aguja', unit: 'kg' }]);
+		const basePid = base.get('Ternera aguja')!.productId;
+
+		// "REF.1042 TERN. AGUJA" → SKU stripped + "TERN." expanded → "ternera aguja".
+		const resolved = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'REF.1042 TERN. AGUJA', unit: 'kg' }]);
+		const r = resolved.get('REF.1042 TERN. AGUJA')!;
+		expect(r.status).toBe('fuzzy');
+		expect(r.productId).toBe(basePid);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('mergeIntoProduct (issue #300)', () => {
+	it('repoints alias + line items to the target and removes the throwaway product', async () => {
+		const target = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Merluza', unit: 'kg' }]);
+		const targetPid = target.get('Merluza')!.productId;
+
+		// A description the deterministic layers can't match — it creates its own
+		// product; the LLM later proposes it is really "Merluza".
+		const created = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Pescado blanco del norte', unit: 'kg' }]);
+		const throwawayPid = created.get('Pescado blanco del norte')!.productId;
+		expect(created.get('Pescado blanco del norte')!.status).toBe('created');
+		expect(throwawayPid).not.toBe(targetPid);
+
+		const [inv] = await testSql`INSERT INTO invoices (restaurant_id, status) VALUES (${rid}, 'pending') RETURNING id`;
+		const [li] = await testSql`
+			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, product_id)
+			VALUES (${inv.id}, ${rid}, 'Pescado blanco del norte', 'kg', 9.0, ${throwawayPid}) RETURNING id`;
+
+		const res = await mergeIntoProduct(testDb, rid, 'Pescado blanco del norte', targetPid);
+		expect(res).toEqual({ ok: true, productId: targetPid });
+
+		const [alias] = await testSql`SELECT product_id, source FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'pescado blanco del norte'`;
+		expect(alias.product_id).toBe(targetPid);
+		expect(alias.source).toBe('user');
+
+		const [liAfter] = await testSql`SELECT product_id FROM invoice_line_items WHERE id = ${li.id}`;
+		expect(liAfter.product_id).toBe(targetPid);
+
+		const gone = await testSql`SELECT id FROM products WHERE id = ${throwawayPid}`;
+		expect(gone).toHaveLength(0);
+	});
+
+	it('returns not_found when the target product is not in the tenant', async () => {
+		await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Sardina', unit: 'kg' }]);
+		const res = await mergeIntoProduct(testDb, rid, 'Sardina', 2_000_000_000);
 		expect(res).toEqual({ ok: false, reason: 'not_found' });
 	});
 });

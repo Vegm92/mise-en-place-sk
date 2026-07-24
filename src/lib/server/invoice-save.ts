@@ -9,6 +9,7 @@ import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers 
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit } from './unit-bridge';
 import { resolveLineProducts } from './product-catalog';
+import { enqueueNormalize } from './queue';
 import { parsePack, normalizedUnitPrice } from './pack-parser';
 import { normalizeProductKey } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, type Alert } from './alert-engine';
@@ -169,6 +170,11 @@ async function linkProductsToInvoice(
 						score: Math.round(r.suggestion.score * 100) / 100,
 					},
 				});
+			} else if (r.status === 'created') {
+				// Nothing deterministic matched — ask the LLM asynchronously whether
+				// this new product is really an existing one (issue #300). Best-effort.
+				await enqueueNormalize(rid, r.productId, desc).catch((e) =>
+					console.error('[invoice-save] normalize enqueue failed (non-fatal):', e));
 			}
 		}
 		if (suggestions.length > 0) await saveAlerts(invoiceId, rid, suggestions);

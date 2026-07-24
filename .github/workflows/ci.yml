@@ -49,6 +49,9 @@ jobs:
       - name: Lint — ban sql.raw
         run: pnpm lint:no-sql-raw
 
+      - name: Lint — tenant scoping (ADR-001)
+        run: pnpm lint:tenant-scope
+
       - name: Type check
         run: pnpm check
 

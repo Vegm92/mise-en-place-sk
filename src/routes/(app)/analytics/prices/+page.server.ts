@@ -12,6 +12,8 @@ interface PriceRow {
 	unit: string | null;
 	latest_date: string;
 	latest_price: number;
+	latest_normalized_price: number | null;
+	base_unit: string | null;
 	prev_price: number | null;
 	prev_date: string | null;
 	change_pct: number | null;
@@ -43,6 +45,8 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 			unit,
 			latest_date,
 			latest_price,
+			latest_normalized_price,
+			base_unit,
 			prev_price,
 			prev_date,
 			change_pct

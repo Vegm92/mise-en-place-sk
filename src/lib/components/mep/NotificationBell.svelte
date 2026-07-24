@@ -39,18 +39,30 @@
     return 'var(--mep-fg-2)';
   }
 
-  // Product-catalog suggestion (issue #298): confirm/reject a fuzzy auto-link.
+  // Product-catalog suggestion (issues #298/#300): confirm/reject a match.
+  // A fuzzy suggestion confirms the auto-link in place; an LLM suggestion
+  // (source 'llm') carries a candidate product to merge into on confirm, and
+  // just dismisses on decline (the line is already its own product).
   // On success the server also dismisses the notification, so drop it locally.
   let deciding = $state<number | null>(null);
-  async function decideProduct(n: Notif, action: 'confirm' | 'reject') {
-    const description = (n.payload as { description?: string } | null)?.description;
+  async function decideProduct(n: Notif, accept: boolean) {
+    const p = n.payload as { description?: string; source?: string; candidateProductId?: number } | null;
+    const description = p?.description;
     if (!description || deciding !== null) return;
+    const isLlm = p?.source === 'llm';
+    const bodyObj: Record<string, unknown> = { description };
+    if (accept) {
+      bodyObj.action = 'confirm';
+      if (isLlm && typeof p?.candidateProductId === 'number') bodyObj.targetProductId = p.candidateProductId;
+    } else {
+      bodyObj.action = isLlm ? 'dismiss' : 'reject';
+    }
     deciding = n.id;
     try {
       const resp = await fetch('/api/product-aliases', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ description, action }),
+        body: JSON.stringify(bodyObj),
       });
       if (resp.ok) items = items.filter((i) => i.id !== n.id);
     } catch {
@@ -160,13 +172,13 @@
                     class="btn btn-primary"
                     style="height:26px;font-size:11px;padding:0 10px;"
                     disabled={deciding !== null}
-                    onclick={() => decideProduct(n, 'confirm')}
+                    onclick={() => decideProduct(n, true)}
                   >{$t('notif.prodConfirm')}</button>
                   <button
                     class="btn btn-secondary"
                     style="height:26px;font-size:11px;padding:0 10px;"
                     disabled={deciding !== null}
-                    onclick={() => decideProduct(n, 'reject')}
+                    onclick={() => decideProduct(n, false)}
                   >{$t('notif.prodReject')}</button>
                 </div>
               {/if}

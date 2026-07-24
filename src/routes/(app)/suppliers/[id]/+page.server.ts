@@ -68,11 +68,10 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		})
 			.from(invoiceLineItems)
 			.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
-			.where(and(
-				eq(invoices.restaurantId, rid),
+			.where(tdb.scope(invoices.restaurantId, and(
 				eq(invoices.supplierId, id),
 				isNull(invoices.deletedAt),
-			))
+			)))
 			.groupBy(invoiceLineItems.description, invoiceLineItems.unit)
 			.orderBy(sql`MAX(${invoices.invoiceDate}) DESC`),
 	]);
