@@ -1,11 +1,15 @@
 /**
  * Confirm or reject a pending product-alias suggestion (issue #298).
  *
- * A fuzzy auto-link (product_aliases.source='fuzzy', confirmed_at IS NULL)
- * raises a `product_suggestion` notification. The review UI posts here to:
- *   - confirm: keep the link, mark the alias confirmed (source='user');
- *   - reject:  split this description off into its own product and repoint any
- *              line items that were fuzzy-linked to the wrong product.
+ * A pending suggestion (product_aliases fuzzy auto-link, or an async LLM
+ * proposal, issue #300) raises a `product_suggestion` notification. The review
+ * UI posts here to:
+ *   - confirm (+ targetProductId): merge this description into an existing
+ *       product the LLM proposed;
+ *   - confirm (no target): keep the fuzzy link, mark the alias confirmed;
+ *   - reject: split this description off into its own product;
+ *   - dismiss: just clear the suggestion (used for LLM proposals — the line is
+ *       already its own product, so declining needs no DB change).
  *
  * The notification carries the raw `description`; the raw_key is derived
  * server-side so the client never has to know the alias id.
@@ -16,7 +20,7 @@ import { db, forTenant } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
-import { confirmProductAlias, rejectProductAlias } from '$lib/server/product-catalog';
+import { confirmProductAlias, rejectProductAlias, mergeIntoProduct } from '$lib/server/product-catalog';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -27,15 +31,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const body = await request.json().catch(() => null);
 	const description = typeof body?.description === 'string' ? body.description : '';
 	const action = body?.action;
+	const targetProductId = typeof body?.targetProductId === 'number' ? body.targetProductId : null;
 
 	if (!normalizeProductKey(description)) return json({ error: 'description required' }, { status: 422 });
-	if (action !== 'confirm' && action !== 'reject') {
-		return json({ error: "action must be 'confirm' or 'reject'" }, { status: 422 });
+	if (action !== 'confirm' && action !== 'reject' && action !== 'dismiss') {
+		return json({ error: "action must be 'confirm', 'reject' or 'dismiss'" }, { status: 422 });
 	}
 
-	const result = action === 'confirm'
-		? await confirmProductAlias(db, rid, description)
-		: await rejectProductAlias(db, rid, description);
+	// 'dismiss' just clears the notification (LLM proposal declined).
+	if (action === 'dismiss') {
+		await dismissSuggestion(rid, normalizeProductKey(description));
+		return json({ ok: true });
+	}
+
+	const result = action === 'reject'
+		? await rejectProductAlias(db, rid, description)
+		: targetProductId != null
+			? await mergeIntoProduct(db, rid, description, targetProductId)
+			: await confirmProductAlias(db, rid, description);
 
 	if (!result.ok) return json({ error: 'No suggestion found for that description' }, { status: 404 });
 

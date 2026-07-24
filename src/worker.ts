@@ -16,8 +16,9 @@ import 'dotenv/config';
 
 import * as Sentry from '@sentry/sveltekit';
 import { PgBoss } from 'pg-boss';
-import { EXTRACTION_QUEUE } from './lib/server/queue.js';
+import { EXTRACTION_QUEUE, NORMALIZE_QUEUE } from './lib/server/queue.js';
 import { processExtractionJob, type ExtractionJobData } from './lib/server/extraction-worker.js';
+import { processNormalizeJob, type NormalizeJobData } from './lib/server/product-normalizer.js';
 
 // The worker runs the core product loop (Gemini extraction) on a box nobody
 // watches. Without Sentry a crash or every-job-failing state is invisible until
@@ -64,6 +65,7 @@ await boss.start();
 // pg-boss v10+ no longer auto-creates queues; work() requires the queue
 // to exist first. createQueue is idempotent.
 await boss.createQueue(EXTRACTION_QUEUE);
+await boss.createQueue(NORMALIZE_QUEUE);
 console.info('[worker] pg-boss started');
 
 // batchSize 1 — extractions run strictly one-by-one. Parallel extraction
@@ -78,6 +80,19 @@ await boss.work<ExtractionJobData>(
 	},
 );
 console.info(`[worker] Listening for "${EXTRACTION_QUEUE}" jobs`);
+
+// Low-priority LLM product normalization (issue #300). Best-effort — the
+// handler swallows its own errors, so a failed suggestion never retries noisily.
+await boss.work<NormalizeJobData>(
+	NORMALIZE_QUEUE,
+	{ batchSize: 1 },
+	async (jobs) => {
+		for (const job of jobs) {
+			await processNormalizeJob(job.data);
+		}
+	},
+);
+console.info(`[worker] Listening for "${NORMALIZE_QUEUE}" jobs`);
 
 async function shutdown() {
 	console.info('[worker] Shutting down…');
