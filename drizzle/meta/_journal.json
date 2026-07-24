@@ -148,6 +148,13 @@
 			"when": 1783609620000,
 			"tag": "0020_line_item_packs",
 			"breakpoints": true
+		},
+		{
+			"idx": 21,
+			"version": "7",
+			"when": 1783609680000,
+			"tag": "0021_price_snapshots_normalized",
+			"breakpoints": true
 		}
 	]
 }
