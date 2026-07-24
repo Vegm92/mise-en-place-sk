@@ -9,6 +9,7 @@ import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, se
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { toMonthStr } from '$lib/formatters';
 import { normalizeProductKey } from './normalize';
+import { parsePack, normalizedUnitPrice } from './pack-parser';
 import type { EnrichedLineItem } from './unit-bridge';
 
 const LOW_STOCK_DAYS = 3;
@@ -19,11 +20,14 @@ export interface Alert {
 	payload: Record<string, unknown>;
 }
 
+type PricePoint = { unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null };
+
 export async function runPriceShock(
 	invoiceId: number,
 	supplierName: string,
 	lineItems: EnrichedLineItem[],
 	restaurantId: string,
+	productByKey?: Map<string, number>,
 ): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 	const alerts: Alert[] = [];
@@ -41,11 +45,14 @@ export async function runPriceShock(
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
 
-	// Batch: one DISTINCT ON query for the latest unit price per item key
-	const priceRows = await db.execute<{ itemKey: string; unitPrice: number }>(sql`
+	// Batch: one DISTINCT ON query for the latest price per item key. Also pull
+	// the stored €/base (issue #299) so pack sizes can be compared apples-to-apples.
+	const priceRows = await db.execute<{ itemKey: string; unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null }>(sql`
 		SELECT DISTINCT ON (mep_norm_key(ili.description))
 			mep_norm_key(ili.description) AS "itemKey",
-			ili.unit_price AS "unitPrice"
+			ili.unit_price AS "unitPrice",
+			ili.normalized_unit_price AS "normalizedUnitPrice",
+			ili.base_unit AS "baseUnit"
 		FROM invoice_line_items ili
 		INNER JOIN invoices i ON ili.invoice_id = i.id
 		INNER JOIN suppliers s ON i.supplier_id = s.id
@@ -58,9 +65,38 @@ export async function runPriceShock(
 		ORDER BY mep_norm_key(ili.description), i.invoice_date DESC, i.id DESC
 	`);
 
-	const priceMap = new Map<string, number>();
+	const keyPriceMap = new Map<string, PricePoint>();
 	for (const row of priceRows) {
-		priceMap.set(row.itemKey, row.unitPrice);
+		keyPriceMap.set(row.itemKey, { unitPrice: row.unitPrice, normalizedUnitPrice: row.normalizedUnitPrice, baseUnit: row.baseUnit });
+	}
+
+	// When lines are resolved to catalog products (issue #298), also fetch the
+	// latest price per product_id — differently-sized descriptions of one product
+	// ("saco 25kg" vs "saco 10kg") share a product but not a description key, and
+	// only this grouping (compared as €/base) makes them meet without a false shock.
+	const productPriceMap = new Map<number, PricePoint>();
+	const productIds = productByKey ? [...new Set(productByKey.values())] : [];
+	if (productIds.length > 0) {
+		const productRows = await db.execute<{ productId: number; unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null }>(sql`
+			SELECT DISTINCT ON (ili.product_id)
+				ili.product_id AS "productId",
+				ili.unit_price AS "unitPrice",
+				ili.normalized_unit_price AS "normalizedUnitPrice",
+				ili.base_unit AS "baseUnit"
+			FROM invoice_line_items ili
+			INNER JOIN invoices i ON ili.invoice_id = i.id
+			INNER JOIN suppliers s ON i.supplier_id = s.id
+			WHERE i.restaurant_id = ${restaurantId}
+				AND ili.product_id IN (${sql.join(productIds.map(p => sql`${p}`), sql`, `)})
+				AND s.name = ${supplierName}
+				AND ili.invoice_id != ${invoiceId}
+				AND ili.unit_price IS NOT NULL
+				AND i.deleted_at IS NULL
+			ORDER BY ili.product_id, i.invoice_date DESC, i.id DESC
+		`);
+		for (const row of productRows) {
+			productPriceMap.set(row.productId, { unitPrice: row.unitPrice, normalizedUnitPrice: row.normalizedUnitPrice, baseUnit: row.baseUnit });
+		}
 	}
 
 	for (const item of lineItems) {
@@ -68,19 +104,35 @@ export async function runPriceShock(
 		const newPrice = item.unitPrice;
 		if (!description || newPrice == null) continue;
 
-		const oldPrice = priceMap.get(normalizeProductKey(description));
-		if (oldPrice == null || oldPrice === 0) continue;
+		const key = normalizeProductKey(description);
+		const pid = productByKey?.get(key);
+		// Prefer the product-grouped history; fall back to same-description history.
+		const prev = (pid != null ? productPriceMap.get(pid) : undefined) ?? keyPriceMap.get(key);
+		if (!prev) continue;
 
-		const deviation = (newPrice - oldPrice) / oldPrice;
+		// Prefer €/base when both sides carry it for the same base unit — this is
+		// what stops "caja 5kg" vs "caja 10kg" of one product from reading as a
+		// ~92% shock. Otherwise compare the raw unit price as before.
+		const newPack = parsePack(description, item.unit);
+		const newNorm = normalizedUnitPrice(newPrice, newPack);
+		const useNorm = newNorm != null && prev.normalizedUnitPrice != null && prev.normalizedUnitPrice > 0
+			&& newPack != null && prev.baseUnit != null && newPack.baseUnit === prev.baseUnit;
+
+		const oldCmp = useNorm ? prev.normalizedUnitPrice! : prev.unitPrice;
+		const newCmp = useNorm ? newNorm! : newPrice;
+		if (oldCmp === 0) continue;
+
+		const deviation = (newCmp - oldCmp) / oldCmp;
 		if (Math.abs(deviation) < PRICE_SHOCK_THRESHOLD) continue;
 
 		const pct = Math.round(deviation * 1000) / 10;
 		const direction = deviation > 0 ? 'subido' : 'bajado';
+		const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
 
 		alerts.push({
 			notificationType: 'price_shock',
-			message: `⚠️ Alerta de Coste: '${description}' ha ${direction} un ${Math.abs(pct)}% respecto al último precio registrado (${oldPrice.toFixed(2)} → ${newPrice.toFixed(2)}).`,
-			payload: { ingredient: description, supplier: supplierName, oldPrice, newPrice, deviationPct: pct },
+			message: `⚠️ Alerta de Coste: '${description}' ha ${direction} un ${Math.abs(pct)}% respecto al último precio registrado (${oldCmp.toFixed(2)} → ${newCmp.toFixed(2)}${unitSuffix}).`,
+			payload: { ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null },
 		});
 	}
 

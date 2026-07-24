@@ -9,6 +9,8 @@ import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers 
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit } from './unit-bridge';
 import { resolveLineProducts } from './product-catalog';
+import { parsePack, normalizedUnitPrice } from './pack-parser';
+import { normalizeProductKey } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, type Alert } from './alert-engine';
 import { saveAlerts } from './notifications';
 import { maybeSendQuotaWarning } from './quota-warning';
@@ -130,7 +132,8 @@ async function linkProductsToInvoice(
 	supplierId: number,
 	rid: string,
 	lineInputs: Array<{ desc: string; unitVal: string | null }>,
-): Promise<void> {
+): Promise<Map<string, number>> {
+	const productByKey = new Map<string, number>();
 	try {
 		const [supplier] = await db
 			.select({ category: suppliers.category })
@@ -153,6 +156,7 @@ async function linkProductsToInvoice(
 					eq(invoiceLineItems.invoiceId, invoiceId),
 					eq(invoiceLineItems.description, desc),
 				));
+			productByKey.set(normalizeProductKey(desc), r.productId);
 
 			if (r.status === 'fuzzy' && r.suggestion) {
 				suggestions.push({
@@ -171,6 +175,7 @@ async function linkProductsToInvoice(
 	} catch (err) {
 		console.error('[invoice-save] product linking failed (non-fatal):', err);
 	}
+	return productByKey;
 }
 
 /**
@@ -355,6 +360,10 @@ export async function saveReviewedInvoice(
 			const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
 			const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
 
+			// Pack structure (issue #299) — €/base for cross-size comparison.
+			const pack = parsePack(li.desc, li.unitVal);
+			const normPrice = normalizedUnitPrice(li.unitPriceFloat, pack);
+
 			await tx.insert(invoiceLineItems).values({
 				invoiceId: invoiceId!,
 				restaurantId: rid,
@@ -366,6 +375,11 @@ export async function saveReviewedInvoice(
 				taxRate: li.taxRateVal,
 				requiresUnitConversion: requiresConv,
 				canonicalUnit,
+				unitsPerPack: pack?.unitsPerPack ?? null,
+				unitSize: pack?.unitSize ?? null,
+				sizeUnit: pack?.sizeUnit ?? null,
+				baseUnit: pack?.baseUnit ?? null,
+				normalizedUnitPrice: normPrice,
 			});
 
 			savedItems.push({
@@ -404,16 +418,17 @@ export async function saveReviewedInvoice(
 	// saved invoice look unsaved (issue #248).
 	let isFirstInvoice = false;
 	try {
-		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid);
+		// Link line items to catalog products first (issue #298) so price-shock
+		// can group by product_id and compare pack sizes as €/base (issue #299).
+		// Post-commit and best-effort: an enrichment, never a reason to fail a save.
+		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
+
+		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
 		const stockAlerts = await runStockForecast(savedItems, rid);
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
-
-		// Link line items to catalog products (issue #298). Post-commit and
-		// best-effort: an enrichment, never a reason to fail a saved invoice.
-		await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
 
 		// Fire-and-forget: warn the owner when monthly usage nears the plan quota.
 		void maybeSendQuotaWarning(rid);

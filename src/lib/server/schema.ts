@@ -136,6 +136,15 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	// line items stay unlinked until backfilled; consumers fall back to the
 	// normalized description.
 	productId:              integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+	// Pack structure parsed from the description/unit (issue #299). All nullable
+	// — populated only when a size could be determined. normalizedUnitPrice is
+	// unit_price per base unit (€/kg, €/L or €/ud), what price analytics and
+	// price-shock compare across different pack sizes.
+	unitsPerPack:           real('units_per_pack'),
+	unitSize:               real('unit_size'),
+	sizeUnit:               text('size_unit'),
+	baseUnit:               text('base_unit'),
+	normalizedUnitPrice:    real('normalized_unit_price'),
 }, (t) => [
 	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
 	// restaurant_id prefix lets RLS-scoped price-history queries skip the invoice join
