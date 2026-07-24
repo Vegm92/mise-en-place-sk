@@ -159,6 +159,7 @@
         <button
           onclick={() => sendMessage()}
           disabled={!chatInput.trim() || chatLoading}
+          aria-label={$t('chat.send')}
           class="btn btn-primary flex-shrink-0"
           style="width:34px;height:34px;padding:0;justify-content:center;"
         >

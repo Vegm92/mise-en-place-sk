@@ -59,6 +59,14 @@
         body: JSON.stringify({ message: msg, sessionId: activeSessionId }),
       });
       const d = await res.json();
+      if (!res.ok) {
+        // Nothing new was persisted on the assistant side — invalidateAll()
+        // would rerun `load`, and the $effect below resyncs `messages` from
+        // that (unchanged) server data, silently wiping this error bubble
+        // before the user ever sees it (issue #306). Show it and stop.
+        messages = [...messages, { role: 'assistant', text: $t('chat.error') }];
+        return;
+      }
       if (d.sessionId && d.sessionId !== activeSessionId) {
         activeSessionId = d.sessionId;
         const url = new URL($page.url);
@@ -300,6 +308,7 @@
           <button
             onclick={() => sendMessage()}
             disabled={!chatInput.trim() || chatLoading}
+            aria-label={$t('chat.send')}
             class="btn btn-primary flex-shrink-0"
             style="width:42px;height:42px;padding:0;justify-content:center;"
           >

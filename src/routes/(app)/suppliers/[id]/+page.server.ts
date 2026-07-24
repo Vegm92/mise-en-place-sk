@@ -142,6 +142,24 @@ export const actions: Actions = {
 			.set({ name, category: cat, contactEmail, contactPhone, cif, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
+		// Backfill (issue #307): products created from this supplier's invoices
+		// only ever get a category once, at creation time, from whatever the
+		// supplier's category was then — usually the 'Other' default. Editing
+		// the supplier here is the one moment a user expresses a real category,
+		// so carry it onto that supplier's still-uncategorized products instead
+		// of leaving them stuck on 'Other' forever.
+		if (cat) {
+			await db.execute(sql`
+				UPDATE products SET category = ${cat}
+				WHERE restaurant_id = ${rid}
+				  AND (category IS NULL OR category = 'Other')
+				  AND id IN (
+				    SELECT DISTINCT product_id FROM product_aliases
+				    WHERE restaurant_id = ${rid} AND supplier_id = ${id}
+				  )
+			`);
+		}
+
 		redirect(303, `/suppliers/${id}`);
 	},
 
