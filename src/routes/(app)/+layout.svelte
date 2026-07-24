@@ -2,6 +2,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
+  import { goto } from '$app/navigation';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
   import { tutorialStep, setTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
@@ -50,6 +51,36 @@
   const showComplete = $derived(isFirstInvoice && $tutorialStep !== 'dismissed');
 
   let completeDismissed = $state(false);
+
+  // App-wide walkthrough (steps 3-11): one coach mark per main page, in nav order
+  const TOUR_PAGES = [
+    { step: '3' as const,  path: '/dashboard',       anchor: 'dashboard-main' },
+    { step: '4' as const,  path: '/invoices',        anchor: 'invoices-main' },
+    { step: '5' as const,  path: '/suppliers',       anchor: 'suppliers-main' },
+    { step: '6' as const,  path: '/analytics/spend', anchor: 'analytics-main' },
+    { step: '7' as const,  path: '/budgets',         anchor: 'budgets-main' },
+    { step: '8' as const,  path: '/reminders',       anchor: 'reminders-main' },
+    { step: '9' as const,  path: '/digest',          anchor: 'digest-main' },
+    { step: '10' as const, path: '/chat',            anchor: 'chat-main' },
+    { step: '11' as const, path: '/settings',        anchor: 'settings-main' },
+  ];
+
+  // Dashboard nudge offering the app-wide walkthrough — persists until accepted/dismissed
+  const showTourNudge = $derived($tutorialStep === 'done' && curPath === '/dashboard');
+
+  const tourIndex = $derived(TOUR_PAGES.findIndex(p => p.step === $tutorialStep));
+  const activeTourPage = $derived(tourIndex >= 0 ? TOUR_PAGES[tourIndex] : null);
+  const showTourStep = $derived(activeTourPage !== null && curPath === activeTourPage.path);
+
+  function advanceTour() {
+    const next = TOUR_PAGES[tourIndex + 1];
+    if (!next) {
+      setTutorialStep('dismissed');
+      return;
+    }
+    setTutorialStep(next.step);
+    if (next.path !== curPath) goto(next.path);
+  }
 
   onMount(() => {
     const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
@@ -383,6 +414,57 @@
           onclick={() => completeDismissed = true}
         >
           {$t('tour.complete.btn')}
+        </button>
+      </div>
+    </div>
+  {/if}
+
+  {#if showTourStep && activeTourPage}
+    <CoachMark
+      selector={activeTourPage.anchor}
+      title={$t(`tour.step${activeTourPage.step}.title`)}
+      body={$t(`tour.step${activeTourPage.step}.body`)}
+      stepNum={tourIndex + 1}
+      totalSteps={TOUR_PAGES.length}
+      nextLabel={activeTourPage.step === '11' ? $t('tour.step11.next') : undefined}
+      onNext={advanceTour}
+      onSkip={() => setTutorialStep('dismissed')}
+    />
+  {/if}
+
+  {#if showTourNudge}
+    <!-- App-wide tour nudge — small dismissible corner card, persists across dashboard visits -->
+    <div
+      style="
+        position:fixed;right:20px;bottom:20px;z-index:105;
+        width:300px;background:var(--mep-bg);border:1px solid var(--mep-border-strong);
+        border-radius:14px;padding:16px 16px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);
+      "
+      role="complementary"
+      aria-label={$t('tour.nudge.title')}
+    >
+      <div style="font-size:14px;font-weight:600;color:var(--mep-fg);margin-bottom:6px;">
+        {$t('tour.nudge.title')}
+      </div>
+      <p style="font-size:12.5px;color:var(--mep-fg-2);line-height:1.5;margin:0 0 14px;">
+        {$t('tour.nudge.body')}
+      </p>
+      <div style="display:flex;gap:8px;">
+        <button
+          type="button"
+          class="btn btn-ghost"
+          style="flex:1;height:34px;font-size:12.5px;justify-content:center;"
+          onclick={() => setTutorialStep('dismissed')}
+        >
+          {$t('tour.nudge.dismiss')}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="flex:1;height:34px;font-size:12.5px;justify-content:center;"
+          onclick={() => setTutorialStep('3')}
+        >
+          {$t('tour.nudge.accept')}
         </button>
       </div>
     </div>

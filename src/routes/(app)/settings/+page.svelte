@@ -66,16 +66,18 @@
       </form>
     </SectionCard>
 
-    <SectionCard title={$t('set.tourTitle')}>
-      <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">
-        {$t('set.tourDesc')}
-      </p>
-      <form method="POST" action="?/resetTutorial">
-        <button type="submit" class="btn btn-secondary" style="height:34px;font-size:13px;">
-          {$t('set.tourRepeat')}
-        </button>
-      </form>
-    </SectionCard>
+    <div data-coach="settings-main">
+      <SectionCard title={$t('set.tourTitle')}>
+        <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">
+          {$t('set.tourDesc')}
+        </p>
+        <form method="POST" action="?/resetTutorial">
+          <button type="submit" class="btn btn-secondary" style="height:34px;font-size:13px;">
+            {$t('set.tourRepeat')}
+          </button>
+        </form>
+      </SectionCard>
+    </div>
 
     <SectionCard title={$t('set.privacyTitle')}>
       <div style="display:flex;flex-direction:column;gap:12px;">

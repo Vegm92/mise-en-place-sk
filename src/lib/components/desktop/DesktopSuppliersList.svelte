@@ -92,7 +92,7 @@
   </div>
 
   <!-- Summary strip -->
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0">
+  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0" data-coach="suppliers-main">
     <div class="card" style="padding:14px;">
       <div class="label" style="margin-bottom:6px;">{$t('dsup.activeSuppliers')}</div>
       <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{suppliers.length}</div>

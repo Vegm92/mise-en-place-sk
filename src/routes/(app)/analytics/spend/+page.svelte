@@ -88,7 +88,7 @@
     </div>
 
     <!-- KPI row -->
-    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2" data-coach="analytics-main">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{$t('spend.totalSpend')}</div>
         <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{fmtEur(data.kpis.total_items_spend)}</div>

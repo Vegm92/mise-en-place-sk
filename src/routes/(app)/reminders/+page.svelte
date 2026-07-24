@@ -21,11 +21,11 @@
   {/if}
 
   {#if !data.overdue.length && !data.due_soon.length}
-    <p class="body text-center py-16">{$t('rem.empty')}</p>
+    <p class="body text-center py-16" data-coach="reminders-main">{$t('rem.empty')}</p>
   {:else}
 
     <!-- Summary chips -->
-    <div class="flex gap-2 flex-wrap">
+    <div class="flex gap-2 flex-wrap" data-coach="reminders-main">
       {#if data.overdue.length}
         <div class="card px-3 py-2 bg-neg-soft border-neg" style="font-size:13px;">
           <strong class="text-neg">{data.overdue.length}</strong>
