@@ -658,6 +658,7 @@ export const translations = {
     // Analytics / prices — desktop & mobile
     'prices.question':              '¿Qué precios están cambiando?',
     'prices.searchPlaceholder':     'Buscar producto o proveedor…',
+    'prices.perBaseHint':           'Precio por unidad base (€/kg, €/L, €/ud) — comparable entre formatos',
     'prices.allSuppliers':          'Todos los proveedores',
     'prices.filter.all':            'Todos',
     'prices.filter.up':             'Subidas',
@@ -1578,6 +1579,7 @@ export const translations = {
     // Analytics / prices — desktop & mobile
     'prices.question':              'Which prices are changing?',
     'prices.searchPlaceholder':     'Search product or supplier…',
+    'prices.perBaseHint':           'Price per base unit (€/kg, €/L, €/ud) — comparable across formats',
     'prices.allSuppliers':          'All suppliers',
     'prices.filter.all':            'All',
     'prices.filter.up':             'Increases',
