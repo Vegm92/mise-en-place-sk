@@ -23,6 +23,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { BatchDb } from './batch-core';
 import * as schema from './schema';
 import { normalizeProductKey, canonicalizeUnit } from './normalize';
+import { expandAbbreviations } from './product-dictionary';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -108,12 +109,18 @@ async function resolveOne(
 		return { productId: aliasRows[0].product_id, status: 'exact' };
 	}
 
-	// 2. Fuzzy match against existing products' normalized names.
+	// 2. Fuzzy match against existing products' normalized names. Also try the
+	// dictionary-expanded key (issue #300) so "TERN. AGUJA" / "REF.1042 Merluza"
+	// meet "ternera aguja" / "merluza" without the LLM. GREATEST takes the better
+	// of the raw and expanded similarity.
+	const expandedKey = normalizeProductKey(expandAbbreviations(raw));
+	const altKey = expandedKey && expandedKey !== key ? expandedKey : key;
 	const fuzzyRows = await tx.execute<{ id: number; canonical_name: string; score: number }>(sql`
-		SELECT id, canonical_name, similarity(name_key, ${key}) AS score
+		SELECT id, canonical_name,
+		       GREATEST(similarity(name_key, ${key}), similarity(name_key, ${altKey})) AS score
 		FROM products
 		WHERE restaurant_id = ${restaurantId}
-		  AND similarity(name_key, ${key}) >= ${FUZZY_THRESHOLD}
+		  AND GREATEST(similarity(name_key, ${key}), similarity(name_key, ${altKey})) >= ${FUZZY_THRESHOLD}
 		ORDER BY score DESC
 		LIMIT 1
 	`);
@@ -232,5 +239,64 @@ export async function rejectProductAlias(
 		`);
 
 		return { ok: true, productId: newProductId } as AliasDecision;
+	});
+}
+
+/**
+ * Confirm an LLM merge suggestion (issue #300): this description really is the
+ * existing product `targetProductId`. Repoints the alias and its line items to
+ * the target and deletes the throwaway product the description first created if
+ * nothing else references it. `targetProductId` must belong to the tenant.
+ */
+export async function mergeIntoProduct(
+	database: Database,
+	restaurantId: string,
+	description: string,
+	targetProductId: number,
+): Promise<AliasDecision> {
+	const rawKey = normalizeProductKey(description);
+	return database.transaction(async (tx) => {
+		const targetRows = await tx.execute<{ id: number }>(sql`
+			SELECT id FROM products WHERE id = ${targetProductId} AND restaurant_id = ${restaurantId} LIMIT 1
+		`);
+		if (targetRows.length === 0) return { ok: false, reason: 'not_found' } as AliasDecision;
+
+		const aliasRows = await tx.execute<{ id: number; product_id: number }>(sql`
+			SELECT id, product_id FROM product_aliases
+			WHERE restaurant_id = ${restaurantId} AND raw_key = ${rawKey}
+			LIMIT 1
+		`);
+		if (aliasRows.length === 0) return { ok: false, reason: 'not_found' } as AliasDecision;
+		const alias = aliasRows[0];
+		const oldProductId = alias.product_id;
+
+		if (oldProductId !== targetProductId) {
+			await tx.execute(sql`
+				UPDATE product_aliases
+				SET product_id = ${targetProductId}, source = 'user', confirmed_at = now()
+				WHERE id = ${alias.id}
+			`);
+			await tx.execute(sql`
+				UPDATE invoice_line_items
+				SET product_id = ${targetProductId}
+				WHERE restaurant_id = ${restaurantId}
+				  AND product_id = ${oldProductId}
+				  AND mep_norm_key(description) = ${rawKey}
+			`);
+			// Drop the throwaway product if nothing points at it anymore.
+			await tx.execute(sql`
+				DELETE FROM products p
+				WHERE p.id = ${oldProductId} AND p.restaurant_id = ${restaurantId}
+				  AND NOT EXISTS (SELECT 1 FROM product_aliases a WHERE a.product_id = p.id)
+				  AND NOT EXISTS (SELECT 1 FROM invoice_line_items li WHERE li.product_id = p.id)
+			`);
+		} else {
+			await tx.execute(sql`
+				UPDATE product_aliases SET source = 'user', confirmed_at = COALESCE(confirmed_at, now())
+				WHERE id = ${alias.id}
+			`);
+		}
+
+		return { ok: true, productId: targetProductId } as AliasDecision;
 	});
 }
