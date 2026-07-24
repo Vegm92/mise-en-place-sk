@@ -15,6 +15,21 @@ function d(iso: string): Date {
 	return new Date(iso + 'T00:00:00Z');
 }
 
+/**
+ * Local-calendar-date formatter for assertions. addSpanishWorkingDays/etc.
+ * do their arithmetic in local time (setDate/setHours), so the result's
+ * *local* calendar date is what matters here — asserting against
+ * `.toISOString()` instead rolls the date back a day on any UTC+ machine
+ * (e.g. Europe/Madrid), since local midnight converts to the previous day's
+ * evening in UTC. Mirrors the internal `toIso()` in working-days.ts.
+ */
+function localIso(date: Date): string {
+	const yyyy = date.getFullYear();
+	const mm = String(date.getMonth() + 1).padStart(2, '0');
+	const dd = String(date.getDate()).padStart(2, '0');
+	return `${yyyy}-${mm}-${dd}`;
+}
+
 // ── isSpanishNationalHoliday ──────────────────────────────────────────────────
 
 describe('isSpanishNationalHoliday', () => {
@@ -102,19 +117,19 @@ describe('addSpanishWorkingDays', () => {
 	it('adds 4 working days from a Monday', () => {
 		// Mon Jan 8 + 4 = Fri Jan 12
 		const result = addSpanishWorkingDays(d('2024-01-08'), 4);
-		expect(result.toISOString().startsWith('2024-01-12')).toBe(true);
+		expect(localIso(result)).toBe('2024-01-12');
 	});
 
 	it('skips weekends when adding days', () => {
 		// Thu Jan 11 + 4 = Wed Jan 17 (skipping Sat 13, Sun 14)
 		const result = addSpanishWorkingDays(d('2024-01-11'), 4);
-		expect(result.toISOString().startsWith('2024-01-17')).toBe(true);
+		expect(localIso(result)).toBe('2024-01-17');
 	});
 
 	it('skips national holidays when adding days', () => {
 		// Dec 23 (Mon) + 4 working days, skipping Dec 25 (Xmas): Tue 24, Thu 26, Fri 27, Mon 30
 		const result = addSpanishWorkingDays(d('2024-12-23'), 4);
-		expect(result.toISOString().startsWith('2024-12-30')).toBe(true);
+		expect(localIso(result)).toBe('2024-12-30');
 	});
 
 	it('returns from date unchanged when 0 days are added', () => {
@@ -158,6 +173,6 @@ describe('workingDaysUntilDeadline', () => {
 		//       Apr 4=Sat, Apr 5=Sun, Apr 6=Mon(4) → deadline Mon Apr 6
 		const receivedAt = d('2026-03-30');
 		const deadline = addSpanishWorkingDays(receivedAt, 4);
-		expect(deadline.toISOString().startsWith('2026-04-06')).toBe(true);
+		expect(localIso(deadline)).toBe('2026-04-06');
 	});
 });

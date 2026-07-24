@@ -166,6 +166,11 @@ export const products = pgTable('products', {
 	nameKey:       text('name_key').notNull(),
 	category:      text('category'),
 	canonicalUnit: text('canonical_unit'),
+	// Pack-to-base-unit conversion (e.g. "1 saco = 10 kg"), set via the Products
+	// CRUD page. Resolves the 'unit_conversion_needed' alert for this product
+	// (src/lib/server/invoice-save.ts) once both are filled in.
+	unitsPerPack:  real('units_per_pack'),
+	baseUnit:      text('base_unit'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	// One product per normalized name within a tenant — concurrent saves of the
