@@ -132,10 +132,66 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	taxRate:                real('tax_rate'),
 	requiresUnitConversion: integer('requires_unit_conversion').default(0),
 	canonicalUnit:          text('canonical_unit'),
+	// Resolved product (issue #298). Nullable during transition: historical
+	// line items stay unlinked until backfilled; consumers fall back to the
+	// normalized description.
+	productId:              integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+	// Pack structure parsed from the description/unit (issue #299). All nullable
+	// — populated only when a size could be determined. normalizedUnitPrice is
+	// unit_price per base unit (€/kg, €/L or €/ud), what price analytics and
+	// price-shock compare across different pack sizes.
+	unitsPerPack:           real('units_per_pack'),
+	unitSize:               real('unit_size'),
+	sizeUnit:               text('size_unit'),
+	baseUnit:               text('base_unit'),
+	normalizedUnitPrice:    real('normalized_unit_price'),
 }, (t) => [
 	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
 	// restaurant_id prefix lets RLS-scoped price-history queries skip the invoice join
 	index('idx_invoice_line_items_rid_description').on(t.restaurantId, t.description),
+	index('idx_invoice_line_items_product_id').on(t.restaurantId, t.productId).where(sql`${t.productId} IS NOT NULL`),
+]);
+
+// ── Product catalog (issue #298) ────────────────────────────────────────────
+// A per-tenant canonical product, plus the many raw invoice descriptions that
+// map to it. Together they turn "the string a supplier printed" into a stable
+// entity so cross-supplier price comparison and analytics have something to
+// group on. name_key / raw_key store normalizeProductKey(...) of the display
+// text; see src/lib/server/normalize.ts and mep_norm_key in Postgres.
+
+export const products = pgTable('products', {
+	id:            serial('id').primaryKey(),
+	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	canonicalName: text('canonical_name').notNull(),
+	nameKey:       text('name_key').notNull(),
+	category:      text('category'),
+	canonicalUnit: text('canonical_unit'),
+	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	// One product per normalized name within a tenant — concurrent saves of the
+	// same new product converge via ON CONFLICT instead of racing to insert.
+	uniqueIndex('products_restaurant_name_key_unique').on(t.restaurantId, t.nameKey),
+]);
+
+export const productAliases = pgTable('product_aliases', {
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	productId:    integer('product_id').notNull().references(() => products.id, { onDelete: 'cascade' }),
+	supplierId:   integer('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
+	rawKey:       text('raw_key').notNull(),
+	rawText:      text('raw_text'),
+	// How this alias was created: 'exact' (auto, normalized-key match/new product),
+	// 'fuzzy' (auto-linked via pg_trgm — needs confirmation), 'user' (confirmed),
+	// 'llm' (Phase 4). confirmed_at IS NULL ⇒ a pending suggestion.
+	source:       text('source').notNull().default('exact'),
+	confirmedAt:  timestamp('confirmed_at', { withTimezone: true }),
+	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	// A raw invoice description resolves to exactly one product per tenant.
+	uniqueIndex('product_aliases_restaurant_raw_key_unique').on(t.restaurantId, t.rawKey),
+	index('product_aliases_product_idx').on(t.restaurantId, t.productId),
+	// Pending suggestions the review UI lists.
+	index('product_aliases_pending_idx').on(t.restaurantId).where(sql`${t.confirmedAt} IS NULL`),
 ]);
 
 export const supplierMetrics = pgTable('supplier_metrics', {
