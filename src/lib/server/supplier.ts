@@ -23,9 +23,16 @@ export async function getOrCreateSupplierId(
 	exec: BatchDb = db,
 ): Promise<number> {
 	const trimmed = name.trim();
+	// New suppliers default to the 'Other' bucket (issue #307) instead of a
+	// null category — without this, every product resolved against a
+	// newly-created supplier inherits a null category too (product-catalog.ts
+	// reads it at creation time), and Budgets/category analytics have nothing
+	// to group on for any tenant that never manually curates supplier
+	// categories. The no-op DO UPDATE on conflict leaves an existing
+	// supplier's (possibly user-set) category untouched.
 	const rows = await exec.execute<{ id: number }>(sql`
-		INSERT INTO suppliers (restaurant_id, name)
-		VALUES (${restaurantId}, ${trimmed})
+		INSERT INTO suppliers (restaurant_id, name, category)
+		VALUES (${restaurantId}, ${trimmed}, 'Other')
 		ON CONFLICT (restaurant_id, lower(name))
 		DO UPDATE SET name = suppliers.name
 		RETURNING id

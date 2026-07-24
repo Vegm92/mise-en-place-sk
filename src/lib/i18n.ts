@@ -133,6 +133,7 @@ export const translations = {
     // Chat widget
     'chat.title':          'Consulta tus datos',
     'chat.placeholder':    'Pregunta sobre tus facturas…',
+    'chat.send':           'Enviar',
     'chat.empty':          'Pregunta sobre facturas, proveedores, gastos o tendencias.',
     'chat.privacy':        'Los datos se comparten con Google Gemini para responder.',
     'chat.error':          'Algo salió mal. Inténtalo de nuevo.',
@@ -1053,6 +1054,7 @@ export const translations = {
     // Chat widget
     'chat.title':          'Ask your data',
     'chat.placeholder':    'Ask about your invoices…',
+    'chat.send':           'Send',
     'chat.empty':          'Ask anything about invoices, suppliers, spend, or trends.',
     'chat.privacy':        'Business data is shared with Google Gemini to answer questions.',
     'chat.error':          'Something went wrong. Try again.',
