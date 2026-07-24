@@ -174,6 +174,125 @@ export type AliasDecision =
 	| { ok: true; productId: number }
 	| { ok: false; reason: 'not_found' };
 
+export interface LinkedSupplier {
+	supplierId: number;
+	supplierName: string;
+}
+
+/**
+ * Suppliers still linked to a product via a confirmed/pending alias
+ * (product_aliases.supplier_id). Drives the delete-blocked dialog's
+ * "unlink this supplier" list.
+ */
+export async function getLinkedSuppliers(
+	database: Database,
+	restaurantId: string,
+	productId: number,
+): Promise<LinkedSupplier[]> {
+	const rows = await database.execute<{ supplier_id: number; supplier_name: string }>(sql`
+		SELECT DISTINCT s.id AS supplier_id, s.name AS supplier_name
+		FROM product_aliases a
+		JOIN suppliers s ON s.id = a.supplier_id
+		WHERE a.restaurant_id = ${restaurantId} AND a.product_id = ${productId} AND a.supplier_id IS NOT NULL
+		ORDER BY s.name
+	`);
+	return rows.map((r) => ({ supplierId: r.supplier_id, supplierName: r.supplier_name }));
+}
+
+/**
+ * Unlink a product from one supplier: drop that supplier's product_aliases
+ * row(s) for this product, and null out product_id on that supplier's
+ * invoice_line_items so historical rows no longer reference the product
+ * (issue: product delete confirmation flow). Line items belonging to other
+ * suppliers, or aliases for other suppliers, are untouched.
+ */
+export async function unlinkSupplier(
+	database: Database,
+	restaurantId: string,
+	productId: number,
+	supplierId: number,
+): Promise<void> {
+	await database.transaction(async (tx) => {
+		await tx.execute(sql`
+			UPDATE invoice_line_items
+			SET product_id = NULL
+			WHERE restaurant_id = ${restaurantId}
+			  AND product_id = ${productId}
+			  AND invoice_id IN (
+			    SELECT id FROM invoices WHERE restaurant_id = ${restaurantId} AND supplier_id = ${supplierId}
+			  )
+		`);
+		await tx.execute(sql`
+			DELETE FROM product_aliases
+			WHERE restaurant_id = ${restaurantId} AND product_id = ${productId} AND supplier_id = ${supplierId}
+		`);
+	});
+}
+
+export type DeleteProductResult =
+	| { ok: true }
+	| { ok: false; reason: 'linked'; suppliers: LinkedSupplier[] }
+	| { ok: false; reason: 'not_found' };
+
+/**
+ * Delete a product. Blocked (not cascaded) while any invoice_line_items or
+ * product_aliases still reference it — the caller's UI resolves this via
+ * unlinkSupplier() per supplier, then retries.
+ */
+export async function deleteProduct(
+	database: Database,
+	restaurantId: string,
+	productId: number,
+): Promise<DeleteProductResult> {
+	const existing = await database.execute<{ id: number }>(sql`
+		SELECT id FROM products WHERE id = ${productId} AND restaurant_id = ${restaurantId} LIMIT 1
+	`);
+	if (existing.length === 0) return { ok: false, reason: 'not_found' };
+
+	const linkedLineItems = await database.execute<{ count: number }>(sql`
+		SELECT count(*)::int AS count FROM invoice_line_items
+		WHERE restaurant_id = ${restaurantId} AND product_id = ${productId}
+	`);
+	const linkedAliases = await database.execute<{ count: number }>(sql`
+		SELECT count(*)::int AS count FROM product_aliases
+		WHERE restaurant_id = ${restaurantId} AND product_id = ${productId}
+	`);
+	if (linkedLineItems[0].count > 0 || linkedAliases[0].count > 0) {
+		return { ok: false, reason: 'linked', suppliers: await getLinkedSuppliers(database, restaurantId, productId) };
+	}
+
+	await database.execute(sql`
+		DELETE FROM products WHERE id = ${productId} AND restaurant_id = ${restaurantId}
+	`);
+	return { ok: true };
+}
+
+/**
+ * Mark pending 'unit_conversion_needed' notifications as resolved for a
+ * product, once its unitsPerPack/baseUnit have been filled in via the
+ * Products CRUD page. Matches by normalized key against either the
+ * product's own name or any of its aliases' raw text — the alert's payload
+ * only carries the raw invoice description, not a product_id.
+ */
+export async function resolveUnitConversionAlerts(
+	database: Database,
+	restaurantId: string,
+	productId: number,
+): Promise<void> {
+	await database.execute(sql`
+		UPDATE system_notifications
+		SET status = 'sent'
+		WHERE restaurant_id = ${restaurantId}
+		  AND notification_type = 'unit_conversion_needed'
+		  AND status = 'pending'
+		  AND mep_norm_key(payload::json->>'ingredient') IN (
+		    SELECT raw_key FROM product_aliases WHERE restaurant_id = ${restaurantId} AND product_id = ${productId}
+		    UNION
+		    SELECT name_key FROM products WHERE id = ${productId} AND restaurant_id = ${restaurantId}
+		  )
+	`);
+}
+
 /**
  * Confirm a pending fuzzy suggestion: keep the auto-link and mark the alias
  * user-confirmed. `description` is the raw invoice text; its normalized key
