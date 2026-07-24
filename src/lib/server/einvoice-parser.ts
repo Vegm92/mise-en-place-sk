@@ -9,6 +9,7 @@
  *   UBL 2.1         — EU standard (EN 16931, mandatory for Spain's SPFE public platform)
  */
 import { XMLParser } from 'fast-xml-parser';
+import { canonicalizeUnit } from './normalize';
 import type { ExtractedInvoice } from './extract';
 
 export type EinvoiceFormat = 'facturae_322' | 'ubl_21';
@@ -81,10 +82,26 @@ function getArr(obj: unknown, key: string): unknown[] {
 
 // ── Facturae 3.2.x ───────────────────────────────────────────────────────────
 
-const FACTURAE_UNIT_CODES: Record<string, string> = {
-	'01': 'ud', '02': 'kg', '03': 'L', '04': 'm', '05': 'm2', '06': 'm3',
-	'07': 'caja', '08': 'pack', '09': 'docena', '10': 'g', '11': 'ml',
-	'14': 'garrafa', '22': 'botella',
+// Facturae 3.2.x UnitOfMeasureType, complete per the official spec (issue #297):
+// 01 Unidades, 02 Horas, 03 Kilogramos, 04 Litros, 05 Otros, 06 Cajas,
+// 07 Bandejas, 08 Barriles, 09 Bidones, 10 Bolsas, 11 Bombonas, 12 Botellas,
+// 13 Botes, 14 TetraBriks, 15 Centilitros, 16 Centímetros, 17 Cubetas,
+// 18 Docenas, 19 Estuches, 20 Garrafas, 21 Gramos, 22 Kilómetros, 23 Latas,
+// 24 Manojos, 25 Metros, 26 Milímetros, 27 Packs de 6, 28 Paquetes,
+// 29 Raciones, 30 Rollos, 31 Sobres, 32 Tarrinas, 33 m³, 34 Segundos,
+// 35 Vatios, 36 kWh. The previous map here ('02'→kg, '03'→L, …) did not match
+// the spec and mislabeled units on every real Facturae invoice.
+// null = no food-relevant canonical unit; leave the line unit empty rather
+// than inventing one.
+const FACTURAE_UNIT_CODES: Record<string, string | null> = {
+	'01': 'ud',      '02': 'hora',    '03': 'kg',      '04': 'L',       '05': null,
+	'06': 'caja',    '07': 'bandeja', '08': 'barril',  '09': 'bidón',   '10': 'bolsa',
+	'11': 'bombona', '12': 'botella', '13': 'bote',    '14': 'brik',    '15': 'cl',
+	'16': 'cm',      '17': 'cubeta',  '18': 'docena',  '19': 'estuche', '20': 'garrafa',
+	'21': 'g',       '22': 'km',      '23': 'lata',    '24': 'manojo',  '25': 'm',
+	'26': 'mm',      '27': 'pack',    '28': 'paquete', '29': 'ración',  '30': 'rollo',
+	'31': 'sobre',   '32': 'tarrina', '33': 'm3',      '34': null,      '35': null,
+	'36': 'kWh',
 };
 
 export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_format: EinvoiceFormat; supplier_nif: string | null } {
@@ -137,7 +154,10 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		return {
 			description: getText(getChild(line, 'ItemDescription')) ?? '',
 			quantity: getNum(getChild(line, 'Quantity')),
-			unit: (uom ? (FACTURAE_UNIT_CODES[uom] ?? uom) : null),
+			// Numeric spec code → canonical unit; some issuers put literal text
+			// ("kg") in UnitOfMeasure — canonicalizeUnit covers those. Unknown
+			// codes yield null (flagged for conversion) instead of a fake unit.
+			unit: (uom ? (FACTURAE_UNIT_CODES[uom] ?? canonicalizeUnit(uom)) : null),
 			unit_price: getNum(getChild(line, 'UnitPriceWithoutTax')),
 			total_price: getNum(getChild(line, 'TotalCost')) ?? getNum(getChild(line, 'GrossAmount')),
 			confidence: 1.0,
@@ -217,7 +237,11 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 			'';
 		const qty = getNum(getChild(line, 'InvoicedQuantity'));
 		const unitCodeRaw = (getChild(line, 'InvoicedQuantity') as Record<string, unknown> | undefined)?.['@_unitCode'];
-		const unit = typeof unitCodeRaw === 'string' ? unitCodeRaw.toLowerCase() || null : null;
+		// UN/ECE Rec 20/21 codes (KGM, LTR, C62, XBX…) → canonical unit via the
+		// shared synonym map (issue #297). Previously the raw code was passed
+		// through lowercased ("kgm"), which no consumer recognized, so every
+		// UBL line demanded a manual conversion rule. Unknown codes → null.
+		const unit = typeof unitCodeRaw === 'string' ? canonicalizeUnit(unitCodeRaw) : null;
 		const totalLine = getNum(getChild(line, 'LineExtensionAmount'));
 		const unitPrice = getNum(getChild(line, 'Price', 'PriceAmount'));
 		return {

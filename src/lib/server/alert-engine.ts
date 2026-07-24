@@ -6,8 +6,9 @@
  */
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { toMonthStr } from '$lib/formatters';
+import { normalizeProductKey } from './normalize';
 import type { EnrichedLineItem } from './unit-bridge';
 
 const LOW_STOCK_DAYS = 3;
@@ -34,29 +35,32 @@ export async function runPriceShock(
 		.limit(1);
 	const PRICE_SHOCK_THRESHOLD = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
 
-	const descriptions = [...new Set(lineItems.map(i => (i.description ?? '').trim()).filter(Boolean))];
-	if (descriptions.length === 0) return [];
+	// Match by the shared normalized key (issue #296): "TOMATE PERA" and
+	// "Tomate Pera" are the same product. mep_norm_key is the SQL twin of
+	// normalizeProductKey — both sides of the comparison use the same fold.
+	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
+	if (itemKeys.length === 0) return [];
 
-	// Batch: one DISTINCT ON query for the latest unit price per description
-	const priceRows = await db.execute<{ description: string; unitPrice: number }>(sql`
-		SELECT DISTINCT ON (ili.description)
-			ili.description,
+	// Batch: one DISTINCT ON query for the latest unit price per item key
+	const priceRows = await db.execute<{ itemKey: string; unitPrice: number }>(sql`
+		SELECT DISTINCT ON (mep_norm_key(ili.description))
+			mep_norm_key(ili.description) AS "itemKey",
 			ili.unit_price AS "unitPrice"
 		FROM invoice_line_items ili
 		INNER JOIN invoices i ON ili.invoice_id = i.id
 		INNER JOIN suppliers s ON i.supplier_id = s.id
 		WHERE i.restaurant_id = ${restaurantId}
-			AND ili.description IN (${sql.join(descriptions.map(d => sql`${d}`), sql`, `)})
+			AND mep_norm_key(ili.description) IN (${sql.join(itemKeys.map(d => sql`${d}`), sql`, `)})
 			AND s.name = ${supplierName}
 			AND ili.invoice_id != ${invoiceId}
 			AND ili.unit_price IS NOT NULL
 			AND i.deleted_at IS NULL
-		ORDER BY ili.description, i.invoice_date DESC, i.id DESC
+		ORDER BY mep_norm_key(ili.description), i.invoice_date DESC, i.id DESC
 	`);
 
 	const priceMap = new Map<string, number>();
 	for (const row of priceRows) {
-		priceMap.set(row.description, row.unitPrice);
+		priceMap.set(row.itemKey, row.unitPrice);
 	}
 
 	for (const item of lineItems) {
@@ -64,7 +68,7 @@ export async function runPriceShock(
 		const newPrice = item.unitPrice;
 		if (!description || newPrice == null) continue;
 
-		const oldPrice = priceMap.get(description);
+		const oldPrice = priceMap.get(normalizeProductKey(description));
 		if (oldPrice == null || oldPrice === 0) continue;
 
 		const deviation = (newPrice - oldPrice) / oldPrice;
@@ -87,10 +91,11 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	const tdb = forTenant(restaurantId);
 	const alerts: Alert[] = [];
 
-	const descriptions = [...new Set(lineItems.map(i => (i.description ?? '').trim()).filter(Boolean))];
-	if (descriptions.length === 0) return [];
+	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
+	if (itemKeys.length === 0) return [];
 
-	// Batch: one IN query for all stock levels
+	// Batch: one IN query for all stock levels, matched on the normalized key
+	// so "Harina 00" on the invoice updates a stock row saved as "harina 00".
 	const stockRows = await db
 		.select({
 			ingredient: stockLevels.ingredient,
@@ -101,16 +106,16 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 		.from(stockLevels)
 		.where(and(
 			tdb.scope(stockLevels.restaurantId),
-			inArray(stockLevels.ingredient, descriptions),
+			sql`mep_norm_key(${stockLevels.ingredient}) IN (${sql.join(itemKeys.map(k => sql`${k}`), sql`, `)})`,
 		));
 
-	const stockMap = new Map(stockRows.map(r => [r.ingredient, r]));
+	const stockMap = new Map(stockRows.map(r => [normalizeProductKey(r.ingredient), r]));
 
 	for (const item of lineItems) {
 		const description = (item.description ?? '').trim();
 		if (!description) continue;
 
-		const row = stockMap.get(description);
+		const row = stockMap.get(normalizeProductKey(description));
 		if (row?.currentStock == null || row.dailyBurnRate == null || row.dailyBurnRate === 0) continue;
 
 		const addedQty = item.convertedQuantity ?? item.quantity ?? 0;

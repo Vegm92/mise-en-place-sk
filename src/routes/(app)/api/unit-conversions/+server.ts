@@ -46,13 +46,15 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 		});
 
 	// Clear pending flags — join by supplier_id when known, fall back to name join.
+	// Normalized comparison (issue #296): the pending line may spell the
+	// ingredient/unit with different casing or accents than the saved rule.
 	if (resolvedSupplierId != null) {
 		await db.execute(sql`
 			UPDATE invoice_line_items
 			SET requires_unit_conversion = 0,
 			    canonical_unit = ${sCanonical}
-			WHERE description = ${sIngredient}
-			  AND unit = ${sPurchase}
+			WHERE mep_norm_key(description) = mep_norm_key(${sIngredient})
+			  AND mep_norm_key(unit) = mep_norm_key(${sPurchase})
 			  AND requires_unit_conversion = 1
 			  AND invoice_id IN (
 			      SELECT id FROM invoices
@@ -65,8 +67,8 @@ export const POST: RequestHandler = async ({ request, getClientAddress, locals }
 			UPDATE invoice_line_items
 			SET requires_unit_conversion = 0,
 			    canonical_unit = ${sCanonical}
-			WHERE description = ${sIngredient}
-			  AND unit = ${sPurchase}
+			WHERE mep_norm_key(description) = mep_norm_key(${sIngredient})
+			  AND mep_norm_key(unit) = mep_norm_key(${sPurchase})
 			  AND requires_unit_conversion = 1
 			  AND invoice_id IN (
 			      SELECT i.id FROM invoices i

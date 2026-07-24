@@ -127,6 +127,13 @@
 			"when": 1783609440000,
 			"tag": "0017_category_budgets_month",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1783609500000,
+			"tag": "0018_product_key_normalization",
+			"breakpoints": true
 		}
 	]
 }

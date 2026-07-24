@@ -110,7 +110,7 @@ const FACTURAE_322_XML = `<?xml version="1.0" encoding="UTF-8"?>
         <InvoiceLine>
           <ItemDescription>Aceite de oliva virgen extra 5L</ItemDescription>
           <Quantity>10</Quantity>
-          <UnitOfMeasure>03</UnitOfMeasure>
+          <UnitOfMeasure>04</UnitOfMeasure>
           <UnitPriceWithoutTax>85.00</UnitPriceWithoutTax>
           <TotalCost>850.00</TotalCost>
           <GrossAmount>850.00</GrossAmount>
@@ -118,7 +118,7 @@ const FACTURAE_322_XML = `<?xml version="1.0" encoding="UTF-8"?>
         <InvoiceLine>
           <ItemDescription>Sal marina fina 1kg</ItemDescription>
           <Quantity>20</Quantity>
-          <UnitOfMeasure>02</UnitOfMeasure>
+          <UnitOfMeasure>03</UnitOfMeasure>
           <UnitPriceWithoutTax>2.28</UnitPriceWithoutTax>
           <TotalCost>45.62</TotalCost>
           <GrossAmount>45.62</GrossAmount>
@@ -269,14 +269,30 @@ describe('parseFacturae322', () => {
 		expect(result.line_items).toHaveLength(2);
 		expect(result.line_items[0].description).toBe('Aceite de oliva virgen extra 5L');
 		expect(result.line_items[0].quantity).toBe(10);
-		expect(result.line_items[0].unit).toBe('L'); // UoM 03 → L
+		expect(result.line_items[0].unit).toBe('L'); // UoM 04 (Litros) → L
 		expect(result.line_items[0].unit_price).toBeCloseTo(85.0, 2);
 		expect(result.line_items[0].total_price).toBeCloseTo(850.0, 2);
 	});
 
-	it('maps unit code 02 to kg', () => {
+	it('maps unit code 03 (Kilogramos) to kg', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
 		expect(result.line_items[1].unit).toBe('kg');
+	});
+
+	it('maps the container/measure codes of the official Facturae table', () => {
+		// 06 Cajas, 18 Docenas, 20 Garrafas, 21 Gramos, 23 Latas
+		const cases: Array<[string, string]> = [
+			['06', 'caja'], ['18', 'docena'], ['20', 'garrafa'], ['21', 'g'], ['23', 'lata'],
+		];
+		for (const [code, expected] of cases) {
+			const xml = FACTURAE_322_XML.replace('<UnitOfMeasure>04</UnitOfMeasure>', `<UnitOfMeasure>${code}</UnitOfMeasure>`);
+			expect(parseFacturae322(xml).line_items[0].unit, `code ${code}`).toBe(expected);
+		}
+	});
+
+	it('yields null unit for code 05 (Otros) instead of a fake unit', () => {
+		const xml = FACTURAE_322_XML.replace('<UnitOfMeasure>04</UnitOfMeasure>', '<UnitOfMeasure>05</UnitOfMeasure>');
+		expect(parseFacturae322(xml).line_items[0].unit).toBeNull();
 	});
 
 	it('sets confidence to 1.0 for all fields', () => {
@@ -349,9 +365,25 @@ describe('parseUbl21Invoice', () => {
 		expect(result.line_items).toHaveLength(1);
 		expect(result.line_items[0].description).toBe('Rioja Alta Gran Reserva 2016');
 		expect(result.line_items[0].quantity).toBe(10);
-		expect(result.line_items[0].unit).toBe('btl');
+		expect(result.line_items[0].unit).toBe('botella'); // unitCode BTL → botella
 		expect(result.line_items[0].unit_price).toBeCloseTo(25.00, 2);
 		expect(result.line_items[0].total_price).toBeCloseTo(250.00, 2);
+	});
+
+	it('maps UN/ECE unit codes to canonical units', () => {
+		const cases: Array<[string, string]> = [
+			['KGM', 'kg'], ['GRM', 'g'], ['LTR', 'L'], ['MLT', 'ml'],
+			['C62', 'ud'], ['EA', 'ud'], ['XBX', 'caja'], ['DZN', 'docena'],
+		];
+		for (const [code, expected] of cases) {
+			const xml = UBL_21_XML.replace('unitCode="BTL"', `unitCode="${code}"`);
+			expect(parseUbl21Invoice(xml).line_items[0].unit, `unitCode ${code}`).toBe(expected);
+		}
+	});
+
+	it('yields null unit for an unknown unitCode instead of the raw code', () => {
+		const xml = UBL_21_XML.replace('unitCode="BTL"', 'unitCode="ZZ9"');
+		expect(parseUbl21Invoice(xml).line_items[0].unit).toBeNull();
 	});
 
 	it('sets confidence to 1.0', () => {
