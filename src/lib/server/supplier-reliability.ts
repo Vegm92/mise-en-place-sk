@@ -34,8 +34,8 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 	const descriptions = topItems.map((t) => t.description);
 
 	const descParams = sql.join(descriptions.map(d => sql`${d}`), sql`, `);
-	const prices = await db.execute<{ unit_price: number }>(sql`
-		SELECT ili.unit_price
+	const prices = await db.execute<{ description: string; unit_price: number }>(sql`
+		SELECT ili.description, ili.unit_price
 		FROM invoice_line_items ili
 		JOIN invoices i ON i.id = ili.invoice_id
 		WHERE i.supplier_id = ${supplierId}
@@ -48,12 +48,28 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 
 	if (prices.length < 2) return { score: 20, cv: null };
 
-	const vals = prices.map((p) => Number(p.unit_price));
-	const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-	if (mean === 0) return { score: 20, cv: null };
+	// Coefficient of variation per product, then averaged — not pooled across
+	// products (issue #308). Pooling raw prices from different items (e.g. a
+	// €1/kg tomato and a €6 jar of olives) reads as huge "instability" purely
+	// from their different price levels, even when each one is individually
+	// rock-steady.
+	const byDescription = new Map<string, number[]>();
+	for (const p of prices) {
+		const arr = byDescription.get(p.description);
+		if (arr) arr.push(Number(p.unit_price)); else byDescription.set(p.description, [Number(p.unit_price)]);
+	}
 
-	const variance = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length;
-	const cv = (Math.sqrt(variance) / mean) * 100;
+	const itemCvs: number[] = [];
+	for (const vals of byDescription.values()) {
+		if (vals.length < 2) continue;
+		const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+		if (mean === 0) continue;
+		const variance = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length;
+		itemCvs.push((Math.sqrt(variance) / mean) * 100);
+	}
+
+	if (itemCvs.length === 0) return { score: 20, cv: null };
+	const cv = itemCvs.reduce((a, b) => a + b, 0) / itemCvs.length;
 
 	return { score: cv < 5 ? 33 : cv <= 15 ? 20 : 0, cv };
 }
