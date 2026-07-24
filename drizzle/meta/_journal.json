@@ -127,6 +127,27 @@
 			"when": 1783609440000,
 			"tag": "0017_category_budgets_month",
 			"breakpoints": true
+		},
+		{
+			"idx": 18,
+			"version": "7",
+			"when": 1783609500000,
+			"tag": "0018_product_key_normalization",
+			"breakpoints": true
+		},
+		{
+			"idx": 19,
+			"version": "7",
+			"when": 1783609560000,
+			"tag": "0019_product_catalog",
+			"breakpoints": true
+		},
+		{
+			"idx": 20,
+			"version": "7",
+			"when": 1783609620000,
+			"tag": "0020_line_item_packs",
+			"breakpoints": true
 		}
 	]
 }

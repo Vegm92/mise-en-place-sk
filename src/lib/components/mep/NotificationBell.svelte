@@ -4,6 +4,7 @@
   import TrendingUp from '@lucide/svelte/icons/trending-up';
   import Package from '@lucide/svelte/icons/package';
   import Ruler from '@lucide/svelte/icons/ruler';
+  import Boxes from '@lucide/svelte/icons/boxes';
   import { t } from '$lib/i18n';
 
   type Notif = {
@@ -26,6 +27,7 @@
     if (type === 'price_shock')            return TrendingUp;
     if (type === 'low_stock_forecast')     return Package;
     if (type === 'unit_conversion_needed') return Ruler;
+    if (type === 'product_suggestion')     return Boxes;
     return Bell;
   }
 
@@ -33,7 +35,29 @@
     if (type === 'price_shock')            return 'var(--mep-neg)';
     if (type === 'low_stock_forecast')     return 'var(--mep-warn)';
     if (type === 'unit_conversion_needed') return 'var(--mep-info)';
+    if (type === 'product_suggestion')     return 'var(--mep-info)';
     return 'var(--mep-fg-2)';
+  }
+
+  // Product-catalog suggestion (issue #298): confirm/reject a fuzzy auto-link.
+  // On success the server also dismisses the notification, so drop it locally.
+  let deciding = $state<number | null>(null);
+  async function decideProduct(n: Notif, action: 'confirm' | 'reject') {
+    const description = (n.payload as { description?: string } | null)?.description;
+    if (!description || deciding !== null) return;
+    deciding = n.id;
+    try {
+      const resp = await fetch('/api/product-aliases', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ description, action }),
+      });
+      if (resp.ok) items = items.filter((i) => i.id !== n.id);
+    } catch {
+      // Offline/server error — leave the suggestion in place to retry later.
+    } finally {
+      deciding = null;
+    }
   }
 
   async function dismiss(id: number) {
@@ -130,6 +154,22 @@
             </div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">{n.message}</div>
+              {#if n.notificationType === 'product_suggestion'}
+                <div style="display:flex;gap:6px;margin-top:6px;">
+                  <button
+                    class="btn btn-primary"
+                    style="height:26px;font-size:11px;padding:0 10px;"
+                    disabled={deciding !== null}
+                    onclick={() => decideProduct(n, 'confirm')}
+                  >{$t('notif.prodConfirm')}</button>
+                  <button
+                    class="btn btn-secondary"
+                    style="height:26px;font-size:11px;padding:0 10px;"
+                    disabled={deciding !== null}
+                    onclick={() => decideProduct(n, 'reject')}
+                  >{$t('notif.prodReject')}</button>
+                </div>
+              {/if}
               {#if n.createdAt}
                 <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">
                   {new Date(n.createdAt).toLocaleDateString()}

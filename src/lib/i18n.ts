@@ -422,6 +422,8 @@ export const translations = {
     'notif.title':             'Alertas',
     'notif.clearAll':          'Borrar todo',
     'notif.empty':             'Sin alertas pendientes',
+    'notif.prodConfirm':       'Sí, es el mismo',
+    'notif.prodReject':        'No, es distinto',
     // Settings — tour & privacy
     'set.tourTitle':           'Tour guiado',
     'set.tourDesc':            'Repasa el tutorial de inicio en cualquier momento.',
@@ -1340,6 +1342,8 @@ export const translations = {
     'notif.title':             'Alerts',
     'notif.clearAll':          'Clear all',
     'notif.empty':             'No pending alerts',
+    'notif.prodConfirm':       'Yes, same product',
+    'notif.prodReject':        "No, it's different",
     // Settings — tour & privacy
     'set.tourTitle':           'Guided tour',
     'set.tourDesc':            'Revisit the onboarding tutorial at any time.',

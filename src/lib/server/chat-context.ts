@@ -110,7 +110,7 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 	type TrendRow = { item: string; min_price: number; max_price: number; occurrences: number };
 	const trends = await db.execute<TrendRow>(sql`
 		SELECT
-			LOWER(TRIM(ili.description)) AS item,
+			mep_norm_key(ili.description) AS item,
 			MIN(ili.unit_price) AS min_price,
 			MAX(ili.unit_price) AS max_price,
 			COUNT(*) AS occurrences
@@ -119,7 +119,7 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		WHERE i.restaurant_id = ${restaurantId}
 			AND i.invoice_date >= (CURRENT_DATE - INTERVAL '90 days')::text
 			AND ili.unit_price IS NOT NULL AND ili.unit_price > 0
-		GROUP BY LOWER(TRIM(ili.description))
+		GROUP BY mep_norm_key(ili.description)
 		HAVING COUNT(*) >= 2
 		ORDER BY (MAX(ili.unit_price) - MIN(ili.unit_price)) / NULLIF(MIN(ili.unit_price), 0) DESC
 		LIMIT 5

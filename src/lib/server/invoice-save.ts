@@ -5,10 +5,13 @@
  */
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
-import { invoices, invoiceLineItems, extractionCorrections, settings } from './schema';
+import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit } from './unit-bridge';
-import { runPriceShock, runStockForecast, runBudgetCheck } from './alert-engine';
+import { resolveLineProducts } from './product-catalog';
+import { parsePack, normalizedUnitPrice } from './pack-parser';
+import { normalizeProductKey } from './normalize';
+import { runPriceShock, runStockForecast, runBudgetCheck, type Alert } from './alert-engine';
 import { saveAlerts } from './notifications';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
@@ -116,6 +119,63 @@ async function logExtractionCorrections(
 			fields: rows.map((r) => r.fieldName),
 		}, invoiceId);
 	}
+}
+
+/**
+ * Resolve each saved line to a catalog product and stamp product_id onto the
+ * line items (issue #298). Fuzzy auto-links raise a `product_suggestion`
+ * notification the review UI can confirm/reject. Fully self-contained: swallows
+ * its own errors so it can never disturb the already-committed invoice.
+ */
+async function linkProductsToInvoice(
+	invoiceId: number,
+	supplierId: number,
+	rid: string,
+	lineInputs: Array<{ desc: string; unitVal: string | null }>,
+): Promise<Map<string, number>> {
+	const productByKey = new Map<string, number>();
+	try {
+		const [supplier] = await db
+			.select({ category: suppliers.category })
+			.from(suppliers)
+			.where(eq(suppliers.id, supplierId))
+			.limit(1);
+		const category = supplier?.category ?? null;
+
+		const resolved = await resolveLineProducts(
+			db, rid, supplierId,
+			lineInputs.map(li => ({ description: li.desc, unit: li.unitVal, category })),
+		);
+
+		const suggestions: Alert[] = [];
+		for (const [desc, r] of resolved) {
+			await db.update(invoiceLineItems)
+				.set({ productId: r.productId })
+				.where(and(
+					forTenant(rid).scope(invoiceLineItems.restaurantId),
+					eq(invoiceLineItems.invoiceId, invoiceId),
+					eq(invoiceLineItems.description, desc),
+				));
+			productByKey.set(normalizeProductKey(desc), r.productId);
+
+			if (r.status === 'fuzzy' && r.suggestion) {
+				suggestions.push({
+					notificationType: 'product_suggestion',
+					message: `¿Es '${desc}' el mismo producto que '${r.suggestion.candidateName}'? Confírmalo para agrupar su historial de precios.`,
+					payload: {
+						description: desc,
+						productId: r.productId,
+						candidateName: r.suggestion.candidateName,
+						score: Math.round(r.suggestion.score * 100) / 100,
+					},
+				});
+			}
+		}
+		if (suggestions.length > 0) await saveAlerts(invoiceId, rid, suggestions);
+	} catch (err) {
+		console.error('[invoice-save] product linking failed (non-fatal):', err);
+	}
+	return productByKey;
 }
 
 /**
@@ -300,6 +360,10 @@ export async function saveReviewedInvoice(
 			const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
 			const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
 
+			// Pack structure (issue #299) — €/base for cross-size comparison.
+			const pack = parsePack(li.desc, li.unitVal);
+			const normPrice = normalizedUnitPrice(li.unitPriceFloat, pack);
+
 			await tx.insert(invoiceLineItems).values({
 				invoiceId: invoiceId!,
 				restaurantId: rid,
@@ -311,6 +375,11 @@ export async function saveReviewedInvoice(
 				taxRate: li.taxRateVal,
 				requiresUnitConversion: requiresConv,
 				canonicalUnit,
+				unitsPerPack: pack?.unitsPerPack ?? null,
+				unitSize: pack?.unitSize ?? null,
+				sizeUnit: pack?.sizeUnit ?? null,
+				baseUnit: pack?.baseUnit ?? null,
+				normalizedUnitPrice: normPrice,
 			});
 
 			savedItems.push({
@@ -349,7 +418,12 @@ export async function saveReviewedInvoice(
 	// saved invoice look unsaved (issue #248).
 	let isFirstInvoice = false;
 	try {
-		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid);
+		// Link line items to catalog products first (issue #298) so price-shock
+		// can group by product_id and compare pack sizes as €/base (issue #299).
+		// Post-commit and best-effort: an enrichment, never a reason to fail a save.
+		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
+
+		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
 		const stockAlerts = await runStockForecast(savedItems, rid);
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
