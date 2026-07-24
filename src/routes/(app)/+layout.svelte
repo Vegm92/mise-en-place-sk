@@ -7,6 +7,7 @@
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import FileText from '@lucide/svelte/icons/file-text';
   import Truck from '@lucide/svelte/icons/truck';
+  import Package from '@lucide/svelte/icons/package';
   import TrendingUp from '@lucide/svelte/icons/trending-up';
   import Tag from '@lucide/svelte/icons/tag';
   import Bell from '@lucide/svelte/icons/bell';
@@ -74,6 +75,7 @@
     { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
     { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: data.invoiceBadge },
     { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
+    { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
     { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
       sub: [
         { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
