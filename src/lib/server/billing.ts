@@ -185,6 +185,42 @@ export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | 
 	return false;
 }
 
+export interface AccessState {
+	/** False once a trial has lapsed (or the subscription is past due/cancelled). */
+	allowed: boolean;
+	status: SubscriptionStatus;
+	trialEndsAt: Date | null;
+	/** True specifically for "the trial ran out", which gets its own copy. */
+	trialExpired: boolean;
+}
+
+/**
+ * Resolve whether a tenant may still consume paid capacity — uploads,
+ * extraction, AI chat (issue #287). Read access to existing data is never
+ * gated on this; only new spend is.
+ *
+ * A tenant with no subscription row at all is treated as allowed: that only
+ * happens for rows created outside onboarding, and locking those out would be
+ * worse than the alternative.
+ */
+export async function getAccessState(restaurantId: string): Promise<AccessState> {
+	const tdb = forTenant(restaurantId);
+	const [sub] = await db.select({
+		status: subscriptions.status,
+		trialEndsAt: subscriptions.trialEndsAt,
+	})
+		.from(subscriptions)
+		.where(tdb.scope(subscriptions.restaurantId))
+		.limit(1);
+
+	if (!sub) return { allowed: true, status: 'trialing', trialEndsAt: null, trialExpired: false };
+
+	const status = sub.status as SubscriptionStatus;
+	const trialEndsAt = sub.trialEndsAt ?? null;
+	const allowed = isAccessAllowed(status, trialEndsAt);
+	return { allowed, status, trialEndsAt, trialExpired: !allowed && status === 'trialing' };
+}
+
 /**
  * Get or create a Stripe customer ID for a restaurant.
  *

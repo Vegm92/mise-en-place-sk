@@ -36,6 +36,10 @@
         body: JSON.stringify({ message: msg, sessionId }),
       });
       const data = await res.json();
+      if (res.status === 402) {
+        messages = [...messages, { role: 'assistant', text: $t('chat.err.trialExpired') }];
+        return;
+      }
       if (data.sessionId) sessionId = data.sessionId;
       messages = [...messages, {
         role: 'assistant',

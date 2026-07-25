@@ -20,6 +20,7 @@ import { EXTRACTION_QUEUE, NORMALIZE_QUEUE } from './lib/server/queue.js';
 import { pgSslConfig } from './lib/server/db-ssl.js';
 import { processExtractionJob, type ExtractionJobData } from './lib/server/extraction-worker.js';
 import { processNormalizeJob, type NormalizeJobData } from './lib/server/product-normalizer.js';
+import { registerScheduledJobs } from './lib/server/scheduler.js';
 
 // The worker runs the core product loop (Gemini extraction) on a box nobody
 // watches. Without Sentry a crash or every-job-failing state is invisible until
@@ -96,6 +97,11 @@ await boss.work<NormalizeJobData>(
 	},
 );
 console.info(`[worker] Listening for "${NORMALIZE_QUEUE}" jobs`);
+
+// Cron-driven work — weekly digest, overdue reminders, trial notices and the
+// deleted-file purge (issues #288/#289). Registered here because pg-boss holds
+// the schedule in the database: whichever worker is up fires the occurrence.
+await registerScheduledJobs(boss);
 
 async function shutdown() {
 	console.info('[worker] Shutting down…');

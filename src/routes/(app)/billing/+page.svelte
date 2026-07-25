@@ -14,6 +14,9 @@
 	const upgradeMessage = $derived(
 		data.upgradeFor === 'digest' ? $t('billing.upgrade.digest')
 			: data.upgradeFor === 'prices' ? $t('billing.upgrade.prices')
+			// Sent here by the upload gate once the trial lapses (issue #287).
+			: data.upgradeFor === 'trial' ? $t('billing.upgrade.trial')
+			: data.upgradeFor === 'inactive' ? $t('billing.upgrade.inactive')
 			: null
 	);
 

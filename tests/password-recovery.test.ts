@@ -135,9 +135,9 @@ describe('/reset-password', () => {
 
 	it('updates the password, signs out, and sends the user back to sign in', async () => {
 		const supabase = supabaseStub();
-		const thrown = await resetActions
-			.default(formEvent({ password: 'longenough1', confirm: 'longenough1' }, { locals: { user: { id: 'u1' }, supabase } }))
-			.catch((e: unknown) => e);
+		const thrown = await Promise.resolve(
+			resetActions.default(formEvent({ password: 'longenough1', confirm: 'longenough1' }, { locals: { user: { id: 'u1' }, supabase } })),
+		).catch((e: unknown) => e);
 
 		expect(supabase.auth.updateUser).toHaveBeenCalledWith({ password: 'longenough1' });
 		expect(supabase.auth.signOut).toHaveBeenCalled();

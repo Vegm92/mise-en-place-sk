@@ -18,9 +18,21 @@ vi.mock('$env/dynamic/private', () => ({
 }));
 
 // db singleton throws at import without a connection string — stub it out.
-vi.mock('../src/lib/server/db', () => ({ db: {} }));
+// `subscriptionRow` is what getAccessState reads; set it per test.
+const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null as unknown } }));
+vi.mock('../src/lib/server/db', () => {
+	const chain = () => {
+		const p: Record<string, unknown> = {};
+		for (const m of ['from', 'where', 'limit']) p[m] = () => p;
+		p.then = (res: (v: unknown) => unknown) =>
+			Promise.resolve(subscriptionRow.value ? [subscriptionRow.value] : []).then(res);
+		return p;
+	};
+	return { db: { select: chain }, forTenant: () => ({ scope: () => ({}) }) };
+});
 
 import {
+	getAccessState,
 	TIERS,
 	tierFromPriceId,
 	isAccessAllowed,
@@ -194,5 +206,37 @@ describe('TIERS configuration', () => {
 				if (enabled) seenEnabled = true;
 			}
 		}
+	});
+});
+
+// Issue #287 — trial expiry is enforced, so "may this tenant spend?" has to be
+// answerable from the subscription row alone.
+describe('getAccessState', () => {
+	const future = new Date(Date.now() + 86_400_000);
+	const past = new Date(Date.now() - 86_400_000);
+
+	it('allows a live trial', async () => {
+		subscriptionRow.value = { status: 'trialing', trialEndsAt: future };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true, trialExpired: false });
+	});
+
+	it('flags a lapsed trial specifically', async () => {
+		subscriptionRow.value = { status: 'trialing', trialEndsAt: past };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: false, trialExpired: true });
+	});
+
+	it('blocks a cancelled subscription without calling it a trial', async () => {
+		subscriptionRow.value = { status: 'canceled', trialEndsAt: null };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: false, trialExpired: false });
+	});
+
+	it('allows an active subscription', async () => {
+		subscriptionRow.value = { status: 'active', trialEndsAt: null };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
+	});
+
+	it('does not lock out a tenant with no subscription row at all', async () => {
+		subscriptionRow.value = null;
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
 	});
 });

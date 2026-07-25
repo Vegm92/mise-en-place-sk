@@ -11,7 +11,7 @@ import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
 import { and, isNull, sql } from 'drizzle-orm';
-import { getMonthlyQuota } from '$lib/server/billing';
+import { getAccessState, getMonthlyQuota } from '$lib/server/billing';
 
 /**
  * Returns the number of invoices the tenant can still add this calendar month,
@@ -77,6 +77,14 @@ export const actions: Actions = {
 
 		const rid = locals.restaurantId;
 		if (!rid) return fail(403, { error: 'No active restaurant.' });
+
+		// A lapsed trial (or a cancelled/past-due subscription) may keep reading
+		// its data, but must not start new paid work (issue #287). Checked before
+		// the rate limiter so an expired tenant always lands on /billing.
+		const access = await getAccessState(rid);
+		if (!access.allowed) {
+			redirect(303, `/billing?upgrade=${access.trialExpired ? 'trial' : 'inactive'}`);
+		}
 
 		// Each upload consumes a paid Gemini extraction — cap batch submissions
 		// per tenant regardless of plan quota (quota is unlimited when unset).
