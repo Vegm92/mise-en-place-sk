@@ -82,6 +82,7 @@
   // page reload after a failed non-enhanced form submit) must not read as an
   // "item changed" event, or it clobbers the modal that the effect above just
   // opened from the same submit's `form` result.
+  // svelte-ignore state_referenced_locally — reading the initial value is the point
   let lowConfAckItemId: string | null = data.review?.itemId ?? null;
 
   // Header fields, editable — local state so a correction survives a failed
