@@ -43,10 +43,14 @@
   const curPath = $derived($page.url.pathname);
   const isFirstInvoice = $derived($page.url.searchParams.get('first_invoice') === '1');
 
-  // Show step 1 only on the upload page
-  const showStep1 = $derived($tutorialStep === '1' && curPath === '/');
-  // Show step 2 on the batch review page
-  const showStep2 = $derived($tutorialStep === '2' && curPath.startsWith('/batch/'));
+  // The tour is a single coach mark on the batch review page (issue #230). The
+  // upload-zone mark that used to come first explained an empty state whose own
+  // headline already said the same thing, on top of four other first-session
+  // overlays. '1' is the stored step for "tour not seen yet" — accepted here too
+  // so users mid-tour (and anyone who used "repeat the tour") still get it.
+  const showReviewCoachMark = $derived(
+    ($tutorialStep === '1' || $tutorialStep === '2') && curPath.startsWith('/batch/')
+  );
   // Completion card: first invoice landed on dashboard
   const showComplete = $derived(isFirstInvoice && $tutorialStep !== 'dismissed');
 
@@ -71,9 +75,24 @@
     locale.update(l => l === 'es' ? 'en' : 'es');
   }
 
-  const navItems = $derived([
+  // Progressive disclosure (issue #231): before the first saved invoice, every
+  // section below Invoices is an empty state — eight of them, plus a quota meter
+  // for a quota nobody has touched. They reveal after the first save, which is
+  // also when they start having something to show.
+  const revealAll = $derived(data.hasCompletedOnboarding);
+
+  interface NavItem {
+    href: string;
+    icon: typeof LayoutDashboard;
+    label: string;
+    badge: number;
+    sub?: { href: string; label: string }[];
+  }
+
+  const navItems = $derived<NavItem[]>([
     { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
     { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: data.invoiceBadge },
+    ...(revealAll ? [
     { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
     { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
     { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
@@ -87,6 +106,7 @@
     { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
     { href: '/digest',          icon: Newspaper,       label: $t('nav.digest'),     badge: 0 },
     { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
+    ] satisfies NavItem[] : []),
   ]);
 
   const pageTitle = $derived($page.data.title ? $t($page.data.title) : 'Mise en Place');
@@ -206,7 +226,8 @@
 
     <div style="flex:1;"></div>
 
-    <!-- Quota widget -->
+    <!-- Quota widget — hidden until the first invoice is saved (issue #231) -->
+    {#if revealAll}
     <div style="margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{data.planName}</span>
@@ -218,6 +239,7 @@
       </div>
       <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">{$t('shell.quota')}</div>
     </div>
+    {/if}
 
     <!-- Util links -->
     <div style="display:flex;flex-direction:column;gap:1px;">
@@ -326,25 +348,13 @@
 
 <!-- ── Tutorial coach marks ───────────────────────────────────────────── -->
 {#if browser}
-  {#if showStep1}
-    <CoachMark
-      selector="upload-zone"
-      title={$t('tour.step1.title')}
-      body={$t('tour.step1.body')}
-      stepNum={1}
-      totalSteps={2}
-      onNext={() => setTutorialStep('2')}
-      onSkip={() => setTutorialStep('dismissed')}
-    />
-  {/if}
-
-  {#if showStep2}
+  {#if showReviewCoachMark}
     <CoachMark
       selector="invoice-fields"
       title={$t('tour.step2.title')}
       body={$t('tour.step2.body')}
-      stepNum={2}
-      totalSteps={2}
+      stepNum={1}
+      totalSteps={1}
       nextLabel={$t('tour.step2.next')}
       onNext={() => setTutorialStep('done')}
       onSkip={() => setTutorialStep('dismissed')}

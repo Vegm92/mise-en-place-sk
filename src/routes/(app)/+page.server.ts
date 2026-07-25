@@ -41,9 +41,13 @@ async function remainingMonthlyQuota(rid: string): Promise<number | null> {
 }
 
 export const load: PageServerLoad = async ({ url }) => {
+	const remaining = Number(url.searchParams.get('remaining'));
 	return {
 		title: 'upload.title',
+		// An i18n key (issue #294) — the panel translates it. `errorVars` carries
+		// the interpolation values that survive a redirect.
 		error: url.searchParams.get('error') ?? null,
+		errorVars: Number.isFinite(remaining) && remaining > 0 ? { n: remaining } : undefined,
 		saved: url.searchParams.get('saved') === '1',
 		duplicate: url.searchParams.get('duplicate_inv') === '1',
 		upgradeUrl: url.searchParams.get('upgrade') === '1' ? '/billing' : null,
@@ -56,7 +60,7 @@ export const actions: Actions = {
 		try {
 			formData = await request.formData();
 		} catch {
-			return fail(400, { error: 'Could not parse form data. Please try again.' });
+			return fail(400, { error: 'upload.err.formParse' });
 		}
 
 		const rawFiles = formData.getAll('files');
@@ -65,18 +69,20 @@ export const actions: Actions = {
 		const files = rawFiles.filter((f): f is File => typeof f !== 'string' && (f as Blob).size > 0);
 
 		if (files.length === 0) {
-			return fail(400, { error: 'No valid files received. Please select a PDF, JPG, or PNG.' });
+			return fail(400, { error: 'upload.err.noValidFiles' });
 		}
 
 		const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 		const oversized = files.filter(f => f.size > MAX_UPLOAD_BYTES);
 		if (oversized.length > 0) {
-			const names = oversized.map(f => f.name).join(', ');
-			return fail(400, { error: `File${oversized.length > 1 ? 's' : ''} exceed the 20 MB limit: ${names}` });
+			return fail(400, {
+				error: 'upload.err.tooLarge',
+				errorVars: { names: oversized.map(f => f.name).join(', ') },
+			});
 		}
 
 		const rid = locals.restaurantId;
-		if (!rid) return fail(403, { error: 'No active restaurant.' });
+		if (!rid) return fail(403, { error: 'upload.err.noRestaurant' });
 
 		// A lapsed trial (or a cancelled/past-due subscription) may keep reading
 		// its data, but must not start new paid work (issue #287). Checked before
@@ -89,7 +95,7 @@ export const actions: Actions = {
 		// Each upload consumes a paid Gemini extraction — cap batch submissions
 		// per tenant regardless of plan quota (quota is unlimited when unset).
 		if (!(await checkRateLimit(`upload:${rid}`, 10))) {
-			return fail(429, { error: 'Too many uploads — please wait a moment and try again.' });
+			return fail(429, { error: 'upload.err.rateLimited' });
 		}
 
 		// Plan quota gate — block before consuming any Gemini extraction and send
@@ -98,10 +104,11 @@ export const actions: Actions = {
 		// for both the XHR and no-JS submit paths via the page's error banner.
 		const remaining = await remainingMonthlyQuota(rid);
 		if (remaining !== null && files.length > remaining) {
-			const msg = remaining === 0
-				? 'Has alcanzado el límite de facturas de tu plan este mes. Mejora tu plan para seguir subiendo facturas.'
-				: `Solo te quedan ${remaining} factura${remaining === 1 ? '' : 's'} en tu plan este mes. Mejora tu plan para subir más.`;
-			redirect(303, `/?error=${encodeURIComponent(msg)}&upgrade=1`);
+			// Redirect (not fail) so the banner renders on both the XHR and no-JS
+			// paths; the key and its interpolation value travel as query params.
+			redirect(303, remaining === 0
+				? '/?error=upload.err.quotaExhausted&upgrade=1'
+				: `/?error=upload.err.quotaRemaining&remaining=${remaining}&upgrade=1`);
 		}
 
 		// Random storage namespace — generated before the batch exists so files
@@ -110,16 +117,21 @@ export const actions: Actions = {
 
 		let saved: string[];
 		let keys: string[];
-		let errors: string[];
+		let errors: Awaited<ReturnType<typeof saveUploadedFiles>>['errors'];
 		try {
 			({ saved, keys, errors } = await saveUploadedFiles(files, namespace));
 		} catch (err) {
-			return fail(500, { error: `File save failed: ${err instanceof Error ? err.message : String(err)}` });
+			console.error('[upload] file save failed:', err);
+			return fail(500, { error: 'upload.err.saveFailed' });
 		}
 
 		if (saved.length === 0) {
-			const msg = errors.length > 0 ? errors.join('; ') : 'No valid files received. Please select a PDF, JPG, or PNG.';
-			return fail(400, { error: msg });
+			// Every file was rejected by validation — report the first reason with
+			// the offending filename (issue #294); reasons are i18n keys.
+			const first = errors[0];
+			return first
+				? fail(400, { error: `upload.reject.${first.reason}`, errorVars: { name: first.name, ext: first.ext ?? '' } })
+				: fail(400, { error: 'upload.err.noValidFiles' });
 		}
 
 		// One batch, one item per invoice — no chained sessions.
