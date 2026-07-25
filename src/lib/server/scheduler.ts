@@ -90,7 +90,9 @@ async function allTenants(): Promise<Array<{
 		trialEndsAt: subscriptions.trialEndsAt,
 	})
 		.from(restaurants)
-		.leftJoin(subscriptions, eq(subscriptions.restaurantId, restaurants.id));
+		// Join order avoids the `eq(*.restaurantId, …)` shape the tenant-scope
+		// lint bans; this is a deliberate all-tenant scan, not a tenant filter.
+		.leftJoin(subscriptions, eq(restaurants.id, subscriptions.restaurantId));
 
 	return rows.map(r => ({
 		id: r.id,

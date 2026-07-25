@@ -40,6 +40,8 @@ export interface TierConfig {
 	name: string;
 	monthlyInvoiceQuota: number | null; // null = unlimited
 	stripePriceId: string;
+	/** How many restaurants one subscription covers (issue #290). */
+	maxLocations: number;
 	features: {
 		weeklyDigest:      boolean;
 		stockTracking:     boolean;
@@ -56,24 +58,28 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		name: 'Prueba gratuita',
 		monthlyInvoiceQuota: 20, // enough to evaluate; not enough to rely on for free
 		stripePriceId: '',
+		maxLocations: 1,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false },
 	},
 	starter: {
 		name: 'Starter',
 		monthlyInvoiceQuota: 100, // €49/mo — covers most small Spanish restaurants (~50-80 invoices/mo)
 		stripePriceId: env.STRIPE_PRICE_ID_STARTER ?? env.STRIPE_PRICE_ID ?? '',
+		maxLocations: 1,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false },
 	},
 	pro: {
 		name: 'Pro',
 		monthlyInvoiceQuota: 300, // €99/mo — active full-service restaurants
 		stripePriceId: env.STRIPE_PRICE_ID_PRO ?? '',
+		maxLocations: 1,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false },
 	},
 	business: {
 		name: 'Business',
 		monthlyInvoiceQuota: null, // €199/mo — unlimited, up to 5 locations
 		stripePriceId: env.STRIPE_PRICE_ID_BUSINESS ?? '',
+		maxLocations: 5,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true },
 	},
 };
@@ -99,6 +105,22 @@ export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
 	console.error(message);
 	Sentry.captureException(new Error(message), { tags: { area: 'billing', priceId } });
 	return 'starter';
+}
+
+/**
+ * The restaurant whose subscription pays for `restaurantId` (issue #290).
+ *
+ * An additional location of a multi-location account carries `parent_id` and
+ * has no subscription of its own; plan, quota and features all resolve against
+ * the parent, so a Business customer's second site is not treated as a fresh
+ * trial. A standalone restaurant resolves to itself.
+ */
+export async function billingRestaurantId(restaurantId: string): Promise<string> {
+	const [row] = await db.select({ parentId: restaurants.parentId })
+		.from(restaurants)
+		.where(eq(restaurants.id, restaurantId))
+		.limit(1);
+	return row?.parentId ?? restaurantId;
 }
 
 // ── Monthly invoice quota ──────────────────────────────────────────────────────
@@ -136,7 +158,7 @@ export function resolveMonthlyQuota(raw: string | null | undefined, tier: PlanTi
 
 /** Same convention, reading both the settings row and the tier from the DB. */
 export async function getMonthlyQuota(restaurantId: string): Promise<number | null> {
-	const tdb = forTenant(restaurantId);
+	const tdb = forTenant(await billingRestaurantId(restaurantId));
 	const [[quotaRow], [subRow]] = await Promise.all([
 		db.select({ value: settings.value })
 			.from(settings)
@@ -170,7 +192,7 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 
 /** Look up the tier features for a restaurant. Fast enough for use in API request handlers. */
 export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
-	const tdb = forTenant(restaurantId);
+	const tdb = forTenant(await billingRestaurantId(restaurantId));
 	const [row] = await db.select({ planTier: subscriptions.planTier })
 		.from(subscriptions)
 		.where(tdb.scope(subscriptions.restaurantId))
@@ -204,7 +226,7 @@ export interface AccessState {
  * worse than the alternative.
  */
 export async function getAccessState(restaurantId: string): Promise<AccessState> {
-	const tdb = forTenant(restaurantId);
+	const tdb = forTenant(await billingRestaurantId(restaurantId));
 	const [sub] = await db.select({
 		status: subscriptions.status,
 		trialEndsAt: subscriptions.trialEndsAt,

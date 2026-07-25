@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
   import { get } from 'svelte/store';
-  import { t } from '$lib/i18n';
+  import { t, ti } from '$lib/i18n';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -150,6 +150,44 @@
         <p class="body text-fg-3" style="font-size:12px;">{$t('set.priceThresholdDesc')}</p>
       </form>
     </SectionCard>
+
+    {#if data.multiLocation}
+      <SectionCard title={$t('set.locations.title')}>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <p class="body text-fg-3" style="font-size:12px;margin:0;">
+            {$ti('set.locations.desc', { used: data.locations.length, max: data.maxLocations })}
+          </p>
+
+          <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;">
+            {#each data.locations as loc}
+              <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mep-fg-2);">
+                <span>{loc.name}</span>
+                {#if loc.id === data.activeRestaurantId}
+                  <span style="font-size:11px;color:var(--mep-acc);border:1px solid var(--mep-acc);border-radius:99px;padding:1px 7px;">
+                    {$t('set.locations.current')}
+                  </span>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+
+          {#if data.locations.length < data.maxLocations}
+            <form method="POST" action="?/addLocation" class="flex items-center gap-3 flex-wrap">
+              <input name="name" type="text" maxlength="120" required
+                placeholder={$t('set.locations.newPlaceholder')}
+                class="input" style="height:36px;font-size:13px;min-width:180px;flex:1;" />
+              <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.locations.add')}</button>
+            </form>
+          {:else}
+            <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.locations.err.limitReached')}</p>
+          {/if}
+
+          {#if feedback('location')?.error}
+            <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t(feedback('location')!.error!)}</p>
+          {/if}
+        </div>
+      </SectionCard>
+    {/if}
 
     <SectionCard title={$t('set.tourTitle')}>
       <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">

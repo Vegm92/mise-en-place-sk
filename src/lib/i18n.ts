@@ -196,6 +196,17 @@ export const translations = {
     'tbl.change':             'Variación',
     'tbl.lastSeen':           'Última vez',
     // Settings
+    // Multi-location (issue #290)
+    'nav.location':               'Local',
+    'notif.categorize':           'Clasificar proveedor',
+    'set.locations.title':        'Locales',
+    'set.locations.desc':         'Tu plan incluye {max} locales. Estás usando {used}.',
+    'set.locations.current':      'Actual',
+    'set.locations.add':          'Añadir local',
+    'set.locations.newPlaceholder': 'Nombre del nuevo local',
+    'set.locations.err.nameRequired': 'Escribe un nombre para el local.',
+    'set.locations.err.notAvailable': 'Los locales adicionales están incluidos en el plan Business.',
+    'set.locations.err.limitReached': 'Has alcanzado el número de locales incluidos en tu plan.',
     // Profile management (issue #293)
     'set.profile.title':          'Perfil',
     'set.profile.name':           'Nombre',
@@ -1229,6 +1240,17 @@ export const translations = {
     'tbl.change':             'Change',
     'tbl.lastSeen':           'Last Seen',
     // Settings
+    // Multi-location (issue #290)
+    'nav.location':               'Location',
+    'notif.categorize':           'Categorise supplier',
+    'set.locations.title':        'Locations',
+    'set.locations.desc':         'Your plan includes {max} locations. You are using {used}.',
+    'set.locations.current':      'Current',
+    'set.locations.add':          'Add location',
+    'set.locations.newPlaceholder': 'New location name',
+    'set.locations.err.nameRequired': 'Enter a name for the location.',
+    'set.locations.err.notAvailable': 'Additional locations are part of the Business plan.',
+    'set.locations.err.limitReached': "You've reached the number of locations included in your plan.",
     // Profile management (issue #293)
     'set.profile.title':          'Profile',
     'set.profile.name':           'Name',

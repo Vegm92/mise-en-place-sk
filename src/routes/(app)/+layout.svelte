@@ -109,6 +109,28 @@
     ] satisfies NavItem[] : []),
   ]);
 
+  // Switching writes the active_restaurant cookie server-side, then a full
+  // reload so every layout query re-runs against the new tenant (issue #290).
+  let switchingLocation = $state(false);
+  async function switchLocation(restaurantId: string) {
+    if (!restaurantId || restaurantId === data.restaurantId || switchingLocation) return;
+    switchingLocation = true;
+    try {
+      const res = await fetch('/api/active-restaurant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ restaurantId }),
+      });
+      if (res.ok) {
+        window.location.href = '/';
+        return;
+      }
+    } catch {
+      // fall through — the select resets on the next render
+    }
+    switchingLocation = false;
+  }
+
   const pageTitle = $derived($page.data.title ? $t($page.data.title) : 'Mise en Place');
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const userInitials = $derived(
@@ -160,6 +182,27 @@
         Mise en Place
       </span>
     </div>
+
+    <!-- Location switcher — only when there is somewhere to switch to (#290) -->
+    {#if data.locations && data.locations.length > 1}
+      <div style="padding:0 10px 14px;">
+        <label for="location-switch" style="display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
+          {$t('nav.location')}
+        </label>
+        <select
+          id="location-switch"
+          class="input"
+          style="height:32px;font-size:12.5px;width:100%;"
+          disabled={switchingLocation}
+          value={data.restaurantId}
+          onchange={(e) => switchLocation((e.currentTarget as HTMLSelectElement).value)}
+        >
+          {#each data.locations as loc}
+            <option value={loc.id}>{loc.name}</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
 
     <!-- Upload CTA (desktop primary action) -->
     <a

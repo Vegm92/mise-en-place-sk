@@ -162,6 +162,13 @@
       "when": 1784918104009,
       "tag": "0022_products_pack_conversion",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784945620190,
+      "tag": "0023_restaurant_locations",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { systemNotifications, invoices, settings, restaurants, subscriptions } from '$lib/server/schema';
-import { eq, desc, and, isNull, sql } from 'drizzle-orm';
+import { systemNotifications, invoices, settings, restaurants, subscriptions, userRestaurants } from '$lib/server/schema';
+import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
 import { TIERS, resolveMonthlyQuota, type PlanTier } from '$lib/server/billing';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
@@ -15,7 +15,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, reminderBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, subRow] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, reminderBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, subRow, locationRows] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -71,6 +71,15 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.from(subscriptions)
 			.where(tdb.scope(subscriptions.restaurantId))
 			.limit(1),
+
+		// Every restaurant this user belongs to, for the location switcher
+		// (issue #290). One row for almost everyone; the switcher only renders
+		// when there is something to switch to.
+		db.select({ id: restaurants.id, name: restaurants.name })
+			.from(userRestaurants)
+			.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
+			.where(eq(userRestaurants.userId, locals.user.id))
+			.orderBy(asc(restaurants.name)),
 	]);
 
 	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
@@ -106,6 +115,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		// The settings override exists for tenants that set a display name; the
 		// restaurants row is the source of truth after a rename (issue #293).
 		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
+		locations: locationRows,
 		hasCompletedOnboarding,
 		tutorialStep,
 		planTier,
