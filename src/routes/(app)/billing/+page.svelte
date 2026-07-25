@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import { locale, t, ti } from '$lib/i18n';
 
-	const { data }: { data: PageData } = $props();
+	const { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const trialEnd = $derived(data.trialEndsAt ? new Date(data.trialEndsAt) : null);
 	const trialDaysLeft = $derived(
@@ -35,6 +35,13 @@
 		<div style="background:var(--mep-acc-soft);border:1px solid var(--mep-acc);color:var(--mep-acc);
 		            border-radius:var(--mep-r-input);padding:12px 16px;font-size:14px;margin-bottom:24px;">
 			{upgradeMessage}
+		</div>
+	{/if}
+
+	{#if form?.error}
+		<div style="background:var(--mep-neg-soft);border:1px solid var(--mep-neg);color:var(--mep-neg);
+		            border-radius:var(--mep-r-input);padding:12px 16px;font-size:14px;margin-bottom:24px;">
+			{$t(form.error)}
 		</div>
 	{/if}
 

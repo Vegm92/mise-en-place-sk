@@ -17,6 +17,7 @@ import 'dotenv/config';
 import * as Sentry from '@sentry/sveltekit';
 import { PgBoss } from 'pg-boss';
 import { EXTRACTION_QUEUE, NORMALIZE_QUEUE } from './lib/server/queue.js';
+import { pgSslConfig } from './lib/server/db-ssl.js';
 import { processExtractionJob, type ExtractionJobData } from './lib/server/extraction-worker.js';
 import { processNormalizeJob, type NormalizeJobData } from './lib/server/product-normalizer.js';
 
@@ -52,7 +53,9 @@ if (!DATABASE_URL) {
 
 const boss = new PgBoss({
 	connectionString: DATABASE_URL,
-	ssl: { rejectUnauthorized: false },
+	// Same TLS policy as the web pool (issue #295) — this used to skip
+	// certificate verification unconditionally while the web process did not.
+	ssl: pgSslConfig(),
 	max: 3,
 });
 

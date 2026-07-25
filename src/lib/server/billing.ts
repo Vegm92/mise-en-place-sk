@@ -4,6 +4,7 @@
  * Without STRIPE_SECRET_KEY the module is a no-op (safe for dev).
  */
 import Stripe from 'stripe';
+import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
@@ -77,13 +78,76 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 	},
 };
 
-/** Map a Stripe price ID to its tier. Falls back to 'starter' for unknown/legacy price IDs. */
+/** True when this tier has a Stripe price ID configured and can be checked out. */
+export function isTierAvailable(tier: PlanTier): boolean {
+	return !!TIERS[tier].stripePriceId;
+}
+
+/**
+ * Map a Stripe price ID to its tier. Falls back to 'starter' for unknown/legacy
+ * price IDs — but never silently (issue #286): an unmatched price means either a
+ * missing STRIPE_PRICE_ID_* var or a price rotated in the Stripe dashboard, and
+ * the fallback would quota a €199/mo Business customer at 100 invoices. Log at
+ * error level and report to Sentry so the mismatch is visible immediately.
+ */
 export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
 	if (!priceId) return 'trial';
 	for (const [tier, config] of Object.entries(TIERS) as [PlanTier, TierConfig][]) {
 		if (config.stripePriceId && config.stripePriceId === priceId) return tier;
 	}
+	const message = `[billing] Stripe price ID ${priceId} matches no configured tier — check STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS. Falling back to 'starter'.`;
+	console.error(message);
+	Sentry.captureException(new Error(message), { tags: { area: 'billing', priceId } });
 	return 'starter';
+}
+
+// ── Monthly invoice quota ──────────────────────────────────────────────────────
+//
+// One convention for "how many invoices may this tenant save this month",
+// replacing the three that used to disagree (issue #295): the layout defaulted
+// a missing settings row to 150, the upload gate read the same absence as
+// unlimited, and unlimited tiers were stored as the magic number 99999.
+//
+//   settings.plan_quota = 'unlimited'  → no limit
+//   settings.plan_quota = <positive n> → n invoices per calendar month
+//   missing / unparseable / <= 0       → the tier's configured quota
+//                                        (TIERS[tier].monthlyInvoiceQuota,
+//                                        itself null for unlimited tiers)
+//
+// `null` means unlimited at every call site.
+
+/** Value stored in settings.plan_quota for tiers with no invoice cap. */
+export const UNLIMITED_QUOTA_SETTING = 'unlimited';
+
+/** Pre-#295 rows wrote this magic number instead of the sentinel. */
+const LEGACY_UNLIMITED_QUOTA = 99999;
+
+/** Resolve a stored plan_quota value against the tenant's tier. null = unlimited. */
+export function resolveMonthlyQuota(raw: string | null | undefined, tier: PlanTier): number | null {
+	const value = raw?.trim() ?? '';
+	if (value) {
+		if (value.toLowerCase() === UNLIMITED_QUOTA_SETTING) return null;
+		const parsed = Number(value);
+		if (Number.isFinite(parsed) && parsed >= LEGACY_UNLIMITED_QUOTA) return null;
+		if (Number.isFinite(parsed) && parsed > 0) return parsed;
+	}
+	return TIERS[tier].monthlyInvoiceQuota;
+}
+
+/** Same convention, reading both the settings row and the tier from the DB. */
+export async function getMonthlyQuota(restaurantId: string): Promise<number | null> {
+	const tdb = forTenant(restaurantId);
+	const [[quotaRow], [subRow]] = await Promise.all([
+		db.select({ value: settings.value })
+			.from(settings)
+			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')))
+			.limit(1),
+		db.select({ planTier: subscriptions.planTier })
+			.from(subscriptions)
+			.where(tdb.scope(subscriptions.restaurantId))
+			.limit(1),
+	]);
+	return resolveMonthlyQuota(quotaRow?.value, (subRow?.planTier ?? 'trial') as PlanTier);
 }
 
 /**
@@ -93,7 +157,7 @@ export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
  */
 export async function applyTierSettings(restaurantId: string, tier: PlanTier): Promise<void> {
 	const config = TIERS[tier];
-	const quota = config.monthlyInvoiceQuota ?? 99999;
+	const quota = config.monthlyInvoiceQuota ?? UNLIMITED_QUOTA_SETTING;
 	const upsert = (key: string, value: string) =>
 		db.insert(settings)
 			.values({ restaurantId, key, value })

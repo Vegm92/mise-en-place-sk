@@ -9,8 +9,9 @@ import { enqueueBatchExtraction } from '$lib/server/extract-batch';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, settings } from '$lib/server/schema';
-import { and, isNull, eq, sql } from 'drizzle-orm';
+import { invoices } from '$lib/server/schema';
+import { and, isNull, sql } from 'drizzle-orm';
+import { getMonthlyQuota } from '$lib/server/billing';
 
 /**
  * Returns the number of invoices the tenant can still add this calendar month,
@@ -20,13 +21,9 @@ import { and, isNull, eq, sql } from 'drizzle-orm';
 async function remainingMonthlyQuota(rid: string): Promise<number | null> {
 	try {
 		const tdb = forTenant(rid);
-		const [quotaRow] = await db
-			.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')));
-		if (!quotaRow?.value) return null;
-		const limit = Number(quotaRow.value);
-		if (!Number.isFinite(limit) || limit <= 0) return null;
+		// Shared quota convention (issue #295) — null means unlimited.
+		const limit = await getMonthlyQuota(rid);
+		if (limit === null) return null;
 
 		const [usedRow] = await db
 			.select({ cnt: sql<number>`COUNT(*)::int` })

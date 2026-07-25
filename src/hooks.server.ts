@@ -35,6 +35,18 @@ function isNetworkUnreachable(e: unknown): boolean {
 	return msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed');
 }
 
+// adapter-node resolves getClientAddress() from the socket peer unless
+// ADDRESS_HEADER names the header the proxy sets. Behind nginx/Caddy that means
+// every visitor shares one rate-limit bucket, so the IP-keyed limits on
+// login/signup/waitlist collapse into a global one (issue #223).
+if (process.env['NODE_ENV'] === 'production' && !process.env['ADDRESS_HEADER']) {
+	console.warn(
+		'[hooks] ADDRESS_HEADER is not set — getClientAddress() returns the socket peer address. ' +
+		'If a reverse proxy terminates TLS, set ADDRESS_HEADER=x-forwarded-for and XFF_DEPTH to the number of trusted proxies, ' +
+		'or the IP-keyed rate limits on login/signup/waitlist share a single bucket.',
+	);
+}
+
 cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
 cleanupProcessedRequests().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] idempotency cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
@@ -89,6 +101,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// which does not rerun on every child navigation.
 	if ((path === '/admin' || path.startsWith('/admin/')) && !isAdminUser(event.locals.user)) {
 		redirect(303, '/');
+	}
+
+	// Anonymous hit on the apex goes to the landing page, not the login wall
+	// (issue #291). Deep links keep the redirectTo round-trip below.
+	if (path === '/' && !event.locals.user) {
+		redirect(303, '/waitlist');
 	}
 
 	if (!isPublicPath(path) && !event.locals.user) {

@@ -210,10 +210,11 @@
     <div style="margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{data.planName}</span>
-        <span class="num" style="font-size:11px;color:var(--mep-fg-3);">{data.quotaUsed}/{data.quotaLimit}</span>
+        <span class="num" style="font-size:11px;color:var(--mep-fg-3);">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span>
       </div>
       <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-        <div style="width:{Math.round(data.quotaUsed / data.quotaLimit * 100)}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
+        <!-- quotaLimit === null → unlimited plan, nothing to fill up (#295) -->
+        <div style="width:{data.quotaLimit ? Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100)) : 0}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
       </div>
       <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">{$t('shell.quota')}</div>
     </div>

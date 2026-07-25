@@ -617,6 +617,7 @@ export const translations = {
     'billing.subscribeNow':         'Suscribirme ahora',
     'billing.reactivate':           'Reactivar suscripción',
     'billing.notConfigured':        'La facturación aún no está configurada. Contacta con soporte para suscribirte.',
+    'billing.err.tierUnavailable':  'Este plan no está disponible ahora mismo. Contacta con soporte.',
     'billing.manage':               'Gestionar suscripción',
     // Login / onboarding meta
     'login.metaDesc':               'Inicia sesión en Mise en Place para gestionar las facturas de tus proveedores, controlar el gasto y los presupuestos de tu restaurante.',
@@ -1579,6 +1580,7 @@ export const translations = {
     'billing.subscribeNow':         'Subscribe now',
     'billing.reactivate':           'Reactivate subscription',
     'billing.notConfigured':        'Billing is not yet configured. Contact support to subscribe.',
+    'billing.err.tierUnavailable':  'This plan is not available right now. Please contact support.',
     'billing.manage':               'Manage subscription',
     // Login / onboarding meta
     'login.metaDesc':               'Sign in to Mise en Place to manage your supplier invoices and track your restaurant spend and budgets.',

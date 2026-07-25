@@ -3,7 +3,7 @@ import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { systemNotifications, invoices, settings, restaurants, subscriptions } from '$lib/server/schema';
 import { eq, desc, and, isNull, sql } from 'drizzle-orm';
-import { TIERS, type PlanTier } from '$lib/server/billing';
+import { TIERS, resolveMonthlyQuota, type PlanTier } from '$lib/server/billing';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -100,7 +100,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
 		reminderBadge:           reminderBadgeRow[0]?.cnt   ?? 0,
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
-		quotaLimit:              quotaLimitRow[0]   ? Number(quotaLimitRow[0].value)  : tierConfig.monthlyInvoiceQuota ?? 150,
+		// null = unlimited; shared convention in billing.resolveMonthlyQuota (#295)
+		quotaLimit:              resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier),
 		planName:                planNameRow[0]?.value      ?? tierConfig.name,
 		restaurantName:          restaurantNameRow[0]?.value ?? '',
 		hasCompletedOnboarding,
