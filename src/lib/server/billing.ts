@@ -4,6 +4,7 @@
  * Without STRIPE_SECRET_KEY the module is a no-op (safe for dev).
  */
 import Stripe from 'stripe';
+import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
@@ -39,6 +40,8 @@ export interface TierConfig {
 	name: string;
 	monthlyInvoiceQuota: number | null; // null = unlimited
 	stripePriceId: string;
+	/** How many restaurants one subscription covers (issue #290). */
+	maxLocations: number;
 	features: {
 		weeklyDigest:      boolean;
 		stockTracking:     boolean;
@@ -55,35 +58,118 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		name: 'Prueba gratuita',
 		monthlyInvoiceQuota: 20, // enough to evaluate; not enough to rely on for free
 		stripePriceId: '',
+		maxLocations: 1,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false },
 	},
 	starter: {
 		name: 'Starter',
 		monthlyInvoiceQuota: 100, // €49/mo — covers most small Spanish restaurants (~50-80 invoices/mo)
 		stripePriceId: env.STRIPE_PRICE_ID_STARTER ?? env.STRIPE_PRICE_ID ?? '',
+		maxLocations: 1,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false },
 	},
 	pro: {
 		name: 'Pro',
 		monthlyInvoiceQuota: 300, // €99/mo — active full-service restaurants
 		stripePriceId: env.STRIPE_PRICE_ID_PRO ?? '',
+		maxLocations: 1,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false },
 	},
 	business: {
 		name: 'Business',
 		monthlyInvoiceQuota: null, // €199/mo — unlimited, up to 5 locations
 		stripePriceId: env.STRIPE_PRICE_ID_BUSINESS ?? '',
+		maxLocations: 5,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true },
 	},
 };
 
-/** Map a Stripe price ID to its tier. Falls back to 'starter' for unknown/legacy price IDs. */
+/** True when this tier has a Stripe price ID configured and can be checked out. */
+export function isTierAvailable(tier: PlanTier): boolean {
+	return !!TIERS[tier].stripePriceId;
+}
+
+/**
+ * Map a Stripe price ID to its tier. Falls back to 'starter' for unknown/legacy
+ * price IDs — but never silently (issue #286): an unmatched price means either a
+ * missing STRIPE_PRICE_ID_* var or a price rotated in the Stripe dashboard, and
+ * the fallback would quota a €199/mo Business customer at 100 invoices. Log at
+ * error level and report to Sentry so the mismatch is visible immediately.
+ */
 export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
 	if (!priceId) return 'trial';
 	for (const [tier, config] of Object.entries(TIERS) as [PlanTier, TierConfig][]) {
 		if (config.stripePriceId && config.stripePriceId === priceId) return tier;
 	}
+	const message = `[billing] Stripe price ID ${priceId} matches no configured tier — check STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS. Falling back to 'starter'.`;
+	console.error(message);
+	Sentry.captureException(new Error(message), { tags: { area: 'billing', priceId } });
 	return 'starter';
+}
+
+/**
+ * The restaurant whose subscription pays for `restaurantId` (issue #290).
+ *
+ * An additional location of a multi-location account carries `parent_id` and
+ * has no subscription of its own; plan, quota and features all resolve against
+ * the parent, so a Business customer's second site is not treated as a fresh
+ * trial. A standalone restaurant resolves to itself.
+ */
+export async function billingRestaurantId(restaurantId: string): Promise<string> {
+	const [row] = await db.select({ parentId: restaurants.parentId })
+		.from(restaurants)
+		.where(eq(restaurants.id, restaurantId))
+		.limit(1);
+	return row?.parentId ?? restaurantId;
+}
+
+// ── Monthly invoice quota ──────────────────────────────────────────────────────
+//
+// One convention for "how many invoices may this tenant save this month",
+// replacing the three that used to disagree (issue #295): the layout defaulted
+// a missing settings row to 150, the upload gate read the same absence as
+// unlimited, and unlimited tiers were stored as the magic number 99999.
+//
+//   settings.plan_quota = 'unlimited'  → no limit
+//   settings.plan_quota = <positive n> → n invoices per calendar month
+//   missing / unparseable / <= 0       → the tier's configured quota
+//                                        (TIERS[tier].monthlyInvoiceQuota,
+//                                        itself null for unlimited tiers)
+//
+// `null` means unlimited at every call site.
+
+/** Value stored in settings.plan_quota for tiers with no invoice cap. */
+export const UNLIMITED_QUOTA_SETTING = 'unlimited';
+
+/** Pre-#295 rows wrote this magic number instead of the sentinel. */
+const LEGACY_UNLIMITED_QUOTA = 99999;
+
+/** Resolve a stored plan_quota value against the tenant's tier. null = unlimited. */
+export function resolveMonthlyQuota(raw: string | null | undefined, tier: PlanTier): number | null {
+	const value = raw?.trim() ?? '';
+	if (value) {
+		if (value.toLowerCase() === UNLIMITED_QUOTA_SETTING) return null;
+		const parsed = Number(value);
+		if (Number.isFinite(parsed) && parsed >= LEGACY_UNLIMITED_QUOTA) return null;
+		if (Number.isFinite(parsed) && parsed > 0) return parsed;
+	}
+	return TIERS[tier].monthlyInvoiceQuota;
+}
+
+/** Same convention, reading both the settings row and the tier from the DB. */
+export async function getMonthlyQuota(restaurantId: string): Promise<number | null> {
+	const tdb = forTenant(await billingRestaurantId(restaurantId));
+	const [[quotaRow], [subRow]] = await Promise.all([
+		db.select({ value: settings.value })
+			.from(settings)
+			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')))
+			.limit(1),
+		db.select({ planTier: subscriptions.planTier })
+			.from(subscriptions)
+			.where(tdb.scope(subscriptions.restaurantId))
+			.limit(1),
+	]);
+	return resolveMonthlyQuota(quotaRow?.value, (subRow?.planTier ?? 'trial') as PlanTier);
 }
 
 /**
@@ -93,7 +179,7 @@ export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
  */
 export async function applyTierSettings(restaurantId: string, tier: PlanTier): Promise<void> {
 	const config = TIERS[tier];
-	const quota = config.monthlyInvoiceQuota ?? 99999;
+	const quota = config.monthlyInvoiceQuota ?? UNLIMITED_QUOTA_SETTING;
 	const upsert = (key: string, value: string) =>
 		db.insert(settings)
 			.values({ restaurantId, key, value })
@@ -106,7 +192,7 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 
 /** Look up the tier features for a restaurant. Fast enough for use in API request handlers. */
 export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
-	const tdb = forTenant(restaurantId);
+	const tdb = forTenant(await billingRestaurantId(restaurantId));
 	const [row] = await db.select({ planTier: subscriptions.planTier })
 		.from(subscriptions)
 		.where(tdb.scope(subscriptions.restaurantId))
@@ -119,6 +205,42 @@ export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | 
 	if (status === 'active') return true;
 	if (status === 'trialing' && trialEndsAt && trialEndsAt > new Date()) return true;
 	return false;
+}
+
+export interface AccessState {
+	/** False once a trial has lapsed (or the subscription is past due/cancelled). */
+	allowed: boolean;
+	status: SubscriptionStatus;
+	trialEndsAt: Date | null;
+	/** True specifically for "the trial ran out", which gets its own copy. */
+	trialExpired: boolean;
+}
+
+/**
+ * Resolve whether a tenant may still consume paid capacity — uploads,
+ * extraction, AI chat (issue #287). Read access to existing data is never
+ * gated on this; only new spend is.
+ *
+ * A tenant with no subscription row at all is treated as allowed: that only
+ * happens for rows created outside onboarding, and locking those out would be
+ * worse than the alternative.
+ */
+export async function getAccessState(restaurantId: string): Promise<AccessState> {
+	const tdb = forTenant(await billingRestaurantId(restaurantId));
+	const [sub] = await db.select({
+		status: subscriptions.status,
+		trialEndsAt: subscriptions.trialEndsAt,
+	})
+		.from(subscriptions)
+		.where(tdb.scope(subscriptions.restaurantId))
+		.limit(1);
+
+	if (!sub) return { allowed: true, status: 'trialing', trialEndsAt: null, trialExpired: false };
+
+	const status = sub.status as SubscriptionStatus;
+	const trialEndsAt = sub.trialEndsAt ?? null;
+	const allowed = isAccessAllowed(status, trialEndsAt);
+	return { allowed, status, trialEndsAt, trialExpired: !allowed && status === 'trialing' };
 }
 
 /**

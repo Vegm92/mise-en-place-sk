@@ -7,8 +7,22 @@
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
 	// Shared consent state: the Google OAuth form is separate markup, so it
-	// mirrors the checkbox via a hidden input and stays disabled until checked.
+	// mirrors the checkbox via a hidden input. The button itself stays enabled
+	// (issue #234) — a disabled OAuth button reads as broken, and its only
+	// explanation used to be a hover title, which touch devices never show.
+	// Consent is still required: the click validates it here and the server
+	// action re-checks it.
 	let termsAccepted = $state(false);
+	let termsMissing = $state(false);
+	let termsEl = $state<HTMLInputElement>();
+
+	function guardGoogleConsent(event: SubmitEvent) {
+		if (termsAccepted) return;
+		event.preventDefault();
+		termsMissing = true;
+		termsEl?.focus();
+		termsEl?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+	}
 
 	onMount(() => {
 		initLocale();
@@ -17,6 +31,7 @@
 	const urlError = $derived($page.url.searchParams.get('error'));
 
 	const errorMessage = $derived(
+		termsMissing                         ? $t('signup.err.terms') :
 		form?.error === 'missing'            ? $t('login.err.missing') :
 		form?.error === 'password_too_short' ? $t('signup.err.passwordShort') :
 		form?.error === 'terms_required'     ? $t('signup.err.terms') :
@@ -124,7 +139,16 @@
 					</div>
 
 					<label for="terms" style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--mep-fg-3);line-height:1.5;cursor:pointer;">
-						<input id="terms" name="terms" type="checkbox" required bind:checked={termsAccepted} style="margin-top:2px;flex-shrink:0;" />
+						<input
+							id="terms"
+							name="terms"
+							type="checkbox"
+							required
+							bind:this={termsEl}
+							bind:checked={termsAccepted}
+							onchange={() => { if (termsAccepted) termsMissing = false; }}
+							style="margin-top:2px;flex-shrink:0;outline:{termsMissing ? '2px solid var(--mep-neg)' : 'none'};outline-offset:2px;"
+						/>
 						<span>
 							{$t('signup.acceptPre')}
 							<a href="/terms"   style="color:var(--mep-acc);">{$t('footer.terms')}</a> {$t('signup.acceptMid')}
@@ -145,13 +169,11 @@
 				</div>
 
 				<!-- Google OAuth -->
-				<form method="POST" action="?/signUpWithGoogle">
+				<form method="POST" action="?/signUpWithGoogle" onsubmit={guardGoogleConsent}>
 					<input type="hidden" name="terms" value={termsAccepted ? 'on' : ''} />
 					<button
 						type="submit"
 						class="btn btn-secondary"
-						disabled={!termsAccepted}
-						title={termsAccepted ? undefined : $t('signup.err.terms')}
 						style="height:36px;width:100%;justify-content:center;gap:10px;"
 					>
 						<svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">

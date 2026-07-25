@@ -15,6 +15,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
+		// Set by the batch save action after the last invoice of a batch lands
+		// (issue #235) — replaces the /save-confirmation interstitial.
+		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
 		const status     = url.searchParams.get('status') ?? '';
 		const supplierId = url.searchParams.get('supplier_id') ?? '';
 		const dateFrom   = url.searchParams.get('date_from') ?? '';
@@ -72,6 +75,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(and(...conditions)),
 		]);
 
+		// Alerts raised while saving that invoice ride along on the toast instead
+		// of needing their own page.
+		const savedAlerts = Number.isFinite(savedId)
+			? (await db.select({ message: systemNotifications.message })
+				.from(systemNotifications)
+				.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.invoiceId, savedId))))
+				.map(r => r.message)
+			: [];
+
 		// Line items only for the current page
 		const invoiceIds = invoiceRows.map(r => r.id);
 		const allLineItems = invoiceIds.length
@@ -109,6 +121,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			suppliers: supplierRows,
 			filters: { status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo },
 			conflict: url.searchParams.get('conflict') === '1',
+			savedInvoiceId: Number.isFinite(savedId) ? savedId : null,
+			savedAlerts,
 			pagination: { page, pageSize: PAGE_SIZE, total, totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)) },
 		};
 	});

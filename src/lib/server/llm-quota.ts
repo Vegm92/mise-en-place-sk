@@ -7,25 +7,20 @@
  */
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
-import { llmUsageLog, monthlyUsage, settings, tenantLlmQuotas } from './schema';
+import { llmUsageLog, monthlyUsage, tenantLlmQuotas } from './schema';
 import { estimateCostUsd, type LLMUsage } from './llm-provider';
+import { getMonthlyQuota } from './billing';
 
 function currentMonth(): string {
 	return new Date().toISOString().slice(0, 7); // YYYY-MM
 }
 
 /**
- * Reads the tenant's plan invoice quota from settings. null = no configured
- * limit (treated as unlimited).
+ * Reads the tenant's plan invoice quota. null = unlimited.
+ * Shared convention lives in billing.getMonthlyQuota (issue #295).
  */
 async function planQuotaLimit(restaurantId: string): Promise<number | null> {
-	const tdb = forTenant(restaurantId);
-	const [row] = await db.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')));
-	if (!row?.value) return null;
-	const limit = Number(row.value);
-	return Number.isFinite(limit) && limit > 0 ? limit : null;
+	return await getMonthlyQuota(restaurantId);
 }
 
 export type ClaimResult =

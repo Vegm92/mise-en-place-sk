@@ -5,6 +5,7 @@
   import Package from '@lucide/svelte/icons/package';
   import Ruler from '@lucide/svelte/icons/ruler';
   import Boxes from '@lucide/svelte/icons/boxes';
+  import Tag from '@lucide/svelte/icons/tag';
   import { t } from '$lib/i18n';
 
   type Notif = {
@@ -28,6 +29,7 @@
     if (type === 'low_stock_forecast')     return Package;
     if (type === 'unit_conversion_needed') return Ruler;
     if (type === 'product_suggestion')     return Boxes;
+    if (type === 'supplier_uncategorized') return Tag;
     return Bell;
   }
 
@@ -36,6 +38,7 @@
     if (type === 'low_stock_forecast')     return 'var(--mep-warn)';
     if (type === 'unit_conversion_needed') return 'var(--mep-info)';
     if (type === 'product_suggestion')     return 'var(--mep-info)';
+    if (type === 'supplier_uncategorized') return 'var(--mep-warn)';
     return 'var(--mep-fg-2)';
   }
 
@@ -166,6 +169,20 @@
             </div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">{n.message}</div>
+              <!-- One-tap route to the supplier's category field (issue #301) -->
+              {#if n.notificationType === 'supplier_uncategorized'}
+                {@const supplierId = (n.payload as { supplierId?: number } | null)?.supplierId}
+                {#if supplierId}
+                  <div style="margin-top:6px;">
+                    <a
+                      href="/suppliers/{supplierId}"
+                      class="btn btn-primary"
+                      style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+                      onclick={() => (open = false)}
+                    >{$t('notif.categorize')}</a>
+                  </div>
+                {/if}
+              {/if}
               {#if n.notificationType === 'product_suggestion'}
                 <div style="display:flex;gap:6px;margin-top:6px;">
                   <button

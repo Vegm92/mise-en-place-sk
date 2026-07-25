@@ -24,7 +24,7 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 
 - **SvelteKit 2 + Svelte 5 (runes)**, Tailwind CSS 4, shadcn-svelte/bits-ui, `@sveltejs/adapter-node`
 - **Supabase**: Postgres (data) + Auth (email/password + Google OAuth, cookie sessions via `@supabase/ssr`)
-- **Drizzle ORM** (postgres-js, SSL required); migrations in `drizzle/`, including row-level-security policies (`0002_rls_policies.sql`)
+- **Drizzle ORM** (postgres-js, SSL required); migrations in `drizzle/`, including row-level-security policies (`0001_rls_policies.sql`)
 - **Gemini** (`@google/genai`, default `gemini-2.5-flash`) for extraction, digest, and chat
 - **Sentry** (`@sentry/sveltekit`) for client + server error tracking (no-ops when DSN empty)
 - **Vitest** unit/integration tests; GitHub Actions CI (typecheck, tests, build)
@@ -40,10 +40,11 @@ src/
 │   │   ├── db.ts, schema.ts # Drizzle + Postgres (multi-tenant: restaurant_id everywhere)
 │   │   ├── extract.ts       # Gemini extraction (text-PDF fast path, vision fallback, retries)
 │   │   ├── alert-engine.ts  # price-shock / stock-forecast checks on invoice save
-│   │   ├── weekly-digest.ts # AI weekly summary (generated on dashboard visit)
+│   │   ├── weekly-digest.ts # AI weekly summary (scheduled in the worker + on dashboard visit)
 │   │   ├── chat-context.ts  # data snapshot for the chat assistant
 │   │   ├── sessions.ts      # upload sessions (DB-backed, Postgres upload_sessions table)
-│   │   ├── rate-limiter.ts  # in-memory token bucket + extraction semaphore (single instance!)
+│   │   ├── rate-limiter.ts  # Upstash Redis token bucket, in-memory fallback (single instance!)
+│   │   ├── scheduler.ts     # pg-boss cron: weekly digest, overdue + trial-expiry email
 │   │   └── auth-seed.ts     # admin seeding; refuses default password in production
 │   ├── components/          # mep/* design system, mobile/* + desktop/* page variants, ui/* shadcn
 │   └── i18n.ts              # es/en string store
@@ -54,7 +55,7 @@ src/
     └── api/                 # upload files, inference status, auth callback
 ```
 
-Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries **and** by Postgres RLS policies as defense-in-depth. Uploaded files live on local disk (`UPLOADS_DIR`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
+Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries **and** by Postgres RLS policies as defense-in-depth. Uploaded files live on local disk (`UPLOADS_DIR`) or in Supabase Storage (`STORAGE_DRIVER=supabase`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
 
 ## Getting started
 
@@ -80,10 +81,13 @@ Spanish invoicing law is changing in our favor — and shapes the roadmap:
 - **VERI*FACTU** (RD 1007/2023, postponed by RDL 15/2025): certified invoice-*issuance* software becomes mandatory **1 Jan 2027** (companies) / **1 Jul 2027** (rest). Mise en Place does not issue invoices, so it is not itself an SIF — but supplier invoices will carry VERI*FACTU QR codes that we can parse and verify, dramatically improving extraction reliability.
 - **B2B e-invoicing** (Ley Crea y Crece, RD 238/2026): businesses must receive structured e-invoices (Facturae/UBL/CII) and report payment statuses (expected ~Oct 2027 for >€8M turnover, ~Oct 2028 for all SMEs).
 
-See `EINVOICING_READINESS.md` for the technical readiness plan and the tracking issues.
+Structured e-invoices (Facturae 3.2.x and UBL 2.1) are already parsed directly —
+no AI pass — by `src/lib/server/einvoice-parser.ts`, including UN/ECE Rec 20 and
+Facturae unit-of-measure codes; VERI*FACTU QR payloads are parsed by
+`src/lib/server/qr.ts`.
 
 ## Project documents
 
-- [`PRE_RELEASE_AUDIT.md`](PRE_RELEASE_AUDIT.md) — pre-release audit: scores, top-20 blockers, 90-day roadmap (tracked in issues #60–#109)
-- [`PLAN_DE_NEGOCIO.md`](PLAN_DE_NEGOCIO.md) — investor business plan (Spanish)
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — environment variables and deployment runbook
+- [`PRODUCTION_SIGNOFF.md`](PRODUCTION_SIGNOFF.md) — the staging checks that gate a production release
+- [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) — pre-launch gap analysis; each item is tracked as a GitHub issue

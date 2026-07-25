@@ -1,10 +1,30 @@
 # Production topology: one image, two services.
 # Works as-is on a VPS; on Railway/Render/Fly, create two services from the
-# same repo instead (web: `node build`, worker: `node build/worker.js`).
+# same repo instead (web: `node build`, worker: `node build/worker.js`) — and
+# read the storage note below before you do, because split services there have
+# no shared disk.
+#
+# Storage (issue #285): web writes the uploaded file, the worker reads it back
+# to run extraction. With STORAGE_DRIVER=local those two processes MUST see the
+# same directory, and it must survive container recreation. The named volume
+# below mounts /app/uploads into both services and outlives `docker compose
+# down`. On platforms without a shared volume, set STORAGE_DRIVER=supabase.
 services:
   web:
     build: .
     env_file: .env
+    environment:
+      # Both services must agree on this path, and it must be the mount point
+      # of the shared volume — not the relative `uploads` default.
+      UPLOADS_DIR: /app/uploads
+      # adapter-node reads the client IP from this header when it sits behind a
+      # TLS-terminating proxy (issue #223). Without it every request appears to
+      # come from the proxy and all IP-keyed rate limits share one bucket.
+      # XFF_DEPTH is the number of trusted proxies in front of this container.
+      ADDRESS_HEADER: x-forwarded-for
+      XFF_DEPTH: '1'
+    volumes:
+      - uploads:/app/uploads
     ports:
       - '3000:3000'
     restart: unless-stopped
@@ -13,4 +33,11 @@ services:
     build: .
     command: node build/worker.js
     env_file: .env
+    environment:
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
     restart: unless-stopped
+
+volumes:
+  uploads:

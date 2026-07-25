@@ -1,6 +1,6 @@
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { stripe, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, TIERS, type PlanTier } from '$lib/server/billing';
+import { stripe, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -48,6 +48,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				monthlyInvoiceQuota: config.monthlyInvoiceQuota,
 				features: config.features,
 				isCurrent: tier === currentTier,
+				// false when STRIPE_PRICE_ID_<TIER> is unset (issue #286)
+				available: isTierAvailable(tier as PlanTier),
 			})),
 	};
 };
@@ -64,6 +66,14 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const tierParam = (formData.get('tier') as string | null) ?? 'starter';
 		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : 'starter') as PlanTier;
+
+		// A tier whose STRIPE_PRICE_ID_* is unset used to throw out of
+		// createCheckoutSession as a 500 error page (issue #286). Surface it as a
+		// form error instead — it's a deployment misconfiguration, not a crash.
+		if (!isTierAvailable(tier)) {
+			console.error(`[billing] checkout blocked: STRIPE_PRICE_ID_${tier.toUpperCase()} is not configured`);
+			return fail(503, { error: 'billing.err.tierUnavailable' });
+		}
 
 		// Refuse a second checkout when the tenant already has a live subscription
 		// (issue #239). Without this, a user with an active plan — or one whose

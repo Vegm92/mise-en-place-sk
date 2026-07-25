@@ -15,6 +15,7 @@ import { STORAGE_DRIVER } from './env.js';
 import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
 import { annotateLineItems } from './unit-bridge.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
+import { getAccessState } from './billing.js';
 
 export interface ExtractionJobData {
 	itemId?: string;
@@ -62,6 +63,17 @@ export async function processExtractionJob(
 	// quota BEFORE any Gemini spend (issue #244). Skipped in the test path.
 	let claimedMonthlySlot = false;
 	if (!generateOverride) {
+		// A lapsed trial must not spend on extraction, whichever door the file
+		// came in through — web upload, WhatsApp or a retry of an older job
+		// (issue #287). The web upload action blocks earlier with a redirect;
+		// this is the backstop that covers every path.
+		const access = await getAccessState(restaurantId);
+		if (!access.allowed) {
+			console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction`);
+			await markFailed(itemId, access.trialExpired ? 'extract.err.trialExpired' : 'extract.err.subscriptionInactive');
+			return;
+		}
+
 		const quotaResult = await checkExtractionQuota(restaurantId);
 		if (!quotaResult.allowed) {
 			console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason}`);

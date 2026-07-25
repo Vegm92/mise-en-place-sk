@@ -7,8 +7,10 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 import { getTierFeatures } from '$lib/server/billing';
 
 /** GET /api/stock-levels — list all stock level entries for this restaurant. */
-export const GET: RequestHandler = async ({ getClientAddress, locals }) => {
-	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
+export const GET: RequestHandler = async ({ locals }) => {
+	// Keyed on the authenticated user, not the client IP (issue #223): behind a
+	// reverse proxy every request shares one IP and therefore one bucket.
+	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	const features = await getTierFeatures(rid);
@@ -18,8 +20,8 @@ export const GET: RequestHandler = async ({ getClientAddress, locals }) => {
 };
 
 /** POST /api/stock-levels — upsert daily burn rate for an ingredient (TPV sync stub). */
-export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
-	if (!await checkRateLimit(getClientAddress(), 60)) throw error(429, 'Too many requests');
+export const POST: RequestHandler = async ({ request, locals }) => {
+	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });

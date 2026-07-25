@@ -8,15 +8,51 @@
   import Camera from '@lucide/svelte/icons/camera';
   import WifiOff from '@lucide/svelte/icons/wifi-off';
   import { t, ti, tp } from '$lib/i18n';
+  import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
+
+  type ErrorVars = Record<string, string | number>;
 
   interface Props {
-    data: { saved: boolean; duplicate: boolean; error: string | null; hasCompletedOnboarding: boolean; upgradeUrl?: string | null };
-    form: { error?: string; upgradeUrl?: string } | null;
+    data: {
+      saved: boolean; duplicate: boolean; error: string | null;
+      errorVars?: ErrorVars; hasCompletedOnboarding: boolean; upgradeUrl?: string | null;
+    };
+    form: { error?: string; errorVars?: ErrorVars; upgradeUrl?: string } | null;
   }
 
   const { data, form }: Props = $props();
 
-  const errorMsg = $derived(form?.error ?? (data.error ? decodeURIComponent(data.error) : null));
+  // Client-side problems (oversized file, offline queue full, failed upload)
+  // used to go through native alert(): modal, unstyled, wrong locale, and
+  // invisible to the page. They now feed the same banner as server errors
+  // (issue #233). Transient ones clear themselves.
+  let localError = $state<string | null>(null);
+  let localErrorTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showError(message: string, transient = false) {
+    if (localErrorTimer) clearTimeout(localErrorTimer);
+    localError = message;
+    localErrorTimer = transient
+      ? setTimeout(() => { localError = null; localErrorTimer = null; }, 6000)
+      : null;
+  }
+
+  function dismissError() {
+    if (localErrorTimer) clearTimeout(localErrorTimer);
+    localErrorTimer = null;
+    localError = null;
+  }
+
+  // Server actions return i18n keys, not prose (issue #294); `$t` falls back to
+  // the key itself, so an unexpected string still renders rather than vanishing.
+  const serverError = $derived.by(() => {
+    const key = form?.error ?? (data.error ? decodeURIComponent(data.error) : null);
+    if (!key) return null;
+    const vars = form?.errorVars ?? data.errorVars;
+    return vars ? $ti(key, vars) : $t(key);
+  });
+
+  const errorMsg = $derived(localError ?? serverError);
   const upgradeUrl = $derived(form?.upgradeUrl ?? data.upgradeUrl ?? null);
 
   let files = $state<File[]>([]);
@@ -29,16 +65,12 @@
   let previewUrl = $state<string | null>(null);
   let previewFile = $state<File | null>(null);
 
-  let showCaptureTip = $state(false);
-  const TIP_KEY = 'mise_capture_tip_seen';
-
   const OFFLINE_MAX = 3;
   let offlineBanner = $state<'saved' | 'retrying' | null>(null);
   let pendingOfflineCount = $state(0);
 
   let uploadProgress = $state(0);
 
-  const STEPS = $derived([$t('steps.upload'), $t('steps.extract'), $t('steps.review')]);
 
   // ── IndexedDB helpers ───────────────────────────────────────────────────
   const DB_NAME = 'mise-offline-queue';
@@ -125,7 +157,7 @@
   function addFiles(newFiles: FileList | null) {
     if (!newFiles) return;
     for (const f of Array.from(newFiles)) {
-      if (f.size > MAX_MB * 1024 * 1024) { alert($ti('upload.imageTooLarge', { mb: MAX_MB })); continue; }
+      if (f.size > MAX_MB * 1024 * 1024) { showError($ti('upload.imageTooLarge', { mb: MAX_MB }), true); continue; }
       if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
     }
   }
@@ -134,26 +166,19 @@
   function fileKind(name: string) { return name.split('.').pop()?.toLowerCase() === 'pdf' ? 'pdf' : 'img'; }
 
   // ── Camera capture flow ─────────────────────────────────────────────────
+  // The camera opens straight away: the framing tip used to be a blocking
+  // bottom sheet *before* the first capture, which is the worst moment to read
+  // it. It now rides along as a caption on the photo-confirm overlay, where the
+  // user can act on it by retaking (issue #230).
   function openCamera() {
-    const tipSeen = typeof localStorage !== 'undefined' && localStorage.getItem(TIP_KEY);
-    if (!tipSeen) {
-      showCaptureTip = true;
-    } else {
-      cameraInputEl?.click();
-    }
-  }
-
-  function dismissTip() {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(TIP_KEY, '1');
-    showCaptureTip = false;
-    setTimeout(() => cameraInputEl?.click(), 80);
+    cameraInputEl?.click();
   }
 
   function onCameraCapture(e: Event) {
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) return;
-    if (f.size > MAX_MB * 1024 * 1024) { alert($ti('upload.imageTooLarge', { mb: MAX_MB })); return; }
+    if (f.size > MAX_MB * 1024 * 1024) { showError($ti('upload.imageTooLarge', { mb: MAX_MB }), true); return; }
     previewUrl = URL.createObjectURL(f);
     previewFile = f;
   }
@@ -186,11 +211,17 @@
       });
       xhr.addEventListener('load', () => {
         try {
-          const result = JSON.parse(xhr.responseText) as { type: string; location?: string; data?: { error?: string } };
+          const result = JSON.parse(xhr.responseText) as {
+            type: string; location?: string;
+            data?: { error?: string; errorVars?: ErrorVars };
+          };
           if (result.type === 'redirect' && result.location) {
             resolve(result.location);
           } else {
-            if (result.data?.error) alert(result.data.error);
+            // The action's payload carries an i18n key + vars (issue #294).
+            if (result.data?.error) {
+              showError(result.data.errorVars ? $ti(result.data.error, result.data.errorVars) : $t(result.data.error));
+            }
             resolve(null);
           }
         } catch { reject(new Error('Invalid response')); }
@@ -203,7 +234,7 @@
   async function handleOffline(filesToSave: File[]) {
     const count = await getQueuedCount();
     if (count >= OFFLINE_MAX) {
-      alert($t('upload.offlineLimit'));
+      showError($t('upload.offlineLimit'), true);
       return;
     }
     await addToOfflineQueue(filesToSave);
@@ -240,6 +271,7 @@
 
   async function doUpload() {
     if (!files.length || uploading) return;
+    dismissError();
     uploading = true;
     uploadProgress = 0;
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -265,7 +297,7 @@
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
         await handleOffline(files);
       } else {
-        alert($ti('upload.uploadError', { msg: (err as Error).message }));
+        showError($ti('upload.uploadError', { msg: (err as Error).message }));
       }
     }
   }
@@ -291,25 +323,9 @@
 <!-- ── Mobile upload ──────────────────────────────────────────────────── -->
 <div class="md:hidden flex flex-col" style="height:100%;overflow:hidden;">
 
-  <!-- Compact step indicator -->
-  <div style="padding:0 18px 10px;flex-shrink:0;display:flex;align-items:center;gap:6px;">
-    {#each STEPS as step, i}
-      <div style="display:flex;align-items:center;gap:5px;">
-        <span class="num" style="
-          width:18px;height:18px;border-radius:9px;
-          background:{i===0?'var(--mep-acc)':'var(--mep-surface-2)'};
-          color:{i===0?'var(--mep-acc-fg)':'var(--mep-fg-3)'};
-          font-size:10px;font-weight:600;
-          display:inline-flex;align-items:center;justify-content:center;
-          border:{i===0?'none':'1px solid var(--mep-divider)'};
-          flex-shrink:0;
-        ">{i+1}</span>
-        <span style="font-size:12px;font-weight:{i===0?600:400};color:{i===0?'var(--mep-fg)':'var(--mep-fg-3)'};">{step}</span>
-      </div>
-      {#if i < STEPS.length - 1}
-        <div style="width:14px;height:1px;background:var(--mep-divider);flex-shrink:0;"></div>
-      {/if}
-    {/each}
+  <!-- Compact step indicator (shared with /batch/[id] — issue #232) -->
+  <div style="padding:0 18px 10px;flex-shrink:0;">
+    <FlowSteps active={0} size="sm" />
   </div>
 
   <!-- Alerts -->
@@ -323,7 +339,20 @@
       {/if}
       {#if errorMsg}
         <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;display:flex;flex-direction:column;gap:8px;">
-          <span>{errorMsg}</span>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="flex:1;">{errorMsg}</span>
+            {#if localError}
+              <button
+                type="button"
+                class="btn btn-ghost"
+                style="width:22px;height:22px;padding:0;justify-content:center;flex-shrink:0;color:inherit;"
+                aria-label={$t('action.cancel')}
+                onclick={dismissError}
+              >
+                <X size={12} />
+              </button>
+            {/if}
+          </div>
           {#if upgradeUrl}
             <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
               {$t('upload.upgradeCta')}
@@ -499,25 +528,9 @@
 <!-- ── Desktop upload ─────────────────────────────────────────────────── -->
 <div class="hidden md:flex flex-col" style="height:100%;overflow:hidden;">
 
-  <!-- 3-step indicator -->
-  <div style="padding:20px 32px 0;flex-shrink:0;display:flex;align-items:center;gap:12px;">
-    {#each STEPS as step, i}
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="num" style="
-          width:22px;height:22px;border-radius:11px;
-          background:{i === 0 ? 'var(--mep-acc)' : 'var(--mep-surface-2)'};
-          color:{i === 0 ? 'var(--mep-acc-fg)' : 'var(--mep-fg-3)'};
-          font-size:11px;font-weight:600;
-          display:inline-flex;align-items:center;justify-content:center;
-          border:{i === 0 ? 'none' : '1px solid var(--mep-divider)'};
-          flex-shrink:0;
-        ">{i + 1}</span>
-        <span style="font-size:13px;font-weight:{i === 0 ? 600 : 400};color:{i === 0 ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};">{step}</span>
-      </div>
-      {#if i < STEPS.length - 1}
-        <div style="width:28px;height:1px;background:var(--mep-divider);"></div>
-      {/if}
-    {/each}
+  <!-- 3-step indicator (shared with /batch/[id] — issue #232) -->
+  <div style="padding:20px 32px 0;flex-shrink:0;">
+    <FlowSteps active={0} />
   </div>
 
   <!-- Alerts -->
@@ -531,7 +544,20 @@
       {/if}
       {#if errorMsg}
         <div class="card p-3 bg-neg-soft border-neg text-neg" style="font-size:13px;display:flex;flex-direction:column;gap:8px;">
-          <span>{errorMsg}</span>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="flex:1;">{errorMsg}</span>
+            {#if localError}
+              <button
+                type="button"
+                class="btn btn-ghost"
+                style="width:22px;height:22px;padding:0;justify-content:center;flex-shrink:0;color:inherit;"
+                aria-label={$t('action.cancel')}
+                onclick={dismissError}
+              >
+                <X size={12} />
+              </button>
+            {/if}
+          </div>
           {#if upgradeUrl}
             <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
               {$t('upload.upgradeCta')}
@@ -680,47 +706,6 @@
 
 <!-- ── Mobile overlays ────────────────────────────────────────────────── -->
 
-<!-- Capture tip bottom sheet (mobile only) -->
-{#if showCaptureTip}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="md:hidden"
-    style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;"
-    role="dialog"
-    aria-modal="true"
-    tabindex="-1"
-    onclick={() => showCaptureTip = false}
-    onkeydown={(e) => e.key === 'Escape' && (showCaptureTip = false)}
-  >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      style="width:100%;background:var(--mep-bg);border-radius:20px 20px 0 0;padding:20px 20px calc(28px + env(safe-area-inset-bottom,0px));"
-      onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
-    >
-      <div style="width:36px;height:4px;border-radius:2px;background:var(--mep-divider);margin:0 auto 18px;"></div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-        <div style="width:36px;height:36px;border-radius:18px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <Camera size={16} />
-        </div>
-        <span style="font-size:16px;font-weight:600;color:var(--mep-fg);">{$t('upload.captureTipTitle')}</span>
-      </div>
-      <p style="font-size:14px;color:var(--mep-fg-2);line-height:1.5;margin-bottom:20px;">
-        {$t('upload.captureTip')}
-      </p>
-      <button
-        type="button"
-        class="btn btn-primary"
-        style="width:100%;height:44px;justify-content:center;font-size:14px;font-weight:500;gap:6px;"
-        onclick={dismissTip}
-      >
-        <Check size={15} />
-        {$t('upload.captureTipDismiss')}
-      </button>
-    </div>
-  </div>
-{/if}
-
 <!-- Image preview overlay (mobile only) -->
 {#if previewUrl}
   <div
@@ -738,6 +723,12 @@
       />
     </div>
     <div style="padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));background:var(--mep-bg);border-radius:20px 20px 0 0;display:flex;flex-direction:column;gap:10px;">
+      <!-- Framing tip, folded in here from the old pre-capture sheet (#230):
+           at this point the photo exists, so "retake" is a real option. -->
+      <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--mep-fg-2);line-height:1.45;">
+        <Camera size={14} style="flex-shrink:0;margin-top:1px;color:var(--mep-acc);" />
+        <span>{$t('upload.captureTip')}</span>
+      </div>
       {#if previewFile}
         <div style="font-size:12px;color:var(--mep-fg-3);text-align:center;">
           {previewFile.name} · {fmtSize(previewFile.size)}

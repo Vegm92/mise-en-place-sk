@@ -73,7 +73,7 @@ describe('saveUploadedFiles — rejects invalid files', () => {
 	it('rejects an unsupported extension without touching storage', async () => {
 		const { saved, errors } = await saveUploadedFiles([fileWith('note.txt', MAGIC.pdf)], 'ns');
 		expect(saved).toEqual([]);
-		expect(errors[0]).toMatch(/unsupported type/);
+		expect(errors[0]).toEqual({ name: 'note.txt', reason: 'unsupportedType', ext: '.txt' });
 		expect(store.size).toBe(0);
 	});
 
@@ -81,7 +81,7 @@ describe('saveUploadedFiles — rejects invalid files', () => {
 		const big = fileWith('huge.pdf', MAGIC.pdf, 20 * 1024 * 1024 + 1);
 		const { saved, errors } = await saveUploadedFiles([big], 'ns');
 		expect(saved).toEqual([]);
-		expect(errors[0]).toMatch(/20 MB limit/);
+		expect(errors[0]).toEqual({ name: 'huge.pdf', reason: 'tooLarge' });
 		expect(store.size).toBe(0);
 	});
 
@@ -89,7 +89,7 @@ describe('saveUploadedFiles — rejects invalid files', () => {
 		// JPEG bytes wearing a .pdf extension — the core anti-spoofing guard.
 		const { saved, errors } = await saveUploadedFiles([fileWith('malware.pdf', MAGIC.jpg)], 'ns');
 		expect(saved).toEqual([]);
-		expect(errors[0]).toMatch(/does not match the declared type/);
+		expect(errors[0]).toEqual({ name: 'malware.pdf', reason: 'contentMismatch' });
 		expect(store.size).toBe(0);
 	});
 
@@ -104,7 +104,7 @@ describe('saveUploadedFiles — rejects invalid files', () => {
 		);
 		expect(saved).toHaveLength(2);
 		expect(errors).toHaveLength(1);
-		expect(errors[0]).toMatch(/spoof\.png/);
+		expect(errors[0]).toMatchObject({ name: 'spoof.png', reason: 'contentMismatch' });
 		expect(store.size).toBe(2);
 	});
 });

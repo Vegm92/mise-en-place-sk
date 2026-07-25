@@ -11,6 +11,7 @@ import { env } from '$env/dynamic/private';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
+import { pgSslConfig } from './db-ssl';
 
 type DB = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -26,7 +27,7 @@ function getDb(): DB {
 	if (_db) return _db;
 	const connectionString = env.DATABASE_POOL_URL ?? env.DATABASE_URL;
 	if (!connectionString) throw new Error('DATABASE_URL (or DATABASE_POOL_URL) is required');
-	const client = postgres(connectionString, { prepare: false, ssl: 'require' });
+	const client = postgres(connectionString, { prepare: false, ssl: pgSslConfig() });
 	_db = drizzle(client, { schema });
 	return _db;
 }

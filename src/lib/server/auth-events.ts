@@ -16,7 +16,13 @@ export type AuthEventKind =
 	| 'login_rate_limited'
 	| 'signup_rate_limited'
 	| 'signup_failed'
-	| 'oauth_error';
+	| 'oauth_error'
+	// Password recovery (issue #284) — a spike in requests or failed resets is
+	// the same kind of signal as a login-failure wave.
+	| 'password_reset_requested'
+	| 'password_reset_rate_limited'
+	| 'password_reset_completed'
+	| 'password_changed';
 
 /** Short, non-reversible fingerprint of an IP for correlating attempts without storing it. */
 export function hashIp(ip: string | null | undefined): string {

@@ -19,6 +19,13 @@ COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
 
+# Mount point for the shared uploads volume (issue #285). Creating it here with
+# `node` ownership means Docker gives the named volume the same ownership when
+# it first materialises, so both containers can write to it unprivileged.
+ENV UPLOADS_DIR=/app/uploads
+RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+USER node
+
 EXPOSE 3000
 # Default: web server. The worker service overrides this with
 # `node build/worker.js` (see docker-compose.yml).

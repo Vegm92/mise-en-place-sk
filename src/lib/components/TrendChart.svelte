@@ -226,7 +226,7 @@
 		{#each categories as cat, ci}
 			<div style="display:flex;align-items:center;gap:5px;">
 				<span class="swatch" style="background:{catColor(ci)};"></span>
-				<span class="body" style="font-size:11px;">{cat ?? 'Uncategorised'}</span>
+				<span class="body" style="font-size:11px;">{!cat || cat === 'Other' ? $t('sup.noCategory') : cat}</span>
 			</div>
 		{/each}
 	</div>

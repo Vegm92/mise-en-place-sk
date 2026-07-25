@@ -1,6 +1,7 @@
 import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_ABBR   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -98,7 +99,13 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 
 	const keyExpr = granularity === 'daily' ? dayKey : granularity === 'monthly' ? monthKey : weekKey;
 	const rows = await db
-		.select({ key: keyExpr, category: suppliers.category, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
+		// Uncategorised spend lands in the same 'Other' bucket the budget check
+		// and the budgets page use, instead of a third NULL segment (issue #301).
+		.select({
+			key: keyExpr,
+			category: sql<string>`COALESCE(${suppliers.category}, ${UNCATEGORIZED_CATEGORY})`,
+			amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`,
+		})
 		.from(invoices)
 		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 		.where(and(
@@ -106,7 +113,7 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 			isNull(invoices.deletedAt),
 			sql`(${invoices.invoiceDate})::date >= ${clampedStart}::date`,
 		))
-		.groupBy(keyExpr, suppliers.category)
+		.groupBy(keyExpr, sql`COALESCE(${suppliers.category}, ${UNCATEGORIZED_CATEGORY})`)
 		.orderBy(keyExpr);
 
 	const spansMultipleYears = startDate.getFullYear() !== today.getFullYear();

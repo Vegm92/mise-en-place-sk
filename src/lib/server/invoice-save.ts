@@ -12,7 +12,7 @@ import { resolveLineProducts } from './product-catalog';
 import { enqueueNormalize } from './queue';
 import { parsePack, normalizedUnitPrice } from './pack-parser';
 import { normalizeProductKey } from './normalize';
-import { runPriceShock, runStockForecast, runBudgetCheck, type Alert } from './alert-engine';
+import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, type Alert } from './alert-engine';
 import { saveAlerts } from './notifications';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
@@ -432,7 +432,10 @@ export async function saveReviewedInvoice(
 		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
 		const stockAlerts = await runStockForecast(savedItems, rid);
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
-		await saveAlerts(invoiceId!, rid, [...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts]);
+		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
+		await saveAlerts(invoiceId!, rid, [
+			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts, ...categoryAlerts,
+		]);
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 

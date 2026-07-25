@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
 import { locale, t, ti, tp, translations } from '../src/lib/i18n';
 
@@ -254,5 +255,58 @@ describe('tp (pluralizing translator)', () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+});
+
+// Issue #294 — the upload path used to answer with hardcoded English (and, for
+// the quota messages, hardcoded Spanish). The server now returns i18n keys, so
+// every key it can emit must resolve in both locales; an unresolved key would
+// render as `upload.err.something` in the user's face.
+describe('upload action error keys (server-returned, issue #294)', () => {
+  const serverSource = readFileSync(
+    new URL('../src/routes/(app)/+page.server.ts', import.meta.url),
+    'utf-8',
+  );
+  const sessionsSource = readFileSync(
+    new URL('../src/lib/server/sessions.ts', import.meta.url),
+    'utf-8',
+  );
+
+  const emitted = [
+    ...new Set([
+      ...(serverSource.match(/upload\.(?:err|reject)\.[A-Za-z]+/g) ?? []),
+      // reject reasons are interpolated into `upload.reject.${reason}`
+      ...(sessionsSource.match(/'(?:unsupportedType|tooLarge|contentMismatch)'/g) ?? [])
+        .map(r => `upload.reject.${r.replaceAll("'", '')}`),
+    ]),
+  ];
+
+  it('emits at least the known upload error keys', () => {
+    expect(emitted.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it('resolves every emitted key in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const key of emitted) {
+        if (tr(key) === key) missing.push(`${lc}:${key}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('leaves no hardcoded user-facing prose in the upload action', () => {
+    // The strings the issue called out, in either language.
+    for (const prose of [
+      'No valid files received',
+      'exceed the 20 MB limit',
+      'Too many uploads',
+      'File save failed',
+      'Has alcanzado el límite',
+      'Solo te quedan',
+    ]) {
+      expect(serverSource).not.toContain(prose);
+    }
   });
 });

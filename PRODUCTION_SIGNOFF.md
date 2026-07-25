@@ -18,14 +18,25 @@ pnpm check            # 0 errors / 0 warnings
 pnpm build            # web + worker compile
 pnpm lint:no-sql-raw
 pnpm lint:tenant-scope
-DATABASE_URL=<any live pg> pnpm test   # 399 passed / 17 skipped (the 17 need hosted Supabase)
+DATABASE_URL=<any live pg> pnpm test   # 566 passed / 17 skipped (the 17 need hosted Supabase)
 ```
 
 Covered by committed regression tests: DB-level RLS enforcement
 (`tests/rls-enforcement.test.ts`), Stripe webhook signature→plan-update
 (`tests/stripe-webhook.test.ts`), upload magic-byte + 20 MB validation
-(`tests/upload-validation.test.ts`), and `/api/health` 200/503 logic
+(`tests/upload-validation.test.ts`), password recovery
+(`tests/password-recovery.test.ts`), profile management
+(`tests/settings-profile.test.ts`), scheduled jobs + file purge
+(`tests/scheduler.test.ts`), multi-location switching
+(`tests/multi-location.test.ts`), and `/api/health` 200/503 logic
 (verified manually against a live DB).
+
+The gap-analysis blockers are closed in code and verified against a local
+Postgres + fake-GoTrue stack: password recovery (#284), the shared uploads
+volume (#285), per-tier Stripe price IDs (#286), trial-expiry enforcement
+(#287), pg-boss cron for digest/reminders/trial notices (#288), storage
+deletion on account delete plus the retention purge (#289), and multi-location
+switching (#290). What remains below still needs real third-party credentials.
 
 ---
 

@@ -59,6 +59,11 @@
         body: JSON.stringify({ message: msg, sessionId: activeSessionId }),
       });
       const d = await res.json();
+      if (res.status === 402) {
+        // Trial lapsed — paid capacity is off, but the data is still there.
+        messages = [...messages, { role: 'assistant', text: $t('chat.err.trialExpired') }];
+        return;
+      }
       if (!res.ok) {
         // Nothing new was persisted on the assistant side — invalidateAll()
         // would rerun `load`, and the $effect below resyncs `messages` from

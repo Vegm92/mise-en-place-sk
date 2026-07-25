@@ -201,7 +201,10 @@ export const actions: Actions = {
 		if (!(await isBatchSettled(params.id))) redirect(303, `/batch/${params.id}`);
 
 		if (outcome.isFirstInvoice) redirect(303, '/dashboard?first_invoice=1');
-		redirect(303, `/save-confirmation/${outcome.invoiceId}`);
+		// Straight to the list that just changed, with a toast carrying the save
+		// confirmation and any alerts (issue #235) — the interstitial page this
+		// replaces existed only to say "saved ✓".
+		redirect(303, `/invoices?saved=${outcome.invoiceId}`);
 	},
 
 	discardItem: async ({ params, request, locals }) => {

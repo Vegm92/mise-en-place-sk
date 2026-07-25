@@ -9,6 +9,7 @@ import { db, forTenant } from './db';
 import { invoices, restaurants, settings, userRestaurants } from './schema';
 import { createSupabaseAdminClient } from './supabase';
 import { sendEmail, quotaWarningEmail } from './email';
+import { getMonthlyQuota } from './billing';
 
 export const QUOTA_WARNING_THRESHOLD = 0.8;
 
@@ -19,11 +20,10 @@ export async function maybeSendQuotaWarning(restaurantId: string): Promise<void>
 		const tdb = forTenant(restaurantId);
 		const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-		const [quotaRow] = await db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')));
-		const limit = quotaRow ? Number(quotaRow.value) : NaN;
-		if (!Number.isFinite(limit) || limit <= 0) return;
+		// Shared quota convention (issue #295) — null means unlimited, and an
+		// unlimited plan can never approach its cap.
+		const limit = await getMonthlyQuota(restaurantId);
+		if (limit === null) return;
 
 		const [usedRow] = await db.select({ cnt: sql<number>`count(*)::int` })
 			.from(invoices)

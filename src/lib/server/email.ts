@@ -14,7 +14,7 @@ const resend = apiKey ? new Resend(apiKey) : null;
 
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
-	| 'trial_expiry' | 'subscription_confirmation' | 'quota_warning';
+	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'quota_warning';
 
 export interface EmailPayload {
 	to: string;
@@ -139,6 +139,27 @@ export function trialExpiryEmail(email: string, restaurantName: string, daysLeft
 <p>Hola:</p>
 <p>Tu prueba gratuita de Mise en Place para <strong>${restaurantName}</strong> termina en <strong>${daysLeft} ${daysWord}</strong>.</p>
 <p>Suscríbete ahora para mantener el acceso completo a tus facturas, analíticas y alertas.</p>
+<p><a href="https://miseenplace.app/billing">Activar suscripción →</a></p>
+<hr />
+<p style="color:#888;font-size:12px;">Mise en Place · Desde 49 €/mes por restaurante</p>
+`,
+	};
+}
+
+/**
+ * Sent the day the trial lapses (issue #287/#288). Uploads are blocked from
+ * this point, so the copy has to say what stopped working and what still does.
+ */
+export function trialExpiredEmail(email: string, restaurantName: string): EmailPayload {
+	return {
+		to: email,
+		kind: 'trial_expired',
+		subject: `Tu prueba gratuita ha terminado — ${restaurantName}`,
+		html: `
+<p>Hola:</p>
+<p>La prueba gratuita de Mise en Place para <strong>${restaurantName}</strong> ha terminado.</p>
+<p>Tus datos siguen intactos y puedes consultarlos, exportarlos o descargarlos cuando quieras.
+   Para volver a subir facturas y usar las funciones con IA, activa una suscripción.</p>
 <p><a href="https://miseenplace.app/billing">Activar suscripción →</a></p>
 <hr />
 <p style="color:#888;font-size:12px;">Mise en Place · Desde 49 €/mes por restaurante</p>
