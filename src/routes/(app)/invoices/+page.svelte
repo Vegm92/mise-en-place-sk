@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { fmt } from '$lib/formatters';
-  import { t, tp } from '$lib/i18n';
+  import { t, ti, tp } from '$lib/i18n';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -19,6 +19,20 @@
 
   const { data }: { data: PageData } = $props();
   const { invoices, stats, suppliers, filters, pagination } = $derived(data);
+
+  // Save confirmation (issue #235): saving the last invoice of a batch used to
+  // land on a whole page whose only job was to say "saved ✓". It now lands
+  // here, on the list that just changed, with a toast. Alerts raised during the
+  // save ride along, so nothing is lost by dropping the interstitial. A toast
+  // with alerts stays until dismissed; a plain "saved" fades on its own.
+  let toastDismissed = $state(false);
+  const showSavedToast = $derived(data.savedInvoiceId !== null && !toastDismissed);
+
+  $effect(() => {
+    if (!showSavedToast || data.savedAlerts.length > 0) return;
+    const timer = setTimeout(() => { toastDismissed = true; }, 6000);
+    return () => clearTimeout(timer);
+  });
 
   function pageUrl(p: number): string {
     const params = new URLSearchParams();
@@ -109,6 +123,38 @@
   }
 
 </script>
+
+<!-- Saved toast — shared by both layouts (issue #235) -->
+{#if showSavedToast}
+  <div
+    role="status"
+    aria-live="polite"
+    style="position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));
+           z-index:90;width:min(420px,calc(100vw - 32px));"
+  >
+    <div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+      <div style="display:flex;align-items:flex-start;gap:10px;">
+        <span style="color:var(--mep-pos);flex-shrink:0;"><Check size={16} /></span>
+        <div style="flex:1;min-width:0;">
+          <div class="body-strong" style="font-size:13.5px;">{$t('saved.title')}</div>
+          <div class="body text-fg-3" style="font-size:12px;">{$ti('saved.desc', { id: data.savedInvoiceId ?? 0 })}</div>
+        </div>
+        <button
+          type="button"
+          class="btn btn-ghost"
+          style="width:24px;height:24px;padding:0;justify-content:center;flex-shrink:0;"
+          aria-label={$t('action.cancel')}
+          onclick={() => (toastDismissed = true)}
+        >
+          <ChevronDown size={13} />
+        </button>
+      </div>
+      {#each data.savedAlerts as alert}
+        <div class="card p-2 bg-warn-soft border-warn text-warn" style="font-size:12.5px;">{alert}</div>
+      {/each}
+    </div>
+  </div>
+{/if}
 
 <!-- Mobile invoice list -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">

@@ -145,19 +145,29 @@ function getGenerateFn(): GenerateFn {
 const PDF_PARSE_TIMEOUT_MS = 15_000;
 const GEMINI_TIMEOUT_MS = 60_000;
 
+/**
+ * Pull the text layer out of a PDF to decide whether Gemini gets the text or
+ * the page images. Uses unpdf (a maintained pdf.js build) rather than the
+ * unmaintained pdf-parse this used to call — see issue #225. Dynamic import so
+ * tests can mock it and so the pdf.js bundle is only loaded for real PDFs.
+ */
 async function classifyPdf(filePath: string): Promise<ClassifiedFile> {
-	// Dynamic import so pdf-parse can be mocked in tests.
-	const pdfParse = (await import('pdf-parse')).default;
+	const { extractText, getDocumentProxy } = await import('unpdf');
 	const buf = readFileSync(filePath);
 	try {
 		const timeout = new Promise<never>((_, rej) =>
-			setTimeout(() => rej(new Error('pdf-parse timeout')), PDF_PARSE_TIMEOUT_MS)
+			setTimeout(() => rej(new Error('pdf text extraction timeout')), PDF_PARSE_TIMEOUT_MS)
 		);
-		const result = await Promise.race([pdfParse(buf), timeout]);
-		const text = result.text.trim();
+		const read = (async () => {
+			const pdf = await getDocumentProxy(new Uint8Array(buf));
+			const { text } = await extractText(pdf, { mergePages: true });
+			return text;
+		})();
+		const raw = await Promise.race([read, timeout]);
+		const text = raw.trim();
 		return text.length >= 50 ? { type: 'text_pdf', text } : { type: 'scanned_pdf' };
 	} catch {
-		// pdf-parse fails or times out on some PDFs — fall back to vision.
+		// Malformed, encrypted or slow PDFs fall back to vision extraction.
 		return { type: 'scanned_pdf' };
 	}
 }

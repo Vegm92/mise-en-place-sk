@@ -1,11 +1,48 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { userRestaurants, restaurants, subscriptions } from '$lib/server/schema';
+import { userRestaurants, restaurants, subscriptions, invoices, batchItems, whatsappBotSessions } from '$lib/server/schema';
+import { getStorage } from '$lib/server/storage';
 import { createSupabaseAdminClient } from '$lib/server/supabase';
 import { cancelSubscription } from '$lib/server/billing';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
+
+/**
+ * Remove every stored file belonging to these restaurants (issue #289):
+ * confirmed invoices (`invoices.source_file`), files still sitting in an upload
+ * batch (`batch_items.file_key`) and WhatsApp bot captures
+ * (`whatsapp_bot_sessions.file_key`). Failures are logged, never thrown — the
+ * account deletion must still complete.
+ */
+async function deleteTenantFiles(restaurantIds: string[]): Promise<void> {
+	if (restaurantIds.length === 0) return;
+
+	const [invoiceFiles, batchFiles, whatsappFiles] = await Promise.all([
+		db.select({ key: invoices.sourceFile }).from(invoices)
+			.where(and(inArray(invoices.restaurantId, restaurantIds), isNotNull(invoices.sourceFile))),
+		db.select({ key: batchItems.fileKey }).from(batchItems)
+			.where(inArray(batchItems.restaurantId, restaurantIds)),
+		db.select({ key: whatsappBotSessions.fileKey }).from(whatsappBotSessions)
+			.where(and(inArray(whatsappBotSessions.restaurantId, restaurantIds), isNotNull(whatsappBotSessions.fileKey))),
+	]);
+
+	const keys = new Set<string>();
+	for (const row of [...invoiceFiles, ...batchFiles, ...whatsappFiles]) {
+		if (row.key) keys.add(row.key);
+	}
+
+	let failed = 0;
+	for (const key of keys) {
+		try {
+			await getStorage().delete(key);
+		} catch (err) {
+			failed++;
+			console.error('[account-delete] file delete failed (continuing):', err);
+		}
+	}
+	console.info(`[account-delete] removed ${keys.size - failed}/${keys.size} stored files`);
+}
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	const user = locals.user;
@@ -61,6 +98,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			for (const s of liveSubs) {
 				if (s.stripeSubscriptionId) await cancelSubscription(s.stripeSubscriptionId);
 			}
+
+			// GDPR deletion has to reach the files, not just the rows (issue
+			// #289): once the restaurant row goes, the DB cascade drops every
+			// pointer to the uploaded invoice PDFs and photos, and nothing would
+			// ever be able to find them again. Delete them first, best-effort —
+			// a storage hiccup must not block the account deletion.
+			await deleteTenantFiles(soleOwnedIds);
 		}
 
 		// All row deletes commit atomically so a mid-flight failure leaves a

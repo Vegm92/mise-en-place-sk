@@ -13,6 +13,9 @@
 	// Form failures carry the error inline (keeping the typed email); the query
 	// param remains for OAuth-callback redirects, which have no form state.
 	const error = $derived(form?.error ?? $page.url.searchParams.get('error'));
+	// Set after a completed password reset (issue #284) — the user signs in
+	// again with the new password, which is also the proof it took effect.
+	const resetDone = $derived($page.url.searchParams.get('reset') === '1');
 </script>
 
 <svelte:head>
@@ -42,6 +45,13 @@
 		<div class="card" style="padding:28px;">
 			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{$t('login.welcome')}</h1>
 			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('login.sub')}</p>
+
+			{#if resetDone}
+				<div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);color:var(--mep-pos);
+				            border-radius:var(--mep-r-input);padding:10px 12px;font-size:13px;margin-bottom:16px;">
+					{$t('login.passwordReset')}
+				</div>
+			{/if}
 
 			{#if error}
 				<div style="background:var(--mep-neg-soft);border:1px solid var(--mep-neg);color:var(--mep-neg);
@@ -84,6 +94,10 @@
 				<button type="submit" class="btn btn-primary" style="height:36px;justify-content:center;margin-top:4px;">
 					{$t('login.signIn')}
 				</button>
+
+				<a href="/forgot-password" style="text-align:center;font-size:12px;color:var(--mep-fg-3);text-decoration:none;">
+					{$t('login.forgotPassword')}
+				</a>
 			</form>
 
 			<!-- Divider -->

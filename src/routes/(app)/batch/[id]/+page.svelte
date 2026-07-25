@@ -5,6 +5,7 @@
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
   import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
+  import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Sparkle from '@lucide/svelte/icons/sparkle';
@@ -81,6 +82,7 @@
   // page reload after a failed non-enhanced form submit) must not read as an
   // "item changed" event, or it clobbers the modal that the effect above just
   // opened from the same submit's `form` result.
+  // svelte-ignore state_referenced_locally — reading the initial value is the point
   let lowConfAckItemId: string | null = data.review?.itemId ?? null;
 
   // Header fields, editable — local state so a correction survives a failed
@@ -231,6 +233,14 @@
 </script>
 
 <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
+
+  <!-- Where the user is in Upload → Extract → Review (issue #232). The cue used
+       to stop at the upload page, i.e. right before the two steps it describes.
+       Extract stays current while anything is still in flight; once a review
+       item is on screen, step 3 is. -->
+  <div style="padding:16px 20px 0;flex-shrink:0;">
+    <FlowSteps active={data.anyInFlight ? 1 : 2} />
+  </div>
 
   <!-- Two-column grid: queue + active panel -->
   <div style="flex:1;min-height:0;padding:16px 20px 20px;display:grid;grid-template-columns:minmax(260px,0.9fr) 2fr;gap:16px;" class="max-md:!flex max-md:!flex-col max-md:!overflow-y-auto">

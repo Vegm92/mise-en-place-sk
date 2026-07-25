@@ -7,6 +7,15 @@ node_modules
 .wrangler
 /.svelte-kit
 /build
+/coverage
+
+# Local run artifacts (issue #295)
+*.log
+/screenshots/*
+!/screenshots/.gitkeep
+
+# npm lockfile — this repo builds with pnpm (issue #225)
+/package-lock.json
 
 # OS
 .DS_Store

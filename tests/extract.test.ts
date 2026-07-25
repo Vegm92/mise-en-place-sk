@@ -1,16 +1,23 @@
 /**
- * Extraction pipeline tests — mocks the generate function and pdf-parse
+ * Extraction pipeline tests — mocks the generate function and the PDF text
+ * extractor (unpdf)
  * so no real API calls or file I/O are needed.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock pdf-parse before importing extract.ts
-vi.mock('pdf-parse', () => ({
-  default: vi.fn(),
+// Mock unpdf before importing extract.ts — classifyPdf imports it dynamically.
+const extractTextMock = vi.fn();
+vi.mock('unpdf', () => ({
+  getDocumentProxy: vi.fn(async () => ({})),
+  extractText: (...args: unknown[]) => extractTextMock(...args),
 }));
 
+/** Stand-in for the old pdfParse mock: resolves unpdf's { text } shape. */
+function mockPdfText(text: string) {
+  extractTextMock.mockResolvedValue({ text, totalPages: 1 });
+}
+
 import { extractInvoice, classifyFile, type GenerateFn } from '../src/lib/server/extract';
-import pdfParse from 'pdf-parse';
 
 const MOCK_INVOICE_DATA = {
   supplier_name: 'Proveedor Test S.L.',
@@ -48,14 +55,7 @@ beforeEach(() => {
 
 describe('extractInvoice — text PDF path', () => {
   it('calls Gemini with text content and returns parsed data', async () => {
-    vi.mocked(pdfParse).mockResolvedValue({
-      text: 'FACTURA\nProveedor Test S.L.\nTotal: 1250.00 EUR\n'.repeat(5),
-      numpages: 1,
-      numrender: 1,
-      info: {},
-      metadata: null,
-      version: 'v1.10.100',
-    });
+    mockPdfText('FACTURA\nProveedor Test S.L.\nTotal: 1250.00 EUR\n'.repeat(5));
 
     const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
     const result = await extractInvoice('/fake/invoice.pdf', generate);
@@ -75,14 +75,7 @@ describe('extractInvoice — text PDF path', () => {
 
 describe('extractInvoice — scanned PDF path', () => {
   it('calls Gemini with inline PDF data when PDF has little text', async () => {
-    vi.mocked(pdfParse).mockResolvedValue({
-      text: 'scan',
-      numpages: 1,
-      numrender: 1,
-      info: {},
-      metadata: null,
-      version: 'v1.10.100',
-    });
+    mockPdfText('scan');
 
     const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
     const result = await extractInvoice('/fake/scanned.pdf', generate);
@@ -122,10 +115,7 @@ describe('extractInvoice — image path', () => {
 
 describe('extractInvoice — response parsing', () => {
   it('strips markdown fences from Gemini response', async () => {
-    vi.mocked(pdfParse).mockResolvedValue({
-      text: 'x'.repeat(100),
-      numpages: 1, numrender: 1, info: {}, metadata: null, version: 'v1.10.100',
-    });
+    mockPdfText('x'.repeat(100));
 
     const fenced = `\`\`\`json\n${JSON.stringify(MOCK_INVOICE_DATA)}\n\`\`\``;
     const generate = makeGenerateFn(fenced);
@@ -134,10 +124,7 @@ describe('extractInvoice — response parsing', () => {
   });
 
   it('throws on invalid JSON from Gemini', async () => {
-    vi.mocked(pdfParse).mockResolvedValue({
-      text: 'x'.repeat(100),
-      numpages: 1, numrender: 1, info: {}, metadata: null, version: 'v1.10.100',
-    });
+    mockPdfText('x'.repeat(100));
 
     const generate = makeGenerateFn('not valid json at all');
     await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow();

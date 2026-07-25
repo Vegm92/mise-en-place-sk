@@ -2,6 +2,18 @@
 
 Date: 2026-07-24 · Scope: full repository review (routes, server modules, schema/migrations, deployment artifacts, CI) against feature completeness, edge cases/data integrity, security/auth, and production readiness.
 
+> **Status (2026-07-25).** This is the point-in-time analysis; the findings are
+> tracked as GitHub issues and most are now closed in code. Resolved here:
+> 🔴 1 password recovery (#284), 2 proxy client IP (#223), 3 shared uploads
+> volume (#285), 4 per-tier Stripe price IDs (#286), 5 trial enforcement
+> (#287); 🟡 6 scheduled jobs (#288), 7 storage deletion + retention purge
+> (#289), 8 multi-location (#290), 9 apex landing (#291), 10 docs drift (#292),
+> 11 profile management (#293), 12 upload i18n (#294); and the 🟢 polish bundle
+> (#295) except the noted single-instance and health-check items, which are
+> deployment choices rather than code. Still open by design: DB-level RLS
+> enforcement for the app role (#222) and edge/volumetric protection (#224),
+> both of which need infrastructure decisions, and the staging sign-off (#200).
+
 **Overall assessment:** the codebase is unusually mature for a pre-launch product — tenant isolation is enforced at query level *and* by Postgres RLS with a CI lint (`lint:tenant-scope`), Stripe webhooks have signature verification + event dedup + out-of-order protection, uploads have magic-byte validation, quota claims are race-safe (`INSERT … ON CONFLICT … WHERE used < limit`), CSP/HSTS/security headers are set, error pages exist at both layout levels, and there are ~400 tests. The gaps below are the residual items that would actually hurt on launch day, ordered by severity.
 
 ---

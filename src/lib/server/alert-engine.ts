@@ -8,6 +8,7 @@ import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { toMonthStr } from '$lib/formatters';
+import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice } from './pack-parser';
 import type { EnrichedLineItem } from './unit-bridge';
@@ -241,6 +242,61 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	return alerts;
 }
 
+/**
+ * Nudge the owner to categorise a supplier the first time one of its invoices
+ * is saved (issue #301). An uncategorised supplier's spend is lumped into the
+ * "Sin categoría" bucket: visible, but it can't be budgeted against or read as
+ * a real category — and nothing used to ask. One notification per supplier,
+ * ever: it is deduped on the supplier id, and the supplier only qualifies while
+ * it is still uncategorised.
+ */
+export async function runCategorizationNudge(
+	invoiceId: number,
+	supplierId: number,
+	restaurantId: string,
+): Promise<Alert[]> {
+	const tdb = forTenant(restaurantId);
+
+	const [supplier] = await db
+		.select({ name: suppliers.name, category: suppliers.category })
+		.from(suppliers)
+		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
+		.limit(1);
+	if (!supplier) return [];
+	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
+
+	// Only on the supplier's first invoice — later ones would nag.
+	const [countRow] = await db
+		.select({ cnt: sql<number>`COUNT(*)::int` })
+		.from(invoices)
+		.where(tdb.scope(invoices.restaurantId, and(
+			eq(invoices.supplierId, supplierId),
+			isNull(invoices.deletedAt),
+		)));
+	if ((countRow?.cnt ?? 0) > 1) return [];
+
+	// Belt and braces: if one was already raised for this supplier (a deleted
+	// first invoice, a re-save), don't raise a second.
+	const existing = await db
+		.select({ payload: systemNotifications.payload })
+		.from(systemNotifications)
+		.where(and(
+			tdb.scope(systemNotifications.restaurantId),
+			eq(systemNotifications.notificationType, 'supplier_uncategorized'),
+		));
+	for (const row of existing) {
+		try {
+			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
+		} catch { /* malformed payload — treat as no match */ }
+	}
+
+	return [{
+		notificationType: 'supplier_uncategorized',
+		message: `Clasifica a '${supplier.name}' para incluir su gasto en presupuestos y análisis por categoría.`,
+		payload: { supplierId, supplierName: supplier.name },
+	}];
+}
+
 export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 	// 1. Supplier category
@@ -249,8 +305,11 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		.from(suppliers)
 		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
 		.limit(1);
-	const category = supplierRows[0]?.category;
-	if (!category) return [];
+	// Legacy suppliers (created before uncategorised became an explicit 'Other'
+	// bucket) still carry NULL. Treating that as "no budget applies" made all
+	// their spend invisible to budget alerts, silently — issue #301. It now
+	// falls into the same 'Other' bucket the spend query below already uses.
+	const category = supplierRows[0]?.category ?? UNCATEGORIZED_CATEGORY;
 
 	// 2. Warning threshold (stored as 0-100 integer in settings, default 80)
 	const thresholdRows = await db

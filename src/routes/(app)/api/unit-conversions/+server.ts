@@ -6,8 +6,9 @@ import { sql, eq, and } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /** POST /api/unit-conversions — save a new UoM rule and clear pending flags. */
-export const POST: RequestHandler = async ({ request, getClientAddress, locals }) => {
-	if (!await checkRateLimit(getClientAddress(), 30)) throw error(429, 'Too many requests');
+export const POST: RequestHandler = async ({ request, locals }) => {
+	// Keyed on the authenticated user, not the client IP (issue #223).
+	if (!await checkRateLimit(`unit-conversions:${locals.user!.id}`, 30)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
