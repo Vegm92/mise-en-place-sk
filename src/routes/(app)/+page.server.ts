@@ -56,6 +56,18 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
 	upload: async ({ request, locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) return fail(403, { error: 'upload.err.noRestaurant' });
+
+		// A lapsed trial (or a cancelled/past-due subscription) may keep reading
+		// its data, but must not start new paid work (issue #287). First thing in
+		// the action: an expired tenant gets sent to /billing without uploading a
+		// 20 MB file first, and never reaches the rate limiter or quota gate.
+		const access = await getAccessState(rid);
+		if (!access.allowed) {
+			redirect(303, `/billing?upgrade=${access.trialExpired ? 'trial' : 'inactive'}`);
+		}
+
 		let formData: FormData;
 		try {
 			formData = await request.formData();
@@ -79,17 +91,6 @@ export const actions: Actions = {
 				error: 'upload.err.tooLarge',
 				errorVars: { names: oversized.map(f => f.name).join(', ') },
 			});
-		}
-
-		const rid = locals.restaurantId;
-		if (!rid) return fail(403, { error: 'upload.err.noRestaurant' });
-
-		// A lapsed trial (or a cancelled/past-due subscription) may keep reading
-		// its data, but must not start new paid work (issue #287). Checked before
-		// the rate limiter so an expired tenant always lands on /billing.
-		const access = await getAccessState(rid);
-		if (!access.allowed) {
-			redirect(303, `/billing?upgrade=${access.trialExpired ? 'trial' : 'inactive'}`);
 		}
 
 		// Each upload consumes a paid Gemini extraction — cap batch submissions

@@ -195,7 +195,8 @@ export const actions: Actions = {
 	 * becomes its owner. Data stays fully separate — only billing is shared.
 	 */
 	addLocation: async ({ request, locals, cookies }) => {
-		const rid = locals.restaurantId!;
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
 		const userId = locals.user!.id;
 		const data = await request.formData();
 		const name = ((data.get('name') as string) ?? '').trim();
@@ -249,7 +250,8 @@ export const actions: Actions = {
 
 	/** Rename the restaurant. Owner-only; the slug stays fixed. */
 	renameRestaurant: async ({ request, locals }) => {
-		const rid = locals.restaurantId!;
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
 		const data = await request.formData();
 		const name = ((data.get('name') as string) ?? '').trim();
 		if (!name) return fail(422, { section: 'restaurant', error: 'set.profile.err.restaurantRequired' });
