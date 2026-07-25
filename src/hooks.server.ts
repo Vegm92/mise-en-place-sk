@@ -143,6 +143,11 @@ function isPublicPath(path: string): boolean {
 	return (
 		path === '/login'                       ||
 		path === '/signup'                      ||
+		// Password recovery (issue #284) — /reset-password is reached with a
+		// recovery session, but a used/expired link must render its own
+		// "request a new one" page rather than bounce to the login form.
+		path === '/forgot-password'             ||
+		path === '/reset-password'              ||
 		path === '/privacy'                     ||
 		path === '/terms'                       ||
 		path === '/robots.txt'                  ||

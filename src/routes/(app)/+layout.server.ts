@@ -103,7 +103,9 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		// null = unlimited; shared convention in billing.resolveMonthlyQuota (#295)
 		quotaLimit:              resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier),
 		planName:                planNameRow[0]?.value      ?? tierConfig.name,
-		restaurantName:          restaurantNameRow[0]?.value ?? '',
+		// The settings override exists for tenants that set a display name; the
+		// restaurants row is the source of truth after a rename (issue #293).
+		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
 		hasCompletedOnboarding,
 		tutorialStep,
 		planTier,

@@ -1,10 +1,14 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { ActionData, PageData } from './$types';
   import { get } from 'svelte/store';
   import { t } from '$lib/i18n';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  // Profile forms (issue #293) each report into their own card; `section`
+  // identifies which one the last submit came from.
+  const feedback = (section: string) => (form?.section === section ? form : null);
 
   let deleteConfirm = $state('');
   let deleting = $state(false);
@@ -41,6 +45,87 @@
     <div class="card p-4">
       <p class="body text-fg-2" style="font-size:13px;">{$t('set.currency')}</p>
     </div>
+
+    <SectionCard title={$t('set.profile.title')}>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Display name -->
+        <form method="POST" action="?/saveName" class="flex flex-col gap-2">
+          <label for="profile-name" class="body text-fg-2" style="font-size:12px;font-weight:500;">{$t('set.profile.name')}</label>
+          <div class="flex items-center gap-3 flex-wrap">
+            <input id="profile-name" name="name" type="text" maxlength="80" required
+              value={data.profile.name} class="input" style="height:36px;font-size:13px;min-width:180px;flex:1;" />
+            <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.save')}</button>
+          </div>
+          {#if feedback('name')?.error}
+            <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t(feedback('name')!.error!)}</p>
+          {:else if feedback('name')?.ok}
+            <p style="font-size:12px;color:var(--mep-pos);margin:0;">{$t(feedback('name')!.ok!)}</p>
+          {/if}
+        </form>
+
+        <hr style="border:none;border-top:1px solid var(--mep-divider);margin:0;" />
+
+        <!-- Email -->
+        <form method="POST" action="?/saveEmail" class="flex flex-col gap-2">
+          <label for="profile-email" class="body text-fg-2" style="font-size:12px;font-weight:500;">{$t('set.profile.email')}</label>
+          <div class="flex items-center gap-3 flex-wrap">
+            <input id="profile-email" name="email" type="email" required
+              value={data.profile.email} class="input" style="height:36px;font-size:13px;min-width:180px;flex:1;" />
+            <button type="submit" class="btn btn-secondary" style="height:36px;">{$t('set.profile.emailBtn')}</button>
+          </div>
+          <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.profile.emailDesc')}</p>
+          {#if feedback('email')?.error}
+            <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t(feedback('email')!.error!)}</p>
+          {:else if feedback('email')?.ok}
+            <p style="font-size:12px;color:var(--mep-pos);margin:0;">{$t(feedback('email')!.ok!)}</p>
+          {/if}
+        </form>
+
+        {#if data.profile.hasPassword}
+          <hr style="border:none;border-top:1px solid var(--mep-divider);margin:0;" />
+
+          <!-- Password -->
+          <form method="POST" action="?/changePassword" class="flex flex-col gap-2">
+            <span class="body text-fg-2" style="font-size:12px;font-weight:500;">{$t('set.profile.password')}</span>
+            <input name="current" type="password" required autocomplete="current-password"
+              placeholder={$t('set.profile.currentPassword')} class="input" style="height:36px;font-size:13px;" />
+            <input name="password" type="password" required minlength="8" autocomplete="new-password"
+              placeholder={$t('set.profile.newPassword')} class="input" style="height:36px;font-size:13px;" />
+            <input name="confirm" type="password" required minlength="8" autocomplete="new-password"
+              placeholder={$t('set.profile.confirmPassword')} class="input" style="height:36px;font-size:13px;" />
+            <div>
+              <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.profile.passwordBtn')}</button>
+            </div>
+            {#if feedback('password')?.error}
+              <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t(feedback('password')!.error!)}</p>
+            {:else if feedback('password')?.ok}
+              <p style="font-size:12px;color:var(--mep-pos);margin:0;">{$t(feedback('password')!.ok!)}</p>
+            {/if}
+          </form>
+        {/if}
+
+        {#if data.canRenameRestaurant}
+          <hr style="border:none;border-top:1px solid var(--mep-divider);margin:0;" />
+
+          <!-- Restaurant name -->
+          <form method="POST" action="?/renameRestaurant" class="flex flex-col gap-2">
+            <label for="restaurant-name" class="body text-fg-2" style="font-size:12px;font-weight:500;">{$t('set.profile.restaurant')}</label>
+            <div class="flex items-center gap-3 flex-wrap">
+              <input id="restaurant-name" name="name" type="text" maxlength="120" required
+                value={data.restaurantName} class="input" style="height:36px;font-size:13px;min-width:180px;flex:1;" />
+              <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.save')}</button>
+            </div>
+            {#if feedback('restaurant')?.error}
+              <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t(feedback('restaurant')!.error!)}</p>
+            {:else if feedback('restaurant')?.ok}
+              <p style="font-size:12px;color:var(--mep-pos);margin:0;">{$t(feedback('restaurant')!.ok!)}</p>
+            {/if}
+          </form>
+        {/if}
+
+      </div>
+    </SectionCard>
 
     <SectionCard title={$t('set.thresholdTitle')}>
       <form method="post" action="?/saveThreshold" class="flex flex-col gap-3">
