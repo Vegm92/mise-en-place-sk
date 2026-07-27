@@ -11,6 +11,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from './db';
 import type { BatchDb } from './batch-core';
+import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 
 /**
  * Returns the id of the tenant's supplier with this name, creating it if
@@ -21,18 +22,26 @@ export async function getOrCreateSupplierId(
 	restaurantId: string,
 	name: string,
 	exec: BatchDb = db,
+	category: string = UNCATEGORIZED_CATEGORY,
 ): Promise<number> {
 	const trimmed = name.trim();
-	// New suppliers default to the 'Other' bucket (issue #307) instead of a
-	// null category — without this, every product resolved against a
-	// newly-created supplier inherits a null category too (product-catalog.ts
-	// reads it at creation time), and Budgets/category analytics have nothing
-	// to group on for any tenant that never manually curates supplier
-	// categories. The no-op DO UPDATE on conflict leaves an existing
-	// supplier's (possibly user-set) category untouched.
+	// A category is only ever applied at creation. New suppliers default to the
+	// 'Other' bucket (issue #307) instead of a null category — without this,
+	// every product resolved against a newly-created supplier inherits a null
+	// category too (product-catalog.ts reads it at creation time), and
+	// Budgets/category analytics have nothing to group on for any tenant that
+	// never manually curates supplier categories. Callers may pass a category
+	// proposed by extraction (issue #315); it must already have been through
+	// `resolveSupplierCategory`, so an unrecognised guess arrives here as the
+	// bucket and still triggers the categorisation nudge.
+	//
+	// The no-op DO UPDATE on conflict leaves an *existing* supplier's category
+	// untouched — a later invoice never overwrites what a human chose, and
+	// never silently reclassifies a supplier behind their back.
+	const resolved = VALID_CATEGORIES.includes(category) ? category : UNCATEGORIZED_CATEGORY;
 	const rows = await exec.execute<{ id: number }>(sql`
 		INSERT INTO suppliers (restaurant_id, name, category)
-		VALUES (${restaurantId}, ${trimmed}, 'Other')
+		VALUES (${restaurantId}, ${trimmed}, ${resolved})
 		ON CONFLICT (restaurant_id, lower(name))
 		DO UPDATE SET name = suppliers.name
 		RETURNING id

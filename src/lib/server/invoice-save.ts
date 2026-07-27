@@ -18,7 +18,9 @@ import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import { getOrCreateSupplierId } from './supplier';
+import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import type { EnrichedLineItem } from './unit-bridge';
+import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch-core';
 
 export type SaveOutcome =
@@ -224,6 +226,25 @@ export async function saveReviewedInvoice(
 		}
 	}
 
+	// Category proposed by extraction for a supplier we may be about to create
+	// (issue #315). Read from the stored extraction, never from the form: the
+	// category is a machine guess about the *supplier*, not something the user
+	// reviewed on this screen.
+	//
+	// It is dropped when the confirmed supplier name no longer matches the one
+	// the model categorised — correcting "Lácteos García" to "García Bebidas"
+	// during review means the guess was made about a different business, and
+	// applying it would tag the new supplier from the wrong document.
+	// `resolveSupplierCategory` maps anything unrecognised onto the bucket, so
+	// the worst case here is the pre-#315 behaviour plus a nudge.
+	const extracted = item?.extractedData as ExtractedInvoice | undefined;
+	const sameSupplier =
+		typeof extracted?.supplier_name === 'string' &&
+		extracted.supplier_name.trim().toLowerCase() === supplierName.trim().toLowerCase();
+	const proposedCategory = sameSupplier
+		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
+		: UNCATEGORIZED_CATEGORY;
+
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
 	const lineUnits = formData.getAll('line_units') as string[];
@@ -310,7 +331,7 @@ export async function saveReviewedInvoice(
 
 		// Atomic supplier get-or-create — concurrent saves of a new supplier
 		// converge on one row instead of racing to insert clones (issue #238).
-		supplierId = await getOrCreateSupplierId(rid, supplierName, tx);
+		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory);
 
 		// Duplicate check; onConflictDoNothing below handles the race condition
 		if (invoiceNumber.trim()) {
