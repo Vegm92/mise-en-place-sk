@@ -257,6 +257,11 @@ The token shown on the API Setup page **expires in 24 h** — never deploy it.
 5. **Subscribe to the `messages` field.** This is a separate step from saving the
    URL and is the most commonly missed one — without it Meta verifies the endpoint
    and then delivers nothing.
+6. **Also subscribe to `account_update` and `phone_number_quality_update`.** These
+   deliver quality downgrades, flags and restrictions (see the runbook below).
+   Without them a degraded number is discovered from support tickets. The webhook
+   records every non-message field it receives; `/admin/health` shows "no account
+   events received" until they are subscribed, which is a warning, not a pass.
 
 For local development, tunnel with `ngrok http 5173` and point the callback there.
 
@@ -318,6 +323,53 @@ text, no pre-approved templates required. Three consequences:
 Unknown senders are answered **at most once every 6 hours** per number
 (`UNAUTHORIZED_REPLY_COOLDOWN_S` in `whatsapp-bot.ts`). A wrong number or a spam
 contact would otherwise get a billable reply to every message it sends.
+
+### Runbook: degraded or restricted number
+
+We operate **one** WhatsApp Business number for every tenant — restaurants are
+resolved from the sender's number via `whatsapp_contacts`. This is the right model
+for this market (per-tenant numbers would require every restaurant to hold a spare
+number and pass Meta business verification), but it concentrates a shared
+reputation risk:
+
+- Meta tracks a **quality rating** per business phone number, driven largely by
+  user **blocks and reports**. Blocks caused by one restaurant's staff degrade the
+  rating for **all** tenants.
+- A sufficiently degraded number can be flagged and then **restricted**. When that
+  happens, WhatsApp ingest stops for every tenant simultaneously.
+- Throughput is not the binding constraint: the bot only ever *replies*, inside the
+  24-hour service window, so business-initiated messaging-tier limits mostly do not
+  apply. The exposure is reputational.
+
+**Where to look**
+
+| Surface | What it tells you |
+|---|---|
+| `/admin/health` → "WhatsApp number health" | Current quality rating, messaging tier, worst event in the last 30 days, and the event timeline |
+| `/admin/health` → "Authorised senders per tenant" | Which tenant to talk to if blocks spike |
+| Sentry, `whatsapp.account_health` | Warning/critical events, delivered rather than discovered |
+| WhatsApp Manager → the number's quality rating | Meta's own view; the source of truth |
+
+**If the rating drops (YELLOW / FLAGGED)**
+
+1. Treat it as an incident, not a metric — this is a leading indicator of a
+   restriction that takes ingest down for everyone.
+2. Check "Authorised senders per tenant" for a tenant whose volume is out of line
+   with the rest; that owner can de-authorise numbers in their own Settings.
+3. Confirm the bot is still only replying to inbound messages. It never initiates,
+   which is the main protection against blocks — any change there is suspect.
+
+**If the number is restricted or banned (RED / ACCOUNT_RESTRICTION)**
+
+1. Ingest is down for every tenant. Tell customers to use the web uploader; that
+   path is unaffected.
+2. Open the appeal in WhatsApp Manager / Business Support Home. Restrictions are
+   time-boxed; violations are not.
+3. Do **not** register a replacement number as a workaround before appealing —
+   re-registration needs the two-step-verification PIN, and a second number
+   inherits none of the first one's standing.
+4. Once the notice clears, confirm recovery on `/admin/health`: an `UNFLAGGED` or
+   `GREEN` event lands as `info` and clears the badge after the 30-day window.
 
 ### Verify
 

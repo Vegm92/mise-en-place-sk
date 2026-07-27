@@ -423,6 +423,36 @@ export const whatsappContacts = pgTable('whatsapp_contacts', {
 	index('idx_whatsapp_contacts_restaurant').on(t.restaurantId),
 ]);
 
+// Account-level WhatsApp webhook events (issue #321).
+//
+// We operate one WhatsApp Business number for every tenant, so Meta's per-number
+// quality rating is shared: blocks caused by one restaurant's staff degrade the
+// rating for all of them, and a sufficiently degraded number can be restricted —
+// which stops ingest for every tenant simultaneously. Nothing here is
+// tenant-scoped, because the WABA is not: this is platform state.
+//
+// Recording these rather than only alerting on them means a downgrade has a
+// history to read when someone asks "when did this start?".
+export const whatsappAccountEvents = pgTable('whatsapp_account_events', {
+	id:            serial('id').primaryKey(),
+	// Meta's webhook field, e.g. 'account_update', 'phone_number_quality_update'.
+	field:         text('field').notNull(),
+	// The event name inside it, e.g. 'FLAGGED', 'ACCOUNT_RESTRICTION'.
+	event:         text('event'),
+	phoneNumber:   text('phone_number'),
+	// GREEN | YELLOW | RED, when the payload carries one.
+	qualityRating: text('quality_rating'),
+	// Messaging tier, e.g. 'TIER_1K'.
+	messagingLimit: text('messaging_limit'),
+	// info | warning | critical — how loudly this should be read.
+	severity:      text('severity').notNull().default('info'),
+	payload:       jsonb('payload'),
+	receivedAt:    timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('idx_whatsapp_account_events_received').on(t.receivedAt),
+	index('idx_whatsapp_account_events_severity').on(t.severity, t.receivedAt),
+]);
+
 // Self-service enrolment codes (issue #320). The owner generates one in
 // Settings and the staff member messages it to the bot from the phone they will
 // actually use, which binds that number — captured from the webhook's `from`
