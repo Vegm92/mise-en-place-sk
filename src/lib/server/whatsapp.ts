@@ -1,6 +1,6 @@
-import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID } from './env';
+import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_PHONE_NUMBER_ID } from './env';
 
-const GRAPH_API_BASE = 'https://graph.facebook.com/v19.0';
+const GRAPH_API_BASE = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
 
 const MIME_TO_EXT: Record<string, string> = {
 	'image/jpeg':    'jpg',

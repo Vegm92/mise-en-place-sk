@@ -8,6 +8,8 @@ import { applyTierSettings, billingRestaurantId, getTierFeatures, TIERS, type Pl
 import { randomBytes } from 'node:crypto';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
+import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
@@ -15,11 +17,17 @@ const RESTAURANT_NAME_KEY = 'restaurant_name';
 
 const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * The WhatsApp card is pointless when the bot isn't wired up — authorising a
+ * number would do nothing, because no webhook is delivering messages.
+ */
+const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
+
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, features] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, features, whatsappContactRows] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -40,6 +48,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.where(eq(userRestaurants.userId, locals.user!.id))
 				.orderBy(asc(restaurants.name)),
 			getTierFeatures(rid),
+			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
 		]);
 
 		const billingRid = await billingRestaurantId(rid);
@@ -67,6 +76,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			multiLocation: features.multiLocation,
 			maxLocations,
 			activeRestaurantId: rid,
+			// WhatsApp invoice bot — authorised sender numbers.
+			whatsappEnabled: WHATSAPP_ENABLED,
+			whatsappContacts: whatsappContactRows,
+			canManageWhatsapp: membership[0]?.role === 'owner',
 		};
 	});
 };
@@ -275,4 +288,66 @@ export const actions: Actions = {
 
 		return { section: 'restaurant', ok: 'set.profile.ok.restaurant' };
 	},
+
+	// ── WhatsApp bot: authorised numbers ───────────────────────────────────────
+
+	/**
+	 * Authorise a phone number to send invoices for this restaurant. Owner-only:
+	 * an authorised number can inject invoices into the tenant and spend its
+	 * extraction quota, so this is the same trust level as renaming the venue.
+	 */
+	addWhatsappContact: async ({ request, locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
+		if (!WHATSAPP_ENABLED) return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.disabled' });
+
+		if (!(await requireOwner(rid, locals.user!.id))) {
+			return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.notOwner' });
+		}
+
+		const data = await request.formData();
+		const phone = ((data.get('phone') as string) ?? '').trim();
+		const name  = ((data.get('name')  as string) ?? '').trim();
+		if (name.length > 80) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.nameTooLong' });
+
+		const result = await addContact(rid, phone, name);
+		if (!result.ok) {
+			const errors = {
+				invalid:  'set.whatsapp.err.invalid',
+				tooShort: 'set.whatsapp.err.tooShort',
+				tooLong:  'set.whatsapp.err.tooLong',
+				taken:    'set.whatsapp.err.taken',
+			} as const;
+			return fail(422, { section: 'whatsapp', error: errors[result.reason] });
+		}
+
+		return { section: 'whatsapp', ok: 'set.whatsapp.ok.added' };
+	},
+
+	/** De-authorise a number. Owner-only, tenant-scoped. */
+	removeWhatsappContact: async ({ request, locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
+		if (!WHATSAPP_ENABLED) return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.disabled' });
+
+		if (!(await requireOwner(rid, locals.user!.id))) {
+			return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.notOwner' });
+		}
+
+		const data = await request.formData();
+		const id = Number(data.get('id'));
+		if (!Number.isInteger(id)) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.invalid' });
+
+		await removeContact(rid, id);
+		return { section: 'whatsapp', ok: 'set.whatsapp.ok.removed' };
+	},
 };
+
+/** True when this user owns the restaurant. */
+async function requireOwner(restaurantId: string, userId: string): Promise<boolean> {
+	const [membership] = await db.select({ role: userRestaurants.role })
+		.from(userRestaurants)
+		.where(forTenant(restaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.userId, userId)))
+		.limit(1);
+	return membership?.role === 'owner';
+}
