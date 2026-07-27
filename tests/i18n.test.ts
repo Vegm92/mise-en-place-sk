@@ -99,6 +99,11 @@ describe('locale key parity (es vs en)', () => {
     // i18n issue-101: ~20 hardcoded strings
     'coach.next', 'coach.skip',
     'notif.title', 'notif.clearAll', 'notif.empty',
+    // Supplier categorisation nudge + suggestion (issues #301/#315). The alert
+    // text itself is keyed, not baked into the notification row, so both
+    // locales must carry it.
+    'notif.categorize', 'notif.catAccept', 'notif.catChange',
+    'notif.msg.uncategorized', 'notif.msg.catSuggested',
     'set.tourTitle', 'set.tourDesc', 'set.tourRepeat',
     'set.privacyTitle', 'set.dataExportBtn', 'set.deleteConfirmWord',
     'set.deleteBtn', 'set.deletingBtn', 'set.privacyLink', 'set.termsLink',
