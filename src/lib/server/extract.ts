@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
+import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { createLLMProvider, type LLMProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
 
@@ -34,6 +35,7 @@ Common Spanish supplier units to recognise: ud (unidad), kg, g, L, ml, caja, gar
 Return ONLY valid JSON with this exact structure:
 {
   "supplier_name": "string",
+  "supplier_category": "one of the CATEGORY VALUES listed below, or null",
   "invoice_number": "string or null",
   "invoice_date": "YYYY-MM-DD or null",
   "due_date": "YYYY-MM-DD or null",
@@ -55,6 +57,7 @@ Return ONLY valid JSON with this exact structure:
   ],
   "field_confidences": {
     "supplier_name": 0.0 to 1.0,
+    "supplier_category": 0.0 to 1.0,
     "invoice_number": 0.0 to 1.0,
     "invoice_date": 0.0 to 1.0,
     "due_date": 0.0 to 1.0,
@@ -71,16 +74,42 @@ Rules:
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
 
+supplier_category — what this supplier mainly sells, judged from its name and the line items.
+
+The ONLY permitted values are the ${VALID_CATEGORIES.length - 1} listed between the markers below, or null.
+<<<CATEGORY_VALUES>>>
+${VALID_CATEGORIES.filter(c => c !== UNCATEGORIZED_CATEGORY).join('\n')}
+<<<END_CATEGORY_VALUES>>>
+
+Rules for supplier_category:
+- Copy one value EXACTLY as written above, including accents and capitalisation.
+- Return null if none of them clearly fits, if the supplier sells across several with no dominant
+  one, or if the line items are too sparse to tell. Null is the correct, expected answer in those
+  cases — it is not a failure.
+- Never translate a value, never invent a new one, and never return "${UNCATEGORIZED_CATEGORY}".
+  Anything that is not an exact copy of a listed value is discarded.
+- Judge the supplier, not this one document: a general wholesaler that happens to have delivered only
+  cheese today is still a general wholesaler, so return null rather than "Lácteos".
+
 Confidence scores (document-level and per-field):
 - 0.85+ : Clearly visible and readable
 - 0.60-0.84 : Readable with some ambiguity (blur, partial occlusion, handwriting)
 - below 0.60 : Poor quality, missing, or illegible
 Per-field confidence reflects the legibility of that specific field. The document-level confidence is the overall assessment.
+The one exception is supplier_category, which is a judgement rather than a reading: score how certain you
+are that the category is right, not how legible the document was. A confident category on a blurry invoice
+scores high; a guess from two ambiguous line items on a crisp scan scores low.
 
 QR code: If you can see and decode a QR code on the document, return the full decoded URL in the "qr_url" field. Spanish VERI*FACTU invoices carry an AEAT verification URL (e.g. https://www2.agenciatributaria.es/wlpl/TIKE-CONT/ValidarQR?nif=...&numserie=...&fecha=...&importe=...). If no QR is visible or decodable, set qr_url to null.`;
 
 export interface ExtractedInvoice {
 	supplier_name: string | null;
+	/**
+	 * Category the model proposes for this supplier (issue #315). Raw model
+	 * output — never trusted as-is. Run it through `resolveSupplierCategory`
+	 * before it reaches `suppliers.category`.
+	 */
+	supplier_category?: string | null;
 	invoice_number: string | null;
 	invoice_date: string | null;
 	due_date: string | null;
@@ -91,6 +120,7 @@ export interface ExtractedInvoice {
 	confidence: number;
 	field_confidences?: {
 		supplier_name?: number;
+		supplier_category?: number;
 		invoice_number?: number;
 		invoice_date?: number;
 		due_date?: number;

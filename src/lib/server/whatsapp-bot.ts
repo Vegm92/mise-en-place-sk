@@ -19,6 +19,7 @@ import {
 } from './schema';
 import { computeInvoiceContentHash } from './dedup';
 import { getOrCreateSupplierId } from './supplier';
+import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { extractWithProvider, type ExtractedInvoice } from './extract';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
@@ -318,8 +319,19 @@ async function saveWhatsAppInvoice(
 
 	try {
 		await db.transaction(async (tx) => {
-			// Atomic supplier get-or-create (issue #238).
-			const supplierId = await getOrCreateSupplierId(restaurantId, supplierName, tx);
+			// Atomic supplier get-or-create (issue #238), tagged with the
+			// category extraction proposed (issue #315). Nothing here is user
+			// -reviewed, so an unnamed supplier ('Desconocido') keeps the
+			// uncategorised bucket and its nudge rather than inheriting a
+			// guess made about a document we couldn't attribute.
+			const supplierId = await getOrCreateSupplierId(
+				restaurantId,
+				supplierName,
+				tx,
+				data.supplier_name?.trim()
+					? resolveSupplierCategory(data.supplier_category, data.field_confidences?.supplier_category)
+					: UNCATEGORIZED_CATEGORY,
+			);
 
 			// Invoice number duplicate guard
 			if (invoiceNumber) {
