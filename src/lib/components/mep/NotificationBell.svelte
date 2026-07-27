@@ -6,7 +6,7 @@
   import Ruler from '@lucide/svelte/icons/ruler';
   import Boxes from '@lucide/svelte/icons/boxes';
   import Tag from '@lucide/svelte/icons/tag';
-  import { t } from '$lib/i18n';
+  import { t, ti } from '$lib/i18n';
 
   type Notif = {
     id: number;
@@ -30,6 +30,7 @@
     if (type === 'unit_conversion_needed') return Ruler;
     if (type === 'product_suggestion')     return Boxes;
     if (type === 'supplier_uncategorized') return Tag;
+    if (type === 'supplier_category_suggested') return Tag;
     return Bell;
   }
 
@@ -39,7 +40,36 @@
     if (type === 'unit_conversion_needed') return 'var(--mep-info)';
     if (type === 'product_suggestion')     return 'var(--mep-info)';
     if (type === 'supplier_uncategorized') return 'var(--mep-warn)';
+    if (type === 'supplier_category_suggested') return 'var(--mep-info)';
     return 'var(--mep-fg-2)';
+  }
+
+  // Suggested supplier category (issue #315): accept in one tap. Declining is
+  // the generic X — the supplier stays in the uncategorised bucket, which is a
+  // valid answer — and "change" is a link to the supplier's category field.
+  let decidingCategory = $state<number | null>(null);
+  async function acceptCategory(n: Notif) {
+    const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null;
+    if (typeof p?.supplierId !== 'number' || decidingCategory !== null) return;
+    decidingCategory = n.id;
+    try {
+      const resp = await fetch('/api/supplier-category', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          supplierId: p.supplierId,
+          action: 'accept',
+          category: p.suggestedCategory,
+        }),
+      });
+      // 404 means the supplier was categorised by hand in the meantime; the
+      // server clears the stale suggestion too, so drop it here as well.
+      if (resp.ok || resp.status === 404) items = items.filter((i) => i.id !== n.id);
+    } catch {
+      // Offline/server error — leave it in place to retry later.
+    } finally {
+      decidingCategory = null;
+    }
   }
 
   // Product-catalog suggestion (issues #298/#300): confirm/reject a match.
@@ -158,6 +188,10 @@
       {:else}
         {#each items as n (n.id)}
           {@const Ic = icon(n.notificationType)}
+          <!-- Server-raised alerts carry an i18n key + vars in their payload so
+               the text follows the reader's locale; `message` is only the
+               language-neutral fallback for alerts not yet keyed. -->
+          {@const msg = n.payload as { messageKey?: string; messageVars?: Record<string, string | number> } | null}
           <div
             style="
               display:flex;align-items:flex-start;gap:10px;
@@ -168,7 +202,9 @@
               <Ic size={14} />
             </div>
             <div style="flex:1;min-width:0;">
-              <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">{n.message}</div>
+              <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
+                {msg?.messageKey ? $ti(msg.messageKey, msg.messageVars ?? {}) : n.message}
+              </div>
               <!-- One-tap route to the supplier's category field (issue #301) -->
               {#if n.notificationType === 'supplier_uncategorized'}
                 {@const supplierId = (n.payload as { supplierId?: number } | null)?.supplierId}
@@ -180,6 +216,26 @@
                       style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
                       onclick={() => (open = false)}
                     >{$t('notif.categorize')}</a>
+                  </div>
+                {/if}
+              {/if}
+              <!-- Suggested category: accept it, or go pick another (issue #315) -->
+              {#if n.notificationType === 'supplier_category_suggested'}
+                {@const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null}
+                {#if p?.supplierId && p?.suggestedCategory}
+                  <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
+                    <button
+                      class="btn btn-primary"
+                      style="height:26px;font-size:11px;padding:0 10px;"
+                      disabled={decidingCategory !== null}
+                      onclick={() => acceptCategory(n)}
+                    >{$t('notif.catAccept')}</button>
+                    <a
+                      href="/suppliers/{p.supplierId}"
+                      class="btn btn-secondary"
+                      style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+                      onclick={() => (open = false)}
+                    >{$t('notif.catChange')}</a>
                   </div>
                 {/if}
               {/if}

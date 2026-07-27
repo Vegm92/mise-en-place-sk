@@ -13,7 +13,7 @@
  * Pure assertions — no DB, no network.
  */
 import { describe, it, expect, afterAll } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import {
 	VALID_CATEGORIES,
 	UNCATEGORIZED_CATEGORY,
@@ -21,7 +21,8 @@ import {
 	resolveSupplierCategory,
 } from '../src/lib/constants';
 import { getOrCreateSupplierId } from '../src/lib/server/supplier';
-import { suppliers } from '../src/lib/server/schema';
+import { runCategorySuggestion } from '../src/lib/server/alert-engine';
+import { suppliers, systemNotifications } from '../src/lib/server/schema';
 import {
 	testDb,
 	createTestRestaurant,
@@ -111,6 +112,140 @@ describe('resolveSupplierCategory', () => {
 
 	it('uncategorised bucket is itself part of the taxonomy', () => {
 		expect(VALID_CATEGORIES).toContain(UNCATEGORIZED_CATEGORY);
+	});
+});
+
+describe('runCategorySuggestion — guards that need no DB', () => {
+	it('offers nothing when the resolver already collapsed the guess', async () => {
+		// These return before any query, so they hold without a database.
+		expect(await runCategorySuggestion(1, 'r', UNCATEGORIZED_CATEGORY)).toEqual([]);
+		expect(await runCategorySuggestion(1, 'r', '')).toEqual([]);
+	});
+
+	it('offers nothing for a category outside the taxonomy', async () => {
+		expect(await runCategorySuggestion(1, 'r', 'Ferretería')).toEqual([]);
+		expect(await runCategorySuggestion(1, 'r', 'Dairy')).toEqual([]);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('#315 suggesting a category for a supplier left in the bucket', () => {
+	/** Insert a notification the way saveAlerts would, minus the invoice FK. */
+	async function raise(restaurantId: string, type: string, payload: Record<string, unknown>) {
+		await testDb.insert(systemNotifications).values({
+			restaurantId,
+			notificationType: type,
+			message: 'test',
+			payload: JSON.stringify(payload),
+			status: 'pending',
+		});
+	}
+
+	async function pending(restaurantId: string, type: string) {
+		return testDb
+			.select({ payload: systemNotifications.payload, status: systemNotifications.status })
+			.from(systemNotifications)
+			.where(and(
+				eq(systemNotifications.restaurantId, restaurantId),
+				eq(systemNotifications.notificationType, type),
+			));
+	}
+
+	it('offers the category for a supplier still in the bucket', async () => {
+		const r = await createTestRestaurant('cat-suggest-offer');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Distribuciones Sur', testDb);
+			const alerts = await runCategorySuggestion(id, r.id, 'Bebidas');
+			expect(alerts).toHaveLength(1);
+			expect(alerts[0].notificationType).toBe('supplier_category_suggested');
+			// The user-visible text is an i18n key + vars, not baked-in prose, so
+			// the bell renders it in the reader's locale.
+			expect(alerts[0].payload).toMatchObject({
+				supplierId: id,
+				suggestedCategory: 'Bebidas',
+				messageKey: 'notif.msg.catSuggested',
+				messageVars: { supplier: 'Distribuciones Sur', category: 'Bebidas' },
+			});
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('never second-guesses a supplier someone already classified', async () => {
+		const r = await createTestRestaurant('cat-suggest-classified');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Makro', testDb, 'Congelados');
+			expect(await runCategorySuggestion(id, r.id, 'Bebidas')).toEqual([]);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('offers a category for a legacy supplier carrying NULL', async () => {
+		const r = await createTestRestaurant('cat-suggest-legacy');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Proveedor Antiguo', testDb);
+			await testDb.update(suppliers).set({ category: null }).where(eq(suppliers.id, id));
+			const alerts = await runCategorySuggestion(id, r.id, 'Lácteos');
+			expect(alerts).toHaveLength(1);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('offers once per supplier, even after the suggestion was handled', async () => {
+		// A suggestion on every invoice would be nagging.
+		const r = await createTestRestaurant('cat-suggest-dedup');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Bebidas Norte', testDb);
+			const first = await runCategorySuggestion(id, r.id, 'Bebidas');
+			expect(first).toHaveLength(1);
+			await raise(r.id, first[0].notificationType, first[0].payload as Record<string, unknown>);
+
+			expect(await runCategorySuggestion(id, r.id, 'Bebidas')).toEqual([]);
+
+			// Dismissed (status 'sent') must not resurrect it either.
+			await testDb
+				.update(systemNotifications)
+				.set({ status: 'sent' })
+				.where(eq(systemNotifications.restaurantId, r.id));
+			expect(await runCategorySuggestion(id, r.id, 'Vinos y Cavas')).toEqual([]);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('supersedes the plain nudge for the same supplier', async () => {
+		// Naming a category is strictly more useful than asking for one, so the
+		// two must not stack up in the bell.
+		const r = await createTestRestaurant('cat-suggest-supersede');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Almacenes Vega', testDb);
+			await raise(r.id, 'supplier_uncategorized', { supplierId: id, supplierName: 'Almacenes Vega' });
+			expect((await pending(r.id, 'supplier_uncategorized'))[0].status).toBe('pending');
+
+			const alerts = await runCategorySuggestion(id, r.id, 'Bebidas');
+			expect(alerts).toHaveLength(1);
+			expect((await pending(r.id, 'supplier_uncategorized'))[0].status).toBe('sent');
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('leaves another supplier\'s nudge alone when superseding', async () => {
+		const r = await createTestRestaurant('cat-suggest-scoped');
+		try {
+			const mine = await getOrCreateSupplierId(r.id, 'Proveedor A', testDb);
+			const other = await getOrCreateSupplierId(r.id, 'Proveedor B', testDb);
+			await raise(r.id, 'supplier_uncategorized', { supplierId: other, supplierName: 'Proveedor B' });
+
+			await runCategorySuggestion(mine, r.id, 'Bebidas');
+
+			const rows = await pending(r.id, 'supplier_uncategorized');
+			expect(rows).toHaveLength(1);
+			expect(rows[0].status).toBe('pending');
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
 	});
 });
 

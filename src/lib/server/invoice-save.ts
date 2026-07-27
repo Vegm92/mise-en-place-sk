@@ -12,7 +12,7 @@ import { resolveLineProducts } from './product-catalog';
 import { enqueueNormalize } from './queue';
 import { parsePack, normalizedUnitPrice } from './pack-parser';
 import { normalizeProductKey } from './normalize';
-import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, type Alert } from './alert-engine';
+import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, type Alert } from './alert-engine';
 import { saveAlerts } from './notifications';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
@@ -454,8 +454,15 @@ export async function saveReviewedInvoice(
 		const stockAlerts = await runStockForecast(savedItems, rid);
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
+		// A supplier already sitting in the bucket — created before extraction
+		// proposed categories, or from an invoice too sparse to classify — gets
+		// the guess offered rather than applied (issue #315). Returns nothing
+		// when the supplier was just tagged at creation, so a new supplier does
+		// not get asked about a category it already has.
+		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
 		await saveAlerts(invoiceId!, rid, [
-			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts, ...categoryAlerts,
+			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
+			...categoryAlerts, ...categorySuggestions,
 		]);
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);

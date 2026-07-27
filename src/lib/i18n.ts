@@ -200,6 +200,10 @@ export const translations = {
     // Multi-location (issue #290)
     'nav.location':               'Local',
     'notif.categorize':           'Clasificar proveedor',
+    'notif.msg.uncategorized':    "Clasifica a '{supplier}' para incluir su gasto en presupuestos y análisis por categoría.",
+    'notif.msg.catSuggested':     "¿Es '{supplier}' un proveedor de {category}? Confírmalo para incluir su gasto en presupuestos y análisis.",
+    'notif.catAccept':            'Sí, es correcto',
+    'notif.catChange':            'Elegir otra',
     'set.locations.title':        'Locales',
     'set.locations.desc':         'Tu plan incluye {max} locales. Estás usando {used}.',
     'set.locations.current':      'Actual',
@@ -1269,6 +1273,10 @@ export const translations = {
     // Multi-location (issue #290)
     'nav.location':               'Location',
     'notif.categorize':           'Categorise supplier',
+    'notif.msg.uncategorized':    "Categorise '{supplier}' so its spend counts towards budgets and category analytics.",
+    'notif.msg.catSuggested':     "Is '{supplier}' a {category} supplier? Confirm to count its spend towards budgets and analytics.",
+    'notif.catAccept':            "Yes, that's right",
+    'notif.catChange':            'Pick another',
     'set.locations.title':        'Locations',
     'set.locations.desc':         'Your plan includes {max} locations. You are using {used}.',
     'set.locations.current':      'Current',
