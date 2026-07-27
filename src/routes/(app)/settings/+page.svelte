@@ -2,6 +2,7 @@
   import type { ActionData, PageData } from './$types';
   import { get } from 'svelte/store';
   import { t, ti } from '$lib/i18n';
+  import { formatPhoneNumber } from '$lib/phone';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -184,6 +185,57 @@
 
           {#if feedback('location')?.error}
             <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t(feedback('location')!.error!)}</p>
+          {/if}
+        </div>
+      </SectionCard>
+    {/if}
+
+    {#if data.whatsappEnabled}
+      <SectionCard title={$t('set.whatsapp.title')}>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.desc')}</p>
+
+          {#if data.whatsappContacts.length > 0}
+            <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;">
+              {#each data.whatsappContacts as contact (contact.id)}
+                <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mep-fg-2);">
+                  <span style="font-variant-numeric:tabular-nums;">{formatPhoneNumber(contact.phoneNumber)}</span>
+                  {#if contact.displayName}
+                    <span class="text-fg-3" style="font-size:12px;">{contact.displayName}</span>
+                  {/if}
+                  {#if data.canManageWhatsapp}
+                    <form method="POST" action="?/removeWhatsappContact" style="margin-left:auto;">
+                      <input type="hidden" name="id" value={contact.id} />
+                      <button type="submit" class="btn btn-secondary" style="height:28px;font-size:12px;">
+                        {$t('set.whatsapp.remove')}
+                      </button>
+                    </form>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {:else}
+            <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.empty')}</p>
+          {/if}
+
+          {#if data.canManageWhatsapp}
+            <form method="POST" action="?/addWhatsappContact" class="flex items-center gap-3 flex-wrap">
+              <input name="phone" type="tel" required
+                placeholder={$t('set.whatsapp.phonePlaceholder')}
+                class="input" style="height:36px;font-size:13px;min-width:150px;flex:1;" />
+              <input name="name" type="text" maxlength="80"
+                placeholder={$t('set.whatsapp.namePlaceholder')}
+                class="input" style="height:36px;font-size:13px;min-width:120px;flex:1;" />
+              <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.whatsapp.add')}</button>
+            </form>
+          {:else}
+            <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.err.notOwner')}</p>
+          {/if}
+
+          {#if feedback('whatsapp')?.error}
+            <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t(feedback('whatsapp')!.error!)}</p>
+          {:else if feedback('whatsapp')?.ok}
+            <p style="font-size:12px;color:var(--mep-pos);margin:0;">{$t(feedback('whatsapp')!.ok!)}</p>
           {/if}
         </div>
       </SectionCard>

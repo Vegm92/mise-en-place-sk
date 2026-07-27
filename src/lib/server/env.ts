@@ -21,5 +21,10 @@ export const WHATSAPP_VERIFY_TOKEN    = process.env.WHATSAPP_VERIFY_TOKEN    ?? 
 // App secret from Meta App Dashboard — used to verify X-Hub-Signature-256 on
 // inbound webhook POSTs. Without it, the webhook cannot authenticate Meta.
 export const WHATSAPP_APP_SECRET      = process.env.WHATSAPP_APP_SECRET      ?? '';
+// Graph API version used for every Cloud API call. Meta expires each version
+// roughly two years after release and calls to an expired one fail outright,
+// so this is env-tunable: bumping it must not require a code change (and the
+// default must be reviewed at each upgrade). See DEPLOYMENT.md.
+export const WHATSAPP_API_VERSION     = process.env.WHATSAPP_API_VERSION     ?? 'v25.0';
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
