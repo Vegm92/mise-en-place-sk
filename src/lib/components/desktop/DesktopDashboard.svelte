@@ -13,6 +13,7 @@
   import X from '@lucide/svelte/icons/x';
   import { locale, t, ti, tp } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
+  import { goto } from '$app/navigation';
 
   interface Mom { this_month: number; pct_change: number | null }
   interface Pending { count: number; amount: number }
@@ -426,7 +427,14 @@
           </thead>
           <tbody>
             {#each data.recent_invoices as inv (inv.id)}
-              <tr class="row">
+              <tr
+                class="row"
+                style="cursor:pointer;"
+                tabindex="0"
+                role="link"
+                onclick={() => goto(`/invoice/${inv.id}`)}
+                onkeydown={(e) => { if (e.key === 'Enter') goto(`/invoice/${inv.id}`); }}
+              >
                 <td>
                   <div class="flex items-center gap-2">
                     <span class="swatch bg-fg-3"></span>
