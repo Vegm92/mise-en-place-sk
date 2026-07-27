@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue, insertQueue } = vi.hoisted(() => {
+const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releaseMock, selectQueue, insertQueue } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
 	const insertQueue: unknown[][] = [];
 
@@ -51,6 +51,9 @@ const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue, inse
 		downloadMock: vi.fn(),
 		extractMock: vi.fn(),
 		saveMock: vi.fn().mockResolvedValue(undefined),
+		// Quota gate defaults to "slot granted" so the existing flows are unaffected.
+		claimMock: vi.fn().mockResolvedValue({ claimed: true }),
+		releaseMock: vi.fn().mockResolvedValue(undefined),
 		selectQueue,
 		insertQueue,
 	};
@@ -63,6 +66,11 @@ vi.mock('../src/lib/server/whatsapp', () => ({
 }));
 vi.mock('../src/lib/server/extract', () => ({ extractWithProvider: extractMock }));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: saveMock }) }));
+vi.mock('../src/lib/server/llm-quota', () => ({
+	claimMonthlyExtraction: claimMock,
+	releaseMonthlyExtraction: releaseMock,
+}));
+vi.mock('@sentry/sveltekit', () => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
 
 import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
 
@@ -84,6 +92,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	selectQueue.length = 0;
 	insertQueue.length = 0;
+	claimMock.mockResolvedValue({ claimed: true });
 });
 
 describe('message-id dedup (issue #245)', () => {
@@ -127,6 +136,58 @@ describe('message type routing (authorised contact)', () => {
 		expect(repliesText()).toMatch(/factura pendiente de confirmación/i);
 		// Guarded before any download/extraction happens.
 		expect(downloadMock).not.toHaveBeenCalled();
+		expect(extractMock).not.toHaveBeenCalled();
+		// …and before the quota claim, so a rejected duplicate never burns a slot.
+		expect(claimMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('plan quota gate (issue #318)', () => {
+	/** Drive a media upload from an authorised contact with no pending session. */
+	async function sendImage() {
+		queueSelects(CONTACT, []); // contact, then no pending session
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+	}
+
+	it('refuses to extract once the monthly plan quota is exhausted', async () => {
+		claimMock.mockResolvedValue({ claimed: false, reason: 'monthly_plan_limit', limit: 50 });
+		await sendImage();
+
+		// The whole point: no Gemini spend on a tenant that is over its cap.
+		expect(extractMock).not.toHaveBeenCalled();
+		expect(downloadMock).not.toHaveBeenCalled();
+		// The sender gets a clear answer rather than silence, naming the limit.
+		expect(repliesText()).toMatch(/límite de facturas de tu plan/i);
+		expect(repliesText()).toContain('50');
+		// Nothing was claimed, so nothing to give back.
+		expect(releaseMock).not.toHaveBeenCalled();
+	});
+
+	it('claims a slot before extracting and keeps it when extraction succeeds', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		extractMock.mockResolvedValue({ invoice: { supplier_name: 'Frutas Paco', total_amount: 42 } });
+		await sendImage();
+
+		expect(claimMock).toHaveBeenCalledWith('rest-1');
+		expect(extractMock).toHaveBeenCalled();
+		expect(releaseMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/Frutas Paco/);
+	});
+
+	it('releases the slot when extraction fails', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		extractMock.mockRejectedValue(new Error('gemini exploded'));
+		await sendImage();
+
+		expect(releaseMock).toHaveBeenCalledWith('rest-1');
+		expect(repliesText()).toMatch(/No he podido leer la factura/i);
+	});
+
+	it('releases the slot when the media download fails', async () => {
+		downloadMock.mockRejectedValue(new Error('404 from Meta'));
+		await sendImage();
+
+		expect(releaseMock).toHaveBeenCalledWith('rest-1');
 		expect(extractMock).not.toHaveBeenCalled();
 	});
 });

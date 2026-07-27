@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import * as Sentry from '@sentry/sveltekit';
 import { and, desc, eq, gt, isNull } from 'drizzle-orm';
 import { forTenant } from './db';
 import { sql } from 'drizzle-orm';
@@ -24,6 +25,7 @@ import { extractWithProvider, type ExtractedInvoice } from './extract';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { maybeSendQuotaWarning } from './quota-warning';
+import { claimMonthlyExtraction, releaseMonthlyExtraction } from './llm-quota';
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -114,6 +116,27 @@ async function handleMediaUpload(
 		return;
 	}
 
+	// Money gate: reserve a monthly extraction slot BEFORE any Gemini spend
+	// (issue #318). Without this WhatsApp was an unmetered lane around the plan
+	// quota the web uploader enforces — and under the shared-number model that
+	// cost lands on us, not the tenant. Claimed after the pending-session guard
+	// above so a rejected duplicate never burns a slot.
+	const claim = await claimMonthlyExtraction(restaurantId);
+	if (!claim.claimed) {
+		console.warn(`[whatsapp-bot] monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
+		// Same aggregation as the worker (#257) — a tenant hitting the wall must
+		// be visible here too, not only discovered from a support ticket.
+		Sentry.captureMessage('extraction.quota_exhausted', {
+			level: 'warning',
+			tags: { restaurantId, source: 'whatsapp' },
+		});
+		await sendWhatsAppMessage(
+			from,
+			`⚠️ Has alcanzado el límite de facturas de tu plan este mes (${claim.limit}).\nAmplía tu plan en el panel web para seguir enviando facturas.`,
+		);
+		return;
+	}
+
 	await sendWhatsAppMessage(from, '⏳ Procesando tu factura, un momento...');
 
 	let buffer: Buffer;
@@ -122,6 +145,8 @@ async function handleMediaUpload(
 		({ buffer, extension } = await downloadWhatsAppMedia(mediaId));
 	} catch (err) {
 		console.error('[whatsapp-bot] media download error:', err);
+		// Nothing was extracted — give the slot back (mirrors extraction-worker).
+		await releaseMonthlyExtraction(restaurantId);
 		await sendWhatsAppMessage(from, '❌ No he podido descargar el archivo. Inténtalo de nuevo.');
 		return;
 	}
@@ -136,6 +161,8 @@ async function handleMediaUpload(
 		extracted = result.invoice;
 	} catch (err) {
 		console.error('[whatsapp-bot] extraction error:', err);
+		// A Gemini failure shouldn't consume the tenant's quota (issue #318).
+		await releaseMonthlyExtraction(restaurantId);
 		await sendWhatsAppMessage(
 			from,
 			'❌ No he podido leer la factura. Asegúrate de que la imagen sea clara e inténtalo de nuevo.',
