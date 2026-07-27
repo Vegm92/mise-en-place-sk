@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releaseMock, selectQueue, insertQueue } = vi.hoisted(() => {
+const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releaseMock, rateLimitMock, selectQueue, insertQueue } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
 	const insertQueue: unknown[][] = [];
 
@@ -54,6 +54,9 @@ const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releas
 		// Quota gate defaults to "slot granted" so the existing flows are unaffected.
 		claimMock: vi.fn().mockResolvedValue({ claimed: true }),
 		releaseMock: vi.fn().mockResolvedValue(undefined),
+		// Cooldown gate defaults to "allowed" — the real limiter keeps state
+		// across tests, which would make ordering matter.
+		rateLimitMock: vi.fn().mockResolvedValue(true),
 		selectQueue,
 		insertQueue,
 	};
@@ -70,6 +73,7 @@ vi.mock('../src/lib/server/llm-quota', () => ({
 	claimMonthlyExtraction: claimMock,
 	releaseMonthlyExtraction: releaseMock,
 }));
+vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
 vi.mock('@sentry/sveltekit', () => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
 
 import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
@@ -93,6 +97,7 @@ beforeEach(() => {
 	selectQueue.length = 0;
 	insertQueue.length = 0;
 	claimMock.mockResolvedValue({ claimed: true });
+	rateLimitMock.mockResolvedValue(true);
 });
 
 describe('message-id dedup (issue #245)', () => {
@@ -119,6 +124,15 @@ describe('authorisation gate', () => {
 		expect(sendMock).toHaveBeenCalledTimes(1);
 		expect(repliesText()).toMatch(/no está autorizado/i);
 		expect(dbMock.update).not.toHaveBeenCalled();
+	});
+
+	it('stays quiet when the same unknown number messages again inside the cooldown (issue #322)', async () => {
+		rateLimitMock.mockResolvedValue(false); // cooldown already spent for this number
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm2', type: 'text', text: { body: 'hola?' } });
+		expect(sendMock).not.toHaveBeenCalled();
+		// Keyed per sender, so one spammer can't silence a different number.
+		expect(rateLimitMock).toHaveBeenCalledWith('whatsapp-unauth:+34699', 1, expect.any(Number));
 	});
 });
 
@@ -189,6 +203,28 @@ describe('plan quota gate (issue #318)', () => {
 
 		expect(releaseMock).toHaveBeenCalledWith('rest-1');
 		expect(extractMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('outbound message budget (issue #322)', () => {
+	it('answers a successfully extracted invoice with the summary alone', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		extractMock.mockResolvedValue({ invoice: { supplier_name: 'Frutas Paco', total_amount: 42 } });
+		queueSelects(CONTACT, []); // contact, then no pending session
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+
+		// One message, not two: the "procesando…" ack is gone, so a saved invoice
+		// costs two outbound messages in total (this summary + the save receipt).
+		expect(sendMock).toHaveBeenCalledTimes(1);
+		expect(repliesText()).not.toMatch(/procesando/i);
+		expect(repliesText()).toMatch(/¿Confirmas esta factura\?/);
+	});
+
+	it('sends nothing extra on the error paths either', async () => {
+		downloadMock.mockRejectedValue(new Error('404 from Meta'));
+		queueSelects(CONTACT, []);
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+		expect(sendMock).toHaveBeenCalledTimes(1);
 	});
 });
 

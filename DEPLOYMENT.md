@@ -280,12 +280,21 @@ at each upgrade and bump the variable; no code change is needed.
 
 The bot only ever *replies*, so every message it sends falls inside the **24-hour
 customer service window** the staff member opened by sending a photo — free-form
-text, no pre-approved templates required. Two consequences:
+text, no pre-approved templates required. Three consequences:
 
 - **From 1 Oct 2026** service messages inside that window become billable at utility
-  rates. The bot sends 2–3 messages per invoice; trim to two before then.
+  rates, and under the shared number that cost is ours, not the tenant's.
+- A successfully saved invoice costs **2 outbound messages**: the extracted summary
+  (which is also the confirmation prompt) and the save receipt. Both are load-bearing.
+  The "⏳ Procesando…" ack was removed in #322 — WhatsApp already shows the photo as
+  delivered and the summary lands in ~10 s. Keep this at two; each extra reply is
+  per-invoice COGS that scales with ingest volume.
 - Messaging a chef **proactively** more than 24 h after their last message would
   require an approved **utility template**. None exist in this repo today.
+
+Unknown senders are answered **at most once every 6 hours** per number
+(`UNAUTHORIZED_REPLY_COOLDOWN_S` in `whatsapp-bot.ts`). A wrong number or a spam
+contact would otherwise get a billable reply to every message it sends.
 
 ### Verify
 

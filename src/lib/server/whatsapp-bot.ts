@@ -26,8 +26,12 @@ import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { claimMonthlyExtraction, releaseMonthlyExtraction } from './llm-quota';
+import { checkRateLimit } from './rate-limiter';
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/** How long an unknown number waits before the bot answers it again (#322). */
+const UNAUTHORIZED_REPLY_COOLDOWN_S = 6 * 60 * 60; // 6 hours
 
 export interface WhatsAppInboundMessage {
 	from: string;
@@ -77,10 +81,17 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		.limit(1);
 
 	if (contactRows.length === 0) {
-		await sendWhatsAppMessage(
-			from,
-			'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
-		);
+		// Reply at most once per number per cooldown (issue #322). A wrong number
+		// or a spam contact would otherwise get an answer to every message it
+		// sends, which is unbounded billable traffic from 1 Oct 2026 and poor
+		// anti-abuse behaviour long before that. A staff member who genuinely
+		// mistyped still gets told the first time.
+		if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
+			await sendWhatsAppMessage(
+				from,
+				'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
+			);
+		}
 		return;
 	}
 
@@ -137,8 +148,10 @@ async function handleMediaUpload(
 		return;
 	}
 
-	await sendWhatsAppMessage(from, '⏳ Procesando tu factura, un momento...');
-
+	// No "procesando…" ack (issue #322). WhatsApp already shows the photo as
+	// delivered and the summary lands in ~10 s, so the ack bought nothing and
+	// made a successful invoice cost three outbound messages instead of two —
+	// billable from 1 Oct 2026, and on our account under the shared number.
 	let buffer: Buffer;
 	let extension: string;
 	try {

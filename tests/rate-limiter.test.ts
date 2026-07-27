@@ -55,6 +55,35 @@ describe('checkRateLimit — in-memory token bucket', () => {
 	});
 });
 
+describe('checkRateLimit — custom window (issue #322)', () => {
+	it('holds a long cooldown open past the point a per-minute budget would refill', async () => {
+		vi.useFakeTimers();
+		const key = `cooldown-${randomUUID()}`;
+		const SIX_HOURS_S = 6 * 60 * 60;
+
+		expect(await checkRateLimit(key, 1, SIX_HOURS_S)).toBe(true);
+		expect(await checkRateLimit(key, 1, SIX_HOURS_S)).toBe(false);
+
+		// A minute later a default-window budget would be back; this one is not —
+		// and the periodic bucket sweep must not have quietly reset it either.
+		await vi.advanceTimersByTimeAsync(10 * 60_000);
+		expect(await checkRateLimit(key, 1, SIX_HOURS_S)).toBe(false);
+
+		// It does reopen once the window has actually passed.
+		await vi.advanceTimersByTimeAsync(SIX_HOURS_S * 1000);
+		expect(await checkRateLimit(key, 1, SIX_HOURS_S)).toBe(true);
+	});
+
+	it('defaults to a per-minute window when none is given', async () => {
+		vi.useFakeTimers();
+		const key = `default-window-${randomUUID()}`;
+		expect(await checkRateLimit(key, 1)).toBe(true);
+		expect(await checkRateLimit(key, 1)).toBe(false);
+		await vi.advanceTimersByTimeAsync(60_000);
+		expect(await checkRateLimit(key, 1)).toBe(true);
+	});
+});
+
 describe('extraction concurrency semaphore', () => {
 	it('grants up to max slots then refuses', () => {
 		expect(tryAcquireExtraction(2)).toBe(true);
