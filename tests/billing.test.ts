@@ -18,12 +18,27 @@ vi.mock('$env/dynamic/private', () => ({
 }));
 
 // db singleton throws at import without a connection string — stub it out.
-vi.mock('../src/lib/server/db', () => ({ db: {} }));
+// `subscriptionRow` is what getAccessState reads; set it per test.
+const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null as unknown } }));
+vi.mock('../src/lib/server/db', () => {
+	const chain = () => {
+		const p: Record<string, unknown> = {};
+		for (const m of ['from', 'where', 'limit']) p[m] = () => p;
+		p.then = (res: (v: unknown) => unknown) =>
+			Promise.resolve(subscriptionRow.value ? [subscriptionRow.value] : []).then(res);
+		return p;
+	};
+	return { db: { select: chain }, forTenant: () => ({ scope: () => ({}) }) };
+});
 
 import {
+	getAccessState,
 	TIERS,
 	tierFromPriceId,
 	isAccessAllowed,
+	isTierAvailable,
+	resolveMonthlyQuota,
+	UNLIMITED_QUOTA_SETTING,
 	type PlanTier,
 } from '../src/lib/server/billing';
 
@@ -41,7 +56,68 @@ describe('tierFromPriceId', () => {
 	});
 
 	it('falls back to starter for an unknown/legacy price id', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		expect(tierFromPriceId('price_legacy_unknown')).toBe('starter');
+		spy.mockRestore();
+	});
+
+	// Issue #286: the fallback silently quota'd Pro/Business customers as
+	// starter. It still falls back (a subscription must resolve to something)
+	// but must be loud about it.
+	it('logs an error when a price id matches no configured tier', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		tierFromPriceId('price_rotated_in_dashboard');
+		expect(spy).toHaveBeenCalledOnce();
+		expect(String(spy.mock.calls[0][0])).toContain('price_rotated_in_dashboard');
+		spy.mockRestore();
+	});
+
+	it('does not log for a configured price id', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		tierFromPriceId('price_pro');
+		expect(spy).not.toHaveBeenCalled();
+		spy.mockRestore();
+	});
+});
+
+describe('isTierAvailable', () => {
+	it('is true for tiers with a configured Stripe price id', () => {
+		expect(isTierAvailable('starter')).toBe(true);
+		expect(isTierAvailable('pro')).toBe(true);
+		expect(isTierAvailable('business')).toBe(true);
+	});
+
+	it('is false for the trial tier, which is never checked out', () => {
+		expect(isTierAvailable('trial')).toBe(false);
+	});
+});
+
+// Issue #295 — one convention for "no quota configured", replacing the three
+// that used to disagree (layout: 150, upload gate: unlimited, settings: 99999).
+describe('resolveMonthlyQuota', () => {
+	it('returns the stored positive limit', () => {
+		expect(resolveMonthlyQuota('300', 'pro')).toBe(300);
+	});
+
+	it('treats the unlimited sentinel as unlimited', () => {
+		expect(resolveMonthlyQuota(UNLIMITED_QUOTA_SETTING, 'business')).toBeNull();
+	});
+
+	it('treats the legacy 99999 magic number as unlimited', () => {
+		expect(resolveMonthlyQuota('99999', 'business')).toBeNull();
+	});
+
+	it('falls back to the tier quota when the row is missing or unparseable', () => {
+		expect(resolveMonthlyQuota(null, 'trial')).toBe(TIERS.trial.monthlyInvoiceQuota);
+		expect(resolveMonthlyQuota(undefined, 'starter')).toBe(TIERS.starter.monthlyInvoiceQuota);
+		expect(resolveMonthlyQuota('', 'pro')).toBe(TIERS.pro.monthlyInvoiceQuota);
+		expect(resolveMonthlyQuota('not-a-number', 'pro')).toBe(TIERS.pro.monthlyInvoiceQuota);
+		expect(resolveMonthlyQuota('0', 'pro')).toBe(TIERS.pro.monthlyInvoiceQuota);
+		expect(resolveMonthlyQuota('-5', 'pro')).toBe(TIERS.pro.monthlyInvoiceQuota);
+	});
+
+	it('falls back to unlimited for an unlimited tier with no row', () => {
+		expect(resolveMonthlyQuota(null, 'business')).toBeNull();
 	});
 });
 
@@ -130,5 +206,37 @@ describe('TIERS configuration', () => {
 				if (enabled) seenEnabled = true;
 			}
 		}
+	});
+});
+
+// Issue #287 — trial expiry is enforced, so "may this tenant spend?" has to be
+// answerable from the subscription row alone.
+describe('getAccessState', () => {
+	const future = new Date(Date.now() + 86_400_000);
+	const past = new Date(Date.now() - 86_400_000);
+
+	it('allows a live trial', async () => {
+		subscriptionRow.value = { status: 'trialing', trialEndsAt: future };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true, trialExpired: false });
+	});
+
+	it('flags a lapsed trial specifically', async () => {
+		subscriptionRow.value = { status: 'trialing', trialEndsAt: past };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: false, trialExpired: true });
+	});
+
+	it('blocks a cancelled subscription without calling it a trial', async () => {
+		subscriptionRow.value = { status: 'canceled', trialEndsAt: null };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: false, trialExpired: false });
+	});
+
+	it('allows an active subscription', async () => {
+		subscriptionRow.value = { status: 'active', trialEndsAt: null };
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
+	});
+
+	it('does not lock out a tenant with no subscription row at all', async () => {
+		subscriptionRow.value = null;
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
 	});
 });

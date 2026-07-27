@@ -1,6 +1,7 @@
 /** Drizzle schema — PostgreSQL (Supabase). Single source of truth. */
 import {
-	boolean, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid
+	boolean, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
+	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -10,8 +11,15 @@ export const restaurants = pgTable('restaurants', {
 	id:        uuid('id').primaryKey().default(sql`gen_random_uuid()`),
 	name:      text('name').notNull(),
 	slug:      text('slug').notNull().unique(),
+	// Additional locations of a multi-location account (issue #290). Null for a
+	// standalone restaurant. Data stays fully separate per location — this only
+	// says which restaurant's subscription pays for this one, so a Business
+	// customer's second site inherits the plan instead of starting a new trial.
+	parentId:  uuid('parent_id').references((): AnyPgColumn => restaurants.id, { onDelete: 'cascade' }),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-});
+}, (t) => [
+	index('restaurants_parent_idx').on(t.parentId),
+]);
 
 export const userRestaurants = pgTable('user_restaurants', {
 	userId:       text('user_id').notNull(),
@@ -166,6 +174,11 @@ export const products = pgTable('products', {
 	nameKey:       text('name_key').notNull(),
 	category:      text('category'),
 	canonicalUnit: text('canonical_unit'),
+	// Pack-to-base-unit conversion (e.g. "1 saco = 10 kg"), set via the Products
+	// CRUD page. Resolves the 'unit_conversion_needed' alert for this product
+	// (src/lib/server/invoice-save.ts) once both are filled in.
+	unitsPerPack:  real('units_per_pack'),
+	baseUnit:      text('base_unit'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	// One product per normalized name within a tenant — concurrent saves of the

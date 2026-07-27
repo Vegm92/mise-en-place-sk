@@ -7,6 +7,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
+import { getAccessState } from '$lib/server/billing';
 import { eq } from 'drizzle-orm';
 
 export type ChatAction = { label: string; href: string; variant: 'primary' | 'secondary' };
@@ -54,6 +55,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const tdb = forTenant(rid);
 
 	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
+
+	// AI chat is paid capacity: an expired trial keeps its data but stops
+	// spending (issue #287). 402 so the client can show upgrade copy rather
+	// than a generic failure.
+	const access = await getAccessState(rid);
+	if (!access.allowed) {
+		return json({ error: 'trial_expired' }, { status: 402 });
+	}
 
 	// Key by authenticated user, not client IP: behind a proxy every user shares
 	// one IP, which would let a single tenant exhaust the global chat budget.

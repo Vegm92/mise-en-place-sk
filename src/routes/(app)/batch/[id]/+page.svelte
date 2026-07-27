@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { goto, invalidateAll } from '$app/navigation';
+  import { enhance } from '$app/forms';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
   import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
+  import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Sparkle from '@lucide/svelte/icons/sparkle';
@@ -80,7 +82,26 @@
   // page reload after a failed non-enhanced form submit) must not read as an
   // "item changed" event, or it clobbers the modal that the effect above just
   // opened from the same submit's `form` result.
+  // svelte-ignore state_referenced_locally — reading the initial value is the point
   let lowConfAckItemId: string | null = data.review?.itemId ?? null;
+
+  // Header fields, editable — local state so a correction survives a failed
+  // save (the low-confidence gate) instead of being overwritten by the
+  // server-derived `review.data` snapshot once the item itself hasn't
+  // actually changed (issue #305). Seeded once per item, same "changed in
+  // place" guard as `lowConfAckItemId` above.
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
+  let supplierNameInput = $state(str(data.review?.data?.supplier_name));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
+  let invoiceNumberInput = $state(str(data.review?.data?.invoice_number));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
+  let invoiceDateInput = $state(str(data.review?.data?.invoice_date));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
+  let dueDateInput = $state(str(data.review?.data?.due_date));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
+  let totalAmountInput = $state(str(data.review?.data?.total_amount));
+  let notesInput = $state('');
+
   $effect(() => {
     const id = data.review?.itemId ?? null;
     if (id === lowConfAckItemId) return;
@@ -88,6 +109,13 @@
     lowConfAck = false;
     showLowConfModal = false;
     showContentDuplicateModal = false;
+    const rd = data.review?.data;
+    supplierNameInput = str(rd?.supplier_name);
+    invoiceNumberInput = str(rd?.invoice_number);
+    invoiceDateInput = str(rd?.invoice_date);
+    dueDateInput = str(rd?.due_date);
+    totalAmountInput = str(rd?.total_amount);
+    notesInput = '';
   });
 
   function addRow() {
@@ -147,9 +175,7 @@
     }, 0)
   );
   const extractedTotal = $derived.by(() => {
-    const amt = review?.data?.total_amount;
-    if (typeof amt === 'number') return amt as number;
-    const n = parseFloat(String(amt ?? ''));
+    const n = parseFloat(totalAmountInput);
     return isNaN(n) ? 0 : n;
   });
   const taxBreakdown = $derived.by(() => {
@@ -207,6 +233,14 @@
 </script>
 
 <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
+
+  <!-- Where the user is in Upload → Extract → Review (issue #232). The cue used
+       to stop at the upload page, i.e. right before the two steps it describes.
+       Extract stays current while anything is still in flight; once a review
+       item is on screen, step 3 is. -->
+  <div style="padding:16px 20px 0;flex-shrink:0;">
+    <FlowSteps active={data.anyInFlight ? 1 : 2} />
+  </div>
 
   <!-- Two-column grid: queue + active panel -->
   <div style="flex:1;min-height:0;padding:16px 20px 20px;display:grid;grid-template-columns:minmax(260px,0.9fr) 2fr;gap:16px;" class="max-md:!flex max-md:!flex-col max-md:!overflow-y-auto">
@@ -301,7 +335,7 @@
 
         <!-- Out-of-tree form target: the discard button sits visually inside the
              save form's header; nesting real forms is invalid HTML. -->
-        <form id="discard-item-form" method="POST" action="?/discardItem" style="display:none;">
+        <form id="discard-item-form" method="POST" action="?/discardItem" style="display:none;" use:enhance>
           <input type="hidden" name="itemId" value={review.itemId} />
         </form>
 
@@ -325,7 +359,7 @@
         </div>
 
         <!-- Review form -->
-        <form id="save-form" method="POST" action="?/save" style="display:contents;">
+        <form id="save-form" method="POST" action="?/save" style="display:contents;" use:enhance>
           <input type="hidden" name="itemId" value={review.itemId} />
           <input type="hidden" name="idempotency_key" value={idempotencyKey} />
           <input type="hidden" name="confidence" value={str(confidence)} />
@@ -370,15 +404,15 @@
                     {$t('field.supplier')}
                     <ConfidenceDot confidence={fieldConf.supplier_name} />
                   </div>
-                  <input type="text" name="supplier_name" value={str(review.data?.supplier_name)}
-                    style="width:100%;font-size:13px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{needsReview(review.data?.supplier_name) || (fieldConf.supplier_name != null && fieldConf.supplier_name < 0.85) ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                  <input type="text" name="supplier_name" bind:value={supplierNameInput}
+                    style="width:100%;font-size:13px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{needsReview(supplierNameInput) || (fieldConf.supplier_name != null && fieldConf.supplier_name < 0.85) ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 </div>
                 <div>
                   <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                     {$t('field.invoiceNum')}
                     <ConfidenceDot confidence={fieldConf.invoice_number} />
                   </div>
-                  <input type="text" name="invoice_number" value={str(review.data?.invoice_number)} class="num"
+                  <input type="text" name="invoice_number" bind:value={invoiceNumberInput} class="num"
                     style="width:100%;font-size:13px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.invoice_number != null && fieldConf.invoice_number < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 </div>
                 <div>
@@ -386,7 +420,7 @@
                     {$t('field.invoiceDate')}
                     <ConfidenceDot confidence={fieldConf.invoice_date} />
                   </div>
-                  <input type="text" name="invoice_date" value={str(review.data?.invoice_date)} placeholder="YYYY-MM-DD" class="num"
+                  <input type="text" name="invoice_date" bind:value={invoiceDateInput} placeholder="YYYY-MM-DD" class="num"
                     style="width:100%;font-size:13px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.invoice_date != null && fieldConf.invoice_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 </div>
                 <div>
@@ -394,7 +428,7 @@
                     {$t('extract.due')}
                     <ConfidenceDot confidence={fieldConf.due_date} />
                   </div>
-                  <input type="text" name="due_date" value={str(review.data?.due_date)} placeholder="YYYY-MM-DD" class="num"
+                  <input type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD" class="num"
                     style="width:100%;font-size:13px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.due_date != null && fieldConf.due_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                 </div>
                 <div>
@@ -402,7 +436,7 @@
                     {$t('tbl.total')}
                     <ConfidenceDot confidence={fieldConf.total_amount} />
                   </div>
-                  <input type="text" name="total_amount" value={str(review.data?.total_amount)} class="num"
+                  <input type="text" name="total_amount" bind:value={totalAmountInput} class="num"
                     aria-describedby={hasDiscrepancy ? 'err-total_amount' : undefined}
                     style="width:100%;font-size:13px;font-weight:{hasDiscrepancy ? 600 : 500};color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:{hasDiscrepancy ? '1px solid var(--mep-warn)' : '1px solid transparent'};border-bottom:{hasDiscrepancy ? '2px solid var(--mep-warn)' : fieldConf.total_amount != null && fieldConf.total_amount < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
                   {#if hasDiscrepancy}
@@ -413,7 +447,7 @@
                 </div>
                 <div>
                   <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></div>
-                  <textarea name="notes" maxlength={250} rows={1}
+                  <textarea name="notes" maxlength={250} rows={1} bind:value={notesInput}
                     placeholder={$t('extract.notesPh')}
                     style="width:100%;font-size:12.5px;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:1px solid var(--mep-divider);outline:none;font-family:var(--mep-font);resize:vertical;"></textarea>
                 </div>

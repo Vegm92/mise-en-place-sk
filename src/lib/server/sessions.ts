@@ -34,26 +34,35 @@ export async function deleteUploadFile(key: string): Promise<void> {
  * @param namespace  Prefix for storage keys, typically the batch ID.
  * @returns saved  Original (display) filenames with a uniqueness suffix.
  * @returns keys   Storage keys (`namespace/filename`) parallel to `saved`.
- * @returns errors Validation errors for rejected files.
+ * @returns errors Validation errors for rejected files. Structured, not prose:
+ *                 the reason is an i18n key the page translates (issue #294),
+ *                 with the filename carried alongside it.
  */
+export interface RejectedUpload {
+	name: string;
+	/** i18n key under upload.reject.* */
+	reason: 'unsupportedType' | 'tooLarge' | 'contentMismatch';
+	ext?: string;
+}
+
 export async function saveUploadedFiles(
 	files: File[],
 	namespace: string,
-): Promise<{ saved: string[]; keys: string[]; errors: string[] }> {
+): Promise<{ saved: string[]; keys: string[]; errors: RejectedUpload[] }> {
 	const storage = getStorage();
 	const saved: string[] = [];
 	const keys: string[] = [];
-	const errors: string[] = [];
+	const errors: RejectedUpload[] = [];
 
 	for (const file of files) {
 		if (!file.name) continue;
 		const ext = path.extname(file.name).toLowerCase();
 		if (!ALLOWED_EXTENSIONS.has(ext)) {
-			errors.push(`'${file.name}': unsupported type '${ext}'`);
+			errors.push({ name: file.name, reason: 'unsupportedType', ext });
 			continue;
 		}
 		if (file.size > MAX_FILE_BYTES) {
-			errors.push(`'${file.name}': exceeds the 20 MB limit`);
+			errors.push({ name: file.name, reason: 'tooLarge' });
 			continue;
 		}
 
@@ -65,7 +74,7 @@ export async function saveUploadedFiles(
 		const buf = Buffer.from(await file.arrayBuffer());
 		const magicCheck = MAGIC_BYTES[ext];
 		if (magicCheck && !magicCheck(buf)) {
-			errors.push(`'${file.name}': file content does not match the declared type`);
+			errors.push({ name: file.name, reason: 'contentMismatch' });
 			continue;
 		}
 		await storage.save(key, buf);

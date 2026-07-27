@@ -36,6 +36,10 @@
         body: JSON.stringify({ message: msg, sessionId }),
       });
       const data = await res.json();
+      if (res.status === 402) {
+        messages = [...messages, { role: 'assistant', text: $t('chat.err.trialExpired') }];
+        return;
+      }
       if (data.sessionId) sessionId = data.sessionId;
       messages = [...messages, {
         role: 'assistant',
@@ -159,6 +163,7 @@
         <button
           onclick={() => sendMessage()}
           disabled={!chatInput.trim() || chatLoading}
+          aria-label={$t('chat.send')}
           class="btn btn-primary flex-shrink-0"
           style="width:34px;height:34px;padding:0;justify-content:center;"
         >
