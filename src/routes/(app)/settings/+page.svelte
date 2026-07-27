@@ -15,6 +15,11 @@
   let deleting = $state(false);
   let deleteError = $state('');
 
+  // Pairing codes expire in minutes (issue #320), so the owner needs the wall
+  // clock, not a date — they are relaying this to someone standing next to them.
+  const formatTime = (at: Date | string) =>
+    new Date(at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
   // Copy the bot number (issue #319). Staff often read it off one phone and
   // type it into another; copying removes the step that goes wrong.
   let botNumberCopied = $state(false);
@@ -263,6 +268,40 @@
           {/if}
 
           {#if data.canManageWhatsapp}
+            <!-- Self-service enrolment (issue #320). The number is captured from
+                 the message, so it cannot be mistyped the way the form below can. -->
+            <div class="wa-pair-block">
+              {#if data.whatsappPairingCode}
+                <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.pairActive')}</p>
+                <p class="wa-pair-code">{data.whatsappPairingCode.code}</p>
+                <p class="body text-fg-3" style="font-size:12px;margin:0;">
+                  {$ti('set.whatsapp.pairExpires', { time: formatTime(data.whatsappPairingCode.expiresAt) })}
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <form method="POST" action="?/generateWhatsappPairingCode">
+                    <button type="submit" class="btn btn-secondary" style="height:28px;font-size:12px;">
+                      {$t('set.whatsapp.pairRegenerate')}
+                    </button>
+                  </form>
+                  <form method="POST" action="?/revokeWhatsappPairingCode">
+                    <button type="submit" class="btn btn-secondary" style="height:28px;font-size:12px;">
+                      {$t('set.whatsapp.pairRevoke')}
+                    </button>
+                  </form>
+                </div>
+              {:else}
+                <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.pairDesc')}</p>
+                <form method="POST" action="?/generateWhatsappPairingCode" class="flex items-center gap-3 flex-wrap">
+                  <input name="name" type="text" maxlength="80"
+                    placeholder={$t('set.whatsapp.namePlaceholder')}
+                    class="input" style="height:32px;font-size:13px;min-width:120px;flex:1;" />
+                  <button type="submit" class="btn btn-secondary" style="height:32px;font-size:12px;">
+                    {$t('set.whatsapp.pairGenerate')}
+                  </button>
+                </form>
+              {/if}
+            </div>
+
             <form method="POST" action="?/addWhatsappContact" class="flex items-center gap-3 flex-wrap">
               <input name="phone" type="tel" required
                 placeholder={$t('set.whatsapp.phonePlaceholder')}
@@ -360,6 +399,26 @@
     padding: 12px;
     border: 1px solid var(--mep-border, #e5e5e5);
     border-radius: 8px;
+  }
+
+  /* Pairing code (issue #320) — read off a screen and typed into a phone, so
+     it is set large, monospaced and widely tracked. */
+  .wa-pair-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px dashed var(--mep-border, #e5e5e5);
+    border-radius: 8px;
+  }
+
+  .wa-pair-code {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--mep-fg-1);
   }
 
   /* The QR is meant to be printed and taped up in the kitchen, so it is sized

@@ -271,6 +271,16 @@ A phone number maps to exactly **one** restaurant (`whatsapp_contacts_phone_uniq
 is global, because the bot resolves the tenant *from* the number); authorising one
 that another location already holds fails with a clear error rather than rebinding it.
 
+**Or use a pairing code** (preferred for new hires). The owner generates a 6-character
+code in the same card; the staff member messages it to the bot from the phone they
+will actually use, and the number is bound from the webhook's `from` field. Nobody
+types a phone number, so the typo failure mode — chef gets "no autorizado" while the
+authorised row looks correct — disappears.
+
+Codes are single-use, expire after 15 minutes, and one is live per restaurant at a
+time. Redemption is rate-limited per sender, and unknown / expired / already-used
+codes all get the same reply, so a guess never reveals whether a code exists.
+
 ### 6. Tell staff where to send invoices
 
 With `WHATSAPP_DISPLAY_NUMBER` set, the same Settings card shows the bot's number,

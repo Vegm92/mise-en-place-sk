@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releaseMock, rateLimitMock, selectQueue, insertQueue } = vi.hoisted(() => {
+const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releaseMock, rateLimitMock, redeemMock, selectQueue, insertQueue } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
 	const insertQueue: unknown[][] = [];
 
@@ -57,6 +57,7 @@ const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releas
 		// Cooldown gate defaults to "allowed" — the real limiter keeps state
 		// across tests, which would make ordering matter.
 		rateLimitMock: vi.fn().mockResolvedValue(true),
+		redeemMock: vi.fn(),
 		selectQueue,
 		insertQueue,
 	};
@@ -74,6 +75,12 @@ vi.mock('../src/lib/server/llm-quota', () => ({
 	releaseMonthlyExtraction: releaseMock,
 }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+// Keep the real normalizeCode: whether a message *looks* like a code is the
+// routing decision under test here, so stubbing it would test nothing.
+vi.mock('../src/lib/server/whatsapp-pairing', async (importActual) => ({
+	...(await importActual<typeof import('../src/lib/server/whatsapp-pairing')>()),
+	redeemPairingCode: redeemMock,
+}));
 vi.mock('@sentry/sveltekit', () => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
 
 import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
@@ -133,6 +140,69 @@ describe('authorisation gate', () => {
 		expect(sendMock).not.toHaveBeenCalled();
 		// Keyed per sender, so one spammer can't silence a different number.
 		expect(rateLimitMock).toHaveBeenCalledWith('whatsapp-unauth:+34699', 1, expect.any(Number));
+	});
+});
+
+describe('pairing-code enrolment (issue #320)', () => {
+	const RESTAURANT = [{ name: 'Casa Lua' }];
+
+	it('enrols an unauthorised number that messages a valid code', async () => {
+		redeemMock.mockResolvedValue({ ok: true, restaurantId: 'rest-1' });
+		queueSelects([], RESTAURANT); // no contact yet, then the restaurant name lookup
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+
+		expect(redeemMock).toHaveBeenCalledWith('+34699', 'A2B3C4');
+		// Confirmed in-chat, naming the venue so the chef knows it worked.
+		expect(repliesText()).toMatch(/Número autorizado/i);
+		expect(repliesText()).toContain('Casa Lua');
+	});
+
+	it('answers unknown, expired and used codes with one indistinguishable message', async () => {
+		redeemMock.mockResolvedValue({ ok: false, reason: 'invalid' });
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		// Nothing here reveals whether the code exists.
+		expect(repliesText()).toMatch(/no es válido o ha caducado/i);
+	});
+
+	it('says nothing at all once the sender has burned its attempt budget', async () => {
+		// "Too many attempts" is itself a signal, and every reply to an
+		// unauthenticated number is billable traffic on our account.
+		redeemMock.mockResolvedValue({ ok: false, reason: 'rateLimited' });
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		expect(sendMock).not.toHaveBeenCalled();
+	});
+
+	it('explains the cross-tenant conflict rather than silently failing', async () => {
+		redeemMock.mockResolvedValue({ ok: false, reason: 'taken' });
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		expect(repliesText()).toMatch(/ya está autorizado en otro local/i);
+	});
+
+	it('leaves ordinary chat from an unknown number on the "no autorizado" path', async () => {
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'buenas, soy Ana' } });
+		expect(redeemMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/no está autorizado/i);
+	});
+
+	it('never treats an authorised sender\'s reply as a code', async () => {
+		// Redemption sits inside the unauthorised branch precisely so a
+		// code-shaped confirmation from a known number can't be hijacked.
+		queueSelects(CONTACT, SESSION);
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		expect(redeemMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/responde \*SÍ\*/i);
+	});
+
+	it('does not treat media from an unknown number as a pairing attempt', async () => {
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'image', image: { id: 'media-1' } });
+		expect(redeemMock).not.toHaveBeenCalled();
+		expect(downloadMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/no está autorizado/i);
 	});
 });
 

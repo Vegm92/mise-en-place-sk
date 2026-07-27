@@ -14,6 +14,7 @@ import { db } from './db';
 import {
 	invoiceLineItems,
 	invoices,
+	restaurants,
 	whatsappBotSessions,
 	whatsappContacts,
 	whatsappProcessedMessages,
@@ -27,6 +28,7 @@ import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { claimMonthlyExtraction, releaseMonthlyExtraction } from './llm-quota';
 import { checkRateLimit } from './rate-limiter';
+import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -81,6 +83,14 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		.limit(1);
 
 	if (contactRows.length === 0) {
+		// An enrolling number is by definition not yet authorised, so pairing is
+		// handled here rather than before the lookup (issue #320) — that way an
+		// already-authorised sender's "SÍ"/"NO" can never be mistaken for a code.
+		if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
+			await handlePairingAttempt(from, msg.text.body);
+			return;
+		}
+
 		// Reply at most once per number per cooldown (issue #322). A wrong number
 		// or a spam contact would otherwise get an answer to every message it
 		// sends, which is unbounded billable traffic from 1 Oct 2026 and poor
@@ -109,6 +119,46 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 			'⚠️ Solo puedo procesar imágenes (JPG, PNG) o documentos PDF de facturas.',
 		);
 	}
+}
+
+// ── Pairing (issue #320) ─────────────────────────────────────────────────────
+
+/**
+ * Redeem a pairing code sent by a not-yet-authorised number.
+ *
+ * Unknown, expired and already-used codes get one identical answer, so a guess
+ * never reveals whether a code exists. Exhausting the per-sender attempt budget
+ * is answered with silence rather than a "too many attempts" message — telling
+ * someone they are being rate-limited is itself a signal, and every reply here
+ * goes to an unauthenticated number at our expense.
+ */
+async function handlePairingAttempt(from: string, body: string): Promise<void> {
+	const result = await redeemPairingCode(from, body);
+
+	if (result.ok) {
+		const [restaurant] = await db
+			.select({ name: restaurants.name })
+			.from(restaurants)
+			.where(eq(restaurants.id, result.restaurantId))
+			.limit(1);
+		await sendWhatsAppMessage(
+			from,
+			`✅ Número autorizado${restaurant?.name ? ` para *${restaurant.name}*` : ''}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
+		);
+		return;
+	}
+
+	if (result.reason === 'rateLimited') return;
+
+	if (result.reason === 'taken') {
+		await sendWhatsAppMessage(
+			from,
+			'⚠️ Este número ya está autorizado en otro local. Pide al administrador que lo dé de baja antes de registrarlo aquí.',
+		);
+		return;
+	}
+
+	await sendWhatsAppMessage(from, '❌ Ese código no es válido o ha caducado. Pide uno nuevo al administrador.');
 }
 
 // ── Media handler ────────────────────────────────────────────────────────────
