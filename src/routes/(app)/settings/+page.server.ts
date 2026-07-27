@@ -9,7 +9,9 @@ import { randomBytes } from 'node:crypto';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
-import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
+import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
+import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
+import { renderQrSvg } from '$lib/server/qr-svg';
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
@@ -22,6 +24,35 @@ const MIN_PASSWORD_LENGTH = 8;
  * number would do nothing, because no webhook is delivering messages.
  */
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
+
+/**
+ * The bot's own number, resolved once at boot (issue #319).
+ *
+ * Authorising a staff number is only half of onboarding — the staff member also
+ * has to know *what number to message*, and nothing in the app ever said. The
+ * QR is the one that matters in practice: it gets printed and stuck in the
+ * kitchen, so nobody types a phone number into a shared handset.
+ *
+ * Null when `WHATSAPP_DISPLAY_NUMBER` is unset or unparseable; the card then
+ * renders its authorisation half exactly as before rather than showing a
+ * broken link.
+ */
+const WHATSAPP_BOT_NUMBER = (() => {
+	if (!WHATSAPP_ENABLED || !WHATSAPP_DISPLAY_NUMBER) return null;
+	const normalized = normalizePhoneNumber(WHATSAPP_DISPLAY_NUMBER);
+	if (!normalized.ok) {
+		console.warn(`[settings] WHATSAPP_DISPLAY_NUMBER is not a usable phone number (${normalized.reason}) — hiding the click-to-chat block`);
+		return null;
+	}
+	const link = waMeLink(normalized.phone);
+	return {
+		display: formatPhoneNumber(normalized.phone),
+		link,
+		// The QR encodes the same wa.me link, so scanning and tapping land in
+		// the same chat. Rendered once at boot — it never varies per tenant.
+		qrSvg: renderQrSvg(link),
+	};
+})();
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
@@ -80,6 +111,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			whatsappEnabled: WHATSAPP_ENABLED,
 			whatsappContacts: whatsappContactRows,
 			canManageWhatsapp: membership[0]?.role === 'owner',
+			// …and where to send those invoices (issue #319).
+			whatsappBotNumber: WHATSAPP_BOT_NUMBER,
 		};
 	});
 };

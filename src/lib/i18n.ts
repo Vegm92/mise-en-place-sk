@@ -229,6 +229,11 @@ export const translations = {
     'set.whatsapp.err.nameTooLong':  'El nombre es demasiado largo.',
     'set.whatsapp.err.notOwner':     'Solo el propietario puede gestionar los números autorizados.',
     'set.whatsapp.err.disabled':     'El bot de WhatsApp no está configurado en este servidor.',
+    // WhatsApp bot — cómo contactar con el bot (issue #319)
+    'set.whatsapp.numberLabel':      'Envía las facturas a este número:',
+    'set.whatsapp.copy':             'Copiar enlace',
+    'set.whatsapp.copied':           '¡Copiado!',
+    'set.whatsapp.qrHint':           'Escanea el código para abrir el chat. Imprímelo y cuélgalo en la cocina.',
     // Profile management (issue #293)
     'set.profile.title':          'Perfil',
     'set.profile.name':           'Nombre',
@@ -1319,6 +1324,11 @@ export const translations = {
     'set.whatsapp.err.nameTooLong':  'That name is too long.',
     'set.whatsapp.err.notOwner':     'Only the owner can manage authorised numbers.',
     'set.whatsapp.err.disabled':     'The WhatsApp bot is not configured on this server.',
+    // WhatsApp bot — how to reach it (issue #319)
+    'set.whatsapp.numberLabel':      'Send invoices to this number:',
+    'set.whatsapp.copy':             'Copy link',
+    'set.whatsapp.copied':           'Copied!',
+    'set.whatsapp.qrHint':           'Scan the code to open the chat. Print it and put it up in the kitchen.',
     // Profile management (issue #293)
     'set.profile.title':          'Profile',
     'set.profile.name':           'Name',

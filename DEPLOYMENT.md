@@ -229,6 +229,9 @@ The test number Meta hands you is fine for wiring the webhook, but it only messa
 3. Verify by SMS/voice, then set the **6-digit two-step-verification PIN** —
    registration requires it, and you need it again for any re-registration.
 4. Copy the **Phone Number ID** (not the phone number) → `WHATSAPP_PHONE_NUMBER_ID`.
+5. Copy the **phone number itself** → `WHATSAPP_DISPLAY_NUMBER` (e.g. `+34 612 345 678`).
+   The Phone Number ID is opaque, so this is the only place the dialable number
+   exists in config — without it Settings cannot tell staff where to send invoices.
 
 ### 3. Permanent access token
 
@@ -267,6 +270,16 @@ field. Unauthorised senders get a "no autorizado" reply and are dropped.
 A phone number maps to exactly **one** restaurant (`whatsapp_contacts_phone_unique`
 is global, because the bot resolves the tenant *from* the number); authorising one
 that another location already holds fails with a clear error rather than rebinding it.
+
+### 6. Tell staff where to send invoices
+
+With `WHATSAPP_DISPLAY_NUMBER` set, the same Settings card shows the bot's number,
+a `wa.me` click-to-chat link, a copy button and a **printable QR code**. Print the
+card and put the QR up in the kitchen — scanning it opens the chat, which beats
+typing a phone number into a shared handset.
+
+Without this step an owner authorises a number, nothing arrives, and there is no
+way to tell whether the bot is broken or the staff simply never messaged it.
 
 ### Graph API version
 
