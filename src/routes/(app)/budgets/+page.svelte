@@ -50,7 +50,7 @@
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
     <!-- Overall progress card -->
-    <div class="card" style="padding:18px 20px;flex-shrink:0;">
+    <div class="card" style="padding:18px 20px;flex-shrink:0;" data-coach="budgets-main">
       <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;">
         <div class="num" style="font-size:32px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.7px;line-height:1;">

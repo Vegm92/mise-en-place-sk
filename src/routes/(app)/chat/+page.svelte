@@ -297,7 +297,7 @@
     </div>
 
     <!-- Privacy note + Input -->
-    <div style="border-top:1px solid var(--mep-divider);background:var(--mep-bg);padding:12px 24px 16px;">
+    <div style="border-top:1px solid var(--mep-divider);background:var(--mep-bg);padding:12px 24px 16px;" data-coach="chat-main">
       <div style="max-width:800px;margin:0 auto;">
         <p style="font-size:10px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{$t('chat.privacy')}</p>
         <div style="display:flex;gap:10px;align-items:center;">

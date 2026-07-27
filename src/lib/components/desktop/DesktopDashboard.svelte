@@ -190,7 +190,7 @@
   {/if}
 
   <!-- ── KPI Strip ───────────────────────────────────────────────────── -->
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1">
+  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1" data-coach="dashboard-main">
     <KpiCard
       label={$t('ddash.monthSpend')}
       value={data.mom.this_month > 0 ? fmtEurCompact(data.mom.this_month) : '—'}
