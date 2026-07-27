@@ -18,7 +18,7 @@
   </div>
 
   {#if data.weekly_digest}
-    <div style="padding:20px 22px;border-radius:10px;background:var(--mep-card);border:1px solid var(--mep-border);border-left:3px solid var(--mep-accent);position:relative;">
+    <div style="padding:20px 22px;border-radius:10px;background:var(--mep-card);border:1px solid var(--mep-border);border-left:3px solid var(--mep-accent);position:relative;" data-coach="digest-main">
       {#if !data.weekly_digest.dismissed}
         <form method="POST" action="?/dismissDigest" style="position:absolute;top:12px;right:12px;">
           <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:4px;line-height:1;" aria-label={$t('a11y.close')}>
@@ -34,7 +34,7 @@
       {/if}
     </div>
   {:else}
-    <div style="padding:24px;border-radius:10px;background:var(--mep-card);border:1px solid var(--mep-border);text-align:center;">
+    <div style="padding:24px;border-radius:10px;background:var(--mep-card);border:1px solid var(--mep-border);text-align:center;" data-coach="digest-main">
       <p style="font-size:13px;color:var(--mep-fg-3);margin:0;">{$t('digest.unavailable')}</p>
     </div>
   {/if}

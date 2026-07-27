@@ -169,7 +169,7 @@
   {/if}
 
   <!-- ── KPI Strip ───────────────────────────────────────────────── -->
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3">
+  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3" data-coach="invoices-main">
     <KpiCard
       label={$t('inv.kpi.pending')}
       value={Math.round(stats.pending_amount) + ' €'}
