@@ -8,7 +8,7 @@ import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { toMonthStr } from '$lib/formatters';
-import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice } from './pack-parser';
 import type { EnrichedLineItem } from './unit-bridge';
@@ -292,8 +292,96 @@ export async function runCategorizationNudge(
 
 	return [{
 		notificationType: 'supplier_uncategorized',
-		message: `Clasifica a '${supplier.name}' para incluir su gasto en presupuestos y análisis por categoría.`,
-		payload: { supplierId, supplierName: supplier.name },
+		// The bell renders `messageKey` through i18n; `message` is the
+		// language-neutral fallback for non-UI consumers (chat context, admin).
+		message: `supplier_uncategorized: ${supplier.name}`,
+		payload: {
+			supplierId,
+			supplierName: supplier.name,
+			messageKey: 'notif.msg.uncategorized',
+			messageVars: { supplier: supplier.name },
+		},
+	}];
+}
+
+/**
+ * Offer a category for a supplier still sitting in the uncategorised bucket
+ * (issue #315).
+ *
+ * A supplier is tagged from extraction only when it is *created*, so one that
+ * was created before this existed — or whose first invoice was too sparse to
+ * classify — stays in the bucket forever, even once a later invoice gives the
+ * model plenty to go on. Rather than silently reclassify it (we cannot tell
+ * "never categorised" apart from a deliberate "leave this in Other"), this
+ * surfaces the guess and lets the owner accept it in one tap.
+ *
+ * One notification per supplier, ever — a suggestion on every invoice would be
+ * nagging. It supersedes the plain `supplier_uncategorized` nudge for the same
+ * supplier: naming a category is strictly more useful than asking for one, so
+ * the older nudge is cleared instead of stacking up next to it.
+ */
+export async function runCategorySuggestion(
+	supplierId: number,
+	restaurantId: string,
+	proposedCategory: string,
+): Promise<Alert[]> {
+	// Nothing to offer: the resolver already collapsed an unusable guess (junk,
+	// translation, low confidence) into the bucket.
+	if (!proposedCategory || proposedCategory === UNCATEGORIZED_CATEGORY) return [];
+	if (!VALID_CATEGORIES.includes(proposedCategory)) return [];
+
+	const tdb = forTenant(restaurantId);
+
+	const [supplier] = await db
+		.select({ name: suppliers.name, category: suppliers.category })
+		.from(suppliers)
+		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
+		.limit(1);
+	if (!supplier) return [];
+	// Only for the bucket (or a legacy NULL). A supplier a human classified is
+	// never second-guessed.
+	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
+
+	// Deduped on the supplier id across both statuses, so a dismissed
+	// suggestion does not come back on the next invoice.
+	const existing = await db
+		.select({ payload: systemNotifications.payload })
+		.from(systemNotifications)
+		.where(and(
+			tdb.scope(systemNotifications.restaurantId),
+			eq(systemNotifications.notificationType, 'supplier_category_suggested'),
+		));
+	for (const row of existing) {
+		try {
+			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
+		} catch { /* malformed payload — treat as no match */ }
+	}
+
+	// Supersede the "please classify" nudge for this supplier.
+	await db
+		.update(systemNotifications)
+		.set({ status: 'sent' })
+		.where(tdb.scope(
+			systemNotifications.restaurantId,
+			and(
+				eq(systemNotifications.notificationType, 'supplier_uncategorized'),
+				eq(systemNotifications.status, 'pending'),
+				sql`${systemNotifications.payload}::json->>'supplierId' = ${String(supplierId)}`,
+			),
+		));
+
+	return [{
+		notificationType: 'supplier_category_suggested',
+		// The bell renders `messageKey` through i18n; `message` is the
+		// language-neutral fallback for non-UI consumers (chat context, admin).
+		message: `supplier_category_suggested: ${supplier.name} -> ${proposedCategory}`,
+		payload: {
+			supplierId,
+			supplierName: supplier.name,
+			suggestedCategory: proposedCategory,
+			messageKey: 'notif.msg.catSuggested',
+			messageVars: { supplier: supplier.name, category: proposedCategory },
+		},
 	}];
 }
 
