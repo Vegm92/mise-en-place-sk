@@ -109,8 +109,9 @@ Leave both unset when the Node process is directly internet-facing.
 | `WHATSAPP_PHONE_NUMBER_ID` | For WhatsApp | Phone Number ID from the same API Setup page. |
 | `WHATSAPP_VERIFY_TOKEN` | For WhatsApp | Any secret string; Meta echoes it when verifying the webhook subscription. |
 | `WHATSAPP_APP_SECRET` | For WhatsApp | App secret (App Dashboard → Settings → Basic). Verifies `X-Hub-Signature-256` on inbound POSTs — **the webhook fails closed without it in production.** |
+| `WHATSAPP_API_VERSION` | No (default `v25.0`) | Graph API version for every Cloud API call. Meta expires each version ~2 years after release and calls to an expired one **fail outright** — check this at every upgrade. |
 
-Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave all four unset to disable the bot.
+Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` unset to disable the bot (the Settings card hides itself too).
 
 ### Rate limiting (Upstash Redis)
 
@@ -200,31 +201,107 @@ prevents edge-case stale-SW bugs after deploys.
 
 ## WhatsApp bot setup
 
-Only needed if you enable the WhatsApp invoice bot (issue #187). All four
+Only needed if you enable the WhatsApp invoice bot (issue #187). All four secret
 `WHATSAPP_*` variables must be set for the webhook to authenticate Meta.
 
-1. **Meta Developer Console** ([developers.facebook.com/apps](https://developers.facebook.com/apps) → your app → WhatsApp → API Setup)
-   - Copy the **Phone Number ID** → `WHATSAPP_PHONE_NUMBER_ID`.
-   - Generate a **permanent system-user token** with `whatsapp_business_messaging` → `WHATSAPP_ACCESS_TOKEN`.
-   - Copy the **App Secret** (Settings → Basic) → `WHATSAPP_APP_SECRET`.
-   - Pick any secret string → `WHATSAPP_VERIFY_TOKEN`.
-2. **Webhook** (WhatsApp → Configuration → Webhook)
+We run **one shared business number** that every restaurant sends invoices to;
+`whatsapp_contacts` maps each sender to its tenant. That means no Embedded Signup
+and no Tech Provider onboarding — the setup below is the whole thing.
+
+### 1. Business portfolio, app, and verification
+
+1. Create a **Meta Business portfolio** at [business.facebook.com](https://business.facebook.com)
+   under the legal entity name (it must match your incorporation documents).
+2. [developers.facebook.com/apps](https://developers.facebook.com/apps) → **Create App**
+   → type **Business** → link it to that portfolio → add the **WhatsApp** product.
+3. Start **business verification** (Business Settings → Security Centre) *now* — it
+   gates production messaging limits and takes days, not minutes.
+
+### 2. Business phone number
+
+The test number Meta hands you is fine for wiring the webhook, but it only messages
+**5 pre-registered recipients** and can never message real users. For production:
+
+1. WhatsApp → API Setup → **Add phone number**. The number **must not already be
+   registered to any WhatsApp or WhatsApp Business app** — delete that account first,
+   or registration fails.
+2. Set the **display name** (Meta reviews it), timezone, category and description.
+3. Verify by SMS/voice, then set the **6-digit two-step-verification PIN** —
+   registration requires it, and you need it again for any re-registration.
+4. Copy the **Phone Number ID** (not the phone number) → `WHATSAPP_PHONE_NUMBER_ID`.
+
+### 3. Permanent access token
+
+The token shown on the API Setup page **expires in 24 h** — never deploy it.
+
+1. Business Settings → **System users** → Add (role: Admin).
+2. **Assign assets** — both of these, or the token authenticates but 403s on send:
+   - your **app** → *Manage app*, full control
+   - your **WhatsApp Business Account** → *Manage WhatsApp business accounts*, full control
+3. **Generate token** → select the app → scope **`whatsapp_business_messaging`** →
+   expiry **Never** → copy once → `WHATSAPP_ACCESS_TOKEN`. It is not retrievable later.
+
+### 4. Webhook
+
+1. App Dashboard → Settings → **Basic** → **App Secret** → `WHATSAPP_APP_SECRET`.
+2. Any random string → `WHATSAPP_VERIFY_TOKEN`.
+3. **Deploy with all four variables set first** — Meta calls the URL synchronously
+   while saving and fails the whole subscription if it doesn't answer.
+4. WhatsApp → Configuration → Webhook → Edit:
    - Callback URL: `https://your-domain.com/api/whatsapp/webhook`
    - Verify token: the value of `WHATSAPP_VERIFY_TOKEN`
-   - Subscribe to the **messages** field.
-3. **Authorise staff numbers.** Only numbers present in `whatsapp_contacts` are
-   answered; everyone else gets an "unauthorised" reply. Phone numbers are E.164
-   **without** the leading `+`:
+   - Public HTTPS with a valid CA certificate; self-signed is rejected.
+5. **Subscribe to the `messages` field.** This is a separate step from saving the
+   URL and is the most commonly missed one — without it Meta verifies the endpoint
+   and then delivers nothing.
 
-   ```sql
-   INSERT INTO whatsapp_contacts (restaurant_id, phone_number, display_name)
-   VALUES ('<restaurant-uuid>', '34612345678', 'Chef García');
-   ```
+For local development, tunnel with `ngrok http 5173` and point the callback there.
 
-**Verify:** `GET /api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=<token>&hub.challenge=test`
-returns `test`; sending an invoice photo from an authorised number replies with
-an extracted summary in ~10 s; replying `SÍ` saves the invoice (it appears in
-`/invoices` noted "📱 Recibida por WhatsApp"), `NO` discards it.
+### 5. Authorise staff numbers
+
+**Settings → "Facturas por WhatsApp"** (owner-only). Numbers are normalised to
+E.164-without-`+` on save, so `+34 612 345 678`, `0034612345678` and `612 345 678`
+all store as `34612345678` — the exact shape Meta puts in the webhook's `from`
+field. Unauthorised senders get a "no autorizado" reply and are dropped.
+
+A phone number maps to exactly **one** restaurant (`whatsapp_contacts_phone_unique`
+is global, because the bot resolves the tenant *from* the number); authorising one
+that another location already holds fails with a clear error rather than rebinding it.
+
+### Graph API version
+
+`WHATSAPP_API_VERSION` (default `v25.0`) sets the version for every Cloud API call.
+Meta expires each version roughly two years after release and **calls to an expired
+version fail outright** — this took the bot down once already when the code pinned
+`v19.0`. Check [Meta's version table](https://developers.facebook.com/docs/graph-api/changelog/versions/)
+at each upgrade and bump the variable; no code change is needed.
+
+### Messaging policy and cost
+
+The bot only ever *replies*, so every message it sends falls inside the **24-hour
+customer service window** the staff member opened by sending a photo — free-form
+text, no pre-approved templates required. Two consequences:
+
+- **From 1 Oct 2026** service messages inside that window become billable at utility
+  rates. The bot sends 2–3 messages per invoice; trim to two before then.
+- Messaging a chef **proactively** more than 24 h after their last message would
+  require an approved **utility template**. None exist in this repo today.
+
+### Verify
+
+```bash
+# Webhook challenge — prints "test"
+curl "https://your-domain.com/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=$WHATSAPP_VERIFY_TOKEN&hub.challenge=test"
+
+# Outbound send
+curl -X POST "https://graph.facebook.com/$WHATSAPP_API_VERSION/$WHATSAPP_PHONE_NUMBER_ID/messages" \
+  -H "Authorization: Bearer $WHATSAPP_ACCESS_TOKEN" -H "Content-Type: application/json" \
+  -d '{"messaging_product":"whatsapp","to":"34612345678","type":"text","text":{"body":"ping"}}'
+```
+
+Then send an invoice photo from an authorised number: a summary comes back in ~10 s;
+replying `SÍ` saves the invoice (it appears in `/invoices` noted "📱 Recibida por
+WhatsApp"), `NO` discards it.
 
 ## CI
 
