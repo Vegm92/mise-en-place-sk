@@ -5,7 +5,8 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { and, asc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { workingDaysUntilDeadline } from '$lib/server/working-days';
-import { markInvoicePaid, acceptInvoice, rejectInvoice } from '$lib/server/invoice-status';
+import { markInvoicePaid, markInvoicesPaidBulk, acceptInvoice, rejectInvoice } from '$lib/server/invoice-status';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
@@ -75,6 +76,15 @@ export const actions: Actions = {
 		const id = Number(data.get('invoiceId'));
 		const ok = await markInvoicePaid(id, locals.restaurantId!);
 		redirect(303, ok ? '/reminders' : '/reminders?conflict=1');
+	},
+
+	bulkPaid: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
+		if (!await checkRateLimit(`bulk:${rid}`, 10)) redirect(303, '/reminders');
+		const data = await request.formData();
+		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
+		await markInvoicesPaidBulk(ids, rid);
+		redirect(303, '/reminders');
 	},
 
 	/** Accept an e-invoice — starts the paid-status obligation clock (RD 238/2026). */

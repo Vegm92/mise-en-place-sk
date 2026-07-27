@@ -25,7 +25,7 @@
   {:else}
 
     <!-- Summary chips -->
-    <div class="flex gap-2 flex-wrap">
+    <div class="flex gap-2 flex-wrap items-center">
       {#if data.overdue.length}
         <div class="card px-3 py-2 bg-neg-soft border-neg" style="font-size:13px;">
           <strong class="text-neg">{data.overdue.length}</strong>
@@ -40,6 +40,15 @@
         <span class="text-fg-2">{$t('rem.totalPending')}:</span>
         <strong class="text-fg num"> {Math.round(data.total_amount)} EUR</strong>
       </div>
+
+      <form method="post" action="?/bulkPaid" class="ml-auto">
+        {#each [...data.overdue, ...data.due_soon] as r (r.id)}
+          <input type="hidden" name="invoice_ids" value={r.id} />
+        {/each}
+        <button type="submit" class="btn btn-ghost text-pos" style="height:32px;font-size:12px;gap:4px;">
+          <Check size={12} />{$t('rem.markAllPaid')}
+        </button>
+      </form>
     </div>
 
     <!-- Overdue section -->
