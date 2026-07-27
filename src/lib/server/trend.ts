@@ -98,12 +98,16 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 	const keys = bucketDates.map(d => granularity === 'monthly' ? monthKeyStr(d) : isoDate(d));
 
 	const keyExpr = granularity === 'daily' ? dayKey : granularity === 'monthly' ? monthKey : weekKey;
-	const rows = await db
-		// Uncategorised spend lands in the same 'Other' bucket the budget check
-		// and the budgets page use, instead of a third NULL segment (issue #301).
+	// Group on the raw column and fold NULL into the sentinel in TS below.
+	// Doing the COALESCE in SQL meant writing it in both SELECT and GROUP BY,
+	// and Drizzle binds the sentinel as a fresh parameter each time — Postgres
+	// matches GROUP BY expressions syntactically, saw COALESCE(x,$1) next to
+	// COALESCE(x,$4), and rejected the whole query ("column suppliers.category
+	// must appear in the GROUP BY clause"), 500ing the dashboard.
+	const groupedRows = await db
 		.select({
 			key: keyExpr,
-			category: sql<string>`COALESCE(${suppliers.category}, ${UNCATEGORIZED_CATEGORY})`,
+			category: suppliers.category,
 			amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`,
 		})
 		.from(invoices)
@@ -113,8 +117,34 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 			isNull(invoices.deletedAt),
 			sql`(${invoices.invoiceDate})::date >= ${clampedStart}::date`,
 		))
-		.groupBy(keyExpr, sql`COALESCE(${suppliers.category}, ${UNCATEGORIZED_CATEGORY})`)
+		.groupBy(keyExpr, suppliers.category)
 		.orderBy(keyExpr);
+
+	// Uncategorised spend lands in the same 'Other' bucket the budget check and
+	// the budgets page use, instead of a third NULL segment (issue #301). NULL
+	// and a supplier filed explicitly under 'Other' are separate groups coming
+	// out of SQL, so merge them here or the chart renders 'Other' twice.
+	type TrendRow = { key: string; category: string; amount: number };
+	const rows: TrendRow[] = [];
+	// Nested rather than a composite string key: a category is free text, so any
+	// separator would need proving it can never appear inside one.
+	const byBucket = new Map<string, Map<string, TrendRow>>();
+	for (const row of groupedRows) {
+		const category = row.category ?? UNCATEGORIZED_CATEGORY;
+		let bucket = byBucket.get(row.key);
+		if (!bucket) {
+			bucket = new Map();
+			byBucket.set(row.key, bucket);
+		}
+		const existing = bucket.get(category);
+		if (existing) {
+			existing.amount += Number(row.amount);
+		} else {
+			const merged: TrendRow = { key: row.key, category, amount: Number(row.amount) };
+			bucket.set(category, merged);
+			rows.push(merged);
+		}
+	}
 
 	const spansMultipleYears = startDate.getFullYear() !== today.getFullYear();
 

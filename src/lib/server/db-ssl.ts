@@ -17,6 +17,13 @@
  *
  * Reads `process.env` directly so the worker can import it without Vite —
  * process.env is equivalent to $env/dynamic/private under adapter-node.
+ *
+ * A local/ephemeral Postgres (CI service container, `docker compose` for
+ * local dev) is never configured with TLS, so requesting SSL against it just
+ * resets the connection ("Client network socket disconnected before secure
+ * TLS connection was established"). `drizzle.config.ts` and the test-db
+ * helper already special-case this by host; this does the same so the app's
+ * own db/worker clients agree with migrations and tests.
  */
 import { readFileSync } from 'node:fs';
 
@@ -30,7 +37,10 @@ function readCa(value: string): string {
 	return value.includes('-----BEGIN') ? value : readFileSync(value, 'utf-8');
 }
 
-export function pgSslConfig(env: NodeJS.ProcessEnv = process.env): PgSslConfig {
+export function pgSslConfig(env: NodeJS.ProcessEnv = process.env): PgSslConfig | false {
+	const url = env.DATABASE_POOL_URL ?? env.DATABASE_URL ?? '';
+	if (/localhost|127\.0\.0\.1/.test(url)) return false;
+
 	const mode = env.DATABASE_SSL_MODE ?? 'require';
 	const caSource = env.DATABASE_CA_CERT ?? '';
 

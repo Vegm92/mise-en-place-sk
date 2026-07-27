@@ -27,8 +27,8 @@
 		"db:backfill-products": "vite-node --config vite.worker.config.ts src/backfill-products.ts",
 		"worker": "vite-node --config vite.worker.config.ts src/worker.ts",
 		"worker:prod": "node build/worker.js",
-		"lint:no-sql-raw": "bash -c 'if grep -rn --include=\"*.ts\" --include=\"*.svelte\" \"sql\\.raw(\" src/; then echo \"Error: sql.raw() is banned — use parameterized sql\\`...\\` templates instead\" >&2 && exit 1; fi'",
-		"lint:tenant-scope": "bash -c 'if grep -rn --include=\"*.ts\" \"eq([a-zA-Z]*\\.restaurantId,\" src/routes/ src/lib/server/ | grep -v \"/admin/\" | grep -v \"tenant.ts\"; then echo \"Error: raw eq(*.restaurantId,...) found — use forTenant().scope() instead (ADR-001 / issue #138)\" >&2 && exit 1; fi'",
+		"lint:no-sql-raw": "bash -c 'if grep -rn --include=\"*.ts\" --include=\"*.svelte\" \"sql\\.raw(\" src/; then echo \"Error: sql.raw() is banned \u2014 use parameterized sql\\`...\\` templates instead\" >&2 && exit 1; fi'",
+		"lint:tenant-scope": "bash -c 'if grep -rn --include=\"*.ts\" \"eq([a-zA-Z]*\\.restaurantId,\" src/routes/ src/lib/server/ | grep -v \"/admin/\" | grep -v \"tenant.ts\"; then echo \"Error: raw eq(*.restaurantId,...) found \u2014 use forTenant().scope() instead (ADR-001 / issue #138)\" >&2 && exit 1; fi'",
 		"icons:generate": "node scripts/generate-pwa-icons.mjs"
 	},
 	"devDependencies": {
@@ -38,7 +38,7 @@
 		"@tailwindcss/vite": "^4.3.2",
 		"@types/node": "^25.9.5",
 		"@vitest/coverage-v8": "^3.2.7",
-		"concurrently": "^10.0.3",
+		"concurrently": "^10.0.4",
 		"drizzle-kit": "^0.31.10",
 		"nunjucks": "^3.2.4",
 		"playwright": "^1.61.1",
@@ -70,7 +70,7 @@
 		"dotenv": "^17.4.2",
 		"drizzle-orm": "^0.45.2",
 		"exceljs": "^4.4.0",
-		"fast-xml-parser": "^5.9.3",
+		"fast-xml-parser": "^5.10.1",
 		"pg-boss": "^12.25.1",
 		"postgres": "^3.4.9",
 		"resend": "^6.17.2",
@@ -78,5 +78,16 @@
 		"tailwind-merge": "^3.6.0",
 		"tailwind-variants": "^3.2.2",
 		"unpdf": "^1.8.0"
+	},
+	"pnpm": {
+		"overrides": {
+			"cookie@0.6.0": "^0.7.2",
+			"uuid@8.3.2": "^11.1.1",
+			"postcss@<8.5.18": "^8.5.18",
+			"brace-expansion@<5.0.8": "^5.0.8",
+			"esbuild@<0.25.0": "^0.25.0",
+			"fast-uri@<3.1.4": "^3.1.4",
+			"shell-quote@<1.9.0": "^1.9.0"
+		}
 	}
 }
