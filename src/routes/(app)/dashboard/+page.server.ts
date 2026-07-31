@@ -382,16 +382,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			payload: a.payload ? JSON.parse(a.payload) as Record<string, unknown> : null,
 		}));
 
-		type DashAlert = { id: string; sev: 'high' | 'med' | 'low'; kind: 'price' | 'budget' | 'due' | 'info'; text: string; detail: string; when: string; payload?: Record<string, unknown> | null };
+		type DashAlert = { id: string; sev: 'high' | 'med' | 'low'; kind: 'price' | 'budget' | 'due' | 'info'; text: string; detail: string; when: string; payload?: Record<string, unknown> | null; messageKey?: string; messageVars?: Record<string, string | number> };
 		const dashboardAlerts: DashAlert[] = ([
 			...priceShockAlerts.map((a) => {
 				const p = a.payload as { ingredient?: string; supplier?: string; oldPrice?: number; newPrice?: number; deviationPct?: number } | null;
 				const pct = p?.deviationPct != null ? Math.abs(p.deviationPct) : null;
-				const dir = p?.deviationPct != null && p.deviationPct > 0 ? 'subió' : 'bajó';
+				const up = p?.deviationPct != null && p.deviationPct > 0;
 				return {
 					id: `ps-${a.id}`, sev: 'high' as const, kind: 'price' as const,
-					text: p?.ingredient ? `${p.ingredient} ${dir} un ${pct}%` : a.message.replace(/^⚠️\s*/, ''),
-					detail: p?.supplier ?? '', when: relativeTime(a.createdAt), payload: a.payload,
+					text: a.message, detail: p?.supplier ?? '', when: relativeTime(a.createdAt), payload: a.payload,
+					messageKey: p?.ingredient ? (up ? 'dash.alert.priceShockUp' : 'dash.alert.priceShockDown') : undefined,
+					messageVars: p?.ingredient ? { ingredient: p.ingredient, pct: pct ?? 0 } : undefined,
 				};
 			}),
 			...(budgetAlertRows as AlertRow[]).map((a) => {
@@ -399,8 +400,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				const isExceeded = p?.level === 'exceeded';
 				return {
 					id: `ba-${a.id}`, sev: isExceeded ? 'high' as const : 'med' as const, kind: 'budget' as const,
-					text: p?.category ? `${p.category} al ${p.pct}% del presupuesto mensual` : a.message.replace(/^[🔴🟡]\s*/, ''),
-					detail: '', when: relativeTime(a.createdAt), payload: p,
+					text: a.message, detail: '', when: relativeTime(a.createdAt), payload: p,
+					messageKey: p?.category ? 'dash.alert.budgetPct' : undefined,
+					messageVars: p?.category ? { category: p.category, pct: p.pct ?? 0 } : undefined,
 				};
 			}),
 		] as DashAlert[]).sort((a, b) => {
