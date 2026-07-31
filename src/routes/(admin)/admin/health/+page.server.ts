@@ -4,6 +4,12 @@ import { db } from '$lib/server/db';
 import { and, inArray, lt, sql } from 'drizzle-orm';
 import { batchItems } from '$lib/server/schema';
 import { env } from '$env/dynamic/private';
+import {
+	contactsPerTenant,
+	getNumberHealth,
+	recentAccountEvents,
+	type NumberHealth,
+} from '$lib/server/whatsapp-health';
 
 // A worker that died leaves items stuck in queued/extracting. Warn on any
 // item stuck past this; error past the count threshold (issue #257).
@@ -74,6 +80,41 @@ export const load: PageServerLoad = async () => {
 		}
 	}
 
+	// Shared WhatsApp number (issue #321). One WABA serves every tenant, so a
+	// quality downgrade or restriction stops ingest for the whole customer base
+	// at once — it belongs on the same page as the worker and the database.
+	let whatsapp: {
+		health: NumberHealth;
+		events: Awaited<ReturnType<typeof recentAccountEvents>>;
+		tenants: Awaited<ReturnType<typeof contactsPerTenant>>;
+	} | null = null;
+	if (dbOk) {
+		try {
+			const [health, events, tenants] = await Promise.all([
+				getNumberHealth(),
+				recentAccountEvents(),
+				contactsPerTenant(),
+			]);
+			whatsapp = { health, events, tenants };
+			checks.push({
+				name: 'WhatsApp number',
+				// Never reported is not the same as healthy — it means the
+				// account-level webhook fields are not subscribed yet, so a
+				// downgrade would arrive as silence.
+				status: !health.everReported
+					? 'warn'
+					: health.severity === 'critical' ? 'error' : health.severity === 'warning' ? 'warn' : 'ok',
+				detail: !health.everReported
+					? 'No account events received — subscribe to account_update / phone_number_quality_update'
+					: `Quality ${health.qualityRating ?? 'unknown'}`
+						+ (health.messagingLimit ? `, limit ${health.messagingLimit}` : '')
+						+ (health.lastEvent ? ` · last: ${health.lastEvent}` : ''),
+			});
+		} catch (e) {
+			checks.push({ name: 'WhatsApp number', status: 'warn', detail: `Check failed: ${String(e)}` });
+		}
+	}
+
 	// Required env vars
 	const requiredVars = [
 		'DATABASE_URL',
@@ -102,6 +143,7 @@ export const load: PageServerLoad = async () => {
 		overallStatus,
 		checks,
 		tableCounts,
+		whatsapp,
 		checkedAt: new Date().toISOString(),
 	};
 };

@@ -26,5 +26,10 @@ export const WHATSAPP_APP_SECRET      = process.env.WHATSAPP_APP_SECRET      ?? 
 // so this is env-tunable: bumping it must not require a code change (and the
 // default must be reviewed at each upgrade). See DEPLOYMENT.md.
 export const WHATSAPP_API_VERSION     = process.env.WHATSAPP_API_VERSION     ?? 'v25.0';
+// The bot's own number, in a dialable form — this is what staff must message,
+// and nothing else in the config carries it: WHATSAPP_PHONE_NUMBER_ID is an
+// opaque Meta id. Without it the app cannot tell anyone where to send invoices
+// (issue #319). Any input format works; it is normalised on read.
+export const WHATSAPP_DISPLAY_NUMBER  = process.env.WHATSAPP_DISPLAY_NUMBER  ?? '';
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');

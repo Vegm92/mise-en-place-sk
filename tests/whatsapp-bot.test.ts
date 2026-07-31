@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue, insertQueue } = vi.hoisted(() => {
+const { dbMock, sendMock, downloadMock, extractMock, saveMock, claimMock, releaseMock, rateLimitMock, redeemMock, selectQueue, insertQueue } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
 	const insertQueue: unknown[][] = [];
 
@@ -51,6 +51,13 @@ const { dbMock, sendMock, downloadMock, extractMock, saveMock, selectQueue, inse
 		downloadMock: vi.fn(),
 		extractMock: vi.fn(),
 		saveMock: vi.fn().mockResolvedValue(undefined),
+		// Quota gate defaults to "slot granted" so the existing flows are unaffected.
+		claimMock: vi.fn().mockResolvedValue({ claimed: true }),
+		releaseMock: vi.fn().mockResolvedValue(undefined),
+		// Cooldown gate defaults to "allowed" — the real limiter keeps state
+		// across tests, which would make ordering matter.
+		rateLimitMock: vi.fn().mockResolvedValue(true),
+		redeemMock: vi.fn(),
 		selectQueue,
 		insertQueue,
 	};
@@ -63,6 +70,18 @@ vi.mock('../src/lib/server/whatsapp', () => ({
 }));
 vi.mock('../src/lib/server/extract', () => ({ extractWithProvider: extractMock }));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: saveMock }) }));
+vi.mock('../src/lib/server/llm-quota', () => ({
+	claimMonthlyExtraction: claimMock,
+	releaseMonthlyExtraction: releaseMock,
+}));
+vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+// Keep the real normalizeCode: whether a message *looks* like a code is the
+// routing decision under test here, so stubbing it would test nothing.
+vi.mock('../src/lib/server/whatsapp-pairing', async (importActual) => ({
+	...(await importActual<typeof import('../src/lib/server/whatsapp-pairing')>()),
+	redeemPairingCode: redeemMock,
+}));
+vi.mock('@sentry/sveltekit', () => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
 
 import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
 
@@ -84,6 +103,8 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	selectQueue.length = 0;
 	insertQueue.length = 0;
+	claimMock.mockResolvedValue({ claimed: true });
+	rateLimitMock.mockResolvedValue(true);
 });
 
 describe('message-id dedup (issue #245)', () => {
@@ -111,6 +132,78 @@ describe('authorisation gate', () => {
 		expect(repliesText()).toMatch(/no está autorizado/i);
 		expect(dbMock.update).not.toHaveBeenCalled();
 	});
+
+	it('stays quiet when the same unknown number messages again inside the cooldown (issue #322)', async () => {
+		rateLimitMock.mockResolvedValue(false); // cooldown already spent for this number
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm2', type: 'text', text: { body: 'hola?' } });
+		expect(sendMock).not.toHaveBeenCalled();
+		// Keyed per sender, so one spammer can't silence a different number.
+		expect(rateLimitMock).toHaveBeenCalledWith('whatsapp-unauth:+34699', 1, expect.any(Number));
+	});
+});
+
+describe('pairing-code enrolment (issue #320)', () => {
+	const RESTAURANT = [{ name: 'Casa Lua' }];
+
+	it('enrols an unauthorised number that messages a valid code', async () => {
+		redeemMock.mockResolvedValue({ ok: true, restaurantId: 'rest-1' });
+		queueSelects([], RESTAURANT); // no contact yet, then the restaurant name lookup
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+
+		expect(redeemMock).toHaveBeenCalledWith('+34699', 'A2B3C4');
+		// Confirmed in-chat, naming the venue so the chef knows it worked.
+		expect(repliesText()).toMatch(/Número autorizado/i);
+		expect(repliesText()).toContain('Casa Lua');
+	});
+
+	it('answers unknown, expired and used codes with one indistinguishable message', async () => {
+		redeemMock.mockResolvedValue({ ok: false, reason: 'invalid' });
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		// Nothing here reveals whether the code exists.
+		expect(repliesText()).toMatch(/no es válido o ha caducado/i);
+	});
+
+	it('says nothing at all once the sender has burned its attempt budget', async () => {
+		// "Too many attempts" is itself a signal, and every reply to an
+		// unauthenticated number is billable traffic on our account.
+		redeemMock.mockResolvedValue({ ok: false, reason: 'rateLimited' });
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		expect(sendMock).not.toHaveBeenCalled();
+	});
+
+	it('explains the cross-tenant conflict rather than silently failing', async () => {
+		redeemMock.mockResolvedValue({ ok: false, reason: 'taken' });
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		expect(repliesText()).toMatch(/ya está autorizado en otro local/i);
+	});
+
+	it('leaves ordinary chat from an unknown number on the "no autorizado" path', async () => {
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'buenas, soy Ana' } });
+		expect(redeemMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/no está autorizado/i);
+	});
+
+	it('never treats an authorised sender\'s reply as a code', async () => {
+		// Redemption sits inside the unauthorised branch precisely so a
+		// code-shaped confirmation from a known number can't be hijacked.
+		queueSelects(CONTACT, SESSION);
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
+		expect(redeemMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/responde \*SÍ\*/i);
+	});
+
+	it('does not treat media from an unknown number as a pairing attempt', async () => {
+		queueSelects([]);
+		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'image', image: { id: 'media-1' } });
+		expect(redeemMock).not.toHaveBeenCalled();
+		expect(downloadMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/no está autorizado/i);
+	});
 });
 
 describe('message type routing (authorised contact)', () => {
@@ -128,6 +221,80 @@ describe('message type routing (authorised contact)', () => {
 		// Guarded before any download/extraction happens.
 		expect(downloadMock).not.toHaveBeenCalled();
 		expect(extractMock).not.toHaveBeenCalled();
+		// …and before the quota claim, so a rejected duplicate never burns a slot.
+		expect(claimMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('plan quota gate (issue #318)', () => {
+	/** Drive a media upload from an authorised contact with no pending session. */
+	async function sendImage() {
+		queueSelects(CONTACT, []); // contact, then no pending session
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+	}
+
+	it('refuses to extract once the monthly plan quota is exhausted', async () => {
+		claimMock.mockResolvedValue({ claimed: false, reason: 'monthly_plan_limit', limit: 50 });
+		await sendImage();
+
+		// The whole point: no Gemini spend on a tenant that is over its cap.
+		expect(extractMock).not.toHaveBeenCalled();
+		expect(downloadMock).not.toHaveBeenCalled();
+		// The sender gets a clear answer rather than silence, naming the limit.
+		expect(repliesText()).toMatch(/límite de facturas de tu plan/i);
+		expect(repliesText()).toContain('50');
+		// Nothing was claimed, so nothing to give back.
+		expect(releaseMock).not.toHaveBeenCalled();
+	});
+
+	it('claims a slot before extracting and keeps it when extraction succeeds', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		extractMock.mockResolvedValue({ invoice: { supplier_name: 'Frutas Paco', total_amount: 42 } });
+		await sendImage();
+
+		expect(claimMock).toHaveBeenCalledWith('rest-1');
+		expect(extractMock).toHaveBeenCalled();
+		expect(releaseMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/Frutas Paco/);
+	});
+
+	it('releases the slot when extraction fails', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		extractMock.mockRejectedValue(new Error('gemini exploded'));
+		await sendImage();
+
+		expect(releaseMock).toHaveBeenCalledWith('rest-1');
+		expect(repliesText()).toMatch(/No he podido leer la factura/i);
+	});
+
+	it('releases the slot when the media download fails', async () => {
+		downloadMock.mockRejectedValue(new Error('404 from Meta'));
+		await sendImage();
+
+		expect(releaseMock).toHaveBeenCalledWith('rest-1');
+		expect(extractMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('outbound message budget (issue #322)', () => {
+	it('answers a successfully extracted invoice with the summary alone', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		extractMock.mockResolvedValue({ invoice: { supplier_name: 'Frutas Paco', total_amount: 42 } });
+		queueSelects(CONTACT, []); // contact, then no pending session
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+
+		// One message, not two: the "procesando…" ack is gone, so a saved invoice
+		// costs two outbound messages in total (this summary + the save receipt).
+		expect(sendMock).toHaveBeenCalledTimes(1);
+		expect(repliesText()).not.toMatch(/procesando/i);
+		expect(repliesText()).toMatch(/¿Confirmas esta factura\?/);
+	});
+
+	it('sends nothing extra on the error paths either', async () => {
+		downloadMock.mockRejectedValue(new Error('404 from Meta'));
+		queueSelects(CONTACT, []);
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+		expect(sendMock).toHaveBeenCalledTimes(1);
 	});
 });
 

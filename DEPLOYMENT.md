@@ -229,6 +229,9 @@ The test number Meta hands you is fine for wiring the webhook, but it only messa
 3. Verify by SMS/voice, then set the **6-digit two-step-verification PIN** —
    registration requires it, and you need it again for any re-registration.
 4. Copy the **Phone Number ID** (not the phone number) → `WHATSAPP_PHONE_NUMBER_ID`.
+5. Copy the **phone number itself** → `WHATSAPP_DISPLAY_NUMBER` (e.g. `+34 612 345 678`).
+   The Phone Number ID is opaque, so this is the only place the dialable number
+   exists in config — without it Settings cannot tell staff where to send invoices.
 
 ### 3. Permanent access token
 
@@ -254,6 +257,11 @@ The token shown on the API Setup page **expires in 24 h** — never deploy it.
 5. **Subscribe to the `messages` field.** This is a separate step from saving the
    URL and is the most commonly missed one — without it Meta verifies the endpoint
    and then delivers nothing.
+6. **Also subscribe to `account_update` and `phone_number_quality_update`.** These
+   deliver quality downgrades, flags and restrictions (see the runbook below).
+   Without them a degraded number is discovered from support tickets. The webhook
+   records every non-message field it receives; `/admin/health` shows "no account
+   events received" until they are subscribed, which is a warning, not a pass.
 
 For local development, tunnel with `ngrok http 5173` and point the callback there.
 
@@ -268,6 +276,26 @@ A phone number maps to exactly **one** restaurant (`whatsapp_contacts_phone_uniq
 is global, because the bot resolves the tenant *from* the number); authorising one
 that another location already holds fails with a clear error rather than rebinding it.
 
+**Or use a pairing code** (preferred for new hires). The owner generates a 6-character
+code in the same card; the staff member messages it to the bot from the phone they
+will actually use, and the number is bound from the webhook's `from` field. Nobody
+types a phone number, so the typo failure mode — chef gets "no autorizado" while the
+authorised row looks correct — disappears.
+
+Codes are single-use, expire after 15 minutes, and one is live per restaurant at a
+time. Redemption is rate-limited per sender, and unknown / expired / already-used
+codes all get the same reply, so a guess never reveals whether a code exists.
+
+### 6. Tell staff where to send invoices
+
+With `WHATSAPP_DISPLAY_NUMBER` set, the same Settings card shows the bot's number,
+a `wa.me` click-to-chat link, a copy button and a **printable QR code**. Print the
+card and put the QR up in the kitchen — scanning it opens the chat, which beats
+typing a phone number into a shared handset.
+
+Without this step an owner authorises a number, nothing arrives, and there is no
+way to tell whether the bot is broken or the staff simply never messaged it.
+
 ### Graph API version
 
 `WHATSAPP_API_VERSION` (default `v25.0`) sets the version for every Cloud API call.
@@ -280,12 +308,68 @@ at each upgrade and bump the variable; no code change is needed.
 
 The bot only ever *replies*, so every message it sends falls inside the **24-hour
 customer service window** the staff member opened by sending a photo — free-form
-text, no pre-approved templates required. Two consequences:
+text, no pre-approved templates required. Three consequences:
 
 - **From 1 Oct 2026** service messages inside that window become billable at utility
-  rates. The bot sends 2–3 messages per invoice; trim to two before then.
+  rates, and under the shared number that cost is ours, not the tenant's.
+- A successfully saved invoice costs **2 outbound messages**: the extracted summary
+  (which is also the confirmation prompt) and the save receipt. Both are load-bearing.
+  The "⏳ Procesando…" ack was removed in #322 — WhatsApp already shows the photo as
+  delivered and the summary lands in ~10 s. Keep this at two; each extra reply is
+  per-invoice COGS that scales with ingest volume.
 - Messaging a chef **proactively** more than 24 h after their last message would
   require an approved **utility template**. None exist in this repo today.
+
+Unknown senders are answered **at most once every 6 hours** per number
+(`UNAUTHORIZED_REPLY_COOLDOWN_S` in `whatsapp-bot.ts`). A wrong number or a spam
+contact would otherwise get a billable reply to every message it sends.
+
+### Runbook: degraded or restricted number
+
+We operate **one** WhatsApp Business number for every tenant — restaurants are
+resolved from the sender's number via `whatsapp_contacts`. This is the right model
+for this market (per-tenant numbers would require every restaurant to hold a spare
+number and pass Meta business verification), but it concentrates a shared
+reputation risk:
+
+- Meta tracks a **quality rating** per business phone number, driven largely by
+  user **blocks and reports**. Blocks caused by one restaurant's staff degrade the
+  rating for **all** tenants.
+- A sufficiently degraded number can be flagged and then **restricted**. When that
+  happens, WhatsApp ingest stops for every tenant simultaneously.
+- Throughput is not the binding constraint: the bot only ever *replies*, inside the
+  24-hour service window, so business-initiated messaging-tier limits mostly do not
+  apply. The exposure is reputational.
+
+**Where to look**
+
+| Surface | What it tells you |
+|---|---|
+| `/admin/health` → "WhatsApp number health" | Current quality rating, messaging tier, worst event in the last 30 days, and the event timeline |
+| `/admin/health` → "Authorised senders per tenant" | Which tenant to talk to if blocks spike |
+| Sentry, `whatsapp.account_health` | Warning/critical events, delivered rather than discovered |
+| WhatsApp Manager → the number's quality rating | Meta's own view; the source of truth |
+
+**If the rating drops (YELLOW / FLAGGED)**
+
+1. Treat it as an incident, not a metric — this is a leading indicator of a
+   restriction that takes ingest down for everyone.
+2. Check "Authorised senders per tenant" for a tenant whose volume is out of line
+   with the rest; that owner can de-authorise numbers in their own Settings.
+3. Confirm the bot is still only replying to inbound messages. It never initiates,
+   which is the main protection against blocks — any change there is suspect.
+
+**If the number is restricted or banned (RED / ACCOUNT_RESTRICTION)**
+
+1. Ingest is down for every tenant. Tell customers to use the web uploader; that
+   path is unaffected.
+2. Open the appeal in WhatsApp Manager / Business Support Home. Restrictions are
+   time-boxed; violations are not.
+3. Do **not** register a replacement number as a workaround before appealing —
+   re-registration needs the two-step-verification PIN, and a second number
+   inherits none of the first one's standing.
+4. Once the notice clears, confirm recovery on `/admin/health`: an `UNFLAGGED` or
+   `GREEN` event lands as `info` and clears the badge after the 30-day window.
 
 ### Verify
 
