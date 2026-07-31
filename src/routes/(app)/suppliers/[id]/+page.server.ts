@@ -104,6 +104,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	const rawTab = url.searchParams.get('tab');
 	const initialTab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : 'resumen';
+	const initialIngredient = url.searchParams.get('ingredient') ?? '';
+	const initialPurchaseUnit = url.searchParams.get('purchase_unit') ?? '';
 
 	return {
 		supplier,
@@ -114,6 +116,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		conversions,
 		products,
 		initialTab,
+		initialIngredient,
+		initialPurchaseUnit,
 	};
 };
 
