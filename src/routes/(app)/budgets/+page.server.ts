@@ -37,7 +37,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const category_spend: Record<string, number> = {};
 		for (const row of spendRows) category_spend[String(row.category)] = Number(row.total);
 
-		// Include any custom categories already stored in the DB for this restaurant
 		const storedCats = rows.map(r => r.category);
 		const categories = [
 			...VALID_CATEGORIES,
@@ -63,16 +62,12 @@ export const actions: Actions = {
 		const tdb = forTenant(rid);
 		const data = await request.formData();
 
-		// Only the current month can ever be edited — a past-month submission
-		// (e.g. a stale tab left open across a month boundary) is rejected here
-		// rather than trusted from the client, which only hides the Save button.
 		const currentMonth = toMonthStr(new Date());
 		const submittedMonth = String(data.get('_month') ?? '');
 		if (submittedMonth !== currentMonth) {
 			return fail(403, { error: 'Only the current month can be edited.' });
 		}
 
-		// Categories list is passed from the form so new custom ones are included
 		let categories: string[];
 		try {
 			const raw = String(data.get('_categories') ?? '');

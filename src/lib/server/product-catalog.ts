@@ -1,23 +1,3 @@
-/**
- * Product catalog resolution (issue #298, Phase 2).
- *
- * Maps each invoice line's raw description to a per-tenant product, so
- * downstream features can group on a stable product_id instead of the exact
- * string a supplier happened to print.
- *
- * Resolution per unique normalized key (mep_norm_key / normalizeProductKey):
- *   1. Confirmed alias with the same raw_key      → link (status 'exact').
- *   2. pg_trgm-similar existing product ≥ FUZZY_THRESHOLD
- *                                                 → link + pending 'fuzzy'
- *                                                   alias (status 'fuzzy').
- *   3. Otherwise                                  → create product + confirmed
- *                                                   'exact' alias (status 'created').
- *
- * A line is therefore always linked to some product; the fuzzy case additionally
- * records a suggestion the review UI can confirm or reject. Runs inside the save
- * transaction so the products/aliases and the line_items.product_id commit
- * atomically with the invoice.
- */
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import type { BatchDb } from './batch-core';
@@ -27,16 +7,11 @@ import { expandAbbreviations } from './product-dictionary';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
-// Trigram similarity above which two product names are treated as "probably the
-// same product, ask the user". 0.42 is deliberately conservative: high enough
-// to avoid noise, low enough to catch abbreviations/typos like
-// "tomate pera" vs "tomate pera roja". Tunable; keep in sync with tests.
 export const FUZZY_THRESHOLD = 0.42;
 
 export interface ResolvedLine {
 	productId: number;
 	status: 'exact' | 'fuzzy' | 'created';
-	/** Present when status === 'fuzzy': the existing product we auto-linked to. */
 	suggestion?: { candidateName: string; score: number };
 }
 
@@ -46,12 +21,6 @@ interface LineInput {
 	category?: string | null;
 }
 
-/**
- * Resolve a batch of lines to product ids. Returns a map keyed by the RAW
- * (untrimmed-but-as-passed) description string so callers can look results up
- * by the same value they passed in. Lines whose normalized key is empty are
- * skipped (absent from the map).
- */
 export async function resolveLineProducts(
 	tx: BatchDb,
 	restaurantId: string,
@@ -60,8 +29,6 @@ export async function resolveLineProducts(
 ): Promise<Map<string, ResolvedLine>> {
 	const out = new Map<string, ResolvedLine>();
 
-	// De-dup by normalized key so a repeated description resolves once; keep the
-	// first raw spelling/unit/category seen for display + product creation.
 	const byKey = new Map<string, { raw: string; key: string; unit: string | null; category: string | null }>();
 	for (const line of lines) {
 		const raw = (line.description ?? '').trim();
@@ -80,7 +47,6 @@ export async function resolveLineProducts(
 
 	for (const { raw, key, unit, category } of byKey.values()) {
 		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category);
-		// Map every raw line spelling that shares this key to the result.
 		for (const line of lines) {
 			if (normalizeProductKey((line.description ?? '').trim()) === key) {
 				out.set(line.description ?? '', resolved);
@@ -99,7 +65,6 @@ async function resolveOne(
 	unit: string | null,
 	category: string | null,
 ): Promise<ResolvedLine> {
-	// 1. Existing alias for this exact normalized key.
 	const aliasRows = await tx.execute<{ product_id: number }>(sql`
 		SELECT product_id FROM product_aliases
 		WHERE restaurant_id = ${restaurantId} AND raw_key = ${key}
@@ -109,10 +74,6 @@ async function resolveOne(
 		return { productId: aliasRows[0].product_id, status: 'exact' };
 	}
 
-	// 2. Fuzzy match against existing products' normalized names. Also try the
-	// dictionary-expanded key (issue #300) so "TERN. AGUJA" / "REF.1042 Merluza"
-	// meet "ternera aguja" / "merluza" without the LLM. GREATEST takes the better
-	// of the raw and expanded similarity.
 	const expandedKey = normalizeProductKey(expandAbbreviations(raw));
 	const altKey = expandedKey && expandedKey !== key ? expandedKey : key;
 	const fuzzyRows = await tx.execute<{ id: number; canonical_name: string; score: number }>(sql`
@@ -134,7 +95,6 @@ async function resolveOne(
 		};
 	}
 
-	// 3. New product + confirmed exact alias.
 	const productRows = await tx.execute<{ id: number }>(sql`
 		INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit)
 		VALUES (${restaurantId}, ${raw}, ${key}, ${category}, ${unit})
@@ -146,12 +106,6 @@ async function resolveOne(
 	return { productId, status: 'created' };
 }
 
-/**
- * Insert (or converge on) the alias for this raw_key. confirmedAt is either the
- * literal 'now()' (confirmed) or null (pending). ON CONFLICT keeps whichever
- * alias won a concurrent race and returns its product_id so callers stay
- * consistent.
- */
 async function insertAlias(
 	tx: BatchDb,
 	restaurantId: string,
@@ -179,11 +133,6 @@ export interface LinkedSupplier {
 	supplierName: string;
 }
 
-/**
- * Suppliers still linked to a product via a confirmed/pending alias
- * (product_aliases.supplier_id). Drives the delete-blocked dialog's
- * "unlink this supplier" list.
- */
 export async function getLinkedSuppliers(
 	database: Database,
 	restaurantId: string,
@@ -199,13 +148,6 @@ export async function getLinkedSuppliers(
 	return rows.map((r) => ({ supplierId: r.supplier_id, supplierName: r.supplier_name }));
 }
 
-/**
- * Unlink a product from one supplier: drop that supplier's product_aliases
- * row(s) for this product, and null out product_id on that supplier's
- * invoice_line_items so historical rows no longer reference the product
- * (issue: product delete confirmation flow). Line items belonging to other
- * suppliers, or aliases for other suppliers, are untouched.
- */
 export async function unlinkSupplier(
 	database: Database,
 	restaurantId: string,
@@ -234,11 +176,6 @@ export type DeleteProductResult =
 	| { ok: false; reason: 'linked'; suppliers: LinkedSupplier[] }
 	| { ok: false; reason: 'not_found' };
 
-/**
- * Delete a product. Blocked (not cascaded) while any invoice_line_items or
- * product_aliases still reference it — the caller's UI resolves this via
- * unlinkSupplier() per supplier, then retries.
- */
 export async function deleteProduct(
 	database: Database,
 	restaurantId: string,
@@ -267,13 +204,6 @@ export async function deleteProduct(
 	return { ok: true };
 }
 
-/**
- * Mark pending 'unit_conversion_needed' notifications as resolved for a
- * product, once its unitsPerPack/baseUnit have been filled in via the
- * Products CRUD page. Matches by normalized key against either the
- * product's own name or any of its aliases' raw text — the alert's payload
- * only carries the raw invoice description, not a product_id.
- */
 export async function resolveUnitConversionAlerts(
 	database: Database,
 	restaurantId: string,
@@ -293,12 +223,6 @@ export async function resolveUnitConversionAlerts(
 	`);
 }
 
-/**
- * Confirm a pending fuzzy suggestion: keep the auto-link and mark the alias
- * user-confirmed. `description` is the raw invoice text; its normalized key
- * locates the alias. Idempotent — confirming an already-confirmed alias is a
- * no-op that still reports the linked product.
- */
 export async function confirmProductAlias(
 	database: Database,
 	restaurantId: string,
@@ -315,10 +239,6 @@ export async function confirmProductAlias(
 	return { ok: true, productId: rows[0].product_id };
 }
 
-/**
- * Reject a pending fuzzy suggestion: split this description into its own
- * product and repoint any line items that were fuzzy-linked to the wrong one.
- */
 export async function rejectProductAlias(
 	database: Database,
 	restaurantId: string,
@@ -348,7 +268,6 @@ export async function rejectProductAlias(
 			WHERE id = ${alias.id}
 		`);
 
-		// Repoint the line items that were fuzzy-linked to the wrong product.
 		await tx.execute(sql`
 			UPDATE invoice_line_items
 			SET product_id = ${newProductId}
@@ -361,12 +280,6 @@ export async function rejectProductAlias(
 	});
 }
 
-/**
- * Confirm an LLM merge suggestion (issue #300): this description really is the
- * existing product `targetProductId`. Repoints the alias and its line items to
- * the target and deletes the throwaway product the description first created if
- * nothing else references it. `targetProductId` must belong to the tenant.
- */
 export async function mergeIntoProduct(
 	database: Database,
 	restaurantId: string,
@@ -402,7 +315,6 @@ export async function mergeIntoProduct(
 				  AND product_id = ${oldProductId}
 				  AND mep_norm_key(description) = ${rawKey}
 			`);
-			// Drop the throwaway product if nothing points at it anymore.
 			await tx.execute(sql`
 				DELETE FROM products p
 				WHERE p.id = ${oldProductId} AND p.restaurant_id = ${restaurantId}

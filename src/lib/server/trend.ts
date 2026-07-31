@@ -9,7 +9,7 @@ const DAY_ABBR   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const RANGE_TO_DAYS: Record<string, number> = { '7d': 6, '30d': 29, '90d': 89, '1y': 364 };
 const VALID_RANGES = new Set(['7d', '30d', '90d', '1y', 'all']);
 const VALID_GRANULARITIES = new Set(['daily', 'weekly', 'monthly']);
-const MAX_BUCKETS = 400; // safety cap for pathological range+granularity combos (e.g. daily + all)
+const MAX_BUCKETS = 400;
 
 function addDays(d: Date, days: number): Date {
 	const r = new Date(d); r.setDate(r.getDate() + days); return r;
@@ -28,8 +28,6 @@ function firstOfMonth(d: Date): Date {
 }
 
 function isoDate(d: Date): string {
-	// Avoid toISOString(): it converts through UTC and silently rolls the
-	// calendar date back a day for any timezone ahead of UTC.
 	const y = d.getFullYear();
 	const m = String(d.getMonth() + 1).padStart(2, '0');
 	const day = String(d.getDate()).padStart(2, '0');
@@ -79,12 +77,10 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 		startDate = addDays(today, -(RANGE_TO_DAYS[range] ?? 29));
 	}
 
-	// Postgres date key helpers
 	const dayKey   = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM-DD')`;
 	const weekKey  = sql<string>`DATE_TRUNC('week', (${invoices.invoiceDate})::date)::date::text`;
 	const monthKey = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM')`;
 
-	// Build the list of bucket boundary dates spanning [startDate, today] at the requested granularity
 	let bucketDates: Date[] = [];
 	if (granularity === 'daily') {
 		for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) bucketDates.push(d);
@@ -98,12 +94,6 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 	const keys = bucketDates.map(d => granularity === 'monthly' ? monthKeyStr(d) : isoDate(d));
 
 	const keyExpr = granularity === 'daily' ? dayKey : granularity === 'monthly' ? monthKey : weekKey;
-	// Group on the raw column and fold NULL into the sentinel in TS below.
-	// Doing the COALESCE in SQL meant writing it in both SELECT and GROUP BY,
-	// and Drizzle binds the sentinel as a fresh parameter each time — Postgres
-	// matches GROUP BY expressions syntactically, saw COALESCE(x,$1) next to
-	// COALESCE(x,$4), and rejected the whole query ("column suppliers.category
-	// must appear in the GROUP BY clause"), 500ing the dashboard.
 	const groupedRows = await db
 		.select({
 			key: keyExpr,
@@ -120,14 +110,8 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 		.groupBy(keyExpr, suppliers.category)
 		.orderBy(keyExpr);
 
-	// Uncategorised spend lands in the same 'Other' bucket the budget check and
-	// the budgets page use, instead of a third NULL segment (issue #301). NULL
-	// and a supplier filed explicitly under 'Other' are separate groups coming
-	// out of SQL, so merge them here or the chart renders 'Other' twice.
 	type TrendRow = { key: string; category: string; amount: number };
 	const rows: TrendRow[] = [];
-	// Nested rather than a composite string key: a category is free text, so any
-	// separator would need proving it can never appear inside one.
 	const byBucket = new Map<string, Map<string, TrendRow>>();
 	for (const row of groupedRows) {
 		const category = row.category ?? UNCATEGORIZED_CATEGORY;

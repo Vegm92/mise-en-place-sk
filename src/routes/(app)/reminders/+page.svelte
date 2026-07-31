@@ -8,12 +8,10 @@
   let { data }: { data: PageData } = $props();
 </script>
 
-<!-- Mobile alerts -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileAlerts overdue={data.overdue} due_soon={data.due_soon} total_amount={data.total_amount} />
 </div>
 
-<!-- Desktop reminders -->
 <div class="hidden md:flex flex-col gap-4 p-6">
 
   {#if data.conflict}
@@ -24,7 +22,6 @@
     <p class="body text-center py-16" data-coach="reminders-main">{$t('rem.empty')}</p>
   {:else}
 
-    <!-- Summary chips -->
     <div class="flex gap-2 flex-wrap items-center" data-coach="reminders-main">
       {#if data.overdue.length}
         <div class="card px-3 py-2 bg-neg-soft border-neg" style="font-size:13px;">
@@ -51,7 +48,6 @@
       </form>
     </div>
 
-    <!-- Overdue section -->
     {#if data.overdue.length}
       <SectionCard title={$t('rem.overdue')} noPad>
         {#each data.overdue as r (r.id)}
@@ -75,7 +71,6 @@
       </SectionCard>
     {/if}
 
-    <!-- Due soon section -->
     {#if data.due_soon.length}
       <SectionCard title={$t('rem.dueWeek')} noPad>
         {#each data.due_soon as r (r.id)}

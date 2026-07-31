@@ -30,9 +30,6 @@
     if (f?.contentDuplicate) showContentDuplicateModal = true;
   });
 
-  // ── Queue polling — the single feedback mechanism ─────────────────────────
-  // While anything is queued/extracting, poll the batch status endpoint and
-  // reload server data when any item's status changes. No simulated progress.
   onMount(() => {
     const timer = setInterval(async () => {
       if (!data.anyInFlight) return;
@@ -44,13 +41,11 @@
         const changed = body.items.some(i => current.has(i.id) && current.get(i.id) !== i.status);
         if (changed) await invalidateAll();
       } catch {
-        // network error — keep polling
       }
     }, 2500);
     return () => clearInterval(timer);
   });
 
-  // ── Review form state ──────────────────────────────────────────────────────
   type LineItem = {
     description?: string | null;
     quantity?: number | string | null;
@@ -61,35 +56,18 @@
     confidence?: number | null;
   };
 
-  // Synced from server data (not initialized once): the active review item
-  // changes in place as the user confirms invoices.
   let lineItems = $state<LineItem[]>([]);
   let lineItemsSource: unknown = null;
   $effect(() => {
     const raw = data.review?.data?.line_items;
-    if (raw === lineItemsSource) return; // keep user edits across unrelated reruns
+    if (raw === lineItemsSource) return;
     lineItemsSource = raw;
     lineItems = Array.isArray(raw) ? [...(raw as LineItem[])] : [];
   });
 
-  // The active review item changes in place (same component instance across
-  // batch items — moving to the next invoice is a redirect back to this same
-  // route, not a remount). Without this, an ack/modal from one item survives
-  // into the next: `lowConfAck` in particular is sent straight through to the
-  // server's low-confidence gate (invoice-save.ts), so a stale `true` would
-  // silently bypass review for an item the user never actually acknowledged.
-  // Seeded with the current item, not null — a fresh mount (e.g. the full
-  // page reload after a failed non-enhanced form submit) must not read as an
-  // "item changed" event, or it clobbers the modal that the effect above just
-  // opened from the same submit's `form` result.
   // svelte-ignore state_referenced_locally — reading the initial value is the point
   let lowConfAckItemId: string | null = data.review?.itemId ?? null;
 
-  // Header fields, editable — local state so a correction survives a failed
-  // save (the low-confidence gate) instead of being overwritten by the
-  // server-derived `review.data` snapshot once the item itself hasn't
-  // actually changed (issue #305). Seeded once per item, same "changed in
-  // place" guard as `lowConfAckItemId` above.
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let supplierNameInput = $state(str(data.review?.data?.supplier_name));
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
@@ -126,8 +104,6 @@
   }
 
   const review = $derived(data.review);
-  // One idempotency key per review item (issue #250) — regenerated only when
-  // the active item changes, so a retry after a validation error reuses it.
   const idempotencyKey = $derived.by(() => { void review?.itemId; return crypto.randomUUID(); });
   const fieldConf = $derived((review?.fieldConfidences ?? {}) as Record<string, number>);
 
@@ -143,7 +119,6 @@
     HEADER_FIELDS.find(f => fieldConf[f] != null && fieldConf[f] < 0.85) ?? null
   );
 
-  // Focus the first uncertain field when a new review item appears.
   let focusedItemId: string | null = null;
   $effect(() => {
     if (!review || !firstUncertainField || focusedItemId === review.itemId) return;
@@ -194,7 +169,6 @@
 
   function fmt(n: number) { return n.toFixed(2).replace('.', ',') + ' €'; }
 
-  // ── Add more files ─────────────────────────────────────────────────────────
   let addFiles = $state<File[]>([]);
   let addSubmitting = $state(false);
   let addMoreOpen = $state(false);
@@ -234,18 +208,12 @@
 
 <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
 
-  <!-- Where the user is in Upload → Extract → Review (issue #232). The cue used
-       to stop at the upload page, i.e. right before the two steps it describes.
-       Extract stays current while anything is still in flight; once a review
-       item is on screen, step 3 is. -->
   <div style="padding:16px 20px 0;flex-shrink:0;">
     <FlowSteps active={data.anyInFlight ? 1 : 2} />
   </div>
 
-  <!-- Two-column grid: queue + active panel -->
   <div style="flex:1;min-height:0;padding:16px 20px 20px;display:grid;grid-template-columns:minmax(260px,0.9fr) 2fr;gap:16px;" class="max-md:!flex max-md:!flex-col max-md:!overflow-y-auto">
 
-    <!-- ── Queue ──────────────────────────────────────────────────────────── -->
     <div class="card" style="padding:16px 0 12px;display:flex;flex-direction:column;min-height:0;">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;margin-bottom:10px;">
         <span class="subtitle">{$t('upload.queue')}</span>
@@ -296,7 +264,6 @@
         {/each}
       </div>
 
-      <!-- Add more + batch discard -->
       <div style="padding:10px 16px 4px;border-top:1px solid var(--mep-divider);display:flex;flex-direction:column;gap:8px;">
         <button type="button" class="btn btn-ghost" style="font-size:12.5px;color:var(--mep-acc);padding:0;justify-content:flex-start;"
           onclick={() => addMoreOpen = !addMoreOpen}>
@@ -328,18 +295,14 @@
       </div>
     </div>
 
-    <!-- ── Active panel ───────────────────────────────────────────────────── -->
     {#if review}
       {#key review.itemId}
       <div style="display:grid;grid-template-columns:0.85fr 1.15fr;gap:14px;min-height:0;overflow:hidden;" class="max-md:!flex max-md:!flex-col">
 
-        <!-- Out-of-tree form target: the discard button sits visually inside the
-             save form's header; nesting real forms is invalid HTML. -->
         <form id="discard-item-form" method="POST" action="?/discardItem" style="display:none;" use:enhance>
           <input type="hidden" name="itemId" value={review.itemId} />
         </form>
 
-        <!-- Doc viewer -->
         <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:280px;">
           <div style="padding:10px 14px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;gap:8px;flex-shrink:0;">
             <div style="flex:1;font-size:12px;color:var(--mep-fg-2);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
@@ -358,7 +321,6 @@
           </div>
         </div>
 
-        <!-- Review form -->
         <form id="save-form" method="POST" action="?/save" style="display:contents;" use:enhance>
           <input type="hidden" name="itemId" value={review.itemId} />
           <input type="hidden" name="idempotency_key" value={idempotencyKey} />
@@ -367,7 +329,6 @@
 
           <div class="card" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
 
-            <!-- Header bar -->
             <div style="padding:12px 16px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;gap:10px;flex-shrink:0;">
               <div style="flex:1;min-width:0;">
                 <div style="font-size:14px;font-weight:600;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
@@ -380,7 +341,6 @@
               </button>
             </div>
 
-            <!-- Cabecera fields -->
             <div style="padding:14px 16px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;overflow-y:auto;">
               {#if review.duplicateOfId}
                 <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mep-neg);background:var(--mep-neg-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">
@@ -454,7 +414,6 @@
               </div>
             </div>
 
-            <!-- Line items -->
             <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:140px;">
               <div style="padding:10px 16px 6px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
                 <div class="subtitle">
@@ -517,7 +476,6 @@
               </div>
             </div>
 
-            <!-- Totals footer -->
             <div style="padding:12px 16px;border-top:1px solid var(--mep-divider);background:var(--mep-surface-2);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-shrink:0;">
               {#if hasDiscrepancy}
                 <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mep-warn);font-weight:500;">
@@ -542,7 +500,6 @@
       {/key}
 
     {:else if data.failedItem}
-      <!-- Failed item panel -->
       <div style="display:flex;flex-direction:column;gap:12px;max-width:560px;">
         <div class="card p-4" style="background:var(--mep-neg-soft);border-color:var(--mep-neg);">
           <strong class="body-strong" style="color:var(--mep-neg);display:block;margin-bottom:6px;">{$t('extract.error')} · {data.failedItem.name}</strong>
@@ -563,7 +520,6 @@
       </div>
 
     {:else if data.anyInFlight}
-      <!-- In-flight panel — real status only -->
       <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:40px 32px;text-align:center;">
         <div style="width:44px;height:44px;border:3px solid var(--mep-acc);border-top-color:transparent;border-radius:50%;animation:mepspin 0.9s linear infinite;"></div>
         <div>
@@ -577,7 +533,6 @@
       </div>
 
     {:else}
-      <!-- Ready: nothing extracted yet -->
       <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px 32px;text-align:center;">
         <div style="width:48px;height:48px;border-radius:24px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;">
           <Sparkle size={20} />
@@ -603,15 +558,12 @@
   @keyframes mepspin { to { transform: rotate(360deg); } }
 </style>
 
-<!-- Content-duplicate block modal -->
 {#if showContentDuplicateModal}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
     role="presentation"
     onclick={() => showContentDuplicateModal = false}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
       role="dialog"
@@ -641,15 +593,12 @@
   </div>
 {/if}
 
-<!-- Low-confidence review gate modal -->
 {#if showLowConfModal}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
     role="presentation"
     onclick={() => showLowConfModal = false}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
       role="dialog"

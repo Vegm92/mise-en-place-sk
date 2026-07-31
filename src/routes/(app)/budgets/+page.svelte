@@ -45,11 +45,9 @@
   const monthLabel = $derived(new Date(data.selectedMonth + '-02').toLocaleString($locale, { month: 'long', year: 'numeric' }));
 </script>
 
-<!-- ── Desktop layout ──────────────────────────────────────────────────── -->
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
-    <!-- Overall progress card -->
     <div class="card" style="padding:18px 20px;flex-shrink:0;" data-coach="budgets-main">
       <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;">
@@ -80,7 +78,6 @@
       {/if}
     </div>
 
-    <!-- Budget table -->
     <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
       <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--mep-divider);flex-shrink:0;">
         <div>
@@ -166,7 +163,6 @@
                   </td>
                 </tr>
               {/each}
-              <!-- Add category row -->
               {#if !isPastMonth}
                 {#if showAddForm}
                   <tr>
@@ -230,16 +226,13 @@
   </div>
 </div>
 
-<!-- ── Mobile layout ───────────────────────────────────────────────────── -->
 <div class="flex md:hidden" style="height:100%;flex-direction:column;overflow:hidden;">
   <form method="post" action="?/save" use:enhance style="display:contents;">
     <input type="hidden" name="_categories" value={JSON.stringify(allCategories)} />
     <input type="hidden" name="_month" value={data.selectedMonth} />
 
-    <!-- Scrollable content -->
     <div style="flex:1;overflow-y:auto;padding:14px 16px 100px;display:flex;flex-direction:column;gap:12px;">
 
-      <!-- Hero summary card -->
       <div class="card" style="padding:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <div class="label">{$t('bud.atDay')} {today}</div>
@@ -254,7 +247,6 @@
           </div>
         </div>
         {#if totalLimit > 0}
-          <!-- Segmented bar -->
           <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;margin-bottom:10px;">
             {#each rows as r}
               {#if r.limit > 0}
@@ -276,17 +268,14 @@
         {/if}
       </div>
 
-      <!-- Section header -->
       <div style="padding:4px 2px 0;">
         <div class="subtitle" style="font-size:14px;">{$t('bud.tableTitle')}</div>
       </div>
 
-      <!-- Category cards -->
       {#each rows as r}
         {@const projOver = r.limit > 0 && r.projected > 100}
         <div class="card" style="padding:14px;">
 
-          <!-- Top row: swatch + name + projection badge -->
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <span style="width:8px;height:28px;border-radius:2px;background:{r.color};flex-shrink:0;"></span>
             <span style="flex:1;font-size:14px;font-weight:500;color:var(--mep-fg);
@@ -300,7 +289,6 @@
             {/if}
           </div>
 
-          <!-- Progress bar -->
           {#if r.limit > 0}
             <div style="position:relative;height:7px;border-radius:4px;background:var(--mep-surface-2);overflow:visible;margin-bottom:10px;">
               <div style="width:{Math.min(r.pct, 100)}%;height:100%;border-radius:4px;background:{semColor(r.pct)};"></div>
@@ -309,12 +297,10 @@
                   background:repeating-linear-gradient(45deg,var(--mep-neg),var(--mep-neg) 4px,var(--mep-neg-soft) 4px,var(--mep-neg-soft) 8px);
                   border-radius:0 4px 4px 0;"></div>
               {/if}
-              <!-- 80% target marker -->
               <div style="position:absolute;left:80%;top:-3px;bottom:-3px;width:1.5px;background:var(--mep-fg-3);opacity:0.4;"></div>
             </div>
           {/if}
 
-          <!-- Amounts row: spent · % · remaining -->
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <div>
               <span class="num" style="font-size:13.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(r.spent)}</span>
@@ -327,7 +313,6 @@
             </span>
           </div>
 
-          <!-- Budget input -->
           <div style="display:flex;align-items:center;gap:8px;">
             <label for="budget-{r.cat}" style="font-size:11px;color:var(--mep-fg-3);font-weight:500;white-space:nowrap;">{$t('bud.colBudget')}</label>
             {#if isPastMonth}
@@ -347,7 +332,6 @@
         </div>
       {/each}
 
-      <!-- Add category card (mobile) -->
       {#if !isPastMonth}
       {#if showAddForm}
         <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
@@ -387,7 +371,6 @@
     </div>
 
     {#if !isPastMonth}
-    <!-- Sticky save button -->
     <div style="
       position:sticky;bottom:0;left:0;right:0;
       padding:12px 16px;

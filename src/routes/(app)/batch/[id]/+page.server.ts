@@ -36,7 +36,6 @@ function statSize(fileKey: string): string {
 		const fp = localFilePath(fileKey);
 		if (fs.existsSync(fp)) return humanSize(fs.statSync(fp).size);
 	} catch {
-		// ignore stat errors — size stays '—'
 	}
 	return '—';
 }
@@ -47,14 +46,6 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 	return 'low';
 }
 
-/**
- * Read-only heads-up for the review screen — same supplier (case-insensitive,
- * matching the `uq_suppliers_rid_name` index) + same invoice number as an
- * already-saved invoice. This is a coarser check than the exact-content-hash
- * gate in invoice-save.ts (which fires on submit); it exists purely to flag
- * the likely duplicate before the user spends time reviewing fields, so they
- * can discard right away instead of hitting the block on confirm.
- */
 async function findDuplicateInvoiceId(rid: string, supplierName: string, invoiceNumber: string): Promise<number | null> {
 	const supplier = supplierName.trim();
 	const number = invoiceNumber.trim();
@@ -136,8 +127,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 async function settledRedirect(batchId: string): Promise<never> {
-	// Everything reviewed — leave the page. Confirmed invoices exist, so the
-	// dashboard is the natural landing spot; an all-discarded batch goes home.
 	const items = await getBatchItems(batchId);
 	const confirmed = items.some(i => i.status === 'confirmed');
 	redirect(303, confirmed ? '/dashboard' : '/');
@@ -178,15 +167,10 @@ export const actions: Actions = {
 			redirect(303, `/batch/${params.id}`);
 		}
 
-		// The done→confirmed transition commits atomically with the invoice
-		// insert — a drop between them can no longer strand the item as
-		// reviewable and produce a confusing duplicate error (issue #248).
 		const outcome = await saveReviewedInvoice(item, formData, rid, async (tx) => {
 			await createBatchStore(tx).markConfirmed(item.id);
 		});
 
-		// A replayed submit (double-click, offline replay) already saved on the
-		// first pass — land on the batch page, which routes onward if settled.
 		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
 
 		if (outcome.type === 'lowConfidenceBlocked') return fail(422, { lowConfidenceBlocked: true });
@@ -201,9 +185,6 @@ export const actions: Actions = {
 		if (!(await isBatchSettled(params.id))) redirect(303, `/batch/${params.id}`);
 
 		if (outcome.isFirstInvoice) redirect(303, '/dashboard?first_invoice=1');
-		// Straight to the list that just changed, with a toast carrying the save
-		// confirmation and any alerts (issue #235) — the interstitial page this
-		// replaces existed only to say "saved ✓".
 		redirect(303, `/invoices?saved=${outcome.invoiceId}`);
 	},
 
@@ -247,7 +228,6 @@ export const actions: Actions = {
 		const { saved, keys } = await saveUploadedFiles(files, params.id);
 		if (saved.length > 0) {
 			const added = await addItems(params.id, items[0].restaurantId, saved.map((name, i) => ({ key: keys[i], name })));
-			// If extraction is already running, fold the new items straight into the queue.
 			const anyActive = items.some(i => i.status === 'queued' || i.status === 'extracting' || i.status === 'done');
 			if (anyActive) {
 				for (const id of added) {

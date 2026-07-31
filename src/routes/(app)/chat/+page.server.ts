@@ -16,8 +16,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		.where(tdb.scope(chatSessions.restaurantId))
 		.orderBy(desc(chatSessions.updatedAt));
 
-	// Only accept a ?session= id that belongs to this tenant — otherwise fall
-	// back to the most recent session instead of leaking another tenant's chat.
 	const requestedId = sessionIdParam ? parseInt(sessionIdParam, 10) : NaN;
 	const activeId = sessions.some(s => s.id === requestedId)
 		? requestedId

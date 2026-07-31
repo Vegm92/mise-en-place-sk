@@ -31,12 +31,6 @@ async function upsertSetting(restaurantId: string, key: string, value: string): 
 		});
 }
 
-/**
- * Atomically claim the week before paying for a Gemini generation (issue
- * #249): the upsert only fires when the stored week differs, so of N
- * concurrent dashboard loads at week rollover exactly one wins the claim and
- * generates — the rest serve the previous digest until the new one lands.
- */
 async function claimDigestWeek(restaurantId: string, week: string): Promise<boolean> {
 	const rows = await db.insert(settings)
 		.values({ restaurantId, key: 'weekly_digest_week', value: week })
@@ -73,9 +67,6 @@ export async function getOrGenerateWeeklyDigest(restaurantId: string, currentWee
 		}
 
 		if (!(await claimDigestWeek(restaurantId, currentWeek))) {
-			// Another request is already generating this week's digest — serve
-			// whatever text is stored (the fresh one if it just landed, else the
-			// previous week's) instead of paying for a duplicate generation.
 			const text = await getSetting(restaurantId, 'weekly_digest_text');
 			return text ? { text, dismissed: storedDismissed === 'true' } : null;
 		}
@@ -98,7 +89,6 @@ ${context}`;
 		try {
 			text = await callGeminiText(prompt);
 		} catch (err) {
-			// Release the claim so a later load can retry this week's generation.
 			await upsertSetting(restaurantId, 'weekly_digest_week', storedWeek ?? '');
 			throw err;
 		}

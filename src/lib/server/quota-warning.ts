@@ -1,9 +1,3 @@
-/**
- * "Cuota próxima a agotarse" alert (issue #202): when a restaurant's monthly
- * invoice usage crosses QUOTA_WARNING_THRESHOLD of its plan quota, email the
- * owner once per calendar month. Called fire-and-forget after invoice saves —
- * must never throw into the save path.
- */
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { invoices, restaurants, settings, userRestaurants } from './schema';
@@ -18,10 +12,8 @@ const SENT_FLAG_KEY = 'quota_warning_sent_month';
 export async function maybeSendQuotaWarning(restaurantId: string): Promise<void> {
 	try {
 		const tdb = forTenant(restaurantId);
-		const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+		const currentMonth = new Date().toISOString().slice(0, 7);
 
-		// Shared quota convention (issue #295) — null means unlimited, and an
-		// unlimited plan can never approach its cap.
 		const limit = await getMonthlyQuota(restaurantId);
 		if (limit === null) return;
 
@@ -34,10 +26,6 @@ export async function maybeSendQuotaWarning(restaurantId: string): Promise<void>
 		const used = usedRow?.cnt ?? 0;
 		if (used < Math.ceil(limit * QUOTA_WARNING_THRESHOLD)) return;
 
-		// Send at most once per month per restaurant. Claim the month flag
-		// BEFORE sending (guarded upsert, issue #249) — two concurrent invoice
-		// saves at the threshold would otherwise both pass a read-then-send
-		// check and email the owner twice.
 		const claimed = await db.insert(settings)
 			.values({ restaurantId, key: SENT_FLAG_KEY, value: currentMonth })
 			.onConflictDoUpdate({

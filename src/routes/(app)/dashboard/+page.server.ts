@@ -285,8 +285,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.orderBy(desc(systemNotifications.createdAt))
 				.limit(5),
 
-			// SSR'd so the trend chart renders with the rest of the dashboard
-			// instead of flashing a client-side "Loading…" state on every visit.
 			getTrendDataByRange(rid, '30d', 'weekly'),
 		]);
 
@@ -306,7 +304,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const isCurrentMonth = selectedMonth === currentMonth;
 		const isPastMonth = selectedMonth < currentMonth;
 
-		// Sparkline — daily spend for selected month
 		const sparkMap: Record<string, number> = {};
 		for (const r of sparkRows) sparkMap[String(r.day)] = Number(r.total);
 		const sparkData: number[] = [];
@@ -367,7 +364,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const totalPctActual = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100 * 10) / 10 : 0;
 		const totalPctBar = Math.min(totalPctActual, 100);
 
-		// Alerts
 		function relativeTime(iso: Date | string | null): string {
 			if (!iso) return '';
 			const diff = today.getTime() - new Date(iso).getTime();
@@ -453,8 +449,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	});
 };
 
-// Guarded transitions (issue #243) — markPaid now also records paidAt (the
-// reminders action always did) and markUnpaid clears the stale timestamps.
 export const actions: Actions = {
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();

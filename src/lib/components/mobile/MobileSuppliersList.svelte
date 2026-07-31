@@ -54,7 +54,6 @@
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
 
-  <!-- Search -->
   <div style="padding: 0 18px 10px; position: relative;">
     <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -69,7 +68,6 @@
     />
   </div>
 
-  <!-- Category chips -->
   <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none;">
     <button
       onclick={() => catFilter = ''}
@@ -95,7 +93,6 @@
     {/each}
   </div>
 
-  <!-- Summary strip -->
   <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{suppliers.length}</div>
@@ -113,7 +110,6 @@
     </div>
   </div>
 
-  <!-- List -->
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 8px;">
     {#if filtered.length === 0}
       <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">

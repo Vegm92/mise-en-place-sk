@@ -1,9 +1,4 @@
 <script lang="ts">
-	/**
-	 * Centred logo + card chrome shared by the standalone auth pages
-	 * (/forgot-password, /reset-password — issue #284). Extracted from the login
-	 * page so a recovery screen can't drift away from the sign-in look.
-	 */
 	import type { Snippet } from 'svelte';
 
 	const { title, subtitle, children }: {

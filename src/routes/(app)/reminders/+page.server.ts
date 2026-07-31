@@ -32,7 +32,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 			.where(and(
 				tdb.scope(invoices.restaurantId),
-				// Show pending AND accepted invoices that have not been paid yet
 				sql`${invoices.status} IN ('pending', 'accepted')`,
 				isNotNull(invoices.dueDate),
 				isNull(invoices.deletedAt),
@@ -42,7 +41,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 		const enriched = rows.map((r) => {
 			const dueDays = Math.round((new Date(r.due_date!).getTime() - today.getTime()) / 86400_000);
-			// 4-working-day acceptance countdown: only applies to e-invoices still 'pending'
 			let acceptanceWorkingDaysLeft: number | null = null;
 			if (r.e_invoice_format && r.status === 'pending' && r.created_at) {
 				acceptanceWorkingDaysLeft = workingDaysUntilDeadline(r.created_at, today, 4);
@@ -67,9 +65,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	});
 };
 
-// Guarded transitions (issue #243): a stale tab whose invoice was already
-// accepted/rejected/paid elsewhere gets a conflict banner, not a silent
-// overwrite of the other change.
 export const actions: Actions = {
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
@@ -87,7 +82,6 @@ export const actions: Actions = {
 		redirect(303, '/reminders');
 	},
 
-	/** Accept an e-invoice — starts the paid-status obligation clock (RD 238/2026). */
 	acceptInvoice: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
@@ -95,7 +89,6 @@ export const actions: Actions = {
 		redirect(303, ok ? '/reminders' : '/reminders?conflict=1');
 	},
 
-	/** Reject an e-invoice — records the rejection date (RD 238/2026). */
 	rejectInvoice: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));

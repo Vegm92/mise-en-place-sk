@@ -7,10 +7,6 @@ declare global {
 			user:         User | null;
 			restaurantId: string | null;
 		}
-		// interface Error {}
-		// interface PageData {}
-		// interface PageState {}
-		// interface Platform {}
 	}
 }
 

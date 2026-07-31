@@ -7,7 +7,6 @@ Sentry.init({
 	dsn: SENTRY_DSN,
 	tracesSampleRate: import.meta.env['PROD'] ? 0.1 : 1.0,
 	sendDefaultPii: false,
-	// Strip live OAuth codes / tokens / emails from attached request URLs (#254).
 	beforeSend: (event) => scrubSentryEvent(event),
 });
 

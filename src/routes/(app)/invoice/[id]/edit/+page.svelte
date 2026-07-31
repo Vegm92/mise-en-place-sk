@@ -11,17 +11,12 @@
 
   let items = $state<Row[]>(untrack(() => initRows(data.lineItems)));
 
-  // Idempotency key (issue #250) — one per loaded invoice; a validation-error
-  // retry reuses it (the failed save released the key), a fresh load mints one.
   const idempotencyKey = $derived.by(() => { void invoice.id; return crypto.randomUUID(); });
 
   const rowsWithTotals = $derived(
     items.map(row => ({ ...row, total_price: calcTotal(row.quantity, row.unit_price) }))
   );
 
-  // Older invoices can have a null stored total (extraction gap). Fall back to
-  // the sum of line totals so the field isn't blank when the data to fill it
-  // is right there in the table below.
   const computedLineTotal = $derived(
     Math.round(rowsWithTotals.reduce((s, r) => s + (r.total_price ?? 0), 0) * 100) / 100
   );
@@ -40,7 +35,6 @@
       <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{form.error}</div>
     {/if}
 
-    <!-- Invoice details -->
     <div class="card p-5">
       <p class="label mb-4">{$t('edit.details').toUpperCase()}</p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -80,7 +74,6 @@
       </div>
     </div>
 
-    <!-- Line items -->
     <div class="card overflow-hidden">
       <div class="card-header">
         <span class="body-strong" style="font-size:14px;">{$t('edit.lineItems')}</span>

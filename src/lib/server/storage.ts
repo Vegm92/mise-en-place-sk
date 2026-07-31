@@ -26,7 +26,6 @@ class LocalDriver {
 			const fp = path.resolve(this.base, key);
 			if (fp.startsWith(this.base + path.sep) && fs.existsSync(fp)) fs.unlinkSync(fp);
 		} catch {
-			// already gone or invalid path — ignore
 		}
 	}
 }
@@ -56,7 +55,6 @@ class SupabaseStorageDriver {
 
 	async delete(key: string): Promise<void> {
 		await this.client.storage.from(STORAGE_BUCKET).remove([key]);
-		// ignore errors — object may already be gone
 	}
 }
 

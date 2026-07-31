@@ -90,8 +90,6 @@ export const actions: Actions = {
 			.set({ canonicalName, category: cat, canonicalUnit, unitsPerPack, baseUnit })
 			.where(tdb.scope(products.restaurantId, eq(products.id, id)));
 
-		// Both fields filled in ⇒ this product's pack size is now known; clear any
-		// pending "how many base units does this pack contain?" alerts for it.
 		if (unitsPerPack != null && baseUnit) {
 			await resolveUnitConversionAlerts(db, rid, id);
 		}

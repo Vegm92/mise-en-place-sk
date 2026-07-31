@@ -48,7 +48,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				monthlyInvoiceQuota: config.monthlyInvoiceQuota,
 				features: config.features,
 				isCurrent: tier === currentTier,
-				// false when STRIPE_PRICE_ID_<TIER> is unset (issue #286)
 				available: isTierAvailable(tier as PlanTier),
 			})),
 	};
@@ -67,19 +66,11 @@ export const actions: Actions = {
 		const tierParam = (formData.get('tier') as string | null) ?? 'starter';
 		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : 'starter') as PlanTier;
 
-		// A tier whose STRIPE_PRICE_ID_* is unset used to throw out of
-		// createCheckoutSession as a 500 error page (issue #286). Surface it as a
-		// form error instead — it's a deployment misconfiguration, not a crash.
 		if (!isTierAvailable(tier)) {
 			console.error(`[billing] checkout blocked: STRIPE_PRICE_ID_${tier.toUpperCase()} is not configured`);
 			return fail(503, { error: 'billing.err.tierUnavailable' });
 		}
 
-		// Refuse a second checkout when the tenant already has a live subscription
-		// (issue #239). Without this, a user with an active plan — or one whose
-		// checkout.session.completed webhook is still in flight — could complete a
-		// second Checkout and hold two subscriptions charging the same card. Plan
-		// changes go through the Customer Portal instead.
 		const [existing] = await db.select({
 			status: subscriptions.status,
 			stripeSubscriptionId: subscriptions.stripeSubscriptionId,
@@ -97,9 +88,6 @@ export const actions: Actions = {
 			redirect(303, '/billing');
 		}
 
-		// Idempotency key (issue #250) — a double-submit must not spin up two
-		// Stripe checkout sessions. A replay lands back on /billing (a fresh page
-		// load mints a new key for a genuine retry).
 		const idemKeyRaw = formData.get('idempotency_key');
 		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
 		if (idemKey && !(await claimRequest(idemKey, rid))) {
@@ -114,8 +102,6 @@ export const actions: Actions = {
 		let checkoutUrl: string;
 		try {
 			const customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
-			// checkout_started (issue #253) — lets checkout drop-off be measured
-			// against plan_upgraded, which only fires on webhook success.
 			trackEvent('checkout_started', rid, { tier });
 			checkoutUrl = await createCheckoutSession(
 				rid,
@@ -123,12 +109,9 @@ export const actions: Actions = {
 				tier,
 				`${url.origin}/billing?checkout=success`,
 				`${url.origin}/billing`,
-				// Reuse the per-submit idempotency key as the Stripe idempotency key
-				// so a proxy retry can't create a second Checkout session (#239).
 				idemKey ?? undefined,
 			);
 		} catch (err) {
-			// Release the key so the user can retry after a Stripe hiccup.
 			if (idemKey) await releaseRequest(idemKey);
 			throw err;
 		}

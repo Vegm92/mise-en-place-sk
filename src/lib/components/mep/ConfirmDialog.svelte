@@ -32,13 +32,11 @@
 </script>
 
 {#if open}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     style="position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
     role="presentation"
     onclick={handleCancel}
   >
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
       style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:380px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
       role="dialog"

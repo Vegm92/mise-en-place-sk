@@ -44,9 +44,6 @@
     return 'var(--mep-fg-2)';
   }
 
-  // Suggested supplier category (issue #315): accept in one tap. Declining is
-  // the generic X — the supplier stays in the uncategorised bucket, which is a
-  // valid answer — and "change" is a link to the supplier's category field.
   let decidingCategory = $state<number | null>(null);
   async function acceptCategory(n: Notif) {
     const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null;
@@ -62,21 +59,13 @@
           category: p.suggestedCategory,
         }),
       });
-      // 404 means the supplier was categorised by hand in the meantime; the
-      // server clears the stale suggestion too, so drop it here as well.
       if (resp.ok || resp.status === 404) items = items.filter((i) => i.id !== n.id);
     } catch {
-      // Offline/server error — leave it in place to retry later.
     } finally {
       decidingCategory = null;
     }
   }
 
-  // Product-catalog suggestion (issues #298/#300): confirm/reject a match.
-  // A fuzzy suggestion confirms the auto-link in place; an LLM suggestion
-  // (source 'llm') carries a candidate product to merge into on confirm, and
-  // just dismisses on decline (the line is already its own product).
-  // On success the server also dismisses the notification, so drop it locally.
   let deciding = $state<number | null>(null);
   async function decideProduct(n: Notif, accept: boolean) {
     const p = n.payload as { description?: string; source?: string; candidateProductId?: number } | null;
@@ -99,7 +88,6 @@
       });
       if (resp.ok) items = items.filter((i) => i.id !== n.id);
     } catch {
-      // Offline/server error — leave the suggestion in place to retry later.
     } finally {
       deciding = null;
     }
@@ -117,8 +105,6 @@
       });
       if (!resp.ok) throw new Error(`dismiss failed: ${resp.status}`);
     } catch {
-      // Offline or server error — restore the item at its place instead of
-      // silently losing the dismissal and leaving an unhandled rejection (#255).
       if (removed && removedIndex >= 0) {
         const next = [...items];
         next.splice(removedIndex, 0, removed);
@@ -155,14 +141,12 @@
   </button>
 
   {#if open}
-    <!-- backdrop -->
     <div
       style="position:fixed;inset:0;z-index:199;"
       onclick={close}
       role="presentation"
     ></div>
 
-    <!-- dropdown -->
     <div
       style="
         position:absolute;top:calc(100% + 6px);right:0;z-index:200;
@@ -188,9 +172,6 @@
       {:else}
         {#each items as n (n.id)}
           {@const Ic = icon(n.notificationType)}
-          <!-- Server-raised alerts carry an i18n key + vars in their payload so
-               the text follows the reader's locale; `message` is only the
-               language-neutral fallback for alerts not yet keyed. -->
           {@const msg = n.payload as { messageKey?: string; messageVars?: Record<string, string | number> } | null}
           <div
             style="
@@ -205,7 +186,6 @@
               <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
                 {msg?.messageKey ? $ti(msg.messageKey, msg.messageVars ?? {}) : n.message}
               </div>
-              <!-- One-tap route to the supplier's category field (issue #301) -->
               {#if n.notificationType === 'supplier_uncategorized'}
                 {@const supplierId = (n.payload as { supplierId?: number } | null)?.supplierId}
                 {#if supplierId}
@@ -219,7 +199,6 @@
                   </div>
                 {/if}
               {/if}
-              <!-- Suggested category: accept it, or go pick another (issue #315) -->
               {#if n.notificationType === 'supplier_category_suggested'}
                 {@const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null}
                 {#if p?.supplierId && p?.suggestedCategory}

@@ -69,7 +69,6 @@
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
-  <!-- Search -->
   <div style="padding: 0 18px 10px; position: relative;">
     <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -84,7 +83,6 @@
     />
   </div>
 
-  <!-- Filter chips -->
   <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0;">
     {#each filterOptions as [val, label]}
       <button
@@ -103,7 +101,6 @@
 
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
-    <!-- Summary 2-col -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
         <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('prices.up')}</div>
@@ -119,7 +116,6 @@
       </div>
     </div>
 
-    <!-- Price items list -->
     {#if filtered.length === 0}
       <div style="padding: 32px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">{$t('prices.noResults')}</div>
     {:else}

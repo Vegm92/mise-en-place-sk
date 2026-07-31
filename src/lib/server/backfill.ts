@@ -1,12 +1,3 @@
-/**
- * Backfill product links + pack fields on existing invoice line items
- * (follow-up to #298/#299). The catalog and pack features only populate on new
- * saves; this applies them to history so analytics/price-shock have data.
- *
- * Deterministic only — reuses resolveLineProducts (exact alias, pg_trgm fuzzy,
- * abbreviation dictionary) and parsePack. No LLM. Idempotent: re-running skips
- * rows already linked / already priced.
- */
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
@@ -17,7 +8,6 @@ type Database = PostgresJsDatabase<typeof schema>;
 
 export interface BackfillResult { packed: number; linked: number }
 
-/** Compute pack fields + €/base for rows that don't have them yet. */
 async function backfillPacks(database: Database, restaurantId: string): Promise<number> {
 	const rows = await database.execute<{ id: number; description: string | null; unit: string | null; unit_price: number | null }>(sql`
 		SELECT id, description, unit, unit_price
@@ -45,7 +35,6 @@ async function backfillPacks(database: Database, restaurantId: string): Promise<
 	return packed;
 }
 
-/** Resolve + link products for line items that are still unlinked, per supplier. */
 async function backfillProductLinks(database: Database, restaurantId: string): Promise<number> {
 	const rows = await database.execute<{ supplier_id: number; description: string; unit: string | null }>(sql`
 		SELECT DISTINCT s.id AS supplier_id, ili.description, ili.unit
@@ -59,7 +48,6 @@ async function backfillProductLinks(database: Database, restaurantId: string): P
 	`);
 	if (rows.length === 0) return 0;
 
-	// Group descriptions by supplier so one resolve pass handles all their items.
 	const bySupplier = new Map<number, Array<{ description: string; unit: string | null }>>();
 	for (const r of rows) {
 		const list = bySupplier.get(r.supplier_id) ?? [];

@@ -16,11 +16,8 @@ export const actions: Actions = {
 		const password = form.get('password')  as string;
 		const redirectTo = safeRedirect(form.get('redirectTo') as string);
 
-		// Failures return fail() instead of redirecting so the form keeps the
-		// typed email — retyping it after a password slip is pure friction.
 		if (!email || !password) return fail(422, { error: 'missing', email: email ?? '' });
 
-		// Brute-force protection: per-IP and per-account attempt caps.
 		const ipHash  = hashIp(getClientAddress());
 		const ipOk    = await checkRateLimit(`login:ip:${getClientAddress()}`, 10);
 		const emailOk = await checkRateLimit(`login:email:${email.toLowerCase()}`, 5);

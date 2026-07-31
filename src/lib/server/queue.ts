@@ -1,7 +1,3 @@
-/**
- * pg-boss queue — web-process side (send-only).
- * Lazy singleton: starts once on first use.
- */
 import { PgBoss } from 'pg-boss';
 
 export const EXTRACTION_QUEUE = 'extract-invoice';
@@ -22,8 +18,6 @@ async function getBoss(): Promise<PgBoss> {
 				max: 2,
 			});
 			await b.start();
-			// pg-boss v10+ no longer auto-creates queues; send() requires the
-			// queue to exist first. createQueue is idempotent.
 			await b.createQueue(EXTRACTION_QUEUE);
 			await b.createQueue(NORMALIZE_QUEUE);
 			boss = b;
@@ -33,9 +27,6 @@ async function getBoss(): Promise<PgBoss> {
 	return startPromise;
 }
 
-// Returns true if the job was enqueued, false if a job for the same item
-// is already pending/active (pg-boss singletonKey dedup). A deduped send is
-// expected on duplicate submits and must never be treated as a failure.
 export async function enqueueExtraction(
 	itemId: string,
 	restaurantId: string,
@@ -50,8 +41,6 @@ export async function enqueueExtraction(
 	return jobId !== null;
 }
 
-// Low-priority async LLM normalization for a freshly-created product (issue
-// #300). Deduped per (restaurant, product) so re-saves don't pile up jobs.
 export async function enqueueNormalize(
 	restaurantId: string,
 	productId: number,

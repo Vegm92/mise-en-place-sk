@@ -11,7 +11,6 @@
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
 </script>
 
-<!-- Mobile suppliers -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileSuppliersList
     suppliers={data.suppliers}
@@ -23,7 +22,6 @@
   />
 </div>
 
-<!-- Desktop suppliers -->
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
   <DesktopSuppliersList
     suppliers={data.suppliers}

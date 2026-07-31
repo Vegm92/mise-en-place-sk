@@ -186,7 +186,6 @@
     return '';
   }
 
-  // ── Mock data ──────────────────────────────────────────────────────────
   const extractLines = [
     { ok: true,  desc: 'Solomillo de ternera ibérica', qty: '4,20 kg', total: '119,28' },
     { ok: true,  desc: 'Costillas de cerdo ibérico',   qty: '3,50 kg', total: '51,10'  },
@@ -205,7 +204,6 @@
     { l: 'S21', a: 38, b: 28, c: 20, hi: true  },
   ];
 
-  // Compute chart bar positions in script so SVG can use plain numbers
   const CH = 130, CPT = 14, CPB = 22, CVW = 400, padL = 28;
   const CAW = CVW - padL - 10;
   const CCW = CAW / rawWeeks.length;
@@ -234,7 +232,6 @@
   <meta name="description" content={t.metaDescription} />
   <link rel="canonical" href={data.canonicalUrl} />
 
-  <!-- Open Graph -->
   <meta property="og:type"        content="website" />
   <meta property="og:url"         content={data.canonicalUrl} />
   <meta property="og:site_name"   content="Mise en Place" />
@@ -242,12 +239,10 @@
   <meta property="og:description" content={t.metaDescription} />
   <meta property="og:locale"      content={t.ogLocale} />
 
-  <!-- Twitter / X Card -->
   <meta name="twitter:card"        content="summary_large_image" />
   <meta name="twitter:title"       content={t.ogTitle} />
   <meta name="twitter:description" content={t.metaDescription} />
 
-  <!-- Structured data -->
   {@html `<script type="application/ld+json">${JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': [
@@ -275,7 +270,6 @@
   style="width:100%;min-height:100vh;background:var(--mep-bg);color:var(--mep-fg);
          border-top:4px solid var(--mep-acc);font-family:inherit;">
 
-  <!-- ── Nav ───────────────────────────────────────────────────────────── -->
   <nav style="display:flex;align-items:center;gap:14px;padding:14px 32px;
               border-bottom:1px solid var(--mep-fg);">
     <div style="display:flex;align-items:center;gap:10px;">
@@ -305,7 +299,6 @@
                                                     font-weight:600;text-decoration:none;">{t.ctaNav}</a>
   </nav>
 
-  <!-- ── Masthead ──────────────────────────────────────────────────────── -->
   <div style="padding:10px 32px;border-bottom:1px solid var(--mep-divider);
               display:flex;justify-content:space-between;align-items:center;
               font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
@@ -315,12 +308,10 @@
     <span>{t.date}</span>
   </div>
 
-  <!-- ── Hero ──────────────────────────────────────────────────────────── -->
   <section style="padding:64px 32px 56px;">
     <div style="max-width:1280px;margin:0 auto;display:grid;
                 grid-template-columns:120px 1fr 280px;gap:32px;align-items:flex-start;">
 
-      <!-- Left rail -->
       <div style="display:flex;flex-direction:column;gap:28px;padding-top:12px;">
         {#each [
           { label: t.railTiradaLabel, value: t.railTirada, sub: t.railTiradaSub, color: 'var(--mep-fg)' },
@@ -339,7 +330,6 @@
         {/each}
       </div>
 
-      <!-- Center: headline + form -->
       <div>
         <div style="font-size:11px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;
                     color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:28px;
@@ -418,7 +408,6 @@
         </div>
       </div>
 
-      <!-- Right: rotated extract preview -->
       <div>
         <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
                     letter-spacing:0.1em;text-transform:uppercase;font-weight:500;margin-bottom:10px;">
@@ -461,7 +450,6 @@
     </div>
   </section>
 
-  <!-- ── Integrations strip ─────────────────────────────────────────────── -->
   <div style="padding:14px 32px;border-top:1px solid var(--mep-fg);border-bottom:1px solid var(--mep-fg);
               display:flex;align-items:center;gap:32px;overflow:hidden;">
     <span style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;
@@ -479,7 +467,6 @@
     </div>
   </div>
 
-  <!-- ── Pain — Chapter I ───────────────────────────────────────────────── -->
   <section style="padding:88px 32px 56px;">
     <div style="max-width:1280px;margin:0 auto;">
       <div style="display:grid;grid-template-columns:120px 1fr;gap:32px;margin-bottom:56px;">
@@ -518,7 +505,6 @@
     </div>
   </section>
 
-  <!-- ── How — Chapter II ──────────────────────────────────────────────── -->
   <section style="padding:72px 32px;background:var(--mep-surface-2);
                   border-top:1px solid var(--mep-fg);border-bottom:1px solid var(--mep-fg);">
     <div style="max-width:1280px;margin:0 auto;">
@@ -545,15 +531,12 @@
                       max-width:360px;">{step.body}</p>
           </div>
 
-          <!-- ── Product mock (replaces PNG screenshots) ── -->
           <div>
             {#if i === 0}
-              <!-- Mock 01 · Capture: faux invoice + WhatsApp bubble -->
               <div style="position:relative;width:100%;aspect-ratio:4/3;border-radius:16px;overflow:hidden;
                           background:linear-gradient(135deg,var(--mep-surface-2) 0%,var(--mep-surface) 100%);
                           border:1px solid var(--mep-divider);padding:28px;
                           display:flex;align-items:center;justify-content:center;">
-                <!-- Faux invoice paper -->
                 <div style="position:absolute;top:22px;left:22px;width:54%;height:78%;
                             background:var(--mep-surface);border:1px solid var(--mep-divider);
                             border-radius:4px;box-shadow:0 14px 40px rgba(0,0,0,0.12);
@@ -582,7 +565,6 @@
                     <span>TOTAL</span><span>482,65 €</span>
                   </div>
                 </div>
-                <!-- WhatsApp bubble -->
                 <div style="position:absolute;right:28px;bottom:28px;width:46%;
                             display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
                   <div style="max-width:90%;background:#dcf8c6;color:#0a2618;
@@ -614,7 +596,6 @@
               </div>
 
             {:else if i === 1}
-              <!-- Mock 02 · Extract: structured invoice table -->
               <div class="card" style="width:100%;padding:0;overflow:hidden;display:flex;flex-direction:column;">
                 <div style="padding:12px 16px;border-bottom:1px solid var(--mep-divider);
                             display:flex;align-items:center;gap:10px;">
@@ -660,7 +641,6 @@
               </div>
 
             {:else}
-              <!-- Mock 03 · Dashboard: stacked bar chart + alert -->
               <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;">
                   <div>
@@ -687,7 +667,6 @@
                     {/each}
                   </div>
                 </div>
-                <!-- SVG chart with pre-computed positions -->
                 <svg viewBox="0 0 {CVW} {svgH}" width="100%" style="display:block;overflow:visible;">
                   {#each [0, 0.5, 1] as p}
                     <line x1={padL} x2={CVW - 10} y1={CPT + CH * (1 - p)} y2={CPT + CH * (1 - p)}
@@ -709,7 +688,6 @@
                     </g>
                   {/each}
                 </svg>
-                <!-- Alert row -->
                 <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;
                             border-radius:8px;background:var(--mep-warn-soft);">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:var(--mep-warn);flex-shrink:0;">
@@ -738,7 +716,6 @@
     </div>
   </section>
 
-  <!-- ── Testimonials — Chapter III ────────────────────────────────────── -->
   <section style="padding:88px 32px;">
     <div style="max-width:1280px;margin:0 auto;">
       <div style="display:grid;grid-template-columns:120px 1fr;gap:32px;margin-bottom:48px;">
@@ -767,7 +744,6 @@
     </div>
   </section>
 
-  <!-- ── Final CTA — inverted ───────────────────────────────────────────── -->
   <section style="padding:100px 32px;background:var(--mep-fg);color:var(--mep-bg);
                   --mep-border-strong:rgba(255,255,255,0.2);--mep-surface:rgba(255,255,255,0.05);
                   --mep-divider:rgba(255,255,255,0.15);">
@@ -819,7 +795,6 @@
     </div>
   </section>
 
-  <!-- ── Footer ────────────────────────────────────────────────────────── -->
   <footer style="padding:20px 32px;display:flex;align-items:center;justify-content:space-between;
                  font-size:11px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
                  letter-spacing:0.06em;border-top:1px solid var(--mep-divider);">
