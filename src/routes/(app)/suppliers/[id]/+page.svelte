@@ -380,9 +380,9 @@
       <div class="card" style="padding:14px;">
         <p class="body-strong" style="margin-bottom:10px;font-size:12.5px;">{$t('sup.conv.add')}</p>
         <form method="post" action="?/addConversion" style="display:flex;flex-direction:column;gap:8px;">
-          <input class="input" name="ingredient" required placeholder={$t('sup.conv.ph.ingredient')} />
+          <input class="input" name="ingredient" required placeholder={$t('sup.conv.ph.ingredient')} value={data.initialIngredient} />
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <input class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} />
+            <input class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} value={data.initialPurchaseUnit} />
             <input class="input" name="canonical_unit" required placeholder={$t('sup.conv.ph.canonical')} />
           </div>
           <input class="input" name="conversion_factor" type="number" min="0.001" step="any" required placeholder="Factor (p.ej. 6)" />
@@ -404,6 +404,8 @@
     monthly={data.monthly}
     conversions={data.conversions}
     products={data.products}
+    prefillIngredient={data.initialIngredient}
+    prefillPurchaseUnit={data.initialPurchaseUnit}
     bind:tab
     bind:editing
     bind:confirmDelete

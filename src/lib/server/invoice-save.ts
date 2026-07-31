@@ -379,7 +379,7 @@ export async function saveReviewedInvoice(
 					notificationType: 'unit_conversion_needed',
 					message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
 					payload: {
-						supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
+						supplierId, supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
 						messageKey: 'notif.msg.unitConversion',
 						messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
 					},

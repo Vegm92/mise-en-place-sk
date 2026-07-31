@@ -61,6 +61,8 @@
     monthly,
     conversions,
     products,
+    prefillIngredient = '',
+    prefillPurchaseUnit = '',
     tab       = $bindable<'resumen'|'facturas'|'productos'|'conversiones'>('resumen'),
     editing   = $bindable(false),
     confirmDelete = $bindable(false),
@@ -71,6 +73,8 @@
     monthly: MonthlyBar[];
     conversions: Conversion[];
     products: Product[];
+    prefillIngredient?: string;
+    prefillPurchaseUnit?: string;
     tab?: 'resumen'|'facturas'|'productos'|'conversiones';
     editing?: boolean;
     confirmDelete?: boolean;
@@ -689,11 +693,11 @@
               style="display:grid;grid-template-columns:1fr 1fr 1fr 100px auto;gap:8px;align-items:end;">
               <div>
                 <label for="conv-ingredient" class="label" style="display:block;margin-bottom:3px;">{$t('sup.conv.ingredient')}</label>
-                <input id="conv-ingredient" class="input" name="ingredient" required placeholder={$t('sup.conv.ph.ingredient')} style="width:100%;" />
+                <input id="conv-ingredient" class="input" name="ingredient" required placeholder={$t('sup.conv.ph.ingredient')} value={prefillIngredient} style="width:100%;" />
               </div>
               <div>
                 <label for="conv-purchase-unit" class="label" style="display:block;margin-bottom:3px;">{$t('sup.conv.purchaseUnit')}</label>
-                <input id="conv-purchase-unit" class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} style="width:100%;" />
+                <input id="conv-purchase-unit" class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} value={prefillPurchaseUnit} style="width:100%;" />
               </div>
               <div>
                 <label for="conv-canonical-unit" class="label" style="display:block;margin-bottom:3px;">{$t('sup.conv.canonicalUnit')}</label>

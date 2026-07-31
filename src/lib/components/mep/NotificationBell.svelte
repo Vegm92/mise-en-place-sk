@@ -218,6 +218,19 @@
                   </div>
                 {/if}
               {/if}
+              {#if n.notificationType === 'unit_conversion_needed'}
+                {@const p = n.payload as { supplierId?: number; ingredient?: string; purchaseUnit?: string } | null}
+                {#if p?.supplierId}
+                  <div style="margin-top:6px;">
+                    <a
+                      href="/suppliers/{p.supplierId}?tab=conversiones&ingredient={encodeURIComponent(p.ingredient ?? '')}&purchase_unit={encodeURIComponent(p.purchaseUnit ?? '')}"
+                      class="btn btn-primary"
+                      style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+                      onclick={() => (open = false)}
+                    >{$t('notif.setConversion')}</a>
+                  </div>
+                {/if}
+              {/if}
               {#if n.notificationType === 'product_suggestion'}
                 <div style="display:flex;gap:6px;margin-top:6px;">
                   <button

@@ -102,7 +102,7 @@ describe('locale key parity (es vs en)', () => {
     // Supplier categorisation nudge + suggestion (issues #301/#315). The alert
     // text itself is keyed, not baked into the notification row, so both
     // locales must carry it.
-    'notif.categorize', 'notif.catAccept', 'notif.catChange',
+    'notif.categorize', 'notif.catAccept', 'notif.catChange', 'notif.setConversion',
     'notif.msg.uncategorized', 'notif.msg.catSuggested',
     // Remaining notification types converted to messageKey/messageVars (issue #337)
     'notif.msg.priceShockUp', 'notif.msg.priceShockDown', 'notif.msg.lowStock',
