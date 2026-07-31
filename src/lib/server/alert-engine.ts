@@ -144,13 +144,16 @@ export async function runPriceShock(
 		if (Math.abs(deviation) < PRICE_SHOCK_THRESHOLD) continue;
 
 		const pct = Math.round(deviation * 1000) / 10;
-		const direction = deviation > 0 ? 'subido' : 'bajado';
 		const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
 
 		alerts.push({
 			notificationType: 'price_shock',
-			message: `⚠️ Alerta de Coste: '${description}' ha ${direction} un ${Math.abs(pct)}% respecto a tu precio habitual reciente (${oldCmp.toFixed(2)} → ${newCmp.toFixed(2)}${unitSuffix}).`,
-			payload: { ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null },
+			message: `price_shock: ${description} ${pct > 0 ? '+' : ''}${pct}%`,
+			payload: {
+				ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null,
+				messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
+				messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
+			},
 		});
 	}
 
@@ -194,7 +197,7 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 
 		alerts.push({
 			notificationType: 'low_stock_forecast',
-			message: `📦 Reabastecimiento: '${description}' tendrá stock para ${daysRemaining.toFixed(1)} días tras esta factura. Considera hacer un nuevo pedido pronto.`,
+			message: `low_stock_forecast: ${description} ${daysRemaining.toFixed(1)}d`,
 			payload: {
 				ingredient: description,
 				projectedDays: Math.round(daysRemaining * 10) / 10,
@@ -202,6 +205,8 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 				addedQuantity: addedQty,
 				dailyBurnRate: row.dailyBurnRate,
 				unit: row.canonicalUnit,
+				messageKey: 'notif.msg.lowStock',
+				messageVars: { ingredient: description, days: daysRemaining.toFixed(1) },
 			},
 		});
 	}
@@ -374,13 +379,10 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	if (alreadySent) return [];
 
 	const pctDisplay = Math.round(pctFrac * 100);
-	const message = level === 'exceeded'
-		? `🔴 Presupuesto superado: '${category}' ha gastado ${totalSpend.toFixed(2)} € de ${monthlyBudget.toFixed(2)} € (${pctDisplay}%).`
-		: `🟡 Aviso de presupuesto: '${category}' lleva ${totalSpend.toFixed(2)} € de ${monthlyBudget.toFixed(2)} € (${pctDisplay}%). Límite: ${thresholdPct}%.`;
 
 	return [{
 		notificationType: 'budget_overage',
-		message,
+		message: `budget_overage: ${category} ${pctDisplay}% (${level})`,
 		payload: {
 			category,
 			spent: Math.round(totalSpend * 100) / 100,
@@ -388,6 +390,8 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 			pct: pctDisplay,
 			threshold: thresholdPct,
 			level,
+			messageKey: level === 'exceeded' ? 'notif.msg.budgetExceeded' : 'notif.msg.budgetWarning',
+			messageVars: { category, spent: totalSpend.toFixed(2), budget: monthlyBudget.toFixed(2), pct: pctDisplay, threshold: thresholdPct },
 		},
 	}];
 }

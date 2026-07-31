@@ -104,6 +104,11 @@ describe('locale key parity (es vs en)', () => {
     // locales must carry it.
     'notif.categorize', 'notif.catAccept', 'notif.catChange',
     'notif.msg.uncategorized', 'notif.msg.catSuggested',
+    // Remaining notification types converted to messageKey/messageVars (issue #337)
+    'notif.msg.priceShockUp', 'notif.msg.priceShockDown', 'notif.msg.lowStock',
+    'notif.msg.unitConversion', 'notif.msg.budgetExceeded', 'notif.msg.budgetWarning',
+    'notif.msg.productSuggestion', 'notif.msg.productSuggestionAi',
+    'dash.alert.priceShockUp', 'dash.alert.priceShockDown', 'dash.alert.budgetPct',
     'set.tourTitle', 'set.tourDesc', 'set.tourRepeat',
     'set.privacyTitle', 'set.dataExportBtn', 'set.deleteConfirmWord',
     'set.deleteBtn', 'set.deletingBtn', 'set.privacyLink', 'set.termsLink',

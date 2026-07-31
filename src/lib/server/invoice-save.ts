@@ -153,12 +153,14 @@ async function linkProductsToInvoice(
 			if (r.status === 'fuzzy' && r.suggestion) {
 				suggestions.push({
 					notificationType: 'product_suggestion',
-					message: `¿Es '${desc}' el mismo producto que '${r.suggestion.candidateName}'? Confírmalo para agrupar su historial de precios.`,
+					message: `product_suggestion: ${desc} ~ ${r.suggestion.candidateName}`,
 					payload: {
 						description: desc,
 						productId: r.productId,
 						candidateName: r.suggestion.candidateName,
 						score: Math.round(r.suggestion.score * 100) / 100,
+						messageKey: 'notif.msg.productSuggestion',
+						messageVars: { description: desc, candidateName: r.suggestion.candidateName },
 					},
 				});
 			} else if (r.status === 'created') {
@@ -375,8 +377,12 @@ export async function saveReviewedInvoice(
 			if (requiresConv) {
 				unitConversionAlerts.push({
 					notificationType: 'unit_conversion_needed',
-					message: `Has comprado ${li.qtyFloat ?? '?'} ${li.unitVal} de '${li.desc}'. ¿Cuántos unidades base contiene este ${li.unitVal} para actualizar tu stock correctamente?`,
-					payload: { supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat },
+					message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
+					payload: {
+						supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
+						messageKey: 'notif.msg.unitConversion',
+						messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
+					},
 				});
 			}
 		}

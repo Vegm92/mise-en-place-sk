@@ -104,7 +104,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 		await db.insert(systemNotifications).values({
 			restaurantId,
 			notificationType: 'product_suggestion',
-			message: `¿Es '${rawText}' el mismo producto que '${candidate.name}'? (sugerencia IA) Confírmalo para agrupar su historial de precios.`,
+			message: `product_suggestion: ${rawText} ~ ${candidate.name} (llm)`,
 			payload: JSON.stringify({
 				description: rawText,
 				productId,
@@ -112,6 +112,8 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 				candidateProductId: candidate.id,
 				score: Math.round(verdict.confidence * 100) / 100,
 				source: 'llm',
+				messageKey: 'notif.msg.productSuggestionAi',
+				messageVars: { description: rawText, candidateName: candidate.name },
 			}),
 			status: 'pending',
 		});
