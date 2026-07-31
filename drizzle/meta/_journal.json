@@ -169,6 +169,20 @@
       "when": 1784945620190,
       "tag": "0023_restaurant_locations",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785186569797,
+      "tag": "0024_whatsapp_pairing_codes",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785186966803,
+      "tag": "0025_whatsapp_account_events",
+      "breakpoints": true
     }
   ]
 }

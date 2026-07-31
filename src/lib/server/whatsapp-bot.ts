@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import * as Sentry from '@sentry/sveltekit';
 import { and, desc, eq, gt, isNull } from 'drizzle-orm';
 import { forTenant } from './db';
 import { sql } from 'drizzle-orm';
@@ -13,6 +14,7 @@ import { db } from './db';
 import {
 	invoiceLineItems,
 	invoices,
+	restaurants,
 	whatsappBotSessions,
 	whatsappContacts,
 	whatsappProcessedMessages,
@@ -24,8 +26,14 @@ import { extractWithProvider, type ExtractedInvoice } from './extract';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { maybeSendQuotaWarning } from './quota-warning';
+import { claimMonthlyExtraction, releaseMonthlyExtraction } from './llm-quota';
+import { checkRateLimit } from './rate-limiter';
+import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+/** How long an unknown number waits before the bot answers it again (#322). */
+const UNAUTHORIZED_REPLY_COOLDOWN_S = 6 * 60 * 60; // 6 hours
 
 export interface WhatsAppInboundMessage {
 	from: string;
@@ -75,10 +83,25 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		.limit(1);
 
 	if (contactRows.length === 0) {
-		await sendWhatsAppMessage(
-			from,
-			'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
-		);
+		// An enrolling number is by definition not yet authorised, so pairing is
+		// handled here rather than before the lookup (issue #320) — that way an
+		// already-authorised sender's "SÍ"/"NO" can never be mistaken for a code.
+		if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
+			await handlePairingAttempt(from, msg.text.body);
+			return;
+		}
+
+		// Reply at most once per number per cooldown (issue #322). A wrong number
+		// or a spam contact would otherwise get an answer to every message it
+		// sends, which is unbounded billable traffic from 1 Oct 2026 and poor
+		// anti-abuse behaviour long before that. A staff member who genuinely
+		// mistyped still gets told the first time.
+		if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
+			await sendWhatsAppMessage(
+				from,
+				'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
+			);
+		}
 		return;
 	}
 
@@ -98,6 +121,46 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 	}
 }
 
+// ── Pairing (issue #320) ─────────────────────────────────────────────────────
+
+/**
+ * Redeem a pairing code sent by a not-yet-authorised number.
+ *
+ * Unknown, expired and already-used codes get one identical answer, so a guess
+ * never reveals whether a code exists. Exhausting the per-sender attempt budget
+ * is answered with silence rather than a "too many attempts" message — telling
+ * someone they are being rate-limited is itself a signal, and every reply here
+ * goes to an unauthenticated number at our expense.
+ */
+async function handlePairingAttempt(from: string, body: string): Promise<void> {
+	const result = await redeemPairingCode(from, body);
+
+	if (result.ok) {
+		const [restaurant] = await db
+			.select({ name: restaurants.name })
+			.from(restaurants)
+			.where(eq(restaurants.id, result.restaurantId))
+			.limit(1);
+		await sendWhatsAppMessage(
+			from,
+			`✅ Número autorizado${restaurant?.name ? ` para *${restaurant.name}*` : ''}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
+		);
+		return;
+	}
+
+	if (result.reason === 'rateLimited') return;
+
+	if (result.reason === 'taken') {
+		await sendWhatsAppMessage(
+			from,
+			'⚠️ Este número ya está autorizado en otro local. Pide al administrador que lo dé de baja antes de registrarlo aquí.',
+		);
+		return;
+	}
+
+	await sendWhatsAppMessage(from, '❌ Ese código no es válido o ha caducado. Pide uno nuevo al administrador.');
+}
+
 // ── Media handler ────────────────────────────────────────────────────────────
 
 async function handleMediaUpload(
@@ -114,14 +177,39 @@ async function handleMediaUpload(
 		return;
 	}
 
-	await sendWhatsAppMessage(from, '⏳ Procesando tu factura, un momento...');
+	// Money gate: reserve a monthly extraction slot BEFORE any Gemini spend
+	// (issue #318). Without this WhatsApp was an unmetered lane around the plan
+	// quota the web uploader enforces — and under the shared-number model that
+	// cost lands on us, not the tenant. Claimed after the pending-session guard
+	// above so a rejected duplicate never burns a slot.
+	const claim = await claimMonthlyExtraction(restaurantId);
+	if (!claim.claimed) {
+		console.warn(`[whatsapp-bot] monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
+		// Same aggregation as the worker (#257) — a tenant hitting the wall must
+		// be visible here too, not only discovered from a support ticket.
+		Sentry.captureMessage('extraction.quota_exhausted', {
+			level: 'warning',
+			tags: { restaurantId, source: 'whatsapp' },
+		});
+		await sendWhatsAppMessage(
+			from,
+			`⚠️ Has alcanzado el límite de facturas de tu plan este mes (${claim.limit}).\nAmplía tu plan en el panel web para seguir enviando facturas.`,
+		);
+		return;
+	}
 
+	// No "procesando…" ack (issue #322). WhatsApp already shows the photo as
+	// delivered and the summary lands in ~10 s, so the ack bought nothing and
+	// made a successful invoice cost three outbound messages instead of two —
+	// billable from 1 Oct 2026, and on our account under the shared number.
 	let buffer: Buffer;
 	let extension: string;
 	try {
 		({ buffer, extension } = await downloadWhatsAppMedia(mediaId));
 	} catch (err) {
 		console.error('[whatsapp-bot] media download error:', err);
+		// Nothing was extracted — give the slot back (mirrors extraction-worker).
+		await releaseMonthlyExtraction(restaurantId);
 		await sendWhatsAppMessage(from, '❌ No he podido descargar el archivo. Inténtalo de nuevo.');
 		return;
 	}
@@ -136,6 +224,8 @@ async function handleMediaUpload(
 		extracted = result.invoice;
 	} catch (err) {
 		console.error('[whatsapp-bot] extraction error:', err);
+		// A Gemini failure shouldn't consume the tenant's quota (issue #318).
+		await releaseMonthlyExtraction(restaurantId);
 		await sendWhatsAppMessage(
 			from,
 			'❌ No he podido leer la factura. Asegúrate de que la imagen sea clara e inténtalo de nuevo.',

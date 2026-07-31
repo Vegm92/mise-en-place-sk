@@ -11,8 +11,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { handleMock } = vi.hoisted(() => ({
+const { handleMock, accountEventMock } = vi.hoisted(() => ({
 	handleMock: vi.fn().mockResolvedValue(undefined),
+	accountEventMock: vi.fn().mockResolvedValue(undefined),
 }));
 
 // WHATSAPP_APP_SECRET is intentionally empty here: with no secret the route
@@ -20,6 +21,7 @@ const { handleMock } = vi.hoisted(() => ({
 // plumbing. Signature rejection is covered separately below.
 vi.mock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: '' }));
 vi.mock('$lib/server/whatsapp-bot', () => ({ handleWhatsAppMessage: handleMock }));
+vi.mock('$lib/server/whatsapp-health', () => ({ recordAccountEvent: accountEventMock }));
 
 import { GET, POST } from '../src/routes/api/whatsapp/webhook/+server';
 
@@ -39,6 +41,7 @@ function postEvent(body: unknown, opts: { invalidJson?: boolean; signature?: str
 
 beforeEach(() => {
 	handleMock.mockClear();
+	accountEventMock.mockClear();
 });
 
 describe('GET — verify-token handshake', () => {
@@ -109,6 +112,59 @@ describe('POST — message fan-out', () => {
 		);
 		expect(res.status).toBe(200);
 		expect(handleMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('POST — account-level events (issue #321)', () => {
+	function accountPayload(field: string, value: object) {
+		return { entry: [{ changes: [{ field, value }] }] };
+	}
+
+	it('routes a quality downgrade to the health recorder, not the bot', async () => {
+		const res = await POST(postEvent(accountPayload('phone_number_quality_update', {
+			display_phone_number: '34612345678', event: 'FLAGGED', current_limit: 'TIER_1K',
+		})));
+		expect(res.status).toBe(200);
+		expect(handleMock).not.toHaveBeenCalled();
+		expect(accountEventMock).toHaveBeenCalledWith({
+			field: 'phone_number_quality_update',
+			value: expect.objectContaining({ event: 'FLAGGED' }),
+		});
+	});
+
+	it('records an account restriction', async () => {
+		await POST(postEvent(accountPayload('account_update', {
+			event: 'ACCOUNT_RESTRICTION',
+			restriction_info: [{ restriction_type: 'RESTRICTED_BIZ_INITIATED_MESSAGING' }],
+		})));
+		expect(accountEventMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('still ignores delivery-status callbacks — they carry no health signal', async () => {
+		// Statuses are the other high-volume field; recording them would bury the
+		// events that matter under receipts.
+		await POST(postEvent({ entry: [{ changes: [{ field: 'messages', value: { statuses: [{ id: 'x' }] } }] }] }));
+		expect(accountEventMock).not.toHaveBeenCalled();
+		expect(handleMock).not.toHaveBeenCalled();
+	});
+
+	it('keeps messages and account events in the same envelope apart', async () => {
+		await POST(postEvent({
+			entry: [{
+				changes: [
+					{ field: 'messages', value: { messages: [{ from: '+34600', id: 'wamid.9', type: 'text', text: { body: 'hola' } }] } },
+					{ field: 'account_update', value: { event: 'ACCOUNT_VIOLATION' } },
+				],
+			}],
+		}));
+		expect(handleMock).toHaveBeenCalledTimes(1);
+		expect(accountEventMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('stays 200 when the health recorder rejects', async () => {
+		accountEventMock.mockRejectedValueOnce(new Error('db down'));
+		const res = await POST(postEvent(accountPayload('account_update', { event: 'ACCOUNT_VIOLATION' })));
+		expect(res.status).toBe(200);
 	});
 });
 

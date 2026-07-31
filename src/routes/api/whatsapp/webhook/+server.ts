@@ -7,7 +7,10 @@
  *   https://developers.facebook.com/apps → WhatsApp → Configuration → Webhook
  *   URL: https://your-domain.com/api/whatsapp/webhook
  *   Verify token: value of WHATSAPP_VERIFY_TOKEN
- *   Subscribed fields: messages
+ *   Subscribed fields: messages, account_update, phone_number_quality_update
+ *
+ * The account fields are what turn a shared-number quality downgrade from
+ * something discovered via support tickets into something delivered (#321).
  */
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -17,6 +20,7 @@ import {
 	handleWhatsAppMessage,
 	type WhatsAppInboundMessage,
 } from '$lib/server/whatsapp-bot';
+import { recordAccountEvent, type AccountEventInput } from '$lib/server/whatsapp-health';
 
 /**
  * Verify Meta's X-Hub-Signature-256 HMAC over the raw request body.
@@ -71,32 +75,70 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json({ error: 'invalid json' }, { status: 400 });
 	}
 
+	const { messages, accountEvents } = extractChanges(body);
+
 	// Process asynchronously — WhatsApp expects a 200 within 5 s
-	for (const msg of extractMessages(body)) {
+	for (const msg of messages) {
 		handleWhatsAppMessage(msg).catch(err =>
 			console.error('[whatsapp-webhook] unhandled error:', err),
+		);
+	}
+
+	// Account-level events (issue #321). Ingest for every tenant runs through one
+	// shared number, so a quality downgrade or restriction has to be delivered
+	// here rather than discovered from support tickets.
+	for (const evt of accountEvents) {
+		recordAccountEvent(evt).catch(err =>
+			console.error('[whatsapp-webhook] account event error:', err),
 		);
 	}
 
 	return json({ ok: true });
 };
 
-function extractMessages(body: unknown): WhatsAppInboundMessage[] {
-	const out: WhatsAppInboundMessage[] = [];
+/**
+ * Split a webhook payload into inbound messages and account-level events.
+ *
+ * Meta multiplexes every subscribed field through the same endpoint and
+ * distinguishes them by `changes[].field`. Reading `value.messages` regardless
+ * of the field (as this did) silently discarded everything that was not a
+ * message — including the quality and restriction notices #321 exists to catch.
+ */
+function extractChanges(body: unknown): {
+	messages: WhatsAppInboundMessage[];
+	accountEvents: AccountEventInput[];
+} {
+	const messages: WhatsAppInboundMessage[] = [];
+	const accountEvents: AccountEventInput[] = [];
+
 	const entry = (body as Record<string, unknown>)?.entry;
-	if (!Array.isArray(entry)) return out;
+	if (!Array.isArray(entry)) return { messages, accountEvents };
 
 	for (const e of entry) {
 		const changes = (e as Record<string, unknown>)?.changes;
 		if (!Array.isArray(changes)) continue;
 		for (const c of changes) {
-			const value = (c as Record<string, unknown>)?.value as
-				| Record<string, unknown>
-				| undefined;
-			const msgs = value?.messages;
-			if (!Array.isArray(msgs)) continue;
-			for (const m of msgs) out.push(m as WhatsAppInboundMessage);
+			const change = c as Record<string, unknown>;
+			const value = change?.value as Record<string, unknown> | undefined;
+			if (!value) continue;
+
+			const msgs = value.messages;
+			if (Array.isArray(msgs)) {
+				for (const m of msgs) messages.push(m as WhatsAppInboundMessage);
+				continue;
+			}
+
+			// Statuses (sent/delivered/read receipts) are the other high-volume
+			// field and carry no health signal — skip them rather than filling the
+			// events table with noise.
+			if (Array.isArray(value.statuses)) continue;
+
+			const field = typeof change.field === 'string' ? change.field : 'unknown';
+			// Anything else that is subscribed is health-relevant by definition:
+			// we only subscribe to fields we intend to act on, and an unrecognised
+			// event is better recorded than dropped.
+			accountEvents.push({ field, value });
 		}
 	}
-	return out;
+	return { messages, accountEvents };
 }

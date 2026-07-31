@@ -9,7 +9,10 @@ import { randomBytes } from 'node:crypto';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
-import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
+import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
+import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
+import { renderQrSvg } from '$lib/server/qr-svg';
+import { activePairingCode, generatePairingCode, revokePairingCodes } from '$lib/server/whatsapp-pairing';
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
@@ -23,11 +26,40 @@ const MIN_PASSWORD_LENGTH = 8;
  */
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
 
+/**
+ * The bot's own number, resolved once at boot (issue #319).
+ *
+ * Authorising a staff number is only half of onboarding — the staff member also
+ * has to know *what number to message*, and nothing in the app ever said. The
+ * QR is the one that matters in practice: it gets printed and stuck in the
+ * kitchen, so nobody types a phone number into a shared handset.
+ *
+ * Null when `WHATSAPP_DISPLAY_NUMBER` is unset or unparseable; the card then
+ * renders its authorisation half exactly as before rather than showing a
+ * broken link.
+ */
+const WHATSAPP_BOT_NUMBER = (() => {
+	if (!WHATSAPP_ENABLED || !WHATSAPP_DISPLAY_NUMBER) return null;
+	const normalized = normalizePhoneNumber(WHATSAPP_DISPLAY_NUMBER);
+	if (!normalized.ok) {
+		console.warn(`[settings] WHATSAPP_DISPLAY_NUMBER is not a usable phone number (${normalized.reason}) — hiding the click-to-chat block`);
+		return null;
+	}
+	const link = waMeLink(normalized.phone);
+	return {
+		display: formatPhoneNumber(normalized.phone),
+		link,
+		// The QR encodes the same wa.me link, so scanning and tapping land in
+		// the same chat. Rendered once at boot — it never varies per tenant.
+		qrSvg: renderQrSvg(link),
+	};
+})();
+
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, features, whatsappContactRows] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, features, whatsappContactRows, pairingCode] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -49,6 +81,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.orderBy(asc(restaurants.name)),
 			getTierFeatures(rid),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
+			// Live enrolment code, if the owner has one outstanding (issue #320).
+			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
 		]);
 
 		const billingRid = await billingRestaurantId(rid);
@@ -80,6 +114,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			whatsappEnabled: WHATSAPP_ENABLED,
 			whatsappContacts: whatsappContactRows,
 			canManageWhatsapp: membership[0]?.role === 'owner',
+			// …and where to send those invoices (issue #319).
+			whatsappBotNumber: WHATSAPP_BOT_NUMBER,
+			// Self-service enrolment (issue #320).
+			whatsappPairingCode: pairingCode,
 		};
 	});
 };
@@ -340,6 +378,48 @@ export const actions: Actions = {
 
 		await removeContact(rid, id);
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.removed' };
+	},
+
+	/**
+	 * Mint a pairing code (issue #320). Same owner-only gate as typing a number
+	 * in by hand — the code is a bearer token for exactly that privilege.
+	 */
+	generateWhatsappPairingCode: async ({ request, locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
+		if (!WHATSAPP_ENABLED) return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.disabled' });
+
+		if (!(await requireOwner(rid, locals.user!.id))) {
+			return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.notOwner' });
+		}
+
+		const data = await request.formData();
+		const name = ((data.get('name') as string) ?? '').trim();
+		if (name.length > 80) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.nameTooLong' });
+
+		const result = await generatePairingCode(rid, locals.user!.id, name);
+		if (!result.ok) {
+			return fail(result.reason === 'rateLimited' ? 429 : 500, {
+				section: 'whatsapp',
+				error: result.reason === 'rateLimited' ? 'set.whatsapp.err.pairRateLimited' : 'set.whatsapp.err.pairFailed',
+			});
+		}
+
+		return { section: 'whatsapp', ok: 'set.whatsapp.ok.pairGenerated' };
+	},
+
+	/** Cancel the outstanding code — e.g. it was read out to the wrong person. */
+	revokeWhatsappPairingCode: async ({ locals }) => {
+		const rid = locals.restaurantId;
+		if (!rid) redirect(303, '/onboarding');
+		if (!WHATSAPP_ENABLED) return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.disabled' });
+
+		if (!(await requireOwner(rid, locals.user!.id))) {
+			return fail(403, { section: 'whatsapp', error: 'set.whatsapp.err.notOwner' });
+		}
+
+		await revokePairingCodes(rid);
+		return { section: 'whatsapp', ok: 'set.whatsapp.ok.pairRevoked' };
 	},
 };
 

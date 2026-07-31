@@ -47,6 +47,17 @@ export function normalizePhoneNumber(input: string): NormalizeResult {
 	return { ok: true, phone: digits };
 }
 
+/**
+ * Click-to-chat URL for a stored number (issue #319).
+ *
+ * wa.me wants digits only and rejects a leading '+', which is exactly the shape
+ * we already store — so this is deliberately the same value the bot matches on,
+ * and a link that opens the wrong chat would mean the allow-list is wrong too.
+ */
+export function waMeLink(phone: string): string {
+	return `https://wa.me/${phone.replace(/\D+/g, '')}`;
+}
+
 /** Format for display: "+34 612 345 678" — storage stays digits-only. */
 export function formatPhoneNumber(phone: string): string {
 	if (

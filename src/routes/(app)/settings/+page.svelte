@@ -15,6 +15,27 @@
   let deleting = $state(false);
   let deleteError = $state('');
 
+  // Pairing codes expire in minutes (issue #320), so the owner needs the wall
+  // clock, not a date — they are relaying this to someone standing next to them.
+  const formatTime = (at: Date | string) =>
+    new Date(at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+
+  // Copy the bot number (issue #319). Staff often read it off one phone and
+  // type it into another; copying removes the step that goes wrong.
+  let botNumberCopied = $state(false);
+  let copyResetTimer: ReturnType<typeof setTimeout> | undefined;
+  async function copyBotNumber(link: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      botNumberCopied = true;
+      clearTimeout(copyResetTimer);
+      copyResetTimer = setTimeout(() => (botNumberCopied = false), 2000);
+    } catch {
+      // Clipboard blocked (insecure context, denied permission) — the number
+      // is on screen and selectable, so there is nothing to recover from.
+    }
+  }
+
   async function handleDeleteAccount() {
     const tFn = get(t);
     if (deleteConfirm !== tFn('set.deleteConfirmWord')) return;
@@ -195,6 +216,34 @@
         <div style="display:flex;flex-direction:column;gap:12px;">
           <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.desc')}</p>
 
+          {#if data.whatsappBotNumber}
+            <!-- Where to send invoices (issue #319). Authorising a number is
+                 useless if the staff member never learns what to message. -->
+            <div class="wa-number-block">
+              <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.numberLabel')}</p>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <a
+                  href={data.whatsappBotNumber.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--mep-fg-1);"
+                >{data.whatsappBotNumber.display}</a>
+                <button
+                  type="button"
+                  class="btn btn-secondary wa-no-print"
+                  style="height:28px;font-size:12px;"
+                  onclick={() => copyBotNumber(data.whatsappBotNumber!.link)}
+                >{botNumberCopied ? $t('set.whatsapp.copied') : $t('set.whatsapp.copy')}</button>
+              </div>
+
+              {#if data.whatsappBotNumber.qrSvg}
+                <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                <div class="wa-qr" aria-hidden="true">{@html data.whatsappBotNumber.qrSvg}</div>
+                <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.qrHint')}</p>
+              {/if}
+            </div>
+          {/if}
+
           {#if data.whatsappContacts.length > 0}
             <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;">
               {#each data.whatsappContacts as contact (contact.id)}
@@ -219,6 +268,40 @@
           {/if}
 
           {#if data.canManageWhatsapp}
+            <!-- Self-service enrolment (issue #320). The number is captured from
+                 the message, so it cannot be mistyped the way the form below can. -->
+            <div class="wa-pair-block">
+              {#if data.whatsappPairingCode}
+                <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.pairActive')}</p>
+                <p class="wa-pair-code">{data.whatsappPairingCode.code}</p>
+                <p class="body text-fg-3" style="font-size:12px;margin:0;">
+                  {$ti('set.whatsapp.pairExpires', { time: formatTime(data.whatsappPairingCode.expiresAt) })}
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <form method="POST" action="?/generateWhatsappPairingCode">
+                    <button type="submit" class="btn btn-secondary" style="height:28px;font-size:12px;">
+                      {$t('set.whatsapp.pairRegenerate')}
+                    </button>
+                  </form>
+                  <form method="POST" action="?/revokeWhatsappPairingCode">
+                    <button type="submit" class="btn btn-secondary" style="height:28px;font-size:12px;">
+                      {$t('set.whatsapp.pairRevoke')}
+                    </button>
+                  </form>
+                </div>
+              {:else}
+                <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.pairDesc')}</p>
+                <form method="POST" action="?/generateWhatsappPairingCode" class="flex items-center gap-3 flex-wrap">
+                  <input name="name" type="text" maxlength="80"
+                    placeholder={$t('set.whatsapp.namePlaceholder')}
+                    class="input" style="height:32px;font-size:13px;min-width:120px;flex:1;" />
+                  <button type="submit" class="btn btn-secondary" style="height:32px;font-size:12px;">
+                    {$t('set.whatsapp.pairGenerate')}
+                  </button>
+                </form>
+              {/if}
+            </div>
+
             <form method="POST" action="?/addWhatsappContact" class="flex items-center gap-3 flex-wrap">
               <input name="phone" type="tel" required
                 placeholder={$t('set.whatsapp.phonePlaceholder')}
@@ -306,3 +389,59 @@
 
   </div>
 </div>
+
+<style>
+  /* WhatsApp bot number + QR (issue #319). */
+  .wa-number-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--mep-border, #e5e5e5);
+    border-radius: 8px;
+  }
+
+  /* Pairing code (issue #320) — read off a screen and typed into a phone, so
+     it is set large, monospaced and widely tracked. */
+  .wa-pair-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px dashed var(--mep-border, #e5e5e5);
+    border-radius: 8px;
+  }
+
+  .wa-pair-code {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--mep-fg-1);
+  }
+
+  /* The QR is meant to be printed and taped up in the kitchen, so it is sized
+     in absolute units — 45 mm on paper scans reliably from arm's length. */
+  .wa-qr {
+    width: 160px;
+    max-width: 100%;
+  }
+
+  .wa-qr :global(svg) {
+    display: block;
+    width: 100%;
+    height: auto;
+    /* Explicit white backing: a dark-theme card behind a transparent QR
+       inverts the modules and scanners reject it. */
+    background: #fff;
+    padding: 6px;
+    border-radius: 4px;
+  }
+
+  @media print {
+    .wa-no-print { display: none; }
+    .wa-qr { width: 45mm; }
+    .wa-qr :global(svg) { background: #fff; }
+  }
+</style>
