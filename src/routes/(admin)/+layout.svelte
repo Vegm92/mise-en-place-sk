@@ -17,7 +17,6 @@
 
 <div style="min-height:100vh;background:var(--mep-bg,#f8f8f8);display:flex;flex-direction:column;">
 
-  <!-- Admin banner -->
   <header style="
     background:#dc2626;color:#fff;
     padding:0 24px;height:52px;
@@ -48,7 +47,6 @@
     </a>
   </header>
 
-  <!-- Page content -->
   <main style="flex:1;overflow:auto;">
     {@render children()}
   </main>

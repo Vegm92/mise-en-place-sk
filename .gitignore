@@ -46,7 +46,9 @@ CONTEXT.md
 TODO.md
 /graphify-out
 .graphify_cached.json
-/docs/
+/docs/*
+# ...except the code documentation, which replaces src/ comments (tracked on purpose)
+!/docs/CODE_NOTES.md
 /mise-en-place
 
 

@@ -60,7 +60,6 @@
 
 <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
-  <!-- Filter bar -->
   <div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
     <div style="position:relative;flex:1;min-width:180px;">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);">
@@ -91,7 +90,6 @@
     </button>
   </div>
 
-  <!-- Summary strip -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0" data-coach="suppliers-main">
     <div class="card" style="padding:14px;">
       <div class="label" style="margin-bottom:6px;">{$t('dsup.activeSuppliers')}</div>
@@ -120,7 +118,6 @@
     </div>
   </div>
 
-  <!-- Table -->
   <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
     <div style="overflow:auto;flex:1;">
       {#if !filtered.length}

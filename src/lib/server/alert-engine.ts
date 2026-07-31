@@ -1,9 +1,3 @@
-/**
- * Active BI Engine — proactive alerts fired after each invoice save.
- * runPriceShock: detects >15% unit price deviation vs last recorded price.
- * runStockForecast: projects days-of-stock after purchase; alerts if < 3 days.
- * runBudgetCheck: fires budget_overage when category monthly spend crosses threshold.
- */
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications } from './schema';
 import { and, eq, isNull, sql } from 'drizzle-orm';
@@ -23,21 +17,11 @@ export interface Alert {
 
 type PricePoint = { unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null };
 
-/** Middle value of a numeric list (lower of the two middles on an even count). */
 function median(values: number[]): number {
 	const sorted = [...values].sort((a, b) => a - b);
 	return sorted[Math.floor((sorted.length - 1) / 2)];
 }
 
-/**
- * Collapses up to the last `HISTORY_SIZE` price points for one key into a
- * single comparison point: the median unit price, plus a median €/base price
- * when every point in the window shares the same base unit (issue #308) —
- * a single noisy purchase (a different pack size, a one-off promo, a
- * seasonal blip) no longer reads as a shock against the very next delivery;
- * a real, sustained price change still shows up on the first purchase after
- * it happens, same as before.
- */
 function collapseHistory(points: PricePoint[]): PricePoint {
 	if (points.length === 1) return points[0];
 	const unitPrice = median(points.map(p => p.unitPrice));
@@ -66,16 +50,9 @@ export async function runPriceShock(
 		.limit(1);
 	const PRICE_SHOCK_THRESHOLD = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
 
-	// Match by the shared normalized key (issue #296): "TOMATE PERA" and
-	// "Tomate Pera" are the same product. mep_norm_key is the SQL twin of
-	// normalizeProductKey — both sides of the comparison use the same fold.
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
 
-	// Batch: the last PRICE_HISTORY_WINDOW price points per item key (not just
-	// the single latest one — issue #308), so the comparison point can be a
-	// median instead of one potentially-noisy purchase. Also pull the stored
-	// €/base (issue #299) so pack sizes can be compared apples-to-apples.
 	const priceRows = await db.execute<{ itemKey: string; unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null }>(sql`
 		SELECT "itemKey", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
 			SELECT
@@ -109,10 +86,6 @@ export async function runPriceShock(
 	const keyPriceMap = new Map<string, PricePoint>();
 	for (const [key, points] of keyPriceHistory) keyPriceMap.set(key, collapseHistory(points));
 
-	// When lines are resolved to catalog products (issue #298), also fetch the
-	// latest price per product_id — differently-sized descriptions of one product
-	// ("saco 25kg" vs "saco 10kg") share a product but not a description key, and
-	// only this grouping (compared as €/base) makes them meet without a false shock.
 	const productPriceMap = new Map<number, PricePoint>();
 	const productIds = productByKey ? [...new Set(productByKey.values())] : [];
 	if (productIds.length > 0) {
@@ -155,13 +128,9 @@ export async function runPriceShock(
 
 		const key = normalizeProductKey(description);
 		const pid = productByKey?.get(key);
-		// Prefer the product-grouped history; fall back to same-description history.
 		const prev = (pid != null ? productPriceMap.get(pid) : undefined) ?? keyPriceMap.get(key);
 		if (!prev) continue;
 
-		// Prefer €/base when both sides carry it for the same base unit — this is
-		// what stops "caja 5kg" vs "caja 10kg" of one product from reading as a
-		// ~92% shock. Otherwise compare the raw unit price as before.
 		const newPack = parsePack(description, item.unit);
 		const newNorm = normalizedUnitPrice(newPrice, newPack);
 		const useNorm = newNorm != null && prev.normalizedUnitPrice != null && prev.normalizedUnitPrice > 0
@@ -195,8 +164,6 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
 
-	// Batch: one IN query for all stock levels, matched on the normalized key
-	// so "Harina 00" on the invoice updates a stock row saved as "harina 00".
 	const stockRows = await db
 		.select({
 			ingredient: stockLevels.ingredient,
@@ -242,14 +209,6 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	return alerts;
 }
 
-/**
- * Nudge the owner to categorise a supplier the first time one of its invoices
- * is saved (issue #301). An uncategorised supplier's spend is lumped into the
- * "Sin categoría" bucket: visible, but it can't be budgeted against or read as
- * a real category — and nothing used to ask. One notification per supplier,
- * ever: it is deduped on the supplier id, and the supplier only qualifies while
- * it is still uncategorised.
- */
 export async function runCategorizationNudge(
 	invoiceId: number,
 	supplierId: number,
@@ -265,7 +224,6 @@ export async function runCategorizationNudge(
 	if (!supplier) return [];
 	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
 
-	// Only on the supplier's first invoice — later ones would nag.
 	const [countRow] = await db
 		.select({ cnt: sql<number>`COUNT(*)::int` })
 		.from(invoices)
@@ -275,8 +233,6 @@ export async function runCategorizationNudge(
 		)));
 	if ((countRow?.cnt ?? 0) > 1) return [];
 
-	// Belt and braces: if one was already raised for this supplier (a deleted
-	// first invoice, a re-save), don't raise a second.
 	const existing = await db
 		.select({ payload: systemNotifications.payload })
 		.from(systemNotifications)
@@ -287,13 +243,11 @@ export async function runCategorizationNudge(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { /* malformed payload — treat as no match */ }
+		} catch { }
 	}
 
 	return [{
 		notificationType: 'supplier_uncategorized',
-		// The bell renders `messageKey` through i18n; `message` is the
-		// language-neutral fallback for non-UI consumers (chat context, admin).
 		message: `supplier_uncategorized: ${supplier.name}`,
 		payload: {
 			supplierId,
@@ -304,29 +258,11 @@ export async function runCategorizationNudge(
 	}];
 }
 
-/**
- * Offer a category for a supplier still sitting in the uncategorised bucket
- * (issue #315).
- *
- * A supplier is tagged from extraction only when it is *created*, so one that
- * was created before this existed — or whose first invoice was too sparse to
- * classify — stays in the bucket forever, even once a later invoice gives the
- * model plenty to go on. Rather than silently reclassify it (we cannot tell
- * "never categorised" apart from a deliberate "leave this in Other"), this
- * surfaces the guess and lets the owner accept it in one tap.
- *
- * One notification per supplier, ever — a suggestion on every invoice would be
- * nagging. It supersedes the plain `supplier_uncategorized` nudge for the same
- * supplier: naming a category is strictly more useful than asking for one, so
- * the older nudge is cleared instead of stacking up next to it.
- */
 export async function runCategorySuggestion(
 	supplierId: number,
 	restaurantId: string,
 	proposedCategory: string,
 ): Promise<Alert[]> {
-	// Nothing to offer: the resolver already collapsed an unusable guess (junk,
-	// translation, low confidence) into the bucket.
 	if (!proposedCategory || proposedCategory === UNCATEGORIZED_CATEGORY) return [];
 	if (!VALID_CATEGORIES.includes(proposedCategory)) return [];
 
@@ -338,12 +274,8 @@ export async function runCategorySuggestion(
 		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
 		.limit(1);
 	if (!supplier) return [];
-	// Only for the bucket (or a legacy NULL). A supplier a human classified is
-	// never second-guessed.
 	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
 
-	// Deduped on the supplier id across both statuses, so a dismissed
-	// suggestion does not come back on the next invoice.
 	const existing = await db
 		.select({ payload: systemNotifications.payload })
 		.from(systemNotifications)
@@ -354,10 +286,9 @@ export async function runCategorySuggestion(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { /* malformed payload — treat as no match */ }
+		} catch { }
 	}
 
-	// Supersede the "please classify" nudge for this supplier.
 	await db
 		.update(systemNotifications)
 		.set({ status: 'sent' })
@@ -372,8 +303,6 @@ export async function runCategorySuggestion(
 
 	return [{
 		notificationType: 'supplier_category_suggested',
-		// The bell renders `messageKey` through i18n; `message` is the
-		// language-neutral fallback for non-UI consumers (chat context, admin).
 		message: `supplier_category_suggested: ${supplier.name} -> ${proposedCategory}`,
 		payload: {
 			supplierId,
@@ -387,19 +316,13 @@ export async function runCategorySuggestion(
 
 export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
-	// 1. Supplier category
 	const supplierRows = await db
 		.select({ category: suppliers.category })
 		.from(suppliers)
 		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
 		.limit(1);
-	// Legacy suppliers (created before uncategorised became an explicit 'Other'
-	// bucket) still carry NULL. Treating that as "no budget applies" made all
-	// their spend invisible to budget alerts, silently — issue #301. It now
-	// falls into the same 'Other' bucket the spend query below already uses.
 	const category = supplierRows[0]?.category ?? UNCATEGORIZED_CATEGORY;
 
-	// 2. Warning threshold (stored as 0-100 integer in settings, default 80)
 	const thresholdRows = await db
 		.select({ value: settings.value })
 		.from(settings)
@@ -408,7 +331,6 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
 	const thresholdFrac = thresholdPct / 100;
 
-	// 3. Monthly budget for category (current month only)
 	const currentMonth = toMonthStr(new Date());
 	const budgetRows = await db
 		.select({ monthlyBudget: categoryBudgets.monthlyBudget })
@@ -418,7 +340,6 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const monthlyBudget = budgetRows[0]?.monthlyBudget;
 	if (!monthlyBudget || monthlyBudget <= 0) return [];
 
-	// 4. This month's spend for category
 	const spendRows = await db
 		.select({ total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 		.from(invoices)
@@ -432,11 +353,9 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const totalSpend = spendRows[0]?.total ?? 0;
 	const pctFrac = totalSpend / monthlyBudget;
 
-	// 5. Determine alert level
 	const level = pctFrac >= 1.0 ? 'exceeded' : pctFrac >= thresholdFrac ? 'warning' : null;
 	if (!level) return [];
 
-	// 6. Dedup: one alert per category+level per calendar month
 	const monthPrefix = new Date().toISOString().slice(0, 7);
 	const existingRows = await db
 		.select({ payload: systemNotifications.payload })

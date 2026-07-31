@@ -18,13 +18,11 @@ export const actions: Actions = {
 
 		if (!email || !password) return fail(422, { error: 'missing' });
 
-		// Cap account-creation attempts per IP (abuse / user-enumeration control).
 		if (!(await checkRateLimit(`signup:ip:${getClientAddress()}`, 5))) {
 			logAuthEvent('signup_rate_limited', { ipHash: hashIp(getClientAddress()) });
 			return fail(429, { error: 'rate_limited' });
 		}
 		if (password.length < 8) return fail(422, { error: 'password_too_short' });
-		// Explicit, recorded consent to Terms + Privacy Policy (GDPR).
 		if (terms !== 'on') return fail(422, { error: 'terms_required' });
 
 		const { data, error } = await locals.supabase.auth.signUp({
@@ -39,33 +37,24 @@ export const actions: Actions = {
 			if (error.message.toLowerCase().includes('already registered')) {
 				return fail(422, { error: 'already_registered' });
 			}
-			// A broken Supabase auth config shows up here as a generic failure —
-			// surface it so it's distinguishable from "no one is signing up".
 			logAuthEvent('signup_failed', { ipHash: hashIp(getClientAddress()) });
 			return fail(422, { error: 'generic' });
 		}
 
-		// Persist the checkbox acceptance (timestamp + policy version) for audit.
 		if (data.user?.id) {
 			await recordConsent(data.user.id, 'signup_form').catch(e =>
 				console.error('[signup] consent record failed:', e)
 			);
 		}
 
-		// Welcome email is sent once, after onboarding completes (covers both
-		// email and Google sign-ups and fires when the account is actually active).
 		return { success: true, email };
 	},
 
-	// Re-send the verification link from the "check your email" screen, so a
-	// lost or delayed email doesn't strand the user outside the app.
 	resend: async ({ request, locals, url, getClientAddress }) => {
 		const form = await request.formData();
 		const email = (form.get('email') as string)?.trim();
 		if (!email) return fail(422, { error: 'missing' });
 
-		// Success-shaped returns keep the "check your email" screen on screen;
-		// `resent` distinguishes a real send from a rate-limited attempt.
 		if (!(await checkRateLimit(`signup:resend:${getClientAddress()}`, 3))) {
 			return { success: true, email, resent: false };
 		}
@@ -79,8 +68,6 @@ export const actions: Actions = {
 	},
 
 	signUpWithGoogle: async ({ request, url, locals, getClientAddress }) => {
-		// OAuth sign-ups must accept the Terms too; the callback records the
-		// consent once the Supabase user exists (consent=1 flag).
 		const form = await request.formData();
 		if (form.get('terms') !== 'on') return fail(422, { error: 'terms_required' });
 

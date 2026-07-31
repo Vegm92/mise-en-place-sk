@@ -23,7 +23,6 @@
     <span style="font-size:13px;color:#888;">{$ti('admin.totalSuffix', { n: data.total.toLocaleString('en-US') })}</span>
   </div>
 
-  <!-- Type filter -->
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
     <span style="font-size:12px;color:#888;">{$t('admin.typeLabel')}</span>
     <a
@@ -38,7 +37,6 @@
     {/each}
   </div>
 
-  <!-- Table -->
   <div class="card" style="overflow:hidden;padding:0;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
@@ -76,7 +74,6 @@
     </table>
   </div>
 
-  <!-- Pagination -->
   {#if data.totalPages > 1}
     <div style="display:flex;gap:6px;align-items:center;justify-content:center;">
       {#if data.page > 1}

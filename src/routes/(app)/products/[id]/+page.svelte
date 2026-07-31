@@ -10,14 +10,11 @@
   const { data, form }: { data: PageData; form: ActionData } = $props();
   const { product, linkedSuppliers, aliases, priceHistory, categories } = $derived(data);
 
-  // The delete action re-renders this page with `form.suppliers` when blocked
-  // (issue: full-CRUD Products, delete requires unlinking every supplier first).
   type BlockedSupplier = { supplierId: number; supplierName: string };
   const blockedSuppliers = $derived(
     (form && 'suppliers' in form ? form.suppliers : []) as BlockedSupplier[]
   );
 
-  // Per-supplier unlink: first confirmation.
   let confirmUnlinkOpen = $state(false);
   let unlinkSupplierId = $state<number | null>(null);
   let unlinkSupplierName = $state('');
@@ -32,7 +29,6 @@
     unlinkSupplierId = null;
   }
 
-  // Final delete: second confirmation, only reachable once nothing is linked.
   let confirmDeleteOpen = $state(false);
   const canDelete = $derived(linkedSuppliers.length === 0 && blockedSuppliers.length === 0);
   function executeDelete() {

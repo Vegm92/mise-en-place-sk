@@ -1,14 +1,3 @@
-/**
- * Switch the active location (issue #290).
- *
- * hooks.server.ts has always read an `active_restaurant` cookie to resolve the
- * tenant for the request — nothing ever wrote it, so a user with two
- * memberships was pinned to the first one forever. This writes it, but only
- * after confirming the caller is actually a member of the target restaurant:
- * the cookie is the tenant selector for every subsequent query, so an
- * unverified value here would be a tenant-isolation hole. (The hook re-checks
- * membership on every request as well.)
- */
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
@@ -28,9 +17,6 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const restaurantId = typeof body?.restaurantId === 'string' ? body.restaurantId : '';
 	if (!restaurantId) throw error(400, 'restaurantId is required');
 
-	// Scoped to the *target* tenant — this is the one query in the app that
-	// legitimately looks outside locals.restaurantId, and membership is exactly
-	// what it is checking.
 	const target = forTenant(restaurantId);
 	const [membership] = await db.select({ restaurantId: userRestaurants.restaurantId })
 		.from(userRestaurants)

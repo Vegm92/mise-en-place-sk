@@ -6,12 +6,6 @@
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// Shared consent state: the Google OAuth form is separate markup, so it
-	// mirrors the checkbox via a hidden input. The button itself stays enabled
-	// (issue #234) — a disabled OAuth button reads as broken, and its only
-	// explanation used to be a hover title, which touch devices never show.
-	// Consent is still required: the click validates it here and the server
-	// action re-checks it.
 	let termsAccepted = $state(false);
 	let termsMissing = $state(false);
 	let termsEl = $state<HTMLInputElement>();
@@ -54,7 +48,6 @@
 
 	<div style="width:100%;max-width:380px;">
 
-		<!-- Logo -->
 		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
 			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
 				<rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
@@ -66,11 +59,9 @@
 			</span>
 		</div>
 
-		<!-- Card -->
 		<div class="card" style="padding:28px;">
 
 			{#if form?.success}
-				<!-- Success state -->
 				<div style="text-align:center;padding:8px 0;">
 					<div style="font-size:32px;margin-bottom:12px;">📧</div>
 					<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 8px;">{$t('signup.checkEmail')}</h1>
@@ -161,14 +152,12 @@
 					</button>
 				</form>
 
-				<!-- Divider -->
 				<div style="display:flex;align-items:center;gap:10px;margin:18px 0;">
 					<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
 					<span style="font-size:11px;color:var(--mep-fg-4);text-transform:uppercase;letter-spacing:0.05em;">{$t('login.or')}</span>
 					<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
 				</div>
 
-				<!-- Google OAuth -->
 				<form method="POST" action="?/signUpWithGoogle" onsubmit={guardGoogleConsent}>
 					<input type="hidden" name="terms" value={termsAccepted ? 'on' : ''} />
 					<button

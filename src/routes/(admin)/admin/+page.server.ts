@@ -16,36 +16,28 @@ export const load: PageServerLoad = async () => {
 			pendingExtractionsRow,
 			recentRestaurantsRows,
 		] = await Promise.all([
-			// Invoices saved in last 7 days
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(invoices)
 				.where(sql`${invoices.createdAt} > NOW() - INTERVAL '7 days'`),
 
-			// Active restaurants (had invoices) in last 7 days
 			db.select({ cnt: sql<number>`COUNT(DISTINCT ${invoices.restaurantId})` })
 				.from(invoices)
 				.where(sql`${invoices.createdAt} > NOW() - INTERVAL '7 days'`),
 
-			// Pending system notifications (global)
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(systemNotifications)
 				.where(sql`${systemNotifications.status} = 'pending'`),
 
-			// Total invoices
 			db.select({ cnt: count() }).from(invoices),
 
-			// Total suppliers
 			db.select({ cnt: count() }).from(suppliers),
 
-			// Total restaurants
 			db.select({ cnt: count() }).from(restaurants),
 
-			// Sessions currently being extracted by the worker
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(uploadSessions)
 				.where(sql`${uploadSessions.data}::jsonb->>'extractionStatus' IN ('queued','extracting')`),
 
-			// Most recently created restaurants
 			db.execute(sql`
 				SELECT r.id, r.name, r.created_at,
 					(SELECT COUNT(*) FROM invoices i WHERE i.restaurant_id = r.id) AS invoice_count,

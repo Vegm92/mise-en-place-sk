@@ -1,13 +1,3 @@
-/**
- * Structured e-invoice parser for Facturae 3.2.x and UBL 2.1 (EN 16931).
- *
- * When an XML invoice is uploaded the entire Gemini extraction step is skipped —
- * the fields arrive structured with confidence 1.0.
- *
- * Supported formats:
- *   Facturae 3.2.2  — Spain national format (B2G via FACe, also B2B private)
- *   UBL 2.1         — EU standard (EN 16931, mandatory for Spain's SPFE public platform)
- */
 import { XMLParser } from 'fast-xml-parser';
 import { canonicalizeUnit } from './normalize';
 import type { ExtractedInvoice } from './extract';
@@ -34,16 +24,12 @@ const parser = new XMLParser({
 	ignoreAttributes: false,
 	attributeNamePrefix: '@_',
 	removeNSPrefix: true,
-	parseAttributeValue: false, // keep attribute values as strings
-	parseTagValue: true,        // parse numeric element values
-	// 'Invoice' intentionally omitted: it's the UBL root element (always singular)
-	// and appears as a Facturae child only inside <Invoices> — handled by getArr().
+	parseAttributeValue: false,
+	parseTagValue: true,
 	isArray: (name) =>
 		['InvoiceLine', 'Tax', 'TaxSubtotal', 'TaxTotal', 'AllowanceCharge'].includes(name),
 	numberParseOptions: { leadingZeros: true, hex: false, skipLike: /^0\d/ },
 });
-
-// ── Generic helpers ───────────────────────────────────────────────────────────
 
 function getChild(obj: unknown, ...keys: string[]): unknown {
 	let cur: unknown = obj;
@@ -80,19 +66,6 @@ function getArr(obj: unknown, key: string): unknown[] {
 	return Array.isArray(val) ? val : [val];
 }
 
-// ── Facturae 3.2.x ───────────────────────────────────────────────────────────
-
-// Facturae 3.2.x UnitOfMeasureType, complete per the official spec (issue #297):
-// 01 Unidades, 02 Horas, 03 Kilogramos, 04 Litros, 05 Otros, 06 Cajas,
-// 07 Bandejas, 08 Barriles, 09 Bidones, 10 Bolsas, 11 Bombonas, 12 Botellas,
-// 13 Botes, 14 TetraBriks, 15 Centilitros, 16 Centímetros, 17 Cubetas,
-// 18 Docenas, 19 Estuches, 20 Garrafas, 21 Gramos, 22 Kilómetros, 23 Latas,
-// 24 Manojos, 25 Metros, 26 Milímetros, 27 Packs de 6, 28 Paquetes,
-// 29 Raciones, 30 Rollos, 31 Sobres, 32 Tarrinas, 33 m³, 34 Segundos,
-// 35 Vatios, 36 kWh. The previous map here ('02'→kg, '03'→L, …) did not match
-// the spec and mislabeled units on every real Facturae invoice.
-// null = no food-relevant canonical unit; leave the line unit empty rather
-// than inventing one.
 const FACTURAE_UNIT_CODES: Record<string, string | null> = {
 	'01': 'ud',      '02': 'hora',    '03': 'kg',      '04': 'L',       '05': null,
 	'06': 'caja',    '07': 'bandeja', '08': 'barril',  '09': 'bidón',   '10': 'bolsa',
@@ -107,7 +80,6 @@ const FACTURAE_UNIT_CODES: Record<string, string | null> = {
 export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_format: EinvoiceFormat; supplier_nif: string | null } {
 	const doc = parser.parse(xml) as Record<string, unknown>;
 
-	// Root element may be prefixed (namespace removed) or plain 'Facturae'
 	const root = (doc['Facturae'] ?? Object.values(doc)[0]) as Record<string, unknown>;
 
 	const parties = root['Parties'] as Record<string, unknown> | undefined;
@@ -154,9 +126,6 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		return {
 			description: getText(getChild(line, 'ItemDescription')) ?? '',
 			quantity: getNum(getChild(line, 'Quantity')),
-			// Numeric spec code → canonical unit; some issuers put literal text
-			// ("kg") in UnitOfMeasure — canonicalizeUnit covers those. Unknown
-			// codes yield null (flagged for conversion) instead of a fake unit.
 			unit: (uom ? (FACTURAE_UNIT_CODES[uom] ?? canonicalizeUnit(uom)) : null),
 			unit_price: getNum(getChild(line, 'UnitPriceWithoutTax')),
 			total_price: getNum(getChild(line, 'TotalCost')) ?? getNum(getChild(line, 'GrossAmount')),
@@ -169,7 +138,7 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		supplier_nif: nif,
 		invoice_number: fullNumber,
 		invoice_date: invoiceDate,
-		due_date: null, // Facturae payment terms live in PaymentDetails, omit for Phase 1
+		due_date: null,
 		total_amount: totalAmount,
 		currency,
 		tax_base: taxBase,
@@ -186,8 +155,6 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	};
 }
 
-// ── UBL 2.1 ──────────────────────────────────────────────────────────────────
-
 export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_format: EinvoiceFormat; supplier_nif: string | null } {
 	const doc = parser.parse(xml) as Record<string, unknown>;
 	const inv = (doc['Invoice'] ?? Object.values(doc)[0]) as Record<string, unknown>;
@@ -198,7 +165,6 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 		getText(getChild(supplierParty, 'PartyName', 'Name')) ??
 		getText(getChild(supplierParty, 'PartyLegalEntity', 'RegistrationName'));
 
-	// Spanish NIF can be in PartyTaxScheme/CompanyID or PartyLegalEntity/CompanyID
 	const nif =
 		getText(getChild(supplierParty, 'PartyTaxScheme', 'CompanyID')) ??
 		getText(getChild(supplierParty, 'PartyLegalEntity', 'CompanyID'));
@@ -237,10 +203,6 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 			'';
 		const qty = getNum(getChild(line, 'InvoicedQuantity'));
 		const unitCodeRaw = (getChild(line, 'InvoicedQuantity') as Record<string, unknown> | undefined)?.['@_unitCode'];
-		// UN/ECE Rec 20/21 codes (KGM, LTR, C62, XBX…) → canonical unit via the
-		// shared synonym map (issue #297). Previously the raw code was passed
-		// through lowercased ("kgm"), which no consumer recognized, so every
-		// UBL line demanded a manual conversion rule. Unknown codes → null.
 		const unit = typeof unitCodeRaw === 'string' ? canonicalizeUnit(unitCodeRaw) : null;
 		const totalLine = getNum(getChild(line, 'LineExtensionAmount'));
 		const unitPrice = getNum(getChild(line, 'Price', 'PriceAmount'));
@@ -276,17 +238,11 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	};
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
 export type ParsedEinvoice = ExtractedInvoice & {
 	e_invoice_format: EinvoiceFormat;
 	supplier_nif: string | null;
 };
 
-/**
- * Auto-detects XML format and delegates to the appropriate parser.
- * Returns null if the XML is not a recognised e-invoice format.
- */
 export function parseEinvoice(xml: string): ParsedEinvoice | null {
 	const format = detectEinvoiceFormat(xml);
 	if (format === 'facturae_322') return parseFacturae322(xml);

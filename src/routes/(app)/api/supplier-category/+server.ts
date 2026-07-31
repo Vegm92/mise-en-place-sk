@@ -1,19 +1,3 @@
-/**
- * Accept or decline a suggested supplier category (issue #315).
- *
- * Extraction proposes a category for a supplier still in the uncategorised
- * bucket, which raises a `supplier_category_suggested` notification. The bell
- * posts here to:
- *   - accept: write the category onto the supplier;
- *   - dismiss: clear the suggestion without touching the supplier.
- *
- * The category is re-validated against VALID_CATEGORIES here rather than
- * trusted from the request, so this endpoint cannot be used to write an
- * arbitrary string into the column the budgets page groups on. Accepting only
- * moves a supplier *out* of the bucket: a supplier someone has already
- * classified is left alone, so a stale notification can't overwrite a newer
- * manual choice.
- */
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
@@ -50,14 +34,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				suppliers.restaurantId,
 				and(
 					eq(suppliers.id, supplierId),
-					// Bucket or legacy NULL only — never overwrite a real category.
 					or(isNull(suppliers.category), eq(suppliers.category, UNCATEGORIZED_CATEGORY)),
 				),
 			))
 			.returning({ id: suppliers.id });
 		if (updated.length === 0) {
-			// Either not this tenant's supplier, or already categorised by hand.
-			// Clear the stale suggestion either way so the bell doesn't keep it.
 			await dismissSuggestion(rid, supplierId);
 			return json({ error: 'supplier not found or already categorised' }, { status: 404 });
 		}
@@ -67,7 +48,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	return json({ ok: true });
 };
 
-/** Mark the supplier's pending category suggestion as handled. */
 async function dismissSuggestion(rid: string, supplierId: number): Promise<void> {
 	const tdb = forTenant(rid);
 	await db

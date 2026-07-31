@@ -137,8 +137,6 @@
     return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
   }
 
-  // Category donut — fills the empty space below the KPI row on the
-  // no-alerts sidebar card (issue: blank space under "Variación mensual").
   const CAT_DONUT_CIRC = 2 * Math.PI * 42;
   const categoryDonut = $derived((() => {
     const ranked = [...data.category_spend].filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
@@ -168,12 +166,10 @@
 
 <div class="hidden md:flex flex-col gap-4 p-6">
 
-  <!-- Period picker row -->
   <div style="display:flex;align-items:center;gap:10px;">
     <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
   </div>
 
-  <!-- ── First Invoice Banner ───────────────────────────────────────── -->
   {#if data.firstInvoice && !firstInvoiceDismissed}
     <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;background:var(--mep-pos-soft);border-left:3px solid var(--mep-pos);">
       <span style="font-size:18px;flex-shrink:0;line-height:1.2;">🎉</span>
@@ -189,7 +185,6 @@
     </div>
   {/if}
 
-  <!-- ── KPI Strip ───────────────────────────────────────────────────── -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1" data-coach="dashboard-main">
     <KpiCard
       label={$t('ddash.monthSpend')}
@@ -222,12 +217,9 @@
     />
   </div>
 
-  <!-- ── Spend chart + Alerts panel ────────────────────────────────── -->
   <div class="grid gap-3 max-[900px]:grid-cols-1" style="grid-template-columns:2fr 1fr;">
 
     <SectionCard title={$t('dash.chart')} sub={$t('dash.chart.sub')}>
-      <!-- Finer boundary: a chart crash (bad trend data) shows a chart-sized
-           fallback instead of blanking the dashboard (issue #255). -->
       <ErrorBoundary>
         {#snippet children()}
           <TrendChart initialRange="30d" initialGranularity="weekly" initialData={data.trend} />
@@ -268,7 +260,6 @@
         </div>
       </div>
     {:else}
-      <!-- Fallback secondary KPIs when no alerts -->
       <div class="card overflow-hidden flex flex-col h-full">
         <div class="grid" style="grid-template-columns:repeat(3,1fr);">
           {#each [
@@ -332,7 +323,6 @@
 
   </div>
 
-  <!-- ── "Por revisar" pending invoices ────────────────────────────── -->
   {#if data.pending_invoices.length > 0}
     <SectionCard
       title={$t('ddash.toReview')}
@@ -380,7 +370,6 @@
     </SectionCard>
   {/if}
 
-  <!-- ── Suppliers + Recent invoices ───────────────────────────────── -->
   <div class="grid grid-cols-2 gap-3 max-[900px]:grid-cols-1">
 
     <SectionCard
@@ -460,7 +449,6 @@
 
   </div>
 
-  <!-- ── Budget + projection + Category spend + Price changes ──────── -->
   <div class="grid grid-cols-2 gap-3 max-[900px]:grid-cols-1">
 
     <SectionCard title={$t('dash.budget')} href="/budgets" actionLabel={$t('action.edit')}>
@@ -598,7 +586,6 @@
 
   </div>
 
-  <!-- ── Invoice aging ─────────────────────────────────────────────── -->
   <SectionCard title={$t('dash.aging')} sub={$t('dash.aging.pending')}>
     <div class="grid grid-cols-3 gap-2">
       {#each [
@@ -616,7 +603,6 @@
     </div>
   </SectionCard>
 
-  <!-- ── Missing invoices ───────────────────────────────────────────── -->
   {#if data.missing_invoices.length}
     <div class="card overflow-hidden border-l-[3px] border-l-neg">
       <div class="card-header">

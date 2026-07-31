@@ -4,9 +4,6 @@ import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
 import { CATEGORY_COLORS } from '$lib/constants';
 
-// Month-based filters for mv_item_monthly_spend / mv_category_monthly_spend.
-// Slightly coarser than exact date ranges (always full calendar months) but
-// correct for analytics display.
 const PERIOD_DATE_SQL: Record<string, SQL> = {
 	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::text`,
 	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date::text`,
@@ -35,8 +32,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type KpisRow = { total_items_spend: number | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
 		type ItemTrendRow = { item_key: string; month: string; avg_price: number };
 
-		// topItems, categorySpend, itemTrendRows read from pre-aggregated views;
-		// kpisRows still queries raw tables (it's one simple aggregate, no CTEs/window functions).
 		const [topItems, categorySpend, kpisRows, itemTrendRows] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT

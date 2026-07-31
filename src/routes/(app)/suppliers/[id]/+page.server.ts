@@ -86,7 +86,6 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		}
 	}
 
-	// Build 7-month spend history for chart
 	const monthlyMap: Record<string, number> = {};
 	for (const inv of supplierInvoices) {
 		if (!inv.invoiceDate) continue;
@@ -142,12 +141,6 @@ export const actions: Actions = {
 			.set({ name, category: cat, contactEmail, contactPhone, cif, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
-		// Backfill (issue #307): products created from this supplier's invoices
-		// only ever get a category once, at creation time, from whatever the
-		// supplier's category was then — usually the 'Other' default. Editing
-		// the supplier here is the one moment a user expresses a real category,
-		// so carry it onto that supplier's still-uncategorized products instead
-		// of leaving them stuck on 'Other' forever.
 		if (cat) {
 			await db.execute(sql`
 				UPDATE products SET category = ${cat}
@@ -222,8 +215,6 @@ export const actions: Actions = {
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 
-		// One transaction — a crash between statements must not leave invoices
-		// detached from a supplier that still exists (issue #247).
 		await db.transaction(async (tx) => {
 			await tx.update(invoices).set({ supplierId: null })
 				.where(tdb.scope(invoices.restaurantId, eq(invoices.supplierId, id)));

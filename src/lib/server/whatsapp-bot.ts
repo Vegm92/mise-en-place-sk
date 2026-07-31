@@ -1,7 +1,3 @@
-/**
- * WhatsApp invoice bot — handles incoming messages, runs extraction,
- * asks for confirmation, and persists invoices tagged as pending.
- */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -30,10 +26,9 @@ import { claimMonthlyExtraction, releaseMonthlyExtraction } from './llm-quota';
 import { checkRateLimit } from './rate-limiter';
 import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 
-const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
+const SESSION_TTL_MS = 60 * 60 * 1000;
 
-/** How long an unknown number waits before the bot answers it again (#322). */
-const UNAUTHORIZED_REPLY_COOLDOWN_S = 6 * 60 * 60; // 6 hours
+const UNAUTHORIZED_REPLY_COOLDOWN_S = 6 * 60 * 60;
 
 export interface WhatsAppInboundMessage {
 	from: string;
@@ -45,11 +40,6 @@ export interface WhatsAppInboundMessage {
 	document?: { id: string; mime_type?: string; filename?: string };
 }
 
-/**
- * Claims a WhatsApp message id so a redelivered webhook is processed once
- * (issue #245). Returns false when the id was already seen. Fails open on a
- * DB error — a rare duplicate is better than silently dropping a real invoice.
- */
 async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 	if (!messageId) return true;
 	try {
@@ -66,8 +56,6 @@ async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 }
 
 export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
-	// Dedup on the WhatsApp message id before any side effect — Meta redelivers
-	// webhooks, and a duplicate "SÍ" must not save the invoice twice.
 	if (!(await claimMessageId(msg.id))) {
 		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
 		return;
@@ -75,7 +63,6 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 
 	const from = msg.from;
 
-	// Resolve which restaurant this number belongs to
 	const contactRows = await db
 		.select({ restaurantId: whatsappContacts.restaurantId })
 		.from(whatsappContacts)
@@ -83,19 +70,11 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		.limit(1);
 
 	if (contactRows.length === 0) {
-		// An enrolling number is by definition not yet authorised, so pairing is
-		// handled here rather than before the lookup (issue #320) — that way an
-		// already-authorised sender's "SÍ"/"NO" can never be mistaken for a code.
 		if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
 			await handlePairingAttempt(from, msg.text.body);
 			return;
 		}
 
-		// Reply at most once per number per cooldown (issue #322). A wrong number
-		// or a spam contact would otherwise get an answer to every message it
-		// sends, which is unbounded billable traffic from 1 Oct 2026 and poor
-		// anti-abuse behaviour long before that. A staff member who genuinely
-		// mistyped still gets told the first time.
 		if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
 			await sendWhatsAppMessage(
 				from,
@@ -121,17 +100,6 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 	}
 }
 
-// ── Pairing (issue #320) ─────────────────────────────────────────────────────
-
-/**
- * Redeem a pairing code sent by a not-yet-authorised number.
- *
- * Unknown, expired and already-used codes get one identical answer, so a guess
- * never reveals whether a code exists. Exhausting the per-sender attempt budget
- * is answered with silence rather than a "too many attempts" message — telling
- * someone they are being rate-limited is itself a signal, and every reply here
- * goes to an unauthenticated number at our expense.
- */
 async function handlePairingAttempt(from: string, body: string): Promise<void> {
 	const result = await redeemPairingCode(from, body);
 
@@ -161,8 +129,6 @@ async function handlePairingAttempt(from: string, body: string): Promise<void> {
 	await sendWhatsAppMessage(from, '❌ Ese código no es válido o ha caducado. Pide uno nuevo al administrador.');
 }
 
-// ── Media handler ────────────────────────────────────────────────────────────
-
 async function handleMediaUpload(
 	from: string,
 	restaurantId: string,
@@ -177,16 +143,9 @@ async function handleMediaUpload(
 		return;
 	}
 
-	// Money gate: reserve a monthly extraction slot BEFORE any Gemini spend
-	// (issue #318). Without this WhatsApp was an unmetered lane around the plan
-	// quota the web uploader enforces — and under the shared-number model that
-	// cost lands on us, not the tenant. Claimed after the pending-session guard
-	// above so a rejected duplicate never burns a slot.
 	const claim = await claimMonthlyExtraction(restaurantId);
 	if (!claim.claimed) {
 		console.warn(`[whatsapp-bot] monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
-		// Same aggregation as the worker (#257) — a tenant hitting the wall must
-		// be visible here too, not only discovered from a support ticket.
 		Sentry.captureMessage('extraction.quota_exhausted', {
 			level: 'warning',
 			tags: { restaurantId, source: 'whatsapp' },
@@ -198,23 +157,17 @@ async function handleMediaUpload(
 		return;
 	}
 
-	// No "procesando…" ack (issue #322). WhatsApp already shows the photo as
-	// delivered and the summary lands in ~10 s, so the ack bought nothing and
-	// made a successful invoice cost three outbound messages instead of two —
-	// billable from 1 Oct 2026, and on our account under the shared number.
 	let buffer: Buffer;
 	let extension: string;
 	try {
 		({ buffer, extension } = await downloadWhatsAppMedia(mediaId));
 	} catch (err) {
 		console.error('[whatsapp-bot] media download error:', err);
-		// Nothing was extracted — give the slot back (mirrors extraction-worker).
 		await releaseMonthlyExtraction(restaurantId);
 		await sendWhatsAppMessage(from, '❌ No he podido descargar el archivo. Inténtalo de nuevo.');
 		return;
 	}
 
-	// Write to a temp file so the existing extractor can read it from disk
 	const tmpFile = path.join(os.tmpdir(), `wa_${randomUUID()}.${extension}`);
 	fs.writeFileSync(tmpFile, buffer);
 
@@ -224,7 +177,6 @@ async function handleMediaUpload(
 		extracted = result.invoice;
 	} catch (err) {
 		console.error('[whatsapp-bot] extraction error:', err);
-		// A Gemini failure shouldn't consume the tenant's quota (issue #318).
 		await releaseMonthlyExtraction(restaurantId);
 		await sendWhatsAppMessage(
 			from,
@@ -232,10 +184,9 @@ async function handleMediaUpload(
 		);
 		return;
 	} finally {
-		try { fs.unlinkSync(tmpFile); } catch { /* already gone */ }
+		try { fs.unlinkSync(tmpFile); } catch { }
 	}
 
-	// Persist the file to storage for later web review
 	const fileKey = `whatsapp/${restaurantId}/${randomUUID()}.${extension}`;
 	try {
 		await getStorage().save(fileKey, buffer);
@@ -243,7 +194,6 @@ async function handleMediaUpload(
 		console.error('[whatsapp-bot] storage error (non-fatal):', err);
 	}
 
-	// Store session awaiting user confirmation
 	const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 	await db.insert(whatsappBotSessions).values({
 		restaurantId,
@@ -257,10 +207,7 @@ async function handleMediaUpload(
 	await sendWhatsAppMessage(from, buildSummaryMessage(extracted));
 }
 
-// ── Text reply handler ───────────────────────────────────────────────────────
-
 async function handleTextReply(from: string, restaurantId: string, body: string): Promise<void> {
-	// Strip accents, lowercase, trim
 	const normalized = body
 		.trim()
 		.toLowerCase()
@@ -299,9 +246,6 @@ async function handleTextReply(from: string, restaurantId: string, body: string)
 		return;
 	}
 
-	// Claim the session before saving (guarded awaiting_confirmation →
-	// confirmed) so two duplicate "SÍ" deliveries can't both save (issue #245).
-	// Only the winner proceeds; the content-hash index is the final backstop.
 	const claim = await db
 		.update(whatsappBotSessions)
 		.set({ status: 'confirmed' })
@@ -311,16 +255,12 @@ async function handleTextReply(from: string, restaurantId: string, body: string)
 		))
 		.returning({ id: whatsappBotSessions.id });
 	if (claim.length === 0) {
-		// Another delivery already handled this confirmation.
 		return;
 	}
 
-	// Confirm: save to DB
 	const extracted = session.extractedData as unknown as ExtractedInvoice;
 	const result = await saveWhatsAppInvoice(restaurantId, extracted, session.fileKey);
 
-	// Roll the claim back to discarded if the save didn't land, so the session
-	// doesn't sit as 'confirmed' with no invoice behind it.
 	if (result.type !== 'saved') {
 		await db
 			.update(whatsappBotSessions)
@@ -340,8 +280,6 @@ async function handleTextReply(from: string, restaurantId: string, body: string)
 	}
 }
 
-// ── Session helpers ──────────────────────────────────────────────────────────
-
 async function getPendingSession(from: string) {
 	const rows = await db
 		.select()
@@ -357,8 +295,6 @@ async function getPendingSession(from: string) {
 		.limit(1);
 	return rows[0] ?? null;
 }
-
-// ── Invoice persistence ──────────────────────────────────────────────────────
 
 type SaveResult =
 	| { type: 'saved'; invoiceId: number }
@@ -409,11 +345,6 @@ async function saveWhatsAppInvoice(
 
 	try {
 		await db.transaction(async (tx) => {
-			// Atomic supplier get-or-create (issue #238), tagged with the
-			// category extraction proposed (issue #315). Nothing here is user
-			// -reviewed, so an unnamed supplier ('Desconocido') keeps the
-			// uncategorised bucket and its nudge rather than inheriting a
-			// guess made about a document we couldn't attribute.
 			const supplierId = await getOrCreateSupplierId(
 				restaurantId,
 				supplierName,
@@ -423,7 +354,6 @@ async function saveWhatsAppInvoice(
 					: UNCATEGORIZED_CATEGORY,
 			);
 
-			// Invoice number duplicate guard
 			if (invoiceNumber) {
 				const dup = await tx
 					.select({ id: invoices.id })
@@ -491,13 +421,10 @@ async function saveWhatsAppInvoice(
 
 	if (invoiceId === -1 || invoiceId === null) return { type: 'duplicate' };
 
-	// Fire-and-forget: warn the owner when monthly usage nears the plan quota.
 	void maybeSendQuotaWarning(restaurantId);
 
 	return { type: 'saved', invoiceId };
 }
-
-// ── Message formatting ───────────────────────────────────────────────────────
 
 function buildSummaryMessage(data: ExtractedInvoice): string {
 	const parts: string[] = ['📄 *He procesado esta factura*\n'];

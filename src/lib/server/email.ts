@@ -1,8 +1,3 @@
-/**
- * Transactional email via Resend.
- * Set RESEND_API_KEY in the environment; if absent, emails are no-ops (dev mode).
- * Copy is Spanish-first, matching the product's default locale (issue #202).
- */
 import { Resend } from 'resend';
 import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
@@ -20,11 +15,9 @@ export interface EmailPayload {
 	to: string;
 	subject: string;
 	html: string;
-	/** Coarse type for telemetry — tagged on Sentry, never the recipient (#257). */
 	kind?: EmailKind;
 }
 
-/** Mask an email for logs — keep the first char and domain (issue #254). */
 function maskEmail(to: string): string {
 	const at = to.indexOf('@');
 	if (at <= 0) return '***';
@@ -43,15 +36,10 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 		html: payload.html,
 	});
 	if (error) {
-		// A silent Resend failure means the owner never gets a welcome /
-		// subscription / digest / quota email — report it (tagged by type, not
-		// recipient) so a broken key or provider outage surfaces (#257).
 		console.error('[email] send failed:', error);
 		Sentry.captureException(error, { tags: { emailKind: payload.kind ?? 'unknown' } });
 	}
 }
-
-// ── Email templates ────────────────────────────────────────────────────────────
 
 export function welcomeEmail(email: string, restaurantName?: string): EmailPayload {
 	const name = restaurantName ?? 'tu restaurante';
@@ -146,10 +134,6 @@ export function trialExpiryEmail(email: string, restaurantName: string, daysLeft
 	};
 }
 
-/**
- * Sent the day the trial lapses (issue #287/#288). Uploads are blocked from
- * this point, so the copy has to say what stopped working and what still does.
- */
 export function trialExpiredEmail(email: string, restaurantName: string): EmailPayload {
 	return {
 		to: email,

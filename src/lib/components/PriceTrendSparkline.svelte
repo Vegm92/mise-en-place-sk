@@ -42,13 +42,11 @@
   const color = $derived.by(() => {
     if (values.length < 2) return 'var(--mep-fg-3)';
     const diff = values[values.length - 1]! - values[0]!;
-    // Rising price trend = green per spec (issue #26)
     if (diff > 0) return '#22c55e';
     if (diff < 0) return '#ef4444';
     return 'var(--mep-fg-3)';
   });
 
-  // Consistent upward trend: every month higher than previous
   const risingStreak = $derived.by(() => {
     if (values.length < 3) return 0;
     let streak = 0;

@@ -1,11 +1,3 @@
-/**
- * Unit Bridge — resolves purchase units (invoices) to canonical units.
- * Queries unit_conversions and annotates line items in place.
- *
- * Matching is normalized (issue #296): rules are keyed by
- * normalizeProductKey(ingredient) + normalizeProductKey(unit), so casing,
- * accents and spacing differences between invoices no longer miss rules.
- */
 import { db, forTenant } from './db';
 import { unitConversions } from './schema';
 import { and, eq, isNull, or } from 'drizzle-orm';
@@ -29,13 +21,6 @@ export interface EnrichedLineItem extends LineItem {
 	convertedUnitPrice?: number | null;
 }
 
-/**
- * Loads all conversion rules for a supplier, keyed by normalized
- * ingredient::unit. Rules per supplier are few (created one-by-one from the
- * supplier page or conversion prompts), so fetching them all and matching in
- * memory is what lets the lookup be normalization-aware without a normalized
- * column in the table.
- */
 export async function loadConversionMap(
 	supplierName: string,
 	restaurantId: string,
@@ -44,7 +29,6 @@ export async function loadConversionMap(
 	const tdb = forTenant(restaurantId);
 	const normalizedSupplier = supplierName.trim().toLowerCase();
 
-	// When supplierId is known, match rules pinned by FK or pre-supplier name-only rules.
 	const supplierFilter = supplierId != null
 		? or(
 			eq(unitConversions.supplierId, supplierId),

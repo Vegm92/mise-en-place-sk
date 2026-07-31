@@ -56,7 +56,6 @@
   ];
 </script>
 
-<!-- Mobile prices analytics -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileAnalyticsPrices
     items={data.items}
@@ -66,16 +65,13 @@
   />
 </div>
 
-<!-- Desktop prices analytics -->
 <div class="hidden md:block" style="height:100%;overflow:auto;">
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
-    <!-- Header -->
     <div style="display:flex;align-items:center;gap:12px;">
       <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{$t('prices.question')}</h2>
     </div>
 
-    <!-- Toolbar -->
     <div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <div style="position:relative;flex:1;min-width:180px;">
         <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);">
@@ -105,7 +101,6 @@
       </div>
     </div>
 
-    <!-- Summary strip -->
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{$t('prices.tracked')}</div>
@@ -129,7 +124,6 @@
       </div>
     </div>
 
-    <!-- Price cards grid -->
     {#if !filtered.length}
       <p class="body text-center py-16" style="color:var(--mep-fg-3);">{$t('prices.noDataDesc')}</p>
     {:else}

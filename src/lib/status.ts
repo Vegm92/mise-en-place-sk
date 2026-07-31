@@ -19,7 +19,6 @@ export function statusKey(s: string): string {
 	return map[s] ?? s;
 }
 
-/** Confidence score → CSS colour variable. */
 export function confColor(c: number | undefined | null): string {
 	if (c == null) return 'transparent';
 	if (c >= 0.85) return 'var(--mep-pos)';

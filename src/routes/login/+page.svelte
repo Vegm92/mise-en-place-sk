@@ -10,11 +10,7 @@
 		initLocale();
 	});
 
-	// Form failures carry the error inline (keeping the typed email); the query
-	// param remains for OAuth-callback redirects, which have no form state.
 	const error = $derived(form?.error ?? $page.url.searchParams.get('error'));
-	// Set after a completed password reset (issue #284) — the user signs in
-	// again with the new password, which is also the proof it took effect.
 	const resetDone = $derived($page.url.searchParams.get('reset') === '1');
 </script>
 
@@ -29,7 +25,6 @@
 
 	<div style="width:100%;max-width:380px;">
 
-		<!-- Logo -->
 		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
 			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
 				<rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
@@ -41,7 +36,6 @@
 			</span>
 		</div>
 
-		<!-- Card -->
 		<div class="card" style="padding:28px;">
 			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{$t('login.welcome')}</h1>
 			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('login.sub')}</p>
@@ -100,14 +94,12 @@
 				</a>
 			</form>
 
-			<!-- Divider -->
 			<div style="display:flex;align-items:center;gap:10px;margin:18px 0;">
 				<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
 				<span style="font-size:11px;color:var(--mep-fg-4);text-transform:uppercase;letter-spacing:0.05em;">{$t('login.or')}</span>
 				<div style="flex:1;height:1px;background:var(--mep-divider);"></div>
 			</div>
 
-			<!-- Google OAuth -->
 			<form method="POST" action="?/signInWithGoogle">
 				<button
 					type="submit"

@@ -27,7 +27,6 @@
 
 <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;height:100%;overflow:auto;">
 
-  <!-- Header -->
   <div style="display:flex;align-items:center;gap:8px;">
     <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">
       {$t('extract.acc.title')}
@@ -35,7 +34,6 @@
   </div>
 
   {#if !data.hasData}
-    <!-- Empty state -->
     <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px 0;text-align:center;">
       <div style="font-size:36px;opacity:0.2;">🤖</div>
       <p style="font-size:15px;font-weight:500;color:var(--mep-fg-2);margin:0;">{$t('extract.acc.noData')}</p>
@@ -48,7 +46,6 @@
     </div>
   {:else}
 
-    <!-- KPI row -->
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{$t('extract.acc.autoRate')}</div>
@@ -80,10 +77,8 @@
       </div>
     </div>
 
-    <!-- Middle row: most-corrected fields + accuracy trend -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" class="max-[900px]:grid-cols-1">
 
-      <!-- Most-corrected fields -->
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('extract.acc.mostCorrected')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
@@ -120,7 +115,6 @@
         {/if}
       </div>
 
-      <!-- Accuracy trend -->
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('extract.acc.trend')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
@@ -152,7 +146,6 @@
 
     </div>
 
-    <!-- Accuracy by supplier -->
     <div class="card" style="padding:16px;">
       <div class="subtitle" style="margin-bottom:4px;">{$t('extract.acc.bySupplier')}</div>
       <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">

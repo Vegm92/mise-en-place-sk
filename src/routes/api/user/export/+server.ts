@@ -13,7 +13,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
 
-	// Full-account export is a heavy multi-table read — cap per user.
 	if (!(await checkRateLimit(`account-export:${user.id}`, 5))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}

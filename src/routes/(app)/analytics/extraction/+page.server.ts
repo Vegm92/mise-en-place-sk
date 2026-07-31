@@ -35,8 +35,6 @@ interface TrendRow extends Record<string, unknown> {
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	return handleLoad('analytics/extraction', async () => {
-		// kpisRows, supplierRows, trendRows read from mv_extraction_stats (pre-aggregated).
-		// fieldRows still queries extraction_corrections directly (no rollup needed — it's a small table).
 		const [kpisRows, fieldRows, supplierRows, trendRows] = await Promise.all([
 			db.execute<KpisRow>(sql`
 				SELECT

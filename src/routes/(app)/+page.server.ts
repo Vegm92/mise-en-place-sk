@@ -13,15 +13,9 @@ import { invoices } from '$lib/server/schema';
 import { and, isNull, sql } from 'drizzle-orm';
 import { getAccessState, getMonthlyQuota } from '$lib/server/billing';
 
-/**
- * Returns the number of invoices the tenant can still add this calendar month,
- * or null when no plan quota is configured (treated as unlimited). Best-effort:
- * never blocks the upload path on a DB error.
- */
 async function remainingMonthlyQuota(rid: string): Promise<number | null> {
 	try {
 		const tdb = forTenant(rid);
-		// Shared quota convention (issue #295) — null means unlimited.
 		const limit = await getMonthlyQuota(rid);
 		if (limit === null) return null;
 
@@ -44,8 +38,6 @@ export const load: PageServerLoad = async ({ url }) => {
 	const remaining = Number(url.searchParams.get('remaining'));
 	return {
 		title: 'upload.title',
-		// An i18n key (issue #294) — the panel translates it. `errorVars` carries
-		// the interpolation values that survive a redirect.
 		error: url.searchParams.get('error') ?? null,
 		errorVars: Number.isFinite(remaining) && remaining > 0 ? { n: remaining } : undefined,
 		saved: url.searchParams.get('saved') === '1',
@@ -59,10 +51,6 @@ export const actions: Actions = {
 		const rid = locals.restaurantId;
 		if (!rid) return fail(403, { error: 'upload.err.noRestaurant' });
 
-		// A lapsed trial (or a cancelled/past-due subscription) may keep reading
-		// its data, but must not start new paid work (issue #287). First thing in
-		// the action: an expired tenant gets sent to /billing without uploading a
-		// 20 MB file first, and never reaches the rate limiter or quota gate.
 		const access = await getAccessState(rid);
 		if (!access.allowed) {
 			redirect(303, `/billing?upgrade=${access.trialExpired ? 'trial' : 'inactive'}`);
@@ -76,8 +64,6 @@ export const actions: Actions = {
 		}
 
 		const rawFiles = formData.getAll('files');
-		// Use typeof check instead of instanceof — SvelteKit's internal File class may differ
-		// from globalThis.File across Node.js versions, causing instanceof to silently drop files.
 		const files = rawFiles.filter((f): f is File => typeof f !== 'string' && (f as Blob).size > 0);
 
 		if (files.length === 0) {
@@ -93,27 +79,17 @@ export const actions: Actions = {
 			});
 		}
 
-		// Each upload consumes a paid Gemini extraction — cap batch submissions
-		// per tenant regardless of plan quota (quota is unlimited when unset).
 		if (!(await checkRateLimit(`upload:${rid}`, 10))) {
 			return fail(429, { error: 'upload.err.rateLimited' });
 		}
 
-		// Plan quota gate — block before consuming any Gemini extraction and send
-		// the user to /billing to upgrade. Skipped when no quota is configured.
-		// Uses a redirect (not fail) so the message + upgrade CTA render reliably
-		// for both the XHR and no-JS submit paths via the page's error banner.
 		const remaining = await remainingMonthlyQuota(rid);
 		if (remaining !== null && files.length > remaining) {
-			// Redirect (not fail) so the banner renders on both the XHR and no-JS
-			// paths; the key and its interpolation value travel as query params.
 			redirect(303, remaining === 0
 				? '/?error=upload.err.quotaExhausted&upgrade=1'
 				: `/?error=upload.err.quotaRemaining&remaining=${remaining}&upgrade=1`);
 		}
 
-		// Random storage namespace — generated before the batch exists so files
-		// can be saved first; it does not need to match the batch id.
 		const namespace = randomBytes(16).toString('hex');
 
 		let saved: string[];
@@ -127,19 +103,14 @@ export const actions: Actions = {
 		}
 
 		if (saved.length === 0) {
-			// Every file was rejected by validation — report the first reason with
-			// the offending filename (issue #294); reasons are i18n keys.
 			const first = errors[0];
 			return first
 				? fail(400, { error: `upload.reject.${first.reason}`, errorVars: { name: first.name, ext: first.ext ?? '' } })
 				: fail(400, { error: 'upload.err.noValidFiles' });
 		}
 
-		// One batch, one item per invoice — no chained sessions.
 		const { batchId, itemIds } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
 
-		// Start extraction right away — the upload CTA promises "extract data",
-		// so landing on the batch page must not require a second click.
 		await enqueueBatchExtraction(itemIds[0], rid, {
 			getItem,
 			getBatchItems,

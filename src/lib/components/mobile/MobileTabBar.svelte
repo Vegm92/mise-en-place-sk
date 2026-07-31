@@ -49,7 +49,6 @@
     <span style="font-size: 10.5px; font-weight: {is('/invoices') ? 600 : 500};">{$t('nav.invoices')}</span>
   </a>
 
-  <!-- Raised upload button -->
   <a href="/" style="
     position: relative; top: -18px;
     width: 54px; height: 54px; border-radius: 27px;

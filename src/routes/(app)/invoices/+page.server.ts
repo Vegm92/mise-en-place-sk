@@ -15,8 +15,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
-		// Set by the batch save action after the last invoice of a batch lands
-		// (issue #235) — replaces the /save-confirmation interstitial.
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
 		const status     = url.searchParams.get('status') ?? '';
 		const supplierId = url.searchParams.get('supplier_id') ?? '';
@@ -75,8 +73,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(and(...conditions)),
 		]);
 
-		// Alerts raised while saving that invoice ride along on the toast instead
-		// of needing their own page.
 		const savedAlerts = Number.isFinite(savedId)
 			? (await db.select({ message: systemNotifications.message })
 				.from(systemNotifications)
@@ -84,7 +80,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.map(r => r.message)
 			: [];
 
-		// Line items only for the current page
 		const invoiceIds = invoiceRows.map(r => r.id);
 		const allLineItems = invoiceIds.length
 			? await db.select({
@@ -129,8 +124,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 };
 
 export const actions: Actions = {
-	// Guarded transitions (issue #243) — a stale tab gets a conflict banner
-	// instead of silently overwriting a change made elsewhere.
 	markPaid: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));

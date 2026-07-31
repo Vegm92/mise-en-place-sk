@@ -65,7 +65,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 			priceTrendMap.get(sid)!.push(Number(row.avg_price));
 		}
 
-		// Refresh stale scores (>24h old) for suppliers with enough invoices
 		const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 		const staleRefreshes = rows
 			.filter(row => Number(row.invoice_count) >= 3)

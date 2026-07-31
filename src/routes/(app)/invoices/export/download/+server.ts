@@ -80,7 +80,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	sheet.getColumn('total_amount').numFmt = '#,##0.00';
 
-	// Header row styling
 	const headerRow = sheet.getRow(1);
 	headerRow.height = 22;
 	headerRow.eachCell((cell) => {
@@ -89,7 +88,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		cell.alignment = { vertical: 'middle' };
 	});
 
-	// Borders + banded rows for the data
 	sheet.eachRow((row, rowNumber) => {
 		row.eachCell({ includeEmpty: true }, (cell) => {
 			cell.border = THIN_BORDER;

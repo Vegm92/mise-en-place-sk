@@ -1,8 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 
 export const GET: RequestHandler = ({ url }) => {
-	// (app) is a SvelteKit route group and never appears in real URLs, so the
-	// authenticated pages must be listed by their served paths.
 	const body = [
 		'User-agent: *',
 		'Disallow: /dashboard',

@@ -72,7 +72,6 @@
     [...suppliers].sort((a, b) => b.month_spend - a.month_spend).slice(0, 4)
   );
 
-  // Period picker (self-contained — reads URL, generates prev/next links)
   const currentMonthStr = $derived(toMonthStr(new Date()));
   const selectedMonth = $derived(
     ($page.data as { selectedMonth?: string }).selectedMonth
@@ -90,11 +89,9 @@
   const canGoForward = $derived(selectedMonth < currentMonthStr);
 </script>
 
-<!-- Mobile-only wrapper, full height, scroll with bottom clearance -->
 <div style="height: 100%; overflow: auto; padding-bottom: 24px;">
   <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 14px;">
 
-    <!-- Greeting + period picker -->
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
       <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
         {$t(greeting)} · {dateStr}
@@ -102,7 +99,6 @@
       <PeriodPicker compact={true} prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
     </div>
 
-    <!-- Hero spend card -->
     <div class="card" style="padding: 16px;">
       <div class="label" style="margin-bottom: 6px;">{$t('ddash.monthSpend')}</div>
       <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
@@ -147,7 +143,6 @@
       {/if}
     </div>
 
-    <!-- Alert tile (only when there are high/med alerts) -->
     {#if highAlerts + medAlerts > 0}
       <a href="/reminders" style="
         display: block; text-decoration: none;
@@ -179,7 +174,6 @@
       </a>
     {/if}
 
-    <!-- 2-col KPI row -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
         <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
@@ -207,7 +201,6 @@
       </div>
     </div>
 
-    <!-- Top suppliers -->
     {#if topSuppliers.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
@@ -245,7 +238,6 @@
       </div>
     {/if}
 
-    <!-- Recent invoices -->
     {#if recentInvoices.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">

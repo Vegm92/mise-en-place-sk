@@ -9,7 +9,6 @@
 
   let { data }: { data: PageData } = $props();
 
-  // Period picker — derived values shared between mobile and desktop
   const currentMonthStr = $derived(toMonthStr(new Date()));
   const selectedMonth = $derived(
     (data as { selectedMonth?: string }).selectedMonth
@@ -35,7 +34,6 @@
   });
 </script>
 
-<!-- Mobile dashboard -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileDashboard
     monthSpend={data.mom.this_month}
@@ -59,7 +57,6 @@
   <div class="card p-3 text-neg m-4 mb-0" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
 {/if}
 
-<!-- Desktop dashboard -->
 <ErrorBoundary>
   {#snippet children()}
     <DesktopDashboard

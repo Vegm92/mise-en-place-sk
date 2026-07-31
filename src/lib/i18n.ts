@@ -4,10 +4,8 @@ export type Locale = 'es' | 'en';
 
 export const translations = {
   es: {
-    // Error boundary
     'boundary.failed':       'Este panel no se pudo mostrar.',
     'boundary.retry':        'Reintentar',
-    // Navigation
     'nav.dashboard':         'Resumen',
     'nav.invoices':          'Facturas',
     'nav.suppliers':         'Proveedores',
@@ -20,7 +18,6 @@ export const translations = {
     'nav.reminders':         'Recordatorios',
     'nav.settings':          'Ajustes',
     'nav.help':              'Ayuda',
-    // Actions
     'action.upload':         'Subir factura',
     'action.logout':         'Cerrar sesión',
     'action.viewAll':        'Ver todos',
@@ -30,9 +27,7 @@ export const translations = {
     'action.irreversible':   'Esta acción no se puede deshacer',
     'action.export':         'Exportar',
     'action.allAlerts':      'Ver todas las alertas',
-    // Shell
     'shell.quota':           'facturas este mes',
-    // Dashboard page
     'dashboard.title':       'Resumen',
     'dash.kpi.overdue':      'Vencidas',
     'dash.kpi.overdue.sub':  'facturas vencidas',
@@ -81,7 +76,6 @@ export const translations = {
     'dash.perf.ontime':      'Pagadas a tiempo',
     'dash.category':         'Gasto por categoría',
     'dash.category.sub':     'este mes',
-    // Invoice list page
     'inv.title':           'Facturas',
     'inv.conflict':        'Esta factura ya fue modificada en otra pestaña o por otro usuario. Su estado no ha cambiado.',
     'inv.export':          'Exportar Excel',
@@ -112,7 +106,6 @@ export const translations = {
     'inv.kpi.overdue':     'Vencidas',
     'inv.kpi.paid':        'Pagadas',
     'inv.kpi.suppliers':   'Proveedores',
-    // Table headers
     'tbl.supplier':    'Proveedor',
     'tbl.invoice':     'N.º factura',
     'tbl.date':        'Fecha',
@@ -124,14 +117,12 @@ export const translations = {
     'tbl.qty':         'Cant.',
     'tbl.unit':        'Unidad',
     'tbl.unitPrice':   'Precio unit.',
-    // Status labels
     'status.pending':   'Por revisar',
     'status.confirmed': 'Confirmada',
     'status.exported':  'Exportada',
     'status.overdue':   'Vencida',
     'status.paid':      'Pagada',
     'status.due_soon':  'Próximo venc.',
-    // Chat widget
     'chat.title':          'Consulta tus datos',
     'chat.placeholder':    'Pregunta sobre tus facturas…',
     'chat.send':           'Enviar',
@@ -153,25 +144,21 @@ export const translations = {
     'digest.week':         'Semana',
     'digest.dismissed':    'Resumen leído.',
     'digest.unavailable':  'No hay resumen disponible para esta semana.',
-    // Suppliers page
     'sup.empty':        'Sin proveedores todavía. Sube una factura para añadir uno.',
     'sup.thisMonth':    'Este mes',
     'sup.openInv':      'Fact. abiertas',
     'sup.lastInv':      'Última factura',
     'sup.setCategory':  '— asignar categoría —',
-    // Budgets page
     'bud.monthlyTitle':  'Presupuestos mensuales por categoría',
     'bud.noLimit':       'Sin límite',
     'bud.save':          'Guardar presupuestos',
     'bud.addCategory':   'Añadir categoría…',
-    // Reminders page
     'rem.empty':        'Sin facturas pendientes en los próximos 7 días.',
     'rem.overdue':      'Vencidas',
     'rem.dueWeek':      'Vence esta semana',
     'rem.totalPending': 'Total pendiente',
     'rem.daysOverdue':  'd de retraso',
     'rem.markAllPaid':  'Marcar todas pagadas',
-    // Analytics / spend
     'spend.pageTitle':      'Análisis de gasto',
     'spend.period.month':   'Este mes',
     'spend.period.quarter': 'Trimestre',
@@ -185,7 +172,6 @@ export const translations = {
     'spend.noItems':        'Sin datos de líneas para este período.',
     'spend.byCategory':     'Por categoría',
     'spend.noCategory':     'Sin datos.',
-    // Analytics / prices
     'prices.pageTitle':       'Seguimiento de precios',
     'prices.biggestIncrease': 'Mayor subida',
     'prices.biggestDecrease': 'Mayor bajada',
@@ -196,8 +182,6 @@ export const translations = {
     'tbl.prevPrice':          'Precio ant.',
     'tbl.change':             'Variación',
     'tbl.lastSeen':           'Última vez',
-    // Settings
-    // Multi-location (issue #290)
     'nav.location':               'Local',
     'notif.categorize':           'Clasificar proveedor',
     'notif.msg.uncategorized':    "Clasifica a '{supplier}' para incluir su gasto en presupuestos y análisis por categoría.",
@@ -212,7 +196,6 @@ export const translations = {
     'set.locations.err.nameRequired': 'Escribe un nombre para el local.',
     'set.locations.err.notAvailable': 'Los locales adicionales están incluidos en el plan Business.',
     'set.locations.err.limitReached': 'Has alcanzado el número de locales incluidos en tu plan.',
-    // WhatsApp bot — números autorizados
     'set.whatsapp.title':            'Facturas por WhatsApp',
     'set.whatsapp.desc':             'Solo estos números pueden enviar facturas por WhatsApp. Cada número puede pertenecer a un único local.',
     'set.whatsapp.empty':            'Todavía no hay ningún número autorizado.',
@@ -229,12 +212,10 @@ export const translations = {
     'set.whatsapp.err.nameTooLong':  'El nombre es demasiado largo.',
     'set.whatsapp.err.notOwner':     'Solo el propietario puede gestionar los números autorizados.',
     'set.whatsapp.err.disabled':     'El bot de WhatsApp no está configurado en este servidor.',
-    // WhatsApp bot — cómo contactar con el bot (issue #319)
     'set.whatsapp.numberLabel':      'Envía las facturas a este número:',
     'set.whatsapp.copy':             'Copiar enlace',
     'set.whatsapp.copied':           '¡Copiado!',
     'set.whatsapp.qrHint':           'Escanea el código para abrir el chat. Imprímelo y cuélgalo en la cocina.',
-    // WhatsApp bot — alta por código de emparejamiento (issue #320)
     'set.whatsapp.pairDesc':         'O genera un código: quien lo envíe al bot desde su móvil queda autorizado automáticamente, sin teclear su número.',
     'set.whatsapp.pairGenerate':     'Generar código',
     'set.whatsapp.pairActive':       'Que envíe este código al bot desde el móvil que vaya a usar:',
@@ -245,7 +226,6 @@ export const translations = {
     'set.whatsapp.ok.pairRevoked':   'Código anulado.',
     'set.whatsapp.err.pairRateLimited': 'Has generado demasiados códigos. Espera un rato antes de pedir otro.',
     'set.whatsapp.err.pairFailed':   'No se ha podido generar el código. Inténtalo de nuevo.',
-    // Profile management (issue #293)
     'set.profile.title':          'Perfil',
     'set.profile.name':           'Nombre',
     'set.profile.email':          'Email',
@@ -282,7 +262,6 @@ export const translations = {
     'set.priceThresholdTitle':    'Umbral de alerta de precio',
     'set.priceThresholdDesc':     'Las alertas se disparan cuando el precio unitario de un artículo varía más de este porcentaje respecto al último precio registrado.',
     'set.save':                   'Guardar',
-    // Upload page
     'upload.title':     'Subir factura',
     'upload.sub':       'PDF, JPG o PNG — hasta 20 MB',
     'upload.drop':      'Suelta archivos aquí o',
@@ -294,7 +273,6 @@ export const translations = {
     'upload.btn':       'Subir',
     'upload.takePhoto': 'Tomar foto',
     'upload.browseFiles':'Buscar archivos',
-    // Confirm / review files
     'confirm.title':     'Revisar archivos',
     'confirm.filesInfo': 'archivo(s) subido(s).',
     'confirm.extract':   'Extraer factura',
@@ -304,11 +282,9 @@ export const translations = {
     'confirm.addLess':   '− Añadir más archivos',
     'confirm.addToInv':  'Añadir a factura',
     'confirm.extracting':'Extrayendo datos de la factura…',
-    // Confidence levels
     'conf.high':   'alta',
     'conf.medium': 'media',
     'conf.low':    'baja',
-    // Extract / review extraction
     'extract.confidence':  'confianza',
     'extract.lowConf':     'Confianza baja — revisa cuidadosamente',
     'extract.lowConfSub':  'Varios campos pueden estar incompletos o ser inexactos.',
@@ -323,7 +299,6 @@ export const translations = {
     'extract.notes':       'Notas',
     'extract.notesHint':   'opcional · máx. 250 caracteres',
     'extract.notesPlaceholder': 'Contexto adicional…',
-    // Edit invoice
     'edit.pageTitle':  'Editar factura',
     'edit.details':    'Detalles de la factura',
     'edit.lineItems':  'Líneas de factura',
@@ -332,7 +307,6 @@ export const translations = {
     'edit.addLine':    '+ Añadir línea',
     'edit.notes':      'Notas',
     'edit.notesHint':  'opcional · máx. 250 caracteres',
-    // Export
     'export.title':       'Exportar facturas',
     'export.dateRange':   'Rango de fechas',
     'export.dateHint':    'Deja en blanco para incluir todas las fechas',
@@ -342,7 +316,6 @@ export const translations = {
     'export.allStatus':   'Todos',
     'export.paid':        'Pagadas',
     'export.pending':     'Pendientes',
-    // Save confirmation
     'saved.title':         'Factura guardada correctamente',
     'saved.desc':          'La factura #{id} ha sido almacenada y está lista para su revisión.',
     'saved.alerts':        'Alertas generadas',
@@ -350,14 +323,12 @@ export const translations = {
     'saved.whatsapp':      'Estas alertas serán enviadas por WhatsApp a los contactos registrados del restaurante.',
     'saved.goInvoices':    'Ir a Facturas',
     'saved.uploadAnother': 'Subir otra',
-    // Form field labels (shared across upload flow / edit)
     'field.supplier':      'Proveedor',
     'field.invoiceNum':    'N.º de factura',
     'field.invoiceDate':   'Fecha de factura',
     'field.dueDate':       'Fecha de vencimiento',
     'field.totalAmount':   'Importe total',
     'field.notes':         'Notas',
-    // Login page
     'login.welcome':     'Bienvenido de nuevo',
     'login.sub':         'Inicia sesión para continuar',
     'login.email':       'Email',
@@ -373,7 +344,6 @@ export const translations = {
     'login.err.rate_limited': 'Demasiados intentos. Espera un minuto y vuelve a intentarlo.',
     'login.forgotPassword': '¿Has olvidado tu contraseña?',
     'login.passwordReset':  'Contraseña actualizada. Inicia sesión con la nueva.',
-    // Password recovery (issue #284)
     'forgot.title':         'Recuperar contraseña',
     'forgot.sub':           'Te enviaremos un enlace para crear una contraseña nueva.',
     'forgot.submit':        'Enviar enlace',
@@ -392,7 +362,6 @@ export const translations = {
     'reset.err.mismatch':   'Las contraseñas no coinciden.',
     'reset.err.failed':     'No se pudo guardar la contraseña. Prueba con otra distinta.',
 
-    // Invoice detail page
     'inv.detail.noFile':        'Sin documento adjunto',
     'inv.detail.downloadPdf':   'Descargar PDF',
     'inv.detail.delete':        'Eliminar',
@@ -402,7 +371,6 @@ export const translations = {
     'inv.detail.uploaded':      'Subida',
     'inv.detail.extracted':     'Extraída',
     'inv.detail.confirmed':     'Confirmada',
-    // Pending review page
     'pend.processing':     'Procesando factura con IA…',
     'pend.processingDesc': 'Esto puede tardar unos segundos.',
     'pend.title':          'Revisar factura pendiente',
@@ -414,7 +382,6 @@ export const translations = {
     'pend.reject':         'Rechazar',
     'pend.match':          'Coincidencia: ',
     'pend.priceWarning':   '⚠ Precio anómalo',
-    // Misc
     'misc.invoices':   'facturas',
     'misc.invoice':    'factura',
     'misc.daysLate':   'd de retraso',
@@ -425,11 +392,9 @@ export const translations = {
     'misc.today':      'Hoy',
     'misc.yesterday':  'Ayer',
     'misc.noDate':     'Sin fecha',
-    // Upload flow — 3-step wizard
     'steps.upload':            'Subir',
     'steps.extract':           'Extraer',
     'steps.review':            'Revisar y guardar',
-    // Upload page — drop zone & queue
     'upload.dropHeadline':     'Suelta tus facturas aquí',
     'upload.onboardHint':      'Sube cualquier factura de proveedor — PDF, foto o escaneo. La IA extraerá todos los datos automáticamente.',
     'upload.onboardHintShort': 'PDF, foto o escaneo — la IA extrae los datos.',
@@ -443,7 +408,6 @@ export const translations = {
     'upload.extractData':      'Extraer datos',
     'upload.extractData1':     'Extraer datos de 1 factura',
     'upload.extractDataN':     'Extraer datos de {n} facturas',
-    // Mobile camera capture
     'upload.cameraBtn':        'Tomar foto',
     'upload.imageTooLarge':    'La imagen supera el límite de {mb} MB',
     'upload.captureTip':       'Coloca la factura sobre una superficie plana con buena luz. Asegúrate de que todos los bordes sean visibles.',
@@ -454,13 +418,11 @@ export const translations = {
     'upload.offlineSaved':     'Guardado localmente — se subirá al restaurar la conexión',
     'upload.offlineRetrying':  'Reintentando subida…',
     'upload.offlineLimit':     'Límite alcanzado (máx. 3 facturas guardadas sin conexión)',
-    // Confirm page — extraction stages
     'confirm.stage.read':      'Leyendo documento',
     'confirm.stage.supplier':  'Identificando proveedor',
     'confirm.stage.header':    'Extrayendo cabecera',
     'confirm.stage.lines':     'Extrayendo líneas de pedido',
     'confirm.stage.verify':    'Verificando totales',
-    // Confirm page — queue & actions
     'confirm.addFile':         'Añadir archivos',
     'confirm.addFile1':        'Añadir 1 archivo',
     'confirm.addFileN':        'Añadir {n} archivos',
@@ -478,11 +440,9 @@ export const translations = {
     'confirm.showAdd':         '+ Añadir archivos',
     'confirm.queueOf':         'Factura {i} de {n} · las demás se procesarán en orden',
     'confirm.readyToExtract':  '1 archivo listo para extraer',
-    // Extract page — confidence badges
     'extract.badge.high':      'alta confianza',
     'extract.badge.med':       'confianza media',
     'extract.badge.low':       'confianza baja',
-    // Extract page — header / actions
     'extract.error':                 'Error de extracción',
     'extract.err.rateLimited':       'El servicio de IA está ocupado — inténtalo de nuevo en un momento.',
     'extract.err.unavailable':       'El servicio de IA no está disponible temporalmente — inténtalo en breve.',
@@ -491,7 +451,6 @@ export const translations = {
     'extract.err.alreadyExtracting':    'Este archivo ya se está procesando. Por favor, espera a que termine.',
     'extract.err.generic':           'Extracción fallida — inténtalo de nuevo o contacta con soporte si el problema persiste.',
     'extract.err.timeout':           'La extracción tardó demasiado — inténtalo de nuevo. Si el problema persiste, prueba con un archivo más pequeño.',
-    // Upload action errors — returned as keys by the server (issue #294)
     'upload.err.formParse':      'No se pudieron leer los datos del formulario. Inténtalo de nuevo.',
     'upload.err.noValidFiles':   'No se ha recibido ningún archivo válido. Selecciona un PDF, JPG o PNG.',
     'upload.err.tooLarge':       'Estos archivos superan el límite de 20 MB: {names}',
@@ -511,7 +470,6 @@ export const translations = {
     'extract.aiExtracted':     'Extraído por IA',
     'extract.reextract':       'Reextraer',
     'extract.confirmSave':     'Confirmar y guardar',
-    // Extract page — form
     'extract.header':          'Cabecera',
     'extract.tabNav':          'Tab para navegar entre campos',
     'extract.lowConfFields':   'con confianza baja — revisa antes de confirmar',
@@ -524,7 +482,6 @@ export const translations = {
     'extract.notesPh':         'Observaciones sobre esta factura…',
     'extract.addLine':         'Añadir línea',
     'extract.confTooltip':     '% confianza',
-    // Extract page — totals / validation
     'extract.discrepancy':     'Discrepancia',
     'extract.discrepancyDesc': 'El total extraído no cuadra con la suma de las líneas. Revisa antes de confirmar.',
     'extract.totalsMatch':     'Totales cuadran',
@@ -534,16 +491,13 @@ export const translations = {
     'extract.vat':             'Impuesto',
     'extract.calcTotal':       'Total calculado',
     'extract.extractedTotal':  'Total extraído',
-    // Coach mark
     'coach.next':              'Entendido →',
     'coach.skip':              'Saltar tour',
-    // Notification bell
     'notif.title':             'Alertas',
     'notif.clearAll':          'Borrar todo',
     'notif.empty':             'Sin alertas pendientes',
     'notif.prodConfirm':       'Sí, es el mismo',
     'notif.prodReject':        'No, es distinto',
-    // Settings — tour & privacy
     'set.tourTitle':           'Tour guiado',
     'set.tourDesc':            'Repasa el tutorial de inicio en cualquier momento.',
     'set.tourRepeat':          'Repetir tour →',
@@ -560,9 +514,7 @@ export const translations = {
     'set.termsLink':           'Términos de Servicio',
     'set.deleteErrorNetwork':  'Error de red. Inténtalo de nuevo.',
     'set.deleteErrorGeneric':  'Error al eliminar la cuenta.',
-    // Dashboard
     'dash.firstInvoice':       'Procesa tu primera factura',
-    // Pending review page
     'pending.processing':      'Procesando factura con IA…',
     'pending.processingDesc':  'Esto puede tardar unos segundos.',
     'pending.title':           'Revisar Factura Pendiente',
@@ -575,13 +527,11 @@ export const translations = {
     'pending.priceWarning':    '⚠ Precio anómalo',
     'pending.approve':         'Aprobar y Guardar',
     'pending.reject':          'Rechazar',
-    // Onboarding page
     'onboard.title':           'Bienvenido',
     'onboard.subtitle':        'Para empezar, dinos cómo se llama tu restaurante.',
     'onboard.nameLabel':       'Nombre del restaurante',
     'onboard.namePlaceholder': 'Ej. Casa Lua',
     'onboard.submit':          'Crear restaurante',
-    // Supplier detail
     'action.delete':           'Eliminar',
     'sup.contact':             'Contactar',
     'sup.noCategory':          'Sin categoría',
@@ -652,7 +602,6 @@ export const translations = {
     'sup.aliasPrefix':         'Alias',
     'sup.viewAll':             'Ver todas ({n})',
     'sup.paid':                'pagadas',
-    // Guided tour (coach marks in app layout)
     'tour.step1.title':        'Sube tu primera factura',
     'tour.step1.body':         'Arrastra un PDF, haz una foto con la cámara o reenvía la factura por email. La IA extrae todos los datos automáticamente.',
     'tour.step2.title':        'Revisa lo que encontró la IA',
@@ -661,7 +610,6 @@ export const translations = {
     'tour.complete.title':     '¡Primera factura guardada!',
     'tour.complete.body':      'El seguimiento de gastos ya ha comenzado. Añade más facturas para desbloquear tendencias, alertas de precios y análisis por proveedor.',
     'tour.complete.btn':       'Ir al dashboard',
-    // App-wide tour nudge + steps 3-11 (dashboard through settings)
     'tour.nudge.title':        '¿Seguimos?',
     'tour.nudge.body':         'Te enseñamos brevemente el resto de la app: analíticas, presupuestos, recordatorios y más. Son 9 pasos rápidos.',
     'tour.nudge.accept':       'Ver más →',
@@ -685,7 +633,6 @@ export const translations = {
     'tour.step11.title':       'Ajustes',
     'tour.step11.body':        'Configura umbrales, cambia de idioma y repite este tour cuando quieras desde aquí.',
     'tour.step11.next':        'Terminar tour',
-    // Pluralized / interpolated forms (issue #146)
     'misc.invoice.zero':            'Sin facturas',
     'misc.invoice.one':             '1 factura',
     'misc.invoice.other':           '{n} facturas',
@@ -702,7 +649,6 @@ export const translations = {
     'upload.extractData.other':     'Extraer datos de {n} facturas',
     'sup.confirmDelete.body.one':   'La factura asociada quedará sin proveedor. Esta acción no se puede deshacer.',
     'sup.confirmDelete.body.other': 'Las {n} facturas asociadas quedarán sin proveedor. Esta acción no se puede deshacer.',
-    // Batch / multi-invoice review page
     'batch.queue.ready':            'Lista para revisar',
     'batch.field.one':              'campo',
     'batch.field.other':            'campos',
@@ -721,7 +667,6 @@ export const translations = {
     'batch.lowConfPre':             'La IA detectó',
     'batch.lowConfPost':            'con confianza baja. Por favor, revísalos cuidadosamente antes de guardar la factura — los datos financieros incorrectos afectan a tus informes.',
     'batch.reviewedAll':            'He revisado todos los campos',
-    // Footer / accessibility labels / errors
     'footer.privacy':               'Privacidad',
     'footer.terms':                 'Términos',
     'a11y.openMenu':                'Abrir menú',
@@ -733,7 +678,6 @@ export const translations = {
     'error.backToPanel':            'Volver al panel',
     'dash.checkPriceAlerts':        'Revisa tus alertas de precio',
     'upload.uploadError':           'Error al subir: {msg}',
-    // Billing page
     'billing.title':                'Facturación',
     'billing.upgrade.digest':       'El resumen semanal con IA es una función de pago. Suscríbete para desbloquearlo.',
     'billing.upgrade.prices':       'Las alertas de subidas de precio y puntuación de proveedores son una función de pago. Suscríbete para desbloquearlas.',
@@ -762,10 +706,8 @@ export const translations = {
     'billing.notConfigured':        'La facturación aún no está configurada. Contacta con soporte para suscribirte.',
     'billing.err.tierUnavailable':  'Este plan no está disponible ahora mismo. Contacta con soporte.',
     'billing.manage':               'Gestionar suscripción',
-    // Login / onboarding meta
     'login.metaDesc':               'Inicia sesión en Mise en Place para gestionar las facturas de tus proveedores, controlar el gasto y los presupuestos de tu restaurante.',
     'onboard.metaTitle':            'Configura tu restaurante',
-    // Signup page
     'signup.metaTitle':             'Crear cuenta',
     'signup.metaDesc':              'Crea tu cuenta de Mise en Place y empieza tu prueba gratuita de 30 días. Digitaliza tus facturas de proveedores y controla el gasto de tu restaurante.',
     'signup.heading':               'Crea tu cuenta',
@@ -789,7 +731,6 @@ export const translations = {
     'signup.err.generic':           'No se pudo crear la cuenta. Inténtalo de nuevo.',
     'signup.err.oauth':             'El registro con Google falló. Inténtalo de nuevo.',
     'signup.err.rateLimited':       'Demasiados intentos. Espera un minuto y vuelve a intentarlo.',
-    // Analytics / spend — desktop & mobile (i18n completion)
     'spend.period.allShort':        'Todo',
     'spend.question':               '¿Dónde va el dinero?',
     'spend.topItemsSub':            'Peso de cada producto en el gasto del período',
@@ -801,7 +742,6 @@ export const translations = {
     'spend.viewSuppliers':          'Ver proveedores →',
     'spend.topProducts':            'Artículos principales por gasto',
     'spend.other':                  'Otros',
-    // Analytics / prices — desktop & mobile
     'prices.question':              '¿Qué precios están cambiando?',
     'prices.searchPlaceholder':     'Buscar producto o proveedor…',
     'prices.perBaseHint':           'Precio por unidad base (€/kg, €/L, €/ud) — comparable entre formatos',
@@ -827,7 +767,6 @@ export const translations = {
     'prices.latest':                'Último',
     'prices.previous':              'Anterior',
     'prices.noResults':             'Sin resultados',
-    // Analytics / extraction
     'extract.pageTitle':            'Extracción IA',
     'extract.acc.title':            'Precisión de extracción IA',
     'extract.acc.noData':           'Sin datos de extracción aún',
@@ -858,7 +797,6 @@ export const translations = {
     'extract.acc.colAvgCorr':       'Corr. medias',
     'extract.acc.review':           'Revisar',
     'extract.acc.reviewNote':       'Las facturas de los proveedores marcados como «Revisar» suelen necesitar correcciones — comprueba su formato.',
-    // Budgets page
     'bud.tableTitle':               'Presupuesto por categoría',
     'bud.tableSub':                 'Edita el campo de presupuesto y guarda',
     'bud.colCategory':              'Categoría',
@@ -881,7 +819,6 @@ export const translations = {
     'bud.add':                      'Añadir',
     'bud.newCategory':              'Nueva categoría',
     'bud.closeShort':               'cierre',
-    // Supplier detail (mobile page)
     'sup.back':                     'Proveedores',
     'sup.fieldEmail':               'Email',
     'sup.totalSpend':               'Gasto total',
@@ -899,7 +836,6 @@ export const translations = {
     'sup.termsExample':             '30 días',
     'sup.emailExample':             'proveedor@ejemplo.com',
     'sup.notesPlaceholder':         'Notas internas…',
-    // Suppliers list (desktop & mobile)
     'sup.searchPlaceholder':        'Buscar proveedor o categoría…',
     'sup.searchByName':             'Buscar por nombre o categoría…',
     'sup.categoryAll':              'Categoría: Todas',
@@ -924,7 +860,6 @@ export const translations = {
     'sup.monthSpendChip':           'Gasto mes',
     'sup.noSuppliers':              'Sin proveedores',
     'sup.invoicesSuffix':           'facturas',
-    // Mobile invoice detail
     'mid.totalVat':                 'Total con IVA',
     'mid.issued':                   'Emitida',
     'mid.preview':                  'Vista previa',
@@ -934,7 +869,6 @@ export const translations = {
     'mid.viewLines':                'Ver las {n} líneas',
     'mid.actionEdit':               'Editar',
     'mid.actionSupplier':           'Proveedor',
-    // Mobile invoice list
     'mil.searchPlaceholder':        'Buscar N.º, proveedor…',
     'mil.filter.month':             'Este mes',
     'mil.filter.pending':           'Por revisar',
@@ -943,7 +877,6 @@ export const translations = {
     'mil.filter.category':          'Por categoría',
     'mil.empty':                    'Sin facturas',
     'mil.lines':                    'líneas',
-    // Mobile dashboard
     'mdash.morning':                'Buenos días',
     'mdash.afternoon':              'Buenas tardes',
     'mdash.evening':                'Buenas noches',
@@ -961,7 +894,6 @@ export const translations = {
     'mdash.topSuppliers':           'Proveedores principales',
     'mdash.recent':                 'Recientes',
     'mdash.viewAll':                'Ver todas',
-    // Desktop dashboard
     'ddash.firstInvoiceTitle':      'Tu primera factura está guardada',
     'ddash.firstInvoiceBody':       'Este es tu panel de compras — se enriquece con cada factura que añadas. Sube más facturas para ver tendencias de gasto, alertas de precio y análisis de proveedores.',
     'ddash.close':                  'Cerrar',
@@ -982,9 +914,7 @@ export const translations = {
     'ddash.overBudgetPre':          'A este ritmo superarías el presupuesto en',
     'ddash.priceChanges':           'Cambios de precio',
     'ddash.priceChangesSub':        'últimas facturas procesadas',
-    // Sparkline tooltip
     'spark.risingTrend':            'Los precios llevan subiendo 3+ meses — considera una conversación de precios con este proveedor',
-    // Remaining UI chrome (suppliers, invoice viewer, chat, a11y)
     'common.search':                'Buscar',
     'a11y.close':                   'Cerrar',
     'a11y.dismiss':                 'Descartar',
@@ -1021,7 +951,6 @@ export const translations = {
     'chart.noSpendData':            'Sin datos de gasto',
     'chart.loading':                'Cargando…',
     'login.emailPlaceholder':       'tu@email.com',
-    // Internal admin area
     'admin.banner':                 'Admin',
     'admin.backToApp':              '← App',
     'admin.health':                 'Salud',
@@ -1062,13 +991,11 @@ export const translations = {
     'admin.prev':                   '← Anterior',
     'admin.next':                   'Siguiente →',
     'admin.pageOf':                 'Página {page} de {total}',
-    // Mobile alerts list
     'malert.overdueCount':          'vencidas',
     'malert.dueWeekCount':          'vencen esta semana',
     'malert.dOverdue':              'd venc.',
     'malert.dLeft':                 'd restantes',
     'malert.markPaid':              'Marcar como pagada',
-    // Products (CRUD, catalog)
     'prod.title':                    'Catálogo de productos',
     'prod.subtitle':                 'Gestiona tus productos: conversión de packs, alias y precios',
     'prod.tab.catalog':              'Catálogo',
@@ -1110,10 +1037,8 @@ export const translations = {
   },
 
   en: {
-    // Error boundary
     'boundary.failed':       'This panel failed to load.',
     'boundary.retry':        'Retry',
-    // Navigation
     'nav.dashboard':         'Dashboard',
     'nav.invoices':          'Invoices',
     'nav.suppliers':         'Suppliers',
@@ -1126,7 +1051,6 @@ export const translations = {
     'nav.reminders':         'Reminders',
     'nav.settings':          'Settings',
     'nav.help':              'Help',
-    // Actions
     'action.upload':         'Upload invoice',
     'action.logout':         'Sign out',
     'action.viewAll':        'View all',
@@ -1136,9 +1060,7 @@ export const translations = {
     'action.irreversible':   'This cannot be undone',
     'action.export':         'Export',
     'action.allAlerts':      'View all alerts',
-    // Shell
     'shell.quota':           'invoices this month',
-    // Dashboard page
     'dashboard.title':       'Dashboard',
     'dash.kpi.overdue':      'Overdue',
     'dash.kpi.overdue.sub':  'invoices past due',
@@ -1187,7 +1109,6 @@ export const translations = {
     'dash.perf.ontime':      'Paid on time',
     'dash.category':         'Category spend',
     'dash.category.sub':     'this month',
-    // Invoice list page
     'inv.title':           'Invoices',
     'inv.conflict':        'This invoice was already changed in another tab or by another user. Its status was not changed.',
     'inv.export':          'Export Excel',
@@ -1218,7 +1139,6 @@ export const translations = {
     'inv.kpi.overdue':     'Overdue',
     'inv.kpi.paid':        'Paid',
     'inv.kpi.suppliers':   'Suppliers',
-    // Table headers
     'tbl.supplier':    'Supplier',
     'tbl.invoice':     'Invoice no.',
     'tbl.date':        'Date',
@@ -1230,14 +1150,12 @@ export const translations = {
     'tbl.qty':         'Qty',
     'tbl.unit':        'Unit',
     'tbl.unitPrice':   'Unit price',
-    // Status labels
     'status.pending':   'To review',
     'status.confirmed': 'Confirmed',
     'status.exported':  'Exported',
     'status.overdue':   'Overdue',
     'status.paid':      'Paid',
     'status.due_soon':  'Due soon',
-    // Chat widget
     'chat.title':          'Ask your data',
     'chat.placeholder':    'Ask about your invoices…',
     'chat.send':           'Send',
@@ -1259,25 +1177,21 @@ export const translations = {
     'digest.week':         'Week',
     'digest.dismissed':    'Digest acknowledged.',
     'digest.unavailable':  'No digest available for this week.',
-    // Suppliers page
     'sup.empty':        'No suppliers yet. Upload an invoice to add one.',
     'sup.thisMonth':    'This month',
     'sup.openInv':      'Open inv.',
     'sup.lastInv':      'Last invoice',
     'sup.setCategory':  '— set category —',
-    // Budgets page
     'bud.monthlyTitle':  'Monthly Category Budgets',
     'bud.noLimit':       'No limit',
     'bud.save':          'Save budgets',
     'bud.addCategory':   'Add category…',
-    // Reminders page
     'rem.empty':        'No pending invoices due in the next 7 days.',
     'rem.overdue':      'Overdue',
     'rem.dueWeek':      'Due this week',
     'rem.totalPending': 'Total pending',
     'rem.daysOverdue':  'd overdue',
     'rem.markAllPaid':  'Mark all paid',
-    // Analytics / spend
     'spend.pageTitle':      'Spend Analysis',
     'spend.period.month':   'This Month',
     'spend.period.quarter': 'Quarter',
@@ -1291,7 +1205,6 @@ export const translations = {
     'spend.noItems':        'No line item data for this period.',
     'spend.byCategory':     'By Category',
     'spend.noCategory':     'No data.',
-    // Analytics / prices
     'prices.pageTitle':       'Price Tracking',
     'prices.biggestIncrease': 'Biggest Increase',
     'prices.biggestDecrease': 'Biggest Decrease',
@@ -1302,8 +1215,6 @@ export const translations = {
     'tbl.prevPrice':          'Prev Price',
     'tbl.change':             'Change',
     'tbl.lastSeen':           'Last Seen',
-    // Settings
-    // Multi-location (issue #290)
     'nav.location':               'Location',
     'notif.categorize':           'Categorise supplier',
     'notif.msg.uncategorized':    "Categorise '{supplier}' so its spend counts towards budgets and category analytics.",
@@ -1318,7 +1229,6 @@ export const translations = {
     'set.locations.err.nameRequired': 'Enter a name for the location.',
     'set.locations.err.notAvailable': 'Additional locations are part of the Business plan.',
     'set.locations.err.limitReached': "You've reached the number of locations included in your plan.",
-    // WhatsApp bot — authorised numbers
     'set.whatsapp.title':            'Invoices by WhatsApp',
     'set.whatsapp.desc':             'Only these numbers can send invoices over WhatsApp. Each number can belong to a single location.',
     'set.whatsapp.empty':            'No numbers authorised yet.',
@@ -1335,12 +1245,10 @@ export const translations = {
     'set.whatsapp.err.nameTooLong':  'That name is too long.',
     'set.whatsapp.err.notOwner':     'Only the owner can manage authorised numbers.',
     'set.whatsapp.err.disabled':     'The WhatsApp bot is not configured on this server.',
-    // WhatsApp bot — how to reach it (issue #319)
     'set.whatsapp.numberLabel':      'Send invoices to this number:',
     'set.whatsapp.copy':             'Copy link',
     'set.whatsapp.copied':           'Copied!',
     'set.whatsapp.qrHint':           'Scan the code to open the chat. Print it and put it up in the kitchen.',
-    // WhatsApp bot — enrolment by pairing code (issue #320)
     'set.whatsapp.pairDesc':         'Or generate a code: whoever sends it to the bot from their phone is authorised automatically, with nobody typing a number.',
     'set.whatsapp.pairGenerate':     'Generate code',
     'set.whatsapp.pairActive':       'Have them send this code to the bot from the phone they will use:',
@@ -1351,7 +1259,6 @@ export const translations = {
     'set.whatsapp.ok.pairRevoked':   'Code cancelled.',
     'set.whatsapp.err.pairRateLimited': "You've generated too many codes. Wait a while before asking for another.",
     'set.whatsapp.err.pairFailed':   'Could not generate a code. Please try again.',
-    // Profile management (issue #293)
     'set.profile.title':          'Profile',
     'set.profile.name':           'Name',
     'set.profile.email':          'Email',
@@ -1388,7 +1295,6 @@ export const translations = {
     'set.priceThresholdTitle':    'Price Change Alert Threshold',
     'set.priceThresholdDesc':     'Alerts fire when a line item\'s unit price changes by more than this percentage from the last recorded price.',
     'set.save':                   'Save',
-    // Upload page
     'upload.title':     'Upload Invoice',
     'upload.sub':       'PDF, JPG or PNG — up to 20 MB',
     'upload.drop':      'Drop files here or',
@@ -1400,7 +1306,6 @@ export const translations = {
     'upload.btn':       'Upload',
     'upload.takePhoto': 'Take Photo',
     'upload.browseFiles':'Browse Files',
-    // Confirm / review files
     'confirm.title':     'Review Files',
     'confirm.filesInfo': 'file(s) uploaded.',
     'confirm.extract':   'Extract Invoice',
@@ -1410,11 +1315,9 @@ export const translations = {
     'confirm.addLess':   '− Add more files',
     'confirm.addToInv':  'Add to invoice',
     'confirm.extracting':'Extracting invoice data…',
-    // Confidence levels
     'conf.high':   'high',
     'conf.medium': 'medium',
     'conf.low':    'low',
-    // Extract / review extraction
     'extract.confidence':  'confidence',
     'extract.lowConf':     'Low confidence — please review carefully',
     'extract.lowConfSub':  'Several fields may be missing or inaccurate.',
@@ -1429,7 +1332,6 @@ export const translations = {
     'extract.notes':       'Notes',
     'extract.notesHint':   'optional · max 250 chars',
     'extract.notesPlaceholder': 'Any additional context…',
-    // Edit invoice
     'edit.pageTitle':  'Edit Invoice',
     'edit.details':    'Invoice details',
     'edit.lineItems':  'Line items',
@@ -1438,7 +1340,6 @@ export const translations = {
     'edit.addLine':    '+ Add line',
     'edit.notes':      'Notes',
     'edit.notesHint':  'optional · max 250 chars',
-    // Export
     'export.title':       'Export Invoices',
     'export.dateRange':   'Date range',
     'export.dateHint':    'Leave blank to include all dates',
@@ -1448,7 +1349,6 @@ export const translations = {
     'export.allStatus':   'All',
     'export.paid':        'Paid',
     'export.pending':     'Pending',
-    // Save confirmation
     'saved.title':         'Invoice saved successfully',
     'saved.desc':          'Invoice #{id} has been stored and is ready for review.',
     'saved.alerts':        'Alerts generated',
@@ -1456,14 +1356,12 @@ export const translations = {
     'saved.whatsapp':      'These alerts will be sent via WhatsApp to the restaurant\'s registered contacts.',
     'saved.goInvoices':    'Go to Invoices',
     'saved.uploadAnother': 'Upload another',
-    // Form field labels (shared across upload flow / edit)
     'field.supplier':      'Supplier',
     'field.invoiceNum':    'Invoice number',
     'field.invoiceDate':   'Invoice date',
     'field.dueDate':       'Due date',
     'field.totalAmount':   'Total amount',
     'field.notes':         'Notes',
-    // Login page
     'login.welcome':     'Welcome back',
     'login.sub':         'Sign in to continue',
     'login.email':       'Email',
@@ -1479,7 +1377,6 @@ export const translations = {
     'login.err.rate_limited': 'Too many attempts. Please wait a minute and try again.',
     'login.forgotPassword': 'Forgot your password?',
     'login.passwordReset':  'Password updated. Sign in with your new password.',
-    // Password recovery (issue #284)
     'forgot.title':         'Reset your password',
     'forgot.sub':           "We'll email you a link to set a new password.",
     'forgot.submit':        'Send link',
@@ -1498,7 +1395,6 @@ export const translations = {
     'reset.err.mismatch':   'The passwords do not match.',
     'reset.err.failed':     'Could not save the password. Try a different one.',
 
-    // Invoice detail page
     'inv.detail.noFile':        'No document attached',
     'inv.detail.downloadPdf':   'Download PDF',
     'inv.detail.delete':        'Delete',
@@ -1508,7 +1404,6 @@ export const translations = {
     'inv.detail.uploaded':      'Uploaded',
     'inv.detail.extracted':     'Extracted',
     'inv.detail.confirmed':     'Confirmed',
-    // Pending review page
     'pend.processing':     'Processing invoice with AI…',
     'pend.processingDesc': 'This may take a few seconds.',
     'pend.title':          'Review pending invoice',
@@ -1520,7 +1415,6 @@ export const translations = {
     'pend.reject':         'Reject',
     'pend.match':          'Match: ',
     'pend.priceWarning':   '⚠ Anomalous price',
-    // Misc
     'misc.invoices':   'invoices',
     'misc.invoice':    'invoice',
     'misc.daysLate':   'd late',
@@ -1531,11 +1425,9 @@ export const translations = {
     'misc.today':      'Today',
     'misc.yesterday':  'Yesterday',
     'misc.noDate':     'No date',
-    // Upload flow — 3-step wizard
     'steps.upload':            'Upload',
     'steps.extract':           'Extract',
     'steps.review':            'Review & Save',
-    // Upload page — drop zone & queue
     'upload.dropHeadline':     'Drop your invoices here',
     'upload.onboardHint':      'Upload any supplier invoice — PDF, photo or scan. The AI will extract all the data automatically.',
     'upload.onboardHintShort': 'PDF, photo or scan — the AI extracts the data.',
@@ -1549,7 +1441,6 @@ export const translations = {
     'upload.extractData':      'Extract data',
     'upload.extractData1':     'Extract 1 invoice',
     'upload.extractDataN':     'Extract {n} invoices',
-    // Mobile camera capture
     'upload.cameraBtn':        'Take Photo',
     'upload.imageTooLarge':    'Image exceeds the {mb} MB limit',
     'upload.captureTip':       'Place the invoice on a flat surface in good light. Make sure all edges are visible.',
@@ -1560,13 +1451,11 @@ export const translations = {
     'upload.offlineSaved':     'Saved locally — will upload when connection is restored',
     'upload.offlineRetrying':  'Retrying upload…',
     'upload.offlineLimit':     'Limit reached (max 3 invoices saved offline)',
-    // Confirm page — extraction stages
     'confirm.stage.read':      'Reading document',
     'confirm.stage.supplier':  'Identifying supplier',
     'confirm.stage.header':    'Extracting header',
     'confirm.stage.lines':     'Extracting line items',
     'confirm.stage.verify':    'Verifying totals',
-    // Confirm page — queue & actions
     'confirm.addFile':         'Add files',
     'confirm.addFile1':        'Add 1 file',
     'confirm.addFileN':        'Add {n} files',
@@ -1584,11 +1473,9 @@ export const translations = {
     'confirm.showAdd':         '+ Add files',
     'confirm.queueOf':         'Invoice {i} of {n} · the rest will be processed in order',
     'confirm.readyToExtract':  '1 file ready to extract',
-    // Extract page — confidence badges
     'extract.badge.high':      'high confidence',
     'extract.badge.med':       'medium confidence',
     'extract.badge.low':       'low confidence',
-    // Extract page — header / actions
     'extract.error':                 'Extraction error',
     'extract.err.rateLimited':       'The AI service is currently busy — please try again in a moment.',
     'extract.err.unavailable':       'The AI service is temporarily unavailable — please try again shortly.',
@@ -1597,7 +1484,6 @@ export const translations = {
     'extract.err.alreadyExtracting':    'This file is already being processed. Please wait for it to finish.',
     'extract.err.generic':           'Extraction failed — please try again, or contact support if the issue persists.',
     'extract.err.timeout':           'Extraction timed out — please try again. If the issue persists, try a smaller file.',
-    // Upload action errors — returned as keys by the server (issue #294)
     'upload.err.formParse':      'Could not read the form data. Please try again.',
     'upload.err.noValidFiles':   'No valid files received. Please select a PDF, JPG or PNG.',
     'upload.err.tooLarge':       'These files exceed the 20 MB limit: {names}',
@@ -1617,7 +1503,6 @@ export const translations = {
     'extract.aiExtracted':     'AI Extracted',
     'extract.reextract':       'Re-extract',
     'extract.confirmSave':     'Confirm & Save',
-    // Extract page — form
     'extract.header':          'Header',
     'extract.tabNav':          'Tab to navigate fields',
     'extract.lowConfFields':   'with low confidence — review before confirming',
@@ -1630,7 +1515,6 @@ export const translations = {
     'extract.notesPh':         'Notes about this invoice…',
     'extract.addLine':         'Add line',
     'extract.confTooltip':     '% confidence',
-    // Extract page — totals / validation
     'extract.discrepancy':     'Discrepancy',
     'extract.discrepancyDesc': 'The extracted total doesn\'t match the line sum. Review before confirming.',
     'extract.totalsMatch':     'Totals match',
@@ -1640,16 +1524,13 @@ export const translations = {
     'extract.vat':             'Tax',
     'extract.calcTotal':       'Calculated total',
     'extract.extractedTotal':  'Extracted total',
-    // Coach mark
     'coach.next':              'Got it →',
     'coach.skip':              'Skip tour',
-    // Notification bell
     'notif.title':             'Alerts',
     'notif.clearAll':          'Clear all',
     'notif.empty':             'No pending alerts',
     'notif.prodConfirm':       'Yes, same product',
     'notif.prodReject':        "No, it's different",
-    // Settings — tour & privacy
     'set.tourTitle':           'Guided tour',
     'set.tourDesc':            'Revisit the onboarding tutorial at any time.',
     'set.tourRepeat':          'Repeat tour →',
@@ -1666,9 +1547,7 @@ export const translations = {
     'set.termsLink':           'Terms of Service',
     'set.deleteErrorNetwork':  'Network error. Please try again.',
     'set.deleteErrorGeneric':  'Error deleting account.',
-    // Dashboard
     'dash.firstInvoice':       'Process your first invoice',
-    // Pending review page
     'pending.processing':      'Processing invoice with AI…',
     'pending.processingDesc':  'This may take a few seconds.',
     'pending.title':           'Review Pending Invoice',
@@ -1681,13 +1560,11 @@ export const translations = {
     'pending.priceWarning':    '⚠ Anomalous price',
     'pending.approve':         'Approve & Save',
     'pending.reject':          'Reject',
-    // Onboarding page
     'onboard.title':           'Welcome',
     'onboard.subtitle':        'To get started, tell us the name of your restaurant.',
     'onboard.nameLabel':       'Restaurant name',
     'onboard.namePlaceholder': 'e.g. Casa Lua',
     'onboard.submit':          'Create restaurant',
-    // Supplier detail
     'action.delete':           'Delete',
     'sup.contact':             'Contact',
     'sup.noCategory':          'No category',
@@ -1758,7 +1635,6 @@ export const translations = {
     'sup.aliasPrefix':         'Alias',
     'sup.viewAll':             'View all ({n})',
     'sup.paid':                'paid',
-    // Guided tour (coach marks in app layout)
     'tour.step1.title':        'Upload your first invoice',
     'tour.step1.body':         'Drag a PDF, take a photo with your camera, or forward the invoice by email. The AI extracts all the data automatically.',
     'tour.step2.title':        'Review what the AI found',
@@ -1767,7 +1643,6 @@ export const translations = {
     'tour.complete.title':     'First invoice saved!',
     'tour.complete.body':      'Expense tracking has begun. Add more invoices to unlock trends, price alerts, and supplier analysis.',
     'tour.complete.btn':       'Go to dashboard',
-    // App-wide tour nudge + steps 3-11 (dashboard through settings)
     'tour.nudge.title':        'Want the full tour?',
     'tour.nudge.body':         "We'll briefly show you the rest of the app: analytics, budgets, reminders, and more. 9 quick steps.",
     'tour.nudge.accept':       'Show me →',
@@ -1791,7 +1666,6 @@ export const translations = {
     'tour.step11.title':       'Settings',
     'tour.step11.body':        'Configure thresholds, switch languages, and replay this tour anytime from here.',
     'tour.step11.next':        'Finish tour',
-    // Pluralized / interpolated forms (issue #146)
     'misc.invoice.zero':            'No invoices',
     'misc.invoice.one':             '1 invoice',
     'misc.invoice.other':           '{n} invoices',
@@ -1808,7 +1682,6 @@ export const translations = {
     'upload.extractData.other':     'Extract {n} invoices',
     'sup.confirmDelete.body.one':   'The associated invoice will be left without a supplier. This action cannot be undone.',
     'sup.confirmDelete.body.other': 'The {n} associated invoices will be left without a supplier. This action cannot be undone.',
-    // Batch / multi-invoice review page
     'batch.queue.ready':            'Ready to review',
     'batch.field.one':              'field',
     'batch.field.other':            'fields',
@@ -1827,7 +1700,6 @@ export const translations = {
     'batch.lowConfPre':             'The AI detected',
     'batch.lowConfPost':            'with low confidence. Please review them carefully before saving the invoice — incorrect financial data affects your reports.',
     'batch.reviewedAll':            'I have reviewed all fields',
-    // Footer / accessibility labels / errors
     'footer.privacy':               'Privacy',
     'footer.terms':                 'Terms',
     'a11y.openMenu':                'Open menu',
@@ -1839,7 +1711,6 @@ export const translations = {
     'error.backToPanel':            'Back to dashboard',
     'dash.checkPriceAlerts':        'Check your price alerts',
     'upload.uploadError':           'Upload failed: {msg}',
-    // Billing page
     'billing.title':                'Billing',
     'billing.upgrade.digest':       'The weekly AI digest is a paid feature. Subscribe to unlock it.',
     'billing.upgrade.prices':       'Price shock & supplier score alerts are a paid feature. Subscribe to unlock them.',
@@ -1868,10 +1739,8 @@ export const translations = {
     'billing.notConfigured':        'Billing is not yet configured. Contact support to subscribe.',
     'billing.err.tierUnavailable':  'This plan is not available right now. Please contact support.',
     'billing.manage':               'Manage subscription',
-    // Login / onboarding meta
     'login.metaDesc':               'Sign in to Mise en Place to manage your supplier invoices and track your restaurant spend and budgets.',
     'onboard.metaTitle':            'Set up your restaurant',
-    // Signup page
     'signup.metaTitle':             'Create account',
     'signup.metaDesc':              'Create your Mise en Place account and start your 30-day free trial. Digitize your supplier invoices and control your restaurant spend.',
     'signup.heading':               'Create your account',
@@ -1895,7 +1764,6 @@ export const translations = {
     'signup.err.generic':           'Could not create the account. Please try again.',
     'signup.err.oauth':             'Google sign-up failed. Please try again.',
     'signup.err.rateLimited':       'Too many attempts. Please wait a minute and try again.',
-    // Analytics / spend — desktop & mobile (i18n completion)
     'spend.period.allShort':        'All',
     'spend.question':               'Where is the money going?',
     'spend.topItemsSub':            'Each product\'s share of period spend',
@@ -1907,7 +1775,6 @@ export const translations = {
     'spend.viewSuppliers':          'View suppliers →',
     'spend.topProducts':            'Top Items by Spend',
     'spend.other':                  'Other',
-    // Analytics / prices — desktop & mobile
     'prices.question':              'Which prices are changing?',
     'prices.searchPlaceholder':     'Search product or supplier…',
     'prices.perBaseHint':           'Price per base unit (€/kg, €/L, €/ud) — comparable across formats',
@@ -1933,7 +1800,6 @@ export const translations = {
     'prices.latest':                'Latest',
     'prices.previous':              'Previous',
     'prices.noResults':             'No results',
-    // Analytics / extraction
     'extract.pageTitle':            'AI Extraction',
     'extract.acc.title':            'AI extraction accuracy',
     'extract.acc.noData':           'No extraction data yet',
@@ -1964,7 +1830,6 @@ export const translations = {
     'extract.acc.colAvgCorr':       'Avg corr.',
     'extract.acc.review':           'Review',
     'extract.acc.reviewNote':       'Invoices from suppliers marked "Review" tend to need corrections — check their format.',
-    // Budgets page
     'bud.tableTitle':               'Budget by category',
     'bud.tableSub':                 'Edit the budget field and save',
     'bud.colCategory':              'Category',
@@ -1987,7 +1852,6 @@ export const translations = {
     'bud.add':                      'Add',
     'bud.newCategory':              'New category',
     'bud.closeShort':               'close',
-    // Supplier detail (mobile page)
     'sup.back':                     'Suppliers',
     'sup.fieldEmail':               'Email',
     'sup.totalSpend':               'Total spend',
@@ -2005,7 +1869,6 @@ export const translations = {
     'sup.termsExample':             '30 days',
     'sup.emailExample':             'supplier@example.com',
     'sup.notesPlaceholder':         'Internal notes…',
-    // Suppliers list (desktop & mobile)
     'sup.searchPlaceholder':        'Search supplier or category…',
     'sup.searchByName':             'Search by name or category…',
     'sup.categoryAll':              'Category: All',
@@ -2030,7 +1893,6 @@ export const translations = {
     'sup.monthSpendChip':           'Month spend',
     'sup.noSuppliers':              'No suppliers',
     'sup.invoicesSuffix':           'invoices',
-    // Mobile invoice detail
     'mid.totalVat':                 'Total with VAT',
     'mid.issued':                   'Issued',
     'mid.preview':                  'Preview',
@@ -2040,7 +1902,6 @@ export const translations = {
     'mid.viewLines':                'View all {n} lines',
     'mid.actionEdit':               'Edit',
     'mid.actionSupplier':           'Supplier',
-    // Mobile invoice list
     'mil.searchPlaceholder':        'Search no., supplier…',
     'mil.filter.month':             'This month',
     'mil.filter.pending':           'To review',
@@ -2049,7 +1910,6 @@ export const translations = {
     'mil.filter.category':          'By category',
     'mil.empty':                    'No invoices',
     'mil.lines':                    'lines',
-    // Mobile dashboard
     'mdash.morning':                'Good morning',
     'mdash.afternoon':              'Good afternoon',
     'mdash.evening':                'Good evening',
@@ -2067,7 +1927,6 @@ export const translations = {
     'mdash.topSuppliers':           'Top suppliers',
     'mdash.recent':                 'Recent',
     'mdash.viewAll':                'View all',
-    // Desktop dashboard
     'ddash.firstInvoiceTitle':      'Your first invoice is saved',
     'ddash.firstInvoiceBody':       'This is your purchasing dashboard — it gets richer with every invoice you add. Upload more invoices to see spend trends, price alerts and supplier analysis.',
     'ddash.close':                  'Close',
@@ -2088,9 +1947,7 @@ export const translations = {
     'ddash.overBudgetPre':          'At this rate you would exceed the budget by',
     'ddash.priceChanges':           'Price changes',
     'ddash.priceChangesSub':        'latest processed invoices',
-    // Sparkline tooltip
     'spark.risingTrend':            'Prices have been rising for 3+ months — consider a pricing conversation with this supplier',
-    // Remaining UI chrome (suppliers, invoice viewer, chat, a11y)
     'common.search':                'Search',
     'a11y.close':                   'Close',
     'a11y.dismiss':                 'Dismiss',
@@ -2127,7 +1984,6 @@ export const translations = {
     'chart.noSpendData':            'No spend data',
     'chart.loading':                'Loading…',
     'login.emailPlaceholder':       'you@email.com',
-    // Internal admin area
     'admin.banner':                 'Admin',
     'admin.backToApp':              '← App',
     'admin.health':                 'Health',
@@ -2168,13 +2024,11 @@ export const translations = {
     'admin.prev':                   '← Prev',
     'admin.next':                   'Next →',
     'admin.pageOf':                 'Page {page} of {total}',
-    // Mobile alerts list
     'malert.overdueCount':          'overdue',
     'malert.dueWeekCount':          'due this week',
     'malert.dOverdue':              'd overdue',
     'malert.dLeft':                 'd left',
     'malert.markPaid':              'Mark as paid',
-    // Products (CRUD, catalog)
     'prod.title':                    'Product catalog',
     'prod.subtitle':                 'Manage your products: pack conversion, aliases and prices',
     'prod.tab.catalog':              'Catalog',
@@ -2222,15 +2076,6 @@ export const t = derived(locale, ($locale) => (key: string): string => {
   return (translations[$locale] as Record<string, string>)[key] ?? key;
 });
 
-/**
- * Interpolating translator: resolves a key and substitutes named
- * placeholders written as `{name}` in the translation table.
- *
- *   $ti('saved.desc', { id: 42 })          → 'Invoice #42 has been stored…'
- *   $ti('upload.imageTooLarge', { mb: 20 }) → 'Image exceeds the 20 MB limit'
- *
- * Reactive — use as `$ti(...)` in components so it follows locale changes.
- */
 export const ti = derived(
   t,
   ($t) =>
@@ -2241,18 +2086,6 @@ export const ti = derived(
       ),
 );
 
-/**
- * Pluralizing translator: picks the right plural form for `count` and
- * interpolates the count as `{n}`.
- *
- *   $tp('misc.invoice', 0) → 'misc.invoice.zero'  (only if that form exists)
- *   $tp('misc.invoice', 1) → 'misc.invoice.one'   → '1 invoice'
- *   $tp('misc.invoice', 3) → 'misc.invoice.other' → '3 invoices'
- *
- * The optional `.zero` form lets a language phrase the empty case
- * naturally ("No invoices" / "Sin facturas"); when absent, count 0
- * falls back to the `.other` form.
- */
 export const tp = derived(
   [t, locale],
   ([$t, $locale]) => {

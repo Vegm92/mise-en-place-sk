@@ -1,12 +1,3 @@
-/**
- * One-off backfill: link products + compute pack fields on existing line items
- * (follow-up to #298/#299). Run once after deploying the catalog/pack features:
- *
- *   pnpm db:backfill-products
- *
- * Deterministic and idempotent — safe to re-run. Uses the same env as the web
- * process / worker (DATABASE_URL etc.); dotenv loads .env in dev.
- */
 import 'dotenv/config';
 import { db } from './lib/server/db.js';
 import { restaurants } from './lib/server/schema.js';

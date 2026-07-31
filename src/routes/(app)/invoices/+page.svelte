@@ -20,11 +20,6 @@
   const { data }: { data: PageData } = $props();
   const { invoices, stats, suppliers, filters, pagination } = $derived(data);
 
-  // Save confirmation (issue #235): saving the last invoice of a batch used to
-  // land on a whole page whose only job was to say "saved ✓". It now lands
-  // here, on the list that just changed, with a toast. Alerts raised during the
-  // save ride along, so nothing is lost by dropping the interstitial. A toast
-  // with alerts stays until dismissed; a plain "saved" fades on its own.
   let toastDismissed = $state(false);
   const showSavedToast = $derived(data.savedInvoiceId !== null && !toastDismissed);
 
@@ -46,7 +41,6 @@
   }
   const hasFilters = $derived(!!(filters.status || filters.supplier_id || filters.date_from || filters.date_to));
 
-  // Selection
   let checkedIds = $state<Set<number>>(new Set());
   const allChecked  = $derived(invoices.length > 0 && checkedIds.size === invoices.length);
   const someChecked = $derived(checkedIds.size > 0 && checkedIds.size < invoices.length);
@@ -61,7 +55,6 @@
     checkedIds = checked ? new Set(invoices.map((i: { id: number }) => i.id)) : new Set();
   }
 
-  // Row expansion
   let openIds = $state<Set<number>>(new Set());
   function toggleDrawer(id: number) {
     const next = new Set(openIds);
@@ -69,7 +62,6 @@
     openIds = next;
   }
 
-  // Notes
   let noteText = $state<Record<number, string>>({});
   let noteSavedFlash = $state<Record<number, boolean>>({});
 
@@ -91,13 +83,11 @@
     }
   }
 
-  // Confirm dialogs
   let confirmPaidOpen        = $state(false);
   let confirmDeleteOpen      = $state(false);
   let deleteInvoiceId        = $state<number | null>(null);
   let confirmDeleteOneOpen   = $state(false);
 
-  // Bulk actions
   function handleBulkPaid() {
     if (!checkedIds.size) return;
     confirmPaidOpen = true;
@@ -124,7 +114,6 @@
 
 </script>
 
-<!-- Saved toast — shared by both layouts (issue #235) -->
 {#if showSavedToast}
   <div
     role="status"
@@ -156,19 +145,16 @@
   </div>
 {/if}
 
-<!-- Mobile invoice list -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileInvoiceList invoices={invoices} />
 </div>
 
-<!-- Desktop invoice list -->
 <div class="hidden md:flex flex-col gap-4 p-6">
 
   {#if data.conflict}
     <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
   {/if}
 
-  <!-- ── KPI Strip ───────────────────────────────────────────────── -->
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3" data-coach="invoices-main">
     <KpiCard
       label={$t('inv.kpi.pending')}
@@ -195,7 +181,6 @@
     />
   </div>
 
-  <!-- ── Filter bar + table ──────────────────────────────────────── -->
   <SectionCard title={$t('inv.title')} noPad>
     {#snippet headerRight()}
       <a href="/invoices/export" class="btn btn-ghost" style="height:30px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
@@ -204,7 +189,6 @@
       </a>
     {/snippet}
 
-    <!-- Filter bar -->
     <form method="get" action="/invoices"
       class="flex flex-wrap items-end gap-2 px-4 py-3 border-b border-divider max-[700px]:flex-col max-[700px]:items-stretch">
 
@@ -255,7 +239,6 @@
     {#if invoices.length === 0}
       <p class="body text-center py-16">{$t('inv.noInvoices')}</p>
     {:else}
-      <!-- Hidden bulk forms -->
       <form id="bulk-paid-form" method="post" action="?/bulkPaid" class="hidden">
         {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
       </form>
@@ -263,7 +246,6 @@
         {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
       </form>
 
-      <!-- Bulk action bar -->
       <div class="flex items-center gap-3 px-4 py-2 border-b border-divider min-h-[40px]">
         <label class="flex items-center gap-2 body text-fg-2 cursor-pointer select-none" style="font-size:12.5px;">
           <input type="checkbox" checked={allChecked} indeterminate={someChecked}
@@ -290,21 +272,18 @@
         {/if}
       </div>
 
-      <!-- Invoice rows -->
       <div class="grid gap-3 p-4 xl:grid-cols-2">
       {#each invoices as inv (inv.id)}
         {@const noteVal = getNoteText(inv.id, inv.notes)}
         {@const expanded = openIds.has(inv.id)}
 
         <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'xl:col-span-2' : ''}">
-          <!-- Main row -->
           <button type="button"
             class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
                    grid-cols-[auto_minmax(0,1fr)_95px_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
             style="width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
             onclick={() => toggleDrawer(inv.id)}>
 
-            <!-- Checkbox -->
             <input type="checkbox"
               class="cursor-pointer accent-acc shrink-0"
               checked={checkedIds.has(inv.id)}
@@ -312,7 +291,6 @@
               onkeydown={(e) => e.stopPropagation()}
               onchange={(e) => toggleCheck(inv.id, (e.target as HTMLInputElement).checked)} />
 
-            <!-- Supplier + invoice no -->
             <div class="min-w-0">
               <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{inv.supplier_name ?? '—'}</div>
               <div class="body text-fg-3 overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:11.5px;">
@@ -320,33 +298,27 @@
               </div>
             </div>
 
-            <!-- Due date -->
             <div class="body text-fg-3 max-[800px]:hidden" style="font-size:12px;">
               {inv.due_date ?? '—'}
             </div>
 
-            <!-- Amount -->
             <div class="num text-right font-semibold" style="font-size:13px;">
               {fmt(inv.total_amount)} <span class="text-fg-3" style="font-weight:400;font-size:11px;">EUR</span>
             </div>
 
-            <!-- Status badge -->
             <div class="max-[800px]:hidden">
               <StatusBadge status={inv.status ?? 'pending'} />
             </div>
 
-            <!-- Expand chevron -->
             <div class="flex justify-end text-fg-3 transition-transform {expanded ? 'rotate-90' : ''}">
               <ChevronRight size={15} />
             </div>
           </button>
 
-          <!-- Expanded drawer -->
           {#if expanded}
             <div class="bg-surface-2 border-t border-divider px-4 py-4 flex flex-col gap-4"
               role="presentation" onclick={(e) => e.stopPropagation()}>
 
-              <!-- Actions row -->
               <div class="flex items-center gap-2 flex-wrap">
                 <a href="/invoice/{inv.id}" class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
                   <Eye size={12} />
@@ -389,7 +361,6 @@
                 </form>
               </div>
 
-              <!-- Line items -->
               {#if inv.line_items.length > 0}
                 <table class="tbl">
                   <thead>
@@ -417,7 +388,6 @@
                 <p class="body">{$t('inv.detail.noLines')}</p>
               {/if}
 
-              <!-- Notes -->
               <div class="flex flex-col gap-1.5">
                 <span class="label">{$t('inv.detail.notes')}</span>
                 <textarea
@@ -443,7 +413,6 @@
       </div>
     {/if}
 
-    <!-- Pagination -->
     {#if pagination.totalPages > 1}
       <div class="flex items-center justify-between px-4 py-3 border-t border-divider">
         <span class="body text-fg-3" style="font-size:12px;">
@@ -470,7 +439,6 @@
 
 </div>
 
-<!-- Confirm dialogs -->
 <ConfirmDialog
   bind:open={confirmPaidOpen}
   message={$tp('inv.confirm.paid', checkedIds.size)}

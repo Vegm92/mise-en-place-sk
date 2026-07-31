@@ -22,10 +22,6 @@
 
   const { data, form }: Props = $props();
 
-  // Client-side problems (oversized file, offline queue full, failed upload)
-  // used to go through native alert(): modal, unstyled, wrong locale, and
-  // invisible to the page. They now feed the same banner as server errors
-  // (issue #233). Transient ones clear themselves.
   let localError = $state<string | null>(null);
   let localErrorTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -43,8 +39,6 @@
     localError = null;
   }
 
-  // Server actions return i18n keys, not prose (issue #294); `$t` falls back to
-  // the key itself, so an unexpected string still renders rather than vanishing.
   const serverError = $derived.by(() => {
     const key = form?.error ?? (data.error ? decodeURIComponent(data.error) : null);
     if (!key) return null;
@@ -71,8 +65,6 @@
 
   let uploadProgress = $state(0);
 
-
-  // ── IndexedDB helpers ───────────────────────────────────────────────────
   const DB_NAME = 'mise-offline-queue';
   const STORE_NAME = 'pending';
 
@@ -132,7 +124,7 @@
         tx.objectStore(STORE_NAME).delete(id);
         tx.oncomplete = () => { resolve(); db.close(); };
       });
-    } catch { /* ignore */ }
+    } catch { }
   }
 
   function fileToBase64(file: File): Promise<string> {
@@ -153,7 +145,6 @@
     return new File([u8], name, { type });
   }
 
-  // ── File helpers ────────────────────────────────────────────────────────
   function addFiles(newFiles: FileList | null) {
     if (!newFiles) return;
     for (const f of Array.from(newFiles)) {
@@ -165,11 +156,6 @@
   function removeFile(idx: number) { files = files.filter((_, i) => i !== idx); }
   function fileKind(name: string) { return name.split('.').pop()?.toLowerCase() === 'pdf' ? 'pdf' : 'img'; }
 
-  // ── Camera capture flow ─────────────────────────────────────────────────
-  // The camera opens straight away: the framing tip used to be a blocking
-  // bottom sheet *before* the first capture, which is the worst moment to read
-  // it. It now rides along as a caption on the photo-confirm overlay, where the
-  // user can act on it by retaking (issue #230).
   function openCamera() {
     cameraInputEl?.click();
   }
@@ -201,7 +187,6 @@
     setTimeout(() => cameraInputEl?.click(), 80);
   }
 
-  // ── Upload with progress and offline fallback ───────────────────────────
   function uploadWithProgress(fd: FormData): Promise<string | null> {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -218,7 +203,6 @@
           if (result.type === 'redirect' && result.location) {
             resolve(result.location);
           } else {
-            // The action's payload carries an i18n key + vars (issue #294).
             if (result.data?.error) {
               showError(result.data.errorVars ? $ti(result.data.error, result.data.errorVars) : $t(result.data.error));
             }
@@ -284,8 +268,6 @@
     try {
       const loc = await uploadWithProgress(fd);
       if (loc) {
-        // Client-side navigation keeps the app shell (and the user's momentum)
-        // intact — a hard reload here re-runs every layout query for nothing.
         await goto(loc, { invalidateAll: true });
       } else {
         uploading = false;
@@ -308,7 +290,6 @@
     addFiles(e.dataTransfer?.files ?? null);
   }
 
-  // ── Lifecycle ────────────────────────────────────────────────────────────
   $effect(() => {
     getQueuedCount().then((n) => {
       pendingOfflineCount = n;
@@ -320,15 +301,12 @@
   });
 </script>
 
-<!-- ── Mobile upload ──────────────────────────────────────────────────── -->
 <div class="md:hidden flex flex-col" style="height:100%;overflow:hidden;">
 
-  <!-- Compact step indicator (shared with /batch/[id] — issue #232) -->
   <div style="padding:0 18px 10px;flex-shrink:0;">
     <FlowSteps active={0} size="sm" />
   </div>
 
-  <!-- Alerts -->
   {#if data.saved || data.duplicate || errorMsg}
     <div style="padding:0 18px 8px;flex-shrink:0;display:flex;flex-direction:column;gap:6px;">
       {#if data.saved}
@@ -363,7 +341,6 @@
     </div>
   {/if}
 
-  <!-- Offline banner -->
   {#if offlineBanner}
     <div style="padding:0 18px 8px;flex-shrink:0;">
       <div style="
@@ -386,12 +363,9 @@
     </div>
   {/if}
 
-  <!-- Scrollable body -->
   <div style="flex:1;overflow-y:auto;padding:0 18px 0;display:flex;flex-direction:column;gap:12px;padding-bottom:12px;">
 
-    <!-- Upload zone -->
     <div class="card" data-coach="upload-zone" style="padding:16px;">
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         style="
           border:1.5px dashed {isDragging?'var(--mep-acc)':'var(--mep-border-strong)'};
@@ -424,7 +398,6 @@
           {/if}
         </div>
 
-        <!-- Camera + Browse buttons -->
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
           <button
             type="button"
@@ -445,7 +418,6 @@
           </button>
         </div>
 
-        <!-- Hidden file input -->
         <input
           bind:this={fileInputEl}
           type="file"
@@ -458,7 +430,6 @@
       </div>
     </div>
 
-    <!-- File queue -->
     <div class="card" style="padding:14px 14px 10px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <span class="subtitle">{$t('upload.queue')}</span>
@@ -497,7 +468,6 @@
 
   </div>
 
-  <!-- Sticky extract button -->
   <div style="padding:12px 18px 24px;border-top:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;">
     {#if uploading && uploadProgress > 0}
       <div style="margin-bottom:8px;border-radius:4px;overflow:hidden;background:var(--mep-surface-2);height:4px;">
@@ -525,15 +495,12 @@
   </div>
 </div>
 
-<!-- ── Desktop upload ─────────────────────────────────────────────────── -->
 <div class="hidden md:flex flex-col" style="height:100%;overflow:hidden;">
 
-  <!-- 3-step indicator (shared with /batch/[id] — issue #232) -->
   <div style="padding:20px 32px 0;flex-shrink:0;">
     <FlowSteps active={0} />
   </div>
 
-  <!-- Alerts -->
   {#if data.saved || data.duplicate || errorMsg}
     <div style="padding:12px 32px 0;flex-shrink:0;display:flex;flex-direction:column;gap:8px;">
       {#if data.saved}
@@ -568,12 +535,9 @@
     </div>
   {/if}
 
-  <!-- Two-column grid -->
   <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
 
-    <!-- Left: Drop zone -->
     <div class="card" data-coach="upload-zone" style="padding:20px;display:flex;flex-direction:column;">
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         style="
           flex:1;border:1.5px dashed {isDragging ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
@@ -629,7 +593,6 @@
       </div>
     </div>
 
-    <!-- Right: Queue -->
     <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <span class="subtitle">{$t('upload.queue')}</span>
@@ -668,7 +631,6 @@
         </div>
       {/if}
 
-      <!-- Extract button -->
       <div style="padding-top:12px;border-top:1px solid var(--mep-divider);margin-top:12px;">
         <button
           type="button"
@@ -694,7 +656,6 @@
   </div>
 </div>
 
-<!-- Camera input — always in DOM, shared by both layouts -->
 <input
   bind:this={cameraInputEl}
   type="file"
@@ -704,9 +665,6 @@
   onchange={onCameraCapture}
 />
 
-<!-- ── Mobile overlays ────────────────────────────────────────────────── -->
-
-<!-- Image preview overlay (mobile only) -->
 {#if previewUrl}
   <div
     class="md:hidden"
@@ -723,8 +681,6 @@
       />
     </div>
     <div style="padding:16px 20px calc(28px + env(safe-area-inset-bottom,0px));background:var(--mep-bg);border-radius:20px 20px 0 0;display:flex;flex-direction:column;gap:10px;">
-      <!-- Framing tip, folded in here from the old pre-capture sheet (#230):
-           at this point the photo exists, so "retake" is a real option. -->
       <div style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--mep-fg-2);line-height:1.45;">
         <Camera size={14} style="flex-shrink:0;margin-top:1px;color:var(--mep-acc);" />
         <span>{$t('upload.captureTip')}</span>

@@ -31,7 +31,6 @@
 
   const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
 
-  // Product spend donut â€” top 5 + "Other", fixed categorical hue order (never cycled)
   const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   const productDonut = $derived((() => {
     const ranked = [...data.products]
@@ -82,10 +81,8 @@
 
 </script>
 
-<!-- ── MOBILE ─────────────────────────────────────────────────────────── -->
 <div class="flex md:hidden" style="height:100%;flex-direction:column;overflow:hidden;">
 
-  <!-- Header -->
   <div style="padding:14px 18px 0;flex-shrink:0;">
     <a href="/suppliers" style="display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--mep-fg-3);text-decoration:none;margin-bottom:12px;">
       <ArrowLeft size={14} /> {$t('sup.back')}
@@ -113,7 +110,6 @@
       </button>
     </div>
 
-    <!-- Edit form (mobile) -->
     {#if editing}
       <div class="card" style="padding:16px;margin-bottom:12px;">
         <p class="body-strong" style="margin-bottom:12px;">{$t('sup.edit.title')}</p>
@@ -147,7 +143,6 @@
       </div>
     {/if}
 
-    <!-- KPI strip -->
     <div class="card" style="margin-bottom:12px;padding:10px 14px;display:flex;align-items:center;">
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend)}</div>
@@ -165,7 +160,6 @@
       </div>
     </div>
 
-    <!-- Tabs -->
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;">
       {#each [
         { id: 'resumen',      label: $t('sup.tab.resumen') },
@@ -192,12 +186,10 @@
     </div>
   </div>
 
-  <!-- Tab content (scrollable) -->
   <div style="flex:1;overflow:auto;padding:0 18px 24px;display:flex;flex-direction:column;gap:10px;">
 
     {#if tab === 'resumen'}
 
-      <!-- Info card -->
       <div class="card" style="padding:14px;">
         <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
         {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.deliveryDays && !s.paymentTerms}
@@ -241,7 +233,6 @@
         {/if}
       </div>
 
-      <!-- Recent invoices -->
       {#if data.invoices.length}
         <div class="card" style="padding:0;overflow:hidden;">
           <div style="padding:12px 14px 8px;display:flex;align-items:center;justify-content:space-between;">
@@ -264,7 +255,6 @@
         </div>
       {/if}
 
-      <!-- Reliability -->
       {#if m}
         <div class="card" style="padding:14px;">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
@@ -387,7 +377,6 @@
           </div>
         {/each}
       {/if}
-      <!-- Mobile add form -->
       <div class="card" style="padding:14px;">
         <p class="body-strong" style="margin-bottom:10px;font-size:12.5px;">{$t('sup.conv.add')}</p>
         <form method="post" action="?/addConversion" style="display:flex;flex-direction:column;gap:8px;">
@@ -407,7 +396,6 @@
   </div>
 </div>
 
-<!-- Desktop supplier detail -->
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
   <DesktopSupplierDetail
     supplier={data.supplier}

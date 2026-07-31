@@ -1,9 +1,3 @@
-/**
- * Extraction job handler — runs in the worker process.
- * Claims the batch item via a guarded queued→extracting transition, calls
- * Gemini, and writes the result with markDone/markFailed. The worker only
- * ever touches the columns it owns; web-side state can never be lost here.
- */
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,12 +13,10 @@ import { getAccessState } from './billing.js';
 
 export interface ExtractionJobData {
 	itemId?: string;
-	/** Legacy payload field — jobs enqueued before the batch_items migration. */
 	sessionId?: string;
 	restaurantId: string;
 }
 
-// Transient LLM-degradation classes worth alerting on when they spike.
 const DEGRADATION_ERRORS = new Set([
 	'extract.err.rateLimited',
 	'extract.err.unavailable',
@@ -59,14 +51,8 @@ export async function processExtractionJob(
 		return;
 	}
 
-	// Money gate: atomically claim a monthly extraction slot against the plan
-	// quota BEFORE any Gemini spend (issue #244). Skipped in the test path.
 	let claimedMonthlySlot = false;
 	if (!generateOverride) {
-		// A lapsed trial must not spend on extraction, whichever door the file
-		// came in through — web upload, WhatsApp or a retry of an older job
-		// (issue #287). The web upload action blocks earlier with a redirect;
-		// this is the backstop that covers every path.
 		const access = await getAccessState(restaurantId);
 		if (!access.allowed) {
 			console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction`);
@@ -84,8 +70,6 @@ export async function processExtractionJob(
 		const claim = await claimMonthlyExtraction(restaurantId);
 		if (!claim.claimed) {
 			console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
-			// Aggregate quota exhaustion (was a lone console.warn) so a tenant
-			// hitting the wall is visible, not only discovered from support (#257).
 			Sentry.captureMessage('extraction.quota_exhausted', {
 				level: 'warning',
 				tags: { restaurantId },
@@ -96,9 +80,6 @@ export async function processExtractionJob(
 		claimedMonthlySlot = true;
 	}
 
-	// Claim the item. A false here means it is no longer queued (discarded by
-	// the user, or already processed) — drop the job and release the slot we
-	// took, since no extraction happened.
 	const claimed = await markExtracting(itemId);
 	if (!claimed) {
 		console.warn(`[worker] Item ${itemId} not in queued state — skipping`);
@@ -106,8 +87,6 @@ export async function processExtractionJob(
 		return;
 	}
 
-	// Resolve the file to a local path the extraction engine can read.
-	// For Supabase storage, download to a temp file; for local, compute the path directly.
 	let filePath: string;
 	let cleanupTmp: (() => void) | null = null;
 
@@ -116,7 +95,7 @@ export async function processExtractionJob(
 		const tmpPath = path.join(os.tmpdir(), `mep_${itemId}_${path.basename(item.fileKey)}`);
 		fs.writeFileSync(tmpPath, buf);
 		filePath = tmpPath;
-		cleanupTmp = () => { try { fs.unlinkSync(tmpPath); } catch { /* ignore */ } };
+		cleanupTmp = () => { try { fs.unlinkSync(tmpPath); } catch { } };
 	} else {
 		filePath = path.join(uploadsDir(), item.fileKey);
 	}
@@ -124,11 +103,9 @@ export async function processExtractionJob(
 	try {
 		let result;
 		if (generateOverride) {
-			// Test path — legacy GenerateFn, no token tracking.
 			const invoice = await extractInvoice(filePath, generateOverride);
 			result = invoice;
 		} else {
-			// Production path — LLMProvider with token usage tracking.
 			const { invoice, usage } = await extractWithProvider(filePath);
 			result = invoice;
 			await recordLlmUsage(restaurantId, usage, 'extraction-worker');
@@ -166,30 +143,19 @@ export async function processExtractionJob(
 	} catch (err) {
 		const extractError = classifyExtractionError(err);
 		console.error(`[worker] Extraction failed for item ${itemId}:`, err);
-		// Tag Gemini degradation (timeout / 429 / 503) with its errorClass so an
-		// alert rule can catch a rate spike — "Gemini timing out for 2 hours"
-		// must not look like one flaky PDF (#257). Activates once the worker
-		// process initializes Sentry (#252); a no-op until then.
 		if (DEGRADATION_ERRORS.has(extractError)) {
 			Sentry.captureException(err, {
 				level: 'warning',
 				tags: { errorClass: extractError, restaurantId },
 			});
 		} else {
-			// Report every other failure too, so a worker failing every job is
-			// visible (#252) - but WITHOUT the raw error: extract.ts embeds
-			// invoice text in some messages and that must not reach Sentry
-			// (PII, #254). Ship only the error class + ids.
 			Sentry.captureException(new Error(`extraction_failed:${extractError}`), {
 				level: 'error',
 				tags: { itemId, errorClass: extractError, restaurantId },
 			});
 		}
 		await markFailed(itemId, extractError);
-		// A failed extraction shouldn't count against the plan quota — give the
-		// claimed slot back (issue #244).
 		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
-		// Do not re-throw — the error is stored on the item; no pg-boss retry.
 	} finally {
 		cleanupTmp?.();
 	}

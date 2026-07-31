@@ -1,6 +1,3 @@
-/**
- * Notifications service — persists alert objects to system_notifications.
- */
 import { db } from './db';
 import { systemNotifications } from './schema';
 import type { Alert } from './alert-engine';

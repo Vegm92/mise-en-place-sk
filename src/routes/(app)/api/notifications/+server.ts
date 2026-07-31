@@ -5,9 +5,7 @@ import { systemNotifications } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
-/** GET /api/notifications?status=pending — WhatsApp bot polls this. */
 export const GET: RequestHandler = async ({ url, locals }) => {
-	// Keyed on the authenticated user, not the client IP (issue #223).
 	if (!await checkRateLimit(`notifications:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid    = locals.restaurantId!;
 	const tdb    = forTenant(rid);
@@ -26,7 +24,6 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	return json({ notifications: items });
 };
 
-/** POST /api/notifications/:id/ack — mark a notification as sent. */
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!await checkRateLimit(`notifications:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid  = locals.restaurantId!;

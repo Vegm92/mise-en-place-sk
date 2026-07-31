@@ -14,14 +14,11 @@
 	const upgradeMessage = $derived(
 		data.upgradeFor === 'digest' ? $t('billing.upgrade.digest')
 			: data.upgradeFor === 'prices' ? $t('billing.upgrade.prices')
-			// Sent here by the upload gate once the trial lapses (issue #287).
 			: data.upgradeFor === 'trial' ? $t('billing.upgrade.trial')
 			: data.upgradeFor === 'inactive' ? $t('billing.upgrade.inactive')
 			: null
 	);
 
-	// Idempotency key (issue #250) — one per page load so a double-submit can't
-	// spin up two Stripe checkout sessions.
 	const idempotencyKey = crypto.randomUUID();
 </script>
 
@@ -55,7 +52,6 @@
 		</div>
 	{/if}
 
-	<!-- Status card -->
 	<div class="card" style="padding:24px;margin-bottom:20px;">
 		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
 			<span style="font-size:14px;font-weight:500;">{$t('billing.status')}</span>
@@ -89,7 +85,6 @@
 		{/if}
 	</div>
 
-	<!-- Plan card -->
 	{#if data.status !== 'active'}
 		<div class="card" style="padding:24px;margin-bottom:20px;">
 			<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;">

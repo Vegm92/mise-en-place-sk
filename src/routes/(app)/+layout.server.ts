@@ -72,9 +72,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.where(tdb.scope(subscriptions.restaurantId))
 			.limit(1),
 
-		// Every restaurant this user belongs to, for the location switcher
-		// (issue #290). One row for almost everyone; the switcher only renders
-		// when there is something to switch to.
 		db.select({ id: restaurants.id, name: restaurants.name })
 			.from(userRestaurants)
 			.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
@@ -83,7 +80,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	]);
 
 	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
-	// For existing users who never got a tutorial row, skip the tour silently
 	const rawTutorialStep = tutorialStepRow[0]?.value;
 	const tutorialStep = (rawTutorialStep ?? (hasCompletedOnboarding ? 'done' : '1')) as string;
 
@@ -109,11 +105,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
 		reminderBadge:           reminderBadgeRow[0]?.cnt   ?? 0,
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
-		// null = unlimited; shared convention in billing.resolveMonthlyQuota (#295)
 		quotaLimit:              resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier),
 		planName:                planNameRow[0]?.value      ?? tierConfig.name,
-		// The settings override exists for tenants that set a display name; the
-		// restaurants row is the source of truth after a rename (issue #293).
 		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
 		locations: locationRows,
 		hasCompletedOnboarding,

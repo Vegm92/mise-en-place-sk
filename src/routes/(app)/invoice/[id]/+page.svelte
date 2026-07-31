@@ -28,16 +28,13 @@
   ]);
 </script>
 
-<!-- Mobile invoice detail -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileInvoiceDetail {invoice} {lineItems} />
 </div>
 
-<!-- Desktop invoice detail -->
 <div class="hidden md:block">
 <div style="padding:24px;display:flex;flex-direction:column;gap:16px;max-width:1100px;margin:0 auto;">
 
-  <!-- Breadcrumb -->
   <nav style="display:flex;align-items:center;gap:6px;">
     <a href="/invoices" class="body" style="color:var(--mep-fg-3);text-decoration:none;">
       {$t('nav.invoices')}
@@ -46,19 +43,15 @@
     <span class="body-strong">{invoice.invoice_number ?? `#${invoice.id}`}</span>
   </nav>
 
-  <!-- Main two-column panel -->
   <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
 
-    <!-- Left: doc viewer (45%) -->
     <div class="card" style="flex:0 0 44%;min-width:280px;overflow:hidden;">
-      <!-- Filename header -->
       <div class="card-header">
         <div class="section-title">
           <span class="body-strong" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px;">
             {invoice.source_file ?? 'invoice.pdf'}
           </span>
         </div>
-        <!-- Zoom controls (decorative) -->
         <div style="display:flex;gap:4px;">
           <button class="btn btn-ghost" style="width:28px;height:28px;padding:0;justify-content:center;font-size:15px;" title={$t('a11y.zoomOut')}>−</button>
           <span class="body" style="align-self:center;padding:0 4px;font-size:12px;">100%</span>
@@ -66,7 +59,6 @@
         </div>
       </div>
 
-      <!-- Document preview -->
       {#if invoice.source_file}
         <iframe
           src="/invoice/{invoice.id}/file"
@@ -85,10 +77,8 @@
       {/if}
     </div>
 
-    <!-- Right: details + actions (55%) -->
     <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px;">
 
-      <!-- Fields card -->
       <div class="card p-4" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Invoice #${invoice.id}`}</span>
@@ -128,7 +118,6 @@
         {/if}
       </div>
 
-      <!-- Actions -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <a
           href="/invoice/{invoice.id}/edit"
@@ -170,7 +159,6 @@
     </div>
   </div>
 
-  <!-- Line items -->
   {#if lineItems.length > 0}
     <div class="card" style="overflow:hidden;">
       <div class="card-header">
@@ -203,20 +191,17 @@
     </div>
   {/if}
 
-  <!-- Activity timeline -->
   <div class="card p-4" style="display:flex;flex-direction:column;gap:12px;">
     <span class="subtitle" style="font-size:15px;">{$t('inv.detail.activity')}</span>
     <div style="display:flex;flex-direction:column;gap:0;">
       {#each timelineEvents as ev, i}
         <div style="display:flex;gap:12px;align-items:flex-start;{i < timelineEvents.length - 1 ? 'padding-bottom:14px;' : ''}">
-          <!-- Dot + line -->
           <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:16px;">
             <div style="width:8px;height:8px;border-radius:50%;background:var(--mep-acc);margin-top:4px;flex-shrink:0;"></div>
             {#if i < timelineEvents.length - 1}
               <div style="width:1px;flex:1;background:var(--mep-divider);margin-top:4px;min-height:20px;"></div>
             {/if}
           </div>
-          <!-- Content -->
           <div style="display:flex;flex-direction:column;gap:1px;">
             <span class="body-strong" style="font-size:12.5px;">{$t(ev.labelKey)}</span>
             {#if ev.ts}
@@ -229,4 +214,4 @@
   </div>
 
 </div>
-</div><!-- end desktop wrapper -->
+</div>

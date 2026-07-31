@@ -46,7 +46,6 @@
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
   }
 
-  // Spend donut — top 5 + "Other", fixed categorical hue order (never cycled)
   const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   const spendDonut = $derived((() => {
     const ranked = [...top_items].sort((a, b) => b.total_spend - a.total_spend);
@@ -76,7 +75,6 @@
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
-    <!-- Period picker chips -->
     <div style="display: flex; gap: 6px; padding-top: 4px;">
       {#each periods as [val, short]}
         <a href="?period={val}" style="
@@ -90,7 +88,6 @@
       {/each}
     </div>
 
-    <!-- KPI 2-col grid -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
         <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.totalSpend')}</div>
@@ -118,7 +115,6 @@
       </div>
     </div>
 
-    <!-- Top items -->
     {#if top_items?.length > 0}
       <div class="card" style="padding: 14px;">
         <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.topProducts')}</div>
@@ -154,7 +150,6 @@
       </div>
     {/if}
 
-    <!-- By category -->
     {#if category_spend?.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
         <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.byCategory')}</div>

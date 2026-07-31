@@ -1,19 +1,3 @@
-/**
- * Confirm or reject a pending product-alias suggestion (issue #298).
- *
- * A pending suggestion (product_aliases fuzzy auto-link, or an async LLM
- * proposal, issue #300) raises a `product_suggestion` notification. The review
- * UI posts here to:
- *   - confirm (+ targetProductId): merge this description into an existing
- *       product the LLM proposed;
- *   - confirm (no target): keep the fuzzy link, mark the alias confirmed;
- *   - reject: split this description off into its own product;
- *   - dismiss: just clear the suggestion (used for LLM proposals — the line is
- *       already its own product, so declining needs no DB change).
- *
- * The notification carries the raw `description`; the raw_key is derived
- * server-side so the client never has to know the alias id.
- */
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
@@ -38,7 +22,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: "action must be 'confirm', 'reject' or 'dismiss'" }, { status: 422 });
 	}
 
-	// 'dismiss' just clears the notification (LLM proposal declined).
 	if (action === 'dismiss') {
 		await dismissSuggestion(rid, normalizeProductKey(description));
 		return json({ ok: true });
@@ -56,7 +39,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	return json({ ok: true, productId: result.productId });
 };
 
-/** Mark the matching product_suggestion notification(s) as handled. */
 async function dismissSuggestion(rid: string, rawKey: string): Promise<void> {
 	const tdb = forTenant(rid);
 	await db.update(systemNotifications)

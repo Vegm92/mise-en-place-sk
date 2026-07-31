@@ -13,16 +13,11 @@
     ok: 'OK', warn: 'WARN', error: 'ERR',
   };
 
-  // WhatsApp account events carry their own severity vocabulary (issue #321);
-  // map it onto the page's existing three states rather than inventing a
-  // second colour scheme on the same screen.
   type Severity = 'info' | 'warning' | 'critical';
   const SEVERITY_STATUS: Record<Severity, string> = {
     info: 'ok', warning: 'warn', critical: 'error',
   };
 
-  // Meta's own vocabulary for the quality rating — worth showing literally,
-  // since that is what the WhatsApp Manager UI says.
   const QUALITY_COLOR: Record<string, string> = {
     GREEN: '#16a34a', YELLOW: '#d97706', RED: '#dc2626',
   };
@@ -42,7 +37,6 @@
     </span>
   </div>
 
-  <!-- Checks -->
   <div class="card" style="overflow:hidden;padding:0;">
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
@@ -69,8 +63,6 @@
     </table>
   </div>
 
-  <!-- Shared WhatsApp number (issue #321). One WABA serves every tenant, so a
-       quality downgrade here is an incident, not a metric. -->
   {#if data.whatsapp}
     <section>
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
@@ -140,8 +132,6 @@
         </div>
       {/if}
 
-      <!-- Which tenant to talk to if blocks spike. Read-only: de-authorising a
-           number stays an explicit act in that owner's own Settings. -->
       {#if data.whatsapp.tenants.length > 0}
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin:16px 0 10px;">
           Authorised senders per tenant
@@ -162,7 +152,6 @@
     </section>
   {/if}
 
-  <!-- Table row counts -->
   {#if data.tableCounts.length > 0}
     <section>
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">

@@ -1,11 +1,3 @@
-<!--
-  Reusable client error boundary (issue #255). SvelteKit's handleError only
-  covers load/navigation; a runtime error thrown during client render or in an
-  effect after hydration (a chart choking on bad data, the batch polling loop)
-  would otherwise tear down the component tree and leave a dead/white UI. This
-  contains the failure to one panel and offers a retry, and still reports to
-  Sentry.
--->
 <script lang="ts">
   import * as Sentry from '@sentry/sveltekit';
   import { t } from '$lib/i18n';

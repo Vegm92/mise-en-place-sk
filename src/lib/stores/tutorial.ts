@@ -16,6 +16,5 @@ export async function setTutorialStep(step: TutorialStep) {
 			body: JSON.stringify({ step }),
 		});
 	} catch {
-		// fire-and-forget — UI already updated
 	}
 }

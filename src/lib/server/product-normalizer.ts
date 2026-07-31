@@ -1,17 +1,3 @@
-/**
- * LLM-assisted product normalization (issue #300, Phase 4).
- *
- * Runs asynchronously (pg-boss) for lines that the deterministic layers —
- * exact alias, pg_trgm fuzzy, and the abbreviation dictionary — could not match
- * to an existing product, so a brand-new product was created. Gemini is asked
- * whether that description is really one of the tenant's existing products
- * (slang, abbreviations, SKU noise the regex layers miss, e.g. "MERL. GRANDE"
- * vs "Merluza"). A high-confidence match becomes a PENDING product_suggestion
- * the user confirms — never a silent merge.
- *
- * Cost is metered through llm-quota (callerContext 'normalize'). The prompt and
- * parser are pure and unit-tested; the LLM provider is injectable.
- */
 import { sql } from 'drizzle-orm';
 import { db } from './db';
 import { systemNotifications } from './schema';
@@ -20,9 +6,7 @@ import { GEMINI_API_KEY } from './env';
 import { createLLMProvider, type LLMProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 
-/** Minimum confidence to surface an LLM match as a suggestion. */
 export const LLM_MATCH_THRESHOLD = 0.8;
-/** How many existing products to offer Gemini as candidates. */
 const MAX_CANDIDATES = 50;
 
 export interface NormalizeJobData {
@@ -34,8 +18,6 @@ export interface NormalizeJobData {
 export interface Candidate { id: number; name: string }
 
 export interface NormalizeVerdict { matchId: number | null; confidence: number }
-
-// ── Pure: prompt + response parsing ──────────────────────────────────────────
 
 export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): string {
 	const list = candidates.map((c) => `${c.id}: ${c.name}`).join('\n');
@@ -76,22 +58,16 @@ export function parseNormalizeResponse(text: string, validIds: Set<number>): Nor
 	return { matchId, confidence };
 }
 
-// ── Orchestration ─────────────────────────────────────────────────────────────
-
 export interface NormalizeDeps {
 	provider?: LLMProvider;
 	recordUsage?: typeof recordLlmUsage;
 }
 
-/**
- * Best-effort: any failure (LLM error, quota, parse) is swallowed — a missed
- * suggestion must never break the worker or the invoice.
- */
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
 	const { restaurantId, productId, rawText } = data;
 	try {
 		const provider = deps.provider ?? (GEMINI_API_KEY ? createLLMProvider() : null);
-		if (!provider) return; // no LLM configured — nothing to do
+		if (!provider) return;
 
 		const candRows = await db.execute<{ id: number; canonical_name: string }>(sql`
 			SELECT id, canonical_name FROM products
@@ -114,7 +90,6 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 		const candidate = candidates.find((c) => c.id === verdict.matchId);
 		if (!candidate) return;
 
-		// Dedup: don't stack suggestions for the same description while one is pending.
 		const rawKey = normalizeProductKey(rawText);
 		const existing = await db.execute<{ id: number }>(sql`
 			SELECT id FROM system_notifications

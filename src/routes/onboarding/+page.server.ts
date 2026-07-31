@@ -12,8 +12,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(303, '/login');
 	const preview = url.searchParams.get('preview') === '1';
 	if (locals.restaurantId && !preview) redirect(303, '/');
-	// Users who signed up via Google from the login page have no recorded
-	// T&C acceptance yet — ask for it here, on first authenticated landing.
 	const needsConsent = !(await hasConsent(locals.user.id));
 	return { preview, needsConsent };
 };
@@ -47,13 +45,6 @@ export const actions: Actions = {
 			.slice(0, 60)
 			+ '-' + Math.random().toString(36).slice(2, 7);
 
-		// Idempotent creation (issue #241). A double-submit or the same form in
-		// two tabs must not create two restaurants + two trials + two welcome
-		// emails. The slug carries a random suffix so no unique constraint can
-		// fire, so we serialize per user with an advisory lock and re-check
-		// membership inside it — a replay finds the first submit's restaurant and
-		// becomes a no-op redirect to '/'. The #250 idempotency key is a second
-		// guard for the exact same submit.
 		let newRestaurantId: string | null = null;
 		await db.transaction(async (tx) => {
 			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
@@ -78,7 +69,6 @@ export const actions: Actions = {
 				role: 'owner',
 			});
 
-			// Start 30-day free trial for new restaurant
 			const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
 			await tx.insert(subscriptions)
 				.values({ restaurantId: restaurant.id, status: 'trialing', trialEndsAt })
@@ -90,14 +80,9 @@ export const actions: Actions = {
 			newRestaurantId = restaurant.id;
 		});
 
-		// Side effects only for the submit that actually created the restaurant —
-		// a replay skips them so there is exactly one welcome email.
 		if (newRestaurantId) {
-			// Persist plan_name / plan_quota so the trial counter and quota gate
-			// have data from day one (layout otherwise falls back to tier defaults).
 			await applyTierSettings(newRestaurantId, 'trial');
 
-			// Send welcome email (fire-and-forget)
 			if (locals.user.email) {
 				sendEmail(welcomeEmail(locals.user.email, name)).catch(e =>
 					console.error('[onboarding] welcome email failed:', e)
