@@ -16,7 +16,6 @@
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
   }
 
-  // Spend donut — top 5 + "Other", fixed categorical hue order (never cycled)
   const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   interface DonutSlice {
     label: string; spend: number; pct: number; color: string;
@@ -55,7 +54,6 @@
   let hoveredSpendSlice = $state<number | null>(null);
 </script>
 
-<!-- Mobile spend analytics -->
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileAnalyticsSpend
     period={data.period}
@@ -65,11 +63,9 @@
   />
 </div>
 
-<!-- Desktop spend analytics -->
 <div class="hidden md:block" style="height:100%;overflow:auto;">
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
-    <!-- Header + period picker -->
     <div style="display:flex;align-items:center;gap:12px;">
       <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{$t('spend.question')}</h2>
       <div style="flex:1;"></div>
@@ -87,7 +83,6 @@
       </div>
     </div>
 
-    <!-- KPI row -->
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2" data-coach="analytics-main">
       <div class="card" style="padding:14px;">
         <div class="label" style="margin-bottom:6px;">{$t('spend.totalSpend')}</div>
@@ -109,10 +104,8 @@
       </div>
     </div>
 
-    <!-- Charts row -->
     <div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;">
 
-      <!-- Top items -->
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.topItemsSub')}</div>
@@ -125,7 +118,6 @@
           </div>
         {:else}
           <div style="display:flex;gap:24px;align-items:center;">
-            <!-- Donut -->
             <div style="position:relative;flex-shrink:0;width:180px;height:180px;">
               <svg width="180" height="180" viewBox="0 0 180 180" style="overflow:visible;transform:rotate(-90deg);">
                 {#each spendDonut.slices as slice, i}
@@ -155,7 +147,6 @@
               </div>
             </div>
 
-            <!-- Legend + hover detail -->
             <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;">
               {#each spendDonut.slices as slice, i}
                 <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:default;
@@ -180,7 +171,6 @@
         {/if}
       </div>
 
-      <!-- By category -->
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.byCategorySub')}</div>

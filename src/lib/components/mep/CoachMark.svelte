@@ -51,7 +51,6 @@
   }
 
   onMount(() => {
-    // Small delay so the page renders first
     setTimeout(measure, 80);
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
@@ -68,14 +67,13 @@
   const spotWidth  = $derived(width + PAD * 2);
   const spotHeight = $derived(height + PAD * 2);
 
-  // Place tooltip below spotlight; flip above if too close to bottom
   const tipLeft  = $derived(Math.max(16, Math.min(spotLeft, vw - TOOLTIP_W - 16)));
   const spaceBelow = $derived(vh - (top + height + PAD));
   const tipBelow = $derived(spaceBelow >= 180);
   const tipTop   = $derived(
     tipBelow
       ? top + height + PAD + 10
-      : top - PAD - 10 - 170  // approximate card height
+      : top - PAD - 10 - 170
   );
 
   function handleKey(e: KeyboardEvent) {
@@ -86,15 +84,12 @@
 <svelte:window onkeydown={handleKey} />
 
 {#if ready}
-  <!-- Full-screen backdrop (click outside = skip) -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     style="position:fixed;inset:0;z-index:110;background:transparent;"
     role="presentation"
     onclick={onSkip}
   ></div>
 
-  <!-- Spotlight ring (box-shadow punches the dark overlay) -->
   <div
     aria-hidden="true"
     style="
@@ -110,8 +105,6 @@
     "
   ></div>
 
-  <!-- Tooltip card -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     style="
       position:fixed;
@@ -132,7 +125,6 @@
     onclick={(e) => e.stopPropagation()}
     onkeydown={(e) => e.stopPropagation()}
   >
-    <!-- Step counter -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <div style="display:flex;gap:5px;">
         {#each Array(totalSteps) as _, i}
@@ -156,7 +148,6 @@
       </button>
     </div>
 
-    <!-- Content -->
     <div style="font-size:14px;font-weight:600;color:var(--mep-fg);margin-bottom:6px;line-height:1.3;">
       {title}
     </div>
@@ -164,7 +155,6 @@
       {body}
     </p>
 
-    <!-- CTA -->
     <button
       type="button"
       class="btn btn-primary"

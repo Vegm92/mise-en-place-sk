@@ -20,24 +20,8 @@ const RESTAURANT_NAME_KEY = 'restaurant_name';
 
 const MIN_PASSWORD_LENGTH = 8;
 
-/**
- * The WhatsApp card is pointless when the bot isn't wired up — authorising a
- * number would do nothing, because no webhook is delivering messages.
- */
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
 
-/**
- * The bot's own number, resolved once at boot (issue #319).
- *
- * Authorising a staff number is only half of onboarding — the staff member also
- * has to know *what number to message*, and nothing in the app ever said. The
- * QR is the one that matters in practice: it gets printed and stuck in the
- * kitchen, so nobody types a phone number into a shared handset.
- *
- * Null when `WHATSAPP_DISPLAY_NUMBER` is unset or unparseable; the card then
- * renders its authorisation half exactly as before rather than showing a
- * broken link.
- */
 const WHATSAPP_BOT_NUMBER = (() => {
 	if (!WHATSAPP_ENABLED || !WHATSAPP_DISPLAY_NUMBER) return null;
 	const normalized = normalizePhoneNumber(WHATSAPP_DISPLAY_NUMBER);
@@ -49,8 +33,6 @@ const WHATSAPP_BOT_NUMBER = (() => {
 	return {
 		display: formatPhoneNumber(normalized.phone),
 		link,
-		// The QR encodes the same wa.me link, so scanning and tapping land in
-		// the same chat. Rendered once at boot — it never varies per tenant.
 		qrSvg: renderQrSvg(link),
 	};
 })();
@@ -73,7 +55,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.from(userRestaurants)
 				.where(tdb.scope(userRestaurants.restaurantId, eq(userRestaurants.userId, locals.user!.id)))
 				.limit(1),
-			// Locations this user belongs to (issue #290)
 			db.select({ id: restaurants.id, name: restaurants.name })
 				.from(userRestaurants)
 				.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
@@ -81,7 +62,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.orderBy(asc(restaurants.name)),
 			getTierFeatures(rid),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
-			// Live enrolment code, if the owner has one outstanding (issue #320).
 			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
 		]);
 
@@ -96,27 +76,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 			title: 'nav.settings',
 			threshold:      row[0]      ? parseInt(row[0].value, 10)          : 80,
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
-			// Profile section (issue #293)
 			profile: {
 				name:  (locals.user!.user_metadata?.name as string | undefined) ?? '',
 				email: locals.user!.email ?? '',
-				// Google accounts have no password to change in this app.
 				hasPassword: locals.user!.app_metadata?.provider === 'email',
 			},
 			restaurantName: restaurantRow[0]?.name ?? '',
 			canRenameRestaurant: membership[0]?.role === 'owner',
-			// Multi-location (issue #290)
 			locations: locationRows,
 			multiLocation: features.multiLocation,
 			maxLocations,
 			activeRestaurantId: rid,
-			// WhatsApp invoice bot — authorised sender numbers.
 			whatsappEnabled: WHATSAPP_ENABLED,
 			whatsappContacts: whatsappContactRows,
 			canManageWhatsapp: membership[0]?.role === 'owner',
-			// …and where to send those invoices (issue #319).
 			whatsappBotNumber: WHATSAPP_BOT_NUMBER,
-			// Self-service enrolment (issue #320).
 			whatsappPairingCode: pairingCode,
 		};
 	});
@@ -162,9 +136,6 @@ export const actions: Actions = {
 		redirect(303, '/');
 	},
 
-	// ── Profile (issue #293) ───────────────────────────────────────────────────
-
-	/** Display name — stored in Supabase user_metadata, read by the layout. */
 	saveName: async ({ request, locals }) => {
 		const data = await request.formData();
 		const name = ((data.get('name') as string) ?? '').trim();
@@ -179,11 +150,6 @@ export const actions: Actions = {
 		return { section: 'name', ok: 'set.profile.ok.name' };
 	},
 
-	/**
-	 * Email change. Supabase sends a confirmation link to the *new* address (and,
-	 * when "secure email change" is on, to the old one too); the address only
-	 * changes once confirmed, so this reports "check your inbox", never "done".
-	 */
 	saveEmail: async ({ request, locals, url }) => {
 		const data = await request.formData();
 		const email = ((data.get('email') as string) ?? '').trim();
@@ -203,10 +169,6 @@ export const actions: Actions = {
 		return { section: 'email', ok: 'set.profile.ok.email' };
 	},
 
-	/**
-	 * Password change while signed in. The current password is re-verified first
-	 * — an unattended session must not be enough to take over the account.
-	 */
 	changePassword: async ({ request, locals, getClientAddress }) => {
 		const data = await request.formData();
 		const current = (data.get('current') as string) ?? '';
@@ -218,7 +180,6 @@ export const actions: Actions = {
 		if (next.length < MIN_PASSWORD_LENGTH) return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
 		if (next !== confirm) return fail(422, { section: 'password', error: 'set.profile.err.passwordMismatch' });
 
-		// Same brute-force budget as the login form, keyed on the account.
 		if (!(await checkRateLimit(`password-change:${locals.user!.id}`, 5))) {
 			return fail(429, { section: 'password', error: 'set.profile.err.rateLimited' });
 		}
@@ -239,12 +200,6 @@ export const actions: Actions = {
 		return { section: 'password', ok: 'set.profile.ok.password' };
 	},
 
-	/**
-	 * Add a location (issue #290). Business tier only, capped at the tier's
-	 * maxLocations. The new restaurant is a child of the paying one, so it
-	 * inherits the plan instead of starting its own trial, and the caller
-	 * becomes its owner. Data stays fully separate — only billing is shared.
-	 */
 	addLocation: async ({ request, locals, cookies }) => {
 		const rid = locals.restaurantId;
 		if (!rid) redirect(303, '/onboarding');
@@ -271,8 +226,6 @@ export const actions: Actions = {
 			return fail(403, { section: 'location', error: 'set.locations.err.limitReached' });
 		}
 
-		// Slug carries a random suffix for the same reason onboarding's does: two
-		// restaurants may legitimately share a name.
 		const slug = `${name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 			.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'local'}-${randomBytes(3).toString('hex')}`;
 
@@ -284,11 +237,8 @@ export const actions: Actions = {
 			return created.id;
 		});
 
-		// Plan name/quota for the new location mirror the paying subscription.
 		await applyTierSettings(newId, tier);
 
-		// Switch to it — adding a location and then having to find the switcher
-		// would be a strange place to stop.
 		cookies.set('active_restaurant', newId, {
 			path: '/',
 			httpOnly: true,
@@ -299,7 +249,6 @@ export const actions: Actions = {
 		redirect(303, '/');
 	},
 
-	/** Rename the restaurant. Owner-only; the slug stays fixed. */
 	renameRestaurant: async ({ request, locals }) => {
 		const rid = locals.restaurantId;
 		if (!rid) redirect(303, '/onboarding');
@@ -318,8 +267,6 @@ export const actions: Actions = {
 		}
 
 		await db.update(restaurants).set({ name }).where(eq(restaurants.id, rid));
-		// Keep the settings override in step so the header does not keep showing
-		// the old name for tenants that have one.
 		await db.update(settings)
 			.set({ value: name })
 			.where(tdb.scope(settings.restaurantId, eq(settings.key, RESTAURANT_NAME_KEY)));
@@ -327,13 +274,6 @@ export const actions: Actions = {
 		return { section: 'restaurant', ok: 'set.profile.ok.restaurant' };
 	},
 
-	// ── WhatsApp bot: authorised numbers ───────────────────────────────────────
-
-	/**
-	 * Authorise a phone number to send invoices for this restaurant. Owner-only:
-	 * an authorised number can inject invoices into the tenant and spend its
-	 * extraction quota, so this is the same trust level as renaming the venue.
-	 */
 	addWhatsappContact: async ({ request, locals }) => {
 		const rid = locals.restaurantId;
 		if (!rid) redirect(303, '/onboarding');
@@ -362,7 +302,6 @@ export const actions: Actions = {
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.added' };
 	},
 
-	/** De-authorise a number. Owner-only, tenant-scoped. */
 	removeWhatsappContact: async ({ request, locals }) => {
 		const rid = locals.restaurantId;
 		if (!rid) redirect(303, '/onboarding');
@@ -380,10 +319,6 @@ export const actions: Actions = {
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.removed' };
 	},
 
-	/**
-	 * Mint a pairing code (issue #320). Same owner-only gate as typing a number
-	 * in by hand — the code is a bearer token for exactly that privilege.
-	 */
 	generateWhatsappPairingCode: async ({ request, locals }) => {
 		const rid = locals.restaurantId;
 		if (!rid) redirect(303, '/onboarding');
@@ -408,7 +343,6 @@ export const actions: Actions = {
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.pairGenerated' };
 	},
 
-	/** Cancel the outstanding code — e.g. it was read out to the wrong person. */
 	revokeWhatsappPairingCode: async ({ locals }) => {
 		const rid = locals.restaurantId;
 		if (!rid) redirect(303, '/onboarding');
@@ -423,7 +357,6 @@ export const actions: Actions = {
 	},
 };
 
-/** True when this user owns the restaurant. */
 async function requireOwner(restaurantId: string, userId: string): Promise<boolean> {
 	const [membership] = await db.select({ role: userRestaurants.role })
 		.from(userRestaurants)

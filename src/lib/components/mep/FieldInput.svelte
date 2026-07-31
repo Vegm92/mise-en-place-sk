@@ -8,11 +8,8 @@
     name: string;
     value: string;
     confidence?: number | null;
-    /** Show empty-field warning (needsReview result). */
     empty?: boolean;
-    /** External warning message (e.g. discrepancy). */
     warnMsg?: string;
-    /** Apply num class for monospaced numeric style. */
     num?: boolean;
     placeholder?: string;
     readonly?: boolean;

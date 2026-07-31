@@ -4,8 +4,6 @@
 	import { locale, t, initLocale } from '$lib/i18n';
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
-	// Idempotency key (issue #250) — one per page load so a double-submit can't
-	// create two restaurants.
 	const idempotencyKey = crypto.randomUUID();
 
 	onMount(() => {
@@ -27,7 +25,6 @@
 
 	<div style="width:100%;max-width:400px;">
 
-		<!-- Language toggle -->
 		<div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
 			<button
 				type="button"
@@ -38,7 +35,6 @@
 			</button>
 		</div>
 
-		<!-- Logo -->
 		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
 			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
 				<rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
@@ -50,7 +46,6 @@
 			</span>
 		</div>
 
-		<!-- Card -->
 		<div class="card" style="padding:28px;">
 			<h1 style="font-size:17px;font-weight:600;color:var(--mep-fg);margin:0 0 4px;">{$t('onboard.title')}</h1>
 			<p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 24px;">

@@ -1,14 +1,3 @@
-/**
- * Set a new password from a recovery link (issue #284).
- *
- * /auth/callback exchanges the emailed code for a session and forwards here, so
- * reaching this page with a user in locals *is* the proof of ownership. Landing
- * without one means the link expired or was already used.
- *
- * On success the session is signed out and the user re-authenticates with the
- * new password — it proves the change took, and it drops the recovery session
- * from the browser.
- */
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
@@ -33,8 +22,6 @@ export const actions: Actions = {
 		const { error } = await locals.supabase.auth.updateUser({ password });
 		if (error) {
 			console.error('[reset-password] updateUser failed:', error.message);
-			// Supabase rejects a password identical to the current one and
-			// anything its own policy refuses; both are user-fixable.
 			return fail(400, { error: 'failed' });
 		}
 

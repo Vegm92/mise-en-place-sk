@@ -1,13 +1,3 @@
-/**
- * "Forgot password" request page (issue #284).
- *
- * Sends a Supabase recovery link that lands on /auth/callback (which exchanges
- * the code for a session) and continues to /reset-password.
- *
- * The response is identical whether or not the address has an account — a
- * different message here would turn this form into an account-enumeration
- * oracle. Rate limited per IP and per email like the login action.
- */
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { checkRateLimit } from '$lib/server/rate-limiter';
@@ -34,8 +24,6 @@ export const actions: Actions = {
 			redirectTo: `${url.origin}/auth/callback?next=/reset-password`,
 		});
 
-		// Supabase returns an error for malformed addresses and for its own rate
-		// limiter, but never "no such user". Log it and still answer "sent".
 		if (error) {
 			console.error('[forgot-password] resetPasswordForEmail failed:', error.message);
 		}

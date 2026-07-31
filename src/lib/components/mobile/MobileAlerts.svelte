@@ -37,7 +37,6 @@
       </div>
     {:else}
 
-      <!-- Summary chips -->
       <div style="display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px;">
         {#if overdue.length}
           <div style="padding: 6px 12px; border-radius: 8px; background: var(--mep-neg-soft); font-size: 12.5px;">
@@ -57,7 +56,6 @@
         </div>
       </div>
 
-      <!-- Overdue section -->
       {#if overdue.length}
         <div>
           <div style="font-size: 11.5px; color: var(--mep-neg); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
@@ -92,7 +90,6 @@
         </div>
       {/if}
 
-      <!-- Due soon section -->
       {#if due_soon.length}
         <div>
           <div style="font-size: 11.5px; color: var(--mep-warn); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">

@@ -5,9 +5,7 @@ import { unitConversions, invoiceLineItems, invoices, suppliers } from '$lib/ser
 import { sql, eq, and } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
-/** POST /api/unit-conversions — save a new UoM rule and clear pending flags. */
 export const POST: RequestHandler = async ({ request, locals }) => {
-	// Keyed on the authenticated user, not the client IP (issue #223).
 	if (!await checkRateLimit(`unit-conversions:${locals.user!.id}`, 30)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 	const body = await request.json().catch(() => null);
@@ -46,9 +44,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			set:    { canonicalUnit: sCanonical, conversionFactor: factor, supplierId: resolvedSupplierId },
 		});
 
-	// Clear pending flags — join by supplier_id when known, fall back to name join.
-	// Normalized comparison (issue #296): the pending line may spell the
-	// ingredient/unit with different casing or accents than the saved rule.
 	if (resolvedSupplierId != null) {
 		await db.execute(sql`
 			UPDATE invoice_line_items

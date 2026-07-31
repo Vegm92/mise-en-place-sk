@@ -55,7 +55,6 @@
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--mep-bg);">
 
-  <!-- Sticky header -->
   <div style="
     padding: 16px 14px 10px; flex-shrink: 0;
     background: var(--mep-surface);
@@ -87,10 +86,8 @@
     </button>
   </div>
 
-  <!-- Scrollable content -->
   <div style="flex: 1; overflow: auto; padding: 14px 14px 100px; display: flex; flex-direction: column; gap: 12px;">
 
-    <!-- Hero total card -->
     <div class="card" style="padding: 16px;">
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
         <div>
@@ -121,7 +118,6 @@
       </div>
     </div>
 
-    <!-- Doc preview card -->
     {#if invoice.source_file}
       <div class="card" style="padding: 0; overflow: hidden;">
         <div style="
@@ -150,7 +146,6 @@
       </div>
     {/if}
 
-    <!-- Line items -->
     {#if lineItems.length > 0}
       <div class="card" style="padding: 4px 0;">
         {#each shown as item, i}
@@ -186,7 +181,6 @@
       </div>
     {/if}
 
-    <!-- Action grid -->
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
       {#each [
         { icon: Edit, label: $t('mid.actionEdit'), href: `/invoice/${invoice.id}/edit` },

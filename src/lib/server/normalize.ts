@@ -1,20 +1,3 @@
-/**
- * Shared product/unit normalization (issue #296).
- *
- * normalizeProductKey is the single TS-side definition of "same product":
- * lowercase, accent-folded, whitespace-collapsed. It MUST stay in lockstep
- * with the SQL function mep_norm_key (drizzle/0018_product_key_normalization.sql),
- * which is the same transform expressed in Postgres and used by the
- * materialized views and cross-invoice matching queries.
- *
- * canonicalizeUnit folds the many ways Spanish suppliers (and e-invoice
- * standards) write a unit into one canonical spelling — "Kgs", "KILO" and
- * UN/ECE "KGM" all resolve to "kg". Unknown units return null so callers can
- * flag requiresUnitConversion instead of treating a mystery token as a unit.
- *
- * Pure module — no DB imports, safe for the worker and for unit tests.
- */
-
 export function normalizeProductKey(raw: string): string {
 	return raw
 		.normalize('NFD')
@@ -24,9 +7,6 @@ export function normalizeProductKey(raw: string): string {
 		.trim();
 }
 
-// canonical spelling → accepted variants (variants are matched after
-// normalizeProductKey + trailing-dot strip, so list them lowercase/unaccented).
-// UN/ECE Rec 20/21 codes (UBL unitCode) are folded in directly: KGM, LTR, C62…
 const UNIT_GROUPS: Record<string, string[]> = {
 	kg:        ['kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos', 'kgm'],
 	g:         ['g', 'gr', 'grs', 'gramo', 'gramos', 'grm'],
@@ -76,12 +56,6 @@ for (const [canonical, variants] of Object.entries(UNIT_GROUPS)) {
 	for (const v of variants) UNIT_SYNONYMS.set(v, canonical);
 }
 
-/**
- * Resolve any spelling of a unit to its canonical form, or null when the
- * token is not a recognized unit (→ caller flags requiresUnitConversion).
- * "media caja", "garrafa 5L" and similar sized-container formats are
- * deliberately NOT mapped: they need a conversion factor, not a pass-through.
- */
 export function canonicalizeUnit(raw: string | null | undefined): string | null {
 	if (!raw) return null;
 	const key = normalizeProductKey(String(raw)).replace(/\.+$/, '');

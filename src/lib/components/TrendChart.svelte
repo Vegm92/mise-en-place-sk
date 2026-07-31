@@ -15,10 +15,6 @@
 	let activeRange       = $state(initialRange);
 	// svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
 	let activeGranularity = $state(initialGranularity);
-	// SSR'd by the dashboard load (issue: dashboard chart flashed "Loading…" on
-	// every visit because it fetched client-side in onMount instead of using
-	// data already computed server-side). Only re-fetches when a range/granularity
-	// toggle is used — the initial render is fully server-rendered.
 	// svelte-ignore state_referenced_locally — intentional: seed once from props
 	let buckets     = $state<Bucket[]>(initialData?.buckets ?? []);
 	// svelte-ignore state_referenced_locally — intentional: seed once from props
@@ -50,7 +46,6 @@
 			buckets    = data.buckets ?? [];
 			categories = data.categories ?? [];
 		} else {
-			// Don't leave stale buckets on screen mismatched against the newly selected range/granularity
 			buckets    = [];
 			categories = [];
 		}
@@ -67,13 +62,12 @@
 		await fetchData(activeRange, activeGranularity);
 	}
 
-	// SVG layout (pixel-based, viewBox width=500 for easy math)
 	const SVG_W    = 500;
 	const SVG_H    = 140;
 	const LABEL_H  = 18;
-	const PAD_L    = 44; // wider left padding for Y-axis labels
+	const PAD_L    = 44;
 	const PAD_R    = 8;
-	const GAP_PCT  = 0.15; // fraction of slot used as gap
+	const GAP_PCT  = 0.15;
 
 	const maxTotal = $derived(buckets.length ? Math.max(...buckets.map(b => b.total), 1) : 1);
 
@@ -126,7 +120,6 @@
 	const rangeLabel = $derived($ti(`chart.gran.${activeGranularity}.sub`, { n: buckets.length }));
 </script>
 
-<!-- Chart area -->
 <div style="padding:4px 0 0;position:relative;">
 	<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;margin-bottom:6px;">
 		<span class="body" style="font-size:12px;">{rangeLabel}</span>
@@ -176,7 +169,6 @@
 			height={SVG_H + LABEL_H}
 			style="display:block;overflow:visible;"
 		>
-			<!-- Gridlines + Y-axis labels -->
 			{#each gridLines as gl}
 				<line
 					x1={PAD_L} y1={gl.y}
@@ -194,7 +186,6 @@
 				{/if}
 			{/each}
 
-			<!-- Bars -->
 			{#each barRects.segs as seg}
 				<rect
 					x={seg.x} y={seg.y}
@@ -204,7 +195,6 @@
 				/>
 			{/each}
 
-			<!-- X-axis labels -->
 			{#each barRects.labels as lbl}
 				<text
 					x={lbl.x}
@@ -220,7 +210,6 @@
 	{/if}
 </div>
 
-<!-- Legend -->
 {#if categories.length > 0}
 	<div style="padding:8px 16px 14px;display:flex;flex-wrap:wrap;gap:8px;">
 		{#each categories as cat, ci}

@@ -36,7 +36,6 @@
   );
   let mobileOpen = $state(false);
 
-  // Seed tutorial store from server data on each navigation
   $effect(() => {
     tutorialStep.set((data.tutorialStep as TutorialStep) ?? null);
   });
@@ -44,20 +43,13 @@
   const curPath = $derived($page.url.pathname);
   const isFirstInvoice = $derived($page.url.searchParams.get('first_invoice') === '1');
 
-  // The tour is a single coach mark on the batch review page (issue #230). The
-  // upload-zone mark that used to come first explained an empty state whose own
-  // headline already said the same thing, on top of four other first-session
-  // overlays. '1' is the stored step for "tour not seen yet" — accepted here too
-  // so users mid-tour (and anyone who used "repeat the tour") still get it.
   const showReviewCoachMark = $derived(
     ($tutorialStep === '1' || $tutorialStep === '2') && curPath.startsWith('/batch/')
   );
-  // Completion card: first invoice landed on dashboard
   const showComplete = $derived(isFirstInvoice && $tutorialStep !== 'dismissed');
 
   let completeDismissed = $state(false);
 
-  // App-wide walkthrough (steps 3-11): one coach mark per main page, in nav order
   const TOUR_PAGES = [
     { step: '3' as const,  path: '/dashboard',       anchor: 'dashboard-main' },
     { step: '4' as const,  path: '/invoices',        anchor: 'invoices-main' },
@@ -70,7 +62,6 @@
     { step: '11' as const, path: '/settings',        anchor: 'settings-main' },
   ];
 
-  // Dashboard nudge offering the app-wide walkthrough — persists until accepted/dismissed
   const showTourNudge = $derived($tutorialStep === 'done' && curPath === '/dashboard');
 
   const tourIndex = $derived(TOUR_PAGES.findIndex(p => p.step === $tutorialStep));
@@ -106,10 +97,6 @@
     locale.update(l => l === 'es' ? 'en' : 'es');
   }
 
-  // Progressive disclosure (issue #231): before the first saved invoice, every
-  // section below Invoices is an empty state — eight of them, plus a quota meter
-  // for a quota nobody has touched. They reveal after the first save, which is
-  // also when they start having something to show.
   const revealAll = $derived(data.hasCompletedOnboarding);
 
   interface NavItem {
@@ -140,8 +127,6 @@
     ] satisfies NavItem[] : []),
   ]);
 
-  // Switching writes the active_restaurant cookie server-side, then a full
-  // reload so every layout query re-runs against the new tenant (issue #290).
   let switchingLocation = $state(false);
   async function switchLocation(restaurantId: string) {
     if (!restaurantId || restaurantId === data.restaurantId || switchingLocation) return;
@@ -157,7 +142,6 @@
         return;
       }
     } catch {
-      // fall through — the select resets on the next render
     }
     switchingLocation = false;
   }
@@ -176,7 +160,6 @@
 <div class="mep" data-accent="amber" data-density="default"
   style="width:100%;height:100vh;height:100dvh;display:flex;overflow:hidden;">
 
-  <!-- Mobile overlay -->
   {#if mobileOpen}
     <div
       class="fixed inset-0 z-[99] bg-black/60 md:hidden"
@@ -185,7 +168,6 @@
     ></div>
   {/if}
 
-  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
   <aside
     style="
       width:232px;height:100%;flex-shrink:0;
@@ -202,7 +184,6 @@
       {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     "
   >
-    <!-- Brand -->
     <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
         <rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
@@ -214,7 +195,6 @@
       </span>
     </div>
 
-    <!-- Location switcher — only when there is somewhere to switch to (#290) -->
     {#if data.locations && data.locations.length > 1}
       <div style="padding:0 10px 14px;">
         <label for="location-switch" style="display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
@@ -235,7 +215,6 @@
       </div>
     {/if}
 
-    <!-- Upload CTA (desktop primary action) -->
     <a
       href="/"
       onclick={() => mobileOpen = false}
@@ -246,7 +225,6 @@
       <span>{$t('action.upload')}</span>
     </a>
 
-    <!-- Primary nav -->
     <nav style="display:flex;flex-direction:column;gap:1px;">
       {#each navItems as item}
         {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
@@ -300,7 +278,6 @@
 
     <div style="flex:1;"></div>
 
-    <!-- Quota widget — hidden until the first invoice is saved (issue #231) -->
     {#if revealAll}
     <div style="margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -308,14 +285,12 @@
         <span class="num" style="font-size:11px;color:var(--mep-fg-3);">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span>
       </div>
       <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-        <!-- quotaLimit === null → unlimited plan, nothing to fill up (#295) -->
         <div style="width:{data.quotaLimit ? Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100)) : 0}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
       </div>
       <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">{$t('shell.quota')}</div>
     </div>
     {/if}
 
-    <!-- Util links -->
     <div style="display:flex;flex-direction:column;gap:1px;">
       <a
         href="/settings"
@@ -327,13 +302,11 @@
       </a>
     </div>
 
-    <!-- Legal footer -->
     <div style="display:flex;gap:10px;padding:8px 10px 0;flex-wrap:wrap;">
       <a href="/privacy" style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.privacy')}</a>
       <a href="/terms"   style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.terms')}</a>
     </div>
 
-    <!-- User chip -->
     <div style="margin-top:10px;padding:8px;display:flex;align-items:center;gap:10px;border-radius:8px;">
       <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#b8741a,#7a3a4a);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">
         {userInitials}
@@ -356,13 +329,10 @@
     </div>
   </aside>
 
-  <!-- ── Main area ─────────────────────────────────────────────────── -->
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <!-- TopBar — universal header (mobile + desktop) -->
     <header style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:10px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
 
-      <!-- Mobile hamburger (kept for fallback pages not yet mobilised) -->
       <button
         class="md:hidden btn btn-ghost"
         style="width:34px;height:34px;padding:0;justify-content:center;"
@@ -372,15 +342,12 @@
         {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
       </button>
 
-      <!-- Title -->
       <h1 style="margin:0;flex:1;min-width:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
         {pageTitle}
       </h1>
 
-      <!-- Chat (desktop only — sidebar nav handles mobile) -->
       <span class="hidden md:inline-flex"><ChatFab /></span>
 
-      <!-- Language toggle -->
       <button
         class="btn btn-ghost"
         style="height:34px;padding:0 10px;font-size:12px;font-weight:600;letter-spacing:0.02em;font-variant-numeric:tabular-nums;min-width:44px;justify-content:center;"
@@ -390,10 +357,8 @@
         {$locale === 'es' ? 'EN' : 'ES'}
       </button>
 
-      <!-- Notification bell -->
       <NotificationBell notifications={data.notifications ?? []} />
 
-      <!-- Theme toggle -->
       <button
         class="btn btn-ghost"
         style="width:34px;height:34px;padding:0;justify-content:center;"
@@ -403,15 +368,11 @@
         {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
       </button>
 
-      <!-- Upload CTA — mobile only (sidebar handles desktop) -->
       <a href="/" class="md:hidden btn btn-primary" style="height:34px;text-decoration:none;">
         <Upload size={14} />
       </a>
     </header>
 
-    <!-- Page content — boundary contains a post-hydration client render/effect
-         error (e.g. the /batch/[id] polling loop, the chat page) to this
-         region so the shell survives; +error.svelte still covers load errors. -->
     <div style="flex:1;overflow:auto;">
       <ErrorBoundary {children} />
     </div>
@@ -420,7 +381,6 @@
 
 </div>
 
-<!-- ── Tutorial coach marks ───────────────────────────────────────────── -->
 {#if browser}
   {#if showReviewCoachMark}
     <CoachMark
@@ -436,14 +396,11 @@
   {/if}
 
   {#if showComplete && !completeDismissed}
-    <!-- Completion overlay -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
       role="presentation"
       onclick={() => completeDismissed = true}
     >
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         style="
           background:var(--mep-bg);border:1px solid var(--mep-border-strong);
@@ -489,7 +446,6 @@
   {/if}
 
   {#if showTourNudge}
-    <!-- App-wide tour nudge — small dismissible corner card, persists across dashboard visits -->
     <div
       style="
         position:fixed;right:20px;bottom:20px;z-index:105;

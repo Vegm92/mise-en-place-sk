@@ -8,7 +8,6 @@ const MIME_TO_EXT: Record<string, string> = {
 	'application/pdf': 'pdf',
 };
 
-/** Mask a phone number for logs — keep only the last 4 digits (issue #254). */
 function maskPhone(to: string): string {
 	return `***${to.slice(-4)}`;
 }
@@ -42,14 +41,12 @@ export async function downloadWhatsAppMedia(
 ): Promise<{ buffer: Buffer; mimeType: string; extension: string }> {
 	if (!WHATSAPP_ACCESS_TOKEN) throw new Error('WHATSAPP_ACCESS_TOKEN is not set');
 
-	// Step 1: resolve the media download URL
 	const metaRes = await fetch(`${GRAPH_API_BASE}/${mediaId}`, {
 		headers: { Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}` },
 	});
 	if (!metaRes.ok) throw new Error(`WhatsApp media metadata failed (${metaRes.status})`);
 	const meta = (await metaRes.json()) as { url: string; mime_type: string };
 
-	// Step 2: download the actual bytes
 	const fileRes = await fetch(meta.url, {
 		headers: { Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}` },
 	});

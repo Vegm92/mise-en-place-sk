@@ -1,10 +1,3 @@
-/**
- * Per-tenant LLM cost quota enforcement and usage logging.
- *
- * quota rows are optional — if no row exists for a tenant the tenant is
- * treated as unlimited. Checks are advisory (best-effort) and never block
- * the extraction path on DB errors.
- */
 import { and, eq, gte, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { llmUsageLog, monthlyUsage, tenantLlmQuotas } from './schema';
@@ -12,13 +5,9 @@ import { estimateCostUsd, type LLMUsage } from './llm-provider';
 import { getMonthlyQuota } from './billing';
 
 function currentMonth(): string {
-	return new Date().toISOString().slice(0, 7); // YYYY-MM
+	return new Date().toISOString().slice(0, 7);
 }
 
-/**
- * Reads the tenant's plan invoice quota. null = unlimited.
- * Shared convention lives in billing.getMonthlyQuota (issue #295).
- */
 async function planQuotaLimit(restaurantId: string): Promise<number | null> {
 	return await getMonthlyQuota(restaurantId);
 }
@@ -27,19 +16,11 @@ export type ClaimResult =
 	| { claimed: true }
 	| { claimed: false; reason: 'monthly_plan_limit'; limit: number };
 
-/**
- * Atomically claims one monthly extraction slot against the tenant's plan
- * quota (issue #244). A single INSERT … ON CONFLICT DO UPDATE … WHERE used <
- * limit RETURNING is race-safe: concurrent uploads serialise on the row, and
- * only those under the cap get a row back. Empty return → quota exhausted,
- * before any Gemini spend. No configured limit → always claimed.
- */
 export async function claimMonthlyExtraction(restaurantId: string): Promise<ClaimResult> {
 	const limit = await planQuotaLimit(restaurantId);
 	if (limit === null) return { claimed: true };
 
 	const month = currentMonth();
-	// Seed at 1 on first insert; on conflict bump only while under the cap.
 	const rows = await db.insert(monthlyUsage)
 		.values({ restaurantId, month, used: 1 })
 		.onConflictDoUpdate({
@@ -52,11 +33,6 @@ export async function claimMonthlyExtraction(restaurantId: string): Promise<Clai
 	return rows.length > 0 ? { claimed: true } : { claimed: false, reason: 'monthly_plan_limit', limit };
 }
 
-/**
- * Releases a previously claimed slot (extraction failed and shouldn't count
- * against the quota). Never drops below zero. Best-effort — a lost decrement
- * is self-correcting at month rollover.
- */
 export async function releaseMonthlyExtraction(restaurantId: string): Promise<void> {
 	try {
 		const month = currentMonth();

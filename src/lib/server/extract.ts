@@ -1,10 +1,3 @@
-/**
- * Invoice extraction — classifies a file, prepares input for the LLM,
- * and returns structured invoice data. No DB access, no side effects.
- *
- * XML path (Facturae / UBL): structured parser is used directly; Gemini is skipped.
- * Image / PDF path: Gemini vision or text extraction as before.
- */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
@@ -104,11 +97,6 @@ QR code: If you can see and decode a QR code on the document, return the full de
 
 export interface ExtractedInvoice {
 	supplier_name: string | null;
-	/**
-	 * Category the model proposes for this supplier (issue #315). Raw model
-	 * output — never trusted as-is. Run it through `resolveSupplierCategory`
-	 * before it reaches `suppliers.category`.
-	 */
 	supplier_category?: string | null;
 	invoice_number: string | null;
 	invoice_date: string | null;
@@ -134,14 +122,9 @@ export interface ExtractedInvoice {
 		total_price: number | null;
 		confidence?: number;
 	}>;
-	// ── e-invoicing extensions (optional) ─────────────────────────────────
-	/** NIF extracted from structured XML (Facturae/UBL). */
 	supplier_nif?: string | null;
-	/** AEAT or TicketBAI QR verification URL decoded from the document image. */
 	qr_url?: string | null;
-	/** True when QR-decoded fields conflict with AI-extracted fields. */
 	qr_mismatch?: boolean;
-	/** Format of structured XML invoice, if parsed from XML rather than AI. */
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
 }
 
@@ -157,7 +140,6 @@ const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 	png:  'image/png',
 };
 
-// Abstracted generate function — decoupled from SDK so tests can inject a mock.
 export type GenerateFn = (content: string | object[]) => Promise<string>;
 
 function getGenerateFn(): GenerateFn {
@@ -175,12 +157,6 @@ function getGenerateFn(): GenerateFn {
 const PDF_PARSE_TIMEOUT_MS = 15_000;
 const GEMINI_TIMEOUT_MS = 60_000;
 
-/**
- * Pull the text layer out of a PDF to decide whether Gemini gets the text or
- * the page images. Uses unpdf (a maintained pdf.js build) rather than the
- * unmaintained pdf-parse this used to call — see issue #225. Dynamic import so
- * tests can mock it and so the pdf.js bundle is only loaded for real PDFs.
- */
 async function classifyPdf(filePath: string): Promise<ClassifiedFile> {
 	const { extractText, getDocumentProxy } = await import('unpdf');
 	const buf = readFileSync(filePath);
@@ -197,7 +173,6 @@ async function classifyPdf(filePath: string): Promise<ClassifiedFile> {
 		const text = raw.trim();
 		return text.length >= 50 ? { type: 'text_pdf', text } : { type: 'scanned_pdf' };
 	} catch {
-		// Malformed, encrypted or slow PDFs fall back to vision extraction.
 		return { type: 'scanned_pdf' };
 	}
 }
@@ -270,8 +245,6 @@ async function callGemini(
 	try {
 		return JSON.parse(raw) as ExtractedInvoice;
 	} catch {
-		// Never embed the raw response — it's customer invoice content (supplier
-		// names, amounts, tax IDs) that would ship to logs/Sentry (issue #254).
 		throw new Error(`Gemini returned invalid JSON (${raw.length} chars)`);
 	}
 }
@@ -282,7 +255,6 @@ export async function extractInvoice(
 ): Promise<ExtractedInvoice> {
 	const classified = await classifyFile(filePath);
 
-	// Structured XML path — skip Gemini entirely, use deterministic parser.
 	if (classified.type === 'xml') {
 		const result = parseEinvoice(classified.xml);
 		if (!result) throw new Error('Unrecognised XML e-invoice format (not Facturae 3.2.x or UBL 2.1)');
@@ -306,8 +278,6 @@ export async function extractInvoice(
 		clearTimeout(timeoutHandle!);
 	}
 }
-
-// ── Provider-based extraction (production path — returns token usage) ─────────
 
 async function callProvider(
 	provider: LLMProvider,
@@ -346,7 +316,6 @@ async function callProvider(
 	try {
 		return { invoice: JSON.parse(raw) as ExtractedInvoice, usage: lastUsage };
 	} catch {
-		// Never embed the raw response — it's customer invoice content (issue #254).
 		throw new Error(`LLM returned invalid JSON (${raw.length} chars)`);
 	}
 }
@@ -357,7 +326,6 @@ export async function extractWithProvider(
 ): Promise<{ invoice: ExtractedInvoice; usage: LLMUsage }> {
 	const classified = await classifyFile(filePath);
 
-	// Structured XML path — no LLM tokens consumed.
 	if (classified.type === 'xml') {
 		const result = parseEinvoice(classified.xml);
 		if (!result) throw new Error('Unrecognised XML e-invoice format (not Facturae 3.2.x or UBL 2.1)');

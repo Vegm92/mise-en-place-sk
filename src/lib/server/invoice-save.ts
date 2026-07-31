@@ -1,8 +1,3 @@
-/**
- * Invoice save flow — shared by the extract review route and the batch page.
- * Pure outcome-returning function: no redirects or HTTP concerns in here;
- * callers translate the outcome into fail()/redirect().
- */
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
@@ -124,12 +119,6 @@ async function logExtractionCorrections(
 	}
 }
 
-/**
- * Resolve each saved line to a catalog product and stamp product_id onto the
- * line items (issue #298). Fuzzy auto-links raise a `product_suggestion`
- * notification the review UI can confirm/reject. Fully self-contained: swallows
- * its own errors so it can never disturb the already-committed invoice.
- */
 async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
@@ -173,8 +162,6 @@ async function linkProductsToInvoice(
 					},
 				});
 			} else if (r.status === 'created') {
-				// Nothing deterministic matched — ask the LLM asynchronously whether
-				// this new product is really an existing one (issue #300). Best-effort.
 				await enqueueNormalize(rid, r.productId, desc).catch((e) =>
 					console.error('[invoice-save] normalize enqueue failed (non-fatal):', e));
 			}
@@ -186,21 +173,12 @@ async function linkProductsToInvoice(
 	return productByKey;
 }
 
-/**
- * Validates and persists a reviewed invoice from the submitted form data.
- * Does NOT transition the batch item on duplicates — callers decide what a
- * duplicate means for the batch (discard + where to go next). On a successful
- * save, `onSaved` runs inside the same transaction, so callers can commit the
- * batch-item confirm atomically with the invoice insert (issue #248) — a
- * crash between the two can no longer strand the item as reviewable.
- */
 export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
 	rid: string,
 	onSaved?: (tx: BatchDb) => Promise<void>,
 ): Promise<SaveOutcome> {
-	// Idempotency key (issue #250) — claimed inside the save transaction below.
 	const idemKeyRaw = formData.get('idempotency_key');
 	const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
 	const tdb = forTenant(rid);
@@ -213,7 +191,6 @@ export async function saveReviewedInvoice(
 	const notesRaw = (formData.get('notes') as string) ?? '';
 	const notes = notesRaw.slice(0, 250) || null;
 
-	// Gate: block save if any header field is low-confidence and user hasn't acknowledged
 	const lowConfAck = formData.get('low_confidence_ack') === 'true';
 	if (!lowConfAck) {
 		const extractedData = item?.extractedData ?? undefined;
@@ -226,17 +203,6 @@ export async function saveReviewedInvoice(
 		}
 	}
 
-	// Category proposed by extraction for a supplier we may be about to create
-	// (issue #315). Read from the stored extraction, never from the form: the
-	// category is a machine guess about the *supplier*, not something the user
-	// reviewed on this screen.
-	//
-	// It is dropped when the confirmed supplier name no longer matches the one
-	// the model categorised — correcting "Lácteos García" to "García Bebidas"
-	// during review means the guess was made about a different business, and
-	// applying it would tag the new supplier from the wrong document.
-	// `resolveSupplierCategory` maps anything unrecognised onto the bucket, so
-	// the worst case here is the pre-#315 behaviour plus a nudge.
 	const extracted = item?.extractedData as ExtractedInvoice | undefined;
 	const sameSupplier =
 		typeof extracted?.supplier_name === 'string' &&
@@ -252,9 +218,6 @@ export async function saveReviewedInvoice(
 	const lineTotalPrices = formData.getAll('line_total_prices') as string[];
 	const lineTaxRates = formData.getAll('line_tax_rates') as string[];
 
-	// Block 100%-exact content duplicates: compute a canonical hash of all
-	// user-confirmed fields and reject if a non-deleted invoice in this
-	// tenant already has the same hash.
 	const nonEmptyDescs = lineDescriptions.filter(d => d.trim());
 	const contentHash = computeInvoiceContentHash({
 		supplierName,
@@ -285,7 +248,6 @@ export async function saveReviewedInvoice(
 	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 	const primaryFile = item?.fileKey ?? null;
 
-	// Pre-compute unit resolutions outside the transaction (read-only DB calls)
 	type LineInput = {
 		desc: string;
 		qtyFloat: number | null;
@@ -313,7 +275,6 @@ export async function saveReviewedInvoice(
 		)
 	);
 
-	// Transactional save: supplier upsert + invoice insert + line items
 	let supplierId = 0;
 	let invoiceId: number | null = null;
 	let isDuplicate = false;
@@ -322,18 +283,13 @@ export async function saveReviewedInvoice(
 	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
 
 	await db.transaction(async (tx) => {
-		// Idempotency claim first — a replayed submit (double-click, offline
-		// replay) finds the key present and skips the whole save (issue #250).
 		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
 			isReplay = true;
 			return;
 		}
 
-		// Atomic supplier get-or-create — concurrent saves of a new supplier
-		// converge on one row instead of racing to insert clones (issue #238).
 		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory);
 
-		// Duplicate check; onConflictDoNothing below handles the race condition
 		if (invoiceNumber.trim()) {
 			const dup = await tx
 				.select({ id: invoices.id })
@@ -342,14 +298,11 @@ export async function saveReviewedInvoice(
 				.limit(1);
 			if (dup.length > 0) {
 				isDuplicate = true;
-				// Release the key so a corrected resubmit (fixed number) isn't
-				// skipped as a replay (issue #250).
 				if (idemKey) await releaseRequest(idemKey, tx);
 				return;
 			}
 		}
 
-		// Insert invoice — onConflictDoNothing guards against concurrent duplicate inserts
 		const insertedInvoice = await tx
 			.insert(invoices)
 			.values({
@@ -377,7 +330,6 @@ export async function saveReviewedInvoice(
 		}
 		invoiceId = insertedInvoice[0].id;
 
-		// Insert line items (unit rules pre-computed above)
 		for (let i = 0; i < lineInputs.length; i++) {
 			const li = lineInputs[i];
 			const rule = unitRules[i];
@@ -387,7 +339,6 @@ export async function saveReviewedInvoice(
 			const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
 			const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
 
-			// Pack structure (issue #299) — €/base for cross-size comparison.
 			const pack = parsePack(li.desc, li.unitVal);
 			const normPrice = normalizedUnitPrice(li.unitPriceFloat, pack);
 
@@ -440,25 +391,14 @@ export async function saveReviewedInvoice(
 		return { type: 'numberDuplicate' };
 	}
 
-	// Post-commit side effects are explicitly non-critical — the invoice is
-	// already persisted, so a failure here must not 500 the action and make a
-	// saved invoice look unsaved (issue #248).
 	let isFirstInvoice = false;
 	try {
-		// Link line items to catalog products first (issue #298) so price-shock
-		// can group by product_id and compare pack sizes as €/base (issue #299).
-		// Post-commit and best-effort: an enrichment, never a reason to fail a save.
 		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
 
 		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
 		const stockAlerts = await runStockForecast(savedItems, rid);
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
-		// A supplier already sitting in the bucket — created before extraction
-		// proposed categories, or from an invoice too sparse to classify — gets
-		// the guess offered rather than applied (issue #315). Returns nothing
-		// when the supplier was just tagged at creation, so a new supplier does
-		// not get asked about a category it already has.
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
 		await saveAlerts(invoiceId!, rid, [
 			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
@@ -467,10 +407,8 @@ export async function saveReviewedInvoice(
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
-		// Fire-and-forget: warn the owner when monthly usage nears the plan quota.
 		void maybeSendQuotaWarning(rid);
 
-		// Log field corrections (original AI values vs user-submitted values)
 		await logExtractionCorrections(
 			invoiceId!,
 			supplierId,
@@ -480,7 +418,6 @@ export async function saveReviewedInvoice(
 			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
 		);
 
-		// Mark onboarding complete on first invoice save
 		const onboardingRows = await db
 			.select({ value: settings.value })
 			.from(settings)

@@ -29,6 +29,7 @@
 		"worker:prod": "node build/worker.js",
 		"lint:no-sql-raw": "bash -c 'if grep -rn --include=\"*.ts\" --include=\"*.svelte\" \"sql\\.raw(\" src/; then echo \"Error: sql.raw() is banned — use parameterized sql\\`...\\` templates instead\" >&2 && exit 1; fi'",
 		"lint:tenant-scope": "bash -c 'if grep -rn --include=\"*.ts\" \"eq([a-zA-Z]*\\.restaurantId,\" src/routes/ src/lib/server/ | grep -v \"/admin/\" | grep -v \"tenant.ts\"; then echo \"Error: raw eq(*.restaurantId,...) found — use forTenant().scope() instead (ADR-001 / issue #138)\" >&2 && exit 1; fi'",
+		"lint:no-comments": "node scripts/check-no-comments.mjs",
 		"icons:generate": "node scripts/generate-pwa-icons.mjs"
 	},
 	"devDependencies": {

@@ -1,8 +1,3 @@
-/**
- * Upload file helpers — validation, storage-key generation, and local-path
- * resolution for uploaded invoice files. Batch/queue state lives in batch.ts;
- * the legacy JSON-blob session store this module once held is gone.
- */
 import path from 'path';
 import { randomBytes } from 'crypto';
 import { UPLOADS_DIR } from './env';
@@ -18,7 +13,6 @@ const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
 	'.png':  (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 && b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A,
 };
 
-/** Local uploads directory — used by the local storage driver and for file stat display. */
 export function uploadsDir(): string {
 	return path.resolve(process.cwd(), UPLOADS_DIR);
 }
@@ -27,20 +21,8 @@ export async function deleteUploadFile(key: string): Promise<void> {
 	await getStorage().delete(key);
 }
 
-/**
- * Save uploaded files using the configured storage driver.
- *
- * @param files   Files to save.
- * @param namespace  Prefix for storage keys, typically the batch ID.
- * @returns saved  Original (display) filenames with a uniqueness suffix.
- * @returns keys   Storage keys (`namespace/filename`) parallel to `saved`.
- * @returns errors Validation errors for rejected files. Structured, not prose:
- *                 the reason is an i18n key the page translates (issue #294),
- *                 with the filename carried alongside it.
- */
 export interface RejectedUpload {
 	name: string;
-	/** i18n key under upload.reject.* */
 	reason: 'unsupportedType' | 'tooLarge' | 'contentMismatch';
 	ext?: string;
 }
@@ -85,10 +67,6 @@ export async function saveUploadedFiles(
 	return { saved, keys, errors };
 }
 
-/**
- * Returns the local filesystem path for a storage key when using the local driver.
- * Used only for file stat display on the batch page.
- */
 export function localFilePath(key: string): string {
 	return path.join(uploadsDir(), key);
 }

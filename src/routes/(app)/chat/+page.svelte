@@ -60,15 +60,10 @@
       });
       const d = await res.json();
       if (res.status === 402) {
-        // Trial lapsed — paid capacity is off, but the data is still there.
         messages = [...messages, { role: 'assistant', text: $t('chat.err.trialExpired') }];
         return;
       }
       if (!res.ok) {
-        // Nothing new was persisted on the assistant side — invalidateAll()
-        // would rerun `load`, and the $effect below resyncs `messages` from
-        // that (unchanged) server data, silently wiping this error bubble
-        // before the user ever sees it (issue #306). Show it and stop.
         messages = [...messages, { role: 'assistant', text: $t('chat.error') }];
         return;
       }
@@ -117,7 +112,6 @@
 
 <div style="display:flex;height:calc(100vh - 56px);height:calc(100dvh - 56px);overflow:hidden;position:relative;">
 
-  <!-- Backdrop (tap outside to close sidebar) -->
   {#if mobileSidebarOpen}
     <div
       role="presentation"
@@ -127,7 +121,6 @@
     ></div>
   {/if}
 
-  <!-- Sidebar: always a fixed slide-over from the left, toggled by Historial button -->
   <aside
     class="
       fixed top-[56px] bottom-0 left-0 z-50
@@ -191,10 +184,8 @@
     </div>
   </aside>
 
-  <!-- Main chat area -->
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <!-- Top bar: historial button + new chat button (all screen sizes) -->
     <div
       style="height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);flex-shrink:0;"
     >
@@ -218,7 +209,6 @@
       </button>
     </div>
 
-    <!-- Messages -->
     <div
       bind:this={messagesEl}
       style="flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;max-width:800px;width:100%;margin:0 auto;"
@@ -296,7 +286,6 @@
       {/if}
     </div>
 
-    <!-- Privacy note + Input -->
     <div style="border-top:1px solid var(--mep-divider);background:var(--mep-bg);padding:12px 24px 16px;" data-coach="chat-main">
       <div style="max-width:800px;margin:0 auto;">
         <p style="font-size:10px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{$t('chat.privacy')}</p>

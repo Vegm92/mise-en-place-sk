@@ -55,7 +55,6 @@ export const load: PageServerLoad = async ({ url }) => {
 				LIMIT ${PAGE_SIZE} OFFSET ${offset}
 			`),
 
-			// Available event types for the filter dropdown
 			db.execute(sql`
 				SELECT notification_type, COUNT(*) AS cnt
 				FROM system_notifications

@@ -10,7 +10,6 @@
 
   <h2 style="margin:0;font-size:22px;font-weight:600;color:#111;letter-spacing:-0.3px;">{$t('admin.overview')}</h2>
 
-  <!-- 7-day KPIs -->
   <section>
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
       {$t('admin.last7days')}
@@ -35,7 +34,6 @@
     </div>
   </section>
 
-  <!-- Totals -->
   <section>
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
       {$t('admin.allTimeTotals')}
@@ -56,7 +54,6 @@
     </div>
   </section>
 
-  <!-- Recent restaurants -->
   <section>
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
       {$t('admin.recentRestaurants')}
@@ -91,7 +88,6 @@
     </div>
   </section>
 
-  <!-- Links -->
   <section style="display:flex;gap:10px;flex-wrap:wrap;">
     <a href="/admin/events" style="padding:8px 16px;background:#dc2626;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
       {$t('admin.viewEvents')}

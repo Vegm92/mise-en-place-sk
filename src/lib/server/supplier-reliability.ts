@@ -48,11 +48,6 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 
 	if (prices.length < 2) return { score: 20, cv: null };
 
-	// Coefficient of variation per product, then averaged — not pooled across
-	// products (issue #308). Pooling raw prices from different items (e.g. a
-	// €1/kg tomato and a €6 jar of olives) reads as huge "instability" purely
-	// from their different price levels, even when each one is individually
-	// rock-steady.
 	const byDescription = new Map<string, number[]>();
 	for (const p of prices) {
 		const arr = byDescription.get(p.description);

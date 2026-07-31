@@ -56,21 +56,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
 
-	// AI chat is paid capacity: an expired trial keeps its data but stops
-	// spending (issue #287). 402 so the client can show upgrade copy rather
-	// than a generic failure.
 	const access = await getAccessState(rid);
 	if (!access.allowed) {
 		return json({ error: 'trial_expired' }, { status: 402 });
 	}
 
-	// Key by authenticated user, not client IP: behind a proxy every user shares
-	// one IP, which would let a single tenant exhaust the global chat budget.
 	if (!await checkRateLimit(`chat:${locals.user!.id}`, CHAT_RATE_LIMIT_RPM)) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 
-	// Resolve or create session — an existing id must belong to this tenant
 	let resolvedSessionId = sessionId;
 	if (!resolvedSessionId) {
 		const titleWords = message.slice(0, 60).replace(/\n/g, ' ');
@@ -86,16 +80,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (updated.length === 0) throw error(404, 'Chat session not found');
 	}
 
-	// Persist user message
 	await db.insert(chatMessages).values({ restaurantId: rid, sessionId: resolvedSessionId, role: 'user', text: message });
 	trackEvent('chat_message_sent', rid, { session_id: resolvedSessionId, length: message.length });
 
 	const context = await buildChatContext(rid);
 	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-	// System instruction is entirely server-controlled. Restaurant data lives in
-	// <restaurant_data> tags so the model treats it as data, not as instructions,
-	// even if supplier names or invoice text contain adversarial strings.
 	const systemInstruction = [
 		SYSTEM_PROMPT,
 		'',
@@ -110,14 +100,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const response = await ai.models.generateContent({
 			model: GEMINI_MODEL,
 			config: { systemInstruction },
-			// User message is kept in the user turn, never concatenated into the system instruction.
 			contents: [{ role: 'user', parts: [{ text: message }] }],
 		});
 
 		const raw = response.text ?? 'No response generated.';
 		const { text: reply, actions } = parseActionsBlock(raw);
 
-		// Persist assistant message
 		await db.insert(chatMessages).values({
 			restaurantId: rid,
 			sessionId: resolvedSessionId,

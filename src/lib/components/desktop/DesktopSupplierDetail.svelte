@@ -92,7 +92,6 @@
     return nonZero.length ? nonZero.reduce((s, m) => s + m.value, 0) / nonZero.length : 0;
   })());
 
-  // Product spend donut â€” top 5 + "Other", fixed categorical hue order (never cycled)
   const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   interface DonutSlice {
     label: string; spend: number; pct: number; color: string;
@@ -132,7 +131,6 @@
   })());
   let hoveredSlice = $state<number | null>(null);
 
-  // SVG chart constants
   const CL = 40;
   const CW = 620;
   const CH = 140;
@@ -154,10 +152,8 @@
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
   <div style="display:flex;flex-direction:column;flex:1;min-height:0;">
 
-    <!-- Sticky header area -->
     <div style="padding:18px 24px 0;flex-shrink:0;">
 
-      <!-- Breadcrumb -->
       <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
         <a href="/suppliers" style="color:var(--mep-fg-3);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
           <ArrowLeft size={12} /> {$t('nav.suppliers')}
@@ -166,7 +162,6 @@
         <span style="color:var(--mep-fg-2);">{s.name}</span>
       </div>
 
-      <!-- Supplier header -->
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
         <div style="
           width:52px;height:52px;border-radius:26px;flex-shrink:0;
@@ -210,7 +205,6 @@
         {/if}
       </div>
 
-      <!-- Delete confirmation -->
       {#if confirmDelete}
         <div class="card" style="padding:14px;border-left:3px solid #E05555;margin-bottom:14px;">
           <p class="body-strong" style="color:#E05555;margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
@@ -228,7 +222,6 @@
         </div>
       {/if}
 
-      <!-- Edit form -->
       {#if editing}
         <div class="card" style="padding:20px;margin-bottom:14px;">
           <p class="body-strong" style="margin-bottom:14px;">{$t('sup.edit.title')}</p>
@@ -280,7 +273,6 @@
         </div>
       {/if}
 
-      <!-- Tabs -->
       <div style="display:flex;gap:0;border-bottom:1px solid var(--mep-divider);">
         {#each [
           { id: 'resumen',      label: $t('sup.tab.resumen') },
@@ -308,17 +300,13 @@
       </div>
     </div>
 
-    <!-- Tab content -->
     <div style="flex:1;min-height:0;overflow:auto;padding:18px 24px 24px;">
 
-      <!-- â”€â”€ RESUMEN â”€â”€ -->
       {#if tab === 'resumen'}
         <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start;">
 
-          <!-- Left column -->
           <div style="display:flex;flex-direction:column;gap:14px;">
 
-            <!-- Monthly spend chart -->
             <div class="card" style="padding:16px 16px 12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                 <div>
@@ -363,7 +351,6 @@
               </svg>
             </div>
 
-            <!-- KPI strip -->
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{$t('sup.avgInvoice')}</div>
@@ -390,7 +377,6 @@
               </div>
             </div>
 
-            <!-- Reliability breakdown -->
             {#if m}
               <div class="card" style="padding:20px;">
                 <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
@@ -447,10 +433,8 @@
 
           </div>
 
-          <!-- Right column -->
           <div style="display:flex;flex-direction:column;gap:14px;">
 
-            <!-- Info card -->
             <div class="card" style="padding:16px;">
               <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
               {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
@@ -501,7 +485,6 @@
               {/if}
             </div>
 
-            <!-- Recent invoices -->
             <div class="card" style="padding:0;overflow:hidden;">
               <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
                 <div class="subtitle">{$t('dash.invoices')}</div>
@@ -538,7 +521,6 @@
           </div>
         </div>
 
-      <!-- â”€â”€ FACTURAS â”€â”€ -->
       {:else if tab === 'facturas'}
         {#if !invoices.length}
           <div style="text-align:center;padding:48px 24px;">
@@ -571,7 +553,6 @@
           </div>
         {/if}
 
-      <!-- â”€â”€ PRODUCTOS â”€â”€ -->
       {:else if tab === 'productos'}
         {#if products.length === 0}
           <div class="card" style="padding:24px;display:flex;align-items:center;gap:10px;">
@@ -582,7 +563,6 @@
           <div class="card" style="padding:16px;margin-bottom:14px;">
             <div class="subtitle" style="margin-bottom:12px;">{$t('sup.products.dominance')}</div>
             <div style="display:flex;gap:24px;align-items:center;">
-              <!-- Donut -->
               <div style="position:relative;flex-shrink:0;width:180px;height:180px;">
                 <svg width="180" height="180" viewBox="0 0 180 180" style="overflow:visible;transform:rotate(-90deg);">
                   {#each productDonut.slices as slice, i}
@@ -612,7 +592,6 @@
                 </div>
               </div>
 
-              <!-- Legend + hover detail -->
               <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;">
                 {#each productDonut.slices as slice, i}
                   <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:default;
@@ -661,7 +640,6 @@
           </div>
         {/if}
 
-      <!-- â”€â”€ CONVERSIONES â”€â”€ -->
       {:else if tab === 'conversiones'}
         <div style="display:flex;flex-direction:column;gap:14px;">
 
@@ -705,7 +683,6 @@
             </div>
           {/if}
 
-          <!-- Add conversion form -->
           <div class="card" style="padding:16px;">
             <p class="body-strong" style="margin-bottom:12px;">{$t('sup.conv.add')}</p>
             <form method="post" action="?/addConversion"

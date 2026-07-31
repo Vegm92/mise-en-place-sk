@@ -13,10 +13,8 @@ export const actions: Actions = {
   join: async ({ request, getClientAddress }) => {
     const data = await request.formData();
 
-    // Honeypot: bots fill hidden fields, humans leave them empty
     if (data.get('_hp')) return fail(422, { error: 'invalid' });
 
-    // Rate limit: 5 submissions per minute per IP
     const ip = getClientAddress();
     const allowed = await checkRateLimit(`waitlist:${ip}`, 5);
     if (!allowed) return fail(429, { error: 'rate_limited' });

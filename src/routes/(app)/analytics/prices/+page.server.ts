@@ -35,8 +35,6 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 
 	const supplierFilter = supplierId ? sql`AND supplier_id = ${supplierId}` : sql``;
 
-	// Read from mv_price_snapshots (pre-computed latest+prev price per item+supplier).
-	// Replaces the self-joining window CTE that scanned all invoice_line_items.
 	const rawRows = await db.execute(sql`
 		SELECT
 			description,

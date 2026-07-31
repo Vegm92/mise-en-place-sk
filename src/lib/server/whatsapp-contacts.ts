@@ -1,16 +1,3 @@
-/**
- * Authorised WhatsApp numbers (issue #187 follow-up).
- *
- * `whatsapp_contacts` is the allow-list the bot checks before it will process
- * anything: an unknown sender is answered with "no autorizado" and dropped
- * (`whatsapp-bot.ts`). Until this module existed the table could only be
- * populated with hand-written SQL, which made the bot effectively unusable for
- * anyone who wasn't the operator.
- *
- * Numbers are stored the way Meta delivers them in the webhook `from` field:
- * E.164 **without** the leading '+', e.g. "34612345678". Anything a user types
- * has to be normalised into that shape or the lookup silently never matches.
- */
 import { asc, eq } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { whatsappContacts } from './schema';
@@ -41,14 +28,6 @@ export type AddContactResult =
 	| { ok: true }
 	| { ok: false; reason: 'invalid' | 'tooShort' | 'tooLong' | 'taken' };
 
-/**
- * Authorise a number for this restaurant.
- *
- * `whatsapp_contacts_phone_unique` is global, not per-tenant: one phone maps to
- * exactly one restaurant, because the bot resolves the tenant *from* the number
- * and a second row would make that ambiguous. A number already claimed by
- * another tenant therefore fails as 'taken' rather than silently rebinding it.
- */
 export async function addContact(
 	restaurantId: string,
 	rawPhone: string,
@@ -71,8 +50,6 @@ export async function addContact(
 
 	if (inserted.length > 0) return { ok: true };
 
-	// Conflict: either this tenant already has it (idempotent success) or
-	// another tenant holds it (a real error the user needs to see).
 	const [existing] = await db
 		.select({ restaurantId: whatsappContacts.restaurantId })
 		.from(whatsappContacts)
@@ -82,7 +59,6 @@ export async function addContact(
 	return existing?.restaurantId === restaurantId ? { ok: true } : { ok: false, reason: 'taken' };
 }
 
-/** De-authorise a number. Tenant-scoped so one restaurant cannot remove another's. */
 export async function removeContact(restaurantId: string, id: number): Promise<boolean> {
 	const tdb = forTenant(restaurantId);
 	const deleted = await db

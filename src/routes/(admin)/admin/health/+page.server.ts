@@ -11,15 +11,12 @@ import {
 	type NumberHealth,
 } from '$lib/server/whatsapp-health';
 
-// A worker that died leaves items stuck in queued/extracting. Warn on any
-// item stuck past this; error past the count threshold (issue #257).
 const STUCK_MINUTES = 15;
 const STUCK_ERROR_THRESHOLD = 10;
 
 export const load: PageServerLoad = async () => {
 	const checks: { name: string; status: 'ok' | 'warn' | 'error'; detail: string }[] = [];
 
-	// DB connectivity
 	let dbOk = false;
 	try {
 		await db.execute(sql`SELECT 1`);
@@ -29,7 +26,6 @@ export const load: PageServerLoad = async () => {
 		checks.push({ name: 'Database', status: 'error', detail: String(e) });
 	}
 
-	// Table record counts (only if DB is reachable)
 	let tableCounts: Array<{ table: string; rows: number }> = [];
 	if (dbOk) {
 		try {
@@ -41,12 +37,9 @@ export const load: PageServerLoad = async () => {
 			tableCounts = (rows as unknown as Array<{ relname: string; n_live_tup: string }>)
 				.map(r => ({ table: r.relname, rows: Number(r.n_live_tup) }));
 		} catch {
-			// pg_stat not available in all environments
 		}
 	}
 
-	// Worker liveness + queue depth — a worker that died Friday night otherwise
-	// shows a green page while invoices pile up in 'queued' (issue #257).
 	if (dbOk) {
 		try {
 			const cutoff = new Date(Date.now() - STUCK_MINUTES * 60 * 1000);
@@ -80,9 +73,6 @@ export const load: PageServerLoad = async () => {
 		}
 	}
 
-	// Shared WhatsApp number (issue #321). One WABA serves every tenant, so a
-	// quality downgrade or restriction stops ingest for the whole customer base
-	// at once — it belongs on the same page as the worker and the database.
 	let whatsapp: {
 		health: NumberHealth;
 		events: Awaited<ReturnType<typeof recentAccountEvents>>;
@@ -98,9 +88,6 @@ export const load: PageServerLoad = async () => {
 			whatsapp = { health, events, tenants };
 			checks.push({
 				name: 'WhatsApp number',
-				// Never reported is not the same as healthy — it means the
-				// account-level webhook fields are not subscribed yet, so a
-				// downgrade would arrive as silence.
 				status: !health.everReported
 					? 'warn'
 					: health.severity === 'critical' ? 'error' : health.severity === 'warning' ? 'warn' : 'ok',
@@ -115,7 +102,6 @@ export const load: PageServerLoad = async () => {
 		}
 	}
 
-	// Required env vars
 	const requiredVars = [
 		'DATABASE_URL',
 		'GEMINI_API_KEY',

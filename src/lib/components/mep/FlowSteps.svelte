@@ -1,14 +1,4 @@
 <script lang="ts">
-	/**
-	 * Upload → Extract → Review progress indicator (issue #232).
-	 *
-	 * Extracted from UploadPanel so the cue survives the navigation to
-	 * /batch/[id] — where steps 2 and 3 actually happen, and where it was
-	 * previously missing at exactly the moment it helps most.
-	 *
-	 * `active` is the zero-based index of the current step; earlier steps read as
-	 * done, later ones as pending.
-	 */
 	import Check from '@lucide/svelte/icons/check';
 	import { t } from '$lib/i18n';
 

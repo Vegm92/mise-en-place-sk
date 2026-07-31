@@ -1,7 +1,3 @@
-/**
- * Swappable LLM provider abstraction.
- * Production code uses createLLMProvider(); tests inject a mock via extractInvoice's generateOverride.
- */
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL, LLM_PROVIDER } from './env';
 
@@ -21,7 +17,6 @@ export interface LLMProvider {
 	generate(content: string | object[]): Promise<LLMResponse>;
 }
 
-// Pricing per million tokens (USD) — verify against https://ai.google.dev/gemini-api/docs/pricing
 const COST_PER_MILLION: Record<string, { input: number; output: number }> = {
 	'gemini-2.5-flash':      { input: 0.30, output: 2.50 },
 	'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
