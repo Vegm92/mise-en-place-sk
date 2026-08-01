@@ -6,7 +6,7 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import { fmtEur, fmtEurCompact, fmtDate, toMonthStr, shiftMonth } from '$lib/formatters';
-  import { locale, t, ti, tp } from '$lib/i18n';
+  import { locale, t, ti, tp, tcat } from '$lib/i18n';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
   interface Supplier {
@@ -210,7 +210,7 @@
           </a>
         </div>
         {#each topSuppliers as s, i}
-          {@const sub = [s.cat, s.invoices ? `${s.invoices} facturas` : null].filter(Boolean).join(' · ')}
+          {@const sub = [s.cat ? $tcat(s.cat) : null, s.invoices ? `${s.invoices} ${$t('sup.invoicesSuffix')}` : null].filter(Boolean).join(' · ')}
           <div style="
             display: flex; align-items: center; gap: 12px;
             padding: 8px 0;

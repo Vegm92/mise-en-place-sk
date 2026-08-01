@@ -10,7 +10,7 @@
   import Truck from '@lucide/svelte/icons/truck';
   import CreditCard from '@lucide/svelte/icons/credit-card';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
-  import { locale, t, ti, tp } from '$lib/i18n';
+  import { locale, t, ti, tp, tcat } from '$lib/i18n';
 
   interface Supplier {
     name: string;
@@ -179,7 +179,7 @@
             {#if s.category}
               <span style="display:inline-flex;align-items:center;gap:5px;">
                 <span class="swatch" style="background:{color};"></span>
-                {s.category}
+                {$tcat(s.category)}
               </span>
             {:else}
               <span style="font-style:italic;">{$t('sup.noCategory')}</span>
@@ -240,7 +240,7 @@
                 <select id="edit-category" class="input" name="category" style="width:100%;">
                   <option value="">{$t('sup.noCategory')}</option>
                   {#each VALID_CATEGORIES as cat}
-                    <option value={cat} selected={s.category === cat}>{cat}</option>
+                    <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
                   {/each}
                 </select>
               </div>

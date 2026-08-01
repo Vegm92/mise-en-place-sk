@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
-  import { locale, t, ti } from '$lib/i18n';
+  import { locale, t, ti, tcat } from '$lib/i18n';
   import Search from '@lucide/svelte/icons/search';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Plus from '@lucide/svelte/icons/plus';
@@ -74,7 +74,7 @@
         bind:value={catFilter}>
         <option value="">{$t('sup.filterAllCategories')}</option>
         {#each categories as cat}
-          <option value={cat}>{cat}</option>
+          <option value={cat}>{$tcat(cat)}</option>
         {/each}
       </select>
       <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
@@ -174,7 +174,7 @@
                     color:{s.category === 'Other' ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
                     font-style:{s.category === 'Other' ? 'italic' : 'normal'};">
                     <span class="swatch" style="background:{s.color};"></span>
-                    {s.category === 'Other' ? 'Sin categoría' : (s.category ?? 'Sin categoría')}
+                    {$tcat(s.category)}
                   </span>
                 </td>
                 <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>

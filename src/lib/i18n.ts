@@ -1,4 +1,5 @@
 import { writable, derived } from 'svelte/store';
+import { categorySlug } from './constants';
 
 export type Locale = 'es' | 'en';
 
@@ -547,6 +548,20 @@ export const translations = {
     'action.delete':           'Eliminar',
     'sup.contact':             'Contactar',
     'sup.noCategory':          'Sin categoría',
+    'category.frutas-y-verduras':        'Frutas y Verduras',
+    'category.carnes-y-derivados':       'Carnes y Derivados',
+    'category.pescados-y-mariscos':      'Pescados y Mariscos',
+    'category.lacteos':                  'Lácteos',
+    'category.aceites-y-conservas':      'Aceites y Conservas',
+    'category.bebidas':                  'Bebidas',
+    'category.panaderia-y-bolleria':     'Panadería y Bollería',
+    'category.especias-y-condimentos':   'Especias y Condimentos',
+    'category.productos-de-limpieza':    'Productos de Limpieza',
+    'category.congelados':               'Congelados',
+    'category.embutidos-y-charcuteria':  'Embutidos y Charcutería',
+    'category.vinos-y-cavas':            'Vinos y Cavas',
+    'category.cafe-y-bebidas-calientes': 'Café y Bebidas Calientes',
+    'category.other':                    'Sin categoría',
     'sup.confirmDelete.title': '¿Eliminar este proveedor?',
     'sup.confirmDelete.body':  'Las {n} facturas asociadas quedarán sin proveedor. Esta acción no se puede deshacer.',
     'sup.confirmDelete.yes':   'Sí, eliminar',
@@ -1592,6 +1607,20 @@ export const translations = {
     'action.delete':           'Delete',
     'sup.contact':             'Contact',
     'sup.noCategory':          'No category',
+    'category.frutas-y-verduras':        'Fruit & vegetables',
+    'category.carnes-y-derivados':       'Meat & meat products',
+    'category.pescados-y-mariscos':      'Fish & seafood',
+    'category.lacteos':                  'Dairy',
+    'category.aceites-y-conservas':      'Oils & preserves',
+    'category.bebidas':                  'Beverages',
+    'category.panaderia-y-bolleria':     'Bakery & pastries',
+    'category.especias-y-condimentos':   'Spices & seasonings',
+    'category.productos-de-limpieza':    'Cleaning products',
+    'category.congelados':               'Frozen foods',
+    'category.embutidos-y-charcuteria':  'Cured meats & charcuterie',
+    'category.vinos-y-cavas':            'Wines & sparkling wines',
+    'category.cafe-y-bebidas-calientes': 'Coffee & hot drinks',
+    'category.other':                    'No category',
     'sup.confirmDelete.title': 'Delete this supplier?',
     'sup.confirmDelete.body':  'The {n} associated invoices will be left without a supplier. This action cannot be undone.',
     'sup.confirmDelete.yes':   'Yes, delete',
@@ -2107,6 +2136,25 @@ export const ti = derived(
       Object.entries(vars).reduce(
         (s, [k, v]) => s.replaceAll(`{${k}}`, String(v)),
         $t(key),
+      ),
+);
+
+export const tcat = derived(t, ($t) => (canonical: string | null | undefined): string => {
+  if (!canonical) return $t('sup.noCategory');
+  const key = `category.${categorySlug(canonical)}`;
+  const label = $t(key);
+  return label === key ? canonical : label;
+});
+
+export const tiv = derived(
+  [ti, tcat],
+  ([$ti, $tcat]) =>
+    (key: string, vars: Record<string, string | number>): string =>
+      $ti(
+        key,
+        'category' in vars
+          ? { ...vars, category: $tcat(String(vars.category)) }
+          : vars,
       ),
 );
 

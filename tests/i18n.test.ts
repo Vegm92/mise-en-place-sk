@@ -1,13 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
-import { locale, t, ti, tp, translations } from '../src/lib/i18n';
+import { locale, t, ti, tp, tcat, tiv, translations } from '../src/lib/i18n';
 
 // Resolve a key against the current locale via the derived `t` store.
 const tr = (key: string) => get(t)(key);
 // Interpolating / pluralizing resolvers via their derived stores.
 const tri = (key: string, vars: Record<string, string | number>) => get(ti)(key, vars);
 const trp = (key: string, count: number) => get(tp)(key, count);
+// Category-value and category-aware interpolation resolvers.
+const trcat = (canonical: string | null | undefined) => get(tcat)(canonical);
+const triv = (key: string, vars: Record<string, string | number>) => get(tiv)(key, vars);
 
 beforeEach(() => {
   // Tests mutate the shared locale store; reset to the default each time.
@@ -272,6 +275,105 @@ describe('tp (pluralizing translator)', () => {
 // the quota messages, hardcoded Spanish). The server now returns i18n keys, so
 // every key it can emit must resolve in both locales; an unresolved key would
 // render as `upload.err.something` in the user's face.
+describe('tcat (category display labels, issue #338)', () => {
+  it('renders canonical Spanish values as-is in Spanish', () => {
+    locale.set('es');
+    expect(trcat('Bebidas')).toBe('Bebidas');
+    expect(trcat('Lácteos')).toBe('Lácteos');
+    expect(trcat('Pescados y Mariscos')).toBe('Pescados y Mariscos');
+  });
+
+  it('translates canonical values in English', () => {
+    locale.set('en');
+    expect(trcat('Bebidas')).toBe('Beverages');
+    expect(trcat('Lácteos')).toBe('Dairy');
+    expect(trcat('Productos de Limpieza')).toBe('Cleaning products');
+    expect(trcat('Café y Bebidas Calientes')).toBe('Coffee & hot drinks');
+  });
+
+  it('translates the Other sentinel in both directions', () => {
+    locale.set('es');
+    expect(trcat('Other')).toBe('Sin categoría');
+    locale.set('en');
+    expect(trcat('Other')).toBe('No category');
+  });
+
+  it('treats null/empty as uncategorised', () => {
+    locale.set('es');
+    expect(trcat(null)).toBe('Sin categoría');
+    expect(trcat(undefined)).toBe('Sin categoría');
+    expect(trcat('')).toBe('Sin categoría');
+  });
+
+  it('falls back to the canonical string for unknown categories, never a raw key', () => {
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      expect(trcat('Mi Categoría Personalizada')).toBe('Mi Categoría Personalizada');
+      expect(trcat('Trufa Negra')).toBe('Trufa Negra');
+    }
+  });
+
+  it('reacts to locale changes', () => {
+    locale.set('es');
+    expect(trcat('Congelados')).toBe('Congelados');
+    locale.set('en');
+    expect(trcat('Congelados')).toBe('Frozen foods');
+  });
+});
+
+describe('tiv (category-aware interpolation, issue #338)', () => {
+  it('translates the category var inside a notification message', () => {
+    locale.set('en');
+    const msg = triv('notif.msg.catSuggested', {
+      supplier: 'Refrescos y Más Distribución, S.L.',
+      category: 'Bebidas',
+    });
+    expect(msg).toBe(
+      "Is 'Refrescos y Más Distribución, S.L.' a Beverages supplier? Confirm to count its spend towards budgets and analytics.",
+    );
+    expect(msg).not.toContain('Bebidas');
+  });
+
+  it('leaves the canonical value in place in Spanish', () => {
+    locale.set('es');
+    expect(triv('notif.msg.catSuggested', { supplier: 'Acme', category: 'Bebidas' })).toContain(
+      'un proveedor de Bebidas',
+    );
+  });
+
+  it('translates the category in budget alerts too', () => {
+    locale.set('en');
+    expect(
+      triv('notif.msg.budgetExceeded', {
+        category: 'Pescados y Mariscos',
+        spent: 900,
+        budget: 800,
+        pct: 112,
+      }),
+    ).toContain("'Fish & seafood'");
+  });
+
+  it('passes through custom budget categories unchanged', () => {
+    locale.set('en');
+    expect(
+      triv('notif.msg.budgetWarning', {
+        category: 'Trufa Negra',
+        spent: 90,
+        budget: 100,
+        pct: 90,
+        threshold: 80,
+      }),
+    ).toContain("'Trufa Negra'");
+  });
+
+  it('behaves like ti when there is no category var', () => {
+    locale.set('en');
+    expect(triv('notif.msg.uncategorized', { supplier: 'Acme' })).toBe(
+      tri('notif.msg.uncategorized', { supplier: 'Acme' }),
+    );
+  });
+});
+
 describe('upload action error keys (server-returned, issue #294)', () => {
   const serverSource = readFileSync(
     new URL('../src/routes/(app)/+page.server.ts', import.meta.url),
