@@ -7,32 +7,48 @@ import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { createClient } from '@supabase/supabase-js';
 import * as schema from '../../src/lib/server/schema';
+import { resolveDbGate } from './db-gate';
 
-const _url = process.env.DATABASE_URL ?? '';
-const _isLocal = /localhost|127\.0\.0\.1/.test(_url);
-
-/** True when a plain Postgres connection is available (ephemeral CI or Supabase). */
-export const hasDbEnv = !!_url;
+const _gate = resolveDbGate(process.env);
+const _url = _gate.url;
+const _isLocal = _gate.isLocal;
 
 /**
- * True when DATABASE_URL points at a local/ephemeral Postgres (CI service
- * container or local dev), as opposed to a hosted Supabase pooler. Guards
- * tests that run privileged DDL (roles, function redefinition) which must
- * never touch a real Supabase database.
+ * True when DB-backed suites may run: a local/ephemeral Postgres, or a remote
+ * one the developer explicitly opted into with ALLOW_REMOTE_DB_TESTS=1.
+ * A hosted DATABASE_URL alone is NOT enough — these tests write and delete
+ * real rows (issue #336).
+ */
+export const hasDbEnv = _gate.enabled;
+
+/**
+ * True when the test database is local/ephemeral (CI service container or
+ * local dev), as opposed to a hosted Supabase pooler. Guards tests that run
+ * privileged DDL (roles, function redefinition) which must never touch a real
+ * Supabase database.
  */
 export const isLocalDb = _isLocal;
 
 /** True when Supabase-specific vars are present (auth tests, connection tests). */
 export const hasSupabaseEnv = !!(
-	_url &&
+	hasDbEnv &&
 	process.env.SUPABASE_URL &&
 	process.env.SUPABASE_ANON_KEY &&
 	process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 // When REQUIRE_DB_TESTS=1 (set by CI when secrets are known to be configured),
-// missing Supabase vars are a hard failure rather than a silent skip. This
-// catches typo'd secret names or accidentally dropped env entries in the workflow.
+// a disabled DB gate is a hard failure rather than a silent skip — it means the
+// workflow's DATABASE_URL is missing or no longer points at the service container.
+if (process.env.REQUIRE_DB_TESTS === '1' && !hasDbEnv) {
+	throw new Error(
+		`\nREQUIRE_DB_TESTS=1 but DB-backed tests are disabled: ${_gate.skipReason}.\n` +
+			'Point DATABASE_URL at the CI Postgres service, or set ALLOW_REMOTE_DB_TESTS=1 to opt in.\n'
+	);
+}
+
+// Likewise, missing Supabase vars under REQUIRE_DB_TESTS=1 catch typo'd secret
+// names or accidentally dropped env entries in the workflow.
 if (process.env.REQUIRE_DB_TESTS === '1' && !hasSupabaseEnv) {
 	const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'].filter(
 		(k) => !process.env[k]

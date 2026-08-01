@@ -70,9 +70,24 @@ Multi-tenancy: every business table carries `restaurant_id`; access is enforced 
 
 | Command | Purpose |
 |---|---|
-| `pnpm check` / `pnpm test` | typecheck / unit & integration tests (integration suites skip without Supabase env) |
+| `pnpm check` / `pnpm test` | typecheck / unit & integration tests (DB-backed suites need a **local** Postgres — see below) |
 | `pnpm db:generate` / `db:migrate` / `db:studio` | Drizzle workflow |
 | `pnpm synth:e2e` | synthetic invoice benchmark for extraction quality (`synth/`) |
+
+### Running the DB-backed tests
+
+Those suites create and delete real restaurants, suppliers, invoices and
+notifications, so they only run against a **local** Postgres
+(`localhost` / `127.0.0.1` / `::1` / `host.docker.internal`). If your `DATABASE_URL`
+points at hosted Supabase — the shape in `.env.example` — they skip with a loud
+notice instead of writing to it.
+
+- Preferred: set `DATABASE_TEST_URL` to a local database, keeping app and test
+  connection strings separate by construction.
+- Alternatively point `DATABASE_URL` itself at local Postgres (see
+  `.claude/skills/verify/SKILL.md` for a ready-made local stack).
+- `ALLOW_REMOTE_DB_TESTS=1` forces them to run against a non-local database.
+  Destructive — throwaway databases only.
 
 ## Regulatory context (Spain)
 
