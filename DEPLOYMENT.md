@@ -390,7 +390,19 @@ WhatsApp"), `NO` discards it.
 ## CI
 
 `.github/workflows/ci.yml` runs typecheck, tests, build, and the `lint:no-sql-raw`
-/ `lint:tenant-scope` guards on pushes/PRs to `main`. Integration suites need the
-Supabase secrets configured in repo settings — without them they skip (the run
-prints exactly which suites were skipped; set `REQUIRE_DB_TESTS=1` to turn those
-skips into failures).
+/ `lint:tenant-scope` / `lint:i18n` guards on pushes/PRs to `main`. Integration
+suites need the Supabase secrets configured in repo settings — without them they
+skip (the run prints exactly which suites were skipped; set `REQUIRE_DB_TESTS=1`
+to turn those skips into failures).
+
+`lint:i18n` (`scripts/check-i18n-strings.mjs`) fails the build on user-facing
+strings that bypass the i18n table: prose in Svelte text nodes, in `placeholder` /
+`title` / `aria-label` / `alt`, in label-ish object properties, and any string
+literal carrying Spanish orthography. Fix a hit by adding the key to **both**
+locales in `src/lib/i18n.ts` and rendering it with `$t` / `$ti` / `$tp`. Genuinely
+language-neutral tokens (brand, `EUR`, `kg`, `YYYY-MM-DD`) go in the `ALLOWED` set
+in that script; the legal pages and the marketing landing carry their own
+locale-keyed copy and are skipped wholesale.
+
+DB-backed tests only run against a local Postgres — see the README for
+`DATABASE_TEST_URL` / `ALLOW_REMOTE_DB_TESTS`.

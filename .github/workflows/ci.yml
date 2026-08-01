@@ -52,6 +52,9 @@ jobs:
       - name: Lint — tenant scoping (ADR-001)
         run: pnpm lint:tenant-scope
 
+      - name: Lint — no hardcoded user-facing strings
+        run: pnpm lint:i18n
+
       - name: Type check
         run: pnpm check
 

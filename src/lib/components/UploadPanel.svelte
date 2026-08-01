@@ -208,9 +208,9 @@
             }
             resolve(null);
           }
-        } catch { reject(new Error('Invalid response')); }
+        } catch { reject(new Error($t('upload.err.badResponse'))); }
       });
-      xhr.addEventListener('error', () => reject(new Error('network error')));
+      xhr.addEventListener('error', () => reject(new Error($t('upload.err.network'))));
       xhr.send(fd);
     });
   }
@@ -676,7 +676,7 @@
     <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px;min-height:0;overflow:hidden;">
       <img
         src={previewUrl}
-        alt="Vista previa de factura"
+        alt={$t('upload.previewAlt')}
         style="max-width:100%;max-height:100%;border-radius:10px;object-fit:contain;box-shadow:0 4px 32px rgba(0,0,0,0.5);"
       />
     </div>

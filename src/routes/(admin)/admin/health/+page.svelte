@@ -66,30 +66,27 @@
   {#if data.whatsapp}
     <section>
       <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
-        WhatsApp number health
+        {$t('admin.wa.numberHealth')}
       </div>
 
       {#if !data.whatsapp.health.everReported}
         <div class="card" style="padding:14px 16px;font-size:13px;color:#555;">
-          No account-level events received yet. Subscribe to the
-          <code>account_update</code> and <code>phone_number_quality_update</code>
-          webhook fields in Meta so a quality downgrade is delivered rather than
-          discovered from support tickets.
+          {$ti('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' })}
         </div>
       {:else}
         <div class="card" style="padding:14px 16px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px;">
           <div>
-            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Quality</div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.quality')}</div>
             <div style="font-weight:600;color:{QUALITY_COLOR[data.whatsapp.health.qualityRating ?? ''] ?? '#111'};">
               {data.whatsapp.health.qualityRating ?? 'unknown'}
             </div>
           </div>
           <div>
-            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Messaging limit</div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.messagingLimit')}</div>
             <div style="font-weight:600;color:#111;">{data.whatsapp.health.messagingLimit ?? 'unknown'}</div>
           </div>
           <div>
-            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Worst (30 d)</div>
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.worst30d')}</div>
             <div style="font-weight:600;color:{STATUS_COLOR[SEVERITY_STATUS[data.whatsapp.health.severity]]};">
               {data.whatsapp.health.lastEvent ?? '—'}
             </div>
@@ -102,10 +99,10 @@
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
             <thead>
               <tr style="border-bottom:1px solid var(--mep-divider,#e5e5e5);">
-                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">When</th>
-                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Event</th>
-                <th style="padding:8px 16px;text-align:center;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Severity</th>
-                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">Quality</th>
+                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colWhen')}</th>
+                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colEvent')}</th>
+                <th style="padding:8px 16px;text-align:center;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colSeverity')}</th>
+                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.quality')}</th>
               </tr>
             </thead>
             <tbody>
@@ -134,7 +131,7 @@
 
       {#if data.whatsapp.tenants.length > 0}
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin:16px 0 10px;">
-          Authorised senders per tenant
+          {$t('admin.wa.tenantSenders')}
         </div>
         <div class="card" style="overflow:hidden;padding:0;">
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
