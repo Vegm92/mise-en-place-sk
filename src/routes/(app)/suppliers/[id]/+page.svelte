@@ -3,7 +3,7 @@
   import type { PageData } from './$types';
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
-  import { locale, t, ti } from '$lib/i18n';
+  import { locale, t, ti, tcat } from '$lib/i18n';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -98,7 +98,7 @@
         <h1 style="margin:0 0 3px;font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</h1>
         <div style="font-size:11.5px;color:var(--mep-fg-3);display:flex;align-items:center;gap:5px;">
           {#if s.category}
-            <span class="swatch" style="background:{color};"></span>{s.category}
+            <span class="swatch" style="background:{color};"></span>{$tcat(s.category)}
           {:else}
             <span style="font-style:italic;">{$t('sup.noCategory')}</span>
           {/if}
@@ -123,7 +123,7 @@
             <select id="m-edit-category" class="input" name="category" style="width:100%;">
               <option value="">{$t('sup.noCategory')}</option>
               {#each VALID_CATEGORIES as cat}
-                <option value={cat} selected={s.category === cat}>{cat}</option>
+                <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
               {/each}
             </select>
           </div>

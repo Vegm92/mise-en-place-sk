@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fmtEur } from '$lib/formatters';
-  import { t } from '$lib/i18n';
+  import { t, tcat } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
 
@@ -89,7 +89,7 @@
           font-size: 12px; font-weight: 500; font-family: inherit;
           box-shadow: {catFilter === cat ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
         "
-      >{cat}</button>
+      >{$tcat(cat)}</button>
     {/each}
   </div>
 
@@ -137,7 +137,7 @@
               {s.name}
             </div>
             <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
-              {s.category && s.category !== 'Other' ? s.category : $t('sup.noCategory')}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${$t('sup.invoicesSuffix')}` : ''}
+              {$tcat(s.category)}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${$t('sup.invoicesSuffix')}` : ''}
             </div>
           </div>
           <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">

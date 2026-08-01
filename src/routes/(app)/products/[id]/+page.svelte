@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { t } from '$lib/i18n';
+  import { t, tcat } from '$lib/i18n';
   import { fmt } from '$lib/formatters';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
@@ -55,7 +55,7 @@
           <label class="label text-fg-3" style="font-size:10.5px;" for="p-cat">{$t('prod.new.category')}</label>
           <select id="p-cat" name="category" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
             <option value="">—</option>
-            {#each categories as c}<option value={c} selected={product.category === c}>{c}</option>{/each}
+            {#each categories as c}<option value={c} selected={product.category === c}>{$tcat(c)}</option>{/each}
           </select>
         </div>
         <div class="flex flex-col gap-1">

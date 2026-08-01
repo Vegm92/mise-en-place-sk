@@ -5545,6 +5545,14 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `export function resolveSupplierCategory(raw: unknown, confidence?: number | null): stri…`
 
+**`function categorySlug`**
+
+- i18n-key suffix for a canonical category (issue #338): accent-stripped, lower-cased, non-alphanumerics collapsed to hyphens, so 'Café y Bebidas Calientes' → 'cafe-y-bebidas-calientes'.
+
+    Storage still uses the canonical Spanish string; this only builds the `category.*` lookup key used at display time by `tcat`.
+
+    ↳ `export function categorySlug(value: string): string {`
+
 ### `src/lib/formatters.ts`
 
 **`function fmtEur`**
@@ -6056,6 +6064,26 @@ These change how a tool behaves, so removing them would change behaviour — the
     Reactive — use as `$ti(...)` in components so it follows locale changes.
 
     ↳ `export const ti = derived(`
+
+**`const tcat`**
+
+- Display-time translator for canonical category values (issue #338).
+
+    VALID_CATEGORIES is a Spanish-language taxonomy that doubles as stored data and as the grouping key for budgets and analytics, so it must never be translated on the way *in*. This resolves `category.<slug>` at render time instead, which is the only place the taxonomy is allowed to change language.
+
+    $tcat('Bebidas') → 'Bebidas' (es) / 'Beverages' (en) $tcat('Other') → 'Sin categoría' / 'No category' $tcat(null) → same as 'Other'
+
+    An unknown value — a custom budget category, or a taxonomy entry added before its translations — falls back to the canonical string, never to a raw i18n key.
+
+    ↳ `export const tcat = derived(t, ($t) => (canonical: string | null | undefined): string =>…`
+
+**`const tiv`**
+
+- `ti` plus category awareness: interpolates as usual, but routes a var named `category` through `tcat` first.
+
+    Notification and alert payloads (`messageVars`) carry the canonical category so the stored row stays language-neutral; every message that renders one — catSuggested, budgetExceeded, budgetWarning, the dashboard budget alert — needs it translated at display time. Rendering sites (NotificationBell, AlertRow) use `$tiv` instead of `$ti` so this cannot be forgotten per message type.
+
+    ↳ `export const tiv = derived(`
 
 **`const tp`**
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { t, ti } from '$lib/i18n';
+	import { t, ti, tcat } from '$lib/i18n';
 
 	type Segment = { category: string | null; amount: number };
 	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
@@ -215,7 +215,7 @@
 		{#each categories as cat, ci}
 			<div style="display:flex;align-items:center;gap:5px;">
 				<span class="swatch" style="background:{catColor(ci)};"></span>
-				<span class="body" style="font-size:11px;">{!cat || cat === 'Other' ? $t('sup.noCategory') : cat}</span>
+				<span class="body" style="font-size:11px;">{$tcat(cat)}</span>
 			</div>
 		{/each}
 	</div>

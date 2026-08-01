@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { t } from '$lib/i18n';
+  import { t, tcat } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import Plus from '@lucide/svelte/icons/plus';
@@ -56,7 +56,7 @@
             <label class="label text-fg-3" style="font-size:10.5px;" for="prod-cat">{$t('prod.new.category')}</label>
             <select id="prod-cat" name="category" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
               <option value="">—</option>
-              {#each categories as c}<option value={c}>{c}</option>{/each}
+              {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
             </select>
           </div>
           <div class="flex flex-col gap-1 min-w-[100px]">
@@ -94,7 +94,7 @@
                   <a href="/products/{p.id}" class="body-strong" style="text-decoration:none;color:inherit;">{p.canonicalName}</a>
                 </td>
                 <td>
-                  <span class="badge" style="background:{colors[p.category]}22;color:{colors[p.category]};">{p.category}</span>
+                  <span class="badge" style="background:{colors[p.category]}22;color:{colors[p.category]};">{$tcat(p.category)}</span>
                 </td>
                 <td class="body text-fg-3" style="font-size:12px;">{p.canonicalUnit ?? '—'}</td>
                 <td class="num">{p.supplierCount}</td>

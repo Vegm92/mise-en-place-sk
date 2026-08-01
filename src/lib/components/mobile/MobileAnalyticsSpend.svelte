@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from '$lib/i18n';
+  import { t, tcat } from '$lib/i18n';
 
   interface Kpis {
     total_items_spend: number | null;
@@ -159,7 +159,7 @@
               <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--mep-fg-2);">
                   <span style="width: 10px; height: 10px; border-radius: 2px; background: {cat.color}; display: inline-block; flex-shrink: 0;"></span>
-                  {cat.category}
+                  {$tcat(cat.category)}
                 </span>
                 <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{fmtEur(cat.total)}</span>
               </div>

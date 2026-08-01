@@ -3,7 +3,7 @@
   import Tag from '@lucide/svelte/icons/tag';
   import Clock from '@lucide/svelte/icons/clock';
   import Info from '@lucide/svelte/icons/info';
-  import { ti } from '$lib/i18n';
+  import { tiv } from '$lib/i18n';
 
   let {
     alert,
@@ -29,7 +29,7 @@
 
   const p = $derived(palettes[alert.sev]);
   const Icon = $derived(icons[alert.kind] ?? Info);
-  const displayText = $derived(alert.messageKey ? $ti(alert.messageKey, alert.messageVars ?? {}) : alert.text);
+  const displayText = $derived(alert.messageKey ? $tiv(alert.messageKey, alert.messageVars ?? {}) : alert.text);
 </script>
 
 <div style="padding:10px 12px;border-radius:8px;background:{p.bg};display:flex;align-items:flex-start;gap:10px;">

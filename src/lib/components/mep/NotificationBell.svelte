@@ -6,7 +6,7 @@
   import Ruler from '@lucide/svelte/icons/ruler';
   import Boxes from '@lucide/svelte/icons/boxes';
   import Tag from '@lucide/svelte/icons/tag';
-  import { t, ti } from '$lib/i18n';
+  import { t, ti, tiv } from '$lib/i18n';
 
   type Notif = {
     id: number;
@@ -184,7 +184,7 @@
             </div>
             <div style="flex:1;min-width:0;">
               <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
-                {msg?.messageKey ? $ti(msg.messageKey, msg.messageVars ?? {}) : n.message}
+                {msg?.messageKey ? $tiv(msg.messageKey, msg.messageVars ?? {}) : n.message}
               </div>
               {#if n.notificationType === 'supplier_uncategorized'}
                 {@const supplierId = (n.payload as { supplierId?: number } | null)?.supplierId}
