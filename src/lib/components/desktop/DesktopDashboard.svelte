@@ -11,7 +11,7 @@
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import X from '@lucide/svelte/icons/x';
-  import { locale, t, ti, tp } from '$lib/i18n';
+  import { locale, t, ti, tp, tcat } from '$lib/i18n';
   import { fmtEur, fmtEurCompact } from '$lib/formatters';
   import { goto } from '$app/navigation';
 
@@ -291,7 +291,7 @@
                       opacity={hoveredCatSlice === null || hoveredCatSlice === i ? 1 : 0.35}
                       style="cursor:pointer;transition:stroke-width 120ms,opacity 120ms;"
                       role="img"
-                      aria-label="{slice.category}: {fmtEurCompact(slice.total)} ({Math.round(slice.pct * 100)}%)"
+                      aria-label="{$tcat(slice.category)}: {fmtEurCompact(slice.total)} ({Math.round(slice.pct * 100)}%)"
                       onmouseenter={() => hoveredCatSlice = i}
                       onmouseleave={() => hoveredCatSlice = null} />
                   {/each}
@@ -307,10 +307,10 @@
               <div class="flex flex-col flex-1" style="gap:5px;min-width:0;overflow-y:auto;">
                 {#each categoryDonut.slices as slice, i}
                   <div class="flex items-center" style="gap:6px;cursor:default;"
-                    role="group" aria-label={slice.category}
+                    role="group" aria-label={$tcat(slice.category)}
                     onmouseenter={() => hoveredCatSlice = i} onmouseleave={() => hoveredCatSlice = null}>
                     <span style="width:7px;height:7px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
-                    <span class="body" style="font-size:11px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{slice.category}</span>
+                    <span class="body" style="font-size:11px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{$tcat(slice.category)}</span>
                     <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{Math.round(slice.pct * 100)}%</span>
                   </div>
                 {/each}
@@ -496,7 +496,7 @@
               {@const color = budgetBarColor(pct, data.budget_threshold)}
               <div class="flex flex-col gap-1">
                 <div class="flex justify-between items-center">
-                  <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap max-w-[120px]" style="font-size:11px;" title={cat}>{cat}</span>
+                  <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap max-w-[120px]" style="font-size:11px;" title={$tcat(cat)}>{$tcat(cat)}</span>
                   <span class="num" style="font-size:11px;font-weight:600;color:{color};flex-shrink:0;">{pct}%</span>
                 </div>
                 <div class="h-1 bg-divider rounded-full overflow-hidden">
@@ -554,7 +554,7 @@
             {#each data.category_spend as cat (cat.category)}
               <div class="flex items-center gap-3">
                 <span class="swatch" style="background:{cat.color};"></span>
-                <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap w-[90px] flex-shrink-0 text-xs" title={cat.category}>{cat.category}</span>
+                <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap w-[90px] flex-shrink-0 text-xs" title={$tcat(cat.category)}>{$tcat(cat.category)}</span>
                 <div class="flex-1 h-1.5 bg-divider rounded-full overflow-hidden">
                   <div class="h-full rounded-full" style="width:{cat.pct}%;background:{cat.color};"></div>
                 </div>

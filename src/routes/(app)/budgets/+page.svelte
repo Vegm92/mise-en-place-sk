@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { enhance } from '$app/forms';
-  import { locale, t } from '$lib/i18n';
+  import { locale, t, tcat } from '$lib/i18n';
   import { fmtEur, semColor, shiftMonth } from '$lib/formatters';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
@@ -110,7 +110,7 @@
                   <td>
                     <div style="display:flex;align-items:center;gap:8px;">
                       <span style="width:14px;height:14px;border-radius:3px;background:{r.color};flex-shrink:0;"></span>
-                      <span style="font-size:13px;font-weight:500;color:var(--mep-fg);">{r.cat}</span>
+                      <span style="font-size:13px;font-weight:500;color:var(--mep-fg);">{$tcat(r.cat)}</span>
                     </div>
                   </td>
                   <td class="num">
@@ -279,7 +279,7 @@
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <span style="width:8px;height:28px;border-radius:2px;background:{r.color};flex-shrink:0;"></span>
             <span style="flex:1;font-size:14px;font-weight:500;color:var(--mep-fg);
-              overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{r.cat}</span>
+              overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{$tcat(r.cat)}</span>
             {#if r.limit > 0}
               <span class="num" style="
                 font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;flex-shrink:0;
