@@ -17,5 +17,10 @@ export const WHATSAPP_VERIFY_TOKEN    = process.env.WHATSAPP_VERIFY_TOKEN    ?? 
 export const WHATSAPP_APP_SECRET      = process.env.WHATSAPP_APP_SECRET      ?? '';
 export const WHATSAPP_API_VERSION     = process.env.WHATSAPP_API_VERSION     ?? 'v25.0';
 export const WHATSAPP_DISPLAY_NUMBER  = process.env.WHATSAPP_DISPLAY_NUMBER  ?? '';
+export const WHATSAPP_USE_BATCH_PIPELINE = process.env.WHATSAPP_USE_BATCH_PIPELINE === 'true';
+export const APP_BASE_URL             = process.env.APP_BASE_URL            ?? '';
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
+if (WHATSAPP_USE_BATCH_PIPELINE && !APP_BASE_URL) {
+	console.warn('[env] WHATSAPP_USE_BATCH_PIPELINE is on but APP_BASE_URL is not set — batch links sent over WhatsApp will be relative paths');
+}
