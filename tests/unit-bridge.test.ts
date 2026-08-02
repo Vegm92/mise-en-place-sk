@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveUnitFromMap, conversionKey } from '../src/lib/server/unit-bridge-pure';
+import { resolveUnitFromMap, conversionKey } from '../src/lib/server/products';
 
 // Mirrors loadConversionMap: rules are keyed by the normalized ingredient+unit.
 const makeMap = (entries: Array<{ ingredient: string; purchaseUnit: string; canonicalUnit: string; conversionFactor: number }>) => {

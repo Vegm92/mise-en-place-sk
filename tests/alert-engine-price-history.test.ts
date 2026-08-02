@@ -21,7 +21,7 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { runPriceShock } from '../src/lib/server/alert-engine';
-import type { EnrichedLineItem } from '../src/lib/server/unit-bridge';
+import type { EnrichedLineItem } from '../src/lib/server/products';
 
 const SUPPLIER = '__price_history_test_supplier__';
 let rid = '';
