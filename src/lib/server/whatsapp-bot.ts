@@ -25,6 +25,10 @@ import { maybeSendQuotaWarning } from './quota-warning';
 import { claimMonthlyExtraction, releaseMonthlyExtraction } from './llm-quota';
 import { checkRateLimit } from './rate-limiter';
 import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
+import { createBatch, getItem, getBatchItems, markQueued } from './batch';
+import { enqueueBatchExtraction } from './extract-batch';
+import { enqueueExtraction } from './queue';
+import { WHATSAPP_USE_BATCH_PIPELINE, APP_BASE_URL } from './env';
 
 const SESSION_TTL_MS = 60 * 60 * 1000;
 
@@ -143,6 +147,11 @@ async function handleMediaUpload(
 		return;
 	}
 
+	if (WHATSAPP_USE_BATCH_PIPELINE) {
+		await handleMediaUploadBatch(from, restaurantId, mediaId);
+		return;
+	}
+
 	const claim = await claimMonthlyExtraction(restaurantId);
 	if (!claim.claimed) {
 		console.warn(`[whatsapp-bot] monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
@@ -205,6 +214,47 @@ async function handleMediaUpload(
 	});
 
 	await sendWhatsAppMessage(from, buildSummaryMessage(extracted));
+}
+
+async function handleMediaUploadBatch(
+	from: string,
+	restaurantId: string,
+	mediaId: string,
+): Promise<void> {
+	let buffer: Buffer;
+	let extension: string;
+	try {
+		({ buffer, extension } = await downloadWhatsAppMedia(mediaId));
+	} catch (err) {
+		console.error('[whatsapp-bot] media download error:', err);
+		await sendWhatsAppMessage(from, '❌ No he podido descargar el archivo. Inténtalo de nuevo.');
+		return;
+	}
+
+	const fileKey = `whatsapp/${restaurantId}/${randomUUID()}.${extension}`;
+	try {
+		await getStorage().save(fileKey, buffer);
+	} catch (err) {
+		console.error('[whatsapp-bot] storage error:', err);
+		await sendWhatsAppMessage(from, '❌ No he podido guardar el archivo. Inténtalo de nuevo.');
+		return;
+	}
+
+	const displayName = `WhatsApp_${new Date().toISOString().slice(0, 10)}.${extension}`;
+	const { batchId, itemIds } = await createBatch(restaurantId, [{ key: fileKey, name: displayName }]);
+
+	await enqueueBatchExtraction(itemIds[0], restaurantId, {
+		getItem,
+		getBatchItems,
+		markQueued,
+		enqueue: enqueueExtraction,
+	});
+
+	const link = APP_BASE_URL ? `${APP_BASE_URL}/batch/${batchId}` : `/batch/${batchId}`;
+	await sendWhatsAppMessage(
+		from,
+		`📄 Factura recibida.\nRevísala y confírmala en el panel web:\n${link}`,
+	);
 }
 
 async function handleTextReply(from: string, restaurantId: string, body: string): Promise<void> {
