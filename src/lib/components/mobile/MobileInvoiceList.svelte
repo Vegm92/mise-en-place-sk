@@ -24,11 +24,11 @@
   let activeFilter = $state('month');
 
   const filters = [
-    { id: 'month', label: 'Este mes' },
-    { id: 'pending', label: 'Por revisar' },
-    { id: 'overdue', label: 'Vencidas' },
-    { id: 'supplier', label: 'Por proveedor' },
-    { id: 'category', label: 'Por categoría' },
+    { id: 'month', labelKey: 'minv.filter.month' },
+    { id: 'pending', labelKey: 'minv.filter.pending' },
+    { id: 'overdue', labelKey: 'minv.filter.overdue' },
+    { id: 'supplier', labelKey: 'minv.filter.supplier' },
+    { id: 'category', labelKey: 'minv.filter.category' },
   ];
 
   const filtered = $derived.by(() => {
@@ -102,7 +102,7 @@
           font-family: inherit;
         "
         onclick={() => activeFilter = f.id}
-      >{f.label}</button>
+      >{$t(f.labelKey)}</button>
     {/each}
   </div>
 
@@ -155,7 +155,7 @@
                   </div>
                   {#if inv.line_items && inv.line_items.length > 0}
                     <div class="num" style="font-size: 10.5px; color: var(--mep-fg-3);">
-                      {inv.line_items.length} líneas
+                      {inv.line_items.length} {$t('minv.linesSuffix')}
                     </div>
                   {/if}
                 </div>
