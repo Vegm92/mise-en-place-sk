@@ -464,7 +464,7 @@
                   {#if s.cif}
                     <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                       <CreditCard size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                      <span>CIF/NIF: {s.cif}</span>
+                      <span>{$t('sup.field.cif')}: {s.cif}</span>
                     </div>
                   {/if}
                   {#if s.deliveryDays}

@@ -184,7 +184,7 @@
           {pendingAmount > 0 ? fmtEurCompact(pendingAmount) : '—'}
         </div>
         <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-          {pendingCount} facturas
+          {pendingCount} {$t('sup.invoicesSuffix')}
         </div>
       </div>
       <div class="card" style="padding: 12px;">

@@ -359,7 +359,7 @@
               <td class="num" style="font-weight:500;">{fmtEur(inv.display_amount ?? 0)}</td>
               <td style="text-align:right;">
                 <a href="/invoice/{inv.id}" class="btn btn-ghost" style="height:26px;padding:0 8px;font-size:12px;text-decoration:none;">
-                  Revisar <ChevronRight size={12} />
+                  {$t('action.review')} <ChevronRight size={12} />
                 </a>
               </td>
             </tr>

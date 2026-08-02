@@ -275,6 +275,58 @@ describe('tp (pluralizing translator)', () => {
 // the quota messages, hardcoded Spanish). The server now returns i18n keys, so
 // every key it can emit must resolve in both locales; an unresolved key would
 // render as `upload.err.something` in the user's face.
+describe('strings de-hardcoded from components', () => {
+  const keys = [
+    'minv.filter.month',
+    'minv.filter.pending',
+    'minv.filter.overdue',
+    'minv.filter.supplier',
+    'minv.filter.category',
+    'minv.linesSuffix',
+    'action.review',
+    'upload.previewAlt',
+    'upload.err.badResponse',
+    'upload.err.network',
+    'sup.conv.ph.factor',
+    'admin.wa.numberHealth',
+    'admin.wa.noEvents',
+    'admin.wa.quality',
+    'admin.wa.messagingLimit',
+    'admin.wa.worst30d',
+    'admin.wa.colWhen',
+    'admin.wa.colEvent',
+    'admin.wa.colSeverity',
+    'admin.wa.tenantSenders',
+  ];
+
+  it('resolves in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const key of keys) if (tr(key) === key) missing.push(`${lc}:${key}`);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('keeps the two languages distinct where they should differ', () => {
+    locale.set('es');
+    expect(tr('minv.filter.month')).toBe('Este mes');
+    expect(tr('action.review')).toBe('Revisar');
+    locale.set('en');
+    expect(tr('minv.filter.month')).toBe('This month');
+    expect(tr('action.review')).toBe('Review');
+  });
+
+  it('interpolates the webhook fields into the admin WhatsApp notice', () => {
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      const msg = tri('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' });
+      expect(msg).toContain('account_update / phone_number_quality_update');
+      expect(msg).not.toContain('{fields}');
+    }
+  });
+});
+
 describe('tcat (category display labels, issue #338)', () => {
   it('renders canonical Spanish values as-is in Spanish', () => {
     locale.set('es');

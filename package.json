@@ -30,6 +30,7 @@
 		"lint:no-sql-raw": "node scripts/lint-invariants.mjs no-sql-raw",
 		"lint:tenant-scope": "node scripts/lint-invariants.mjs tenant-scope",
 		"lint:no-comments": "node scripts/check-no-comments.mjs",
+		"lint:i18n": "node scripts/check-i18n-strings.mjs",
 		"icons:generate": "node scripts/generate-pwa-icons.mjs"
 	},
 	"devDependencies": {

@@ -211,7 +211,7 @@
             {#if s.cif}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <CreditCard size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <span>CIF/NIF: {s.cif}</span>
+                <span>{$t('sup.field.cif')}: {s.cif}</span>
               </div>
             {/if}
             {#if s.deliveryDays}
@@ -385,7 +385,7 @@
             <input class="input" name="purchase_unit" required placeholder={$t('sup.conv.ph.purchase')} value={data.initialPurchaseUnit} />
             <input class="input" name="canonical_unit" required placeholder={$t('sup.conv.ph.canonical')} />
           </div>
-          <input class="input" name="conversion_factor" type="number" min="0.001" step="any" required placeholder="Factor (p.ej. 6)" />
+          <input class="input" name="conversion_factor" type="number" min="0.001" step="any" required placeholder={$t('sup.conv.ph.factor')} />
           <button type="submit" class="btn btn-primary" style="height:34px;font-size:12.5px;">
             + {$t('sup.conv.add')}
           </button>
