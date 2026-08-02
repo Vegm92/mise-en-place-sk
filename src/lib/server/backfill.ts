@@ -1,8 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
-import { resolveLineProducts } from './product-catalog';
-import { parsePack, normalizedUnitPrice } from './pack-parser';
+import { resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
 
 type Database = PostgresJsDatabase<typeof schema>;
 

@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
 					'src/lib/formatters.ts',
 					'src/lib/status.ts',
 					'src/lib/server/extract.ts',
-					'src/lib/server/unit-bridge.ts',
+					'src/lib/server/products.ts',
 					'src/lib/server/alert-engine.ts',
 					'src/lib/server/db.ts',
 					'src/lib/server/tenant.ts',

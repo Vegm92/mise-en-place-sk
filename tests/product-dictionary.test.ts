@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { expandAbbreviations } from '../src/lib/server/product-dictionary';
+import { expandAbbreviations } from '../src/lib/server/products';
 
 describe('expandAbbreviations — SKU/code stripping', () => {
 	it('strips a REF.#### prefix', () => {

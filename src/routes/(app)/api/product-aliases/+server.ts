@@ -4,7 +4,7 @@ import { db, forTenant } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
-import { confirmProductAlias, rejectProductAlias, mergeIntoProduct } from '$lib/server/product-catalog';
+import { confirmProductAlias, rejectProductAlias, mergeIntoProduct } from '$lib/server/products';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const POST: RequestHandler = async ({ request, locals }) => {

@@ -3285,288 +3285,45 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `import { db } from './db';`
 
-### `src/lib/server/pack-parser.ts`
+### `src/lib/server/products.ts`
 
-**`type BaseUnit`**
+- Consolidated product/unit resolution (issue #351). Merges what used to be six shallow files — `pack-parser.ts`, `product-catalog.ts`, `product-dictionary.ts`, `product-normalizer.ts`, `unit-bridge-pure.ts`, `unit-bridge.ts` — into one deep module: they all implement the same concern (resolving a raw invoice line item into a canonical product + unit) and were never used independently of each other. Pure-computation exports (`parsePack`, `normalizedUnitPrice`, `expandAbbreviations`, `conversionKey`, `resolveUnitFromMap`, prompt/response parsing) stay exported alongside the DB-backed orchestration because the existing unit-test suite exercises them directly; no behavior, schema, or public export changed in the merge.
 
-- Deterministic pack/format parser (issue #299, Phase 3).
+**Pack/format parsing** (was `pack-parser.ts`)
 
-    Extracts pack structure from the free-text description (and, as a fallback, the unit column) of an invoice line — "6x1L", "Garrafa 5L", "caja 12 ud", "500 g", "botella 75 cl" — so a €/kg-L-ud price can be derived and compared across different pack sizes. Container units carry no intrinsic size, so a bare "caja" with no number anywhere yields null (→ no normalized price).
+- Deterministic pack/format parser (issue #299, Phase 3). Extracts pack structure from the free-text description (and, as a fallback, the unit column) of an invoice line — "6x1L", "Garrafa 5L", "caja 12 ud", "500 g", "botella 75 cl" — so a €/kg-L-ud price can be derived and compared across different pack sizes. Container units carry no intrinsic size, so a bare "caja" with no number anywhere yields null (→ no normalized price).
+- `SIZE_TO_BASE`: canonical size token → base dimension unit + multiplier to that base.
+- `num`: Spanish decimals use a comma; treat comma as the decimal separator.
+- `MULTIPACK` / `SINGLE` / `COUNT`: the three shapes tried in order — "6x1L" explicit sub-size, "Garrafa 5L" single size token (scans all matches, takes the first with a real unit so "Aceite 5L caja" picks "5L" not a stray number), "caja 12 ud" a bare count of pieces.
+- `normalizedUnitPrice`: €/base-unit for a line, i.e. unit_price divided by the pack's base content. "Garrafa 5L" at 12.50 → 2.50 €/L. Null when price or pack is missing.
 
-    Pure module — no DB imports, safe for the worker and for unit tests.
+**Product catalog resolution** (was `product-catalog.ts`)
 
-    ↳ `import { canonicalizeUnit } from './normalize';`
+- Maps each invoice line's raw description to a per-tenant product, so downstream features can group on a stable product_id instead of the exact string a supplier happened to print (issue #298, Phase 2). Resolution per unique normalized key (mep_norm_key / normalizeProductKey): 1) confirmed alias with the same raw_key → link (status 'exact'); 2) pg_trgm-similar existing product ≥ `FUZZY_THRESHOLD` → link + pending 'fuzzy' alias (status 'fuzzy'); 3) otherwise → create product + confirmed 'exact' alias (status 'created'). A line is therefore always linked to some product; the fuzzy case additionally records a suggestion the review UI can confirm or reject. Runs inside the save transaction so the products/aliases and the line_items.product_id commit atomically with the invoice.
+- `FUZZY_THRESHOLD` (0.42): trigram similarity above which two product names are treated as "probably the same product, ask the user" — conservative on purpose. Tunable; keep in sync with tests.
+- `resolveLineProducts`: de-dups by normalized key so a repeated description resolves once, then maps every raw line spelling that shares a key to the same result.
+- `resolveOne` fuzzy step also tries the dictionary-expanded key (issue #300) so "TERN. AGUJA" / "REF.1042 Merluza" meet "ternera aguja" / "merluza" without the LLM; `GREATEST` takes the better of the raw and expanded similarity.
+- `unlinkSupplier`: drops that supplier's product_aliases row(s) for the product and nulls out product_id on that supplier's invoice_line_items; other suppliers' rows are untouched.
+- `deleteProduct`: blocked (not cascaded) while any invoice_line_items or product_aliases still reference it — the caller's UI resolves this via `unlinkSupplier()` per supplier, then retries.
+- `resolveUnitConversionAlerts`: marks pending 'unit_conversion_needed' notifications resolved once a product's unitsPerPack/baseUnit are filled in via the Products CRUD page; matches by normalized key against the product's own name or any alias's raw text, since the alert payload only carries the raw invoice description.
+- `confirmProductAlias` / `rejectProductAlias` / `mergeIntoProduct`: user-facing decisions on a pending fuzzy/LLM suggestion — keep the auto-link, split into a new product and repoint fuzzy-linked line items, or merge into an existing `targetProductId` and delete the throwaway product if nothing else references it.
 
-**`interface PackInfo`**
+**Abbreviation dictionary** (was `product-dictionary.ts`)
 
-- Number of sub-units in the purchase unit ("6" in "6x1L"; 1 otherwise).
+- Static Spanish food-trade dictionary (issue #300, Phase 4). Cheap, deterministic pre-processing so common cases never reach the LLM: strip leading SKU/reference codes ("REF.1042 TOMATE PERA" → "TOMATE PERA"), expand high-frequency abbreviations ("TERN. AGUJA" → "ternera aguja", "S/H" → "sin hueso"). `expandAbbreviations` returns a cleaned display string; callers still run it through `normalizeProductKey` for matching.
+- `SKU_PREFIX` requires a digit in the code part so plain words starting with those letters ("REFRESCO", "ARTESANO") are never stripped. `BARE_CODE` only strips 4+ digit leading codes — 3 or fewer is usually a size ("500 g").
+- `ABBREVIATIONS` is matched whole-token, case-insensitively; slash tokens like "s/h" are kept literal. Conservative on purpose: abbreviations only, no risky cross-product synonyms.
 
-    ↳ `unitsPerPack: number;`
-- Size of one sub-unit as printed ("1" in "6x1L", "5" in "Garrafa 5L").
+**LLM-assisted normalization** (was `product-normalizer.ts`)
 
-    ↳ `unitSize: number;`
-- Canonical size token: kg | g | mg | L | ml | cl | ud | docena.
+- Runs asynchronously (pg-boss) for lines that the deterministic layers — exact alias, pg_trgm fuzzy, and the abbreviation dictionary — could not match to an existing product, so a brand-new product was created (issue #300, Phase 4). Gemini is asked whether that description is really one of the tenant's existing products (slang, abbreviations, SKU noise the regex layers miss). A high-confidence match (`LLM_MATCH_THRESHOLD` = 0.8) becomes a PENDING product_suggestion the user confirms — never a silent merge. Cost is metered through llm-quota (callerContext 'normalize'). `buildNormalizePrompt`/`parseNormalizeResponse` are pure and unit-tested; the LLM provider is injectable via `NormalizeDeps`.
+- `processNormalizeJob` is best-effort: any failure (LLM error, quota, parse) is swallowed — a missed suggestion must never break the worker or the invoice. Deduped against an existing pending suggestion for the same normalized description.
 
-    ↳ `sizeUnit: string;`
-- Total content per purchase unit, expressed in baseUnit (kg / L / ud).
+**Unit-bridge** (was `unit-bridge.ts` / `unit-bridge-pure.ts`)
 
-    ↳ `baseQuantity: number;`
-- Dimension base used for €-normalization.
-
-    ↳ `baseUnit: BaseUnit;`
-
-**`const SIZE_TO_BASE`**
-
-- Canonical size token → base dimension unit + multiplier to that base.
-
-    ↳ `const SIZE_TO_BASE: Record<string, { base: BaseUnit; factor: number }> = {`
-
-**`function sizeToken`**
-
-- Map any spelling of a size token to a canonical one backed by a base dim.
-
-    ↳ `function sizeToken(raw: string): string | null {`
-
-**`function num`**
-
-- Spanish decimals use a comma; strip thousands dots only when followed by exactly 3 digits is overkill here — invoice sizes are small, so treat comma as the decimal separator and drop stray spaces.
-
-    ↳ `return parseFloat(raw.replace(',', '.'));`
-
-**`const MULTIPACK`**
-
-- "6x1L", "12 x 330 ml", "6 X 1,5 kg" — multipack with an explicit sub-size.
-
-    ↳ `const MULTIPACK = /(\d+)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/;`
-
-**`const SINGLE`**
-
-- "Garrafa 5L", "Bolsa 2,5 kg", "500 g", "75cl" — a single size token.
-
-    ↳ `const SINGLE = /(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/g;`
-
-**`const COUNT`**
-
-- "caja 12 ud", "12 uds", "pack 6", "estuche de 24" — a count of pieces.
-
-    ↳ `const COUNT = /(?:caja|cajas|pack|packs|paquete|paquetes|estuche|estuches|blister|bande…`
-
-**`function parsePack`**
-
-- Parse pack info from a line. Tries the description first, then the unit column. Returns null when no size can be determined.
-
-    ↳ `export function parsePack(description: string | null | undefined, unit?: string | null)…`
-- Single size token — scan all matches, take the first with a real unit (so "Aceite 5L caja" picks "5L", not a stray number elsewhere).
-
-    ↳ `SINGLE.lastIndex = 0;`
-
-**`function normalizedUnitPrice`**
-
-- €/base-unit for a line, i.e. unit_price divided by the pack's base content. "Garrafa 5L" at 12.50 → 2.50 €/L. Null when price or pack is missing.
-
-    ↳ `export function normalizedUnitPrice(unitPrice: number | null | undefined, pack: PackInf…`
-
-### `src/lib/server/product-catalog.ts`
-
-**`type Database`**
-
-- Product catalog resolution (issue #298, Phase 2).
-
-    Maps each invoice line's raw description to a per-tenant product, so downstream features can group on a stable product_id instead of the exact string a supplier happened to print.
-
-    Resolution per unique normalized key (mep_norm_key / normalizeProductKey):
-
-    1. Confirmed alias with the same raw_key → link (status 'exact').
-
-    2. pg_trgm-similar existing product ≥ FUZZY_THRESHOLD → link + pending 'fuzzy' alias (status 'fuzzy').
-
-    3. Otherwise → create product + confirmed 'exact' alias (status 'created').
-
-    A line is therefore always linked to some product; the fuzzy case additionally records a suggestion the review UI can confirm or reject. Runs inside the save transaction so the products/aliases and the line_items.product_id commit atomically with the invoice.
-
-    ↳ `import { sql } from 'drizzle-orm';`
-
-**`const FUZZY_THRESHOLD`**
-
-- Trigram similarity above which two product names are treated as "probably the same product, ask the user". 0.42 is deliberately conservative: high enough to avoid noise, low enough to catch abbreviations/typos like "tomate pera" vs "tomate pera roja". Tunable; keep in sync with tests.
-
-    ↳ `export const FUZZY_THRESHOLD = 0.42;`
-
-**`interface ResolvedLine`**
-
-- Present when status 'fuzzy': the existing product we auto-linked to.
-
-    ↳ `suggestion?: { candidateName: string; score: number };`
-
-**`function resolveLineProducts`**
-
-- Resolve a batch of lines to product ids. Returns a map keyed by the RAW (untrimmed-but-as-passed) description string so callers can look results up by the same value they passed in. Lines whose normalized key is empty are skipped (absent from the map).
-
-    ↳ `export async function resolveLineProducts(`
-- De-dup by normalized key so a repeated description resolves once; keep the first raw spelling/unit/category seen for display + product creation.
-
-    ↳ `const byKey = new Map<string, { raw: string; key: string; unit: string | null; category…`
-- Map every raw line spelling that shares this key to the result.
-
-    ↳ `for (const line of lines) {`
-
-**`function resolveOne`**
-
-- 1. Existing alias for this exact normalized key.
-
-    ↳ `const aliasRows = await tx.execute<{ product_id: number }>(sql'`
-- 2. Fuzzy match against existing products' normalized names. Also try the dictionary-expanded key (issue #300) so "TERN. AGUJA" / "REF.1042 Merluza" meet "ternera aguja" / "merluza" without the LLM. GREATEST takes the better of the raw and expanded similarity.
-
-    ↳ `const expandedKey = normalizeProductKey(expandAbbreviations(raw));`
-- 3. New product + confirmed exact alias.
-
-    ↳ `const productRows = await tx.execute<{ id: number }>(sql'`
-
-**`function insertAlias`**
-
-- Insert (or converge on) the alias for this raw_key. confirmedAt is either the literal 'now()' (confirmed) or null (pending). ON CONFLICT keeps whichever alias won a concurrent race and returns its product_id so callers stay consistent.
-
-    ↳ `async function insertAlias(`
-
-**`function getLinkedSuppliers`**
-
-- Suppliers still linked to a product via a confirmed/pending alias (product_aliases.supplier_id). Drives the delete-blocked dialog's "unlink this supplier" list.
-
-    ↳ `export async function getLinkedSuppliers(`
-
-**`function unlinkSupplier`**
-
-- Unlink a product from one supplier: drop that supplier's product_aliases row(s) for this product, and null out product_id on that supplier's invoice_line_items so historical rows no longer reference the product (issue: product delete confirmation flow). Line items belonging to other suppliers, or aliases for other suppliers, are untouched.
-
-    ↳ `export async function unlinkSupplier(`
-
-**`function deleteProduct`**
-
-- Delete a product. Blocked (not cascaded) while any invoice_line_items or product_aliases still reference it — the caller's UI resolves this via unlinkSupplier() per supplier, then retries.
-
-    ↳ `export async function deleteProduct(`
-
-**`function resolveUnitConversionAlerts`**
-
-- Mark pending 'unit_conversion_needed' notifications as resolved for a product, once its unitsPerPack/baseUnit have been filled in via the Products CRUD page. Matches by normalized key against either the product's own name or any of its aliases' raw text — the alert's payload only carries the raw invoice description, not a product_id.
-
-    ↳ `export async function resolveUnitConversionAlerts(`
-
-**`function confirmProductAlias`**
-
-- Confirm a pending fuzzy suggestion: keep the auto-link and mark the alias user-confirmed. `description` is the raw invoice text; its normalized key locates the alias. Idempotent — confirming an already-confirmed alias is a no-op that still reports the linked product.
-
-    ↳ `export async function confirmProductAlias(`
-
-**`function rejectProductAlias`**
-
-- Reject a pending fuzzy suggestion: split this description into its own product and repoint any line items that were fuzzy-linked to the wrong one.
-
-    ↳ `export async function rejectProductAlias(`
-- Repoint the line items that were fuzzy-linked to the wrong product.
-
-    ↳ `await tx.execute(sql'`
-
-**`function mergeIntoProduct`**
-
-- Confirm an LLM merge suggestion (issue #300): this description really is the existing product `targetProductId`. Repoints the alias and its line items to the target and deletes the throwaway product the description first created if nothing else references it. `targetProductId` must belong to the tenant.
-
-    ↳ `export async function mergeIntoProduct(`
-- Drop the throwaway product if nothing points at it anymore.
-
-    ↳ `await tx.execute(sql'`
-
-### `src/lib/server/product-dictionary.ts`
-
-**`const SKU_PREFIX`**
-
-- Static Spanish food-trade dictionary (issue #300, Phase 4).
-
-    Cheap, deterministic pre-processing so the common cases never reach the LLM:
-
-    - strip leading SKU/reference codes ("REF.1042 TOMATE PERA" → "TOMATE PERA");
-
-    - expand high-frequency abbreviations ("TERN. AGUJA" → "ternera aguja", "MERL. GRANDE" → "merluza grande", "S/H" → "sin hueso").
-
-    expandAbbreviations returns a cleaned display string; callers still run it through normalizeProductKey for matching. Pure module — no DB, no LLM.
-- Leading SKU / article-code prefixes: "REF.1042", "ART 55-A", "COD: X12", "código 900". The code part must contain a digit so plain words starting with these letters ("REFRESCO", "ARTESANO") are never stripped.
-
-    ↳ `const SKU_PREFIX = /^\s*(?:ref|art|cod|c[oó]d(?:igo)?)\b[.:#\s-]*[a-z]*\d[a-z0-9./-]*\s…`
-
-**`const BARE_CODE`**
-
-- A bare leading numeric code of 4+ digits ("1042 TOMATE"). Three digits or fewer are left alone — they are usually a size ("500 g", "330 ml").
-
-    ↳ `const BARE_CODE = /^\s*\d{4,}[.\s-]+/;`
-
-**`const ABBREVIATIONS`**
-
-- token (optionally trailing dot) → expansion. Matched whole-token, case-insensitively, after accent folding is NOT applied (kept literal so "s/h" survives). Conservative on purpose: abbreviations only, no risky cross-product synonyms.
-
-    ↳ `const ABBREVIATIONS: Record<string, string> = {`
-- keep unit-ish tokens intact
-
-    ↳ `};`
-
-**`function expandToken`**
-
-- Preserve slash tokens like "s/h" as a whole; otherwise strip trailing dots.
-
-    ↳ `const key = token.includes('/') ? token.toLowerCase() : token.replace(/\.+$/, '').toLow…`
-
-**`function expandAbbreviations`**
-
-- Strip a leading code prefix (once).
-
-    ↳ `s = s.replace(SKU_PREFIX, '').replace(BARE_CODE, '').trim();`
-- never return empty from a non-empty input
-
-    ↳ `return s`
-
-### `src/lib/server/product-normalizer.ts`
-
-**`const LLM_MATCH_THRESHOLD`**
-
-- LLM-assisted product normalization (issue #300, Phase 4).
-
-    Runs asynchronously (pg-boss) for lines that the deterministic layers — exact alias, pg_trgm fuzzy, and the abbreviation dictionary — could not match to an existing product, so a brand-new product was created. Gemini is asked whether that description is really one of the tenant's existing products (slang, abbreviations, SKU noise the regex layers miss, e.g. "MERL. GRANDE" vs "Merluza"). A high-confidence match becomes a PENDING product_suggestion the user confirms — never a silent merge.
-
-    Cost is metered through llm-quota (callerContext 'normalize'). The prompt and parser are pure and unit-tested; the LLM provider is injectable.
-
-    ↳ `import { sql } from 'drizzle-orm';`
-- Minimum confidence to surface an LLM match as a suggestion.
-
-    ↳ `export const LLM_MATCH_THRESHOLD = 0.8;`
-
-**`const MAX_CANDIDATES`**
-
-- How many existing products to offer Gemini as candidates.
-
-    ↳ `const MAX_CANDIDATES = 50;`
-
-**`function buildNormalizePrompt`**
-
-- ── Pure: prompt + response parsing
-
-    ↳ `export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): string {`
-
-**`interface NormalizeDeps`**
-
-- ── Orchestration
-
-    ↳ `export interface NormalizeDeps {`
-
-**`function processNormalizeJob`**
-
-- Best-effort: any failure (LLM error, quota, parse) is swallowed — a missed suggestion must never break the worker or the invoice.
-
-    ↳ `export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps =…`
-- no LLM configured — nothing to do
-
-    ↳ `const candRows = await db.execute<{ id: number; canonical_name: string }>(sql'`
-- Dedup: don't stack suggestions for the same description while one is pending.
-
-    ↳ `const rawKey = normalizeProductKey(rawText);`
+- Resolves purchase units (invoices) to canonical units against `unit_conversions` and annotates line items in place. Matching is normalized (issue #296): rules are keyed by `normalizeProductKey(ingredient)` + `normalizeProductKey(unit)`, via `conversionKey`, so casing/accent/spacing differences between invoices don't miss rules.
+- `loadConversionMap`: rules per supplier are few, so fetching them all and matching in memory is what lets the lookup be normalization-aware without a normalized column in the table. When `supplierId` is known, matches rules pinned by FK or pre-supplier name-only rules.
+- `resolveUnitFromMap`: falls through to any recognized spelling of a canonical unit ("Kgs", "KILO", UN/ECE "KGM" → kg) with factor 1 when no tenant rule exists.
 
 ### `src/lib/server/qr-svg.ts`
 
@@ -4335,42 +4092,6 @@ These change how a tool behaves, so removing them would change behaviour — the
 - Nested rather than a composite string key: a category is free text, so any separator would need proving it can never appear inside one.
 
     ↳ `const byBucket = new Map<string, Map<string, TrendRow>>();`
-
-### `src/lib/server/unit-bridge-pure.ts`
-
-**`function conversionKey`**
-
-- Pure unit-bridge helpers — no DB import, safe to test in isolation.
-
-    ↳ `import { normalizeProductKey, canonicalizeUnit } from './normalize';`
-- Key under which a conversion rule is stored/looked up. Normalized on both sides (issue #296) so "ACEITE GIRASOL" + "Garrafa" hits a rule saved as "Aceite girasol" + "garrafa".
-
-    ↳ `export function conversionKey(ingredient: string, purchaseUnit: string): string {`
-
-**`function resolveUnitFromMap`**
-
-- No tenant rule — pass through any recognized spelling of a canonical unit ("Kgs", "KILO", UN/ECE "KGM" → kg) with factor 1.
-
-    ↳ `const canonical = canonicalizeUnit(unit);`
-
-### `src/lib/server/unit-bridge.ts`
-
-**`interface LineItem`**
-
-- Unit Bridge — resolves purchase units (invoices) to canonical units. Queries unit_conversions and annotates line items in place.
-
-    Matching is normalized (issue #296): rules are keyed by normalizeProductKey(ingredient) + normalizeProductKey(unit), so casing, accents and spacing differences between invoices no longer miss rules.
-
-    ↳ `import { db, forTenant } from './db';`
-
-**`function loadConversionMap`**
-
-- Loads all conversion rules for a supplier, keyed by normalized ingredient::unit. Rules per supplier are few (created one-by-one from the supplier page or conversion prompts), so fetching them all and matching in memory is what lets the lookup be normalization-aware without a normalized column in the table.
-
-    ↳ `export async function loadConversionMap(`
-- When supplierId is known, match rules pinned by FK or pre-supplier name-only rules.
-
-    ↳ `const supplierFilter = supplierId != null`
 
 ### `src/lib/server/waitlist-db.ts`
 

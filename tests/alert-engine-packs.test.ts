@@ -21,9 +21,8 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { runPriceShock } from '../src/lib/server/alert-engine';
-import { parsePack, normalizedUnitPrice } from '../src/lib/server/pack-parser';
+import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from '../src/lib/server/products';
 import { normalizeProductKey } from '../src/lib/server/normalize';
-import type { EnrichedLineItem } from '../src/lib/server/unit-bridge';
 
 const SUPPLIER = '__pack_shock_supplier__';
 let rid = '';

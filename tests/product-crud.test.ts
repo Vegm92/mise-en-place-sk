@@ -11,7 +11,7 @@ import {
 } from './helpers/test-db';
 import {
 	getLinkedSuppliers, unlinkSupplier, deleteProduct, resolveUnitConversionAlerts,
-} from '../src/lib/server/product-catalog';
+} from '../src/lib/server/products';
 
 let rid = '';
 let supplierAId: number;

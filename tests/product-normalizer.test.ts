@@ -15,7 +15,7 @@ vi.mock('../src/lib/server/db', async () => {
 
 import {
 	buildNormalizePrompt, parseNormalizeResponse, processNormalizeJob, LLM_MATCH_THRESHOLD,
-} from '../src/lib/server/product-normalizer';
+} from '../src/lib/server/products';
 import type { LLMProvider } from '../src/lib/server/llm-provider';
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,

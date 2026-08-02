@@ -12,7 +12,7 @@ import {
 } from './helpers/test-db';
 import {
 	resolveLineProducts, confirmProductAlias, rejectProductAlias, mergeIntoProduct, FUZZY_THRESHOLD,
-} from '../src/lib/server/product-catalog';
+} from '../src/lib/server/products';
 
 let rid = '';
 let supplierId: number | null = null;

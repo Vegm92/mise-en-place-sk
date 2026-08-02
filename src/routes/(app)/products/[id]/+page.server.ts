@@ -8,7 +8,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 import {
 	getLinkedSuppliers, unlinkSupplier as unlinkSupplierFromProduct,
 	deleteProduct, resolveUnitConversionAlerts,
-} from '$lib/server/product-catalog';
+} from '$lib/server/products';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = Number(params.id);

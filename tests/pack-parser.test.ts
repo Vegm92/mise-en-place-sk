@@ -2,7 +2,7 @@
  * Golden tests for the deterministic pack parser (issue #299, Phase 3).
  */
 import { describe, it, expect } from 'vitest';
-import { parsePack, normalizedUnitPrice } from '../src/lib/server/pack-parser';
+import { parsePack, normalizedUnitPrice } from '../src/lib/server/products';
 
 describe('parsePack — multipack "N x M<unit>"', () => {
 	it('parses 6x1L', () => {
