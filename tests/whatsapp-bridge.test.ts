@@ -1,11 +1,11 @@
 /**
- * WhatsApp → batch pipeline bridge (issue #349, ADR-004).
+ * WhatsApp → batch pipeline bridge (issue #349, #350, ADR-004).
  *
- * With WHATSAPP_USE_BATCH_PIPELINE on, an inbound media message must create a
- * batch/item via the shared batch-core pipeline and hand off confirmation to
- * /batch/[id] instead of running the legacy inline extraction + SÍ/NO
- * handshake. batch-core.ts, extract-batch.ts and queue.ts are mocked at the
- * module boundary so this file only pins whatsapp-bot.ts's own wiring.
+ * An inbound media message creates a batch/item via the shared batch-core
+ * pipeline and hands off confirmation to /batch/[id] — the only path since
+ * the legacy inline extraction + SÍ/NO handshake was removed in #350.
+ * batch-core.ts, extract-batch.ts and queue.ts are mocked at the module
+ * boundary so this file only pins whatsapp-bot.ts's own wiring.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -84,7 +84,6 @@ vi.mock('../src/lib/server/extract-batch', () => ({ enqueueBatchExtraction: enqu
 vi.mock('../src/lib/server/queue', () => ({ enqueueExtraction: enqueueExtractionMock }));
 vi.mock('../src/lib/server/env', async (importActual) => ({
 	...(await importActual<typeof import('../src/lib/server/env')>()),
-	WHATSAPP_USE_BATCH_PIPELINE: true,
 	APP_BASE_URL: 'https://app.example.com',
 }));
 
@@ -96,10 +95,10 @@ function repliesText() {
 	return sendMock.mock.calls.map((c) => c[1] as string).join('\n');
 }
 
-/** Contact lookup, then the pending-legacy-session guard lookup. */
-function queueRouting(session: unknown[] = []) {
+/** Contact lookup. */
+function queueRouting() {
 	selectQueue.length = 0;
-	selectQueue.push(CONTACT, session);
+	selectQueue.push(CONTACT);
 }
 
 beforeEach(() => {
@@ -110,7 +109,7 @@ beforeEach(() => {
 	createBatchMock.mockResolvedValue({ batchId: 'batch-1', itemIds: ['item-1'] });
 });
 
-describe('WhatsApp → batch bridge (flag on)', () => {
+describe('WhatsApp → batch bridge', () => {
 	it('creates a batch/item, enqueues extraction, and replies with a /batch/[id] link', async () => {
 		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
 		queueRouting();
@@ -159,16 +158,5 @@ describe('WhatsApp → batch bridge (flag on)', () => {
 
 		expect(createBatchMock).not.toHaveBeenCalled();
 		expect(repliesText()).toMatch(/No he podido guardar el archivo/i);
-	});
-
-	it('still blocks a new upload while a legacy session is awaiting confirmation', async () => {
-		const LEGACY_SESSION = [{ id: 7, restaurantId: 'rest-1', fromNumber: '+34600', status: 'awaiting_confirmation' }];
-		queueRouting(LEGACY_SESSION);
-
-		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
-
-		expect(repliesText()).toMatch(/factura pendiente de confirmación/i);
-		expect(createBatchMock).not.toHaveBeenCalled();
-		expect(downloadMock).not.toHaveBeenCalled();
 	});
 });
