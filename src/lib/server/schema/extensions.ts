@@ -242,20 +242,6 @@ export const whatsappProcessedMessages = pgTable('whatsapp_processed_messages', 
 	index('idx_whatsapp_processed_received').on(t.receivedAt),
 ]);
 
-export const whatsappBotSessions = pgTable('whatsapp_bot_sessions', {
-	id:            uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
-	fromNumber:    text('from_number').notNull(),
-	extractedData: jsonb('extracted_data'),
-	fileKey:       text('file_key'),
-	status:        text('status').notNull().default('awaiting_confirmation'),
-	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
-	expiresAt:     timestamp('expires_at', { withTimezone: true }),
-}, (t) => [
-	index('idx_whatsapp_sessions_from_status').on(t.fromNumber, t.status),
-	index('idx_whatsapp_sessions_expires').on(t.expiresAt),
-]);
-
 export const userConsents = pgTable('user_consents', {
 	id:            serial('id').primaryKey(),
 	userId:        text('user_id').notNull(),

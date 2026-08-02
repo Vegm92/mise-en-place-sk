@@ -266,3 +266,14 @@ code path (`handleMediaUpload`'s synchronous extraction, `handleTextReply`,
 - Follow-up issue (opened after prod verification) removes the flag and deletes the
   legacy `whatsapp_bot_sessions` state machine, `handleMediaUpload`'s inline extraction,
   `handleTextReply`, and `saveWhatsAppInvoice`.
+
+### Update — cutover complete (issue #350)
+
+`WHATSAPP_USE_BATCH_PIPELINE` and the legacy `awaiting_confirmation` state machine
+(`handleTextReply`, `saveWhatsAppInvoice`, `getPendingSession`, the inline synchronous
+extraction in `handleMediaUpload`) are deleted. The batch-bridge path is now the only
+path. `whatsapp_bot_sessions` is dropped (migration `0026_drop_whatsapp_bot_sessions.sql`).
+The other four WhatsApp tables (`whatsapp_contacts`, `whatsapp_pairing_codes`,
+`whatsapp_processed_messages`, `whatsapp_account_events`) serve purposes independent of
+the session/confirmation machine — contact directory, onboarding, webhook-redelivery
+dedup, and Meta account health — and were kept as-is.

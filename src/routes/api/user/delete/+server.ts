@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { userRestaurants, restaurants, subscriptions, invoices, batchItems, whatsappBotSessions } from '$lib/server/schema';
+import { userRestaurants, restaurants, subscriptions, invoices, batchItems } from '$lib/server/schema';
 import { getStorage } from '$lib/server/storage';
 import { createSupabaseAdminClient } from '$lib/server/supabase';
 import { cancelSubscription } from '$lib/server/billing';
@@ -11,17 +11,15 @@ import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 async function deleteTenantFiles(restaurantIds: string[]): Promise<void> {
 	if (restaurantIds.length === 0) return;
 
-	const [invoiceFiles, batchFiles, whatsappFiles] = await Promise.all([
+	const [invoiceFiles, batchFiles] = await Promise.all([
 		db.select({ key: invoices.sourceFile }).from(invoices)
 			.where(and(inArray(invoices.restaurantId, restaurantIds), isNotNull(invoices.sourceFile))),
 		db.select({ key: batchItems.fileKey }).from(batchItems)
 			.where(inArray(batchItems.restaurantId, restaurantIds)),
-		db.select({ key: whatsappBotSessions.fileKey }).from(whatsappBotSessions)
-			.where(and(inArray(whatsappBotSessions.restaurantId, restaurantIds), isNotNull(whatsappBotSessions.fileKey))),
 	]);
 
 	const keys = new Set<string>();
-	for (const row of [...invoiceFiles, ...batchFiles, ...whatsappFiles]) {
+	for (const row of [...invoiceFiles, ...batchFiles]) {
 		if (row.key) keys.add(row.key);
 	}
 
