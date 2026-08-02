@@ -6,8 +6,7 @@ import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNoti
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
-import { parsePack, normalizedUnitPrice } from './pack-parser';
-import type { EnrichedLineItem } from './unit-bridge';
+import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
 import { createSupabaseAdminClient } from './supabase';
 import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';

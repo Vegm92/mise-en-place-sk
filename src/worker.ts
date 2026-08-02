@@ -5,7 +5,7 @@ import { PgBoss } from 'pg-boss';
 import { EXTRACTION_QUEUE, NORMALIZE_QUEUE } from './lib/server/queue.js';
 import { pgSslConfig } from './lib/server/db-ssl.js';
 import { processExtractionJob, type ExtractionJobData } from './lib/server/extraction-worker.js';
-import { processNormalizeJob, type NormalizeJobData } from './lib/server/product-normalizer.js';
+import { processNormalizeJob, type NormalizeJobData } from './lib/server/products.js';
 import { registerScheduledJobs } from './lib/server/alerts.js';
 
 Sentry.init({
