@@ -7,7 +7,7 @@ import { getItem, markExtracting, markDone, markFailed } from './batch.js';
 import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
 import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
-import { annotateLineItems } from './unit-bridge.js';
+import { annotateLineItems } from './products.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 import { getAccessState } from './billing.js';
 

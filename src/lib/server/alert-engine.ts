@@ -4,8 +4,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
-import { parsePack, normalizedUnitPrice } from './pack-parser';
-import type { EnrichedLineItem } from './unit-bridge';
+import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
 
 const LOW_STOCK_DAYS = 3;
 

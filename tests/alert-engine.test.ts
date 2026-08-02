@@ -7,7 +7,7 @@
  * No live DB or env vars required: the db module is fully mocked.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { EnrichedLineItem } from '../src/lib/server/unit-bridge';
+import type { EnrichedLineItem } from '../src/lib/server/products';
 
 // ── DB mock ───────────────────────────────────────────────────────────────────
 // vi.mock is hoisted before module evaluation, so helpers live inside the factory.
