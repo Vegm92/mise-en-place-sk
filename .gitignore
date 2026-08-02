@@ -49,6 +49,8 @@ TODO.md
 /docs/*
 # ...except the code documentation, which replaces src/ comments (tracked on purpose)
 !/docs/CODE_NOTES.md
+# ...and the architecture decision records, which are a durable engineering record (tracked on purpose)
+!/docs/ARCHITECTURE_DECISIONS.md
 /mise-en-place
 
 

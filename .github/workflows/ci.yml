@@ -58,6 +58,9 @@ jobs:
       - name: Type check
         run: pnpm check
 
+      - name: Lint — drizzle/ in sync with schema.ts (ADR-003)
+        run: pnpm db:check-sync
+
       - name: Bootstrap CI database (auth stub for RLS migration)
         env:
           PGPASSWORD: postgres
