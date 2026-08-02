@@ -1,0 +1,12 @@
+-- Migration 0026: drop the legacy WhatsApp session state machine (issue #350)
+--
+-- whatsapp_bot_sessions backed the inline SÍ/NO confirmation handshake
+-- (ADR-004) that #349 superseded with the shared upload_batches/batch_items
+-- pipeline. The table only ever held in-flight, TTL-bound confirmation state
+-- (1h expiry) — nothing here is durable data worth preserving once the
+-- awaiting_confirmation code path (handleTextReply, saveWhatsAppInvoice,
+-- getPendingSession) is deleted from whatsapp-bot.ts. The other four
+-- WhatsApp tables (contacts, pairing codes, processed messages, account
+-- events) are untouched — they serve the contact directory, onboarding,
+-- webhook dedup, and Meta account health, independent of this state machine.
+DROP TABLE "whatsapp_bot_sessions" CASCADE;
