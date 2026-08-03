@@ -14,6 +14,5 @@ CREATE TABLE IF NOT EXISTS whatsapp_processed_messages (
 CREATE INDEX IF NOT EXISTS idx_whatsapp_processed_received
 	ON whatsapp_processed_messages (received_at);
 
--- Written only by the server (direct owner connection); not exposed via the
--- Data API, so RLS is enabled with no user-facing policies.
-ALTER TABLE whatsapp_processed_messages ENABLE ROW LEVEL SECURITY;
+-- Written only by the server (direct owner connection); no RLS needed on
+-- Railway Postgres (no Data API — see drizzle/0001_rls_policies.sql).

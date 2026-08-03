@@ -13,9 +13,8 @@ CREATE TABLE IF NOT EXISTS stripe_webhook_events (
 	processed_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Written only by the server (direct owner connection); not exposed via the
--- Data API, so RLS is enabled with no user-facing policies.
-ALTER TABLE stripe_webhook_events ENABLE ROW LEVEL SECURITY;
+-- Written only by the server (direct owner connection); no RLS needed on
+-- Railway Postgres (no Data API — see drizzle/0001_rls_policies.sql).
 
 -- (b) Ordering guard. Stores the Stripe event.created of the last lifecycle
 --     event applied to the subscription; the updated/deleted branch skips any
