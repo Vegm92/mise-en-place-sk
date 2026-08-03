@@ -1,6 +1,12 @@
 export const UPLOADS_DIR = process.env.UPLOADS_DIR ?? 'uploads';
-export const STORAGE_DRIVER = (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 'supabase';
+export const STORAGE_DRIVER = (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 'supabase' | 'railway';
 export const STORAGE_BUCKET = process.env.STORAGE_BUCKET ?? 'invoice-uploads';
+export const AWS_ENDPOINT_URL = process.env.AWS_ENDPOINT_URL ?? '';
+export const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID ?? '';
+export const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY ?? '';
+export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME ?? '';
+export const AWS_DEFAULT_REGION = process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
+export const AWS_S3_URL_STYLE = (process.env.AWS_S3_URL_STYLE ?? 'path') as 'path' | 'virtual';
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
 export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
 export const CHAT_RATE_LIMIT_RPM = parseInt(process.env.CHAT_RATE_LIMIT_RPM ?? '20', 10);
