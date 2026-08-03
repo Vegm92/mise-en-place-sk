@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
-import { UPLOADS_DIR, STORAGE_DRIVER, STORAGE_BUCKET } from './env.js';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+	UPLOADS_DIR, STORAGE_DRIVER, STORAGE_BUCKET,
+	AWS_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET_NAME, AWS_DEFAULT_REGION, AWS_S3_URL_STYLE,
+} from './env.js';
 
 class LocalDriver {
 	private base: string;
@@ -58,5 +62,39 @@ class SupabaseStorageDriver {
 	}
 }
 
-const _storage = STORAGE_DRIVER === 'supabase' ? new SupabaseStorageDriver() : new LocalDriver();
+class RailwayBucketDriver {
+	private client: S3Client;
+	private bucket: string;
+
+	constructor() {
+		if (!AWS_ENDPOINT_URL || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_S3_BUCKET_NAME) {
+			throw new Error('AWS_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_S3_BUCKET_NAME are required for Railway bucket storage');
+		}
+		this.bucket = AWS_S3_BUCKET_NAME;
+		this.client = new S3Client({
+			endpoint: AWS_ENDPOINT_URL,
+			region: AWS_DEFAULT_REGION,
+			forcePathStyle: AWS_S3_URL_STYLE === 'path',
+			credentials: { accessKeyId: AWS_ACCESS_KEY_ID, secretAccessKey: AWS_SECRET_ACCESS_KEY },
+		});
+	}
+
+	async save(key: string, buf: Buffer): Promise<void> {
+		await this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buf }));
+	}
+
+	async read(key: string): Promise<Buffer> {
+		const { Body } = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+		return Buffer.from(await Body!.transformToByteArray());
+	}
+
+	async delete(key: string): Promise<void> {
+		await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+	}
+}
+
+const _storage =
+	STORAGE_DRIVER === 'railway' ? new RailwayBucketDriver() :
+	STORAGE_DRIVER === 'supabase' ? new SupabaseStorageDriver() :
+	new LocalDriver();
 export function getStorage() { return _storage; }
