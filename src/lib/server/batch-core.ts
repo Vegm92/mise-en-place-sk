@@ -76,6 +76,8 @@ export function createBatchStore(db: BatchDb) {
 		restaurantId: string,
 		files: Array<{ key: string; name: string }>,
 	): Promise<string[]> {
+		// tenant-scope-ok: internal store keyed by batchId; the caller owns the
+		// batch and passes restaurantId, which is written on every inserted row.
 		const [{ max }] = await db
 			.select({ max: sql<number>`coalesce(max(${batchItems.position}), 0)` })
 			.from(batchItems)
@@ -95,12 +97,16 @@ export function createBatchStore(db: BatchDb) {
 
 	async function getItem(itemId: string): Promise<BatchItem | null> {
 		if (!isUuid(itemId)) return null;
+		// tenant-scope-ok: returns restaurantId on the item so callers can check
+		// ownership; every caller compares it against locals.restaurantId.
 		const rows = await db.select(itemColumns).from(batchItems).where(eq(batchItems.id, itemId)).limit(1);
 		return rows.length ? asItem(rows[0]) : null;
 	}
 
 	async function getBatchItems(batchId: string): Promise<BatchItem[]> {
 		if (!isUuid(batchId)) return [];
+		// tenant-scope-ok: returns restaurantId on each item so callers can check
+		// ownership; /batch/[id] rejects the batch when any item is another tenant's.
 		const rows = await db
 			.select(itemColumns)
 			.from(batchItems)
@@ -186,6 +192,8 @@ export function createBatchStore(db: BatchDb) {
 	}
 
 	async function isBatchSettled(batchId: string): Promise<boolean> {
+		// tenant-scope-ok: existence check on a batch the caller already owns;
+		// returns only a boolean, no row data.
 		const rows = await db
 			.select({ id: batchItems.id })
 			.from(batchItems)

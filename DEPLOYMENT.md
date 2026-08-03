@@ -1,6 +1,10 @@
 # Deployment Runbook
 
-Stack: SvelteKit (`@sveltejs/adapter-node`) + Supabase (Postgres + Auth) + Gemini. Build artifact runs with `node build/index.js`.
+Stack: SvelteKit (`@sveltejs/adapter-node`) + Railway Postgres + Supabase Auth + Gemini. Build artifact runs with `node build/index.js`.
+
+> **Migration in progress.** The database moved to Railway Postgres in #366/#367.
+> Auth is still Supabase GoTrue and moves to Auth.js in #369–#372, so the
+> `SUPABASE_*` variables below remain required until those land.
 
 Copy `.env.example` to `.env` and fill in every value before starting the server.
 
@@ -8,16 +12,16 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 
 ## Required environment variables
 
-### Database (Supabase Postgres)
+### Database (Railway Postgres)
 
 | Variable | Required | Notes |
 |---|---|---|
-| `DATABASE_URL` | Yes | Supabase **direct** connection string — used by drizzle-kit migrations and pg-boss: `postgresql://postgres:…@db.<project-ref>.supabase.co:5432/postgres`. SSL is enforced by the client. |
-| `DATABASE_POOL_URL` | No | Supabase **Session Mode pooler** (port 5432) or PgBouncer URL for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. |
+| `DATABASE_URL` | Yes | Railway Postgres connection string — used by drizzle-kit migrations and pg-boss. Railway exposes it on the Postgres service as `DATABASE_URL` (internal, `*.railway.internal`) and `DATABASE_PUBLIC_URL` (external, for migrations run from your machine or CI). SSL is enforced by the client. |
+| `DATABASE_POOL_URL` | No | Separate pooled connection string for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. |
 | `DATABASE_SSL_MODE` | No | `require` (default — encrypted, certificate **not** verified) or `verify-full` (certificate chain verified). Applies to both the web pool and the worker's pg-boss connection. Production logs a warning while it is `require`. |
-| `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file. Omit to use the system trust store. Supabase publishes its CA in Project Settings → Database → SSL Configuration. |
+| `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
 
-### Supabase (auth + API)
+### Supabase (auth only — being replaced by Auth.js in #369–#372)
 
 | Variable | Required | Notes |
 |---|---|---|
@@ -143,17 +147,17 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 **Both must run in production.** Without the worker, uploads succeed but extractions stay `queued` forever.
 
 1. `pnpm install --frozen-lockfile`
-2. `pnpm db:migrate` — applies `drizzle/` migrations. **Verify the RLS migration (`0001_rls_policies.sql`) is applied to the production database** (`SELECT policyname FROM pg_policies WHERE schemaname='public';` should list policies for every business table); tenant isolation depends on it.
+2. `pnpm db:migrate` — applies `drizzle/` migrations. Tenant isolation does **not** depend on the database: it is enforced in application queries by `forTenant().scope()` (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. The Supabase Data API RLS policies were dropped in the Railway migration, so `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **zero rows is the expected state** — see ADR-005, and #222 for the open path to database-enforced isolation.
 3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
 4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
    - `node build` (web) and `node build/worker.js` (worker)
-   - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=supabase` (see [File storage](#file-storage)).
+   - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=railway` (or `supabase`); see [File storage](#file-storage).
    - On a VPS: `docker compose up -d` uses the included `Dockerfile` + `docker-compose.yml` (one image, web + worker services, shared `uploads` volume at `/app/uploads`).
 5. Point your platform's health check at `GET /api/health` — returns `200` healthy / `503` degraded and reports DB reachability, pg-boss queue depth, uploads-dir writability, and active sessions. The worker has no HTTP port; rely on the platform's process supervision/restart policy.
 
 ## First startup
 
-1. Connects to Supabase Postgres (throws if `DATABASE_URL` missing/unreachable).
+1. Connects to Postgres (throws if `DATABASE_URL` missing/unreachable).
 2. Seeds the admin user + restaurant from `AUTH_ADMIN_*` (idempotent; logs once).
 3. Cleans stale upload sessions (older than 24 h).
 

@@ -46,6 +46,9 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 
 	const from = msg.from;
 
+	// tenant-scope-ok: this IS the tenant resolution step — the sender's number
+	// is globally unique across contacts and determines which restaurant they
+	// belong to. There is no tenant context to scope by until this query returns.
 	const contactRows = await db
 		.select({ restaurantId: whatsappContacts.restaurantId })
 		.from(whatsappContacts)

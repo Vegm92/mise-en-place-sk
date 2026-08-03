@@ -14,7 +14,7 @@ Date: 2026-07-24 · Scope: full repository review (routes, server modules, schem
 > enforcement for the app role (#222) and edge/volumetric protection (#224),
 > both of which need infrastructure decisions, and the staging sign-off (#200).
 
-**Overall assessment:** the codebase is unusually mature for a pre-launch product — tenant isolation is enforced at query level *and* by Postgres RLS with a CI lint (`lint:tenant-scope`), Stripe webhooks have signature verification + event dedup + out-of-order protection, uploads have magic-byte validation, quota claims are race-safe (`INSERT … ON CONFLICT … WHERE used < limit`), CSP/HSTS/security headers are set, error pages exist at both layout levels, and there are ~400 tests. The gaps below are the residual items that would actually hurt on launch day, ordered by severity.
+**Overall assessment:** the codebase is unusually mature for a pre-launch product — tenant isolation is enforced at query level with a CI lint (`lint:tenant-scope`), Stripe webhooks have signature verification + event dedup + out-of-order protection, uploads have magic-byte validation, quota claims are race-safe (`INSERT … ON CONFLICT … WHERE used < limit`), CSP/HSTS/security headers are set, error pages exist at both layout levels, and there are ~400 tests. The gaps below are the residual items that would actually hurt on launch day, ordered by severity.
 
 ---
 
@@ -73,7 +73,7 @@ Date: 2026-07-24 · Scope: full repository review (routes, server modules, schem
 - **Where / current:**
   - `DEPLOYMENT.md:113` claims "HSTS/CSP not yet set at app level (#104)" — both **are** set now (`hooks.server.ts:115–119`, `svelte.config.js` CSP block). An operator may bolt on a second, conflicting CSP at the proxy.
   - `README.md:87–89` links `PRE_RELEASE_AUDIT.md`, `PLAN_DE_NEGOCIO.md`; §80 references `EINVOICING_READINESS.md` — none of these files exist in the repo.
-  - `README.md:27` says RLS lives in `0002_rls_policies.sql`; the actual file is `drizzle/0001_rls_policies.sql`.
+  - ~~`README.md:27` says RLS lives in `0002_rls_policies.sql`~~ — moot since #373 dropped the policies; the stale `0002_` filename survives in ADR-001 and is corrected there.
   - `DEPLOYMENT.md` env tables omit: `STRIPE_PRICE_ID_*` (see #4), all four `WHATSAPP_*` vars, `UPSTASH_REDIS_REST_*`, `STORAGE_DRIVER`/`STORAGE_BUCKET`.
   - `PRODUCTION_SIGNOFF.md` references `STRIPE_PRICE_ID_STARTER` etc. — the one doc that's right; align the others with it.
 - **Should be:** one doc pass before launch; the runbooks are otherwise good enough that people will actually follow them.

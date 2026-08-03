@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				total_price: invoiceLineItems.totalPrice,
 			})
 				.from(invoiceLineItems)
-				.where(eq(invoiceLineItems.invoiceId, id))
+				.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))
 				.orderBy(asc(invoiceLineItems.id)),
 		]);
 

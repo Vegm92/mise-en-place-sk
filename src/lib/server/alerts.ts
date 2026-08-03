@@ -591,6 +591,9 @@ export async function runTrialNoticesJob(): Promise<{ considered: number; sent: 
 
 export async function runFilePurgeJob(): Promise<{ purged: number; failed: number }> {
 	const cutoff = new Date(Date.now() - DELETED_FILE_RETENTION_DAYS * 86_400_000);
+	// tenant-scope-ok: retention purge is a platform-wide background job — it
+	// sweeps soft-deleted invoices across every tenant by design, and carries
+	// restaurantId through so downstream file deletion stays per-tenant.
 	const rows = await db.select({
 		id: invoices.id,
 		restaurantId: invoices.restaurantId,

@@ -43,21 +43,25 @@ switching (#290). What remains below still needs real third-party credentials.
 ## Staging checks (require real credentials)
 
 Set the full `.env` from `.env.example` against the **staging** project first.
-Apply migrations and confirm RLS is deployed:
+Apply migrations and confirm the schema landed clean:
 
 ```bash
 pnpm db:migrate
-# Confirm the RLS policies from drizzle/0001_rls_policies.sql exist on the live DB:
+# Railway Postgres carries no RLS: #373 dropped the Supabase Data API policies,
+# so both of these must come back empty (this is the post-migration state, not a
+# failure). Tenant isolation is enforced in the app by forTenant() — see ADR-001.
 psql "$DATABASE_URL" -c "SELECT tablename, policyname FROM pg_policies WHERE schemaname='public' ORDER BY 1,2;"
+psql "$DATABASE_URL" -c "SELECT relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relrowsecurity ORDER BY 1;"
 ```
-**Pass:** every business table (suppliers, invoices, invoice_line_items, …)
-lists at least one policy; `restaurants` and `user_restaurants` have theirs.
+**Pass:** both queries return zero rows, and `SELECT count(*) FROM
+information_schema.tables WHERE table_schema='public'` matches the replay
+count recorded in #366.
 
 ### 1. Hosted-Supabase test suites (unblocks the 17 skips)
 
 ```bash
-export DATABASE_URL=<staging direct connection>          # db.<ref>.supabase.co
-export SUPABASE_URL=https://<ref>.supabase.co
+export DATABASE_URL=<staging Railway Postgres connection>   # DATABASE_PUBLIC_URL
+export SUPABASE_URL=https://<ref>.supabase.co               # auth only
 export SUPABASE_ANON_KEY=eyJ...
 export SUPABASE_SERVICE_ROLE_KEY=eyJ...
 export REQUIRE_DB_TESTS=1        # turns "skip" into a hard failure if creds are wrong

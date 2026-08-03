@@ -13,10 +13,10 @@ PostgreSQL 16 local install works; Supabase is only needed for auth.
 service postgresql start
 su postgres -c "createdb mep"
 # allow TCP logins (or set a password): switch pg_hba host lines to trust
-# vanilla PG lacks Supabase's auth schema; the RLS migration needs a stub:
-psql -h 127.0.0.1 -U postgres -d mep -c \
-  "CREATE SCHEMA IF NOT EXISTS auth; CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS 'SELECT NULL::uuid';"
 ```
+
+No `auth` schema stub is needed: since #373 the migrations are plain Postgres
+and reference no Supabase-only functions.
 
 `.env` for local runs (db.ts hardcodes `ssl: 'require'`; Debian PG's snakeoil
 certs satisfy it):
