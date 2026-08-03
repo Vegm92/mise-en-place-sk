@@ -59,11 +59,6 @@ jobs:
       - name: Lint — drizzle/ in sync with schema.ts (ADR-003)
         run: pnpm db:check-sync
 
-      - name: Bootstrap CI database (auth stub for RLS migration)
-        env:
-          PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d mise_en_place_test -f scripts/ci-db-setup.sql
-
       - name: Run migrations
         run: pnpm db:migrate
 
