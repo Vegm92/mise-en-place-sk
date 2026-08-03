@@ -101,7 +101,9 @@ describe('/invoices/export — supplier list must be tenant-scoped', () => {
 		const { load } = await import('../src/routes/(app)/invoices/export/+page.server');
 		state.supplierRows = [{ id: 1, name: 'Proveedor A' }];
 
-		const result = await load({ locals: { restaurantId: RID_A } } as never);
+		const result = (await load({ locals: { restaurantId: RID_A } } as never)) as {
+			suppliers: Array<{ id: number; name: string }>;
+		};
 
 		expect(state.scopedTo).toBe(RID_A);
 		expect(state.whereApplied).toBe(true);
@@ -124,10 +126,10 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 		const { load } = await import('../src/routes/(app)/batch/[id]/+page.server');
 		getBatchItemsMock.mockResolvedValue([batchItem(RID_A)]);
 
-		const result = await load({
+		const result = (await load({
 			params: { id: 'batch-1' },
 			locals: { restaurantId: RID_A },
-		} as never);
+		} as never)) as { queue: unknown[] };
 
 		expect(result.queue).toHaveLength(1);
 	});
@@ -156,10 +158,9 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 		const { load } = await import('../src/routes/(app)/batch/[id]/+page.server');
 		getBatchItemsMock.mockResolvedValue([batchItem(RID_B)]);
 
-		const outcome = await load({
-			params: { id: 'batch-1' },
-			locals: { restaurantId: RID_A },
-		} as never).catch((e: unknown) => e);
+		const outcome = await Promise.resolve(
+			load({ params: { id: 'batch-1' }, locals: { restaurantId: RID_A } } as never)
+		).catch((e: unknown) => e);
 
 		expect(JSON.stringify(outcome)).not.toContain('Proveedor Secreto');
 	});
