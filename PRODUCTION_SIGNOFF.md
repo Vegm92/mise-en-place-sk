@@ -60,8 +60,8 @@ count recorded in #366.
 ### 1. Hosted-Supabase test suites (unblocks the 17 skips)
 
 ```bash
-export DATABASE_URL=<staging direct connection>          # db.<ref>.supabase.co
-export SUPABASE_URL=https://<ref>.supabase.co
+export DATABASE_URL=<staging Railway Postgres connection>   # DATABASE_PUBLIC_URL
+export SUPABASE_URL=https://<ref>.supabase.co               # auth only
 export SUPABASE_ANON_KEY=eyJ...
 export SUPABASE_SERVICE_ROLE_KEY=eyJ...
 export REQUIRE_DB_TESTS=1        # turns "skip" into a hard failure if creds are wrong

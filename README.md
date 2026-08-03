@@ -23,7 +23,8 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 ## Tech stack
 
 - **SvelteKit 2 + Svelte 5 (runes)**, Tailwind CSS 4, shadcn-svelte/bits-ui, `@sveltejs/adapter-node`
-- **Supabase**: Postgres (data) + Auth (email/password + Google OAuth, cookie sessions via `@supabase/ssr`)
+- **Railway Postgres** (data) — migrated off Supabase in #366/#367
+- **Supabase Auth** (email/password + Google OAuth, cookie sessions via `@supabase/ssr`) — being replaced by Auth.js in #369–#372
 - **Drizzle ORM** (postgres-js, SSL required); committed migrations in `drizzle/` are the canonical schema source (ADR-003)
 - **Gemini** (`@google/genai`, default `gemini-2.5-flash`) for extraction, digest, and chat
 - **Sentry** (`@sentry/sveltekit`) for client + server error tracking (no-ops when DSN empty)
@@ -59,7 +60,7 @@ Multi-tenancy: every business table carries `restaurant_id`; access is enforced 
 
 ## Getting started
 
-1. Create a Supabase project; get the Postgres connection string and API keys.
+1. Provision a Railway Postgres instance for `DATABASE_URL`, and a Supabase project for the auth keys (see [DEPLOYMENT.md](DEPLOYMENT.md)). A local Postgres works for development.
 2. `cp .env.example .env` and fill every value (see [DEPLOYMENT.md](DEPLOYMENT.md) for the reference).
 3. `pnpm install`
 4. `pnpm db:migrate` (applies `drizzle/` migrations — the canonical schema, per ADR-003)
@@ -79,8 +80,8 @@ Multi-tenancy: every business table carries `restaurant_id`; access is enforced 
 Those suites create and delete real restaurants, suppliers, invoices and
 notifications, so they only run against a **local** Postgres
 (`localhost` / `127.0.0.1` / `::1` / `host.docker.internal`). If your `DATABASE_URL`
-points at hosted Supabase — the shape in `.env.example` — they skip with a loud
-notice instead of writing to it.
+points at a hosted database — Railway, or anything else non-local, which is the
+shape in `.env.example` — they skip with a loud notice instead of writing to it.
 
 - Preferred: set `DATABASE_TEST_URL` to a local database, keeping app and test
   connection strings separate by construction.
