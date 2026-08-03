@@ -1,4 +1,7 @@
 import adapter from '@sveltejs/adapter-node';
+import 'dotenv/config';
+
+const supabaseOrigin = process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).origin : undefined;
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
@@ -23,7 +26,7 @@ const config = {
 				'frame-src':    ['self'],
 				'object-src':   ['none'],
 				'base-uri':     ['self'],
-				'form-action':  ['self'],
+				'form-action':  supabaseOrigin ? ['self', supabaseOrigin] : ['self'],
 			},
 		},
 	}

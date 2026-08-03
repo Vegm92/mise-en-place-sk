@@ -38,9 +38,11 @@ Google OAuth is configured in the **Supabase dashboard** (Authentication → Pro
 
 | Variable | Default | Notes |
 |---|---|---|
-| `STORAGE_DRIVER` | `local` | `local` writes to `UPLOADS_DIR` on disk; `supabase` writes to Supabase Storage. |
+| `STORAGE_DRIVER` | `local` | `local` writes to `UPLOADS_DIR` on disk; `supabase` writes to Supabase Storage; `railway` writes to a Railway Bucket (S3-compatible). |
 | `STORAGE_BUCKET` | `invoice-uploads` | Bucket name when `STORAGE_DRIVER=supabase`. Create it in Supabase → Storage first. |
 | `UPLOADS_DIR` | `uploads` | Uploaded invoice files (PDF/JPG/PNG, 20 MB max each) when `STORAGE_DRIVER=local`. |
+
+**`STORAGE_DRIVER=railway`** additionally requires the standard AWS SDK vars that `railway bucket credentials` prints: `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, `AWS_S3_URL_STYLE`. A Railway Bucket is project-scoped, so both the web and worker services read/write the same bucket by sharing these variables — no separate volume or plan upgrade needed as invoice volume grows (billed per GB-month, unlike Supabase Storage's fixed plan tiers).
 
 > **Web and worker must see the same files.** The web process writes the upload;
 > the worker reads it back to extract it. With `STORAGE_DRIVER=local` both
@@ -48,8 +50,8 @@ Google OAuth is configured in the **Supabase dashboard** (Authentication → Pro
 > `docker-compose.yml` mounts a named volume at `/app/uploads` in both services
 > and sets `UPLOADS_DIR=/app/uploads` (issue #285). On platforms where the two
 > processes are separate services with separate disks (Railway/Render/Fly), use
-> `STORAGE_DRIVER=supabase` — with `local` there, every extraction fails
-> "file not found" and every redeploy deletes users' invoice files.
+> `STORAGE_DRIVER=railway` (or `supabase`) — with `local` there, every extraction
+> fails "file not found" and every redeploy deletes users' invoice files.
 
 > Upload sessions are stored in Postgres (table `upload_sessions`) and survive
 > restarts automatically; they need no volume.

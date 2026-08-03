@@ -3,6 +3,7 @@
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",
+	"packageManager": "pnpm@10.0.0",
 	"scripts": {
 		"dev": "vite dev",
 		"dev:all": "concurrently -n web,worker -c blue,green \"pnpm dev\" \"pnpm worker\"",
@@ -59,6 +60,7 @@
 		"workbox-window": "^7.4.1"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.1101.0",
 		"@fontsource-variable/mona-sans": "^5.2.8",
 		"@google/genai": "^1.52.0",
 		"@internationalized/date": "^3.12.2",
