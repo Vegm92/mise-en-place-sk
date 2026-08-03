@@ -14,6 +14,5 @@ CREATE TABLE IF NOT EXISTS user_consents (
 CREATE UNIQUE INDEX IF NOT EXISTS user_consents_user_version_unique
 	ON user_consents (user_id, policy_version);
 
--- Written only by the server (direct owner connection); not exposed to
--- end-users via the Data API, so RLS is enabled with no user-facing policies.
-ALTER TABLE user_consents ENABLE ROW LEVEL SECURITY;
+-- Written only by the server (direct owner connection); no RLS needed on
+-- Railway Postgres (no Data API — see drizzle/0001_rls_policies.sql).

@@ -56,24 +56,16 @@ CREATE INDEX IF NOT EXISTS idx_invoice_line_items_product_id
     ON invoice_line_items (restaurant_id, product_id) WHERE product_id IS NOT NULL;
 
 -- ── Row Level Security ───────────────────────────────────────────────────────
--- Same defense-in-depth as migration 0001: the app uses an owner connection
--- that bypasses RLS, but the Supabase Data API path (anon/authenticated) must
--- be scoped to the caller's restaurants.
+-- No RLS on Railway Postgres: it has no Data API and no auth.uid(), and the
+-- app's own request path already bypasses RLS via an owner connection scoped
+-- by locals.restaurantId (see drizzle/0001_rls_policies.sql for the rationale).
 DO $$
 DECLARE
     tbl text;
     tables text[] := ARRAY['products', 'product_aliases'];
 BEGIN
     FOREACH tbl IN ARRAY tables LOOP
-        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl);
         EXECUTE format('DROP POLICY IF EXISTS %I ON %I;', 'restaurant_members_access_' || tbl, tbl);
-        EXECUTE format($f$
-            CREATE POLICY %I ON %I
-                FOR ALL
-                USING (restaurant_id IN (
-                    SELECT restaurant_id FROM user_restaurants WHERE user_id = auth.uid()::text))
-                WITH CHECK (restaurant_id IN (
-                    SELECT restaurant_id FROM user_restaurants WHERE user_id = auth.uid()::text));
-        $f$, 'restaurant_members_access_' || tbl, tbl);
+        EXECUTE format('ALTER TABLE %I DISABLE ROW LEVEL SECURITY;', tbl);
     END LOOP;
 END $$;

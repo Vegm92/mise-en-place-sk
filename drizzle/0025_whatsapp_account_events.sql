@@ -27,6 +27,5 @@ CREATE TABLE "whatsapp_account_events" (
 CREATE INDEX "idx_whatsapp_account_events_received" ON "whatsapp_account_events" USING btree ("received_at");--> statement-breakpoint
 CREATE INDEX "idx_whatsapp_account_events_severity" ON "whatsapp_account_events" USING btree ("severity","received_at");
 --> statement-breakpoint
--- Written only by the webhook handler (direct owner connection); not exposed via
--- the Data API, so RLS is enabled with no user-facing policies.
-ALTER TABLE "whatsapp_account_events" ENABLE ROW LEVEL SECURITY;
+-- Written only by the webhook handler (direct owner connection); no RLS needed
+-- on Railway Postgres (no Data API — see drizzle/0001_rls_policies.sql).
