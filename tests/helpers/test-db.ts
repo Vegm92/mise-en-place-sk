@@ -21,14 +21,6 @@ const _isLocal = _gate.isLocal;
  */
 export const hasDbEnv = _gate.enabled;
 
-/**
- * True when the test database is local/ephemeral (CI service container or
- * local dev), as opposed to a hosted Supabase pooler. Guards tests that run
- * privileged DDL (roles, function redefinition) which must never touch a real
- * Supabase database.
- */
-export const isLocalDb = _isLocal;
-
 /** True when Supabase-specific vars are present (auth tests, connection tests). */
 export const hasSupabaseEnv = !!(
 	hasDbEnv &&

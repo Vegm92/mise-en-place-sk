@@ -106,7 +106,7 @@ Date: 2026-07-24 · Scope: full repository review (routes, server modules, schem
 
 ## What was checked and found solid (no action needed)
 
-- **Tenant isolation:** `forTenant().scope()` used everywhere (enforced by `lint:tenant-scope`), Postgres RLS policies in migrations with dedicated enforcement tests (`tests/rls-enforcement.test.ts`, `tenant-isolation.test.ts`).
+- **Tenant isolation:** `forTenant().scope()` used everywhere (enforced by `lint:tenant-scope`), with dedicated enforcement tests (`tenant-isolation.test.ts`). Postgres RLS policies existed only to gate the (now-retired) Supabase Data API path and were dropped as part of the Railway Postgres migration — see `drizzle/0001_rls_policies.sql`.
 - **Auth guard:** `hooks.server.ts` validates the JWT per request (`getUser()`, not just the cookie), 401s API routes, redirects pages, double-guards `/admin` at hook + layout level.
 - **Webhooks:** Stripe — signature verification failing closed in production, event-ID dedup table with claim-release on failure, `lastEventAt` out-of-order protection. WhatsApp — HMAC `X-Hub-Signature-256` with timing-safe compare, fails closed in production.
 - **Race conditions:** advisory lock + idempotency key on Stripe customer creation; race-safe monthly quota claim; partial unique index on `(restaurant_id, content_hash) WHERE deleted_at IS NULL` for duplicate saves; `processed_requests` idempotency table; migration `0013` even repairs pre-existing collisions before adding the constraint.
