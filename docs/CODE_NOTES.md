@@ -32,6 +32,16 @@ These change how a tool behaves, so removing them would change behaviour — the
 
 ---
 
+## Root config files
+
+### `svelte.config.js`
+
+**`form-action` CSP directive**
+
+Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the server action responds with a 303 redirect straight to Supabase's `/auth/v1/authorize` endpoint. Browsers validate `form-action` against that first redirect hop (not just the form's own same-origin target), so the Supabase project origin must be allowlisted alongside `'self'` or the redirect gets blocked client-side. The further hop from Supabase to `accounts.google.com` is a normal navigation and isn't re-checked.
+
+---
+
 ## HTTP API endpoints
 
 ### `src/routes/(app)/api/active-restaurant/+server.ts`

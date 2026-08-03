@@ -43,7 +43,9 @@ Thumbs.db
 CLAUDE.md
 REFERENCES.md
 CONTEXT.md
+PRD.md
 TODO.md
+/.claude/
 /graphify-out
 .graphify_cached.json
 /docs/*
