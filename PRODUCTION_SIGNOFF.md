@@ -21,8 +21,8 @@ pnpm lint:tenant-scope
 DATABASE_URL=<any live pg> pnpm test   # 566 passed / 17 skipped (the 17 need hosted Supabase)
 ```
 
-Covered by committed regression tests: DB-level RLS enforcement
-(`tests/rls-enforcement.test.ts`), Stripe webhook signature→plan-update
+Covered by committed regression tests: tenant isolation via `forTenant()`
+(`tests/tenant-isolation.test.ts`), Stripe webhook signature→plan-update
 (`tests/stripe-webhook.test.ts`), upload magic-byte + 20 MB validation
 (`tests/upload-validation.test.ts`), password recovery
 (`tests/password-recovery.test.ts`), profile management
