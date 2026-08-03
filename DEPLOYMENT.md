@@ -143,7 +143,7 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 **Both must run in production.** Without the worker, uploads succeed but extractions stay `queued` forever.
 
 1. `pnpm install --frozen-lockfile`
-2. `pnpm db:migrate` — applies `drizzle/` migrations. **Verify the RLS migration (`0001_rls_policies.sql`) is applied to the production database** (`SELECT policyname FROM pg_policies WHERE schemaname='public';` should list policies for every business table); tenant isolation depends on it.
+2. `pnpm db:migrate` — applies `drizzle/` migrations. Tenant isolation does **not** depend on the database: it is enforced in application queries by `forTenant().scope()` (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. The Supabase Data API RLS policies were dropped in the Railway migration, so `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **zero rows is the expected state** — see ADR-005, and #222 for the open path to database-enforced isolation.
 3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
 4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
    - `node build` (web) and `node build/worker.js` (worker)
