@@ -13,6 +13,5 @@ CREATE TABLE IF NOT EXISTS monthly_usage (
 CREATE UNIQUE INDEX IF NOT EXISTS monthly_usage_restaurant_month_unique
 	ON monthly_usage (restaurant_id, month);
 
--- Written only by the server (direct owner connection); not exposed to
--- end-users via the Data API, so RLS is enabled with no user-facing policies.
-ALTER TABLE monthly_usage ENABLE ROW LEVEL SECURITY;
+-- Written only by the server (direct owner connection); no RLS needed on
+-- Railway Postgres (no Data API — see drizzle/0001_rls_policies.sql).

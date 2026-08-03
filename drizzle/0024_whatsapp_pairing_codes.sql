@@ -35,6 +35,5 @@ CREATE UNIQUE INDEX "whatsapp_pairing_codes_code_unique" ON "whatsapp_pairing_co
 CREATE INDEX "idx_whatsapp_pairing_restaurant" ON "whatsapp_pairing_codes" USING btree ("restaurant_id");--> statement-breakpoint
 CREATE INDEX "idx_whatsapp_pairing_expires" ON "whatsapp_pairing_codes" USING btree ("expires_at");
 --> statement-breakpoint
--- Written only by the server (direct owner connection); not exposed via the
--- Data API, so RLS is enabled with no user-facing policies.
-ALTER TABLE "whatsapp_pairing_codes" ENABLE ROW LEVEL SECURITY;
+-- Written only by the server (direct owner connection); no RLS needed on
+-- Railway Postgres (no Data API — see drizzle/0001_rls_policies.sql).
