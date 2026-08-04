@@ -1,5 +1,6 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import Credentials from '@auth/sveltekit/providers/credentials';
+import Google from '@auth/sveltekit/providers/google';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import { env } from '$env/dynamic/private';
 import { getDb } from './db';
@@ -24,6 +25,10 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 			authorize: async (credentials) => {
 				return verifyCredentials(String(credentials?.email ?? ''), String(credentials?.password ?? ''));
 			},
+		}),
+		Google({
+			clientId:     env.AUTH_GOOGLE_ID,
+			clientSecret: env.AUTH_GOOGLE_SECRET,
 		}),
 	],
 	callbacks: {

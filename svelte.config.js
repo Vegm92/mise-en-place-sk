@@ -1,8 +1,6 @@
 import adapter from '@sveltejs/adapter-node';
 import 'dotenv/config';
 
-const supabaseOrigin = process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).origin : undefined;
-
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	compilerOptions: {
@@ -26,7 +24,10 @@ const config = {
 				'frame-src':    ['self'],
 				'object-src':   ['none'],
 				'base-uri':     ['self'],
-				'form-action':  supabaseOrigin ? ['self', supabaseOrigin] : ['self'],
+				// 'https://accounts.google.com' — the signInWithGoogle form action
+				// redirects (303) to Google's OAuth consent screen; form-action
+				// governs that redirect target, not just the initial same-origin URL.
+				'form-action':  ['self', 'https://accounts.google.com'],
 			},
 		},
 	}
