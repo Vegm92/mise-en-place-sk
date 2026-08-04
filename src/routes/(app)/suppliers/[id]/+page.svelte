@@ -17,7 +17,7 @@
   let { data }: { data: PageData } = $props();
 
   let tab = $state<'resumen' | 'facturas' | 'productos' | 'conversiones'>(untrack(() => data.initialTab));
-  let editing       = $state(false);
+  let editing       = $state(untrack(() => data.initialEditing));
   let confirmDelete = $state(false);
 
   const s = $derived(data.supplier);
