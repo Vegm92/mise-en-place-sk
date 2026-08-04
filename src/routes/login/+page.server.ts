@@ -5,6 +5,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { issueSessionCookie } from '$lib/server/auth-session';
+import { signIn } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
@@ -38,4 +39,6 @@ export const actions: Actions = {
 
 		redirect(303, redirectTo);
 	},
+
+	signInWithGoogle: signIn,
 };
