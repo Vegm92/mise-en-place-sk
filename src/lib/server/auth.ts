@@ -2,16 +2,16 @@ import { SvelteKitAuth } from '@auth/sveltekit';
 import Credentials from '@auth/sveltekit/providers/credentials';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import { env } from '$env/dynamic/private';
-import { db } from './db';
+import { getDb } from './db';
 import { users, accounts, sessions, verificationTokens } from './schema/auth';
 import { verifyCredentials } from './auth-credentials';
 
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
-export const { handle, signIn, signOut } = SvelteKitAuth({
+export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 	trustHost: true,
 	secret:    env.AUTH_SECRET,
-	adapter:   DrizzleAdapter(db, {
+	adapter:   DrizzleAdapter(getDb(), {
 		usersTable:              users,
 		accountsTable:           accounts,
 		sessionsTable:           sessions,
@@ -44,4 +44,4 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
 	pages: {
 		signIn: '/login',
 	},
-});
+}));
