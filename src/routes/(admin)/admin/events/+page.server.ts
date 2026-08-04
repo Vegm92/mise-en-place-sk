@@ -34,6 +34,9 @@ export const load: PageServerLoad = async ({ url }) => {
 		const whereClause = typeFilter
 			? sql`${systemNotifications.notificationType} = ${typeFilter}`
 			: sql`1=1`;
+		const whereClauseAliased = typeFilter
+			? sql`sn.notification_type = ${typeFilter}`
+			: sql`1=1`;
 
 		const [totalRow, rows, typeRows] = await Promise.all([
 			db.select({ cnt: sql<number>`COUNT(*)` })
@@ -50,7 +53,7 @@ export const load: PageServerLoad = async ({ url }) => {
 					r.name AS restaurant_name
 				FROM system_notifications sn
 				LEFT JOIN restaurants r ON r.id = sn.restaurant_id
-				WHERE ${whereClause}
+				WHERE ${whereClauseAliased}
 				ORDER BY sn.created_at DESC
 				LIMIT ${PAGE_SIZE} OFFSET ${offset}
 			`),
