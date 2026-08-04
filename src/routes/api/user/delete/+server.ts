@@ -2,8 +2,8 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { userRestaurants, restaurants, subscriptions, invoices, batchItems } from '$lib/server/schema';
+import { users } from '$lib/server/schema/auth';
 import { getStorage } from '$lib/server/storage';
-import { createSupabaseAdminClient } from '$lib/server/supabase';
 import { cancelSubscription } from '$lib/server/billing';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
@@ -35,7 +35,7 @@ async function deleteTenantFiles(restaurantIds: string[]): Promise<void> {
 	console.info(`[account-delete] removed ${keys.size - failed}/${keys.size} stored files`);
 }
 
-export const POST: RequestHandler = async ({ locals, request }) => {
+export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
 
@@ -94,12 +94,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		await db.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
 	}
 
-	const admin = createSupabaseAdminClient();
-	const { error: authError } = await admin.auth.admin.deleteUser(user.id);
-	if (authError) {
-		console.error('[account-delete] auth delete failed', authError);
-		throw error(500, 'Account deletion partially failed — contact support');
-	}
+	await db.delete(users).where(eq(users.id, user.id));
+
+	cookies.delete('authjs.session-token', { path: '/' });
+	cookies.delete('__Secure-authjs.session-token', { path: '/' });
 
 	return json({ deleted: true });
 };

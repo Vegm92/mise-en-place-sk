@@ -2730,6 +2730,8 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 - Proxy so existing `db.select(...)` call sites keep working while the underlying client is created lazily on first property access. Methods are bound to the real Drizzle instance so internal `this` references resolve against it (not the proxy).
 
+    `getDb` is also exported directly (not just via the `db` proxy) for `src/lib/server/auth.ts`'s `DrizzleAdapter(getDb(), ...)` call. `@auth/drizzle-adapter` runtime-detects the Postgres dialect via drizzle-orm's `is(db, PgDatabase)`, an instanceof-style check against the object's prototype chain — the `db` proxy's target is `{}`, so its prototype is `Object.prototype`, not `PgDatabase`'s, and `is()` fails against it. This only surfaces at SvelteKit's production-build SSR analysis step (not `pnpm check`, not `pnpm test`), since that's the first point the adapter is actually constructed with a real env-configured secret.
+
     ↳ `export const db: DB = new Proxy({} as DB, {`
 
 **_module level_**

@@ -14,26 +14,4 @@ export default function globalSetup() {
 	if (!gate.enabled) {
 		console.warn(skipNotice(gate));
 	}
-
-	const hasSupabase = !!(
-		process.env.SUPABASE_URL &&
-		process.env.SUPABASE_ANON_KEY &&
-		process.env.SUPABASE_SERVICE_ROLE_KEY
-	);
-
-	if (!hasSupabase) {
-		console.warn(
-			[
-				'',
-				'━━━ SKIP NOTICE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-				'  SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY absent.',
-				'  The following suites will be SKIPPED:',
-				'    • supabase-connection  (1 describe block)',
-				'    • supabase-auth        (3 describe blocks)',
-				'  Set REQUIRE_DB_TESTS=1 to convert these skips into hard failures.',
-				'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-				'',
-			].join('\n')
-		);
-	}
 }

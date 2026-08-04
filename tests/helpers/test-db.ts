@@ -5,7 +5,6 @@
 import 'dotenv/config';
 import postgres from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
-import { createClient } from '@supabase/supabase-js';
 import * as schema from '../../src/lib/server/schema';
 import { resolveDbGate } from './db-gate';
 
@@ -21,14 +20,6 @@ const _isLocal = _gate.isLocal;
  */
 export const hasDbEnv = _gate.enabled;
 
-/** True when Supabase-specific vars are present (auth tests, connection tests). */
-export const hasSupabaseEnv = !!(
-	hasDbEnv &&
-	process.env.SUPABASE_URL &&
-	process.env.SUPABASE_ANON_KEY &&
-	process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 // When REQUIRE_DB_TESTS=1 (set by CI when secrets are known to be configured),
 // a disabled DB gate is a hard failure rather than a silent skip — it means the
 // workflow's DATABASE_URL is missing or no longer points at the service container.
@@ -36,18 +27,6 @@ if (process.env.REQUIRE_DB_TESTS === '1' && !hasDbEnv) {
 	throw new Error(
 		`\nREQUIRE_DB_TESTS=1 but DB-backed tests are disabled: ${_gate.skipReason}.\n` +
 			'Point DATABASE_URL at the CI Postgres service, or set ALLOW_REMOTE_DB_TESTS=1 to opt in.\n'
-	);
-}
-
-// Likewise, missing Supabase vars under REQUIRE_DB_TESTS=1 catch typo'd secret
-// names or accidentally dropped env entries in the workflow.
-if (process.env.REQUIRE_DB_TESTS === '1' && !hasSupabaseEnv) {
-	const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'].filter(
-		(k) => !process.env[k]
-	);
-	throw new Error(
-		`\nREQUIRE_DB_TESTS=1 but required Supabase env vars are missing: ${missing.join(', ')}\n` +
-			'Ensure CI secrets are configured correctly, or remove REQUIRE_DB_TESTS to allow skipping.\n'
 	);
 }
 
@@ -59,11 +38,6 @@ const _client = hasDbEnv
 const _realDb = hasDbEnv ? drizzle(_client!, { schema }) : null;
 export const testDb  = _realDb as NonNullable<typeof _realDb>;
 export const testSql = _client as NonNullable<typeof _client>;
-
-const _realAdmin = hasSupabaseEnv
-	? createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
-	: null;
-export const supabaseAdmin = _realAdmin as NonNullable<typeof _realAdmin>;
 
 export async function closeDb() {
 	// timeout:5 force-closes after 5s so afterAll hooks never hang

@@ -4,8 +4,8 @@
  * Proves that forTenant(ridX).scope() cannot surface rows belonging to a
  * different tenant — the automated proof required by ADR-001 / issue #120.
  *
- * Requires a live Supabase connection; skipped automatically in CI when
- * SUPABASE env vars are absent (same pattern as supabase-crud.test.ts).
+ * Requires a live DB connection; skipped automatically in CI when
+ * DB env vars are absent (same pattern as the other DB suites).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
