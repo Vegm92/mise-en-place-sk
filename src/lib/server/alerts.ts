@@ -3,11 +3,11 @@ import { and, eq, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant } from './db';
 import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, restaurants, subscriptions, userRestaurants } from './schema';
+import { users } from './schema/auth';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
-import { createSupabaseAdminClient } from './supabase';
 import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, type PlanTier } from './billing';
@@ -452,8 +452,8 @@ async function ownerEmail(restaurantId: string): Promise<string | null> {
 		.limit(1);
 	if (!owner) return null;
 
-	const { data } = await createSupabaseAdminClient().auth.admin.getUserById(owner.userId);
-	return data?.user?.email ?? null;
+	const [row] = await db.select({ email: users.email }).from(users).where(eq(users.id, owner.userId)).limit(1);
+	return row?.email ?? null;
 }
 
 async function allTenants(): Promise<Array<{

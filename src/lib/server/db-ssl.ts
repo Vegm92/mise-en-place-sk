@@ -28,7 +28,7 @@ export function pgSslConfig(env: NodeJS.ProcessEnv = process.env): PgSslConfig |
 	if (env.NODE_ENV === 'production') {
 		console.warn(
 			'[db] DATABASE_SSL_MODE=require — the database connection is encrypted but the server certificate is NOT verified. ' +
-			'Set DATABASE_SSL_MODE=verify-full (and DATABASE_CA_CERT for Supabase) to close the MITM window.',
+			'Set DATABASE_SSL_MODE=verify-full (and DATABASE_CA_CERT, since Railway\'s cert is self-issued) to close the MITM window.',
 		);
 	}
 	return { rejectUnauthorized: false };

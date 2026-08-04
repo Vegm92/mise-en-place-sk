@@ -16,8 +16,8 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<AuthShell title={$t('reset.title')} subtitle={data.hasRecoverySession ? $t('reset.sub') : undefined}>
-	{#if !data.hasRecoverySession}
+<AuthShell title={$t('reset.title')} subtitle={data.hasToken ? $t('reset.sub') : undefined}>
+	{#if !data.hasToken}
 		<div style="background:var(--mep-neg-soft);border:1px solid var(--mep-neg);color:var(--mep-neg);
 		            border-radius:var(--mep-r-input);padding:10px 12px;font-size:13px;margin-bottom:16px;">
 			{$t('reset.err.expired')}
@@ -34,6 +34,8 @@
 		{/if}
 
 		<form method="POST" style="display:flex;flex-direction:column;gap:14px;">
+			<input type="hidden" name="email" value={data.email} />
+			<input type="hidden" name="token" value={data.token} />
 			<div style="display:flex;flex-direction:column;gap:6px;">
 				<label for="password" style="font-size:12px;font-weight:500;color:var(--mep-fg-2);">{$t('reset.newPassword')}</label>
 				<input
