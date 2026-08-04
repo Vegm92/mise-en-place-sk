@@ -1,9 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createClient } from '@supabase/supabase-js';
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import {
-	UPLOADS_DIR, STORAGE_DRIVER, STORAGE_BUCKET,
+	UPLOADS_DIR, STORAGE_DRIVER,
 	AWS_ENDPOINT_URL, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET_NAME, AWS_DEFAULT_REGION, AWS_S3_URL_STYLE,
 } from './env.js';
 
@@ -31,34 +30,6 @@ class LocalDriver {
 			if (fp.startsWith(this.base + path.sep) && fs.existsSync(fp)) fs.unlinkSync(fp);
 		} catch {
 		}
-	}
-}
-
-class SupabaseStorageDriver {
-	private client: ReturnType<typeof createClient>;
-
-	constructor() {
-		const url = process.env.SUPABASE_URL;
-		const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-		if (!url || !key) {
-			throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for Supabase storage');
-		}
-		this.client = createClient(url, key);
-	}
-
-	async save(key: string, buf: Buffer): Promise<void> {
-		const { error } = await this.client.storage.from(STORAGE_BUCKET).upload(key, buf, { upsert: true });
-		if (error) throw new Error(`Storage upload failed: ${error.message}`);
-	}
-
-	async read(key: string): Promise<Buffer> {
-		const { data, error } = await this.client.storage.from(STORAGE_BUCKET).download(key);
-		if (error) throw new Error(`Storage read failed: ${error.message}`);
-		return Buffer.from(await data.arrayBuffer());
-	}
-
-	async delete(key: string): Promise<void> {
-		await this.client.storage.from(STORAGE_BUCKET).remove([key]);
 	}
 }
 
@@ -95,6 +66,5 @@ class RailwayBucketDriver {
 
 const _storage =
 	STORAGE_DRIVER === 'railway' ? new RailwayBucketDriver() :
-	STORAGE_DRIVER === 'supabase' ? new SupabaseStorageDriver() :
 	new LocalDriver();
 export function getStorage() { return _storage; }

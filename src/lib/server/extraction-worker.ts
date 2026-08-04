@@ -90,7 +90,7 @@ export async function processExtractionJob(
 	let filePath: string;
 	let cleanupTmp: (() => void) | null = null;
 
-	if (STORAGE_DRIVER === 'supabase') {
+	if (STORAGE_DRIVER !== 'local') {
 		const buf = await getStorage().read(item.fileKey);
 		const tmpPath = path.join(os.tmpdir(), `mep_${itemId}_${path.basename(item.fileKey)}`);
 		fs.writeFileSync(tmpPath, buf);

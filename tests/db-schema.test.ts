@@ -1,6 +1,6 @@
 /**
  * Schema integrity tests — verifies all Drizzle-defined tables and their
- * key columns exist in the live Supabase PostgreSQL database.
+ * key columns exist in the live PostgreSQL database.
  */
 import { describe, it, expect, afterAll } from 'vitest';
 import { testSql, closeDb, hasDbEnv } from './helpers/test-db';

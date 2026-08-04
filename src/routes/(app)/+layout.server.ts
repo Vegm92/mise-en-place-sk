@@ -97,8 +97,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	return {
 		user: {
 			id:    locals.user.id,
-			name:  locals.user.user_metadata?.name ?? locals.user.email ?? '',
-			email: locals.user.email ?? '',
+			name:  locals.user.name ?? locals.user.email,
+			email: locals.user.email,
 		},
 		restaurantId: rid,
 		notifications,

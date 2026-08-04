@@ -106,8 +106,7 @@ export const load: PageServerLoad = async () => {
 		'DATABASE_URL',
 		'GEMINI_API_KEY',
 		'AUTH_ADMIN_EMAIL',
-		'SUPABASE_URL',
-		'SUPABASE_SERVICE_ROLE_KEY',
+		'AUTH_SECRET',
 	];
 	for (const varName of requiredVars) {
 		const val = env[varName];

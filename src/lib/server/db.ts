@@ -25,4 +25,6 @@ export const db: DB = new Proxy({} as DB, {
 	}
 });
 
+export { getDb };
+
 export { forTenant } from './tenant';

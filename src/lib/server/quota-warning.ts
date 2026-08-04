@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { invoices, restaurants, settings, userRestaurants } from './schema';
-import { createSupabaseAdminClient } from './supabase';
+import { users } from './schema/auth';
 import { sendEmail, quotaWarningEmail } from './email';
 import { getMonthlyQuota } from './billing';
 
@@ -42,8 +42,8 @@ export async function maybeSendQuotaWarning(restaurantId: string): Promise<void>
 			.limit(1);
 		if (!owner) return;
 
-		const { data } = await createSupabaseAdminClient().auth.admin.getUserById(owner.userId);
-		const email = data?.user?.email;
+		const [row] = await db.select({ email: users.email }).from(users).where(eq(users.id, owner.userId)).limit(1);
+		const email = row?.email;
 		if (!email) return;
 
 		const [restaurant] = await db.select({ name: restaurants.name })

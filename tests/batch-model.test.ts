@@ -1,6 +1,6 @@
 /**
  * batch_items data layer — runs the real guarded-transition SQL against the
- * test database (skipped without Supabase env, like the other DB suites).
+ * test database (skipped without DB env, like the other DB suites).
  *
  * The invariant under test: a transition only fires from its expected source
  * states, so a stale or duplicate request can never clobber another process's

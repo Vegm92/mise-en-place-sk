@@ -9,7 +9,8 @@ const resend = apiKey ? new Resend(apiKey) : null;
 
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
-	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'quota_warning';
+	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'quota_warning'
+	| 'verify_email' | 'password_reset';
 
 export interface EmailPayload {
 	to: string;
@@ -163,6 +164,48 @@ export function subscriptionConfirmationEmail(email: string, restaurantName: str
 <p><a href="https://miseenplace.app/billing">Gestionar suscripción →</a></p>
 <hr />
 <p style="color:#888;font-size:12px;">Mise en Place · Inteligencia de facturas de proveedores para restaurantes</p>
+`,
+	};
+}
+
+export function verifyEmailAddress(email: string, verifyUrl: string): EmailPayload {
+	return {
+		to: email,
+		kind: 'verify_email',
+		subject: 'Confirma tu correo — Mise en Place',
+		html: `
+<p>Hola:</p>
+<p>Confirma tu correo para activar tu cuenta de <strong>Mise en Place</strong>:</p>
+<p><a href="${verifyUrl}">Confirmar correo →</a></p>
+<p style="color:#888;font-size:12px;">Este enlace caduca en 1 hora. Si no creaste esta cuenta, ignora este correo.</p>
+`,
+	};
+}
+
+export function resetPasswordEmail(email: string, resetUrl: string): EmailPayload {
+	return {
+		to: email,
+		kind: 'password_reset',
+		subject: 'Restablecer tu contraseña — Mise en Place',
+		html: `
+<p>Hola:</p>
+<p>Pediste restablecer tu contraseña de <strong>Mise en Place</strong>:</p>
+<p><a href="${resetUrl}">Restablecer contraseña →</a></p>
+<p style="color:#888;font-size:12px;">Este enlace caduca en 1 hora. Si no pediste esto, ignora este correo — tu contraseña no cambiará.</p>
+`,
+	};
+}
+
+export function changeEmailAddress(newEmail: string, confirmUrl: string): EmailPayload {
+	return {
+		to: newEmail,
+		kind: 'verify_email',
+		subject: 'Confirma tu nuevo correo — Mise en Place',
+		html: `
+<p>Hola:</p>
+<p>Pediste cambiar el correo de tu cuenta de <strong>Mise en Place</strong> a esta dirección. Confírmalo aquí:</p>
+<p><a href="${confirmUrl}">Confirmar nuevo correo →</a></p>
+<p style="color:#888;font-size:12px;">Este enlace caduca en 1 hora. Si no pediste este cambio, ignora este correo.</p>
 `,
 	};
 }

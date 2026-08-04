@@ -1,6 +1,5 @@
 export const UPLOADS_DIR = process.env.UPLOADS_DIR ?? 'uploads';
-export const STORAGE_DRIVER = (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 'supabase' | 'railway';
-export const STORAGE_BUCKET = process.env.STORAGE_BUCKET ?? 'invoice-uploads';
+export const STORAGE_DRIVER = (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 'railway';
 export const AWS_ENDPOINT_URL = process.env.AWS_ENDPOINT_URL ?? '';
 export const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID ?? '';
 export const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY ?? '';

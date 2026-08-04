@@ -42,7 +42,7 @@
       thFunction:   'Función',
       thCountry:    'País',
       r1Function:   'Base de datos y autenticación',
-      r1Country:    'UE (AWS eu-west-1)',
+      r1Country:    'Sudeste asiático',
       r2Function:   'Extracción de datos de facturas mediante IA',
       r2Country:    'EE.UU. (cláusulas contractuales tipo)',
       r3Function:   'Procesamiento de pagos',
@@ -82,7 +82,7 @@
       p8:           'Usamos únicamente cookies estrictamente necesarias para mantener tu sesión autenticada. No empleamos cookies de seguimiento ni publicidad de terceros.',
 
       h9:           '9. Seguridad',
-      p9:           'Todos los datos se transmiten cifrados mediante TLS 1.2+. Las contraseñas se almacenan con hash bcrypt gestionado por Supabase Auth. El acceso a los datos de producción está restringido mediante roles y auditoría.',
+      p9:           'Todos los datos se transmiten cifrados mediante TLS 1.2+. Las contraseñas se almacenan con hash bcrypt. El acceso a los datos de producción está restringido mediante roles y auditoría.',
 
       h10:          '10. Contacto',
       p10:          'Para cualquier cuestión sobre privacidad: ',
@@ -125,7 +125,7 @@
       thFunction:   'Function',
       thCountry:    'Country',
       r1Function:   'Database and authentication',
-      r1Country:    'EU (AWS eu-west-1)',
+      r1Country:    'Southeast Asia',
       r2Function:   'AI-based invoice data extraction',
       r2Country:    'USA (standard contractual clauses)',
       r3Function:   'Payment processing',
@@ -165,7 +165,7 @@
       p8:           'We use only strictly necessary cookies to keep your session authenticated. We do not use third-party tracking or advertising cookies.',
 
       h9:           '9. Security',
-      p9:           'All data is transmitted encrypted via TLS 1.2+. Passwords are stored with bcrypt hashing managed by Supabase Auth. Access to production data is restricted through roles and auditing.',
+      p9:           'All data is transmitted encrypted via TLS 1.2+. Passwords are stored with bcrypt hashing. Access to production data is restricted through roles and auditing.',
 
       h10:          '10. Contact',
       p10:          'For any privacy-related matter: ',
@@ -227,7 +227,7 @@
       </thead>
       <tbody>
         <tr>
-          <td>Supabase Inc.</td>
+          <td>Railway Corporation</td>
           <td>{c.r1Function}</td>
           <td>{c.r1Country}</td>
         </tr>

@@ -5,11 +5,11 @@
  * allowed extension, 20 MB size cap, and magic-byte sniffing so a file whose
  * bytes don't match its declared extension is rejected (e.g. an executable
  * renamed to `.pdf`). This is the locally-verifiable half of the #200
- * checklist item "STORAGE_DRIVER=supabase upload path (magic-byte validation +
+ * checklist item "STORAGE_DRIVER=railway upload path (magic-byte validation +
  * 20 MB limit)"; the real-bucket round-trip stays a staging-only check.
  *
  * The storage driver is stubbed in-memory so the test runs with no filesystem,
- * DB, or Supabase dependency.
+ * DB, or external storage dependency.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 

@@ -3,6 +3,8 @@ import type { Actions, PageServerLoad } from './$types';
 import { safeRedirect } from '$lib/server/safe-redirect';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
+import { verifyCredentials } from '$lib/server/auth-credentials';
+import { issueSessionCookie } from '$lib/server/auth-session';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
@@ -10,7 +12,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	signIn: async ({ request, locals, getClientAddress }) => {
+	signIn: async ({ request, cookies, url, getClientAddress }) => {
 		const form = await request.formData();
 		const email    = (form.get('email')    as string)?.trim();
 		const password = form.get('password')  as string;
@@ -26,24 +28,14 @@ export const actions: Actions = {
 			return fail(429, { error: 'rate_limited', email });
 		}
 
-		const { error } = await locals.supabase.auth.signInWithPassword({ email, password });
-		if (error) {
+		const verified = await verifyCredentials(email, password);
+		if (!verified) {
 			logAuthEvent('login_failed', { ipHash });
 			return fail(401, { error: 'invalid', email });
 		}
 
-		redirect(303, redirectTo);
-	},
+		await issueSessionCookie(cookies, url.protocol === 'https:', verified);
 
-	signInWithGoogle: async ({ url, locals, getClientAddress }) => {
-		const { data, error } = await locals.supabase.auth.signInWithOAuth({
-			provider: 'google',
-			options: { redirectTo: `${url.origin}/auth/callback` },
-		});
-		if (error || !data.url) {
-			logAuthEvent('oauth_error', { ipHash: hashIp(getClientAddress()), stage: 'login_start' });
-			redirect(303, '/login?error=oauth');
-		}
-		redirect(303, data.url);
+		redirect(303, redirectTo);
 	},
 };

@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { redirect, type Handle } from '@sveltejs/kit';
-import { createSupabaseServerClient } from '$lib/server/supabase';
+import { sequence } from '@sveltejs/kit/hooks';
+import { handle as authHandle } from '$lib/server/auth';
 import { cleanupStaleBatches } from '$lib/server/batch';
 import { cleanupProcessedRequests } from '$lib/server/idempotency';
 import { seedAdminUser } from '$lib/server/auth-seed';
@@ -45,7 +46,7 @@ cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('
 cleanupProcessedRequests().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] idempotency cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
 
-export const handle: Handle = async ({ event, resolve }) => {
+const appHandle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
 	if (path.startsWith('/_app/') || path === '/favicon.ico' ||
@@ -53,13 +54,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
-	event.locals.supabase = createSupabaseServerClient(event.cookies);
-
-	let user: App.Locals['user'] = null;
-	try {
-		({ data: { user } } = await event.locals.supabase.auth.getUser());
-	} catch {
-	}
+	const session = await event.locals.auth();
+	const user: App.Locals['user'] = session?.user?.id
+		? {
+			id:    session.user.id,
+			email: session.user.email ?? '',
+			name:  session.user.name ?? null,
+			image: session.user.image ?? null,
+		}
+		: null;
 	event.locals.user = user;
 
 	if (user) {
@@ -101,10 +104,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
 	}
 
-	const response = await resolve(event, {
-		filterSerializedResponseHeaders: (name) =>
-			name === 'content-range' || name === 'x-supabase-api-version',
-	});
+	const response = await resolve(event);
 
 	const isFramedByApp = path.startsWith('/api/upload/') || /^\/invoice\/[^/]+\/file$/.test(path);
 	response.headers.set('X-Frame-Options', isFramedByApp ? 'SAMEORIGIN' : 'DENY');
@@ -116,12 +116,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
+export const handle: Handle = sequence(authHandle, appHandle);
+
 function isPublicPath(path: string): boolean {
 	return (
 		path === '/login'                       ||
 		path === '/signup'                      ||
 		path === '/forgot-password'             ||
 		path === '/reset-password'              ||
+		path === '/verify-email'                ||
 		path === '/privacy'                     ||
 		path === '/terms'                       ||
 		path === '/robots.txt'                  ||

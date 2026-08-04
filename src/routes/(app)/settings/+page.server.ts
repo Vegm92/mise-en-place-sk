@@ -1,13 +1,18 @@
 import { fail, redirect } from '@sveltejs/kit';
+import bcrypt from 'bcryptjs';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, subscriptions, userRestaurants } from '$lib/server/schema';
+import { users } from '$lib/server/schema/auth';
 import { asc, eq } from 'drizzle-orm';
 import { applyTierSettings, billingRestaurantId, getTierFeatures, TIERS, type PlanTier } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { verifyCredentials } from '$lib/server/auth-credentials';
+import { createVerificationToken } from '$lib/server/verification-token';
+import { sendEmail, changeEmailAddress } from '$lib/server/email';
 import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
@@ -41,7 +46,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, features, whatsappContactRows, pairingCode] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, features, whatsappContactRows, pairingCode, userRow] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -63,6 +68,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			getTierFeatures(rid),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
 			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
+			db.select({ name: users.name, passwordHash: users.passwordHash })
+				.from(users)
+				.where(eq(users.id, locals.user!.id))
+				.limit(1),
 		]);
 
 		const billingRid = await billingRestaurantId(rid);
@@ -77,9 +86,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			threshold:      row[0]      ? parseInt(row[0].value, 10)          : 80,
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
 			profile: {
-				name:  (locals.user!.user_metadata?.name as string | undefined) ?? '',
-				email: locals.user!.email ?? '',
-				hasPassword: locals.user!.app_metadata?.provider === 'email',
+				name:  userRow[0]?.name ?? '',
+				email: locals.user!.email,
+				hasPassword: Boolean(userRow[0]?.passwordHash),
 			},
 			restaurantName: restaurantRow[0]?.name ?? '',
 			canRenameRestaurant: membership[0]?.role === 'owner',
@@ -142,30 +151,25 @@ export const actions: Actions = {
 		if (!name) return fail(422, { section: 'name', error: 'set.profile.err.nameRequired' });
 		if (name.length > 80) return fail(422, { section: 'name', error: 'set.profile.err.nameTooLong' });
 
-		const { error } = await locals.supabase.auth.updateUser({ data: { name } });
-		if (error) {
-			console.error('[settings] name update failed:', error.message);
-			return fail(400, { section: 'name', error: 'set.profile.err.generic' });
-		}
+		await db.update(users).set({ name }).where(eq(users.id, locals.user!.id));
 		return { section: 'name', ok: 'set.profile.ok.name' };
 	},
 
 	saveEmail: async ({ request, locals, url }) => {
 		const data = await request.formData();
-		const email = ((data.get('email') as string) ?? '').trim();
+		const email = ((data.get('email') as string) ?? '').trim().toLowerCase();
 		if (!email) return fail(422, { section: 'email', error: 'set.profile.err.emailRequired' });
-		if (email.toLowerCase() === (locals.user!.email ?? '').toLowerCase()) {
+		if (email === locals.user!.email.toLowerCase()) {
 			return fail(422, { section: 'email', error: 'set.profile.err.emailUnchanged' });
 		}
 
-		const { error } = await locals.supabase.auth.updateUser(
-			{ email },
-			{ emailRedirectTo: `${url.origin}/auth/callback?next=/settings` },
-		);
-		if (error) {
-			console.error('[settings] email update failed:', error.message);
-			return fail(400, { section: 'email', error: 'set.profile.err.emailFailed' });
-		}
+		const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+		if (taken) return fail(400, { section: 'email', error: 'set.profile.err.emailFailed' });
+
+		const token = await createVerificationToken(`change-email:${locals.user!.id}:${email}`);
+		const confirmUrl = `${url.origin}/settings/confirm-email?email=${encodeURIComponent(email)}&token=${token}`;
+		await sendEmail(changeEmailAddress(email, confirmUrl));
+
 		return { section: 'email', ok: 'set.profile.ok.email' };
 	},
 
@@ -174,7 +178,7 @@ export const actions: Actions = {
 		const current = (data.get('current') as string) ?? '';
 		const next = (data.get('password') as string) ?? '';
 		const confirm = (data.get('confirm') as string) ?? '';
-		const email = locals.user!.email ?? '';
+		const email = locals.user!.email;
 
 		if (!current || !next) return fail(422, { section: 'password', error: 'set.profile.err.passwordRequired' });
 		if (next.length < MIN_PASSWORD_LENGTH) return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
@@ -184,17 +188,14 @@ export const actions: Actions = {
 			return fail(429, { section: 'password', error: 'set.profile.err.rateLimited' });
 		}
 
-		const { error: reauthError } = await locals.supabase.auth.signInWithPassword({ email, password: current });
-		if (reauthError) {
+		const reauthed = await verifyCredentials(email, current);
+		if (!reauthed) {
 			logAuthEvent('login_failed', { ipHash: hashIp(getClientAddress()), stage: 'password_change_reauth' });
 			return fail(401, { section: 'password', error: 'set.profile.err.currentWrong' });
 		}
 
-		const { error } = await locals.supabase.auth.updateUser({ password: next });
-		if (error) {
-			console.error('[settings] password update failed:', error.message);
-			return fail(400, { section: 'password', error: 'set.profile.err.passwordFailed' });
-		}
+		const passwordHash = await bcrypt.hash(next, 12);
+		await db.update(users).set({ passwordHash }).where(eq(users.id, locals.user!.id));
 
 		logAuthEvent('password_changed', { ipHash: hashIp(getClientAddress()) });
 		return { section: 'password', ok: 'set.profile.ok.password' };

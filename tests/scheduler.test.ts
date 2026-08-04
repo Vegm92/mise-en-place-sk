@@ -6,16 +6,17 @@
  * exactly once (the claim is what makes a retried job safe), and the file purge
  * both deletes the object and stops the row pointing at it.
  *
- * db, storage, Supabase and Resend are mocked; the drizzle query builders are
+ * db, storage, and Resend are mocked; the drizzle query builders are
  * replayed against per-table fixtures.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getTableName } from 'drizzle-orm';
 
-const { state, sendEmailMock, storageDeleteMock, getUserByIdMock } = vi.hoisted(() => ({
+const { state, sendEmailMock, storageDeleteMock } = vi.hoisted(() => ({
 	state: {
-		// rows returned for a select from each table, by table name
-		rows: {} as Record<string, unknown[]>,
+		// rows returned for a select from each table, by table name. A function
+		// value is invoked per call instead of returned directly.
+		rows: {} as Record<string, unknown[] | (() => unknown[])>,
 		// claimOnce results, in call order (true = first time this value is stored)
 		claims: [] as boolean[],
 		claimCalls: [] as Array<{ key: string; value: string }>,
@@ -23,7 +24,6 @@ const { state, sendEmailMock, storageDeleteMock, getUserByIdMock } = vi.hoisted(
 	},
 	sendEmailMock: vi.fn().mockResolvedValue(undefined),
 	storageDeleteMock: vi.fn().mockResolvedValue(undefined),
-	getUserByIdMock: vi.fn().mockResolvedValue({ data: { user: { email: 'owner@example.com' } } }),
 }));
 
 vi.mock('$lib/server/db', () => {
@@ -31,10 +31,15 @@ vi.mock('$lib/server/db', () => {
 		const p: Record<string, unknown> = {};
 		const self = () => p;
 		for (const m of ['from', 'leftJoin', 'where', 'limit', 'orderBy']) p[m] = self;
-		// `from` decides which fixture this query resolves to.
+		// `from` decides which fixture this query resolves to. A function value
+		// (instead of a plain array) is invoked per call, so a test can queue
+		// per-call results/throws — used to simulate one tenant's lookup failing.
 		p.from = (table: never) => {
 			const name = getTableName(table);
-			const resolved = () => state.rows[name] ?? [];
+			const resolved = () => {
+				const val = state.rows[name];
+				return typeof val === 'function' ? (val as () => unknown[])() : (val ?? []);
+			};
 			return chainResolving(resolved);
 		};
 		p.then = (res: (v: unknown) => unknown) => Promise.resolve(rowsFor()).then(res);
@@ -44,7 +49,7 @@ vi.mock('$lib/server/db', () => {
 		const p: Record<string, unknown> = {};
 		for (const m of ['leftJoin', 'where', 'limit', 'orderBy']) p[m] = () => p;
 		p.then = (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
-			Promise.resolve(rowsFor()).then(res, rej);
+			Promise.resolve().then(rowsFor).then(res, rej);
 		return p;
 	};
 
@@ -74,9 +79,6 @@ vi.mock('$lib/server/db', () => {
 });
 
 vi.mock('$lib/server/storage', () => ({ getStorage: () => ({ delete: storageDeleteMock }) }));
-vi.mock('$lib/server/supabase', () => ({
-	createSupabaseAdminClient: () => ({ auth: { admin: { getUserById: getUserByIdMock } } }),
-}));
 vi.mock('$lib/server/email', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('../src/lib/server/email')>();
 	return { ...actual, sendEmail: sendEmailMock };
@@ -113,6 +115,7 @@ beforeEach(() => {
 	state.rows = {
 		restaurants: [],
 		user_restaurants: [{ userId: 'user-1' }],
+		users: [{ id: 'user-1', email: 'owner@example.com' }],
 		invoices: [],
 	};
 	state.claims = [];
@@ -120,7 +123,6 @@ beforeEach(() => {
 	state.updates = [];
 	sendEmailMock.mockClear();
 	storageDeleteMock.mockClear().mockResolvedValue(undefined);
-	getUserByIdMock.mockClear().mockResolvedValue({ data: { user: { email: 'owner@example.com' } } });
 });
 
 describe('trialDaysLeft', () => {
@@ -194,9 +196,12 @@ describe('runTrialNoticesJob', () => {
 
 	it('keeps going when one tenant fails', async () => {
 		state.rows.restaurants = [tenant({ id: 'rest-1' }), tenant({ id: 'rest-2' })];
-		getUserByIdMock
-			.mockRejectedValueOnce(new Error('supabase down'))
-			.mockResolvedValue({ data: { user: { email: 'owner2@example.com' } } });
+		let call = 0;
+		state.rows.users = () => {
+			call++;
+			if (call === 1) throw new Error('db down');
+			return [{ id: 'user-1', email: 'owner2@example.com' }];
+		};
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
 		expect(await runTrialNoticesJob()).toEqual({ considered: 2, sent: 1 });
