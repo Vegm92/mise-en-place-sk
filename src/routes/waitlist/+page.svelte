@@ -9,30 +9,14 @@
       lang:              'EN',
       pageTitle:         'Mise en Place — Gestión de facturas para restaurantes',
       metaDescription:   'Digitaliza tus albaranes en segundos. Detecta subidas de precio, controla el gasto por categoría y defiende tu margen. Edición de fundadores — 50 cocinas, Barcelona.',
-      ogTitle:           'Tus facturas, leídas. Tu margen, defendido.',
+      ogTitle:           'Sabe en qué gasta tu cocina, antes que tú.',
       ogLocale:          'es_ES',
-      edition:           'N.º 01 · Edición de fundadores',
-      city:              'Barcelona',
-      date:              'Mayo 2026',
       betaBadge:         'Beta privada',
-      signInLabel:       'Ya tienes cuenta',
       signInLink:        'Entrar a la app →',
       ctaNav:            'Apuntarme',
-      eyebrowLine:       'Portada · Lista de espera',
-      headline:          'Tus facturas, leídas. Tu margen, defendido.',
-      sub:               'El sistema operativo que tus albaranes siempre debieron tener. Hecho en Barcelona, para cocinas de menú y de barra.',
-      railTiradaLabel:   'Tirada',
-      railTirada:        '50',
-      railTiradaSub:     'cocinas',
-      railAsgLabel:      'Asignadas',
-      railAsg:           '43',
-      railAsgSub:        'de 50',
-      railOpenLabel:     'Apertura',
-      railOpen:          'Jul',
-      railOpenSub:       '2026',
-      joinLabel:         'Únete a la edición',
-      incentive:         'Las primeras 50 cocinas: 1 mes gratis y setup prioritario.',
-      privacy:           'Solo guardamos tu email. Sin spam. Sin compromisos.',
+      eyebrow:           'Control operativo para cocinas profesionales',
+      headline:          'Sabe en qué gasta tu cocina, antes que tú.',
+      sub:               'Factura tras factura, Mise en Place lee, normaliza y vigila tus precios. Tu margen, defendido cada día.',
       placeholder:       'tu@email.com',
       submit:            'Quiero acceso anticipado',
       submitShort:       'Apuntarme',
@@ -42,36 +26,52 @@
       errRequired:       'Introduce tu email para continuar.',
       errInvalid:        'Ese email no parece válido.',
       errRateLimited:    'Demasiados intentos. Por favor, espera un momento.',
+      privacy:           'Solo guardamos tu email. Sin spam. Sin compromisos.',
+      spotTaken:         43,
+      spotTotal:         50,
+      spotLabel:         'plazas prioritarias asignadas',
+      seqSteps: [
+        { n: '01', t: 'Fotografías el albarán',    b: 'Móvil, PDF o WhatsApp. Diez segundos.' },
+        { n: '02', t: 'El sistema lo entiende',     b: 'Proveedor, líneas, IVA y precios, normalizados.' },
+        { n: '03', t: 'Ves tu cocina en cifras',    b: 'Gasto por categoría y avisos de subida de precio.' },
+      ],
       intLabel:          'Compatible con tu flujo',
       integrations:      ['Square POS', 'Revo TPV', 'Holded', 'Excel / CSV', 'WhatsApp Business'],
-      painChapter:       'I · El problema',
-      painReadings:      'Tres lecturas',
+      painEyebrow:       'El problema',
       painHead:          'Cada semana se te escapan horas, datos y dinero.',
       pain: [
         { stat: '4–6 h', label: 'a la semana',      title: 'Tu equipo transcribe facturas a mano.',          body: 'Cada albarán acaba en una hoja de cálculo —o en un cajón. Son entre cuatro y seis horas semanales que no cocinan, no entrenan, no atienden.' },
         { stat: '¿0?',   label: 'visibilidad',       title: 'Nadie sabe en qué se gastó la semana.',         body: '¿Cuánto cárnico llevamos este mes? Sin sistema, esa respuesta tarda treinta minutos. Con Mise en Place, está en pantalla antes de que termines la pregunta.' },
-        { stat: '+8 %',  label: 'subidas invisibles', title: 'Los proveedores te suben el precio en silencio.', body: 'El aceite sube un ocho por ciento un martes cualquiera. Lo descubres tres meses después. Mise en Place detecta el cambio y te avisa el mismo día.' },
+        { stat: '+8 %',  label: 'subidas invisibles', title: 'Los proveedores te suben el precio en silencio.', body: 'El aceite sube un ocho por ciento un martes cualquiera. Lo descubres tres meses después, revisando facturas. Mise en Place detecta el cambio y te avisa el mismo día.' },
       ],
-      howChapter:        'II · El método',
+      howEyebrow:        'Cómo funciona',
       howHead:           'Tres movimientos. Cero hojas de cálculo.',
       steps: [
         { num: '01', tag: 'Captura',    title: 'Una foto al albarán, o el PDF a la web.',       body: 'Desde el móvil del repartidor, por WhatsApp, o arrastrando el PDF al panel. Sin instalaciones. Sin app que recordar abrir.' },
         { num: '02', tag: 'Inferencia', title: 'El Cerebro de Cocina extrae y normaliza.',       body: 'Proveedor, fechas, IVA, y cada línea con su producto, cantidad y precio. Los nombres se normalizan para que tu inventario sea perfecto.' },
         { num: '03', tag: 'Poder',      title: 'Tu panel se ilumina con datos que importan.',    body: 'Gasto por categoría. Alertas de precio. Integración con tu TPV (Square / Revo) para restar el stock vendido. Tu margen, en tiempo real.' },
       ],
-      testChapter:       'III · Voces',
-      testHead:          'Conversaciones con quienes ya viven el problema.',
+      testimonialsEyebrow: 'Lo que dicen los chefs',
       testimonials: [
-        { quote: 'Cada semana pierdo horas pasando facturas a mano. Si funciona como dices, lo firmo ahora mismo.', name: 'Jordi M.',  role: 'Jefe de Cocina · Restaurante de menú · Barcelona',      initials: 'JM' },
-        { quote: 'Lo difícil no es gastar. Lo difícil es saber en qué gastas. Nunca tengo esa visión en tiempo real.', name: 'Ana R.', role: 'Responsable de Compras · Hotel boutique · Costa Brava',  initials: 'AR' },
-        { quote: 'Si me ahorras el viernes de papeleo, me ahorras una jornada entera del equipo de oficina.',          name: 'Iván C.', role: 'Gerente · Grupo de cuatro locales · Eixample',            initials: 'IC' },
+        { quote: 'Cada semana pierdo horas pasando facturas a mano. Si funciona como dices, lo firmo ahora mismo.', name: 'Jordi M.',  role: 'Jefe de Cocina · Restaurante de menú · Barcelona' },
+        { quote: 'Lo difícil no es gastar. Lo difícil es saber en qué gastas. Nunca tengo esa visión en tiempo real.', name: 'Ana R.', role: 'Responsable de Compras · Hotel boutique · Costa Brava' },
+        { quote: 'Si me ahorras el viernes de papeleo, me ahorras una jornada entera del equipo de oficina.',          name: 'Iván C.', role: 'Gerente · Grupo de cuatro locales · Eixample' },
       ],
-      ctaChapter:        'VI · Fin de la edición',
-      ctaHead1:          'Una plaza, una cocina.',
-      ctaHead2:          'Asegura la tuya.',
-      ctaSub:            'Abrimos plazas por orden de lista. Déjanos tu email.',
-      footerNote:        'Hecho en una cocina, no en una sala de juntas.',
-      readingLabel:      'Lectura',
+      founderEyebrow:    'Una nota del fundador',
+      founderBody:       'Pasé tres años en cocinas y dos en restaurantes ayudando con la administración. La factura es el documento más maltratado de la industria: nadie la quiere, todos la necesitan. Mise en Place existe para que esa hora del viernes deje de existir.',
+      founderName:       'Víctor Egea Martínez',
+      founderRole:       'Fundador · Barcelona',
+      faqEyebrow:        'Dudas frecuentes',
+      faq: [
+        { q: '¿Qué pasa con mis datos?', a: 'Tus facturas son tuyas. Las almacenamos cifradas en servidores en la UE y puedes exportarlas o eliminarlas en cualquier momento. Nunca las usaremos para entrenar modelos públicos.' },
+        { q: '¿Necesito cambiar mi software de TPV?', a: 'No. Mise en Place se conecta a Square y Revo desde el primer día, y exporta a Excel/CSV para el resto. Si usas otro TPV, escríbenos —probablemente lo integremos pronto.' },
+        { q: '¿Y si el albarán está manchado o arrugado?', a: 'Esa es nuestra especialidad. El motor lee fotos de móvil hechas con prisas en una cocina caliente. Si algo no se entiende, te lo señala para que lo confirmes tú —no inventa.' },
+        { q: '¿Cuánto cuesta?', a: 'Durante el acceso anticipado, gratis. El precio final estará entre 49 € y 99 € por local al mes según volumen, sin sorpresas.' },
+        { q: '¿Cuándo empieza el acceso?', a: 'Abrimos en tandas a partir de julio de 2026. Avisamos por email con al menos una semana de antelación.' },
+      ],
+      closeHead:         'Empieza por la factura de esta semana.',
+      closeSub:          'Deja tu email y te avisamos cuando abramos la siguiente tanda de cocinas.',
+      footerNote:        'Mise en Place · Barcelona · 2026 — Hecho en una cocina, no en una sala de juntas.',
       mockWhatsappReply: 'Recibida ✓ · Procesando 14 líneas…',
       mockConfirmed:     '✓ Confirmada',
       mockExtractedIn:   'extraído en 2,3 s',
@@ -87,30 +87,14 @@
       lang:              'ES',
       pageTitle:         'Mise en Place — Invoice Management for Restaurants',
       metaDescription:   'Digitise your delivery notes in seconds. Detect price rises, track spend by category and defend your margin. Founders edition — 50 kitchens, Barcelona.',
-      ogTitle:           'Your invoices, read. Your margin, defended.',
+      ogTitle:           'Know what your kitchen spends, before you do.',
       ogLocale:          'en_US',
-      edition:           'No. 01 · Founders edition',
-      city:              'Barcelona',
-      date:              'May 2026',
       betaBadge:         'Private beta',
-      signInLabel:       'Already have an account?',
       signInLink:        'Sign in →',
       ctaNav:            'Sign me up',
-      eyebrowLine:       'Cover · Waitlist',
-      headline:          'Your invoices, read. Your margin, defended.',
-      sub:               'The operating system your delivery notes always deserved. Built in Barcelona, for set-menu and bar kitchens.',
-      railTiradaLabel:   'Edition',
-      railTirada:        '50',
-      railTiradaSub:     'kitchens',
-      railAsgLabel:      'Allocated',
-      railAsg:           '43',
-      railAsgSub:        'of 50',
-      railOpenLabel:     'Opening',
-      railOpen:          'Jul',
-      railOpenSub:       '2026',
-      joinLabel:         'Join the edition',
-      incentive:         'First 50 kitchens get 1 month free and priority setup.',
-      privacy:           'We only store your email. No spam. No commitment.',
+      eyebrow:           'Operational control for professional kitchens',
+      headline:          'Know what your kitchen spends, before you do.',
+      sub:               'Invoice after invoice, Mise en Place reads, normalises, and watches your prices. Your margin, defended every day.',
       placeholder:       'you@email.com',
       submit:            'I want early access',
       submitShort:       'Sign me up',
@@ -120,36 +104,52 @@
       errRequired:       'Enter your email to continue.',
       errInvalid:        "That doesn't look like a valid email.",
       errRateLimited:    'Too many attempts. Please wait a moment.',
+      privacy:           'We only store your email. No spam. No commitment.',
+      spotTaken:         43,
+      spotTotal:         50,
+      spotLabel:         'priority spots claimed',
+      seqSteps: [
+        { n: '01', t: 'Photograph the delivery note', b: 'Phone, PDF, or WhatsApp. Ten seconds.' },
+        { n: '02', t: 'The system understands it',    b: 'Supplier, lines, VAT and prices, normalised.' },
+        { n: '03', t: 'See your kitchen in numbers',  b: 'Spend by category and price-rise alerts.' },
+      ],
       intLabel:          'Works with your workflow',
       integrations:      ['Square POS', 'Revo TPV', 'Holded', 'Excel / CSV', 'WhatsApp Business'],
-      painChapter:       'I · The problem',
-      painReadings:      'Three readings',
+      painEyebrow:       'The problem',
       painHead:          'Every week you lose hours, data, and money.',
       pain: [
-        { stat: '4–6 h', label: 'per week',        title: 'Your team transcribes invoices by hand.',      body: 'Every delivery note ends up in a spreadsheet — or a drawer. That\'s four to six hours a week not cooking, not training, not serving.' },
-        { stat: '¿0?',   label: 'visibility',       title: 'Nobody knows what was spent this week.',      body: 'How much meat have we ordered this month? Without a system, answering that takes thirty minutes. With Mise en Place, it\'s on screen before you finish the question.' },
+        { stat: '4–6 h', label: 'per week',        title: 'Your team transcribes invoices by hand.',      body: "Every delivery note ends up in a spreadsheet — or a drawer. That's four to six hours a week not cooking, not training, not serving." },
+        { stat: '¿0?',   label: 'visibility',       title: 'Nobody knows what was spent this week.',      body: "How much meat have we ordered this month? Without a system, answering that takes thirty minutes. With Mise en Place, it's on screen before you finish the question." },
         { stat: '+8 %',  label: 'invisible hikes',  title: 'Suppliers raise prices without telling you.',  body: 'Olive oil goes up eight percent on a random Tuesday. You find out three months later. Mise en Place spots the change and alerts you the same day.' },
       ],
-      howChapter:        'II · The method',
+      howEyebrow:        'How it works',
       howHead:           'Three moves. Zero spreadsheets.',
       steps: [
-        { num: '01', tag: 'Capture',   title: 'A photo of the note, or the PDF to the web.',      body: 'From the delivery driver\'s phone, via WhatsApp, or dragging the PDF into the panel. No install. No app to remember to open.' },
+        { num: '01', tag: 'Capture',   title: 'A photo of the note, or the PDF to the web.',      body: "From the delivery driver's phone, via WhatsApp, or dragging the PDF into the panel. No install. No app to remember to open." },
         { num: '02', tag: 'Inference', title: 'The Kitchen Brain extracts and normalises.',         body: 'Supplier, dates, VAT, and every line with its product, quantity and price. Names are normalised so your inventory is perfect.' },
         { num: '03', tag: 'Power',     title: 'Your dashboard lights up with data that matters.',   body: 'Spend by category. Price alerts. Integration with your POS (Square / Revo) to deduct sold stock. Your margin, in real time.' },
       ],
-      testChapter:       'III · Voices',
-      testHead:          'Conversations with people already living the problem.',
+      testimonialsEyebrow: 'What chefs are saying',
       testimonials: [
-        { quote: 'Every week I lose hours entering invoices by hand. If this works the way you describe, I\'d sign right now.', name: 'Jordi M.',  role: 'Head Chef · Set-menu restaurant · Barcelona',       initials: 'JM' },
-        { quote: 'The hard part isn\'t spending. It\'s knowing what you\'re spending on. I never have that visibility in real time.', name: 'Ana R.', role: 'Purchasing Manager · Boutique hotel · Costa Brava', initials: 'AR' },
-        { quote: 'If you save me Friday paperwork, you save me a full day of office staff.',                                          name: 'Iván C.', role: 'General Manager · 4-venue group · Eixample',      initials: 'IC' },
+        { quote: "Every week I lose hours entering invoices by hand. If this works the way you describe, I'd sign right now.", name: 'Jordi M.',  role: 'Head Chef · Set-menu restaurant · Barcelona' },
+        { quote: "The hard part isn't spending. It's knowing what you're spending on. I never have that visibility in real time.", name: 'Ana R.', role: 'Purchasing Manager · Boutique hotel · Costa Brava' },
+        { quote: 'If you save me Friday paperwork, you save me a full day of office staff.',                                          name: 'Iván C.', role: 'General Manager · 4-venue group · Eixample' },
       ],
-      ctaChapter:        'VI · End of edition',
-      ctaHead1:          'One spot, one kitchen.',
-      ctaHead2:          'Claim yours.',
-      ctaSub:            'We open spots in sign-up order. Leave your email.',
-      footerNote:        'Built in a kitchen, not a boardroom.',
-      readingLabel:      'Reading',
+      founderEyebrow:    'A note from the founder',
+      founderBody:       "I spent three years in kitchens and two in restaurants helping with admin. The invoice is the most mistreated document in the industry: nobody wants it, everybody needs it. Mise en Place exists so that Friday hour stops existing.",
+      founderName:       'Víctor Egea Martínez',
+      founderRole:       'Founder · Barcelona',
+      faqEyebrow:        'Frequently asked questions',
+      faq: [
+        { q: 'What happens to my data?', a: 'Your invoices are yours. We store them encrypted on servers in the EU and you can export or delete them at any time. We will never use them to train public models.' },
+        { q: 'Do I need to change my POS software?', a: 'No. Mise en Place connects to Square and Revo from day one, and exports to Excel/CSV for the rest. If you use another POS, write to us — we probably integrate it soon.' },
+        { q: 'What if the delivery note is stained or crumpled?', a: "That's our specialty. The engine reads phone photos taken in a rush in a hot kitchen. If something is unclear, it flags it for you to confirm — it never makes things up." },
+        { q: 'How much does it cost?', a: 'Free during early access. The final price will be between €49 and €99 per site per month depending on volume, no surprises.' },
+        { q: 'When does access start?', a: 'We open in batches from July 2026. We notify by email at least a week in advance.' },
+      ],
+      closeHead:         "Start with this week's invoice.",
+      closeSub:          "Leave your email and we'll let you know when we open the next batch of kitchens.",
+      footerNote:        'Mise en Place · Barcelona · 2026 — Built in a kitchen, not a boardroom.',
       mockWhatsappReply: 'Received ✓ · Processing 14 lines…',
       mockConfirmed:     '✓ Confirmed',
       mockExtractedIn:   'extracted in 2.3 s',
@@ -185,6 +185,8 @@
     if (err === 'rate_limited') return t.errRateLimited;
     return '';
   }
+
+  let openFaq = $state(0);
 
   const extractLines = [
     { ok: true,  desc: 'Solomillo de ternera ibérica', qty: '4,20 kg', total: '119,28' },
@@ -225,6 +227,8 @@
     return { l: w.l, hi: w.hi, segs, lx: cx + CBW / 2, ly: CPT + CH + CPB - 8, topY: sy, total: w.a + w.b + w.c };
   });
   const svgH = CH + CPT + CPB;
+
+  const spotPct = $derived((t.spotTaken / t.spotTotal) * 100);
 </script>
 
 <svelte:head>
@@ -266,12 +270,239 @@
   })}</script>`}
 </svelte:head>
 
-<div class="mep" data-accent="amber"
-  style="width:100%;min-height:100vh;background:var(--mep-bg);color:var(--mep-fg);
-         border-top:4px solid var(--mep-acc);font-family:inherit;">
+{#snippet emailForm(big: boolean)}
+  {#if form?.success}
+    <div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);border-radius:10px;
+                padding:{big ? '18px 20px' : '14px 16px'};display:flex;align-items:flex-start;gap:12px;">
+      <div style="width:26px;height:26px;border-radius:13px;flex-shrink:0;background:var(--mep-pos);
+                  color:#fff;display:flex;align-items:center;justify-content:center;">
+        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
+      </div>
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--mep-pos);margin-bottom:3px;">{t.success}</div>
+        <div style="font-size:12.5px;color:var(--mep-fg-2);line-height:1.5;">
+          {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyReg : t.successBody}
+        </div>
+      </div>
+    </div>
+  {:else}
+    <form method="POST" action="?/join" use:enhance
+      onsubmit={(e) => {
+        const input = (e.currentTarget as HTMLFormElement).querySelector('input[name="email"]') as HTMLInputElement;
+        const err = validateEmail(input.value);
+        if (err) { emailError = err; e.preventDefault(); }
+      }}
+      style="display:flex;flex-direction:column;gap:8px;">
+      <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
+        style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
+      <div style="display:flex;gap:8px;">
+        <div style="position:relative;flex:1;">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);pointer-events:none;display:flex;">
+            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.5"/><path d="M3 6l7 5 7-5"/></svg>
+          </span>
+          <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
+            style="width:100%;height:{big ? 52 : 44}px;padding:0 14px 0 38px;font-family:inherit;
+                   font-size:{big ? 14.5 : 13.5}px;border-radius:8px;background:var(--mep-surface);
+                   color:var(--mep-fg);border:1px solid var(--mep-border-strong);outline:none;box-sizing:border-box;"
+            oninput={() => { emailError = ''; }}
+          />
+        </div>
+        <button type="submit" class="btn btn-primary"
+          style="height:{big ? 52 : 44}px;padding:0 {big ? 22 : 18}px;font-size:{big ? 14.5 : 13.5}px;
+                 font-weight:600;flex-shrink:0;">
+          {big ? t.submit : t.submitShort}
+        </button>
+      </div>
+      {#if emailError || serverError()}
+        <div style="font-size:11.5px;color:var(--mep-neg);padding-left:4px;">{emailError || serverError()}</div>
+      {/if}
+      <div style="font-size:11px;color:var(--mep-fg-3);padding-left:2px;">{t.privacy}</div>
+    </form>
+  {/if}
+{/snippet}
 
-  <nav style="display:flex;align-items:center;gap:14px;padding:14px 32px;
-              border-bottom:1px solid var(--mep-fg);">
+{#snippet extractMock()}
+  <div class="card" style="width:100%;padding:0;overflow:hidden;display:flex;flex-direction:column;">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--mep-divider);
+                display:flex;align-items:center;gap:10px;">
+      <div style="width:22px;height:22px;border-radius:5px;background:var(--mep-acc-soft);
+                  color:var(--mep-acc);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.8 3.6L14 5.5l-3 2.9.7 4.1L8 10.4l-3.7 1.9.7-4.1-3-2.9 4.2-.9z" fill="currentColor"/></svg>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;color:var(--mep-fg);">Cárnicas Ibérico Aranda</div>
+        <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
+          2026-A-0471 · 19/05/2026 · {t.mockExtractedIn}
+        </div>
+      </div>
+      <span style="font-size:9.5px;font-weight:500;padding:2px 7px;border-radius:4px;
+                   background:var(--mep-pos-soft);color:var(--mep-pos);display:inline-flex;align-items:center;gap:4px;">
+        {t.mockConfirmed}
+      </span>
+    </div>
+    {#each extractLines as line, li}
+      <div style="display:grid;grid-template-columns:14px 1fr 70px 60px;gap:10px;
+                  padding:8px 16px;border-bottom:{li === extractLines.length - 1 ? '0' : '1px solid var(--mep-divider)'};
+                  align-items:center;font-size:11.5px;">
+        <div style="width:12px;height:12px;border-radius:6px;flex-shrink:0;
+                    background:{line.ok ? 'var(--mep-pos-soft)' : 'var(--mep-warn-soft)'};
+                    color:{line.ok ? 'var(--mep-pos)' : 'var(--mep-warn)'};
+                    display:flex;align-items:center;justify-content:center;font-size:7px;">
+          {line.ok ? '✓' : '!'}
+        </div>
+        <span style="color:var(--mep-fg-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          {line.desc}
+        </span>
+        <span style="color:var(--mep-fg-3);text-align:right;font-family:var(--mep-fs-mono);">{line.qty}</span>
+        <span style="color:var(--mep-fg);font-weight:500;text-align:right;font-family:var(--mep-fs-mono);">{line.total} €</span>
+      </div>
+    {/each}
+    <div style="padding:10px 16px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);
+                display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:11px;color:var(--mep-fg-3);">{t.mockLinesVat}</span>
+      <span style="font-size:13px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">482,65 €</span>
+    </div>
+  </div>
+{/snippet}
+
+{#snippet dashboardMock()}
+  <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;
+                    letter-spacing:0.08em;font-weight:500;font-family:var(--mep-fs-mono);">
+          {t.mockSpendLabel}
+        </div>
+        <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;">
+          <span style="font-size:22px;font-weight:700;color:var(--mep-fg);
+                       letter-spacing:-0.4px;font-family:var(--mep-fs-mono);">3.842,15 €</span>
+          <span style="font-size:11px;color:var(--mep-pos);font-weight:600;
+                       display:inline-flex;align-items:center;gap:2px;">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 8V2M2 5l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            12,4 %
+          </span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+        {#each [{ k:t.mockCatMeat, c:'#7a5b3a' }, { k:t.mockCatFish, c:'#4d5b7a' }, { k:t.mockCatVeg, c:'#3d6b5a' }] as cat}
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span style="width:8px;height:8px;border-radius:2px;background:{cat.c};flex-shrink:0;"></span>
+            <span style="font-size:10px;color:var(--mep-fg-3);">{cat.k}</span>
+          </div>
+        {/each}
+      </div>
+    </div>
+    <svg viewBox="0 0 {CVW} {svgH}" width="100%" style="display:block;overflow:visible;">
+      {#each [0, 0.5, 1] as p}
+        <line x1={padL} x2={CVW - 10} y1={CPT + CH * (1 - p)} y2={CPT + CH * (1 - p)}
+              stroke="var(--mep-divider)" stroke-width="1"/>
+      {/each}
+      {#each chartWeeks as wk}
+        <g style="opacity:{!wk.hi ? 0.45 : 1};">
+          {#each wk.segs as seg}
+            <rect x={seg.x} y={seg.y} width={seg.w} height={seg.h} fill={seg.fill}/>
+          {/each}
+          <text x={wk.lx} y={wk.ly} text-anchor="middle" font-size="9.5"
+                fill="var(--mep-fg-3)" font-family="var(--mep-fs-mono)">{wk.l}</text>
+          {#if wk.hi}
+            <text x={wk.lx} y={wk.topY - 4} text-anchor="middle" font-size="9.5"
+                  font-weight="700" fill="var(--mep-fg)" font-family="var(--mep-fs-mono)">
+              {((wk.total / 10) + 0.86).toFixed(2).replace('.', ',')} k
+            </text>
+          {/if}
+        </g>
+      {/each}
+    </svg>
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;
+                border-radius:8px;background:var(--mep-warn-soft);">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:var(--mep-warn);flex-shrink:0;">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11.5px;color:var(--mep-fg);font-weight:600;">{t.mockAlertTitle}</div>
+        <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
+          Aceites Gómez Hermanos · 4,80 € → 5,19 € / L
+        </div>
+      </div>
+      <span style="font-size:10px;font-weight:600;color:var(--mep-warn);
+                   text-transform:uppercase;letter-spacing:0.06em;font-family:var(--mep-fs-mono);">
+        {t.mockReview}
+      </span>
+    </div>
+  </div>
+{/snippet}
+
+{#snippet captureMock()}
+  <div style="position:relative;width:100%;aspect-ratio:4/3;border-radius:16px;overflow:hidden;
+              background:linear-gradient(135deg,var(--mep-surface-2) 0%,var(--mep-surface) 100%);
+              border:1px solid var(--mep-divider);padding:28px;
+              display:flex;align-items:center;justify-content:center;">
+    <div style="position:absolute;top:22px;left:22px;width:54%;height:78%;
+                background:var(--mep-surface);border:1px solid var(--mep-divider);
+                border-radius:4px;box-shadow:0 14px 40px rgba(0,0,0,0.12);
+                transform:rotate(-6deg);padding:14px 16px;
+                display:flex;flex-direction:column;gap:6px;overflow:hidden;">
+      <div style="font-size:10px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">
+        CÁRNICAS IBÉRICO ARANDA
+      </div>
+      <div style="font-size:8.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">CIF B81234567 · Madrid</div>
+      <div style="height:1px;background:var(--mep-divider);margin:4px 0;"></div>
+      <div style="display:flex;justify-content:space-between;font-size:8.5px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
+        <span>FACTURA</span><span>N.º 2026-A-0471</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:8.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
+        <span>Fecha</span><span>19/05/2026</span>
+      </div>
+      <div style="height:1px;background:var(--mep-divider);margin:4px 0;"></div>
+      {#each ['Solomillo ibérico','Costillas cerdo','Carrillera','Chorizo cular','Lomo embuchado'] as prod, pi}
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
+          <span>{prod}</span><span>{(20 + pi * 14).toFixed(2)} €</span>
+        </div>
+      {/each}
+      <div style="flex:1;"></div>
+      <div style="height:1px;background:var(--mep-divider);"></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">
+        <span>TOTAL</span><span>482,65 €</span>
+      </div>
+    </div>
+    <div style="position:absolute;right:28px;bottom:28px;width:46%;
+                display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+      <div style="max-width:90%;background:#dcf8c6;color:#0a2618;
+                  border-radius:12px 12px 4px 12px;padding:8px;font-size:11px;
+                  box-shadow:0 8px 20px rgba(0,0,0,0.12);">
+        <div style="width:100%;height:76px;border-radius:6px;
+                    background:linear-gradient(135deg,#c1bfaf 0%,#8a8678 60%,#5f5a4d 100%);
+                    display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:rgba(255,255,255,0.5);">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div style="font-size:10px;margin-top:5px;font-family:var(--mep-fs-mono);">albaran_aranda.jpg · 1.2 MB</div>
+      </div>
+      <div style="max-width:90%;background:#ffffff;color:#0a2618;
+                  border-radius:12px 12px 12px 4px;padding:8px 12px;font-size:11.5px;
+                  box-shadow:0 8px 20px rgba(0,0,0,0.12);font-weight:500;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <span style="width:12px;height:12px;border-radius:6px;background:var(--mep-acc);
+                       color:var(--mep-acc-fg);display:flex;align-items:center;
+                       justify-content:center;font-size:7px;font-weight:700;">M</span>
+          <span style="font-size:10px;font-weight:600;">Mise en Place</span>
+        </div>
+        {t.mockWhatsappReply}
+        <div style="font-size:9.5px;color:#5a8a6f;margin-top:3px;font-family:var(--mep-fs-mono);">14:02</div>
+      </div>
+    </div>
+  </div>
+{/snippet}
+
+<div class="mep" data-accent="amber"
+  style="width:100%;min-height:100vh;background:var(--mep-bg);color:var(--mep-fg);font-family:inherit;">
+
+  <nav style="display:flex;align-items:center;gap:14px;padding:16px 32px;
+              border-bottom:1px solid var(--mep-divider);">
     <div style="display:flex;align-items:center;gap:10px;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
         <rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
@@ -299,514 +530,251 @@
                                                     font-weight:600;text-decoration:none;">{t.ctaNav}</a>
   </nav>
 
-  <div style="padding:10px 32px;border-bottom:1px solid var(--mep-divider);
-              display:flex;justify-content:space-between;align-items:center;
-              font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-              letter-spacing:0.06em;text-transform:uppercase;font-weight:500;">
-    <span>{t.edition}</span>
-    <span>{t.city}</span>
-    <span>{t.date}</span>
-  </div>
+  <section style="padding:108px 72px 0;text-align:center;">
+    <div style="max-width:900px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:26px;">
+        {t.eyebrow}
+      </div>
+      <h1 style="margin:0;font-size:clamp(36px,5vw,54px);font-weight:600;color:var(--mep-fg);
+                 letter-spacing:-0.035em;line-height:1.08;text-wrap:balance;">
+        {t.headline}
+      </h1>
+      <p style="margin:22px auto 0;max-width:560px;font-size:16.5px;line-height:1.6;
+                color:var(--mep-fg-2);text-wrap:pretty;">
+        {t.sub}
+      </p>
+    </div>
 
-  <section style="padding:64px 32px 56px;">
-    <div style="max-width:1280px;margin:0 auto;display:grid;
-                grid-template-columns:120px 1fr 280px;gap:32px;align-items:flex-start;">
+    <div style="max-width:1000px;margin:68px auto 0;display:grid;
+                grid-template-columns:repeat(3,1fr);border-top:1px solid var(--mep-border);
+                border-bottom:1px solid var(--mep-border);">
+      {#each t.seqSteps as s, i}
+        <div style="padding:28px 28px 30px;text-align:left;
+                    border-left:{i === 0 ? '0' : '1px solid var(--mep-divider)'};position:relative;">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                      color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{s.n}</div>
+          <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;margin-bottom:8px;">{s.t}</div>
+          <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;">{s.b}</div>
+        </div>
+      {/each}
+    </div>
 
-      <div style="display:flex;flex-direction:column;gap:28px;padding-top:12px;">
-        {#each [
-          { label: t.railTiradaLabel, value: t.railTirada, sub: t.railTiradaSub, color: 'var(--mep-fg)' },
-          { label: t.railAsgLabel,    value: t.railAsg,    sub: t.railAsgSub,    color: 'var(--mep-acc)' },
-          { label: t.railOpenLabel,   value: t.railOpen,   sub: t.railOpenSub,   color: 'var(--mep-fg)' },
-        ] as stat}
-          <div>
-            <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                        letter-spacing:0.1em;text-transform:uppercase;font-weight:500;margin-bottom:4px;">
-              {stat.label}
-            </div>
-            <div style="font-size:22px;font-weight:600;color:{stat.color};
-                        font-family:var(--mep-fs-mono);letter-spacing:-0.4px;">{stat.value}</div>
-            <div style="font-size:10.5px;color:var(--mep-fg-3);">{stat.sub}</div>
+    <div style="max-width:460px;margin:52px auto 0;" id="join">
+      {@render emailForm(true)}
+    </div>
+    <div style="max-width:460px;margin:18px auto 0;display:flex;align-items:center;gap:14px;
+                padding:10px 14px;border-radius:10px;background:var(--mep-surface);
+                border:1px solid var(--mep-divider);">
+      <div style="display:flex;align-items:baseline;gap:6px;">
+        <span style="font-size:22px;font-weight:700;color:var(--mep-acc);letter-spacing:-0.6px;
+                     line-height:1;font-family:var(--mep-fs-mono);">{t.spotTaken}</span>
+        <span style="font-size:14px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">/ {t.spotTotal}</span>
+      </div>
+      <div style="flex:1;min-width:120px;">
+        <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.06em;
+                    font-weight:500;margin-bottom:5px;font-family:var(--mep-fs-mono);">{t.spotLabel}</div>
+        <div style="width:100%;height:5px;border-radius:3px;background:var(--mep-hover);overflow:hidden;">
+          <div style="width:{spotPct}%;height:100%;background:var(--mep-acc);border-radius:3px;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding:84px 72px 88px;">
+    <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div style="padding:14px;border-radius:16px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
+        {@render extractMock()}
+      </div>
+      <div style="padding:14px;border-radius:16px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
+        {@render dashboardMock()}
+      </div>
+    </div>
+  </section>
+
+  <section style="padding:0 72px 72px;">
+    <div style="max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+                padding:14px 20px;border-radius:12px;background:var(--mep-surface);border:1px solid var(--mep-divider);">
+      <div style="font-size:10.5px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
+                  color:var(--mep-fg-3);font-family:var(--mep-fs-mono);flex-shrink:0;">{t.intLabel}</div>
+      <div style="flex:1;height:1px;background:var(--mep-divider);min-width:20px;"></div>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+        {#each t.integrations as name}
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="width:6px;height:6px;border-radius:3px;background:var(--mep-acc);
+                         box-shadow:0 0 0 3px var(--mep-acc-soft);"></span>
+            <span style="font-size:12.5px;font-weight:500;color:var(--mep-fg-2);letter-spacing:-0.01em;">{name}</span>
           </div>
         {/each}
       </div>
+    </div>
+  </section>
 
-      <div>
-        <div style="font-size:11px;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;
-                    color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:28px;
-                    display:flex;align-items:center;gap:12px;">
-          <span style="width:32px;height:1px;background:var(--mep-acc);display:inline-block;"></span>
-          <span>{t.eyebrowLine}</span>
-        </div>
-        <h1 style="margin:0;font-size:clamp(52px,6vw,88px);font-weight:700;color:var(--mep-fg);
-                   letter-spacing:-0.04em;line-height:0.96;text-wrap:balance;">
-          {t.headline.split(' ')[0]}
-          <br />
-          <span style="font-style:italic;color:var(--mep-acc);font-weight:500;">
-            {t.headline.split(' ')[1]}
-          </span>
-        </h1>
-        <div style="margin-top:32px;display:grid;grid-template-columns:1fr 1fr;gap:32px;
-                    border-top:1px solid var(--mep-fg);padding-top:20px;">
-          <p style="margin:0;font-size:15px;line-height:1.6;color:var(--mep-fg-2);">
-            <span style="float:left;font-size:44px;font-weight:700;line-height:0.9;
-                         padding-right:6px;padding-top:4px;color:var(--mep-acc);letter-spacing:-0.08em;">
-              {t.sub[0]}
-            </span>
-            {t.sub.slice(1)}
-          </p>
-          <div id="join" style="display:flex;flex-direction:column;gap:8px;">
-            <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                        letter-spacing:0.1em;text-transform:uppercase;font-weight:500;">
-              {t.joinLabel}
+  <section style="padding:76px 72px;background:var(--mep-surface-2);
+                  border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
+    <div style="max-width:1000px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.painEyebrow}</div>
+      <h2 style="margin:0;max-width:640px;font-size:clamp(28px,3.4vw,34px);font-weight:600;
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.painHead}</h2>
+      <div style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+        {#each t.pain as p}
+          <div style="padding-top:20px;border-top:1px solid var(--mep-border);">
+            <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
+              <span style="font-size:40px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.04em;
+                           line-height:1;font-family:var(--mep-fs-mono);">{p.stat}</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;
+                           color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{p.label}</span>
             </div>
-            {#if form?.success}
-              <div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);
-                          border-radius:8px;padding:14px 16px;">
-                <div style="font-size:14px;font-weight:600;color:var(--mep-pos);margin-bottom:4px;">
-                  {t.success}
-                </div>
-                <div style="font-size:12.5px;color:var(--mep-fg-2);line-height:1.5;">
-                  {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyReg : t.successBody}
-                </div>
-              </div>
-            {:else}
-              <form method="POST" action="?/join" use:enhance
-                onsubmit={(e) => {
-                  const input = (e.currentTarget as HTMLFormElement).querySelector('input[name="email"]') as HTMLInputElement;
-                  emailError = validateEmail(input.value);
-                  if (emailError) e.preventDefault();
-                }}
-                style="display:flex;flex-direction:column;gap:8px;">
-                <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
-                  style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
-                <div style="display:flex;gap:8px;">
-                  <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
-                    class="input"
-                    style="flex:1;height:44px;font-size:14px;"
-                    oninput={() => { emailError = ''; }}
-                  />
-                  <button type="submit" class="btn btn-primary"
-                    style="height:44px;padding:0 18px;font-size:13.5px;font-weight:600;flex-shrink:0;">
-                    {t.submitShort}
-                  </button>
-                </div>
-                {#if emailError || serverError()}
-                  <p style="font-size:11.5px;color:var(--mep-neg);margin:0;padding-left:2px;">
-                    {emailError || serverError()}
-                  </p>
-                {/if}
-              </form>
-              <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
-                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
-                  <path d="M8 1l1.8 3.6L14 5.5l-3 2.9.7 4.1L8 10.4l-3.7 1.9.7-4.1-3-2.9 4.2-.9z" fill="currentColor"/>
-                </svg>
-                <span style="font-size:11.5px;color:var(--mep-acc);font-weight:500;">{t.incentive}</span>
-              </div>
-              <div style="font-size:11px;color:var(--mep-fg-3);padding-left:2px;">{t.privacy}</div>
-            {/if}
+            <div style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;
+                        line-height:1.3;margin-bottom:10px;">{p.title}</div>
+            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;">{p.body}</div>
           </div>
-        </div>
+        {/each}
       </div>
+    </div>
+  </section>
 
-      <div>
-        <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                    letter-spacing:0.1em;text-transform:uppercase;font-weight:500;margin-bottom:10px;">
-          {locale === 'es' ? 'Inserto · Muestra' : 'Insert · Sample'}
-        </div>
-        <div style="background:var(--mep-surface);border:1px solid var(--mep-divider);padding:14px;
-                    box-shadow:0 14px 40px rgba(0,0,0,0.08);transform:rotate(1.2deg);">
-          <div style="display:flex;align-items:center;gap:8px;padding-bottom:10px;
-                      border-bottom:1px solid var(--mep-divider);margin-bottom:8px;">
-            <div style="width:20px;height:20px;border-radius:4px;background:var(--mep-acc-soft);
-                        color:var(--mep-acc);display:flex;align-items:center;justify-content:center;
-                        font-size:10px;flex-shrink:0;">✦</div>
+  <section style="padding:88px 72px;">
+    <div style="max-width:1000px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.howEyebrow}</div>
+      <h2 style="margin:0 0 56px;max-width:640px;font-size:clamp(28px,3.4vw,34px);font-weight:600;
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.howHead}</h2>
+
+      <div style="display:flex;flex-direction:column;gap:64px;">
+        {#each t.steps as step, i}
+          <div style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
             <div>
-              <div style="font-size:11px;font-weight:600;color:var(--mep-fg);">Cárnicas Ibérico Aranda</div>
-              <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">2026-A-0471 · 19/05/2026 · 2,3 s</div>
-            </div>
-          </div>
-          {#each extractLines as line}
-            <div style="display:grid;grid-template-columns:10px 1fr 48px 42px;gap:8px;
-                        padding:5px 0;border-bottom:1px solid var(--mep-divider);
-                        align-items:center;font-size:10.5px;">
-              <div style="width:8px;height:8px;border-radius:4px;flex-shrink:0;
-                          background:{line.ok ? 'var(--mep-pos-soft)' : 'var(--mep-warn-soft)'};
-                          color:{line.ok ? 'var(--mep-pos)' : 'var(--mep-warn)'};
-                          display:flex;align-items:center;justify-content:center;font-size:6px;">
-                {line.ok ? '✓' : '!'}
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;
+                          font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                          color:var(--mep-acc);font-family:var(--mep-fs-mono);">
+                <span style="width:28px;height:20px;border-radius:4px;background:var(--mep-acc-soft);
+                             display:flex;align-items:center;justify-content:center;">{step.num}</span>
+                <span>{step.tag}</span>
               </div>
-              <span style="color:var(--mep-fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{line.desc}</span>
-              <span style="color:var(--mep-fg-3);font-family:var(--mep-fs-mono);text-align:right;">{line.qty}</span>
-              <span style="color:var(--mep-fg);font-weight:500;font-family:var(--mep-fs-mono);text-align:right;">{line.total} €</span>
+              <h3 style="margin:0;font-size:22px;font-weight:600;color:var(--mep-fg);
+                         letter-spacing:-0.01em;line-height:1.25;">{step.title}</h3>
+              <p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:var(--mep-fg-2);">{step.body}</p>
             </div>
-          {/each}
-          <div style="display:flex;justify-content:space-between;padding-top:8px;font-family:var(--mep-fs-mono);">
-            <span style="font-size:10px;color:var(--mep-fg-3);">{t.mockLinesVat}</span>
-            <span style="font-size:12px;font-weight:700;color:var(--mep-fg);">482,65 €</span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <div style="padding:14px 32px;border-top:1px solid var(--mep-fg);border-bottom:1px solid var(--mep-fg);
-              display:flex;align-items:center;gap:32px;overflow:hidden;">
-    <span style="font-size:10px;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;
-                 color:var(--mep-fg-3);font-family:var(--mep-fs-mono);flex-shrink:0;">
-      {t.intLabel} ·
-    </span>
-    <div style="display:flex;gap:28px;align-items:center;font-size:13px;font-weight:600;
-                color:var(--mep-fg);letter-spacing:-0.02em;">
-      {#each t.integrations as name, i}
-        {name}
-        {#if i < t.integrations.length - 1}
-          <span style="color:var(--mep-acc);font-family:var(--mep-fs-mono);font-size:14px;">×</span>
-        {/if}
-      {/each}
-    </div>
-  </div>
-
-  <section style="padding:88px 32px 56px;">
-    <div style="max-width:1280px;margin:0 auto;">
-      <div style="display:grid;grid-template-columns:120px 1fr;gap:32px;margin-bottom:56px;">
-        <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                    letter-spacing:0.1em;text-transform:uppercase;font-weight:500;">{t.painChapter}</div>
-        <h2 style="margin:0;font-size:clamp(36px,4vw,52px);font-weight:600;color:var(--mep-fg);
-                   letter-spacing:-0.03em;line-height:1.05;max-width:880px;text-wrap:balance;">
-          {t.painHead.split(',')[0]},<br />
-          <span style="color:var(--mep-acc);">{t.painHead.split(',').slice(1).join(',').trim()}</span>
-        </h2>
-      </div>
-      <div style="display:grid;grid-template-columns:120px 1fr 1fr 1fr;gap:32px;
-                  padding-top:32px;border-top:1px solid var(--mep-fg);">
-        <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                    letter-spacing:0.06em;text-transform:uppercase;font-weight:500;">{t.painReadings}</div>
-        {#each t.pain as p, i}
-          <div style="display:flex;flex-direction:column;gap:12px;padding-right:16px;
-                      {i < 2 ? 'border-right:1px solid var(--mep-divider)' : ''}">
-            <div style="font-size:10.5px;color:var(--mep-acc);font-family:var(--mep-fs-mono);
-                        letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">
-              {t.readingLabel} · 0{i + 1}
+            <div>
+              {#if i === 0}
+                {@render captureMock()}
+              {:else if i === 1}
+                {@render extractMock()}
+              {:else}
+                {@render dashboardMock()}
+              {/if}
             </div>
-            <div style="display:flex;align-items:baseline;gap:6px;border-bottom:1px solid var(--mep-divider);
-                        padding-bottom:12px;">
-              <span style="font-size:clamp(48px,5vw,68px);font-weight:700;color:var(--mep-fg);
-                           letter-spacing:-0.05em;line-height:0.9;font-family:var(--mep-fs-mono);">{p.stat}</span>
-              <span style="font-size:11px;color:var(--mep-fg-3);letter-spacing:0.06em;
-                           text-transform:uppercase;font-weight:500;font-family:var(--mep-fs-mono);">{p.label}</span>
-            </div>
-            <h3 style="margin:0;font-size:18px;font-weight:600;color:var(--mep-fg);
-                       letter-spacing:-0.02em;line-height:1.2;">{p.title}</h3>
-            <p style="margin:0;font-size:13px;line-height:1.7;color:var(--mep-fg-2);">{p.body}</p>
           </div>
         {/each}
       </div>
     </div>
   </section>
 
-  <section style="padding:72px 32px;background:var(--mep-surface-2);
-                  border-top:1px solid var(--mep-fg);border-bottom:1px solid var(--mep-fg);">
-    <div style="max-width:1280px;margin:0 auto;">
-      <div style="display:grid;grid-template-columns:120px 1fr;gap:32px;margin-bottom:48px;">
-        <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                    letter-spacing:0.1em;text-transform:uppercase;font-weight:500;">{t.howChapter}</div>
-        <h2 style="margin:0;font-size:clamp(36px,4vw,52px);font-weight:600;color:var(--mep-fg);
-                   letter-spacing:-0.03em;line-height:1.05;max-width:720px;">{t.howHead}</h2>
-      </div>
-
-      {#each t.steps as step, i}
-        <div style="display:grid;grid-template-columns:120px 1fr 1fr;gap:32px;padding:40px 0;
-                    border-top:1px solid var(--mep-divider);align-items:start;">
-          <div>
-            <div style="font-size:clamp(48px,5vw,68px);font-weight:700;color:var(--mep-acc);
-                        letter-spacing:-0.05em;line-height:0.9;font-family:var(--mep-fs-mono);">{step.num}</div>
-            <div style="margin-top:8px;font-size:11px;color:var(--mep-fg-3);letter-spacing:0.12em;
-                        text-transform:uppercase;font-weight:600;font-family:var(--mep-fs-mono);">{step.tag}</div>
-          </div>
-          <div style="padding-top:8px;">
-            <h3 style="margin:0;font-size:28px;font-weight:600;color:var(--mep-fg);
-                       letter-spacing:-0.02em;line-height:1.15;">{step.title}</h3>
-            <p style="margin:16px 0 0;font-size:14.5px;line-height:1.7;color:var(--mep-fg-2);
-                      max-width:360px;">{step.body}</p>
-          </div>
-
-          <div>
-            {#if i === 0}
-              <div style="position:relative;width:100%;aspect-ratio:4/3;border-radius:16px;overflow:hidden;
-                          background:linear-gradient(135deg,var(--mep-surface-2) 0%,var(--mep-surface) 100%);
-                          border:1px solid var(--mep-divider);padding:28px;
-                          display:flex;align-items:center;justify-content:center;">
-                <div style="position:absolute;top:22px;left:22px;width:54%;height:78%;
-                            background:var(--mep-surface);border:1px solid var(--mep-divider);
-                            border-radius:4px;box-shadow:0 14px 40px rgba(0,0,0,0.12);
-                            transform:rotate(-6deg);padding:14px 16px;
-                            display:flex;flex-direction:column;gap:6px;overflow:hidden;">
-                  <div style="font-size:10px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">
-                    CÁRNICAS IBÉRICO ARANDA
-                  </div>
-                  <div style="font-size:8.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">CIF B81234567 · Madrid</div>
-                  <div style="height:1px;background:var(--mep-divider);margin:4px 0;"></div>
-                  <div style="display:flex;justify-content:space-between;font-size:8.5px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
-                    <span>FACTURA</span><span>N.º 2026-A-0471</span>
-                  </div>
-                  <div style="display:flex;justify-content:space-between;font-size:8.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
-                    <span>Fecha</span><span>19/05/2026</span>
-                  </div>
-                  <div style="height:1px;background:var(--mep-divider);margin:4px 0;"></div>
-                  {#each ['Solomillo ibérico','Costillas cerdo','Carrillera','Chorizo cular','Lomo embuchado'] as prod, pi}
-                    <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
-                      <span>{prod}</span><span>{(20 + pi * 14).toFixed(2)} €</span>
-                    </div>
-                  {/each}
-                  <div style="flex:1;"></div>
-                  <div style="height:1px;background:var(--mep-divider);"></div>
-                  <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">
-                    <span>TOTAL</span><span>482,65 €</span>
-                  </div>
-                </div>
-                <div style="position:absolute;right:28px;bottom:28px;width:46%;
-                            display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-                  <div style="max-width:90%;background:#dcf8c6;color:#0a2618;
-                              border-radius:12px 12px 4px 12px;padding:8px;font-size:11px;
-                              box-shadow:0 8px 20px rgba(0,0,0,0.12);">
-                    <div style="width:100%;height:76px;border-radius:6px;
-                                background:linear-gradient(135deg,#c1bfaf 0%,#8a8678 60%,#5f5a4d 100%);
-                                display:flex;align-items:center;justify-content:center;">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:rgba(255,255,255,0.5);">
-                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.5"/>
-                      </svg>
-                    </div>
-                    <div style="font-size:10px;margin-top:5px;font-family:var(--mep-fs-mono);">albaran_aranda.jpg · 1.2 MB</div>
-                  </div>
-                  <div style="max-width:90%;background:#ffffff;color:#0a2618;
-                              border-radius:12px 12px 12px 4px;padding:8px 12px;font-size:11.5px;
-                              box-shadow:0 8px 20px rgba(0,0,0,0.12);font-weight:500;">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-                      <span style="width:12px;height:12px;border-radius:6px;background:var(--mep-acc);
-                                   color:var(--mep-acc-fg);display:flex;align-items:center;
-                                   justify-content:center;font-size:7px;font-weight:700;">M</span>
-                      <span style="font-size:10px;font-weight:600;">Mise en Place</span>
-                    </div>
-                    {t.mockWhatsappReply}
-                    <div style="font-size:9.5px;color:#5a8a6f;margin-top:3px;font-family:var(--mep-fs-mono);">14:02</div>
-                  </div>
-                </div>
-              </div>
-
-            {:else if i === 1}
-              <div class="card" style="width:100%;padding:0;overflow:hidden;display:flex;flex-direction:column;">
-                <div style="padding:12px 16px;border-bottom:1px solid var(--mep-divider);
-                            display:flex;align-items:center;gap:10px;">
-                  <div style="width:22px;height:22px;border-radius:5px;background:var(--mep-acc-soft);
-                              color:var(--mep-acc);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                      <path d="M8 1l1.8 3.6L14 5.5l-3 2.9.7 4.1L8 10.4l-3.7 1.9.7-4.1-3-2.9 4.2-.9z" fill="currentColor"/>
-                    </svg>
-                  </div>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:12px;font-weight:600;color:var(--mep-fg);">Cárnicas Ibérico Aranda</div>
-                    <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
-                      2026-A-0471 · 19/05/2026 · {t.mockExtractedIn}
-                    </div>
-                  </div>
-                  <span style="font-size:9.5px;font-weight:500;padding:2px 7px;border-radius:4px;
-                               background:var(--mep-pos-soft);color:var(--mep-pos);display:inline-flex;align-items:center;gap:4px;">
-                    {t.mockConfirmed}
-                  </span>
-                </div>
-                {#each extractLines as line, li}
-                  <div style="display:grid;grid-template-columns:14px 1fr 70px 60px;gap:10px;
-                              padding:8px 16px;border-bottom:{li === extractLines.length - 1 ? '0' : '1px solid var(--mep-divider)'};
-                              align-items:center;font-size:11.5px;">
-                    <div style="width:12px;height:12px;border-radius:6px;flex-shrink:0;
-                                background:{line.ok ? 'var(--mep-pos-soft)' : 'var(--mep-warn-soft)'};
-                                color:{line.ok ? 'var(--mep-pos)' : 'var(--mep-warn)'};
-                                display:flex;align-items:center;justify-content:center;font-size:7px;">
-                      {line.ok ? '✓' : '!'}
-                    </div>
-                    <span style="color:var(--mep-fg-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                      {line.desc}
-                    </span>
-                    <span style="color:var(--mep-fg-3);text-align:right;font-family:var(--mep-fs-mono);">{line.qty}</span>
-                    <span style="color:var(--mep-fg);font-weight:500;text-align:right;font-family:var(--mep-fs-mono);">{line.total} €</span>
-                  </div>
-                {/each}
-                <div style="padding:10px 16px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);
-                            display:flex;align-items:center;justify-content:space-between;">
-                  <span style="font-size:11px;color:var(--mep-fg-3);">{t.mockLinesVat}</span>
-                  <span style="font-size:13px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">482,65 €</span>
-                </div>
-              </div>
-
-            {:else}
-              <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                  <div>
-                    <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;
-                                letter-spacing:0.08em;font-weight:500;font-family:var(--mep-fs-mono);">
-                      {t.mockSpendLabel}
-                    </div>
-                    <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;">
-                      <span style="font-size:22px;font-weight:700;color:var(--mep-fg);
-                                   letter-spacing:-0.4px;font-family:var(--mep-fs-mono);">3.842,15 €</span>
-                      <span style="font-size:11px;color:var(--mep-pos);font-weight:600;
-                                   display:inline-flex;align-items:center;gap:2px;">
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 8V2M2 5l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        12,4 %
-                      </span>
-                    </div>
-                  </div>
-                  <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-                    {#each [{ k:t.mockCatMeat, c:'#7a5b3a' }, { k:t.mockCatFish, c:'#4d5b7a' }, { k:t.mockCatVeg, c:'#3d6b5a' }] as cat}
-                      <div style="display:flex;align-items:center;gap:4px;">
-                        <span style="width:8px;height:8px;border-radius:2px;background:{cat.c};flex-shrink:0;"></span>
-                        <span style="font-size:10px;color:var(--mep-fg-3);">{cat.k}</span>
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-                <svg viewBox="0 0 {CVW} {svgH}" width="100%" style="display:block;overflow:visible;">
-                  {#each [0, 0.5, 1] as p}
-                    <line x1={padL} x2={CVW - 10} y1={CPT + CH * (1 - p)} y2={CPT + CH * (1 - p)}
-                          stroke="var(--mep-divider)" stroke-width="1"/>
-                  {/each}
-                  {#each chartWeeks as wk}
-                    <g style="opacity:{!wk.hi ? 0.45 : 1};">
-                      {#each wk.segs as seg}
-                        <rect x={seg.x} y={seg.y} width={seg.w} height={seg.h} fill={seg.fill}/>
-                      {/each}
-                      <text x={wk.lx} y={wk.ly} text-anchor="middle" font-size="9.5"
-                            fill="var(--mep-fg-3)" font-family="var(--mep-fs-mono)">{wk.l}</text>
-                      {#if wk.hi}
-                        <text x={wk.lx} y={wk.topY - 4} text-anchor="middle" font-size="9.5"
-                              font-weight="700" fill="var(--mep-fg)" font-family="var(--mep-fs-mono)">
-                          {((wk.total / 10) + 0.86).toFixed(2).replace('.', ',')} k
-                        </text>
-                      {/if}
-                    </g>
-                  {/each}
-                </svg>
-                <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;
-                            border-radius:8px;background:var(--mep-warn-soft);">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:var(--mep-warn);flex-shrink:0;">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-size:11.5px;color:var(--mep-fg);font-weight:600;">
-                      {t.mockAlertTitle}
-                    </div>
-                    <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
-                      Aceites Gómez Hermanos · 4,80 € → 5,19 € / L
-                    </div>
-                  </div>
-                  <span style="font-size:10px;font-weight:600;color:var(--mep-warn);
-                               text-transform:uppercase;letter-spacing:0.06em;font-family:var(--mep-fs-mono);">
-                    {t.mockReview}
-                  </span>
-                </div>
-              </div>
-            {/if}
-          </div>
-        </div>
-      {/each}
-    </div>
-  </section>
-
-  <section style="padding:88px 32px;">
-    <div style="max-width:1280px;margin:0 auto;">
-      <div style="display:grid;grid-template-columns:120px 1fr;gap:32px;margin-bottom:48px;">
-        <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                    letter-spacing:0.1em;text-transform:uppercase;font-weight:500;">{t.testChapter}</div>
-        <h2 style="margin:0;font-size:clamp(36px,4vw,52px);font-weight:600;color:var(--mep-fg);
-                   letter-spacing:-0.03em;line-height:1.05;max-width:720px;">{t.testHead}</h2>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
-                  background:var(--mep-divider);border:1px solid var(--mep-divider);">
+  <section style="padding:76px 72px;background:var(--mep-surface-2);
+                  border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
+    <div style="max-width:1000px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:40px;">{t.testimonialsEyebrow}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
         {#each t.testimonials as item}
-          <div style="background:var(--mep-bg);padding:36px 32px;
-                      display:flex;flex-direction:column;gap:20px;">
-            <span style="font-size:80px;line-height:0.6;color:var(--mep-acc);height:30px;
-                         font-weight:700;letter-spacing:-0.06em;">&ldquo;</span>
-            <p style="margin:0;font-size:18px;line-height:1.45;color:var(--mep-fg);
-                      letter-spacing:-0.01em;font-style:italic;flex:1;">{item.quote}</p>
-            <div style="padding-top:16px;border-top:1px solid var(--mep-divider);
-                        font-size:11.5px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
-              <span style="font-weight:600;color:var(--mep-fg);">{item.name}</span><br />
-              <span style="color:var(--mep-fg-3);">{item.role}</span>
+          <div style="padding-top:22px;border-top:1px solid var(--mep-border);">
+            <p style="margin:0;font-size:15px;line-height:1.6;color:var(--mep-fg);letter-spacing:-0.005em;">
+              &ldquo;{item.quote}&rdquo;
+            </p>
+            <div style="margin-top:18px;font-size:12.5px;color:var(--mep-fg-2);">
+              <span style="font-weight:600;color:var(--mep-fg);">{item.name}</span>
             </div>
+            <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:3px;">{item.role}</div>
           </div>
         {/each}
       </div>
     </div>
   </section>
 
-  <section style="padding:100px 32px;background:var(--mep-fg);color:var(--mep-bg);
-                  --mep-border-strong:rgba(255,255,255,0.2);--mep-surface:rgba(255,255,255,0.05);
-                  --mep-divider:rgba(255,255,255,0.15);">
-    <div style="max-width:1280px;margin:0 auto;display:grid;
-                grid-template-columns:120px 1fr 360px;gap:32px;align-items:center;">
-      <div style="font-size:9.5px;color:rgba(255,255,255,0.45);font-family:var(--mep-fs-mono);
-                  letter-spacing:0.1em;text-transform:uppercase;font-weight:500;">{t.ctaChapter}</div>
-      <h2 style="margin:0;font-size:clamp(44px,5vw,64px);font-weight:700;color:inherit;
-                 letter-spacing:-0.03em;line-height:0.98;text-wrap:balance;">
-        {t.ctaHead1}<br />
-        <span style="color:var(--mep-acc);font-style:italic;font-weight:500;">{t.ctaHead2}</span>
-      </h2>
-      <div>
-        <p style="margin:0 0 16px;font-size:13px;color:rgba(255,255,255,0.6);">{t.ctaSub}</p>
-        {#if form?.success}
-          <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);
-                      border-radius:8px;padding:14px 16px;font-size:13px;color:rgba(255,255,255,0.8);">
-            {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyReg : t.successBody}
-          </div>
-        {:else}
-          <form method="POST" action="?/join" use:enhance
-            onsubmit={(e) => {
-              const input = (e.currentTarget as HTMLFormElement).querySelector('input[name="email"]') as HTMLInputElement;
-              const err = validateEmail(input.value);
-              if (err) { emailError = err; e.preventDefault(); }
-            }}
-            style="display:flex;flex-direction:column;gap:8px;">
-            <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
-              style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
-            <div style="display:flex;gap:8px;">
-              <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
-                style="flex:1;height:48px;padding:0 14px;font-size:14px;border-radius:6px;
-                       background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);
-                       color:#fff;outline:none;font-family:inherit;"
-                oninput={() => { emailError = ''; }}
-              />
-              <button type="submit" class="btn btn-primary"
-                style="height:48px;padding:0 20px;font-size:14px;font-weight:600;flex-shrink:0;">
-                {t.submitShort}
-              </button>
-            </div>
-            {#if emailError || serverError()}
-              <p style="font-size:11.5px;color:var(--mep-neg);margin:0;">{emailError || serverError()}</p>
-            {/if}
-            <div style="font-size:11px;color:rgba(255,255,255,0.45);font-family:var(--mep-fs-mono);">{t.privacy}</div>
-          </form>
-        {/if}
+  <section style="padding:76px 72px;">
+    <div style="max-width:860px;margin:0 auto;display:flex;gap:24px;align-items:flex-start;
+                padding:32px 36px;border-radius:16px;background:var(--mep-surface);border:1px solid var(--mep-divider);">
+      <div style="width:92px;height:92px;border-radius:50%;flex-shrink:0;
+                  background:linear-gradient(135deg,var(--mep-acc-soft) 0%,var(--mep-acc) 200%);
+                  color:var(--mep-acc-fg);display:flex;align-items:center;justify-content:center;
+                  font-size:28px;font-weight:700;font-family:var(--mep-fs-mono);letter-spacing:-1px;
+                  border:1px solid var(--mep-border);">VE</div>
+      <div style="flex:1;">
+        <div style="font-size:10.5px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
+                    color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:10px;">{t.founderEyebrow}</div>
+        <p style="margin:0;font-size:17px;line-height:1.55;color:var(--mep-fg);letter-spacing:-0.005em;">
+          &ldquo;{t.founderBody}&rdquo;
+        </p>
+        <div style="margin-top:14px;font-size:12px;color:var(--mep-fg-2);">
+          <span style="font-weight:600;color:var(--mep-fg);">{t.founderName}</span>
+          {' · '}
+          <span style="color:var(--mep-fg-3);">{t.founderRole}</span>
+        </div>
       </div>
     </div>
   </section>
 
-  <footer style="padding:20px 32px;display:flex;align-items:center;justify-content:space-between;
-                 font-size:11px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);
-                 letter-spacing:0.06em;border-top:1px solid var(--mep-divider);">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);">
+  <section style="padding:0 72px 76px;">
+    <div style="max-width:720px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:20px;">{t.faqEyebrow}</div>
+      <div>
+        {#each t.faq as row, i}
+          {@const isOpen = openFaq === i}
+          <div style="border-top:1px solid var(--mep-divider);
+                      {i === t.faq.length - 1 ? 'border-bottom:1px solid var(--mep-divider);' : ''}">
+            <button onclick={() => { openFaq = isOpen ? -1 : i; }}
+              style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
+                     display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
+              <span style="font-size:12px;font-family:var(--mep-fs-mono);color:var(--mep-acc);
+                           font-weight:600;width:30px;flex-shrink:0;">0{i + 1}</span>
+              <span style="flex:1;font-size:15px;font-weight:500;color:var(--mep-fg);letter-spacing:-0.01em;">{row.q}</span>
+              <span style="width:24px;height:24px;border-radius:50%;border:1px solid var(--mep-border);
+                           display:flex;align-items:center;justify-content:center;color:var(--mep-fg-2);
+                           transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;flex-shrink:0;">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+                </svg>
+              </span>
+            </button>
+            {#if isOpen}
+              <div style="padding:0 4px 18px 50px;font-size:13.5px;line-height:1.65;color:var(--mep-fg-2);">
+                {row.a}
+              </div>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    </div>
+  </section>
+
+  <section style="padding:96px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);">
+    <div style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
+                gap:64px;align-items:center;">
+      <div>
+        <h2 style="margin:0;font-size:clamp(28px,3.6vw,36px);font-weight:600;color:var(--mep-fg);
+                   letter-spacing:-0.025em;line-height:1.15;text-wrap:balance;">{t.closeHead}</h2>
+        <p style="margin:14px 0 0;font-size:15px;line-height:1.6;color:var(--mep-fg-2);max-width:420px;">{t.closeSub}</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        {@render emailForm(true)}
+      </div>
+    </div>
+  </section>
+
+  <footer style="padding:28px 72px;border-top:1px solid var(--mep-divider);
+                 display:flex;align-items:center;justify-content:space-between;gap:20px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
         <rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
         <rect x="10.5" y="3.5" width="3" height="13" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
         <rect x="18.5" y="3.5" width="3" height="9"  rx="1.2" stroke="currentColor" stroke-width="1.6"/>
       </svg>
-      <span>Mise en Place · Barcelona · {new Date().getFullYear()}</span>
+      <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
-    <span>{t.footerNote}</span>
+    <div style="font-size:11.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{t.footerNote}</div>
   </footer>
 
 </div>
