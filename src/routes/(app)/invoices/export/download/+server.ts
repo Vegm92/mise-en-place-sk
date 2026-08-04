@@ -45,6 +45,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		})
 		.from(invoices)
 		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		// tenant-scope-ok: conditions[0] is tdb.scope(invoices.restaurantId)
 		.where(and(...conditions))
 		.orderBy(desc(invoices.invoiceDate));
 

@@ -2,13 +2,20 @@
 
 ## ADR-001 — Tenant Isolation: App-Level Scoping (Option B)
 
-**Status:** Active  
+**Status:** Active — amended by [ADR-005](#adr-005--railway-postgres-rls-retired-app-layer-scoping-is-the-boundary)  
 **Date:** 2026-06-11  
 **Issue:** [#120](https://github.com/Vegm92/mise-en-place-sk/issues/120)
 
+> **Amendment (2026-08-03, ADR-005).** The decision below is unchanged and still
+> active. Two things about it are not: `drizzle/0001_rls_policies.sql` no longer
+> contains any policies (#373 dropped them for the Railway migration), and
+> "Option A" as written below routes through Supabase infrastructure that no
+> longer exists in this stack. The database-enforced path is still open, but via
+> a different route — see the rewritten *Why not Option A* section and #222.
+
 ### Context
 
-`drizzle/0002_rls_policies.sql` defines PostgreSQL Row-Level Security (RLS) policies for 17 tables,
+`drizzle/0001_rls_policies.sql` defines PostgreSQL Row-Level Security (RLS) policies for 17 tables,
 using the access model: users reach data through the `user_restaurants` pivot (restaurant_id IN SELECT
 from user_restaurants WHERE user_id = auth.uid()::text).
 
@@ -37,17 +44,32 @@ with an optional second argument for composing additional conditions.
 Non-tenant tables (`waitlist`, `upload_sessions`, `subscriptions`, `restaurants`) continue to use `db`
 directly — they are not scoped to a restaurant.
 
-`drizzle/0002_rls_policies.sql` is retained as documentation of the intended policy model and as a
-future migration target (see Option A path below), but is NOT the active enforcement layer.
+~~`drizzle/0001_rls_policies.sql` is retained as documentation of the intended policy model and as a
+future migration target (see Option A path below), but is NOT the active enforcement layer.~~
+**Superseded by ADR-005:** the file now drops policies rather than defining them, so it no longer
+documents the model. The model as originally written is preserved in this ADR's git history.
 
 ### Why not Option A (RLS as real boundary)?
 
-Option A requires:
-1. Switching from a direct postgres connection to the **Supabase transaction pooler**.
-2. Injecting `SET LOCAL "request.jwt.claims" = '{"sub":"<userId>"}'` per transaction.
-3. Infrastructure change to `DATABASE_URL` (pooler connection string format differs).
+**Original reasoning (2026-06-11), no longer applicable.** Option A was scoped to Supabase: switch
+from a direct postgres connection to the **Supabase transaction pooler**, inject
+`SET LOCAL "request.jwt.claims" = '{"sub":"<userId>"}'` per transaction, and change `DATABASE_URL`
+to the pooler format. On Railway Postgres there is no such pooler and no `auth.uid()`, so this
+particular route is closed.
 
-This is the correct long-term architecture and should be revisited once the pooler migration is planned.
+**Current path (2026-08-03).** Database-enforced isolation is still achievable, and #373 did not
+close it — it only removed policies that were keyed to Supabase's Data API. The remaining route
+is provider-neutral and described in [#222](https://github.com/Vegm92/mise-en-place-sk/issues/222):
+
+1. Run the app through a dedicated **non-owner** Postgres role. Table owners bypass RLS, which is
+   why the old policies never protected the SSR path even while they existed.
+2. `ALTER TABLE … FORCE ROW LEVEL SECURITY` so policies apply to that role.
+3. Set the tenant context per transaction — `SET LOCAL app.restaurant_id = …` — and write policies
+   against `current_setting('app.restaurant_id')` rather than `auth.uid()`.
+
+Railway arguably makes this easier than Supabase did, since role management is fully under our
+control. The policies would need writing fresh against a session variable, not porting from the
+`auth.uid()` versions. Still the correct long-term architecture; still not scheduled.
 
 ### Consequences
 
@@ -55,8 +77,12 @@ This is the correct long-term architecture and should be revisited once the pool
   different tenant, satisfying the "automated proof" requirement from issue #120.
 - New query code MUST use `forTenant()` for any table with a `restaurant_id` column.
 - Direct `db.select().from(tenantTable)` without `forTenant()` scoping is a code review red flag.
-- When the app migrates to the transaction pooler, this ADR can be superseded by enabling real RLS
-  and removing the app-level `forTenant` requirement.
+- ~~When the app migrates to the transaction pooler, this ADR can be superseded by enabling real RLS
+  and removing the app-level `forTenant` requirement.~~ Amended by ADR-005: if #222 is taken up, the
+  supersession would come from a non-owner role plus `FORCE ROW LEVEL SECURITY`, not from a pooler.
+- Since ADR-005, app-level scoping is the **only** tenant boundary rather than the active one of two.
+  `tests/tenant-isolation.test.ts` and `lint:tenant-scope` are therefore load-bearing, not
+  belt-and-braces — see #380.
 
 ---
 
@@ -133,6 +159,15 @@ All web-process env vars are required; the worker reads them from `process.env` 
 **Status:** Active  
 **Date:** 2026-08-02  
 **Issue:** [#345](https://github.com/Vegm92/mise-en-place-sk/issues/345)
+
+> **Amendment (2026-08-03, ADR-005).** The decision — committed migrations are
+> canonical, guarded by `db:check-sync` — is unaffected. Some of the supporting
+> context below was written the day before #373 dropped the RLS policies and is
+> now false: `0001_rls_policies.sql` defines no policies, the deploy runbooks no
+> longer check that policies landed (they check the opposite), and `db:push`
+> iterates against a local or Railway database rather than a dev Supabase
+> project. The RLS-specific warning about `db:push` no longer applies; the
+> general warning about raw-SQL migration content still does.
 
 ### Context
 
@@ -277,3 +312,69 @@ The other four WhatsApp tables (`whatsapp_contacts`, `whatsapp_pairing_codes`,
 `whatsapp_processed_messages`, `whatsapp_account_events`) serve purposes independent of
 the session/confirmation machine — contact directory, onboarding, webhook-redelivery
 dedup, and Meta account health — and were kept as-is.
+
+---
+
+## ADR-005 — Railway Postgres: RLS Retired, App-Layer Scoping Is The Boundary
+
+**Status:** Active  
+**Date:** 2026-08-03  
+**Issues:** [#366](https://github.com/Vegm92/mise-en-place-sk/issues/366), [#368](https://github.com/Vegm92/mise-en-place-sk/issues/368), [#376](https://github.com/Vegm92/mise-en-place-sk/issues/376), [#377](https://github.com/Vegm92/mise-en-place-sk/issues/377)
+
+### Context
+
+Nine migrations enabled row-level security. Every one of them did so for the same reason: to gate
+**Supabase's Data API** (PostgREST), reached with the public anon key. The policies were written
+against `auth.uid()`, a function that exists only because of Supabase's GoTrue integration. Tables
+with no user-facing policy were enabled-with-no-policies, i.e. deny-all to that same API.
+
+None of this ever constrained the application. The app reaches Postgres over a direct connection as
+the table-owning role, and **table owners bypass RLS** unless `FORCE ROW LEVEL SECURITY` is set. That
+was ADR-001's finding in June and #222's in July: the policies were defense-in-depth on a door the
+app never used, and the real boundary was `forTenant().scope()` in query code.
+
+The Railway migration (#366) forced the question. Railway Postgres has no Data API and no
+`auth.uid()`, so replaying the migrations as written failed outright — the policies could not even be
+created. The options were to port them to a session variable, or to drop them.
+
+A confirming detail: the app makes **no** Data API calls. `src/lib/server/supabase.ts` is used only
+for GoTrue auth — there is not a single `.from()` or `.rpc()` data query in `src/`. Even `waitlist`,
+the one table with a public-facing INSERT policy, is written through Drizzle's owner connection in
+`waitlist-db.ts`. So the policies gated a path with no callers.
+
+### Decision
+
+**Drop the RLS policies rather than port them.** #373 rewrote all nine migrations to `DISABLE ROW
+LEVEL SECURITY` / `DROP POLICY`, and #374 retired `tests/rls-enforcement.test.ts`, which proved a
+property of the Data API path that no longer exists.
+
+`forTenant().scope()` (ADR-001) is now the **only** tenant boundary, guarded by `lint:tenant-scope`
+in CI. This is a change in candour rather than in security posture: the app was always relying on
+app-layer scoping alone, and the RLS files gave a second layer that only appeared to exist.
+
+Editing the nine shipped migrations in place, rather than adding a forward migration, was deliberate.
+Drizzle selects migrations by journal timestamp, so edits do not re-run against an already-migrated
+database; the rewrite therefore only affects fresh replays, which is exactly the Railway case. The
+consequence to remember is that the **old Supabase database still has RLS enabled and its policies
+intact** — the two environments differ, and a `pg_dump` from Supabase restored into Railway would
+carry policies referencing an `auth.uid()` that is not there.
+
+### Consequences
+
+- `drizzle/0001_rls_policies.sql` does the opposite of its filename. The journal tag is immutable, so
+  the name stays; the header comment explains it.
+- The deploy and sign-off runbooks now assert **zero** policies and **zero** RLS-enabled tables as the
+  expected post-migration state (#376). Previously they failed the deploy when policies were absent.
+- `scripts/ci-db-setup.sql`, which stubbed `auth.uid()` so migration 0001 could apply to a plain
+  Postgres container, was removed along with its CI step (#378) — nothing references `auth.uid()` now.
+- Tenant-isolation tests and the lint gate become load-bearing rather than supplementary. Both are
+  thinner than that role warrants; #380 tracks strengthening them.
+- Database-enforced isolation remains open via #222, on a provider-neutral route: a non-owner role,
+  `FORCE ROW LEVEL SECURITY`, and policies written against `SET LOCAL app.restaurant_id`. This ADR
+  does not close that door — it removes the artifact that made it look already half-open.
+
+### Verification
+
+Full `drizzle-kit migrate` replay from empty against Postgres 16: 32 tables, 5 materialized views,
+`pg_trgm` plus the `mep_norm_key` / `refresh_analytics_rollups` functions present, **0** policies,
+**0** RLS-enabled tables, and no `auth` schema required.
