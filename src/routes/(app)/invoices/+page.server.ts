@@ -45,6 +45,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+				// tenant-scope-ok: conditions[0] is tdb.scope(invoices.restaurantId)
 				.where(and(...conditions))
 				.orderBy(desc(invoices.createdAt))
 				.limit(PAGE_SIZE)
@@ -68,6 +69,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(tdb.scope(suppliers.restaurantId))
 				.orderBy(asc(suppliers.name)),
 
+			// tenant-scope-ok: conditions[0] is tdb.scope(invoices.restaurantId)
 			db.select({ cnt: count() })
 				.from(invoices)
 				.where(and(...conditions)),
@@ -90,7 +92,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				unit_price:  invoiceLineItems.unitPrice,
 				total_price: invoiceLineItems.totalPrice,
 			}).from(invoiceLineItems)
-				.where(inArray(invoiceLineItems.invoiceId, invoiceIds))
+				.where(tdb.scope(invoiceLineItems.restaurantId, inArray(invoiceLineItems.invoiceId, invoiceIds)))
 			: [];
 
 		const lineItemsByInvoice = new Map<number, typeof allLineItems>();

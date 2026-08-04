@@ -50,6 +50,9 @@ export async function addContact(
 
 	if (inserted.length > 0) return { ok: true };
 
+	// tenant-scope-ok: deliberately cross-tenant — resolves who already holds a
+	// globally-unique phone number so the caller can report it as taken. Only the
+	// owning restaurantId is read, and it is compared, never returned.
 	const [existing] = await db
 		.select({ restaurantId: whatsappContacts.restaurantId })
 		.from(whatsappContacts)

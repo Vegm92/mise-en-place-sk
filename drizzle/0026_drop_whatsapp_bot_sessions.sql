@@ -9,4 +9,10 @@
 -- WhatsApp tables (contacts, pairing codes, processed messages, account
 -- events) are untouched — they serve the contact directory, onboarding,
 -- webhook dedup, and Meta account health, independent of this state machine.
-DROP TABLE "whatsapp_bot_sessions" CASCADE;
+--
+-- IF EXISTS, because #363 also removed the table from schema.ts: a database
+-- bootstrapped with `pnpm db:push` (ADR-003's local iteration path) never has
+-- it, and a plain DROP would fail there. No CASCADE — nothing referenced this
+-- table (its only FK pointed outward, to restaurants), so CASCADE could only
+-- ever mask a dependency someone adds later that we would rather hear about.
+DROP TABLE IF EXISTS "whatsapp_bot_sessions";

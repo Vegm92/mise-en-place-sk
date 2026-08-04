@@ -23,8 +23,9 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 ## Tech stack
 
 - **SvelteKit 2 + Svelte 5 (runes)**, Tailwind CSS 4, shadcn-svelte/bits-ui, `@sveltejs/adapter-node`
-- **Supabase**: Postgres (data) + Auth (email/password + Google OAuth, cookie sessions via `@supabase/ssr`)
-- **Drizzle ORM** (postgres-js, SSL required); migrations in `drizzle/`, including row-level-security policies (`0001_rls_policies.sql`)
+- **Railway Postgres** (data) — migrated off Supabase in #366/#367
+- **Supabase Auth** (email/password + Google OAuth, cookie sessions via `@supabase/ssr`) — being replaced by Auth.js in #369–#372
+- **Drizzle ORM** (postgres-js, SSL required); committed migrations in `drizzle/` are the canonical schema source (ADR-003)
 - **Gemini** (`@google/genai`, default `gemini-2.5-flash`) for extraction, digest, and chat
 - **Sentry** (`@sentry/sveltekit`) for client + server error tracking (no-ops when DSN empty)
 - **Vitest** unit/integration tests; GitHub Actions CI (typecheck, tests, build)
@@ -55,14 +56,14 @@ src/
     └── api/                 # upload files, inference status, auth callback
 ```
 
-Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries **and** by Postgres RLS policies as defense-in-depth. Uploaded files live on local disk (`UPLOADS_DIR`) or in Supabase Storage (`STORAGE_DRIVER=supabase`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
+Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries via `forTenant().scope()`, guarded by the `lint:tenant-scope` CI check. This is the **only** tenant boundary — the app connects as the table owner, and the Supabase-era RLS policies were dropped in the Railway migration (see ADR-001 and ADR-005, and #222 for the database-enforced path). Uploaded files live on local disk (`UPLOADS_DIR`) or in object storage (`STORAGE_DRIVER=railway`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
 
 ## Getting started
 
-1. Create a Supabase project; get the Postgres connection string and API keys.
+1. Provision a Railway Postgres instance for `DATABASE_URL`, and a Supabase project for the auth keys (see [DEPLOYMENT.md](DEPLOYMENT.md)). A local Postgres works for development.
 2. `cp .env.example .env` and fill every value (see [DEPLOYMENT.md](DEPLOYMENT.md) for the reference).
 3. `pnpm install`
-4. `pnpm db:migrate` (applies `drizzle/` migrations, including RLS policies)
+4. `pnpm db:migrate` (applies `drizzle/` migrations — the canonical schema, per ADR-003)
 5. `pnpm dev:all` — runs the web server **and** the extraction worker (both are required; `pnpm dev` alone leaves invoice extractions stuck in `queued`). First boot seeds the admin user from `AUTH_ADMIN_EMAIL` / `AUTH_ADMIN_PASSWORD`.
 6. Optional: `pnpm db:seed-demo` for demo data.
 
@@ -79,8 +80,8 @@ Multi-tenancy: every business table carries `restaurant_id`; access is enforced 
 Those suites create and delete real restaurants, suppliers, invoices and
 notifications, so they only run against a **local** Postgres
 (`localhost` / `127.0.0.1` / `::1` / `host.docker.internal`). If your `DATABASE_URL`
-points at hosted Supabase — the shape in `.env.example` — they skip with a loud
-notice instead of writing to it.
+points at a hosted database — Railway, or anything else non-local, which is the
+shape in `.env.example` — they skip with a loud notice instead of writing to it.
 
 - Preferred: set `DATABASE_TEST_URL` to a local database, keeping app and test
   connection strings separate by construction.

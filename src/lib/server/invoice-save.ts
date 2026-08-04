@@ -127,7 +127,7 @@ async function linkProductsToInvoice(
 		const [supplier] = await db
 			.select({ category: suppliers.category })
 			.from(suppliers)
-			.where(eq(suppliers.id, supplierId))
+			.where(forTenant(rid).scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
 			.limit(1);
 		const category = supplier?.category ?? null;
 
