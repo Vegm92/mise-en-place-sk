@@ -98,9 +98,9 @@ function renderEmailLayout(opts: LayoutOptions): string {
 		: '';
 
 	const ctaHtml = opts.cta ? `
-	<tr><td style="padding:24px 40px 8px;">
-		<a href="${opts.cta.href}" style="display:inline-block;background:${COLOR_ACCENT};color:#ffffff;font-size:14px;font-weight:600;letter-spacing:-.005em;padding:13px 24px;border-radius:6px;text-decoration:none;">${opts.cta.label}</a>
-		${opts.ctaNote ? `<p style="font-size:12px;color:${COLOR_FG3};margin:12px 0 0;line-height:1.5;">${opts.ctaNote}</p>` : ''}
+	<tr><td align="center" style="padding:32px 40px 40px;">
+		<a href="${opts.cta.href}" style="display:inline-block;background:${COLOR_ACCENT};color:#ffffff;font-size:14px;font-weight:600;letter-spacing:-.005em;padding:14px 32px;border-radius:6px;text-decoration:none;">${opts.cta.label}</a>
+		${opts.ctaNote ? `<p style="font-size:12px;color:${COLOR_FG3};margin:16px 0 0;line-height:1.5;text-align:center;">${opts.ctaNote}</p>` : ''}
 	</td></tr>` : '';
 
 	const signatureHtml = opts.signature
