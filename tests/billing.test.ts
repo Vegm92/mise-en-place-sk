@@ -177,16 +177,18 @@ describe('TIERS configuration', () => {
 			expect(f.supplierScores).toBe(false);
 			expect(f.multiLocation).toBe(false);
 			expect(f.prioritySupport).toBe(false);
+			expect(f.aiAssistant).toBe(false);
 		}
 	});
 
-	it('pro unlocks analytics features but not multi-location/priority support', () => {
+	it('pro unlocks analytics features and the AI assistant but not multi-location/priority support', () => {
 		const f = TIERS.pro.features;
 		expect(f.weeklyDigest).toBe(true);
 		expect(f.stockTracking).toBe(true);
 		expect(f.supplierScores).toBe(true);
 		expect(f.multiLocation).toBe(false);
 		expect(f.prioritySupport).toBe(false);
+		expect(f.aiAssistant).toBe(true);
 	});
 
 	it('business unlocks every feature', () => {

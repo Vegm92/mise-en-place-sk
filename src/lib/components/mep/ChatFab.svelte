@@ -37,7 +37,10 @@
       });
       const data = await res.json();
       if (res.status === 402) {
-        messages = [...messages, { role: 'assistant', text: $t('chat.err.trialExpired') }];
+        const text = data.error === 'plan_upgrade_required'
+          ? $t('chat.err.upgradeRequired')
+          : $t('chat.err.trialExpired');
+        messages = [...messages, { role: 'assistant', text }];
         return;
       }
       if (data.sessionId) sessionId = data.sessionId;
