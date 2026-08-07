@@ -12,7 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import postgres from 'postgres';
 import puppeteer from 'puppeteer';
-import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { makeFactura } from '../synth/js/generators/factura.mjs';
 import { buildEnv, buildContext, inlineCSS } from '../synth/js/engine.mjs';
 import { FACTURA_TEMPLATES } from '../synth/js/config.mjs';
@@ -31,15 +32,22 @@ const MISTAKE_INVOICES  = 5;
 const SUPPLIER_COUNT    = 9;
 
 const STORAGE_DRIVER = process.env.STORAGE_DRIVER ?? 'local';
-const STORAGE_BUCKET = process.env.STORAGE_BUCKET ?? 'invoice-uploads';
 const UPLOADS_DIR    = process.env.UPLOADS_DIR ?? 'uploads';
 
-// ── Bootstrap DB and Supabase ──────────────────────────────────────────────
+// ── Bootstrap DB and storage ───────────────────────────────────────────────
 const sql = postgres(process.env.DATABASE_URL, { ssl: 'require', max: 3 });
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+
+const s3 = STORAGE_DRIVER === 'railway'
+  ? new S3Client({
+      endpoint: process.env.AWS_ENDPOINT_URL,
+      region: process.env.AWS_DEFAULT_REGION,
+      forcePathStyle: process.env.AWS_S3_URL_STYLE === 'path',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    })
+  : null;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function isoDateDaysAgo(days) {
@@ -64,22 +72,21 @@ function spreadDates(n, spanDays, rng) {
   }).reverse(); // oldest first
 }
 
-// ── Step 1: Supabase auth user ─────────────────────────────────────────────
+// ── Step 1: Auth.js credentials user ───────────────────────────────────────
 async function ensureDemoUser() {
-  const { data: { users } } = await supabase.auth.admin.listUsers();
-  const existing = users?.find(u => u.email === DEMO_EMAIL);
+  const [existing] = await sql`SELECT id FROM users WHERE email = ${DEMO_EMAIL}`;
   if (existing) {
     console.log(`  ↳ demo user already exists (${existing.id})`);
     return existing.id;
   }
-  const { data, error } = await supabase.auth.admin.createUser({
-    email: DEMO_EMAIL,
-    password: DEMO_PASSWORD,
-    email_confirm: true,
-  });
-  if (error) throw new Error(`createUser: ${error.message}`);
-  console.log(`  ↳ created demo user ${data.user.id}`);
-  return data.user.id;
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
+  const [{ id }] = await sql`
+    INSERT INTO users (email, password_hash, email_verified)
+    VALUES (${DEMO_EMAIL}, ${passwordHash}, NOW())
+    RETURNING id
+  `;
+  console.log(`  ↳ created demo user ${id}`);
+  return id;
 }
 
 // ── Step 2: Restaurant row ─────────────────────────────────────────────────
@@ -147,9 +154,8 @@ async function renderInvoicePdf(browser, env, rng, spec) {
 }
 
 async function saveDemoFile(key, buf) {
-  if (STORAGE_DRIVER === 'supabase') {
-    const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(key, buf, { upsert: true });
-    if (error) throw new Error(`Storage upload failed: ${error.message}`);
+  if (STORAGE_DRIVER === 'railway') {
+    await s3.send(new PutObjectCommand({ Bucket: process.env.AWS_S3_BUCKET_NAME, Key: key, Body: buf }));
     return;
   }
   const dest = path.join(process.cwd(), UPLOADS_DIR, key);
@@ -353,7 +359,7 @@ async function seedMetrics(restaurantId, idMap) {
 try {
   console.log('\n🌱 Seeding demo account…\n');
 
-  console.log('1. Auth user');
+  console.log('1. Demo user');
   const userId = await ensureDemoUser();
 
   console.log('2. Restaurant');

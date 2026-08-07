@@ -1,10 +1,6 @@
 # Deployment Runbook
 
-Stack: SvelteKit (`@sveltejs/adapter-node`) + Railway Postgres + Supabase Auth + Gemini. Build artifact runs with `node build/index.js`.
-
-> **Migration in progress.** The database moved to Railway Postgres in #366/#367.
-> Auth is still Supabase GoTrue and moves to Auth.js in #369–#372, so the
-> `SUPABASE_*` variables below remain required until those land.
+Stack: SvelteKit (`@sveltejs/adapter-node`) + Railway Postgres + Auth.js + Gemini. Build artifact runs with `node build/index.js`.
 
 Copy `.env.example` to `.env` and fill in every value before starting the server.
 
@@ -21,15 +17,15 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 | `DATABASE_SSL_MODE` | No | `require` (default — encrypted, certificate **not** verified) or `verify-full` (certificate chain verified). Applies to both the web pool and the worker's pg-boss connection. Production logs a warning while it is `require`. |
 | `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
 
-### Supabase (auth only — being replaced by Auth.js in #369–#372)
+### Auth (Auth.js / SvelteKitAuth)
 
 | Variable | Required | Notes |
 |---|---|---|
-| `SUPABASE_URL` | Yes | `https://<project-ref>.supabase.co` |
-| `SUPABASE_ANON_KEY` | Yes | "anon public" JWT (Project Settings → API) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Yes | service-role JWT — server-only, never expose to the client |
+| `AUTH_SECRET` | Yes | Session/JWT signing secret. Generate with `openssl rand -base64 32`. |
+| `AUTH_GOOGLE_ID` | For Google sign-in | From Google Cloud Console → APIs & Services → Credentials. |
+| `AUTH_GOOGLE_SECRET` | For Google sign-in | Same credential as above. |
 
-Google OAuth is configured in the **Supabase dashboard** (Authentication → Providers → Google), not via env vars. Set the redirect URL to `{your-origin}/auth/callback`.
+Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/google` — Auth.js's SvelteKit adapter always mounts at `/auth`, regardless of where any route file lives. Credentials-based (email/password) sign-in needs no extra config beyond `AUTH_SECRET`.
 
 ### Gemini (AI extraction, digest, chat)
 
@@ -42,11 +38,11 @@ Google OAuth is configured in the **Supabase dashboard** (Authentication → Pro
 
 | Variable | Default | Notes |
 |---|---|---|
-| `STORAGE_DRIVER` | `local` | `local` writes to `UPLOADS_DIR` on disk; `supabase` writes to Supabase Storage; `railway` writes to a Railway Bucket (S3-compatible). |
-| `STORAGE_BUCKET` | `invoice-uploads` | Bucket name when `STORAGE_DRIVER=supabase`. Create it in Supabase → Storage first. |
+| `STORAGE_DRIVER` | `local` | `local` writes to `UPLOADS_DIR` on disk; `railway` writes to a Railway Bucket (S3-compatible). |
+| `STORAGE_BUCKET` | `invoice-uploads` | Bucket name when `STORAGE_DRIVER=railway` (also `AWS_S3_BUCKET_NAME` below). |
 | `UPLOADS_DIR` | `uploads` | Uploaded invoice files (PDF/JPG/PNG, 20 MB max each) when `STORAGE_DRIVER=local`. |
 
-**`STORAGE_DRIVER=railway`** additionally requires the standard AWS SDK vars that `railway bucket credentials` prints: `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, `AWS_S3_URL_STYLE`. A Railway Bucket is project-scoped, so both the web and worker services read/write the same bucket by sharing these variables — no separate volume or plan upgrade needed as invoice volume grows (billed per GB-month, unlike Supabase Storage's fixed plan tiers).
+**`STORAGE_DRIVER=railway`** additionally requires the standard AWS SDK vars that `railway bucket credentials` prints: `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, `AWS_S3_URL_STYLE`. A Railway Bucket is project-scoped, so both the web and worker services read/write the same bucket by sharing these variables — no separate volume or plan upgrade needed as invoice volume grows (billed per GB-month).
 
 > **Web and worker must see the same files.** The web process writes the upload;
 > the worker reads it back to extract it. With `STORAGE_DRIVER=local` both
@@ -54,8 +50,8 @@ Google OAuth is configured in the **Supabase dashboard** (Authentication → Pro
 > `docker-compose.yml` mounts a named volume at `/app/uploads` in both services
 > and sets `UPLOADS_DIR=/app/uploads` (issue #285). On platforms where the two
 > processes are separate services with separate disks (Railway/Render/Fly), use
-> `STORAGE_DRIVER=railway` (or `supabase`) — with `local` there, every extraction
-> fails "file not found" and every redeploy deletes users' invoice files.
+> `STORAGE_DRIVER=railway` — with `local` there, every extraction fails "file
+> not found" and every redeploy deletes users' invoice files.
 
 > Upload sessions are stored in Postgres (table `upload_sessions`) and survive
 > restarts automatically; they need no volume.
@@ -147,11 +143,11 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 **Both must run in production.** Without the worker, uploads succeed but extractions stay `queued` forever.
 
 1. `pnpm install --frozen-lockfile`
-2. `pnpm db:migrate` — applies `drizzle/` migrations. Tenant isolation does **not** depend on the database: it is enforced in application queries by `forTenant().scope()` (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. The Supabase Data API RLS policies were dropped in the Railway migration, so `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **zero rows is the expected state** — see ADR-005, and #222 for the open path to database-enforced isolation.
+2. `pnpm db:migrate` — applies `drizzle/` migrations. Tenant isolation does **not** depend on the database: it is enforced in application queries by `forTenant().scope()` (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. Row-level-security policies were dropped in the Railway migration, so `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **zero rows is the expected state** — see ADR-005, and #222 for the open path to database-enforced isolation.
 3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
 4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
    - `node build` (web) and `node build/worker.js` (worker)
-   - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=railway` (or `supabase`); see [File storage](#file-storage).
+   - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=railway`; see [File storage](#file-storage).
    - On a VPS: `docker compose up -d` uses the included `Dockerfile` + `docker-compose.yml` (one image, web + worker services, shared `uploads` volume at `/app/uploads`).
 5. Point your platform's health check at `GET /api/health` — returns `200` healthy / `503` degraded and reports DB reachability, pg-boss queue depth, uploads-dir writability, and active sessions. The worker has no HTTP port; rely on the platform's process supervision/restart policy.
 
@@ -168,7 +164,7 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 - **Behind a proxy, set `ADDRESS_HEADER`** (see [Reverse proxy / client IP](#reverse-proxy--client-ip)) or all IP-keyed limits collapse into one bucket.
 - Scheduled work (weekly digest generation + email, overdue-invoice reminders, trial-expiry notices) runs as pg-boss cron jobs inside the **worker** process (`src/lib/server/scheduler.ts`). If the worker is not running, none of it fires.
 - Security headers are set by the app: HSTS, X-Frame-Options, nosniff, Referrer-Policy and Permissions-Policy in `src/hooks.server.ts`; CSP (hash mode) in `svelte.config.js`. **Do not add a second CSP at the proxy** — two policies intersect and will break the app. The proxy only needs the PWA cache headers below.
-- Rotate any Supabase keys/admin passwords that may have lived in the repo's git history (#60) before going live.
+- Rotate any keys/admin passwords that may have lived in the repo's git history (#60) before going live.
 - Volumetric/L7 flood protection is **not** part of the app — put Cloudflare or your host's WAF in front of it (#224).
 
 ## PWA / Service Worker (added in #105)
@@ -397,9 +393,8 @@ WhatsApp"), `NO` discards it.
 
 `.github/workflows/ci.yml` runs typecheck, tests, build, and the `lint:no-sql-raw`
 / `lint:tenant-scope` / `lint:i18n` guards on pushes/PRs to `main`. Integration
-suites need the Supabase secrets configured in repo settings — without them they
-skip (the run prints exactly which suites were skipped; set `REQUIRE_DB_TESTS=1`
-to turn those skips into failures).
+suites run against the ephemeral Postgres service container; `REQUIRE_DB_TESTS=1`
+turns a disabled DB gate into a hard failure instead of a silent skip.
 
 `lint:i18n` (`scripts/check-i18n-strings.mjs`) fails the build on user-facing
 strings that bypass the i18n table: prose in Svelte text nodes, in `placeholder` /

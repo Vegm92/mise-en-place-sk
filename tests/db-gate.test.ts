@@ -7,13 +7,13 @@ import { resolveDbGate, isLocalDbUrl, dbHost, skipNotice } from './helpers/db-ga
 
 const LOCAL = 'postgres://postgres:postgres@localhost:5432/mise_en_place_test';
 const LOCAL_IP = 'postgresql://postgres@127.0.0.1:5432/mep';
-const HOSTED = 'postgresql://postgres:pw@db.abcdefgh.supabase.co:5432/postgres';
-const POOLER = 'postgres://postgres.abcdefgh:pw@aws-0-eu-west-1.pooler.supabase.com:5432/postgres';
+const HOSTED = 'postgresql://postgres:pw@db.abcdefgh.hosted-pg.example.com:5432/postgres';
+const POOLER = 'postgres://postgres.abcdefgh:pw@aws-0-eu-west-1.pooler.hosted-pg.example.com:5432/postgres';
 
 describe('dbHost', () => {
 	it('extracts the hostname', () => {
 		expect(dbHost(LOCAL)).toBe('localhost');
-		expect(dbHost(HOSTED)).toBe('db.abcdefgh.supabase.co');
+		expect(dbHost(HOSTED)).toBe('db.abcdefgh.hosted-pg.example.com');
 	});
 
 	it('unwraps IPv6 brackets', () => {
@@ -40,7 +40,7 @@ describe('isLocalDbUrl', () => {
 	});
 
 	it('does not treat a database named "localhost" as local', () => {
-		expect(isLocalDbUrl('postgresql://postgres:pw@db.example.supabase.co:5432/localhost')).toBe(
+		expect(isLocalDbUrl('postgresql://postgres:pw@db.example.hosted-pg.example.com:5432/localhost')).toBe(
 			false
 		);
 	});
@@ -63,7 +63,7 @@ describe('resolveDbGate', () => {
 	it('disables tests for a hosted DATABASE_URL', () => {
 		const gate = resolveDbGate({ DATABASE_URL: HOSTED });
 		expect(gate.enabled).toBe(false);
-		expect(gate.skipReason).toContain('db.abcdefgh.supabase.co');
+		expect(gate.skipReason).toContain('db.abcdefgh.hosted-pg.example.com');
 	});
 
 	it('re-enables a hosted URL only with an explicit opt-in', () => {
@@ -98,7 +98,7 @@ describe('skipNotice', () => {
 	it('states the reason and both escape hatches', () => {
 		const notice = skipNotice(resolveDbGate({ DATABASE_URL: HOSTED }));
 		expect(notice).toContain('SKIPPED');
-		expect(notice).toContain('db.abcdefgh.supabase.co');
+		expect(notice).toContain('db.abcdefgh.hosted-pg.example.com');
 		expect(notice).toContain('DATABASE_TEST_URL');
 		expect(notice).toContain('ALLOW_REMOTE_DB_TESTS=1');
 	});

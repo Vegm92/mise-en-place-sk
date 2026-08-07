@@ -3,7 +3,7 @@
 The release gate in #200 is blocked only on checks that require **real
 third-party credentials in a staging environment**. Everything verifiable
 without them is already covered by automated tests (see below). This runbook
-is the mechanical checklist to clear the remaining four items and flip the
+is the mechanical checklist to clear the remaining three items and flip the
 verdict to **READY FOR PRODUCTION**.
 
 Env-var details live in [`DEPLOYMENT.md`](./DEPLOYMENT.md); this file lists
@@ -18,7 +18,7 @@ pnpm check            # 0 errors / 0 warnings
 pnpm build            # web + worker compile
 pnpm lint:no-sql-raw
 pnpm lint:tenant-scope
-DATABASE_URL=<any live pg> pnpm test   # 566 passed / 17 skipped (the 17 need hosted Supabase)
+DATABASE_URL=<any live pg> pnpm test   # DB-backed suites run automatically against a local/CI Postgres
 ```
 
 Covered by committed regression tests: tenant isolation via `forTenant()`
@@ -32,7 +32,7 @@ Covered by committed regression tests: tenant isolation via `forTenant()`
 (verified manually against a live DB).
 
 The gap-analysis blockers are closed in code and verified against a local
-Postgres + fake-GoTrue stack: password recovery (#284), the shared uploads
+Postgres stack: password recovery (#284), the shared uploads
 volume (#285), per-tier Stripe price IDs (#286), trial-expiry enforcement
 (#287), pg-boss cron for digest/reminders/trial notices (#288), storage
 deletion on account delete plus the retention purge (#289), and multi-location
@@ -47,7 +47,7 @@ Apply migrations and confirm the schema landed clean:
 
 ```bash
 pnpm db:migrate
-# Railway Postgres carries no RLS: #373 dropped the Supabase Data API policies,
+# Railway Postgres carries no RLS: #373 dropped the pre-migration RLS policies,
 # so both of these must come back empty (this is the post-migration state, not a
 # failure). Tenant isolation is enforced in the app by forTenant() — see ADR-001.
 psql "$DATABASE_URL" -c "SELECT tablename, policyname FROM pg_policies WHERE schemaname='public' ORDER BY 1,2;"
@@ -57,20 +57,7 @@ psql "$DATABASE_URL" -c "SELECT relname FROM pg_class c JOIN pg_namespace n ON n
 information_schema.tables WHERE table_schema='public'` matches the replay
 count recorded in #366.
 
-### 1. Hosted-Supabase test suites (unblocks the 17 skips)
-
-```bash
-export DATABASE_URL=<staging Railway Postgres connection>   # DATABASE_PUBLIC_URL
-export SUPABASE_URL=https://<ref>.supabase.co               # auth only
-export SUPABASE_ANON_KEY=eyJ...
-export SUPABASE_SERVICE_ROLE_KEY=eyJ...
-export REQUIRE_DB_TESTS=1        # turns "skip" into a hard failure if creds are wrong
-pnpm test
-```
-**Pass:** `supabase-auth` (10) and `supabase-connection` (7) now run and pass;
-skip count drops to 0. `REQUIRE_DB_TESTS=1` guarantees they didn't silently skip.
-
-### 2. Stripe checkout → webhook → plan update
+### 1. Stripe checkout → webhook → plan update
 
 ```bash
 export STRIPE_SECRET_KEY=sk_test_...
@@ -89,24 +76,25 @@ any future expiry/CVC), or `stripe trigger checkout.session.completed`.
 - `settings` has `plan_name` / `plan_quota` for that tier;
 - a subscription-confirmation email is sent (Resend) or logged (`[email] no-op …`).
 
-### 3. `STORAGE_DRIVER=supabase` upload against a real bucket
+### 2. `STORAGE_DRIVER=railway` upload against a real bucket
 
 ```bash
-export STORAGE_DRIVER=supabase
-export STORAGE_BUCKET=invoice-uploads      # create this bucket in Supabase Storage first
-export SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...
+export STORAGE_DRIVER=railway
+export STORAGE_BUCKET=invoice-uploads      # create this bucket with `railway bucket create` first
+export AWS_ENDPOINT_URL=... AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=...
+export AWS_S3_BUCKET_NAME=invoice-uploads AWS_DEFAULT_REGION=... AWS_S3_URL_STYLE=...
 pnpm dev
 ```
 Upload a real PDF invoice through the UI.
 
 **Pass:**
 - the object appears in the `invoice-uploads` bucket;
-- the batch page can fetch/preview the file back (`SupabaseStorageDriver.read`);
+- the batch page can fetch/preview the file back (`RailwayBucketDriver.read`);
 - a >20 MB file and a content-spoofed file (e.g. `.pdf` with JPEG bytes) are both
   rejected client-visibly (validation is already unit-tested; this confirms it
   holds on the real driver path).
 
-### 4. Gemini extraction + full happy path + health
+### 3. Gemini extraction + full happy path + health
 
 ```bash
 export GEMINI_API_KEY=...
@@ -125,6 +113,6 @@ Register → onboarding → upload invoice → extraction → review → confirm
 
 ## Verdict
 
-When checks 1–4 pass in staging, update #200 to **READY FOR PRODUCTION** and
+When checks 1–3 pass in staging, update #200 to **READY FOR PRODUCTION** and
 close it. If any check fails, capture the output on the issue — a failure here
 is a real defect, not an environment gap.

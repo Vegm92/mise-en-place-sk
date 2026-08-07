@@ -9,8 +9,6 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-ARG SUPABASE_URL
-ENV SUPABASE_URL=$SUPABASE_URL
 RUN pnpm build
 RUN pnpm prune --prod
 

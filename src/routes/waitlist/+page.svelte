@@ -6,7 +6,7 @@
 
   const copy = {
     es: {
-      lang:              'EN',
+      lang:              'ES',
       pageTitle:         'Mise en Place — Gestión de facturas para restaurantes',
       metaDescription:   'Digitaliza tus albaranes en segundos. Detecta subidas de precio, controla el gasto por categoría y defiende tu margen. Edición de fundadores — 50 cocinas, Barcelona.',
       ogTitle:           'Sabe en qué gasta tu cocina, antes que tú.',
@@ -58,8 +58,8 @@
         { quote: 'Si me ahorras el viernes de papeleo, me ahorras una jornada entera del equipo de oficina.',          name: 'Iván C.', role: 'Gerente · Grupo de cuatro locales · Eixample' },
       ],
       founderEyebrow:    'Una nota del fundador',
-      founderBody:       'Pasé tres años en cocinas y dos en restaurantes ayudando con la administración. La factura es el documento más maltratado de la industria: nadie la quiere, todos la necesitan. Mise en Place existe para que esa hora del viernes deje de existir.',
-      founderName:       'Víctor Egea Martínez',
+      founderBody:       'Pasé años en cocinas y en restaurantes como chef y ayudando con la administración. La factura es el documento más maltratado de la industria: nadie la quiere, todos la necesitan. Mise en Place existe para que esa hora del viernes deje de existir.',
+      founderName:       'Victor Granda Mancebo',
       founderRole:       'Fundador · Barcelona',
       pricingEyebrow:    'Precios',
       pricingTitle:      'Un plan por cada etapa de la cocina',
@@ -104,7 +104,7 @@
       mockReview:        'Revisar',
     },
     en: {
-      lang:              'ES',
+      lang:              'EN',
       pageTitle:         'Mise en Place — Invoice Management for Restaurants',
       metaDescription:   'Digitise your delivery notes in seconds. Detect price rises, track spend by category and defend your margin. Founders edition — 50 kitchens, Barcelona.',
       ogTitle:           'Know what your kitchen spends, before you do.',
