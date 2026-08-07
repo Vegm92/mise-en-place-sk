@@ -7,7 +7,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
-import { getAccessState } from '$lib/server/billing';
+import { getAccessState, getTierFeatures } from '$lib/server/billing';
 import { eq } from 'drizzle-orm';
 
 export type ChatAction = { label: string; href: string; variant: 'primary' | 'secondary' };
@@ -59,6 +59,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const access = await getAccessState(rid);
 	if (!access.allowed) {
 		return json({ error: 'trial_expired' }, { status: 402 });
+	}
+
+	const features = await getTierFeatures(rid);
+	if (!features.aiAssistant) {
+		return json({ error: 'plan_upgrade_required' }, { status: 402 });
 	}
 
 	if (!await checkRateLimit(`chat:${locals.user!.id}`, CHAT_RATE_LIMIT_RPM)) {
