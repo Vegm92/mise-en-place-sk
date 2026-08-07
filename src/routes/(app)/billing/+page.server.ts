@@ -40,12 +40,18 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		checkoutSuccess: url.searchParams.get('checkout') === 'success',
 		upgradeFor: url.searchParams.get('upgrade'),
 		currentTier,
+		trialTier: {
+			monthlyInvoiceQuota: TIERS.trial.monthlyInvoiceQuota,
+			maxLocations: TIERS.trial.maxLocations,
+			features: TIERS.trial.features,
+		},
 		tiers: Object.entries(TIERS)
 			.filter(([t]) => t !== 'trial')
 			.map(([tier, config]) => ({
 				tier,
 				name: config.name,
 				monthlyInvoiceQuota: config.monthlyInvoiceQuota,
+				maxLocations: config.maxLocations,
 				features: config.features,
 				isCurrent: tier === currentTier,
 				available: isTierAvailable(tier as PlanTier),

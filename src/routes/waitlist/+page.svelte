@@ -61,12 +61,32 @@
       founderBody:       'Pasé tres años en cocinas y dos en restaurantes ayudando con la administración. La factura es el documento más maltratado de la industria: nadie la quiere, todos la necesitan. Mise en Place existe para que esa hora del viernes deje de existir.',
       founderName:       'Víctor Egea Martínez',
       founderRole:       'Fundador · Barcelona',
+      pricingEyebrow:    'Precios',
+      pricingTitle:      'Un plan por cada etapa de la cocina',
+      pricingSub:        'Empieza digitalizando gratis. Añade la capa de inteligencia cuando el volumen lo justifique. Precios por restaurante, provisionales hasta el lanzamiento público.',
+      pricingProvisional:'precio provisional',
+      pricingPerMonth:   '/mes',
+      pricingCta:        'Apuntarme',
+      pricingRecommended:'Recomendado',
+      pricingFoot:       'Todos los planes incluyen digitalización de facturas, vista de gasto por proveedor y soporte en español.',
+      pricingTrialName:  'Prueba',
+      pricingTrialPrice: 'Gratis',
+      pricingTrialLimit: '30 días o 20 facturas · sin tarjeta',
+      pricingTrialTagline: 'Prueba el flujo completo de digitalización.',
+      pricingTiers: [
+        { name: 'Starter', price: 29, recommended: false, tagline: 'Digitaliza y controla el gasto de un restaurante.',
+          bullets: ['100 facturas al mes', 'Vista de gasto por categoría y proveedor', '1 restaurante'] },
+        { name: 'Pro', price: 59, recommended: true, tagline: 'Todo lo de Starter, más la capa de inteligencia.',
+          bullets: ['300 facturas al mes', 'Resumen automático por email', 'Asistente IA sobre tus datos', 'Análisis de precios y control de stock'] },
+        { name: 'Business', price: 129, recommended: false, tagline: 'Las mismas funciones, para un grupo de restaurantes.',
+          bullets: ['Facturas ilimitadas', 'Hasta 5 restaurantes', 'Soporte prioritario'] },
+      ],
       faqEyebrow:        'Dudas frecuentes',
       faq: [
         { q: '¿Qué pasa con mis datos?', a: 'Tus facturas son tuyas. Las almacenamos cifradas en servidores en la UE y puedes exportarlas o eliminarlas en cualquier momento. Nunca las usaremos para entrenar modelos públicos.' },
         { q: '¿Necesito cambiar mi software de TPV?', a: 'No. Mise en Place se conecta a Square y Revo desde el primer día, y exporta a Excel/CSV para el resto. Si usas otro TPV, escríbenos —probablemente lo integremos pronto.' },
         { q: '¿Y si el albarán está manchado o arrugado?', a: 'Esa es nuestra especialidad. El motor lee fotos de móvil hechas con prisas en una cocina caliente. Si algo no se entiende, te lo señala para que lo confirmes tú —no inventa.' },
-        { q: '¿Cuánto cuesta?', a: 'Durante el acceso anticipado, gratis. El precio final estará entre 49 € y 99 € por local al mes según volumen, sin sorpresas.' },
+        { q: '¿Cuánto cuesta?', a: 'Durante el acceso anticipado es gratis. Al lanzamiento: Starter 29 €, Pro 59 € y Business 129 € al mes por restaurante — precios provisionales, pueden ajustarse antes del lanzamiento público.' },
         { q: '¿Cuándo empieza el acceso?', a: 'Abrimos en tandas a partir de julio de 2026. Avisamos por email con al menos una semana de antelación.' },
       ],
       closeHead:         'Empieza por la factura de esta semana.',
@@ -139,12 +159,32 @@
       founderBody:       "I spent three years in kitchens and two in restaurants helping with admin. The invoice is the most mistreated document in the industry: nobody wants it, everybody needs it. Mise en Place exists so that Friday hour stops existing.",
       founderName:       'Víctor Egea Martínez',
       founderRole:       'Founder · Barcelona',
+      pricingEyebrow:    'Pricing',
+      pricingTitle:      'A plan for each stage of the kitchen',
+      pricingSub:        'Start by digitising for free. Add the intelligence layer once volume justifies it. Priced per restaurant, provisional until public launch.',
+      pricingProvisional:'provisional price',
+      pricingPerMonth:   '/mo',
+      pricingCta:        'Sign me up',
+      pricingRecommended:'Recommended',
+      pricingFoot:       'Every plan includes invoice digitisation, spend-by-supplier view, and human support.',
+      pricingTrialName:  'Trial',
+      pricingTrialPrice: 'Free',
+      pricingTrialLimit: '30 days or 20 invoices · no card',
+      pricingTrialTagline: 'Try the whole digitisation flow.',
+      pricingTiers: [
+        { name: 'Starter', price: 29, recommended: false, tagline: 'Digitise invoices and see where the money goes.',
+          bullets: ['100 invoices per month', 'Spend by category and supplier', '1 restaurant'] },
+        { name: 'Pro', price: 59, recommended: true, tagline: 'Everything in Starter, plus the intelligence layer.',
+          bullets: ['300 invoices per month', 'Automatic email digest', 'AI assistant over your data', 'Price analytics and stock tracking'] },
+        { name: 'Business', price: 129, recommended: false, tagline: 'The same features, across a group of restaurants.',
+          bullets: ['Unlimited invoices', 'Up to 5 restaurants', 'Priority support'] },
+      ],
       faqEyebrow:        'Frequently asked questions',
       faq: [
         { q: 'What happens to my data?', a: 'Your invoices are yours. We store them encrypted on servers in the EU and you can export or delete them at any time. We will never use them to train public models.' },
         { q: 'Do I need to change my POS software?', a: 'No. Mise en Place connects to Square and Revo from day one, and exports to Excel/CSV for the rest. If you use another POS, write to us — we probably integrate it soon.' },
         { q: 'What if the delivery note is stained or crumpled?', a: "That's our specialty. The engine reads phone photos taken in a rush in a hot kitchen. If something is unclear, it flags it for you to confirm — it never makes things up." },
-        { q: 'How much does it cost?', a: 'Free during early access. The final price will be between €49 and €99 per site per month depending on volume, no surprises.' },
+        { q: 'How much does it cost?', a: 'Free during early access. At launch: Starter €29, Pro €59, and Business €129 per month per restaurant — provisional prices, may adjust before public launch.' },
         { q: 'When does access start?', a: 'We open in batches from July 2026. We notify by email at least a week in advance.' },
       ],
       closeHead:         "Start with this week's invoice.",
@@ -713,6 +753,71 @@
           <span style="color:var(--mep-fg-3);">{t.founderRole}</span>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section style="padding:76px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
+    <div style="max-width:1080px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.pricingEyebrow}</div>
+      <h2 style="margin:0;max-width:640px;font-size:clamp(28px,3.4vw,34px);font-weight:600;
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.pricingTitle}</h2>
+      <p style="margin:14px 0 0;max-width:620px;font-size:14px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{t.pricingSub}</p>
+
+      <div style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
+        <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;
+                    background:transparent;border-style:dashed;box-shadow:none;">
+          <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{t.pricingTrialName}</div>
+          <div>
+            <div class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);line-height:1.1;">{t.pricingTrialPrice}</div>
+            <div style="margin-top:8px;font-size:11.5px;color:var(--mep-fg-3);">{t.pricingTrialLimit}</div>
+          </div>
+          <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{t.pricingTrialTagline}</div>
+          <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{t.pricingCta}</a>
+        </div>
+
+        {#each t.pricingTiers as tier}
+          <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;position:relative;
+                      border-color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-border)'};
+                      box-shadow:{tier.recommended ? '0 0 0 1px var(--mep-acc), var(--mep-shadow-card)' : 'var(--mep-shadow-card)'};">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{tier.name}</div>
+              {#if tier.recommended}
+                <span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{t.pricingRecommended}</span>
+              {/if}
+            </div>
+            <div>
+              <div style="display:flex;align-items:baseline;gap:6px;">
+                <span class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);
+                  border-bottom:2px dotted var(--mep-border-strong);line-height:1.1;">{tier.price} €</span>
+                <span style="font-size:13px;color:var(--mep-fg-3);">{t.pricingPerMonth}</span>
+              </div>
+              <div style="margin-top:8px;">
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:500;
+                  letter-spacing:0.02em;text-transform:uppercase;color:var(--mep-fg-3);
+                  border:1px dashed var(--mep-border-strong);border-radius:4px;padding:1px 5px;">
+                  {t.pricingProvisional}
+                </span>
+              </div>
+            </div>
+            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{tier.tagline}</div>
+            <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{t.pricingCta}</a>
+            <div style="height:1px;background:var(--mep-divider);"></div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              {#each tier.bullets as bullet}
+                <div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--mep-fg-2);">
+                  <span style="color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};margin-top:1px;flex-shrink:0;">
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
+                  </span>
+                  <span style="line-height:1.4;">{bullet}</span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/each}
+      </div>
+
+      <p style="margin:32px 0 0;font-size:12.5px;color:var(--mep-fg-3);line-height:1.6;max-width:780px;text-wrap:pretty;">{t.pricingFoot}</p>
     </div>
   </section>
 

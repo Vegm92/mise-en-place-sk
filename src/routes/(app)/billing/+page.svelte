@@ -1,15 +1,11 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import { locale, t, ti } from '$lib/i18n';
+	import { t } from '$lib/i18n';
+	import BillingStatusCard from '$lib/components/mep/BillingStatusCard.svelte';
+	import BillingPlanCard from '$lib/components/mep/BillingPlanCard.svelte';
+	import BillingFeatureMatrix from '$lib/components/mep/BillingFeatureMatrix.svelte';
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
-
-	const trialEnd = $derived(data.trialEndsAt ? new Date(data.trialEndsAt) : null);
-	const trialDaysLeft = $derived(
-		trialEnd ? Math.ceil((trialEnd.getTime() - Date.now()) / 86_400_000) : 0
-	);
-	const periodEnd = $derived(data.currentPeriodEnd ? new Date(data.currentPeriodEnd) : null);
-	const fmt = (d: Date) => d.toLocaleDateString($locale, { year: 'numeric', month: 'long', day: 'numeric' });
 
 	const upgradeMessage = $derived(
 		data.upgradeFor === 'digest' ? $t('billing.upgrade.digest')
@@ -18,8 +14,6 @@
 			: data.upgradeFor === 'inactive' ? $t('billing.upgrade.inactive')
 			: null
 	);
-
-	const idempotencyKey = crypto.randomUUID();
 </script>
 
 <svelte:head>
@@ -27,7 +21,7 @@
 </svelte:head>
 
 <div style="min-height:100%;background:var(--mep-bg);">
-<div style="max-width:560px;margin:0 auto;padding:40px 24px 64px;">
+<div style="max-width:900px;margin:0 auto;padding:40px 24px 64px;">
 	<h1 style="font-size:20px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">{$t('billing.title')}</h1>
 	<p style="font-size:14px;color:var(--mep-fg-3);margin-bottom:28px;">{data.restaurantName}</p>
 
@@ -52,71 +46,31 @@
 		</div>
 	{/if}
 
-	<div class="card" style="padding:24px;margin-bottom:20px;">
-		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-			<span style="font-size:14px;font-weight:500;">{$t('billing.status')}</span>
-			{#if data.status === 'active'}
-				<span style="background:var(--mep-pos-soft);color:var(--mep-pos);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.active')}</span>
-			{:else if data.status === 'trialing'}
-				<span style="background:var(--mep-acc-soft);color:var(--mep-acc);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">
-					{$t('billing.trial')}{trialDaysLeft > 0 ? $ti('billing.trialLeft', { n: trialDaysLeft }) : $t('billing.trialExpiredSuffix')}
-				</span>
-			{:else if data.status === 'past_due'}
-				<span style="background:var(--mep-neg-soft);color:var(--mep-neg);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.pastDue')}</span>
-			{:else}
-				<span style="background:var(--mep-fg-soft);color:var(--mep-fg-3);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.canceled')}</span>
-			{/if}
+	<BillingStatusCard
+		status={data.status}
+		trialEndsAt={data.trialEndsAt}
+		currentPeriodEnd={data.currentPeriodEnd}
+		cancelAtPeriodEnd={data.cancelAtPeriodEnd}
+		stripeConfigured={data.stripeConfigured}
+	/>
+
+	{#if !data.stripeConfigured}
+		<p style="font-size:13px;color:var(--mep-fg-4);margin-bottom:28px;">
+			{$t('billing.notConfigured')}
+		</p>
+	{:else}
+		<div style="margin-bottom:16px;">
+			<div style="font-size:16px;font-weight:600;color:var(--mep-fg);">{$t('billing.plans')}</div>
+			<div style="font-size:13px;color:var(--mep-fg-2);margin-top:3px;">{$t('billing.plansSub')}</div>
 		</div>
 
-		{#if data.status === 'active' && periodEnd}
-			<p style="font-size:13px;color:var(--mep-fg-3);margin:0;">
-				{data.cancelAtPeriodEnd
-					? $ti('billing.cancelsOn', { date: fmt(periodEnd) })
-					: $ti('billing.renewsOn', { date: fmt(periodEnd) })}
-			</p>
-		{:else if data.status === 'trialing' && trialEnd && trialDaysLeft > 0}
-			<p style="font-size:13px;color:var(--mep-fg-3);margin:0;">
-				{$ti('billing.trialEndsOn', { date: fmt(trialEnd) })}
-			</p>
-		{:else if data.status === 'trialing' && trialDaysLeft <= 0}
-			<p style="font-size:13px;color:var(--mep-neg);margin:0;">
-				{$t('billing.trialExpiredMsg')}
-			</p>
-		{/if}
-	</div>
-
-	{#if data.status !== 'active'}
-		<div class="card" style="padding:24px;margin-bottom:20px;">
-			<div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px;">
-				<span style="font-size:24px;font-weight:700;">€49</span>
-				<span style="font-size:14px;color:var(--mep-fg-3);">{$t('billing.perMonth')}</span>
-			</div>
-			<ul style="font-size:13px;color:var(--mep-fg-2);list-style:none;padding:0;margin:0 0 20px;display:flex;flex-direction:column;gap:6px;">
-				<li>✓ {$t('billing.feat.uploads')}</li>
-				<li>✓ {$t('billing.feat.extraction')}</li>
-				<li>✓ {$t('billing.feat.alerts')}</li>
-				<li>✓ {$t('billing.feat.digest')}</li>
-				<li>✓ {$t('billing.feat.export')}</li>
-			</ul>
-			{#if data.stripeConfigured}
-				<form method="POST" action="?/checkout">
-					<input type="hidden" name="idempotency_key" value={idempotencyKey} />
-					<button type="submit" class="btn btn-primary" style="height:38px;justify-content:center;">
-						{data.status === 'trialing' && trialDaysLeft > 0 ? $t('billing.subscribeNow') : $t('billing.reactivate')}
-					</button>
-				</form>
-			{:else}
-				<p style="font-size:13px;color:var(--mep-fg-4);">
-					{$t('billing.notConfigured')}
-				</p>
-			{/if}
+		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;margin-bottom:28px;">
+			{#each data.tiers as tier (tier.tier)}
+				<BillingPlanCard {tier} isRecommended={tier.tier === 'pro'} />
+			{/each}
 		</div>
-	{:else if data.stripeConfigured}
-		<form method="POST" action="?/portal">
-			<button type="submit" class="btn btn-secondary" style="height:36px;">
-				{$t('billing.manage')}
-			</button>
-		</form>
+
+		<BillingFeatureMatrix trialTier={data.trialTier} tiers={data.tiers} />
 	{/if}
 </div>
 </div>
