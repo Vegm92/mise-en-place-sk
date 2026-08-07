@@ -327,7 +327,7 @@
           <input type="hidden" name="confidence" value={str(confidence)} />
           <input type="hidden" name="low_confidence_ack" value={lowConfAck ? 'true' : 'false'} />
 
-          <div class="card" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
+          <div class="card" data-coach="invoice-fields" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
 
             <div style="padding:12px 16px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;gap:10px;flex-shrink:0;">
               <div style="flex:1;min-width:0;">

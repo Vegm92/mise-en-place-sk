@@ -36,6 +36,10 @@
   let vh     = $state(0);
   let ready  = $state(false);
 
+  const POLL_INTERVAL_MS = 100;
+  const MAX_POLL_ATTEMPTS = 20;
+  let pollTimer: ReturnType<typeof setTimeout> | undefined;
+
   function measure() {
     if (!browser) return;
     const el = document.querySelector(`[data-coach="${selector}"]`);
@@ -50,13 +54,20 @@
     ready = true;
   }
 
+  function pollUntilReady(attempt = 0) {
+    measure();
+    if (ready || attempt >= MAX_POLL_ATTEMPTS) return;
+    pollTimer = setTimeout(() => pollUntilReady(attempt + 1), POLL_INTERVAL_MS);
+  }
+
   onMount(() => {
-    setTimeout(measure, 80);
+    pollUntilReady();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
   });
 
   onDestroy(() => {
+    if (pollTimer) clearTimeout(pollTimer);
     if (!browser) return;
     window.removeEventListener('resize', measure);
     window.removeEventListener('scroll', measure, true);
