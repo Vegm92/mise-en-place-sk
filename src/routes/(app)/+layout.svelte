@@ -5,6 +5,7 @@
   import { goto } from '$app/navigation';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
   import { tutorialStep, setTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
+  import { TOUR_PAGES, tourPageAccessible, nextAccessibleIndex } from '$lib/tour-gating';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import FileText from '@lucide/svelte/icons/file-text';
   import Truck from '@lucide/svelte/icons/truck';
@@ -50,33 +51,28 @@
 
   let completeDismissed = $state(false);
 
-  const TOUR_PAGES = [
-    { step: '3' as const,  path: '/dashboard',       anchor: 'dashboard-main' },
-    { step: '4' as const,  path: '/invoices',        anchor: 'invoices-main' },
-    { step: '5' as const,  path: '/suppliers',       anchor: 'suppliers-main' },
-    { step: '6' as const,  path: '/analytics/spend', anchor: 'analytics-main' },
-    { step: '7' as const,  path: '/budgets',         anchor: 'budgets-main' },
-    { step: '8' as const,  path: '/reminders',       anchor: 'reminders-main' },
-    { step: '9' as const,  path: '/digest',          anchor: 'digest-main' },
-    { step: '10' as const, path: '/chat',            anchor: 'chat-main' },
-    { step: '11' as const, path: '/settings',        anchor: 'settings-main' },
-  ];
-
   const showTourNudge = $derived($tutorialStep === 'done' && curPath === '/dashboard');
 
   const tourIndex = $derived(TOUR_PAGES.findIndex(p => p.step === $tutorialStep));
   const activeTourPage = $derived(tourIndex >= 0 ? TOUR_PAGES[tourIndex] : null);
-  const showTourStep = $derived(activeTourPage !== null && curPath === activeTourPage.path);
+  const showTourStep = $derived(
+    activeTourPage !== null && curPath === activeTourPage.path && tourPageAccessible(activeTourPage.path, data.features)
+  );
 
   function advanceTour() {
-    const next = TOUR_PAGES[tourIndex + 1];
-    if (!next) {
+    const nextIdx = nextAccessibleIndex(TOUR_PAGES, tourIndex + 1, data.features);
+    if (nextIdx === -1) {
       setTutorialStep('dismissed');
       return;
     }
+    const next = TOUR_PAGES[nextIdx];
     setTutorialStep(next.step);
     if (next.path !== curPath) goto(next.path);
   }
+
+  $effect(() => {
+    if (activeTourPage && !tourPageAccessible(activeTourPage.path, data.features)) advanceTour();
+  });
 
   onMount(() => {
     const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
