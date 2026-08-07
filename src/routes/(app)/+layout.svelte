@@ -279,7 +279,8 @@
     <div style="flex:1;"></div>
 
     {#if revealAll}
-    <div style="margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
+    <a href="/billing" onclick={() => mobileOpen = false}
+      style="display:block;margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{data.planName}</span>
         <span class="num" style="font-size:11px;color:var(--mep-fg-3);">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span>
@@ -288,7 +289,7 @@
         <div style="width:{data.quotaLimit ? Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100)) : 0}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
       </div>
       <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">{$t('shell.quota')}</div>
-    </div>
+    </a>
     {/if}
 
     <div style="display:flex;flex-direction:column;gap:1px;">
