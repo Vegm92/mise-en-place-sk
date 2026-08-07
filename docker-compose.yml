@@ -8,7 +8,7 @@
 # to run extraction. With STORAGE_DRIVER=local those two processes MUST see the
 # same directory, and it must survive container recreation. The named volume
 # below mounts /app/uploads into both services and outlives `docker compose
-# down`. On platforms without a shared volume, set STORAGE_DRIVER=supabase.
+# down`. On platforms without a shared volume, set STORAGE_DRIVER=railway.
 services:
   web:
     build: .

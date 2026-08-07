@@ -1,13 +1,14 @@
 ---
 name: verify
-description: Run and drive this app locally without real Supabase/Gemini/Stripe credentials — local Postgres + fake GoTrue recipe for end-to-end verification of auth, onboarding, and invoice-save flows.
+description: Run and drive this app locally without real Gemini/Stripe/Google OAuth credentials — local Postgres + Auth.js credentials login recipe for end-to-end verification of auth, onboarding, and invoice-save flows.
 ---
 
 # Verifying Mise en Place locally (no external credentials)
 
 ## Database
 
-PostgreSQL 16 local install works; Supabase is only needed for auth.
+PostgreSQL 16 local install; the app's DB is Railway Postgres in production,
+plain Postgres locally — no external service is needed to run it.
 
 ```bash
 service postgresql start
@@ -15,44 +16,35 @@ su postgres -c "createdb mep"
 # allow TCP logins (or set a password): switch pg_hba host lines to trust
 ```
 
-No `auth` schema stub is needed: since #373 the migrations are plain Postgres
-and reference no Supabase-only functions.
-
 `.env` for local runs (db.ts hardcodes `ssl: 'require'`; Debian PG's snakeoil
 certs satisfy it):
 
 ```
 DATABASE_URL=postgresql://postgres@127.0.0.1:5432/mep
-SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_ANON_KEY=dummy-anon-key
-SUPABASE_SERVICE_ROLE_KEY=dummy-service-key
+AUTH_SECRET=dev-secret-not-for-production
 GEMINI_API_KEY=dummy
 ```
 
 Then `pnpm db:migrate` and `pnpm dev` (add `pnpm worker` only if you need
 extraction; it requires a real Gemini key).
 
-**Note:** with a populated `.env`, `pnpm test` un-skips the Supabase
-integration suites and they fail against dummy keys. Run tests with the
-`.env` moved aside to reproduce CI.
+## Auth (Auth.js credentials login)
 
-## Fake Supabase Auth (GoTrue)
+Auth is Auth.js (`SvelteKitAuth`) with a Credentials provider backed by
+`bcryptjs` password hashes in the `users` table — no external auth service to
+fake. `AUTH_SECRET` (any string locally) is the only requirement for
+signup/login E2E. Seed a user directly:
 
-The app talks to `SUPABASE_URL` for auth only, so a ~100-line fake on
-:54321 unlocks signup/login/OAuth E2E. Endpoints needed:
+```sql
+-- password hash for 'Test1234!' — swap in your own via bcrypt if needed
+INSERT INTO users (email, password_hash, email_verified)
+VALUES ('test@example.com', '$2a$12$...', NOW());
+```
 
-- `POST /auth/v1/signup` → return a full session object (autoconfirm)
-- `POST /auth/v1/token?grant_type=password|pkce|refresh_token`
-- `GET /auth/v1/user` (Bearer token → user)
-- `GET /auth/v1/authorize` → mint user + code, 302 back to `redirect_to`
-  (append `?code=`) — completes the real PKCE dance because the
-  code-verifier cookie set by `signInWithOAuth` rides along
-- `GET /auth/v1/admin/users/:id` (owner-email lookups, e.g. quota emails)
-
-User/session objects: `{ id, aud: 'authenticated', role, email,
-email_confirmed_at, app_metadata, user_metadata, identities, created_at }`
-and `{ access_token (JWT-shaped), refresh_token, expires_in, expires_at,
-token_type: 'bearer', user }`.
+Google OAuth (`AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`) needs real Google
+credentials to exercise end-to-end; without them the Google button 404s at
+Auth.js's `/auth/signin/google` route, which is fine to leave unverified for
+local runs — the credentials flow covers signup/login/onboarding.
 
 ## Driving flows
 

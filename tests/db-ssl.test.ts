@@ -28,7 +28,7 @@ describe('pgSslConfig', () => {
 	});
 
 	it('accepts a path to a CA file in DATABASE_CA_CERT', () => {
-		const file = path.join(mkdtempSync(path.join(tmpdir(), 'mep-ca-')), 'supabase.crt');
+		const file = path.join(mkdtempSync(path.join(tmpdir(), 'mep-ca-')), 'test-ca.crt');
 		writeFileSync(file, PEM);
 		expect(pgSslConfig({ DATABASE_SSL_MODE: 'verify-full', DATABASE_CA_CERT: file }))
 			.toEqual({ rejectUnauthorized: true, ca: PEM });

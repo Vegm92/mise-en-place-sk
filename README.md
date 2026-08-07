@@ -24,7 +24,7 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 
 - **SvelteKit 2 + Svelte 5 (runes)**, Tailwind CSS 4, shadcn-svelte/bits-ui, `@sveltejs/adapter-node`
 - **Railway Postgres** (data) — migrated off Supabase in #366/#367
-- **Supabase Auth** (email/password + Google OAuth, cookie sessions via `@supabase/ssr`) — being replaced by Auth.js in #369–#372
+- **Auth.js** (`@auth/sveltekit`) — email/password (Credentials + bcrypt) + Google OAuth, JWT sessions — replaced Supabase Auth in #369–#372
 - **Drizzle ORM** (postgres-js, SSL required); committed migrations in `drizzle/` are the canonical schema source (ADR-003)
 - **Gemini** (`@google/genai`, default `gemini-2.5-flash`) for extraction, digest, and chat
 - **Sentry** (`@sentry/sveltekit`) for client + server error tracking (no-ops when DSN empty)
@@ -34,7 +34,7 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 
 ```
 src/
-├── hooks.server.ts          # Sentry, Supabase client per request, JWT validation,
+├── hooks.server.ts          # Sentry, Auth.js session handling,
 │                            # active-restaurant resolution, security headers
 ├── lib/
 │   ├── server/
@@ -56,11 +56,11 @@ src/
     └── api/                 # upload files, inference status, auth callback
 ```
 
-Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries via `forTenant().scope()`, guarded by the `lint:tenant-scope` CI check. This is the **only** tenant boundary — the app connects as the table owner, and the Supabase-era RLS policies were dropped in the Railway migration (see ADR-001 and ADR-005, and #222 for the database-enforced path). Uploaded files live on local disk (`UPLOADS_DIR`) or in object storage (`STORAGE_DRIVER=railway`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
+Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries via `forTenant().scope()`, guarded by the `lint:tenant-scope` CI check. This is the **only** tenant boundary — the app connects as the table owner, and RLS policies were dropped in the Railway migration (see ADR-001 and ADR-005, and #222 for the database-enforced path). Uploaded files live on local disk (`UPLOADS_DIR`) or in object storage (`STORAGE_DRIVER=railway`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
 
 ## Getting started
 
-1. Provision a Railway Postgres instance for `DATABASE_URL`, and a Supabase project for the auth keys (see [DEPLOYMENT.md](DEPLOYMENT.md)). A local Postgres works for development.
+1. Provision a Railway Postgres instance for `DATABASE_URL` (see [DEPLOYMENT.md](DEPLOYMENT.md)). A local Postgres works for development.
 2. `cp .env.example .env` and fill every value (see [DEPLOYMENT.md](DEPLOYMENT.md) for the reference).
 3. `pnpm install`
 4. `pnpm db:migrate` (applies `drizzle/` migrations — the canonical schema, per ADR-003)

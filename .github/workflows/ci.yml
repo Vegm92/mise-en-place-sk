@@ -23,13 +23,11 @@ jobs:
         ports:
           - 5432:5432
     # DATABASE_URL points to the ephemeral postgres service for all steps.
-    # SUPABASE_* vars are passed to the test step so Supabase-specific suites
-    # run when secrets are configured.  REQUIRE_DB_TESTS is set to '1' only
-    # when the secret is present, so forks (which lack secrets) still skip
-    # gracefully, while a typo'd or dropped secret in the main workflow fails
-    # loudly instead of silently thinning coverage.
+    # REQUIRE_DB_TESTS=1 turns a disabled DB gate into a hard failure instead
+    # of a silent skip, since DATABASE_URL always points at the service above.
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/mise_en_place_test
+      REQUIRE_DB_TESTS: '1'
 
     steps:
       - uses: actions/checkout@v4
@@ -69,17 +67,10 @@ jobs:
         run: pnpm test
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          REQUIRE_DB_TESTS: ${{ secrets.SUPABASE_URL != '' && '1' || '' }}
 
       - name: Build
         run: pnpm build
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           AUTH_ADMIN_EMAIL: ci@example.com
           AUTH_ADMIN_PASSWORD: ci-password-not-used
