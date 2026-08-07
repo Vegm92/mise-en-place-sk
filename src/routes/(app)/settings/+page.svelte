@@ -60,6 +60,14 @@
       <p class="body text-fg-2" style="font-size:13px;">{$t('set.currency')}</p>
     </div>
 
+    <a href="/billing" class="card p-4" style="display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;">
+      <div>
+        <div class="body-strong" style="font-size:13px;">{$t('billing.settings.link')}</div>
+        <div class="body text-fg-3" style="font-size:12px;margin-top:2px;">{$t('billing.settings.linkBody')}</div>
+      </div>
+      <span class="body text-fg-3" style="font-size:13px;">&rsaquo;</span>
+    </a>
+
     <SectionCard title={$t('set.profile.title')}>
       <div style="display:flex;flex-direction:column;gap:16px;">
 
