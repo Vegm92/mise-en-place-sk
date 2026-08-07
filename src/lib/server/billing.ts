@@ -34,6 +34,7 @@ export interface TierConfig {
 		supplierScores:    boolean;
 		multiLocation:     boolean;
 		prioritySupport:   boolean;
+		aiAssistant:       boolean;
 	};
 }
 
@@ -43,28 +44,28 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		monthlyInvoiceQuota: 20,
 		stripePriceId: '',
 		maxLocations: 1,
-		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false },
+		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
 	},
 	starter: {
 		name: 'Starter',
 		monthlyInvoiceQuota: 100,
 		stripePriceId: env.STRIPE_PRICE_ID_STARTER ?? env.STRIPE_PRICE_ID ?? '',
 		maxLocations: 1,
-		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false },
+		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
 	},
 	pro: {
 		name: 'Pro',
 		monthlyInvoiceQuota: 300,
 		stripePriceId: env.STRIPE_PRICE_ID_PRO ?? '',
 		maxLocations: 1,
-		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false },
+		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false, aiAssistant: true },
 	},
 	business: {
 		name: 'Business',
 		monthlyInvoiceQuota: null,
 		stripePriceId: env.STRIPE_PRICE_ID_BUSINESS ?? '',
 		maxLocations: 5,
-		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true },
+		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true, aiAssistant: true },
 	},
 };
 
