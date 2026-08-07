@@ -1617,6 +1617,26 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
     ↳ `{#if data.totalPages > 1}`
 
+### `src/routes/(admin)/admin/revenue/+page.server.ts`
+
+**`const load`**
+
+- Revenue Performance Framework console (SaaS unit economics): MRR/ARR, ARPA, ACV, CAC, LTV, LTV/CAC, payback, NRR/GRR, churn, signup cohorts and revenue leakage, all assembled by `revenueOverview()`. Definitions, formulas and data-quality caveats live in `docs/REVENUE_METRICS.md`.
+
+    ↳ `overview: await revenueOverview(),`
+
+**`const actions`**
+
+- `addCost` / `deleteCost` maintain the acquisition-spend table that CAC divides by; without at least one month of spend, CAC, LTV/CAC and payback stay blank rather than reporting a zero cost of acquisition.
+
+    ↳ `addCost: async ({ request, locals }) => {`
+- `snapshot` and `backfill` are the manual twins of the daily `scheduled-mrr-snapshot` job: the first captures the current month now, the second replays each subscription's current tier back over its lifetime so cohorts and churn have history on day one. Backfilled rows carry `source = 'estimated'` and never overwrite a live capture.
+
+    ↳ `snapshot: async () => {`
+- Amounts are parsed with `parseAmountCents` (shared, tested) rather than `Number()`: the form is typed by a Spanish-speaking operator, so `1.250,50` has to mean 1250.50 and not NaN.
+
+    ↳ `const amountCents = parseAmountCents(amount);`
+
 ### `src/routes/(admin)/admin/health/+page.server.ts`
 
 **`const STUCK_MINUTES`**
@@ -3503,6 +3523,35 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - ── Extraction concurrency semaphore NOTE: this counter is in-process and therefore SINGLE-INSTANCE ONLY. With multiple worker processes the effective concurrency against Gemini is (process count × max). A distributed semaphore (e.g. Upstash Redis) would be required to enforce a global cap across instances.
 
     ↳ `let activeExtractions = 0;`
+
+### `src/lib/server/revenue-metrics.ts`
+
+**`const MRR_SNAPSHOT_CRON`**
+
+- MRR history has to be *captured*; it cannot be recovered later, because `subscriptions` is a current-state table with no status log. The job runs daily rather than monthly so a missed run is harmless and the current month is always current.
+
+    ↳ `export const MRR_SNAPSHOT_CRON = '15 2 * * *';`
+
+**`function mrrOf`**
+
+- MRR counts `active` only. `past_due` is reported separately as at-risk revenue so a failed payment surfaces as a leak to work rather than as MRR that silently disappears from the trend a month later.
+
+    ↳ `return (ACTIVE_STATUSES as readonly string[]).includes(sub.status) ? planMonthlyPriceCents(sub.planTier) : 0;`
+
+**`function backfillMrrSnapshots`**
+
+- Straight-line estimate for the months before snapshots existed: each paid subscription's *current* tier replayed from its trial end (or creation) to today, or to cancellation. It cannot see tier changes or past cancellations, so rows are tagged `source = 'estimated'`, conflicts are left alone, and the page labels every month accordingly.
+
+    ↳ `source:       'estimated',`
+
+**`function revenueOverview`**
+
+- Metrics that lack their inputs return `null` and render as `—`: NRR (12 months) without a snapshot 12 months back, movement without a previous month, CAC without spend or new customers. An approximated retention number is worse than an absent one, because it looks like a measurement.
+
+    ↳ `const nrrAnnual = baselineRows.length > 0 ? netRetention(baselineRows, perMonth.get(month) ?? []) : null;`
+- The CAC window ends on the last *complete* month: the current month's spend and its signups are both partial, and including them systematically understates CAC.
+
+    ↳ `const cacWindowTo = addMonths(month, -1);`
 
 ### `src/lib/server/safe-redirect.ts`
 
@@ -5899,6 +5948,32 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - Non-fatal — app works normally without a SW.
 
     ↳ `console.warn('[pwa] Service worker registration failed:', err);`
+
+### `src/lib/revenue-math.ts`
+
+**`const HEALTHY_LTV_CAC_RATIO`**
+
+- The SaaS convention the console grades against: LTV should be at least 3× CAC, and CAC should be recovered inside 12 months. Kept here, next to the formulas, so the thresholds and the arithmetic cannot drift apart.
+
+    ↳ `export const HEALTHY_LTV_CAC_RATIO = 3;`
+
+**`function expectedLifetimeMonths`**
+
+- `1 / churn` diverges as churn approaches zero, which is exactly the situation a young book of business is in. The horizon cap (default 36 months) is what keeps LTV finite, and the page states the lifetime it used so the cap is never invisible.
+
+    ↳ `if (monthlyChurnRate === null || monthlyChurnRate <= 0) return horizonMonths;`
+
+**`function netRetention`**
+
+- NRR is a statement about the *existing* book: only tenants that paid in the base month contribute, so revenue from new customers cannot flatter it. GRR is the same sum with each tenant capped at its base MRR, which is what makes NRR − GRR the expansion contribution.
+
+    ↳ `for (const [restaurantId, before] of prev) {`
+
+**`function buildCohorts`**
+
+- Cohort = the month a tenant first paid, not the month it signed up: the question the table answers is how contracted revenue behaves at +3/+6/+12 months. Offsets that have not elapsed yet return `null` rather than 0, so an immature cohort reads as unknown instead of as a total loss.
+
+    ↳ `if (monthsBetween(at, latestMonth) < 0) return { offset, rate: null, customers: null };`
 
 ### `src/lib/sentry-scrub.ts`
 
