@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			getTierFeatures(rid),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
 			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
-			db.select({ name: users.name, passwordHash: users.passwordHash })
+			db.select({ name: users.name, passwordHash: users.passwordHash, emailVerified: users.emailVerified })
 				.from(users)
 				.where(eq(users.id, locals.user!.id))
 				.limit(1),
@@ -89,6 +89,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				name:  userRow[0]?.name ?? '',
 				email: locals.user!.email,
 				hasPassword: Boolean(userRow[0]?.passwordHash),
+				emailVerified: Boolean(userRow[0]?.emailVerified),
 			},
 			restaurantName: restaurantRow[0]?.name ?? '',
 			canRenameRestaurant: membership[0]?.role === 'owner',
