@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		.where(eq(restaurants.id, rid))
 		.limit(1);
 
-	const status = (sub?.status ?? 'trialing') as 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete';
+	const status = (sub?.status ?? 'trialing') as 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
 	const trialEndsAt = sub?.trialEndsAt ?? null;
 	const hasAccess = isAccessAllowed(status, trialEndsAt);
 	const stripeConfigured = !!stripe;

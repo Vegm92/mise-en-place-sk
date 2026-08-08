@@ -3,7 +3,7 @@
 	import Wallet from '@lucide/svelte/icons/wallet';
 
 	const { status, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd, stripeConfigured }: {
-		status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete';
+		status: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
 		trialEndsAt: string | null;
 		currentPeriodEnd: string | null;
 		cancelAtPeriodEnd: boolean;
@@ -30,6 +30,8 @@
 				</span>
 			{:else if status === 'past_due'}
 				<span style="background:var(--mep-neg-soft);color:var(--mep-neg);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.pastDue')}</span>
+			{:else if status === 'paused'}
+				<span style="background:var(--mep-fg-soft);color:var(--mep-fg-3);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.paused')}</span>
 			{:else}
 				<span style="background:var(--mep-fg-soft);color:var(--mep-fg-3);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.canceled')}</span>
 			{/if}
