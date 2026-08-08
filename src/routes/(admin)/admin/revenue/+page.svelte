@@ -13,6 +13,7 @@
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
   import AdminKpiCard from '$lib/components/admin/AdminKpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import InfoTooltip from '$lib/components/mep/InfoTooltip.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -89,50 +90,66 @@
   </div>
 
   <div>
-    <div class="label" style="margin-bottom:10px;">{$t('admin.rev.section.recurring')}</div>
+    <div class="label" style="margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+      {$t('admin.rev.section.recurring')}
+      <InfoTooltip text={$t('admin.rev.section.recurring.info')} />
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
-      <AdminKpiCard label={$t('admin.rev.mrr')} value={eur(o.mrrCents)} />
-      <AdminKpiCard label={$t('admin.rev.arr')} value={eur(o.arrCents)} />
-      <AdminKpiCard label={$t('admin.rev.payingCustomers')} value={o.payingCustomers} sub={$ti('admin.rev.trialsSub', { n: o.trialCustomers })} />
-      <AdminKpiCard label={$t('admin.rev.arpa')} value={eur2(o.arpaCents)} />
-      <AdminKpiCard label={$t('admin.rev.acv')} value={eur(o.acvCents)} />
+      <AdminKpiCard label={$t('admin.rev.mrr')} value={eur(o.mrrCents)} info={$t('admin.rev.mrr.info')} />
+      <AdminKpiCard label={$t('admin.rev.arr')} value={eur(o.arrCents)} info={$t('admin.rev.arr.info')} />
+      <AdminKpiCard label={$t('admin.rev.payingCustomers')} value={o.payingCustomers} sub={$ti('admin.rev.trialsSub', { n: o.trialCustomers })} info={$t('admin.rev.payingCustomers.info')} />
+      <AdminKpiCard label={$t('admin.rev.arpa')} value={eur2(o.arpaCents)} info={$t('admin.rev.arpa.info')} />
+      <AdminKpiCard label={$t('admin.rev.acv')} value={eur(o.acvCents)} info={$t('admin.rev.acv.info')} />
       <AdminKpiCard label={$t('admin.rev.atRisk')} value={eur(o.atRiskMrrCents)}
         valueColor={o.atRiskMrrCents > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'}
-        sub={$ti('admin.rev.atRiskSub', { n: o.atRiskCustomers })} />
+        sub={$ti('admin.rev.atRiskSub', { n: o.atRiskCustomers })} info={$t('admin.rev.atRisk.info')} />
     </div>
   </div>
 
   <div>
-    <div class="label" style="margin-bottom:10px;">{$t('admin.rev.section.unitEconomics')}</div>
+    <div class="label" style="margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+      {$t('admin.rev.section.unitEconomics')}
+      <InfoTooltip text={$t('admin.rev.section.unitEconomics.info')} />
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
       <AdminKpiCard label={$t('admin.rev.cac')} value={o.cacCents === null ? '—' : eur2(o.cacCents)}
-        sub={$ti('admin.rev.cacBasis', { spend: eur(o.cacSpendCents), n: o.cacNewCustomers, from: o.cacWindowFrom, to: o.cacWindowTo })} />
+        sub={$ti('admin.rev.cacBasis', { spend: eur(o.cacSpendCents), n: o.cacNewCustomers, from: o.cacWindowFrom, to: o.cacWindowTo })}
+        info={$t('admin.rev.cac.info')} />
       <AdminKpiCard label={$t('admin.rev.ltv')} value={eur(o.ltvCents)}
-        sub={$ti('admin.rev.ltvBasis', { months: months(o.lifetimeMonths), margin: o.assumptions.grossMarginPct })} />
+        sub={$ti('admin.rev.ltvBasis', { months: months(o.lifetimeMonths), margin: o.assumptions.grossMarginPct })}
+        info={$t('admin.rev.ltv.info')} />
       <AdminKpiCard label={$t('admin.rev.ltvCac')} value={o.ltvCacRatio === null ? '—' : num(o.ltvCacRatio, 1) + '×'}
         valueColor={HEALTH_COLOR[ratioHealth(o.ltvCacRatio)]}
-        sub={$ti('admin.rev.target', { n: HEALTHY_LTV_CAC_RATIO })} />
+        sub={$ti('admin.rev.target', { n: HEALTHY_LTV_CAC_RATIO })}
+        info={$t('admin.rev.ltvCac.info')} />
       <AdminKpiCard label={$t('admin.rev.payback')} value={months(o.paybackMonths)}
         valueColor={HEALTH_COLOR[paybackHealth(o.paybackMonths)]}
-        sub={$t('admin.rev.monthsUnit')} />
+        sub={$t('admin.rev.monthsUnit')}
+        info={$t('admin.rev.payback.info')} />
     </div>
   </div>
 
   <div>
-    <div class="label" style="margin-bottom:10px;">{$t('admin.rev.section.retention')}</div>
+    <div class="label" style="margin-bottom:10px;display:flex;align-items:center;gap:5px;">
+      {$t('admin.rev.section.retention')}
+      <InfoTooltip text={$t('admin.rev.section.retention.info')} />
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
-      <AdminKpiCard label={$t('admin.rev.nrrAnnual')} value={pct(o.nrrAnnual)} valueColor={HEALTH_COLOR[retentionHealth(o.nrrAnnual)]} />
-      <AdminKpiCard label={$t('admin.rev.nrrMonthly')} value={pct(o.nrrMonthly)} valueColor={HEALTH_COLOR[retentionHealth(o.nrrMonthly)]} />
-      <AdminKpiCard label={$t('admin.rev.grr')} value={pct(o.grrMonthly)} />
-      <AdminKpiCard label={$t('admin.rev.logoChurn')} value={pct(o.logoChurn)} valueColor={HEALTH_COLOR[churnHealth(o.logoChurn)]} />
-      <AdminKpiCard label={$t('admin.rev.revenueChurn')} value={pct(o.revenueChurn)} valueColor={HEALTH_COLOR[churnHealth(o.revenueChurn)]} />
-      <AdminKpiCard label={$t('admin.rev.avgChurn')} value={pct(o.avgMonthlyChurn)} />
+      <AdminKpiCard label={$t('admin.rev.nrrAnnual')} value={pct(o.nrrAnnual)} valueColor={HEALTH_COLOR[retentionHealth(o.nrrAnnual)]} info={$t('admin.rev.nrrAnnual.info')} />
+      <AdminKpiCard label={$t('admin.rev.nrrMonthly')} value={pct(o.nrrMonthly)} valueColor={HEALTH_COLOR[retentionHealth(o.nrrMonthly)]} info={$t('admin.rev.nrrMonthly.info')} />
+      <AdminKpiCard label={$t('admin.rev.grr')} value={pct(o.grrMonthly)} info={$t('admin.rev.grr.info')} />
+      <AdminKpiCard label={$t('admin.rev.logoChurn')} value={pct(o.logoChurn)} valueColor={HEALTH_COLOR[churnHealth(o.logoChurn)]} info={$t('admin.rev.logoChurn.info')} />
+      <AdminKpiCard label={$t('admin.rev.revenueChurn')} value={pct(o.revenueChurn)} valueColor={HEALTH_COLOR[churnHealth(o.revenueChurn)]} info={$t('admin.rev.revenueChurn.info')} />
+      <AdminKpiCard label={$t('admin.rev.avgChurn')} value={pct(o.avgMonthlyChurn)} info={$t('admin.rev.avgChurn.info')} />
     </div>
   </div>
 
   <SectionCard
     title={o.movementMonth ? $ti('admin.rev.section.movement', { from: o.movementMonth, to: o.month }) : $t('admin.rev.section.movementEmpty')}
     noPad>
+    {#snippet headerRight()}
+      <InfoTooltip text={$t('admin.rev.section.movement.info')} side="right" />
+    {/snippet}
     {#if o.movement}
       {@const m = o.movement}
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -159,6 +176,9 @@
   </SectionCard>
 
   <SectionCard title={$t('admin.rev.section.history')} noPad>
+    {#snippet headerRight()}
+      <InfoTooltip text={$t('admin.rev.section.history.info')} side="right" />
+    {/snippet}
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="border-bottom:1px solid var(--mep-divider);">
@@ -183,6 +203,9 @@
 
   <div>
     <SectionCard title={$t('admin.rev.section.cohorts')} noPad>
+      {#snippet headerRight()}
+        <InfoTooltip text={$t('admin.rev.section.cohorts.info')} side="right" />
+      {/snippet}
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
@@ -220,6 +243,9 @@
   </div>
 
   <SectionCard title={$t('admin.rev.section.funnel')} noPad>
+    {#snippet headerRight()}
+      <InfoTooltip text={$t('admin.rev.section.funnel.info')} side="right" />
+    {/snippet}
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <tbody>
         {#each o.funnel as stage}
@@ -236,6 +262,9 @@
   </SectionCard>
 
   <SectionCard title={$t('admin.rev.section.leakage')} noPad>
+    {#snippet headerRight()}
+      <InfoTooltip text={$t('admin.rev.section.leakage.info')} side="right" />
+    {/snippet}
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <thead>
         <tr style="border-bottom:1px solid var(--mep-divider);">
@@ -260,6 +289,9 @@
   </SectionCard>
 
   <SectionCard title={$t('admin.rev.section.spend')} noPad>
+    {#snippet headerRight()}
+      <InfoTooltip text={$t('admin.rev.section.spend.info')} side="right" />
+    {/snippet}
     <div style="padding:16px;border-bottom:1px solid var(--mep-divider);">
       <form method="POST" action="?/addCost" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
         <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--mep-fg-3);">
@@ -322,6 +354,9 @@
   </SectionCard>
 
   <SectionCard title={$t('admin.rev.section.assumptions')}>
+    {#snippet headerRight()}
+      <InfoTooltip text={$t('admin.rev.section.assumptions.info')} side="right" />
+    {/snippet}
     <form method="POST" action="?/saveAssumptions" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
       <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--mep-fg-3);">
         {$t('admin.rev.grossMargin')}
