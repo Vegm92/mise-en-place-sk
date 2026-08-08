@@ -6,6 +6,7 @@ import { db, forTenant } from './db';
 import { subscriptions, restaurants, settings, stripeWebhookEvents } from './schema';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail } from './email';
+import { PROVISIONAL_PRICE } from '$lib/billing-plans';
 
 const secretKey = env.STRIPE_SECRET_KEY ?? '';
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
@@ -71,6 +72,14 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 
 export function isTierAvailable(tier: PlanTier): boolean {
 	return !!TIERS[tier].stripePriceId;
+}
+
+export function planMonthlyPriceCents(tier: PlanTier): number {
+	if (tier === 'trial') return 0;
+	const raw = env[`PLAN_PRICE_${tier.toUpperCase()}_EUR`]?.trim();
+	const override = raw ? Number(raw) : NaN;
+	const eur = Number.isFinite(override) && override >= 0 ? override : PROVISIONAL_PRICE[tier];
+	return Math.round(eur * 100);
 }
 
 export function tierFromPriceId(priceId: string | null | undefined): PlanTier {

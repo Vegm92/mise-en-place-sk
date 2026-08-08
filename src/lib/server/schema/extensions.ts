@@ -272,3 +272,38 @@ export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
 	eventId:     text('event_id').primaryKey(),
 	processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const mrrSnapshots = pgTable('mrr_snapshots', {
+	id:           serial('id').primaryKey(),
+	month:        text('month').notNull(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	planTier:     text('plan_tier').notNull(),
+	status:       text('status').notNull(),
+	mrrCents:     integer('mrr_cents').notNull().default(0),
+	atRiskCents:  integer('at_risk_cents').notNull().default(0),
+	source:       text('source').notNull().default('live'),
+	capturedAt:   timestamp('captured_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('mrr_snapshots_month_restaurant_unique').on(t.month, t.restaurantId),
+	index('mrr_snapshots_month_idx').on(t.month),
+	index('mrr_snapshots_paying_idx').on(t.restaurantId, t.month).where(sql`${t.mrrCents} > 0`),
+]);
+
+export const acquisitionCosts = pgTable('acquisition_costs', {
+	id:          serial('id').primaryKey(),
+	month:       text('month').notNull(),
+	category:    text('category').notNull(),
+	amountCents: integer('amount_cents').notNull(),
+	note:        text('note'),
+	createdBy:   text('created_by'),
+	createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	index('acquisition_costs_month_idx').on(t.month),
+]);
+
+export const revenueAssumptions = pgTable('revenue_assumptions', {
+	key:       text('key').primaryKey(),
+	value:     text('value').notNull(),
+	updatedBy: text('updated_by'),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});

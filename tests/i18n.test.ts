@@ -474,3 +474,54 @@ describe('upload action error keys (server-returned, issue #294)', () => {
     }
   });
 });
+
+describe('revenue console keys (admin SaaS metrics)', () => {
+  const metricsSource = readFileSync(
+    new URL('../src/lib/server/revenue-metrics.ts', import.meta.url),
+    'utf-8',
+  );
+
+  // The page builds these keys by concatenation (`'admin.rev.leak.' + leak.key`),
+  // so a leak or funnel stage added server-side never fails to compile — it just
+  // renders the raw key. Derive the list from the source and assert both locales.
+  const leakKeys = [...new Set(
+    [...metricsSource.matchAll(/key: '(\w+)',[^}]*monthlyImpactCents/g)].map(m => m[1]),
+  )];
+  const funnelKeys = ['waitlist', 'signup', 'activated', 'paying'];
+  const categories = (metricsSource.match(/COST_CATEGORIES = \[([^\]]+)\]/)?.[1] ?? '')
+    .split(',')
+    .map(s => s.trim().replaceAll("'", ''))
+    .filter(Boolean);
+
+  const keys = [
+    ...leakKeys.flatMap(k => [`admin.rev.leak.${k}`, `admin.rev.leakHint.${k}`]),
+    ...funnelKeys.map(k => `admin.rev.funnel.${k}`),
+    ...categories.map(c => `admin.rev.cat.${c}`),
+    ...['live', 'estimated', 'none'].map(s => `admin.rev.source.${s}`),
+    'admin.revenue',
+    'admin.rev.title',
+    'admin.rev.mrr',
+    'admin.rev.cac',
+    'admin.rev.ltvCac',
+    'admin.rev.payback',
+    'admin.rev.nrrAnnual',
+    'admin.rev.section.cohorts',
+    'admin.rev.section.leakage',
+  ];
+
+  it('derives the dynamic key lists from the server module', () => {
+    expect(leakKeys.length).toBeGreaterThanOrEqual(7);
+    expect(categories).toEqual(['marketing', 'salaries', 'tools', 'other']);
+  });
+
+  it('resolves every revenue key in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const key of keys) {
+        if (tr(key) === key) missing.push(`${lc}:${key}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+});
