@@ -237,6 +237,7 @@ export async function createCheckoutSession(
 		customer: customerId,
 		mode: 'subscription',
 		line_items: [{ price: priceId, quantity: 1 }],
+		metadata: { restaurantId },
 		subscription_data: {
 			trial_period_days: TRIAL_DAYS,
 			metadata: { restaurantId },
