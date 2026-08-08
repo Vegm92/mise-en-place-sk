@@ -8,79 +8,79 @@
 
 <div style="padding:28px 32px;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:24px;">
 
-  <h2 style="margin:0;font-size:22px;font-weight:600;color:#111;letter-spacing:-0.3px;">{$t('admin.overview')}</h2>
+  <h2 style="margin:0;font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{$t('admin.overview')}</h2>
 
   <section>
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--mep-fg-3);margin-bottom:10px;">
       {$t('admin.last7days')}
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
       <div class="card" style="padding:16px;">
-        <div style="font-size:11px;color:#888;margin-bottom:6px;">{$t('admin.invoicesSaved')}</div>
-        <div style="font-size:26px;font-weight:700;color:#111;letter-spacing:-0.5px;">{fmt(data.invoices7d)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">{$t('admin.invoicesSaved')}</div>
+        <div style="font-size:26px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.5px;">{fmt(data.invoices7d)}</div>
       </div>
       <div class="card" style="padding:16px;">
-        <div style="font-size:11px;color:#888;margin-bottom:6px;">{$t('admin.activeRestaurants')}</div>
-        <div style="font-size:26px;font-weight:700;color:#111;letter-spacing:-0.5px;">{fmt(data.activeRestaurants7d)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">{$t('admin.activeRestaurants')}</div>
+        <div style="font-size:26px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.5px;">{fmt(data.activeRestaurants7d)}</div>
       </div>
       <div class="card" style="padding:16px;">
-        <div style="font-size:11px;color:#888;margin-bottom:6px;">{$t('admin.pendingNotifs')}</div>
-        <div style="font-size:26px;font-weight:700;color:{data.pendingNotifs > 0 ? '#dc2626' : '#111'};letter-spacing:-0.5px;">{fmt(data.pendingNotifs)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">{$t('admin.pendingNotifs')}</div>
+        <div style="font-size:26px;font-weight:700;color:{data.pendingNotifs > 0 ? '#dc2626' : 'var(--mep-fg)'};letter-spacing:-0.5px;">{fmt(data.pendingNotifs)}</div>
       </div>
       <div class="card" style="padding:16px;">
-        <div style="font-size:11px;color:#888;margin-bottom:6px;">{$t('admin.pendingExtractions')}</div>
-        <div style="font-size:26px;font-weight:700;color:{data.pendingExtractions > 0 ? '#d97706' : '#111'};letter-spacing:-0.5px;">{fmt(data.pendingExtractions)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">{$t('admin.pendingExtractions')}</div>
+        <div style="font-size:26px;font-weight:700;color:{data.pendingExtractions > 0 ? '#d97706' : 'var(--mep-fg)'};letter-spacing:-0.5px;">{fmt(data.pendingExtractions)}</div>
       </div>
     </div>
   </section>
 
   <section>
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--mep-fg-3);margin-bottom:10px;">
       {$t('admin.allTimeTotals')}
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">
       <div class="card" style="padding:16px;">
-        <div style="font-size:11px;color:#888;margin-bottom:6px;">{$t('admin.restaurants')}</div>
-        <div style="font-size:26px;font-weight:700;color:#111;letter-spacing:-0.5px;">{fmt(data.totalRestaurants)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">{$t('admin.restaurants')}</div>
+        <div style="font-size:26px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.5px;">{fmt(data.totalRestaurants)}</div>
       </div>
       <div class="card" style="padding:16px;">
-        <div style="font-size:11px;color:#888;margin-bottom:6px;">{$t('admin.invoices')}</div>
-        <div style="font-size:26px;font-weight:700;color:#111;letter-spacing:-0.5px;">{fmt(data.totalInvoices)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">{$t('admin.invoices')}</div>
+        <div style="font-size:26px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.5px;">{fmt(data.totalInvoices)}</div>
       </div>
       <div class="card" style="padding:16px;">
-        <div style="font-size:11px;color:#888;margin-bottom:6px;">{$t('admin.suppliers')}</div>
-        <div style="font-size:26px;font-weight:700;color:#111;letter-spacing:-0.5px;">{fmt(data.totalSuppliers)}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:6px;">{$t('admin.suppliers')}</div>
+        <div style="font-size:26px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.5px;">{fmt(data.totalSuppliers)}</div>
       </div>
     </div>
   </section>
 
   <section>
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:#888;margin-bottom:10px;">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--mep-fg-3);margin-bottom:10px;">
       {$t('admin.recentRestaurants')}
     </div>
     <div class="card" style="overflow:hidden;padding:0;">
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid var(--mep-divider,#e5e5e5);">
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colName')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.invoices')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.suppliers')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCreated')}</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colName')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.invoices')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.suppliers')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCreated')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.recentRestaurants as r}
             <tr style="border-bottom:1px solid var(--mep-divider,#e5e5e5);">
-              <td style="padding:9px 16px;font-weight:500;color:#111;">{r.name}</td>
-              <td style="padding:9px 16px;text-align:right;color:#555;" class="num">{fmt(Number(r.invoice_count))}</td>
-              <td style="padding:9px 16px;text-align:right;color:#555;" class="num">{fmt(Number(r.supplier_count))}</td>
-              <td style="padding:9px 16px;text-align:right;color:#888;font-size:12px;">
+              <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{r.name}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.invoice_count))}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.supplier_count))}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;">
                 {new Date(r.created_at).toLocaleDateString('en-GB')}
               </td>
             </tr>
           {:else}
             <tr>
-              <td colspan="4" style="padding:24px 16px;text-align:center;color:#aaa;">{$t('admin.noRestaurants')}</td>
+              <td colspan="4" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noRestaurants')}</td>
             </tr>
           {/each}
         </tbody>
@@ -89,13 +89,13 @@
   </section>
 
   <section style="display:flex;gap:10px;flex-wrap:wrap;">
-    <a href="/admin/revenue" style="padding:8px 16px;background:#111;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
+    <a href="/admin/revenue" style="padding:8px 16px;background:var(--mep-fg);color:var(--mep-bg);border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
       {$t('admin.revenue')}
     </a>
     <a href="/admin/events" style="padding:8px 16px;background:#dc2626;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
       {$t('admin.viewEvents')}
     </a>
-    <a href="/admin/health" style="padding:8px 16px;background:#111;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
+    <a href="/admin/health" style="padding:8px 16px;background:var(--mep-fg);color:var(--mep-bg);border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
       {$t('admin.systemHealthLink')}
     </a>
   </section>

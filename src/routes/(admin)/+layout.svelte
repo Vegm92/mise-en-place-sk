@@ -16,7 +16,7 @@
   ]);
 </script>
 
-<div style="min-height:100vh;background:var(--mep-bg,#f8f8f8);display:flex;flex-direction:column;">
+<div class="mep" style="min-height:100vh;background:var(--mep-bg,#f8f8f8);display:flex;flex-direction:column;">
 
   <header style="
     background:#dc2626;color:#fff;
