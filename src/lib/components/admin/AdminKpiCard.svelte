@@ -1,11 +1,13 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import InfoTooltip from '$lib/components/mep/InfoTooltip.svelte';
 
   let {
     label,
     value,
     unit,
     sub,
+    info,
     valueColor = 'var(--mep-fg)',
     pill,
   }: {
@@ -13,6 +15,7 @@
     value: string | number;
     unit?: string;
     sub?: string;
+    info?: string;
     valueColor?: string;
     pill?: Snippet;
   } = $props();
@@ -20,7 +23,10 @@
 
 <div class="card" style="padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0;">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-    <div class="label">{label}</div>
+    <div class="label" style="display:flex;align-items:center;gap:4px;min-width:0;">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{label}</span>
+      {#if info}<InfoTooltip text={info} />{/if}
+    </div>
     {#if pill}{@render pill()}{/if}
   </div>
   <div style="display:flex;align-items:baseline;gap:5px;">
