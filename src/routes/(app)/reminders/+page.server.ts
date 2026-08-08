@@ -2,8 +2,8 @@ import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, suppliers } from '$lib/server/schema';
-import { and, asc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
+import { invoices, suppliers, systemNotifications } from '$lib/server/schema';
+import { and, asc, desc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { workingDaysUntilDeadline } from '$lib/server/working-days';
 import { markInvoicePaid, markInvoicesPaidBulk, acceptInvoice, rejectInvoice } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
@@ -39,6 +39,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			))
 			.orderBy(asc(invoices.dueDate));
 
+		const notifRows = await db
+			.select()
+			.from(systemNotifications)
+			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
+			.orderBy(desc(systemNotifications.createdAt));
+
+		const notifications = notifRows.flatMap((n) => {
+			let payload: unknown = null;
+			if (n.payload) {
+				try { payload = JSON.parse(n.payload); } catch { return []; }
+			}
+			return [{ ...n, payload }];
+		});
+
 		const enriched = rows.map((r) => {
 			const dueDays = Math.round((new Date(r.due_date!).getTime() - today.getTime()) / 86400_000);
 			let acceptanceWorkingDaysLeft: number | null = null;
@@ -61,6 +75,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			total_amount:  enriched.reduce((sum, r) => sum + r.display_amount, 0),
 			today:         todayIso,
 			conflict:      url.searchParams.get('conflict') === '1',
+			notifications,
 		};
 	});
 };
