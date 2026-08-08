@@ -32,8 +32,6 @@
   let left   = $state(0);
   let width  = $state(0);
   let height = $state(0);
-  let vw     = $state(0);
-  let vh     = $state(0);
   let ready  = $state(false);
 
   const POLL_INTERVAL_MS = 100;
@@ -45,8 +43,6 @@
     const el = document.querySelector(`[data-coach="${selector}"]`);
     if (!el) return;
     const r = el.getBoundingClientRect();
-    vw = window.innerWidth;
-    vh = window.innerHeight;
     top = r.top;
     left = r.left;
     width = r.width;
@@ -77,15 +73,6 @@
   const spotLeft   = $derived(left - PAD);
   const spotWidth  = $derived(width + PAD * 2);
   const spotHeight = $derived(height + PAD * 2);
-
-  const tipLeft  = $derived(Math.max(16, Math.min(spotLeft, vw - TOOLTIP_W - 16)));
-  const spaceBelow = $derived(vh - (top + height + PAD));
-  const tipBelow = $derived(spaceBelow >= 180);
-  const tipTop   = $derived(
-    tipBelow
-      ? top + height + PAD + 10
-      : top - PAD - 10 - 170
-  );
 
   function handleKey(e: KeyboardEvent) {
     if (e.key === 'Escape') onSkip();
@@ -119,9 +106,10 @@
   <div
     style="
       position:fixed;
-      top:{tipTop}px;
-      left:{tipLeft}px;
+      right:20px;
+      bottom:20px;
       width:{TOOLTIP_W}px;
+      max-width:calc(100vw - 32px);
       z-index:112;
       background:var(--mep-bg);
       border:1px solid var(--mep-border-strong);

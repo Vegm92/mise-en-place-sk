@@ -36,7 +36,7 @@ export function initRows(
 		description: l.description ?? '',
 		quantity: l.quantity != null ? String(l.quantity) : '',
 		unit: l.unit ?? '',
-		unit_price: l.unit_price != null ? String(l.unit_price) : '',
+		unit_price: l.unit_price != null ? l.unit_price.toFixed(2) : '',
 	}));
 }
 

@@ -74,10 +74,26 @@
   let invoiceNumberInput = $state(str(data.review?.data?.invoice_number));
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let invoiceDateInput = $state(str(data.review?.data?.invoice_date));
+  const NET_30_DAYS = 30;
+  function addDays(dateStr: string, days: number): string {
+    const d = new Date(`${dateStr}T00:00:00`);
+    d.setDate(d.getDate() + days);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function net30Suggestion(dueDate: string, invoiceDate: string): string {
+    if (dueDate || !/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate)) return dueDate;
+    return addDays(invoiceDate, NET_30_DAYS);
+  }
+
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let dueDateInput = $state(str(data.review?.data?.due_date));
+  let dueDateInput = $state(net30Suggestion(str(data.review?.data?.due_date), str(data.review?.data?.invoice_date)));
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let totalAmountInput = $state(str(data.review?.data?.total_amount));
+  let dueDateSuggested = $state(!str(data.review?.data?.due_date) && !!dueDateInput);
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
+  let totalAmountInput = $state(priceStr(str(data.review?.data?.total_amount)));
   let notesInput = $state('');
 
   $effect(() => {
@@ -91,8 +107,10 @@
     supplierNameInput = str(rd?.supplier_name);
     invoiceNumberInput = str(rd?.invoice_number);
     invoiceDateInput = str(rd?.invoice_date);
-    dueDateInput = str(rd?.due_date);
-    totalAmountInput = str(rd?.total_amount);
+    const rawDueDate = str(rd?.due_date);
+    dueDateInput = net30Suggestion(rawDueDate, invoiceDateInput);
+    dueDateSuggested = !rawDueDate && !!dueDateInput;
+    totalAmountInput = priceStr(str(rd?.total_amount));
     notesInput = '';
   });
 
@@ -168,6 +186,11 @@
   const invoiceNumber = $derived(str(review?.data?.invoice_number) || '—');
 
   function fmt(n: number) { return n.toFixed(2).replace('.', ',') + ' €'; }
+
+  function priceStr(v: number | string | null | undefined): string {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+    return isNaN(n) ? str(v) : n.toFixed(2);
+  }
 
   let addFiles = $state<File[]>([]);
   let addSubmitting = $state(false);
@@ -389,7 +412,11 @@
                     <ConfidenceDot confidence={fieldConf.due_date} />
                   </div>
                   <input type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD" class="num"
+                    oninput={() => { dueDateSuggested = false; }}
                     style="width:100%;font-size:13px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.due_date != null && fieldConf.due_date < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />
+                  {#if dueDateSuggested}
+                    <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('field.dueDateSuggested')}</div>
+                  {/if}
                 </div>
                 <div>
                   <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
@@ -456,11 +483,11 @@
                             style="width:100%;font-size:12px;color:var(--mep-fg-2);background:transparent;border:none;outline:none;font-family:var(--mep-font);" />
                         </td>
                         <td class="num" style="padding:7px 10px;">
-                          <input type="text" name="line_unit_prices" value={str(item.unit_price)} class="num"
+                          <input type="text" name="line_unit_prices" value={priceStr(item.unit_price)} class="num"
                             style="width:100%;font-size:12px;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                         </td>
                         <td class="num" style="padding:7px 10px;">
-                          <input type="text" name="line_total_prices" value={str(item.total_price)} class="num"
+                          <input type="text" name="line_total_prices" value={priceStr(item.total_price)} class="num"
                             style="width:100%;font-size:12px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                         </td>
                         <td style="padding:7px 10px;">
