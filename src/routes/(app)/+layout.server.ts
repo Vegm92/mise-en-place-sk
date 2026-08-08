@@ -15,7 +15,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, reminderBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, subRow, locationRows] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, subRow, locationRows] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -30,10 +30,18 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.from(invoices)
 			.where(and(
 				tdb.scope(invoices.restaurantId),
-				eq(invoices.status, 'pending'),
+				sql`${invoices.status} IN ('pending', 'accepted')`,
 				isNull(invoices.deletedAt),
-				sql`${invoices.dueDate} BETWEEN CURRENT_DATE::text AND (CURRENT_DATE + INTERVAL '7 days')::text`
+				sql`${invoices.dueDate} < CURRENT_DATE::text`
 			)),
+
+		db.select({ cnt: sql<number>`COUNT(*)` })
+			.from(systemNotifications)
+			.where(tdb.scope(systemNotifications.restaurantId, and(
+				eq(systemNotifications.status, 'pending'),
+				eq(systemNotifications.notificationType, 'budget_overage'),
+				sql`${systemNotifications.payload}::json->>'level' = 'exceeded'`
+			))),
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
 			.from(invoices)
@@ -103,7 +111,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		restaurantId: rid,
 		notifications,
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
-		reminderBadge:           reminderBadgeRow[0]?.cnt   ?? 0,
+		reminderBadge:           Number(overdueBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
 		quotaLimit:              resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier),
 		planName:                planNameRow[0]?.value      ?? tierConfig.name,
