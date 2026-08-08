@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { fmt } from '$lib/formatters';
-  import { t, ti, tp } from '$lib/i18n';
+  import { fmt, fmtDateShort } from '$lib/formatters';
+  import { t, ti, tp, locale } from '$lib/i18n';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -31,15 +31,21 @@
 
   function pageUrl(p: number): string {
     const params = new URLSearchParams();
-    if (filters.status)      params.set('status', filters.status);
-    if (filters.supplier_id) params.set('supplier_id', filters.supplier_id);
-    if (filters.date_from)   params.set('date_from', filters.date_from);
-    if (filters.date_to)     params.set('date_to', filters.date_to);
-    if (p > 1)               params.set('page', String(p));
+    if (filters.status)        params.set('status', filters.status);
+    if (filters.supplier_id)   params.set('supplier_id', filters.supplier_id);
+    if (filters.date_from)     params.set('date_from', filters.date_from);
+    if (filters.date_to)       params.set('date_to', filters.date_to);
+    if (filters.uploaded_from) params.set('uploaded_from', filters.uploaded_from);
+    if (filters.uploaded_to)   params.set('uploaded_to', filters.uploaded_to);
+    if (filters.sort && filters.sort !== 'uploaded_desc') params.set('sort', filters.sort);
+    if (p > 1)                 params.set('page', String(p));
     const qs = params.toString();
     return '/invoices' + (qs ? '?' + qs : '');
   }
-  const hasFilters = $derived(!!(filters.status || filters.supplier_id || filters.date_from || filters.date_to));
+  const hasFilters = $derived(!!(
+    filters.status || filters.supplier_id || filters.date_from || filters.date_to ||
+    filters.uploaded_from || filters.uploaded_to || (filters.sort && filters.sort !== 'uploaded_desc')
+  ));
 
   let checkedIds = $state<Set<number>>(new Set());
   const allChecked  = $derived(invoices.length > 0 && checkedIds.size === invoices.length);
@@ -224,6 +230,28 @@
           class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
       </div>
 
+      <div class="flex flex-col gap-1">
+        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
+        <input id="inv-uploaded-from" type="date" name="uploaded_from" value={filters.uploaded_from}
+          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
+        <input id="inv-uploaded-to" type="date" name="uploaded_to" value={filters.uploaded_to}
+          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+      </div>
+
+      <div class="flex flex-col gap-1 min-w-[170px]">
+        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-sort">{$t('inv.filter.sort')}</label>
+        <select id="inv-sort" name="sort" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
+          <option value="uploaded_desc"     selected={filters.sort === 'uploaded_desc'}>{$t('inv.filter.sort.uploadedDesc')}</option>
+          <option value="uploaded_asc"      selected={filters.sort === 'uploaded_asc'}>{$t('inv.filter.sort.uploadedAsc')}</option>
+          <option value="invoice_date_desc" selected={filters.sort === 'invoice_date_desc'}>{$t('inv.filter.sort.invoiceDateDesc')}</option>
+          <option value="invoice_date_asc"  selected={filters.sort === 'invoice_date_asc'}>{$t('inv.filter.sort.invoiceDateAsc')}</option>
+        </select>
+      </div>
+
       <div class="flex items-end gap-2">
         <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">
           {$t('inv.filter.apply')}
@@ -295,6 +323,7 @@
               <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{inv.supplier_name ?? '—'}</div>
               <div class="body text-fg-3 overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:11.5px;">
                 {inv.invoice_number ?? '—'} · {inv.invoice_date ?? '—'}
+                <span class="text-fg-4">· {$t('inv.uploadedOn')} {inv.created_at ? fmtDateShort(inv.created_at.toISOString(), $locale) : '—'}</span>
               </div>
             </div>
 
