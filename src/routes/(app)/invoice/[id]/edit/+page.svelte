@@ -23,6 +23,19 @@
   const totalAmountDisplay = $derived(
     invoice.total_amount != null ? invoice.total_amount : (computedLineTotal || null)
   );
+
+  const NET_30_DAYS = 30;
+  function addDays(dateStr: string, days: number): string {
+    const d = new Date(`${dateStr}T00:00:00`);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+  const suggestedDueDate = $derived(
+    invoice.due_date == null && invoice.invoice_date
+      ? addDays(invoice.invoice_date, NET_30_DAYS)
+      : null
+  );
+  const dueDateDisplay = $derived(invoice.due_date ?? suggestedDueDate ?? '');
 </script>
 
 <div class="p-6 flex justify-center">
@@ -55,12 +68,15 @@
         </div>
         <div class="flex flex-col gap-1">
           <label class="label" for="edit-due-date">{$t('field.dueDate')}</label>
-          <input id="edit-due-date" type="date" name="due_date" value={invoice.due_date ?? ''}
+          <input id="edit-due-date" type="date" name="due_date" value={dueDateDisplay}
             class="input" style="height:36px;font-size:13px;" />
+          {#if suggestedDueDate}
+            <span class="text-fg-3" style="font-size:11px;">{$t('field.dueDateSuggested')}</span>
+          {/if}
         </div>
         <div class="flex flex-col gap-1">
           <label class="label" for="edit-total">{$t('field.totalAmount')}</label>
-          <input id="edit-total" type="text" name="total_amount" value={String(totalAmountDisplay ?? '')}
+          <input id="edit-total" type="text" name="total_amount" value={totalAmountDisplay != null ? totalAmountDisplay.toFixed(2) : ''}
             class="input" style="height:36px;font-size:13px;" />
         </div>
         <div class="col-span-1 md:col-span-2 flex flex-col gap-1">
@@ -98,9 +114,9 @@
             <input type="text" name="line_unit_prices" value={row.unit_price ?? ''}
               oninput={(e) => { items = updateRow(items, idx, { unit_price: (e.target as HTMLInputElement).value }); }}
               class="input" style="height:32px;font-size:12.5px;" />
-            <input type="text" value={row.total_price != null ? String(row.total_price) : ''} readonly tabindex="-1"
+            <input type="text" value={row.total_price != null ? row.total_price.toFixed(2) : ''} readonly tabindex="-1"
               class="input bg-surface-2 cursor-default" style="height:32px;font-size:12.5px;" />
-            <input type="hidden" name="line_total_prices" value={row.total_price != null ? String(row.total_price) : ''} />
+            <input type="hidden" name="line_total_prices" value={row.total_price != null ? row.total_price.toFixed(2) : ''} />
             <button type="button" class="bg-transparent border-none cursor-pointer text-neg text-[18px] px-1 pb-1 leading-none"
               onclick={() => { items = removeRow(items, idx); }}>×</button>
           </div>
