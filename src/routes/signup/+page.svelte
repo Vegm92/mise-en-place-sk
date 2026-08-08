@@ -49,10 +49,10 @@
 	<div style="width:100%;max-width:380px;">
 
 		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
-			<svg width="22" height="22" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
-				<rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
-				<rect x="10.5" y="3.5" width="3" height="13" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
-				<rect x="18.5" y="3.5" width="3" height="9"  rx="1.2" stroke="currentColor" stroke-width="1.6"/>
+			<svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
+				<rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
+				<rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
+				<rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
 			</svg>
 			<span style="font-size:16px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
 				Mise en Place

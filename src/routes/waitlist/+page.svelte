@@ -544,10 +544,10 @@
   <nav style="display:flex;align-items:center;gap:14px;padding:16px 32px;
               border-bottom:1px solid var(--mep-divider);">
     <div style="display:flex;align-items:center;gap:10px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
-        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
-        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.2" stroke="currentColor" stroke-width="1.6"/>
+      <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
+        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
+        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
+        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
       </svg>
       <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
@@ -872,10 +872,10 @@
   <footer style="padding:28px 72px;border-top:1px solid var(--mep-divider);
                  display:flex;align-items:center;justify-content:space-between;gap:20px;">
     <div style="display:flex;align-items:center;gap:10px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="color:var(--mep-acc);flex-shrink:0;">
-        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.2" stroke="currentColor" stroke-width="1.6"/>
-        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.2" stroke="currentColor" stroke-width="1.6"/>
+      <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
+        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
+        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
+        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
       </svg>
       <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
