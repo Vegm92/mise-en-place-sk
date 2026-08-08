@@ -24,7 +24,7 @@
   }
   .info-tooltip-bubble {
     position: absolute;
-    bottom: calc(100% + 8px);
+    top: calc(100% + 8px);
     left: 0;
     z-index: 20;
     width: max-content;
@@ -40,7 +40,7 @@
     letter-spacing: normal;
     box-shadow: var(--mep-shadow-pop);
     opacity: 0;
-    transform: translateY(3px);
+    transform: translateY(-3px);
     pointer-events: none;
     transition: opacity 120ms ease-out, transform 120ms ease-out;
   }
