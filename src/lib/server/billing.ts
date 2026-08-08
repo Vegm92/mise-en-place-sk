@@ -21,7 +21,7 @@ export class WebhookSignatureError extends Error {
 	}
 }
 
-export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'canceled' | 'incomplete';
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
 export type PlanTier = 'trial' | 'starter' | 'pro' | 'business';
 
 export interface TierConfig {
@@ -357,7 +357,9 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 			}
 
 			case 'customer.subscription.updated':
-			case 'customer.subscription.deleted': {
+			case 'customer.subscription.deleted':
+			case 'customer.subscription.paused':
+			case 'customer.subscription.resumed': {
 				const sub = event.data.object as Stripe.Subscription;
 				const restaurantId = sub.metadata?.restaurantId;
 				if (!restaurantId) break;
@@ -390,7 +392,20 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 					trackEvent('subscription_canceled', restaurantId, { tier, status: sub.status });
 				} else if (sub.status === 'past_due') {
 					trackEvent('payment_past_due', restaurantId, { tier, status: sub.status });
+				} else if (event.type === 'customer.subscription.paused') {
+					trackEvent('subscription_paused', restaurantId, { tier, status: sub.status });
+				} else if (event.type === 'customer.subscription.resumed') {
+					trackEvent('subscription_resumed', restaurantId, { tier, status: sub.status });
 				}
+				break;
+			}
+
+			case 'customer.subscription.trial_will_end': {
+				const sub = event.data.object as Stripe.Subscription;
+				const restaurantId = sub.metadata?.restaurantId;
+				if (!restaurantId) break;
+
+				trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
 				break;
 			}
 		}
