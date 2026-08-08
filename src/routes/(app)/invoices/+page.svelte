@@ -378,8 +378,8 @@
                         <td>{item.description ?? '—'}</td>
                         <td class="num">{item.quantity ?? '—'}</td>
                         <td>{item.unit ?? '—'}</td>
-                        <td class="num">{item.unit_price ?? '—'}</td>
-                        <td class="num font-semibold">{item.total_price ?? '—'}</td>
+                        <td class="num">{item.unit_price != null ? fmt(item.unit_price) : '—'}</td>
+                        <td class="num font-semibold">{item.total_price != null ? fmt(item.total_price) : '—'}</td>
                       </tr>
                     {/each}
                   </tbody>
