@@ -1,20 +1,8 @@
 <script lang="ts">
   import Bell from '@lucide/svelte/icons/bell';
   import X from '@lucide/svelte/icons/x';
-  import TrendingUp from '@lucide/svelte/icons/trending-up';
-  import Package from '@lucide/svelte/icons/package';
-  import Ruler from '@lucide/svelte/icons/ruler';
-  import Boxes from '@lucide/svelte/icons/boxes';
-  import Tag from '@lucide/svelte/icons/tag';
-  import { t, ti, tiv } from '$lib/i18n';
-
-  type Notif = {
-    id: number;
-    notificationType: string;
-    message: string;
-    payload: unknown;
-    createdAt: Date | null;
-  };
+  import { t, tiv } from '$lib/i18n';
+  import { notificationIcon, notificationColor, type Notif } from '$lib/notification-display';
 
   let { notifications: initial }: { notifications: Notif[] } = $props();
 
@@ -23,75 +11,7 @@
   let open = $state(false);
 
   const count = $derived(items.length);
-
-  function icon(type: string) {
-    if (type === 'price_shock')            return TrendingUp;
-    if (type === 'low_stock_forecast')     return Package;
-    if (type === 'unit_conversion_needed') return Ruler;
-    if (type === 'product_suggestion')     return Boxes;
-    if (type === 'supplier_uncategorized') return Tag;
-    if (type === 'supplier_category_suggested') return Tag;
-    return Bell;
-  }
-
-  function color(type: string) {
-    if (type === 'price_shock')            return 'var(--mep-neg)';
-    if (type === 'low_stock_forecast')     return 'var(--mep-warn)';
-    if (type === 'unit_conversion_needed') return 'var(--mep-info)';
-    if (type === 'product_suggestion')     return 'var(--mep-info)';
-    if (type === 'supplier_uncategorized') return 'var(--mep-warn)';
-    if (type === 'supplier_category_suggested') return 'var(--mep-info)';
-    return 'var(--mep-fg-2)';
-  }
-
-  let decidingCategory = $state<number | null>(null);
-  async function acceptCategory(n: Notif) {
-    const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null;
-    if (typeof p?.supplierId !== 'number' || decidingCategory !== null) return;
-    decidingCategory = n.id;
-    try {
-      const resp = await fetch('/api/supplier-category', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          supplierId: p.supplierId,
-          action: 'accept',
-          category: p.suggestedCategory,
-        }),
-      });
-      if (resp.ok || resp.status === 404) items = items.filter((i) => i.id !== n.id);
-    } catch {
-    } finally {
-      decidingCategory = null;
-    }
-  }
-
-  let deciding = $state<number | null>(null);
-  async function decideProduct(n: Notif, accept: boolean) {
-    const p = n.payload as { description?: string; source?: string; candidateProductId?: number } | null;
-    const description = p?.description;
-    if (!description || deciding !== null) return;
-    const isLlm = p?.source === 'llm';
-    const bodyObj: Record<string, unknown> = { description };
-    if (accept) {
-      bodyObj.action = 'confirm';
-      if (isLlm && typeof p?.candidateProductId === 'number') bodyObj.targetProductId = p.candidateProductId;
-    } else {
-      bodyObj.action = isLlm ? 'dismiss' : 'reject';
-    }
-    deciding = n.id;
-    try {
-      const resp = await fetch('/api/product-aliases', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(bodyObj),
-      });
-      if (resp.ok) items = items.filter((i) => i.id !== n.id);
-    } catch {
-    } finally {
-      deciding = null;
-    }
-  }
+  const preview = $derived(items.slice(0, 5));
 
   async function dismiss(id: number) {
     const removed = items.find((n) => n.id === id);
@@ -153,6 +73,7 @@
         width:320px;max-height:420px;overflow-y:auto;
         background:var(--mep-surface);border:1px solid var(--mep-divider);
         border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);
+        display:flex;flex-direction:column;
       "
     >
       <div style="padding:12px 14px 8px;border-bottom:1px solid var(--mep-divider);display:flex;align-items:center;justify-content:space-between;">
@@ -170,8 +91,8 @@
           {$t('notif.empty')}
         </div>
       {:else}
-        {#each items as n (n.id)}
-          {@const Ic = icon(n.notificationType)}
+        {#each preview as n (n.id)}
+          {@const Ic = notificationIcon(n.notificationType)}
           {@const msg = n.payload as { messageKey?: string; messageVars?: Record<string, string | number> } | null}
           <div
             style="
@@ -179,79 +100,11 @@
               padding:10px 14px;border-bottom:1px solid var(--mep-divider);
             "
           >
-            <div style="flex-shrink:0;margin-top:1px;color:{color(n.notificationType)};">
+            <div style="flex-shrink:0;margin-top:1px;color:{notificationColor(n.notificationType)};">
               <Ic size={14} />
             </div>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
-                {msg?.messageKey ? $tiv(msg.messageKey, msg.messageVars ?? {}) : n.message}
-              </div>
-              {#if n.notificationType === 'supplier_uncategorized'}
-                {@const supplierId = (n.payload as { supplierId?: number } | null)?.supplierId}
-                {#if supplierId}
-                  <div style="margin-top:6px;">
-                    <a
-                      href="/suppliers/{supplierId}?edit=1"
-                      class="btn btn-primary"
-                      style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-                      onclick={() => (open = false)}
-                    >{$t('notif.categorize')}</a>
-                  </div>
-                {/if}
-              {/if}
-              {#if n.notificationType === 'supplier_category_suggested'}
-                {@const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null}
-                {#if p?.supplierId && p?.suggestedCategory}
-                  <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">
-                    <button
-                      class="btn btn-primary"
-                      style="height:26px;font-size:11px;padding:0 10px;"
-                      disabled={decidingCategory !== null}
-                      onclick={() => acceptCategory(n)}
-                    >{$t('notif.catAccept')}</button>
-                    <a
-                      href="/suppliers/{p.supplierId}?edit=1"
-                      class="btn btn-secondary"
-                      style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-                      onclick={() => (open = false)}
-                    >{$t('notif.catChange')}</a>
-                  </div>
-                {/if}
-              {/if}
-              {#if n.notificationType === 'unit_conversion_needed'}
-                {@const p = n.payload as { supplierId?: number; ingredient?: string; purchaseUnit?: string } | null}
-                {#if p?.supplierId}
-                  <div style="margin-top:6px;">
-                    <a
-                      href="/suppliers/{p.supplierId}?tab=conversiones&ingredient={encodeURIComponent(p.ingredient ?? '')}&purchase_unit={encodeURIComponent(p.purchaseUnit ?? '')}"
-                      class="btn btn-primary"
-                      style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
-                      onclick={() => (open = false)}
-                    >{$t('notif.setConversion')}</a>
-                  </div>
-                {/if}
-              {/if}
-              {#if n.notificationType === 'product_suggestion'}
-                <div style="display:flex;gap:6px;margin-top:6px;">
-                  <button
-                    class="btn btn-primary"
-                    style="height:26px;font-size:11px;padding:0 10px;"
-                    disabled={deciding !== null}
-                    onclick={() => decideProduct(n, true)}
-                  >{$t('notif.prodConfirm')}</button>
-                  <button
-                    class="btn btn-secondary"
-                    style="height:26px;font-size:11px;padding:0 10px;"
-                    disabled={deciding !== null}
-                    onclick={() => decideProduct(n, false)}
-                  >{$t('notif.prodReject')}</button>
-                </div>
-              {/if}
-              {#if n.createdAt}
-                <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">
-                  {new Date(n.createdAt).toLocaleDateString()}
-                </div>
-              {/if}
+            <div style="flex:1;min-width:0;font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
+              {msg?.messageKey ? $tiv(msg.messageKey, msg.messageVars ?? {}) : n.message}
             </div>
             <button
               style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;margin-top:-1px;"
@@ -263,6 +116,15 @@
           </div>
         {/each}
       {/if}
+
+      <a
+        href="/reminders"
+        onclick={close}
+        style="
+          padding:10px 14px;text-align:center;font-size:12px;font-weight:600;
+          color:var(--mep-acc);text-decoration:none;border-top:1px solid var(--mep-divider);
+        "
+      >{$t('action.allAlerts')}</a>
     </div>
   {/if}
 </div>
