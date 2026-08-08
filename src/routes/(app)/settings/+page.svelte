@@ -73,7 +73,9 @@
 
   let activeSection = $state('cuenta');
 
+  // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded data
   let threshold = $state(data.threshold);
+  // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded data
   let priceThreshold = $state(data.priceThreshold);
 </script>
 
