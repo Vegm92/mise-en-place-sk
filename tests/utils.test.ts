@@ -82,7 +82,7 @@ describe('initRows', () => {
 		]);
 		expect(rows).toHaveLength(1);
 		expect(rows[0].quantity).toBe('5');
-		expect(rows[0].unit_price).toBe('3.5');
+		expect(rows[0].unit_price).toBe('3.50');
 	});
 	it('returns a single empty row for empty input', () => {
 		const rows = initRows([]);
