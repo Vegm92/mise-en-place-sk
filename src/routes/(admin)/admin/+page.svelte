@@ -89,6 +89,9 @@
   </section>
 
   <section style="display:flex;gap:10px;flex-wrap:wrap;">
+    <a href="/admin/revenue" style="padding:8px 16px;background:#111;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
+      {$t('admin.revenue')}
+    </a>
     <a href="/admin/events" style="padding:8px 16px;background:#dc2626;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:500;">
       {$t('admin.viewEvents')}
     </a>

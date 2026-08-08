@@ -12,6 +12,7 @@ import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, tr
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, type PlanTier } from './billing';
 import { getStorage } from './storage';
+import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 
 const LOW_STOCK_DAYS = 3;
 
@@ -638,6 +639,7 @@ const JOBS: ScheduledJob[] = [
 	{ queue: REMINDERS_QUEUE, cron: REMINDERS_CRON, run: runOverdueRemindersJob },
 	{ queue: TRIAL_QUEUE, cron: TRIAL_CRON, run: runTrialNoticesJob },
 	{ queue: PURGE_QUEUE, cron: PURGE_CRON, run: runFilePurgeJob },
+	{ queue: MRR_SNAPSHOT_QUEUE, cron: MRR_SNAPSHOT_CRON, run: runMrrSnapshotJob },
 ];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {

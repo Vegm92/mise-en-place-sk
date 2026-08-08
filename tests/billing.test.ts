@@ -37,10 +37,28 @@ import {
 	tierFromPriceId,
 	isAccessAllowed,
 	isTierAvailable,
+	planMonthlyPriceCents,
 	resolveMonthlyQuota,
 	UNLIMITED_QUOTA_SETTING,
 	type PlanTier,
 } from '../src/lib/server/billing';
+import { PROVISIONAL_PRICE } from '../src/lib/billing-plans';
+
+// The revenue console prices MRR off this function, so a drift between the
+// published price table and what admin reports would misstate every downstream
+// metric (ARPA, ACV, LTV). No PLAN_PRICE_* override is mocked above, so these
+// assert the published fallback.
+describe('planMonthlyPriceCents', () => {
+	it('prices each paid tier from the published table, in cents', () => {
+		expect(planMonthlyPriceCents('starter')).toBe(PROVISIONAL_PRICE.starter * 100);
+		expect(planMonthlyPriceCents('pro')).toBe(PROVISIONAL_PRICE.pro * 100);
+		expect(planMonthlyPriceCents('business')).toBe(PROVISIONAL_PRICE.business * 100);
+	});
+
+	it('prices a trial at zero so trials never inflate MRR', () => {
+		expect(planMonthlyPriceCents('trial')).toBe(0);
+	});
+});
 
 describe('tierFromPriceId', () => {
 	it('maps each configured price id to its tier', () => {

@@ -107,3 +107,4 @@ Facturae unit-of-measure codes; VERI*FACTU QR payloads are parsed by
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — environment variables and deployment runbook
 - [`PRODUCTION_SIGNOFF.md`](PRODUCTION_SIGNOFF.md) — the staging checks that gate a production release
 - [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) — pre-launch gap analysis; each item is tracked as a GitHub issue
+- [`docs/REVENUE_METRICS.md`](docs/REVENUE_METRICS.md) — the SaaS metrics behind `/admin/revenue` (MRR, CAC, LTV, NRR, cohorts, revenue leakage): formulas, data sources and caveats
