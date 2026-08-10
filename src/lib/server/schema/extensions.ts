@@ -307,3 +307,27 @@ export const revenueAssumptions = pgTable('revenue_assumptions', {
 	updatedBy: text('updated_by'),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
+
+export const deadLetterQueue = pgTable('dead_letter_queue', {
+	id:           serial('id').primaryKey(),
+	queue:        text('queue').notNull(),
+	restaurantId: uuid('restaurant_id').references(() => restaurants.id, { onDelete: 'cascade' }),
+	sourceId:     text('source_id'),
+	jobId:        text('job_id'),
+	errorClass:   text('error_class').notNull(),
+	errorMessage: text('error_message').notNull(),
+	stack:        text('stack'),
+	payload:      jsonb('payload'),
+	attempt:      integer('attempt').notNull().default(1),
+	occurrences:  integer('occurrences').notNull().default(1),
+	status:       text('status').notNull().default('pending'),
+	firstSeenAt:  timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+	lastSeenAt:   timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+	reviewedAt:   timestamp('reviewed_at', { withTimezone: true }),
+	reviewedBy:   text('reviewed_by'),
+}, (t) => [
+	index('dead_letter_queue_status_idx').on(t.status, t.lastSeenAt),
+	index('dead_letter_queue_queue_idx').on(t.queue, t.lastSeenAt),
+	index('dead_letter_queue_restaurant_idx').on(t.restaurantId),
+	index('dead_letter_queue_dedupe_idx').on(t.queue, t.sourceId, t.errorClass, t.status),
+]);
