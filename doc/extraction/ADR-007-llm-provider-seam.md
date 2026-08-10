@@ -96,7 +96,8 @@ for the month, which is the correct direction to fail.
 - The digest (`weekly-digest.ts`) and chat (`api/chat`) still construct
   `GoogleGenAI` directly and are **not** behind the seam, so their tokens are not
   in `llm_usage_log`. Extraction is the dominant cost and was addressed first;
-  bringing the other two behind `createLLMProvider` is a known follow-up, not an
+  bringing the other two behind `createLLMProvider` is tracked in
+  [#426](https://github.com/Vegm92/mise-en-place-sk/issues/426), not an
   oversight of this decision.
 - Adding a provider means: one `create<X>Provider` function, one `switch` case,
   and its rates in `COST_PER_MILLION`. It does *not* mean touching extraction

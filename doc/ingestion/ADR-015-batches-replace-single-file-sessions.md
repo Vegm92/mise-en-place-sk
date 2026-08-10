@@ -90,8 +90,9 @@ malformed, so a probe with a non-UUID id never reaches the database.
 - **`upload_sessions` is vestigial but not dropped.** Nothing writes to it. Two
   readers remain — `/api/health`'s queue-depth probe and the admin dashboard's
   "in flight" tile — and both now count a table that is permanently empty, so they report
-  zero regardless of real queue depth. Repointing them at `batch_items` is a
-  known follow-up; until then, do not read those two numbers as live.
+  zero regardless of real queue depth. Repointing them at `batch_items` is
+  tracked in [#425](https://github.com/Vegm92/mise-en-place-sk/issues/425);
+  until then, do not read those two numbers as live.
 - **Batches expire after 24 hours.** `cleanupStaleBatches` deletes
   `upload_batches` older than a day, cascading to items, and is fired from
   `hooks.server.ts` at boot. An abandoned half-reviewed stack does not
@@ -100,10 +101,12 @@ malformed, so a probe with a non-UUID id never reaches the database.
   not removed by this sweep — only invoice file retention
   ([ADR-011](../insights/ADR-011-scheduled-jobs-in-the-worker.md)'s purge job)
   deletes bytes, and it works from soft-deleted *invoices*. Orphaned upload files
-  from abandoned batches are a known gap.
+  from abandoned batches are a known gap —
+  [#427](https://github.com/Vegm92/mise-en-place-sk/issues/427).
 - **The extraction job payload still accepts `sessionId`** as a fallback for
   `itemId` in `processExtractionJob`. That is migration compatibility for jobs
-  enqueued under the old shape and can be removed once no such jobs can exist.
+  enqueued under the old shape and can be removed once no such jobs can exist
+  (alongside [#425](https://github.com/Vegm92/mise-en-place-sk/issues/425)).
 - **A new ingestion channel now has a shape to target**: create a batch, add
   items, enqueue. That is exactly what ADR-004 had WhatsApp do.
 

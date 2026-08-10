@@ -103,7 +103,8 @@ at Meta's per-message price.
 - **The five WhatsApp tables have distinct lifetimes**: `whatsapp_contacts` is the
   durable binding, `whatsapp_pairing_codes` is short-lived, and
   `whatsapp_processed_messages` grows unbounded — there is no sweep for it, unlike
-  `processed_requests`. Worth a retention job before it matters.
+  `processed_requests`. A retention job is tracked in
+  [#428](https://github.com/Vegm92/mise-en-place-sk/issues/428).
 - `whatsapp_bot_sessions` is gone (migration `0026`), per ADR-004's completed
   cutover. Nothing here reintroduces a channel-specific state machine.
 

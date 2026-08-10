@@ -1,6 +1,6 @@
 # ADR-012 — Analytics Reads Pre-Aggregated Materialized Views
 
-**Status:** Active — **refresh mechanism unresolved**, see *Open problem*
+**Status:** Active — **refresh mechanism unresolved**, see *Open problem* ([#424](https://github.com/Vegm92/mise-en-place-sk/issues/424))
 **Feature:** Analytics
 **Date:** 2026-08-09
 **Issue:** [#127](https://github.com/Vegm92/mise-en-place-sk/issues/127)
@@ -59,7 +59,7 @@ twin of the application's `normalizeProductKey`
 Rollups and application logic group items the same way, or they would disagree
 about what a product is.
 
-## Open problem — nothing refreshes the views
+## Open problem — nothing refreshes the views ([#424](https://github.com/Vegm92/mise-en-place-sk/issues/424))
 
 `refresh_analytics_rollups()` exists and does the right thing (all five,
 `CONCURRENTLY`, `SECURITY DEFINER`). **Nothing calls it.**
