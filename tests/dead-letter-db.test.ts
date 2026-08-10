@@ -194,7 +194,10 @@ describe.skipIf(!hasDbEnv)('purgeDeadLetters', () => {
 		await ageTo(recent!, DEAD_LETTER_RESOLVED_RETENTION_DAYS - 1);
 		await ageTo(pending!, DEAD_LETTER_RESOLVED_RETENTION_DAYS - 1);
 
-		expect(await purgeDeadLetters()).toEqual({ purged: 1 });
+		// purgeDeadLetters() sweeps the whole table, so assert on the rows this
+		// test owns rather than the total — a stale row left by another suite (or
+		// by a developer's own database) must not decide whether this passes.
+		await purgeDeadLetters();
 		expect(await getDeadLetter(stale!)).toBeNull();
 		expect(await getDeadLetter(recent!)).not.toBeNull();
 		expect(await getDeadLetter(pending!)).not.toBeNull();
@@ -204,7 +207,7 @@ describe.skipIf(!hasDbEnv)('purgeDeadLetters', () => {
 		const forgotten = await recordDeadLetter({ queue: QUEUE, error: new Error('boom'), sourceId: 'forgotten' });
 		await ageTo(forgotten!, DEAD_LETTER_PENDING_RETENTION_DAYS + 1);
 
-		expect((await purgeDeadLetters()).purged).toBe(1);
+		expect((await purgeDeadLetters()).purged).toBeGreaterThanOrEqual(1);
 		expect(await getDeadLetter(forgotten!)).toBeNull();
 	});
 });

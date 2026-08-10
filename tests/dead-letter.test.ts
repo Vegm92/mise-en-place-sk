@@ -153,6 +153,21 @@ describe('classifyDeadLetterError', () => {
 		expect(classifyDeadLetterError(new Error('ENOENT: no such file or directory'))).toBe('corrupt.missingFile');
 	});
 
+	// These all used to be mislabelled as corruption: a bare /invalid/ pattern
+	// swallowed auth failures, and a bare /ubl/ matched inside publish, double
+	// and trouble. A credentials outage filed under corrupt.* sends whoever
+	// reads the audit queue hunting a bad invoice instead of a bad key.
+	it.each([
+		['API key not valid. Please pass a valid API key. INVALID_ARGUMENT', 'error.http400'],
+		['invalid signature', 'error.Error'],
+		['could not publish the digest', 'error.Error'],
+		['double booking detected', 'error.Error'],
+		['trouble reaching upstream', 'error.Error'],
+	])('does not call %j a corrupt record', (message, expected) => {
+		const err = message.includes('API key') ? Object.assign(new Error(message), { status: 400 }) : new Error(message);
+		expect(classifyDeadLetterError(err)).toBe(expected);
+	});
+
 	it('falls back to the error code, then the HTTP status, then the name', () => {
 		expect(classifyDeadLetterError(Object.assign(new Error('nope'), { code: 'GEMINI_TIMEOUT' })))
 			.toBe('error.GEMINI_TIMEOUT');

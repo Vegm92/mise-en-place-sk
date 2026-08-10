@@ -25,10 +25,9 @@ const EMAIL_RE = /[^\s@"']+@[^\s@"']+\.[^\s@"']+/g;
 
 const CORRUPTION_PATTERNS: Array<[RegExp, string]> = [
 	[/invalid json|is not valid json|unexpected token|json at position/i, 'corrupt.invalidJson'],
-	[/unrecognised xml|unrecognized xml|facturae|ubl/i, 'corrupt.unknownEinvoiceFormat'],
+	[/unrecognised xml|unrecognized xml|\bfacturae\b|\bubl\b/i, 'corrupt.unknownEinvoiceFormat'],
 	[/malformed|corrupt|unsupported (file|mime|format)/i, 'corrupt.malformedFile'],
 	[/no such file|enoent/i, 'corrupt.missingFile'],
-	[/invalid|out of range|cannot be parsed/i, 'corrupt.invalidField'],
 ];
 
 export function redactString(value: string, max = MAX_STRING_CHARS): string {
