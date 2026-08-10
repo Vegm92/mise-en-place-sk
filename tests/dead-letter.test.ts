@@ -17,12 +17,21 @@ const { state } = vi.hoisted(() => ({
 		updated: [] as Record<string, unknown>[],
 		// rows the UPDATE (dedupe) leg resolves with, in call order; [] = no match
 		updateReturns: [] as Array<Array<{ id: number }>>,
+		// rows the SELECT (already-recorded job lookup) resolves with, in call order
+		selectReturns: [] as Array<Array<{ id: number }>>,
 		failInsert: false,
 	},
 }));
 
 vi.mock('$lib/server/db', () => {
 	const db = {
+		select: () => ({
+			from: () => ({
+				where: () => ({
+					limit: async () => state.selectReturns.shift() ?? [],
+				}),
+			}),
+		}),
 		insert: () => ({
 			values: (values: Record<string, unknown>) => ({
 				returning: async () => {
@@ -57,10 +66,13 @@ import {
 	serializePayload,
 } from '../src/lib/server/dead-letter';
 
+const RID = '8fac72f0-31a9-4321-a2a2-5ea84f59e563';
+
 beforeEach(() => {
 	state.inserted = [];
 	state.updated = [];
 	state.updateReturns = [];
+	state.selectReturns = [];
 	state.failInsert = false;
 });
 
@@ -249,21 +261,26 @@ describe('runWithDeadLetter', () => {
 		expect(state.inserted).toHaveLength(0);
 	});
 
-	it('parks the job and swallows the error once retries are exhausted', async () => {
-		const result = await runWithDeadLetter(
-			{ queue: 'extract-invoice', jobId: 'job-1', sourceId: 'item-9', restaurantId: 'rest-1', retriesLeft: 0 },
-			async () => {
-				throw new Error('LLM returned invalid JSON (10 chars)');
-			},
-		);
+	// The error is rethrown after being parked so pg-boss settles the job as
+	// failed rather than completed — the audit row must not paper over the
+	// job's real state. The pipeline is unblocked by pg-boss moving on, not by
+	// us hiding the throw.
+	it('parks the job and rethrows once retries are exhausted', async () => {
+		await expect(
+			runWithDeadLetter(
+				{ queue: 'extract-invoice', jobId: 'job-1', sourceId: 'item-9', restaurantId: RID, retriesLeft: 0 },
+				async () => {
+					throw new Error('LLM returned invalid JSON (10 chars)');
+				},
+			),
+		).rejects.toThrow('LLM returned invalid JSON');
 
-		expect(result).toBeUndefined();
 		expect(state.inserted).toHaveLength(1);
 		expect(state.inserted[0]).toMatchObject({
 			queue: 'extract-invoice',
 			jobId: 'job-1',
 			sourceId: 'item-9',
-			restaurantId: 'rest-1',
+			restaurantId: RID,
 			errorClass: 'corrupt.invalidJson',
 		});
 	});
@@ -290,9 +307,66 @@ describe('recordDeadLetter', () => {
 		expect(state.inserted).toHaveLength(1);
 	});
 
+	// A dead letter's input is malformed job data by definition. A blank or
+	// non-uuid restaurantId used to be handed straight to a uuid column, and
+	// Postgres rejected the whole insert — losing the audit row for exactly the
+	// corrupt payload it was meant to capture. The raw value survives in payload.
+	it.each<[string | null, string]>([['', 'blank'], ['not-a-uuid', 'malformed'], [null, 'absent']])(
+		'still records when restaurantId is %j (%s)',
+		async (restaurantId) => {
+			const id = await recordDeadLetter({
+				queue: 'extract-invoice',
+				error: new Error('boom'),
+				restaurantId: restaurantId as string | null,
+				payload: { restaurantId },
+			});
+			expect(id).toBe(1);
+			expect(state.inserted[0].restaurantId).toBeNull();
+			expect(state.inserted[0].payload).toEqual({ restaurantId: restaurantId ?? null });
+		},
+	);
+
+	it('keeps a well-formed restaurantId on the row', async () => {
+		await recordDeadLetter({
+			queue: 'extract-invoice',
+			error: new Error('boom'),
+			restaurantId: '8fac72f0-31a9-4321-a2a2-5ea84f59e563',
+		});
+		expect(state.inserted[0].restaurantId).toBe('8fac72f0-31a9-4321-a2a2-5ea84f59e563');
+	});
+
 	it('never throws when the database is down — the pipeline must keep moving', async () => {
 		state.failInsert = true;
 		await expect(recordDeadLetter({ queue: 'extract-invoice', error: new Error('boom') }))
 			.resolves.toBeNull();
+	});
+
+	// The handler records first and then rethrows, so pg-boss fails the job and
+	// copies it into its own dead-letter queue. Without this guard the drain
+	// would file a second, vaguer row for a failure already recorded precisely.
+	it('lets the drain skip a job the handler already recorded', async () => {
+		state.selectReturns = [[{ id: 51 }]];
+		const id = await recordDeadLetter({
+			queue: 'extract-invoice',
+			jobId: 'job-1',
+			errorClass: 'worker.abandoned',
+			error: new Error('abandoned'),
+			skipIfJobRecorded: true,
+		});
+		expect(id).toBe(51);
+		expect(state.inserted).toHaveLength(0);
+	});
+
+	it('still records an abandoned job the handler never reached', async () => {
+		state.selectReturns = [[]];
+		const id = await recordDeadLetter({
+			queue: 'extract-invoice',
+			jobId: 'job-2',
+			errorClass: 'worker.abandoned',
+			error: new Error('abandoned'),
+			skipIfJobRecorded: true,
+		});
+		expect(id).toBe(1);
+		expect(state.inserted[0]).toMatchObject({ jobId: 'job-2', errorClass: 'worker.abandoned' });
 	});
 });

@@ -110,6 +110,18 @@ export function classifyDeadLetterError(err: unknown): string {
 	return 'error.unknown';
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A dead letter's whole input domain is malformed job data, so a restaurantId
+ * that is blank or not a uuid must not cost us the audit row — Postgres would
+ * reject the insert outright and the record would be lost exactly when it
+ * matters most. The raw value still reaches the audit trail inside `payload`.
+ */
+export function tenantColumnValue(restaurantId: string | null | undefined): string | null {
+	return typeof restaurantId === 'string' && UUID_RE.test(restaurantId) ? restaurantId : null;
+}
+
 export interface DeadLetterInput {
 	queue: string;
 	error: unknown;
@@ -119,6 +131,7 @@ export interface DeadLetterInput {
 	jobId?: string | null;
 	attempt?: number;
 	payload?: unknown;
+	skipIfJobRecorded?: boolean;
 }
 
 export async function recordDeadLetter(input: DeadLetterInput): Promise<number | null> {
@@ -126,8 +139,20 @@ export async function recordDeadLetter(input: DeadLetterInput): Promise<number |
 	const { message, stack } = describeError(input.error);
 	try {
 		const payload = serializePayload(input.payload);
-		const attempt = input.attempt ?? 1;
-		const sourceId = input.sourceId ?? null;
+		const attempt = Number.isInteger(input.attempt) ? (input.attempt as number) : 1;
+		const sourceId = typeof input.sourceId === 'string' ? input.sourceId : null;
+
+		if (input.skipIfJobRecorded && input.jobId) {
+			// tenant-scope-ok: keyed by pg-boss's globally-unique job id, which
+			// already identifies one tenant's job; this is the worker drain asking
+			// whether the handler got there first.
+			const [already] = await db
+				.select({ id: deadLetterQueue.id })
+				.from(deadLetterQueue)
+				.where(eq(deadLetterQueue.jobId, input.jobId))
+				.limit(1);
+			if (already) return already.id;
+		}
 
 		if (sourceId) {
 			const bumped = await db
@@ -154,7 +179,7 @@ export async function recordDeadLetter(input: DeadLetterInput): Promise<number |
 			.insert(deadLetterQueue)
 			.values({
 				queue: input.queue,
-				restaurantId: input.restaurantId ?? null,
+				restaurantId: tenantColumnValue(input.restaurantId),
 				sourceId,
 				jobId: input.jobId ?? null,
 				errorClass,
@@ -215,14 +240,14 @@ export function deadLetterRefFromJob(
 export async function runWithDeadLetter<T>(
 	ref: DeadLetterJobRef,
 	run: () => Promise<T>,
-): Promise<T | undefined> {
+): Promise<T> {
 	try {
 		return await run();
 	} catch (err) {
 		if ((ref.retriesLeft ?? 0) > 0) throw err;
 		console.error(`[dlq] "${ref.queue}" job ${ref.jobId ?? '-'} dead-lettered after ${ref.attempt ?? 1} attempt(s):`, err);
 		await recordDeadLetter({ ...ref, error: err });
-		return undefined;
+		throw err;
 	}
 }
 

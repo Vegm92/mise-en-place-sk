@@ -671,6 +671,7 @@ export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
 				console.error(`[scheduler] ${job.queue} failed after ${Date.now() - started}ms — dead-lettered:`, err);
 				Sentry.captureException(err, { tags: { job: job.queue } });
 				await recordDeadLetter({ queue: job.queue, error: err, sourceId: job.queue });
+				throw err;
 			}
 		});
 	}

@@ -97,6 +97,7 @@ for (const { source, deadLetter } of DEAD_LETTER_QUEUES) {
 					}),
 					errorClass: 'worker.abandoned',
 					error: new Error(`pg-boss dead-lettered a "${source}" job without a handler result (expired or abandoned)`),
+					skipIfJobRecorded: true,
 				});
 			}
 		},
