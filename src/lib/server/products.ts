@@ -8,6 +8,8 @@ import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { GEMINI_API_KEY } from './env';
 import { createLLMProvider, type LLMProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
+import { recordDeadLetter } from './dead-letter';
+import { NORMALIZE_QUEUE } from './queue';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -629,6 +631,7 @@ export function parseNormalizeResponse(text: string, validIds: Set<number>): Nor
 export interface NormalizeDeps {
 	provider?: LLMProvider;
 	recordUsage?: typeof recordLlmUsage;
+	recordFailure?: typeof recordDeadLetter;
 }
 
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
@@ -687,5 +690,12 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 		});
 	} catch (err) {
 		console.error('[normalize] product normalization job failed (non-fatal):', err);
+		await (deps.recordFailure ?? recordDeadLetter)({
+			queue: NORMALIZE_QUEUE,
+			error: err,
+			restaurantId,
+			sourceId: `${restaurantId}:${productId}`,
+			payload: { restaurantId, productId, rawText },
+		});
 	}
 }

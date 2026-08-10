@@ -30,6 +30,7 @@
     { href: '/admin',         label: $t('admin.overview') },
     { href: '/admin/revenue', label: $t('admin.revenue') },
     { href: '/admin/events',  label: $t('admin.events') },
+    { href: '/admin/dead-letters', label: $t('admin.dlq.nav') },
     { href: '/admin/health',  label: $t('admin.health') },
   ]);
   const isActive = (href: string) => p === href || (href !== '/admin' && p.startsWith(href));

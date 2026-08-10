@@ -10,6 +10,8 @@ import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.
 import { annotateLineItems } from './products.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 import { getAccessState } from './billing.js';
+import { recordDeadLetter } from './dead-letter.js';
+import { EXTRACTION_QUEUE } from './queue.js';
 
 export interface ExtractionJobData {
 	itemId?: string;
@@ -41,13 +43,28 @@ export async function processExtractionJob(
 	const itemId = jobData.itemId ?? jobData.sessionId;
 	const { restaurantId } = jobData;
 	if (!itemId) {
-		console.warn('[worker] Job without itemId — skipping');
+		console.warn('[worker] Job without itemId — routing to the dead-letter queue');
+		await recordDeadLetter({
+			queue: EXTRACTION_QUEUE,
+			errorClass: 'corrupt.missingItemId',
+			error: new Error('Extraction job carries neither itemId nor sessionId'),
+			restaurantId: restaurantId || null,
+			payload: jobData,
+		});
 		return;
 	}
 
 	const item = await getItem(itemId);
 	if (!item) {
-		console.warn(`[worker] Batch item ${itemId} not found — skipping`);
+		console.warn(`[worker] Batch item ${itemId} not found — routing to the dead-letter queue`);
+		await recordDeadLetter({
+			queue: EXTRACTION_QUEUE,
+			errorClass: 'corrupt.itemNotFound',
+			error: new Error(`Batch item ${itemId} referenced by the job no longer exists`),
+			restaurantId: restaurantId || null,
+			sourceId: itemId,
+			payload: jobData,
+		});
 		return;
 	}
 
@@ -152,6 +169,14 @@ export async function processExtractionJob(
 			Sentry.captureException(new Error(`extraction_failed:${extractError}`), {
 				level: 'error',
 				tags: { itemId, errorClass: extractError, restaurantId },
+			});
+			await recordDeadLetter({
+				queue: EXTRACTION_QUEUE,
+				errorClass: extractError,
+				error: err,
+				restaurantId,
+				sourceId: itemId,
+				payload: { ...jobData, fileKey: item.fileKey, displayName: item.displayName },
 			});
 		}
 		await markFailed(itemId, extractError);

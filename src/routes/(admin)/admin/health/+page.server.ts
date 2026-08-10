@@ -10,9 +10,11 @@ import {
 	recentAccountEvents,
 	type NumberHealth,
 } from '$lib/server/whatsapp-health';
+import { pendingDeadLetterCount } from '$lib/server/dead-letter';
 
 const STUCK_MINUTES = 15;
 const STUCK_ERROR_THRESHOLD = 10;
+const DEAD_LETTER_ERROR_THRESHOLD = 25;
 
 export const load: PageServerLoad = async () => {
 	const checks: { name: string; status: 'ok' | 'warn' | 'error'; detail: string }[] = [];
@@ -70,6 +72,19 @@ export const load: PageServerLoad = async () => {
 			});
 		} catch (e) {
 			checks.push({ name: 'Extraction queue', status: 'warn', detail: `Check failed: ${String(e)}` });
+		}
+
+		try {
+			const pending = await pendingDeadLetterCount();
+			checks.push({
+				name: 'Dead letter queue',
+				status: pending > DEAD_LETTER_ERROR_THRESHOLD ? 'error' : pending > 0 ? 'warn' : 'ok',
+				detail: pending > 0
+					? `${pending} record(s) parked for audit — see /admin/dead-letters`
+					: 'No parked records',
+			});
+		} catch (e) {
+			checks.push({ name: 'Dead letter queue', status: 'warn', detail: `Check failed: ${String(e)}` });
 		}
 	}
 
