@@ -1,7 +1,24 @@
 import { PgBoss } from 'pg-boss';
+import { pgSslConfig } from './db-ssl';
 
 export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
+
+export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
+export const NORMALIZE_DEAD_LETTER_QUEUE = `${NORMALIZE_QUEUE}-dead-letter`;
+
+export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> = [
+	{ source: EXTRACTION_QUEUE, deadLetter: EXTRACTION_DEAD_LETTER_QUEUE },
+	{ source: NORMALIZE_QUEUE, deadLetter: NORMALIZE_DEAD_LETTER_QUEUE },
+];
+
+export async function createQueuesWithDeadLetters(b: PgBoss): Promise<void> {
+	for (const { source, deadLetter } of DEAD_LETTER_QUEUES) {
+		await b.createQueue(deadLetter);
+		await b.createQueue(source, { deadLetter });
+		await b.updateQueue(source, { deadLetter });
+	}
+}
 
 let boss: PgBoss | null = null;
 let startPromise: Promise<PgBoss> | null = null;
@@ -14,12 +31,11 @@ async function getBoss(): Promise<PgBoss> {
 			if (!connectionString) throw new Error('DATABASE_URL is required');
 			const b = new PgBoss({
 				connectionString,
-				ssl: { rejectUnauthorized: false },
+				ssl: pgSslConfig(),
 				max: 2,
 			});
 			await b.start();
-			await b.createQueue(EXTRACTION_QUEUE);
-			await b.createQueue(NORMALIZE_QUEUE);
+			await createQueuesWithDeadLetters(b);
 			boss = b;
 			return b;
 		})();
@@ -37,6 +53,7 @@ export async function enqueueExtraction(
 		retryDelay: 30,
 		expireInSeconds: 600,
 		singletonKey: itemId,
+		deadLetter: EXTRACTION_DEAD_LETTER_QUEUE,
 	});
 	return jobId !== null;
 }
@@ -53,6 +70,7 @@ export async function enqueueNormalize(
 		retryDelay: 60,
 		expireInSeconds: 900,
 		singletonKey: `${restaurantId}:${productId}`,
+		deadLetter: NORMALIZE_DEAD_LETTER_QUEUE,
 	});
 	return jobId !== null;
 }
