@@ -117,6 +117,12 @@ decision, not the topic — `ADR-008-single-invoice-write-path`, not
 - `Superseded by ADR-NNN` — replaced; kept for the history
 - `Proposed` — written, not yet decided
 
+**This directory is the only ADR home.** ADR-001 to ADR-005 were originally
+sections of a single `docs/ARCHITECTURE_DECISIONS.md`; they were split into the
+files above on 2026-08-10 and that file was deleted. Nothing under `docs/` holds
+decisions any more — `docs/` is for `CODE_NOTES.md`, which documents how the code
+works rather than why it is shaped that way.
+
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original
 readable. ADR-001 and ADR-003 are worked examples: their Supabase-era reasoning

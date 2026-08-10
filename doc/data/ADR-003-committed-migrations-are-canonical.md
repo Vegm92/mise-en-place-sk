@@ -14,11 +14,14 @@
 > project. The RLS-specific warning about `db:push` no longer applies; the
 > general warning about raw-SQL migration content still does.
 
-> **Amendment (2026-08-09, ADR location).** The last Consequence below records
-> that `docs/ARCHITECTURE_DECISIONS.md` became tracked in git. That remains the
-> substance — ADRs are a committed engineering record — but the file itself has
-> since been split into [`doc/`](../README.md), one ADR per file. The gitignore
-> fix described below is what made that possible; the path is now stale.
+> **Amendment (2026-08-10, ADR location).** References below to
+> `docs/ARCHITECTURE_DECISIONS.md` are historical. That file no longer exists: its
+> five ADRs were split into [`doc/`](../README.md), one per file in a per-feature
+> folder, and the emptied file was deleted along with its `.gitignore` exception.
+> The substance of the last Consequence is unchanged and now applies to `doc/` —
+> ADRs are a committed engineering record, not a local-only artefact. That
+> gitignore fix is what made the split possible; `doc/` sits outside the
+> `/docs/*` rule and needs no exception.
 
 ## Context
 
@@ -77,5 +80,7 @@ before exiting, so a failed CI run doesn't leave stray artifacts behind.
   to dev-only in `CONTEXT.md` and this ADR — it is not a deploy mechanism.
 - `drizzle/meta/0000_snapshot.json`–`0021_snapshot.json` remain absent; no backfill is needed
   since drizzle-kit's diffing only depends on the latest snapshot in the chain.
-- `docs/ARCHITECTURE_DECISIONS.md` is now tracked in git (previously gitignored by accident).
+- ~~`docs/ARCHITECTURE_DECISIONS.md` is now tracked in git (previously gitignored by accident).~~
+  Superseded 2026-08-10: the ADRs are tracked in [`doc/`](../README.md) instead, and that file
+  has been deleted. The point stands — ADRs are committed, not local-only.
 
