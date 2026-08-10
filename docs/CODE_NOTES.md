@@ -2756,7 +2756,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **_module level_**
 
-- Tenant-scoped query helper — see ARCHITECTURE_DECISIONS.md ADR-001.
+- Tenant-scoped query helper — see doc/tenancy/ADR-001-app-level-tenant-scoping.md.
 
     ↳ `export { forTenant } from './tenant';`
 
@@ -4101,7 +4101,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **`function forTenant`**
 
-- Tenant-scoped query context — no DB connection dependency. See ARCHITECTURE_DECISIONS.md ADR-001.
+- Tenant-scoped query context — no DB connection dependency. See doc/tenancy/ADR-001-app-level-tenant-scoping.md.
 
     ↳ `import { eq, and, type SQL } from 'drizzle-orm';`
 - Returns a tenant-scoped query context. Use in all route handlers instead of building raw `eq(table.restaurantId, rid)` inline.
