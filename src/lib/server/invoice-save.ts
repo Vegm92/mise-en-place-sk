@@ -14,6 +14,7 @@ import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants'
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch-core';
+import { parseQrUrl, detectVerifactuMismatch } from './qr';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
@@ -253,6 +254,20 @@ export async function saveReviewedInvoice(
 	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 	const primaryFile = item?.fileKey ?? null;
 
+	// VERI*FACTU QR tamper check (issue #392): the QR is decoded straight off the
+	// document by extraction and never re-derived from the reviewed/submitted
+	// fields, so it stays an independent signal even if those fields were hand-edited
+	// during review. Every invoice with a decodable AEAT QR gets this check — not just
+	// some code paths — because it runs unconditionally here in the one function that
+	// commits a reviewed invoice, before the insert below.
+	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
+	const qrResult = rawQrUrl ? parseQrUrl(rawQrUrl) : null;
+	const qrMismatches = detectVerifactuMismatch(qrResult, {
+		invoice_number: invoiceNumber || null,
+		invoice_date: invoiceDate,
+		total_amount: totalAmount,
+	});
+
 	type LineInput = {
 		desc: string;
 		qtyFloat: number | null;
@@ -327,6 +342,8 @@ export async function saveReviewedInvoice(
 				confidence: confidenceRaw,
 				contentHash,
 				notes,
+				qrUrl: qrResult?.url ?? null,
+				qrMismatch: qrMismatches.length > 0 ? 1 : 0,
 			})
 			.onConflictDoNothing()
 			.returning({ id: invoices.id });
@@ -412,9 +429,18 @@ export async function saveReviewedInvoice(
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
+		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
+			notificationType: 'verifactu_qr_mismatch',
+			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
+			payload: {
+				invoiceNumber, mismatches: qrMismatches,
+				messageKey: 'notif.msg.verifactuMismatch',
+				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
+			},
+		}] : [];
 		await saveAlerts(invoiceId!, rid, [
 			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions,
+			...categoryAlerts, ...categorySuggestions, ...verifactuAlerts,
 		]);
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
