@@ -8,7 +8,7 @@ export function normalizeProductKey(raw: string): string {
 }
 
 const SPANISH_LEGAL_FORM_RE =
-	/[,.]?\s*(s\.?\s*l\.?\s*u\.?|s\.?\s*l\.?\s*n\.?\s*e\.?|s\.?\s*a\.?\s*u\.?|s\.?\s*c\.?\s*p\.?|s\.?\s*coop\.?|coop\.?|s\.?\s*l\.?|s\.?\s*a\.?|s\.?\s*c\.?|c\.?\s*b\.?)\s*$/i;
+	/(?:^|[,.]\s*|\s+)(s\.?\s*l\.?\s*u\.?|s\.?\s*l\.?\s*n\.?\s*e\.?|s\.?\s*a\.?\s*u\.?|s\.?\s*c\.?\s*p\.?|s\.?\s*coop\.?|coop\.?|s\.?\s*l\.?|s\.?\s*a\.?|s\.?\s*c\.?|c\.?\s*b\.?)\s*$/i;
 
 export interface ParsedSupplierName {
 	base: string;

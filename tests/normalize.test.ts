@@ -7,7 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-	normalizeProductKey, canonicalizeUnit, normalizeSupplierName, isSameSupplierName,
+	normalizeProductKey, canonicalizeUnit, normalizeSupplierName, isSameSupplierName, parseSupplierName,
 } from '../src/lib/server/normalize';
 
 describe('normalizeProductKey', () => {
@@ -131,6 +131,24 @@ describe('normalizeSupplierName', () => {
 		expect(normalizeSupplierName('Distribuciones Ruiz S.L.')).toBe('distribuciones ruiz');
 		expect(normalizeSupplierName('Distribuciones Ruiz S.A.')).toBe('distribuciones ruiz');
 	});
+
+	it('does not strip a legal-form bigram/trigram that is part of an ordinary word, not a separate suffix', () => {
+		// "Casa" and "Rosa" both end in a two-letter run ("sa") that also
+		// happens to spell a legal form (S.A.) — but with no separator
+		// (comma/whitespace/start-of-string) immediately before it, it is
+		// just the tail of an ordinary word and must be left alone.
+		expect(parseSupplierName('La Casa')).toEqual({ base: 'la casa', legalForm: null });
+		expect(parseSupplierName('Casa Rosa')).toEqual({ base: 'casa rosa', legalForm: null });
+		expect(parseSupplierName('Brasa')).toEqual({ base: 'brasa', legalForm: null });
+		expect(parseSupplierName('Prensa')).toEqual({ base: 'prensa', legalForm: null });
+		expect(parseSupplierName('Mercat Fresc')).toEqual({ base: 'mercat fresc', legalForm: null });
+		expect(parseSupplierName('Formatgeria Rosc')).toEqual({ base: 'formatgeria rosc', legalForm: null });
+	});
+
+	it('still strips the real legal form once it is properly separated from those same words', () => {
+		expect(normalizeSupplierName('La Casa, S.L.')).toBe('la casa');
+		expect(normalizeSupplierName('Casa Rosa, S.L.')).toBe('casa rosa');
+	});
 });
 
 describe('isSameSupplierName', () => {
@@ -140,6 +158,11 @@ describe('isSameSupplierName', () => {
 
 	it('matches when a legal form is added to a name that had none (the #384 case)', () => {
 		expect(isSameSupplierName('Suministros Alimentarios Goya', 'Suministros Alimentarios Goya, S.L.')).toBe(true);
+	});
+
+	it('still matches for ordinary names ending in a legal-form bigram, once a real legal form is added', () => {
+		expect(isSameSupplierName('La Casa', 'La Casa, S.L.')).toBe(true);
+		expect(isSameSupplierName('Casa Rosa', 'Casa Rosa, S.L.')).toBe(true);
 	});
 
 	it('matches through case, accent and punctuation noise', () => {
