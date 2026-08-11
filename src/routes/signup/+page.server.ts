@@ -9,6 +9,7 @@ import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema/auth';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { sendEmail, verifyEmailAddress } from '$lib/server/email';
+import { signIn } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
@@ -68,4 +69,6 @@ export const actions: Actions = {
 		await sendVerificationEmail(url, email);
 		return { success: true, email, resent: true };
 	},
+
+	signUpWithGoogle: signIn,
 };

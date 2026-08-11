@@ -27,7 +27,6 @@
       errInvalid:        'Ese email no parece válido.',
       errRateLimited:    'Demasiados intentos. Por favor, espera un momento.',
       privacy:           'Solo guardamos tu email. Sin spam. Sin compromisos.',
-      spotTaken:         43,
       spotTotal:         50,
       spotLabel:         'plazas prioritarias asignadas',
       seqSteps: [
@@ -125,7 +124,6 @@
       errInvalid:        "That doesn't look like a valid email.",
       errRateLimited:    'Too many attempts. Please wait a moment.',
       privacy:           'We only store your email. No spam. No commitment.',
-      spotTaken:         43,
       spotTotal:         50,
       spotLabel:         'priority spots claimed',
       seqSteps: [
@@ -268,7 +266,7 @@
   });
   const svgH = CH + CPT + CPB;
 
-  const spotPct = $derived((t.spotTaken / t.spotTotal) * 100);
+  const spotPct = $derived((data.spotTaken / t.spotTotal) * 100);
 </script>
 
 <svelte:head>
@@ -608,7 +606,7 @@
                 border:1px solid var(--mep-divider);">
       <div style="display:flex;align-items:baseline;gap:6px;">
         <span style="font-size:22px;font-weight:700;color:var(--mep-acc);letter-spacing:-0.6px;
-                     line-height:1;font-family:var(--mep-fs-mono);">{t.spotTaken}</span>
+                     line-height:1;font-family:var(--mep-fs-mono);">{data.spotTaken}</span>
         <span style="font-size:14px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">/ {t.spotTotal}</span>
       </div>
       <div style="flex:1;min-width:120px;">

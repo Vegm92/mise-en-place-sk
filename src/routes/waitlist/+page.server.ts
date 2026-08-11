@@ -1,12 +1,13 @@
 import { fail } from '@sveltejs/kit';
-import { insertWaitlistEmail } from '$lib/server/waitlist-db';
+import { countWaitlistEmails, insertWaitlistEmail } from '$lib/server/waitlist-db';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import type { Actions, PageServerLoad } from './$types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const load: PageServerLoad = async ({ url }) => {
-  return { canonicalUrl: `${url.origin}/waitlist` };
+  const spotTaken = await countWaitlistEmails();
+  return { canonicalUrl: `${url.origin}/waitlist`, spotTaken };
 };
 
 export const actions: Actions = {

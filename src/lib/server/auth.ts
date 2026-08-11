@@ -6,6 +6,7 @@ import { env } from '$env/dynamic/private';
 import { getDb } from './db';
 import { users, accounts, sessions, verificationTokens } from './schema/auth';
 import { verifyCredentials } from './auth-credentials';
+import { recordConsent } from './consent';
 
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
@@ -44,6 +45,15 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 		session({ session, token }) {
 			if (session.user && token.sub) session.user.id = token.sub;
 			return session;
+		},
+	},
+	events: {
+		async createUser({ user }) {
+			if (user.id) {
+				await recordConsent(user.id, 'oauth_signup').catch(e =>
+					console.error('[auth] oauth consent record failed:', e)
+				);
+			}
 		},
 	},
 	pages: {

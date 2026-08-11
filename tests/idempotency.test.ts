@@ -7,10 +7,14 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
+import { inArray } from 'drizzle-orm';
 import {
-	testDb, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
+	testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { claimRequest, releaseRequest, isValidKey } from '../src/lib/server/idempotency';
+import {
+	claimRequest, releaseRequest, isValidKey, cleanupProcessedWhatsAppMessages,
+} from '../src/lib/server/idempotency';
+import { whatsappProcessedMessages } from '../src/lib/server/schema';
 
 let rid = '';
 
@@ -52,5 +56,28 @@ describe.skipIf(!hasDbEnv)('claimRequest / releaseRequest', () => {
 		const key = randomUUID();
 		expect(await claimRequest(key, null, testDb)).toBe(true);
 		expect(await claimRequest(key, null, testDb)).toBe(false);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('cleanupProcessedWhatsAppMessages (#428)', () => {
+	const freshId = `test-vitest-wa-fresh-${randomUUID()}`;
+	const staleId = `test-vitest-wa-stale-${randomUUID()}`;
+
+	afterAll(async () => {
+		await testSql`DELETE FROM whatsapp_processed_messages WHERE message_id IN (${freshId}, ${staleId})`;
+	});
+
+	it('deletes rows past the 48h redelivery-dedup window, leaves recent ones', async () => {
+		await testDb.insert(whatsappProcessedMessages).values({ messageId: freshId }).onConflictDoNothing();
+		await testDb.insert(whatsappProcessedMessages).values({ messageId: staleId }).onConflictDoNothing();
+		await testSql`UPDATE whatsapp_processed_messages SET received_at = now() - interval '49 hours' WHERE message_id = ${staleId}`;
+
+		await cleanupProcessedWhatsAppMessages();
+
+		const remaining = await testDb
+			.select({ id: whatsappProcessedMessages.messageId })
+			.from(whatsappProcessedMessages)
+			.where(inArray(whatsappProcessedMessages.messageId, [freshId, staleId]));
+		expect(remaining.map(r => r.id)).toEqual([freshId]);
 	});
 });
