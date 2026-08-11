@@ -6,7 +6,7 @@
  * invoice text — if you change one, change both and extend these cases.
  */
 import { describe, it, expect } from 'vitest';
-import { normalizeProductKey, canonicalizeUnit } from '../src/lib/server/normalize';
+import { normalizeProductKey, canonicalizeUnit, normalizeSupplierName } from '../src/lib/server/normalize';
 
 describe('normalizeProductKey', () => {
 	it('is case-insensitive', () => {
@@ -87,5 +87,39 @@ describe('canonicalizeUnit', () => {
 		expect(canonicalizeUnit('')).toBeNull();
 		expect(canonicalizeUnit(null)).toBeNull();
 		expect(canonicalizeUnit(undefined)).toBeNull();
+	});
+});
+
+describe('normalizeSupplierName', () => {
+	it('is case-insensitive and folds accents', () => {
+		expect(normalizeSupplierName('LÁCTEOS GARCÍA')).toBe(normalizeSupplierName('lacteos garcia'));
+	});
+
+	it('strips a trailing Spanish legal form', () => {
+		expect(normalizeSupplierName('Suministros Alimentarios Goya, S.L.')).toBe('suministros alimentarios goya');
+		expect(normalizeSupplierName('Suministros Alimentarios Goya S.L.U.')).toBe('suministros alimentarios goya');
+		expect(normalizeSupplierName('Suministros Alimentarios Goya, S.A.')).toBe('suministros alimentarios goya');
+		expect(normalizeSupplierName('Distribuciones Norte Coop.')).toBe('distribuciones norte');
+		expect(normalizeSupplierName('Distribuciones Norte S. Coop.')).toBe('distribuciones norte');
+	});
+
+	it('converges a bare name and its legal-form variant on the same key', () => {
+		expect(normalizeSupplierName('Suministros Alimentarios Goya'))
+			.toBe(normalizeSupplierName('Suministros Alimentarios Goya, S.L.'));
+	});
+
+	it('collapses whitespace and punctuation noise', () => {
+		expect(normalizeSupplierName('  Suministros   Alimentarios,  Goya  S.L.  '))
+			.toBe('suministros alimentarios goya');
+	});
+
+	it('still distinguishes genuinely different businesses', () => {
+		expect(normalizeSupplierName('Lácteos García, S.L.'))
+			.not.toBe(normalizeSupplierName('García Bebidas, S.L.'));
+	});
+
+	it('returns empty string for whitespace-only or legal-form-only input', () => {
+		expect(normalizeSupplierName('   ')).toBe('');
+		expect(normalizeSupplierName('S.L.')).toBe('');
 	});
 });
