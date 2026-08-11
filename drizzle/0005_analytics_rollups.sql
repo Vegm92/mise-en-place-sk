@@ -199,12 +199,8 @@ END;
 $$;
 
 -- ── 4. Nightly schedule ───────────────────────────────────────────────────────
--- Enable pg_cron in the Supabase dashboard, then run once in the SQL editor:
---
---   SELECT cron.schedule(
---       'nightly-analytics-rollup',
---       '0 3 * * *',
---       'SELECT refresh_analytics_rollups()'
---   );
---
--- To cancel: SELECT cron.unschedule('nightly-analytics-rollup');
+-- The refresh is scheduled from application code, not the database: a pg-boss
+-- job (`ANALYTICS_REFRESH_QUEUE` in src/lib/server/alerts.ts) calls
+-- `SELECT refresh_analytics_rollups()` nightly, registered alongside the other
+-- scheduled jobs by `registerScheduledJobs()` in the worker process. See
+-- issue #424 and doc/analytics/ADR-012-materialised-view-rollups.md.

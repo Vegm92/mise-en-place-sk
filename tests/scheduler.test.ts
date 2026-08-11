@@ -12,7 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getTableName } from 'drizzle-orm';
 
-const { state, sendEmailMock, storageDeleteMock } = vi.hoisted(() => ({
+const { state, sendEmailMock, storageDeleteMock, executeMock } = vi.hoisted(() => ({
 	state: {
 		// rows returned for a select from each table, by table name. A function
 		// value is invoked per call instead of returned directly.
@@ -24,6 +24,7 @@ const { state, sendEmailMock, storageDeleteMock } = vi.hoisted(() => ({
 	},
 	sendEmailMock: vi.fn().mockResolvedValue(undefined),
 	storageDeleteMock: vi.fn().mockResolvedValue(undefined),
+	executeMock: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('$lib/server/db', () => {
@@ -55,6 +56,7 @@ vi.mock('$lib/server/db', () => {
 
 	const db = {
 		select: () => chain(() => []),
+		execute: executeMock,
 		insert: () => ({
 			values: (values: { key: string; value: string }) => ({
 				onConflictDoUpdate: () => ({
@@ -95,6 +97,7 @@ import {
 	runOverdueRemindersJob,
 	runWeeklyDigestJob,
 	runFilePurgeJob,
+	runAnalyticsRefreshJob,
 	DELETED_FILE_RETENTION_DAYS,
 } from '../src/lib/server/scheduler';
 
@@ -123,6 +126,7 @@ beforeEach(() => {
 	state.updates = [];
 	sendEmailMock.mockClear();
 	storageDeleteMock.mockClear().mockResolvedValue(undefined);
+	executeMock.mockClear().mockResolvedValue([]);
 });
 
 describe('trialDaysLeft', () => {
@@ -272,5 +276,16 @@ describe('runFilePurgeJob', () => {
 
 	it('keeps a 30-day undo window before purging', () => {
 		expect(DELETED_FILE_RETENTION_DAYS).toBe(30);
+	});
+});
+
+describe('runAnalyticsRefreshJob', () => {
+	it('calls refresh_analytics_rollups() (issue #424)', async () => {
+		const result = await runAnalyticsRefreshJob();
+
+		expect(result).toEqual({ refreshed: true });
+		expect(executeMock).toHaveBeenCalledOnce();
+		const query = executeMock.mock.calls[0][0];
+		expect(String(query.queryChunks[0].value[0])).toContain('refresh_analytics_rollups()');
 	});
 });

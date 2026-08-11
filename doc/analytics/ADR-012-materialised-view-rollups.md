@@ -1,6 +1,6 @@
 # ADR-012 — Analytics Reads Pre-Aggregated Materialized Views
 
-**Status:** Active — **refresh mechanism unresolved**, see *Open problem* ([#424](https://github.com/Vegm92/mise-en-place-sk/issues/424))
+**Status:** Active — refresh mechanism resolved via Option 1, see *Open problem* ([#424](https://github.com/Vegm92/mise-en-place-sk/issues/424))
 **Feature:** Analytics
 **Date:** 2026-08-09
 **Issue:** [#127](https://github.com/Vegm92/mise-en-place-sk/issues/127)
@@ -59,24 +59,18 @@ twin of the application's `normalizeProductKey`
 Rollups and application logic group items the same way, or they would disagree
 about what a product is.
 
-## Open problem — nothing refreshes the views ([#424](https://github.com/Vegm92/mise-en-place-sk/issues/424))
+## Open problem — nothing refreshed the views ([#424](https://github.com/Vegm92/mise-en-place-sk/issues/424))
 
 `refresh_analytics_rollups()` exists and does the right thing (all five,
-`CONCURRENTLY`, `SECURITY DEFINER`). **Nothing calls it.**
+`CONCURRENTLY`, `SECURITY DEFINER`). For a while, nothing called it.
 
-The migration's plan was a `pg_cron` schedule, written as a commented-out
-`cron.schedule(…)` to be pasted into *the Supabase dashboard*. Supabase is gone
-([ADR-005](../tenancy/ADR-005-rls-retired.md)) and the instruction went with it.
-A repository-wide search finds no caller: not in `src/`, not in the worker's job
-table ([ADR-011](../insights/ADR-011-scheduled-jobs-in-the-worker.md)), not in
-`scripts/`, not in the deploy runbook.
+The migration's original plan was a `pg_cron` schedule, written as a
+commented-out `cron.schedule(…)` to be pasted into *the Supabase dashboard*.
+Supabase is gone ([ADR-005](../tenancy/ADR-005-rls-retired.md)) and the
+instruction went with it, leaving the views holding whatever they contained at
+creation time — for a fresh Railway database, effectively empty.
 
-**Current behaviour: the views hold whatever they contained when they were
-created, and analytics pages show data frozen at that point.** For a fresh
-Railway database that is the state at migration time — effectively empty.
-
-This is recorded here rather than fixed silently because the fix is a design
-choice, not a typo. The options:
+Four options were weighed:
 
 1. **Add a pg-boss scheduled job** calling `SELECT refresh_analytics_rollups()`.
    Consistent with ADR-011, needs no extension, runs where the other cron jobs
@@ -89,9 +83,15 @@ choice, not a typo. The options:
 4. **Drop the views and query live**, keeping the partial indexes. Correct by
    construction; gives back the cost #127 was raised to remove.
 
-Option 1 is the recommendation. Until one is implemented, treat the analytics
-pages as showing stale data, and note that the KPI tiles — which query live —
-will not agree with the view-backed panels beside them.
+**Resolved with Option 1.** `ANALYTICS_REFRESH_QUEUE` in
+`src/lib/server/alerts.ts` schedules `runAnalyticsRefreshJob()` nightly
+(`10 3 * * *` UTC) through the same `registerScheduledJobs()` table described
+in [ADR-011](../insights/ADR-011-scheduled-jobs-in-the-worker.md), alongside
+the digest, reminder, trial-notice, purge and MRR-snapshot jobs. The
+commented-out `pg_cron` block in `drizzle/0005_analytics_rollups.sql` has been
+removed — the schedule now lives in code, reviewed like any other job. As
+before, note that the KPI tiles — which query live — will not agree with the
+view-backed panels beside them between refreshes.
 
 ## Consequences
 

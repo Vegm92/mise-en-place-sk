@@ -37,6 +37,7 @@ all five jobs from one declarative table:
 | `scheduled-trial-notices` | `0 7 * * *` | Trial expiry at 7 / 1 / 0 days |
 | `scheduled-file-purge` | `0 3 * * *` | Delete files for invoices soft-deleted > 30 days ago |
 | `mrr-snapshot` | see `revenue-metrics.ts` | Revenue metrics snapshot |
+| `scheduled-analytics-refresh` | `10 3 * * *` | Refresh the analytics materialized views ([ADR-012](../analytics/ADR-012-materialised-view-rollups.md), [#424](https://github.com/Vegm92/mise-en-place-sk/issues/424)) |
 
 All are registered with `{ tz: 'UTC' }` — explicitly, not by default — so the
 schedule does not shift under Spanish daylight saving. A 06:00 UTC digest lands
