@@ -3,7 +3,7 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { handle as authHandle } from '$lib/server/auth';
 import { cleanupStaleBatches } from '$lib/server/batch';
-import { cleanupProcessedRequests } from '$lib/server/idempotency';
+import { cleanupProcessedRequests, cleanupProcessedWhatsAppMessages } from '$lib/server/idempotency';
 import { seedAdminUser } from '$lib/server/auth-seed';
 import { isAdminUser } from '$lib/server/admin';
 import { db } from '$lib/server/db';
@@ -44,6 +44,7 @@ if (process.env['NODE_ENV'] === 'production' && !process.env['ADDRESS_HEADER']) 
 
 cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
 cleanupProcessedRequests().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] idempotency cleanup error:', e); });
+cleanupProcessedWhatsAppMessages().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] whatsapp dedup cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
 
 const appHandle: Handle = async ({ event, resolve }) => {
