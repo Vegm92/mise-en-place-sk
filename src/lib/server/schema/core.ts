@@ -33,6 +33,7 @@ export const suppliers = pgTable('suppliers', {
 	contactEmail:  text('contact_email'),
 	contactPhone:  text('contact_phone'),
 	cif:           text('cif'),
+	address:       text('address'),
 	deliveryDays:  text('delivery_days'),
 	paymentTerms:  text('payment_terms'),
 	notes:         text('notes'),

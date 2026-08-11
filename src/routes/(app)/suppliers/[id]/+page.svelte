@@ -11,6 +11,7 @@
   import Phone from '@lucide/svelte/icons/phone';
   import Truck from '@lucide/svelte/icons/truck';
   import CreditCard from '@lucide/svelte/icons/credit-card';
+  import MapPin from '@lucide/svelte/icons/map-pin';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import DesktopSupplierDetail from '$lib/components/desktop/DesktopSupplierDetail.svelte';
 
@@ -128,7 +129,15 @@
             </select>
           </div>
           <div>
-            <label for="m-edit-email" class="label" style="display:block;margin-bottom:4px;">{$t('sup.fieldEmail')}</label>
+            <label for="m-edit-cif" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.cif')}</label>
+            <input id="m-edit-cif" class="input" name="cif" value={s.cif ?? ''} style="width:100%;" placeholder="B12345678" />
+          </div>
+          <div>
+            <label for="m-edit-address" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.address')}</label>
+            <input id="m-edit-address" class="input" name="address" value={s.address ?? ''} style="width:100%;" placeholder={$t('sup.ph.address')} />
+          </div>
+          <div>
+            <label for="m-edit-email" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.email')}</label>
             <input id="m-edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" />
           </div>
           <div>
@@ -192,7 +201,7 @@
 
       <div class="card" style="padding:14px;">
         <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
-        {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.deliveryDays && !s.paymentTerms}
+        {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.address && !s.deliveryDays && !s.paymentTerms}
           <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{$t('sup.infoEmpty')}</p>
         {:else}
           <div style="display:flex;flex-direction:column;gap:8px;">
@@ -212,6 +221,12 @@
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <CreditCard size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
                 <span>{$t('sup.field.cif')}: {s.cif}</span>
+              </div>
+            {/if}
+            {#if s.address}
+              <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
+                <MapPin size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                <span>{s.address}</span>
               </div>
             {/if}
             {#if s.deliveryDays}

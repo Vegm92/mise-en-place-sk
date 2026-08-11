@@ -9,7 +9,7 @@ import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
-import { getOrCreateSupplierId } from './supplier';
+import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
 import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
@@ -216,6 +216,18 @@ export async function saveReviewedInvoice(
 	const proposedCategory = sameSupplier
 		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
 		: UNCATEGORIZED_CATEGORY;
+	// Only trust supplier-level contact fields (CIF/NIF, address, email, phone) when the
+	// reviewed supplier name still matches what was extracted — if the user retargeted this
+	// invoice to a different existing supplier, its contact info must not be overwritten with
+	// whatever this document happened to print for its own supplier.
+	const proposedContact: SupplierContactInfo = sameSupplier
+		? {
+			cif: extracted?.supplier_nif ?? null,
+			email: extracted?.supplier_email ?? null,
+			phone: extracted?.supplier_phone ?? null,
+			address: extracted?.supplier_address ?? null,
+		}
+		: {};
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
@@ -311,7 +323,7 @@ export async function saveReviewedInvoice(
 			return;
 		}
 
-		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory);
+		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
 
 		if (invoiceNumber.trim()) {
 			const dup = await tx

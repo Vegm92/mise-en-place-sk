@@ -41,7 +41,18 @@ const FACTURAE_322_XML = `<?xml version="1.0" encoding="UTF-8"?>
         <RegistrationData>
           <RegisterOfRGME>12345</RegisterOfRGME>
         </RegistrationData>
+        <AddressInSpain>
+          <Address>Polígono Ind. La Resina, Nave 14</Address>
+          <PostCode>28201</PostCode>
+          <Town>Madrid</Town>
+          <Province>Madrid</Province>
+          <CountryCode>ESP</CountryCode>
+        </AddressInSpain>
       </LegalEntity>
+      <ContactDetails>
+        <Telephone>+34915552233</Telephone>
+        <ElectronicMail>facturacion@disalim.es</ElectronicMail>
+      </ContactDetails>
     </SellerParty>
     <BuyerParty>
       <TaxIdentification>
@@ -144,7 +155,9 @@ const UBL_21_XML = `<?xml version="1.0" encoding="UTF-8"?>
         <cbc:Name>Bodega La Rioja Alta S.A.</cbc:Name>
       </cac:PartyName>
       <cac:PostalAddress>
+        <cbc:StreetName>Camino de Salcedo, 1</cbc:StreetName>
         <cbc:CityName>Haro</cbc:CityName>
+        <cbc:PostalZone>26200</cbc:PostalZone>
         <cac:Country>
           <cbc:IdentificationCode>ES</cbc:IdentificationCode>
         </cac:Country>
@@ -159,6 +172,10 @@ const UBL_21_XML = `<?xml version="1.0" encoding="UTF-8"?>
         <cbc:RegistrationName>Bodega La Rioja Alta S.A.</cbc:RegistrationName>
         <cbc:CompanyID>A26000421</cbc:CompanyID>
       </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Telephone>+34941310000</cbc:Telephone>
+        <cbc:ElectronicMail>ventas@riojaalta.es</cbc:ElectronicMail>
+      </cac:Contact>
     </cac:Party>
   </cac:AccountingSupplierParty>
   <cac:AccountingCustomerParty>
@@ -237,6 +254,27 @@ describe('parseFacturae322', () => {
 	it('extracts supplier NIF', () => {
 		const result = parseFacturae322(FACTURAE_322_XML);
 		expect(result.supplier_nif).toBe('B12345678');
+	});
+
+	it('extracts supplier address from AddressInSpain (issue #385)', () => {
+		const result = parseFacturae322(FACTURAE_322_XML);
+		expect(result.supplier_address).toBe('Polígono Ind. La Resina, Nave 14, 28201, Madrid');
+	});
+
+	it('extracts supplier email and phone from ContactDetails (issue #385)', () => {
+		const result = parseFacturae322(FACTURAE_322_XML);
+		expect(result.supplier_email).toBe('facturacion@disalim.es');
+		expect(result.supplier_phone).toBe('+34915552233');
+	});
+
+	it('yields null contact fields when ContactDetails/AddressInSpain are absent', () => {
+		const xmlNoContact = FACTURAE_322_XML
+			.replace(/<AddressInSpain>[\s\S]*?<\/AddressInSpain>/, '')
+			.replace(/<ContactDetails>[\s\S]*?<\/ContactDetails>/, '');
+		const result = parseFacturae322(xmlNoContact);
+		expect(result.supplier_address).toBeNull();
+		expect(result.supplier_email).toBeNull();
+		expect(result.supplier_phone).toBeNull();
 	});
 
 	it('extracts invoice number with series code', () => {
@@ -324,6 +362,27 @@ describe('parseUbl21Invoice', () => {
 	it('extracts supplier NIF from PartyTaxScheme', () => {
 		const result = parseUbl21Invoice(UBL_21_XML);
 		expect(result.supplier_nif).toBe('A26000421');
+	});
+
+	it('extracts supplier address from PostalAddress (issue #385)', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.supplier_address).toBe('Camino de Salcedo, 1, Haro, 26200');
+	});
+
+	it('extracts supplier email and phone from Contact (issue #385)', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.supplier_email).toBe('ventas@riojaalta.es');
+		expect(result.supplier_phone).toBe('+34941310000');
+	});
+
+	it('yields null contact fields when PostalAddress/Contact are absent', () => {
+		const xmlNoContact = UBL_21_XML
+			.replace(/<cac:PostalAddress>[\s\S]*?<\/cac:PostalAddress>/, '')
+			.replace(/<cac:Contact>[\s\S]*?<\/cac:Contact>/, '');
+		const result = parseUbl21Invoice(xmlNoContact);
+		expect(result.supplier_address).toBeNull();
+		expect(result.supplier_email).toBeNull();
+		expect(result.supplier_phone).toBeNull();
 	});
 
 	it('extracts invoice number (ID)', () => {
