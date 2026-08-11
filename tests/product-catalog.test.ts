@@ -115,6 +115,34 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — fuzzy suggestion', () => {
 	});
 });
 
+describe.skipIf(!hasDbEnv)('resolveLineProducts — pack info carried onto new product (issue #386)', () => {
+	it('stamps units_per_pack and base_unit derived from the line description', async () => {
+		const resolved = await resolveLineProducts(testDb, rid, supplierId, [
+			{ description: 'Leche entera 6x1L', unit: 'caja', unitsPerPack: 6, baseUnit: 'L' },
+		]);
+		const r = resolved.get('Leche entera 6x1L')!;
+		expect(r.status).toBe('created');
+
+		const [prod] = await testSql`
+			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
+		expect(prod.units_per_pack).toBe(6);
+		expect(prod.base_unit).toBe('L');
+	});
+
+	it('leaves units_per_pack and base_unit null when the line has no derivable pack size', async () => {
+		const resolved = await resolveLineProducts(testDb, rid, supplierId, [
+			{ description: 'Tomate Pera', unit: 'kg' },
+		]);
+		const r = resolved.get('Tomate Pera')!;
+		expect(r.status).toBe('created');
+
+		const [prod] = await testSql`
+			SELECT units_per_pack, base_unit FROM products WHERE restaurant_id = ${rid} AND id = ${r.productId}`;
+		expect(prod.units_per_pack).toBeNull();
+		expect(prod.base_unit).toBeNull();
+	});
+});
+
 describe.skipIf(!hasDbEnv)('resolveLineProducts — batch behavior', () => {
 	it('resolves duplicate keys in one call to a single product', async () => {
 		const resolved = await resolveLineProducts(testDb, rid, supplierId, [
