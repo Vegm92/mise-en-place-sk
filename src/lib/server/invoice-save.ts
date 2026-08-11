@@ -11,7 +11,7 @@ import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import { getOrCreateSupplierId } from './supplier';
 import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
-import type { EnrichedLineItem } from './products';
+import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch-core';
 
@@ -120,7 +120,7 @@ async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
-	lineInputs: Array<{ desc: string; unitVal: string | null }>,
+	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null }>,
 ): Promise<Map<string, number>> {
 	const productByKey = new Map<string, number>();
 	try {
@@ -133,7 +133,13 @@ async function linkProductsToInvoice(
 
 		const resolved = await resolveLineProducts(
 			db, rid, supplierId,
-			lineInputs.map(li => ({ description: li.desc, unit: li.unitVal, category })),
+			lineInputs.map(li => ({
+				description: li.desc,
+				unit: li.unitVal,
+				category,
+				unitsPerPack: li.pack?.unitsPerPack ?? null,
+				baseUnit: li.pack?.baseUnit ?? null,
+			})),
 		);
 
 		const suggestions: Alert[] = [];
@@ -254,18 +260,21 @@ export async function saveReviewedInvoice(
 		unitVal: string | null;
 		totalPriceVal: number | null;
 		taxRateVal: number | null;
+		pack: PackInfo | null;
 	};
 	const lineInputs: LineInput[] = [];
 	for (let i = 0; i < lineDescriptions.length; i++) {
 		const desc = lineDescriptions[i].trim();
 		if (!desc) continue;
+		const unitVal = lineUnits[i]?.trim() || null;
 		lineInputs.push({
 			desc,
 			qtyFloat: toFloat(lineQuantities[i]),
 			unitPriceFloat: toFloat(lineUnitPrices[i]),
-			unitVal: lineUnits[i]?.trim() || null,
+			unitVal,
 			totalPriceVal: toFloat(lineTotalPrices[i]),
 			taxRateVal: toFloat(lineTaxRates[i]),
+			pack: parsePack(desc, unitVal),
 		});
 	}
 	const unitRules = await Promise.all(
@@ -338,7 +347,7 @@ export async function saveReviewedInvoice(
 			const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
 			const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
 
-			const pack = parsePack(li.desc, li.unitVal);
+			const pack = li.pack;
 			const normPrice = normalizedUnitPrice(li.unitPriceFloat, pack);
 
 			await tx.insert(invoiceLineItems).values({
