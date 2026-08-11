@@ -125,6 +125,23 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → supplier category (issue #38
 		expect(await categoryFor(out.invoiceId)).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
+	it('falls back to the uncategorised bucket when the two names differ only by an explicit, different legal form', async () => {
+		const item = extractedItem({
+			supplier_name: 'Distribuciones Ruiz S.L.',
+			supplier_category: 'Bebidas',
+			field_confidences: { supplier_category: 0.9 },
+			confidence: 0.9,
+		});
+
+		const out = await saveReviewedInvoice(item, form('Distribuciones Ruiz S.A.', [
+			{ desc: 'Agua Mineral', unit: 'botella', price: '1' },
+		]), rid);
+		expect(out.type).toBe('saved');
+		if (out.type !== 'saved') return;
+
+		expect(await categoryFor(out.invoiceId)).toBe(UNCATEGORIZED_CATEGORY);
+	});
+
 	it('falls back to the uncategorised bucket for a genuinely no-signal new supplier', async () => {
 		const supplierName = 'Comercial Genérica del Levante S.L.';
 		const item = extractedItem({

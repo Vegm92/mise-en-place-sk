@@ -10,17 +10,37 @@ export function normalizeProductKey(raw: string): string {
 const SPANISH_LEGAL_FORM_RE =
 	/[,.]?\s*(s\.?\s*l\.?\s*u\.?|s\.?\s*l\.?\s*n\.?\s*e\.?|s\.?\s*a\.?\s*u\.?|s\.?\s*c\.?\s*p\.?|s\.?\s*coop\.?|coop\.?|s\.?\s*l\.?|s\.?\s*a\.?|s\.?\s*c\.?|c\.?\s*b\.?)\s*$/i;
 
-export function normalizeSupplierName(raw: string): string {
-	const stripped = raw
+export interface ParsedSupplierName {
+	base: string;
+	legalForm: string | null;
+}
+
+export function parseSupplierName(raw: string): ParsedSupplierName {
+	const cleaned = raw
 		.normalize('NFD')
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase()
-		.trim()
-		.replace(SPANISH_LEGAL_FORM_RE, '');
-	return stripped
+		.trim();
+	const match = cleaned.match(SPANISH_LEGAL_FORM_RE);
+	const legalForm = match ? match[1].replace(/[.\s]/g, '') : null;
+	const base = cleaned
+		.replace(SPANISH_LEGAL_FORM_RE, '')
 		.replace(/[.,]/g, ' ')
 		.replace(/\s+/g, ' ')
 		.trim();
+	return { base, legalForm };
+}
+
+export function normalizeSupplierName(raw: string): string {
+	return parseSupplierName(raw).base;
+}
+
+export function isSameSupplierName(a: string, b: string): boolean {
+	const pa = parseSupplierName(a);
+	const pb = parseSupplierName(b);
+	if (!pa.base || pa.base !== pb.base) return false;
+	if (pa.legalForm && pb.legalForm && pa.legalForm !== pb.legalForm) return false;
+	return true;
 }
 
 const UNIT_GROUPS: Record<string, string[]> = {

@@ -6,7 +6,9 @@
  * invoice text — if you change one, change both and extend these cases.
  */
 import { describe, it, expect } from 'vitest';
-import { normalizeProductKey, canonicalizeUnit, normalizeSupplierName } from '../src/lib/server/normalize';
+import {
+	normalizeProductKey, canonicalizeUnit, normalizeSupplierName, isSameSupplierName,
+} from '../src/lib/server/normalize';
 
 describe('normalizeProductKey', () => {
 	it('is case-insensitive', () => {
@@ -121,5 +123,47 @@ describe('normalizeSupplierName', () => {
 	it('returns empty string for whitespace-only or legal-form-only input', () => {
 		expect(normalizeSupplierName('   ')).toBe('');
 		expect(normalizeSupplierName('S.L.')).toBe('');
+	});
+
+	it('collapses the base name even when the two sides declare different explicit legal forms', () => {
+		// normalizeSupplierName alone only strips the suffix — it is not the
+		// match decision. isSameSupplierName below is what must tell these apart.
+		expect(normalizeSupplierName('Distribuciones Ruiz S.L.')).toBe('distribuciones ruiz');
+		expect(normalizeSupplierName('Distribuciones Ruiz S.A.')).toBe('distribuciones ruiz');
+	});
+});
+
+describe('isSameSupplierName', () => {
+	it('matches an unedited name against itself', () => {
+		expect(isSameSupplierName('Suministros Alimentarios Goya', 'Suministros Alimentarios Goya')).toBe(true);
+	});
+
+	it('matches when a legal form is added to a name that had none (the #384 case)', () => {
+		expect(isSameSupplierName('Suministros Alimentarios Goya', 'Suministros Alimentarios Goya, S.L.')).toBe(true);
+	});
+
+	it('matches through case, accent and punctuation noise', () => {
+		expect(isSameSupplierName('LÁCTEOS GARCÍA', '  lacteos,  garcia  ')).toBe(true);
+	});
+
+	it('does NOT match two names that both declare an explicit, different legal form', () => {
+		// Same base name, but "S.L." and "S.A." are different real legal
+		// entities (sibling companies, or unrelated firms sharing a trade
+		// name) — that must not be read as "the same supplier, just retyped".
+		expect(isSameSupplierName('Distribuciones Ruiz S.L.', 'Distribuciones Ruiz S.A.')).toBe(false);
+		expect(isSameSupplierName('Distribuciones Ruiz, S.L.U.', 'Distribuciones Ruiz, S.L.')).toBe(false);
+	});
+
+	it('matches when both sides declare the same explicit legal form', () => {
+		expect(isSameSupplierName('Distribuciones Ruiz S.L.', 'Distribuciones Ruiz, S.L.')).toBe(true);
+	});
+
+	it('does not match genuinely different businesses regardless of legal form', () => {
+		expect(isSameSupplierName('Lácteos García, S.L.', 'García Bebidas, S.L.')).toBe(false);
+	});
+
+	it('does not match two blank/legal-form-only names', () => {
+		expect(isSameSupplierName('S.L.', 'S.A.')).toBe(false);
+		expect(isSameSupplierName('   ', '   ')).toBe(false);
 	});
 });
