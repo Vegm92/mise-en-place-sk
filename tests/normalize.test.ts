@@ -149,6 +149,17 @@ describe('normalizeSupplierName', () => {
 		expect(normalizeSupplierName('La Casa, S.L.')).toBe('la casa');
 		expect(normalizeSupplierName('Casa Rosa, S.L.')).toBe('casa rosa');
 	});
+
+	it('does not blow up on a long internal whitespace run (regex backtracking DoS)', () => {
+		// supplier_name reaches parseSupplierName straight from unvalidated
+		// form data on the invoice-save request path — an uncollapsed \s+/\s*
+		// run in the legal-form regex previously caused catastrophic
+		// backtracking (tens of seconds) on input like this.
+		const padded = 'AAAA' + ' '.repeat(128000) + 'ZZZZ';
+		const start = performance.now();
+		parseSupplierName(padded);
+		expect(performance.now() - start).toBeLessThan(500);
+	});
 });
 
 describe('isSameSupplierName', () => {

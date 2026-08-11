@@ -20,6 +20,7 @@ export function parseSupplierName(raw: string): ParsedSupplierName {
 		.normalize('NFD')
 		.replace(/[\u0300-\u036f]/g, '')
 		.toLowerCase()
+		.replace(/\s+/g, ' ')
 		.trim();
 	const match = cleaned.match(SPANISH_LEGAL_FORM_RE);
 	const legalForm = match ? match[1].replace(/[.\s]/g, '') : null;
