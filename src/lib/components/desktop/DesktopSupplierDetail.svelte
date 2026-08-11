@@ -7,6 +7,7 @@
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Mail from '@lucide/svelte/icons/mail';
   import Phone from '@lucide/svelte/icons/phone';
+  import MapPin from '@lucide/svelte/icons/map-pin';
   import Truck from '@lucide/svelte/icons/truck';
   import CreditCard from '@lucide/svelte/icons/credit-card';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -18,6 +19,7 @@
     contactEmail: string | null;
     contactPhone: string | null;
     cif: string | null;
+    address: string | null;
     deliveryDays: string | null;
     paymentTerms: string | null;
     notes: string | null;
@@ -249,6 +251,10 @@
                 <input id="edit-cif" class="input" name="cif" value={s.cif ?? ''} style="width:100%;" placeholder="B12345678" />
               </div>
               <div>
+                <label for="edit-address" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.address')}</label>
+                <input id="edit-address" class="input" name="address" value={s.address ?? ''} style="width:100%;" placeholder={$t('sup.ph.address')} />
+              </div>
+              <div>
                 <label for="edit-email" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.email')}</label>
                 <input id="edit-email" class="input" name="contact_email" type="email" value={s.contactEmail ?? ''} style="width:100%;" placeholder={$t('sup.ph.email')} />
               </div>
@@ -441,7 +447,7 @@
 
             <div class="card" style="padding:16px;">
               <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
-              {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
+              {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.address && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
                 <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{$t('sup.noContact')}</p>
                 <button class="btn btn-secondary" style="height:28px;font-size:12px;margin-top:8px;"
                   onclick={() => { editing = true; confirmDelete = false; }}>
@@ -465,6 +471,12 @@
                     <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                       <CreditCard size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
                       <span>{$t('sup.field.cif')}: {s.cif}</span>
+                    </div>
+                  {/if}
+                  {#if s.address}
+                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
+                      <MapPin size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                      <span>{s.address}</span>
                     </div>
                   {/if}
                   {#if s.deliveryDays}
