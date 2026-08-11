@@ -29,6 +29,10 @@ Return ONLY valid JSON with this exact structure:
 {
   "supplier_name": "string",
   "supplier_category": "one of the CATEGORY VALUES listed below, or null",
+  "supplier_nif": "the SUPPLIER's (emisor/proveedor) CIF or NIF, e.g. B12345678 — or null if not printed",
+  "supplier_address": "the SUPPLIER's postal address as printed (street, city, postal code) — or null if not printed",
+  "supplier_email": "the SUPPLIER's contact email — or null if not printed",
+  "supplier_phone": "the SUPPLIER's contact phone — or null if not printed",
   "invoice_number": "string or null",
   "invoice_date": "YYYY-MM-DD or null",
   "due_date": "YYYY-MM-DD or null",
@@ -66,6 +70,10 @@ Rules:
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
+- Spanish invoices commonly print both parties' details (emisor/proveedor AND cliente/destinatario).
+  supplier_nif, supplier_address, supplier_email and supplier_phone must always refer to the
+  SUPPLIER issuing the invoice, never the restaurant/client receiving it — when in doubt, or when
+  you cannot tell which party a detail belongs to, return null rather than guessing.
 
 supplier_category — what this supplier mainly sells, judged from its name and the line items.
 
@@ -98,6 +106,14 @@ QR code: If you can see and decode a QR code on the document, return the full de
 export interface ExtractedInvoice {
 	supplier_name: string | null;
 	supplier_category?: string | null;
+	/** Supplier's own CIF/NIF — never the buyer/restaurant's. */
+	supplier_nif?: string | null;
+	/** Supplier's postal address as printed on the document. */
+	supplier_address?: string | null;
+	/** Supplier's contact email. */
+	supplier_email?: string | null;
+	/** Supplier's contact phone. */
+	supplier_phone?: string | null;
 	invoice_number: string | null;
 	invoice_date: string | null;
 	due_date: string | null;
@@ -122,7 +138,6 @@ export interface ExtractedInvoice {
 		total_price: number | null;
 		confidence?: number;
 	}>;
-	supplier_nif?: string | null;
 	qr_url?: string | null;
 	qr_mismatch?: boolean;
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
