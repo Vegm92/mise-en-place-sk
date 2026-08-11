@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { sql, gt } from 'drizzle-orm';
-import { uploadSessions } from '$lib/server/schema';
+import { sql, gt, and, inArray } from 'drizzle-orm';
+import { batchItems } from '$lib/server/schema';
 import { STORAGE_DRIVER, UPLOADS_DIR } from '$lib/server/env';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,10 +35,14 @@ export async function GET() {
 	let activeCount = 0;
 	try {
 		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		// tenant-scope-ok: system-wide queue-depth probe for /api/health, deliberately cross-tenant
 		const rows = await db
 			.select({ cnt: sql<number>`COUNT(*)` })
-			.from(uploadSessions)
-			.where(gt(uploadSessions.updatedAt, cutoff));
+			.from(batchItems)
+			.where(and(
+				inArray(batchItems.status, ['queued', 'extracting']),
+				gt(batchItems.updatedAt, cutoff),
+			));
 		activeCount = Number(rows[0]?.cnt ?? 0);
 	} catch { }
 

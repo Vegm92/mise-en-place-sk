@@ -1,8 +1,8 @@
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { invoices, suppliers, systemNotifications, restaurants, uploadSessions } from '$lib/server/schema';
-import { sql, count } from 'drizzle-orm';
+import { invoices, suppliers, systemNotifications, restaurants, batchItems } from '$lib/server/schema';
+import { sql, count, inArray } from 'drizzle-orm';
 
 export const load: PageServerLoad = async () => {
 	return handleLoad('admin/overview', async () => {
@@ -35,8 +35,8 @@ export const load: PageServerLoad = async () => {
 			db.select({ cnt: count() }).from(restaurants),
 
 			db.select({ cnt: sql<number>`COUNT(*)` })
-				.from(uploadSessions)
-				.where(sql`${uploadSessions.data}::jsonb->>'extractionStatus' IN ('queued','extracting')`),
+				.from(batchItems)
+				.where(inArray(batchItems.status, ['queued', 'extracting'])),
 
 			db.execute(sql`
 				SELECT r.id, r.name, r.created_at,
