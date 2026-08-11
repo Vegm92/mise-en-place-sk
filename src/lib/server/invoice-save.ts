@@ -4,7 +4,7 @@ import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers 
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
 import { enqueueNormalize } from './queue';
-import { normalizeProductKey } from './normalize';
+import { normalizeProductKey, isSameSupplierName } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, saveAlerts, type Alert } from './alerts';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
@@ -212,7 +212,7 @@ export async function saveReviewedInvoice(
 	const extracted = item?.extractedData as ExtractedInvoice | undefined;
 	const sameSupplier =
 		typeof extracted?.supplier_name === 'string' &&
-		extracted.supplier_name.trim().toLowerCase() === supplierName.trim().toLowerCase();
+		isSameSupplierName(extracted.supplier_name, supplierName);
 	const proposedCategory = sameSupplier
 		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
 		: UNCATEGORIZED_CATEGORY;
