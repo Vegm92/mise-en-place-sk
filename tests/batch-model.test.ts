@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
-	testDb, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
+	testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { createBatchStore } from '../src/lib/server/batch-core';
 
@@ -159,6 +159,72 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
 		await store.deleteBatch(batchId);
 		expect(await store.getItem(itemIds[0])).toBeNull();
+		expect(await store.getBatchItems(batchId)).toEqual([]);
+	});
+});
+
+function fakeStorage(shouldFail: (key: string) => boolean = () => false) {
+	const deletedKeys: string[] = [];
+	return {
+		deletedKeys,
+		delete: async (key: string) => {
+			if (shouldFail(key)) throw new Error(`boom: ${key}`);
+			deletedKeys.push(key);
+		},
+	};
+}
+
+async function backdateBatch(batchId: string, hoursAgo: number) {
+	await testSql`UPDATE upload_batches SET created_at = now() - ${`${hoursAgo} hours`}::interval WHERE id = ${batchId}`;
+}
+
+describe.skipIf(!hasDbEnv)('cleanupStaleBatches (#427)', () => {
+	it('leaves batches younger than the 24h cutoff untouched', async () => {
+		const { batchId } = await store.createBatch(rid, [
+			{ key: 'ns/fresh-a.pdf', name: 'a.pdf' },
+			{ key: 'ns/fresh-b.pdf', name: 'b.pdf' },
+		]);
+		const storage = fakeStorage();
+
+		await store.cleanupStaleBatches(storage);
+
+		expect(storage.deletedKeys).not.toContain('ns/fresh-a.pdf');
+		expect(storage.deletedKeys).not.toContain('ns/fresh-b.pdf');
+		expect(await store.getBatchItems(batchId)).toHaveLength(2);
+	});
+
+	it('deletes storage objects for stale non-confirmed items, preserves confirmed items\' files, and removes the batch row', async () => {
+		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
+		await store.markQueued(itemIds[0]);
+		await store.markExtracting(itemIds[0]);
+		await store.markDone(itemIds[0], {}, []);
+		await store.markConfirmed(itemIds[0]); // ns/a.pdf is now owned by an invoice
+		// itemIds[1] (ns/b.pdf) stays pending — an abandoned upload
+		await backdateBatch(batchId, 25);
+
+		const storage = fakeStorage();
+		const result = await store.cleanupStaleBatches(storage);
+
+		expect(result.batchesDeleted).toBeGreaterThanOrEqual(1);
+		expect(storage.deletedKeys).toContain('ns/b.pdf');
+		expect(storage.deletedKeys).not.toContain('ns/a.pdf');
+		expect(await store.getBatchItems(batchId)).toEqual([]);
+	});
+
+	it('a storage delete failure is swallowed, counted, and does not block the sweep', async () => {
+		const { batchId } = await store.createBatch(rid, [
+			{ key: 'ns/err-a.pdf', name: 'a.pdf' },
+			{ key: 'ns/err-b.pdf', name: 'b.pdf' },
+		]);
+		await backdateBatch(batchId, 25);
+
+		const storage = fakeStorage(key => key === 'ns/err-a.pdf');
+		const result = await store.cleanupStaleBatches(storage);
+
+		expect(result.fileErrors).toBeGreaterThanOrEqual(1);
+		expect(storage.deletedKeys).toContain('ns/err-b.pdf');
+		expect(storage.deletedKeys).not.toContain('ns/err-a.pdf');
+		expect(result.batchesDeleted).toBeGreaterThanOrEqual(1);
 		expect(await store.getBatchItems(batchId)).toEqual([]);
 	});
 });
