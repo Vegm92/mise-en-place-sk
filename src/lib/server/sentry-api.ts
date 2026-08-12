@@ -21,8 +21,8 @@ export type SentryIssueSummary = {
 	usersAffected: number;
 };
 
-function isConfigured(): boolean {
-	return Boolean(SENTRY_AUTH_TOKEN);
+export function isSentryConfigured(): boolean {
+	return Boolean(SENTRY_AUTH_TOKEN && SENTRY_ORG);
 }
 
 async function sentryFetch<T>(path: string): Promise<T> {
@@ -64,7 +64,7 @@ function toIssue(raw: RawSentryIssue): SentryIssue {
 }
 
 export async function listUnresolvedIssues(limit = 20): Promise<SentryIssue[]> {
-	if (!isConfigured()) return [];
+	if (!isSentryConfigured()) return [];
 	const raw = await sentryFetch<RawSentryIssue[]>(
 		`/organizations/${SENTRY_ORG}/issues/?query=is:unresolved&sort=freq&limit=${limit}`,
 	);
@@ -72,7 +72,7 @@ export async function listUnresolvedIssues(limit = 20): Promise<SentryIssue[]> {
 }
 
 export async function getIssueSummary(): Promise<SentryIssueSummary | null> {
-	if (!isConfigured()) return null;
+	if (!isSentryConfigured()) return null;
 	const issues = await listUnresolvedIssues(100);
 	return {
 		unresolvedCount: issues.length,

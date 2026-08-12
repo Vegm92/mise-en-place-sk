@@ -66,7 +66,12 @@
           <tr style="border-bottom:1px solid var(--mep-divider);">
             <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{check.name}</td>
             <td style="padding:9px 16px;text-align:center;"><AdminStatusBadge status={check.status} /></td>
-            <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">{check.detail}</td>
+            <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">
+              {check.detail}
+              {#if check.href}
+                <a href={check.href} style="color:var(--mep-acc);text-decoration:none;margin-left:6px;">{check.href}</a>
+              {/if}
+            </td>
           </tr>
         {/each}
       </tbody>
