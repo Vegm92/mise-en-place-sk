@@ -13,9 +13,11 @@ import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
 
 const SENTRY_DSN = process.env['SENTRY_DSN'] ?? '';
+const SENTRY_RELEASE = process.env['SENTRY_RELEASE'] || undefined;
 
 Sentry.init({
 	dsn: SENTRY_DSN,
+	release: SENTRY_RELEASE,
 	tracesSampleRate: process.env['NODE_ENV'] === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 	beforeSend(event) {
@@ -87,6 +89,10 @@ const appHandle: Handle = async ({ event, resolve }) => {
 		event.locals.restaurantId = null;
 	}
 
+	if (event.locals.restaurantId) {
+		Sentry.getCurrentScope().setTag('restaurantId', event.locals.restaurantId);
+	}
+
 	if ((path === '/admin' || path.startsWith('/admin/')) && !isAdminUser(event.locals.user)) {
 		redirect(303, '/');
 	}
@@ -117,7 +123,7 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle: Handle = sequence(authHandle, appHandle);
+export const handle: Handle = sequence(Sentry.sentryHandle(), authHandle, appHandle);
 
 function isPublicPath(path: string): boolean {
 	return (

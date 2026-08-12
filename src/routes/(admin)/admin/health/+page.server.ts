@@ -10,6 +10,8 @@ import {
 	recentAccountEvents,
 	type NumberHealth,
 } from '$lib/server/whatsapp-health';
+import { getIssueSummary } from '$lib/server/sentry-api';
+import { SENTRY_AUTH_TOKEN } from '$lib/server/env';
 import { pendingDeadLetterCount } from '$lib/server/dead-letter';
 
 const STUCK_MINUTES = 15;
@@ -114,6 +116,23 @@ export const load: PageServerLoad = async () => {
 			});
 		} catch (e) {
 			checks.push({ name: 'WhatsApp number', status: 'warn', detail: `Check failed: ${String(e)}` });
+		}
+	}
+
+	if (!SENTRY_AUTH_TOKEN) {
+		checks.push({ name: 'Sentry', status: 'warn', detail: 'Not configured (SENTRY_AUTH_TOKEN unset)' });
+	} else {
+		try {
+			const summary = await getIssueSummary();
+			const unresolved = summary?.unresolvedCount ?? 0;
+			const critical = summary?.criticalCount ?? 0;
+			checks.push({
+				name: 'Sentry',
+				status: critical > 0 ? 'error' : unresolved > 0 ? 'warn' : 'ok',
+				detail: `${unresolved} unresolved (${critical} critical) — see /admin/errors`,
+			});
+		} catch (e) {
+			checks.push({ name: 'Sentry', status: 'warn', detail: `Check failed: ${String(e)}` });
 		}
 	}
 
