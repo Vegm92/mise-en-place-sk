@@ -116,10 +116,22 @@ function findComments(file, text) {
 		return lo + 1;
 	};
 
-	return ranges
-		.sort((a, b) => a[0] - b[0])
-		.map(([s, e]) => ({ line: lineOf(s), raw: text.slice(s, e) }))
-		.filter((c) => !isAllowed(c.raw));
+	// A `//` directive runs until the first non-comment line. The scanner sees each
+	// of those lines as its own comment, so an allowed opener vouches for the
+	// continuation lines directly beneath it — otherwise a directive that needs a
+	// sentence of justification is flagged for every line after the first.
+	const out = [];
+	let inAllowedBlock = false;
+	let prevEnd = -2;
+	for (const [s, e] of ranges.sort((a, b) => a[0] - b[0])) {
+		const raw = text.slice(s, e);
+		const line = lineOf(s);
+		const continuation = raw.startsWith('//') && inAllowedBlock && line === prevEnd + 1;
+		if (!continuation) inAllowedBlock = isAllowed(raw);
+		if (!inAllowedBlock) out.push({ line, raw });
+		prevEnd = lineOf(e - 1);
+	}
+	return out;
 }
 
 function targets() {

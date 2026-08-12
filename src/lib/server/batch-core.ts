@@ -146,9 +146,6 @@ export function createBatchStore(db: BatchDb) {
 	): Promise<{ batchesDeleted: number; filesDeleted: number; fileErrors: number }> {
 		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-		// A confirmed item's file becomes the invoice's source_file — that key is
-		// now owned by the invoice and must live until the invoice's own retention
-		// purge (runFilePurgeJob), so only non-confirmed items' files are ours to delete.
 		// tenant-scope-ok: scheduled retention job, deliberately cross-tenant —
 		// deletes stale batches for every restaurant by age, not by owner.
 		const stale = await db

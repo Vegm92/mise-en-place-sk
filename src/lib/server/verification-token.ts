@@ -3,9 +3,8 @@ import { and, eq, gt } from 'drizzle-orm';
 import { db } from './db';
 import { verificationTokens } from './schema/auth';
 
-const TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const TOKEN_TTL_MS = 60 * 60 * 1000;
 
-/** identifier is namespaced per use (`verify-email:<email>`, `reset-password:<email>`) so the two flows never collide. */
 export async function createVerificationToken(identifier: string): Promise<string> {
 	await db.delete(verificationTokens).where(eq(verificationTokens.identifier, identifier));
 
@@ -18,7 +17,6 @@ export async function createVerificationToken(identifier: string): Promise<strin
 	return token;
 }
 
-/** Verifies and consumes (deletes) a token in one step — single use. */
 export async function consumeVerificationToken(identifier: string, token: string): Promise<boolean> {
 	const [row] = await db
 		.select()

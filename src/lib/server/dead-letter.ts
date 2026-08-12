@@ -112,12 +112,6 @@ export function classifyDeadLetterError(err: unknown): string {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/**
- * A dead letter's whole input domain is malformed job data, so a restaurantId
- * that is blank or not a uuid must not cost us the audit row — Postgres would
- * reject the insert outright and the record would be lost exactly when it
- * matters most. The raw value still reaches the audit trail inside `payload`.
- */
 export function tenantColumnValue(restaurantId: string | null | undefined): string | null {
 	return typeof restaurantId === 'string' && UUID_RE.test(restaurantId) ? restaurantId : null;
 }

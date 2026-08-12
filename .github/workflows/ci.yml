@@ -54,6 +54,9 @@ jobs:
       - name: Lint — no hardcoded user-facing strings
         run: pnpm lint:i18n
 
+      - name: Lint — no explanatory comments in src (docs/CODE_NOTES.md)
+        run: pnpm lint:no-comments
+
       - name: Type check
         run: pnpm check
 
