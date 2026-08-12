@@ -1,6 +1,12 @@
 <script lang="ts">
-  import { enhance } from '$app/forms';
+  import { slide } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
   import type { ActionData, PageData } from './$types';
+  import EmailForm from '$lib/components/waitlist/EmailForm.svelte';
+  import CaptureMock from '$lib/components/waitlist/CaptureMock.svelte';
+  import ExtractMock from '$lib/components/waitlist/ExtractMock.svelte';
+  import DashboardMock from '$lib/components/waitlist/DashboardMock.svelte';
+  import AppDashboardMock from '$lib/components/waitlist/AppDashboardMock.svelte';
 
   const { form, data }: { form: ActionData; data: PageData } = $props();
 
@@ -30,13 +36,6 @@
       spotTaken:         43,
       spotTotal:         50,
       spotLabel:         'plazas prioritarias asignadas',
-      seqSteps: [
-        { n: '01', t: 'Fotografías el albarán',    b: 'Móvil, PDF o WhatsApp. Diez segundos.' },
-        { n: '02', t: 'El sistema lo entiende',     b: 'Proveedor, líneas, IVA y precios, normalizados.' },
-        { n: '03', t: 'Ves tu cocina en cifras',    b: 'Gasto por categoría y avisos de subida de precio.' },
-      ],
-      intLabel:          'Compatible con tu flujo',
-      integrations:      ['Square POS', 'Revo TPV', 'Holded', 'Excel / CSV', 'WhatsApp Business'],
       painEyebrow:       'El problema',
       painHead:          'Cada semana se te escapan horas, datos y dinero.',
       pain: [
@@ -102,6 +101,13 @@
       mockCatVeg:        'Verdura',
       mockAlertTitle:    'Aceite de oliva virgen · +8,1 % esta semana',
       mockReview:        'Revisar',
+      mockKpiSpend:      'Gasto del mes',
+      mockKpiAvg:        'Media / proveedor',
+      mockKpiPending:    'Pendiente',
+      mockKpiBudget:     'Presupuesto',
+      mockKpiOf:         'de',
+      mockKpiInvoicesShort: 'facturas',
+      mockChartTitle:    'Evolución del gasto',
     },
     en: {
       lang:              'EN',
@@ -128,13 +134,6 @@
       spotTaken:         43,
       spotTotal:         50,
       spotLabel:         'priority spots claimed',
-      seqSteps: [
-        { n: '01', t: 'Photograph the delivery note', b: 'Phone, PDF, or WhatsApp. Ten seconds.' },
-        { n: '02', t: 'The system understands it',    b: 'Supplier, lines, VAT and prices, normalised.' },
-        { n: '03', t: 'See your kitchen in numbers',  b: 'Spend by category and price-rise alerts.' },
-      ],
-      intLabel:          'Works with your workflow',
-      integrations:      ['Square POS', 'Revo TPV', 'Holded', 'Excel / CSV', 'WhatsApp Business'],
       painEyebrow:       'The problem',
       painHead:          'Every week you lose hours, data, and money.',
       pain: [
@@ -200,6 +199,13 @@
       mockCatVeg:        'Vegetables',
       mockAlertTitle:    'Virgin olive oil · +8.1% this week',
       mockReview:        'Review',
+      mockKpiSpend:      'Month spend',
+      mockKpiAvg:        'Avg / supplier',
+      mockKpiPending:    'Pending',
+      mockKpiBudget:     'Budget',
+      mockKpiOf:         'of',
+      mockKpiInvoicesShort: 'invoices',
+      mockChartTitle:    'Spend trend',
     },
   } as const;
 
@@ -208,65 +214,7 @@
   const t = $derived(copy[locale]);
   function toggleLocale() { locale = locale === 'es' ? 'en' : 'es'; }
 
-  let emailError = $state('');
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  function validateEmail(value: string): string {
-    if (!value.trim()) return t.errRequired;
-    if (!EMAIL_RE.test(value.trim())) return t.errInvalid;
-    return '';
-  }
-
-  function serverError(): string {
-    if (!form || form.success) return '';
-    const err = (form as { error?: string }).error;
-    if (err === 'required') return t.errRequired;
-    if (err === 'invalid') return t.errInvalid;
-    if (err === 'rate_limited') return t.errRateLimited;
-    return '';
-  }
-
   let openFaq = $state(0);
-
-  const extractLines = [
-    { ok: true,  desc: 'Solomillo de ternera ibérica', qty: '4,20 kg', total: '119,28' },
-    { ok: true,  desc: 'Costillas de cerdo ibérico',   qty: '3,50 kg', total: '51,10'  },
-    { ok: true,  desc: 'Carrillera de ternera',        qty: '2,80 kg', total: '34,72'  },
-    { ok: false, desc: 'Chorizo cular ibérico',        qty: '1,20 kg', total: '27,36'  },
-    { ok: true,  desc: 'Lomo embuchado',               qty: '0,80 kg', total: '29,20'  },
-  ];
-
-  const rawWeeks = [
-    { l: 'S15', a: 22, b: 18, c: 14, hi: false },
-    { l: 'S16', a: 26, b: 16, c: 18, hi: false },
-    { l: 'S17', a: 24, b: 20, c: 16, hi: false },
-    { l: 'S18', a: 30, b: 22, c: 14, hi: false },
-    { l: 'S19', a: 28, b: 24, c: 18, hi: false },
-    { l: 'S20', a: 36, b: 22, c: 22, hi: false },
-    { l: 'S21', a: 38, b: 28, c: 20, hi: true  },
-  ];
-
-  const CH = 130, CPT = 14, CPB = 22, CVW = 400, padL = 28;
-  const CAW = CVW - padL - 10;
-  const CCW = CAW / rawWeeks.length;
-  const CBW = 22;
-  const CMT = Math.max(...rawWeeks.map(w => w.a + w.b + w.c));
-
-  const chartWeeks = rawWeeks.map((w, i) => {
-    const cx = padL + CCW * i + CCW / 2 - CBW / 2;
-    let sy = CPT + CH;
-    const segs = [
-      { v: w.a, fill: '#7a5b3a' },
-      { v: w.b, fill: '#4d5b7a' },
-      { v: w.c, fill: '#3d6b5a' },
-    ].map(s => {
-      const h = (s.v / CMT) * CH;
-      sy -= h;
-      return { x: cx, y: sy, w: CBW, h: Math.max(h, 0.5), fill: s.fill };
-    });
-    return { l: w.l, hi: w.hi, segs, lx: cx + CBW / 2, ly: CPT + CH + CPB - 8, topY: sy, total: w.a + w.b + w.c };
-  });
-  const svgH = CH + CPT + CPB;
 
   const spotPct = $derived((t.spotTaken / t.spotTotal) * 100);
 </script>
@@ -310,238 +258,10 @@
   })}</script>`}
 </svelte:head>
 
-{#snippet emailForm(big: boolean)}
-  {#if form?.success}
-    <div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);border-radius:10px;
-                padding:{big ? '18px 20px' : '14px 16px'};display:flex;align-items:flex-start;gap:12px;">
-      <div style="width:26px;height:26px;border-radius:13px;flex-shrink:0;background:var(--mep-pos);
-                  color:#fff;display:flex;align-items:center;justify-content:center;">
-        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
-      </div>
-      <div>
-        <div style="font-size:14px;font-weight:600;color:var(--mep-pos);margin-bottom:3px;">{t.success}</div>
-        <div style="font-size:12.5px;color:var(--mep-fg-2);line-height:1.5;">
-          {(form as { alreadyRegistered?: boolean }).alreadyRegistered ? t.alreadyReg : t.successBody}
-        </div>
-      </div>
-    </div>
-  {:else}
-    <form method="POST" action="?/join" use:enhance
-      onsubmit={(e) => {
-        const input = (e.currentTarget as HTMLFormElement).querySelector('input[name="email"]') as HTMLInputElement;
-        const err = validateEmail(input.value);
-        if (err) { emailError = err; e.preventDefault(); }
-      }}
-      style="display:flex;flex-direction:column;gap:8px;">
-      <input type="text" name="_hp" tabindex="-1" autocomplete="off" aria-hidden="true"
-        style="position:absolute;left:-9999px;opacity:0;height:0;width:0;" />
-      <div style="display:flex;gap:8px;">
-        <div style="position:relative;flex:1;">
-          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);pointer-events:none;display:flex;">
-            <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4.5" width="15" height="11" rx="1.5"/><path d="M3 6l7 5 7-5"/></svg>
-          </span>
-          <input type="email" name="email" placeholder={t.placeholder} autocomplete="email"
-            style="width:100%;height:{big ? 52 : 44}px;padding:0 14px 0 38px;font-family:inherit;
-                   font-size:{big ? 14.5 : 13.5}px;border-radius:8px;background:var(--mep-surface);
-                   color:var(--mep-fg);border:1px solid var(--mep-border-strong);outline:none;box-sizing:border-box;"
-            oninput={() => { emailError = ''; }}
-          />
-        </div>
-        <button type="submit" class="btn btn-primary"
-          style="height:{big ? 52 : 44}px;padding:0 {big ? 22 : 18}px;font-size:{big ? 14.5 : 13.5}px;
-                 font-weight:600;flex-shrink:0;">
-          {big ? t.submit : t.submitShort}
-        </button>
-      </div>
-      {#if emailError || serverError()}
-        <div style="font-size:11.5px;color:var(--mep-neg);padding-left:4px;">{emailError || serverError()}</div>
-      {/if}
-      <div style="font-size:11px;color:var(--mep-fg-3);padding-left:2px;">{t.privacy}</div>
-    </form>
-  {/if}
-{/snippet}
-
-{#snippet extractMock()}
-  <div class="card" style="width:100%;padding:0;overflow:hidden;display:flex;flex-direction:column;">
-    <div style="padding:12px 16px;border-bottom:1px solid var(--mep-divider);
-                display:flex;align-items:center;gap:10px;">
-      <div style="width:22px;height:22px;border-radius:5px;background:var(--mep-acc-soft);
-                  color:var(--mep-acc);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.8 3.6L14 5.5l-3 2.9.7 4.1L8 10.4l-3.7 1.9.7-4.1-3-2.9 4.2-.9z" fill="currentColor"/></svg>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:12px;font-weight:600;color:var(--mep-fg);">Cárnicas Ibérico Aranda</div>
-        <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
-          2026-A-0471 · 19/05/2026 · {t.mockExtractedIn}
-        </div>
-      </div>
-      <span style="font-size:9.5px;font-weight:500;padding:2px 7px;border-radius:4px;
-                   background:var(--mep-pos-soft);color:var(--mep-pos);display:inline-flex;align-items:center;gap:4px;">
-        {t.mockConfirmed}
-      </span>
-    </div>
-    {#each extractLines as line, li}
-      <div style="display:grid;grid-template-columns:14px 1fr 70px 60px;gap:10px;
-                  padding:8px 16px;border-bottom:{li === extractLines.length - 1 ? '0' : '1px solid var(--mep-divider)'};
-                  align-items:center;font-size:11.5px;">
-        <div style="width:12px;height:12px;border-radius:6px;flex-shrink:0;
-                    background:{line.ok ? 'var(--mep-pos-soft)' : 'var(--mep-warn-soft)'};
-                    color:{line.ok ? 'var(--mep-pos)' : 'var(--mep-warn)'};
-                    display:flex;align-items:center;justify-content:center;font-size:7px;">
-          {line.ok ? '✓' : '!'}
-        </div>
-        <span style="color:var(--mep-fg-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {line.desc}
-        </span>
-        <span style="color:var(--mep-fg-3);text-align:right;font-family:var(--mep-fs-mono);">{line.qty}</span>
-        <span style="color:var(--mep-fg);font-weight:500;text-align:right;font-family:var(--mep-fs-mono);">{line.total} €</span>
-      </div>
-    {/each}
-    <div style="padding:10px 16px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);
-                display:flex;align-items:center;justify-content:space-between;">
-      <span style="font-size:11px;color:var(--mep-fg-3);">{t.mockLinesVat}</span>
-      <span style="font-size:13px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">482,65 €</span>
-    </div>
-  </div>
-{/snippet}
-
-{#snippet dashboardMock()}
-  <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;">
-      <div>
-        <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;
-                    letter-spacing:0.08em;font-weight:500;font-family:var(--mep-fs-mono);">
-          {t.mockSpendLabel}
-        </div>
-        <div style="display:flex;align-items:baseline;gap:6px;margin-top:4px;">
-          <span style="font-size:22px;font-weight:700;color:var(--mep-fg);
-                       letter-spacing:-0.4px;font-family:var(--mep-fs-mono);">3.842,15 €</span>
-          <span style="font-size:11px;color:var(--mep-pos);font-weight:600;
-                       display:inline-flex;align-items:center;gap:2px;">
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 8V2M2 5l3-3 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            12,4 %
-          </span>
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-        {#each [{ k:t.mockCatMeat, c:'#7a5b3a' }, { k:t.mockCatFish, c:'#4d5b7a' }, { k:t.mockCatVeg, c:'#3d6b5a' }] as cat}
-          <div style="display:flex;align-items:center;gap:4px;">
-            <span style="width:8px;height:8px;border-radius:2px;background:{cat.c};flex-shrink:0;"></span>
-            <span style="font-size:10px;color:var(--mep-fg-3);">{cat.k}</span>
-          </div>
-        {/each}
-      </div>
-    </div>
-    <svg viewBox="0 0 {CVW} {svgH}" width="100%" style="display:block;overflow:visible;">
-      {#each [0, 0.5, 1] as p}
-        <line x1={padL} x2={CVW - 10} y1={CPT + CH * (1 - p)} y2={CPT + CH * (1 - p)}
-              stroke="var(--mep-divider)" stroke-width="1"/>
-      {/each}
-      {#each chartWeeks as wk}
-        <g style="opacity:{!wk.hi ? 0.45 : 1};">
-          {#each wk.segs as seg}
-            <rect x={seg.x} y={seg.y} width={seg.w} height={seg.h} fill={seg.fill}/>
-          {/each}
-          <text x={wk.lx} y={wk.ly} text-anchor="middle" font-size="9.5"
-                fill="var(--mep-fg-3)" font-family="var(--mep-fs-mono)">{wk.l}</text>
-          {#if wk.hi}
-            <text x={wk.lx} y={wk.topY - 4} text-anchor="middle" font-size="9.5"
-                  font-weight="700" fill="var(--mep-fg)" font-family="var(--mep-fs-mono)">
-              {((wk.total / 10) + 0.86).toFixed(2).replace('.', ',')} k
-            </text>
-          {/if}
-        </g>
-      {/each}
-    </svg>
-    <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;
-                border-radius:8px;background:var(--mep-warn-soft);">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="color:var(--mep-warn);flex-shrink:0;">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <line x1="12" y1="17" x2="12.01" y2="17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:11.5px;color:var(--mep-fg);font-weight:600;">{t.mockAlertTitle}</div>
-        <div style="font-size:10.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
-          Aceites Gómez Hermanos · 4,80 € → 5,19 € / L
-        </div>
-      </div>
-      <span style="font-size:10px;font-weight:600;color:var(--mep-warn);
-                   text-transform:uppercase;letter-spacing:0.06em;font-family:var(--mep-fs-mono);">
-        {t.mockReview}
-      </span>
-    </div>
-  </div>
-{/snippet}
-
-{#snippet captureMock()}
-  <div style="position:relative;width:100%;aspect-ratio:4/3;border-radius:16px;overflow:hidden;
-              background:linear-gradient(135deg,var(--mep-surface-2) 0%,var(--mep-surface) 100%);
-              border:1px solid var(--mep-divider);padding:28px;
-              display:flex;align-items:center;justify-content:center;">
-    <div style="position:absolute;top:22px;left:22px;width:54%;height:78%;
-                background:var(--mep-surface);border:1px solid var(--mep-divider);
-                border-radius:4px;box-shadow:0 14px 40px rgba(0,0,0,0.12);
-                transform:rotate(-6deg);padding:14px 16px;
-                display:flex;flex-direction:column;gap:6px;overflow:hidden;">
-      <div style="font-size:10px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">
-        CÁRNICAS IBÉRICO ARANDA
-      </div>
-      <div style="font-size:8.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">CIF B81234567 · Madrid</div>
-      <div style="height:1px;background:var(--mep-divider);margin:4px 0;"></div>
-      <div style="display:flex;justify-content:space-between;font-size:8.5px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
-        <span>FACTURA</span><span>N.º 2026-A-0471</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;font-size:8.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
-        <span>Fecha</span><span>19/05/2026</span>
-      </div>
-      <div style="height:1px;background:var(--mep-divider);margin:4px 0;"></div>
-      {#each ['Solomillo ibérico','Costillas cerdo','Carrillera','Chorizo cular','Lomo embuchado'] as prod, pi}
-        <div style="display:flex;justify-content:space-between;font-size:8px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
-          <span>{prod}</span><span>{(20 + pi * 14).toFixed(2)} €</span>
-        </div>
-      {/each}
-      <div style="flex:1;"></div>
-      <div style="height:1px;background:var(--mep-divider);"></div>
-      <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;color:var(--mep-fg);font-family:var(--mep-fs-mono);">
-        <span>TOTAL</span><span>482,65 €</span>
-      </div>
-    </div>
-    <div style="position:absolute;right:28px;bottom:28px;width:46%;
-                display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-      <div style="max-width:90%;background:#dcf8c6;color:#0a2618;
-                  border-radius:12px 12px 4px 12px;padding:8px;font-size:11px;
-                  box-shadow:0 8px 20px rgba(0,0,0,0.12);">
-        <div style="width:100%;height:76px;border-radius:6px;
-                    background:linear-gradient(135deg,#c1bfaf 0%,#8a8678 60%,#5f5a4d 100%);
-                    display:flex;align-items:center;justify-content:center;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:rgba(255,255,255,0.5);">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="1.5"/>
-          </svg>
-        </div>
-        <div style="font-size:10px;margin-top:5px;font-family:var(--mep-fs-mono);">albaran_aranda.jpg · 1.2 MB</div>
-      </div>
-      <div style="max-width:90%;background:#ffffff;color:#0a2618;
-                  border-radius:12px 12px 12px 4px;padding:8px 12px;font-size:11.5px;
-                  box-shadow:0 8px 20px rgba(0,0,0,0.12);font-weight:500;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
-          <span style="width:12px;height:12px;border-radius:6px;background:var(--mep-acc);
-                       color:var(--mep-acc-fg);display:flex;align-items:center;
-                       justify-content:center;font-size:7px;font-weight:700;">M</span>
-          <span style="font-size:10px;font-weight:600;">Mise en Place</span>
-        </div>
-        {t.mockWhatsappReply}
-        <div style="font-size:9.5px;color:#5a8a6f;margin-top:3px;font-family:var(--mep-fs-mono);">14:02</div>
-      </div>
-    </div>
-  </div>
-{/snippet}
-
 <div class="mep" data-accent="amber"
   style="width:100%;min-height:100vh;background:var(--mep-bg);color:var(--mep-fg);font-family:inherit;">
 
-  <nav style="display:flex;align-items:center;gap:14px;padding:16px 32px;
+  <nav class="mep-nav" style="display:flex;align-items:center;gap:14px;padding:16px 32px;
               border-bottom:1px solid var(--mep-divider);">
     <div style="display:flex;align-items:center;gap:10px;">
       <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
@@ -549,161 +269,127 @@
         <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
         <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
       </svg>
-      <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
+      <span style="font-size:17px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
-    <span style="font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
+    <span style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
                  color:var(--mep-acc);padding:2px 7px;border-radius:4px;
                  background:var(--mep-acc-soft);font-family:var(--mep-fs-mono);">{t.betaBadge}</span>
     <div style="flex:1;"></div>
-    <a href="/login" style="font-size:12.5px;font-weight:500;color:var(--mep-fg-2);text-decoration:none;
+    <a href="/login" class="mep-nav-signin" style="font-size:13.5px;font-weight:500;color:var(--mep-fg-2);text-decoration:none;
                             white-space:nowrap;">{t.signInLink}</a>
     <div style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;
                 border:1px solid var(--mep-border);background:var(--mep-surface);
-                font-size:10.5px;font-weight:600;letter-spacing:0.06em;color:var(--mep-fg-2);
+                font-size:11.5px;font-weight:600;letter-spacing:0.06em;color:var(--mep-fg-2);
                 font-family:var(--mep-fs-mono);gap:8px;">
       <button onclick={toggleLocale} style="background:transparent;border:none;cursor:pointer;
                                             padding:0;font-family:inherit;font-size:inherit;
                                             font-weight:inherit;letter-spacing:inherit;
                                             color:var(--mep-fg-2);">{t.lang}</button>
     </div>
-    <a href="#join" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:12px;
+    <a href="#join" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:13px;
                                                     font-weight:600;text-decoration:none;">{t.ctaNav}</a>
   </nav>
 
-  <section style="padding:108px 72px 0;text-align:center;">
-    <div style="max-width:900px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:26px;">
-        {t.eyebrow}
-      </div>
-      <h1 style="margin:0;font-size:clamp(36px,5vw,54px);font-weight:600;color:var(--mep-fg);
-                 letter-spacing:-0.035em;line-height:1.08;text-wrap:balance;">
-        {t.headline}
-      </h1>
-      <p style="margin:22px auto 0;max-width:560px;font-size:16.5px;line-height:1.6;
-                color:var(--mep-fg-2);text-wrap:pretty;">
-        {t.sub}
-      </p>
-    </div>
-
-    <div style="max-width:1000px;margin:68px auto 0;display:grid;
-                grid-template-columns:repeat(3,1fr);border-top:1px solid var(--mep-border);
-                border-bottom:1px solid var(--mep-border);">
-      {#each t.seqSteps as s, i}
-        <div style="padding:28px 28px 30px;text-align:left;
-                    border-left:{i === 0 ? '0' : '1px solid var(--mep-divider)'};position:relative;">
-          <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                      color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{s.n}</div>
-          <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;margin-bottom:8px;">{s.t}</div>
-          <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;">{s.b}</div>
-        </div>
-      {/each}
-    </div>
-
-    <div style="max-width:460px;margin:52px auto 0;" id="join">
-      {@render emailForm(true)}
-    </div>
-    <div style="max-width:460px;margin:18px auto 0;display:flex;align-items:center;gap:14px;
-                padding:10px 14px;border-radius:10px;background:var(--mep-surface);
-                border:1px solid var(--mep-divider);">
-      <div style="display:flex;align-items:baseline;gap:6px;">
-        <span style="font-size:22px;font-weight:700;color:var(--mep-acc);letter-spacing:-0.6px;
-                     line-height:1;font-family:var(--mep-fs-mono);">{t.spotTaken}</span>
-        <span style="font-size:14px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">/ {t.spotTotal}</span>
-      </div>
-      <div style="flex:1;min-width:120px;">
-        <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.06em;
-                    font-weight:500;margin-bottom:5px;font-family:var(--mep-fs-mono);">{t.spotLabel}</div>
-        <div style="width:100%;height:5px;border-radius:3px;background:var(--mep-hover);overflow:hidden;">
-          <div style="width:{spotPct}%;height:100%;background:var(--mep-acc);border-radius:3px;"></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section style="padding:84px 72px 88px;">
-    <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      <div style="padding:14px;border-radius:16px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
-        {@render extractMock()}
-      </div>
-      <div style="padding:14px;border-radius:16px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
-        {@render dashboardMock()}
-      </div>
-    </div>
-  </section>
-
-  <section style="padding:0 72px 72px;">
-    <div style="max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap;
-                padding:14px 20px;border-radius:12px;background:var(--mep-surface);border:1px solid var(--mep-divider);">
-      <div style="font-size:10.5px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
-                  color:var(--mep-fg-3);font-family:var(--mep-fs-mono);flex-shrink:0;">{t.intLabel}</div>
-      <div style="flex:1;height:1px;background:var(--mep-divider);min-width:20px;"></div>
-      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
-        {#each t.integrations as name}
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="width:6px;height:6px;border-radius:3px;background:var(--mep-acc);
-                         box-shadow:0 0 0 3px var(--mep-acc-soft);"></span>
-            <span style="font-size:12.5px;font-weight:500;color:var(--mep-fg-2);letter-spacing:-0.01em;">{name}</span>
+  <section class="mep-section mep-hero" style="padding:108px 72px 96px;text-align:center;">
+    <div class="mep-hero-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:56px;
+                align-items:center;max-width:1180px;margin:0 auto;">
+      <div>
+        <div style="max-width:560px;margin:0 auto;">
+          <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                      color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:26px;">
+            {t.eyebrow}
           </div>
-        {/each}
+          <h1 style="margin:0;font-size:clamp(40px,5.6vw,59.5px);font-weight:600;color:var(--mep-fg);
+                     letter-spacing:-0.035em;line-height:1.08;text-wrap:balance;">
+            {t.headline}
+          </h1>
+          <p style="margin:22px auto 0;max-width:560px;font-size:18.5px;line-height:1.6;
+                    color:var(--mep-fg-2);text-wrap:pretty;">
+            {t.sub}
+          </p>
+        </div>
+
+        <div style="max-width:460px;margin:40px auto 0;" id="join">
+          <EmailForm big={true} {form} copy={t} />
+        </div>
+        <div class="mep-spotbar" style="max-width:460px;margin:18px auto 0;display:flex;align-items:center;gap:14px;
+                    padding:10px 14px;border-radius:10px;background:var(--mep-surface);
+                    border:1px solid var(--mep-divider);">
+          <div style="display:flex;align-items:baseline;gap:6px;">
+            <span style="font-size:24px;font-weight:700;color:var(--mep-acc);letter-spacing:-0.6px;
+                         line-height:1;font-family:var(--mep-fs-mono);">{t.spotTaken}</span>
+            <span style="font-size:15px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">/ {t.spotTotal}</span>
+          </div>
+          <div style="flex:1;min-width:120px;">
+            <div style="font-size:12px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.06em;
+                        font-weight:500;margin-bottom:5px;font-family:var(--mep-fs-mono);">{t.spotLabel}</div>
+            <div style="width:100%;height:5px;border-radius:3px;background:var(--mep-hover);overflow:hidden;">
+              <div style="width:{spotPct}%;height:100%;background:var(--mep-acc);border-radius:3px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mep-hero-visual">
+        <AppDashboardMock copy={t} />
       </div>
     </div>
   </section>
 
-  <section style="padding:76px 72px;background:var(--mep-surface-2);
+  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);
                   border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.painEyebrow}</div>
-      <h2 style="margin:0;max-width:640px;font-size:clamp(28px,3.4vw,34px);font-weight:600;
+      <h2 style="margin:0;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
                  color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.painHead}</h2>
-      <div style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+      <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
         {#each t.pain as p}
           <div style="padding-top:20px;border-top:1px solid var(--mep-border);">
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
-              <span style="font-size:40px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.04em;
+              <span style="font-size:44px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.04em;
                            line-height:1;font-family:var(--mep-fs-mono);">{p.stat}</span>
-              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;
+              <span style="font-size:11.5px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;
                            color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{p.label}</span>
             </div>
-            <div style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;
+            <div style="font-size:17px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;
                         line-height:1.3;margin-bottom:10px;">{p.title}</div>
-            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;">{p.body}</div>
+            <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.6;">{p.body}</div>
           </div>
         {/each}
       </div>
     </div>
   </section>
 
-  <section style="padding:88px 72px;">
+  <section class="mep-section" style="padding:88px 72px;">
     <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.howEyebrow}</div>
-      <h2 style="margin:0 0 56px;max-width:640px;font-size:clamp(28px,3.4vw,34px);font-weight:600;
+      <h2 style="margin:0 0 56px;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
                  color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.howHead}</h2>
 
       <div style="display:flex;flex-direction:column;gap:64px;">
         {#each t.steps as step, i}
-          <div style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
+          <div class="mep-how-row" style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
             <div>
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;
-                          font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                          font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                           color:var(--mep-acc);font-family:var(--mep-fs-mono);">
                 <span style="width:28px;height:20px;border-radius:4px;background:var(--mep-acc-soft);
                              display:flex;align-items:center;justify-content:center;">{step.num}</span>
                 <span>{step.tag}</span>
               </div>
-              <h3 style="margin:0;font-size:22px;font-weight:600;color:var(--mep-fg);
+              <h3 style="margin:0;font-size:24px;font-weight:600;color:var(--mep-fg);
                          letter-spacing:-0.01em;line-height:1.25;">{step.title}</h3>
-              <p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:var(--mep-fg-2);">{step.body}</p>
+              <p style="margin:12px 0 0;font-size:15px;line-height:1.65;color:var(--mep-fg-2);">{step.body}</p>
             </div>
             <div>
               {#if i === 0}
-                {@render captureMock()}
+                <CaptureMock whatsappReply={t.mockWhatsappReply} />
               {:else if i === 1}
-                {@render extractMock()}
+                <ExtractMock copy={t} />
               {:else}
-                {@render dashboardMock()}
+                <DashboardMock copy={t} />
               {/if}
             </div>
           </div>
@@ -712,42 +398,42 @@
     </div>
   </section>
 
-  <section style="padding:76px 72px;background:var(--mep-surface-2);
+  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);
                   border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:40px;">{t.testimonialsEyebrow}</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+      <div class="mep-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
         {#each t.testimonials as item}
           <div style="padding-top:22px;border-top:1px solid var(--mep-border);">
-            <p style="margin:0;font-size:15px;line-height:1.6;color:var(--mep-fg);letter-spacing:-0.005em;">
+            <p style="margin:0;font-size:17px;line-height:1.6;color:var(--mep-fg);letter-spacing:-0.005em;">
               &ldquo;{item.quote}&rdquo;
             </p>
-            <div style="margin-top:18px;font-size:12.5px;color:var(--mep-fg-2);">
+            <div style="margin-top:18px;font-size:13.5px;color:var(--mep-fg-2);">
               <span style="font-weight:600;color:var(--mep-fg);">{item.name}</span>
             </div>
-            <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:3px;">{item.role}</div>
+            <div style="font-size:12.5px;color:var(--mep-fg-3);margin-top:3px;">{item.role}</div>
           </div>
         {/each}
       </div>
     </div>
   </section>
 
-  <section style="padding:76px 72px;">
-    <div style="max-width:860px;margin:0 auto;display:flex;gap:24px;align-items:flex-start;
+  <section class="mep-section" style="padding:76px 72px;">
+    <div class="mep-founder-card" style="max-width:860px;margin:0 auto;display:flex;gap:24px;align-items:flex-start;
                 padding:32px 36px;border-radius:16px;background:var(--mep-surface);border:1px solid var(--mep-divider);">
       <div style="width:92px;height:92px;border-radius:50%;flex-shrink:0;
                   background:linear-gradient(135deg,var(--mep-acc-soft) 0%,var(--mep-acc) 200%);
                   color:var(--mep-acc-fg);display:flex;align-items:center;justify-content:center;
-                  font-size:28px;font-weight:700;font-family:var(--mep-fs-mono);letter-spacing:-1px;
+                  font-size:31px;font-weight:700;font-family:var(--mep-fs-mono);letter-spacing:-1px;
                   border:1px solid var(--mep-border);">VE</div>
       <div style="flex:1;">
-        <div style="font-size:10.5px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
+        <div style="font-size:11.5px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
                     color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:10px;">{t.founderEyebrow}</div>
-        <p style="margin:0;font-size:17px;line-height:1.55;color:var(--mep-fg);letter-spacing:-0.005em;">
+        <p style="margin:0;font-size:19px;line-height:1.55;color:var(--mep-fg);letter-spacing:-0.005em;">
           &ldquo;{t.founderBody}&rdquo;
         </p>
-        <div style="margin-top:14px;font-size:12px;color:var(--mep-fg-2);">
+        <div style="margin-top:14px;font-size:13px;color:var(--mep-fg-2);">
           <span style="font-weight:600;color:var(--mep-fg);">{t.founderName}</span>
           {' · '}
           <span style="color:var(--mep-fg-3);">{t.founderRole}</span>
@@ -756,23 +442,23 @@
     </div>
   </section>
 
-  <section style="padding:76px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
+  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1080px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.pricingEyebrow}</div>
-      <h2 style="margin:0;max-width:640px;font-size:clamp(28px,3.4vw,34px);font-weight:600;
+      <h2 style="margin:0;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
                  color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.pricingTitle}</h2>
-      <p style="margin:14px 0 0;max-width:620px;font-size:14px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{t.pricingSub}</p>
+      <p style="margin:14px 0 0;max-width:620px;font-size:15px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{t.pricingSub}</p>
 
-      <div style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
+      <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
         <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;
                     background:transparent;border-style:dashed;box-shadow:none;">
-          <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{t.pricingTrialName}</div>
+          <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{t.pricingTrialName}</div>
           <div>
-            <div class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);line-height:1.1;">{t.pricingTrialPrice}</div>
-            <div style="margin-top:8px;font-size:11.5px;color:var(--mep-fg-3);">{t.pricingTrialLimit}</div>
+            <div class="num" style="font-size:35px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);line-height:1.1;">{t.pricingTrialPrice}</div>
+            <div style="margin-top:8px;font-size:12.5px;color:var(--mep-fg-3);">{t.pricingTrialLimit}</div>
           </div>
-          <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{t.pricingTrialTagline}</div>
+          <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{t.pricingTrialTagline}</div>
           <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{t.pricingCta}</a>
         </div>
 
@@ -781,31 +467,31 @@
                       border-color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-border)'};
                       box-shadow:{tier.recommended ? '0 0 0 1px var(--mep-acc), var(--mep-shadow-card)' : 'var(--mep-shadow-card)'};">
             <div style="display:flex;align-items:center;gap:8px;">
-              <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{tier.name}</div>
+              <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{tier.name}</div>
               {#if tier.recommended}
-                <span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{t.pricingRecommended}</span>
+                <span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:12px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{t.pricingRecommended}</span>
               {/if}
             </div>
             <div>
               <div style="display:flex;align-items:baseline;gap:6px;">
-                <span class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);
+                <span class="num" style="font-size:35px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);
                   border-bottom:2px dotted var(--mep-border-strong);line-height:1.1;">{tier.price} €</span>
-                <span style="font-size:13px;color:var(--mep-fg-3);">{t.pricingPerMonth}</span>
+                <span style="font-size:14px;color:var(--mep-fg-3);">{t.pricingPerMonth}</span>
               </div>
               <div style="margin-top:8px;">
-                <span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:500;
+                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;
                   letter-spacing:0.02em;text-transform:uppercase;color:var(--mep-fg-3);
                   border:1px dashed var(--mep-border-strong);border-radius:4px;padding:1px 5px;">
                   {t.pricingProvisional}
                 </span>
               </div>
             </div>
-            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{tier.tagline}</div>
+            <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{tier.tagline}</div>
             <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{t.pricingCta}</a>
             <div style="height:1px;background:var(--mep-divider);"></div>
             <div style="display:flex;flex-direction:column;gap:8px;">
               {#each tier.bullets as bullet}
-                <div style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--mep-fg-2);">
+                <div style="display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--mep-fg-2);">
                   <span style="color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};margin-top:1px;flex-shrink:0;">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
                   </span>
@@ -817,13 +503,13 @@
         {/each}
       </div>
 
-      <p style="margin:32px 0 0;font-size:12.5px;color:var(--mep-fg-3);line-height:1.6;max-width:780px;text-wrap:pretty;">{t.pricingFoot}</p>
+      <p style="margin:32px 0 0;font-size:13.5px;color:var(--mep-fg-3);line-height:1.6;max-width:780px;text-wrap:pretty;">{t.pricingFoot}</p>
     </div>
   </section>
 
-  <section style="padding:0 72px 76px;">
+  <section class="mep-section" style="padding:0 72px 76px;">
     <div style="max-width:720px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:20px;">{t.faqEyebrow}</div>
       <div>
         {#each t.faq as row, i}
@@ -833,9 +519,9 @@
             <button onclick={() => { openFaq = isOpen ? -1 : i; }}
               style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
                      display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
-              <span style="font-size:12px;font-family:var(--mep-fs-mono);color:var(--mep-acc);
+              <span style="font-size:13px;font-family:var(--mep-fs-mono);color:var(--mep-acc);
                            font-weight:600;width:30px;flex-shrink:0;">0{i + 1}</span>
-              <span style="flex:1;font-size:15px;font-weight:500;color:var(--mep-fg);letter-spacing:-0.01em;">{row.q}</span>
+              <span style="flex:1;font-size:17px;font-weight:500;color:var(--mep-fg);letter-spacing:-0.01em;">{row.q}</span>
               <span style="width:24px;height:24px;border-radius:50%;border:1px solid var(--mep-border);
                            display:flex;align-items:center;justify-content:center;color:var(--mep-fg-2);
                            transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;flex-shrink:0;">
@@ -845,7 +531,8 @@
               </span>
             </button>
             {#if isOpen}
-              <div style="padding:0 4px 18px 50px;font-size:13.5px;line-height:1.65;color:var(--mep-fg-2);">
+              <div transition:slide={{ duration: 280, easing: cubicOut }}
+                style="padding:0 4px 18px 50px;font-size:14.5px;line-height:1.65;color:var(--mep-fg-2);">
                 {row.a}
               </div>
             {/if}
@@ -855,21 +542,21 @@
     </div>
   </section>
 
-  <section style="padding:96px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);">
-    <div style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
+  <section class="mep-section" style="padding:96px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);">
+    <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
                 gap:64px;align-items:center;">
       <div>
-        <h2 style="margin:0;font-size:clamp(28px,3.6vw,36px);font-weight:600;color:var(--mep-fg);
+        <h2 style="margin:0;font-size:clamp(31px,4vw,40px);font-weight:600;color:var(--mep-fg);
                    letter-spacing:-0.025em;line-height:1.15;text-wrap:balance;">{t.closeHead}</h2>
-        <p style="margin:14px 0 0;font-size:15px;line-height:1.6;color:var(--mep-fg-2);max-width:420px;">{t.closeSub}</p>
+        <p style="margin:14px 0 0;font-size:17px;line-height:1.6;color:var(--mep-fg-2);max-width:420px;">{t.closeSub}</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;">
-        {@render emailForm(true)}
+        <EmailForm big={true} {form} copy={t} />
       </div>
     </div>
   </section>
 
-  <footer style="padding:28px 72px;border-top:1px solid var(--mep-divider);
+  <footer class="mep-footer mep-section" style="padding:28px 72px;border-top:1px solid var(--mep-divider);
                  display:flex;align-items:center;justify-content:space-between;gap:20px;">
     <div style="display:flex;align-items:center;gap:10px;">
       <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
@@ -877,9 +564,31 @@
         <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
         <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
       </svg>
-      <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
+      <span style="font-size:17px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
-    <div style="font-size:11.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{t.footerNote}</div>
+    <div style="font-size:12.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{t.footerNote}</div>
   </footer>
 
 </div>
+
+<style>
+  @media (max-width: 960px) {
+    .mep-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+    .mep-hero-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
+    .mep-hero-visual { max-width: 560px; margin: 0 auto; }
+  }
+
+  @media (max-width: 640px) {
+    .mep-nav { padding: 12px 16px !important; flex-wrap: wrap !important; row-gap: 8px !important; }
+    .mep-nav-signin { display: none !important; }
+    .mep-section { padding-left: 20px !important; padding-right: 20px !important; }
+    .mep-hero { padding-top: 56px !important; }
+    .mep-grid-3, .mep-grid-4 { grid-template-columns: 1fr !important; }
+    .mep-how-row { grid-template-columns: 1fr !important; gap: 24px !important; }
+    .mep-founder-card { flex-direction: column !important; }
+    .mep-close-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+    .mep-footer { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+    .mep-spotbar { flex-wrap: wrap !important; }
+    .mep-hero-visual { display: none !important; }
+  }
+</style>
