@@ -21,6 +21,9 @@ node_modules
 .DS_Store
 Thumbs.db
 
+# Editor (personal, not repo config)
+/.obsidian/
+
 # Env
 .env
 .env.*

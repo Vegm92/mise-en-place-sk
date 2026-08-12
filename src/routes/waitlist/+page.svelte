@@ -541,7 +541,7 @@
 <div class="mep" data-accent="amber"
   style="width:100%;min-height:100vh;background:var(--mep-bg);color:var(--mep-fg);font-family:inherit;">
 
-  <nav style="display:flex;align-items:center;gap:14px;padding:16px 32px;
+  <nav class="mep-nav" style="display:flex;align-items:center;gap:14px;padding:16px 32px;
               border-bottom:1px solid var(--mep-divider);">
     <div style="display:flex;align-items:center;gap:10px;">
       <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
@@ -555,7 +555,7 @@
                  color:var(--mep-acc);padding:2px 7px;border-radius:4px;
                  background:var(--mep-acc-soft);font-family:var(--mep-fs-mono);">{t.betaBadge}</span>
     <div style="flex:1;"></div>
-    <a href="/login" style="font-size:12.5px;font-weight:500;color:var(--mep-fg-2);text-decoration:none;
+    <a href="/login" class="mep-nav-signin" style="font-size:12.5px;font-weight:500;color:var(--mep-fg-2);text-decoration:none;
                             white-space:nowrap;">{t.signInLink}</a>
     <div style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;
                 border:1px solid var(--mep-border);background:var(--mep-surface);
@@ -570,7 +570,7 @@
                                                     font-weight:600;text-decoration:none;">{t.ctaNav}</a>
   </nav>
 
-  <section style="padding:108px 72px 0;text-align:center;">
+  <section class="mep-section mep-hero" style="padding:108px 72px 0;text-align:center;">
     <div style="max-width:900px;margin:0 auto;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:26px;">
@@ -586,7 +586,7 @@
       </p>
     </div>
 
-    <div style="max-width:1000px;margin:68px auto 0;display:grid;
+    <div class="mep-grid-3 mep-seq" style="max-width:1000px;margin:68px auto 0;display:grid;
                 grid-template-columns:repeat(3,1fr);border-top:1px solid var(--mep-border);
                 border-bottom:1px solid var(--mep-border);">
       {#each t.seqSteps as s, i}
@@ -603,7 +603,7 @@
     <div style="max-width:460px;margin:52px auto 0;" id="join">
       {@render emailForm(true)}
     </div>
-    <div style="max-width:460px;margin:18px auto 0;display:flex;align-items:center;gap:14px;
+    <div class="mep-spotbar" style="max-width:460px;margin:18px auto 0;display:flex;align-items:center;gap:14px;
                 padding:10px 14px;border-radius:10px;background:var(--mep-surface);
                 border:1px solid var(--mep-divider);">
       <div style="display:flex;align-items:baseline;gap:6px;">
@@ -621,8 +621,8 @@
     </div>
   </section>
 
-  <section style="padding:84px 72px 88px;">
-    <div style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+  <section class="mep-section" style="padding:84px 72px 88px;">
+    <div class="mep-grid-2" style="max-width:1000px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px;">
       <div style="padding:14px;border-radius:16px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);">
         {@render extractMock()}
       </div>
@@ -632,7 +632,7 @@
     </div>
   </section>
 
-  <section style="padding:0 72px 72px;">
+  <section class="mep-section" style="padding:0 72px 72px;">
     <div style="max-width:1000px;margin:0 auto;display:flex;align-items:center;gap:22px;flex-wrap:wrap;
                 padding:14px 20px;border-radius:12px;background:var(--mep-surface);border:1px solid var(--mep-divider);">
       <div style="font-size:10.5px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
@@ -650,14 +650,14 @@
     </div>
   </section>
 
-  <section style="padding:76px 72px;background:var(--mep-surface-2);
+  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);
                   border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1000px;margin:0 auto;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.painEyebrow}</div>
       <h2 style="margin:0;max-width:640px;font-size:clamp(28px,3.4vw,34px);font-weight:600;
                  color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.painHead}</h2>
-      <div style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+      <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
         {#each t.pain as p}
           <div style="padding-top:20px;border-top:1px solid var(--mep-border);">
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
@@ -675,7 +675,7 @@
     </div>
   </section>
 
-  <section style="padding:88px 72px;">
+  <section class="mep-section" style="padding:88px 72px;">
     <div style="max-width:1000px;margin:0 auto;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.howEyebrow}</div>
@@ -684,7 +684,7 @@
 
       <div style="display:flex;flex-direction:column;gap:64px;">
         {#each t.steps as step, i}
-          <div style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
+          <div class="mep-how-row" style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
             <div>
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;
                           font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
@@ -712,12 +712,12 @@
     </div>
   </section>
 
-  <section style="padding:76px 72px;background:var(--mep-surface-2);
+  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);
                   border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1000px;margin:0 auto;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:40px;">{t.testimonialsEyebrow}</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+      <div class="mep-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
         {#each t.testimonials as item}
           <div style="padding-top:22px;border-top:1px solid var(--mep-border);">
             <p style="margin:0;font-size:15px;line-height:1.6;color:var(--mep-fg);letter-spacing:-0.005em;">
@@ -733,8 +733,8 @@
     </div>
   </section>
 
-  <section style="padding:76px 72px;">
-    <div style="max-width:860px;margin:0 auto;display:flex;gap:24px;align-items:flex-start;
+  <section class="mep-section" style="padding:76px 72px;">
+    <div class="mep-founder-card" style="max-width:860px;margin:0 auto;display:flex;gap:24px;align-items:flex-start;
                 padding:32px 36px;border-radius:16px;background:var(--mep-surface);border:1px solid var(--mep-divider);">
       <div style="width:92px;height:92px;border-radius:50%;flex-shrink:0;
                   background:linear-gradient(135deg,var(--mep-acc-soft) 0%,var(--mep-acc) 200%);
@@ -756,7 +756,7 @@
     </div>
   </section>
 
-  <section style="padding:76px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
+  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1080px;margin:0 auto;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.pricingEyebrow}</div>
@@ -764,7 +764,7 @@
                  color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.pricingTitle}</h2>
       <p style="margin:14px 0 0;max-width:620px;font-size:14px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{t.pricingSub}</p>
 
-      <div style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
+      <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
         <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;
                     background:transparent;border-style:dashed;box-shadow:none;">
           <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{t.pricingTrialName}</div>
@@ -821,7 +821,7 @@
     </div>
   </section>
 
-  <section style="padding:0 72px 76px;">
+  <section class="mep-section" style="padding:0 72px 76px;">
     <div style="max-width:720px;margin:0 auto;">
       <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                   color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:20px;">{t.faqEyebrow}</div>
@@ -855,8 +855,8 @@
     </div>
   </section>
 
-  <section style="padding:96px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);">
-    <div style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
+  <section class="mep-section" style="padding:96px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);">
+    <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
                 gap:64px;align-items:center;">
       <div>
         <h2 style="margin:0;font-size:clamp(28px,3.6vw,36px);font-weight:600;color:var(--mep-fg);
@@ -869,7 +869,7 @@
     </div>
   </section>
 
-  <footer style="padding:28px 72px;border-top:1px solid var(--mep-divider);
+  <footer class="mep-footer mep-section" style="padding:28px 72px;border-top:1px solid var(--mep-divider);
                  display:flex;align-items:center;justify-content:space-between;gap:20px;">
     <div style="display:flex;align-items:center;gap:10px;">
       <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
@@ -883,3 +883,23 @@
   </footer>
 
 </div>
+
+<style>
+  @media (max-width: 960px) {
+    .mep-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+
+  @media (max-width: 640px) {
+    .mep-nav { padding: 12px 16px !important; flex-wrap: wrap !important; row-gap: 8px !important; }
+    .mep-nav-signin { display: none !important; }
+    .mep-section { padding-left: 20px !important; padding-right: 20px !important; }
+    .mep-hero { padding-top: 56px !important; }
+    .mep-grid-2, .mep-grid-3, .mep-grid-4 { grid-template-columns: 1fr !important; }
+    .mep-seq > div:not(:first-child) { border-left: 0 !important; border-top: 1px solid var(--mep-divider); }
+    .mep-how-row { grid-template-columns: 1fr !important; gap: 24px !important; }
+    .mep-founder-card { flex-direction: column !important; }
+    .mep-close-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+    .mep-footer { flex-direction: column !important; align-items: flex-start !important; gap: 10px !important; }
+    .mep-spotbar { flex-wrap: wrap !important; }
+  }
+</style>
