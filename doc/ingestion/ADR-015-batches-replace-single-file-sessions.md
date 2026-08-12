@@ -97,12 +97,14 @@ malformed, so a probe with a non-UUID id never reaches the database.
   `upload_batches` older than a day, cascading to items, and is fired from
   `hooks.server.ts` at boot. An abandoned half-reviewed stack does not
   accumulate; a stack left open over a weekend is gone on Monday.
-- **Cleanup deletes rows, not files.** The stored objects behind a stale batch are
-  not removed by this sweep — only invoice file retention
-  ([ADR-011](../insights/ADR-011-scheduled-jobs-in-the-worker.md)'s purge job)
-  deletes bytes, and it works from soft-deleted *invoices*. Orphaned upload files
-  from abandoned batches are a known gap —
-  [#427](https://github.com/Vegm92/mise-en-place-sk/issues/427).
+- **Cleanup deletes files, then rows.** The sweep now removes the storage object
+  behind every non-`confirmed` item in a stale batch before deleting the
+  `upload_batches`/`batch_items` rows — a `confirmed` item's file is skipped
+  because it has become the invoice's `source_file` and is owned by invoice
+  file retention instead ([ADR-011](../insights/ADR-011-scheduled-jobs-in-the-worker.md)'s
+  purge job). A storage delete failure is logged and counted, not thrown, so one
+  bad key never blocks the rest of the sweep or the row cleanup
+  ([#427](https://github.com/Vegm92/mise-en-place-sk/issues/427)).
 - **The extraction job payload still accepts `sessionId`** as a fallback for
   `itemId` in `processExtractionJob`. That is migration compatibility for jobs
   enqueued under the old shape and can be removed once no such jobs can exist

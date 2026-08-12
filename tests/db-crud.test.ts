@@ -15,6 +15,7 @@ import {
 	restaurants, suppliers, invoices, invoiceLineItems,
 	categoryBudgets, systemNotifications, settings, waitlist,
 } from '../src/lib/server/schema';
+import { countWaitlistEmails } from '../src/lib/server/waitlist-db';
 
 let rid1 = '', rid2 = '';
 let suppId1 = 0, invId1 = 0;
@@ -267,6 +268,21 @@ describe.skipIf(!hasDbEnv)('waitlist — upsert semantics', () => {
 		const result = await testDb.insert(waitlist).values({ email: testEmail })
 			.onConflictDoNothing().returning({ id: waitlist.id });
 		expect(result.length).toBe(0);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('countWaitlistEmails', () => {
+	const testEmail = `test-vitest-count-${Date.now()}@test.example`;
+
+	afterAll(async () => {
+		await testSql`DELETE FROM waitlist WHERE email = ${testEmail}`;
+	});
+
+	it('reflects the real row count, not a fixed value', async () => {
+		const before = await countWaitlistEmails();
+		await testDb.insert(waitlist).values({ email: testEmail }).onConflictDoNothing();
+		const after = await countWaitlistEmails();
+		expect(after).toBe(before + 1);
 	});
 });
 
