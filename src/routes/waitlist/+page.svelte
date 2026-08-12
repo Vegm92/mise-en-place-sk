@@ -1,6 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+  import Sun from '@lucide/svelte/icons/sun';
+  import Moon from '@lucide/svelte/icons/moon';
   import type { ActionData, PageData } from './$types';
   import EmailForm from '$lib/components/waitlist/EmailForm.svelte';
   import CaptureMock from '$lib/components/waitlist/CaptureMock.svelte';
@@ -10,9 +14,23 @@
 
   const { form, data }: { form: ActionData; data: PageData } = $props();
 
+  let theme = $state<'light' | 'dark'>(
+    browser ? ((document.documentElement.dataset.theme as 'light' | 'dark') || 'light') : 'light'
+  );
+
+  onMount(() => {
+    const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
+    if (storedTheme && storedTheme !== theme) theme = storedTheme;
+  });
+
+  function toggleTheme() {
+    theme = theme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('mep-theme', theme);
+    document.documentElement.dataset.theme = theme;
+  }
+
   const copy = {
     es: {
-      lang:              'ES',
       pageTitle:         'Mise en Place — Gestión de facturas para restaurantes',
       metaDescription:   'Digitaliza tus albaranes en segundos. Detecta subidas de precio, controla el gasto por categoría y defiende tu margen. Edición de fundadores — 50 cocinas, Barcelona.',
       ogTitle:           'Sabe en qué gasta tu cocina, antes que tú.',
@@ -110,7 +128,6 @@
       mockChartTitle:    'Evolución del gasto',
     },
     en: {
-      lang:              'EN',
       pageTitle:         'Mise en Place — Invoice Management for Restaurants',
       metaDescription:   'Digitise your delivery notes in seconds. Detect price rises, track spend by category and defend your margin. Founders edition — 50 kitchens, Barcelona.',
       ogTitle:           'Know what your kitchen spends, before you do.',
@@ -212,6 +229,7 @@
   type Locale = keyof typeof copy;
   let locale = $state<Locale>('es');
   const t = $derived(copy[locale]);
+  const otherLang = $derived(locale === 'es' ? 'EN' : 'ES');
   function toggleLocale() { locale = locale === 'es' ? 'en' : 'es'; }
 
   let openFaq = $state(0);
@@ -277,6 +295,11 @@
     <div style="flex:1;"></div>
     <a href="/login" class="mep-nav-signin" style="font-size:13.5px;font-weight:500;color:var(--mep-fg-2);text-decoration:none;
                             white-space:nowrap;">{t.signInLink}</a>
+    <button onclick={toggleTheme} aria-label="Toggle theme" style="width:28px;height:28px;flex-shrink:0;
+                border-radius:999px;border:1px solid var(--mep-border);background:var(--mep-surface);
+                display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mep-fg-2);">
+      {#if theme === 'dark'}<Sun size={14} />{:else}<Moon size={14} />{/if}
+    </button>
     <div style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;
                 border:1px solid var(--mep-border);background:var(--mep-surface);
                 font-size:11.5px;font-weight:600;letter-spacing:0.06em;color:var(--mep-fg-2);
@@ -284,7 +307,7 @@
       <button onclick={toggleLocale} style="background:transparent;border:none;cursor:pointer;
                                             padding:0;font-family:inherit;font-size:inherit;
                                             font-weight:inherit;letter-spacing:inherit;
-                                            color:var(--mep-fg-2);">{t.lang}</button>
+                                            color:var(--mep-fg-2);">{otherLang}</button>
     </div>
     <a href="#join" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:13px;
                                                     font-weight:600;text-decoration:none;">{t.ctaNav}</a>
