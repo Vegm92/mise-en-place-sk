@@ -16,6 +16,7 @@ import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib
 
 Sentry.init({
 	dsn: process.env.SENTRY_DSN ?? '',
+	release: process.env.SENTRY_RELEASE || undefined,
 	tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 });

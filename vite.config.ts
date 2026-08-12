@@ -1,7 +1,21 @@
 import { sveltekit } from '@sveltejs/kit/vite';
+import { sentrySvelteKit } from '@sentry/sveltekit';
 import { defineConfig, loadEnv } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+// Uploads source maps and creates a release on build when SENTRY_AUTH_TOKEN is
+// set; a silent no-op otherwise. Registered before sveltekit() below.
+// autoInstrument is off: it rewrites every +page.server.ts `load` export to
+// require a full SvelteKit request event, which breaks unit tests that call
+// `load()` directly with a partial mock — request-level tracing already comes
+// from Sentry.sentryHandle() in hooks.server.ts.
+const sentryPlugins = await sentrySvelteKit({
+	autoInstrument: false,
+	org: process.env['SENTRY_ORG'],
+	project: process.env['SENTRY_PROJECT'],
+	authToken: process.env['SENTRY_AUTH_TOKEN'],
+});
 
 export default defineConfig(({ mode }) => {
 	// Vite loads .env into import.meta.env / $env only — server modules that
@@ -13,6 +27,7 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		plugins: [
+			...sentryPlugins,
 			tailwindcss(),
 			sveltekit(),
 			VitePWA({
