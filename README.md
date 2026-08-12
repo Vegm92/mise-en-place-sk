@@ -58,6 +58,10 @@ src/
 
 Multi-tenancy: every business table carries `restaurant_id`; access is enforced in application queries via `forTenant().scope()`, guarded by the `lint:tenant-scope` CI check. This is the **only** tenant boundary — the app connects as the table owner, and RLS policies were dropped in the Railway migration (see ADR-001 and ADR-005, and #222 for the database-enforced path). Uploaded files live on local disk (`UPLOADS_DIR`) or in object storage (`STORAGE_DRIVER=railway`) — see [DEPLOYMENT.md](DEPLOYMENT.md) for the persistence requirements and single-instance constraints.
 
+## Architecture decisions
+
+Why the app is shaped this way is recorded as ADRs in **[`doc/`](doc/README.md)** — one file per decision, grouped per feature area (tenancy, ingestion, extraction, invoicing, insights, analytics, billing, identity, WhatsApp, data, experience, conventions). Start with the [index](doc/README.md).
+
 ## Getting started
 
 1. Provision a Railway Postgres instance for `DATABASE_URL` (see [DEPLOYMENT.md](DEPLOYMENT.md)). A local Postgres works for development.

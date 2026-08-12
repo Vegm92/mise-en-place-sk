@@ -25,7 +25,14 @@ const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: '
 const SKIP_FILES = [
 	'src/routes/privacy/+page.svelte',
 	'src/routes/terms/+page.svelte',
-	'src/routes/waitlist/+page.svelte'
+	'src/routes/waitlist/+page.svelte',
+	// Mock product/invoice illustrations for the waitlist landing — fixture-like
+	// demo data (supplier names, line items), not real UI copy. Same exemption
+	// as the page they were extracted from.
+	'src/lib/components/waitlist/AppDashboardMock.svelte',
+	'src/lib/components/waitlist/CaptureMock.svelte',
+	'src/lib/components/waitlist/DashboardMock.svelte',
+	'src/lib/components/waitlist/ExtractMock.svelte'
 ];
 
 const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt']);

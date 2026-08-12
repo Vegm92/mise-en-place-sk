@@ -3,6 +3,8 @@ export {
 	REMINDERS_QUEUE,
 	TRIAL_QUEUE,
 	PURGE_QUEUE,
+	DEAD_LETTER_PURGE_QUEUE,
+	ANALYTICS_REFRESH_QUEUE,
 	DELETED_FILE_RETENTION_DAYS,
 	runWeeklyDigestJob,
 	runOverdueRemindersJob,
@@ -10,6 +12,8 @@ export {
 	trialMilestoneFor,
 	runTrialNoticesJob,
 	runFilePurgeJob,
+	runDeadLetterPurgeJob,
+	runAnalyticsRefreshJob,
 	registerScheduledJobs,
 } from './alerts';
 

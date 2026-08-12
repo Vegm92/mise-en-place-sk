@@ -28,7 +28,9 @@ const parser = new XMLParser({
 	parseTagValue: true,
 	isArray: (name) =>
 		['InvoiceLine', 'Tax', 'TaxSubtotal', 'TaxTotal', 'AllowanceCharge'].includes(name),
-	numberParseOptions: { leadingZeros: true, hex: false, skipLike: /^0\d/ },
+	// skipLike also excludes leading '+' (e.g. phone numbers like +34915552233):
+	// without this the parser silently coerces them to a JS number and drops the sign.
+	numberParseOptions: { leadingZeros: true, hex: false, skipLike: /^0\d|^\+/ },
 });
 
 function getChild(obj: unknown, ...keys: string[]): unknown {
@@ -86,9 +88,21 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	const seller = (parties?.['SellerParty'] ?? {}) as Record<string, unknown>;
 
 	const nif = getText(getChild(seller, 'TaxIdentification', 'TaxIdentificationNumber'));
+	const legalEntity = (seller['LegalEntity'] ?? seller['Individual'] ?? {}) as Record<string, unknown>;
 	const supplierName =
 		getText(getChild(seller, 'LegalEntity', 'CorporateName')) ??
 		getText(getChild(seller, 'Individual', 'Name'));
+
+	const addressNode = (legalEntity['AddressInSpain'] ?? legalEntity['OverseasAddress']) as Record<string, unknown> | undefined;
+	const supplierAddress = addressNode
+		? [getText(addressNode['Address']), getText(addressNode['PostCode']), getText(addressNode['Town'])]
+			.filter((v): v is string => !!v)
+			.join(', ') || null
+		: null;
+
+	const contactDetails = seller['ContactDetails'] as Record<string, unknown> | undefined;
+	const supplierEmail = getText(contactDetails?.['ElectronicMail']);
+	const supplierPhone = getText(contactDetails?.['Telephone']);
 
 	const invoicesNode = root['Invoices'] as Record<string, unknown> | undefined;
 	const invoices = getArr(invoicesNode, 'Invoice');
@@ -136,6 +150,9 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 	return {
 		supplier_name: supplierName,
 		supplier_nif: nif,
+		supplier_address: supplierAddress,
+		supplier_email: supplierEmail,
+		supplier_phone: supplierPhone,
 		invoice_number: fullNumber,
 		invoice_date: invoiceDate,
 		due_date: null,
@@ -168,6 +185,21 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	const nif =
 		getText(getChild(supplierParty, 'PartyTaxScheme', 'CompanyID')) ??
 		getText(getChild(supplierParty, 'PartyLegalEntity', 'CompanyID'));
+
+	const postalAddress = supplierParty?.['PostalAddress'] as Record<string, unknown> | undefined;
+	const supplierAddress = postalAddress
+		? [
+			getText(postalAddress['StreetName']),
+			getText(postalAddress['CityName']),
+			getText(postalAddress['PostalZone']),
+		]
+			.filter((v): v is string => !!v)
+			.join(', ') || null
+		: null;
+
+	const contact = supplierParty?.['Contact'] as Record<string, unknown> | undefined;
+	const supplierEmail = getText(contact?.['ElectronicMail']);
+	const supplierPhone = getText(contact?.['Telephone']);
 
 	const invoiceNumber = getText(inv['ID']);
 	const invoiceDate = getText(inv['IssueDate']);
@@ -219,6 +251,9 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 	return {
 		supplier_name: supplierName,
 		supplier_nif: nif,
+		supplier_address: supplierAddress,
+		supplier_email: supplierEmail,
+		supplier_phone: supplierPhone,
 		invoice_number: invoiceNumber,
 		invoice_date: invoiceDate,
 		due_date: dueDate,

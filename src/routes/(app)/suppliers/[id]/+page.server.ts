@@ -135,6 +135,7 @@ export const actions: Actions = {
 		const contactEmail = String(data.get('contact_email') ?? '').trim() || null;
 		const contactPhone = String(data.get('contact_phone') ?? '').trim() || null;
 		const cif          = String(data.get('cif') ?? '').trim() || null;
+		const address      = String(data.get('address') ?? '').trim() || null;
 		const deliveryDays = String(data.get('delivery_days') ?? '').trim() || null;
 		const paymentTermms = String(data.get('payment_terms') ?? '').trim() || null;
 		const notes        = String(data.get('notes') ?? '').trim() || null;
@@ -144,7 +145,7 @@ export const actions: Actions = {
 		const cat = VALID_CATEGORIES.includes(category) ? category : null;
 
 		await db.update(suppliers)
-			.set({ name, category: cat, contactEmail, contactPhone, cif, deliveryDays, paymentTerms: paymentTermms, notes })
+			.set({ name, category: cat, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
 		if (cat) {

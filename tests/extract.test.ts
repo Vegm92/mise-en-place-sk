@@ -136,3 +136,52 @@ describe('classifyFile', () => {
     expect(() => classifyFile('/fake/invoice.xlsx')).toThrow('Unsupported file type');
   });
 });
+
+// Issue #385: supplier-level contact fields (CIF/NIF, address, email, phone)
+// were never requested from the LLM in the first place — the JSON schema in
+// the extraction prompt only asked for header/line-item fields.
+describe('extractInvoice — supplier contact fields (issue #385)', () => {
+  it('asks the model for supplier_nif, supplier_address, supplier_email and supplier_phone', async () => {
+    mockPdfText('FACTURA\nProveedor Test S.L.\nTotal: 1250.00 EUR\n'.repeat(5));
+
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    await extractInvoice('/fake/invoice.pdf', generate);
+
+    const call = vi.mocked(generate).mock.calls[0][0] as string;
+    expect(call).toContain('supplier_nif');
+    expect(call).toContain('supplier_address');
+    expect(call).toContain('supplier_email');
+    expect(call).toContain('supplier_phone');
+  });
+
+  it('passes supplier contact fields through when the model returns them', async () => {
+    mockPdfText('FACTURA\nSuministros Alimentarios Goya, S.L.\n'.repeat(5));
+
+    const dataWithContact = {
+      ...MOCK_INVOICE_DATA,
+      supplier_nif: 'B-99881122',
+      supplier_address: 'Polígono Ind. La Resina, Nave 14, 28201 Madrid',
+      supplier_email: 'facturacion@goya.es',
+      supplier_phone: '+34 91 555 22 33',
+    };
+    const generate = makeGenerateFn(JSON.stringify(dataWithContact));
+    const result = await extractInvoice('/fake/invoice.pdf', generate);
+
+    expect(result.supplier_nif).toBe('B-99881122');
+    expect(result.supplier_address).toBe('Polígono Ind. La Resina, Nave 14, 28201 Madrid');
+    expect(result.supplier_email).toBe('facturacion@goya.es');
+    expect(result.supplier_phone).toBe('+34 91 555 22 33');
+  });
+
+  it('does not fabricate contact fields absent from the model response', async () => {
+    mockPdfText('ALBARÁN\nSin datos de contacto\n'.repeat(5));
+
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/invoice.pdf', generate);
+
+    expect(result.supplier_nif ?? null).toBeNull();
+    expect(result.supplier_address ?? null).toBeNull();
+    expect(result.supplier_email ?? null).toBeNull();
+    expect(result.supplier_phone ?? null).toBeNull();
+  });
+});

@@ -8,6 +8,8 @@ import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { GEMINI_API_KEY } from './env';
 import { createLLMProvider, type LLMProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
+import { recordDeadLetter } from './dead-letter';
+import { NORMALIZE_QUEUE } from './queue';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -261,6 +263,8 @@ interface LineInput {
 	description: string;
 	unit?: string | null;
 	category?: string | null;
+	unitsPerPack?: number | null;
+	baseUnit?: string | null;
 }
 
 export async function resolveLineProducts(
@@ -271,7 +275,10 @@ export async function resolveLineProducts(
 ): Promise<Map<string, ResolvedLine>> {
 	const out = new Map<string, ResolvedLine>();
 
-	const byKey = new Map<string, { raw: string; key: string; unit: string | null; category: string | null }>();
+	const byKey = new Map<string, {
+		raw: string; key: string; unit: string | null; category: string | null;
+		unitsPerPack: number | null; baseUnit: string | null;
+	}>();
 	for (const line of lines) {
 		const raw = (line.description ?? '').trim();
 		const key = normalizeProductKey(raw);
@@ -282,13 +289,15 @@ export async function resolveLineProducts(
 				key,
 				unit: canonicalizeUnit(line.unit) ?? (line.unit?.trim() || null),
 				category: line.category ?? null,
+				unitsPerPack: line.unitsPerPack ?? null,
+				baseUnit: line.baseUnit ?? null,
 			});
 		}
 	}
 	if (byKey.size === 0) return out;
 
-	for (const { raw, key, unit, category } of byKey.values()) {
-		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category);
+	for (const { raw, key, unit, category, unitsPerPack, baseUnit } of byKey.values()) {
+		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category, unitsPerPack, baseUnit);
 		for (const line of lines) {
 			if (normalizeProductKey((line.description ?? '').trim()) === key) {
 				out.set(line.description ?? '', resolved);
@@ -306,6 +315,8 @@ async function resolveOne(
 	key: string,
 	unit: string | null,
 	category: string | null,
+	unitsPerPack: number | null,
+	baseUnit: string | null,
 ): Promise<ResolvedLine> {
 	const aliasRows = await tx.execute<{ product_id: number }>(sql`
 		SELECT product_id FROM product_aliases
@@ -338,8 +349,8 @@ async function resolveOne(
 	}
 
 	const productRows = await tx.execute<{ id: number }>(sql`
-		INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit)
-		VALUES (${restaurantId}, ${raw}, ${key}, ${category}, ${unit})
+		INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit, units_per_pack, base_unit)
+		VALUES (${restaurantId}, ${raw}, ${key}, ${category}, ${unit}, ${unitsPerPack}, ${baseUnit})
 		ON CONFLICT (restaurant_id, name_key) DO UPDATE SET name_key = products.name_key
 		RETURNING id
 	`);
@@ -629,6 +640,7 @@ export function parseNormalizeResponse(text: string, validIds: Set<number>): Nor
 export interface NormalizeDeps {
 	provider?: LLMProvider;
 	recordUsage?: typeof recordLlmUsage;
+	recordFailure?: typeof recordDeadLetter;
 }
 
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
@@ -687,5 +699,12 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 		});
 	} catch (err) {
 		console.error('[normalize] product normalization job failed (non-fatal):', err);
+		await (deps.recordFailure ?? recordDeadLetter)({
+			queue: NORMALIZE_QUEUE,
+			error: err,
+			restaurantId,
+			sourceId: `${restaurantId}:${productId}`,
+			payload: { restaurantId, productId, rawText },
+		});
 	}
 }

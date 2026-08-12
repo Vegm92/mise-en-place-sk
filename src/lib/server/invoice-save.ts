@@ -4,16 +4,17 @@ import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers 
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
 import { enqueueNormalize } from './queue';
-import { normalizeProductKey } from './normalize';
+import { normalizeProductKey, isSameSupplierName } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, saveAlerts, type Alert } from './alerts';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
-import { getOrCreateSupplierId } from './supplier';
+import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
 import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
-import type { EnrichedLineItem } from './products';
+import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch-core';
+import { parseQrUrl, detectVerifactuMismatch } from './qr';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
@@ -120,7 +121,7 @@ async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
-	lineInputs: Array<{ desc: string; unitVal: string | null }>,
+	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null }>,
 ): Promise<Map<string, number>> {
 	const productByKey = new Map<string, number>();
 	try {
@@ -133,7 +134,13 @@ async function linkProductsToInvoice(
 
 		const resolved = await resolveLineProducts(
 			db, rid, supplierId,
-			lineInputs.map(li => ({ description: li.desc, unit: li.unitVal, category })),
+			lineInputs.map(li => ({
+				description: li.desc,
+				unit: li.unitVal,
+				category,
+				unitsPerPack: li.pack?.unitsPerPack ?? null,
+				baseUnit: li.pack?.baseUnit ?? null,
+			})),
 		);
 
 		const suggestions: Alert[] = [];
@@ -205,10 +212,22 @@ export async function saveReviewedInvoice(
 	const extracted = item?.extractedData as ExtractedInvoice | undefined;
 	const sameSupplier =
 		typeof extracted?.supplier_name === 'string' &&
-		extracted.supplier_name.trim().toLowerCase() === supplierName.trim().toLowerCase();
+		isSameSupplierName(extracted.supplier_name, supplierName);
 	const proposedCategory = sameSupplier
 		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
 		: UNCATEGORIZED_CATEGORY;
+	// Only trust supplier-level contact fields (CIF/NIF, address, email, phone) when the
+	// reviewed supplier name still matches what was extracted — if the user retargeted this
+	// invoice to a different existing supplier, its contact info must not be overwritten with
+	// whatever this document happened to print for its own supplier.
+	const proposedContact: SupplierContactInfo = sameSupplier
+		? {
+			cif: extracted?.supplier_nif ?? null,
+			email: extracted?.supplier_email ?? null,
+			phone: extracted?.supplier_phone ?? null,
+			address: extracted?.supplier_address ?? null,
+		}
+		: {};
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
@@ -247,6 +266,20 @@ export async function saveReviewedInvoice(
 	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 	const primaryFile = item?.fileKey ?? null;
 
+	// VERI*FACTU QR tamper check (issue #392): the QR is decoded straight off the
+	// document by extraction and never re-derived from the reviewed/submitted
+	// fields, so it stays an independent signal even if those fields were hand-edited
+	// during review. Every invoice with a decodable AEAT QR gets this check — not just
+	// some code paths — because it runs unconditionally here in the one function that
+	// commits a reviewed invoice, before the insert below.
+	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
+	const qrResult = rawQrUrl ? parseQrUrl(rawQrUrl) : null;
+	const qrMismatches = detectVerifactuMismatch(qrResult, {
+		invoice_number: invoiceNumber || null,
+		invoice_date: invoiceDate,
+		total_amount: totalAmount,
+	});
+
 	type LineInput = {
 		desc: string;
 		qtyFloat: number | null;
@@ -254,18 +287,21 @@ export async function saveReviewedInvoice(
 		unitVal: string | null;
 		totalPriceVal: number | null;
 		taxRateVal: number | null;
+		pack: PackInfo | null;
 	};
 	const lineInputs: LineInput[] = [];
 	for (let i = 0; i < lineDescriptions.length; i++) {
 		const desc = lineDescriptions[i].trim();
 		if (!desc) continue;
+		const unitVal = lineUnits[i]?.trim() || null;
 		lineInputs.push({
 			desc,
 			qtyFloat: toFloat(lineQuantities[i]),
 			unitPriceFloat: toFloat(lineUnitPrices[i]),
-			unitVal: lineUnits[i]?.trim() || null,
+			unitVal,
 			totalPriceVal: toFloat(lineTotalPrices[i]),
 			taxRateVal: toFloat(lineTaxRates[i]),
+			pack: parsePack(desc, unitVal),
 		});
 	}
 	const unitRules = await Promise.all(
@@ -287,7 +323,7 @@ export async function saveReviewedInvoice(
 			return;
 		}
 
-		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory);
+		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
 
 		if (invoiceNumber.trim()) {
 			const dup = await tx
@@ -318,6 +354,8 @@ export async function saveReviewedInvoice(
 				confidence: confidenceRaw,
 				contentHash,
 				notes,
+				qrUrl: qrResult?.url ?? null,
+				qrMismatch: qrMismatches.length > 0 ? 1 : 0,
 			})
 			.onConflictDoNothing()
 			.returning({ id: invoices.id });
@@ -338,7 +376,7 @@ export async function saveReviewedInvoice(
 			const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
 			const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
 
-			const pack = parsePack(li.desc, li.unitVal);
+			const pack = li.pack;
 			const normPrice = normalizedUnitPrice(li.unitPriceFloat, pack);
 
 			await tx.insert(invoiceLineItems).values({
@@ -403,9 +441,18 @@ export async function saveReviewedInvoice(
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
+		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
+			notificationType: 'verifactu_qr_mismatch',
+			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
+			payload: {
+				invoiceNumber, mismatches: qrMismatches,
+				messageKey: 'notif.msg.verifactuMismatch',
+				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
+			},
+		}] : [];
 		await saveAlerts(invoiceId!, rid, [
 			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions,
+			...categoryAlerts, ...categorySuggestions, ...verifactuAlerts,
 		]);
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);

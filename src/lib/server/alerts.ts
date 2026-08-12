@@ -13,6 +13,7 @@ import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, type PlanTier } from './billing';
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
+import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
 
 const LOW_STOCK_DAYS = 3;
 
@@ -423,11 +424,15 @@ export const DIGEST_QUEUE = 'scheduled-weekly-digest';
 export const REMINDERS_QUEUE = 'scheduled-overdue-reminders';
 export const TRIAL_QUEUE = 'scheduled-trial-notices';
 export const PURGE_QUEUE = 'scheduled-file-purge';
+export const DEAD_LETTER_PURGE_QUEUE = 'scheduled-dead-letter-purge';
+export const ANALYTICS_REFRESH_QUEUE = 'scheduled-analytics-refresh';
 
 const DIGEST_CRON = '0 6 * * 1';
 const REMINDERS_CRON = '30 6 * * *';
 const TRIAL_CRON = '0 7 * * *';
 const PURGE_CRON = '0 3 * * *';
+const DEAD_LETTER_PURGE_CRON = '20 3 * * *';
+const ANALYTICS_REFRESH_CRON = '10 3 * * *';
 
 export const DELETED_FILE_RETENTION_DAYS = 30;
 
@@ -487,7 +492,7 @@ function today(): string {
 	return new Date().toISOString().slice(0, 10);
 }
 
-async function perTenant<T>(
+async function perTenant<T extends { id?: string }>(
 	label: string,
 	tenants: T[],
 	fn: (tenant: T) => Promise<boolean>,
@@ -499,6 +504,12 @@ async function perTenant<T>(
 		} catch (err) {
 			console.error(`[scheduler] ${label} failed for a tenant (continuing):`, err);
 			Sentry.captureException(err, { tags: { job: label } });
+			await recordDeadLetter({
+				queue: label,
+				error: err,
+				restaurantId: tenant.id ?? null,
+				sourceId: tenant.id ?? null,
+			});
 		}
 	}
 	return { considered: tenants.length, sent };
@@ -628,6 +639,17 @@ export async function runFilePurgeJob(): Promise<{ purged: number; failed: numbe
 	return { purged, failed };
 }
 
+export async function runDeadLetterPurgeJob(): Promise<{ purged: number }> {
+	const result = await purgeDeadLetters();
+	if (result.purged) console.info(`[scheduler] dead-letter purge: ${result.purged} entries removed`);
+	return result;
+}
+
+export async function runAnalyticsRefreshJob(): Promise<{ refreshed: boolean }> {
+	await db.execute(sql`SELECT refresh_analytics_rollups()`);
+	return { refreshed: true };
+}
+
 interface ScheduledJob {
 	queue: string;
 	cron: string;
@@ -640,6 +662,8 @@ const JOBS: ScheduledJob[] = [
 	{ queue: TRIAL_QUEUE, cron: TRIAL_CRON, run: runTrialNoticesJob },
 	{ queue: PURGE_QUEUE, cron: PURGE_CRON, run: runFilePurgeJob },
 	{ queue: MRR_SNAPSHOT_QUEUE, cron: MRR_SNAPSHOT_CRON, run: runMrrSnapshotJob },
+	{ queue: DEAD_LETTER_PURGE_QUEUE, cron: DEAD_LETTER_PURGE_CRON, run: runDeadLetterPurgeJob },
+	{ queue: ANALYTICS_REFRESH_QUEUE, cron: ANALYTICS_REFRESH_CRON, run: runAnalyticsRefreshJob },
 ];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
@@ -648,8 +672,15 @@ export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
 		await boss.schedule(job.queue, job.cron, {}, { tz: 'UTC' });
 		await boss.work(job.queue, { batchSize: 1 }, async () => {
 			const started = Date.now();
-			const result = await job.run();
-			console.info(`[scheduler] ${job.queue} finished in ${Date.now() - started}ms`, result);
+			try {
+				const result = await job.run();
+				console.info(`[scheduler] ${job.queue} finished in ${Date.now() - started}ms`, result);
+			} catch (err) {
+				console.error(`[scheduler] ${job.queue} failed after ${Date.now() - started}ms — dead-lettered:`, err);
+				Sentry.captureException(err, { tags: { job: job.queue } });
+				await recordDeadLetter({ queue: job.queue, error: err, sourceId: job.queue });
+				throw err;
+			}
 		});
 	}
 	console.info(`[scheduler] ${JOBS.length} scheduled jobs registered (${JOBS.map(j => j.queue).join(', ')})`);

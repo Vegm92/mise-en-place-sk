@@ -69,6 +69,34 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		expect(count).toBeGreaterThanOrEqual(2);
 	});
 
+	it('carries derivable pack data (unit, pack size) onto a new product row (issue #386)', async () => {
+		const out = await saveReviewedInvoice(null, form('__inv_prod_sup3__', [
+			{ desc: 'Leche entera 6x1L', unit: 'caja', price: '4.50' },
+			{ desc: 'Sal fina', unit: 'kg', price: '0.80' },
+		]), rid);
+		expect(out.type).toBe('saved');
+		if (out.type !== 'saved') return;
+
+		const items = await testSql`
+			SELECT description, product_id FROM invoice_line_items WHERE invoice_id = ${out.invoiceId} ORDER BY description`;
+		const pack = items.find((i) => i.description === 'Leche entera 6x1L')!;
+		const plain = items.find((i) => i.description === 'Sal fina')!;
+
+		const [packProduct] = await testSql`
+			SELECT canonical_unit, units_per_pack, base_unit FROM products WHERE id = ${pack.product_id}`;
+		expect(packProduct.canonical_unit).toBe('caja');
+		expect(packProduct.units_per_pack).toBe(6);
+		expect(packProduct.base_unit).toBe('L');
+
+		// "Sal fina" has no multipack/size pattern to derive — the new product
+		// carries the unit it does have, but must not fabricate pack data.
+		const [plainProduct] = await testSql`
+			SELECT canonical_unit, units_per_pack, base_unit FROM products WHERE id = ${plain.product_id}`;
+		expect(plainProduct.canonical_unit).toBe('kg');
+		expect(plainProduct.units_per_pack).toBeNull();
+		expect(plainProduct.base_unit).toBeNull();
+	});
+
 	it('raises a product_suggestion notification for a fuzzy near-duplicate', async () => {
 		// First invoice establishes "Tomate pera"; second uses a near-duplicate.
 		await saveReviewedInvoice(null, form('__inv_prod_sup2__', [

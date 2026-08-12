@@ -3,6 +3,11 @@ import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
 import { uploadBatches, batchItems } from './schema';
+import { getStorage } from './storage';
+
+export interface BatchFileStorage {
+	delete(key: string): Promise<void>;
+}
 
 export type BatchDb =
 	| PostgresJsDatabase<typeof schema>
@@ -136,9 +141,40 @@ export function createBatchStore(db: BatchDb) {
 		await db.delete(uploadBatches).where(eq(uploadBatches.id, batchId));
 	}
 
-	async function cleanupStaleBatches(): Promise<void> {
+	async function cleanupStaleBatches(
+		storage: BatchFileStorage = getStorage(),
+	): Promise<{ batchesDeleted: number; filesDeleted: number; fileErrors: number }> {
 		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-		await db.delete(uploadBatches).where(lt(uploadBatches.createdAt, cutoff));
+
+		// A confirmed item's file becomes the invoice's source_file — that key is
+		// now owned by the invoice and must live until the invoice's own retention
+		// purge (runFilePurgeJob), so only non-confirmed items' files are ours to delete.
+		// tenant-scope-ok: scheduled retention job, deliberately cross-tenant —
+		// deletes stale batches for every restaurant by age, not by owner.
+		const stale = await db
+			.select({ fileKey: batchItems.fileKey })
+			.from(batchItems)
+			.innerJoin(uploadBatches, eq(batchItems.batchId, uploadBatches.id))
+			.where(and(lt(uploadBatches.createdAt, cutoff), ne(batchItems.status, 'confirmed')));
+
+		let filesDeleted = 0;
+		let fileErrors = 0;
+		for (const { fileKey } of stale) {
+			try {
+				await storage.delete(fileKey);
+				filesDeleted++;
+			} catch (err) {
+				fileErrors++;
+				console.error(`[batch] stale file delete failed for ${fileKey} (continuing):`, err);
+			}
+		}
+
+		const deleted = await db
+			.delete(uploadBatches)
+			.where(lt(uploadBatches.createdAt, cutoff))
+			.returning({ id: uploadBatches.id });
+
+		return { batchesDeleted: deleted.length, filesDeleted, fileErrors };
 	}
 
 	async function transition(

@@ -1,3 +1,8 @@
+---
+tags: [mep, code-notes]
+related: "[[CONTEXT]]"
+---
+
 # Code Notes
 
 Prose documentation for `mise-en-place`. Every note here was previously an inline comment in `src/`; the code itself is now comment-free by policy (see _Conventions_ below).
@@ -6,6 +11,7 @@ This file is tracked in the repo — it is the shared reference for why the code
 
 - Extracted: 1856 notes from 162 of 233 source files
 - Generated: 2026-07-31
+- Amended: 2026-08-11 — the auth/DB sections predated ADR-005 and ADR-014 (Railway Postgres, Auth.js), so notes covering `svelte.config.js`, `settings/+page.server.ts`, `api/auth/[...all]`, `api/user/delete`, `forgot-password`, `reset-password`, `signup/+page.server.ts`, `auth-seed.ts`, `db-ssl.ts`, `db.ts`, `extraction-worker.ts`, `schema.ts`, and `hooks.server.ts` were rewritten to match; the dead `src/lib/server/supabase.ts` and `src/routes/auth/callback/+server.ts` sections were removed outright.
 
 ---
 
@@ -38,7 +44,7 @@ These change how a tool behaves, so removing them would change behaviour — the
 
 **`form-action` CSP directive**
 
-Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the server action responds with a 303 redirect straight to Supabase's `/auth/v1/authorize` endpoint. Browsers validate `form-action` against that first redirect hop (not just the form's own same-origin target), so the Supabase project origin must be allowlisted alongside `'self'` or the redirect gets blocked client-side. The further hop from Supabase to `accounts.google.com` is a normal navigation and isn't re-checked.
+`/login?/signInWithGoogle` (the `signInWithGoogle` action, bound to Auth.js's `signIn` in `src/routes/login/+page.server.ts`) is a plain HTML form POST; the action responds with a 303 redirect straight to Google's OAuth consent screen. Browsers validate `form-action` against that first redirect hop (not just the form's own same-origin target), so `https://accounts.google.com` must be allowlisted alongside `'self'` or the redirect gets blocked client-side.
 
 ---
 
@@ -910,6 +916,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - Legacy route — superseded by /batch/[batchId]. Old links carry an item id; resolve it to the batch when possible, otherwise go home.
 
     ↳ `export const load: PageServerLoad = async ({ params }) => {`
+- Inert by design: this file and `confirm/[id]/+page.server.ts` are the only two survivors of the pre-ADR-002 flow, and both exist purely to redirect. The links they serve predate the batch pipeline, so they only turn up in old email/bookmarks. Issue #441 tracks confirming they're quiet and deleting both — they have no expiry date otherwise.
 
 ### `src/routes/(app)/invoice/[id]/+page.svelte`
 
@@ -1279,9 +1286,9 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **`property hasPassword`**
 
-- Google accounts have no password to change in this app.
+- Google-only signups never get a `passwordHash` row — the Credentials provider is the only thing that writes one — so this hides the change-password form for them.
 
-    ↳ `hasPassword: locals.user!.app_metadata?.provider === 'email',`
+    ↳ `hasPassword: Boolean(userRow[0]?.passwordHash),`
 
 **`property locations`**
 
@@ -1311,14 +1318,14 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 - ── Profile (issue #293)
 
-    ↳ `/** Display name — stored in Supabase user_metadata, read by the layout. */`
-- Display name — stored in Supabase user_metadata, read by the layout.
-
     ↳ `saveName: async ({ request, locals }) => {`
+- Display name — stored on the `users` table (Auth.js's own adapter table), read by the layout.
+
+    ↳ `await db.update(users).set({ name }).where(eq(users.id, locals.user!.id));`
 
 **`property saveEmail`**
 
-- Email change. Supabase sends a confirmation link to the *new* address (and, when "secure email change" is on, to the old one too); the address only changes once confirmed, so this reports "check your inbox", never "done".
+- Email change. The app mints its own verification token and emails a confirmation link to the *new* address (`/settings/confirm-email`); the address only changes once that link is followed, so this reports "check your inbox", never "done".
 
     ↳ `saveEmail: async ({ request, locals, url }) => {`
 
@@ -1708,7 +1715,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **_module level_**
 
-- Auth is now handled by Supabase. This route is intentionally empty. Supabase OAuth callback lives at /auth/callback.
+- Empty on purpose. Auth.js's own routes are wired via the `handle` export in `src/lib/server/auth.ts` (mounted at its default `/auth/*` basePath — see `hooks.server.ts`'s `sequence(authHandle, appHandle)`), not through this file. Left as a stub so `/api/auth/*` 404s cleanly instead of falling through to the SPA shell.
 
     ↳ `export {};`
 
@@ -1812,9 +1819,9 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - No owned restaurants — still detach the user from shared ones.
 
     ↳ `await db.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));`
-- Delete the Supabase Auth account (must be last — keeps the endpoint retryable: the Stripe cancels and DB deletes above are all idempotent).
+- Delete the `users` row and clear the Auth.js session cookies (must be last — keeps the endpoint retryable: the Stripe cancels and DB deletes above are all idempotent, and this is what actually ends the session).
 
-    ↳ `const admin = createSupabaseAdminClient();`
+    ↳ `await db.delete(users).where(eq(users.id, user.id));`
 
 ### `src/routes/api/user/export/+server.ts`
 
@@ -1874,30 +1881,13 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
     ↳ `accountEvents.push({ field, value });`
 
-### `src/routes/auth/callback/+server.ts`
-
-**`const GET`**
-
-- Handles Supabase OAuth callback — exchanges code for session cookies.
-
-    ↳ `export const GET: RequestHandler = async ({ url, locals, getClientAddress }) => {`
-- Only allow relative paths to prevent open-redirect attacks
-
-    ↳ `const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';`
-- The provider handed us back an error (denied consent, misconfig, …).
-
-    ↳ `logAuthEvent('oauth_error', { ipHash: hashIp(getClientAddress()), stage: 'callback_prov…`
-- consent=1 → the signup page validated the T&C checkbox before starting the OAuth flow; persist it now that the user id exists.
-
-    ↳ `if (url.searchParams.get('consent') === '1' && data.user?.id) {`
-
 ### `src/routes/forgot-password/+page.server.ts`
 
 **`const load`**
 
 - "Forgot password" request page (issue #284).
 
-    Sends a Supabase recovery link that lands on /auth/callback (which exchanges the code for a session) and continues to /reset-password.
+    Mints its own verification token and emails a link straight to /reset-password?email=…&token=… — no intermediate session-exchange hop.
 
     The response is identical whether or not the address has an account — a different message here would turn this form into an account-enumeration oracle. Rate limited per IP and per email like the login action.
 
@@ -1905,9 +1895,9 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **`property default`**
 
-- Supabase returns an error for malformed addresses and for its own rate limiter, but never "no such user". Log it and still answer "sent".
+- Always reports success regardless of whether the email exists, and never delegates to an external provider whose own error shape might leak account existence — the ambiguity is enforced in this function's own control flow.
 
-    ↳ `if (error) {`
+    ↳ `if (user) {`
 
 ### `src/routes/login/+page.server.ts`
 
@@ -2001,15 +1991,15 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 - Set a new password from a recovery link (issue #284).
 
-    /auth/callback exchanges the emailed code for a session and forwards here, so reaching this page with a user in locals *is* the proof of ownership. Landing without one means the link expired or was already used.
+    The emailed `email`+`token` pair *is* the proof of ownership — consumed once via `consumeVerificationToken`, not a live session. Landing here without a valid pair means the link expired or was already used.
 
-    On success the session is signed out and the user re-authenticates with the new password — it proves the change took, and it drops the recovery session from the browser.
+    On success the session is signed out and the user re-authenticates with the new password — it proves the change took, and it drops any existing session from the browser.
 
     ↳ `import { fail, redirect } from '@sveltejs/kit';`
 
 **`property default`**
 
-- Supabase rejects a password identical to the current one and anything its own policy refuses; both are user-fixable.
+- `failed` covers the update matching no row — the token already proved the email exists, so this is really a race (the account vanished between request and submit), not a password-policy rejection.
 
     ↳ `return fail(400, { error: 'failed' });`
 
@@ -2031,12 +2021,12 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - Explicit, recorded consent to Terms + Privacy Policy (GDPR).
 
     ↳ `if (terms !== 'on') return fail(422, { error: 'terms_required' });`
-- A broken Supabase auth config shows up here as a generic failure — surface it so it's distinguishable from "no one is signing up".
+- The insert should never fail here — the email-uniqueness check just above already ran — but if it does, log it explicitly so a real failure is distinguishable in the auth-event stream from ordinary "no one is signing up" quiet.
 
     ↳ `logAuthEvent('signup_failed', { ipHash: hashIp(getClientAddress()) });`
-- Persist the checkbox acceptance (timestamp + policy version) for audit.
+- Persist the checkbox acceptance (timestamp + policy version) for audit — best-effort, a logging failure here must not block signup.
 
-    ↳ `if (data.user?.id) {`
+    ↳ `await recordConsent(created.id, 'signup_form').catch(e =>`
 - Welcome email is sent once, after onboarding completes (covers both email and Google sign-ups and fires when the account is actually active).
 
     ↳ `return { success: true, email };`
@@ -2050,11 +2040,6 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
     ↳ `if (!(await checkRateLimit('signup:resend:${getClientAddress()}', 3))) {`
 
-**`property signUpWithGoogle`**
-
-- OAuth sign-ups must accept the Terms too; the callback records the consent once the Supabase user exists (consent=1 flag).
-
-    ↳ `const form = await request.formData();`
 
 ### `src/routes/signup/+page.svelte`
 
@@ -2338,21 +2323,18 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **`function seedAdminUser`**
 
-- Seeds the initial admin user and default restaurant on first startup. Requires AUTH_ADMIN_EMAIL, AUTH_ADMIN_PASSWORD, and AUTH_ADMIN_RESTAURANT_NAME. No-ops if the user already exists in Supabase Auth.
+- Seeds the initial admin user and default restaurant on first startup. Requires AUTH_ADMIN_EMAIL, AUTH_ADMIN_PASSWORD, and AUTH_ADMIN_RESTAURANT_NAME. No-ops if the user already exists — checked directly against the `users` table, no remote auth service involved.
 
     ↳ `export async function seedAdminUser(): Promise<void> {`
 - AUTH_ADMIN_EMAIL also gates /admin and receives password-reset mail, so a placeholder address means an admin account nobody can recover (issue #295).
 
     ↳ `if (/@example\.(com|org|net)$/i.test(email) && process.env['NODE_ENV'] === 'production') {`
-- Skip if Supabase is unreachable (local dev without credentials). Doing a DNS check avoids the SDK's retry loop which generates unhandled promise rejections as a side effect even when the final error is caught.
+- Check if the user already exists.
 
-    ↳ `const supabaseHost = new URL(env.SUPABASE_URL!).hostname;`
-- Check if user already exists
+    ↳ `const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, ema…`
+- Create the user directly — bcrypt hash + insert, the same path every signup goes through, with `emailVerified` pre-set since this account is seeded rather than self-registered.
 
-    ↳ `const { data: existing, error: listError } = await supabase.auth.admin.listUsers();`
-- Create the user in Supabase Auth
-
-    ↳ `const { data: created, error } = await supabase.auth.admin.createUser({`
+    ↳ `.values({ email, passwordHash, emailVerified: new Date() })`
 - Create default restaurant
 
     ↳ `const slug = restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g,…`
@@ -2716,7 +2698,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
     Both drivers hand this object straight to `tls.connect`, so one helper can serve both and the two processes can no longer drift apart (the worker used to hard-code `rejectUnauthorized: false`).
 
-    Modes, via `DATABASE_SSL_MODE`: require (default) — connection is encrypted, certificate is not verified. Matches Supabase's documented default and the behaviour this app shipped with. verify-full — certificate chain is verified. Supply the Supabase CA with `DATABASE_CA_CERT` (a PEM string or a path to a .crt file); without it the system trust store is used.
+    Modes, via `DATABASE_SSL_MODE`: require (default) — connection is encrypted, certificate is not verified; this is the behaviour the app has always shipped with. verify-full — certificate chain is verified. Supply Railway's CA with `DATABASE_CA_CERT` (a PEM string or a path to a .crt file), since its certificate is self-issued; without it the system trust store is used.
 
     Reads `process.env` directly so the worker can import it without Vite — process.env is equivalent to $env/dynamic/private under adapter-node.
 
@@ -2736,7 +2718,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 - DB singleton — server-side only. Import only from +server.ts or +page.server.ts, never from components.
 
-    Set DATABASE_POOL_URL to a Supabase Session Mode / PgBouncer URL for the runtime app; DATABASE_URL remains the direct connection used by migrations and pg-boss. If DATABASE_POOL_URL is not set, DATABASE_URL is used for both. prepare: false is required for PgBouncer transaction-mode compatibility.
+    Set DATABASE_POOL_URL to a pooled, PgBouncer-compatible connection URL for the runtime app; DATABASE_URL remains the direct connection used by migrations and pg-boss. If DATABASE_POOL_URL is not set, DATABASE_URL is used for both. prepare: false is required for PgBouncer transaction-mode compatibility.
 
     ↳ `import { env } from '$env/dynamic/private';`
 
@@ -2756,7 +2738,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **_module level_**
 
-- Tenant-scoped query helper — see ARCHITECTURE_DECISIONS.md ADR-001.
+- Tenant-scoped query helper — see doc/tenancy/ADR-001-app-level-tenant-scoping.md.
 
     ↳ `export { forTenant } from './tenant';`
 
@@ -3046,7 +3028,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - Claim the item. A false here means it is no longer queued (discarded by the user, or already processed) — drop the job and release the slot we took, since no extraction happened.
 
     ↳ `const claimed = await markExtracting(itemId);`
-- Resolve the file to a local path the extraction engine can read. For Supabase storage, download to a temp file; for local, compute the path directly.
+- Resolve the file to a local path the extraction engine can read. For the Railway bucket driver, download to a temp file; for local storage, compute the path directly.
 
     ↳ `let filePath: string;`
 - ignore
@@ -3517,6 +3499,11 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
     The window defaults to a minute — every caller predating issue #322 is a per-minute budget. Longer windows exist for cooldowns rather than throughput caps: "reply to this unknown number at most once every six hours" is one event per 21 600 s, not a fractional per-minute rate.
 
     ↳ `export async function checkRateLimit(`
+- **What the key identifies is the caller's choice, and the codebase is currently split on it (issue #440).** Of the 18 authenticated call sites, some key by `locals.user.id` (`chat:`, `notifications:`, `stock-levels:`, `trend:`, `unit-conversions:`, `switch-restaurant:`, `password-change:`) and some by `rid` (`upload:`, `bulk:`, `product-alias:`, `supplier-category:`, `product-create:`, `product-unlink:`, `product-delete:`).
+
+    The distinction is not cosmetic. User-keying a budget that costs money means a tenant with five staff accounts gets five times the intended spend — `chat:` is user-keyed and gated on paid Gemini capacity, which is the case worth revisiting first. Tenant-keying a per-person action means one user's bulk run exhausts the bucket for their colleagues, which is intended for `bulk:` and would be wrong for `password-change:`.
+
+    The frequently-cited justification in these notes — "keyed on the authenticated user, not the client IP (issue #223)" — answered a different question: behind a reverse proxy every request shares one IP, so IP-keying collapsed all tenants into one bucket. That argument rules out IP; it does not choose between user and tenant. Pick deliberately rather than copying the adjacent endpoint.
 
 **`const activeExtractions`**
 
@@ -3708,7 +3695,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **`const restaurants`**
 
-- Drizzle schema — PostgreSQL (Supabase). Single source of truth.
+- Drizzle schema — PostgreSQL (Railway). Single source of truth.
 
     ↳ `import {`
 - ── Multi-tenant core
@@ -3984,7 +3971,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **`const userConsents`**
 
-- ── GDPR consent audit trail (issue #201) One row per user per policy version. Written server-side only; keyed by the Supabase Auth user id (not restaurant-scoped — consent precedes onboarding).
+- ── GDPR consent audit trail (issue #201) One row per user per policy version. Written server-side only; keyed by the Auth.js user id (not restaurant-scoped — consent precedes onboarding).
 
     ↳ `export const userConsents = pgTable('user_consents', {`
 - 'signup_form' | 'oauth_signup' | 'onboarding'
@@ -4051,26 +4038,6 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
     ↳ `}`
 
-### `src/lib/server/supabase.ts`
-
-**`const resilientFetch`**
-
-- Supabase project paused (Cloudflare 521) returns an HTML body. The SDK treats any non-JSON response as AuthRetryableFetchError and retries 3×, flooding the console. Converting 521 → 503 with a proper JSON error body makes the SDK throw AuthApiError (non-retryable) and stop immediately.
-
-    ↳ `const resilientFetch: typeof globalThis.fetch = async (input, init) => {`
-
-**`property autoRefreshToken`**
-
-- Server-side clients are per-request and short-lived; no background refresh timer needed — the client side handles token refresh.
-
-    ↳ `autoRefreshToken: false,`
-
-**`function createSupabaseAdminClient`**
-
-- Service-role client — bypasses RLS. Only for server-side admin operations.
-
-    ↳ `export function createSupabaseAdminClient() {`
-
 ### `src/lib/server/supplier-reliability.ts`
 
 **`function computePriceStability`**
@@ -4101,7 +4068,7 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 
 **`function forTenant`**
 
-- Tenant-scoped query context — no DB connection dependency. See ARCHITECTURE_DECISIONS.md ADR-001.
+- Tenant-scoped query context — no DB connection dependency. See doc/tenancy/ADR-001-app-level-tenant-scoping.md.
 
     ↳ `import { eq, and, type SQL } from 'drizzle-orm';`
 - Returns a tenant-scoped query context. Use in all route handlers instead of building raw `eq(table.restaurantId, rid)` inline.
@@ -6062,15 +6029,12 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - adapter-node resolves getClientAddress() from the socket peer unless ADDRESS_HEADER names the header the proxy sets. Behind nginx/Caddy that means every visitor shares one rate-limit bucket, so the IP-keyed limits on login/signup/waitlist collapse into a global one (issue #223).
 
     ↳ `if (process.env['NODE_ENV'] === 'production' && !process.env['ADDRESS_HEADER']) {`
-- Attach Supabase server client (handles cookie-based session)
+- Resolve the Auth.js session — a signed JWT cookie, verified locally with no round-trip to a remote auth service (unlike the Supabase client this replaced, which needed one).
 
-    ↳ `event.locals.supabase = createSupabaseServerClient(event.cookies);`
-- Resolve authenticated user (validates JWT, not just cookie). Wrap in try-catch: Supabase auth-js retries on network failure and each retry attempt surfaces as a TypeError; catching here silences the flood in local dev when the remote Supabase project is unreachable.
+    ↳ `const session = await event.locals.auth();`
+- Build the request-scoped user from the session's claims, or null if there's no session.
 
-    ↳ `let user: App.Locals['user'] = null;`
-- Network unreachable — treat as unauthenticated
-
-    ↳ `}`
+    ↳ `const user: App.Locals['user'] = session?.user?.id`
 - Resolve active restaurant for this request
 
     ↳ `if (user) {`
@@ -6083,12 +6047,6 @@ Google OAuth login (`/login?/signInWithGoogle`) is a plain HTML form POST; the s
 - Anonymous hit on the apex goes to the landing page, not the login wall (issue #291). Deep links keep the redirectTo round-trip below.
 
     ↳ `if (path === '/' && !event.locals.user) {`
-
-**`property filterSerializedResponseHeaders`**
-
-- Required for Supabase to propagate Set-Cookie headers
-
-    ↳ `filterSerializedResponseHeaders: (name) =>`
 
 **`const handle`**
 
