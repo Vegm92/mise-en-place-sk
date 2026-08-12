@@ -1,3 +1,8 @@
+---
+tags: [mep, code-notes]
+related: "[[CONTEXT]]"
+---
+
 # Code Notes
 
 Prose documentation for `mise-en-place`. Every note here was previously an inline comment in `src/`; the code itself is now comment-free by policy (see _Conventions_ below).
@@ -911,6 +916,7 @@ These change how a tool behaves, so removing them would change behaviour — the
 - Legacy route — superseded by /batch/[batchId]. Old links carry an item id; resolve it to the batch when possible, otherwise go home.
 
     ↳ `export const load: PageServerLoad = async ({ params }) => {`
+- Inert by design: this file and `confirm/[id]/+page.server.ts` are the only two survivors of the pre-ADR-002 flow, and both exist purely to redirect. The links they serve predate the batch pipeline, so they only turn up in old email/bookmarks. Issue #441 tracks confirming they're quiet and deleting both — they have no expiry date otherwise.
 
 ### `src/routes/(app)/invoice/[id]/+page.svelte`
 
@@ -3493,6 +3499,11 @@ These change how a tool behaves, so removing them would change behaviour — the
     The window defaults to a minute — every caller predating issue #322 is a per-minute budget. Longer windows exist for cooldowns rather than throughput caps: "reply to this unknown number at most once every six hours" is one event per 21 600 s, not a fractional per-minute rate.
 
     ↳ `export async function checkRateLimit(`
+- **What the key identifies is the caller's choice, and the codebase is currently split on it (issue #440).** Of the 18 authenticated call sites, some key by `locals.user.id` (`chat:`, `notifications:`, `stock-levels:`, `trend:`, `unit-conversions:`, `switch-restaurant:`, `password-change:`) and some by `rid` (`upload:`, `bulk:`, `product-alias:`, `supplier-category:`, `product-create:`, `product-unlink:`, `product-delete:`).
+
+    The distinction is not cosmetic. User-keying a budget that costs money means a tenant with five staff accounts gets five times the intended spend — `chat:` is user-keyed and gated on paid Gemini capacity, which is the case worth revisiting first. Tenant-keying a per-person action means one user's bulk run exhausts the bucket for their colleagues, which is intended for `bulk:` and would be wrong for `password-change:`.
+
+    The frequently-cited justification in these notes — "keyed on the authenticated user, not the client IP (issue #223)" — answered a different question: behind a reverse proxy every request shares one IP, so IP-keying collapsed all tenants into one bucket. That argument rules out IP; it does not choose between user and tenant. Pick deliberately rather than copying the adjacent endpoint.
 
 **`const activeExtractions`**
 
