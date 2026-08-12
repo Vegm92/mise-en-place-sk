@@ -12,8 +12,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 // from Sentry.sentryHandle() in hooks.server.ts.
 const sentryPlugins = await sentrySvelteKit({
 	autoInstrument: false,
-	org: process.env['SENTRY_ORG'] ?? 'victorgranda',
-	project: process.env['SENTRY_PROJECT'] ?? 'mise-en-place',
+	org: process.env['SENTRY_ORG'],
+	project: process.env['SENTRY_PROJECT'],
 	authToken: process.env['SENTRY_AUTH_TOKEN'],
 });
 
