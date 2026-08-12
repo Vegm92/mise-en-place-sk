@@ -1,10 +1,10 @@
 import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
-import { getIssueSummary, listUnresolvedIssues } from '$lib/server/sentry-api';
-import { SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT } from '$lib/server/env';
+import { getIssueSummary, isSentryConfigured, listUnresolvedIssues } from '$lib/server/sentry-api';
+import { SENTRY_ORG, SENTRY_PROJECT } from '$lib/server/env';
 
 export const load: PageServerLoad = async () => handleLoad('errors', async () => {
-	if (!SENTRY_AUTH_TOKEN) {
+	if (!isSentryConfigured()) {
 		return { configured: false as const };
 	}
 

@@ -70,9 +70,6 @@ async function findDuplicateInvoiceId(rid: string, supplierName: string, invoice
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('batch', async () => {
 		const items = await getBatchItems(params.id);
-		// getBatchItems() keys off batchId alone, so ownership has to be checked
-		// here — the actions below already do it per item. Same redirect as an
-		// empty batch, so a foreign id is indistinguishable from a missing one.
 		if (!items.length || items.some(i => i.restaurantId !== locals.restaurantId)) {
 			redirect(303, '/?error=Session+not+found');
 		}

@@ -26,8 +26,6 @@ export async function cleanupProcessedRequests(): Promise<void> {
 	await db.delete(processedRequests).where(lt(processedRequests.createdAt, cutoff));
 }
 
-// Meta's webhook redelivery window is minutes, not months — 48h matches
-// cleanupProcessedRequests and is far beyond any plausible redelivery.
 export async function cleanupProcessedWhatsAppMessages(): Promise<void> {
 	const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
 	await db.delete(whatsappProcessedMessages).where(lt(whatsappProcessedMessages.receivedAt, cutoff));

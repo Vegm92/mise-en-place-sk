@@ -216,10 +216,6 @@ export async function saveReviewedInvoice(
 	const proposedCategory = sameSupplier
 		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
 		: UNCATEGORIZED_CATEGORY;
-	// Only trust supplier-level contact fields (CIF/NIF, address, email, phone) when the
-	// reviewed supplier name still matches what was extracted — if the user retargeted this
-	// invoice to a different existing supplier, its contact info must not be overwritten with
-	// whatever this document happened to print for its own supplier.
 	const proposedContact: SupplierContactInfo = sameSupplier
 		? {
 			cif: extracted?.supplier_nif ?? null,
@@ -266,12 +262,6 @@ export async function saveReviewedInvoice(
 	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 	const primaryFile = item?.fileKey ?? null;
 
-	// VERI*FACTU QR tamper check (issue #392): the QR is decoded straight off the
-	// document by extraction and never re-derived from the reviewed/submitted
-	// fields, so it stays an independent signal even if those fields were hand-edited
-	// during review. Every invoice with a decodable AEAT QR gets this check — not just
-	// some code paths — because it runs unconditionally here in the one function that
-	// commits a reviewed invoice, before the insert below.
 	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
 	const qrResult = rawQrUrl ? parseQrUrl(rawQrUrl) : null;
 	const qrMismatches = detectVerifactuMismatch(qrResult, {

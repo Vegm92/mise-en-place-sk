@@ -106,13 +106,9 @@ QR code: If you can see and decode a QR code on the document, return the full de
 export interface ExtractedInvoice {
 	supplier_name: string | null;
 	supplier_category?: string | null;
-	/** Supplier's own CIF/NIF — never the buyer/restaurant's. */
 	supplier_nif?: string | null;
-	/** Supplier's postal address as printed on the document. */
 	supplier_address?: string | null;
-	/** Supplier's contact email. */
 	supplier_email?: string | null;
-	/** Supplier's contact phone. */
 	supplier_phone?: string | null;
 	invoice_number: string | null;
 	invoice_date: string | null;

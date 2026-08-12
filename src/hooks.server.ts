@@ -11,6 +11,9 @@ import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
+import { withTimeout } from '$lib/server/with-timeout';
+
+const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env['MEMBERSHIP_TIMEOUT_MS'] ?? '5000', 10);
 
 const SENTRY_DSN = process.env['SENTRY_DSN'] ?? '';
 const SENTRY_RELEASE = process.env['SENTRY_RELEASE'] || undefined;
@@ -20,6 +23,7 @@ Sentry.init({
 	release: SENTRY_RELEASE,
 	tracesSampleRate: process.env['NODE_ENV'] === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
+	integrations: integrations => integrations.filter(i => i.name !== 'Http'),
 	beforeSend(event) {
 		if (event.exception?.values?.some(v => v.type === 'Redirect')) return null;
 		return scrubSentryEvent(event);
@@ -71,10 +75,18 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	if (user) {
 		const activeCookie = event.cookies.get('active_restaurant');
 
-		const memberships = await db
-			.select({ restaurantId: userRestaurants.restaurantId })
-			.from(userRestaurants)
-			.where(eq(userRestaurants.userId, user.id));
+		const memberships = await withTimeout(
+			'hooks/memberships',
+			MEMBERSHIP_TIMEOUT_MS,
+			() => db
+				.select({ restaurantId: userRestaurants.restaurantId })
+				.from(userRestaurants)
+				.where(eq(userRestaurants.userId, user.id)),
+		).catch(e => {
+			console.error('[hooks] membership lookup failed', e);
+			Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
+			return [] as Array<{ restaurantId: string }>;
+		});
 
 		const ids = memberships.map(m => m.restaurantId);
 

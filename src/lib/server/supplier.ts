@@ -3,11 +3,6 @@ import { db } from './db';
 import type { BatchDb } from './batch-core';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 
-/**
- * Supplier-level contact fields lifted from an extracted invoice (CIF/NIF,
- * address, email, phone). Any of these may be null/undefined when the
- * source document doesn't print them — never fabricated.
- */
 export interface SupplierContactInfo {
 	cif?: string | null;
 	email?: string | null;
@@ -15,14 +10,6 @@ export interface SupplierContactInfo {
 	address?: string | null;
 }
 
-/**
- * Creates a supplier or resolves an existing one by (restaurant, lower(name)).
- *
- * Contact fields are filled in with COALESCE rather than overwritten: an
- * existing non-null value (whether entered by the user or captured on an
- * earlier invoice) always wins over a new extraction, so this can never
- * clobber a manual edit or replace real data with a blank.
- */
 export async function getOrCreateSupplierId(
 	restaurantId: string,
 	name: string,

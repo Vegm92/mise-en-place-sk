@@ -18,7 +18,9 @@ const config = {
 				'font-src':     ['self'],
 				'img-src':      ['self', 'data:'],
 				'connect-src':  ['self', 'https://*.sentry.io'],
-				'worker-src':   ['self'],
+				// 'blob:' — Sentry's replayIntegration compresses events in a worker
+				// it spawns from a blob URL; without it Replay silently degrades.
+				'worker-src':   ['self', 'blob:'],
 				// 'self' — the invoice PDF viewer embeds /api/upload/[id]/[file]
 				// in a same-origin iframe; still blocks third-party framing.
 				'frame-src':    ['self'],

@@ -11,6 +11,7 @@ This file is tracked in the repo — it is the shared reference for why the code
 
 - Extracted: 1856 notes from 162 of 233 source files
 - Generated: 2026-07-31
+- Amended: 2026-08-12 — the last 33 explanatory comments were moved out of `src/` and into this file, covering `auth-session.ts`, `batch-core.ts`, `dead-letter.ts`, `einvoice-parser.ts`, `extract.ts`, `idempotency.ts`, `invoice-save.ts`, `supplier.ts`, `verification-token.ts`, `batch/[id]/+page.server.ts`, and `forgot-password/+page.server.ts` (the first three had no section before). `pnpm lint:no-comments` now runs in CI, so the policy is enforced rather than aspirational.
 - Amended: 2026-08-11 — the auth/DB sections predated ADR-005 and ADR-014 (Railway Postgres, Auth.js), so notes covering `svelte.config.js`, `settings/+page.server.ts`, `api/auth/[...all]`, `api/user/delete`, `forgot-password`, `reset-password`, `signup/+page.server.ts`, `auth-seed.ts`, `db-ssl.ts`, `db.ts`, `extraction-worker.ts`, `schema.ts`, and `hooks.server.ts` were rewritten to match; the dead `src/lib/server/supabase.ts` and `src/routes/auth/callback/+server.ts` sections were removed outright.
 
 ---
@@ -19,9 +20,13 @@ This file is tracked in the repo — it is the shared reference for why the code
 
 Source files under `src/` carry **no explanatory comments**. Anything worth saying about *why* code is the way it is belongs in this file, keyed by file and symbol. The only comments permitted in source are machine-read directives:
 
-`@ts-expect-error` · `@ts-ignore` · `eslint-*` · `svelte-ignore` · `prettier-ignore` · `@vite-ignore` · `c8/v8/istanbul ignore` · `@vitest-*` · `/// <reference>`
+`@ts-expect-error` · `@ts-ignore` · `eslint-*` · `svelte-ignore` · `prettier-ignore` · `@vite-ignore` · `c8/v8/istanbul ignore` · `@vitest-*` · `/// <reference>` · `tenant-scope-ok:`
 
 These change how a tool behaves, so removing them would change behaviour — they are not documentation.
+
+`tenant-scope-ok:` is the project's own directive, read by `scripts/lint-invariants.mjs`: it is the sanctioned way to wave a deliberately cross-tenant query past the tenant gate, and the reason must be stated on the directive itself (ADR-001 / issue #380). Because that reason routinely needs a sentence, a `tenant-scope-ok:` comment may run onto the lines directly beneath it — `scripts/check-no-comments.mjs` treats the whole contiguous run as one directive.
+
+Both linters read the directive names from `scripts/lint-directives.mjs`, so the gate that requires them and the check that permits them cannot drift apart.
 
 ---
 
@@ -569,6 +574,12 @@ These change how a tool behaves, so removing them would change behaviour — the
 - If extraction is already running, fold the new items straight into the queue.
 
     ↳ `const anyActive = items.some(i => i.status === 'queued' || i.status === 'extracting' ||…`
+
+**`const load`**
+
+- `getBatchItems()` keys off `batchId` alone, so ownership has to be checked here; the actions below already do it per item. A foreign batch id gets the same redirect as an empty one, which makes the two indistinguishable to the caller and stops the page confirming that someone else's batch exists.
+
+    ↳ `if (!items.length || items.some(i => i.restaurantId !== locals.restaurantId)) {`
 
 ### `src/routes/(app)/batch/[id]/+page.svelte`
 
@@ -1899,6 +1910,12 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `if (user) {`
 
+**`const actions`**
+
+- Success is reported regardless of whether the email exists. Branching the response on the lookup would leak account existence to anyone who can post the form.
+
+    ↳ `const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);`
+
 ### `src/routes/login/+page.server.ts`
 
 **`property signIn`**
@@ -2342,6 +2359,14 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `await db.insert(userRestaurants).values({`
 
+### `src/lib/server/auth-session.ts`
+
+**`function issueSessionCookie`**
+
+- Mints an Auth.js-compatible session cookie directly via `@auth/core/jwt`'s `encode()` — the same primitive Auth.js's own callback flow uses internally (see `@auth/core/lib/actions/callback`, where `salt = cookies.sessionToken.name`). Used by the login and signup flows, which carry custom rate-limiting that would be lost if they went through Auth.js's form-action-shaped `signIn()`.
+
+    ↳ `export async function issueSessionCookie(cookies: Cookies, isHttps: boolean, user: SessionUser): Promise<void> {`
+
 ### `src/lib/server/backfill.ts`
 
 **`type Database`**
@@ -2473,6 +2498,12 @@ These change how a tool behaves, so removing them would change behaviour — the
 - True when no item in the batch still needs user attention.
 
     ↳ `async function isBatchSettled(batchId: string): Promise<boolean> {`
+
+**`function cleanupStaleBatches`**
+
+- Only non-confirmed items' files are ours to delete. A confirmed item's file becomes the invoice's `source_file`, so that key now belongs to the invoice and must survive until the invoice's own retention purge (`runFilePurgeJob`) collects it.
+
+    ↳ `const stale = await db`
 
 ### `src/lib/server/batch.ts`
 
@@ -2742,6 +2773,14 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `export { forTenant } from './tenant';`
 
+### `src/lib/server/dead-letter.ts`
+
+**`function tenantColumnValue`**
+
+- A dead letter's whole input domain is malformed job data, so a `restaurantId` that is blank or not a uuid must not cost us the audit row: Postgres would reject the insert outright and the record would be lost exactly when it matters most. Non-uuid values become null in the column, and the raw value still reaches the audit trail inside `payload`.
+
+    ↳ `export function tenantColumnValue(restaurantId: string | null | undefined): string | null {`
+
 ### `src/lib/server/einvoice-parser.ts`
 
 **`type EinvoiceFormat`**
@@ -2820,6 +2859,12 @@ These change how a tool behaves, so removing them would change behaviour — the
 - Auto-detects XML format and delegates to the appropriate parser. Returns null if the XML is not a recognised e-invoice format.
 
     ↳ `export function parseEinvoice(xml: string): ParsedEinvoice | null {`
+
+**`const parser`**
+
+- `skipLike` also excludes a leading `+` (e.g. phone numbers like `+34915552233`). Without it the XML parser silently coerces them to a JS number and drops the sign.
+
+    ↳ `numberParseOptions: { leadingZeros: true, hex: false, skipLike: /^0\d|^\+/ },`
 
 ### `src/lib/server/email.ts`
 
@@ -2997,6 +3042,12 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `if (classified.type === 'xml') {`
 
+**`interface ExtractedInvoice`**
+
+- The `supplier_*` contact fields all describe the *supplier*, never the buyer/restaurant: `supplier_nif` is the supplier's own CIF/NIF, `supplier_address` its postal address as printed on the document, and `supplier_email` / `supplier_phone` its contact details. Each is optional because a document may simply not print it — the extractor leaves it null rather than fabricating one.
+
+    ↳ `supplier_nif?: string | null;`
+
 ### `src/lib/server/extraction-worker.ts`
 
 **`interface ExtractionJobData`**
@@ -3087,6 +3138,12 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `export async function cleanupProcessedRequests(): Promise<void> {`
 
+**`function cleanupProcessedWhatsAppMessages`**
+
+- Meta's webhook redelivery window is minutes, not months, so the 48h cutoff is far beyond any plausible redelivery. It matches `cleanupProcessedRequests` above deliberately, so both dedup tables age out on the same schedule.
+
+    ↳ `const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);`
+
 ### `src/lib/server/invoice-save.ts`
 
 **`type SaveOutcome`**
@@ -3174,6 +3231,16 @@ These change how a tool behaves, so removing them would change behaviour — the
 - Mark onboarding complete on first invoice save
 
     ↳ `const onboardingRows = await db`
+
+**`function saveReviewedInvoice`**
+
+- Supplier-level contact fields (CIF/NIF, address, email, phone) are only trusted when the reviewed supplier name still matches what was extracted. If the user retargeted the invoice to a different existing supplier, that supplier's contact info must not be overwritten with whatever this particular document happened to print.
+
+    ↳ `const proposedContact: SupplierContactInfo = sameSupplier`
+
+- VERI\*FACTU QR tamper check (issue #392). The QR is decoded straight off the document during extraction and never re-derived from the reviewed or submitted fields, so it stays an independent signal even when those fields were hand-edited during review. The check runs unconditionally here — in the single function that commits a reviewed invoice, before the insert — so every invoice with a decodable AEAT QR gets it, rather than only the code paths that remember to ask.
+
+    ↳ `const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;`
 
 ### `src/lib/server/invoice-status.ts`
 
@@ -4064,6 +4131,18 @@ These change how a tool behaves, so removing them would change behaviour — the
 
     ↳ `const resolved = VALID_CATEGORIES.includes(category) ? category : UNCATEGORIZED_CATEGORY;`
 
+**`interface SupplierContactInfo`**
+
+- Supplier-level contact fields lifted from an extracted invoice (CIF/NIF, address, email, phone). Any of them may be null or undefined when the source document doesn't print them — they are never fabricated.
+
+    ↳ `export interface SupplierContactInfo {`
+
+**`function getOrCreateSupplierId`**
+
+- Creates a supplier or resolves an existing one by `(restaurant, lower(name))`. Contact fields are filled in with `COALESCE` rather than overwritten, so an existing non-null value — whether the user typed it or an earlier invoice captured it — always beats a new extraction. This can never clobber a manual edit or replace real data with a blank.
+
+    ↳ `export async function getOrCreateSupplierId(`
+
 ### `src/lib/server/tenant.ts`
 
 **`function forTenant`**
@@ -4120,6 +4199,26 @@ These change how a tool behaves, so removing them would change behaviour — the
 - Nested rather than a composite string key: a category is free text, so any separator would need proving it can never appear inside one.
 
     ↳ `const byBucket = new Map<string, Map<string, TrendRow>>();`
+
+### `src/lib/server/verification-token.ts`
+
+**`const TOKEN_TTL_MS`**
+
+- One hour.
+
+    ↳ `const TOKEN_TTL_MS = 60 * 60 * 1000;`
+
+**`function createVerificationToken`**
+
+- `identifier` is namespaced per use (`verify-email:<email>`, `reset-password:<email>`) so the two flows can never collide on a shared token row.
+
+    ↳ `export async function createVerificationToken(identifier: string): Promise<string> {`
+
+**`function consumeVerificationToken`**
+
+- Verifies and consumes (deletes) a token in one step, making it single-use.
+
+    ↳ `export async function consumeVerificationToken(identifier: string, token: string): Promise<boolean> {`
 
 ### `src/lib/server/waitlist-db.ts`
 

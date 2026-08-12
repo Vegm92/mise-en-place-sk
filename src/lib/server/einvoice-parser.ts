@@ -28,8 +28,6 @@ const parser = new XMLParser({
 	parseTagValue: true,
 	isArray: (name) =>
 		['InvoiceLine', 'Tax', 'TaxSubtotal', 'TaxTotal', 'AllowanceCharge'].includes(name),
-	// skipLike also excludes leading '+' (e.g. phone numbers like +34915552233):
-	// without this the parser silently coerces them to a JS number and drops the sign.
 	numberParseOptions: { leadingZeros: true, hex: false, skipLike: /^0\d|^\+/ },
 });
 

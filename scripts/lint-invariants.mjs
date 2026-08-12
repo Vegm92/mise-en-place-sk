@@ -2,8 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { PROJECT_DIRECTIVES } from './lint-directives.mjs';
 
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+
+const SCOPE_OK = new RegExp(`(?:${PROJECT_DIRECTIVES.join('|')}):`);
 
 const GATES = {
 	'no-sql-raw': {
@@ -132,7 +135,7 @@ function runUnscopedQueryGate() {
 				const lineNo = src.slice(0, m.index).split('\n').length;
 				// The annotation may sit inside the statement or on a line above it.
 				const above = src.slice(0, start).split('\n').slice(-3).join('\n');
-				if (/tenant-scope-ok:/.test(statement) || /tenant-scope-ok:/.test(above)) continue;
+				if (SCOPE_OK.test(statement) || SCOPE_OK.test(above)) continue;
 				violations.push(`${path.relative(ROOT, file)}:${lineNo}: .from(${m[1]}) with no tenant predicate`);
 			}
 		}
