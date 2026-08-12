@@ -25,8 +25,6 @@ export const actions: Actions = {
 			return fail(429, { error: 'rate_limited', email });
 		}
 
-		// Always report success regardless of whether the email exists — do not
-		// leak account existence to the caller.
 		const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
 		if (user) {
 			const token = await createVerificationToken(`reset-password:${email}`);
