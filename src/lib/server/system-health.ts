@@ -70,6 +70,8 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 	if (dbOk) {
 		try {
 			const cutoff = new Date(Date.now() - STUCK_MINUTES * 60 * 1000);
+			// tenant-scope-ok: platform-wide queue health for the admin ops dashboard —
+			// a per-tenant count would hide a stalled worker. Returns a bare count, no rows.
 			const [stuckRow] = await db
 				.select({ n: sql<number>`count(*)::int` })
 				.from(batchItems)
@@ -86,6 +88,8 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 					: 'No stalled items',
 			});
 
+			// tenant-scope-ok: platform-wide liveness probe for the admin ops dashboard,
+			// same gate as the stuck-item count. Returns a timestamp, no tenant rows.
 			const [lastRow] = await db
 				.select({ at: sql<string | null>`max(${batchItems.updatedAt})` })
 				.from(batchItems)
