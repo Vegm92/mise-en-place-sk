@@ -1,0 +1,98 @@
+# Feature Spec — Budgets
+
+## Purpose
+
+Let a restaurant set a monthly budget per category and warn when spend crosses
+the threshold or the ceiling.
+
+## Actors
+
+- Signed-in member (set/update/clear budgets).
+- Invoice save post-commit (overage check).
+
+## Preconditions
+
+- Tenant exists; category taxonomy from `constants.ts`.
+
+## Inputs
+
+- `(app)/budgets` form: category, amount (blank = delete row), month (current
+  month only).
+- New invoice totals + supplier category at save.
+
+## Outputs
+
+- `category_budgets` rows (unique `(rid, category, month)`).
+- `budget_overage` notifications (`level='warning'|'exceeded'`).
+
+## Business rules
+
+- **Storage**: `category_budgets(restaurant_id, category, month, monthly_budget)`;
+  month format `YYYY-MM` (`toMonthStr`).
+- **Spend aggregation** (`budgets/+page.server.ts`): `SUM(COALESCE(total_price,
+  unit_price*quantity, 0))` over line items joined to invoices+suppliers for the
+  selected month. Note: this is live aggregation, not the materialized views.
+- **Overage** (`alerts.ts:330`): spend ≥ `budget_warning_threshold` (80%) →
+  `warning`; ≥ 100% → `exceeded`; else none. Threshold settable.
+- **Dedup** (`alerts.ts:381`): one alert per `category` + `level` per month
+  (scans existing month notifications).
+- Only the current month is editable (older months `fail(403)`).
+
+## State transitions
+
+`budget_overage` notifications `pending → sent`.
+
+## Data dependencies
+
+`category_budgets`, `invoices`, `invoice_line_items`, `suppliers`,
+`system_notifications`, `settings`.
+
+## API dependencies
+
+`/budgets` load + save actions; `(app)/api/notifications` (dismiss).
+
+## UI dependencies
+
+`budgets/+page.svelte`, `MobileAlerts.svelte`, `NotificationItem.svelte`,
+nav badge (counts `exceeded`).
+
+## Background dependencies
+
+None.
+
+## External dependencies
+
+None.
+
+## Validation
+
+Category ∈ `VALID_CATEGORIES`; amount numeric ≥ 0; month = current.
+
+## Error states
+
+- Saving a past month → 403.
+- Supplier uncategorized → spend goes to `'Other'` (nudge raised separately).
+
+## Edge cases
+
+- Mid-month budget change — overage compares against the *current* limit.
+- Invoice posted after month end — aggregated by `invoice_date`, not save date.
+
+## Security rules
+
+- Budget reads/writes scoped to the tenant.
+
+## Idempotency rules
+
+- Upsert keyed `(rid, category, month)`; overage dedup per category+level+month.
+
+## Observability
+
+- `budget_overage` countable in `/admin/events`; badge reflects `exceeded`.
+
+## Acceptance criteria
+
+- Setting a budget and saving an invoice that crosses 80%/100% raises
+  `warning`/`exceeded` once per month per category.
+- Clearing the budget amount deletes the row.
+- Tests: `tests/budgets.test.ts`, `tests/alert-engine.test.ts` (budget rule).
