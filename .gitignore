@@ -54,14 +54,21 @@ TODO.md
 /docs/*
 # ...except the code documentation, which replaces src/ comments (tracked on purpose)
 !/docs/CODE_NOTES.md
-# Architecture decision records live in /doc (not ignored) — see doc/README.md
+# ...and the AI-native operating layers (added 2026-08-13) — tracked on purpose
+!/docs/00_system/
+!/docs/01_architecture/
+!/docs/02_product/
+!/docs/03_features/
+!/docs/04_engineering/
+!/docs/05_operations/
+!/docs/06_decisions/
+!/docs/07_ai/
+!/docs/REVENUE_METRICS.md
+# Architecture decision records live in docs/06_decisions/ (not ignored) — see its README.md
 /mise-en-place
 
 
 
-# Synthetic generator output and virtualenv
-/synth/output/
-/synth/.venv/
-synth/**/__pycache__/
-synth/**/*.pyc
+# Synthetic invoice generator — local dev tool, not part of the app (JS port)
+/synth/
 

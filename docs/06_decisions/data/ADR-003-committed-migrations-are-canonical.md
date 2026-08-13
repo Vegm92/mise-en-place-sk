@@ -16,10 +16,11 @@
 
 > **Amendment (2026-08-10, ADR location).** References below to
 > `docs/ARCHITECTURE_DECISIONS.md` are historical. That file no longer exists: its
-> five ADRs were split into [`doc/`](../README.md), one per file in a per-feature
+> five ADRs were split into [`docs/06_decisions/`](../README.md), one per file in a per-feature
 > folder, and the emptied file was deleted along with its `.gitignore` exception.
-> The substance of the last Consequence is unchanged and now applies to `doc/` —
-> ADRs are a committed engineering record, not a local-only artefact. That
+> The substance of the last Consequence is unchanged and now applies to
+> `docs/06_decisions/` — ADRs are a committed engineering record, not a
+> local-only artefact. That
 > gitignore fix is what made the split possible; `doc/` sits outside the
 > `/docs/*` rule and needs no exception.
 
@@ -81,6 +82,6 @@ before exiting, so a failed CI run doesn't leave stray artifacts behind.
 - `drizzle/meta/0000_snapshot.json`–`0021_snapshot.json` remain absent; no backfill is needed
   since drizzle-kit's diffing only depends on the latest snapshot in the chain.
 - ~~`docs/ARCHITECTURE_DECISIONS.md` is now tracked in git (previously gitignored by accident).~~
-  Superseded 2026-08-10: the ADRs are tracked in [`doc/`](../README.md) instead, and that file
+  Superseded 2026-08-10: the ADRs are tracked in [`docs/06_decisions/`](../README.md) instead, and that file
   has been deleted. The point stands — ADRs are committed, not local-only.
 

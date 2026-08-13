@@ -1,7 +1,8 @@
 # Architecture Decision Records
 
 This directory is the canonical home for Mise en Place's ADRs. One file per
-decision, grouped into a folder per feature area.
+decision, grouped into a folder per feature area. (Moved here from the repo-root
+`doc/` on 2026-08-13; history preserved via `git mv`.)
 
 An ADR records **why** the code is shaped the way it is: the forces in play, the
 option taken, the options rejected, and what the team now has to live with. It is
@@ -9,8 +10,8 @@ not a design doc (that describes what to build) and not documentation (that
 describes how to use it). If you find yourself re-litigating a decision in a PR
 review, the ADR is where the previous round of that argument lives.
 
-For *how the code works*, see [`docs/CODE_NOTES.md`](../docs/CODE_NOTES.md). For
-*how to deploy it*, see [`DEPLOYMENT.md`](../DEPLOYMENT.md).
+For *how the code works*, see [`docs/CODE_NOTES.md`](../../docs/CODE_NOTES.md). For
+*how to deploy it*, see [`DEPLOYMENT.md`](../../DEPLOYMENT.md).
 
 ## Index
 
@@ -119,9 +120,17 @@ decision, not the topic — `ADR-008-single-invoice-write-path`, not
 
 **This directory is the only ADR home.** ADR-001 to ADR-005 were originally
 sections of a single `docs/ARCHITECTURE_DECISIONS.md`; they were split into the
-files above on 2026-08-10 and that file was deleted. Nothing under `docs/` holds
-decisions any more — `docs/` is for `CODE_NOTES.md`, which documents how the code
-works rather than why it is shaped that way.
+files above on 2026-08-10 and that file was deleted. The records moved here from
+the repo-root `doc/` on 2026-08-13. The rest of `docs/` holds how-the-code-works
+and how-to-operate documentation (`CODE_NOTES.md`, the `00_system`–`07_ai`
+layers), not decisions.
+
+## For agents
+
+- Read the ADRs that touch an area *before* changing it — they are referenced by
+  `docs/00_system/architectural_invariants.md` and the affected feature spec.
+- The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **023**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original
