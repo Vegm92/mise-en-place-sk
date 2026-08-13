@@ -34,6 +34,12 @@ flowchart LR
 | 6 | [[docs/onboarding/06_como_trabajamos\|Cómo trabajamos]] | Herramientas, dónde vive cada cosa, cómo pedir cambios | 15 min |
 | 7 | [[docs/onboarding/07_primera_semana\|Tu primera semana]] | Checklist concreto de arranque | 10 min |
 
+Y cuando termines de leer, tu espacio de trabajo:
+
+| Carpeta | Qué es |
+|---|---|
+| [[docs/onboarding/marketing/README\|`marketing/`]] | Tu manual de trabajo: estrategia, audiencia, canales, plantillas, decisiones y cómo usar Claude en todo ello. Montado igual que la documentación técnica del proyecto |
+
 ## Lo mínimo que hay que retener
 
 Si solo te quedas con cinco frases, que sean estas:

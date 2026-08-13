@@ -72,6 +72,9 @@ Pídeselos a Victor. Marca los que ya tengas:
       **en español y en inglés**
 - [ ] Añadir al [[docs/onboarding/05_glosario|glosario]] las palabras que te
       faltaron
+- [ ] Abrir [[docs/onboarding/marketing/README|tu carpeta de marketing]] y
+      recorrer el [[docs/onboarding/marketing/00_base/00_mapa|mapa]]: te dice qué
+      está listo, qué es un esqueleto y qué está vacío esperándote
 
 ## Preguntas que conviene que hagas pronto
 
