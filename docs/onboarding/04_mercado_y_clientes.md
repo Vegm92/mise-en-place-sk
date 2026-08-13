@@ -57,10 +57,11 @@ Es nuestro mejor gancho de contenido y de campañas, porque tiene fechas.
 ```mermaid
 timeline
     title Lo que obliga la ley española
-    2026 : RD 238/2026 en vigor (abr.)
-    2027 : VERI*FACTU obligatorio<br/>sociedades (1 ene.) y resto (1 jul.)
-         : Prevista e-factura B2B<br/>para empresas > 8 M € (oct.)
-    2028 : Prevista e-factura B2B<br/>para todas las pymes (oct.)
+    2026 : Abril. RD 238/2026 entra en vigor
+    2027 : Enero. VERI*FACTU obligatorio para sociedades
+         : Julio. VERI*FACTU obligatorio para el resto, autónomos incluidos
+         : Octubre. Prevista la e-factura B2B para empresas de más de 8 M €
+    2028 : Octubre. Prevista la e-factura B2B para todas las pymes
 ```
 
 - **VERI\*FACTU**: obliga a usar un programa de facturación certificado e
@@ -80,20 +81,21 @@ electrónica que vas a empezar a recibir" es exacto.
 ```mermaid
 quadrantChart
     title Posicionamiento
-    x-axis "Genérico (contabilidad)" --> "Específico de hostelería"
-    y-axis "Barato y self-service" --> "Caro y con implantación"
-    quadrant-1 "Suites de hostelería"
-    quadrant-2 "Suites generalistas"
-    quadrant-3 "Contabilidad barata"
-    quadrant-4 "Nuestro hueco"
-    "Holded / Quipu / Billin": [0.15, 0.2]
-    "Dext": [0.25, 0.35]
-    "MarketMan": [0.75, 0.9]
-    "Apicbase / Supy": [0.85, 0.85]
-    "Gstock": [0.7, 0.6]
-    "Yurest": [0.7, 0.55]
-    "Haddock": [0.72, 0.55]
-    "Mise en Place": [0.8, 0.2]
+    x-axis Genérico contable --> Específico de hostelería
+    y-axis Barato y self-service --> Caro y con implantación
+    quadrant-1 Suites de hostelería
+    quadrant-2 Suites generalistas
+    quadrant-3 Contabilidad barata
+    quadrant-4 Nuestro hueco
+    Holded: [0.14, 0.2]
+    Quipu: [0.2, 0.15]
+    Dext: [0.28, 0.35]
+    MarketMan: [0.75, 0.9]
+    Apicbase: [0.86, 0.84]
+    Gstock: [0.68, 0.62]
+    Yurest: [0.72, 0.52]
+    Haddock: [0.78, 0.58]
+    Mise en Place: [0.82, 0.18]
 ```
 
 Los tres grupos, en cristiano:
