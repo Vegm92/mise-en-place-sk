@@ -60,7 +60,7 @@ Multi-tenancy: every business table carries `restaurant_id`; access is enforced 
 
 ## Architecture decisions
 
-Why the app is shaped this way is recorded as ADRs in **[`doc/`](doc/README.md)** — one file per decision, grouped per feature area (tenancy, ingestion, extraction, invoicing, insights, analytics, billing, identity, WhatsApp, data, experience, conventions). Start with the [index](doc/README.md).
+Why the app is shaped this way is recorded as ADRs in **[`docs/06_decisions/`](docs/06_decisions/README.md)** — one file per decision, grouped per feature area (tenancy, ingestion, extraction, invoicing, insights, analytics, billing, identity, WhatsApp, data, experience, conventions). Start with the [index](docs/06_decisions/README.md).
 
 ## Getting started
 
@@ -77,7 +77,7 @@ Why the app is shaped this way is recorded as ADRs in **[`doc/`](doc/README.md)*
 |---|---|
 | `pnpm check` / `pnpm test` | typecheck / unit & integration tests (DB-backed suites need a **local** Postgres — see below) |
 | `pnpm db:generate` / `db:migrate` / `db:studio` | Drizzle workflow |
-| `pnpm synth:e2e` | synthetic invoice benchmark for extraction quality (`synth/`) |
+| `pnpm synth:generate` | generate synthetic invoice PDF+GT fixtures for local testing (`synth/`, dev-only — not in the repo) |
 
 ### Running the DB-backed tests
 
