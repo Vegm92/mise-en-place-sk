@@ -1,0 +1,799 @@
+<title>Mise en Place por dentro</title>
+<style>
+  :root {
+    --ground: #F4F6F7;
+    --surface: #FFFFFF;
+    --surface-2: #EAEEF0;
+    --ink: #10171D;
+    --ink-2: #3E4C57;
+    --ink-3: #6B7A85;
+    --rule: #D3DBE0;
+    --rule-soft: #E4EAED;
+    --azulejo: #1D4E6B;
+    --azulejo-soft: #DCE8EE;
+    --amber: #A9640F;
+    --amber-soft: #F6E6CF;
+    --green: #2F6B48;
+    --green-soft: #DCEBE1;
+    --red: #A0332B;
+    --red-soft: #F5DEDB;
+    --shadow: 0 1px 2px rgba(16,23,29,.06), 0 8px 24px -16px rgba(16,23,29,.28);
+
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0E1418;
+      --surface: #151D23;
+      --surface-2: #1D272E;
+      --ink: #EDF2F4;
+      --ink-2: #B4C2CB;
+      --ink-3: #8395A0;
+      --rule: #2B3841;
+      --rule-soft: #222D35;
+      --azulejo: #7FB6D4;
+      --azulejo-soft: #1B2F3C;
+      --amber: #E3A452;
+      --amber-soft: #382913;
+      --green: #79C295;
+      --green-soft: #17301F;
+      --red: #E28A80;
+      --red-soft: #331A18;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0E1418;
+    --surface: #151D23;
+    --surface-2: #1D272E;
+    --ink: #EDF2F4;
+    --ink-2: #B4C2CB;
+    --ink-3: #8395A0;
+    --rule: #2B3841;
+    --rule-soft: #222D35;
+    --azulejo: #7FB6D4;
+    --azulejo-soft: #1B2F3C;
+    --amber: #E3A452;
+    --amber-soft: #382913;
+    --green: #79C295;
+    --green-soft: #17301F;
+    --red: #E28A80;
+    --red-soft: #331A18;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 10px 28px -18px rgba(0,0,0,.9);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 clamp(18px, 4vw, 40px) 96px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  @media (min-width: 1040px) {
+    .page { grid-template-columns: 210px minmax(0, 1fr); column-gap: 56px; }
+    .masthead { grid-column: 1 / -1; }
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: clamp(48px, 9vw, 96px) 0 clamp(32px, 5vw, 56px);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 20px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: clamp(38px, 7vw, 68px);
+    line-height: 1.02;
+    letter-spacing: -.018em;
+    text-wrap: balance;
+    margin: 0 0 22px;
+  }
+
+  .standfirst {
+    font-size: clamp(17px, 2.2vw, 20.5px);
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0 0 30px;
+  }
+
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  .masthead-note {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 26px;
+    font-size: 14px;
+    color: var(--ink-3);
+    font-family: var(--mono);
+  }
+
+  /* ---------- nav rail ---------- */
+
+  nav.rail { display: none; }
+
+  @media (min-width: 1040px) {
+    nav.rail {
+      display: block;
+      position: sticky;
+      top: 0;
+      align-self: start;
+      padding-top: 56px;
+      max-height: 100vh;
+      overflow-y: auto;
+    }
+    nav.rail ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      counter-reset: rail;
+    }
+    nav.rail a {
+      display: block;
+      padding: 6px 0 6px 26px;
+      position: relative;
+      font-size: 14px;
+      line-height: 1.35;
+      color: var(--ink-3);
+      text-decoration: none;
+      border-left: 2px solid var(--rule-soft);
+    }
+    nav.rail li { counter-increment: rail; }
+    nav.rail a::before {
+      content: counter(rail, decimal-leading-zero);
+      position: absolute;
+      left: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-3);
+      opacity: .65;
+    }
+    nav.rail a:hover, nav.rail a:focus-visible {
+      color: var(--ink);
+      border-left-color: var(--amber);
+    }
+  }
+
+  main { padding-top: clamp(40px, 6vw, 64px); min-width: 0; }
+
+  section { margin-bottom: clamp(56px, 8vw, 88px); scroll-margin-top: 24px; }
+
+  h2 {
+    font-family: var(--display);
+    font-size: clamp(25px, 3.6vw, 34px);
+    font-weight: 600;
+    line-height: 1.14;
+    letter-spacing: -.012em;
+    text-wrap: balance;
+    margin: 0 0 8px;
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 12px;
+  }
+
+  h3 {
+    font-size: 16px;
+    font-weight: 650;
+    letter-spacing: -.005em;
+    margin: 0 0 6px;
+  }
+
+  p { margin: 0 0 16px; max-width: 68ch; color: var(--ink-2); }
+  p.lede { color: var(--ink); font-size: 17.5px; max-width: 64ch; }
+  main strong { color: var(--ink); font-weight: 650; }
+
+  code, .mono { font-family: var(--mono); font-size: .88em; }
+  code {
+    background: var(--surface-2);
+    border-radius: 3px;
+    padding: .12em .38em;
+    color: var(--ink);
+  }
+
+  a { color: var(--azulejo); text-underline-offset: 3px; }
+  a:focus-visible, .rail a:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* ---------- stat strip ---------- */
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 28px 0 0;
+  }
+  .stat { background: var(--surface); padding: 18px 18px 16px; }
+  .stat .n {
+    font-family: var(--display);
+    font-size: clamp(26px, 4vw, 34px);
+    line-height: 1;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+    display: block;
+    margin-bottom: 7px;
+  }
+  .stat .l { font-size: 13px; line-height: 1.35; color: var(--ink-3); display: block; }
+
+  /* ---------- diagram ---------- */
+
+  .figure {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    box-shadow: var(--shadow);
+    padding: 22px 4px 10px;
+    margin: 26px 0 12px;
+    overflow-x: auto;
+  }
+  .figure svg { display: block; min-width: 660px; width: 100%; height: auto; padding: 0 18px; }
+
+  /* SVG presentation attributes don't resolve var(), so the diagram is styled here */
+  .flow .step-label { font-family: var(--mono); font-size: 10.5px; letter-spacing: 1.2px; fill: var(--ink-3); }
+  .flow .t1 { font-family: var(--body); font-size: 13.5px; fill: var(--ink); }
+  .flow .t1b { font-family: var(--body); font-size: 14px; font-weight: 650; fill: var(--ink); }
+  .flow .t2 { font-family: var(--body); font-size: 13px; fill: var(--ink); }
+  .flow .s1 { font-family: var(--body); font-size: 11.5px; fill: var(--ink-3); }
+  .flow .s2 { font-family: var(--body); font-size: 11.5px; fill: var(--ink-2); }
+  .flow .s3 { font-family: var(--body); font-size: 12px; fill: var(--ink-2); }
+  .flow .s4 { font-family: var(--body); font-size: 11px; fill: var(--ink-2); }
+  .flow .bx { fill: var(--surface-2); stroke: var(--rule); }
+  .flow .bx-plain { fill: var(--surface); stroke: var(--rule); }
+  .flow .bx-blue { fill: var(--azulejo-soft); stroke: var(--azulejo); }
+  .flow .bx-amber { fill: var(--amber-soft); stroke: var(--amber); stroke-width: 1.5px; }
+  .flow .bx-ghost { fill: var(--surface-2); stroke: var(--rule); stroke-dasharray: 3 3; }
+  .flow .ln { fill: none; stroke: var(--rule); stroke-width: 1.5px; }
+  .flow .ln-a { fill: none; stroke: var(--amber); stroke-width: 1.5px; }
+  .flow .head { fill: var(--rule); }
+  .flow .head-a { fill: var(--amber); }
+  .flow .d-g { fill: var(--green); }
+  .flow .d-a { fill: var(--amber); }
+  .flow .d-r { fill: var(--red); }
+  figcaption {
+    font-size: 13.5px;
+    color: var(--ink-3);
+    margin: 0 0 30px;
+    padding-left: 2px;
+    max-width: 62ch;
+  }
+
+  /* ---------- cards ---------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+    gap: 14px;
+    margin: 22px 0;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 17px 18px 18px;
+  }
+  .card p { font-size: 14.5px; margin: 0; max-width: none; }
+  .card .route {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--azulejo);
+    display: block;
+    margin-bottom: 9px;
+  }
+
+  .card.flag { border-left: 3px solid var(--red); }
+  .card.flag h3 { color: var(--red); }
+
+  /* ---------- confidence chips ---------- */
+
+  .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin: 24px 0; }
+  .chip { border-radius: 5px; padding: 15px 17px 16px; border: 1px solid var(--rule); }
+  .chip .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-right: 8px; vertical-align: baseline; }
+  .chip h3 { display: flex; align-items: center; font-size: 15px; }
+  .chip p { font-size: 14px; margin: 0; max-width: none; }
+  .chip.g { background: var(--green-soft); border-color: var(--green); }
+  .chip.g .dot { background: var(--green); }
+  .chip.a { background: var(--amber-soft); border-color: var(--amber); }
+  .chip.a .dot { background: var(--amber); }
+  .chip.r { background: var(--red-soft); border-color: var(--red); }
+  .chip.r .dot { background: var(--red); }
+
+  /* ---------- pull quote / rule box ---------- */
+
+  .rulebox {
+    border-left: 3px solid var(--amber);
+    background: var(--surface);
+    padding: 20px 22px;
+    border-radius: 0 5px 5px 0;
+    margin: 26px 0;
+  }
+  .rulebox p { margin: 0; font-family: var(--display); font-size: 20px; line-height: 1.42; color: var(--ink); max-width: 54ch; }
+
+  /* ---------- timeline ---------- */
+
+  .timeline { display: flex; flex-direction: column; gap: 0; margin: 24px 0; border-top: 1px solid var(--rule); }
+  .tl-row {
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 18px;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: start;
+  }
+  .tl-when {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    color: var(--amber);
+    padding-top: 1px;
+  }
+  .tl-row p { margin: 0; font-size: 14.5px; }
+
+  /* ---------- table ---------- */
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 5px; background: var(--surface); margin: 22px 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14.5px; }
+  th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  thead th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 600; color: var(--ink); white-space: nowrap; }
+  td:first-child .alt { display: block; font-weight: 400; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+  td:last-child { color: var(--ink-2); }
+
+  /* ---------- reading list ---------- */
+
+  .files { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 5px; overflow: hidden; }
+  .file { background: var(--surface); padding: 14px 18px; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; align-items: baseline; }
+  .file .name { font-family: var(--mono); font-size: 13px; color: var(--azulejo); }
+  .file .what { font-size: 14px; color: var(--ink-2); }
+  @media (max-width: 560px) { .file { grid-template-columns: 1fr; gap: 4px; } }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+    font-size: 13.5px;
+    color: var(--ink-3);
+    max-width: 68ch;
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">Onboarding · equipo Mise en Place</p>
+    <h1>Mise en Place por dentro</h1>
+    <p class="standfirst">
+      Un restaurante recibe entre 200 y 400 papeles de proveedor al mes y no hace nada
+      con ellos. Nosotros los convertimos en decisiones de compra:
+      <strong>foto → la IA lee → una persona confirma → el hostelero se entera de que le han subido el pescado</strong>.
+      Esta página es el resumen visual; los siete capítulos con el detalle están en <code>docs/onboarding/</code>.
+    </p>
+    <div class="masthead-note">
+      <span>Lectura: 12 min</span>
+      <span>Sin conocimientos técnicos</span>
+      <span>Estado: pre-lanzamiento</span>
+    </div>
+  </header>
+
+  <nav class="rail" aria-label="Secciones">
+    <ol>
+      <li><a href="#problema">El problema</a></li>
+      <li><a href="#viaje">El viaje de una factura</a></li>
+      <li><a href="#confianza">La regla de oro</a></li>
+      <li><a href="#mapa">Mapa de la app</a></li>
+      <li><a href="#clientes">Quién nos paga</a></li>
+      <li><a href="#competencia">La competencia</a></li>
+      <li><a href="#ley">La ley que nos empuja</a></li>
+      <li><a href="#cuidado">Cuidado con esto</a></li>
+      <li><a href="#glosario">Glosario mínimo</a></li>
+      <li><a href="#seguir">Seguir leyendo</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <section id="problema">
+      <p class="kicker">Por qué existimos</p>
+      <h2>El coste de la comida es lo único que un restaurante puede controlar. Y lo controla a ciegas.</h2>
+      <p class="lede">
+        El dueño cierra a las once de la noche con un taco de albaranes. O los teclea a mano
+        (nadie aguanta más de dos semanas), o los manda al gestor a fin de mes, o no hace nada.
+        En los tres casos el dato se pierde — y con él, la única forma de ver que el mismo
+        proveedor le ha subido la merluza un 12 % en tres entregas seguidas.
+      </p>
+      <div class="stats">
+        <div class="stat"><span class="n">200–400</span><span class="l">documentos de proveedor al mes</span></div>
+        <div class="stat"><span class="n">14 h</span><span class="l">semanales de administración</span></div>
+        <div class="stat"><span class="n">3–5 %</span><span class="l">margen neto del sector</span></div>
+        <div class="stat"><span class="n">28–35 %</span><span class="l">del ingreso se va en materia prima</span></div>
+        <div class="stat"><span class="n">+35 %</span><span class="l">cesta de alimentos desde 2021</span></div>
+      </div>
+    </section>
+
+    <section id="viaje">
+      <p class="kicker">Cómo funciona</p>
+      <h2>El viaje de una factura</h2>
+      <p>
+        De la foto al aviso. Si entiendes este recorrido, entiendes el 80 % del producto.
+        Lo único que hace el hostelero es la primera casilla y la cuarta.
+      </p>
+
+      <figure class="figure">
+        <svg class="flow" viewBox="0 0 980 300" role="img" aria-labelledby="flowtitle flowdesc">
+          <title id="flowtitle">Recorrido de una factura dentro de Mise en Place</title>
+          <desc id="flowdesc">Cinco pasos: entrada por la app o por WhatsApp, agrupación en un lote, lectura por la IA según el tipo de archivo, revisión y confirmación por una persona, y disparo de los avisos de precio, stock y presupuesto.</desc>
+
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="head" d="M 0 0 L 10 5 L 0 10 z"></path>
+            </marker>
+            <marker id="ar-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path class="head-a" d="M 0 0 L 10 5 L 0 10 z"></path>
+            </marker>
+          </defs>
+
+          <g class="step-label">
+            <text x="12" y="22">01 ENTRADA</text>
+            <text x="212" y="22">02 LOTE</text>
+            <text x="392" y="22">03 LECTURA IA</text>
+            <text x="644" y="22">04 PERSONA</text>
+            <text x="822" y="22">05 AVISOS</text>
+          </g>
+
+          <!-- 01 entrada -->
+          <rect class="bx" x="12" y="72" width="162" height="52" rx="4"></rect>
+          <text class="t1" x="28" y="96">Foto o PDF</text>
+          <text class="s1" x="28" y="113">en la app, aunque no haya red</text>
+
+          <rect class="bx" x="12" y="152" width="162" height="52" rx="4"></rect>
+          <text class="t1" x="28" y="176">WhatsApp</text>
+          <text class="s1" x="28" y="193">el camarero manda la foto</text>
+
+          <path class="ln" d="M 178 98 L 196 98 L 196 140"></path>
+          <path class="ln" d="M 178 178 L 196 178 L 196 148"></path>
+          <path class="ln" d="M 196 148 L 208 148" marker-end="url(#ar)"></path>
+
+          <!-- 02 lote -->
+          <rect class="bx-blue" x="212" y="112" width="150" height="72" rx="4"></rect>
+          <text class="t1b" x="230" y="140">Un lote</text>
+          <text class="s2" x="230" y="159">todo lo subido de una vez</text>
+          <text class="s2" x="230" y="175">se revisa junto</text>
+
+          <path class="ln" d="M 366 148 L 388 148" marker-end="url(#ar)"></path>
+
+          <!-- 03 lectura -->
+          <rect class="bx" x="392" y="52" width="216" height="46" rx="4"></rect>
+          <text class="t2" x="408" y="73">XML de factura electrónica</text>
+          <text class="s1" x="408" y="89">se lee sin IA: ya viene exacto</text>
+
+          <rect class="bx" x="392" y="106" width="216" height="46" rx="4"></rect>
+          <text class="t2" x="408" y="127">PDF con texto</text>
+          <text class="s1" x="408" y="143">se extrae el texto y va a la IA</text>
+
+          <rect class="bx" x="392" y="160" width="216" height="46" rx="4"></rect>
+          <text class="t2" x="408" y="181">Escaneo o foto</text>
+          <text class="s1" x="408" y="197">la IA lo mira con «vista»</text>
+
+          <path class="ln" d="M 612 75 L 626 75 L 626 140"></path>
+          <path class="ln" d="M 612 129 L 626 129"></path>
+          <path class="ln" d="M 612 183 L 626 183 L 626 156"></path>
+          <path class="ln" d="M 626 148 L 640 148" marker-end="url(#ar)"></path>
+
+          <!-- 04 persona -->
+          <rect class="bx-amber" x="644" y="104" width="152" height="88" rx="4"></rect>
+          <text class="t1b" x="662" y="131">Revisar y</text>
+          <text class="t1b" x="662" y="149">confirmar</text>
+          <circle class="d-g" cx="667" cy="169" r="5"></circle>
+          <circle class="d-a" cx="685" cy="169" r="5"></circle>
+          <circle class="d-r" cx="703" cy="169" r="5"></circle>
+          <text class="s4" x="715" y="173">por campo</text>
+
+          <path class="ln-a" d="M 800 148 L 814 148" marker-end="url(#ar-amber)"></path>
+
+          <!-- 05 avisos -->
+          <path class="ln" d="M 818 148 L 818 85 L 822 85"></path>
+          <path class="ln" d="M 818 148 L 822 148"></path>
+          <path class="ln" d="M 818 148 L 818 209 L 822 209"></path>
+
+          <rect class="bx-plain" x="822" y="62" width="146" height="46" rx="4"></rect>
+          <text class="t2" x="838" y="83">Subida de precio</text>
+          <text class="s1" x="838" y="99">más de un 15 %</text>
+
+          <rect class="bx-plain" x="822" y="125" width="146" height="46" rx="4"></rect>
+          <text class="t2" x="838" y="146">Stock bajo</text>
+          <text class="s1" x="838" y="162">menos de 3 días</text>
+
+          <rect class="bx-plain" x="822" y="186" width="146" height="46" rx="4"></rect>
+          <text class="t2" x="838" y="207">Presupuesto</text>
+          <text class="s1" x="838" y="223">al 80 % y al 100 %</text>
+
+          <!-- nota duplicados -->
+          <rect class="bx-ghost" x="392" y="238" width="404" height="42" rx="4"></rect>
+          <text class="s3" x="410" y="257">Si ese mismo documento ya se había subido, se bloquea antes</text>
+          <text class="s3" x="410" y="272">de llegar aquí. El gasto nunca se cuenta dos veces.</text>
+        </svg>
+      </figure>
+      <figcaption>
+        El paso 03 es la razón de que funcione igual con el albarán arrugado y con la factura
+        electrónica del gran distribuidor: el sistema elige la ruta solo, el usuario no configura nada.
+      </figcaption>
+    </section>
+
+    <section id="confianza">
+      <p class="kicker">La regla de producto más importante</p>
+      <h2>La IA lee. La persona decide.</h2>
+      <p>
+        La IA no devuelve «el total es 342,10 €». Devuelve «el total es 342,10 € y estoy segura
+        al 94 %». Cada campo trae su propio nivel de seguridad, y eso pinta la pantalla de revisión:
+      </p>
+      <div class="chips">
+        <div class="chip g"><h3><span class="dot"></span>Verde</h3><p>Alta confianza. Pasa sin fricción.</p></div>
+        <div class="chip a"><h3><span class="dot"></span>Ámbar</h3><p>Dudoso. Se señala; revisarlo es opcional.</p></div>
+        <div class="chip r"><h3><span class="dot"></span>Rojo</h3><p>Baja confianza. <strong>Hay que revisarlo</strong> antes de poder guardar. El campo se enfoca solo.</p></div>
+      </div>
+      <div class="rulebox">
+        <p>Un importe nunca se guarda como dato bueno sin que una persona lo haya validado cuando la máquina dudaba.</p>
+      </div>
+      <p>
+        Esto no es un detalle técnico: es el argumento comercial frente a la desconfianza natural
+        del hostelero, que ya ha probado escáneres que se inventan cifras. La queja que más se
+        repite en las reseñas de nuestros competidores es exactamente esa.
+      </p>
+    </section>
+
+    <section id="mapa">
+      <p class="kicker">Dónde está cada cosa</p>
+      <h2>Mapa de la app</h2>
+      <p>
+        Cuando alguien diga «eso está en <code>/suppliers</code>», se refiere a una de estas pantallas.
+        La dirección es literalmente lo que se ve en la barra del navegador.
+      </p>
+      <div class="grid">
+        <div class="card"><span class="route">/waitlist</span><h3>Lista de espera</h3><p>La landing pública, en español e inglés. Hoy es el único escaparate hacia fuera.</p></div>
+        <div class="card"><span class="route">/</span><h3>Subida</h3><p>Cámara o archivos. Funciona sin cobertura: la cola se envía sola al recuperar señal.</p></div>
+        <div class="card"><span class="route">/batch/[id]</span><h3>Revisión del lote</h3><p>Donde se repasa lo que leyó la IA y se confirma. El corazón del producto.</p></div>
+        <div class="card"><span class="route">/dashboard</span><h3>Panel</h3><p>Gasto del mes, tendencia, avisos abiertos.</p></div>
+        <div class="card"><span class="route">/invoices</span><h3>Facturas</h3><p>Listado y detalle, marcar como pagada, ver el original, exportar a Excel.</p></div>
+        <div class="card"><span class="route">/suppliers</span><h3>Proveedores</h3><p>Se crean solos desde las facturas. Gasto, evolución de precios, fiabilidad.</p></div>
+        <div class="card"><span class="route">/products</span><h3>Productos</h3><p>Donde «TOMATE PERA 5KG» y «Tomate pera caja 5 kg» pasan a ser el mismo producto.</p></div>
+        <div class="card"><span class="route">/analytics</span><h3>Analítica</h3><p>Gasto por categoría y periodo, evolución de precios, calidad de la extracción.</p></div>
+        <div class="card"><span class="route">/budgets</span><h3>Presupuestos</h3><p>Tope mensual por categoría, con barras de progreso y avisos de desvío.</p></div>
+        <div class="card"><span class="route">/reminders</span><h3>Recordatorios</h3><p>El centro único de lo que requiere atención: vencimientos y todas las alertas.</p></div>
+        <div class="card"><span class="route">/chat</span><h3>Asistente</h3><p>«¿Cuánto gasté en pescado este mes?», respondido sobre los datos propios.</p></div>
+        <div class="card"><span class="route">/digest</span><h3>Resumen semanal</h3><p>Lo que ha pasado en la semana, generado por IA y enviado por email.</p></div>
+        <div class="card"><span class="route">/billing · /settings</span><h3>Plan y ajustes</h3><p>Planes y pago, datos del restaurante, locales, vincular WhatsApp.</p></div>
+        <div class="card flag"><span class="route">/admin/*</span><h3>Centro de control</h3><p>Interno. Salud, errores, ingresos. No es producto: nunca en una captura pública.</p></div>
+      </div>
+      <p>
+        Dos cosas que sorprenden: <strong>móvil y escritorio son pantallas distintas de verdad</strong>
+        (al pedir un cambio visual, di para cuál), y <strong>todo existe en español y en inglés</strong>
+        — si propones una frase nueva, trae las dos versiones.
+      </p>
+    </section>
+
+    <section id="clientes">
+      <p class="kicker">A quién le vendemos</p>
+      <h2>Quién nos paga y quién nos usa no son la misma persona</h2>
+      <div class="grid">
+        <div class="card"><h3>🍳 Dueño-chef</h3><p>Un local. Compra, paga las facturas y además cocina. <strong>Nuestro cliente núcleo.</strong> Plan Starter o Pro.</p></div>
+        <div class="card"><h3>🏢 Grupo pequeño</h3><p>De dos a cinco locales. Quiere la vista conjunta con cada local separado. Plan Business.</p></div>
+        <div class="card"><h3>🧾 Administrativo</h3><p>Mete y consulta facturas. No toca el plan ni el pago.</p></div>
+        <div class="card"><h3>📸 Camarero</h3><p>Manda la foto por WhatsApp y se acabó. <strong>Ni se instala la app.</strong></p></div>
+        <div class="card"><h3>📊 La gestoría</h3><p>~70.000 despachos en España, solo un 10 % digitalizados. Canal de distribución, no competidor.</p></div>
+      </div>
+      <p>
+        El camarero merece atención especial: el personal de cocina <strong>ya manda fotos de albaranes
+        por WhatsApp hoy</strong>, sin que nadie se lo pida. En vez de pelear contra esa costumbre, el bot
+        contesta con un enlace de revisión. Cero formación, cero app que instalar.
+      </p>
+      <div class="stats">
+        <div class="stat"><span class="n">280.000</span><span class="l">establecimientos en España (mercado total)</span></div>
+        <div class="stat"><span class="n">93 %</span><span class="l">de los restaurantes son independientes</span></div>
+        <div class="stat"><span class="n">1.800</span><span class="l">locales objetivo a tres años</span></div>
+      </div>
+    </section>
+
+    <section id="competencia">
+      <p class="kicker">Contra quién jugamos</p>
+      <h2>Tres grupos, y un hueco en medio</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Los genéricos baratos</h3>
+          <p><span class="mono">Holded · Quipu · Billin · Dext</span><br><br>
+          7–50 €/mes. Sacan la cabecera de la factura para los impuestos. Saben lo que suma la factura;
+          <strong>no saben lo que vale un kilo de merluza</strong>.</p>
+        </div>
+        <div class="card">
+          <h3>Las suites de hostelería</h3>
+          <p><span class="mono">Haddock · Gstock · Yurest · MarketMan</span><br><br>
+          Escandallos e inventario. Precio opaco, comercial de por medio, implantación larga.
+          Su punto débil recurrente en reseñas: <strong>la precisión del escaneo</strong>.</p>
+        </div>
+        <div class="card">
+          <h3>Los de pedidos</h3>
+          <p><span class="mono">Choco · Rekki</span><br><br>
+          Conectan restaurante y proveedor para pedir. No hacen analítica de coste. Juegan a otra cosa.</p>
+        </div>
+        <div class="card" style="border-color: var(--amber); border-width: 1.5px;">
+          <h3>Nosotros</h3>
+          <p>Específicos de hostelería como el grupo 2, pero con <strong>precio público, alta en minutos
+          y valor visible con la primera factura</strong>. Sin llamada de ventas.</p>
+        </div>
+      </div>
+      <p>
+        Señal de que el mercado es real: xtraCHEF, el mismo producto en Estados Unidos, lo compró Toast
+        por unos 23,5 M $. MarginEdge levantó 45 M $ con 4.000 restaurantes. En España solo hay
+        <strong>un</strong> competidor financiado — Haddock, con 1 M €.
+      </p>
+    </section>
+
+    <section id="ley">
+      <p class="kicker">El viento de cola</p>
+      <h2>La ley que nos empuja</h2>
+      <p>
+        Nuestro mejor gancho de contenido, porque tiene fechas. En menos de treinta meses,
+        digitalizar la factura de proveedor deja de ser una buena idea y pasa a ser obligatorio.
+      </p>
+      <div class="timeline">
+        <div class="tl-row">
+          <span class="tl-when">abr. 2026</span>
+          <p><strong>RD 238/2026 en vigor.</strong> Arranca el marco de la factura electrónica B2B de la Ley Crea y Crece.</p>
+        </div>
+        <div class="tl-row">
+          <span class="tl-when">ene. 2027</span>
+          <p><strong>VERI*FACTU para sociedades.</strong> Software de facturación certificado e inalterable, con QR.</p>
+        </div>
+        <div class="tl-row">
+          <span class="tl-when">jul. 2027</span>
+          <p><strong>VERI*FACTU para el resto</strong>, autónomos incluidos. Aquí está la mayoría de nuestros clientes.</p>
+        </div>
+        <div class="tl-row">
+          <span class="tl-when">oct. 2027</span>
+          <p>Previsto: <strong>e-factura B2B obligatoria</strong> para empresas de más de 8 M € de facturación.</p>
+        </div>
+        <div class="tl-row">
+          <span class="tl-when">oct. 2028</span>
+          <p>Previsto: <strong>e-factura B2B para todas las pymes</strong>. A partir de ahí, todo restaurante recibe facturas estructuradas.</p>
+        </div>
+      </div>
+      <p>
+        Otros venderán esto como <em>cumplimiento</em>. Nosotros somos la capa de <em>inteligencia</em>
+        encima de una obligación que va a llegar igual.
+      </p>
+    </section>
+
+    <section id="cuidado">
+      <p class="kicker">Antes de publicar nada</p>
+      <h2>Tres cosas que no debes decir sin preguntar</h2>
+      <div class="grid">
+        <div class="card flag">
+          <h3>No publiques precios</h3>
+          <p>La app muestra 29/59/129 € como <strong>provisionales</strong>; el plan de negocio maneja
+          49/99/199 €. Además están escritos por duplicado en dos sitios que no se hablan entre sí.
+          Confirma antes de que un número salga fuera.</p>
+        </div>
+        <div class="card flag">
+          <h3>No digas que cumplimos VERI*FACTU</h3>
+          <p>No emitimos facturas, así que no somos un sistema certificado. Lo correcto es:
+          <strong>leemos y verificamos</strong> las facturas certificadas que el restaurante recibe.</p>
+        </div>
+        <div class="card flag">
+          <h3>No enseñes las pantallas internas</h3>
+          <p>Todo lo que cuelga de <code>/admin</code> es herramienta nuestra, no producto.
+          Fuera de capturas, vídeos y demos.</p>
+        </div>
+      </div>
+      <p>
+        Y una cuarta, en positivo: <strong>somos pre-lanzamiento</strong>. No hay clientes de pago
+        todavía, hay lista de espera. Cualquier material que sugiera lo contrario nos deja expuestos.
+      </p>
+    </section>
+
+    <section id="glosario">
+      <p class="kicker">Traductor</p>
+      <h2>Glosario mínimo</h2>
+      <p>Lo que vas a oír en una reunión, y qué significa de verdad. El glosario completo está en el capítulo 5.</p>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Palabra</th><th scope="col">Qué significa</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Restaurante<span class="alt">tenant · rid</span></td><td>La cuenta. Es a la vez quien paga y la frontera de los datos: nadie ve lo de otro.</td></tr>
+            <tr><td>Lote<span class="alt">batch</span></td><td>Los documentos subidos de una vez, que se revisan juntos.</td></tr>
+            <tr><td>Extracción</td><td>El paso en el que la IA lee el documento.</td></tr>
+            <tr><td>Confianza<span class="alt">confidence</span></td><td>Cómo de segura está la IA de cada campo. Pinta los puntos verde, ámbar y rojo.</td></tr>
+            <tr><td>Confirmar</td><td>El momento en que una persona valida. Antes es borrador; después es dato oficial.</td></tr>
+            <tr><td>Proveedor<span class="alt">supplier</span></td><td>Se crea solo desde las facturas. No hay que darlo de alta.</td></tr>
+            <tr><td>Cuota<span class="alt">quota</span></td><td>Cuántas facturas al mes incluye el plan: 100, 300 o ilimitado.</td></tr>
+            <tr><td>Albarán</td><td>El papel que viene con la mercancía. No es la factura, y llegan muchos más.</td></tr>
+            <tr><td>Escandallo</td><td>Lo que cuesta elaborar un plato, sumando cada ingrediente.</td></tr>
+            <tr><td>Food cost</td><td>Qué porcentaje de las ventas se va en materia prima. Sano: 28–35 %.</td></tr>
+            <tr><td>Issue<span class="alt">#439</span></td><td>Una tarea o fallo apuntado en GitHub, con número. «El 439» es una tarea concreta.</td></tr>
+            <tr><td>PR<span class="alt">pull request</span></td><td>Un cambio propuesto, esperando revisión antes de publicarse.</td></tr>
+            <tr><td>Worker</td><td>El proceso que va sacando trabajos de la cola. Si está parado, las facturas se quedan pensando.</td></tr>
+            <tr><td>ADR</td><td>Ficha corta que explica <em>por qué</em> se tomó una decisión técnica. Hay 22.</td></tr>
+            <tr><td>i18n</td><td>El sistema de traducciones español / inglés.</td></tr>
+            <tr><td>Gemini</td><td>El modelo de IA de Google que lee las facturas y responde en el chat.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="seguir">
+      <p class="kicker">El pack completo</p>
+      <h2>Seguir leyendo</h2>
+      <p>Siete capítulos en <code>docs/onboarding/</code>, en este orden. Unos noventa minutos en total.</p>
+      <div class="files">
+        <div class="file"><span class="name">01_que_es_mise_en_place.md</span><span class="what">El problema, la solución y el negocio</span></div>
+        <div class="file"><span class="name">02_viaje_de_una_factura.md</span><span class="what">Cómo funciona por dentro, sin tecnicismos</span></div>
+        <div class="file"><span class="name">03_mapa_de_la_app.md</span><span class="what">Qué pantalla hace qué</span></div>
+        <div class="file"><span class="name">04_mercado_y_clientes.md</span><span class="what">Mercado, personas, competencia, regulación</span></div>
+        <div class="file"><span class="name">05_glosario.md</span><span class="what">El traductor completo</span></div>
+        <div class="file"><span class="name">06_como_trabajamos.md</span><span class="what">Herramientas y cómo pedir cambios</span></div>
+        <div class="file"><span class="name">07_primera_semana.md</span><span class="what">Checklist de arranque día a día</span></div>
+      </div>
+      <footer>
+        <p>
+          Si algo de esta página no se entiende, es un fallo de la página y no tuyo: díselo al equipo
+          y se corrige. El glosario, en particular, está pensado para crecer con las palabras que
+          te falten.
+        </p>
+      </footer>
+    </section>
+
+  </main>
+</div>
