@@ -65,6 +65,10 @@ TODO.md
 !/docs/07_ai/
 !/docs/REVENUE_METRICS.md
 # Architecture decision records live in docs/06_decisions/ (not ignored) — see its README.md
+# ...and the onboarding pack, which has to reach new teammates (tracked on purpose)
+!/docs/onboarding/
+!/docs/onboarding/**
+# Architecture decision records live in /doc (not ignored) — see doc/README.md
 /mise-en-place
 
 
