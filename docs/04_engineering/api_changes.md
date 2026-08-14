@@ -24,9 +24,10 @@ changing server routes and endpoints.
 3. **Rate limit**: decide the key scope (user / restaurant / IP) and call
    `checkRateLimit(key, rpm)`. Document the scope choice (open item #440).
 4. **Idempotency**: any endpoint that creates things (or is retried by a
-   client/webhook) needs a claim: `claimMessageId`, `claimRequest`,
-   `stripe_webhook_events` PK dedup, `onConflictDoNothing`. Follow the existing
-   pattern for the resource.
+   client/webhook) needs a claim: `claimIdempotencyKey(scope, key)` for
+   anything replayable, `claimRequest` for form submits, `onConflictDoNothing`
+   for natural keys. A new integration takes a new scope — never a new table
+   (#389).
 5. **Errors**: JSON `{ error }` with a correct status; form actions use
    `fail(status, data)`. Keep SvelteKit's 5xx convention for unexpected errors.
 6. **i18n**: user-visible messages come from `src/lib/i18n.ts` keys, never

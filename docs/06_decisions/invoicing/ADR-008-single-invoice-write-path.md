@@ -43,7 +43,8 @@ Guards 1 and 2 are read-only and run **before** the transaction opens, so the
 common rejection cases never take row locks.
 
 Guards 3 and 4 run **inside** the transaction because both must be atomic with
-the insert. `claimRequest` inserts into `processed_requests` with
+the insert. `claimRequest` inserts into `idempotency_keys` (`form-submit`
+scope since #389) with
 `ON CONFLICT DO NOTHING`; losing that insert means another request already claimed
 the key, so this one is a replay and returns without writing. Doing the same check
 before the transaction would leave a window for a genuine double-submit to pass
@@ -117,9 +118,11 @@ benchmark in `synth/`, which measures the same thing against generated documents
   insert — even "just for one channel" — reintroduces exactly the divergence
   ADR-004 was raised to close, and the unit bridge and alert engine would be
   skipped again.
-- `processed_requests` is swept after 48 h (`cleanupProcessedRequests`, fired
-  from `hooks.server.ts` at boot). Replay protection therefore has a 48 h
-  horizon, which comfortably exceeds any real browser retry.
+- Form-submit claims are swept after 48 h. Since #389 they live in
+  `idempotency_keys` under the `form-submit` scope and are swept by the worker's
+  scheduled `sweepIdempotencyKeys`, not at web-process boot. Replay protection
+  therefore has a 48 h horizon, which comfortably exceeds any real browser
+  retry.
 - `contentDuplicate` returns the existing invoice's id so the UI can link to it.
   `numberDuplicate` cannot, because the match happens on `(supplier, number)`
   inside the transaction where returning the row would mean an extra query for a

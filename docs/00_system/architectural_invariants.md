@@ -46,18 +46,23 @@ plan and explicit human approval — it is never a silent convenience.
 
 - **Invoices**: `contentHash` (SHA-256 over canonicalized content) + partial
   unique index + `onConflictDoNothing`; retries return `contentDuplicate`.
-- **Stripe**: `stripe_webhook_events` PK dedup; on handler error the claim is
-  deleted so Stripe's retry reprocesses.
-- **WhatsApp**: `whatsappProcessedMessages` PK dedup.
-- **Requests**: `processed_requests` (client-supplied UUID) claim-once →
+- **One ledger for all of it**: `idempotency_keys`, claimed as (scope, key) via
+  `claimIdempotencyKey` (#389). Keys are unique per scope, so callers cannot
+  suppress one another. Never add a fourth bespoke dedup table.
+- **Stripe** (`stripe-webhook` scope): on handler error the claim is deleted so
+  Stripe's retry reprocesses.
+- **WhatsApp** (`whatsapp` scope): claim fails open on a DB error.
+- **Requests** (`form-submit` scope, client-supplied UUID): claim-once →
   replays return `replay`.
+- **Retention**: one scheduled sweep (`sweepIdempotencyKeys`) expires every
+  scope on its own window; nothing grows unbounded.
 - **pg-boss**: `singletonKey` prevents duplicate enqueues.
 
 ## BILLING
 
 - Stripe webhooks must be signature-verified (`stripe.webhooks.constructEvent`);
   production **throws** when `STRIPE_WEBHOOK_SECRET` is unset.
-- `stripe_webhook_events` dedup claim is the first write; unknown price ids log
+- The `stripe-webhook` dedup claim is the first write; unknown price ids log
   loudly + fall back `starter` (never silent).
 - Plan/feature access (`getTierFeatures`) and quotas (`resolveMonthlyQuota`)
   must stay consistent with the local `subscriptions` row — never trust a price

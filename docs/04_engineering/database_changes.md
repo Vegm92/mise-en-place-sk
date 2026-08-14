@@ -7,7 +7,7 @@ the schema file (ADR-003).
 
 - Drizzle schema split across `src/lib/server/schema/{core,extensions,auth}.ts`;
   `schema.ts` is a re-export barrel — edit the per-area file.
-- Committed migrations in `drizzle/` (latest: `0030_*.sql`).
+- Committed migrations in `drizzle/` (latest: `0032_*.sql`).
 - `drizzle.config.ts` drives generate/migrate/studio.
 
 ## Rules

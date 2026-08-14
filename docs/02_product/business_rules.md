@@ -24,7 +24,7 @@ with an ADR if structural. Feature-level detail lives in `docs/03_features/`.
 | Low-confidence gate | blocked unless `low_confidence_ack`; header field < 0.85 or overall < 0.85 | `invoice-save.ts` |
 | Duplicate gate | SHA-256 content hash on canonicalized content; `contentDuplicate` | `dedup.ts` |
 | Supplier+number duplicate | unique `(rid, supplier_id, invoice_number)` | `invoice-save.ts` |
-| Idempotency | `processed_requests` claim-once, client UUID | `idempotency.ts` |
+| Idempotency | `idempotency_keys` claim-once (`form-submit` scope), client UUID | `idempotency.ts` |
 | First-invoice onboarding | sets `has_completed_onboarding`, redirects `/dashboard?first_invoice=1` | `invoice-save.ts` |
 
 ## Alerts (computed on save, persisted)
@@ -57,7 +57,7 @@ with an ADR if structural. Feature-level detail lives in `docs/03_features/`.
 | Quotas | trial 20, starter 100, pro 300, business unlimited (null) | `billing.ts` |
 | Feature flags | digest, stock, supplierScores, multiLocation, aiAssistant per tier | `billing.ts` |
 | Provisional prices | starter 29 / pro 59 / business 129 € (override via `PLAN_PRICE_*_EUR`) | `billing-plans.ts` |
-| Webhook dedup | `stripe_webhook_events` PK; claim deleted on error → Stripe retries | `billing.ts` |
+| Webhook dedup | `idempotency_keys` (`stripe-webhook` scope); claim deleted on error → Stripe retries | `billing.ts` |
 | Out-of-order guard | only apply when `lastEventAt <= event.created` | `billing.ts` |
 
 ## Notifications & reminders

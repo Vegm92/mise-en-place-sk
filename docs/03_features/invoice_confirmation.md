@@ -59,7 +59,7 @@ Invoice: `(new, status='pending')`.
 
 `invoices`, `invoice_line_items`, `batch_items`, `suppliers`, `products`,
 `product_aliases`, `unit_conversions`, `extraction_corrections`,
-`system_notifications`, `processed_requests`, `settings`, `stock_levels`,
+`system_notifications`, `idempotency_keys`, `settings`, `stock_levels`,
 `category_budgets`.
 
 ## API dependencies
@@ -107,7 +107,7 @@ shapes, `low_confidence_ack` value.
 ## Idempotency rules
 
 - contentHash + partial unique index + `onConflictDoNothing`.
-- `processed_requests` claim-once → `replay`.
+- `idempotency_keys` (`form-submit` scope) claim-once → `replay`.
 - pg-boss `singletonKey` prevents duplicate enqueues upstream.
 
 ## Observability

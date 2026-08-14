@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
-import { restaurants, whatsappContacts, whatsappProcessedMessages } from './schema';
+import { restaurants, whatsappContacts } from './schema';
+import { claimIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { checkRateLimit } from './rate-limiter';
@@ -26,12 +27,7 @@ export interface WhatsAppInboundMessage {
 async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 	if (!messageId) return true;
 	try {
-		const rows = await db
-			.insert(whatsappProcessedMessages)
-			.values({ messageId })
-			.onConflictDoNothing()
-			.returning({ messageId: whatsappProcessedMessages.messageId });
-		return rows.length > 0;
+		return await claimIdempotencyKey(WHATSAPP_SCOPE, messageId);
 	} catch (err) {
 		console.error('[whatsapp-bot] message-id claim failed (processing anyway):', err);
 		return true;

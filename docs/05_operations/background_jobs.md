@@ -24,7 +24,8 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 | `15 2 * * *` | MRR snapshot (`mrr_snapshots`) for `/admin/revenue` | `revenue` module |
 | daily (see worker) | Trial-expiry notices; overdue-invoice reminders | `alerts.ts` runners |
 | every 2 min | Sweep in-memory rate-limit buckets | `rate-limiter.ts` (single-instance caveat) |
-| periodic | `cleanupDeadLetters` / idempotency sweep (expire old claims) | idempotency module |
+| `20 3 * * *` | `cleanupDeadLetters` — dead-letter retention purge | `dead-letter.ts` |
+| `40 3 * * *` | `sweepIdempotencyKeys` — expire claims per scope (48 h; 96 h for `stripe-webhook`) | `idempotency.ts` (#389) |
 
 ## Invariants
 

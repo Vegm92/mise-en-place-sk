@@ -218,6 +218,20 @@
       "when": 1786417231494,
       "tag": "0030_suppliers_address",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1786717063908,
+      "tag": "0031_idempotency_keys",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786717095339,
+      "tag": "0032_drop_legacy_dedup_tables",
+      "breakpoints": true
     }
   ]
 }

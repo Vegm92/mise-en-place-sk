@@ -15,7 +15,7 @@ For deep per-file explanations, `docs/CODE_NOTES.md`.
 | Webhook "signature invalid" | Secret mismatch / URL wrong / event type unregistered | Compare env, dashboard URL + subscribed events |
 | Chat 503 | Missing `GEMINI_API_KEY` | Set env on both units |
 | Chat 429 | Rate limit (user RPM) | Wait; check `checkRateLimit` key scope (#440) |
-| Billing tier wrong after upgrade | Out-of-order webhook or unknown price id | Check `stripe_webhook_events` + `lastEventAt` guard; unknown → loud log (intended) |
+| Billing tier wrong after upgrade | Out-of-order webhook or unknown price id | Check the `stripe-webhook` scope in `idempotency_keys` + `lastEventAt` guard; unknown → loud log (intended) |
 | Prices page redirects `?upgrade=prices` | `supplierScores` feature missing | Expected gating — upgrade tier |
 | Budget alert missing | Dedup per category+level+month; threshold changed | Confirmed alert already exists for the month? Threshold setting |
 | WhatsApp silent | Number health RED/YELLOW, verify token, HMAC secret in prod | `/admin` health; env; Meta dashboard |
@@ -30,7 +30,7 @@ For deep per-file explanations, `docs/CODE_NOTES.md`.
 select status, count(*) from batch_items group by status;
 select name, count(*) from pgboss.job group by name;
 select notificationType, status, count(*) from system_notifications group by 1,2;
-select count(*) from stripe_webhook_events where created_at > now() - interval '1 day';
+select scope, count(*) from idempotency_keys where claimed_at > now() - interval '1 day' group by scope;
 select * from mrr_snapshots order by month desc limit 6;
 ```
 

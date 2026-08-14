@@ -14,6 +14,7 @@ import { TIERS, type PlanTier } from './billing';
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
+import { sweepIdempotencyKeys } from './idempotency';
 
 const LOW_STOCK_DAYS = 3;
 
@@ -426,6 +427,7 @@ export const TRIAL_QUEUE = 'scheduled-trial-notices';
 export const PURGE_QUEUE = 'scheduled-file-purge';
 export const DEAD_LETTER_PURGE_QUEUE = 'scheduled-dead-letter-purge';
 export const ANALYTICS_REFRESH_QUEUE = 'scheduled-analytics-refresh';
+export const IDEMPOTENCY_SWEEP_QUEUE = 'scheduled-idempotency-sweep';
 
 const DIGEST_CRON = '0 6 * * 1';
 const REMINDERS_CRON = '30 6 * * *';
@@ -433,6 +435,7 @@ const TRIAL_CRON = '0 7 * * *';
 const PURGE_CRON = '0 3 * * *';
 const DEAD_LETTER_PURGE_CRON = '20 3 * * *';
 const ANALYTICS_REFRESH_CRON = '10 3 * * *';
+const IDEMPOTENCY_SWEEP_CRON = '40 3 * * *';
 
 export const DELETED_FILE_RETENTION_DAYS = 30;
 
@@ -645,6 +648,12 @@ export async function runDeadLetterPurgeJob(): Promise<{ purged: number }> {
 	return result;
 }
 
+export async function runIdempotencySweepJob(): Promise<{ swept: number }> {
+	const result = await sweepIdempotencyKeys();
+	if (result.swept) console.info(`[scheduler] idempotency sweep: ${result.swept} claims expired`);
+	return result;
+}
+
 export async function runAnalyticsRefreshJob(): Promise<{ refreshed: boolean }> {
 	await db.execute(sql`SELECT refresh_analytics_rollups()`);
 	return { refreshed: true };
@@ -664,6 +673,7 @@ const JOBS: ScheduledJob[] = [
 	{ queue: MRR_SNAPSHOT_QUEUE, cron: MRR_SNAPSHOT_CRON, run: runMrrSnapshotJob },
 	{ queue: DEAD_LETTER_PURGE_QUEUE, cron: DEAD_LETTER_PURGE_CRON, run: runDeadLetterPurgeJob },
 	{ queue: ANALYTICS_REFRESH_QUEUE, cron: ANALYTICS_REFRESH_CRON, run: runAnalyticsRefreshJob },
+	{ queue: IDEMPOTENCY_SWEEP_QUEUE, cron: IDEMPOTENCY_SWEEP_CRON, run: runIdempotencySweepJob },
 ];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {

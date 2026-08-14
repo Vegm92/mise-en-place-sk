@@ -41,8 +41,8 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 - Webhook signature verified via `constructEvent`; production throws when the
   secret is unset.
-- `stripe_webhook_events` PK dedup; claim deleted on handler error so Stripe
-  retries.
+- `idempotency_keys` (`stripe-webhook` scope) dedup; claim released on handler
+  error so Stripe retries.
 - Entitlement comes from the DB `subscriptions` row, never from client claims.
 
 ## WhatsApp security
@@ -51,7 +51,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
   `x-hub-signature-256` via `timingSafeEqual`.
 - Phone number = tenant key (ADR-019); pairing is owner-initiated, 6-char
   codes, 15-min TTL, rate-limited, single-redeem.
-- `whatsapp_processed_messages` PK dedup prevents double-processing.
+- `idempotency_keys` (`whatsapp` scope) dedup prevents double-processing.
 
 ## Rate limiting
 

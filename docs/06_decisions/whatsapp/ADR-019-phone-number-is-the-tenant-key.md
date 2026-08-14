@@ -75,8 +75,10 @@ allows, for local testing. Same shape as the Stripe webhook
 ([ADR-013](../billing/ADR-013-tiers-trial-and-quota.md)) — there is no
 configuration where production accepts an unverified webhook.
 
-**Replay.** `claimMessageId` inserts Meta's message id into
-`whatsapp_processed_messages` with `ON CONFLICT DO NOTHING`. Meta redelivers on
+**Replay.** `claimMessageId` claims Meta's message id with
+`ON CONFLICT DO NOTHING` — in `whatsapp_processed_messages` when this ADR was
+written, in the shared `idempotency_keys` ledger under the `whatsapp` scope
+since #389. Meta redelivers on
 any non-2xx, and without this a redelivered photo would create a second batch.
 A *failed* claim (database error) returns `true` and processes anyway: losing an
 invoice to a bookkeeping table's outage is worse than risking a duplicate the
@@ -100,11 +102,12 @@ at Meta's per-message price.
   is the intended trade — the porter photographing deliveries needs no login.
 - **Revocation is per-contact**, by removing the row. There is no per-message
   audit of who sent what beyond the phone number recorded on the batch.
-- **The five WhatsApp tables have distinct lifetimes**: `whatsapp_contacts` is the
+- **The WhatsApp tables have distinct lifetimes**: `whatsapp_contacts` is the
   durable binding, `whatsapp_pairing_codes` is short-lived, and
-  `whatsapp_processed_messages` grows unbounded — there is no sweep for it, unlike
-  `processed_requests`. A retention job is tracked in
-  [#428](https://github.com/Vegm92/mise-en-place-sk/issues/428).
+  message-dedup claims are ephemeral. #389 moved them into the shared
+  `idempotency_keys` ledger under the `whatsapp` scope, which the worker's
+  `sweepIdempotencyKeys` expires after 48 h — closing the unbounded growth
+  noted in [#428](https://github.com/Vegm92/mise-en-place-sk/issues/428).
 - `whatsapp_bot_sessions` is gone (migration `0026`), per ADR-004's completed
   cutover. Nothing here reintroduces a channel-specific state machine.
 

@@ -38,8 +38,8 @@ local `subscriptions` row + `settings` mirror gate feature access and quotas.
   `subscription_data.metadata` (PR #417 — webhook reads either).
 - **Webhook** (`handleWebhookEvent`):
   - Verify signature (`constructEvent`); prod throws if secret unset.
-  - Dedup: `INSERT INTO stripe_webhook_events(eventId) ON CONFLICT DO NOTHING`;
-    unclaimed → skip; on error → delete claim so Stripe's 3-day retry reprocesses.
+  - Dedup: `claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, event.id)`; unclaimed →
+    skip; on error → release the claim so Stripe's 3-day retry reprocesses.
   - `checkout.session.completed` → `tierFromPriceId` (unknown → loud log +
     Sentry + fallback `starter`), upsert subscription, `applyTierSettings`,
     confirmation email.
@@ -70,7 +70,7 @@ trialing ──(checkout.completed)──▶ active ──(updated past_due)─�
 
 ## Data dependencies
 
-`subscriptions`, `stripe_webhook_events`, `settings`, `monthly_usage`,
+`subscriptions`, `idempotency_keys` (`stripe-webhook` scope), `settings`, `monthly_usage`,
 `mrr_snapshots` (revenue), `system_notifications` (events).
 
 ## API dependencies
@@ -119,7 +119,7 @@ guard; quota arithmetic.
 
 ## Idempotency rules
 
-- `stripe_webhook_events` PK dedup + claim-delete-on-error.
+- `idempotency_keys` (`stripe-webhook` scope) dedup + claim-release-on-error.
 - Checkout dedup via `claimRequest`/`releaseRequest` (idempotency.ts).
 
 ## Observability
