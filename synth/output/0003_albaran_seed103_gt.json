@@ -1,0 +1,63 @@
+{
+  "supplier_name": "Carnes De La Ribera S.A.",
+  "invoice_number": "A-2025-65004",
+  "invoice_date": "2026-04-18",
+  "due_date": null,
+  "total_amount": null,
+  "currency": "EUR",
+  "confidence": 1,
+  "line_items": [
+    {
+      "description": "Pimiento rojo",
+      "quantity": 6,
+      "unit": "kg",
+      "unit_price": 1.96,
+      "total_price": 11.76
+    },
+    {
+      "description": "Ajo morado",
+      "quantity": 24,
+      "unit": "kg",
+      "unit_price": 3.88,
+      "total_price": 93.12
+    },
+    {
+      "description": "Chocolate negro 70% profesional",
+      "quantity": 1,
+      "unit": "kg",
+      "unit_price": 15.49,
+      "total_price": 15.49
+    },
+    {
+      "description": "Espinacas baby bolsa 500g",
+      "quantity": 1,
+      "unit": "ud",
+      "unit_price": 2.63,
+      "total_price": 2.63
+    },
+    {
+      "description": "Naranja de zumo kg",
+      "quantity": 12,
+      "unit": "kg",
+      "unit_price": 1.37,
+      "total_price": 16.44
+    }
+  ],
+  "_meta": {
+    "synth_version": "0.1.0",
+    "seed": 103,
+    "doc_type": "albaran",
+    "template": "albaran_thermal.html",
+    "difficulty": "medium",
+    "supplier_cif": "Y07100253",
+    "iva_breakdown": [],
+    "degradations": [],
+    "mutations": [
+      "missing_due_date"
+    ],
+    "missing": [
+      "due_date"
+    ],
+    "rendered_pdf_pages": 1
+  }
+}
