@@ -73,6 +73,8 @@ TODO.md
 
 
 
-# Synthetic invoice generator — local dev tool, not part of the app (JS port)
-/synth/
+# Synthetic invoice generator (JS port) — sources tracked, they feed the
+# category-taxonomy guard and the synth:* npm scripts. Local output is not.
+/synth/node_modules/
+/synth/output/
 
