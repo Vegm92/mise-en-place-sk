@@ -14,8 +14,8 @@ A minimal, practical incident flow for this system. Keep it short and data-drive
 
 1. **Detect** — Sentry alert, `/admin` health, cron-miss check, or user report.
 2. **Assess** — confirm scope (single tenant? all?) and severity. Check the
-   dedup/idempotency guards first: `stripe_webhook_events`,
-   `whatsapp_processed_messages`, idempotency claims, `contentHash` duplicates.
+   dedup/idempotency guards first: `idempotency_keys` (filter by `scope`),
+   `contentHash` duplicates.
 3. **Contain** — if a retry storm is possible, pause the consumer/webhook
    intake before anything else (webhooks redeliver safely — the dedup tables
    make replay idempotent).
@@ -33,12 +33,12 @@ A minimal, practical incident flow for this system. Keep it short and data-drive
 ## Specific plays
 
 - **Stripe webhook errors**: handler failure deletes the claim →
-  `stripe_webhook_events` shows a row without the resource; Stripe retries for
-  3 days. Confirm the secret is set in prod and the URL + event types are
+  `idempotency_keys` shows no `stripe-webhook` row for the event id; Stripe
+  retries for 3 days. Confirm the secret is set in prod and the URL + event types are
   correct in the Stripe dashboard.
 - **WhatsApp not ingesting**: check `WHATSAPP_*` env, verify token, number
-  health in `/admin` (RED/YELLOW), and that `whatsapp_processed_messages` isn't
-  choking on an unhandled event shape (always returns 200).
+  health in `/admin` (RED/YELLOW), and that the `whatsapp` scope isn't choking
+  on an unhandled event shape (always returns 200).
 - **Extraction queue backed up**: worker restarting? pg-boss health? batch
   size is 1 by design; check dead-letter growth before blaming load.
 - **Digest / cron missed**: verify the worker is running and

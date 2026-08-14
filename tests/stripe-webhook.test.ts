@@ -54,10 +54,11 @@ vi.mock('../src/lib/server/db', async () => {
 	return { db: client ? drizzle(client, { schema }) : ({} as never), forTenant };
 });
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { handleWebhookEvent, stripe, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
-import { subscriptions, settings, stripeWebhookEvents } from '../src/lib/server/schema';
+import { subscriptions, settings, idempotencyKeys } from '../src/lib/server/schema';
 import { testDb, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
+import { STRIPE_WEBHOOK_SCOPE } from '../src/lib/server/idempotency';
 
 let rid = '';
 
@@ -260,7 +261,8 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — dedup + out-of-order protection',
 			failSpy.mockRestore();
 
 			// The claim must have been released — retry is not suppressed.
-			const claim = await testDb.select().from(stripeWebhookEvents).where(eq(stripeWebhookEvents.eventId, eventId));
+			const claim = await testDb.select().from(idempotencyKeys)
+				.where(and(eq(idempotencyKeys.scope, STRIPE_WEBHOOK_SCOPE), eq(idempotencyKeys.key, eventId)));
 			expect(claim).toHaveLength(0);
 
 			// Retry with the API recovered: the event now processes.

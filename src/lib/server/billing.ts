@@ -3,7 +3,8 @@ import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
-import { subscriptions, restaurants, settings, stripeWebhookEvents } from './schema';
+import { subscriptions, restaurants, settings } from './schema';
+import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail } from './email';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
@@ -292,11 +293,8 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 		throw new WebhookSignatureError('Webhook signature verification failed', { cause: err });
 	}
 
-	const claimed = await db.insert(stripeWebhookEvents)
-		.values({ eventId: event.id })
-		.onConflictDoNothing()
-		.returning({ eventId: stripeWebhookEvents.eventId });
-	if (claimed.length === 0) {
+	const claimed = await claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, event.id);
+	if (!claimed) {
 		console.info(`[billing] duplicate webhook event ${event.id} — skipping`);
 		return;
 	}
@@ -413,7 +411,7 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 			}
 		}
 	} catch (err) {
-		await db.delete(stripeWebhookEvents).where(eq(stripeWebhookEvents.eventId, event.id))
+		await releaseIdempotencyKey(STRIPE_WEBHOOK_SCOPE, event.id)
 			.catch((e) => console.error('[billing] failed to release webhook claim:', e));
 		throw err;
 	}

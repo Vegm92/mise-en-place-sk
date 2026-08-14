@@ -69,7 +69,7 @@ concept, add it here before using it in specs.
 |---|---|
 | **Soft delete** | Invoices are soft-deleted via `deletedAt`, keeping audit/history. |
 | **Content hash** | SHA-256 over canonicalized invoice content; the duplicate gate on save. |
-| **Idempotency key** | Client-supplied UUID consumed once in `processed_requests`; replays return `replay`. |
+| **Idempotency key** | Client-supplied UUID consumed once in `idempotency_keys` under the `form-submit` scope; replays return `replay`. |
 | **Dead letter** | A job that exhausted pg-boss retries; recorded in `dead_letter_queue`. |
 
 ## Cross-cutting

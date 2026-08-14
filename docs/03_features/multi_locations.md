@@ -235,7 +235,7 @@ Stripe (one customer/subscription per group), Resend, Sentry.
   prevents duplicate restaurants.
 - Billing idempotency lives on the parent: `cust:<parentId>` Stripe idempotency
   key + `pg_advisory_xact_lock` in `getOrCreateCustomer`, and
-  `stripe_webhook_events` dedup (ADR-013).
+  `stripe-webhook`-scoped dedup in `idempotency_keys` (ADR-013).
 
 ## Observability
 
