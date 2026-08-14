@@ -80,5 +80,7 @@ path. `whatsapp_bot_sessions` is dropped (migration `0026_drop_whatsapp_bot_sess
 The other four WhatsApp tables (`whatsapp_contacts`, `whatsapp_pairing_codes`,
 `whatsapp_processed_messages`, `whatsapp_account_events`) serve purposes independent of
 the session/confirmation machine — contact directory, onboarding, webhook-redelivery
-dedup, and Meta account health — and were kept as-is.
+dedup, and Meta account health — and were kept as-is. Of those, the dedup table
+was later folded into the shared `idempotency_keys` ledger (#389); the dedup
+behaviour it provided is unchanged.
 

@@ -74,8 +74,8 @@ Non-negotiable, verified against the implementation:
 - **Invoice persistence**: one canonical write path (`src/lib/server/invoice-save.ts`,
   ADR-008). Do not add a second invoice-creation path.
 - **Idempotency**: retries must not create duplicate invoices (`contentHash` +
-  unique indexes), duplicate Stripe processing (`stripe_webhook_events`), or
-  duplicate WhatsApp processing (`whatsapp_processed_messages`).
+  unique indexes), or duplicate webhook processing (`idempotency_keys`, one
+  scope per caller — add a scope, never a table).
 - **Billing**: Stripe webhooks are signature-verified and deduped; plan/feature
   access (`getTierFeatures`) must stay consistent with local subscription state.
 - **Database**: schema changes require a committed Drizzle migration (ADR-003);

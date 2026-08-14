@@ -32,7 +32,7 @@ Owner-email gated. Provides:
 | Extractions pending | `batch_items` status counts; `extract-invoice` queue |
 | Invoice save correctness | duplicate `contentHash` hits (should be ~0); idempotency claims expired |
 | LLM usage vs quota | `llm_usage_log` / `monthly_usage` (note: chat + digest call Gemini directly and are **not** metered — open gap; fix contract in `docs/04_engineering/llm_usage_metering.md`) |
-| Webhook throughput | `stripe_webhook_events`, `whatsapp_processed_messages` |
+| Webhook throughput | `idempotency_keys` grouped by `scope` |
 | MV freshness | last `refresh_analytics_rollups` run (nightly cron) |
 | Revenue | `mrr_snapshots` (15 2 * * * UTC) |
 

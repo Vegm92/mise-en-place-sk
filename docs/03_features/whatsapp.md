@@ -26,7 +26,7 @@ flow into the normal batch pipeline, with a review link sent back.
 
 - `upload_batches` + `batch_items` for media → same extraction pipeline
   (ADR-004 convergence).
-- `whatsapp_processed_messages` dedup rows.
+- `idempotency_keys` dedup rows in the `whatsapp` scope.
 - Replies: `/batch/{batchId}` link; guidance for text-only; pairing outcomes.
 - `whatsapp_pairing_codes` (generated/redeemed); `whatsapp_account_events`.
 
@@ -60,7 +60,7 @@ n/a for contacts; batches follow `invoice_ingestion.md`; pairing codes
 ## Data dependencies
 
 `whatsapp_contacts`, `whatsapp_pairing_codes`, `whatsapp_account_events`,
-`whatsapp_processed_messages`, `upload_batches`, `batch_items`, storage.
+`idempotency_keys` (`whatsapp` scope), `upload_batches`, `batch_items`, storage.
 
 ## API dependencies
 
@@ -106,7 +106,7 @@ normalization; rate limits.
 
 ## Idempotency rules
 
-- `whatsapp_processed_messages` PK dedup; pairing atomic claim; batch enqueue
+- `idempotency_keys` (`whatsapp` scope) dedup; pairing atomic claim; batch enqueue
   is idempotent per item.
 
 ## Observability

@@ -1,20 +1,23 @@
 /**
- * Idempotency-key claim helper (issue #250) — runs the real
- * INSERT … ON CONFLICT DO NOTHING RETURNING against the test DB.
+ * Shared idempotency ledger (issue #389, consolidating #240/#245/#250) — runs
+ * the real INSERT … ON CONFLICT DO NOTHING RETURNING against the test DB.
  *
- * Invariant: the first claim of a key wins; a replay of the same key is a
- * no-op (false); releasing a key lets a corrected resubmit re-claim it.
+ * Invariants: the first claim of a (scope, key) wins; a replay is a no-op
+ * (false); releasing lets a corrected resubmit re-claim; the same key under a
+ * different scope is a different claim; the sweep expires each scope on its
+ * own retention window.
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import {
 	testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import {
-	claimRequest, releaseRequest, isValidKey, cleanupProcessedWhatsAppMessages,
+	claimRequest, releaseRequest, isValidKey, claimIdempotencyKey, releaseIdempotencyKey,
+	sweepIdempotencyKeys, FORM_SUBMIT_SCOPE, WHATSAPP_SCOPE, STRIPE_WEBHOOK_SCOPE,
 } from '../src/lib/server/idempotency';
-import { whatsappProcessedMessages } from '../src/lib/server/schema';
+import { idempotencyKeys } from '../src/lib/server/schema';
 
 let rid = '';
 
@@ -25,7 +28,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	if (!hasDbEnv) return;
-	await cleanupTestRestaurant(rid); // processed_requests cascade on restaurant delete
+	await cleanupTestRestaurant(rid); // idempotency_keys cascade on restaurant delete
 	await closeDb();
 });
 
@@ -59,25 +62,70 @@ describe.skipIf(!hasDbEnv)('claimRequest / releaseRequest', () => {
 	});
 });
 
-describe.skipIf(!hasDbEnv)('cleanupProcessedWhatsAppMessages (#428)', () => {
-	const freshId = `test-vitest-wa-fresh-${randomUUID()}`;
-	const staleId = `test-vitest-wa-stale-${randomUUID()}`;
+describe.skipIf(!hasDbEnv)('claimIdempotencyKey scopes', () => {
+	const keys: string[] = [];
 
 	afterAll(async () => {
-		await testSql`DELETE FROM whatsapp_processed_messages WHERE message_id IN (${freshId}, ${staleId})`;
+		await testDb.delete(idempotencyKeys).where(inArray(idempotencyKeys.key, keys));
 	});
 
-	it('deletes rows past the 48h redelivery-dedup window, leaves recent ones', async () => {
-		await testDb.insert(whatsappProcessedMessages).values({ messageId: freshId }).onConflictDoNothing();
-		await testDb.insert(whatsappProcessedMessages).values({ messageId: staleId }).onConflictDoNothing();
-		await testSql`UPDATE whatsapp_processed_messages SET received_at = now() - interval '49 hours' WHERE message_id = ${staleId}`;
+	it('treats the same key under two scopes as two claims', async () => {
+		const key = `test-vitest-shared-${randomUUID()}`;
+		keys.push(key);
+		expect(await claimIdempotencyKey(WHATSAPP_SCOPE, key, { exec: testDb })).toBe(true);
+		expect(await claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, key, { exec: testDb })).toBe(true);
+		expect(await claimIdempotencyKey(WHATSAPP_SCOPE, key, { exec: testDb })).toBe(false);
+	});
 
-		await cleanupProcessedWhatsAppMessages();
+	it('releases only the claim in the given scope', async () => {
+		const key = `test-vitest-release-${randomUUID()}`;
+		keys.push(key);
+		await claimIdempotencyKey(WHATSAPP_SCOPE, key, { exec: testDb });
+		await claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, key, { exec: testDb });
+
+		await releaseIdempotencyKey(WHATSAPP_SCOPE, key, testDb);
+
+		expect(await claimIdempotencyKey(WHATSAPP_SCOPE, key, { exec: testDb })).toBe(true);
+		expect(await claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, key, { exec: testDb })).toBe(false);
+	});
+
+	it('stores the tenant so the claim dies with the restaurant', async () => {
+		const key = `test-vitest-tenant-${randomUUID()}`;
+		keys.push(key);
+		await claimIdempotencyKey(FORM_SUBMIT_SCOPE, key, { restaurantId: rid, exec: testDb });
+
+		const rows = await testDb.select({ restaurantId: idempotencyKeys.restaurantId })
+			.from(idempotencyKeys)
+			.where(and(eq(idempotencyKeys.scope, FORM_SUBMIT_SCOPE), eq(idempotencyKeys.key, key)));
+		expect(rows[0]?.restaurantId).toBe(rid);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('sweepIdempotencyKeys (#428)', () => {
+	const waFresh = `test-vitest-wa-fresh-${randomUUID()}`;
+	const waStale = `test-vitest-wa-stale-${randomUUID()}`;
+	const stripeMid = `test-vitest-stripe-mid-${randomUUID()}`;
+	const stripeStale = `test-vitest-stripe-stale-${randomUUID()}`;
+	const all = [waFresh, waStale, stripeMid, stripeStale];
+
+	afterAll(async () => {
+		await testDb.delete(idempotencyKeys).where(inArray(idempotencyKeys.key, all));
+	});
+
+	it('expires each scope on its own retention window', async () => {
+		await claimIdempotencyKey(WHATSAPP_SCOPE, waFresh, { exec: testDb });
+		await claimIdempotencyKey(WHATSAPP_SCOPE, waStale, { exec: testDb });
+		await claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, stripeMid, { exec: testDb });
+		await claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, stripeStale, { exec: testDb });
+		await testSql`UPDATE idempotency_keys SET claimed_at = now() - interval '49 hours' WHERE key IN (${waStale}, ${stripeMid})`;
+		await testSql`UPDATE idempotency_keys SET claimed_at = now() - interval '97 hours' WHERE key = ${stripeStale}`;
+
+		await sweepIdempotencyKeys();
 
 		const remaining = await testDb
-			.select({ id: whatsappProcessedMessages.messageId })
-			.from(whatsappProcessedMessages)
-			.where(inArray(whatsappProcessedMessages.messageId, [freshId, staleId]));
-		expect(remaining.map(r => r.id)).toEqual([freshId]);
+			.select({ key: idempotencyKeys.key })
+			.from(idempotencyKeys)
+			.where(inArray(idempotencyKeys.key, all));
+		expect(remaining.map(r => r.key).sort()).toEqual([waFresh, stripeMid].sort());
 	});
 });
