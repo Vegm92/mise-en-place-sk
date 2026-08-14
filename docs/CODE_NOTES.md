@@ -11,6 +11,7 @@ This file is tracked in the repo — it is the shared reference for why the code
 
 - Extracted: 1856 notes from 162 of 233 source files
 - Generated: 2026-07-31
+- Amended: 2026-08-14 — issue #391 extracted the shared honeypot + rate-limit boilerplate from `login`, `signup`, `forgot-password`, and `waitlist` into `src/lib/server/public-form-action.ts`; added a section for it and updated the four callers' notes to point at it.
 - Amended: 2026-08-12 — the last 33 explanatory comments were moved out of `src/` and into this file, covering `auth-session.ts`, `batch-core.ts`, `dead-letter.ts`, `einvoice-parser.ts`, `extract.ts`, `idempotency.ts`, `invoice-save.ts`, `supplier.ts`, `verification-token.ts`, `batch/[id]/+page.server.ts`, and `forgot-password/+page.server.ts` (the first three had no section before). `pnpm lint:no-comments` now runs in CI, so the policy is enforced rather than aspirational.
 - Amended: 2026-08-11 — the auth/DB sections predated ADR-005 and ADR-014 (Railway Postgres, Auth.js), so notes covering `svelte.config.js`, `settings/+page.server.ts`, `api/auth/[...all]`, `api/user/delete`, `forgot-password`, `reset-password`, `signup/+page.server.ts`, `auth-seed.ts`, `db-ssl.ts`, `db.ts`, `extraction-worker.ts`, `schema.ts`, and `hooks.server.ts` were rewritten to match; the dead `src/lib/server/supabase.ts` and `src/routes/auth/callback/+server.ts` sections were removed outright.
 
@@ -1900,7 +1901,7 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
     Mints its own verification token and emails a link straight to /reset-password?email=…&token=… — no intermediate session-exchange hop.
 
-    The response is identical whether or not the address has an account — a different message here would turn this form into an account-enumeration oracle. Rate limited per IP and per email like the login action.
+    The response is identical whether or not the address has an account — a different message here would turn this form into an account-enumeration oracle. Rate limited per IP and per email like the login action, via `publicFormAction` (`src/lib/server/public-form-action.ts`, issue #391).
 
     ↳ `import { fail } from '@sveltejs/kit';`
 
@@ -1922,10 +1923,10 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
 - Failures return fail() instead of redirecting so the form keeps the typed email — retyping it after a password slip is pure friction.
 
-    ↳ `if (!email || !password) return fail(422, { error: 'missing', email: email ?? '' });`
-- Brute-force protection: per-IP and per-account attempt caps.
+    ↳ `if (!email || !password) return fail(422, { error: 'missing', email });`
+- Brute-force protection: per-IP and per-account attempt caps, via `publicFormAction` (`src/lib/server/public-form-action.ts`, issue #391) — both buckets are always consumed, so failing IP-side never masks whether the account itself is also over its cap.
 
-    ↳ `const ipHash  = hashIp(getClientAddress());`
+    ↳ `const rules = [{ key: \`login:ip:${ip}\`, max: 10, scope: 'ip' }];`
 
 ### `src/routes/login/+page.svelte`
 
@@ -2032,9 +2033,9 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
 **`property signUp`**
 
-- Cap account-creation attempts per IP (abuse / user-enumeration control).
+- Cap account-creation attempts per IP (abuse / user-enumeration control), via `publicFormAction` (`src/lib/server/public-form-action.ts`, issue #391).
 
-    ↳ `if (!(await checkRateLimit('signup:ip:${getClientAddress()}', 5))) {`
+    ↳ `limits: ({ ip }) => [{ key: \`signup:ip:${ip}\`, max: 5 }],`
 - Explicit, recorded consent to Terms + Privacy Policy (GDPR).
 
     ↳ `if (terms !== 'on') return fail(422, { error: 'terms_required' });`
@@ -2088,12 +2089,9 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
 **`property join`**
 
-- Honeypot: bots fill hidden fields, humans leave them empty
+- Honeypot (bots fill hidden fields, humans leave them empty) and a 5-submissions-per-minute-per-IP cap, both via `publicFormAction` (`src/lib/server/public-form-action.ts`, issue #391).
 
-    ↳ `if (data.get('_hp')) return fail(422, { error: 'invalid' });`
-- Rate limit: 5 submissions per minute per IP
-
-    ↳ `const ip = getClientAddress();`
+    ↳ `limits: ({ ip }) => [{ key: \`waitlist:${ip}\`, max: 5 }] },`
 
 ### `src/routes/waitlist/+page.svelte`
 
@@ -3606,6 +3604,19 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 - The CAC window ends on the last *complete* month: the current month's spend and its signups are both partial, and including them systematically understates CAC.
 
     ↳ `const cacWindowTo = addMonths(month, -1);`
+
+### `src/lib/server/public-form-action.ts`
+
+**`function publicFormAction`**
+
+- Issue #391: `login`, `signup`, `forgot-password`, and `waitlist` each reimplemented the same honeypot-check-then-rate-limit-then-handle shape, independently, with the rate-limit policy (which keys, which caps) buried in each route instead of declared once. This wraps that shape: reject a filled `_hp` field before touching any limiter, then run every configured rule — not just until the first failure — so a route keying on both IP and email (login, forgot-password) always consumes both buckets per attempt, matching the pre-refactor behaviour the tests pin.
+
+    `onboarding` deliberately stays out: it is session-gated, not public, and has neither a honeypot nor a rate limit to share.
+
+    ↳ `export function publicFormAction<T>(`
+- The rule that actually blocked (not just "any rule failed") decides the `scope` reported to auth telemetry, so a per-IP block and a per-email block are distinguishable in the event stream the way the hand-written call sites were.
+
+    ↳ `const blocked = rules[results.indexOf(false)];`
 
 ### `src/lib/server/safe-redirect.ts`
 
