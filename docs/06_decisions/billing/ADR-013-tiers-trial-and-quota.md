@@ -53,8 +53,9 @@ service to someone who has paid.
    skipping verification; in development it warns and returns without processing.
    There is no configuration in which an unverified webhook mutates state in
    production.
-2. **Replay.** Each `event.id` is claimed by inserting into
-   `stripe_webhook_events` with `ON CONFLICT DO NOTHING`. A duplicate delivery
+2. **Replay.** Each `event.id` is claimed with `ON CONFLICT DO NOTHING` — in
+   `stripe_webhook_events` when this ADR was written, in the shared
+   `idempotency_keys` ledger under the `stripe-webhook` scope since #389. A duplicate delivery
    claims nothing and returns. If handling then throws, the claim is **deleted**
    before rethrowing — so Stripe's retry can be processed rather than being
    permanently suppressed by a failed first attempt.

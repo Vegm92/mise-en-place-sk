@@ -51,7 +51,7 @@ Affected by: extraction output shape, unit normalization, product/supplier
 resolution, alert engine, VERI*FACTU QR, onboarding settings, idempotency.
 Feeds: `invoices`, `invoice_line_items`, `suppliers`, `products`,
 `product_aliases`, `system_notifications`, `extraction_corrections`,
-`settings`, `processed_requests`. **Do not add a second invoice-creation path (ADR-008).**
+`settings`, `idempotency_keys`. **Do not add a second invoice-creation path (ADR-008).**
 
 ### Alert engine (`alerts.ts`)
 Fired *after* the invoice transaction commits. Reads: `invoices`,
@@ -79,7 +79,7 @@ Stripe client ↔ webhook → `subscriptions` + `settings` mirror →
 `getTierFeatures()`/`getAccessState()`. Gated consumers: `/api/chat`,
 `/digest`, `/api/stock-levels`, `/analytics/prices`, `/settings` (locations),
 main upload action, extraction worker. MRR: `revenue-metrics.ts` → `mrr_snapshots`
-→ `/admin/revenue`. **Stripe webhook dedup via `stripe_webhook_events`; do not bypass.**
+→ `/admin/revenue`. **Stripe webhook dedup via `idempotency_keys` (`stripe-webhook` scope); do not bypass.**
 
 ### Chat + Digest (`chat-context.ts`)
 One shared snapshot (ADR-018). Chat: `(app)/api/chat` → `chat_sessions`,
@@ -88,7 +88,7 @@ One shared snapshot (ADR-018). Chat: `(app)/api/chat` → `chat_sessions`,
 the same invoice/supplier/budget/stock data as analytics.
 
 ### WhatsApp (`whatsapp-bot.ts`, `whatsapp-pairing.ts`, `whatsapp.ts`)
-Webhook → HMAC verify → `whatsappProcessedMessages` dedup → phone lookup
+Webhook → HMAC verify → `idempotency_keys` (`whatsapp` scope) dedup → phone lookup
 (`whatsapp_contacts`, ADR-019) → batch pipeline (ADR-004). Pairing codes →
 `whatsapp_pairing_codes`. Feeds the same extraction pipeline as web uploads.
 
@@ -105,7 +105,7 @@ refreshed nightly (`10 3 * * *`). Consumers: `/analytics/*`, dashboard,
 |---|---|---|
 | Tenant isolation | `forTenant().scope()` on every query | `lint:tenant-scope`, `lint:unscoped-query`, `tests/tenant-isolation*.test.ts` |
 | No raw SQL string building | `sql.raw()` banned | `lint:no-sql-raw` |
-| Idempotency | contentHash, `processed_requests`, webhook/message dedup tables | code + tests |
+| Idempotency | contentHash, `idempotency_keys` (one ledger, scoped per caller) | code + tests |
 | Localization | all user-facing strings via `src/lib/i18n.ts` | `lint:i18n` |
 | No inline comments | comments → `docs/CODE_NOTES.md` | `lint:no-comments` |
 | Migration sync | `schema.ts` ↔ `drizzle/` | `pnpm db:check-sync` (CI) |

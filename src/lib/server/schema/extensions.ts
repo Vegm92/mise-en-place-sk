@@ -1,5 +1,5 @@
 import {
-	boolean, index, integer, jsonb, numeric, pgTable, real, serial, text, timestamp, uniqueIndex, uuid,
+	boolean, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { invoices, products, restaurants, suppliers } from './core';
@@ -146,12 +146,14 @@ export const monthlyUsage = pgTable('monthly_usage', {
 	uniqueIndex('monthly_usage_restaurant_month_unique').on(t.restaurantId, t.month),
 ]);
 
-export const processedRequests = pgTable('processed_requests', {
-	key:          uuid('key').primaryKey(),
+export const idempotencyKeys = pgTable('idempotency_keys', {
+	scope:        text('scope').notNull(),
+	key:          text('key').notNull(),
 	restaurantId: uuid('restaurant_id').references(() => restaurants.id, { onDelete: 'cascade' }),
-	createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	claimedAt:    timestamp('claimed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
-	index('idx_processed_requests_created').on(t.createdAt),
+	primaryKey({ columns: [t.scope, t.key] }),
+	index('idx_idempotency_keys_claimed').on(t.claimedAt),
 ]);
 
 export const waitlist = pgTable('waitlist', {
@@ -235,13 +237,6 @@ export const whatsappPairingCodes = pgTable('whatsapp_pairing_codes', {
 	index('idx_whatsapp_pairing_expires').on(t.expiresAt),
 ]);
 
-export const whatsappProcessedMessages = pgTable('whatsapp_processed_messages', {
-	messageId:  text('message_id').primaryKey(),
-	receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [
-	index('idx_whatsapp_processed_received').on(t.receivedAt),
-]);
-
 export const userConsents = pgTable('user_consents', {
 	id:            serial('id').primaryKey(),
 	userId:        text('user_id').notNull(),
@@ -266,11 +261,6 @@ export const subscriptions = pgTable('subscriptions', {
 	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:            timestamp('updated_at', { withTimezone: true }).defaultNow(),
 	lastEventAt:          timestamp('last_event_at', { withTimezone: true }),
-});
-
-export const stripeWebhookEvents = pgTable('stripe_webhook_events', {
-	eventId:     text('event_id').primaryKey(),
-	processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const mrrSnapshots = pgTable('mrr_snapshots', {

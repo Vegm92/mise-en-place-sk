@@ -2689,9 +2689,9 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 - In production an unverified webhook is a security hole: forged events could mutate subscription state. Fail loudly instead of silently accepting/ignoring. In dev we allow skipping for local testing.
 
     ↳ `if (process.env.NODE_ENV === 'production') {`
-- Event-id dedup (issue #240). Stripe retries deliveries for up to 3 days; claim the id and bail on a replay so we don't re-send emails or re-fire telemetry. Runs before the switch so every event type is covered.
+- Event-id dedup (issue #240). Stripe retries deliveries for up to 3 days; claim the id and bail on a replay so we don't re-send emails or re-fire telemetry. Runs before the switch so every event type is covered. The claim now goes through the shared ledger under the stripe-webhook scope (#389) — the behaviour is unchanged, the bespoke `stripe_webhook_events` table is gone.
 
-    ↳ `const claimed = await db.insert(stripeWebhookEvents)`
+    ↳ `const claimed = await claimIdempotencyKey(STRIPE_WEBHOOK_SCOPE, event.id);`
 - Stripe event.created (seconds) — the ordering key for lifecycle events.
 
     ↳ `const eventCreatedAt = new Date(event.created * 1000);`
@@ -2706,7 +2706,7 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
     ↳ `if (event.type === 'customer.subscription.deleted' || sub.status === 'canceled') {`
 - Processing failed — release the dedup claim so Stripe’s retry can reprocess this event instead of being suppressed as a duplicate, which would let payment state drift from Stripe (#240 + #253).
 
-    ↳ `await db.delete(stripeWebhookEvents).where(eq(stripeWebhookEvents.eventId, event.id))`
+    ↳ `await releaseIdempotencyKey(STRIPE_WEBHOOK_SCOPE, event.id)`
 
 ### `src/lib/server/consent.ts`
 
@@ -3106,41 +3106,59 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
 **`const UUID_RE`**
 
-- Idempotency-key helper (issue #250). A generic layer on top of the DB uniqueness fixes: money-adjacent form actions render a hidden per-submit UUID and claim it here before mutating, turning any duplicate submit (double-click, offline-queue replay, proxy retry) into a transparent no-op.
+- The one claim-once ledger for the whole app (issue #389). It began as the form-submit helper of issue #250; #389 folded in the two dedup tables that had been built separately for the same job — WhatsApp redelivery (#245) and Stripe redelivery (#240) — after a knowledge-graph pass flagged all three as the same shape. The point of consolidating was not tidiness: a fourth webhook integration would otherwise have meant a fourth bespoke table, and only one of the three was ever swept.
 
-    Claim inside the mutation's transaction where one exists, so a rolled-back save releases the key automatically. For a handled conflict that commits, call releaseRequest in the same transaction to free the key so a corrected resubmit isn't wrongly skipped.
+    Claim inside the mutation's transaction where one exists, so a rolled-back save releases the key automatically. For a handled conflict that commits, call releaseIdempotencyKey (or releaseRequest) in the same transaction to free the key so a corrected resubmit isn't wrongly skipped.
 
     ↳ `import { db } from './db';`
 
+**`const FORM_SUBMIT_SCOPE` / `WHATSAPP_SCOPE` / `STRIPE_WEBHOOK_SCOPE`**
+
+- Scope is what keeps the callers from colliding now that they share a table: keys are only unique within a scope, so a Meta message id and a Stripe event id can never suppress one another. They are exported constants rather than inline strings because migration 0032 backfilled the old rows under exactly these names — renaming one silently orphans that scope's history.
+
+    ↳ `export const FORM_SUBMIT_SCOPE = 'form-submit';`
+
+**`const RETENTION_HOURS`**
+
+- Retention is per scope because the replay windows genuinely differ. Stripe retries a failed delivery for up to 3 days, so its claims must outlive that — 96h, with a margin. Meta's redelivery window is minutes and a form replay is a double-click, so 48h is already far beyond either. An unlisted scope falls back to 48h, which means a new caller is swept from day one instead of growing unbounded until someone notices.
+
+    ↳ `const RETENTION_HOURS: Record<string, number> = {`
+
 **`function isValidKey`**
 
-- True for a well-formed UUID key — anything else is ignored (feature is best-effort).
+- True for a well-formed UUID key — anything else is ignored (feature is best-effort). This guards the form-submit scope only; webhook scopes key off provider-issued ids, which are not UUIDs.
 
     ↳ `export function isValidKey(key: unknown): key is string {`
 
+**`function claimIdempotencyKey`**
+
+- Atomically claims a (scope, key). Returns true on the first claim, false when it was already claimed (a replay). Runs on the passed executor so it can join an enclosing transaction. restaurantId is optional because the webhook scopes claim before any tenant has been resolved — the column exists so tenant-scoped claims still die with the tenant, as they did under `processed_requests`.
+
+    ↳ `export async function claimIdempotencyKey(`
+
+**`function releaseIdempotencyKey`**
+
+- Releases a claimed key (e.g. a handled conflict that still commits, or a webhook handler that threw). Scoped delete: releasing a WhatsApp claim must not free the identically-named key in another scope.
+
+    ↳ `export async function releaseIdempotencyKey(scope: string, key: string, exec: BatchDb = db)…`
+
 **`function claimRequest`**
 
-- Atomically claims a request key. Returns true on the first claim, false when the key was already claimed (a replay). Runs on the passed executor so it can join an enclosing transaction.
+- The form-submit scope bound into the old two-argument signature. Kept because the five call sites in routes and invoice-save.ts pass an enclosing transaction and read as claim/release pairs; ADR-008's retry flow depends on that pairing, so the refactor deliberately left it alone.
 
     ↳ `export async function claimRequest(key: string, rid: string | null, exec: BatchDb = db)…`
 
 **`function releaseRequest`**
 
-- Releases a claimed key (e.g. a handled conflict that still commits).
+- Releases a claimed form-submit key (e.g. a handled conflict that still commits).
 
     ↳ `export async function releaseRequest(key: string, exec: BatchDb = db): Promise<void> {`
 
-**`function cleanupProcessedRequests`**
+**`function sweepIdempotencyKeys`**
 
-- Prunes claim rows older than 48h. Piggybacks on the stale-batch cleanup cadence.
+- One sweep for every scope, run from the worker's JOBS table rather than at web-process boot. The old placement in `hooks.server.ts` ran the cleanup on every deploy and never on a long-lived process — backwards for a retention job. The trailing notInArray pass catches scopes that have no declared retention, so adding a caller without touching RETENTION_HOURS still can't leak rows forever.
 
-    ↳ `export async function cleanupProcessedRequests(): Promise<void> {`
-
-**`function cleanupProcessedWhatsAppMessages`**
-
-- Meta's webhook redelivery window is minutes, not months, so the 48h cutoff is far beyond any plausible redelivery. It matches `cleanupProcessedRequests` above deliberately, so both dedup tables age out on the same schedule.
-
-    ↳ `const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);`
+    ↳ `export async function sweepIdempotencyKeys(now: Date = new Date()): Promise<{ swept: number }> {`
 
 ### `src/lib/server/invoice-save.ts`
 
@@ -3939,11 +3957,11 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
     ↳ `used:         integer('used').notNull().default(0),`
 
-**`const processedRequests`**
+**`const idempotencyKeys`**
 
-- Idempotency-key claim table (issue #250). Money-adjacent form actions render a hidden per-submit UUID and claim it here; a replay (double-click, offline-queue replay, proxy retry) finds the key already present and becomes a transparent no-op instead of a second write. Pruned after 48h.
+- The single claim-once ledger (issue #389), replacing `processed_requests` (#250), `whatsapp_processed_messages` (#245) and `stripe_webhook_events` (#240). Every caller claims a (scope, key) before acting; a replay finds the row present and becomes a transparent no-op instead of a second write. `key` is text rather than uuid because the scopes disagree on key shape — form submits use a client UUID, Meta and Stripe use their own ids. restaurantId is nullable: webhook claims happen before a tenant is known, while tenant-scoped claims still cascade away with the restaurant.
 
-    ↳ `export const processedRequests = pgTable('processed_requests', {`
+    ↳ `export const idempotencyKeys = pgTable('idempotency_keys', {`
 
 **`const uploadBatches`**
 
@@ -4035,12 +4053,6 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
     ↳ `uniqueIndex('whatsapp_pairing_codes_code_unique').on(t.code),`
 
-**`const whatsappProcessedMessages`**
-
-- Message-id dedup for WhatsApp webhooks (issue #245). Meta redelivers on infra hiccups; a claim here (INSERT … ON CONFLICT DO NOTHING RETURNING) makes a redelivered message a no-op instead of a second saved invoice.
-
-    ↳ `export const whatsappProcessedMessages = pgTable('whatsapp_processed_messages', {`
-
 **`property status`**
 
 - awaiting_confirmation | confirmed | discarded
@@ -4067,12 +4079,6 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 - Stripe `event.created` of the last lifecycle event applied to this row. The updated/deleted webhook branch skips events older than this so a delayed `updated(past_due)` can't clobber a newer `updated(active)` (out-of-order protection, issue #240).
 
     ↳ `lastEventAt:          timestamp('last_event_at', { withTimezone: true }),`
-
-**`const stripeWebhookEvents`**
-
-- Stripe webhook event-id dedup (issue #240). Stripe retries deliveries for up to 3 days; the handler claims each event id here (INSERT … ON CONFLICT DO NOTHING RETURNING) and returns early on an empty result so retried events don't re-send emails or re-fire telemetry. Written server-side only.
-
-    ↳ `export const stripeWebhookEvents = pgTable('stripe_webhook_events', {`
 
 ### `src/lib/server/sessions.ts`
 
@@ -4281,7 +4287,7 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
 **`function claimMessageId`**
 
-- Claims a WhatsApp message id so a redelivered webhook is processed once (issue #245). Returns false when the id was already seen. Fails open on a DB error — a rare duplicate is better than silently dropping a real invoice.
+- Claims a WhatsApp message id so a redelivered webhook is processed once (issue #245). Returns false when the id was already seen. Fails open on a DB error — a rare duplicate is better than silently dropping a real invoice. Since #389 the claim goes to the shared ledger under the whatsapp scope; the wrapper survives only for that fail-open behaviour, which the generic helper deliberately does not have (a failed Stripe claim must not process the event twice).
 
     ↳ `async function claimMessageId(messageId: string | undefined): Promise<boolean> {`
 

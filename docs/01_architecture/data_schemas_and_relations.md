@@ -25,7 +25,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 |---|---|---|---|
 | `upload_batches` | One upload group | — | Created per upload action |
 | `batch_items` | One file in a batch | `status` `pending\|extracting\|done\|failed\|confirmed`, `fileKey`, `extracted_data` jsonb, `conversion_notes`, `extractError`, `position` | Guarded state machine in `batch-core.ts` |
-| `processed_requests` | Idempotency ledger | PK = client UUID, `restaurantId` | Claim-once in `idempotency.ts` |
+| `idempotency_keys` | Idempotency ledger, all callers | PK = (`scope`, `key`), `restaurantId` | Claim-once in `idempotency.ts`; scopes `form-submit` / `whatsapp` / `stripe-webhook` (#389) |
 
 ## Invoicing
 
@@ -73,7 +73,7 @@ directly at write time. Source of the trend/analytics pages.
 | Table | Purpose | Notable columns | Notes |
 |---|---|---|---|
 | `subscriptions` | Entitlement state | `restaurantId` unique, `stripeCustomerId`/`stripeSubscriptionId`/`stripePriceId` unique, `planTier` `trial\|starter\|pro\|business`, `status` `trialing\|active\|…`, `trialEndsAt`, `currentPeriodEnd`, `cancelAtPeriodEnd`, `lastEventAt` | Stripe owns money, Postgres owns entitlement (ADR-013) |
-| `stripe_webhook_events` | Webhook dedup | `eventId` PK | Claim-before-process |
+| — Stripe webhook dedup | `idempotency_keys`, `stripe-webhook` scope | key = Stripe `event.id` | Claim-before-process |
 | `mrr_snapshots` | Monthly revenue snapshot | `(month, restaurantId)` unique, `planTier`, `status`, `mrrCents`, `atRiskCents`, `source` `live\|estimated` | Fed by cron + admin backfill |
 
 ## Chat
@@ -90,7 +90,7 @@ directly at write time. Source of the trend/analytics pages.
 | `whatsapp_contacts` | Phone → tenant binding | `phoneNumber` unique, `restaurantId`, `displayName` | Phone is the tenant key (ADR-019) |
 | `whatsapp_pairing_codes` | One-time pairing | `code` unique, `restaurantId`, `expiresAt`, `redeemedAt`, `redeemedBy` | 6-char, 15-min TTL |
 | `whatsapp_account_events` | Meta account health | `field`, `event`, `severity` jsonb | Webhook events, not messages |
-| `whatsapp_processed_messages` | Message dedup | `messageId` PK | `whatsapp_bot_sessions` dropped (0026) |
+| — WhatsApp message dedup | `idempotency_keys`, `whatsapp` scope | key = Meta message id | `whatsapp_bot_sessions` dropped (0026) |
 
 ## Cost / misc
 
