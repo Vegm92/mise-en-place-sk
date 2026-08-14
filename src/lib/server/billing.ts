@@ -144,14 +144,17 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 	]);
 }
 
-export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
+export async function getPlanTier(restaurantId: string): Promise<PlanTier> {
 	const tdb = forTenant(await billingRestaurantId(restaurantId));
 	const [row] = await db.select({ planTier: subscriptions.planTier })
 		.from(subscriptions)
 		.where(tdb.scope(subscriptions.restaurantId))
 		.limit(1);
-	const tier = (row?.planTier ?? 'trial') as PlanTier;
-	return TIERS[tier].features;
+	return (row?.planTier ?? 'trial') as PlanTier;
+}
+
+export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
+	return TIERS[await getPlanTier(restaurantId)].features;
 }
 
 export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | null): boolean {

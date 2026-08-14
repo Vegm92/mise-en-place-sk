@@ -3,10 +3,10 @@ import bcrypt from 'bcryptjs';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { restaurants, settings, subscriptions, userRestaurants } from '$lib/server/schema';
+import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema/auth';
 import { asc, eq } from 'drizzle-orm';
-import { applyTierSettings, billingRestaurantId, getTierFeatures, TIERS, type PlanTier } from '$lib/server/billing';
+import { applyTierSettings, billingRestaurantId, getPlanTier, getTierFeatures, TIERS } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
@@ -74,12 +74,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.limit(1),
 		]);
 
-		const billingRid = await billingRestaurantId(rid);
-		const [subRow] = await db.select({ planTier: subscriptions.planTier })
-			.from(subscriptions)
-			.where(forTenant(billingRid).scope(subscriptions.restaurantId))
-			.limit(1);
-		const maxLocations = TIERS[(subRow?.planTier ?? 'trial') as PlanTier].maxLocations;
+		const maxLocations = TIERS[await getPlanTier(rid)].maxLocations;
 
 		return {
 			title: 'nav.settings',
@@ -212,11 +207,7 @@ export const actions: Actions = {
 		if (name.length > 120) return fail(422, { section: 'location', error: 'set.profile.err.restaurantTooLong' });
 
 		const billingRid = await billingRestaurantId(rid);
-		const [subRow] = await db.select({ planTier: subscriptions.planTier })
-			.from(subscriptions)
-			.where(forTenant(billingRid).scope(subscriptions.restaurantId))
-			.limit(1);
-		const tier = (subRow?.planTier ?? 'trial') as PlanTier;
+		const tier = await getPlanTier(rid);
 		if (!TIERS[tier].features.multiLocation) {
 			return fail(403, { section: 'location', error: 'set.locations.err.notAvailable' });
 		}
@@ -260,11 +251,7 @@ export const actions: Actions = {
 		if (name.length > 120) return fail(422, { section: 'restaurant', error: 'set.profile.err.restaurantTooLong' });
 
 		const tdb = forTenant(rid);
-		const [membership] = await db.select({ role: userRestaurants.role })
-			.from(userRestaurants)
-			.where(tdb.scope(userRestaurants.restaurantId, eq(userRestaurants.userId, locals.user!.id)))
-			.limit(1);
-		if (membership?.role !== 'owner') {
+		if (!(await requireOwner(rid, locals.user!.id))) {
 			return fail(403, { section: 'restaurant', error: 'set.profile.err.notOwner' });
 		}
 
