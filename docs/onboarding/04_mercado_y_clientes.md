@@ -158,4 +158,4 @@ Nada de esto está asignado; es para que veas dónde puede aterrizar tu rol:
 - `docs/PLAN_DE_NEGOCIO.md` — secciones 4 (mercado), 5 (regulación),
   6 (competencia) y 7 (modelo de negocio) con todas las fuentes citadas
 - `docs/02_product/personas.md` — las personas en su versión formal
-- `docs/REVENUE_METRICS.md` — cómo medimos ingresos
+- `docs/02_product/revenue_metrics.md` — cómo medimos ingresos
