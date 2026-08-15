@@ -151,6 +151,7 @@
 
 <svelte:head>
   <title>{pageTitle}</title>
+  <meta name="description" content={$t('app.metaDesc')} />
 </svelte:head>
 
 <div class="mep" data-accent="amber" data-density="default"
@@ -370,9 +371,9 @@
       </a>
     </header>
 
-    <div style="flex:1;overflow:auto;">
+    <main style="flex:1;overflow:auto;">
       <ErrorBoundary {children} />
-    </div>
+    </main>
 
   </div>
 
