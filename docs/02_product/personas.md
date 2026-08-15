@@ -1,6 +1,6 @@
 # Personas
 
-Derived from `docs/PLAN_DE_NEGOCIO.md`, `docs/SPAIN_MARKET_RESEARCH.md` and the
+Derived from `docs/02_product/plan_de_negocio.md`, `docs/SPAIN_MARKET_RESEARCH.md` and the
 implemented roles in the app. These describe who uses the product and what the
 app must do for them; they are not the only lens for access control (roles in
 code are `user_restaurants.role` = `owner`, plus admin via `AUTH_ADMIN_EMAIL`).
