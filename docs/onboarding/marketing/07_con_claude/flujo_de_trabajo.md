@@ -38,7 +38,7 @@ Arranque recomendado para cualquier conversación de marketing:
 > Después te digo qué necesito.
 
 Si además la tarea toca un canal, añade el archivo de ese canal. Y si toca datos
-de mercado, `docs/PLAN_DE_NEGOCIO.md`.
+de mercado, `docs/02_product/plan_de_negocio.md`.
 
 ## 2. Encarga con una plantilla, no con una frase
 
@@ -65,7 +65,7 @@ Antes de que nada salga:
 
 | Tipo de afirmación | Cómo se verifica |
 |---|---|
-| Una cifra de mercado | Contra `docs/PLAN_DE_NEGOCIO.md`, que cita sus fuentes |
+| Una cifra de mercado | Contra `docs/02_product/plan_de_negocio.md`, que cita sus fuentes |
 | Una fecha legal | Contra el plan de negocio o el BOE. **Nunca de memoria** |
 | Algo que hace el producto | Contra la app o `docs/02_product/` |
 | Algo sobre un competidor | Contra su web o una reseña que puedas enlazar |

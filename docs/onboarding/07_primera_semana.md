@@ -47,7 +47,7 @@ Pídeselos a Victor. Marca los que ya tengas:
 ## Día 3 — Entender el mercado
 
 - [ ] Leer [[docs/onboarding/04_mercado_y_clientes|el capítulo 4]] y luego las
-      secciones 4, 5 y 6 de `docs/PLAN_DE_NEGOCIO.md`
+      secciones 4, 5 y 6 de `docs/02_product/plan_de_negocio.md`
 - [ ] Darse de alta en la lista de espera de dos competidores (Haddock es el
       obvio) y guardar **toda** la secuencia de emails que mandan. Es
       información competitiva gratis

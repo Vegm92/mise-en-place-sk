@@ -73,4 +73,4 @@ inteligencia propia.
 
 - [[docs/onboarding/marketing/01_estrategia/posicionamiento|Posicionamiento]]
 - [[docs/onboarding/marketing/02_audiencia/objeciones|Objeciones]]
-- `docs/PLAN_DE_NEGOCIO.md`, sección 6 — la tabla original con sus fuentes
+- `docs/02_product/plan_de_negocio.md`, sección 6 — la tabla original con sus fuentes

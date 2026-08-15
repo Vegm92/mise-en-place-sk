@@ -87,4 +87,4 @@ priorizando la exportación contable). Es investigación barata con impacto alto
 ## Relacionado
 
 - [[docs/onboarding/marketing/02_audiencia/segmentos_y_personas|Segmentos y personas]]
-- `docs/PLAN_DE_NEGOCIO.md` — el canal gestorías en el plan original
+- `docs/02_product/plan_de_negocio.md` — el canal gestorías en el plan original

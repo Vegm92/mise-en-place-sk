@@ -54,7 +54,7 @@ conseguirlas pronto:
 
 | Dónde | Qué encontrarás |
 |---|---|
-| `docs/PLAN_DE_NEGOCIO.md` | Mercado, competencia, regulación y unit economics, con las fuentes citadas. **La mina principal** |
+| `docs/02_product/plan_de_negocio.md` | Mercado, competencia, regulación y unit economics, con las fuentes citadas. **La mina principal** |
 | `docs/02_product/product_definition.md` | Qué hace el producto exactamente, y qué no |
 | `docs/02_product/plans_and_entitlements.md` | Qué incluye cada plan, de verdad |
 | `docs/onboarding/` | El pack de bienvenida, capítulos 1 a 7 |

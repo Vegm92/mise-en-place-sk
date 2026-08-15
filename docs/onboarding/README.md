@@ -71,4 +71,4 @@ Si solo te quedas con cinco frases, que sean estas:
 - [[CONTEXT|CONTEXT.md]] — el mapa maestro de toda la documentación del proyecto
 - `docs/02_product/` — definición de producto, personas y planes, en inglés y con
   más detalle
-- `docs/PLAN_DE_NEGOCIO.md` — el plan de negocio completo (versión inversores)
+- `docs/02_product/plan_de_negocio.md` — el plan de negocio completo (versión inversores)

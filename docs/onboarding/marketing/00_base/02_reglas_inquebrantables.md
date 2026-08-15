@@ -76,7 +76,7 @@ versiones. Media entrega es cero entrega.
 ## 6. Un dato sin fuente no se publica
 
 Toda cifra —inflación, número de establecimientos, horas de administración,
-porcentajes de margen— sale de `docs/PLAN_DE_NEGOCIO.md`, que cita sus fuentes.
+porcentajes de margen— sale de `docs/02_product/plan_de_negocio.md`, que cita sus fuentes.
 Si un dato no está ahí y no tienes de dónde sacarlo, **no lo uses**.
 
 Esto aplica muy especialmente a lo que produzca Claude: escribe cifras

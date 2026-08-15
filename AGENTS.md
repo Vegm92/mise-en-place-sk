@@ -155,5 +155,3 @@ gates above. CI runs them all on every PR.
 ## Related
 
 - Open audit items and current task status: `CONTEXT.md` → "Current Task".
-- Pre-launch gap analysis: `GAP_ANALYSIS.md`.
-- Production readiness checks: `PRODUCTION_SIGNOFF.md`.

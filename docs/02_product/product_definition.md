@@ -1,6 +1,6 @@
 # Product Definition
 
-Source: `README.md`, `docs/PLAN_DE_NEGOCIO.md`, `docs/SPAIN_MARKET_RESEARCH.md`,
+Source: `README.md`, `docs/02_product/plan_de_negocio.md`, `docs/SPAIN_MARKET_RESEARCH.md`,
 and the implemented product surface. Where docs and implementation disagree,
 implementation wins and the difference is flagged in `CONTEXT.md`.
 

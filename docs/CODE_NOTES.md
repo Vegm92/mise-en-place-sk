@@ -1641,7 +1641,7 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
 **`const load`**
 
-- Revenue Performance Framework console (SaaS unit economics): MRR/ARR, ARPA, ACV, CAC, LTV, LTV/CAC, payback, NRR/GRR, churn, signup cohorts and revenue leakage, all assembled by `revenueOverview()`. Definitions, formulas and data-quality caveats live in `docs/REVENUE_METRICS.md`.
+- Revenue Performance Framework console (SaaS unit economics): MRR/ARR, ARPA, ACV, CAC, LTV, LTV/CAC, payback, NRR/GRR, churn, signup cohorts and revenue leakage, all assembled by `revenueOverview()`. Definitions, formulas and data-quality caveats live in `docs/02_product/revenue_metrics.md`.
 
     ↳ `overview: await revenueOverview(),`
 
