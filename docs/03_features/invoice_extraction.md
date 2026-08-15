@@ -39,8 +39,14 @@ parsed here and re-checked at save.
   `jpg/jpeg/png` → `image`; `xml` → `xml`. Else `Unsupported file type`.
 - **Routing**: `text_pdf` sends extracted text inline; `scanned_pdf`/`image`
   send base64 inlineData; `xml` → `parseEinvoice` (never Gemini).
-- **Retries**: 429/503 retried 3× (1 s/2 s/4 s) + 60 s wall-clock timeout
-  (`withRetry`, `extract.ts:212-227`).
+- **Retries**: 429/503 retried 3× (1 s/2 s/4 s) + wall-clock timeout
+  (`GEMINI_TIMEOUT_MS`, default 60 s) (`withRetry`, `extract.ts`).
+- **Timeout cancels the request**: the timeout fires an `AbortController` that
+  is threaded into the Gemini call (`config.abortSignal`), so a timed-out
+  extraction actually tears down its HTTP request instead of leaking a live
+  request that keeps holding a socket and a Gemini concurrency slot. With the
+  strictly-sequential worker, leaked requests were the mechanism behind jobs
+  piling up during a slow-Gemini spell.
 - **JSON**: fence-stripped and `JSON.parse`d; invalid → `notInvoice` error class.
 - **Quota first**: `checkExtractionQuota` + `claimMonthlyExtraction` before
   `markExtracting`; release on failure. Errors: `trialExpired`,
