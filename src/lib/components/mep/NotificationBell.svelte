@@ -43,7 +43,7 @@
     style="width:34px;height:34px;padding:0;justify-content:center;position:relative;"
     onclick={toggleOpen}
     title={$t('a11y.notifications')}
-    aria-label={$t('a11y.notifications')}
+    aria-label={count > 0 ? $tiv('a11y.notificationsCount', { n: count > 9 ? '9+' : count }) : $t('a11y.notifications')}
   >
     <Bell size={15} />
     {#if count > 0}
