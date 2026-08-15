@@ -119,3 +119,157 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 - A magic-byte mismatch rejects the file without a DB row.
 - Tests: `tests/upload-validation.test.ts`, `tests/upload-endpoint.test.ts`,
   `tests/batch-model.test.ts`, `tests/queue-depth.test.ts`.
+
+## Code notes
+
+### `src/routes/api/batch-status/+server.ts`
+
+**`const GET`**
+
+- Single poll endpoint for the batch page — every item's real status. The only feedback channel the UI uses; no client-side simulated progress anywhere.
+
+**`property status`**
+
+- `pending` reads as queued once extraction was requested; the page only polls while something is in flight.
+
+### `src/lib/server/batches/batch-core.ts`
+
+**`type BatchDb`**
+
+- Batch data layer — the single owner of batch_items state. Every transition is a guarded UPDATE (`WHERE status IN (…)`) reporting whether it fired; stale/duplicate requests become no-ops, never lost updates; callers never read-modify-write.
+- Ownership split: web calls createBatch/addItems/markQueued/markConfirmed/markDiscarded/removeItem; worker calls markExtracting/markDone/markFailed; neither writes the other's transitions. Factory over an injected drizzle instance so tests run real SQL; `batch.ts` is the production binding. Accepts a transaction (guarded transition inside an enclosing db.transaction, e.g. invoice save + item confirm #248).
+
+**`const UUID_RE`**
+
+- Route params land unvalidated; a non-UUID (e.g. legacy session id) would make Postgres throw on the uuid cast (22P02).
+
+**`function pickActiveItem`**
+
+- The item a review UI should surface: first reviewable (`done`) open item, else first failed; null while everything is pending/in flight.
+
+**`function addItems`**
+
+- Appends items, continuing the position sequence.
+
+**`function getBatchItems`**
+
+- All items in position order (including confirmed/discarded).
+
+**`function nextReviewableItem`**
+
+- Next item needing attention (not confirmed/discarded), preferring after `afterPosition`, then wrapping.
+
+**`function removeItem`**
+
+- Deletes outright — only allowed before extraction starts.
+
+**`function deleteBatch`**
+
+- items cascade.
+
+**`function transition`**
+
+- Guarded transitions.
+
+**`function markQueued`**
+
+- Web: pending/failed → queued (re-queueing a failed item is the retry path).
+
+**`function markExtracting`**
+
+- Worker: queued → extracting.
+
+**`function markDone`**
+
+- Worker: extracting (or queued, if the extracting write raced) → done.
+
+**`function markFailed`**
+
+- Worker: queued/extracting → failed.
+
+**`function markConfirmed`**
+
+- Web: done → confirmed (invoice saved).
+
+**`function markDiscarded`**
+
+- Web: any non-terminal state → discarded.
+
+**`function isBatchSettled`**
+
+- True when no item still needs attention.
+
+**`function cleanupStaleBatches`**
+
+- Only non-confirmed items' files are ours to delete — a confirmed item's file becomes the invoice's `source_file` and must survive until the invoice's own retention purge (`runFilePurgeJob`).
+### `src/lib/server/batches/batch.ts`
+
+**_module level_**
+
+- Batch data layer bound to the app DB connection; implementation lives in batch-core.ts (DI factory) so the guarded SQL is testable against the test database.
+
+### `src/lib/server/uploads.ts`
+
+**`const ALLOWED_EXTENSIONS`**
+
+- Upload file helpers — validation, storage-key generation, local-path resolution. Batch/queue state lives in batch.ts; the legacy JSON-blob session store is gone.
+
+**`function uploadsDir`**
+
+- Local uploads directory — local storage driver + file stat display.
+
+**`interface RejectedUpload`**
+
+- Save via the configured storage driver; returns saved (display names + uniqueness suffix), keys (`namespace/filename`), errors. Rejection reason is an i18n key the page translates (#294), not prose: unsupportedType | tooLarge | contentMismatch.
+
+**`function localFilePath`**
+
+- Local path for a storage key under the local driver; used only for file stat display on the batch page.
+
+### `src/lib/server/storage.ts`
+
+**`method delete`**
+
+- Ignore errors — the object may already be gone.
+
+### `src/lib/components/UploadPanel.svelte`
+
+**`const localError`**
+
+- Client-side problems (oversized file, offline queue full, failed upload) used to go through native alert() — modal, unstyled, wrong locale, invisible to the page. Now feed the same banner as server errors (#233); transient ones clear themselves.
+
+**`const serverError`**
+
+- Server actions return i18n keys, not prose (#294); `$t` falls back to the key itself, so an unexpected string still renders.
+
+**`const DB_NAME`**
+
+- IndexedDB helpers — offline queue DB `mise-offline-queue`.
+
+**`function removeFromOfflineQueue`**
+
+- ignore.
+
+**`function addFiles`**
+
+- File helpers.
+
+**`function openCamera`**
+
+- Camera opens straight away — the framing tip used to be a blocking bottom sheet before the first capture, the worst moment to read it; it now rides as a caption on the photo-confirm overlay where "retake" is a real option (#230).
+
+**`function uploadWithProgress`**
+
+- Upload with progress and offline fallback; the action's payload carries an i18n key + vars (#294).
+
+**`function doUpload`**
+
+- Client-side navigation keeps the app shell intact — a hard reload re-runs every layout query for nothing.
+
+**`const onOnline`**
+
+- Lifecycle.
+
+**`markup`**
+
+- Mobile + desktop variants (md breakpoint); 3-step indicator shared with /batch/[id] (#232); alerts; offline banner; upload zone; camera + browse buttons; hidden file input; file queue; sticky extract button; camera input always in DOM. Mobile overlays: preview + framing tip folded in from the old pre-capture sheet (#230).

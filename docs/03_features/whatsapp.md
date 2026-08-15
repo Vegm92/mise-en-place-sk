@@ -123,3 +123,224 @@ normalization; rate limits.
   `tests/whatsapp-pairing.test.ts`, `tests/whatsapp-contacts.test.ts`,
   `tests/whatsapp-bridge.test.ts`, `tests/whatsapp-health.test.ts`,
   `tests/whatsapp-api.test.ts`.
+
+## Code notes
+
+### `src/routes/api/whatsapp/webhook/+server.ts`
+
+**`function verifySignature`**
+
+- WhatsApp Cloud API webhook: GET answers the Meta verify-token challenge (`WHATSAPP_VERIFY_TOKEN`); POST receives inbound messages. Subscribed fields: messages, account_update, phone_number_quality_update — the account fields turn a shared-number quality downgrade from a support-ticket discovery into something delivered (#321).
+- Verifies Meta's X-Hub-Signature-256 HMAC over the raw body. Bad/missing signature with a configured secret is rejected; a missing secret is tolerated only outside production — in production the webhook fails CLOSED: an unauthenticated POST could impersonate a registered number, inject invoices into that tenant, and burn Gemini quota.
+
+**`const GET`**
+
+- Meta calls GET to verify the webhook endpoint during setup.
+
+**`const POST`**
+
+- WhatsApp delivers message events here; return 200 immediately. Read the raw body first (HMAC over the exact bytes); process asynchronously — Meta expects a 200 within 5 s. Account-level events (#321) are delivered here too: ingest for every tenant runs through one shared number, so a downgrade or restriction must arrive this way rather than via support tickets.
+
+**`function extractChanges`**
+
+- Split the payload into inbound messages and account-level events. Meta multiplexes every subscribed field through the same endpoint, distinguished by `changes[].field`; reading `value.messages` regardless of field silently discarded everything else — including the quality/restriction notices #321 exists to catch.
+- Skip statuses (sent/delivered/read receipts) — high volume, no health signal. Anything else subscribed is health-relevant by definition; record unrecognised events rather than drop them.
+
+### `src/lib/server/qr-svg.ts`
+
+**`const ERROR_CORRECTION`**
+
+- QR code rendering (#319). Distinct from `qr.ts`, which *parses* the VERI*FACTU / TicketBAI QR codes on invoices; this renders a string a phone scans. Inline `<svg>` rather than data-URI, so it stays crisp when printed (the delivery for the bot number is paper on the kitchen wall) and needs no `img-src` CSP allowance.
+- 'M' (~15% recovery) suits a printed code: tolerance for a scuffed print without inflating the module count, which decides the paper size.
+
+**`function renderQrSvg`**
+
+- Scalable inline SVG QR (viewBox, no fixed size — caller sizes via CSS). Returns null when the string is too long — callers treat the QR as an enhancement and drop it rather than failing the page. Type 0 = smallest symbol version that fits.
+
+### `src/lib/server/whatsapp-bot.ts`
+
+**`const SESSION_TTL_MS`**
+
+- WhatsApp invoice bot — handles incoming messages, runs extraction, asks for confirmation, persists invoices as pending.
+
+**`const UNAUTHORIZED_REPLY_COOLDOWN_S`**
+
+- 6 hours — how long an unknown number waits before the bot answers it again (#322).
+
+**`interface WhatsAppInboundMessage`**
+
+- Inbound message shape as delivered by the webhook.
+
+**`function claimMessageId`**
+
+- Claims a WhatsApp message id so a redelivered webhook is processed once (#245); false when already seen. Fails open on a DB error — a rare duplicate beats silently dropping a real invoice. Since #389 the claim lives in the shared ledger under the whatsapp scope; the wrapper survives only for that fail-open behaviour the generic helper deliberately lacks.
+
+**`function handleWhatsAppMessage`**
+
+- Dedup on the message id before any side effect — Meta redelivers and a duplicate "SÍ" must not save twice. Then resolve the restaurant from the number.
+- An enrolling number is by definition unauthorised, so pairing runs here rather than before the lookup (#320) — an authorised sender's "SÍ"/"NO" can never be mistaken for a code.
+- Reply at most once per number per cooldown (#322), key `whatsapp-unauth:${from}` — otherwise a wrong/spam number gets an answer to every message: unbounded billable traffic from 1 Oct 2026 plus poor anti-abuse. A genuine mistype still gets told the first time.
+
+**`function handlePairingAttempt`**
+
+- Redeem a pairing code from a not-yet-authorised number. Unknown/expired/used codes get one identical answer so a guess never reveals whether a code exists. Exhausting the per-sender budget is met with silence — "too many attempts" is itself a signal, and every reply goes to an unauthenticated number at our expense.
+
+**`function handleMediaUpload`**
+
+- Money gate: reserve a monthly extraction slot BEFORE any Gemini spend (#318) — without it WhatsApp was an unmetered lane around the web quota, and under the shared-number model the cost lands on us. Claimed after the pending-session guard so a rejected duplicate never burns a slot; same aggregation as the worker (#257).
+- No "procesando…" ack (#322): WhatsApp already shows delivery and the summary lands in ~10 s, so the ack made a successful invoice cost three outbound messages instead of two — billable from 1 Oct 2026. Nothing extracted, or a Gemini failure → release the slot (#318, mirrors the worker).
+- Write to a temp file for the existing extractor; persist the file to storage for web review; store a session awaiting confirmation.
+
+**`function handleTextReply`**
+
+- Strip accents, lowercase, trim. Claim the session before saving (guarded awaiting_confirmation → confirmed) so duplicate "SÍ" deliveries can't both save (#245); the content-hash index is the final backstop. If the save doesn't land, roll the claim back to discarded so the session isn't 'confirmed' with no invoice behind it.
+
+**`function getPendingSession`**
+
+- Session helpers.
+
+**`type SaveResult`**
+
+- Invoice persistence outcome type.
+
+**`function saveWhatsAppInvoice`**
+
+- Atomic supplier get-or-create (#238), tagged with the category extraction proposed (#315). Nothing here is user-reviewed, so an unnamed supplier ('Desconocido') keeps the uncategorised bucket and its nudge rather than inheriting a guess. Invoice-number duplicate guard; fire-and-forget quota warning.
+
+**`function buildSummaryMessage`**
+
+- Message formatting.
+### `src/lib/server/whatsapp-health.ts`
+
+**`type Severity`**
+
+- WhatsApp number health (#321). One Business number shared by every tenant (per-tenant numbers would need a spare number + Meta business verification each) concentrates reputation risk: Meta's quality rating per number is driven by blocks/reports, so one restaurant's staff degrades it for all, and a restricted number stops ingest for everyone. Reputational, not throughput-bound: the bot only *replies* inside the 24h service window. These events make a downgrade *delivered* instead of a support-ticket discovery.
+
+**`const CRITICAL_EVENTS`**
+
+- Events meaning the number is (or is about to be) unusable; under `account_update`; any stops or threatens ingest for everyone.
+
+**`const WARNING_EVENTS`**
+
+- Degraded but still delivering — worth a look before it becomes critical.
+
+**`interface AccountEventInput`**
+
+- Meta webhook field name ('account_update') and the `value` object.
+
+**`function parseAccountEvent`**
+
+- Reduce a webhook `value` to the fields worth acting on; payloads vary by event and API version, so read defensively and keep the raw payload — unrecognised events still land as rows. Quality arrives as `current_quality_rating`, nested, or as a plain GREEN/YELLOW/RED event; ban/restriction is critical regardless of event name; FLAGGED is a warning but its recovery (UNFLAGGED, back to GREEN) is info.
+
+**`function recordAccountEvent`**
+
+- Persist + page Sentry when it matters. Never throws: it runs inside the webhook handler, which must keep answering Meta within 5 s and must not fail real messages over a bookkeeping write. A drop is an incident, not a metric — ingest for the whole base runs through this one number.
+
+**`interface NumberHealth`**
+
+- Latest quality rating and messaging tier (if ever reported); worst severity in the window; the event behind it; everReported.
+
+**`const HEALTH_WINDOW_DAYS`**
+
+- 30 — how far back "current" reaches; a red flag from last quarter is history.
+
+**`function getNumberHealth`**
+
+- `everReported: false` is normal before the account fields are subscribed — the admin page reports that as "not subscribed" rather than "healthy", because silence is absence of data. Most recent event wins on the *current* rating; the window's worst severity drives the badge so a RED that flipped back is still visible. Ratings aren't sent on every event — fall back through the window.
+
+**`function recentAccountEvents`**
+
+- Most recent events, newest first — the admin timeline.
+
+**`function contactsPerTenant`**
+
+- Authorised senders per tenant, to find and de-authorise a block-heavy restaurant quickly (Settings needs to know which tenant first). Read-only: removing a number stays an explicit act in the owner's Settings.
+
+### `src/lib/server/whatsapp-contacts.ts`
+
+**`interface WhatsAppContact`**
+
+- Authorised numbers (#187 follow-up) — the allow-list the bot checks before processing; unknown senders get "no autorizado" and are dropped. Until this module existed the table could only be populated with hand-written SQL. Numbers stored as Meta delivers: E.164 without '+'; user input must be normalised or the lookup silently never matches.
+
+**`function addContact`**
+
+- `whatsapp_contacts_phone_unique` is global, not per-tenant: one phone maps to one restaurant because the bot resolves the tenant *from* the number. A number claimed by another tenant fails as 'taken' rather than silently rebinding; same-tenant conflict is an idempotent success.
+
+**`function removeContact`**
+
+- De-authorise; tenant-scoped so one restaurant cannot remove another's.
+
+### `src/lib/server/whatsapp-pairing.ts`
+
+**`const CODE_ALPHABET`**
+
+- Self-service enrolment by pairing code (#320). The manual path stays for the owner's own number, but a typo is the worst failure mode: the chef gets "este número no está autorizado" while Settings looks fine. A code inverts trust: the owner generates it, the chef messages it from the phone they'll use, the number comes from the webhook `from` — can't be mistyped, proven controlled.
+- Redemption runs before the bot's authorisation gate, so this is the one unauthenticated write into `whatsapp_contacts`: single-use, short-lived, redeemed by a guarded UPDATE (never read-then-write), rate-limited per sender, failures indistinguishable. 0/O, 1/I/L, 5/S omitted — costs entropy, saves support.
+
+**`const CODE_TTL_MS`**
+
+- ~15 min — long enough to walk a code across a kitchen, short enough that a screenshot isn't a standing invitation.
+
+**`const REDEEM_ATTEMPTS`**
+
+- 5 per sender; 30^6 ≈ 7.3e8, far below brute-forcing a code inside its TTL.
+
+**`const GENERATE_LIMIT`**
+
+- 10/hr per owner — abuse guard, not UX.
+
+**`function normalizeCode`**
+
+- Case- and separator-insensitive compare. Anything with a character outside the alphabet isn't treated as a code attempt — keeps ordinary chat out of the rate limiter.
+
+**`function generatePairingCode`**
+
+- Mint, replacing any outstanding code: Settings shows "the" code, so a silent supersession would be worse than visible reissue, and one guessable code per tenant is kept. Global unique index → a collision with another tenant's live code is retried (effectively never runs at 7.3e8 values).
+
+**`function activePairingCode`**
+
+- The restaurant's live, unredeemed code, if any — what Settings displays.
+
+**`function revokePairingCodes`**
+
+- Discard the live code without minting a replacement.
+
+**`type RedeemResult`**
+
+- `ok: true` bound (restaurantId = the tenant the number now belongs to); `'invalid'` — unknown/expired/used, deliberately one outcome; `'taken'` — number already authorised elsewhere; `'rateLimited'` — answer with nothing at all.
+
+**`function redeemPairingCode`**
+
+- Guarded UPDATE (`redeemed_at IS NULL AND expires_at > now()`, RETURNING) — two deliveries or two racers on one code can't both win; only the winner writes the contact row. Unknown/expired/redeemed look identical outside — an attacker must not learn a code exists. If the phone is another restaurant's (global unique), release the code rather than burn the owner's.
+
+### `src/lib/server/whatsapp.ts`
+
+**`function maskPhone`**
+
+- Mask for logs — keep only the last 4 digits (#254).
+
+**`function downloadWhatsAppMedia`**
+
+- Step 1 resolve the media download URL (Graph API, `/{mediaId}`); step 2 download the bytes.
+
+### `src/lib/phone.ts`
+
+**`const DEFAULT_COUNTRY_CODE`**
+
+- Phone normalisation for the bot allow-list. Shared (not `$lib/server/`) because the settings UI formats for display while the server normalises for storage — same rules or a displayed-valid number fails to match on the way in. Storage = Meta's `from` format: E.164 without '+'. Bare national numbers get '34' — Spain-first; a 9-digit Spanish number is unambiguous.
+
+**`const MIN_DIGITS`**
+
+- 8 — E.164 allows 15; below ~8 nothing is a real mobile.
+
+**`function normalizePhoneNumber`**
+
+- Digits only, no '+', country code included; accepts "+34 612 345 678", "0034-612345678", "612 345 678". Strip a leading "00" (written-out prefix) before length checks; add the default country code before the min-length check so a 9-digit Spanish mobile isn't rejected.
+
+**`function waMeLink`**
+
+- Click-to-chat (#319). wa.me wants digits only and rejects '+', exactly the stored shape — a link opening the wrong chat would mean the allow-list is wrong too.
+
+**`function formatPhoneNumber`**
+
+- Display "+34 612 345 678"; storage stays digits-only.

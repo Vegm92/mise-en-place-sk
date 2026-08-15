@@ -34,7 +34,7 @@ the schema file (ADR-003).
 2. `pnpm db:generate` → review the emitted SQL in `drizzle/`.
 3. `pnpm db:migrate` against a local Postgres.
 4. `pnpm db:check-sync` → must pass.
-5. Update consumers (queries, `CODE_NOTES.md`, affected feature specs).
+5. Update consumers (queries, the affected `## Code notes` section, feature specs).
 6. Full `pnpm test` (DB suites against local Postgres).
 7. If a data migration is needed, add it as a script run during deployment —
    see `DEPLOYMENT.md` for the runbook (worker runs `db:migrate` at startup).
@@ -52,5 +52,5 @@ the schema file (ADR-003).
 - [ ] `pnpm db:migrate` applies cleanly on a fresh DB
 - [ ] `pnpm db:check-sync` passes
 - [ ] No `sql.raw()`, tenant filters present, indexes justified
-- [ ] Tests + affected feature spec + CODE_NOTES updated
+- [ ] Tests + affected feature spec + `## Code notes` section updated
 - [ ] `db:check-sync` green in CI before merge

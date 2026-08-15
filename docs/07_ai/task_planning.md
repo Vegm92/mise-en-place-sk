@@ -29,7 +29,7 @@ Numbered, small, testable steps in order.
 - Which gates to run (pnpm check / test / db:check-sync / lint:* / build)
 
 ## Doc updates
-- Feature spec(s), CODE_NOTES, dependency map, ADR needed?
+- Feature spec(s), its `## Code notes` section, dependency map, ADR needed?
 ```
 
 ## Guidance
@@ -73,5 +73,5 @@ Add a re-run button for failed batch items on the batch detail page.
   lint gates
 
 ## Doc updates
-- docs/03_features/invoice_ingestion.md (state transition), CODE_NOTES.md
+- docs/03_features/invoice_ingestion.md (state transition), its `## Code notes` section
 ```

@@ -32,7 +32,7 @@ surface, an API contract, or async/worker behaviour.
   - A short plan per `docs/07_ai/task_planning.md`.
   - Full verification: `pnpm check`, `pnpm test` (DB suites on local Postgres),
     all lint gates, `pnpm build`; `pnpm db:check-sync` if schema touched.
-  - Doc event: update the affected feature spec + CODE_NOTES.
+  - Doc event: update the affected feature spec + its `## Code notes` section.
 
 ### Level 4 — Architectural
 

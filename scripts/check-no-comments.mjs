@@ -170,7 +170,7 @@ for (const rel of targets()) {
 	}
 	for (const c of found) {
 		if (total === 0) {
-			console.error('Explanatory comments are not allowed in src/ — document them in docs/CODE_NOTES.md instead.\n');
+			console.error('Explanatory comments are not allowed in src/ — document them in the per-subsystem Code notes sections instead.\n');
 		}
 		const first = c.raw.split('\n')[0].trim();
 		console.error(`  ${rel}:${c.line}  ${first.length > 100 ? first.slice(0, 97) + '…' : first}`);

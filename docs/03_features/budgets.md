@@ -96,3 +96,25 @@ Category ∈ `VALID_CATEGORIES`; amount numeric ≥ 0; month = current.
   `warning`/`exceeded` once per month per category.
 - Clearing the budget amount deletes the row.
 - Tests: `tests/budgets.test.ts`, `tests/alert-engine.test.ts` (budget rule).
+
+## Code notes
+
+### `src/routes/(app)/budgets/+page.server.ts`
+
+**`const load`**
+
+- Includes any custom categories already stored in the DB for this restaurant.
+
+**`property save`**
+
+- Only the current month is editable — a past-month submission (e.g. a stale tab left open across a month boundary) is rejected here, never trusted from the client, which only hides the Save button.
+- Categories list is passed from the form so new custom ones are included.
+
+### `src/routes/(app)/budgets/+page.svelte`
+
+**`markup`**
+
+- Desktop layout (`hidden md:flex`): overall progress card, budget table, add-category row.
+- Mobile layout (`flex md:hidden`): scrollable content, hero summary card, segmented bar, section header, category cards, sticky save button.
+- Per category card: top row (swatch + name + projection badge), progress bar with an 80% target marker, amounts row (spent · % · remaining), budget input.
+- Add-category row/card only render when `!isPastMonth`.

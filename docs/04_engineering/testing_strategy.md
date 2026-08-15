@@ -37,6 +37,24 @@ Job `ci` (postgres:17 service, `REQUIRE_DB_TESTS=1`):
 DB-backed tests need a local Postgres; `.claude/skills/verify/SKILL.md` provides
 a ready local stack.
 
+## Test fixtures (synth)
+
+`synth/js/` is a Node synthetic invoice/albarán generator (Nunjucks +
+Puppeteer) that produces PDF + ground-truth JSON pairs for testing the
+extraction pipeline. `nunjucks` and `puppeteer` are root `devDependencies`
+(mirroring `synth/package.json`).
+
+- `node synth/js/cli.mjs generate -n 10 -o synth/output` — write a batch of
+  PDFs, per-document ground truth JSON, and a `_manifest.json`.
+- `node synth/js/cli.mjs preview --seed 42` — print one document's ground truth
+  JSON without rendering a PDF.
+
+`pnpm db:seed-demo` (`scripts/seed-demo.mjs`) reuses the same engine: it imports
+`buildEnv`/`buildContext`/`inlineCSS` from `synth/js/engine.mjs`, renders a real
+PDF per seeded invoice with Puppeteer, and saves it via `saveDemoFile()`
+(honors `STORAGE_DRIVER`) — so the 55 demo invoices carry a genuine
+`source_file` rather than a placeholder string.
+
 ## Known gaps (see final audit)
 
 - **Chat**: no dedicated test for `(app)/api/chat` (schema covered only).

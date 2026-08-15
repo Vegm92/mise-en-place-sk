@@ -101,3 +101,22 @@ Numeric stock/burn; unit strings through `canonicalizeUnit`; tenant scope.
   the ratio < 3 days raises `low_stock_forecast`.
 - Setting a conversion factor changes the converted quantity used downstream.
 - Tests: `tests/alert-engine.test.ts` (forecast), `tests/unit-bridge.test.ts`.
+
+## Code notes
+
+### `src/routes/(app)/api/stock-levels/+server.ts`
+
+**`const GET`**
+
+- Lists all stock level entries for this restaurant. Rate limit keyed on the authenticated user, not the client IP (issue #223) — `stock-levels:${locals.user!.id}`, 60/min — since behind a reverse proxy every request shares one IP and therefore one bucket.
+
+**`const POST`**
+
+- Upserts the daily burn rate for an ingredient (TPV sync stub).
+
+### `src/routes/(app)/api/unit-conversions/+server.ts`
+
+**`const POST`**
+
+- Saves a new UoM rule and clears pending flags; rate limit `unit-conversions:${locals.user!.id}`, 30/min (issue #223).
+- Clears pending flags joined by `supplier_id` when known, else by name; comparison is normalized (issue #296) so casing/accent/spacing drift between the pending line and the saved rule doesn't miss.

@@ -115,3 +115,203 @@ directly at write time. Source of the trend/analytics pages.
 - No enums; no triggers; no RLS (migration 0001 was dropped on Railway, ADR-005).
 - Unique constraints do double duty as the last line of idempotency defense.
 - Migration workflow and verification: `docs/04_engineering/database_changes.md`.
+
+## Code notes
+
+### `src/lib/server/db-ssl.ts`
+
+**`interface PgSslConfig`**
+
+- Postgres TLS configuration shared by the web pool (`db.ts`, postgres-js) and the worker's pg-boss connection (`worker.ts`, node-postgres) — issue #295. Both drivers hand this object straight to `tls.connect`, so one helper serves both and the two processes can no longer drift apart (the worker used to hard-code `rejectUnauthorized: false`).
+- Modes via `DATABASE_SSL_MODE`: require (default) — encrypted, certificate not verified; verify-full — certificate chain verified. Supply Railway's CA with `DATABASE_CA_CERT` (a PEM string or a path to a .crt file), since its certificate is self-issued; without it the system trust store is used.
+- Reads `process.env` directly so the worker can import it without Vite. A local/ephemeral Postgres (CI container, `docker compose`) is never configured with TLS, so requesting SSL against it just resets the connection; `drizzle.config.ts` and the test-db helper already special-case this by host, and this does the same so the app's own db/worker clients agree with migrations and tests.
+
+**`function readCa`**
+
+- Resolves `DATABASE_CA_CERT`, which may hold the PEM itself or a path to it.
+
+### `src/lib/server/db.ts`
+
+**`type DB`**
+
+- DB singleton — server-side only. Import only from +server.ts or +page.server.ts, never from components.
+- Set `DATABASE_POOL_URL` to a pooled, PgBouncer-compatible connection URL for the runtime app; `DATABASE_URL` remains the direct connection used by migrations and pg-boss. If the pool URL is not set, `DATABASE_URL` is used for both. `prepare: false` is required for PgBouncer transaction-mode compatibility.
+
+**`function getDb`**
+
+- Lazily creates the Drizzle client on first use. Deliberately NOT at import time: SvelteKit's build/prerender-analyse step imports server modules without runtime env, and a throw here would break the build. The connection (and the missing-config error) is deferred to the first query.
+
+**`const db`**
+
+- Proxy so existing `db.select(...)` call sites keep working while the underlying client is created lazily on first property access. Methods are bound to the real Drizzle instance so internal `this` references resolve against it, not the proxy.
+- `getDb` is also exported directly for `src/lib/server/auth.ts`'s `DrizzleAdapter(getDb(), ...)`. `@auth/drizzle-adapter` runtime-detects the Postgres dialect via `is(db, PgDatabase)`, an instanceof-style prototype check — the proxy's target is `{}`, so `is()` fails against it. Only surfaces at production-build SSR analysis (not `pnpm check`/`pnpm test`), the first point the adapter is constructed with a real env-configured secret.
+
+**_module level_**
+
+- Tenant-scoped query helper — see docs/tenancy/ADR-001-app-level-tenant-scoping.md.
+
+### `src/lib/server/schema.ts`
+
+**`const restaurants`**
+
+- Drizzle schema — PostgreSQL (Railway). Single source of truth.
+
+**`property parentId`**
+
+- Additional locations of a multi-location account (issue #290). Null for a standalone restaurant. Data stays fully separate per location; this only says which restaurant's subscription pays, so a Business customer's second site inherits the plan instead of starting a new trial.
+
+**`const userRestaurants`**
+
+- Role `'owner' | 'member'`. Composite PK `(userId, restaurantId)` — a double-submit of onboarding (or the same form in two tabs) can no longer write duplicate membership rows, which also kept the "sole member" count in account deletion honest (issue #241).
+
+**`const suppliers`**
+
+- Unique `(restaurant_id, lower(name))`. The three get-or-create call sites upsert via ON CONFLICT so concurrent saves of a new supplier converge on one row instead of racing to insert clones that would split invoice-number dedup (issue #238).
+
+**`property status`**
+
+- `'pending' | 'accepted' | 'rejected' | 'paid'`. 'pending' = received, awaiting acceptance (legacy behaviour preserved). 'accepted'/'rejected': RD 238/2026 acceptance statuses. 'paid': full effective payment reported.
+
+**`property eInvoiceFormat`**
+
+- Parsed from structured XML — `'facturae_322' | 'ubl_21'`. Null for paper/photo (issues #110/#111/#112).
+
+**`property qrUrl`**
+
+- Full AEAT/TicketBAI QR verification URL decoded from the invoice image.
+
+**`property qrMismatch`**
+
+- True when QR-decoded fields conflict with AI-extracted fields (blocking review).
+
+**`property acceptedAt`**
+
+- ISO timestamp when the restaurant accepted this invoice (RD 238/2026).
+
+**`property rejectedAt`**
+
+- ISO timestamp when the restaurant rejected this invoice.
+
+**`property paidAt`**
+
+- ISO timestamp of full effective payment (paid date).
+
+**`property version`**
+
+- Optimistic-concurrency counter — the edit form submits it and the UPDATE is guarded by it, so a stale tab gets a 409 instead of silently clobbering another tab's edit (issue #242).
+
+**`const invoices`**
+
+- Partial UNIQUE `(rid, content_hash)` on live rows — the content hash is the dedup constraint, not just a pre-check. A concurrent double-click save of a numberless invoice (NULL invoice_number, so the supplier-number unique does not apply) loses the race via onConflictDoNothing → empty RETURNING → duplicate (issue #237). Partial on live rows so a soft-deleted invoice can be re-saved.
+
+**`const invoiceAuditLog`**
+
+- Actions `'soft_delete' | 'restore' | 'hard_delete'`.
+
+**`property productId`**
+
+- Resolved product (issue #298). Nullable during transition: historical line items stay unlinked until backfilled; consumers fall back to the normalized description.
+
+**`property unitsPerPack`**
+
+- Pack structure parsed from the description/unit (issue #299). All nullable — populated only when a size could be determined. `normalizedUnitPrice` is unit_price per base unit (€/kg, €/L or €/ud), what price analytics and price-shock compare across different pack sizes.
+
+**`const invoiceLineItems`**
+
+- `(rid, description)` index: the restaurant_id prefix lets RLS-scoped price-history queries skip the invoice join.
+
+**`const products`**
+
+- Per-tenant canonical product, plus the many raw invoice descriptions that map to it (product_aliases) — issue #298. Together they turn "the string a supplier printed" into a stable entity for cross-supplier price comparison. `name_key`/`raw_key` store `normalizeProductKey(...)` of the display text; see src/lib/server/normalize.ts and `mep_norm_key` in Postgres.
+
+**`property unitsPerPack`**
+
+- Pack-to-base-unit conversion (e.g. "1 saco = 10 kg"), set via the Products CRUD page. Resolves the `unit_conversion_needed` alert for this product (src/lib/server/invoice-save.ts) once both are filled in.
+
+**`const products`**
+
+- Unique `(rid, name_key)` — concurrent saves of the same new product converge via ON CONFLICT instead of racing to insert.
+
+**`property source`**
+
+- How an alias was created: `'exact'` (auto, normalized-key match/new product), `'fuzzy'` (auto-linked via pg_trgm — needs confirmation), `'user'` (confirmed), `'llm'` (Phase 4). `confirmed_at IS NULL` ⇒ a pending suggestion.
+
+**`const productAliases`**
+
+- Unique `(rid, raw_key)` — a raw invoice description resolves to exactly one product per tenant. Partial index on pending suggestions for the review UI.
+
+**`const llmUsageLog`**
+
+- LLM cost tracking.
+
+**`const monthlyUsage`**
+
+- Atomic monthly extraction counter (issue #244). One row per tenant per month; the worker claims a slot with a single increment-with-cap UPDATE before spending a Gemini call, so N parallel uploads can't all read "remaining = 1" and burst past the plan limit. The page-level invoice count stays advisory UX only.
+
+**`const idempotencyKeys`**
+
+- The single claim-once ledger (issue #389), replacing `processed_requests` (#250), `whatsapp_processed_messages` (#245) and `stripe_webhook_events` (#240). Every caller claims a (scope, key) before acting; a replay finds the row present and becomes a transparent no-op. `key` is text, not uuid, because the scopes disagree on key shape — form submits use a client UUID, Meta and Stripe use their own ids. restaurantId is nullable: webhook claims happen before a tenant is known, while tenant-scoped claims still cascade away with the restaurant.
+
+**`const uploadBatches`**
+
+- Replaces the upload_sessions JSON-blob chain. One batch per upload, one item per invoice. Status/error/extracted_data are separate columns so the web and worker processes update only the fields they own — lost updates from whole-blob read-modify-write are structurally impossible.
+
+**`property status`**
+
+- `pending | queued | extracting | done | failed | confirmed | discarded`. Web owns creation, pending→queued, done→confirmed/discarded. Worker owns queued→extracting→done|failed and extracted_data.
+
+**`const whatsappContacts`**
+
+- WhatsApp bot bindings. `phoneNumber` is E.164 without leading '+', e.g. "34612345678".
+
+**`const whatsappAccountEvents`**
+
+- Account-level WhatsApp webhook events (issue #321). One WhatsApp Business number per tenant, so Meta's per-number quality rating is shared: blocks caused by one restaurant's staff degrade the rating for all, and a sufficiently degraded number can be restricted — stopping ingest for every tenant simultaneously. Nothing is tenant-scoped, because the WABA is not; this is platform state. Recording gives a history to read when someone asks "when did this start?".
+
+**`property field`**
+
+- Meta's webhook field, e.g. `'account_update'`, `'phone_number_quality_update'`.
+
+**`property event`**
+
+- The event name inside it, e.g. `'FLAGGED'`, `'ACCOUNT_RESTRICTION'`.
+
+**`property qualityRating`**
+
+- `GREEN | YELLOW | RED`, when the payload carries one.
+
+**`property messagingLimit`**
+
+- Messaging tier, e.g. `'TIER_1K'`.
+
+**`property severity`**
+
+- `info | warning | critical` — how loudly this should be read.
+
+**`const whatsappPairingCodes`**
+
+- Self-service enrolment codes (issue #320). The owner generates one in Settings and the staff member messages it to the bot from the phone they will actually use, binding that number — captured from the webhook's `from` field, so it can never be mistyped. The code is stored in plaintext on purpose (the owner must read it back off the Settings page to relay it, and reloading must not lose it); it is defended by being single-use, short-lived and rate-limited on redemption.
+
+**`property displayName`**
+
+- Optional label carried onto the contact row when the code is redeemed.
+
+**`property redeemedBy`**
+
+- The number that redeemed it — kept for audit, not used for lookup.
+
+**`const whatsappPairingCodes`**
+
+- Global unique on `code`, because redemption resolves the tenant *from* the code, exactly as the bot resolves it from the sender's number.
+
+**`const userConsents`**
+
+- GDPR consent audit trail (issue #201): one row per user per policy version. Written server-side only; keyed by the Auth.js user id (not restaurant-scoped — consent precedes onboarding).
+
+**`const subscriptions`**
+
+- Plan tier `'trial' | 'starter' | 'pro' | 'business'`; status default `'trialing'`.
+
+**`property lastEventAt`**
+
+- Stripe `event.created` of the last lifecycle event applied to this row. The updated/deleted webhook branch skips events older than this so a delayed `updated(past_due)` can't clobber a newer `updated(active)` (out-of-order protection, issue #240).

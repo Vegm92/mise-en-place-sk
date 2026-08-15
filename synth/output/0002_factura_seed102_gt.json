@@ -1,0 +1,137 @@
+{
+  "supplier_name": "Congelados De L'Empordà S.L.U.",
+  "invoice_number": null,
+  "invoice_date": "2026-04-14",
+  "due_date": "2026-04-29",
+  "total_amount": 299.01,
+  "currency": "EUR",
+  "confidence": 1,
+  "line_items": [
+    {
+      "description": "Cava brut nature bot. 750ml",
+      "quantity": 2,
+      "unit": "botella",
+      "unit_price": 9.57,
+      "total_price": 19.14
+    },
+    {
+      "description": "Zanahoria",
+      "quantity": 5,
+      "unit": "kg",
+      "unit_price": 0.79,
+      "total_price": 3.95
+    },
+    {
+      "description": "Agua mineral sin gas 1.5L",
+      "quantity": 1,
+      "unit": "botella",
+      "unit_price": 0.64,
+      "total_price": 0.64
+    },
+    {
+      "description": "Pechuga de pollo",
+      "quantity": 5,
+      "unit": "kg",
+      "unit_price": 6.71,
+      "total_price": 33.55
+    },
+    {
+      "description": "Vino tinto Rioja crianza bot. 750ml",
+      "quantity": 3,
+      "unit": "botella",
+      "unit_price": 10.4,
+      "total_price": 31.2
+    },
+    {
+      "description": "Ternera picada",
+      "quantity": 0.5,
+      "unit": "kg",
+      "unit_price": 7.94,
+      "total_price": 3.97
+    },
+    {
+      "description": "Mantequilla sin sal",
+      "quantity": 1.5,
+      "unit": "kg",
+      "unit_price": 7.57,
+      "total_price": 11.36
+    },
+    {
+      "description": "Crema de leche vegetal",
+      "quantity": 4,
+      "unit": "L",
+      "unit_price": 4.43,
+      "total_price": 17.72
+    },
+    {
+      "description": "Cebolla blanca",
+      "quantity": 1.5,
+      "unit": "kg",
+      "unit_price": 1.15,
+      "total_price": 1.73
+    },
+    {
+      "description": "Azúcar monodosis sobres caja 500",
+      "quantity": 12,
+      "unit": "caja",
+      "unit_price": 9.92,
+      "total_price": 119.04
+    },
+    {
+      "description": "Pasta espagueti seca",
+      "quantity": 5,
+      "unit": "kg",
+      "unit_price": 1.45,
+      "total_price": 7.25
+    },
+    {
+      "description": "Arroz redondo",
+      "quantity": 0.5,
+      "unit": "kg",
+      "unit_price": 0.96,
+      "total_price": 0.48
+    },
+    {
+      "description": "Cava brut nature bot. 750ml",
+      "quantity": -2,
+      "unit": "botella",
+      "unit_price": 9.57,
+      "total_price": -19.14
+    }
+  ],
+  "_meta": {
+    "synth_version": "0.1.0",
+    "seed": 102,
+    "doc_type": "factura",
+    "template": "factura_legacy_90s.html",
+    "difficulty": "hard",
+    "supplier_cif": "Z84159887",
+    "iva_breakdown": [
+      {
+        "rate": 0.04,
+        "base": 19.09,
+        "cuota": 0.76
+      },
+      {
+        "rate": 0.1,
+        "base": 60.92,
+        "cuota": 6.09
+      },
+      {
+        "rate": 0.21,
+        "base": 170.02,
+        "cuota": 35.7
+      }
+    ],
+    "degradations": [],
+    "mutations": [
+      "wrong_iva_math",
+      "negative_quantity",
+      "missing_invoice_number"
+    ],
+    "missing": [
+      "invoice_number"
+    ],
+    "rendered_pdf_pages": 1
+  }
+}

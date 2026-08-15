@@ -134,3 +134,94 @@ guard; quota arithmetic.
 - Access/quota gates respond correctly at the boundary (402/403/quota).
 - Tests: `tests/billing.test.ts`, `tests/stripe-webhook.test.ts`
   (signature verification, all branches, dedup, out-of-order).
+
+## Code notes
+
+### `src/routes/(app)/billing/+page.server.ts`
+
+**`property available`**
+
+- False when `STRIPE_PRICE_ID_<TIER>` is unset (issue #286).
+
+**`property checkout`**
+
+- An unavailable tier is a deployment misconfiguration → form error, not a 500 (issue #286).
+- Refuse a second checkout while a live subscription exists — a double Checkout would charge the same card twice; plan changes go through the Customer Portal (issue #239).
+- Per-submit idempotency key (issue #250): a replay lands back on /billing, where a fresh page load mints a new key for a genuine retry. The same key is reused as the Stripe idempotency key so a proxy retry can't create a second session (#239), then released so the user can retry after a Stripe hiccup.
+- `checkout_started` (issue #253) measures checkout drop-off against `plan_upgraded`, which only fires on webhook success.
+
+### `src/routes/(app)/billing/+page.svelte`
+
+**`const upgradeMessage`**
+
+- Sent here by the upload gate once the trial lapses (issue #287).
+
+**`const idempotencyKey`**
+
+- One per page load so a double-submit can't create two Stripe checkout sessions (issue #250).
+
+**`markup`**
+
+- Status card + plan card (the latter only when `data.status !== 'active'`).
+
+### `src/routes/api/stripe-webhook/+server.ts`
+
+**`const POST`**
+
+- Stripe delivers events here (URL configured in the Stripe dashboard).
+- Signature failures are expected noise (forged/misconfigured senders) and un-retryable → 400. Anything else is a real handler failure → report and return 500 so Stripe retries and flags the endpoint (issue #253).
+
+### `src/lib/server/billing.ts`
+
+**`const secretKey`**
+
+- Stripe billing integration; without `STRIPE_SECRET_KEY` the module is a no-op (dev-safe).
+
+**`class WebhookSignatureError`**
+
+- Thrown when the Stripe signature doesn't verify — expected, un-retryable (400). Other throws are real handler failures the route must surface as 500 so Stripe retries and Sentry sees them (issue #253).
+
+**`interface TierConfig`**
+
+- `stripePriceId` per tier; `maxLocations` = how many restaurants one subscription covers (issue #290).
+
+**`const TIERS`**
+
+- Prices are managed in Stripe; quotas + features define each tier. Starter €49/mo (~50–80 invoices), Pro €99/mo, Business €199/mo (custom for chains); trial has no price id.
+- Quota convention (issue #295): `settings.plan_quota` = `'unlimited'` | positive n | missing → tier's configured quota. Legacy rows stored the magic `99999` instead of the sentinel (`LEGACY_UNLIMITED_QUOTA`); `null` means unlimited at every call site. `resolveMonthlyQuota`/`getMonthlyQuota` apply the convention; `applyTierSettings` mirrors `plan_name`/`plan_quota` into settings so the layout serves them without a subscriptions join.
+
+**`function isTierAvailable`**
+
+- True when the tier has a Stripe price id configured.
+
+**`function tierFromPriceId`**
+
+- Falls back to `starter` for unknown/legacy price ids — but never silently (issue #286): an unmatched price would quota a €199/mo Business customer at 100 invoices, so it logs at error level and reports to Sentry.
+
+**`function billingRestaurantId`**
+
+- The restaurant whose subscription pays for `restaurantId` (issue #290): a multi-location child carries `parent_id` and no subscription of its own and resolves to its parent; a standalone restaurant resolves to itself.
+
+**`interface AccessState` / `function getAccessState`**
+
+- Gates paid capacity — uploads, extraction, AI chat (issue #287); read access to existing data is never gated. `trialExpired` gets its own copy. A missing subscription row is treated as allowed (only rows created outside onboarding hit that path).
+
+**`function getOrCreateCustomer`**
+
+- Serialized against itself (issue #239): a per-restaurant advisory lock + the Stripe idempotency key stop concurrent checkouts from orphaning a customer.
+
+**`function createCheckoutSession`**
+
+- Stripe idempotency key (issue #239) stops a proxy-level retry minting a second Checkout session (and therefore a second subscription).
+
+**`function cancelSubscription`**
+
+- Idempotent and safe to retry: an already-cancelled/missing subscription (`resource_missing`) counts as success so account deletion (issue #246) never wedges; no-op without Stripe configured (dev).
+
+**`function handleWebhookEvent`**
+
+- Production rejects unverified webhooks (forged events could mutate subscription state); dev may skip for local testing.
+- Event-id dedup through the shared ledger under the `stripe-webhook` scope (issue #240 → #389): Stripe retries deliveries for up to 3 days; the claim runs before the switch so every event type is covered.
+- Out-of-order protection (issue #240): a delayed `updated(past_due)` after `updated(active)` must not revert a paying customer — applied only when `event.created` ≥ the last recorded event.
+- Payment-lifecycle telemetry (issue #253): past_due/cancel events were previously invisible.
+- On handler failure the dedup claim is released so Stripe's retry reprocesses the event instead of being suppressed as a duplicate (#240 + #253).

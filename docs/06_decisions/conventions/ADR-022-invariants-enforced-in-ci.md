@@ -73,7 +73,7 @@ source. Only machine-directed pragmas survive: `@ts-*`, `eslint*`,
 `svelte-ignore`, `prettier-ignore`, `@vite-ignore`, coverage ignores,
 `/// <reference`, `@license`/`@preserve`.
 
-Explanation lives in `docs/CODE_NOTES.md`, structured to mirror the source tree.
+Explanation lives in per-subsystem `## Code notes` sections, structured to mirror the source tree.
 The reasoning: comments drift from the code they describe and nothing detects it,
 while a separate document is explicitly a document — reviewed as prose, updated as
 prose, and never mistaken for something the compiler checks.
@@ -94,10 +94,13 @@ consumed by a linter rather than by a reader.
 - **False positives are handled by annotation or allowlist**, never by weakening
   a gate. A gate with a documented exception is stronger than a gate that stopped
   running.
-- **The no-comments rule puts a real burden on `CODE_NOTES.md`.** It is ~6 200
-  lines of explanation that must be updated alongside the code it describes, with
-  no mechanical check that it was. That is the accepted cost of keeping `src/`
-  free of drifting prose.
+- **The no-comments rule puts a real burden on the `## Code notes` sections.** The
+  explanations were once a single monolith that grew to ~6 200 lines; as of 2026-08
+  it was retired and split into condensed per-subsystem `## Code notes` sections,
+  still tracked under `docs/` and still structured by file. That removes the
+  single-bloated-file cost while keeping the policy: the notes must still be updated
+  alongside the code they describe, with no mechanical check that they were. That is
+  the accepted cost of keeping `src/` free of drifting prose.
 - **Adding an invariant means adding a gate.** If a rule matters enough to write
   in an ADR and can be checked mechanically, it belongs in `scripts/` and
   `ci.yml` — not only in prose.
