@@ -40,7 +40,7 @@ parsed here and re-checked at save.
 - **Routing**: `text_pdf` sends extracted text inline; `scanned_pdf`/`image`
   send base64 inlineData; `xml` → `parseEinvoice` (never Gemini).
 - **Retries**: 429/503 retried 3× (1 s/2 s/4 s) + wall-clock timeout
-  (`GEMINI_TIMEOUT_MS`, default 60 s) (`withRetry`, `extract.ts`).
+  (`GEMINI_TIMEOUT_MS`, default 120 s) (`withRetry`, `extract.ts`).
 - **Timeout cancels the request**: the timeout fires an `AbortController` that
   is threaded into the Gemini call (`config.abortSignal`), so a timed-out
   extraction actually tears down its HTTP request instead of leaking a live
