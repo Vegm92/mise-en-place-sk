@@ -117,7 +117,7 @@ plan and explicit human approval — it is never a silent convenience.
 - Webhook signatures, rate limits, input validation, CSP/X-Frame-Options and
   auth middleware must not be bypassed for convenience.
 - No `sql.raw()` (`lint:no-sql-raw`). No inline comments (`lint:no-comments` —
-  notes belong in `docs/CODE_NOTES.md`).
+  notes belong in the per-subsystem `## Code notes` sections).
 
 ## OBSERVABILITY
 

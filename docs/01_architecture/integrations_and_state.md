@@ -16,6 +16,20 @@ map for agents.
 | **Upstash Redis** | Outbound rate limiting | `UPSTASH_REDIS_REST_URL/_TOKEN`; unset → in-memory token bucket | Single-instance fallback (documented) |
 | **Railway Buckets** | Outbound file storage | `STORAGE_DRIVER=railway`, `AWS_*`; unset → local disk | Worker pulls to temp for non-local drivers |
 
+## AI usage rationale
+
+Where AI earns its keep and where it does not.
+
+- **Invoice extraction (all types)** — keep AI. Text PDFs still benefit: format-agnostic structuring across arbitrary supplier layouts is genuinely hard without it; vision handles scanned PDFs/images.
+- **Chatbot over DB data** — the right use of AI. Natural-language queries over structured invoice/supplier/stock data, grounded in a fixed DB snapshot (ADR-018 — no dynamic SQL).
+- **No Cloudflare Workers** — SvelteKit SSR already has DB access and env vars; workers only make sense for static frontends without a server.
+
+## SDK notes
+
+- Use `@google/genai` (new SDK), not `@google/generative-ai` (deprecated).
+- `GenerateFn` (`extract.ts`) is the test abstraction — inject a mock `(content) => Promise<string>` via `extractInvoice`'s `generateOverride` instead of an SDK object.
+- The response text is `response.text` (a string), not `result.response.text()` (a function call).
+
 ## State storage by mechanism
 
 - **Database** — everything durable: invoices, batches, notifications, chat,
@@ -71,3 +85,43 @@ guard: only apply `subscription.updated/deleted/paused/resumed` when
 - Dependency graph: `../00_system/dependency_map.md`
 - Env reference: `../../DEPLOYMENT.md`
 - Background jobs: `../05_operations/background_jobs.md`
+
+## Code notes
+
+### `src/lib/server/llm-provider.ts`
+
+**`interface LLMUsage`**
+
+- Swappable LLM provider abstraction. Production code uses `createLLMProvider()`; tests inject a mock via extractInvoice's `generateOverride`.
+
+**`const COST_PER_MILLION`**
+
+- Pricing per million tokens (USD) — verify against https://ai.google.dev/gemini-api/docs/pricing.
+
+### `src/lib/server/llm-quota.ts`
+
+**`function currentMonth`**
+
+- Per-tenant LLM cost quota enforcement and usage logging. Quota rows are optional — if no row exists for a tenant it is treated as unlimited. Checks are advisory (best-effort) and never block the extraction path on DB errors.
+
+**`function planQuotaLimit`**
+
+- Reads the tenant's plan invoice quota; null = unlimited. Shared convention lives in billing.getMonthlyQuota (issue #295).
+
+**`function claimMonthlyExtraction`**
+
+- Atomically claims one monthly extraction slot against the tenant's plan quota (issue #244). A single `INSERT … ON CONFLICT DO UPDATE … WHERE used < limit RETURNING` is race-safe: concurrent uploads serialise on the row, and only those under the cap get a row back. Empty return → quota exhausted, before any Gemini spend. No configured limit → always claimed. Seed at 1 on first insert; on conflict bump only while under the cap.
+
+**`function releaseMonthlyExtraction`**
+
+- Releases a previously claimed slot (extraction failed and shouldn't count against the quota). Never drops below zero. Best-effort — a lost decrement is self-correcting at month rollover.
+
+### `src/lib/server/quota-warning.ts`
+
+**`const QUOTA_WARNING_THRESHOLD`**
+
+- "Cuota próxima a agotarse" alert (issue #202): when a restaurant's monthly invoice usage crosses `QUOTA_WARNING_THRESHOLD` of its plan quota, email the owner once per calendar month. Called fire-and-forget after invoice saves — must never throw into the save path.
+
+**`function maybeSendQuotaWarning`**
+
+- Shared quota convention (issue #295) — null means unlimited, and an unlimited plan can never approach its cap. Claim the month flag BEFORE sending (guarded upsert, issue #249): two concurrent invoice saves at the threshold would otherwise both pass a read-then-send check and email the owner twice.

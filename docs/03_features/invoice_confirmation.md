@@ -124,3 +124,102 @@ shapes, `low_confidence_ack` value.
 - Tests: `tests/invoice-save-category.test.ts`,
   `tests/invoice-save-products.test.ts`, `tests/invoice-save-verifactu.test.ts`,
   `tests/dedup.test.ts`, `tests/idempotency.test.ts`, `tests/race-idempotency.test.ts`.
+
+## Code notes
+
+### `src/routes/(app)/batch/[id]/+page.server.ts`
+
+**`function statSize`**
+
+- Stat errors are ignored — size stays '—'.
+
+**`function findDuplicateInvoiceId`**
+
+- Read-only heads-up: same supplier (case-insensitive, matching the `uq_suppliers_rid_name` index) + same invoice number as an already-saved invoice. Coarser than the content-hash gate on save; exists so the user can discard before reviewing fields.
+
+**`function settledRedirect`**
+
+- All items reviewed → leave the page: confirmed invoices land on the dashboard, an all-discarded batch goes home.
+
+**`property save`**
+
+- The done→confirmed transition commits atomically with the invoice insert so a crash can't strand the item as reviewable (issue #248).
+- A replayed submit already saved on the first pass → `replay` lands on the batch page, which routes onward if settled.
+- Straight to `/invoices?saved=` with a toast (issue #235) — the interstitial page it replaced only said "saved ✓".
+
+**`property add`**
+
+- If extraction is already running, new items fold straight into the queue.
+
+**`const load`**
+
+- `getBatchItems()` keys off `batchId` alone, so ownership is checked here; a foreign batch id gets the same redirect as an empty one, keeping the two indistinguishable to callers.
+
+### `src/routes/(app)/batch/[id]/+page.svelte`
+
+**`const timer`**
+
+- Queue polling is the single feedback mechanism: while anything is queued/extracting, poll the batch status endpoint and reload server data on any status change. No simulated progress; network errors keep polling.
+
+**`type LineItem`**
+
+- Review form state.
+
+**`const lineItems`**
+
+- Synced from server data (not initialized once) — the active review item changes in place as invoices are confirmed.
+
+**`const lowConfAckItemId`**
+
+- The active review item changes in place (same component across batch items — the next invoice is a redirect back to this route, not a remount). Seeded with the current item, not null, so a fresh mount doesn't read as "item changed" and clobber the modal the effect just opened. A stale ack would silently bypass the server's low-confidence gate.
+
+**`const supplierNameInput`**
+
+- Editable header fields in local state so a correction survives a failed save (the low-confidence gate) instead of being overwritten by the server snapshot (issue #305); same "changed in place" guard as `lowConfAckItemId`.
+
+**`const idempotencyKey`**
+
+- One per review item (issue #250), regenerated only when the active item changes so a retry after a validation error reuses it.
+
+**`const focusedItemId`**
+
+- Focus the first uncertain field when a new review item appears.
+
+**`const addFiles`**
+
+- Add-more-file state.
+
+**`markup`**
+
+- Step cue for Upload → Extract → Review (issue #232); extract stays current while anything is in flight.
+- Two-column grid: queue + active panel. Doc viewer, cabecera fields, line items, totals footer, failed-item and in-flight panels.
+- The discard button sits visually inside the save form's header but targets an out-of-tree `#discard-item-form` — nesting real forms is invalid HTML.
+- Content-duplicate block + low-confidence review gate modals; `svelte-ignore a11y_no_static_element_interactions` on their click-catchers.
+
+### `src/routes/(app)/confirm/[id]/+page.server.ts`
+
+**`const load`**
+
+- Legacy route superseded by /batch/[batchId]: old links carry an item id, resolved to the batch when possible, otherwise home.
+
+### `src/lib/server/invoice-save.ts`
+
+**`type SaveOutcome`**
+
+- Shared by the extract review route and the batch page; pure outcome-returning (no redirects/HTTP) — callers translate the outcome into `fail()`/`redirect()`.
+
+**`function linkProductsToInvoice`**
+
+- Resolves each saved line to a catalog product and stamps `product_id` (issue #298); fuzzy auto-links raise a `product_suggestion` the review UI can confirm/reject. Fully self-contained and error-swallowing — enrichment, never a reason to fail a save. When nothing deterministic matched, asks the LLM asynchronously (issue #300).
+- Category for a supplier we may be about to create comes from the stored extraction, never the form (issue #315): it's a machine guess about the supplier, dropped when the confirmed name no longer matches the classified one; `resolveSupplierCategory` buckets anything unrecognised.
+
+**`function saveReviewedInvoice`**
+
+- Validates + persists a reviewed invoice. Does NOT transition the batch item on duplicates — callers decide. `onSaved` runs inside the same transaction so the confirm is atomic with the insert (issue #248).
+- Gate: block the save when any header field is low-confidence and unacknowledged.
+- Content-hash dedup: canonical hash over all user-confirmed fields; reject when a non-deleted invoice in the tenant already has it.
+- Idempotency claim inside the save transaction (issue #250): a replay finds the key and skips the save; the key is released so a corrected resubmit isn't skipped. `onConflictDoNothing` guards the concurrent-insert race.
+- Atomic supplier get-or-create (issue #238): concurrent saves converge on one row; supplier+number duplicate check runs too.
+- Pack structure → €/base for cross-size comparison (issue #299); link step runs post-commit and is explicitly non-critical (#248/#298/#299). Unit resolutions are pre-computed outside the transaction (`type LineInput`).
+- Supplier contact fields (CIF/NIF, address, email, phone) are only trusted when the reviewed supplier name still matches extraction — retargeting to a different supplier must not overwrite its contacts.
+- VERI\*FACTU QR tamper check (issue #392): the QR is decoded off the document and never re-derived from reviewed/submitted fields; runs unconditionally before the insert so every invoice with a decodable AEAT QR gets it.

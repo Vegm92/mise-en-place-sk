@@ -136,3 +136,148 @@ Quota, access, classification, JSON shape, error classification.
 - Tests: `tests/extract.test.ts`, `tests/extract-batch.test.ts`,
   `tests/einvoice-parser.test.ts`, `tests/llm-provider.test.ts`,
   `tests/pdf-text-layer.test.ts`, `tests/dead-letter*.test.ts`.
+
+## Code notes
+
+### `src/routes/batch/[batchId]/confirm/[id]/+page.server.ts`
+
+**`const load`**
+
+- Legacy route — superseded by /batch/[batchId]; old links carry an item id, resolve to the batch when possible, else home. Inert by design: only pre-ADR-002 survivor, a pure redirect for old email/bookmark links. #441 tracks confirming it's quiet and deleting both — no expiry date otherwise.
+
+### `src/lib/server/einvoice-parser.ts`
+
+**`type EinvoiceFormat`**
+
+- Structured e-invoice parser for Facturae 3.2.x and UBL 2.1 (EN 16931). XML uploads skip Gemini entirely — fields arrive structured at confidence 1.0. Facturae 3.2.2 = Spain national (B2G via FACe, also B2B private); UBL 2.1 = EU standard (EN 16931, mandatory for Spain's SPFE public platform).
+
+**`const parser`**
+
+- Keep attribute values as strings; parse numeric element values. 'Invoice' omitted from `isArray` — the UBL root (always singular), a Facturae child only inside <Invoices> (getArr()).
+
+**`const parser`**
+
+- `skipLike` excludes a leading `+` (e.g. `+34915552233`) — the parser would otherwise coerce it to a number and drop the sign.
+
+**`function getChild`**
+
+- Generic helpers.
+
+**`const FACTURAE_UNIT_CODES`**
+
+- Facturae 3.2.x UnitOfMeasureType, complete per spec (#297): 01 Unidades, 02 Kilos, 03 Litros, 04 Metros, 05 m2, 06 m3, 07 Gramos, 08 Kg (same as 02), 09 t, 10 m/s, 11 L/s, 12 m/s2, 13 m3/s, 14 horas, 15 días, 16 Kwh, 17 Kw, 18 Latas, 19 Centímetros, 20 cm2, 21 cm3, 22 Kilómetros, 23 km2, 24 km3, 25 Docenas, 26 Toneladas (UK), 27 Paquetes, 28 Balas, 29 Cajas, 30 Cientos, 31 Gruesas, 32 Mil unidades, 33 Megawatts, 34 Gigajulios, 35 Megajulios, 36 Kwh/m2. The previous map ('02'→kg, '03'→L, …) didn't match the spec and mislabeled every real Facturae invoice. null = no food-relevant canonical unit — leave empty rather than invent one.
+
+**`function parseFacturae322`**
+
+- Root element may be prefixed (namespace removed) or plain 'Facturae'.
+
+**`property unit`**
+
+- Numeric spec code → canonical unit; literal text ("kg") → canonicalizeUnit. Unknown → null (flagged for conversion), never a fake unit.
+
+**`function parseFacturae322`**
+
+- Payment terms live in PaymentDetails, omitted for Phase 1.
+
+**`function parseUbl21Invoice`**
+
+- Spanish NIF can be in PartyTaxScheme/CompanyID or PartyLegalEntity/CompanyID.
+
+**`const line_items`**
+
+- UN/ECE Rec 20/21 codes (KGM, LTR, C62, XBX…) → canonical unit via the shared synonym map (#297); previously raw codes were lowercased ("kgm") and unrecognised, so every UBL line demanded a manual conversion rule. Unknown → null.
+
+**`type ParsedEinvoice`**
+
+- Public API: `ExtractedInvoice` plus the e-invoice format.
+
+**`function parseEinvoice`**
+
+- Auto-detects the XML format and delegates; null if not recognised.
+
+### `src/lib/server/batches/extract-batch.ts`
+
+**`interface BatchEnqueueDeps`**
+
+- Marks every open item queued and sends one pg-boss job each, idempotently. Deps injected (no module-level db/pg-boss) for infra-free tests. Guarded pending/failed → queued; false otherwise.
+
+**`function enqueueBatchExtraction`**
+
+- Idempotent: worker-owned (extracting) or settled (done/confirmed/discarded) items untouched; `queued` re-sent (pg-boss singletonKey dedups; never an error); `failed` re-queue — the retry path.
+### `src/lib/server/extract.ts`
+
+**`const EXTRACTION_PROMPT`**
+
+- Classifies a file, prepares LLM input, returns structured invoice data. No DB access, no side effects. XML: structured parser directly, Gemini skipped. Image/PDF: Gemini vision or text extraction.
+
+**`interface ExtractedInvoice`**
+
+- Category the model proposes (#315) — raw output, never trusted; run through `resolveSupplierCategory` before `suppliers.category`. e-invoicing extensions (optional): `supplier_nif`, `qr_url` (AEAT/TicketBAI verification URL), `qr_mismatch` (QR vs AI conflict), `e_invoice_format` ('facturae_322' | 'ubl_21').
+
+**`type GenerateFn`**
+
+- Abstracted generate function — decoupled from the SDK so tests inject a mock.
+
+**`function classifyPdf`**
+
+- Pull the PDF text layer to decide text vs page images. Uses unpdf (maintained pdf.js build) over the unmaintained pdf-parse (#225); dynamic import so tests can mock and the bundle loads only for real PDFs. Malformed/encrypted/slow PDFs fall back to vision.
+
+**`function callGemini`**
+
+- Never embed the raw response — customer invoice content (names, amounts, tax IDs) would ship to logs/Sentry (#254).
+
+**`function extractInvoice`**
+
+- Structured XML path — skip Gemini, use the deterministic parser.
+
+**`function callProvider`**
+
+- Provider-based path (production — returns token usage). Never embed the raw response (#254).
+
+**`function extractWithProvider`**
+
+- Structured XML path — no LLM tokens consumed.
+
+**`interface ExtractedInvoice`**
+
+- The `supplier_*` fields all describe the *supplier*, never the buyer/restaurant; each optional because a document may simply not print it — leave null rather than fabricate.
+
+### `src/lib/server/normalize.ts`
+
+**`function normalizeProductKey`**
+
+- Shared product/unit normalization (#296). TS-side definition of "same product" (lowercase, accent-folded, whitespace-collapsed) — MUST stay in lockstep with the SQL twin mep_norm_key (drizzle/0018_product_key_normalization.sql), used by materialized views and cross-invoice matching. `canonicalizeUnit` folds supplier spellings and e-invoice codes — "Kgs"/"KILO"/"KGM" → "kg"; unknown → null so callers flag requiresUnitConversion. Pure module — no DB imports, safe for worker and tests.
+
+**`const UNIT_GROUPS`**
+
+- canonical spelling → accepted variants (after normalizeProductKey + trailing-dot strip; lowercase/unaccented). UN/ECE Rec 20/21 codes (UBL unitCode) folded in directly: KGM, LTR, C62…
+
+**`function canonicalizeUnit`**
+
+- Canonical form or null (→ requiresUnitConversion). Sized-container formats ("media caja", "garrafa 5L") deliberately NOT mapped — they need a conversion factor, not a pass-through.
+
+### `src/lib/server/qr.ts`
+
+**`interface AeatVerifactuQrData`**
+
+- VERI*FACTU / TicketBAI QR parsing and verification. AEAT URL format (Orden HAC/1177/2024): `ValidarQR?nif=X&numserie=Y&fecha=DD-MM-AAAA&importe=N.NN` (+ NoVerifactu path). TicketBAI by territory: Bizkaia batuz.eus/QRTBAI, Gipuzkoa tbai.gipuzkoa.eus/qr, Araba araba.eus/tbai/qr.
+
+**`function parseQrUrl`**
+
+- Decoded QR string → structured data; null if not a recognised Spanish e-invoice verification URL.
+
+**`function qrFechaToIso`**
+
+- DD-MM-AAAA → YYYY-MM-DD; null if not recognised.
+
+**`function isoToQrFecha`**
+
+- YYYY-MM-DD → DD-MM-AAAA.
+
+**`function detectVerifactuMismatch`**
+
+- Mismatches between VERI*FACTU QR fields and AI-extracted fields. VERI*FACTU only — TicketBAI encodes an opaque ID, not raw fields.
+
+**`function buildAeatVerificationUrl`**
+
+- AEAT verification URL from a parsed QR result — the "Verificar en AEAT" deep link on the invoice detail page.

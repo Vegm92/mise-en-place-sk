@@ -11,8 +11,9 @@ src/routes/
 ├── +layout.svelte                     # root layout (CSP/theme)
 ├── +error.svelte
 ├── (app)/                             # authenticated app shell
-│   ├── +layout.server.ts              # tenancy, badges, quota, sentry tag
+│   ├── +layout.server.ts              # tenancy, badges, quota, onboarding flag, sentry tag
 │   ├── +layout.svelte                 # sidebar + header (nav, bell, chat FAB, locale)
+│   ├── +error.svelte
 │   ├── +page.server.ts                # upload action + landing redirect
 │   ├── dashboard/                     # KPIs, trend, top suppliers, aging, alerts
 │   ├── invoices/                      # list/filter/search; export subroute
@@ -24,7 +25,7 @@ src/routes/
 │   ├── extract/[id]/                  # legacy redirect stub → /batch/[batchId]
 │   ├── suppliers/                     # list + detail [id] (spend, reliability)
 │   ├── products/                      # list + detail [id] (aliases, merge, conversions)
-│   ├── budgets/                       # monthly category budgets
+│   ├── budgets/                       # limits + current-month spend (progress bars)
 │   ├── reminders/                     # overdue/due-soon + alerts hub (mark-paid, accept/reject)
 │   ├── analytics/
 │   │   ├── spend/                     # MV-based spend analytics
@@ -82,12 +83,21 @@ src/routes/
   `pending`/`accepted`, `due_date < CURRENT_DATE`) + pending `budget_overage`
   with payload `level='exceeded'` — deliberately not the full pending count.
 - **Onboarding gate**: supplier/product/analytics/budgets/digest/chat are hidden
-  until `settings.has_completed_onboarding` (set on first confirmed invoice).
+  until `settings.has_completed_onboarding` (default `false`). The extract-save
+  action checks the flag on every invoice save; while `false` it flips it to
+  `true` and redirects to `/dashboard?first_invoice=1` instead of the normal
+  save-confirmation route. The dashboard reads the query param for a one-time
+  congratulations banner; upload and extract-review pages show tailored copy
+  while the flag is `false`. The flag is server-side (DB), not session-based,
+  so it persists across browsers; `(app)/+layout.server.ts` exposes it as
+  `hasCompletedOnboarding` to every child page via layout data.
 
 ## Auth rules
 
-- Public whitelist: `login`, `signup`, `waitlist`, `api/auth`, webhooks,
-  `api/health`, `privacy`, `terms`, `robots.txt`, `sitemap.xml`.
+- Public whitelist (`isPublicPath()` in `hooks.server.ts`): `/login`,
+  `/signup`, `/forgot-password`, `/reset-password`, `/verify-email`,
+  `/privacy`, `/terms`, `/robots.txt`, `/sitemap.xml`, `/api/health`,
+  `/auth/*`, `/waitlist`, `/api/stripe-webhook`, `/api/whatsapp/webhook`.
 - `/api/*` unauthenticated → 401 JSON; page unauthenticated → redirect
   `/login?redirectTo=...`.
 - `/admin*` → `isAdminUser` (`AUTH_ADMIN_EMAIL`) else redirect `/`.
@@ -117,3 +127,119 @@ src/routes/
 - `safe()` (`load-guard.ts`) wraps admin/revenue loads so a degraded backend
   renders instead of 500.
 - All routes inherit the auth hook; never re-implement auth inside a route.
+
+## Route-level notes
+
+- **`budgets/+page.server.ts`**: loads both the budget limits (`categoryBudgets`)
+  and the current-month category spend (aggregated from
+  `invoiceLineItems + invoices + suppliers` via a raw SQL join), and passes
+  `category_spend` + `colors` to the page so the UI renders progress bars and
+  projections without a separate API call.
+- **`invoices/export/download/+server.ts`**: exports the invoice list as a styled
+  `.xlsx` via `exceljs` (not CSV) — header row, banded rows, autofilter, amber
+  accent to match the dashboard.
+- **`billing/`**: lives inside the `(app)` group so it renders in the
+  authenticated shell/sidebar (it used to be a standalone top-level route with
+  its own bare layout). Renders tiered plan cards (Starter/Pro/Business) + a
+  feature matrix sourced from `TIERS`/`getTierFeatures()` in `billing.ts`.
+- **`api/chat/+server.ts`**: POST chatbot endpoint (Gemini + DB context);
+  persists messages to `chat_sessions`/`chat_messages`, parses an optional
+  `ACTIONS:[...]` block from the Gemini response and returns
+  `{ reply, actions, sessionId }` (up to 2 action buttons); creates a new
+  session when none is supplied.
+- **`chat/+page.svelte` + `+page.server.ts`**: chat history page listing all
+  sessions ordered by `updatedAt`; `?session=<id>` loads a specific session;
+  `deleteSession` form action cascade-deletes its messages.
+- **`api/upload/[id]/[file]/+server.ts`**: serves the uploaded invoice file
+  (PDF/image) for the in-app preview iframe; path-traversal guarded,
+  session-scoped, `Cache-Control: private, no-store`.
+- **`invoice/[id]/file/+server.ts`**: serves a saved invoice's source file via
+  `getStorage().read(key)`; tenant-scoped by `restaurantId`,
+  `Cache-Control: private, no-store`. Backs the invoice detail page's `<iframe>`
+  preview and its "Download PDF" link.
+- **`reminders/`**: single hub for everything needing attention — overdue and
+  due-soon invoices plus `systemNotifications` (price shocks, low stock, budget
+  overage, uncategorized suppliers, product/conversion suggestions), grouped
+  into fixed sections by type. `NotificationItem.svelte` +
+  `notification-display.ts` (icon/color/`groupNotifications()`) hold the shared
+  per-notification render + grouping logic, reused by the reminders page,
+  `MobileAlerts.svelte` and the header `NotificationBell.svelte` (a lightweight
+  top-5 preview linking to `/reminders`, not a second full implementation). The
+  nav badge (`reminderBadge` in `+layout.server.ts`) counts only
+  urgent/actionable items — overdue invoices + budget-`exceeded` — not the full
+  pending count.
+- **Extraction review flow**: upload creates one `upload_batches` row + one
+  `batch_items` row per file (`batch-core.ts`), then `enqueueBatchExtraction()`
+  (`extract-batch.ts`) fans out a pg-boss job per pending/failed item.
+  `src/worker.ts` runs a separate process with `batchSize: 1` (strictly
+  sequential); `extraction-worker.ts` claims each item (`queued→extracting`),
+  calls Gemini, and writes `extracted_data`/`conversion_notes` via a guarded
+  `markDone`. All status transitions are guarded
+  `UPDATE ... WHERE status IN (...)` (`batch-core.ts`), so races between the
+  web process and the worker degrade to safe no-ops. `/batch/[id]` is the
+  review/confirm UI — `pickActiveItem()` surfaces the first `done` item (else
+  the first `failed`) and the page polls `api/batch-status/[id]` every 2.5 s as
+  its one feedback channel; `invoice-save.ts`'s `saveReviewedInvoice()` owns
+  the low-confidence save gate and the `done→confirmed` transition. The batch
+  load also runs a coarse same-supplier + same-invoice-number pre-check
+  (`duplicateOfId`) as an earlier, cheaper signal than the exact content-hash
+  gate on submit — surfaced as an inline warning before review, with a discard
+  action on the block modal. `/pending/` is gone and `/extract/[id]` is now a
+  legacy 303-redirect stub to `/batch/[batchId]`.
+- **`waitlist/`**: pre-launch landing page. Two-column hero on desktop (copy
+  left, an `AppDashboardMock` styled after the real
+  `DesktopDashboard`/`KpiCard` on the right, hidden on phone); "how it works"
+  steps use scroll-reactive mock components (`src/lib/components/waitlist/`)
+  driven by `src/lib/waitlist/reveal.ts`'s scroll-into-view progress action. It
+  keeps its own `es`/`en` copy object and light/dark theme toggle independent
+  of the app i18n store/theme system; its mock components carry fixture-like
+  demo copy and are exempted from `scripts/check-i18n-strings.mjs`, same as the
+  page itself.
+
+## Code notes
+
+### `src/lib/server/idempotency.ts`
+
+**`const UUID_RE`**
+
+- The one claim-once ledger for the whole app (issue #389). Began as the form-submit helper of issue #250; #389 folded in the two dedup tables built separately for the same job — WhatsApp redelivery (#245) and Stripe redelivery (#240) — after a knowledge-graph pass flagged all three as the same shape. Without consolidation a fourth webhook would have meant a fourth bespoke table, and only one of the three was ever swept.
+- Claim inside the mutation's transaction where one exists, so a rolled-back save releases the key automatically. For a handled conflict that commits, call `releaseIdempotencyKey`/`releaseRequest` in the same transaction so a corrected resubmit isn't wrongly skipped.
+
+**`const FORM_SUBMIT_SCOPE` / `WHATSAPP_SCOPE` / `STRIPE_WEBHOOK_SCOPE`**
+
+- Scope is what keeps the callers from colliding now that they share a table: keys are only unique within a scope, so a Meta message id and a Stripe event id can never suppress one another. Exported constants rather than inline strings because migration 0032 backfilled the old rows under exactly these names — renaming one silently orphans that scope's history.
+
+**`const RETENTION_HOURS`**
+
+- Retention is per scope because the replay windows genuinely differ. Stripe retries a failed delivery for up to 3 days, so its claims must outlive that — 96h, with a margin. Meta's redelivery window is minutes and a form replay is a double-click, so 48h is already far beyond either. An unlisted scope falls back to 48h, so a new caller is swept from day one instead of growing unbounded.
+
+**`function isValidKey`**
+
+- True for a well-formed UUID key — anything else is ignored (best-effort). Guards the form-submit scope only; webhook scopes key off provider-issued ids, which are not UUIDs.
+
+**`function claimIdempotencyKey`**
+
+- Atomically claims a (scope, key). Returns true on the first claim, false when already claimed (a replay). Runs on the passed executor so it can join an enclosing transaction. restaurantId is optional because the webhook scopes claim before any tenant is resolved — the column exists so tenant-scoped claims still die with the tenant, as under `processed_requests`.
+
+**`function releaseIdempotencyKey`**
+
+- Releases a claimed key (e.g. a handled conflict that still commits, or a webhook handler that threw). Scoped delete: releasing a WhatsApp claim must not free the identically-named key in another scope.
+
+**`function claimRequest`**
+
+- The form-submit scope bound into the old two-argument signature. Kept because the five call sites in routes and invoice-save.ts pass an enclosing transaction and read as claim/release pairs; ADR-008's retry flow depends on that pairing, so the refactor deliberately left it alone.
+
+**`function releaseRequest`**
+
+- Releases a claimed form-submit key (e.g. a handled conflict that still commits).
+
+**`function sweepIdempotencyKeys`**
+
+- One sweep for every scope, run from the worker's JOBS table rather than at web-process boot. The old placement in `hooks.server.ts` ran the cleanup on every deploy and never on a long-lived process — backwards for a retention job. The trailing `notInArray` pass catches scopes with no declared retention, so adding a caller without touching `RETENTION_HOURS` still can't leak rows forever.
+
+### `src/lib/server/public-form-action.ts`
+
+**`function publicFormAction`**
+
+- Issue #391: `login`, `signup`, `forgot-password`, and `waitlist` each reimplemented the same honeypot-check-then-rate-limit-then-handle shape, with the rate-limit policy (which keys, which caps) buried in each route. This wraps that shape: reject a filled `_hp` field before touching any limiter, then run every configured rule — not just until the first failure — so a route keying on both IP and email (login, forgot-password) always consumes both buckets per attempt, matching the pre-refactor behaviour the tests pin. `onboarding` deliberately stays out: it is session-gated, not public, and has neither a honeypot nor a rate limit to share.
+- The rule that actually blocked (not just "any rule failed") decides the `scope` reported to auth telemetry, so a per-IP block and a per-email block are distinguishable in the event stream.

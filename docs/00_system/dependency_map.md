@@ -107,7 +107,7 @@ refreshed nightly (`10 3 * * *`). Consumers: `/analytics/*`, dashboard,
 | No raw SQL string building | `sql.raw()` banned | `lint:no-sql-raw` |
 | Idempotency | contentHash, `idempotency_keys` (one ledger, scoped per caller) | code + tests |
 | Localization | all user-facing strings via `src/lib/i18n.ts` | `lint:i18n` |
-| No inline comments | comments → `docs/CODE_NOTES.md` | `lint:no-comments` |
+| No inline comments | comments → per-subsystem `## Code notes` sections | `lint:no-comments` |
 | Migration sync | `schema.ts` ↔ `drizzle/` | `pnpm db:check-sync` (CI) |
 | Type safety | strict TS + `svelte-check` | `pnpm check` (CI) |
 

@@ -107,3 +107,39 @@ Message length; tenant scope; session ownership; entitlement.
 - Tests: none dedicated to chat exist (schema is covered in
   `tests/db-schema.test.ts`); verification is manual via the verify skill —
   see `docs/04_engineering/testing_strategy.md` for this gap.
+
+## Code notes
+
+### `src/routes/(app)/api/chat/+server.ts`
+
+**`const POST`**
+
+- AI chat is paid capacity: an expired trial keeps its data but stops spending (issue #287); 402 so the client can show upgrade copy rather than a generic failure.
+- Rate limit keyed by authenticated user, not client IP (`chat:${locals.user!.id}`, `CHAT_RATE_LIMIT_RPM`) — behind a proxy every user shares one IP, and IP-keying would let one tenant exhaust the global chat budget.
+- Session is resolved or created; an existing id must belong to this tenant.
+- System instruction is entirely server-controlled. Restaurant data sits in `<restaurant_data>` tags so the model treats it as data, not instructions, even if supplier names or invoice text contain adversarial strings.
+
+**`property contents`**
+
+- The user message stays in the user turn — never concatenated into the system instruction.
+
+**`const POST`**
+
+- Persists the assistant reply after the LLM turn.
+
+### `src/routes/(app)/chat/+page.server.ts`
+
+**`const load`**
+
+- Only accepts a `?session=` id that belongs to this tenant; otherwise falls back to the most recent session rather than leaking another tenant's chat.
+
+### `src/routes/(app)/chat/+page.svelte`
+
+**`function sendMessage`**
+
+- Trial lapsed → paid capacity off, but the data stays.
+- On error nothing was persisted on the assistant side: `invalidateAll()` would rerun `load` and the effect resyncs `messages` from unchanged server data, silently wiping the error bubble before it's seen (issue #306) — so it's appended locally and the flow stops.
+
+**`markup`**
+
+- Fixed left slide-over sidebar toggled by the Historial button; main chat area (top bar with historial + new chat, messages), and a privacy-note + input footer.

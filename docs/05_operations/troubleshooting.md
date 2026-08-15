@@ -1,7 +1,7 @@
 # Troubleshooting
 
 Quick triage matrix. For deployment-specific failures, read `DEPLOYMENT.md`.
-For deep per-file explanations, `docs/CODE_NOTES.md`.
+For deep per-file explanations, see the per-subsystem `## Code notes` sections.
 
 ## Symptom → cause → fix
 
@@ -36,7 +36,7 @@ select * from mrr_snapshots order by month desc limit 6;
 
 ## Golden rules
 
-- **Read source before believing any doc.** Docs can drift; `CODE_NOTES.md` +
+- **Read source before believing any doc.** Docs can drift; the `## Code notes` sections +
   code are the map.
 - Never bypass a guard (signature, scope, dedup, content-hash) to "unblock".
 - `sql<number>` aggregates are strings — wrap in `Number(...)`.

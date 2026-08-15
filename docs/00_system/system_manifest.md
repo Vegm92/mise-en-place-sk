@@ -19,13 +19,17 @@ Spanish-first, bilingual (es/en). Product definition:
 
 - SvelteKit 2 + Svelte 5 (runes) + TypeScript, `@sveltejs/adapter-node`
 - Tailwind CSS 4 + shadcn-svelte / bits-ui (`components.json`)
-- Drizzle ORM + `postgres` (postgres.js), Railway Postgres, no RLS
-- Auth.js (`@auth/sveltekit`), JWT sessions, Credentials + Google OAuth
+- Drizzle ORM + `postgres` (postgres.js), Railway Postgres, no RLS (migrated
+  off Supabase Postgres, #366)
+- Auth.js (`@auth/sveltekit` + `@auth/drizzle-adapter`), JWT sessions,
+  Credentials + Google OAuth (migrated off Supabase Auth, #369/#372/#370)
 - Gemini (`@google/genai`, default `gemini-2.5-flash`) via provider seam
 - pg-boss background jobs in a separate worker process
 - Stripe, Resend, Meta WhatsApp Cloud API, Sentry, Upstash Redis (optional),
-  Railway Buckets (optional storage driver)
-- Vitest; GitHub Actions CI (`.github/workflows/ci.yml`)
+  Railway Buckets (S3-compatible, `t3.storageapi.dev`) — invoice storage via
+  `STORAGE_DRIVER=railway`
+- pdf-parse (text-PDF classification before sending to Gemini)
+- Vitest (unit + integration tests); GitHub Actions CI (`.github/workflows/ci.yml`)
 
 ## Entry points
 
@@ -64,12 +68,26 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 ## Authentication & tenancy
 
-- Auth.js in `src/lib/server/auth.ts`; JWT sessions; Credentials + Google.
+- Auth.js (`@auth/sveltekit`) in `src/lib/server/auth.ts`; JWT sessions;
+  `@auth/drizzle-adapter` persists users/accounts/sessions/verification tokens
+  over `schema/auth.ts`. Credentials (email/password via
+  `auth-credentials.ts#verifyCredentials`, self-signup through `/signup`) +
+  Google OAuth (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, Google Cloud Console).
+- Admin seeding: `seedAdminUser()` in `src/lib/server/auth-seed.ts` creates the
+  admin user + restaurant + `user_restaurants` link on first boot — no external
+  Admin API dependency.
+- Session validation: `event.locals.auth()` (Auth.js's `authHandle`) runs first
+  in `hooks.server.ts`'s `sequence()`; the app handle reads the resolved session.
+- Password reset / email verification: `verification-token.ts` + `email.ts`
+  (Resend) back `/forgot-password`, `/reset-password`, `/verify-email`; every
+  email kind renders through one `renderEmailLayout()`.
 - `locals.restaurantId` resolved per request from `user_restaurants` membership +
   the `active_restaurant` cookie, re-validated server-side on switch
   (`src/hooks.server.ts`, `(app)/api/active-restaurant/+server.ts`, ADR-014).
 - Tenant scoping: `forTenant().scope()` in `src/lib/server/tenant.ts`; enforced
-  by `lint:tenant-scope` + `lint:unscoped-query` CI gates (ADR-001/005/022).
+  by `lint:tenant-scope` + `lint:unscoped-query` CI gates (ADR-001/005/022). No
+  RLS — isolation relies on `locals.restaurantId` app-layer scoping, exercised
+  by the tenant-isolation tests.
 - Full detail: `docs/04_engineering/security_rules.md`.
 
 ## Background worker
@@ -157,7 +175,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 | "What does this table/column mean?" | `docs/01_architecture/data_schemas_and_relations.md` |
 | "What are the rules for feature X?" | `docs/03_features/<feature>.md` |
 | "Why is this code shaped this way?" | `docs/06_decisions/` (ADRs) |
-| "How does this file work line by line?" | `docs/CODE_NOTES.md` |
+| "How does this file work line by line?" | Per-subsystem `## Code notes` sections (`docs/03_features/` + `docs/04_engineering/`) |
 | "What breaks if I touch subsystem X?" | `docs/00_system/dependency_map.md` |
 | "What must never be violated?" | `docs/00_system/architectural_invariants.md` |
 | "Which words mean what?" | `docs/00_system/terminology.md` |
