@@ -19,14 +19,14 @@
   --mep-r-pill:  999px;
 
   /* Semantic (theme-independent base — overridden in dark) */
-  --mep-pos:      #1f8a5b;
-  --mep-pos-soft: rgba(31, 138, 91, 0.12);
-  --mep-neg:      #c14a4a;
-  --mep-neg-soft: rgba(193, 74, 74, 0.12);
-  --mep-warn:     #b8741a;
-  --mep-warn-soft:rgba(184, 116, 26, 0.14);
-  --mep-info:     #2f6fd1;
-  --mep-info-soft:rgba(47, 111, 209, 0.12);
+  --mep-pos:      #14694a;
+  --mep-pos-soft: rgba(20, 105, 74, 0.12);
+  --mep-neg:      #b03a3a;
+  --mep-neg-soft: rgba(176, 58, 58, 0.12);
+  --mep-warn:     #7e4c0d;
+  --mep-warn-soft:rgba(126, 76, 13, 0.14);
+  --mep-info:     #2a5fb5;
+  --mep-info-soft:rgba(42, 95, 181, 0.12);
 }
 
 /* Light */
@@ -40,8 +40,8 @@
 
   --mep-fg:   #1a1f26;
   --mep-fg-2: #4a5562;
-  --mep-fg-3: #7a8492;
-  --mep-fg-4: #9aa3af;
+  --mep-fg-3: #5f6b78;
+  --mep-fg-4: #64707d;
 
   --mep-border:       rgba(15, 20, 30, 0.10);
   --mep-border-strong:rgba(15, 20, 30, 0.18);
@@ -133,11 +133,11 @@
 
 /* Accent — amber */
 .mep[data-accent="amber"] {
-  --mep-acc:      #b8741a;
+  --mep-acc:      #8a530f;
   --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(184, 116, 26, 0.10);
-  --mep-acc-hover:#9d6116;
-  --mep-acc-ring: rgba(184, 116, 26, 0.30);
+  --mep-acc-soft: rgba(138, 83, 15, 0.10);
+  --mep-acc-hover:#7e4c0d;
+  --mep-acc-ring: rgba(138, 83, 15, 0.30);
 }
 :root[data-theme="dark"] .mep[data-accent="amber"] {
   --mep-acc:      #d59854;
