@@ -8,7 +8,7 @@ scheduled jobs. Changing async behaviour must account for this process split.
 
 | Queue | Consumer | What it does | Retries / notes |
 |---|---|---|---|
-| `extract-invoice` | `src/worker.ts` | Pulls an uploaded file → `extractInvoice` (classify → OCR/pages → Gemini lines → product identity) → save draft | Batch-size 1 per worker tick; concurrency semaphore; failure → `dead-letter` sibling queue |
+| `extract-invoice` | `src/worker.ts` | Pulls an uploaded file → `extractInvoice` (classify → OCR/pages → Gemini lines → product identity) → save draft | `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (default 1); global Gemini cap via `acquireExtractionSlot()` (distributed with Redis, in-process fallback); failure → `dead-letter` sibling queue |
 | `normalize-product` | `src/worker.ts` | `normalizeProductForSupplier` — canonical product upsert keyed by supplier+norm-key | Idempotent upsert |
 | `*:dead-letter` | `src/worker.ts` | Rows that failed; payload redacted (secrets/emails stripped) | Inspect via `/admin` or DB |
 

@@ -44,9 +44,14 @@ parsed here and re-checked at save.
 - **Timeout cancels the request**: the timeout fires an `AbortController` that
   is threaded into the Gemini call (`config.abortSignal`), so a timed-out
   extraction actually tears down its HTTP request instead of leaking a live
-  request that keeps holding a socket and a Gemini concurrency slot. With the
-  strictly-sequential worker, leaked requests were the mechanism behind jobs
-  piling up during a slow-Gemini spell.
+  request that keeps holding a socket and a Gemini concurrency slot. A
+  timed-out request releases its extraction slot in the `finally` around the
+  model call, so it never leaves a slot leased.
+- **Concurrency slot**: the model call is wrapped in
+  `acquireExtractionSlot()` / `slot.release()` (`rate-limiter.ts`), a global
+  semaphore capped at `MAX_CONCURRENT_EXTRACTIONS` (default 1). Backed by
+  Upstash Redis when configured (distributed, lease/TTL guarded so a dead
+  worker can't hold a slot forever), otherwise an in-process fallback.
 - **JSON**: fence-stripped and `JSON.parse`d; invalid → `notInvoice` error class.
 - **Quota first**: `checkExtractionQuota` + `claimMonthlyExtraction` before
   `markExtracting`; release on failure. Errors: `trialExpired`,
@@ -76,7 +81,10 @@ lost race releases the quota slot.
 ## Background dependencies
 
 `extract-invoice` queue (pg-boss, retryLimit 2, retryDelay 30 s,
-`expireInSeconds` 600). Worker runs `batchSize: 1` sequentially.
+`expireInSeconds` 600). Worker `batchSize` equals `MAX_CONCURRENT_EXTRACTIONS`
+(default 1 → sequential); a batch of jobs is processed concurrently, with the
+`acquireExtractionSlot()` semaphore imposing the true global cap against
+Gemini regardless of how many worker processes run.
 
 ## External dependencies
 

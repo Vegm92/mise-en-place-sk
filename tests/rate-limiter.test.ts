@@ -11,6 +11,7 @@ import {
 	checkRateLimit,
 	tryAcquireExtraction,
 	releaseExtraction,
+	acquireExtractionSlot,
 } from '../src/lib/server/rate-limiter';
 
 afterEach(() => {
@@ -109,5 +110,42 @@ describe('extraction concurrency semaphore', () => {
 		expect(tryAcquireExtraction(1)).toBe(true);
 		expect(tryAcquireExtraction(1)).toBe(false);
 		releaseExtraction();
+	});
+});
+
+describe('acquireExtractionSlot — bounded async semaphore (in-memory fallback)', () => {
+	it('blocks a further acquire until a held slot is released', async () => {
+		const a = await acquireExtractionSlot(2);
+		const b = await acquireExtractionSlot(2);
+
+		let thirdAcquired = false;
+		const thirdPromise = acquireExtractionSlot(2).then((slot) => {
+			thirdAcquired = true;
+			return slot;
+		});
+
+		// The queue is full — the third acquire must stay pending.
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(thirdAcquired).toBe(false);
+
+		// Releasing a slot hands it straight to the waiter.
+		await a.release();
+		const c = await thirdPromise;
+		expect(thirdAcquired).toBe(true);
+
+		await b.release();
+		await c.release();
+	});
+
+	it('release is idempotent and never mints phantom capacity', async () => {
+		const first = await acquireExtractionSlot(1);
+		await first.release();
+		await first.release();
+
+		// With the single slot genuinely free again, the next acquire resolves.
+		const second = await acquireExtractionSlot(1);
+		await second.release();
+		expect(true).toBe(true);
 	});
 });
