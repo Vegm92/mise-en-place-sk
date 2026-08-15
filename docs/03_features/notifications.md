@@ -214,6 +214,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 **`markup`**
 
 - Server-raised alerts carry an i18n key + vars so text follows the reader's locale; `message` is only the fallback for alerts not yet keyed. One-tap route to the supplier's category field (#301); suggested category: accept or pick another (#315).
+- The bell button's accessible name includes the badge count (e.g. "Notificaciones: 3") so the visible badge text matches the aria-label.
 
 ### `src/lib/components/MobileAlerts.svelte`
 

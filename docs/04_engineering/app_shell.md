@@ -36,7 +36,7 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`markup`**
 - Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links, legal footer, user chip).
 - Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle, notification bell, theme toggle, upload CTA (mobile only).
-- Page content — a boundary contains a post-hydration client render/effect error (e.g. the /batch/[id] polling loop, the chat page) to this region so the shell survives; +error.svelte still covers load errors.
+- Page content — a `<main>` landmark contains a post-hydration client render/effect error (e.g. the /batch/[id] polling loop, the chat page) to this region so the shell survives; +error.svelte still covers load errors.
 - Tutorial coach marks: completion overlay and the app-wide tour nudge (small dismissible corner card, persists across dashboard visits) — both carry svelte-ignore a11y_no_static_element_interactions.
 
 ### `src/routes/(app)/+page.server.ts`
