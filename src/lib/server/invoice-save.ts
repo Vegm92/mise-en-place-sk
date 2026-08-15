@@ -5,7 +5,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
 import { enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
-import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, saveAlerts, type Alert } from './alerts';
+import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, saveAlerts, type Alert } from './alerts';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
@@ -260,6 +260,8 @@ export async function saveReviewedInvoice(
 	const taxBase = toFloat(extractedData?.tax_base);
 	const taxBreakdownRaw = extractedData?.tax_breakdown;
 	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
+	const rawDocumentType = extractedData?.document_type;
+	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;
 
 	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
@@ -334,6 +336,7 @@ export async function saveReviewedInvoice(
 				restaurantId: rid,
 				supplierId,
 				invoiceNumber: invoiceNumber || null,
+				documentType,
 				invoiceDate,
 				dueDate,
 				totalAmount,
@@ -431,6 +434,9 @@ export async function saveReviewedInvoice(
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
+		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
+			invoiceId!, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
+		);
 		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
 			notificationType: 'verifactu_qr_mismatch',
 			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
@@ -442,7 +448,7 @@ export async function saveReviewedInvoice(
 		}] : [];
 		await saveAlerts(invoiceId!, rid, [
 			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions, ...verifactuAlerts,
+			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
 		]);
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);

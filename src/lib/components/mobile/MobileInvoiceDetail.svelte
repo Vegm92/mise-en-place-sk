@@ -21,6 +21,7 @@
   interface Invoice {
     id: number;
     invoice_number: string | null;
+    document_type?: string | null;
     supplier_name: string | null;
     supplier_id: number | null;
     total_amount: number | null;
@@ -70,8 +71,18 @@
       <ChevronLeft size={18} />
     </a>
     <div style="flex: 1; min-width: 0;">
-      <div class="num" style="font-size: 14.5px; font-weight: 600; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-        {invoice.invoice_number ?? `#${invoice.id}`}
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div class="num" style="font-size: 14.5px; font-weight: 600; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          {invoice.invoice_number ?? `#${invoice.id}`}
+        </div>
+        {#if invoice.document_type === 'factura' || invoice.document_type === 'albaran'}
+          <span style="
+            flex-shrink: 0; font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 10px;
+            background: var(--mep-surface-2); color: var(--mep-fg-3);
+          ">
+            {$t(`field.documentType.${invoice.document_type}`)}
+          </span>
+        {/if}
       </div>
       <div style="font-size: 11px; color: var(--mep-fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
         {invoice.supplier_name ?? '—'}

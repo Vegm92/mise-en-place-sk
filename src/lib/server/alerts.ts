@@ -405,6 +405,80 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	}];
 }
 
+const DUPLICATE_DATE_WINDOW_DAYS = 21;
+const DUPLICATE_AMOUNT_TOLERANCE = 0.10;
+
+/**
+ * Soft, non-blocking heuristic for issue #449: the dedup gate only catches the
+ * same document uploaded twice (content hash) or a repeated supplier+invoice_number
+ * pair. It cannot tell that an albarán captured at delivery and the factura fiscal
+ * for that same delivery, arriving weeks later, are the same real-world purchase —
+ * they carry different numbers by construction, and fiscally both can legitimately
+ * exist. This looks for an already-saved invoice from the same supplier, of the
+ * opposite document_type, close in date and similar in total amount, and raises a
+ * review nudge instead of blocking the save. Requires document_type, invoice_date
+ * and total_amount on both sides, so an albarán with no printed prices can't be
+ * matched this way — a known gap (see #461), not a bug.
+ */
+export async function runPossibleDuplicatePurchase(
+	invoiceId: number,
+	supplierId: number,
+	supplierName: string,
+	restaurantId: string,
+	documentType: 'factura' | 'albaran' | null,
+	invoiceDate: string | null,
+	totalAmount: number | null,
+): Promise<Alert[]> {
+	if (!documentType || !invoiceDate || totalAmount == null) return [];
+	const tdb = forTenant(restaurantId);
+	const otherType = documentType === 'factura' ? 'albaran' : 'factura';
+
+	const matches = await db
+		.select({
+			id: invoices.id,
+			invoiceNumber: invoices.invoiceNumber,
+			invoiceDate: invoices.invoiceDate,
+			totalAmount: invoices.totalAmount,
+		})
+		.from(invoices)
+		.where(and(
+			tdb.scope(invoices.restaurantId),
+			eq(invoices.supplierId, supplierId),
+			eq(invoices.documentType, otherType),
+			ne(invoices.id, invoiceId),
+			isNull(invoices.deletedAt),
+			isNotNull(invoices.totalAmount),
+			isNotNull(invoices.invoiceDate),
+			sql`ABS((${invoices.invoiceDate})::date - ${invoiceDate}::date) <= ${DUPLICATE_DATE_WINDOW_DAYS}`,
+			sql`ABS(${invoices.totalAmount} - ${totalAmount}) <= GREATEST(${invoices.totalAmount}, ${totalAmount}) * ${DUPLICATE_AMOUNT_TOLERANCE}`,
+		))
+		.orderBy(sql`ABS((${invoices.invoiceDate})::date - ${invoiceDate}::date) ASC`)
+		.limit(1);
+
+	if (matches.length === 0) return [];
+	const match = matches[0];
+
+	return [{
+		notificationType: 'possible_duplicate_purchase',
+		message: `possible_duplicate_purchase: ${supplierName} ~${totalAmount} vs invoice #${match.id}`,
+		payload: {
+			supplierId, supplierName, documentType, otherDocumentType: otherType,
+			matchedInvoiceId: match.id,
+			matchedInvoiceNumber: match.invoiceNumber,
+			matchedInvoiceDate: match.invoiceDate,
+			matchedTotalAmount: match.totalAmount,
+			totalAmount,
+			messageKey: 'notif.msg.possibleDuplicate',
+			messageVars: {
+				supplier: supplierName,
+				amount: totalAmount.toFixed(2),
+				otherType: otherType === 'factura' ? 'factura' : 'albarán',
+				matchedNumber: match.invoiceNumber ?? `#${match.id}`,
+			},
+		},
+	}];
+}
+
 export async function saveAlerts(invoiceId: number, restaurantId: string, alerts: Alert[]): Promise<void> {
 	if (alerts.length === 0) return;
 	await db.transaction(async (tx) => {
