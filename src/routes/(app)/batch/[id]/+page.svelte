@@ -568,7 +568,7 @@
           <div style="font-size:15px;font-weight:600;color:var(--mep-fg);margin-bottom:4px;">
             {$tp('batch.readyToExtract', data.openCount)}
           </div>
-          <div style="font-size:13px;color:var(--mep-fg-3);">{$t('batch.processOneByOne')}</div>
+          <div style="font-size:13px;color:var(--mep-fg-3);">{$t('batch.processParallel')}</div>
         </div>
         <form method="POST" action="?/extract">
           <button type="submit" class="btn btn-primary" style="height:40px;justify-content:center;font-weight:500;gap:6px;padding:0 20px;">
