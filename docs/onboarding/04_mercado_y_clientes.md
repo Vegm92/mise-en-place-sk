@@ -6,7 +6,7 @@ related: "[[CONTEXT]]"
 # 4 · Mercado y clientes
 
 Este es el documento más directamente útil para un perfil de marketing e
-investigación. Todo lo de aquí está resumido de `docs/PLAN_DE_NEGOCIO.md`, que
+investigación. Todo lo de aquí está resumido de `docs/02_product/plan_de_negocio.md`, que
 es la fuente oficial.
 
 ## A quién le vendemos
@@ -155,7 +155,7 @@ Nada de esto está asignado; es para que veas dónde puede aterrizar tu rol:
 
 ## Si quieres profundizar
 
-- `docs/PLAN_DE_NEGOCIO.md` — secciones 4 (mercado), 5 (regulación),
+- `docs/02_product/plan_de_negocio.md` — secciones 4 (mercado), 5 (regulación),
   6 (competencia) y 7 (modelo de negocio) con todas las fuentes citadas
 - `docs/02_product/personas.md` — las personas en su versión formal
-- `docs/REVENUE_METRICS.md` — cómo medimos ingresos
+- `docs/02_product/revenue_metrics.md` — cómo medimos ingresos

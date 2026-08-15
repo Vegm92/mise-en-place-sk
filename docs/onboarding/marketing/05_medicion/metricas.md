@@ -85,4 +85,4 @@ principal.
 
 - [[docs/onboarding/marketing/03_canales/landing_waitlist|La landing]]
 - [[docs/onboarding/marketing/04_produccion/plantillas|Plantillas]] — cierre de experimento
-- `docs/REVENUE_METRICS.md` — cómo mide el equipo los ingresos, para cuando los haya
+- `docs/02_product/revenue_metrics.md` — cómo mide el equipo los ingresos, para cuando los haya

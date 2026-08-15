@@ -38,7 +38,7 @@ silencio: dilo.**
 flowchart TD
     A["1 · El producto real<br/>lo que la app hace hoy"] --> B["2 · Las reglas inquebrantables<br/>00_base/02_reglas_inquebrantables.md"]
     B --> C["3 · Las decisiones tomadas<br/>06_decisiones/"]
-    C --> D["4 · El plan de negocio<br/>docs/PLAN_DE_NEGOCIO.md"]
+    C --> D["4 · El plan de negocio<br/>docs/02_product/plan_de_negocio.md"]
     D --> E["5 · Este manual<br/>y todo lo demás"]
 ```
 
@@ -81,4 +81,4 @@ Igual que la documentación técnica:
 
 - [[docs/onboarding/README|El pack de onboarding]] — empieza por ahí si aún no lo has leído
 - [[docs/onboarding/04_mercado_y_clientes|Capítulo 4: mercado y clientes]] — el resumen del que sale casi todo lo de aquí
-- `docs/PLAN_DE_NEGOCIO.md` — la fuente con las citas y las cifras originales
+- `docs/02_product/plan_de_negocio.md` — la fuente con las citas y las cifras originales

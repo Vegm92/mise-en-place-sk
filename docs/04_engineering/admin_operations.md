@@ -27,7 +27,7 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 
 ### `src/routes/(admin)/admin/revenue/+page.server.ts`
 **`const load`**
-- Revenue Performance Framework console (SaaS unit economics): MRR/ARR, ARPA, ACV, CAC, LTV, LTV/CAC, payback, NRR/GRR, churn, signup cohorts and revenue leakage, assembled by `revenueOverview()`. Definitions, formulas, caveats: `docs/REVENUE_METRICS.md`.
+- Revenue Performance Framework console (SaaS unit economics): MRR/ARR, ARPA, ACV, CAC, LTV, LTV/CAC, payback, NRR/GRR, churn, signup cohorts and revenue leakage, assembled by `revenueOverview()`. Definitions, formulas, caveats: `docs/02_product/revenue_metrics.md`.
 
 **`const actions`**
 - `addCost` / `deleteCost` maintain the acquisition-spend table that CAC divides by; without ≥ one month of spend, CAC, LTV/CAC and payback stay blank rather than reporting a zero cost of acquisition.

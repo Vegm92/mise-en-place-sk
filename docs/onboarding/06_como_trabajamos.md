@@ -38,7 +38,7 @@ Y dentro de `docs/`, cada carpeta tiene un papel:
 | `docs/onboarding/` | Esto que estás leyendo | ✅ |
 | `docs/02_product/` | Producto, personas, planes | ✅ Mucho |
 | `docs/03_features/` | Un documento por funcionalidad, con detalle | ✅ Para consultar |
-| `docs/PLAN_DE_NEGOCIO.md` | Mercado, competencia, números | ✅ Mucho |
+| `docs/02_product/plan_de_negocio.md` | Mercado, competencia, números | ✅ Mucho |
 | `docs/00_system/` | Vocabulario y reglas del sistema | 🔶 El glosario, sí |
 | `docs/01_architecture/` | Cómo está montado por dentro | ❌ |
 | `docs/04_engineering/` | Convenciones de programación | ❌ |
