@@ -120,5 +120,5 @@ Esto evita malentendidos en textos de marketing y en conversaciones con leads:
 ## Si quieres profundizar
 
 - `docs/02_product/product_definition.md` — la definición formal de producto
-- `docs/PLAN_DE_NEGOCIO.md` — mercado, unit economics, ronda y hoja de ruta
+- `docs/02_product/plan_de_negocio.md` — mercado, unit economics, ronda y hoja de ruta
 - [[docs/onboarding/04_mercado_y_clientes|4 · Mercado y clientes]]
