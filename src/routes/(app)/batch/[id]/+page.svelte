@@ -373,6 +373,14 @@
                     {$t('batch.viewExisting')}
                   </a>
                 </div>
+              {:else if review.similarInvoiceId}
+                <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mep-warn);background:var(--mep-warn-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">
+                  <AlertTriangle size={12} style="flex-shrink:0;" />
+                  <span style="flex:1;">{$t('batch.similarDupWarning')}</span>
+                  <a href="/invoice/{review.similarInvoiceId}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;flex-shrink:0;">
+                    {$t('batch.viewExisting')}
+                  </a>
+                </div>
               {/if}
               {#if uncertainCount > 0}
                 <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--mep-warn);background:var(--mep-warn-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">

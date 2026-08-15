@@ -38,6 +38,16 @@ gate. **This is THE invoice write path (ADR-008). Do not add another.**
 2. **Content-hash dedup** (`dedup.ts:9-36`): SHA-256 over canonicalized
    supplier/num/date/due/total + line desc/qty/unit/price; matched against
    `contentHash` WHERE `deletedAt IS NULL` → `contentDuplicate`.
+2a. **Similar-invoice pre-warning** (`dedup.ts` — `amountsAreSimilar`,
+   `findSimilarInvoice`; issue #449): advisory only, not a save-time gate. When
+   the exact supplier+number check finds nothing, `batch/[id]`'s `load` also
+   looks for a non-deleted invoice from the same supplier within ±21 days and
+   a total amount within tolerance (max of €0.50 or 1%). Exists because a
+   restaurant's albarán (delivery note, no formal invoice number) and the
+   factura for the same delivery arriving weeks later carry different numbers
+   and different file bytes, so neither dedup gate above catches them — but
+   both documents can legitimately coexist fiscally, so this never blocks
+   save, only surfaces `similarInvoiceId` for the reviewer to check.
 3. **Transaction** (`invoice-save.ts:310-416`):
    - `claimRequest(idemKey)` → replay = no-op; `releaseRequest` on early abort.
    - `getOrCreateSupplierId` (proposed category only when name matches).
@@ -70,7 +80,8 @@ number-duplicate). `api/batch-status/[id]` for status.
 ## UI dependencies
 
 `batch/[id]/+page.svelte` (per-item review, low-confidence + duplicate modals,
-`duplicateOfId` pre-warning). Legacy `confirm/[id]`/`extract/[id]` redirect here.
+`duplicateOfId` exact pre-warning, `similarInvoiceId` fuzzy pre-warning).
+Legacy `confirm/[id]`/`extract/[id]` redirect here.
 
 ## Background dependencies
 
@@ -136,6 +147,10 @@ shapes, `low_confidence_ack` value.
 **`function findDuplicateInvoiceId`**
 
 - Read-only heads-up: same supplier (case-insensitive, matching the `uq_suppliers_rid_name` index) + same invoice number as an already-saved invoice. Coarser than the content-hash gate on save; exists so the user can discard before reviewing fields.
+
+**`function findSimilarInvoiceId`**
+
+- Only runs when the exact match above found nothing. Same supplier, non-deleted, `invoiceDate` within `SIMILAR_INVOICE_DATE_WINDOW_DAYS` (21) of the extracted date, then filters candidates in JS by `findSimilarInvoice`/`amountsAreSimilar` (`dedup.ts`) rather than in SQL — the tolerance math (max of an absolute and a relative epsilon) isn't expressible as a simple column comparison. Skipped entirely when the extraction has no date or no total (e.g. a priceless albarán), since there's nothing to compare against.
 
 **`function settledRedirect`**
 
