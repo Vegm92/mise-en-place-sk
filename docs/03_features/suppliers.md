@@ -106,3 +106,100 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 - Reliability scores compute from price/frequency/timeliness inputs.
 - Tests: `tests/supplier-category.test.ts`, `tests/supplier-contact-save.test.ts`,
   `tests/supplier-reliability-price-stability.test.ts`, `tests/db-crud.test.ts`.
+
+## Code notes
+
+### `src/routes/(app)/api/product-aliases/+server.ts`
+
+**`const POST`**
+- Confirm/reject/dismiss a pending product-alias suggestion (issue #298). A pending suggestion (fuzzy `product_aliases` auto-link, or async LLM proposal, issue #300) raises a `product_suggestion` notification.
+- confirm (+targetProductId): merge the description into an existing product the LLM proposed; confirm (no target): keep the fuzzy link, mark confirmed; reject: split the description into its own product; dismiss: clear the suggestion (LLM proposals need no DB change).
+- The notification carries the raw `description`; the raw_key is derived server-side so the client never knows the alias id.
+
+**`function dismissSuggestion`**
+- Marks the matching `product_suggestion` notification(s) as handled.
+
+### `src/routes/(app)/api/supplier-category/+server.ts`
+
+**`const POST`**
+- Accept or decline a suggested supplier category (issue #315), posted from the bell. Accept writes the category; dismiss clears the suggestion without touching the supplier.
+- Category re-validated against `VALID_CATEGORIES` here — the endpoint can't write an arbitrary string into the column the budgets page groups on. Accepting only moves a supplier *out* of the uncategorised bucket, so a stale notification can't overwrite a newer manual choice.
+
+**`const updated`**
+- Bucket or legacy NULL only — never overwrite a real category (`or(isNull(...), eq(..., UNCATEGORIZED_CATEGORY))`).
+
+**`const POST`**
+- Not this tenant's supplier, or already categorised by hand: clear the stale suggestion either way so the bell doesn't keep it.
+
+**`function dismissSuggestion`**
+- Marks the supplier's pending category suggestion as handled.
+
+### `src/routes/(app)/suppliers/[id]/+page.server.ts`
+
+**`const load`**
+- Builds 7-month spend history for the chart.
+
+**`property update`**
+- Backfill (issue #307): products from this supplier's invoices only ever get a category at creation time (usually the 'Other' default). Editing the supplier here is the one moment a user expresses a real category, so carry it onto still-uncategorized products instead of leaving them on 'Other' forever.
+
+**`property delete`**
+- One transaction — a crash between statements must not leave invoices detached from a supplier that still exists (issue #247).
+
+### `src/routes/(app)/suppliers/[id]/+page.svelte`
+
+**`const SERIES_COLORS`**
+- Product spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
+
+**`markup`**
+- Mobile (edit form, KPI strip, tabs, info card, recent invoices, reliability, add form) and desktop supplier detail variants; `editing` toggles the edit form.
+
+### `src/routes/(app)/suppliers/+page.server.ts`
+
+**`const load`**
+- Refreshes stale reliability scores (>24h old) for suppliers with enough invoices.
+
+### `src/routes/(app)/suppliers/+page.svelte`
+
+**`markup`**
+- Mobile / desktop supplier lists (CSS-selected variants).
+
+## Public routes (marketing, auth, webhooks)
+
+### `src/lib/server/supplier-reliability.ts`
+
+**`function computePriceStability`**
+- Coefficient of variation per product, then averaged — not pooled across products (issue #308). Pooling raw prices from different items (€1/kg tomato vs €6 jar of olives) reads as huge "instability" purely from price levels, even when each is rock-steady.
+
+### `src/lib/server/supplier.ts`
+
+**`function getOrCreateSupplierId`**
+- Atomic supplier get-or-create (issue #238), replacing the select-then-insert pattern in invoice-save, the edit action and the WhatsApp bot. Backed by `uq_suppliers_rid_name` on `(restaurant_id, lower(name))`; the no-op DO UPDATE makes RETURNING yield the existing row on conflict (bare DO NOTHING returns nothing).
+- Case-insensitive, whitespace-trimmed name match; pass a transaction as `exec` to run inside an enclosing save.
+- Category only ever applied at creation; new suppliers default to the 'Other' bucket (issue #307) so products resolved against them don't inherit a null category (product-catalog.ts reads it at creation time). Callers may pass an extraction-proposed category (issue #315) already passed through `resolveSupplierCategory`. A conflict never overwrites an existing supplier's category — later invoices can't reclassify behind the user's back.
+
+**`interface SupplierContactInfo`**
+- Supplier-level contact fields lifted from an extracted invoice (CIF/NIF, address, email, phone); any may be null/undefined when the source document doesn't print them — never fabricated.
+
+**`function getOrCreateSupplierId`**
+- Contact fields filled with `COALESCE`, never overwritten — an existing non-null value (user-typed or earlier capture) always beats a new extraction.
+
+### `src/lib/components/desktop/DesktopSupplierDetail.svelte`
+
+**`const SERIES_COLORS`**
+- Product spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
+
+**`const CL`**
+- SVG chart constants.
+
+**`markup`**
+- Sticky header (breadcrumb, supplier header, delete confirmation, edit form); tabs resumen / facturas / productos / conversiones. Resumen: monthly spend chart, KPI strip, reliability breakdown, info card, recent invoices. Productos: donut + legend with hover detail. Conversiones: add-conversion form.
+
+### `src/lib/components/desktop/DesktopSuppliersList.svelte`
+
+**`markup`**
+- Filter bar, summary strip, table.
+
+### `src/lib/components/mobile/MobileSuppliersList.svelte`
+
+**`markup`**
+- Search, category chips, summary strip, list.

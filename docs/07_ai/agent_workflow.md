@@ -12,7 +12,7 @@ subsystems, check `docs/00_system/dependency_map.md` for downstream blast
 radius and `docs/00_system/architectural_invariants.md` as a checklist.
 
 - New to the repo? Start with `docs/00_system/system_manifest.md`, then
-  `docs/CODE_NOTES.md` for file-level detail.
+  the per-subsystem `## Code notes` sections for file-level detail.
 - Product intent? `docs/02_product/*`.
 
 ## 2. Locate
@@ -45,7 +45,7 @@ its gates:
 - Keep tenancy via `forTenant().scope()`; never bare
   `eq(table.restaurantId, ...)`.
 - No inline comments (`lint:no-comments`); explanations belong in
-  `docs/CODE_NOTES.md`.
+  the per-subsystem `## Code notes` sections.
 - User-facing strings via `src/lib/i18n.ts` (`lint:i18n`).
 - No `sql.raw()` (`lint:no-sql-raw`).
 
@@ -69,7 +69,7 @@ Any change to schema, routes, business rules, feature behaviour, external
 integrations, security, billing, or background jobs is a documentation event:
 
 - Update the affected feature spec (`docs/03_features/`).
-- Update `docs/CODE_NOTES.md` for how-the-code-works changes.
+- Update the affected `## Code notes` section for how-the-code-works changes.
 - Update `docs/00_system/dependency_map.md` if the dependency graph moved.
 - If the *why* changed → new ADR (next number 023) per `docs/06_decisions/README.md`.
 

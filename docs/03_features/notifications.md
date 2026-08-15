@@ -106,3 +106,118 @@ Type ∈ known set; payload shape per type; tenant scope.
   only overdue + exceeded budgets; dismiss → `sent`.
 - Tests: `tests/events.test.ts`, `tests/alert-engine.test.ts`,
   `tests/working-days.test.ts`.
+
+## Code notes
+
+### `src/routes/api/notifications/+server.ts`
+
+**`const GET`**
+
+- GET /api/notifications?status=pending — WhatsApp bot polls this. Keyed on the authenticated user, not the client IP (#223): `notifications:${locals.user!.id}`.
+
+**`const POST`**
+
+- POST /api/notifications/:id/ack — mark as sent.
+
+### `src/lib/server/alert-engine.ts`
+
+**`const LOW_STOCK_DAYS`**
+
+- Active BI Engine — alerts fired after each invoice save: runPriceShock (>15% unit price deviation vs last recorded), runStockForecast (days-of-stock after purchase; alerts if < 3 days), runBudgetCheck (budget_overage when category monthly spend crosses the threshold).
+
+**`function median`**
+
+- Middle value of a numeric list (lower of the two middles on an even count).
+
+**`function collapseHistory`**
+
+- Collapses the last HISTORY_SIZE price points for a key into one comparison point: median unit price, plus a median €/base when all points share the same base unit (#308) — a single noisy purchase (different pack size, promo, seasonal blip) no longer reads as a shock; a real sustained change still shows on the first purchase after it.
+
+**`function runPriceShock`**
+
+- Match on the shared normalized key (#296); mep_norm_key is the SQL twin of normalizeProductKey. Batch of the last PRICE_HISTORY_WINDOW points per item key (#308), with stored €/base (#299) for apples-to-apples pack comparisons.
+- For lines resolved to catalog products (#298), also fetch the latest price per product_id — differently-sized descriptions of one product share a product, not a description key; only that grouping (compared as €/base) meets without a false shock. Prefer product-grouped history, fall back to same-description. Prefer €/base when both sides carry it for the same base unit — stops "caja 5kg" vs "caja 10kg" reading as a ~92% shock.
+
+**`function runStockForecast`**
+
+- One IN query for all stock levels, matched on the normalized key so "Harina 00" updates a stock row saved as "harina 00".
+
+**`function runCategorizationNudge`**
+
+- Nudge the owner to categorise a supplier on its first saved invoice (#301): uncategorised spend sits in "Sin categoría", visible but un-budgetable, and nothing used to ask. One per supplier, ever — deduped on supplier id, qualifies only while still uncategorised; belt-and-braces guard against a re-raise (deleted first invoice, re-save).
+
+**`property message`**
+
+- The bell renders `messageKey` through i18n; `message` is the language-neutral fallback for non-UI consumers (chat, admin).
+
+**`function runCategorySuggestion`**
+
+- Offer a category for a supplier still in the uncategorised bucket (#315). Suppliers are tagged only when *created*, so older/sparse ones stay in the bucket forever; rather than silently reclassify (can't tell "never categorised" from a deliberate "leave in Other"), surface the guess for one-tap accept. One per supplier, ever; supersedes the plain nudge. Nothing to offer when the resolver collapsed an unusable guess; a human-classified supplier is never second-guessed; deduped across both statuses so a dismissed suggestion doesn't return.
+
+**`function runBudgetCheck`**
+
+- Supplier category (legacy NULL now falls into the 'Other' bucket instead of silently hiding spend from budget alerts — #301); warning threshold (0-100 in settings, default 80); monthly budget (current month); month spend; level = exceeded | warning | null; dedup one alert per category+level per calendar month.
+### `src/lib/server/email.ts`
+
+**`const apiKey`**
+
+- Transactional email via Resend; RESEND_API_KEY unset → no-ops (dev mode). Copy Spanish-first, matching the default locale (#202).
+
+**`interface EmailPayload`**
+
+- Coarse type for telemetry — tagged on Sentry, never the recipient (#257).
+
+**`function maskEmail`**
+
+- Mask for logs — keep first char and domain (#254).
+
+**`function sendEmail`**
+
+- A silent Resend failure means the owner never gets a welcome/subscription/digest/quota email — report it (tagged by type, not recipient) so a broken key or outage surfaces (#257).
+
+**`function welcomeEmail`**
+
+- Email templates.
+
+**`function trialExpiredEmail`**
+
+- Sent the day the trial lapses (#287/#288); uploads are blocked from that point, so the copy says what stopped working and what still does.
+
+### `src/lib/server/notifications.ts`
+
+**`function saveAlerts`**
+
+- Persists alert objects to system_notifications.
+
+### `src/lib/components/NotificationBell.svelte`
+
+**`const decidingCategory`**
+
+- Suggested supplier category (#315): accept in one tap; the generic X declines (supplier stays in the uncategorised bucket — a valid answer); "change" links to the supplier's category field.
+
+**`function acceptCategory`**
+
+- 404 = supplier was categorised by hand meanwhile; the server clears the stale suggestion too, so drop it locally. Offline/server error — leave to retry later.
+
+**`const deciding`**
+
+- Product-catalog suggestion (#298/#300): fuzzy suggestions confirm the auto-link; LLM suggestions (source 'llm') carry a candidate product to merge on confirm and just dismiss on decline (the line is already its own product). On success the server also dismisses, so drop locally.
+
+**`function decideProduct`**
+
+- Offline/server error — leave in place to retry later.
+
+**`function dismiss`**
+
+- Offline or server error — restore the item at its place instead of silently losing the dismissal (#255).
+
+**`markup`**
+
+- Server-raised alerts carry an i18n key + vars so text follows the reader's locale; `message` is only the fallback for alerts not yet keyed. One-tap route to the supplier's category field (#301); suggested category: accept or pick another (#315).
+- The bell button's accessible name includes the badge count (e.g. "Notificaciones: 3") so the visible badge text matches the aria-label.
+
+### `src/lib/components/MobileAlerts.svelte`
+
+**`markup`**
+
+- Summary chips; overdue section; due-soon section.

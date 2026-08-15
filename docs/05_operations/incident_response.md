@@ -27,7 +27,7 @@ A minimal, practical incident flow for this system. Keep it short and data-drive
 6. **Verify** — confirm queues at 0, dedup tables growing (not errors),
    affected tenant data correct.
 7. **Debrief** — record in CONTEXT.md audit items / GitHub issue; update the
-   affected feature spec or CODE_NOTES if behaviour was wrong; add a test for
+   affected feature spec or its `## Code notes` section if behaviour was wrong; add a test for
    the failure mode.
 
 ## Specific plays

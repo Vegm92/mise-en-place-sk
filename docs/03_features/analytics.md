@@ -108,3 +108,75 @@ Range/granularity normalization; tenant scope on every MV read.
 - Trend buckets match local calendar weeks/months.
 - Tests: `tests/trend-categories.test.ts`, `tests/db-schema.test.ts`,
   `tests/db-crud.test.ts`.
+
+## Code notes
+
+### `src/routes/(app)/api/trend/+server.ts`
+
+**`const GET`**
+- Rate-limited on the authenticated user, not the client IP (issue #223) — key `trend:${locals.user!.id}`, 60/min.
+
+### `src/routes/(app)/analytics/extraction/+page.server.ts`
+
+**`const load`**
+- kpisRows, supplierRows, trendRows read from `mv_extraction_stats` (pre-aggregated); fieldRows still queries `extraction_corrections` directly — no rollup needed for the small table.
+
+### `src/routes/(app)/analytics/extraction/+page.svelte`
+
+**`markup`**
+- Header, empty state, KPI row, middle row (most-corrected fields + accuracy trend), accuracy-by-supplier card.
+
+### `src/routes/(app)/analytics/prices/+page.server.ts`
+
+**`const load`**
+- Reads `mv_price_snapshots` (pre-computed latest+prev price per item+supplier), replacing the self-joining window CTE that scanned all `invoice_line_items`.
+
+### `src/routes/(app)/analytics/prices/+page.svelte`
+
+**`markup`**
+- Mobile/desktop variants; header, toolbar, summary strip, price cards grid.
+
+### `src/routes/(app)/analytics/spend/+page.server.ts`
+
+**`const PERIOD_DATE_SQL`**
+- Month-based filters for `mv_item_monthly_spend` / `mv_category_monthly_spend`; slightly coarser than exact date ranges (always full calendar months) but correct for analytics display.
+
+**`const load`**
+- topItems, categorySpend, itemTrendRows read from pre-aggregated views; kpisRows still queries raw tables (one simple aggregate, no CTEs/window functions).
+
+### `src/routes/(app)/analytics/spend/+page.svelte`
+
+**`const SERIES_COLORS`**
+- Spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
+
+**`markup`**
+- Mobile/desktop variants; header + period picker, KPI row, charts row (top items + donut/legend), by-category card.
+
+### `src/lib/server/trend.ts`
+
+**`function addDays`**
+- Safety cap for pathological range+granularity combos (e.g. daily + all).
+
+**`function isoDate`**
+- Local-timezone key — never `toISOString()`: it converts through UTC and silently rolls the calendar date back a day for timezones ahead of UTC.
+
+**`function getTrendDataByRange`**
+- Postgres date-key helpers for bucket boundaries; buckets span [startDate, today] at the requested granularity.
+- NULL category folded into the 'Other' sentinel in TS, not SQL: COALESCE in both SELECT and GROUP BY broke Postgres's syntactic GROUP BY matching (fresh bound parameter each time → "column suppliers.category must appear in the GROUP BY clause", 500ing the dashboard).
+- Buckets keyed by nested Map rather than a composite string — a category is free text, so any separator would need proving it can never appear inside one.
+
+**`type TrendRow`**
+- Uncategorised spend lands in the same 'Other' bucket the budget check and budgets page use (issue #301); NULL and an explicit 'Other' are separate SQL groups, merged here or the chart renders 'Other' twice.
+
+### `src/lib/components/mobile/MobileAnalyticsPrices.svelte`
+
+**`markup`**
+- Search, filter chips, summary 2-col, price items list.
+
+### `src/lib/components/mobile/MobileAnalyticsSpend.svelte`
+
+**`const SERIES_COLORS`**
+- Spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
+
+**`markup`**
+- Period picker chips, KPI 2-col grid, top items, by category.

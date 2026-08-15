@@ -92,3 +92,106 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 - HSTS is set unconditionally (even over plain HTTP).
 - Rate-limit key scope has no documented rule (#440).
 - Upload has no file-level dedup (duplicates extracted twice).
+
+## Code notes
+
+### `src/routes/api/account-delete/+server.ts`
+
+**`function deleteTenantFiles`**
+
+- Remove every stored file for these restaurants (#289): confirmed invoices (`invoices.source_file`), batch files (`batch_items.file_key`), WhatsApp captures (`whatsapp_bot_sessions.file_key`). Failures logged, never thrown — account deletion must still complete.
+
+**`const POST`**
+
+- Destructive + irreversible — cap attempts, key `account-delete:${user.id}`; require explicit confirmation in the body. Delete owned restaurants (FK cascade) only where this user is the sole member — restaurants with other members survive so one owner can't wipe teammates' data.
+- Cancel live Stripe subscriptions BEFORE deleting the rows linking the Stripe customer to the tenant — otherwise the card keeps charging and support can't trace it (#246). Immediate cancellation (GDPR, not cancel-at-period-end).
+- GDPR must reach the files, not just rows (#289): once the restaurant row goes, the cascade drops every pointer to the uploaded PDFs and nothing could find them again. Delete files first, best-effort — a storage hiccup must not block deletion. All row deletes commit atomically (clean retry state). Delete `users` + clear session cookies last — keeps the endpoint retryable; this is what ends the session.
+
+### `src/routes/api/account-export/+server.ts`
+
+**`const GET`**
+
+- Heavy multi-table read — cap per user, key `account-export:${user.id}`.
+
+### `src/routes/(auth)/onboarding/consent/+server.ts`
+
+**`const POLICY_VERSION`**
+
+- T&C / Privacy consent (GDPR, #201). Every sign-up path leaves a user_consents row before use: email at form submit, Google OAuth at the auth callback (signup page) or onboarding (login page). Bump when /terms or /privacy change materially; earlier acceptances stay recorded.
+
+### `src/lib/server/rate-limiter.ts`
+
+**`type UpstashLimiter`**
+
+- Uses Upstash Redis when `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` are set (distributed / multi-instance safe), else an in-process token bucket (single-server only — documented constraint).
+
+**`interface Bucket`**
+
+- In-memory fallback bucket.
+
+**`function checkInMemory`**
+
+- Evict on the bucket's own window, not a fixed two minutes — a long cooldown (WhatsApp unauthorised-sender reply uses hours) would otherwise be swept away and silently reset to "allowed".
+
+**`function checkRateLimit`**
+
+- Public API: at most `max` events per `windowSeconds` for `key`; window defaults to a minute (every caller predating #322 is per-minute). Longer windows are cooldowns, not throughput caps — "reply to an unknown number at most once every six hours" is one event per 21600 s.
+- **What the key identifies is the caller's choice, and the codebase is split (#440).** 18 authenticated call sites: some key by `locals.user.id` (`chat:`, `notifications:`, `stock-levels:`, `trend:`, `unit-conversions:`, `switch-restaurant:`, `password-change:`), some by `rid` (`upload:`, `bulk:`, `product-alias:`, `supplier-category:`, `product-create:`, `product-unlink:`, `product-delete:`).
+- Not cosmetic: user-keying a money-costing budget gives five staff accounts five times the spend (`chat:`, paid Gemini, worth revisiting first); tenant-keying a per-person action lets one user's bulk run exhaust the bucket for colleagues (intended for `bulk:`, wrong for `password-change:`). The "keyed on the authenticated user, not the client IP (#223)" rationale only rules out IP (behind a reverse proxy every request shares one IP) — it doesn't choose user vs tenant. Pick deliberately.
+
+**`const activeExtractions`**
+
+- Extraction concurrency semaphore (in-process fallback): `activeExtractions` + `extractionWaiters` back an async bounded FIFO semaphore; `tryAcquireExtraction`/`releaseExtraction` non-blocking, `acquireExtractionInMemory` blocking when Redis is unavailable. `releaseExtraction` hands a freed slot to the oldest waiter — the count reflects live holders + queued hand-offs.
+
+**`function acquireExtractionSlot`**
+
+- Public, provider-agnostic slot API (#454): waits for a global Gemini slot, returns a `release()`; the worker wraps the model call in acquire → try → finally release. Redis path first (distributed), in-process otherwise. A grant is idempotent to release — a `released` flag guards the timeout/finally double-release fixed in #455.
+- Redis semaphore = ZSET of live leases keyed by per-acquire token, scored by expiry; the acquire Lua script is atomic (sweep expired with ZREMRANGEBYSCORE, ZADD if ZCARD < max, else 0). Lease = GEMINI_TIMEOUT_MS + 60 s (floor 120 s), the dead-worker safety net. Caller polls with jitter up to SLOT_MAX_WAIT_MS, then proceeds slot-less rather than stalling past pg-boss expiry (fail-open; the lease still bounds the blast radius).
+### `src/lib/server/security/safe-redirect.ts`
+
+**`function safeRedirect`**
+
+- Validates a same-origin relative redirect target; rejects absolute URLs, protocol-relative (//), and backslash variants.
+
+### `src/lib/server/security/tenant.ts`
+
+**`function forTenant`**
+
+- Tenant-scoped query context, no DB dependency (ADR-001-app-level-tenant-scoping.md). Use in route handlers instead of raw `eq(table.restaurantId, rid)` inline.
+
+**`method scope`**
+
+- Builds a WHERE condition that always scopes to this tenant.
+
+### `src/lib/server/sentry-scrub.ts`
+
+**`const SENSITIVE_PARAMS`**
+
+- Sentry PII scrubbing shared by server + client inits (#254). Sentry attaches the request URL; auth flows put short-lived secrets in the query string (`/auth/callback?code=…` live OAuth code, password-reset tokens, `email`) that a callback error would ship to a third party. Redact before the event leaves the process: `code`, `token`, `access_token`, `refresh_token`, `email`.
+
+**`function scrubUrl`**
+
+- Redacts sensitive query params from a URL; unchanged on parse failure. Resolves relative URLs against a dummy origin.
+
+**`function scrubSentryEvent`**
+
+- Scrubs the request URL on a Sentry event (mutates and returns it).
+
+### `src/hooks.server.ts`
+
+**`method beforeSend`**
+
+- Drop intentional SvelteKit redirects — not errors. Strip live OAuth codes / tokens / emails from attached request URLs.
+
+**`const handle`**
+
+- adapter-node resolves getClientAddress() from the socket peer unless ADDRESS_HEADER names the proxy header — behind nginx/Caddy every visitor shares one rate-limit bucket, so the IP-keyed login/signup/waitlist limits collapse into one global (#223).
+- Auth.js session: signed JWT cookie, verified locally, no round-trip (unlike the Supabase client this replaced). Build the request-scoped user; resolve the active restaurant (cookie preference if valid, else first). Request-level admin guard for the (admin) layout load, which doesn't rerun on child navigation. Anonymous apex hit → landing page, not the login wall (#291); deep links keep the redirectTo round-trip.
+
+**`const handle`**
+
+- Two routes are embedded in a same-origin <iframe> by the app — batch review PDF preview (/api/upload/[id]/[file]) and saved invoice PDF preview (/invoice/[id]/file); DENY would block the app's own preview.
+
+**`function isPublicPath`**
+
+- Password recovery (#284): /reset-password is reached with a recovery session, but a used/expired link renders its own "request a new one" page rather than bouncing to login.

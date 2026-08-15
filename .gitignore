@@ -52,8 +52,6 @@ TODO.md
 /graphify-out
 .graphify_cached.json
 /docs/*
-# ...except the code documentation, which replaces src/ comments (tracked on purpose)
-!/docs/CODE_NOTES.md
 # ...and the AI-native operating layers (added 2026-08-13) — tracked on purpose
 !/docs/00_system/
 !/docs/01_architecture/
@@ -77,4 +75,3 @@ TODO.md
 # category-taxonomy guard and the synth:* npm scripts. Local output is not.
 /synth/node_modules/
 /synth/output/
-

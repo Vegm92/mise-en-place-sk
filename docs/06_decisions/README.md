@@ -10,7 +10,7 @@ not a design doc (that describes what to build) and not documentation (that
 describes how to use it). If you find yourself re-litigating a decision in a PR
 review, the ADR is where the previous round of that argument lives.
 
-For *how the code works*, see [`docs/CODE_NOTES.md`](../../docs/CODE_NOTES.md). For
+For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/03_features/` + `docs/04_engineering/`). For
 *how to deploy it*, see [`DEPLOYMENT.md`](../../DEPLOYMENT.md).
 
 ## Index
@@ -122,7 +122,7 @@ decision, not the topic — `ADR-008-single-invoice-write-path`, not
 sections of a single `docs/ARCHITECTURE_DECISIONS.md`; they were split into the
 files above on 2026-08-10 and that file was deleted. The records moved here from
 the repo-root `doc/` on 2026-08-13. The rest of `docs/` holds how-the-code-works
-and how-to-operate documentation (`CODE_NOTES.md`, the `00_system`–`07_ai`
+and how-to-operate documentation (the `## Code notes` sections, the `00_system`–`07_ai`
 layers), not decisions.
 
 ## For agents

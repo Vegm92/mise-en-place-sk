@@ -41,7 +41,7 @@ changing server routes and endpoints.
   the route (e.g. `/api/v2/...`) or the client + server together in one PR —
   the app is deployed as a single unit, so break both sides atomically.
 - Route params are kebab-case; document required vs optional in the route
-  `+server.ts` JSDoc-free fashion (see CODE_NOTES).
+  `+server.ts` comment-free fashion (see the `## Code notes` section).
 
 ## Testing
 
@@ -54,4 +54,4 @@ changing server routes and endpoints.
 
 - Changing a route/endpoint updates the affected feature spec (`docs/03_features/`)
   and `docs/01_architecture/routing_and_navigation.md`. If the change is a
-  contract change, note it in CODE_NOTES.
+  contract change, note it in the relevant `## Code notes` section.

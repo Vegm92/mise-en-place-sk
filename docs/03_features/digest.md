@@ -101,3 +101,21 @@ Week claim atomicity; feature gate; tenant scope.
 - Eligible tenants receive one email per week (deduped).
 - Tests: `tests/scheduler.test.ts` (job registration); digest-specific tests
   absent — verify manually or add coverage.
+
+## Code notes
+
+### `src/routes/(app)/digest/+page.server.ts`
+
+**`const load`**
+
+- A digest is a paid Gemini call, so generation gates on live access like uploads/chat (issue #287).
+
+### `src/lib/server/weekly-digest.ts`
+
+**`function claimDigestWeek`**
+
+- Atomically claims the week before paying (issue #249): the upsert fires only when the stored week differs, so exactly one of N concurrent loads generates.
+
+**`function getOrGenerateWeeklyDigest`**
+
+- If another request is already generating this week, serve the stored text instead of paying twice; on failure, release the claim so a later load retries.

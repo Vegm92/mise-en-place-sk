@@ -45,4 +45,156 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 - Testing: `tests/scheduler.test.ts` asserts job registration; per-queue
   consumers have integration tests in `tests/`.
 - Changing a schedule or adding a queue is a docs event (update this file +
-  the affected feature spec + CODE_NOTES).
+  the affected feature spec + its `## Code notes` section).
+
+## Code notes
+
+### `src/lib/server/dead-letter.ts`
+
+**`function tenantColumnValue`**
+
+- A dead letter's whole input domain is malformed job data, so a blank or non-uuid `restaurantId` must not cost us the audit row: Postgres would reject the insert and the record would be lost exactly when it matters most. Non-uuid values become NULL in the column; the raw value still reaches the audit trail inside `payload`.
+
+### `src/lib/server/extraction-worker.ts`
+
+**`interface ExtractionJobData`**
+
+- Extraction job handler — runs in the worker process. Claims the batch item via a guarded queued→extracting transition, calls Gemini, writes the result with markDone/markFailed. The worker only touches the columns it owns; web-side state can never be lost here.
+- `sessionId` is a legacy payload field — jobs enqueued before the batch_items migration.
+
+**`const DEGRADATION_ERRORS`**
+
+- Transient LLM-degradation error classes worth alerting on when they spike.
+
+**`function processExtractionJob`**
+
+- Money gate: atomically claim a monthly extraction slot against the plan quota BEFORE any Gemini spend (issue #244). Skipped in the test path.
+- Lapsed-trial backstop covering every door the file came through — web upload, WhatsApp or a retry of an older job (issue #287). The web upload action blocks earlier with a redirect; this covers the rest.
+- Aggregate quota exhaustion is Sentry-reported, not a lone console.warn, so a tenant hitting the wall is visible (#257).
+- Claim the item; a false means it is no longer queued (discarded or already processed) — drop the job and release the slot, since no extraction happened.
+- Resolve the file to a local path the extraction engine can read: the Railway bucket driver downloads to a temp file; local storage computes the path directly.
+- Global Gemini concurrency gate (issue #454): acquire a slot immediately before the model call and release it in the `finally` around that call only — not around annotate/markDone, which are DB-only and would just hold the slot longer. The semaphore is the single place `MAX_CONCURRENT_EXTRACTIONS` is enforced, holds across several worker processes (Redis-backed), and survives the timeout-abort path (#455).
+- Test path uses the legacy GenerateFn (no token tracking); production uses the LLMProvider with token usage tracking.
+- Tag Gemini degradation (timeout / 429 / 503) with its errorClass so an alert rule can catch a rate spike (#257). Activates once the worker initializes Sentry (#252); a no-op until then.
+- Report every other failure too, but WITHOUT the raw error — extract.ts embeds invoice text in some messages and that must not reach Sentry (PII, #254). Ship only the error class + ids.
+- A failed extraction doesn't count against the plan quota — release the claimed slot (#244).
+- Do not re-throw: the error is stored on the item; no pg-boss retry.
+
+### `src/lib/server/queue.ts`
+
+**`const EXTRACTION_QUEUE`**
+
+- pg-boss queue — web-process side (send-only). Lazy singleton: starts once on first use.
+
+**`function getBoss`**
+
+- pg-boss v10+ no longer auto-creates queues; send() requires the queue to exist first. `createQueue` is idempotent.
+
+**`function enqueueExtraction`**
+
+- Returns true when enqueued, false when a job for the same item is already pending/active (pg-boss `singletonKey` dedup). A deduped send is expected on duplicate submits and must never be treated as a failure.
+
+**`function enqueueNormalize`**
+
+- Low-priority async LLM normalization for a freshly-created product (issue #300). Deduped per (restaurant, product) so re-saves don't pile up jobs.
+
+### `src/lib/server/scheduler.ts`
+
+**`const DIGEST_QUEUE`**
+
+- Scheduled jobs (issue #288). Everything here used to depend on somebody opening the app: the weekly digest was generated on a dashboard visit, and the overdue-invoice and trial-expiry templates had no callers at all — backwards, because those messages exist precisely for tenants who *stopped* opening the app. pg-boss (already in the stack for extraction) provides the cron; the worker registers these on boot — if the worker is not running, none of them fire, same contract as extraction. Tenant-by-tenant best-effort: one restaurant's failure is logged and the loop continues. Each send is claimed through a guarded upsert on `settings` before the email goes out, so a retried job or a second worker cannot double-send.
+
+**`const DIGEST_CRON`**
+
+- Cron expressions are UTC; Spanish restaurants are UTC+1/+2, so 06:00 UTC lands early morning locally. `'0 6 * * 1'` — Mondays, with the week just closed.
+
+**`const REMINDERS_CRON`**
+
+- `'30 6 * * *'` — daily.
+
+**`const TRIAL_CRON`**
+
+- `'0 7 * * *'` — daily.
+
+**`const PURGE_CRON`**
+
+- `'0 3 * * *'` — daily, off-peak.
+
+**`const DELETED_FILE_RETENTION_DAYS`**
+
+- `30` — days a soft-deleted invoice keeps its uploaded file before it is purged.
+
+**`const TRIAL_MILESTONES`**
+
+- Trial milestones (days remaining) that get an email; `[7, 1, 0]`, 0 = the day it lapsed.
+
+**`function claimOnce`**
+
+- Claim a one-shot send for this tenant. Returns false when the value was already stored, which is what makes every job in this file safe to retry.
+
+**`function ownerEmail`**
+
+- Owner's email address, or null when the restaurant has no reachable owner.
+
+**`function allTenants`**
+
+- Every tenant with its plan tier, trial end and name — one query per job run. Join order avoids the `eq(*.restaurantId, …)` shape the tenant-scope lint bans; this is a deliberate all-tenant scan, not a tenant filter.
+
+**`function runWeeklyDigestJob`**
+
+- Weekly digest: generate this week's text via the same claim-then-generate path the dashboard uses, so a Monday visitor and this job never both pay Gemini; email to the owner. Only tiers whose plan includes the digest. Claim AFTER generating — a generation failure should not consume the week's email slot.
+
+**`function runOverdueRemindersJob`**
+
+- Overdue invoices: one email per tenant per day, only when something is actually overdue.
+
+**`function trialDaysLeft`**
+
+- Days remaining in a trial, rounded up. Negative once it has lapsed.
+
+**`function trialMilestoneFor`**
+
+- Which milestone a remaining-days count falls into, or null when the trial is still too far out. Bands are deliberately wide so a missed run (worker restart, outage) still sends the notice a day late instead of skipping it: 7 covers 7…2 days out, 1 the final day, 0 the lapse.
+
+**`function runTrialNoticesJob`**
+
+- Trial expiry notices at T-7, T-1 and on the day the trial lapses. The milestone is stored, so moving between milestones sends exactly one email each and a re-run sends none. Claim keyed on the trial end date too, so a tenant that starts a fresh trial gets the full sequence again.
+
+**`function runFilePurgeJob`**
+
+- Retention purge (issue #289): a soft-deleted invoice keeps its uploaded file for `DELETED_FILE_RETENTION_DAYS` so a mistaken delete can be undone, then the file — supplier PII and financial data — is removed from storage and the row stops pointing at it. The row itself stays for the audit log.
+
+**`function registerScheduledJobs`**
+
+- Create the queues, register the cron schedules and start the consumers. `schedule()` is idempotent per queue: re-registering on every worker boot updates the cron rather than stacking duplicates, and pg-boss holds the schedule in the database so exactly one worker fires each occurrence.
+
+### `src/backfill-products.ts`
+
+**`const all`**
+
+- One-off backfill: link products + compute pack fields on existing line items (follow-up to #298/#299). Run once after deploying the catalog/pack features: `pnpm db:backfill-products`. Deterministic and idempotent — safe to re-run. Uses the same env as the web process / worker (DATABASE_URL etc.); dotenv loads .env in dev.
+
+### `src/worker.ts`
+
+**`property dsn`**
+
+- Worker entry point — run alongside the web process. Dev: `pnpm worker` (vite-node with vite.worker.config.ts); prod: `node build/worker.js` (built via `pnpm build:worker`). Requires the same env vars as the web process (DATABASE_URL, GEMINI_API_KEY, etc.).
+- `import 'dotenv/config'` must be the first import — it populates process.env from .env before any other module (db.ts etc.) is evaluated. ESM evaluates imports depth-first in source order, so this runs before queue.ts / sessions.ts / db.ts.
+- Sentry.init (issue #252): the worker runs the core product loop (Gemini extraction) on a box nobody watches; without Sentry a crash or every-job-failing state is invisible until a customer complains. Same config as hooks.server.ts.
+
+**`function fatal`**
+
+- An unexpected throw or rejection would otherwise kill the process silently. Report it, flush, then exit non-zero so the platform restarts the worker.
+
+**`property ssl`**
+
+- `pgSslConfig()` — same TLS policy as the web pool (issue #295); this used to skip certificate verification unconditionally while the web process did not.
+
+**`property batchSize`**
+
+- `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (issue #454). The batch of jobs is processed concurrently, but the true cap on live Gemini calls is `acquireExtractionSlot()` inside each job, not the batch size — a larger `batchSize` only helps if the semaphore's global cap is also raised. Default 3 lets a small upload extract in parallel; set the cap to 1 for the historical strictly-sequential behaviour. `runWithDeadLetter` catches per-job, so one job's failure can't reject the shared handler promise and drag the rest of the batch down.
+- Normalize-product consumer (issue #300): low-priority, best-effort — the handler swallows its own errors, so a failed suggestion never retries noisily.
+
+**`function shutdown`**
+
+- Cron-driven work — weekly digest, overdue reminders, trial notices and the deleted-file purge (issues #288/#289). Registered here because pg-boss holds the schedule in the database: whichever worker is up fires the occurrence.

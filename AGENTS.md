@@ -41,7 +41,7 @@ first, bilingual (es/en). WhatsApp is a second ingestion channel; XML e-invoices
 | `docs/04_engineering/*` | Coding conventions, testing, security, DB/API change procedures, dependency policy, deployment | Engineering procedure |
 | `docs/05_operations/*` | Background jobs, monitoring, incident response, troubleshooting | Ops concerns |
 | `docs/06_decisions/README.md` + `docs/06_decisions/**/ADR-*.md` | Architecture Decision Records (why the code is shaped this way) | Changing an established decision; next number is 023 |
-| `docs/CODE_NOTES.md` | Line-by-line "how the code works" notes for most files | Reading any specific file |
+| Per-subsystem `## Code notes` sections (`docs/03_features/` + `docs/04_engineering/`) | Line-by-line "how the code works" notes for most files | Reading any specific file |
 | `DEPLOYMENT.md` | Environment variables + deployment runbook | Deploy / env questions |
 | `README.md` | Product overview + getting started | First contact |
 | `CONTEXT.md` | Obsidian vault hub; project status + open audit items | Current state / open work |
@@ -61,7 +61,7 @@ Do NOT start editing after a non-trivial request. Follow the cycle in
    (Level 1–5); Level 3+ needs dependency analysis, Level 4+ needs an explicit
    plan + ADR consideration.
 6. **Verify** — see "How to validate" below.
-7. **Document** — update the affected spec/CODE_NOTES; do not let docs drift.
+7. **Document** — update the affected spec and its `## Code notes` section; do not let docs drift.
 8. **Review** — check the invariants and the source-of-truth hierarchy.
 
 ## Immutable rules (full list: `docs/00_system/architectural_invariants.md`)
@@ -115,7 +115,7 @@ pnpm lint:tenant-scope      # no bare eq(table.restaurantId, ...) outside scope(
 pnpm lint:unscoped-query    # no tenant-table query without a tenant filter
 pnpm lint:no-sql-raw        # no sql.raw()
 pnpm lint:i18n              # no hardcoded user-facing strings
-pnpm lint:no-comments       # no inline code comments (they belong in CODE_NOTES)
+pnpm lint:no-comments       # no inline code comments (explanations live in the per-subsystem `## Code notes` sections)
 pnpm build          # app + worker build
 ```
 
@@ -126,7 +126,7 @@ gates above. CI runs them all on every PR.
 
 - Any change to schema, routes, business rules, feature behaviour, external
   integrations, security, billing, or background jobs is a documentation event.
-- Update the affected feature spec (`docs/03_features/`), `docs/CODE_NOTES.md`,
+- Update the affected feature spec (`docs/03_features/`) and its `## Code notes` section,
   and — if the "why" changed — an ADR.
 - A spec that no longer matches the code is either stale (update it) or a bug
   (fix the code). Record it; do not silently pick one.
@@ -146,7 +146,7 @@ gates above. CI runs them all on every PR.
 - Drizzle schema is split across `src/lib/server/schema/{core,extensions,auth}.ts`,
   re-exported by `schema.ts`. All business tables carry `restaurant_id`.
 - Statuses are `text` columns with app-level defaults — there are NO Postgres enums.
-- No inline comments in code — explanatory notes live in `docs/CODE_NOTES.md`
+- No inline comments in code — explanatory notes live in the per-subsystem `## Code notes` sections
   (enforced by `lint:no-comments`).
 - Mobile and desktop UI variants are both rendered; CSS chooses which shows
   (ADR-020). One `md` (768px) breakpoint.
