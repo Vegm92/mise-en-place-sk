@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
+import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { createLLMProvider, type LLMProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
@@ -151,22 +151,25 @@ const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 	png:  'image/png',
 };
 
-export type GenerateFn = (content: string | object[]) => Promise<string>;
+export type GenerateFn = (content: string | object[], signal?: AbortSignal) => Promise<string>;
 
 function getGenerateFn(): GenerateFn {
 	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
 	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-	return async (content) => {
+	return async (content, signal) => {
 		const contents = typeof content === 'string'
 			? content
 			: [{ role: 'user', parts: content }];
-		const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents });
+		const response = await ai.models.generateContent({
+			model: GEMINI_MODEL,
+			contents,
+			config: signal ? { abortSignal: signal } : undefined,
+		});
 		return response.text ?? '';
 	};
 }
 
 const PDF_PARSE_TIMEOUT_MS = 15_000;
-const GEMINI_TIMEOUT_MS = 60_000;
 
 async function classifyPdf(filePath: string): Promise<ClassifiedFile> {
 	const { extractText, getDocumentProxy } = await import('unpdf');
@@ -229,19 +232,20 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 async function callGemini(
 	generate: GenerateFn,
 	classified: ClassifiedFile,
-	filePath: string
+	filePath: string,
+	signal?: AbortSignal,
 ): Promise<ExtractedInvoice> {
-	const generateWithRetry: GenerateFn = (content) => withRetry(() => generate(content));
+	const generateWithRetry: GenerateFn = (content, sig) => withRetry(() => generate(content, sig));
 	let rawText: string;
 
 	if (classified.type === 'text_pdf') {
-		rawText = await generateWithRetry(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`);
+		rawText = await generateWithRetry(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`, signal);
 	} else if (classified.type === 'scanned_pdf') {
 		const pdfData = readFileSync(filePath).toString('base64');
 		rawText = await generateWithRetry([
 			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
 			{ text: EXTRACTION_PROMPT },
-		]);
+		], signal);
 	} else {
 		const ext = path.extname(filePath).toLowerCase().replace('.', '');
 		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
@@ -249,7 +253,7 @@ async function callGemini(
 		rawText = await generateWithRetry([
 			{ inlineData: { data: imageData, mimeType } },
 			{ text: EXTRACTION_PROMPT },
-		]);
+		], signal);
 	}
 
 	const raw = stripFences(rawText);
@@ -274,9 +278,11 @@ export async function extractInvoice(
 
 	const generate = generateOverride ?? getGenerateFn();
 
+	const controller = new AbortController();
 	let timeoutHandle: ReturnType<typeof setTimeout>;
 	const timeout = new Promise<never>((_, rej) => {
 		timeoutHandle = setTimeout(() => {
+			controller.abort();
 			const err = new Error(`Gemini extraction timed out after ${GEMINI_TIMEOUT_MS / 1000}s`);
 			(err as { code?: string }).code = 'GEMINI_TIMEOUT';
 			rej(err);
@@ -284,7 +290,7 @@ export async function extractInvoice(
 	});
 
 	try {
-		return await Promise.race([callGemini(generate, classified, filePath), timeout]);
+		return await Promise.race([callGemini(generate, classified, filePath, controller.signal), timeout]);
 	} finally {
 		clearTimeout(timeoutHandle!);
 	}
@@ -294,12 +300,13 @@ async function callProvider(
 	provider: LLMProvider,
 	classified: ClassifiedFile,
 	filePath: string,
+	signal?: AbortSignal,
 ): Promise<{ invoice: ExtractedInvoice; usage: LLMUsage }> {
 	let lastUsage: LLMUsage = { inputTokens: 0, outputTokens: 0, model: provider.model };
 
 	const generateWithRetry = (content: string | object[]) =>
 		withRetry(async () => {
-			const resp = await provider.generate(content);
+			const resp = await provider.generate(content, signal);
 			lastUsage = resp.usage;
 			return resp.text;
 		});
@@ -346,9 +353,11 @@ export async function extractWithProvider(
 
 	const resolvedProvider = provider ?? createLLMProvider();
 
+	const controller = new AbortController();
 	let timeoutHandle: ReturnType<typeof setTimeout>;
 	const timeout = new Promise<never>((_, rej) => {
 		timeoutHandle = setTimeout(() => {
+			controller.abort();
 			const err = new Error(`LLM extraction timed out after ${GEMINI_TIMEOUT_MS / 1000}s`);
 			(err as { code?: string }).code = 'GEMINI_TIMEOUT';
 			rej(err);
@@ -356,7 +365,7 @@ export async function extractWithProvider(
 	});
 
 	try {
-		return await Promise.race([callProvider(resolvedProvider, classified, filePath), timeout]);
+		return await Promise.race([callProvider(resolvedProvider, classified, filePath, controller.signal), timeout]);
 	} finally {
 		clearTimeout(timeoutHandle!);
 	}

@@ -131,6 +131,50 @@ describe('extractInvoice — response parsing', () => {
   });
 });
 
+// A timed-out extraction must actually cancel the in-flight Gemini request,
+// not just reject the JS promise — otherwise the request lingers, holds a
+// socket and a Gemini concurrency slot, and (with the strictly-sequential
+// worker) jobs pile up behind it. The wiring is an AbortSignal threaded from
+// extractInvoice down to the generate call.
+describe('extractInvoice — request cancellation', () => {
+  it('forwards an AbortSignal to the generate function', async () => {
+    mockPdfText('x'.repeat(100));
+
+    let received: AbortSignal | undefined;
+    const generate: GenerateFn = vi.fn(async (_content, signal) => {
+      received = signal;
+      return JSON.stringify(MOCK_INVOICE_DATA);
+    });
+
+    await extractInvoice('/fake/invoice.pdf', generate);
+    expect(received).toBeInstanceOf(AbortSignal);
+    expect(received?.aborted).toBe(false);
+  });
+
+  it('aborts the signal when the extraction hangs past the timeout', async () => {
+    vi.resetModules();
+    vi.stubEnv('GEMINI_TIMEOUT_MS', '20');
+    try {
+      const { extractInvoice: extractFresh } = await import('../src/lib/server/extract');
+      mockPdfText('x'.repeat(100));
+
+      let received: AbortSignal | undefined;
+      const generate: GenerateFn = vi.fn((_content, signal) => {
+        received = signal;
+        return new Promise<string>((_resolve, reject) => {
+          signal?.addEventListener('abort', () => reject(new Error('aborted')));
+        });
+      });
+
+      await expect(extractFresh('/fake/invoice.pdf', generate)).rejects.toThrow(/timed out/);
+      expect(received?.aborted).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
+  });
+});
+
 describe('classifyFile', () => {
   it('throws for unsupported file types', () => {
     expect(() => classifyFile('/fake/invoice.xlsx')).toThrow('Unsupported file type');

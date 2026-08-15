@@ -29,9 +29,16 @@ function classifyExtractionError(err: unknown): string {
 	const status = (err as { status?: number }).status;
 	const message = (err as { message?: string }).message ?? '';
 	const code = (err as { code?: string }).code;
+	const name = (err as { name?: string }).name;
 	if (status === 429) return 'extract.err.rateLimited';
 	if (status === 503) return 'extract.err.unavailable';
-	if (code === 'GEMINI_TIMEOUT') return 'extract.err.timeout';
+	if (
+		code === 'GEMINI_TIMEOUT' ||
+		code === 'ABORT_ERR' ||
+		code === 'ETIMEDOUT' ||
+		name === 'AbortError' ||
+		name === 'TimeoutError'
+	) return 'extract.err.timeout';
 	if (message.includes('invalid JSON') || message.includes('LLM returned invalid JSON')) return 'extract.err.notInvoice';
 	return 'extract.err.generic';
 }

@@ -14,7 +14,7 @@ export interface LLMResponse {
 
 export interface LLMProvider {
 	readonly model: string;
-	generate(content: string | object[]): Promise<LLMResponse>;
+	generate(content: string | object[], signal?: AbortSignal): Promise<LLMResponse>;
 }
 
 const COST_PER_MILLION: Record<string, { input: number; output: number }> = {
@@ -37,11 +37,15 @@ function createGeminiProvider(): LLMProvider {
 	const model = GEMINI_MODEL;
 	return {
 		model,
-		async generate(content) {
+		async generate(content, signal) {
 			const contents = typeof content === 'string'
 				? content
 				: [{ role: 'user', parts: content }];
-			const response = await ai.models.generateContent({ model, contents });
+			const response = await ai.models.generateContent({
+				model,
+				contents,
+				config: signal ? { abortSignal: signal } : undefined,
+			});
 			return {
 				text: response.text ?? '',
 				usage: {
