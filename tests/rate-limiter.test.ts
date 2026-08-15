@@ -149,3 +149,44 @@ describe('acquireExtractionSlot — bounded async semaphore (in-memory fallback)
 		expect(true).toBe(true);
 	});
 });
+
+describe('extraction parallelism (issue #454 goal: 3 invoices in parallel)', () => {
+	it('runs exactly 3 jobs concurrently and never exceeds the cap', async () => {
+		const CAP = 3;
+		let inFlight = 0;
+		let peak = 0;
+		let admittedFirstWave = 0;
+
+		let releaseHold: () => void;
+		const hold = new Promise<void>((resolve) => {
+			releaseHold = resolve;
+		});
+
+		// Mirrors worker.ts: the batch is processed with Promise.all, each job
+		// wraps its (fake) model call in acquire -> hold -> release.
+		const runJob = async () => {
+			const slot = await acquireExtractionSlot(CAP);
+			inFlight++;
+			admittedFirstWave = Math.max(admittedFirstWave, inFlight);
+			peak = Math.max(peak, inFlight);
+			await hold;
+			inFlight--;
+			await slot.release();
+		};
+
+		const batch = Promise.all([runJob(), runJob(), runJob(), runJob(), runJob()]);
+
+		// Let the first wave settle: with a cap of 3, three jobs are admitted and
+		// parked on the hold; the other two are queued behind the semaphore.
+		await new Promise((r) => setTimeout(r, 20));
+		expect(admittedFirstWave).toBe(CAP);
+		expect(inFlight).toBe(CAP);
+
+		// Drain the batch — released slots hand off to the two waiters.
+		releaseHold!();
+		await batch;
+
+		// The extra jobs still ran, but never more than CAP were ever in flight.
+		expect(peak).toBe(CAP);
+	});
+});

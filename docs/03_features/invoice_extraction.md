@@ -49,7 +49,7 @@ parsed here and re-checked at save.
   model call, so it never leaves a slot leased.
 - **Concurrency slot**: the model call is wrapped in
   `acquireExtractionSlot()` / `slot.release()` (`rate-limiter.ts`), a global
-  semaphore capped at `MAX_CONCURRENT_EXTRACTIONS` (default 1). Backed by
+  semaphore capped at `MAX_CONCURRENT_EXTRACTIONS` (default 3). Backed by
   Upstash Redis when configured (distributed, lease/TTL guarded so a dead
   worker can't hold a slot forever), otherwise an in-process fallback.
 - **JSON**: fence-stripped and `JSON.parse`d; invalid → `notInvoice` error class.
@@ -82,9 +82,10 @@ lost race releases the quota slot.
 
 `extract-invoice` queue (pg-boss, retryLimit 2, retryDelay 30 s,
 `expireInSeconds` 600). Worker `batchSize` equals `MAX_CONCURRENT_EXTRACTIONS`
-(default 1 → sequential); a batch of jobs is processed concurrently, with the
+(default 3); a batch of jobs is processed concurrently, with the
 `acquireExtractionSlot()` semaphore imposing the true global cap against
-Gemini regardless of how many worker processes run.
+Gemini regardless of how many worker processes run. So 3 uploaded invoices
+extract in parallel rather than one at a time.
 
 ## External dependencies
 
