@@ -17,7 +17,8 @@ import { getStorage } from '$lib/server/storage';
 import { STORAGE_DRIVER } from '$lib/server/env';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull, gte, lte, sql } from 'drizzle-orm';
+import { findSimilarInvoice, isoDateOffset, SIMILAR_INVOICE_DATE_WINDOW_DAYS } from '$lib/server/dedup';
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -67,6 +68,33 @@ async function findDuplicateInvoiceId(rid: string, supplierName: string, invoice
 	return rows[0]?.id ?? null;
 }
 
+async function findSimilarInvoiceId(
+	rid: string,
+	supplierName: string,
+	invoiceDate: string | null,
+	totalAmount: number | null,
+): Promise<number | null> {
+	const supplier = supplierName.trim();
+	if (!supplier || !invoiceDate || totalAmount == null) return null;
+
+	const tdb = forTenant(rid);
+	const candidates = await db
+		.select({ id: invoices.id, totalAmount: invoices.totalAmount })
+		.from(invoices)
+		.innerJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.where(and(
+			tdb.scope(invoices.restaurantId),
+			isNull(invoices.deletedAt),
+			sql`lower(${suppliers.name}) = lower(${supplier})`,
+			isNotNull(invoices.totalAmount),
+			gte(invoices.invoiceDate, isoDateOffset(invoiceDate, -SIMILAR_INVOICE_DATE_WINDOW_DAYS)),
+			lte(invoices.invoiceDate, isoDateOffset(invoiceDate, SIMILAR_INVOICE_DATE_WINDOW_DAYS)),
+		))
+		.limit(10);
+
+	return findSimilarInvoice(candidates, totalAmount)?.id ?? null;
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('batch', async () => {
 		const items = await getBatchItems(params.id);
@@ -96,10 +124,17 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		if (active && active.status === 'done') {
 			const extractedData = active.extractedData ?? {};
 			const confidence = typeof extractedData.confidence === 'number' ? extractedData.confidence : 0;
+			const supplierNameStr = String(extractedData.supplier_name ?? '');
 			const duplicateOfId = await findDuplicateInvoiceId(
 				locals.restaurantId!,
-				String(extractedData.supplier_name ?? ''),
+				supplierNameStr,
 				String(extractedData.invoice_number ?? ''),
+			);
+			const similarInvoiceId = duplicateOfId ? null : await findSimilarInvoiceId(
+				locals.restaurantId!,
+				supplierNameStr,
+				typeof extractedData.invoice_date === 'string' ? extractedData.invoice_date : null,
+				typeof extractedData.total_amount === 'number' ? extractedData.total_amount : null,
 			);
 			review = {
 				itemId: active.id,
@@ -109,6 +144,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				fieldConfidences: (extractedData.field_confidences as Record<string, number> | undefined) ?? {},
 				conversionNotes: active.conversionNotes ?? [],
 				duplicateOfId,
+				similarInvoiceId,
 			};
 		}
 

@@ -1,6 +1,31 @@
 import { createHash } from 'crypto';
 import fs from 'fs';
 
+export const SIMILAR_INVOICE_DATE_WINDOW_DAYS = 21;
+const SIMILAR_INVOICE_AMOUNT_ABS_TOLERANCE = 0.5;
+const SIMILAR_INVOICE_AMOUNT_REL_TOLERANCE = 0.01;
+
+export function amountsAreSimilar(a: number, b: number): boolean {
+	const tolerance = Math.max(
+		SIMILAR_INVOICE_AMOUNT_ABS_TOLERANCE,
+		Math.abs(a) * SIMILAR_INVOICE_AMOUNT_REL_TOLERANCE,
+	);
+	return Math.abs(a - b) <= tolerance;
+}
+
+export function isoDateOffset(dateStr: string, days: number): string {
+	const d = new Date(`${dateStr}T00:00:00Z`);
+	d.setUTCDate(d.getUTCDate() + days);
+	return d.toISOString().slice(0, 10);
+}
+
+export function findSimilarInvoice<T extends { totalAmount: number | null }>(
+	candidates: T[],
+	totalAmount: number,
+): T | null {
+	return candidates.find(c => c.totalAmount != null && amountsAreSimilar(c.totalAmount, totalAmount)) ?? null;
+}
+
 export function computeFileHash(filePath: string): string {
 	const buf = fs.readFileSync(filePath);
 	return createHash('sha256').update(buf).digest('hex');

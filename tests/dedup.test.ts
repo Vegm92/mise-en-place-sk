@@ -11,7 +11,10 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { computeInvoiceContentHash, computeFileHash } from '../src/lib/server/dedup';
+import {
+	computeInvoiceContentHash, computeFileHash,
+	amountsAreSimilar, isoDateOffset, findSimilarInvoice,
+} from '../src/lib/server/dedup';
 
 type Fields = Parameters<typeof computeInvoiceContentHash>[0];
 
@@ -163,5 +166,63 @@ describe('computeFileHash', () => {
 		fs.writeFileSync(f1, 'content A');
 		fs.writeFileSync(f2, 'content B');
 		expect(computeFileHash(f1)).not.toBe(computeFileHash(f2));
+	});
+});
+
+describe('amountsAreSimilar — same-purchase heuristic (issue #449)', () => {
+	it('matches identical amounts', () => {
+		expect(amountsAreSimilar(123.45, 123.45)).toBe(true);
+	});
+
+	it('matches amounts within the absolute tolerance on small totals', () => {
+		expect(amountsAreSimilar(10.0, 10.4)).toBe(true);
+		expect(amountsAreSimilar(10.0, 10.6)).toBe(false);
+	});
+
+	it('matches amounts within the relative tolerance on large totals', () => {
+		expect(amountsAreSimilar(1000, 1009)).toBe(true);
+		expect(amountsAreSimilar(1000, 1020)).toBe(false);
+	});
+
+	it('does not match a clearly different amount', () => {
+		expect(amountsAreSimilar(45.0, 890.0)).toBe(false);
+	});
+});
+
+describe('isoDateOffset', () => {
+	it('adds days across a month boundary', () => {
+		expect(isoDateOffset('2026-06-25', 10)).toBe('2026-07-05');
+	});
+
+	it('subtracts days across a month boundary', () => {
+		expect(isoDateOffset('2026-07-05', -10)).toBe('2026-06-25');
+	});
+
+	it('is a no-op for zero days', () => {
+		expect(isoDateOffset('2026-06-01', 0)).toBe('2026-06-01');
+	});
+});
+
+describe('findSimilarInvoice', () => {
+	it('returns the candidate whose amount is similar', () => {
+		const candidates = [
+			{ id: 1, totalAmount: 45.0 },
+			{ id: 2, totalAmount: 123.6 },
+		];
+		expect(findSimilarInvoice(candidates, 123.45)?.id).toBe(2);
+	});
+
+	it('returns null when no candidate is close enough', () => {
+		const candidates = [{ id: 1, totalAmount: 45.0 }];
+		expect(findSimilarInvoice(candidates, 123.45)).toBeNull();
+	});
+
+	it('skips candidates with a null amount', () => {
+		const candidates = [{ id: 1, totalAmount: null }, { id: 2, totalAmount: 123.5 }];
+		expect(findSimilarInvoice(candidates, 123.45)?.id).toBe(2);
+	});
+
+	it('returns null for an empty candidate list', () => {
+		expect(findSimilarInvoice([], 123.45)).toBeNull();
 	});
 });
