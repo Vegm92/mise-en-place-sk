@@ -1,4 +1,10 @@
-import { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } from '$lib/server/env';
+import { randomUUID } from 'node:crypto';
+import {
+	UPSTASH_REDIS_REST_URL,
+	UPSTASH_REDIS_REST_TOKEN,
+	MAX_CONCURRENT_EXTRACTIONS,
+	GEMINI_TIMEOUT_MS,
+} from '$lib/server/env';
 
 type UpstashLimiter = { limit(key: string): Promise<{ success: boolean }> };
 
@@ -95,6 +101,7 @@ export async function checkRateLimit(
 }
 
 let activeExtractions = 0;
+const extractionWaiters: Array<() => void> = [];
 
 export function tryAcquireExtraction(max: number): boolean {
 	if (activeExtractions >= max) return false;
@@ -103,5 +110,100 @@ export function tryAcquireExtraction(max: number): boolean {
 }
 
 export function releaseExtraction(): void {
+	const next = extractionWaiters.shift();
+	if (next) {
+		next();
+		return;
+	}
 	activeExtractions = Math.max(0, activeExtractions - 1);
+}
+
+function acquireExtractionInMemory(max: number): Promise<void> {
+	if (activeExtractions < max) {
+		activeExtractions++;
+		return Promise.resolve();
+	}
+	return new Promise((resolve) => extractionWaiters.push(resolve));
+}
+
+const SLOT_KEY = 'mep:extract:slots';
+const SLOT_LEASE_MS = Math.max(GEMINI_TIMEOUT_MS + 60_000, 120_000);
+const SLOT_POLL_INTERVAL_MS = 250;
+const SLOT_MAX_WAIT_MS = 5 * 60_000;
+
+const ACQUIRE_SLOT_SCRIPT = `
+local now = tonumber(ARGV[1])
+local max = tonumber(ARGV[2])
+local lease = tonumber(ARGV[4])
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+local count = redis.call('ZCARD', KEYS[1])
+if count < max then
+	redis.call('ZADD', KEYS[1], now + lease, ARGV[3])
+	redis.call('PEXPIRE', KEYS[1], lease + 60000)
+	return 1
+end
+return 0
+`;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export interface ExtractionSlot {
+	release(): Promise<void>;
+}
+
+async function acquireExtractionSlotRedis(max: number): Promise<ExtractionSlot | null> {
+	const token = `${process.pid}:${randomUUID()}`;
+	const deadline = Date.now() + SLOT_MAX_WAIT_MS;
+	for (;;) {
+		const granted = await redisClient.eval(
+			ACQUIRE_SLOT_SCRIPT,
+			[SLOT_KEY],
+			[String(Date.now()), String(max), token, String(SLOT_LEASE_MS)],
+		);
+		if (Number(granted) === 1) {
+			let released = false;
+			return {
+				async release() {
+					if (released) return;
+					released = true;
+					try {
+						await redisClient.zrem(SLOT_KEY, token);
+					} catch (e) {
+						console.error('[rate-limiter] Failed to release extraction slot in Redis:', e);
+					}
+				},
+			};
+		}
+		if (Date.now() > deadline) {
+			console.warn(
+				`[rate-limiter] Timed out waiting ${SLOT_MAX_WAIT_MS}ms for an extraction slot ` +
+				`(max ${max}) — proceeding without a Redis slot to avoid stalling the job`,
+			);
+			return { async release() { } };
+		}
+		await sleep(SLOT_POLL_INTERVAL_MS + Math.floor(Math.random() * SLOT_POLL_INTERVAL_MS));
+	}
+}
+
+export async function acquireExtractionSlot(
+	max: number = MAX_CONCURRENT_EXTRACTIONS,
+): Promise<ExtractionSlot> {
+	const cap = Math.max(1, max);
+	if (upstashEnabled && redisClient) {
+		try {
+			const slot = await acquireExtractionSlotRedis(cap);
+			if (slot) return slot;
+		} catch (e) {
+			console.error('[rate-limiter] Redis extraction semaphore error, falling back to in-memory:', e);
+		}
+	}
+	await acquireExtractionInMemory(cap);
+	let released = false;
+	return {
+		async release() {
+			if (released) return;
+			released = true;
+			releaseExtraction();
+		},
+	};
 }

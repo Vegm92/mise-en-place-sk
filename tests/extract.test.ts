@@ -133,9 +133,10 @@ describe('extractInvoice — response parsing', () => {
 
 // A timed-out extraction must actually cancel the in-flight Gemini request,
 // not just reject the JS promise — otherwise the request lingers, holds a
-// socket and a Gemini concurrency slot, and (with the strictly-sequential
-// worker) jobs pile up behind it. The wiring is an AbortSignal threaded from
-// extractInvoice down to the generate call.
+// socket and a Gemini concurrency slot (never released back to the extraction
+// semaphore), and under the default single-slot cap jobs pile up behind it.
+// The wiring is an AbortSignal threaded from extractInvoice down to the
+// generate call.
 describe('extractInvoice — request cancellation', () => {
   it('forwards an AbortSignal to the generate function', async () => {
     mockPdfText('x'.repeat(100));
