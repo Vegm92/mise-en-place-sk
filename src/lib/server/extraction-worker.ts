@@ -12,6 +12,7 @@ import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction,
 import { getAccessState } from './billing.js';
 import { recordDeadLetter } from './dead-letter.js';
 import { EXTRACTION_QUEUE } from './queue.js';
+import { acquireExtractionSlot } from './rate-limiter.js';
 
 export interface ExtractionJobData {
 	itemId?: string;
@@ -126,13 +127,18 @@ export async function processExtractionJob(
 
 	try {
 		let result;
-		if (generateOverride) {
-			const invoice = await extractInvoice(filePath, generateOverride);
-			result = invoice;
-		} else {
-			const { invoice, usage } = await extractWithProvider(filePath);
-			result = invoice;
-			await recordLlmUsage(restaurantId, usage, 'extraction-worker');
+		const slot = await acquireExtractionSlot();
+		try {
+			if (generateOverride) {
+				const invoice = await extractInvoice(filePath, generateOverride);
+				result = invoice;
+			} else {
+				const { invoice, usage } = await extractWithProvider(filePath);
+				result = invoice;
+				await recordLlmUsage(restaurantId, usage, 'extraction-worker');
+			}
+		} finally {
+			await slot.release();
 		}
 
 		const supplierName = result.supplier_name ?? '';

@@ -76,8 +76,9 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 - `src/worker.ts`: pg-boss, `max:3`, queues `extract-invoice` and
   `normalize-product` (each with a dead-letter sibling), all drained to the
-  `dead_letter_queue` audit table. Extraction is strictly sequential
-  (`batchSize: 1`).
+  `dead_letter_queue` audit table. Extraction runs up to
+  `MAX_CONCURRENT_EXTRACTIONS` (default 3) in parallel, capped globally by the
+  `acquireExtractionSlot()` semaphore (`worker.ts` `batchSize` follows the cap).
 - Scheduled cron jobs (see `docs/05_operations/background_jobs.md`):
   weekly digest, overdue reminders, trial-expiry notices, file purge,
   MRR snapshot, dead-letter purge, analytics MV refresh.
@@ -166,8 +167,10 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 1. **App-layer tenancy is the only boundary** — any unscoped query is a data
    leak (lint gates catch the shape; #380 did leak via an unscoped query).
-2. **Single-instance assumptions** — in-memory rate limiter and the extraction
-   semaphore multiply with instances (worker must stay `batchSize: 1`).
+2. **Single-instance assumptions** — the in-memory rate limiter is per-process.
+   The extraction semaphore stays global across worker processes only when
+   Upstash Redis is configured; without it, the per-process fallback means the
+   effective Gemini concurrency is (worker count × `MAX_CONCURRENT_EXTRACTIONS`).
 3. **Local storage default** — web and worker must share `UPLOADS_DIR`; a
    split-process deploy without shared disk breaks extraction (use `railway`).
 4. **AI cost/unbounded usage** — chat and digest bypass LLM usage recording;

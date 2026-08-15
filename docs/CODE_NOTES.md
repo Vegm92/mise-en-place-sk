@@ -11,6 +11,7 @@ This file is tracked in the repo — it is the shared reference for why the code
 
 - Extracted: 1856 notes from 162 of 233 source files
 - Generated: 2026-07-31
+- Amended: 2026-08-15 — issue #454 turned the dead in-process extraction semaphore into a live, global concurrency gate: `acquireExtractionSlot()`/`release()` in `rate-limiter.ts` (Redis ZSET lease when Upstash is configured, in-process FIFO otherwise), wired around the model call in `extraction-worker.ts`, with the worker's `batchSize` following `MAX_CONCURRENT_EXTRACTIONS` (default 3, so a small upload — e.g. 3 one-page invoices — extracts in parallel up to the cap; set to 1 for the old strictly-sequential behaviour). Updated the `rate-limiter.ts`, `extraction-worker.ts`, and `worker.ts` sections.
 - Amended: 2026-08-14 — issue #391 extracted the shared honeypot + rate-limit boilerplate from `login`, `signup`, `forgot-password`, and `waitlist` into `src/lib/server/public-form-action.ts`; added a section for it and updated the four callers' notes to point at it.
 - Amended: 2026-08-12 — the last 33 explanatory comments were moved out of `src/` and into this file, covering `auth-session.ts`, `batch-core.ts`, `dead-letter.ts`, `einvoice-parser.ts`, `extract.ts`, `idempotency.ts`, `invoice-save.ts`, `supplier.ts`, `verification-token.ts`, `batch/[id]/+page.server.ts`, and `forgot-password/+page.server.ts` (the first three had no section before). `pnpm lint:no-comments` now runs in CI, so the policy is enforced rather than aspirational.
 - Amended: 2026-08-11 — the auth/DB sections predated ADR-005 and ADR-014 (Railway Postgres, Auth.js), so notes covering `svelte.config.js`, `settings/+page.server.ts`, `api/auth/[...all]`, `api/user/delete`, `forgot-password`, `reset-password`, `signup/+page.server.ts`, `auth-seed.ts`, `db-ssl.ts`, `db.ts`, `extraction-worker.ts`, `schema.ts`, and `hooks.server.ts` were rewritten to match; the dead `src/lib/server/supabase.ts` and `src/routes/auth/callback/+server.ts` sections were removed outright.
@@ -3080,6 +3081,9 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 - Resolve the file to a local path the extraction engine can read. For the Railway bucket driver, download to a temp file; for local storage, compute the path directly.
 
     ↳ `let filePath: string;`
+- Global Gemini concurrency gate (issue #454): acquire a slot immediately before the model call and release it in the `finally` around that call only — not around annotate/markDone, which are DB-only and would just hold the slot longer. The semaphore is the single place the `MAX_CONCURRENT_EXTRACTIONS` cap is enforced, so it holds even with several worker processes (Redis-backed) and survives the timeout-abort path (#455): a request cancelled at the wall-clock timeout still runs its `slot.release()`.
+
+    ↳ `const slot = await acquireExtractionSlot();`
 - ignore
 
     ↳ `} };`
@@ -3590,9 +3594,18 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 
 **`const activeExtractions`**
 
-- ── Extraction concurrency semaphore NOTE: this counter is in-process and therefore SINGLE-INSTANCE ONLY. With multiple worker processes the effective concurrency against Gemini is (process count × max). A distributed semaphore (e.g. Upstash Redis) would be required to enforce a global cap across instances.
+- ── Extraction concurrency semaphore (in-process fallback). `activeExtractions` + `extractionWaiters` back an async, bounded FIFO semaphore for a single process. `tryAcquireExtraction`/`releaseExtraction` are the non-blocking primitive; `acquireExtractionInMemory` is the blocking form used when Redis is unavailable. `releaseExtraction` hands a freed slot straight to the oldest waiter rather than decrementing, so the count reflects live holders + queued hand-offs.
 
     ↳ `let activeExtractions = 0;`
+
+**`function acquireExtractionSlot`**
+
+- The public, provider-agnostic slot API (issue #454). `acquireExtractionSlot()` waits for a global Gemini slot and returns a `release()`; the extraction worker wraps the model call in `acquire → try → finally release`. Redis path first (distributed, multi-process safe), in-process semaphore otherwise. A grant is idempotent to release — the returned `release()` guards a `released` flag so the timeout/finally double-release fixed in #455 can't free a slot twice.
+
+    ↳ `export async function acquireExtractionSlot(`
+- Redis semaphore = a ZSET of live leases keyed by a per-acquire token, scored by expiry. The acquire Lua script is atomic: sweep expired members (`ZREMRANGEBYSCORE`), and if `ZCARD < max`, `ZADD` this token with `now + lease` and return 1, else return 0. The lease (`GEMINI_TIMEOUT_MS + 60 s`, floor 120 s) is the dead-worker safety net: a process that dies mid-extraction has its slot reclaimed by the next sweep instead of leaking forever. The caller polls (with jitter) until granted, capped at `SLOT_MAX_WAIT_MS` — on cap it proceeds slot-less rather than stalling the job past its pg-boss expiry (fail-open; the lease still bounds the blast radius).
+
+    ↳ `const ACQUIRE_SLOT_SCRIPT = ``;`
 
 ### `src/lib/server/revenue-metrics.ts`
 
@@ -6209,7 +6222,7 @@ Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 - pg-boss v10+ no longer auto-creates queues; work() requires the queue to exist first. createQueue is idempotent.
 
     ↳ `await boss.createQueue(EXTRACTION_QUEUE);`
-- batchSize 1 — extractions run strictly one-by-one. Parallel extraction multiplies Gemini rate-limit pressure and contradicts the sequential design.
+- `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (issue #454). The batch of jobs is processed concurrently (`Promise.all`), but the true cap on live Gemini calls is `acquireExtractionSlot()` inside each job, not the batch size — so a larger `batchSize` only helps if the semaphore's global cap is also raised. Default 3 lets a small upload (e.g. 3 one-page invoices) extract in parallel instead of one at a time; set the cap to 1 for the historical strictly-sequential behaviour. `runWithDeadLetter` catches per-job, so one job's failure can't reject the shared handler promise and drag the rest of the batch down with it.
 
     ↳ `await boss.work<ExtractionJobData>(`
 - Low-priority LLM product normalization (issue #300). Best-effort — the handler swallows its own errors, so a failed suggestion never retries noisily.

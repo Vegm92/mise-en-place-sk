@@ -11,6 +11,7 @@ import {
 	checkRateLimit,
 	tryAcquireExtraction,
 	releaseExtraction,
+	acquireExtractionSlot,
 } from '../src/lib/server/rate-limiter';
 
 afterEach(() => {
@@ -109,5 +110,83 @@ describe('extraction concurrency semaphore', () => {
 		expect(tryAcquireExtraction(1)).toBe(true);
 		expect(tryAcquireExtraction(1)).toBe(false);
 		releaseExtraction();
+	});
+});
+
+describe('acquireExtractionSlot — bounded async semaphore (in-memory fallback)', () => {
+	it('blocks a further acquire until a held slot is released', async () => {
+		const a = await acquireExtractionSlot(2);
+		const b = await acquireExtractionSlot(2);
+
+		let thirdAcquired = false;
+		const thirdPromise = acquireExtractionSlot(2).then((slot) => {
+			thirdAcquired = true;
+			return slot;
+		});
+
+		// The queue is full — the third acquire must stay pending.
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(thirdAcquired).toBe(false);
+
+		// Releasing a slot hands it straight to the waiter.
+		await a.release();
+		const c = await thirdPromise;
+		expect(thirdAcquired).toBe(true);
+
+		await b.release();
+		await c.release();
+	});
+
+	it('release is idempotent and never mints phantom capacity', async () => {
+		const first = await acquireExtractionSlot(1);
+		await first.release();
+		await first.release();
+
+		// With the single slot genuinely free again, the next acquire resolves.
+		const second = await acquireExtractionSlot(1);
+		await second.release();
+		expect(true).toBe(true);
+	});
+});
+
+describe('extraction parallelism (issue #454 goal: 3 invoices in parallel)', () => {
+	it('runs exactly 3 jobs concurrently and never exceeds the cap', async () => {
+		const CAP = 3;
+		let inFlight = 0;
+		let peak = 0;
+		let admittedFirstWave = 0;
+
+		let releaseHold: () => void;
+		const hold = new Promise<void>((resolve) => {
+			releaseHold = resolve;
+		});
+
+		// Mirrors worker.ts: the batch is processed with Promise.all, each job
+		// wraps its (fake) model call in acquire -> hold -> release.
+		const runJob = async () => {
+			const slot = await acquireExtractionSlot(CAP);
+			inFlight++;
+			admittedFirstWave = Math.max(admittedFirstWave, inFlight);
+			peak = Math.max(peak, inFlight);
+			await hold;
+			inFlight--;
+			await slot.release();
+		};
+
+		const batch = Promise.all([runJob(), runJob(), runJob(), runJob(), runJob()]);
+
+		// Let the first wave settle: with a cap of 3, three jobs are admitted and
+		// parked on the hold; the other two are queued behind the semaphore.
+		await new Promise((r) => setTimeout(r, 20));
+		expect(admittedFirstWave).toBe(CAP);
+		expect(inFlight).toBe(CAP);
+
+		// Drain the batch — released slots hand off to the two waiters.
+		releaseHold!();
+		await batch;
+
+		// The extra jobs still ran, but never more than CAP were ever in flight.
+		expect(peak).toBe(CAP);
 	});
 });

@@ -18,7 +18,7 @@ Web upload (routes/(app)/+page.server.ts)           WhatsApp upload (whatsapp-bo
                  queue.ts → pg-boss "extract-invoice"   ◀── enqueueBatchExtraction (extract-batch.ts)
                               │
                               ▼
-              extraction-worker.ts  (worker process, batchSize 1)
+     extraction-worker.ts  (worker process, batchSize = MAX_CONCURRENT_EXTRACTIONS, default 3)
                               │
               ┌───────────────┴───────────────┐
               ▼                               ▼

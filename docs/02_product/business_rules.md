@@ -12,7 +12,7 @@ with an ADR if structural. Feature-level detail lives in `docs/03_features/`.
 | Max file size | 20 MB | `sessions.ts` |
 | Validation | extension whitelist + magic-byte check | `sessions.ts` |
 | Upload rate limit | `upload:{rid}` 10/min | `(app)/+page.server.ts` |
-| Extraction concurrency | pg-boss `batchSize: 1` (strictly sequential) | `worker.ts` |
+| Extraction concurrency | Global cap `MAX_CONCURRENT_EXTRACTIONS` (default 3) enforced by a distributed semaphore; worker `batchSize` follows the cap | `worker.ts`, `rate-limiter.ts` |
 | Retries | 429/503 → 3 attempts (1 s/2 s/4 s); 60 s wall-clock timeout | `extract.ts` |
 | Classification | `text_pdf` (≥50 chars), `scanned_pdf`, `image`, `xml` | `extract.ts` |
 | Stale cleanup | batches not confirmed > 24 h are deleted by scheduled job | `batch-core.ts` |

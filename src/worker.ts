@@ -13,6 +13,7 @@ import { processExtractionJob, type ExtractionJobData } from './lib/server/extra
 import { processNormalizeJob, type NormalizeJobData } from './lib/server/products.js';
 import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
+import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 
 Sentry.init({
 	dsn: process.env.SENTRY_DSN ?? '',
@@ -55,19 +56,25 @@ await boss.start();
 await createQueuesWithDeadLetters(boss);
 console.info('[worker] pg-boss started');
 
+const EXTRACTION_BATCH_SIZE = Math.max(1, MAX_CONCURRENT_EXTRACTIONS);
 await boss.work(
 	EXTRACTION_QUEUE,
-	{ batchSize: 1, includeMetadata: true },
+	{ batchSize: EXTRACTION_BATCH_SIZE, includeMetadata: true },
 	async (jobs: JobWithMetadata<ExtractionJobData>[]) => {
-		for (const job of jobs) {
-			await runWithDeadLetter(
-				deadLetterRefFromJob(EXTRACTION_QUEUE, job),
-				() => processExtractionJob(job.data),
-			);
-		}
+		await Promise.all(
+			jobs.map((job) =>
+				runWithDeadLetter(
+					deadLetterRefFromJob(EXTRACTION_QUEUE, job),
+					() => processExtractionJob(job.data),
+				),
+			),
+		);
 	},
 );
-console.info(`[worker] Listening for "${EXTRACTION_QUEUE}" jobs`);
+console.info(
+	`[worker] Listening for "${EXTRACTION_QUEUE}" jobs (batchSize ${EXTRACTION_BATCH_SIZE}, ` +
+	`global cap ${MAX_CONCURRENT_EXTRACTIONS})`,
+);
 
 await boss.work(
 	NORMALIZE_QUEUE,
