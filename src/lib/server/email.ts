@@ -14,7 +14,7 @@ const resend = apiKey ? new Resend(apiKey) : null;
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
 	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'quota_warning'
-	| 'verify_email' | 'password_reset';
+	| 'verify_email' | 'password_reset' | 'access_approved';
 
 export interface EmailPayload {
 	to: string;
@@ -229,6 +229,27 @@ ${couponCode ? callout(`Código ${escapeHtml(couponCode)}`, 'Úsalo al pagar y t
 			cta: { href: `${APP_URL}/signup`, label: 'Crear tu cuenta' },
 			signature: `Nos vemos pronto en el pase,<br>${strong('El equipo de Mise en Place')}`,
 			footerNote: 'Recibes este correo porque te apuntaste en la lista de espera de Mise en Place.',
+		}),
+	};
+}
+
+export function accessApprovedEmail(email: string, couponCode?: string): EmailPayload {
+	return {
+		to: email,
+		kind: 'access_approved',
+		subject: 'Tu acceso a Mise en Place ya está activo',
+		html: renderEmailLayout({
+			preheader: 'Ya puedes entrar — tu cuenta está activada.',
+			tagChip: 'Acceso activado',
+			eyebrow: 'Beta privada',
+			headline: 'Ya puedes entrar.',
+			bodyHtml: `
+${p('Hemos activado tu cuenta: ya tienes acceso completo a Mise en Place.')}
+${p(`Entra con el email con el que te registraste (${strong(escapeHtml(email))}) y monta tu restaurante en un par de minutos.`)}
+${couponCode ? callout(`Código ${escapeHtml(couponCode)}`, 'Tu descuento de fundador. Úsalo al pasar por caja.') : ''}`,
+			cta: { href: `${APP_URL}/login`, label: 'Entrar en la aplicación' },
+			signature: `Nos vemos en el pase,<br>${strong('El equipo de Mise en Place')}`,
+			footerNote: 'Recibes este correo porque tenías una cuenta pendiente de activación en Mise en Place.',
 		}),
 	};
 }
