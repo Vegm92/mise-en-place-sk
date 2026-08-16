@@ -43,11 +43,7 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 			}
 			if (!token.sub) return token;
 
-			// Revocation check (#478): a mismatch means this token was minted
-			// before a password reset/change or account deletion — reject it so
-			// the stale cookie stops working instead of staying valid for up to
-			// SESSION_MAX_AGE_SECONDS. Returning null is Auth.js's built-in
-			// "invalidate this token" signal — it clears the session cookie.
+			// Returning null is Auth.js's built-in "invalidate this token" signal — it clears the session cookie.
 			const claimed = typeof token.tokenVersion === 'number' ? token.tokenVersion : undefined;
 			const version = await checkTokenVersion(token.sub, claimed);
 			if (version === null) return null;

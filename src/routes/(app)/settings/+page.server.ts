@@ -196,9 +196,7 @@ export const actions: Actions = {
 			.set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` })
 			.where(eq(users.id, locals.user!.id));
 
-		// Bumping tokenVersion invalidates every outstanding token, including the
-		// one this request came in with — re-issue it so this device stays signed
-		// in while every other session is forced to re-authenticate.
+		// Bumping tokenVersion invalidates the token this request came in with too — re-issue it so this device stays signed in.
 		await issueSessionCookie(cookies, url.protocol === 'https:', locals.user!);
 
 		logAuthEvent('password_changed', { ipHash: hashIp(getClientAddress()) });
