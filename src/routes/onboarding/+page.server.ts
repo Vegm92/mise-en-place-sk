@@ -1,9 +1,9 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
+import { restaurants, userRestaurants, subscriptions, users } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
-import { TRIAL_DAYS, applyTierSettings } from '$lib/server/billing';
+import { trialDaysFor, applyTierSettings } from '$lib/server/billing';
 import { sendEmail, welcomeEmail } from '$lib/server/email';
 import { hasConsent, recordConsent } from '$lib/server/consent';
 import { claimRequest, isValidKey } from '$lib/server/idempotency';
@@ -58,6 +58,13 @@ export const actions: Actions = {
 
 			if (idemKey && !(await claimRequest(idemKey, null, tx))) return;
 
+			const [owner] = await tx
+				.select({ founder: users.founder })
+				.from(users)
+				.where(eq(users.id, userId))
+				.limit(1);
+			const founder = owner?.founder ?? false;
+
 			const [restaurant] = await tx
 				.insert(restaurants)
 				.values({ name, slug })
@@ -69,9 +76,9 @@ export const actions: Actions = {
 				role: 'owner',
 			});
 
-			const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+			const trialEndsAt = new Date(Date.now() + trialDaysFor(founder) * 24 * 60 * 60 * 1000);
 			await tx.insert(subscriptions)
-				.values({ restaurantId: restaurant.id, status: 'trialing', trialEndsAt })
+				.values({ restaurantId: restaurant.id, status: 'trialing', trialEndsAt, founder })
 				.onConflictDoUpdate({
 					target: subscriptions.restaurantId,
 					set: { updatedAt: new Date() },
