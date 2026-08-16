@@ -101,6 +101,7 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Email change. The app mints its own verification token and emails a confirmation link to the *new* address (`/settings/confirm-email`); the address only changes once that link is followed, so this reports "check your inbox", never "done".
 **`property changePassword`**
 - Password change while signed in. The current password is re-verified first — an unattended session must not be enough to take over the account. Same brute-force budget as the login form, keyed on the account (`password-change:${userId}`, 5).
+- Bumps `users.token_version` (issue #478) so every other outstanding session is forced to re-authenticate, then immediately re-issues this device's own cookie via `issueSessionCookie` — otherwise the request that just changed the password would invalidate itself too.
 **`property addLocation`**
 - Add a location (issue #290). Business tier only, capped at the tier's maxLocations. The new restaurant is a child of the paying one, so it inherits the plan instead of starting its own trial, and the caller becomes its owner. Data stays fully separate — only billing is shared.
 - Slug carries a random suffix for the same reason onboarding's does: two restaurants may legitimately share a name.

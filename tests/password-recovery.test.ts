@@ -48,11 +48,14 @@ vi.mock('$lib/server/db', () => {
 		}),
 	});
 	const update = () => ({
-		set: (values: Record<string, unknown>) => ({
-			where: () => ({
-				returning: () => Promise.resolve(state.userExists ? [{ id: 'u1', ...values }] : []),
-			}),
-		}),
+		set: (values: Record<string, unknown>) => {
+			updatedRows.push(values);
+			return {
+				where: () => ({
+					returning: () => Promise.resolve(state.userExists ? [{ id: 'u1', ...values }] : []),
+				}),
+			};
+		},
 	});
 	return { db: { select, update } };
 });
@@ -159,6 +162,9 @@ describe('/reset-password', () => {
 		).catch((e: unknown) => e);
 
 		expect(consumeVerificationTokenMock).toHaveBeenCalledWith('reset-password:chef@example.com', 'abc');
+		expect(updatedRows).toHaveLength(1);
+		expect(updatedRows[0]).toHaveProperty('passwordHash');
+		expect(updatedRows[0]).toHaveProperty('tokenVersion');
 		expect(deletedCookies).toEqual(['authjs.session-token', '__Secure-authjs.session-token']);
 		expect(isRedirect(thrown)).toBe(true);
 		expect((thrown as { status: number; location: string }).status).toBe(303);
