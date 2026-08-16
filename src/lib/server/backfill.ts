@@ -2,13 +2,14 @@ import { sql } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
 import { resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
+import { moneyToNullableNumber, toMoneyString } from './money';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
 export interface BackfillResult { packed: number; linked: number }
 
 async function backfillPacks(database: Database, restaurantId: string): Promise<number> {
-	const rows = await database.execute<{ id: number; description: string | null; unit: string | null; unit_price: number | null }>(sql`
+	const rows = await database.execute<{ id: number; description: string | null; unit: string | null; unit_price: string | null }>(sql`
 		SELECT id, description, unit, unit_price
 		FROM invoice_line_items
 		WHERE restaurant_id = ${restaurantId}
@@ -19,14 +20,14 @@ async function backfillPacks(database: Database, restaurantId: string): Promise<
 	for (const r of rows) {
 		const pack = parsePack(r.description, r.unit);
 		if (!pack) continue;
-		const norm = normalizedUnitPrice(r.unit_price, pack);
+		const norm = normalizedUnitPrice(moneyToNullableNumber(r.unit_price), pack);
 		await database.execute(sql`
 			UPDATE invoice_line_items SET
 				units_per_pack = ${pack.unitsPerPack},
 				unit_size = ${pack.unitSize},
 				size_unit = ${pack.sizeUnit},
 				base_unit = ${pack.baseUnit},
-				normalized_unit_price = ${norm}
+				normalized_unit_price = ${toMoneyString(norm)}
 			WHERE id = ${r.id}
 		`);
 		packed++;

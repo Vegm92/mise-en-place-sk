@@ -3,6 +3,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { and, desc, eq, gte, isNull, lte, type SQL } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
+import { moneyToNullableNumber } from '$lib/server/money';
 
 const STATUS_LABELS: Record<string, string> = {
 	pending:  'Pendiente',
@@ -73,7 +74,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			invoice_number: r.invoice_number ?? '—',
 			invoice_date:   r.invoice_date ?? '—',
 			due_date:       r.due_date ?? '—',
-			total_amount:   r.total_amount ?? null,
+			total_amount:   moneyToNullableNumber(r.total_amount),
 			status:         STATUS_LABELS[r.status ?? ''] ?? r.status ?? '—',
 			created_at:     r.created_at ? r.created_at.toISOString().replace('T', ' ').slice(0, 19) : '—',
 		});

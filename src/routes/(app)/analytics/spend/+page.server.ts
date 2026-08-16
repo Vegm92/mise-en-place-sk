@@ -3,6 +3,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
 import { CATEGORY_COLORS } from '$lib/constants';
+import { moneyToNumber } from '$lib/server/money';
 
 const PERIOD_DATE_SQL: Record<string, SQL> = {
 	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::text`,
@@ -27,10 +28,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const monthFilterSql = monthFilter ?? sql``;
 		const dateFilter = PERIOD_DATE_SQL[period]!;
 
-		type TopItem = { description: string; total_spend: number; item_count: number; avg_unit_price: number | null; supplier_name: string };
-		type CatRow = { category: string; total: number; invoice_count: number };
-		type KpisRow = { total_items_spend: number | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
-		type ItemTrendRow = { item_key: string; month: string; avg_price: number };
+		type TopItem = { description: string; total_spend: string; item_count: number; avg_unit_price: string | null; supplier_name: string };
+		type CatRow = { category: string; total: string; invoice_count: number };
+		type KpisRow = { total_items_spend: string | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
+		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
 
 		const [topItems, categorySpend, kpisRows, itemTrendRows] = await Promise.all([
 			db.execute<TopItem>(sql`
@@ -90,31 +91,38 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		for (const row of itemTrendRows) {
 			const key = String(row.item_key);
 			if (!itemTrendMap.has(key)) itemTrendMap.set(key, []);
-			itemTrendMap.get(key)!.push(Number(row.avg_price));
+			itemTrendMap.get(key)!.push(moneyToNumber(row.avg_price));
 		}
 
-		const maxSpend = Number(topItems[0]?.total_spend) || 1;
+		const maxSpend = moneyToNumber(topItems[0]?.total_spend) || 1;
 		const top_items = topItems.map(item => {
 			const key = item.description.toLowerCase().trim();
 			const rawTrend = itemTrendMap.get(key) ?? [];
 			return {
 				...item,
-				total_spend: Number(item.total_spend),
-				pct: Math.round((Number(item.total_spend) || 0) / maxSpend * 100),
+				total_spend: moneyToNumber(item.total_spend),
+				avg_unit_price: item.avg_unit_price == null ? null : moneyToNumber(item.avg_unit_price),
+				pct: Math.round((moneyToNumber(item.total_spend) || 0) / maxSpend * 100),
 				price_trend: rawTrend.length >= 2 ? rawTrend : [],
 			};
 		});
 
-		const maxCat = Number(categorySpend[0]?.total) || 1;
+		const maxCat = moneyToNumber(categorySpend[0]?.total) || 1;
 		const category_spend = categorySpend.map(cat => ({
 			category: String(cat.category),
-			total: Number(cat.total),
+			total: moneyToNumber(cat.total),
 			invoice_count: Number(cat.invoice_count),
-			pct: Math.round((Number(cat.total) || 0) / maxCat * 100),
+			pct: Math.round((moneyToNumber(cat.total) || 0) / maxCat * 100),
 			color: CATEGORY_COLORS[cat.category] ?? CATEGORY_COLORS['Other'],
 		}));
 
-		const kpis = kpisRows[0] ?? { total_items_spend: 0, total_line_items: 0, unique_items: 0, avg_invoice_items: null };
+		const kpisRow0 = kpisRows[0];
+		const kpis = {
+			total_items_spend: moneyToNumber(kpisRow0?.total_items_spend ?? '0'),
+			total_line_items: kpisRow0?.total_line_items ?? 0,
+			unique_items: kpisRow0?.unique_items ?? 0,
+			avg_invoice_items: kpisRow0?.avg_invoice_items ?? null,
+		};
 
 		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period };
 	});

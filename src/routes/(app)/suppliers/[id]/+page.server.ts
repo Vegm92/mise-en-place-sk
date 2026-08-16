@@ -5,6 +5,7 @@ import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems
 import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
+import { toCents, moneyToNumber } from '$lib/server/money';
 
 const VALID_TABS = ['resumen', 'facturas', 'productos', 'conversiones'] as const;
 type Tab = typeof VALID_TABS[number];
@@ -62,7 +63,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		db.select({
 			description: invoiceLineItems.description,
 			unit:        invoiceLineItems.unit,
-			avgPrice:    sql<number>`AVG(${invoiceLineItems.unitPrice})`,
+			avgPrice:    sql<string | null>`AVG(${invoiceLineItems.unitPrice})`,
 			totalQty:    sql<number>`SUM(${invoiceLineItems.quantity})`,
 			lastDate:    sql<string>`MAX(${invoices.invoiceDate})`,
 		})
@@ -86,11 +87,11 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		}
 	}
 
-	const monthlyMap: Record<string, number> = {};
+	const monthlyCentsMap: Record<string, number> = {};
 	for (const inv of supplierInvoices) {
 		if (!inv.invoiceDate) continue;
 		const ym = (inv.invoiceDate as string).slice(0, 7);
-		monthlyMap[ym] = (monthlyMap[ym] ?? 0) + (inv.totalAmount ?? 0);
+		monthlyCentsMap[ym] = (monthlyCentsMap[ym] ?? 0) + (toCents(inv.totalAmount) ?? 0);
 	}
 	const monthly: { key: string; label: string; value: number; partial: boolean }[] = [];
 	for (let i = 6; i >= 0; i--) {
@@ -99,7 +100,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		d.setMonth(d.getMonth() - i);
 		const ym = d.toISOString().slice(0, 7);
 		const label = d.toLocaleDateString('es-ES', { month: 'short' });
-		monthly.push({ key: ym, label, value: monthlyMap[ym] ?? 0, partial: i === 0 });
+		monthly.push({ key: ym, label, value: (monthlyCentsMap[ym] ?? 0) / 100, partial: i === 0 });
 	}
 
 	const rawTab = url.searchParams.get('tab');
@@ -110,12 +111,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	return {
 		supplier,
-		invoices: supplierInvoices,
+		invoices: supplierInvoices.map(inv => ({ ...inv, totalAmount: moneyToNumber(inv.totalAmount) })),
 		metrics: supplierInvoices.length >= 3 ? metrics ?? null : null,
 		monthly,
 		categories: VALID_CATEGORIES,
 		conversions,
-		products,
+		products: products.map(p => ({ ...p, avgPrice: p.avgPrice == null ? null : moneyToNumber(p.avgPrice) })),
 		initialTab,
 		initialEditing,
 		initialIngredient,
