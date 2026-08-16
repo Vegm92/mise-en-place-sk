@@ -239,6 +239,13 @@
       "when": 1786823262454,
       "tag": "0033_invoice_document_type",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1786909662454,
+      "tag": "0034_price_snapshots_plain_column_index",
+      "breakpoints": true
     }
   ]
 }
