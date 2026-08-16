@@ -1,6 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
@@ -31,7 +31,10 @@ export const actions: Actions = {
 		if (!valid) return fail(400, { error: 'expired' });
 
 		const passwordHash = await bcrypt.hash(password, 12);
-		const [user] = await db.update(users).set({ passwordHash }).where(eq(users.email, email)).returning();
+		const [user] = await db.update(users)
+			.set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` })
+			.where(eq(users.email, email))
+			.returning();
 		if (!user) return fail(400, { error: 'failed' });
 
 		logAuthEvent('password_reset_completed', { ipHash: hashIp(getClientAddress()) });

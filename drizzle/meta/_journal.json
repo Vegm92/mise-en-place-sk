@@ -246,6 +246,13 @@
       "when": 1786909662454,
       "tag": "0034_price_snapshots_plain_column_index",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786911166786,
+      "tag": "0035_add_user_token_version",
+      "breakpoints": true
     }
   ]
 }
