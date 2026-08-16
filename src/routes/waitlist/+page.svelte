@@ -38,7 +38,6 @@
       betaBadge:         'Beta privada',
       signInLink:        'Entrar',
       createAccountLink: 'Crear cuenta',
-      ctaNav:            'Apuntarme',
       eyebrow:           'Control operativo para cocinas profesionales',
       headline:          'Sabe en qué gasta tu cocina, antes que tú.',
       sub:               'Factura tras factura, Mise en Place lee, normaliza y vigila tus precios. Tu margen, defendido cada día.',
@@ -135,7 +134,6 @@
       betaBadge:         'Private beta',
       signInLink:        'Sign in',
       createAccountLink: 'Create account',
-      ctaNav:            'Sign me up',
       eyebrow:           'Operational control for professional kitchens',
       headline:          'Know what your kitchen spends, before you do.',
       sub:               'Invoice after invoice, Mise en Place reads, normalises, and watches your prices. Your margin, defended every day.',
@@ -293,13 +291,6 @@
                  color:var(--mep-acc);padding:2px 7px;border-radius:4px;
                  background:var(--mep-acc-soft);font-family:var(--mep-fs-mono);">{t.betaBadge}</span>
     <div style="flex:1;"></div>
-    <div class="mep-nav-signin" style="display:flex;align-items:center;gap:10px;">
-      <a href="/signup" style="font-size:13.5px;font-weight:500;color:var(--mep-fg-2);text-decoration:none;
-                               white-space:nowrap;">{t.createAccountLink}</a>
-      <a href="/login" class="btn btn-secondary" style="height:32px;padding:0 14px;font-size:13px;
-                                                       font-weight:600;text-decoration:none;
-                                                       white-space:nowrap;">{t.signInLink}</a>
-    </div>
     <button onclick={toggleTheme} aria-label="Toggle theme" style="width:28px;height:28px;flex-shrink:0;
                 border-radius:999px;border:1px solid var(--mep-border);background:var(--mep-surface);
                 display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mep-fg-2);">
@@ -314,8 +305,14 @@
                                             font-weight:inherit;letter-spacing:inherit;
                                             color:var(--mep-fg-2);">{otherLang}</button>
     </div>
-    <a href="#join" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:13px;
-                                                    font-weight:600;text-decoration:none;">{t.ctaNav}</a>
+    <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
+      <a href="/login" class="btn btn-secondary" style="height:32px;padding:0 14px;font-size:13px;
+                                                       font-weight:600;text-decoration:none;
+                                                       white-space:nowrap;">{t.signInLink}</a>
+      <a href="/signup" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:13px;
+                                                      font-weight:600;text-decoration:none;
+                                                      white-space:nowrap;">{t.createAccountLink}</a>
+    </div>
   </nav>
 
   <section class="mep-section mep-hero" style="padding:108px 72px 96px;text-align:center;">
@@ -608,7 +605,7 @@
 
   @media (max-width: 640px) {
     .mep-nav { padding: 12px 16px !important; flex-wrap: wrap !important; row-gap: 8px !important; }
-    .mep-nav-signin { order: 10; flex: 1 0 100% !important; justify-content: flex-end; }
+    .mep-nav-signin { flex: 1 0 100% !important; justify-content: flex-end; }
     .mep-section { padding-left: 20px !important; padding-right: 20px !important; }
     .mep-hero { padding-top: 56px !important; }
     .mep-grid-3, .mep-grid-4 { grid-template-columns: 1fr !important; }
