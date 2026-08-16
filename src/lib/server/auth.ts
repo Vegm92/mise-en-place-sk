@@ -7,6 +7,7 @@ import { getDb } from './db';
 import { users, accounts, sessions, verificationTokens } from './schema/auth';
 import { verifyCredentials } from './auth-credentials';
 import { recordConsent } from './consent';
+import { checkTokenVersion } from './token-version';
 
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
@@ -33,13 +34,25 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 		}),
 	],
 	callbacks: {
-		jwt({ token, user }) {
+		async jwt({ token, user }) {
 			if (user) {
 				token.sub    = user.id;
 				token.name   = user.name;
 				token.email  = user.email;
 				token.picture = user.image;
 			}
+			if (!token.sub) return token;
+
+			// Revocation check (#478): a mismatch means this token was minted
+			// before a password reset/change or account deletion — reject it so
+			// the stale cookie stops working instead of staying valid for up to
+			// SESSION_MAX_AGE_SECONDS. Returning null is Auth.js's built-in
+			// "invalidate this token" signal — it clears the session cookie.
+			const claimed = typeof token.tokenVersion === 'number' ? token.tokenVersion : undefined;
+			const version = await checkTokenVersion(token.sub, claimed);
+			if (version === null) return null;
+
+			token.tokenVersion = version;
 			return token;
 		},
 		session({ session, token }) {
