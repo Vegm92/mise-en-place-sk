@@ -20,6 +20,7 @@ const SENTRY_RELEASE = process.env['SENTRY_RELEASE'] || undefined;
 Sentry.init({
 	dsn: SENTRY_DSN,
 	release: SENTRY_RELEASE,
+	environment: process.env['NODE_ENV'] === 'production' ? 'production' : 'development',
 	tracesSampleRate: process.env['NODE_ENV'] === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 	integrations: integrations => integrations.filter(i => i.name !== 'Http'),
