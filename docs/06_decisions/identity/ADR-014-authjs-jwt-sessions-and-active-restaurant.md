@@ -23,17 +23,46 @@ for a request to operate on a restaurant the user is not a member of.
 
 ## Decision
 
-### JWT sessions, 30 days
+### JWT sessions, 30 days — with a version claim for revocation
 
 `session: { strategy: 'jwt', maxAge: 30 days }` with a Drizzle adapter for user,
-account and verification-token persistence. The token carries `sub`, name, email
-and picture; the `session` callback copies `token.sub` onto `session.user.id`.
+account and verification-token persistence. The token carries `sub`, name, email,
+picture and `tokenVersion`; the `session` callback copies `token.sub` onto
+`session.user.id`.
 
-The trade accepted: **a session cannot be revoked before it expires.** Deleting a
-user does not invalidate their outstanding token. This is tolerable because
-authorisation is not carried in the token — every request re-reads membership
-(below), so a user removed from a restaurant loses access to its data on their
-next request even while their session remains valid.
+Sessions are stateless, but not unrevocable: `users.token_version` (default `0`)
+is the source of truth. On every request the `jwt` callback re-reads it by
+primary key and compares it against the claim already in the token —
+
+- claim absent (a cookie minted by `issueSessionCookie`, below, which doesn't
+  stamp one) → the row's current version is written into the token and the
+  request proceeds; the re-signed cookie now carries a claim.
+- claim present and equal → proceeds unchanged.
+- claim present and unequal, or the user row is gone → the callback returns
+  `null`, which is Auth.js's built-in "invalidate this token" signal: the
+  session cookie is cleared and the request is treated as unauthenticated.
+
+`users.token_version` is bumped (`+ 1`, in the same `UPDATE` as the triggering
+change) on password reset, password change, and account deletion:
+
+- **Password reset** (`/reset-password`) invalidates every outstanding token
+  for that user, current device included — the flow already ends by clearing
+  the local cookie and redirecting to `/login`, so this matches the existing
+  UX and is correct for the "someone else has my password" case the flow
+  exists for.
+- **Password change** (`/settings`, already-authenticated) invalidates every
+  *other* token. The request that changes the password immediately
+  re-issues its own cookie via `issueSessionCookie` so the device making the
+  change stays signed in; every other device fails its next version check.
+- **Account deletion** deletes the `users` row outright, so the version check
+  degrades to the "row is gone" branch above — no separate bump needed.
+
+The cost is one extra indexed lookup on `users.id` per request, alongside the
+membership query described below. It was kept as a separate query rather than
+folded into the membership read because the two touch different tables and
+the version check must run unconditionally (including for requests where the
+membership query is skipped), while remaining cheap enough (a single primary
+key lookup) not to be worth the coupling.
 
 ### Two providers, one user record
 
@@ -101,9 +130,10 @@ quietly exploitable.
 
 - **`AUTH_SECRET` is load-bearing and unrotatable without mass logout.** Rotating
   it invalidates every outstanding JWT.
-- **Membership changes take effect immediately; identity changes do not.** Removing
-  a user from a restaurant is enforced on their next request; deleting the user
-  leaves their token valid until expiry.
+- **Membership changes and identity changes both take effect on the next
+  request.** Removing a user from a restaurant is enforced via the membership
+  query; password reset/change and account deletion are enforced via the
+  `token_version` check. Neither waits for token expiry.
 - **One membership query per request** is on the critical path for every page and
   API call. It is the first thing to look at if per-request latency regresses —
   and the last thing to remove without replacing the guarantee it provides.
