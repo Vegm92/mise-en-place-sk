@@ -7,6 +7,7 @@ const SENTRY_RELEASE = import.meta.env['VITE_SENTRY_RELEASE'] || undefined;
 Sentry.init({
 	dsn: SENTRY_DSN,
 	release: SENTRY_RELEASE,
+	environment: import.meta.env['PROD'] ? 'production' : 'development',
 	tracesSampleRate: import.meta.env['PROD'] ? 0.1 : 1.0,
 	replaysSessionSampleRate: 0,
 	replaysOnErrorSampleRate: 1.0,
