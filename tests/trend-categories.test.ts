@@ -39,9 +39,9 @@ describeDb('spend trend — category buckets', () => {
 			.returning({ id: suppliers.id });
 
 		await testDb.insert(invoices).values([
-			{ restaurantId, supplierId: uncategorized.id, invoiceNumber: 'T-NULL', invoiceDate: today, totalAmount: 400, status: 'pending' },
-			{ restaurantId, supplierId: explicitOther.id, invoiceNumber: 'T-OTHER', invoiceDate: today, totalAmount: 150, status: 'pending' },
-			{ restaurantId, supplierId: produce.id, invoiceNumber: 'T-FRUIT', invoiceDate: today, totalAmount: 90, status: 'pending' },
+			{ restaurantId, supplierId: uncategorized.id, invoiceNumber: 'T-NULL', invoiceDate: today, totalAmount: '400.00', status: 'pending' },
+			{ restaurantId, supplierId: explicitOther.id, invoiceNumber: 'T-OTHER', invoiceDate: today, totalAmount: '150.00', status: 'pending' },
+			{ restaurantId, supplierId: produce.id, invoiceNumber: 'T-FRUIT', invoiceDate: today, totalAmount: '90.00', status: 'pending' },
 		]);
 	});
 

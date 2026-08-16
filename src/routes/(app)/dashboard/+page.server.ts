@@ -9,6 +9,7 @@ import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
 import { getTrendDataByRange } from '$lib/server/trend';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
+import { moneyToNumber } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const firstInvoice = url.searchParams.get('first_invoice') === '1';
@@ -283,7 +284,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		for (const cat of categorySpend) categorySpendMap[cat.category] = cat.total;
 
 		const budgets: Record<string, number> = {};
-		for (const row of budgetRows) budgets[row.category] = row.monthly_budget ?? 0;
+		for (const row of budgetRows) budgets[row.category] = moneyToNumber(row.monthly_budget);
 		const threshold = thresholdRow[0] ? parseInt(thresholdRow[0].value, 10) : 80;
 
 		const totalBudget = Object.values(budgets).reduce((a, b) => a + b, 0);

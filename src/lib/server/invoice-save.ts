@@ -15,6 +15,7 @@ import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch-core';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
+import { toMoneyString, moneyToNumber } from './money';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
@@ -34,7 +35,7 @@ type HeaderSnapshot = {
 	invoiceNumber: string;
 	invoiceDate: string | null;
 	dueDate: string | null;
-	totalAmount: number | null;
+	totalAmount: string | null;
 };
 
 type LineSnapshot = {
@@ -192,7 +193,7 @@ export async function saveReviewedInvoice(
 	const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
 	const invoiceDate = (formData.get('invoice_date') as string) || null;
 	const dueDate = (formData.get('due_date') as string) || null;
-	const totalAmount = toFloat(formData.get('total_amount'));
+	const totalAmount = toMoneyString(formData.get('total_amount') as string | null);
 	const confidenceRaw = toFloat(formData.get('confidence'));
 	const notesRaw = (formData.get('notes') as string) ?? '';
 	const notes = notesRaw.slice(0, 250) || null;
@@ -242,8 +243,8 @@ export async function saveReviewedInvoice(
 		lineDescriptions: nonEmptyDescs,
 		lineQuantities:   nonEmptyDescs.map((_, i) => toFloat(lineQuantities[i])),
 		lineUnits:        nonEmptyDescs.map((_, i) => lineUnits[i]?.trim() || null),
-		lineUnitPrices:   nonEmptyDescs.map((_, i) => toFloat(lineUnitPrices[i])),
-		lineTotalPrices:  nonEmptyDescs.map((_, i) => toFloat(lineTotalPrices[i])),
+		lineUnitPrices:   nonEmptyDescs.map((_, i) => toMoneyString(lineUnitPrices[i])),
+		lineTotalPrices:  nonEmptyDescs.map((_, i) => toMoneyString(lineTotalPrices[i])),
 	});
 
 	const hashMatch = await db
@@ -257,7 +258,7 @@ export async function saveReviewedInvoice(
 	}
 
 	const extractedData = item?.extractedData ?? undefined;
-	const taxBase = toFloat(extractedData?.tax_base);
+	const taxBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
 	const taxBreakdownRaw = extractedData?.tax_breakdown;
 	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 	const rawDocumentType = extractedData?.document_type;
@@ -269,7 +270,7 @@ export async function saveReviewedInvoice(
 	const qrMismatches = detectVerifactuMismatch(qrResult, {
 		invoice_number: invoiceNumber || null,
 		invoice_date: invoiceDate,
-		total_amount: totalAmount,
+		total_amount: totalAmount == null ? null : moneyToNumber(totalAmount),
 	});
 
 	type LineInput = {
@@ -378,8 +379,8 @@ export async function saveReviewedInvoice(
 				description: li.desc,
 				quantity: li.qtyFloat,
 				unit: li.unitVal,
-				unitPrice: li.unitPriceFloat,
-				totalPrice: li.totalPriceVal,
+				unitPrice: toMoneyString(li.unitPriceFloat),
+				totalPrice: toMoneyString(li.totalPriceVal),
 				taxRate: li.taxRateVal,
 				requiresUnitConversion: requiresConv,
 				canonicalUnit,
@@ -387,7 +388,7 @@ export async function saveReviewedInvoice(
 				unitSize: pack?.unitSize ?? null,
 				sizeUnit: pack?.sizeUnit ?? null,
 				baseUnit: pack?.baseUnit ?? null,
-				normalizedUnitPrice: normPrice,
+				normalizedUnitPrice: toMoneyString(normPrice),
 			});
 
 			savedItems.push({
