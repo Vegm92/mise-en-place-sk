@@ -8,6 +8,7 @@ import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
+import { moneyToNumber, moneyToNullableNumber } from './money';
 import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, type PlanTier } from './billing';
@@ -62,7 +63,7 @@ export async function runPriceShock(
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
 
-	const priceRows = await db.execute<{ itemKey: string; unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null }>(sql`
+	const priceRows = await db.execute<{ itemKey: string; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
 		SELECT "itemKey", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
 			SELECT
 				mep_norm_key(ili.description) AS "itemKey",
@@ -88,7 +89,7 @@ export async function runPriceShock(
 
 	const keyPriceHistory = new Map<string, PricePoint[]>();
 	for (const row of priceRows) {
-		const point = { unitPrice: row.unitPrice, normalizedUnitPrice: row.normalizedUnitPrice, baseUnit: row.baseUnit };
+		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
 		const arr = keyPriceHistory.get(row.itemKey);
 		if (arr) arr.push(point); else keyPriceHistory.set(row.itemKey, [point]);
 	}
@@ -98,7 +99,7 @@ export async function runPriceShock(
 	const productPriceMap = new Map<number, PricePoint>();
 	const productIds = productByKey ? [...new Set(productByKey.values())] : [];
 	if (productIds.length > 0) {
-		const productRows = await db.execute<{ productId: number; unitPrice: number; normalizedUnitPrice: number | null; baseUnit: string | null }>(sql`
+		const productRows = await db.execute<{ productId: number; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
 			SELECT "productId", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
 				SELECT
 					ili.product_id AS "productId",
@@ -123,7 +124,7 @@ export async function runPriceShock(
 		`);
 		const productHistory = new Map<number, PricePoint[]>();
 		for (const row of productRows) {
-			const point = { unitPrice: row.unitPrice, normalizedUnitPrice: row.normalizedUnitPrice, baseUnit: row.baseUnit };
+			const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
 			const arr = productHistory.get(row.productId);
 			if (arr) arr.push(point); else productHistory.set(row.productId, [point]);
 		}
@@ -351,11 +352,11 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		.from(categoryBudgets)
 		.where(tdb.scope(categoryBudgets.restaurantId, and(eq(categoryBudgets.category, category), eq(categoryBudgets.month, currentMonth))))
 		.limit(1);
-	const monthlyBudget = budgetRows[0]?.monthlyBudget;
+	const monthlyBudget = moneyToNumber(budgetRows[0]?.monthlyBudget ?? null);
 	if (!monthlyBudget || monthlyBudget <= 0) return [];
 
 	const spendRows = await db
-		.select({ total: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
+		.select({ total: sql<string>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
 		.from(invoices)
 		.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
 		.where(and(
@@ -364,7 +365,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 			sql`COALESCE(${suppliers.category}, 'Other') = ${category}`,
 			sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
 		));
-	const totalSpend = spendRows[0]?.total ?? 0;
+	const totalSpend = moneyToNumber(spendRows[0]?.total ?? '0');
 	const pctFrac = totalSpend / monthlyBudget;
 
 	const level = pctFrac >= 1.0 ? 'exceeded' : pctFrac >= thresholdFrac ? 'warning' : null;
@@ -394,7 +395,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		message: `budget_overage: ${category} ${pctDisplay}% (${level})`,
 		payload: {
 			category,
-			spent: Math.round(totalSpend * 100) / 100,
+			spent: totalSpend,
 			budget: monthlyBudget,
 			pct: pctDisplay,
 			threshold: thresholdPct,
@@ -415,7 +416,7 @@ export async function runPossibleDuplicatePurchase(
 	restaurantId: string,
 	documentType: 'factura' | 'albaran' | null,
 	invoiceDate: string | null,
-	totalAmount: number | null,
+	totalAmount: string | null,
 ): Promise<Alert[]> {
 	if (!documentType || !invoiceDate || totalAmount == null) return [];
 	const tdb = forTenant(restaurantId);
@@ -459,7 +460,7 @@ export async function runPossibleDuplicatePurchase(
 			messageKey: 'notif.msg.possibleDuplicate',
 			messageVars: {
 				supplier: supplierName,
-				amount: totalAmount.toFixed(2),
+				amount: totalAmount,
 				otherType: otherType === 'factura' ? 'factura' : 'albarán',
 				matchedNumber: match.invoiceNumber ?? `#${match.id}`,
 			},

@@ -8,6 +8,7 @@ import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizz
 import type { SQL } from 'drizzle-orm';
 import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 
 const PAGE_SIZE = 50;
 
@@ -69,7 +70,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.offset(offset),
 
 			db.select({
-				pending_amount: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.status}='pending' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
+				pending_amount: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status}='pending' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
 				pending_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`,
 				overdue_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} < CURRENT_DATE::text AND ${invoices.dueDate} IS NOT NULL THEN 1 END)`,
 				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
@@ -122,10 +123,20 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		const invoiceList = invoiceRows.map(inv => ({
 			...inv,
-			line_items: lineItemsByInvoice.get(inv.id) ?? [],
+			total_amount: moneyToNullableNumber(inv.total_amount),
+			line_items: (lineItemsByInvoice.get(inv.id) ?? []).map(li => ({
+				...li,
+				unit_price: moneyToNullableNumber(li.unit_price),
+				total_price: moneyToNullableNumber(li.total_price),
+			})),
 		}));
 
-		const stats = statsRow[0] ?? { pending_amount: 0, pending_count: 0, overdue_count: 0, paid_count: 0 };
+		const stats = {
+			pending_amount: moneyToNumber(statsRow[0]?.pending_amount ?? '0'),
+			pending_count: statsRow[0]?.pending_count ?? 0,
+			overdue_count: statsRow[0]?.overdue_count ?? 0,
+			paid_count: statsRow[0]?.paid_count ?? 0,
+		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
 		return {

@@ -7,6 +7,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { trackEvent } from '$lib/server/events';
 import { toMonthStr, parseMonthParam } from '$lib/formatters';
+import { toMoneyString, moneyToNumber } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
@@ -19,7 +20,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select().from(categoryBudgets)
 				.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.month, selectedMonth))),
 
-			db.execute<{ category: string; total: number }>(sql`
+			db.execute<{ category: string; total: string }>(sql`
 				SELECT COALESCE(s.category, 'Other') AS category,
 				       SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
 				FROM invoice_line_items ili
@@ -32,10 +33,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		]);
 
 		const budgets: Record<string, number> = {};
-		for (const row of rows) budgets[row.category] = row.monthlyBudget ?? 0;
+		for (const row of rows) budgets[row.category] = moneyToNumber(row.monthlyBudget);
 
 		const category_spend: Record<string, number> = {};
-		for (const row of spendRows) category_spend[String(row.category)] = Number(row.total);
+		for (const row of spendRows) category_spend[String(row.category)] = moneyToNumber(row.total);
 
 		const storedCats = rows.map(r => r.category);
 		const categories = [
@@ -84,8 +85,8 @@ export const actions: Actions = {
 		let setCount = 0;
 		await Promise.all(categories.map(async (category) => {
 			const raw = String(data.get(category) ?? '').trim();
-			const amount = parseFloat(raw);
-			if (!isNaN(amount) && amount >= 0) {
+			const amount = toMoneyString(raw);
+			if (amount !== null && moneyToNumber(amount) >= 0) {
 				await db.insert(categoryBudgets)
 					.values({ restaurantId: rid, category, month: currentMonth, monthlyBudget: amount })
 					.onConflictDoUpdate({

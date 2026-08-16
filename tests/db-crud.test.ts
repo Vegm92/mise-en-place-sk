@@ -100,8 +100,8 @@ describe.skipIf(!hasDbEnv)('invoices + line items — CRUD and scoping', () => {
 			supplierId:    suppId1,
 			invoiceNumber: 'TEST-INV-001',
 			invoiceDate:   '2025-01-15',
-			totalAmount:   1500.00,
-			taxBase:       1239.67,
+			totalAmount:   '1500.00',
+			taxBase:       '1239.67',
 			taxBreakdown:  JSON.stringify([{ rate: 0.21, base: 1239.67, cuota: 260.33 }]),
 			status:        'approved',
 			confidence:    0.95,
@@ -118,8 +118,8 @@ describe.skipIf(!hasDbEnv)('invoices + line items — CRUD and scoping', () => {
 				description:  'Lomo de ternera 1kg',
 				quantity:     5,
 				unit:         'kg',
-				unitPrice:    18.50,
-				totalPrice:   92.50,
+				unitPrice:    '18.50',
+				totalPrice:   '92.50',
 				taxRate:      0.10,
 			},
 			{
@@ -128,8 +128,8 @@ describe.skipIf(!hasDbEnv)('invoices + line items — CRUD and scoping', () => {
 				description:  'Entrecot 500g',
 				quantity:     10,
 				unit:         'ud',
-				unitPrice:    12.00,
-				totalPrice:   120.00,
+				unitPrice:    '12.00',
+				totalPrice:   '120.00',
 				taxRate:      0.10,
 			},
 		]);
@@ -169,14 +169,14 @@ describe.skipIf(!hasDbEnv)('category_budgets — upsert', () => {
 			restaurantId:  rid1,
 			category:      'Carnes y Derivados',
 			month:         '2026-01',
-			monthlyBudget: 3000,
+			monthlyBudget: '3000.00',
 		});
 		const [row] = await testDb.select().from(categoryBudgets)
 			.where(and(
 				eq(categoryBudgets.restaurantId, rid1),
 				eq(categoryBudgets.category, 'Carnes y Derivados'),
 			));
-		expect(row.monthlyBudget).toBe(3000);
+		expect(row.monthlyBudget).toBe('3000.00');
 	});
 
 	it('upsert updates the budget without inserting a duplicate', async () => {
@@ -191,7 +191,7 @@ describe.skipIf(!hasDbEnv)('category_budgets — upsert', () => {
 				eq(categoryBudgets.category, 'Carnes y Derivados'),
 			));
 		expect(rows).toHaveLength(1);
-		expect(rows[0].monthlyBudget).toBe(3500);
+		expect(rows[0].monthlyBudget).toBe('3500.00');
 	});
 
 	it('rid2 has no budgets from rid1', async () => {
@@ -297,7 +297,7 @@ describe.skipIf(!hasDbEnv)('cascade delete — restaurant removal', () => {
 		}).returning();
 
 		await testDb.insert(categoryBudgets).values({
-			restaurantId: rid1, category: 'Bebidas', month: '2026-01', monthlyBudget: 500,
+			restaurantId: rid1, category: 'Bebidas', month: '2026-01', monthlyBudget: '500.00',
 		}).onConflictDoNothing();
 
 		// Delete restaurant — should cascade
