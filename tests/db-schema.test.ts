@@ -31,6 +31,7 @@ const EXPECTED_TABLES = [
 	'upload_batches',
 	'batch_items',
 	'subscriptions',
+	'app_flags',
 ];
 
 async function getColumns(table: string) {

@@ -258,9 +258,16 @@ export const subscriptions = pgTable('subscriptions', {
 	trialEndsAt:          timestamp('trial_ends_at', { withTimezone: true }),
 	currentPeriodEnd:     timestamp('current_period_end', { withTimezone: true }),
 	cancelAtPeriodEnd:    boolean('cancel_at_period_end').notNull().default(false),
+	founder:              boolean('founder').notNull().default(false),
 	createdAt:            timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:            timestamp('updated_at', { withTimezone: true }).defaultNow(),
 	lastEventAt:          timestamp('last_event_at', { withTimezone: true }),
+});
+
+export const appFlags = pgTable('app_flags', {
+	key:       text('key').primaryKey(),
+	value:     text('value').notNull(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
 export const mrrSnapshots = pgTable('mrr_snapshots', {
