@@ -1,4 +1,4 @@
-import { pgTable, primaryKey, text, integer, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, pgTable, primaryKey, text, integer, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const users = pgTable('users', {
@@ -8,6 +8,8 @@ export const users = pgTable('users', {
 	emailVerified: timestamp('email_verified', { withTimezone: true }),
 	image:         text('image'),
 	passwordHash:  text('password_hash'),
+	accessStatus:  text('access_status').notNull().default('pending'),
+	founder:       boolean('founder').notNull().default(false),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
