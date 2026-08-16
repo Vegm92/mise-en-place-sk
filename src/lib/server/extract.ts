@@ -11,6 +11,7 @@ const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spa
 The document may be a FACTURA (invoice) or an ALBARÁN (delivery note / nota de entrega). Both are common in Spanish restaurant supplier workflows:
 - Facturas include IVA breakdowns (base imponible, cuota IVA, tipo IVA), número de factura, fecha de vencimiento, and CIF/NIF for both parties.
 - Albaranes are delivery notes: they list delivered products with quantities and sometimes unit prices, but may lack a total, IVA breakdown, or formal invoice number. Use the albarán number (nº albarán, nº pedido, referencia) as the invoice_number if no factura number is present.
+- Classify which one this document is in "document_type". Base invoice_number's confidence purely on how legibly that number is printed — a clearly printed albarán number deserves the same high confidence as a clearly printed factura number; do not lower it just because the document is an albarán.
 
 Key Spanish field names to look for:
 - Supplier: razón social, proveedor, emisor, nombre empresa, denominación social
@@ -34,6 +35,7 @@ Return ONLY valid JSON with this exact structure:
   "supplier_email": "the SUPPLIER's contact email — or null if not printed",
   "supplier_phone": "the SUPPLIER's contact phone — or null if not printed",
   "invoice_number": "string or null",
+  "document_type": "'factura' or 'albaran', or null if you cannot tell which",
   "invoice_date": "YYYY-MM-DD or null",
   "due_date": "YYYY-MM-DD or null",
   "total_amount": number or null,
@@ -56,6 +58,7 @@ Return ONLY valid JSON with this exact structure:
     "supplier_name": 0.0 to 1.0,
     "supplier_category": 0.0 to 1.0,
     "invoice_number": 0.0 to 1.0,
+    "document_type": 0.0 to 1.0,
     "invoice_date": 0.0 to 1.0,
     "due_date": 0.0 to 1.0,
     "total_amount": 0.0 to 1.0
@@ -111,6 +114,7 @@ export interface ExtractedInvoice {
 	supplier_email?: string | null;
 	supplier_phone?: string | null;
 	invoice_number: string | null;
+	document_type?: 'factura' | 'albaran' | null;
 	invoice_date: string | null;
 	due_date: string | null;
 	total_amount: number | null;
@@ -122,6 +126,7 @@ export interface ExtractedInvoice {
 		supplier_name?: number;
 		supplier_category?: number;
 		invoice_number?: number;
+		document_type?: number;
 		invoice_date?: number;
 		due_date?: number;
 		total_amount?: number;

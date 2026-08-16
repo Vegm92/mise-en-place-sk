@@ -238,3 +238,11 @@ shapes, `low_confidence_ack` value.
 - Pack structure → €/base for cross-size comparison (issue #299); link step runs post-commit and is explicitly non-critical (#248/#298/#299). Unit resolutions are pre-computed outside the transaction (`type LineInput`).
 - Supplier contact fields (CIF/NIF, address, email, phone) are only trusted when the reviewed supplier name still matches extraction — retargeting to a different supplier must not overwrite its contacts.
 - VERI\*FACTU QR tamper check (issue #392): the QR is decoded off the document and never re-derived from reviewed/submitted fields; runs unconditionally before the insert so every invoice with a decodable AEAT QR gets it.
+
+### `src/lib/server/alerts.ts`
+
+**`function runPossibleDuplicatePurchase`**
+
+- Soft, non-blocking heuristic for issue #449. The dedup gates above only catch the same document uploaded twice (content hash) or a repeated supplier+invoice_number pair. Neither can tell that an albarán captured at delivery and the factura fiscal for that same delivery, arriving weeks later, are the same real-world purchase — they carry different numbers by construction, and fiscally both can legitimately exist.
+- Looks for an already-saved invoice from the same supplier, of the opposite `document_type`, within `DUPLICATE_DATE_WINDOW_DAYS` (21) and `DUPLICATE_AMOUNT_TOLERANCE` (10%) of the new one, and raises a review nudge instead of blocking the save.
+- Requires `document_type`, `invoice_date` and `total_amount` on both sides, so an albarán with no printed prices can't be matched this way — a known gap (see #461), not a bug.
