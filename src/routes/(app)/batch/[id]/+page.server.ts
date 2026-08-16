@@ -95,12 +95,17 @@ async function findSimilarInvoiceId(
 	return findSimilarInvoice(candidates, totalAmount)?.id ?? null;
 }
 
+async function requireOwnedBatch(batchId: string, locals: App.Locals) {
+	const items = await getBatchItems(batchId);
+	if (!items.length || items.some(i => i.restaurantId !== locals.restaurantId)) {
+		redirect(303, '/?error=Session+not+found');
+	}
+	return items;
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('batch', async () => {
-		const items = await getBatchItems(params.id);
-		if (!items.length || items.some(i => i.restaurantId !== locals.restaurantId)) {
-			redirect(303, '/?error=Session+not+found');
-		}
+		const items = await requireOwnedBatch(params.id, locals);
 
 		const open = items.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
 		if (!open.length) redirect(303, '/');
@@ -172,8 +177,7 @@ async function settledRedirect(batchId: string): Promise<never> {
 
 export const actions: Actions = {
 	extract: async ({ params, locals }) => {
-		const items = await getBatchItems(params.id);
-		if (!items.length) redirect(303, '/?error=Session+not+found');
+		const items = await requireOwnedBatch(params.id, locals);
 		const rid = locals.restaurantId!;
 
 		await enqueueBatchExtraction(items[0].id, rid, {
@@ -188,8 +192,9 @@ export const actions: Actions = {
 	retry: async ({ params, request, locals }) => {
 		const formData = await request.formData();
 		const itemId = (formData.get('itemId') as string) ?? '';
-		const item = await getItem(itemId);
-		if (item && item.batchId === params.id && item.restaurantId === locals.restaurantId) {
+		const items = await requireOwnedBatch(params.id, locals);
+		const item = items.find(i => i.id === itemId);
+		if (item) {
 			if (await markQueued(item.id)) await enqueueExtraction(item.id, item.restaurantId);
 		}
 		redirect(303, `/batch/${params.id}`);
@@ -200,8 +205,9 @@ export const actions: Actions = {
 		const itemId = (formData.get('itemId') as string) ?? '';
 		const rid = locals.restaurantId!;
 
-		const item = await getItem(itemId);
-		if (!item || item.batchId !== params.id || item.restaurantId !== rid) {
+		const items = await requireOwnedBatch(params.id, locals);
+		const item = items.find(i => i.id === itemId);
+		if (!item) {
 			redirect(303, `/batch/${params.id}`);
 		}
 
@@ -229,8 +235,9 @@ export const actions: Actions = {
 	discardItem: async ({ params, request, locals }) => {
 		const formData = await request.formData();
 		const itemId = (formData.get('itemId') as string) ?? '';
-		const item = await getItem(itemId);
-		if (item && item.batchId === params.id && item.restaurantId === locals.restaurantId) {
+		const items = await requireOwnedBatch(params.id, locals);
+		const item = items.find(i => i.id === itemId);
+		if (item) {
 			trackEvent('extraction_discarded', item.restaurantId, { files: [item.displayName] });
 			await getStorage().delete(item.fileKey);
 			await markDiscarded(item.id);
@@ -240,23 +247,18 @@ export const actions: Actions = {
 	},
 
 	discardBatch: async ({ params, locals }) => {
-		const items = await getBatchItems(params.id);
-		if (items.length && items[0].restaurantId === locals.restaurantId) {
-			const rid = locals.restaurantId!;
-			trackEvent('extraction_discarded', rid, { files: items.map(i => i.displayName) });
-			for (const i of items) {
-				if (i.status !== 'confirmed') await deleteUploadFile(i.fileKey);
-			}
-			await deleteBatch(params.id);
+		const items = await requireOwnedBatch(params.id, locals);
+		const rid = locals.restaurantId!;
+		trackEvent('extraction_discarded', rid, { files: items.map(i => i.displayName) });
+		for (const i of items) {
+			if (i.status !== 'confirmed') await deleteUploadFile(i.fileKey);
 		}
+		await deleteBatch(params.id);
 		redirect(303, '/');
 	},
 
 	add: async ({ params, request, locals }) => {
-		const items = await getBatchItems(params.id);
-		if (!items.length || items[0].restaurantId !== locals.restaurantId) {
-			redirect(303, '/?error=Session+not+found');
-		}
+		const items = await requireOwnedBatch(params.id, locals);
 
 		const formData = await request.formData();
 		const rawFiles = formData.getAll('files');
@@ -279,8 +281,9 @@ export const actions: Actions = {
 	remove: async ({ params, request, locals }) => {
 		const formData = await request.formData();
 		const itemId = (formData.get('itemId') as string) ?? '';
-		const item = await getItem(itemId);
-		if (item && item.batchId === params.id && item.restaurantId === locals.restaurantId) {
+		const items = await requireOwnedBatch(params.id, locals);
+		const item = items.find(i => i.id === itemId);
+		if (item) {
 			const removed = await removeItem(item.id);
 			if (removed) await deleteUploadFile(removed.fileKey);
 		}

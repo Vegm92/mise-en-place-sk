@@ -8,6 +8,7 @@ export const users = pgTable('users', {
 	emailVerified: timestamp('email_verified', { withTimezone: true }),
 	image:         text('image'),
 	passwordHash:  text('password_hash'),
+	tokenVersion:  integer('token_version').notNull().default(0),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
