@@ -6,7 +6,9 @@ import { cleanupStaleBatches } from '$lib/server/batch';
 import { seedAdminUser } from '$lib/server/auth-seed';
 import { isAdminUser } from '$lib/server/admin';
 import { db } from '$lib/server/db';
-import { userRestaurants } from '$lib/server/schema';
+import { userRestaurants, users } from '$lib/server/schema';
+import { isAccessOpen } from '$lib/server/app-flags';
+import { PENDING_PATH, resolveAccess } from '$lib/server/access-gate';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
@@ -70,21 +72,35 @@ const appHandle: Handle = async ({ event, resolve }) => {
 		: null;
 	event.locals.user = user;
 
+	let userApproved = false;
+	let accessOpen   = false;
+
 	if (user) {
 		const activeCookie = event.cookies.get('active_restaurant');
 
-		const memberships = await withTimeout(
+		const [memberships, accessRows, openFlag] = await withTimeout(
 			'hooks/memberships',
 			MEMBERSHIP_TIMEOUT_MS,
-			() => db
-				.select({ restaurantId: userRestaurants.restaurantId })
-				.from(userRestaurants)
-				.where(eq(userRestaurants.userId, user.id)),
+			() => Promise.all([
+				db
+					.select({ restaurantId: userRestaurants.restaurantId })
+					.from(userRestaurants)
+					.where(eq(userRestaurants.userId, user.id)),
+				db
+					.select({ accessStatus: users.accessStatus })
+					.from(users)
+					.where(eq(users.id, user.id))
+					.limit(1),
+				isAccessOpen(),
+			]),
 		).catch(e => {
 			console.error('[hooks] membership lookup failed', e);
 			Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
-			return [] as Array<{ restaurantId: string }>;
+			return [[], [], false] as [Array<{ restaurantId: string }>, Array<{ accessStatus: string }>, boolean];
 		});
+
+		userApproved = accessRows[0]?.accessStatus === 'approved';
+		accessOpen   = openFlag;
 
 		const ids = memberships.map(m => m.restaurantId);
 
@@ -99,12 +115,34 @@ const appHandle: Handle = async ({ event, resolve }) => {
 		event.locals.restaurantId = null;
 	}
 
+	event.locals.accessApproved = isAdminUser(user) || accessOpen || userApproved;
+
 	if (event.locals.restaurantId) {
 		Sentry.getCurrentScope().setTag('restaurantId', event.locals.restaurantId);
 	}
 
 	if ((path === '/admin' || path.startsWith('/admin/')) && !isAdminUser(event.locals.user)) {
 		redirect(303, '/');
+	}
+
+	if (user) {
+		const decision = resolveAccess({
+			path,
+			isAdmin: isAdminUser(user),
+			approved: userApproved,
+			accessOpen,
+		});
+
+		if (decision === 'deny-api') {
+			return new Response(JSON.stringify({ error: 'Access not yet approved' }), {
+				status: 403,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}
+
+		if (decision === 'redirect-pending') {
+			redirect(303, PENDING_PATH);
+		}
 	}
 
 	if (path === '/' && !event.locals.user) {

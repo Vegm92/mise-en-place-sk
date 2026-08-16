@@ -87,7 +87,7 @@
       pricingFoot:       'Todos los planes incluyen digitalización de facturas, vista de gasto por proveedor y soporte en español.',
       pricingTrialName:  'Prueba',
       pricingTrialPrice: 'Gratis',
-      pricingTrialLimit: '30 días o 20 facturas · sin tarjeta',
+      pricingTrialLimit: '14 días o 20 facturas · sin tarjeta',
       pricingTrialTagline: 'Prueba el flujo completo de digitalización.',
       pricingTiers: [
         { name: 'Starter', price: 29, recommended: false, tagline: 'Digitaliza y controla el gasto de un restaurante.',
@@ -183,7 +183,7 @@
       pricingFoot:       'Every plan includes invoice digitisation, spend-by-supplier view, and human support.',
       pricingTrialName:  'Trial',
       pricingTrialPrice: 'Free',
-      pricingTrialLimit: '30 days or 20 invoices · no card',
+      pricingTrialLimit: '14 days or 20 invoices · no card',
       pricingTrialTagline: 'Try the whole digitisation flow.',
       pricingTiers: [
         { name: 'Starter', price: 29, recommended: false, tagline: 'Digitise invoices and see where the money goes.',
