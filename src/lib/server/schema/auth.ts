@@ -10,6 +10,7 @@ export const users = pgTable('users', {
 	passwordHash:  text('password_hash'),
 	accessStatus:  text('access_status').notNull().default('pending'),
 	founder:       boolean('founder').notNull().default(false),
+	tokenVersion:  integer('token_version').notNull().default(0),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 

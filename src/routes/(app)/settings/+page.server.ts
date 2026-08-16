@@ -5,13 +5,14 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema/auth';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 import { applyTierSettings, billingRestaurantId, getPlanTier, getTierFeatures, TIERS } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { createVerificationToken } from '$lib/server/verification-token';
+import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
 import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
@@ -169,7 +170,7 @@ export const actions: Actions = {
 		return { section: 'email', ok: 'set.profile.ok.email' };
 	},
 
-	changePassword: async ({ request, locals, getClientAddress }) => {
+	changePassword: async ({ request, locals, getClientAddress, cookies, url }) => {
 		const data = await request.formData();
 		const current = (data.get('current') as string) ?? '';
 		const next = (data.get('password') as string) ?? '';
@@ -191,7 +192,11 @@ export const actions: Actions = {
 		}
 
 		const passwordHash = await bcrypt.hash(next, 12);
-		await db.update(users).set({ passwordHash }).where(eq(users.id, locals.user!.id));
+		await db.update(users)
+			.set({ passwordHash, tokenVersion: sql`${users.tokenVersion} + 1` })
+			.where(eq(users.id, locals.user!.id));
+
+		await issueSessionCookie(cookies, url.protocol === 'https:', locals.user!);
 
 		logAuthEvent('password_changed', { ipHash: hashIp(getClientAddress()) });
 		return { section: 'password', ok: 'set.profile.ok.password' };

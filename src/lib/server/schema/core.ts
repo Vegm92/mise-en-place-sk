@@ -1,5 +1,5 @@
 import {
-	index, integer, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
+	index, integer, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -49,8 +49,8 @@ export const invoices = pgTable('invoices', {
 	documentType:    text('document_type'),
 	invoiceDate:     text('invoice_date'),
 	dueDate:         text('due_date'),
-	totalAmount:     real('total_amount'),
-	taxBase:         real('tax_base'),
+	totalAmount:     numeric('total_amount', { precision: 12, scale: 2 }),
+	taxBase:         numeric('tax_base', { precision: 12, scale: 2 }),
 	taxBreakdown:    text('tax_breakdown'),
 	status:          text('status').default('pending'),
 	sourceFile:      text('source_file'),
@@ -87,8 +87,8 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	description:            text('description'),
 	quantity:               real('quantity'),
 	unit:                   text('unit'),
-	unitPrice:              real('unit_price'),
-	totalPrice:             real('total_price'),
+	unitPrice:              numeric('unit_price', { precision: 12, scale: 2 }),
+	totalPrice:             numeric('total_price', { precision: 12, scale: 2 }),
 	taxRate:                real('tax_rate'),
 	requiresUnitConversion: integer('requires_unit_conversion').default(0),
 	canonicalUnit:          text('canonical_unit'),
@@ -97,7 +97,7 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	unitSize:               real('unit_size'),
 	sizeUnit:               text('size_unit'),
 	baseUnit:               text('base_unit'),
-	normalizedUnitPrice:    real('normalized_unit_price'),
+	normalizedUnitPrice:    numeric('normalized_unit_price', { precision: 12, scale: 2 }),
 }, (t) => [
 	index('idx_invoice_line_items_invoice_id').on(t.invoiceId),
 	index('idx_invoice_line_items_rid_description').on(t.restaurantId, t.description),
@@ -122,7 +122,7 @@ export const categoryBudgets = pgTable('category_budgets', {
 	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	category:      text('category').notNull(),
 	month:         text('month').notNull(),
-	monthlyBudget: real('monthly_budget').notNull(),
+	monthlyBudget: numeric('monthly_budget', { precision: 12, scale: 2 }).notNull(),
 }, (t) => [
 	uniqueIndex('category_budgets_restaurant_category_month_unique').on(t.restaurantId, t.category, t.month),
 ]);

@@ -4,6 +4,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { asc, eq, and, isNull } from 'drizzle-orm';
+import { moneyToNullableNumber } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/detail', async () => {
@@ -49,8 +50,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		return {
 			title: `Invoice ${row.invoice_number ?? row.id}`,
-			invoice: row,
-			lineItems,
+			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
+			lineItems: lineItems.map(li => ({
+				...li,
+				unit_price: moneyToNullableNumber(li.unit_price),
+				total_price: moneyToNullableNumber(li.total_price),
+			})),
 		};
 	});
 };

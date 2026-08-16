@@ -24,12 +24,12 @@ function baseFields(): Fields {
 		invoiceNumber: 'INV-001',
 		invoiceDate: '2026-06-01',
 		dueDate: '2026-06-30',
-		totalAmount: 123.45,
+		totalAmount: '123.45',
 		lineDescriptions: ['Tomatoes', 'Olive Oil'],
 		lineQuantities: [10, 2],
 		lineUnits: ['kg', 'L'],
-		lineUnitPrices: [1.5, 8.0],
-		lineTotalPrices: [15.0, 16.0],
+		lineUnitPrices: ['1.50', '8.00'],
+		lineTotalPrices: ['15.00', '16.00'],
 	};
 }
 
@@ -72,7 +72,7 @@ describe('computeInvoiceContentHash — canonicalisation (same invoice → same 
 describe('computeInvoiceContentHash — sensitivity (different invoice → different hash)', () => {
 	it('changes when the total amount changes', () => {
 		const a = computeInvoiceContentHash(baseFields());
-		const b = computeInvoiceContentHash({ ...baseFields(), totalAmount: 999.99 });
+		const b = computeInvoiceContentHash({ ...baseFields(), totalAmount: '999.99' });
 		expect(b).not.toBe(a);
 	});
 
@@ -95,8 +95,8 @@ describe('computeInvoiceContentHash — sensitivity (different invoice → diffe
 			lineDescriptions: ['Olive Oil', 'Tomatoes'],
 			lineQuantities: [2, 10],
 			lineUnits: ['L', 'kg'],
-			lineUnitPrices: [8.0, 1.5],
-			lineTotalPrices: [16.0, 15.0],
+			lineUnitPrices: ['8.00', '1.50'],
+			lineTotalPrices: ['16.00', '15.00'],
 		});
 		expect(b).not.toBe(a);
 	});
@@ -127,7 +127,7 @@ describe('computeInvoiceContentHash — null handling', () => {
 
 	it('distinguishes a null total from a zero total', () => {
 		const nullTotal = computeInvoiceContentHash({ ...baseFields(), totalAmount: null });
-		const zeroTotal = computeInvoiceContentHash({ ...baseFields(), totalAmount: 0 });
+		const zeroTotal = computeInvoiceContentHash({ ...baseFields(), totalAmount: '0.00' });
 		expect(nullTotal).not.toBe(zeroTotal);
 	});
 });
@@ -206,19 +206,19 @@ describe('isoDateOffset', () => {
 describe('findSimilarInvoice', () => {
 	it('returns the candidate whose amount is similar', () => {
 		const candidates = [
-			{ id: 1, totalAmount: 45.0 },
-			{ id: 2, totalAmount: 123.6 },
+			{ id: 1, totalAmount: '45.00' },
+			{ id: 2, totalAmount: '123.60' },
 		];
 		expect(findSimilarInvoice(candidates, 123.45)?.id).toBe(2);
 	});
 
 	it('returns null when no candidate is close enough', () => {
-		const candidates = [{ id: 1, totalAmount: 45.0 }];
+		const candidates = [{ id: 1, totalAmount: '45.00' }];
 		expect(findSimilarInvoice(candidates, 123.45)).toBeNull();
 	});
 
 	it('skips candidates with a null amount', () => {
-		const candidates = [{ id: 1, totalAmount: null }, { id: 2, totalAmount: 123.5 }];
+		const candidates = [{ id: 1, totalAmount: null }, { id: 2, totalAmount: '123.50' }];
 		expect(findSimilarInvoice(candidates, 123.45)?.id).toBe(2);
 	});
 

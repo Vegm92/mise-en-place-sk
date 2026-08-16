@@ -1,6 +1,6 @@
 {
-  "id": "5ac080de-346d-4032-9e2b-ccafe662b895",
-  "prevId": "bb9fcb9d-0232-473b-ad70-4dd37dffb4da",
+  "id": "1dd68128-9e98-4469-8833-2e221cf070bc",
+  "prevId": "195e0f7d-6aa4-4abf-a2bf-e5ac9cbd8536",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -28,7 +28,7 @@
         },
         "monthly_budget": {
           "name": "monthly_budget",
-          "type": "real",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": true
         }
@@ -125,13 +125,13 @@
         },
         "unit_price": {
           "name": "unit_price",
-          "type": "real",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": false
         },
         "total_price": {
           "name": "total_price",
-          "type": "real",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": false
         },
@@ -186,7 +186,7 @@
         },
         "normalized_unit_price": {
           "name": "normalized_unit_price",
-          "type": "real",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": false
         }
@@ -346,13 +346,13 @@
         },
         "total_amount": {
           "name": "total_amount",
-          "type": "real",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": false
         },
         "tax_base": {
           "name": "tax_base",
-          "type": "real",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": false
         },
@@ -1154,6 +1154,38 @@
           "with": {}
         }
       },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.app_flags": {
+      "name": "app_flags",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
@@ -2739,6 +2771,13 @@
           "notNull": true,
           "default": false
         },
+        "founder": {
+          "name": "founder",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -3843,6 +3882,27 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "access_status": {
+          "name": "access_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "founder": {
+          "name": "founder",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "token_version": {
+          "name": "token_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",

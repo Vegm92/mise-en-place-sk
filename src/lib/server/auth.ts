@@ -7,6 +7,7 @@ import { getDb } from './db';
 import { users, accounts, sessions, verificationTokens } from './schema/auth';
 import { verifyCredentials } from './auth-credentials';
 import { recordConsent } from './consent';
+import { checkTokenVersion } from './token-version';
 
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
@@ -33,13 +34,20 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 		}),
 	],
 	callbacks: {
-		jwt({ token, user }) {
+		async jwt({ token, user }) {
 			if (user) {
 				token.sub    = user.id;
 				token.name   = user.name;
 				token.email  = user.email;
 				token.picture = user.image;
 			}
+			if (!token.sub) return token;
+
+			const claimed = typeof token.tokenVersion === 'number' ? token.tokenVersion : undefined;
+			const version = await checkTokenVersion(token.sub, claimed);
+			if (version === null) return null;
+
+			token.tokenVersion = version;
 			return token;
 		},
 		session({ session, token }) {

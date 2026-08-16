@@ -89,6 +89,13 @@ const batchItem = (restaurantId: string) => ({
 	extractError: null,
 });
 
+const fakeRequest = (fields: Record<string, string>) => ({
+	formData: async () => ({
+		get: (k: string) => fields[k] ?? null,
+		getAll: (_k: string) => [] as unknown[],
+	}),
+});
+
 beforeEach(() => {
 	state.scopedTo = null;
 	state.whereApplied = false;
@@ -163,5 +170,27 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 		).catch((e: unknown) => e);
 
 		expect(JSON.stringify(outcome)).not.toContain('Proveedor Secreto');
+	});
+});
+
+describe('/batch/[id] actions — every action must reject a batch owned by another tenant (issue #479)', () => {
+	// #479: `extract` enqueued extraction for any batch UUID with no ownership
+	// check at all, unlike `add` right below it in the same file. Fixed by
+	// routing every action through the same requireOwnedBatch() guard load()
+	// already used, so a future action cannot silently omit the check.
+	const actionNames = ['extract', 'retry', 'save', 'discardItem', 'discardBatch', 'add', 'remove'] as const;
+
+	it.each(actionNames)('%s redirects instead of acting on a foreign batch', async (name) => {
+		const { actions } = await import('../src/routes/(app)/batch/[id]/+page.server');
+		getBatchItemsMock.mockResolvedValue([batchItem(RID_B)]);
+
+		const event = {
+			params: { id: 'batch-1' },
+			locals: { restaurantId: RID_A },
+			request: fakeRequest({ itemId: 'item-1' }),
+		} as never;
+
+		await expect((actions as Record<string, (e: never) => Promise<unknown>>)[name](event))
+			.rejects.toSatisfy(isRedirect);
 	});
 });

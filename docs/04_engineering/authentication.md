@@ -58,7 +58,7 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 
 ### `src/routes/reset-password/+page.server.ts`
 **`const MIN_PASSWORD_LENGTH`**
-- New password from a recovery link (issue #284). The emailed `email`+`token` pair is the proof of ownership — consumed once via `consumeVerificationToken`, not a live session. On success the session is signed out and the user re-authenticates (proves the change, drops any existing session).
+- New password from a recovery link (issue #284). The emailed `email`+`token` pair is the proof of ownership — consumed once via `consumeVerificationToken`, not a live session. On success the current cookie is cleared and `users.token_version` is bumped in the same update (issue #478), so every other outstanding session dies too — this is the "someone else has my password" flow, so recovery must not leave any prior session standing.
 
 **`property default`**
 - `failed` covers the update matching no row — the token already proved the email exists, so it's a race (account vanished between request and submit), not a policy rejection.
@@ -100,6 +100,14 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 ### `src/lib/server/auth-session.ts`
 **`function issueSessionCookie`**
 - Mints an Auth.js-compatible session cookie via `@auth/core/jwt`'s `encode()` — the same primitive Auth.js's callback flow uses (`@auth/core/lib/actions/callback`, `salt = cookies.sessionToken.name`). Used by login/signup, which carry custom rate-limiting that would be lost through Auth.js's `signIn()`.
+
+### `src/lib/server/auth.ts`
+**`property jwt`**
+- Session revocation (issue #478): re-reads `users.token_version` by primary key on every request and compares it against the token's `tokenVersion` claim via `checkTokenVersion`. Returning `null` is Auth.js's built-in "invalidate this token" signal — the session cookie gets cleared. A token with no claim yet (minted by `issueSessionCookie`, which doesn't stamp one) is accepted and healed to the current version rather than rejected.
+
+### `src/lib/server/token-version.ts`
+**`function checkTokenVersion`**
+- The revocation comparison itself (issue #478), pulled out of the `jwt` callback so it's unit-testable without going through Auth.js. `users.token_version` is bumped on password reset and password change, and the row disappears outright on account deletion — either way, a token minted before the change fails this check on its next request.
 
 ### `src/lib/server/verification-token.ts`
 **`const TOKEN_TTL_MS`**

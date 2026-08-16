@@ -14,7 +14,7 @@ import { getTableName } from 'drizzle-orm';
 
 const {
 	rateLimitMock, logAuthEventMock, verifyCredentialsMock,
-	createVerificationTokenMock, sendEmailMock,
+	createVerificationTokenMock, sendEmailMock, issueSessionCookieMock,
 	state, updatedRows,
 } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
@@ -22,6 +22,7 @@ const {
 	verifyCredentialsMock: vi.fn(),
 	createVerificationTokenMock: vi.fn().mockResolvedValue('tok123'),
 	sendEmailMock: vi.fn().mockResolvedValue(undefined),
+	issueSessionCookieMock: vi.fn().mockResolvedValue(undefined),
 	state: {
 		membershipRole: 'owner' as string | undefined,
 		emailTaken: false,
@@ -33,6 +34,7 @@ vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
 vi.mock('$lib/server/auth-events', () => ({ logAuthEvent: logAuthEventMock, hashIp: () => 'iphash' }));
 vi.mock('$lib/server/auth-credentials', () => ({ verifyCredentials: verifyCredentialsMock }));
 vi.mock('$lib/server/verification-token', () => ({ createVerificationToken: createVerificationTokenMock }));
+vi.mock('$lib/server/auth-session', () => ({ issueSessionCookie: issueSessionCookieMock }));
 vi.mock('$lib/server/email', () => ({
 	sendEmail: sendEmailMock,
 	changeEmailAddress: (email: string, url: string) => ({ to: email, subject: 's', html: url }),
@@ -74,6 +76,7 @@ function formEvent(fields: Record<string, string>, locals: Record<string, unknow
 		request: { formData: async () => data },
 		url: new URL('https://app.example.test'),
 		getClientAddress: () => '203.0.113.7',
+		cookies: { set: vi.fn(), delete: vi.fn() },
 		locals: { user: USER, restaurantId: 'rest-1', ...locals },
 	} as never;
 }
@@ -84,6 +87,7 @@ beforeEach(() => {
 	verifyCredentialsMock.mockReset().mockResolvedValue(USER);
 	createVerificationTokenMock.mockClear().mockResolvedValue('tok123');
 	sendEmailMock.mockClear();
+	issueSessionCookieMock.mockClear();
 	state.membershipRole = 'owner';
 	state.emailTaken = false;
 	updatedRows.length = 0;
@@ -134,6 +138,12 @@ describe('changePassword', () => {
 		expect(updatedRows[0]).toHaveProperty('passwordHash');
 		expect(result).toEqual({ section: 'password', ok: 'set.profile.ok.password' });
 		expect(logAuthEventMock).toHaveBeenCalledWith('password_changed', expect.anything());
+	});
+
+	it('bumps tokenVersion to revoke other sessions, then re-issues the current cookie so this device stays signed in', async () => {
+		await actions.changePassword(formEvent(good));
+		expect(updatedRows[0]).toHaveProperty('tokenVersion');
+		expect(issueSessionCookieMock).toHaveBeenCalledWith(expect.anything(), true, USER);
 	});
 
 	it('refuses when the current password is wrong, without touching the password', async () => {

@@ -18,6 +18,7 @@ import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 Sentry.init({
 	dsn: process.env.SENTRY_DSN ?? '',
 	release: process.env.SENTRY_RELEASE || undefined,
+	environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
 	tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 });

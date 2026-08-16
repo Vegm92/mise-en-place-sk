@@ -7,6 +7,7 @@ import { and, asc, desc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { workingDaysUntilDeadline } from '$lib/server/working-days';
 import { markInvoicePaid, markInvoicesPaidBulk, acceptInvoice, rejectInvoice } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { moneyToNumber, sumCents } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				supplier_name:    suppliers.name,
 				invoice_number:   invoices.invoiceNumber,
 				due_date:         invoices.dueDate,
-				display_amount:   sql<number>`COALESCE(${invoices.totalAmount}, 0)`,
+				display_amount:   sql<string>`COALESCE(${invoices.totalAmount}, 0)`,
 				e_invoice_format: invoices.eInvoiceFormat,
 				created_at:       invoices.createdAt,
 				status:           invoices.status,
@@ -61,6 +62,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			}
 			return {
 				...r,
+				display_amount: moneyToNumber(r.display_amount),
 				due_date: r.due_date!,
 				days_delta: dueDays,
 				overdue: dueDays < 0,
@@ -72,7 +74,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			title: 'nav.reminders',
 			overdue:       enriched.filter(r => r.overdue),
 			due_soon:      enriched.filter(r => !r.overdue),
-			total_amount:  enriched.reduce((sum, r) => sum + r.display_amount, 0),
+			total_amount:  sumCents(rows.map(r => r.display_amount)) / 100,
 			today:         todayIso,
 			conflict:      url.searchParams.get('conflict') === '1',
 			notifications,

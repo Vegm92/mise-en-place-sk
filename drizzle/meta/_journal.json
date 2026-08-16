@@ -243,8 +243,29 @@
     {
       "idx": 34,
       "version": "7",
-      "when": 1786850767667,
-      "tag": "0034_beta_access_gate",
+      "when": 1786909662454,
+      "tag": "0034_price_snapshots_plain_column_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1786911166786,
+      "tag": "0035_add_user_token_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1786913682956,
+      "tag": "0036_closed_lady_ursula",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786914483758,
+      "tag": "0037_beta_access_gate",
       "breakpoints": true
     }
   ]

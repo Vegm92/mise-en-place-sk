@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import fs from 'fs';
+import { moneyToNumber } from './money';
 
 export const SIMILAR_INVOICE_DATE_WINDOW_DAYS = 21;
 const SIMILAR_INVOICE_AMOUNT_ABS_TOLERANCE = 0.5;
@@ -19,11 +20,11 @@ export function isoDateOffset(dateStr: string, days: number): string {
 	return d.toISOString().slice(0, 10);
 }
 
-export function findSimilarInvoice<T extends { totalAmount: number | null }>(
+export function findSimilarInvoice<T extends { totalAmount: string | null }>(
 	candidates: T[],
 	totalAmount: number,
 ): T | null {
-	return candidates.find(c => c.totalAmount != null && amountsAreSimilar(c.totalAmount, totalAmount)) ?? null;
+	return candidates.find(c => c.totalAmount != null && amountsAreSimilar(moneyToNumber(c.totalAmount), totalAmount)) ?? null;
 }
 
 export function computeFileHash(filePath: string): string {
@@ -36,12 +37,12 @@ export function computeInvoiceContentHash(fields: {
 	invoiceNumber: string;
 	invoiceDate: string | null;
 	dueDate: string | null;
-	totalAmount: number | null;
+	totalAmount: string | null;
 	lineDescriptions: string[];
 	lineQuantities: (number | null)[];
 	lineUnits: (string | null)[];
-	lineUnitPrices: (number | null)[];
-	lineTotalPrices: (number | null)[];
+	lineUnitPrices: (string | null)[];
+	lineTotalPrices: (string | null)[];
 }): string {
 	const canonical = {
 		supplier:   fields.supplierName.toLowerCase().trim(),
