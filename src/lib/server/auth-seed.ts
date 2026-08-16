@@ -25,7 +25,7 @@ export async function seedAdminUser(): Promise<void> {
 	const passwordHash = await bcrypt.hash(password, 12);
 	const [created] = await db
 		.insert(users)
-		.values({ email, passwordHash, emailVerified: new Date() })
+		.values({ email, passwordHash, emailVerified: new Date(), accessStatus: 'approved' })
 		.returning();
 
 	if (!created) {
