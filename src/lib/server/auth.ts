@@ -43,7 +43,6 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 			}
 			if (!token.sub) return token;
 
-			// Returning null is Auth.js's built-in "invalidate this token" signal — it clears the session cookie.
 			const claimed = typeof token.tokenVersion === 'number' ? token.tokenVersion : undefined;
 			const version = await checkTokenVersion(token.sub, claimed);
 			if (version === null) return null;
