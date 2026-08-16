@@ -28,6 +28,7 @@
   const p = $derived($page.url.pathname);
   const navItems = $derived([
     { href: '/admin',         label: $t('admin.overview') },
+    { href: '/admin/access',  label: $t('admin.access.nav') },
     { href: '/admin/revenue', label: $t('admin.revenue') },
     { href: '/admin/events',  label: $t('admin.events') },
     { href: '/admin/dead-letters', label: $t('admin.dlq.nav') },
