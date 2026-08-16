@@ -1,5 +1,5 @@
 {
-  "id": "5536248a-9822-4028-ab6d-fccbe786374c",
+  "id": "481a6f10-dec6-4c9c-955e-e2ff96bc10ab",
   "prevId": "5ac080de-346d-4032-9e2b-ccafe662b895",
   "version": "7",
   "dialect": "postgresql",
@@ -28,7 +28,7 @@
         },
         "monthly_budget": {
           "name": "monthly_budget",
-          "type": "numeric(12, 2)",
+          "type": "real",
           "primaryKey": false,
           "notNull": true
         }
@@ -125,13 +125,13 @@
         },
         "unit_price": {
           "name": "unit_price",
-          "type": "numeric(12, 2)",
+          "type": "real",
           "primaryKey": false,
           "notNull": false
         },
         "total_price": {
           "name": "total_price",
-          "type": "numeric(12, 2)",
+          "type": "real",
           "primaryKey": false,
           "notNull": false
         },
@@ -186,7 +186,7 @@
         },
         "normalized_unit_price": {
           "name": "normalized_unit_price",
-          "type": "numeric(12, 2)",
+          "type": "real",
           "primaryKey": false,
           "notNull": false
         }
@@ -346,13 +346,13 @@
         },
         "total_amount": {
           "name": "total_amount",
-          "type": "numeric(12, 2)",
+          "type": "real",
           "primaryKey": false,
           "notNull": false
         },
         "tax_base": {
           "name": "tax_base",
-          "type": "numeric(12, 2)",
+          "type": "real",
           "primaryKey": false,
           "notNull": false
         },
@@ -3843,6 +3843,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "token_version": {
+          "name": "token_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",
