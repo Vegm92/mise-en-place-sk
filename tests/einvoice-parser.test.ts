@@ -346,6 +346,12 @@ describe('parseFacturae322', () => {
 		expect(parseFacturae322(FACTURAE_322_XML).e_invoice_format).toBe('facturae_322');
 	});
 
+	it('sets document_type to factura with full confidence (issue #461)', () => {
+		const result = parseFacturae322(FACTURAE_322_XML);
+		expect(result.document_type).toBe('factura');
+		expect(result.field_confidences?.document_type).toBe(1.0);
+	});
+
 	it('sets currency to EUR', () => {
 		expect(parseFacturae322(FACTURAE_322_XML).currency).toBe('EUR');
 	});
@@ -452,6 +458,12 @@ describe('parseUbl21Invoice', () => {
 
 	it('sets e_invoice_format to ubl_21', () => {
 		expect(parseUbl21Invoice(UBL_21_XML).e_invoice_format).toBe('ubl_21');
+	});
+
+	it('sets document_type to factura with full confidence (issue #461)', () => {
+		const result = parseUbl21Invoice(UBL_21_XML);
+		expect(result.document_type).toBe('factura');
+		expect(result.field_confidences?.document_type).toBe(1.0);
 	});
 });
 

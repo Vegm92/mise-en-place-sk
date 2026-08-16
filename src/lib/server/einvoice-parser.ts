@@ -152,6 +152,7 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		supplier_email: supplierEmail,
 		supplier_phone: supplierPhone,
 		invoice_number: fullNumber,
+		document_type: 'factura',
 		invoice_date: invoiceDate,
 		due_date: null,
 		total_amount: totalAmount,
@@ -162,6 +163,7 @@ export function parseFacturae322(xml: string): ExtractedInvoice & { e_invoice_fo
 		field_confidences: {
 			supplier_name: supplierName ? 1.0 : 0,
 			invoice_number: fullNumber ? 1.0 : 0,
+			document_type: 1.0,
 			invoice_date: invoiceDate ? 1.0 : 0,
 			total_amount: totalAmount != null ? 1.0 : 0,
 		},
@@ -253,6 +255,7 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 		supplier_email: supplierEmail,
 		supplier_phone: supplierPhone,
 		invoice_number: invoiceNumber,
+		document_type: 'factura',
 		invoice_date: invoiceDate,
 		due_date: dueDate,
 		total_amount: totalAmount,
@@ -263,6 +266,7 @@ export function parseUbl21Invoice(xml: string): ExtractedInvoice & { e_invoice_f
 		field_confidences: {
 			supplier_name: supplierName ? 1.0 : 0,
 			invoice_number: invoiceNumber ? 1.0 : 0,
+			document_type: 1.0,
 			invoice_date: invoiceDate ? 1.0 : 0,
 			total_amount: totalAmount != null ? 1.0 : 0,
 		},

@@ -46,6 +46,7 @@ export const invoices = pgTable('invoices', {
 	restaurantId:    uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	supplierId:      integer('supplier_id').references(() => suppliers.id),
 	invoiceNumber:   text('invoice_number'),
+	documentType:    text('document_type'),
 	invoiceDate:     text('invoice_date'),
 	dueDate:         text('due_date'),
 	totalAmount:     real('total_amount'),

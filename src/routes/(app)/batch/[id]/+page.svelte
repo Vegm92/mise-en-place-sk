@@ -402,6 +402,11 @@
                   <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
                     {$t('field.invoiceNum')}
                     <ConfidenceDot confidence={fieldConf.invoice_number} />
+                    {#if review?.data?.document_type === 'factura' || review?.data?.document_type === 'albaran'}
+                      <span style="font-size:9.5px;font-weight:600;text-transform:none;letter-spacing:0;padding:1px 6px;border-radius:8px;background:var(--mep-surface-2);color:var(--mep-fg-3);">
+                        {$t(`field.documentType.${review.data.document_type}`)}
+                      </span>
+                    {/if}
                   </div>
                   <input type="text" name="invoice_number" bind:value={invoiceNumberInput} class="num"
                     style="width:100%;font-size:13px;font-weight:500;color:var(--mep-fg);padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);border:1px solid transparent;border-bottom:{fieldConf.invoice_number != null && fieldConf.invoice_number < 0.85 ? '2px solid var(--mep-warn)' : '1px solid var(--mep-divider)'};outline:none;font-family:var(--mep-font);" />

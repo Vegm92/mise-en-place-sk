@@ -232,6 +232,13 @@
       "when": 1786717095339,
       "tag": "0032_drop_legacy_dedup_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1786823262454,
+      "tag": "0033_invoice_document_type",
+      "breakpoints": true
     }
   ]
 }

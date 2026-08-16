@@ -96,6 +96,12 @@
             <span class="label">{$t('field.invoiceNum')}</span>
             <span class="body-strong">{invoice.invoice_number ?? '—'}</span>
           </div>
+          {#if invoice.document_type}
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('field.documentType')}</span>
+              <span class="body-strong">{$t(`field.documentType.${invoice.document_type}`)}</span>
+            </div>
+          {/if}
           <div style="display:flex;flex-direction:column;gap:2px;">
             <span class="label">{$t('field.invoiceDate')}</span>
             <span class="body-strong">{fmtDate(invoice.invoice_date)}</span>
