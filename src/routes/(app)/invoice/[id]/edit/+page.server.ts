@@ -6,6 +6,7 @@ import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { asc, eq, and, ne, sql } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 import { getOrCreateSupplierId } from '$lib/server/supplier';
+import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/edit', async () => {
@@ -50,7 +51,15 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const row = rows[0];
 		if (!row) redirect(303, '/invoices');
 
-		return { title: 'edit.pageTitle', invoice: row, lineItems };
+		return {
+			title: 'edit.pageTitle',
+			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
+			lineItems: lineItems.map(li => ({
+				...li,
+				unit_price: moneyToNullableNumber(li.unit_price),
+				total_price: moneyToNullableNumber(li.total_price),
+			})),
+		};
 	});
 };
 
@@ -71,7 +80,7 @@ export const actions: Actions = {
 		const invoiceNumber = String(data.get('invoice_number') ?? '').trim() || null;
 		const invoiceDate   = String(data.get('invoice_date') ?? '').trim() || null;
 		const dueDate       = String(data.get('due_date') ?? '').trim() || null;
-		const totalAmount   = toFloat(data.get('total_amount'));
+		const totalAmount   = toMoneyString(data.get('total_amount') as string | null);
 		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
 
 		const expectedVersion = Number(data.get('version'));
@@ -90,8 +99,8 @@ export const actions: Actions = {
 				description: desc,
 				quantity:    toFloat(lineQuantities[i] ?? null),
 				unit:        lineUnits[i]?.trim() || null,
-				unitPrice:   toFloat(lineUnitPrices[i] ?? null),
-				totalPrice:  toFloat(lineTotalPrices[i] ?? null),
+				unitPrice:   toMoneyString(lineUnitPrices[i] ?? null),
+				totalPrice:  toMoneyString(lineTotalPrices[i] ?? null),
 			}))
 			.filter((item) => item.description.trim() !== '');
 

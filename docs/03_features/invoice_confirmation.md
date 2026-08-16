@@ -246,3 +246,18 @@ shapes, `low_confidence_ack` value.
 - Soft, non-blocking heuristic for issue #449. The dedup gates above only catch the same document uploaded twice (content hash) or a repeated supplier+invoice_number pair. Neither can tell that an albarán captured at delivery and the factura fiscal for that same delivery, arriving weeks later, are the same real-world purchase — they carry different numbers by construction, and fiscally both can legitimately exist.
 - Looks for an already-saved invoice from the same supplier, of the opposite `document_type`, within `DUPLICATE_DATE_WINDOW_DAYS` (21) and `DUPLICATE_AMOUNT_TOLERANCE` (10%) of the new one, and raises a review nudge instead of blocking the save.
 - Requires `document_type`, `invoice_date` and `total_amount` on both sides, so an albarán with no printed prices can't be matched this way — a known gap (see #461), not a bug.
+
+### `src/lib/server/money.ts`
+
+**`toCents` / `fromCents` / `toMoneyString`**
+
+- The money columns (`total_amount`, `tax_base`, `unit_price`, `total_price`, `normalized_unit_price`, `monthly_budget`) are `numeric(12,2)`, not `real` (issue #477 — float4 loses precision above ~6-7 significant digits and compounds error under SUM). Drizzle returns `numeric` as a string, so these parse/format it via integer cents rather than `parseFloat`/`toFixed`, which would reintroduce the float drift the column type change was meant to remove.
+- `toCents` rounds half-up past two decimal digits rather than truncating, so extraction/form input with more precision than the column supports still lands on the cent the value was closest to.
+
+**`sumCents` / `sumMoney`**
+
+- For JS-side aggregation across multiple already-fetched rows (e.g. a per-supplier monthly total built in a loop) — SUM inside SQL is still preferred where the rows aren't already in hand, since Postgres does that arithmetic in exact `numeric`, not float64.
+
+**`moneyToNumber` / `moneyToNullableNumber`**
+
+- One-shot boundary conversion of an already-exact amount (a DB value, or a Postgres-side SUM/AVG) into a JS number for display or a threshold comparison — safe because it's a single conversion, not repeated arithmetic on stored money. `moneyToNumber` coerces a missing amount to 0 (matching the pre-#477 `?? 0` call sites); `moneyToNullableNumber` keeps `null` distinguishable from a real zero where that distinction is shown in the UI.

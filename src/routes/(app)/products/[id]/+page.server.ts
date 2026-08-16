@@ -9,6 +9,7 @@ import {
 	getLinkedSuppliers, unlinkSupplier as unlinkSupplierFromProduct,
 	deleteProduct, resolveUnitConversionAlerts,
 } from '$lib/server/products';
+import { moneyToNullableNumber } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = Number(params.id);
@@ -59,7 +60,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		product,
 		linkedSuppliers,
 		aliases,
-		priceHistory,
+		priceHistory: priceHistory.map(p => ({
+			...p,
+			unitPrice: moneyToNullableNumber(p.unitPrice),
+			normalizedUnitPrice: moneyToNullableNumber(p.normalizedUnitPrice),
+		})),
 		categories: VALID_CATEGORIES,
 	};
 };
