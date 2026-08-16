@@ -22,10 +22,11 @@ export function trialDaysFor(founder: boolean): number {
 }
 
 export async function isFounderRestaurant(restaurantId: string): Promise<boolean> {
+	const tdb = forTenant(restaurantId);
 	const [row] = await db
 		.select({ founder: subscriptions.founder })
 		.from(subscriptions)
-		.where(eq(subscriptions.restaurantId, restaurantId))
+		.where(tdb.scope(subscriptions.restaurantId))
 		.limit(1);
 	return row?.founder ?? false;
 }
