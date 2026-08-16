@@ -13,7 +13,22 @@ const secretKey = env.STRIPE_SECRET_KEY ?? '';
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
 
 export const WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET ?? '';
-export const TRIAL_DAYS  = 30;
+export const TRIAL_DAYS         = 14;
+export const FOUNDER_TRIAL_DAYS = 30;
+export const FOUNDER_COUPON_ID  = env.STRIPE_FOUNDER_COUPON_ID ?? '';
+
+export function trialDaysFor(founder: boolean): number {
+	return founder ? FOUNDER_TRIAL_DAYS : TRIAL_DAYS;
+}
+
+export async function isFounderRestaurant(restaurantId: string): Promise<boolean> {
+	const [row] = await db
+		.select({ founder: subscriptions.founder })
+		.from(subscriptions)
+		.where(eq(subscriptions.restaurantId, restaurantId))
+		.limit(1);
+	return row?.founder ?? false;
+}
 
 export class WebhookSignatureError extends Error {
 	constructor(message: string, options?: { cause?: unknown }) {
@@ -196,12 +211,17 @@ export async function getOrCreateCustomer(restaurantId: string, email: string, r
 	return await db.transaction(async (tx) => {
 		await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'cust:' + restaurantId}))`);
 
-		const rows = await tx.select({ stripeCustomerId: subscriptions.stripeCustomerId })
+		const rows = await tx.select({
+			stripeCustomerId: subscriptions.stripeCustomerId,
+			founder: subscriptions.founder,
+		})
 			.from(subscriptions)
 			.where(tdb.scope(subscriptions.restaurantId))
 			.limit(1);
 
 		if (rows[0]?.stripeCustomerId) return rows[0].stripeCustomerId;
+
+		const trialDays = trialDaysFor(rows[0]?.founder ?? false);
 
 		const customer = await stripe.customers.create({
 			email,
@@ -214,7 +234,7 @@ export async function getOrCreateCustomer(restaurantId: string, email: string, r
 				restaurantId,
 				stripeCustomerId: customer.id,
 				status: 'trialing',
-				trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
+				trialEndsAt: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
 			})
 			.onConflictDoUpdate({
 				target: subscriptions.restaurantId,
@@ -237,18 +257,23 @@ export async function createCheckoutSession(
 	const priceId = TIERS[tier].stripePriceId;
 	if (!priceId) throw new Error(`STRIPE_PRICE_ID_${tier.toUpperCase()} not configured`);
 
+	const founder    = await isFounderRestaurant(restaurantId);
+	const useCoupon  = founder && FOUNDER_COUPON_ID !== '';
+
 	const session = await stripe.checkout.sessions.create({
 		customer: customerId,
 		mode: 'subscription',
 		line_items: [{ price: priceId, quantity: 1 }],
 		metadata: { restaurantId },
 		subscription_data: {
-			trial_period_days: TRIAL_DAYS,
+			trial_period_days: trialDaysFor(founder),
 			metadata: { restaurantId },
 		},
 		success_url: successUrl,
 		cancel_url: cancelUrl,
-		allow_promotion_codes: true,
+		...(useCoupon
+			? { discounts: [{ coupon: FOUNDER_COUPON_ID }] }
+			: { allow_promotion_codes: true }),
 	}, idempotencyKey ? { idempotencyKey } : undefined);
 
 	return session.url!;

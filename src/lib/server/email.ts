@@ -205,7 +205,7 @@ ${steps([
 	{ title: 'La leemos automáticamente', desc: 'Extraemos productos, precios y totales — sin transcripción manual.' },
 	{ title: 'Ves tu primer panel', desc: 'Gasto por categoría y proveedor, listo en minutos.' },
 ])}
-${p('Tus primeros 30 días son gratis — sin tarjeta.')}`,
+${p('Tus primeros 14 días son gratis — sin tarjeta.')}`,
 			cta: { href: APP_URL, label: 'Abrir la aplicación' },
 			signature: `Nos vemos en la cocina,<br>${strong('El equipo de Mise en Place')}`,
 		}),
