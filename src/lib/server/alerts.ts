@@ -408,18 +408,6 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 const DUPLICATE_DATE_WINDOW_DAYS = 21;
 const DUPLICATE_AMOUNT_TOLERANCE = 0.10;
 
-/**
- * Soft, non-blocking heuristic for issue #449: the dedup gate only catches the
- * same document uploaded twice (content hash) or a repeated supplier+invoice_number
- * pair. It cannot tell that an albarán captured at delivery and the factura fiscal
- * for that same delivery, arriving weeks later, are the same real-world purchase —
- * they carry different numbers by construction, and fiscally both can legitimately
- * exist. This looks for an already-saved invoice from the same supplier, of the
- * opposite document_type, close in date and similar in total amount, and raises a
- * review nudge instead of blocking the save. Requires document_type, invoice_date
- * and total_amount on both sides, so an albarán with no printed prices can't be
- * matched this way — a known gap (see #461), not a bug.
- */
 export async function runPossibleDuplicatePurchase(
 	invoiceId: number,
 	supplierId: number,
