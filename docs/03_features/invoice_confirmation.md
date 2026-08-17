@@ -261,3 +261,17 @@ shapes, `low_confidence_ack` value.
 **`moneyToNumber` / `moneyToNullableNumber`**
 
 - One-shot boundary conversion of an already-exact amount (a DB value, or a Postgres-side SUM/AVG) into a JS number for display or a threshold comparison — safe because it's a single conversion, not repeated arithmetic on stored money. `moneyToNumber` coerces a missing amount to 0 (matching the pre-#477 `?? 0` call sites); `moneyToNullableNumber` keeps `null` distinguishable from a real zero where that distinction is shown in the UI.
+
+### `src/lib/server/dates.ts`
+
+**`toIsoDate` / `isBlankOrIsoDate`**
+
+- The companion to `money.ts` for the other half of the same data-model problem (issue #516). `invoice_date`/`due_date` were `text` written straight from the form, and every consumer compared them as strings — correct only for zero-padded ISO, so `"2026-1-5"` sorted after `"2026-12-01"` and `"05/01/2026"` sorted before every ISO date and read as permanently overdue. The columns are now `date`.
+- `toIsoDate` rejects anything that isn't `YYYY-MM-DD` and then round-trips it through `Date.UTC` to reject dates that match the shape but don't exist (`2026-02-30`, `2025-02-29`). A regex alone would let those reach Postgres and throw at insert time instead of at the boundary.
+- The two are split because blank and malformed need different answers: an absent date is legitimately `null`, a malformed one is a user error. `isBlankOrIsoDate` gates the write (`saveReviewedInvoice` returns `{ type: 'invalidDate' }`, the edit action returns `fail(400, { errorKey })`), `toIsoDate` normalises after the gate has passed.
+- Drizzle's `date()` defaults to `mode: 'string'`, so the TS type stayed `string | null` and the value stayed `YYYY-MM-DD` — the column type change touched no component.
+- On read paths that take a date from the URL (`date_from`/`date_to` on the invoices list and the xlsx export), `toIsoDate` is used to drop a malformed filter rather than reject it. Against a `text` column garbage silently matched nothing; against a `date` column it makes Postgres throw, so an unvalidated query string would 500 the page.
+
+**`toMonthKey`**
+
+- The `month` columns (`category_budgets`, `monthly_usage`, `mrr_snapshots`, `acquisition_costs`) stay `text` because they are genuinely `YYYY-MM` keys, not dates — but they now carry a `CHECK` constraint so the same class of malformed value can't land in them either.
