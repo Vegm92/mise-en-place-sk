@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+import { error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
 import { env } from '$env/dynamic/private';
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
@@ -172,6 +173,11 @@ export async function getPlanTier(restaurantId: string): Promise<PlanTier> {
 
 export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
 	return TIERS[await getPlanTier(restaurantId)].features;
+}
+
+export async function requireFeature(feature: keyof TierConfig['features'], restaurantId: string): Promise<void> {
+	const features = await getTierFeatures(restaurantId);
+	if (!features[feature]) throw error(403, `This feature requires a higher plan tier`);
 }
 
 export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | null): boolean {
