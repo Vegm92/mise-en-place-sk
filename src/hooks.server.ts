@@ -13,6 +13,9 @@ import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
 import { withTimeout } from '$lib/server/with-timeout';
+import { assertProductionEnv } from '$lib/server/config';
+
+assertProductionEnv();
 
 const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env['MEMBERSHIP_TIMEOUT_MS'] ?? '5000', 10);
 
