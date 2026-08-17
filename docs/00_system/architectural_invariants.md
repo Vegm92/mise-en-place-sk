@@ -67,6 +67,17 @@ plan and explicit human approval — it is never a silent convenience.
 - Plan/feature access (`getTierFeatures`) and quotas (`resolveMonthlyQuota`)
   must stay consistent with the local `subscriptions` row — never trust a price
   id or client claim to grant features.
+- Entitlement is declared per route in `ROUTE_POLICY` (`lib/server/entitlements.ts`)
+  and enforced by `entitlementHandle` in `hooks.server.ts`, which sees every verb
+  of a route. Do not hand-write a tier check in a handler that a route policy can
+  express — that is how ADR-023 got written. Every route id must appear in the
+  map, as `'open'` or with a policy; the map `satisfies Record<RouteId, …>`, so
+  omitting one fails `pnpm check`.
+- Per-action gates are the documented exception (`settings` `addLocation`, the
+  `(app)` `upload` action) because route policies are route-granular. Keep their
+  `fail(403, {section, error})` shape so the error renders on the right field.
+- Anything reached off a request path — the invoice-save alert fan-out, worker
+  jobs, cron — must check entitlement itself; the hook cannot see it.
 
 ## DATABASE
 
