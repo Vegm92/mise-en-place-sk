@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
-				  AND TO_CHAR(i.invoice_date::date, 'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date, 'YYYY-MM') = ${selectedMonth}
 				GROUP BY COALESCE(s.category, 'Other')
 			`),
 		]);

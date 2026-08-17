@@ -1,5 +1,5 @@
 import {
-	boolean, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
+	boolean, check, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import { invoices, products, restaurants, suppliers } from './core';
@@ -144,6 +144,7 @@ export const monthlyUsage = pgTable('monthly_usage', {
 	used:         integer('used').notNull().default(0),
 }, (t) => [
 	uniqueIndex('monthly_usage_restaurant_month_unique').on(t.restaurantId, t.month),
+	check('monthly_usage_month_format', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
 ]);
 
 export const idempotencyKeys = pgTable('idempotency_keys', {
@@ -284,6 +285,7 @@ export const mrrSnapshots = pgTable('mrr_snapshots', {
 	uniqueIndex('mrr_snapshots_month_restaurant_unique').on(t.month, t.restaurantId),
 	index('mrr_snapshots_month_idx').on(t.month),
 	index('mrr_snapshots_paying_idx').on(t.restaurantId, t.month).where(sql`${t.mrrCents} > 0`),
+	check('mrr_snapshots_month_format', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
 ]);
 
 export const acquisitionCosts = pgTable('acquisition_costs', {
@@ -296,6 +298,7 @@ export const acquisitionCosts = pgTable('acquisition_costs', {
 	createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('acquisition_costs_month_idx').on(t.month),
+	check('acquisition_costs_month_format', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
 ]);
 
 export const revenueAssumptions = pgTable('revenue_assumptions', {

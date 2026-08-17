@@ -69,7 +69,7 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 	let startDate: Date;
 	if (range === 'all') {
 		const [row] = await db
-			.select({ minDate: sql<string | null>`MIN((${invoices.invoiceDate})::date)::text` })
+			.select({ minDate: sql<string | null>`MIN(${invoices.invoiceDate})::text` })
 			.from(invoices)
 			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)));
 		startDate = row?.minDate ? new Date(row.minDate) : addDays(today, -364);
@@ -77,9 +77,9 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 		startDate = addDays(today, -(RANGE_TO_DAYS[range] ?? 29));
 	}
 
-	const dayKey   = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM-DD')`;
-	const weekKey  = sql<string>`DATE_TRUNC('week', (${invoices.invoiceDate})::date)::date::text`;
-	const monthKey = sql<string>`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM')`;
+	const dayKey   = sql<string>`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM-DD')`;
+	const weekKey  = sql<string>`DATE_TRUNC('week', ${invoices.invoiceDate})::date::text`;
+	const monthKey = sql<string>`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM')`;
 
 	let bucketDates: Date[] = [];
 	if (granularity === 'daily') {
@@ -105,7 +105,7 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 		.where(and(
 			tdb.scope(invoices.restaurantId),
 			isNull(invoices.deletedAt),
-			sql`(${invoices.invoiceDate})::date >= ${clampedStart}::date`,
+			sql`${invoices.invoiceDate} >= ${clampedStart}::date`,
 		))
 		.groupBy(keyExpr, suppliers.category)
 		.orderBy(keyExpr);

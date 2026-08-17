@@ -11,8 +11,8 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		SELECT
 			COUNT(*) FILTER (WHERE status = 'pending') AS pending_count,
 			COALESCE(SUM(total_amount) FILTER (WHERE status = 'pending'), 0) AS pending_total,
-			COUNT(*) FILTER (WHERE status = 'pending' AND due_date < CURRENT_DATE::text) AS overdue_count,
-			COALESCE(SUM(total_amount) FILTER (WHERE status = 'paid' AND TO_CHAR(invoice_date::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')), 0) AS paid_this_month
+			COUNT(*) FILTER (WHERE status = 'pending' AND due_date < CURRENT_DATE) AS overdue_count,
+			COALESCE(SUM(total_amount) FILTER (WHERE status = 'paid' AND TO_CHAR(invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')), 0) AS paid_this_month
 		FROM ${invoices}
 		WHERE restaurant_id = ${restaurantId}
 	`);
@@ -28,7 +28,7 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		SELECT s.name, COALESCE(SUM(i.total_amount), 0) AS ytd_spend, COUNT(i.id) AS invoice_count
 		FROM ${suppliers} s
 		LEFT JOIN ${invoices} i ON i.supplier_id = s.id
-			AND TO_CHAR(i.invoice_date::date, 'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY')
+			AND TO_CHAR(i.invoice_date, 'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY')
 		WHERE s.restaurant_id = ${restaurantId}
 		GROUP BY s.id
 		ORDER BY ytd_spend DESC
@@ -47,7 +47,7 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		FROM ${categoryBudgets} cb
 		LEFT JOIN ${suppliers} s ON s.category = cb.category AND s.restaurant_id = ${restaurantId}
 		LEFT JOIN ${invoices} i ON i.supplier_id = s.id
-			AND TO_CHAR(i.invoice_date::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
+			AND TO_CHAR(i.invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
 		WHERE cb.restaurant_id = ${restaurantId}
 		  AND cb.month = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
 		GROUP BY cb.category, cb.monthly_budget
@@ -117,7 +117,7 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		FROM ${invoiceLineItems} ili
 		JOIN ${invoices} i ON i.id = ili.invoice_id
 		WHERE i.restaurant_id = ${restaurantId}
-			AND i.invoice_date >= (CURRENT_DATE - INTERVAL '90 days')::text
+			AND i.invoice_date >= (CURRENT_DATE - INTERVAL '90 days')
 			AND ili.unit_price IS NOT NULL AND ili.unit_price > 0
 		GROUP BY mep_norm_key(ili.description)
 		HAVING COUNT(*) >= 2
