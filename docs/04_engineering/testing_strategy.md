@@ -15,6 +15,7 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 | Build | `pnpm build` | app + worker bundles |
 | Coverage | v8 | ≥ 80% lines on 7 core modules (vite.config.ts) |
 | E2E-ish | manual via `.claude/skills/verify/SKILL.md` | local Postgres + Auth.js credentials login flow |
+| Browser sweep | `pnpm qa:sweep` (`scripts/qa-browser-sweep.mjs`) | headless Chromium pass over every route: load health, security headers, a11y, i18n key leakage, responsive, malformed route params — see [browser_qa_sweep.md](browser_qa_sweep.md) |
 
 ## What CI runs (`.github/workflows/ci.yml`)
 

@@ -75,3 +75,7 @@ TODO.md
 # category-taxonomy guard and the synth:* npm scripts. Local output is not.
 /synth/node_modules/
 /synth/output/
+
+# Browser QA sweep output (pnpm qa:sweep) and Playwright MCP scratch dir
+/qa-report.md
+/.playwright-mcp/
