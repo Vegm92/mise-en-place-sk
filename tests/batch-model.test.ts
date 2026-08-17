@@ -105,6 +105,15 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 		expect(item?.extractError).toBeNull();
 	});
 
+	it('extracting → extracting re-claims for a pg-boss retry redelivery (#482)', async () => {
+		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		await store.markQueued(id);
+		await store.markExtracting(id);
+
+		expect(await store.markExtracting(id)).toBe(true);
+		expect((await store.getItem(id))?.status).toBe('extracting');
+	});
+
 	it('discard wins over a late worker claim', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
 		await store.markQueued(id);
