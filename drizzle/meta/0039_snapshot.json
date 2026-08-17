@@ -1,6 +1,6 @@
 {
-  "id": "72e6d808-a1af-4a4d-97f1-e28fe7e7eb51",
-  "prevId": "1dd68128-9e98-4469-8833-2e221cf070bc",
+  "id": "953ca742-e99b-4e01-a1d8-edafd1da3a9b",
+  "prevId": "72e6d808-a1af-4a4d-97f1-e28fe7e7eb51",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -80,7 +80,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "category_budgets_month_format": {
+          "name": "category_budgets_month_format",
+          "value": "\"category_budgets\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.invoice_line_items": {
@@ -334,13 +339,13 @@
         },
         "invoice_date": {
           "name": "invoice_date",
-          "type": "text",
+          "type": "date",
           "primaryKey": false,
           "notNull": false
         },
         "due_date": {
           "name": "due_date",
-          "type": "text",
+          "type": "date",
           "primaryKey": false,
           "notNull": false
         },
@@ -1158,7 +1163,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "acquisition_costs_month_format": {
+          "name": "acquisition_costs_month_format",
+          "value": "\"acquisition_costs\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.app_flags": {
@@ -2190,7 +2200,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "monthly_usage_month_format": {
+          "name": "monthly_usage_month_format",
+          "value": "\"monthly_usage\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.mrr_snapshots": {
@@ -2334,7 +2349,12 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "mrr_snapshots_month_format": {
+          "name": "mrr_snapshots_month_format",
+          "value": "\"mrr_snapshots\".\"month\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.product_aliases": {
