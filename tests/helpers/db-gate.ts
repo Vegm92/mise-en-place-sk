@@ -40,9 +40,18 @@ export type DbGate = {
 
 type Env = Record<string, string | undefined>;
 
+/**
+ * Seeding through DATABASE_TEST_URL is only half the picture: the application
+ * code under test (saveReviewedInvoice, the Stripe webhook handlers, …) opens
+ * its own connection from DATABASE_URL. A local DATABASE_TEST_URL beside a
+ * hosted DATABASE_URL therefore still lets a suite write to the hosted
+ * database, so both connection strings have to clear the same bar.
+ */
 export function resolveDbGate(env: Env): DbGate {
 	const url = env.DATABASE_TEST_URL || env.DATABASE_URL || '';
+	const appUrl = env.DATABASE_URL || '';
 	const isLocal = isLocalDbUrl(url);
+	const optedIn = env.ALLOW_REMOTE_DB_TESTS === '1';
 
 	if (!url) {
 		return {
@@ -52,15 +61,25 @@ export function resolveDbGate(env: Env): DbGate {
 			skipReason: 'neither DATABASE_TEST_URL nor DATABASE_URL is set'
 		};
 	}
-	if (isLocal || env.ALLOW_REMOTE_DB_TESTS === '1') {
-		return { url, isLocal, enabled: true, skipReason: '' };
+	if (!isLocal && !optedIn) {
+		return {
+			url,
+			isLocal,
+			enabled: false,
+			skipReason: `the configured database is not local (host: ${dbHost(url) || 'unparseable URL'})`
+		};
 	}
-	return {
-		url,
-		isLocal,
-		enabled: false,
-		skipReason: `the configured database is not local (host: ${dbHost(url) || 'unparseable URL'})`
-	};
+	if (appUrl && appUrl !== url && !isLocalDbUrl(appUrl) && !optedIn) {
+		return {
+			url,
+			isLocal,
+			enabled: false,
+			skipReason:
+				`DATABASE_TEST_URL is local but DATABASE_URL is not (host: ${dbHost(appUrl) || 'unparseable URL'}) — ` +
+				'application code under test connects through DATABASE_URL, so it would write there'
+		};
+	}
+	return { url, isLocal, enabled: true, skipReason: '' };
 }
 
 /** The banner printed when the gate disables DB-backed suites. */
@@ -73,7 +92,8 @@ export function skipNotice(gate: DbGate): string {
 		'  These suites create and delete restaurants, suppliers, invoices and',
 		'  notifications, so they never write to a remote database by accident.',
 		'  To run them, either:',
-		'    • point DATABASE_TEST_URL at a local Postgres (preferred), or',
+		'    • point DATABASE_TEST_URL *and* DATABASE_URL at a local Postgres',
+		'      (preferred — application code under test uses DATABASE_URL), or',
 		'    • run against local Postgres — see .claude/skills/verify/SKILL.md, or',
 		'    • opt in deliberately with ALLOW_REMOTE_DB_TESTS=1',
 		'━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
