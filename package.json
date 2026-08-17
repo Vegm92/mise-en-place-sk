@@ -31,6 +31,7 @@
 		"lint:unscoped-query": "node scripts/lint-invariants.mjs unscoped-tenant-query",
 		"lint:no-comments": "node scripts/check-no-comments.mjs",
 		"lint:i18n": "node scripts/check-i18n-strings.mjs",
+		"qa:sweep": "node scripts/qa-browser-sweep.mjs",
 		"icons:generate": "node scripts/generate-pwa-icons.mjs"
 	},
 	"devDependencies": {
