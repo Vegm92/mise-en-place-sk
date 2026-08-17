@@ -6,7 +6,7 @@ import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema/auth';
 import { asc, eq, sql } from 'drizzle-orm';
-import { applyTierSettings, billingRestaurantId, getPlanTier, getTierFeatures, TIERS } from '$lib/server/billing';
+import { applyTierSettings, getEntitlements } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
@@ -47,7 +47,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, features, whatsappContactRows, pairingCode, userRow] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -66,7 +66,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 				.where(eq(userRestaurants.userId, locals.user!.id))
 				.orderBy(asc(restaurants.name)),
-			getTierFeatures(rid),
+			getEntitlements(rid),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
 			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
 			db.select({ name: users.name, passwordHash: users.passwordHash, emailVerified: users.emailVerified })
@@ -75,7 +75,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.limit(1),
 		]);
 
-		const maxLocations = TIERS[await getPlanTier(rid)].maxLocations;
+		const { features, maxLocations } = entitlements;
 
 		return {
 			title: 'nav.settings',
@@ -211,16 +211,15 @@ export const actions: Actions = {
 		if (!name) return fail(422, { section: 'location', error: 'set.locations.err.nameRequired' });
 		if (name.length > 120) return fail(422, { section: 'location', error: 'set.profile.err.restaurantTooLong' });
 
-		const billingRid = await billingRestaurantId(rid);
-		const tier = await getPlanTier(rid);
-		if (!TIERS[tier].features.multiLocation) {
+		const { billingRestaurantId: billingRid, tier, features, maxLocations } = await getEntitlements(rid);
+		if (!features.multiLocation) {
 			return fail(403, { section: 'location', error: 'set.locations.err.notAvailable' });
 		}
 
 		const existing = await db.select({ id: userRestaurants.restaurantId })
 			.from(userRestaurants)
 			.where(eq(userRestaurants.userId, userId));
-		if (existing.length >= TIERS[tier].maxLocations) {
+		if (existing.length >= maxLocations) {
 			return fail(403, { section: 'location', error: 'set.locations.err.limitReached' });
 		}
 
