@@ -2,7 +2,7 @@
 
 Source of truth: `src/lib/server/schema/{core,extensions,auth}.ts` (re-exported
 by `schema.ts`) + committed migrations in `drizzle/` (ADR-003). ~42 tables + 5
-materialized views, latest migration `0030`. Statuses are `text` with app-level
+materialized views, latest migration `0038`. Statuses are `text` with app-level
 defaults — **there are no Postgres enums**. All business tables carry
 `restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE`.
 
@@ -15,7 +15,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 |---|---|---|---|
 | `restaurants` | Tenant root | `name`, `slug` (unique), `parentId` self-FK | Multi-location via `parentId` (migration 0023) |
 | `users` | Person account | `email` unique, `password_hash`, `emailVerified` | Credentials + OAuth |
-| `user_restaurants` | User↔restaurant membership | composite PK `(userId, restaurantId)`, `role` default `'owner'` | Basis of authorization; PK migration 0015 |
+| `user_restaurants` | User↔restaurant membership | composite PK `(userId, restaurantId)`, `userId` uuid, `role` default `'owner'` | Basis of authorization; PK migration 0015. `userId` was `text` (Supabase `auth.uid()` era) until migration 0038 converted it to `uuid` — joins to `users.id` needed an explicit cast before that, and one that was missing broke `/admin/access` |
 | `accounts` / `sessions` / `verification_tokens` | Auth.js adapter tables | `providerAccountId`, `sessionToken`, `expires` | JWT sessions → `sessions` mostly unused |
 | `user_consents` | Consent records | `(userId, policyVersion)` unique, `method`, `acceptedAt` | GDPR |
 
