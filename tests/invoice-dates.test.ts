@@ -161,12 +161,12 @@ describe.skipIf(!hasDbEnv)('invoice date write boundary', () => {
 		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-2', invoiceDate: '2026-12-01' }), rid);
 		await saveReviewedInvoice(fakeItem(), form({ invoiceNumber: 'DATE-OK-3', invoiceDate: '2027-01-05' }), rid);
 
-		const rows = await testSql`
+		const rows = await testSql<{ invoice_number: string }[]>`
 			SELECT invoice_number FROM invoices
 			WHERE restaurant_id = ${rid} AND invoice_number IN ('DATE-OK-1', 'DATE-OK-2', 'DATE-OK-3')
 			ORDER BY invoice_date ASC
 		`;
-		expect(rows.map((r: { invoice_number: string }) => r.invoice_number))
+		expect(rows.map((r) => r.invoice_number))
 			.toEqual(['DATE-OK-1', 'DATE-OK-2', 'DATE-OK-3']);
 	});
 
