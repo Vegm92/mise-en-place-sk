@@ -26,7 +26,7 @@ export const load: PageServerLoad = async () => {
 		safe('admin/access-flag', () => isAccessOpen(), false),
 		safe<AccountRow[]>('admin/access-accounts', async () => await db.execute(sql`
 			SELECT u.id, u.email, u.access_status, u.founder, u.email_verified, u.created_at,
-				(SELECT COUNT(*) FROM user_restaurants ur WHERE ur.user_id = u.id) AS restaurant_count
+				(SELECT COUNT(*) FROM user_restaurants ur WHERE ur.user_id = u.id::text) AS restaurant_count
 			FROM ${users} u
 			ORDER BY (u.access_status = 'pending') DESC, u.created_at DESC
 			LIMIT 200
