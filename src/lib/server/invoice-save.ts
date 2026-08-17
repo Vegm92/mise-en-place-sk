@@ -16,9 +16,11 @@ import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch-core';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
+import { isBlankOrIsoDate, toIsoDate } from './dates';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
+	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
 	| { type: 'replay' }
@@ -191,8 +193,12 @@ export async function saveReviewedInvoice(
 	const tdb = forTenant(rid);
 	const supplierName = (formData.get('supplier_name') as string) ?? '';
 	const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
-	const invoiceDate = (formData.get('invoice_date') as string) || null;
-	const dueDate = (formData.get('due_date') as string) || null;
+	const invoiceDateRaw = formData.get('invoice_date');
+	const dueDateRaw = formData.get('due_date');
+	if (!isBlankOrIsoDate(invoiceDateRaw)) return { type: 'invalidDate', field: 'invoice_date' };
+	if (!isBlankOrIsoDate(dueDateRaw)) return { type: 'invalidDate', field: 'due_date' };
+	const invoiceDate = toIsoDate(invoiceDateRaw);
+	const dueDate = toIsoDate(dueDateRaw);
 	const totalAmount = toMoneyString(formData.get('total_amount') as string | null);
 	const confidenceRaw = toFloat(formData.get('confidence'));
 	const notesRaw = (formData.get('notes') as string) ?? '';

@@ -32,7 +32,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 				tdb.scope(invoices.restaurantId),
 				sql`${invoices.status} IN ('pending', 'accepted')`,
 				isNull(invoices.deletedAt),
-				sql`${invoices.dueDate} < CURRENT_DATE::text`
+				sql`${invoices.dueDate} < CURRENT_DATE`
 			)),
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
