@@ -308,7 +308,13 @@ export async function createPortalSession(customerId: string, returnUrl: string)
 }
 
 export async function handleWebhookEvent(body: string, signature: string): Promise<void> {
-	if (!stripe) return;
+	if (!stripe) {
+		if (process.env.NODE_ENV === 'production') {
+			throw new Error('STRIPE_SECRET_KEY is required in production — refusing to silently accept webhook');
+		}
+		console.warn('[billing] STRIPE_SECRET_KEY not set — skipping webhook processing (dev only)');
+		return;
+	}
 	if (!WEBHOOK_SECRET) {
 		if (process.env.NODE_ENV === 'production') {
 			throw new Error('STRIPE_WEBHOOK_SECRET is required in production — refusing to process unverified webhook');
