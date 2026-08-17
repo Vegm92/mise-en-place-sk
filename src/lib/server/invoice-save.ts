@@ -7,6 +7,7 @@ import { enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, saveAlerts, type Alert } from './alerts';
 import { maybeSendQuotaWarning } from './quota-warning';
+import { getTierFeatures } from './billing';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
@@ -431,7 +432,8 @@ export async function saveReviewedInvoice(
 		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
 
 		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
-		const stockAlerts = await runStockForecast(savedItems, rid);
+		const { stockTracking } = await getTierFeatures(rid);
+		const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);

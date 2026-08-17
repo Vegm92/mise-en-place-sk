@@ -6,12 +6,16 @@ import { sql } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { getTierFeatures } from '$lib/server/billing';
 
+async function requireStockTracking(rid: string): Promise<void> {
+	const { stockTracking } = await getTierFeatures(rid);
+	if (!stockTracking) throw error(403, 'billing.upgrade.stock');
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	const features = await getTierFeatures(rid);
-	if (!features.stockTracking) throw error(403, 'Stock tracking requires a Pro plan or higher');
+	await requireStockTracking(rid);
 	const rows = await db.select().from(stockLevels).where(tdb.scope(stockLevels.restaurantId));
 	return json({ stock_levels: rows });
 };
@@ -19,6 +23,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
+	await requireStockTracking(rid);
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
 
