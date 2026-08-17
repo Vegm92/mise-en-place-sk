@@ -9,6 +9,7 @@ import type { SQL } from 'drizzle-orm';
 import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
+import { toIsoDate } from '$lib/server/dates';
 
 const PAGE_SIZE = 50;
 
@@ -30,8 +31,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
 		const status       = url.searchParams.get('status') ?? '';
 		const supplierId   = url.searchParams.get('supplier_id') ?? '';
-		const dateFrom     = url.searchParams.get('date_from') ?? '';
-		const dateTo       = url.searchParams.get('date_to') ?? '';
+		const dateFrom     = toIsoDate(url.searchParams.get('date_from')) ?? '';
+		const dateTo       = toIsoDate(url.searchParams.get('date_to')) ?? '';
 		const uploadedFrom = url.searchParams.get('uploaded_from') ?? '';
 		const uploadedTo   = url.searchParams.get('uploaded_to') ?? '';
 		const sortParam    = url.searchParams.get('sort') ?? '';
@@ -72,7 +73,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({
 				pending_amount: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status}='pending' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
 				pending_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`,
-				overdue_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} < CURRENT_DATE::text AND ${invoices.dueDate} IS NOT NULL THEN 1 END)`,
+				overdue_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} < CURRENT_DATE AND ${invoices.dueDate} IS NOT NULL THEN 1 END)`,
 				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
 			})
 				.from(invoices)

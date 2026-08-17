@@ -7,6 +7,7 @@ import { asc, eq, and, ne, sql } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 import { getOrCreateSupplierId } from '$lib/server/supplier';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
+import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/edit', async () => {
@@ -78,8 +79,12 @@ export const actions: Actions = {
 
 		const supplierName  = String(data.get('supplier_name') ?? '').trim();
 		const invoiceNumber = String(data.get('invoice_number') ?? '').trim() || null;
-		const invoiceDate   = String(data.get('invoice_date') ?? '').trim() || null;
-		const dueDate       = String(data.get('due_date') ?? '').trim() || null;
+		const invoiceDateRaw = data.get('invoice_date');
+		const dueDateRaw     = data.get('due_date');
+		if (!isBlankOrIsoDate(invoiceDateRaw)) return fail(400, { errorKey: 'error.invalidInvoiceDate' });
+		if (!isBlankOrIsoDate(dueDateRaw))     return fail(400, { errorKey: 'error.invalidDueDate' });
+		const invoiceDate   = toIsoDate(invoiceDateRaw);
+		const dueDate       = toIsoDate(dueDateRaw);
 		const totalAmount   = toMoneyString(data.get('total_amount') as string | null);
 		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
 

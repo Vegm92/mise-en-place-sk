@@ -6,9 +6,9 @@ import { CATEGORY_COLORS } from '$lib/constants';
 import { moneyToNumber } from '$lib/server/money';
 
 const PERIOD_DATE_SQL: Record<string, SQL> = {
-	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::text`,
-	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date::text`,
-	half:    sql`AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text`,
+	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::date`,
+	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date`,
+	half:    sql`AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date`,
 	all:     sql``,
 };
 
