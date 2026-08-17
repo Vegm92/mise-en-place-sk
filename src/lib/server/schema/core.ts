@@ -15,7 +15,7 @@ export const restaurants = pgTable('restaurants', {
 ]);
 
 export const userRestaurants = pgTable('user_restaurants', {
-	userId:       text('user_id').notNull(),
+	userId:       uuid('user_id').notNull(),
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	role:         text('role').notNull().default('owner'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
