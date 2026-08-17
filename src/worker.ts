@@ -66,7 +66,10 @@ await boss.work(
 			jobs.map((job) =>
 				runWithDeadLetter(
 					deadLetterRefFromJob(EXTRACTION_QUEUE, job),
-					() => processExtractionJob(job.data),
+					() => processExtractionJob(job.data, undefined, {
+						retryCount: job.retryCount,
+						retryLimit: job.retryLimit,
+					}),
 				),
 			),
 		);

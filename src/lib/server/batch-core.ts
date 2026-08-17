@@ -192,7 +192,7 @@ export function createBatchStore(db: BatchDb) {
 	}
 
 	function markExtracting(itemId: string): Promise<boolean> {
-		return transition(itemId, ['queued'], { status: 'extracting' });
+		return transition(itemId, ['queued', 'extracting'], { status: 'extracting' });
 	}
 
 	function markDone(
