@@ -31,7 +31,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 
 | Table | Purpose | Notable columns | Notes |
 |---|---|---|---|
-| `invoices` | Canonical persisted invoice | `supplierId`, `invoiceNumber`, `invoiceDate`/`dueDate` (text), `totalAmount` real, `taxBase`, `taxBreakdown` text, `status` `pending\|confirmed\|exported\|overdue\|paid`, `sourceFile`, `confidence`, `contentHash`, `deletedAt` (soft delete), `eInvoiceFormat`, `qrUrl`/`qrMismatch`, `acceptedAt`/`rejectedAt`/`paidAt`, `version` int (optimistic lock) | Partial unique `(rid, supplier_id, invoice_number)` WHERE number NOT NULL; partial unique `(rid, content_hash)` WHERE active |
+| `invoices` | Canonical persisted invoice | `supplierId`, `invoiceNumber`, `invoiceDate`/`dueDate` `date` (#516 — were text, compared lexicographically), `totalAmount` numeric(12,2), `taxBase`, `taxBreakdown` text, `status` `pending\|confirmed\|exported\|overdue\|paid`, `sourceFile`, `confidence`, `contentHash`, `deletedAt` (soft delete), `eInvoiceFormat`, `qrUrl`/`qrMismatch`, `acceptedAt`/`rejectedAt`/`paidAt`, `version` int (optimistic lock) | Partial unique `(rid, supplier_id, invoice_number)` WHERE number NOT NULL; partial unique `(rid, content_hash)` WHERE active |
 | `invoice_line_items` | Invoice lines | `invoiceId`, `description`, `quantity`, `unit`, `unitPrice`, `totalPrice`, `taxRate`, `productId` (SET NULL), `requiresUnitConversion`, `canonicalUnit`, `unitsPerPack`, `unitSize`, `sizeUnit`, `baseUnit`, `normalizedUnitPrice` | Indexes on invoiceId, `(rid, description)`, partial `(rid, product_id)` |
 | `invoice_audit_log` | Immutable history | `invoiceId`, `action`, `userId`, `reason`, `snapshot` jsonb | No FK — rows survive invoice deletion |
 | `extraction_corrections` | User edits vs extraction | `invoiceId`, `fieldName`, `originalValue`, `correctedValue`, `lineItemIndex` | Feeds `/analytics/extraction` |
@@ -52,7 +52,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 |---|---|---|---|
 | `system_notifications` | Alert rows | `invoiceId`, `notificationType`, `message`, `payload` jsonb (`messageKey`/`messageVars`), `status` `pending\|sent` | Index `(rid, status, created_at)` |
 | `stock_levels` | Current stock + burn | `ingredient`, `currentStock`, `canonicalUnit`, `dailyBurnRate` | Unique `(rid, ingredient)` |
-| `category_budgets` | Monthly category budget | `category`, `month` (`YYYY-MM`), `monthlyBudget` | Unique `(rid, category, month)` |
+| `category_budgets` | Monthly category budget | `category`, `month` (`YYYY-MM`), `monthlyBudget` | Unique `(rid, category, month)`; CHECK `month ~ '^[0-9]{4}-(0[1-9]\|1[0-2])$'` (#516) |
 | `settings` | Tenant key/value store | `(rid, key)` unique | Onboarding, digest week, thresholds, quota overrides, `plan_name`/`plan_quota` mirror |
 
 ## Analytics (materialized views — raw SQL in migrations, not schema.ts)
@@ -74,7 +74,7 @@ directly at write time. Source of the trend/analytics pages.
 |---|---|---|---|
 | `subscriptions` | Entitlement state | `restaurantId` unique, `stripeCustomerId`/`stripeSubscriptionId`/`stripePriceId` unique, `planTier` `trial\|starter\|pro\|business`, `status` `trialing\|active\|…`, `trialEndsAt`, `currentPeriodEnd`, `cancelAtPeriodEnd`, `lastEventAt` | Stripe owns money, Postgres owns entitlement (ADR-013) |
 | — Stripe webhook dedup | `idempotency_keys`, `stripe-webhook` scope | key = Stripe `event.id` | Claim-before-process |
-| `mrr_snapshots` | Monthly revenue snapshot | `(month, restaurantId)` unique, `planTier`, `status`, `mrrCents`, `atRiskCents`, `source` `live\|estimated` | Fed by cron + admin backfill |
+| `mrr_snapshots` | Monthly revenue snapshot | `(month, restaurantId)` unique, `planTier`, `status`, `mrrCents`, `atRiskCents`, `source` `live\|estimated` | Fed by cron + admin backfill; CHECK on `month` format (#516) |
 
 ## Chat
 
@@ -98,7 +98,7 @@ directly at write time. Source of the trend/analytics pages.
 |---|---|---|
 | `llm_usage_log` | LLM cost ledger | `restaurantId`, `model`, `inputTokens`/`outputTokens`, `estimatedCostUsd` numeric(12,8), `callerContext` |
 | `tenant_llm_quotas` | Per-tenant LLM caps | PK `restaurantId`, `monthlyExtractions`, `monthlyCostLimitUsd` |
-| `monthly_usage` | Extraction quota consumption | `(rid, month)` unique, `used` |
+| `monthly_usage` | Extraction quota consumption | `(rid, month)` unique, `used`; CHECK on `month` format (#516) |
 | `dead_letter_queue` | Exhausted job audit | `queue`, `sourceId`, `jobId`, `errorClass`, `errorMessage`, `stack`, `payload` jsonb, `attempt`, `occurrences`, `status` `pending\|reviewed\|replayed\|discarded` | Dedupe index `(queue, source_id, error_class, status)` |
 | `waitlist` | Landing email capture | `email` unique |
 

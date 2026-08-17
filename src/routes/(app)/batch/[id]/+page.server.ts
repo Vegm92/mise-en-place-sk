@@ -217,6 +217,7 @@ export const actions: Actions = {
 
 		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
 
+		if (outcome.type === 'invalidDate') return fail(400, { errorKey: 'error.invalidDate', errorField: outcome.field });
 		if (outcome.type === 'lowConfidenceBlocked') return fail(422, { lowConfidenceBlocked: true });
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
 

@@ -47,7 +47,9 @@
     <input type="hidden" name="version" value={invoice.version} />
     <input type="hidden" name="idempotency_key" value={idempotencyKey} />
 
-    {#if form?.error}
+    {#if form?.errorKey}
+      <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t(form.errorKey)}</div>
+    {:else if form?.error}
       <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{form.error}</div>
     {/if}
 
