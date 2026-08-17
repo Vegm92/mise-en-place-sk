@@ -64,6 +64,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | ADR | Decision | Status |
 |---|---|---|
 | [013](./billing/ADR-013-tiers-trial-and-quota.md) | Stripe owns money, Postgres owns entitlement | Active |
+| [023](./billing/ADR-023-entitlement-gate-is-route-declared.md) | Entitlement declared per route, enforced in one hook | Active |
 
 ### [`identity/`](./identity) — auth and session
 
