@@ -12,15 +12,15 @@ const invoke = async (fn: () => unknown) => {
 };
 
 describe('/logout', () => {
-	it('redirects a GET to /login instead of rendering a page', async () => {
+	it('redirects a GET to /waitlist instead of rendering a page', async () => {
 		const thrown = await invoke(() => (load as (arg: unknown) => unknown)({}));
 
 		expect(isRedirect(thrown)).toBe(true);
 		expect((thrown as { status: number; location: string }).status).toBe(303);
-		expect((thrown as { status: number; location: string }).location).toBe('/login');
+		expect((thrown as { status: number; location: string }).location).toBe('/waitlist');
 	});
 
-	it('clears both session cookies on POST and redirects to /login', async () => {
+	it('clears both session cookies on POST and redirects to /waitlist', async () => {
 		const deleted: string[] = [];
 		const cookies = {
 			delete: vi.fn((name: string) => {
@@ -34,6 +34,6 @@ describe('/logout', () => {
 
 		expect(deleted).toEqual(['authjs.session-token', '__Secure-authjs.session-token']);
 		expect(isRedirect(thrown)).toBe(true);
-		expect((thrown as { location: string }).location).toBe('/login');
+		expect((thrown as { location: string }).location).toBe('/waitlist');
 	});
 });
