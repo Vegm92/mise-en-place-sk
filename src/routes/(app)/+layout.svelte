@@ -18,6 +18,7 @@
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
   import LogOut from '@lucide/svelte/icons/log-out';
+  import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
@@ -315,6 +316,15 @@
         </div>
         <div style="font-size:11px;color:var(--mep-fg-3);">{data.restaurantName}</div>
       </div>
+      <form method="POST" action="/logout" style="flex-shrink:0;">
+        <button
+          type="submit"
+          title={$t('action.switchAccount')}
+          style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;padding:2px;border-radius:4px;"
+        >
+          <ArrowLeftRight size={13} />
+        </button>
+      </form>
       <form method="POST" action="/logout" style="flex-shrink:0;">
         <button
           type="submit"
