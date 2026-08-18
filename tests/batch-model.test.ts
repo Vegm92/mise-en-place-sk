@@ -129,7 +129,7 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 
 	it('removeItem and deleteBatch refuse a foreign restaurantId (issue #480)', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
-		const otherRid = `${rid}-other`;
+		const otherRid = crypto.randomUUID();
 
 		expect(await store.removeItem(itemIds[1], otherRid)).toBeNull();
 		expect(await store.getItem(itemIds[1])).not.toBeNull();
