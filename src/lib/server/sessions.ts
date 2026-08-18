@@ -6,11 +6,13 @@ import { getStorage } from './storage';
 const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.xml']);
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
+const UTF8_BOM = [0xEF, 0xBB, 0xBF];
+const XML_LESS_THAN = 0x3C;
+
 function looksLikeXml(b: Buffer): boolean {
-	let start = 0;
-	if (b[0] === 0xEF && b[1] === 0xBB && b[2] === 0xBF) start = 3; // UTF-8 BOM
+	let start = (b[0] === UTF8_BOM[0] && b[1] === UTF8_BOM[1] && b[2] === UTF8_BOM[2]) ? 3 : 0;
 	while (start < b.length && (b[start] === 0x20 || b[start] === 0x09 || b[start] === 0x0A || b[start] === 0x0D)) start++;
-	return b[start] === 0x3C; // '<'
+	return b[start] === XML_LESS_THAN;
 }
 
 const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
