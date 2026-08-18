@@ -129,16 +129,21 @@ export function createBatchStore(db: BatchDb) {
 		return open.find(i => i.position > afterPosition) ?? open[0] ?? null;
 	}
 
-	async function removeItem(itemId: string): Promise<BatchItem | null> {
+	async function removeItem(itemId: string, restaurantId: string): Promise<BatchItem | null> {
 		const rows = await db
 			.delete(batchItems)
-			.where(and(eq(batchItems.id, itemId), inArray(batchItems.status, ['pending', 'failed'])))
+			.where(and(
+				eq(batchItems.id, itemId),
+				eq(batchItems.restaurantId, restaurantId),
+				inArray(batchItems.status, ['pending', 'failed']),
+			))
 			.returning(itemColumns);
 		return rows.length ? asItem(rows[0]) : null;
 	}
 
-	async function deleteBatch(batchId: string): Promise<void> {
-		await db.delete(uploadBatches).where(eq(uploadBatches.id, batchId));
+	async function deleteBatch(batchId: string, restaurantId: string): Promise<void> {
+		await db.delete(uploadBatches)
+			.where(and(eq(uploadBatches.id, batchId), eq(uploadBatches.restaurantId, restaurantId)));
 	}
 
 	async function cleanupStaleBatches(
