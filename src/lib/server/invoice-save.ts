@@ -121,7 +121,130 @@ async function logExtractionCorrections(
 	}
 }
 
-async function linkProductsToInvoice(
+export type LineFormInput = {
+	desc: string;
+	qtyFloat: number | null;
+	unitPriceFloat: number | null;
+	unitVal: string | null;
+	totalPriceVal: number | null;
+	taxRateVal: number | null;
+	pack: PackInfo | null;
+};
+
+export type EnrichedLine = {
+	input: LineFormInput;
+	columns: Omit<typeof invoiceLineItems.$inferInsert, 'invoiceId' | 'restaurantId'>;
+	item: EnrichedLineItem;
+	requiresUnitConversion: boolean;
+};
+
+export function computeFormContentHash(
+	header: {
+		supplierName: string;
+		invoiceNumber: string;
+		invoiceDate: string | null;
+		dueDate: string | null;
+		totalAmount: string | null;
+	},
+	formData: FormData,
+): string {
+	const descriptions = formData.getAll('line_descriptions').map(String);
+	const quantities   = formData.getAll('line_quantities').map(String);
+	const units        = formData.getAll('line_units').map(String);
+	const unitPrices   = formData.getAll('line_unit_prices').map(String);
+	const totalPrices  = formData.getAll('line_total_prices').map(String);
+
+	const nonEmptyDescs = descriptions.filter(d => d.trim());
+	return computeInvoiceContentHash({
+		...header,
+		lineDescriptions: nonEmptyDescs,
+		lineQuantities:   nonEmptyDescs.map((_, i) => toFloat(quantities[i])),
+		lineUnits:        nonEmptyDescs.map((_, i) => units[i]?.trim() || null),
+		lineUnitPrices:   nonEmptyDescs.map((_, i) => toMoneyString(unitPrices[i])),
+		lineTotalPrices:  nonEmptyDescs.map((_, i) => toMoneyString(totalPrices[i])),
+	});
+}
+
+export function parseLineInputs(formData: FormData): LineFormInput[] {
+	const descriptions = formData.getAll('line_descriptions').map(String);
+	const quantities   = formData.getAll('line_quantities').map(String);
+	const units        = formData.getAll('line_units').map(String);
+	const unitPrices   = formData.getAll('line_unit_prices').map(String);
+	const totalPrices  = formData.getAll('line_total_prices').map(String);
+	const taxRates     = formData.getAll('line_tax_rates').map(String);
+
+	const out: LineFormInput[] = [];
+	for (let i = 0; i < descriptions.length; i++) {
+		const desc = descriptions[i].trim();
+		if (!desc) continue;
+		const unitVal = units[i]?.trim() || null;
+		out.push({
+			desc,
+			qtyFloat: toFloat(quantities[i]),
+			unitPriceFloat: toFloat(unitPrices[i]),
+			unitVal,
+			totalPriceVal: toFloat(totalPrices[i]),
+			taxRateVal: toFloat(taxRates[i]),
+			pack: parsePack(desc, unitVal),
+		});
+	}
+	return out;
+}
+
+export async function enrichLineItems(
+	rid: string,
+	supplierName: string,
+	lineInputs: LineFormInput[],
+): Promise<EnrichedLine[]> {
+	const unitRules = await Promise.all(
+		lineInputs.map(li =>
+			li.unitVal ? resolveUnit(supplierName, li.desc, li.unitVal, rid) : Promise.resolve(null)
+		)
+	);
+
+	return lineInputs.map((li, i) => {
+		const rule = unitRules[i];
+		const canonicalUnit = rule?.canonicalUnit ?? null;
+		const requiresConv = !rule && !!li.unitVal;
+		const factor = rule?.conversionFactor ?? 0;
+		const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
+		const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
+		const pack = li.pack;
+
+		return {
+			input: li,
+			columns: {
+				description: li.desc,
+				quantity: li.qtyFloat,
+				unit: li.unitVal,
+				unitPrice: toMoneyString(li.unitPriceFloat),
+				totalPrice: toMoneyString(li.totalPriceVal),
+				taxRate: li.taxRateVal,
+				requiresUnitConversion: requiresConv ? 1 : 0,
+				canonicalUnit,
+				unitsPerPack: pack?.unitsPerPack ?? null,
+				unitSize: pack?.unitSize ?? null,
+				sizeUnit: pack?.sizeUnit ?? null,
+				baseUnit: pack?.baseUnit ?? null,
+				normalizedUnitPrice: toMoneyString(normalizedUnitPrice(li.unitPriceFloat, pack)),
+			},
+			item: {
+				description: li.desc,
+				quantity: li.qtyFloat,
+				unit: li.unitVal,
+				unitPrice: li.unitPriceFloat,
+				totalPrice: li.totalPriceVal,
+				canonicalUnit,
+				requiresUnitConversion: requiresConv,
+				convertedQuantity: convertedQty,
+				convertedUnitPrice: convertedPrice,
+			},
+			requiresUnitConversion: requiresConv,
+		};
+	});
+}
+
+export async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
@@ -238,21 +361,11 @@ export async function saveReviewedInvoice(
 	const lineUnits = formData.getAll('line_units') as string[];
 	const lineUnitPrices = formData.getAll('line_unit_prices') as string[];
 	const lineTotalPrices = formData.getAll('line_total_prices') as string[];
-	const lineTaxRates = formData.getAll('line_tax_rates') as string[];
 
-	const nonEmptyDescs = lineDescriptions.filter(d => d.trim());
-	const contentHash = computeInvoiceContentHash({
-		supplierName,
-		invoiceNumber,
-		invoiceDate,
-		dueDate,
-		totalAmount,
-		lineDescriptions: nonEmptyDescs,
-		lineQuantities:   nonEmptyDescs.map((_, i) => toFloat(lineQuantities[i])),
-		lineUnits:        nonEmptyDescs.map((_, i) => lineUnits[i]?.trim() || null),
-		lineUnitPrices:   nonEmptyDescs.map((_, i) => toMoneyString(lineUnitPrices[i])),
-		lineTotalPrices:  nonEmptyDescs.map((_, i) => toMoneyString(lineTotalPrices[i])),
-	});
+	const contentHash = computeFormContentHash(
+		{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+		formData,
+	);
 
 	const hashMatch = await db
 		.select({ id: invoices.id })
@@ -280,35 +393,8 @@ export async function saveReviewedInvoice(
 		total_amount: totalAmount == null ? null : moneyToNumber(totalAmount),
 	});
 
-	type LineInput = {
-		desc: string;
-		qtyFloat: number | null;
-		unitPriceFloat: number | null;
-		unitVal: string | null;
-		totalPriceVal: number | null;
-		taxRateVal: number | null;
-		pack: PackInfo | null;
-	};
-	const lineInputs: LineInput[] = [];
-	for (let i = 0; i < lineDescriptions.length; i++) {
-		const desc = lineDescriptions[i].trim();
-		if (!desc) continue;
-		const unitVal = lineUnits[i]?.trim() || null;
-		lineInputs.push({
-			desc,
-			qtyFloat: toFloat(lineQuantities[i]),
-			unitPriceFloat: toFloat(lineUnitPrices[i]),
-			unitVal,
-			totalPriceVal: toFloat(lineTotalPrices[i]),
-			taxRateVal: toFloat(lineTaxRates[i]),
-			pack: parsePack(desc, unitVal),
-		});
-	}
-	const unitRules = await Promise.all(
-		lineInputs.map(li =>
-			li.unitVal ? resolveUnit(supplierName, li.desc, li.unitVal, rid) : Promise.resolve(null)
-		)
-	);
+	const lineInputs = parseLineInputs(formData);
+	const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
 
 	let supplierId = 0;
 	let invoiceId: number | null = null;
@@ -368,49 +454,18 @@ export async function saveReviewedInvoice(
 		}
 		invoiceId = insertedInvoice[0].id;
 
-		for (let i = 0; i < lineInputs.length; i++) {
-			const li = lineInputs[i];
-			const rule = unitRules[i];
-			const canonicalUnit = rule?.canonicalUnit ?? null;
-			const requiresConv = !rule && !!li.unitVal ? 1 : 0;
-			const factor = rule?.conversionFactor ?? 0;
-			const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
-			const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
-
-			const pack = li.pack;
-			const normPrice = normalizedUnitPrice(li.unitPriceFloat, pack);
+		for (const line of enrichedLines) {
+			const li = line.input;
 
 			await tx.insert(invoiceLineItems).values({
 				invoiceId: invoiceId!,
 				restaurantId: rid,
-				description: li.desc,
-				quantity: li.qtyFloat,
-				unit: li.unitVal,
-				unitPrice: toMoneyString(li.unitPriceFloat),
-				totalPrice: toMoneyString(li.totalPriceVal),
-				taxRate: li.taxRateVal,
-				requiresUnitConversion: requiresConv,
-				canonicalUnit,
-				unitsPerPack: pack?.unitsPerPack ?? null,
-				unitSize: pack?.unitSize ?? null,
-				sizeUnit: pack?.sizeUnit ?? null,
-				baseUnit: pack?.baseUnit ?? null,
-				normalizedUnitPrice: toMoneyString(normPrice),
+				...line.columns,
 			});
 
-			savedItems.push({
-				description: li.desc,
-				quantity: li.qtyFloat,
-				unit: li.unitVal,
-				unitPrice: li.unitPriceFloat,
-				totalPrice: li.totalPriceVal,
-				canonicalUnit,
-				requiresUnitConversion: !!requiresConv,
-				convertedQuantity: convertedQty,
-				convertedUnitPrice: convertedPrice,
-			});
+			savedItems.push(line.item);
 
-			if (requiresConv) {
+			if (line.requiresUnitConversion) {
 				unitConversionAlerts.push({
 					notificationType: 'unit_conversion_needed',
 					message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
