@@ -61,18 +61,12 @@
 				{$t('waitroom.signedInAs')} <strong style="color:var(--mep-fg-2);">{data.email}</strong>
 			</div>
 
-			<form method="POST" action="/logout" style="width:100%;">
+			<form method="POST" action="/logout">
 				<button type="submit" class="btn btn-secondary"
-					style="height:36px;width:100%;justify-content:center;text-decoration:none;font-size:13px;">
+					style="height:36px;width:100%;justify-content:center;font-size:13px;">
 					{$t('waitroom.signOut')}
 				</button>
 			</form>
-
-			<div style="text-align:center;margin-top:14px;">
-				<a href="/waitlist" style="font-size:12.5px;color:var(--mep-acc);">
-					{$t('waitroom.waitlist')}
-				</a>
-			</div>
 		</div>
 
 		<p style="text-align:center;font-size:12px;color:var(--mep-fg-3);margin-top:18px;">
