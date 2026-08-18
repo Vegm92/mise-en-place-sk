@@ -29,7 +29,10 @@ const config = {
 				// 'https://accounts.google.com' — the signInWithGoogle form action
 				// redirects (303) to Google's OAuth consent screen; form-action
 				// governs that redirect target, not just the initial same-origin URL.
-				'form-action':  ['self', 'https://accounts.google.com'],
+				// 'https://checkout.stripe.com' — the billing checkout form action
+				// redirects (303) there the same way; without it Chrome silently
+				// blocks the redirect and the buy button appears to do nothing.
+				'form-action':  ['self', 'https://accounts.google.com', 'https://checkout.stripe.com'],
 			},
 		},
 	}
