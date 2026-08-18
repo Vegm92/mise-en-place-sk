@@ -67,6 +67,12 @@
 					{$t('waitroom.signOut')}
 				</button>
 			</form>
+
+			<div style="text-align:center;margin-top:14px;">
+				<a href="/waitlist" style="font-size:12.5px;color:var(--mep-acc);">
+					{$t('waitroom.waitlist')}
+				</a>
+			</div>
 		</div>
 
 		<p style="text-align:center;font-size:12px;color:var(--mep-fg-3);margin-top:18px;">
