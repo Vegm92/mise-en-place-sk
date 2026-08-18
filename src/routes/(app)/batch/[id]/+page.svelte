@@ -302,7 +302,7 @@
           <label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-border-strong);cursor:pointer;font-size:12px;color:var(--mep-fg-3);background:var(--mep-surface-2);">
             <Upload size={14} />
             {$t('confirm.addMoreTitle')}
-            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple onchange={onFileInputChange} />
+            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple onchange={onFileInputChange} />
           </label>
           {#each addFiles as f, i}
             <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mep-fg);">
