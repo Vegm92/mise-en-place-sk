@@ -25,19 +25,19 @@ export interface EmailPayload {
 const BRAND_NAME = 'Mise en Place';
 const BRAND_CITY = 'Barcelona';
 
-const COLOR_BG = '#f7f8f7';
+const COLOR_BG = '#f5f4f0';
 const COLOR_SURFACE = '#ffffff';
 const COLOR_SURFACE2 = '#fafaf7';
-const COLOR_FG = '#25282a';
+const COLOR_FG = '#1a1f26';
 const COLOR_FG2 = '#4a5562';
 const COLOR_FG3 = '#7a8492';
 const COLOR_BORDER = 'rgba(15,20,30,.10)';
 const COLOR_DIVIDER = 'rgba(15,20,30,.06)';
-const COLOR_ACCENT = '#9c6a1f';
-const COLOR_ACCENT_SOFT = 'rgba(156,106,31,.10)';
+const COLOR_ACCENT = '#b8741a';
+const COLOR_ACCENT_SOFT = 'rgba(184,116,26,.10)';
 
 const FONT_STACK = "'Mona Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-const MONO_STACK = "ui-monospace,'SF Mono','Cascadia Code',Menlo,monospace";
+const MONO_STACK = "'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace";
 
 const LOGO_SVG = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"></rect><rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"></rect><rect x="18.5" y="3.5" width="3" height="9" rx="1.5" fill="currentColor"></rect></svg>';
 
