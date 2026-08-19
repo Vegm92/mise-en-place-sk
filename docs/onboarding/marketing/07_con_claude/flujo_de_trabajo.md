@@ -40,6 +40,11 @@ Arranque recomendado para cualquier conversación de marketing:
 Si además la tarea toca un canal, añade el archivo de ese canal. Y si toca datos
 de mercado, `docs/02_product/plan_de_negocio.md`.
 
+Si es una sesión de continuidad (no la primera), añade también
+[[docs/onboarding/marketing/07_con_claude/bitacora_de_sesiones|la bitácora de
+sesiones]] — ahí está el resumen de qué se ha hablado antes, qué se decidió y
+qué queda pendiente.
+
 ## 2. Encarga con una plantilla, no con una frase
 
 «Escríbeme un post sobre food cost» da un texto genérico que podría ser de
@@ -122,6 +127,7 @@ rellenar huecos.** El criterio lo pones tú, y por eso el paso 4 existe.
 
 ## Relacionado
 
+- [[docs/onboarding/marketing/07_con_claude/bitacora_de_sesiones|Bitácora de sesiones]]
 - [[docs/onboarding/marketing/07_con_claude/biblioteca_de_prompts|Biblioteca de prompts]]
 - [[docs/onboarding/marketing/04_produccion/plantillas|Plantillas]]
 - [[docs/onboarding/marketing/00_base/02_reglas_inquebrantables|Reglas inquebrantables]]

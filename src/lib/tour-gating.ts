@@ -1,13 +1,12 @@
 export const TOUR_PAGES = [
 	{ step: '3',  path: '/dashboard',       anchor: 'dashboard-main' },
 	{ step: '4',  path: '/invoices',        anchor: 'invoices-main' },
-	{ step: '5',  path: '/suppliers',       anchor: 'suppliers-main' },
-	{ step: '6',  path: '/analytics/spend', anchor: 'analytics-main' },
+	{ step: '5',  path: '/analytics/spend', anchor: 'analytics-main' },
+	{ step: '6',  path: '/suppliers',       anchor: 'suppliers-main' },
 	{ step: '7',  path: '/budgets',         anchor: 'budgets-main' },
-	{ step: '8',  path: '/reminders',       anchor: 'reminders-main' },
-	{ step: '9',  path: '/digest',          anchor: 'digest-main' },
-	{ step: '10', path: '/chat',            anchor: 'chat-main' },
-	{ step: '11', path: '/settings',        anchor: 'settings-main' },
+	{ step: '8',  path: '/digest',          anchor: 'digest-main' },
+	{ step: '9',  path: '/chat',            anchor: 'chat-main' },
+	{ step: '10', path: '/settings',        anchor: 'settings-main' },
 ] as const;
 
 export type TourFeatureKey = 'weeklyDigest' | 'stockTracking' | 'supplierScores' | 'multiLocation' | 'prioritySupport';
