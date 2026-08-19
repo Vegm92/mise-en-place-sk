@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { t, tcat } from '$lib/i18n';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
+  import ComprasTabs from '$lib/components/mep/ComprasTabs.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -64,6 +65,9 @@
 </div>
 
 <div class="hidden md:block" style="height:100%;overflow:auto;">
+  <div style="padding:0 24px;">
+    <ComprasTabs />
+  </div>
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <div style="display:flex;align-items:center;gap:12px;">
@@ -199,6 +203,10 @@
         {/if}
       </div>
 
+    </div>
+
+    <div style="padding-top:4px;">
+      <a href="/analytics/extraction" style="font-size:11.5px;color:var(--mep-fg-3);text-decoration:none;">{$t('nav.extraction.quiet')}</a>
     </div>
 
   </div>

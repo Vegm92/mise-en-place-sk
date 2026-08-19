@@ -5,11 +5,12 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
 import { desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
-import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
+import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk, acceptInvoice, rejectInvoice } from '$lib/server/invoice-status';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
 import { getTrendDataByRange } from '$lib/server/trend';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
-import { moneyToNumber } from '$lib/server/money';
+import { moneyToNumber, sumCents } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const firstInvoice = url.searchParams.get('first_invoice') === '1';
@@ -35,7 +36,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			recentRows, pendingInvoiceRows,
 			agingRow, avgInvoiceRow, reminderRows,
 			priceShockRows, budgetAlertRows,
-			trend,
+			trend, allNotifRows,
 		] = await Promise.all([
 			db.select({ count: sql<number>`COUNT(*)` })
 				.from(invoices)
@@ -187,7 +188,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
-				  AND i.status='pending' AND i.due_date IS NOT NULL AND i.due_date <= ${weekEnd}
+				  AND i.status IN ('pending', 'accepted') AND i.due_date IS NOT NULL AND i.due_date <= ${weekEnd}
 				ORDER BY i.due_date ASC
 			`),
 
@@ -214,6 +215,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.limit(5),
 
 			getTrendDataByRange(rid, '30d', 'weekly'),
+
+			db.select()
+				.from(systemNotifications)
+				.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
+				.orderBy(desc(systemNotifications.createdAt)),
 		]);
 
 		const overdue   = { count: Number(overdueRow[0]?.count    ?? 0) };
@@ -349,13 +355,24 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			const daysDelta = Math.round((new Date(r.due_date).getTime() - today.getTime()) / 86400000);
 			return { ...r, days_delta: daysDelta, overdue: daysDelta < 0 };
 		});
+		const hoyOverdue = reminders.filter(r => r.overdue);
+		const hoyDueSoon = reminders.filter(r => !r.overdue);
+		const hoyTotalPendingAmount = sumCents(reminders.map(r => r.display_amount)) / 100;
+
+		const hoyNotifications = allNotifRows.flatMap((n) => {
+			let payload: unknown = null;
+			if (n.payload) {
+				try { payload = JSON.parse(n.payload); } catch { return []; }
+			}
+			return [{ ...n, payload }];
+		});
 
 		const missingInvoices = await detectMissingInvoices(rid, today);
 		const displayMonth = new Date(selectedMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
 		type InvRow = { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; display_amount: number; status: string; item_count: number };
 		return {
-			title: 'dashboard.title', subtitle: displayMonth + ' · EUR', firstInvoice,
+			title: 'nav.hoy', subtitle: displayMonth + ' · EUR', firstInvoice,
 			selectedMonth, currentMonth,
 			overdue, due_week: dueWeek, pending, paid_month: paidMonth,
 			supplier_count: supplierCount, suppliers: supps, category_spend: categorySpend,
@@ -368,6 +385,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			missing_invoices: missingInvoices, price_shock_alerts: priceShockAlerts,
 			dashboard_alerts: dashboardAlerts, alert_counts: { high: highCount, med: medCount },
 			reminders,
+			hoy_overdue: hoyOverdue, hoy_due_soon: hoyDueSoon, hoy_total_pending_amount: hoyTotalPendingAmount,
+			hoy_notifications: hoyNotifications,
 			mom: { this_month: Number(mom.this_month), last_month: Number(mom.last_month), pct_change: momPct },
 			aging: { fresh: Number(aging.fresh), mid: Number(aging.mid), old: Number(aging.old) },
 			avg_invoice: avgInvoice ? Number(avgInvoice) : null,
@@ -390,6 +409,29 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const id = Number(data.get('invoiceId'));
 		const ok = await markInvoiceUnpaid(id, locals.restaurantId!);
+		redirect(303, ok ? '/dashboard' : '/dashboard?conflict=1');
+	},
+
+	bulkPaid: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
+		if (!await checkRateLimit(`bulk:${rid}`, 10)) redirect(303, '/dashboard');
+		const data = await request.formData();
+		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
+		await markInvoicesPaidBulk(ids, rid);
+		redirect(303, '/dashboard');
+	},
+
+	acceptInvoice: async ({ request, locals }) => {
+		const data = await request.formData();
+		const id = Number(data.get('invoiceId'));
+		const ok = await acceptInvoice(id, locals.restaurantId!);
+		redirect(303, ok ? '/dashboard' : '/dashboard?conflict=1');
+	},
+
+	rejectInvoice: async ({ request, locals }) => {
+		const data = await request.formData();
+		const id = Number(data.get('invoiceId'));
+		const ok = await rejectInvoice(id, locals.restaurantId!);
 		redirect(303, ok ? '/dashboard' : '/dashboard?conflict=1');
 	},
 };

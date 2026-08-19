@@ -14,7 +14,7 @@
 	<title>{$t('confirmEmail.heading')} · Mise en Place</title>
 </svelte:head>
 
-<div class="mep" data-accent="amber" data-density="default"
+<div class="mep" data-accent="marigold" data-density="default"
 	style="min-height:100vh;display:flex;align-items:center;justify-content:center;
 	       padding:24px;background:var(--mep-bg);">
 	<div style="width:100%;max-width:380px;">

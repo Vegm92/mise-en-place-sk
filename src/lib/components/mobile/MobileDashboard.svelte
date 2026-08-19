@@ -1,62 +1,102 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import Sparkline from '$lib/components/mep/Sparkline.svelte';
-  import Delta from '$lib/components/mep/Delta.svelte';
-  import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import AlertRow from '$lib/components/mep/AlertRow.svelte';
+  import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-  import { fmtEur, fmtEurCompact, fmtDate, toMonthStr, shiftMonth } from '$lib/formatters';
-  import { locale, t, ti, tp, tcat } from '$lib/i18n';
-  import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
+  import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+  import Check from '@lucide/svelte/icons/check';
+  import { fmtEur, fmtDate } from '$lib/formatters';
+  import { locale, t } from '$lib/i18n';
+  import { groupNotifications, type Notif } from '$lib/notification-display';
 
-  interface Supplier {
-    name: string;
-    color: string | null;
-    month_spend: number;
-    delta: number | null;
-    invoices?: number;
-    cat?: string;
-  }
-  interface RecentInvoice {
-    id: number;
-    invoice_number: string | null;
-    supplier_name: string | null;
-    display_amount: number | null;
-    status: string;
-    invoice_date: string | null;
+  interface AlertCounts { high: number; med: number }
+  interface PendingInvoice { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; item_count: number; display_amount: number | null }
+  interface Reminder { id: number; supplier_name: string | null; invoice_number: string | null; display_amount: number | null; overdue: boolean; days_delta: number }
+  interface MissingInvoice { supplier_name: string; days_late: number; frequency: string }
+  interface DashAlert { id: string; sev: 'high' | 'med' | 'low'; kind: 'price' | 'budget' | 'due' | 'info'; text: string; detail?: string; when?: string }
+
+  interface DashboardData {
+    dashboard_alerts: DashAlert[];
+    alert_counts: AlertCounts;
+    pending_invoices: PendingInvoice[];
+    missing_invoices: MissingInvoice[];
+    hoy_overdue: Reminder[];
+    hoy_due_soon: Reminder[];
+    hoy_total_pending_amount: number;
+    hoy_notifications: Notif[];
   }
 
-  let {
-    monthSpend,
-    monthDelta,
-    totalInvoices,
-    sparkData,
-    pendingAmount,
-    pendingCount,
-    budgetPct,
-    totalBudget,
-    projectedEom,
-    highAlerts,
-    medAlerts,
-    alertText,
-    suppliers,
-    recentInvoices,
-  }: {
-    monthSpend: number;
-    monthDelta: number | null;
-    totalInvoices: number;
-    sparkData: number[] | null;
-    pendingAmount: number;
-    pendingCount: number;
-    budgetPct: number;
-    totalBudget: number;
-    projectedEom: number | null;
-    highAlerts: number;
-    medAlerts: number;
-    alertText: string;
-    suppliers: Supplier[];
-    recentInvoices: RecentInvoice[];
-  } = $props();
+  let { data }: { data: DashboardData } = $props();
+
+  // svelte-ignore state_referenced_locally — intentional: seed once from prop
+  let notifItems = $state<Notif[]>(data.hoy_notifications);
+  const groups = $derived(groupNotifications(notifItems));
+
+  let decidingCategory = $state<number | null>(null);
+  let deciding = $state<number | null>(null);
+
+  async function dismiss(id: number) {
+    notifItems = notifItems.filter((n) => n.id !== id);
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    } catch {
+    }
+  }
+
+  async function acceptCategory(n: Notif) {
+    const p = n.payload as { supplierId?: number; suggestedCategory?: string } | null;
+    if (typeof p?.supplierId !== 'number' || decidingCategory !== null) return;
+    decidingCategory = n.id;
+    try {
+      const resp = await fetch('/api/supplier-category', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ supplierId: p.supplierId, action: 'accept', category: p.suggestedCategory }),
+      });
+      if (resp.ok || resp.status === 404) notifItems = notifItems.filter((i) => i.id !== n.id);
+    } catch {
+    } finally {
+      decidingCategory = null;
+    }
+  }
+
+  async function decideProduct(n: Notif, accept: boolean) {
+    const p = n.payload as { description?: string; source?: string; candidateProductId?: number } | null;
+    const description = p?.description;
+    if (!description || deciding !== null) return;
+    const isLlm = p?.source === 'llm';
+    const bodyObj: Record<string, unknown> = { description };
+    if (accept) {
+      bodyObj.action = 'confirm';
+      if (isLlm && typeof p?.candidateProductId === 'number') bodyObj.targetProductId = p.candidateProductId;
+    } else {
+      bodyObj.action = isLlm ? 'dismiss' : 'reject';
+    }
+    deciding = n.id;
+    try {
+      const resp = await fetch('/api/product-aliases', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(bodyObj),
+      });
+      if (resp.ok) notifItems = notifItems.filter((i) => i.id !== n.id);
+    } catch {
+    } finally {
+      deciding = null;
+    }
+  }
+
+  const nothingPending = $derived(
+    data.dashboard_alerts.length === 0 &&
+    data.hoy_overdue.length === 0 &&
+    data.hoy_due_soon.length === 0 &&
+    notifItems.length === 0 &&
+    data.pending_invoices.length === 0 &&
+    data.missing_invoices.length === 0
+  );
 
   const greeting = $derived.by(() => {
     const h = new Date().getHours();
@@ -67,200 +107,102 @@
   const dateStr = $derived(
     new Date().toLocaleDateString($locale, { weekday: 'long', day: 'numeric', month: 'long' })
   );
-
-  const topSuppliers = $derived(
-    [...suppliers].sort((a, b) => b.month_spend - a.month_spend).slice(0, 4)
-  );
-
-  const currentMonthStr = $derived(toMonthStr(new Date()));
-  const selectedMonth = $derived(
-    ($page.data as { selectedMonth?: string }).selectedMonth
-    ?? $page.url.searchParams.get('month')
-    ?? currentMonthStr
-  );
-  const currentPeriod = $derived.by(() => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const d = new Date(y!, m! - 1, 2);
-    const s = new Intl.DateTimeFormat($locale, { month: 'long', year: 'numeric' }).format(d);
-    return s.charAt(0).toUpperCase() + s.slice(1);
-  });
-  const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);
-  const nextMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, 1)}`);
-  const canGoForward = $derived(selectedMonth < currentMonthStr);
 </script>
 
 <div style="height: 100%; overflow: auto; padding-bottom: 24px;">
-  <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 14px;">
+  <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 12px;">
 
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        {$t(greeting)} · {dateStr}
-      </div>
-      <PeriodPicker compact={true} prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
+    <div style="padding-top:16px;">
+      <div style="font-size:13px;color:var(--mep-fg-3);">{$t(greeting)} · {dateStr}</div>
+      <div class="title" style="margin-top:2px;">{$t('nav.hoy')}</div>
     </div>
 
-    <div class="card" style="padding: 16px;">
-      <div class="label" style="margin-bottom: 6px;">{$t('ddash.monthSpend')}</div>
-      <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
-        <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.8px; line-height: 1;">
-          {monthSpend > 0 ? fmtEurCompact(monthSpend) : '—'}
-        </div>
-        {#if monthDelta != null}
-          <Delta value={monthDelta} />
-        {/if}
+    {#if nothingPending}
+      <div class="card" style="padding:32px 20px;text-align:center;">
+        <p class="body">{$t('rem.allEmpty')}</p>
       </div>
-      <div style="font-size: 11.5px; color: var(--mep-fg-3);">
-        {$tp('misc.invoice', totalInvoices)}
-        {#if projectedEom != null}
-          · {$t('mdash.projectionClose')} <span class="num" style="color: var(--mep-fg-2); font-weight: 500;">{fmtEurCompact(projectedEom)}</span>
-        {/if}
-      </div>
-
-      {#if sparkData && sparkData.length >= 2}
-        <div style="margin-top: 14px; height: 50px;">
-          <Sparkline data={sparkData} color="var(--mep-acc)" width={350} height={50} />
-        </div>
-      {/if}
-
-      {#if totalBudget > 0}
-        <div style="margin-top: 14px;">
-          <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 6px;">
-            <span style="color: var(--mep-fg-3);">{$t('mdash.monthBudget')}</span>
-            <span class="num" style="color: var(--mep-fg); font-weight: 500;">
-              <span style="color: {budgetPct >= 90 ? 'var(--mep-neg)' : budgetPct >= 70 ? 'var(--mep-warn)' : 'var(--mep-acc)'};">
-                {budgetPct}%
-              </span>
-              {$ti('ddash.ofBudget', { amount: fmtEurCompact(totalBudget) })}
-            </span>
-          </div>
-          <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-            <div style="
-              width: {Math.min(budgetPct, 100)}%; height: 100%;
-              background: {budgetPct >= 90 ? 'var(--mep-neg)' : budgetPct >= 70 ? 'var(--mep-warn)' : 'var(--mep-acc)'};
-            "></div>
-          </div>
-        </div>
-      {/if}
-    </div>
-
-    {#if highAlerts + medAlerts > 0}
-      <a href="/reminders" style="
-        display: block; text-decoration: none;
-        padding: 12px 14px; border-radius: 10px;
-        background: {highAlerts > 0 ? 'var(--mep-neg-soft)' : 'var(--mep-warn-soft)'};
-        display: flex; align-items: flex-start; gap: 12px;
-      ">
-        <div style="color: {highAlerts > 0 ? 'var(--mep-neg)' : 'var(--mep-warn)'}; margin-top: 2px; flex-shrink: 0;">
-          <AlertTriangle size={18} />
-        </div>
-        <div style="flex: 1; min-width: 0;">
-          <div style="
-            font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: {highAlerts > 0 ? 'var(--mep-neg)' : 'var(--mep-warn)'};
-            margin-bottom: 2px;
-          ">
-            {highAlerts + medAlerts} {highAlerts + medAlerts > 1 ? $t('mdash.alerts') : $t('mdash.alert')}
-            {highAlerts > 0 ? ' ' + $t('mdash.severe') : ''}
-          </div>
-          <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); line-height: 1.4;">
-            {alertText}
-          </div>
-          <div style="font-size: 12px; color: var(--mep-fg-2); margin-top: 3px;">
-            {$t('mdash.checkMargins')}
-          </div>
-        </div>
-        <ChevronRight size={16} style="color: var(--mep-fg-3); flex-shrink: 0; margin-top: 2px;" />
-      </a>
     {/if}
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-      <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
-        <div class="num" style="
-          font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
-          color: {pendingAmount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
-        ">
-          {pendingAmount > 0 ? fmtEurCompact(pendingAmount) : '—'}
-        </div>
-        <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-          {pendingCount} {$t('sup.invoicesSuffix')}
-        </div>
+    {#if data.dashboard_alerts.length > 0}
+      <div class="card" style="padding:10px;display:flex;flex-direction:column;gap:6px;">
+        {#each data.dashboard_alerts as alert (alert.id)}
+          <AlertRow {alert} />
+        {/each}
       </div>
-      <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('status.pending')}</div>
-        <div class="num" style="
-          font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
-          color: {pendingCount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
-        ">
-          {pendingCount}
-        </div>
-        <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-          {$t('mdash.extractedInvoices')}
-        </div>
-      </div>
-    </div>
+    {/if}
 
-    {#if topSuppliers.length > 0}
-      <div class="card" style="padding: 14px 14px 6px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-          <div class="subtitle" style="font-size: 15px;">{$t('dash.suppliers')}</div>
-          <a href="/suppliers" style="color: var(--mep-fg-3); text-decoration: none; display: flex;">
-            <ChevronRight size={14} />
-          </a>
+    {#if data.hoy_overdue.length || data.hoy_due_soon.length}
+      <div class="card" style="padding:12px 14px 4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            {#if data.hoy_overdue.length}
+              <span class="badge badge-overdue">{data.hoy_overdue.length} {$t('rem.overdue').toLowerCase()}</span>
+            {/if}
+            <span class="body" style="font-size:11px;">{data.hoy_due_soon.length} {$t('rem.dueWeek').toLowerCase()}</span>
+          </div>
+          <span class="num text-fg" style="font-size:12.5px;font-weight:600;">{fmtEur(data.hoy_total_pending_amount)}</span>
         </div>
-        {#each topSuppliers as s, i}
-          {@const sub = [s.cat ? $tcat(s.cat) : null, s.invoices ? `${s.invoices} ${$t('sup.invoicesSuffix')}` : null].filter(Boolean).join(' · ')}
-          <div style="
-            display: flex; align-items: center; gap: 12px;
-            padding: 8px 0;
-            border-bottom: {i < topSuppliers.length - 1 ? '1px solid var(--mep-divider)' : 'none'};
-          ">
-            <span style="background: {s.color ?? 'var(--mep-fg-3)'}; width: 8px; height: 26px; border-radius: 2px; flex-shrink: 0;"></span>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                {s.name}
-              </div>
-              {#if sub}
-                <div style="font-size: 11px; color: var(--mep-fg-3);">{sub}</div>
+        {#each [...data.hoy_overdue, ...data.hoy_due_soon] as r (r.id)}
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--mep-divider);">
+            <div style="flex:1;min-width:0;">
+              <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:12.5px;">{r.supplier_name ?? '—'}</div>
+              {#if r.overdue}
+                <span class="badge badge-overdue" style="margin-top:2px;">{Math.abs(r.days_delta)}{$t('rem.daysOverdue')}</span>
+              {:else}
+                <span class="badge badge-pending" style="margin-top:2px;">{r.days_delta}{$t('misc.daysLeft')}</span>
               {/if}
             </div>
-            <div style="text-align: right; flex-shrink: 0;">
-              <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">
-                {fmtEur(s.month_spend)}
-              </div>
-              {#if s.delta != null}
-                <Delta value={s.delta} />
-              {/if}
-            </div>
+            <span class="num text-fg" style="font-size:12.5px;font-weight:500;flex-shrink:0;">{fmtEur(r.display_amount ?? 0)}</span>
+            <form method="post" action="?/markPaid" class="m-0 flex-shrink-0">
+              <input type="hidden" name="invoiceId" value={r.id} />
+              <button type="submit" class="btn btn-ghost text-pos" style="width:30px;height:30px;padding:0;justify-content:center;">
+                <Check size={14} />
+              </button>
+            </form>
           </div>
         {/each}
       </div>
     {/if}
 
-    {#if recentInvoices.length > 0}
+    {#each [
+      { list: groups.priceShock,  title: $t('rem.priceShock'), category: false, product: false },
+      { list: groups.lowStock,    title: $t('rem.lowStock'),   category: false, product: false },
+      { list: groups.budget,      title: $t('rem.budget'),     category: false, product: false },
+      { list: groups.suppliers,   title: $t('rem.suppliers'),  category: true,  product: false },
+      { list: groups.other,       title: $t('rem.other'),      category: false, product: true },
+    ] as group}
+      {#if group.list.length}
+        <div class="card" style="padding:12px 14px;">
+          <div class="subtitle" style="font-size:13.5px;margin-bottom:8px;">{group.title}</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            {#each group.list as n (n.id)}
+              <NotificationItem
+                notification={n}
+                onDismiss={dismiss}
+                onAcceptCategory={acceptCategory}
+                onDecideProduct={decideProduct}
+                decidingCategoryId={group.category ? decidingCategory : null}
+                decidingProductId={group.product ? deciding : null}
+              />
+            {/each}
+          </div>
+        </div>
+      {/if}
+    {/each}
+
+    {#if data.pending_invoices.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <div class="subtitle" style="font-size: 15px;">{$t('mdash.recent')}</div>
+          <div class="subtitle" style="font-size: 15px;">{$t('ddash.toReview')}</div>
           <a href="/invoices" style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none;">{$t('action.viewAll')}</a>
         </div>
-        {#each recentInvoices.slice(0, 3) as inv, i}
+        {#each data.pending_invoices.slice(0, 4) as inv, i}
           <a href="/invoice/{inv.id}" style="
-            display: flex; align-items: center; gap: 12px;
+            display: flex; align-items: center; gap: 10px;
             padding: 10px 0;
-            border-bottom: {i < Math.min(recentInvoices.length, 3) - 1 ? '1px solid var(--mep-divider)' : 'none'};
+            border-bottom: {i < Math.min(data.pending_invoices.length, 4) - 1 ? '1px solid var(--mep-divider)' : 'none'};
             text-decoration: none;
           ">
-            <div style="
-              width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
-              background: var(--mep-surface-2); color: var(--mep-fg-2);
-              display: flex; align-items: center; justify-content: center;
-            ">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-            </div>
             <div style="flex: 1; min-width: 0;">
               <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 {inv.supplier_name ?? '—'}
@@ -269,14 +211,29 @@
                 {inv.invoice_number ?? '—'} · {fmtDate(inv.invoice_date, $locale)}
               </div>
             </div>
-            <div style="text-align: right; flex-shrink: 0;">
-              <div class="num" style="font-size: 13.5px; font-weight: 600; color: var(--mep-fg);">
-                {inv.display_amount != null ? fmtEur(inv.display_amount) : '—'}
-              </div>
-              <StatusBadge status={inv.status ?? 'pending'} style="font-size: 9.5px; padding: 1px 5px;" />
+            <div class="num" style="font-size: 13.5px; font-weight: 600; color: var(--mep-fg);">
+              {inv.display_amount != null ? fmtEur(inv.display_amount) : '—'}
             </div>
+            <ChevronRight size={14} style="color: var(--mep-fg-3); flex-shrink: 0;" />
           </a>
         {/each}
+      </div>
+    {/if}
+
+    {#if data.missing_invoices.length}
+      <div class="card" style="padding:12px 14px;border-left:3px solid var(--mep-neg);">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+          <TriangleAlert size={13} class="text-neg flex-shrink-0" />
+          <span class="subtitle text-neg" style="font-size:13px;">{$t('dash.missing')}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          {#each data.missing_invoices as m (m.supplier_name)}
+            <div class="card p-2 bg-neg-soft border-neg">
+              <p class="body-strong" style="font-size:12px;">{m.supplier_name}</p>
+              <p class="body" style="font-size:10px;margin-top:1px;">{m.days_late}d · {m.frequency}</p>
+            </div>
+          {/each}
+        </div>
       </div>
     {/if}
 

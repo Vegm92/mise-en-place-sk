@@ -7,7 +7,7 @@
 
 .mep {
   font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mep-fs-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --mep-fs-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
   -webkit-font-smoothing: antialiased;
   color: var(--mep-fg);
   background: var(--mep-bg);
@@ -18,27 +18,32 @@
   --mep-r-card:  10px;
   --mep-r-pill:  999px;
 
+  /* Brand mark — the exact brand hex, for the logo mark and decorative
+     accents only. Never used as a text/button-fill color (fails AA on
+     white); operational brand color is --mep-acc below. */
+  --mep-brand-mark: #cf8626;
+
   /* Semantic (theme-independent base — overridden in dark) */
   --mep-pos:      #14694a;
   --mep-pos-soft: rgba(20, 105, 74, 0.12);
-  --mep-neg:      #b03a3a;
-  --mep-neg-soft: rgba(176, 58, 58, 0.12);
-  --mep-warn:     #7e4c0d;
-  --mep-warn-soft:rgba(126, 76, 13, 0.14);
-  --mep-info:     #2a5fb5;
-  --mep-info-soft:rgba(42, 95, 181, 0.12);
+  --mep-neg:      #c94845;
+  --mep-neg-soft: rgba(201, 72, 69, 0.12);
+  --mep-warn:     #8a6d0f;
+  --mep-warn-soft:rgba(138, 109, 15, 0.14);
+  --mep-info:     #70777a;
+  --mep-info-soft:rgba(112, 119, 122, 0.12);
 }
 
 /* Light */
 :root[data-theme="light"] {
-  --mep-bg:       #f5f4f0;
+  --mep-bg:       #f7f8f7;
   --mep-surface:  #ffffff;
   --mep-surface-2:#fafaf7;
   --mep-overlay:  #ffffff;
   --mep-hover:    rgba(15, 20, 30, 0.04);
   --mep-pressed:  rgba(15, 20, 30, 0.07);
 
-  --mep-fg:   #1a1f26;
+  --mep-fg:   #25282a;
   --mep-fg-2: #4a5562;
   --mep-fg-3: #5f6b78;
   --mep-fg-4: #64707d;
@@ -91,60 +96,30 @@
   /* WCAG AA-adjusted semantics for dark */
   --mep-pos:       #4cae7d;
   --mep-pos-soft:  rgba(76, 174, 125, 0.18);
-  --mep-neg:       #e16b6b;
-  --mep-neg-soft:  rgba(225, 107, 107, 0.18);
-  --mep-warn:      #d09548;
-  --mep-warn-soft: rgba(208, 149, 72, 0.18);
-  --mep-info:      #5f8ee0;
-  --mep-info-soft: rgba(95, 142, 224, 0.18);
+  --mep-neg:       #e2726f;
+  --mep-neg-soft:  rgba(226, 114, 111, 0.18);
+  --mep-warn:      #c9a13d;
+  --mep-warn-soft: rgba(201, 161, 61, 0.18);
+  --mep-info:      #9aa0a3;
+  --mep-info-soft: rgba(154, 160, 163, 0.16);
 }
 
-/* Accent — teal (default) */
-.mep[data-accent="teal"] {
-  --mep-acc:      #0f5f5c;
+/* Accent — marigold (brand color #cf8626; operational shade below is
+   darkened for AA text/button contrast, dark theme uses the true brand hex
+   directly since it reads fine against a dark surface) */
+.mep[data-accent="marigold"] {
+  --mep-acc:      #9c6a1f;
   --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(15, 95, 92, 0.10);
-  --mep-acc-hover:#0b4f4c;
-  --mep-acc-ring: rgba(15, 95, 92, 0.30);
+  --mep-acc-soft: rgba(156, 106, 31, 0.10);
+  --mep-acc-hover:#7d5417;
+  --mep-acc-ring: rgba(156, 106, 31, 0.30);
 }
-:root[data-theme="dark"] .mep[data-accent="teal"] {
-  --mep-acc:      #58b8b3;
-  --mep-acc-fg:   #0a2422;
-  --mep-acc-soft: rgba(88, 184, 179, 0.16);
-  --mep-acc-hover:#6cc4bf;
-  --mep-acc-ring: rgba(88, 184, 179, 0.30);
-}
-
-/* Accent — slate */
-.mep[data-accent="slate"] {
-  --mep-acc:      #34507a;
-  --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(52, 80, 122, 0.10);
-  --mep-acc-hover:#2b4368;
-  --mep-acc-ring: rgba(52, 80, 122, 0.30);
-}
-:root[data-theme="dark"] .mep[data-accent="slate"] {
-  --mep-acc:      #6f8fc4;
-  --mep-acc-fg:   #0d1828;
-  --mep-acc-soft: rgba(111, 143, 196, 0.16);
-  --mep-acc-hover:#7d9bce;
-  --mep-acc-ring: rgba(111, 143, 196, 0.30);
-}
-
-/* Accent — amber */
-.mep[data-accent="amber"] {
-  --mep-acc:      #8a530f;
-  --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(138, 83, 15, 0.10);
-  --mep-acc-hover:#7e4c0d;
-  --mep-acc-ring: rgba(138, 83, 15, 0.30);
-}
-:root[data-theme="dark"] .mep[data-accent="amber"] {
-  --mep-acc:      #d59854;
+:root[data-theme="dark"] .mep[data-accent="marigold"] {
+  --mep-acc:      #cf8626;
   --mep-acc-fg:   #2a1a08;
-  --mep-acc-soft: rgba(213, 152, 84, 0.18);
-  --mep-acc-hover:#e0a665;
-  --mep-acc-ring: rgba(213, 152, 84, 0.30);
+  --mep-acc-soft: rgba(207, 134, 38, 0.18);
+  --mep-acc-hover:#dd9645;
+  --mep-acc-ring: rgba(207, 134, 38, 0.30);
 }
 
 /* Density */
@@ -175,6 +150,7 @@
   --color-acc:           var(--mep-acc);
   --color-acc-fg:        var(--mep-acc-fg);
   --color-acc-soft:      var(--mep-acc-soft);
+  --color-brand-mark:    var(--mep-brand-mark);
   --color-pos:           var(--mep-pos);
   --color-pos-soft:      var(--mep-pos-soft);
   --color-neg:           var(--mep-neg);
@@ -354,6 +330,6 @@
     font-family: var(--font-sans);
     margin: 0;
     /* Prevents white flash on dark theme before .mep paints */
-    background: var(--mep-bg, #f5f4f0);
+    background: var(--mep-bg, #f7f8f7);
   }
 }
