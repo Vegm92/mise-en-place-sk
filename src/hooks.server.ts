@@ -13,17 +13,20 @@ import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
 import { withTimeout } from '$lib/server/with-timeout';
-import { assertProduction, config } from '$lib/server/env';
+import { assertProductionEnv } from '$lib/server/config';
 
-assertProduction();
+assertProductionEnv();
 
-const MEMBERSHIP_TIMEOUT_MS = config.app.membershipTimeoutMs;
+const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env['MEMBERSHIP_TIMEOUT_MS'] ?? '5000', 10);
+
+const SENTRY_DSN = process.env['SENTRY_DSN'] ?? '';
+const SENTRY_RELEASE = process.env['SENTRY_RELEASE'] || undefined;
 
 Sentry.init({
-	dsn:           config.sentry.dsn,
-	release:       config.sentry.release || undefined,
-	environment:   config.sentry.env,
-	tracesSampleRate: config.sentry.tracesSampleRate,
+	dsn: SENTRY_DSN,
+	release: SENTRY_RELEASE,
+	environment: process.env['NODE_ENV'] === 'production' ? 'production' : 'development',
+	tracesSampleRate: process.env['NODE_ENV'] === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 	integrations: integrations => integrations.filter(i => i.name !== 'Http'),
 	beforeSend(event) {
@@ -42,7 +45,7 @@ function isNetworkUnreachable(e: unknown): boolean {
 	return msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed');
 }
 
-if (config.app.nodeEnv === 'production' && !config.app.addressHeader) {
+if (process.env['NODE_ENV'] === 'production' && !process.env['ADDRESS_HEADER']) {
 	console.warn(
 		'[hooks] ADDRESS_HEADER is not set — getClientAddress() returns the socket peer address. ' +
 		'If a reverse proxy terminates TLS, set ADDRESS_HEADER=x-forwarded-for and XFF_DEPTH to the number of trusted proxies, ' +

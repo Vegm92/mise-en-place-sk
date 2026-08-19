@@ -53,7 +53,6 @@ TODO.md
 /graphify-out
 .graphify_cached.json
 /docs/*
-
 # ...and the AI-native operating layers (added 2026-08-13) — tracked on purpose
 !/docs/00_system/
 !/docs/01_architecture/

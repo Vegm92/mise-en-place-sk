@@ -19,22 +19,17 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 const WEBHOOK_SECRET = 'whsec_test_dummy';
 const PRICE_PRO = 'price_pro_test';
 
-vi.mock('$lib/server/env', () => ({
-	config: {
-		stripe: {
-			secretKey: 'sk_test_dummy_for_local_signature_verification',
-			webhookSecret: 'whsec_test_dummy',
-			founderCouponId: '',
-			priceStarter: 'price_starter_test',
-			pricePro: 'price_pro_test',
-			priceBusiness: 'price_business_test',
-			planPriceStarterEur: '',
-			planPriceProEur: '',
-			planPriceBusinessEur: '',
-		},
-		app: { nodeEnv: 'test' },
+// Stripe config for the module under test (constructEvent / generateTestHeaderString
+// run locally; no network). A dummy secret key is enough to instantiate Stripe.
+// NB: factory is hoisted above the const declarations — inline the literals.
+vi.mock('$env/dynamic/private', () => ({
+	env: {
+		STRIPE_SECRET_KEY: 'sk_test_dummy_for_local_signature_verification',
+		STRIPE_WEBHOOK_SECRET: 'whsec_test_dummy',
+		STRIPE_PRICE_ID_STARTER: 'price_starter_test',
+		STRIPE_PRICE_ID_PRO: 'price_pro_test',
+		STRIPE_PRICE_ID_BUSINESS: 'price_business_test',
 	},
-	assertProduction: vi.fn(),
 }));
 
 // Don't send real emails from the confirmation path.

@@ -8,22 +8,12 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('$lib/server/env', () => ({
-	config: {
-		stripe: {
-			secretKey: '',
-			webhookSecret: '',
-			founderCouponId: '',
-			priceStarter: 'price_starter',
-			pricePro: 'price_pro',
-			priceBusiness: 'price_business',
-			planPriceStarterEur: '',
-			planPriceProEur: '',
-			planPriceBusinessEur: '',
-		},
-		email: { resendApiKey: '', from: 'test@example.com' },
-		app: { baseUrl: '', nodeEnv: 'test' },
-		auth: { secret: '', adminEmail: '' },
+vi.mock('$env/dynamic/private', () => ({
+	env: {
+		STRIPE_PRICE_ID_STARTER: 'price_starter',
+		STRIPE_PRICE_ID_PRO: 'price_pro',
+		STRIPE_PRICE_ID_BUSINESS: 'price_business',
+		// no STRIPE_SECRET_KEY → stripe stays null, module is a safe no-op
 	},
 }));
 

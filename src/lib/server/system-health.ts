@@ -1,7 +1,7 @@
 import { db } from './db';
 import { and, inArray, lt, sql } from 'drizzle-orm';
 import { batchItems } from './schema';
-import { config } from './env';
+import { env } from '$env/dynamic/private';
 import {
 	contactsPerTenant,
 	getNumberHealth,
@@ -21,16 +21,6 @@ const REQUIRED_VARS = [
 	'AUTH_ADMIN_EMAIL',
 	'AUTH_SECRET',
 ] as const;
-
-function getRequiredVar(name: string): string {
-	const map: Record<string, string> = {
-		DATABASE_URL: config.database.url,
-		GEMINI_API_KEY: config.gemini.apiKey,
-		AUTH_ADMIN_EMAIL: config.auth.adminEmail,
-		AUTH_SECRET: config.auth.secret,
-	};
-	return map[name] ?? '';
-}
 
 export type HealthStatus = 'ok' | 'warn' | 'error';
 
@@ -180,7 +170,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 	}
 
 	for (const varName of REQUIRED_VARS) {
-		const val = getRequiredVar(varName);
+		const val = env[varName];
 		checks.push({
 			name: `Env: ${varName}`,
 			status: val ? 'ok' : 'warn',

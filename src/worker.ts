@@ -13,13 +13,13 @@ import { processExtractionJob, type ExtractionJobData } from './lib/server/extra
 import { processNormalizeJob, type NormalizeJobData } from './lib/server/products.js';
 import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
-import { config } from './lib/server/env.js';
+import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 
 Sentry.init({
-	dsn:           config.sentry.dsn,
-	release:       config.sentry.release || undefined,
-	environment:   config.sentry.env,
-	tracesSampleRate: config.sentry.tracesSampleRate,
+	dsn: process.env.SENTRY_DSN ?? '',
+	release: process.env.SENTRY_RELEASE || undefined,
+	environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+	tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 });
 
@@ -36,7 +36,7 @@ function fatal(kind: string): (err: unknown) => void {
 process.on('unhandledRejection', fatal('unhandledRejection'));
 process.on('uncaughtException', fatal('uncaughtException'));
 
-const DATABASE_URL = config.database.url;
+const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
 	console.error('[worker] DATABASE_URL is required');
 	process.exit(1);
@@ -57,7 +57,7 @@ await boss.start();
 await createQueuesWithDeadLetters(boss);
 console.info('[worker] pg-boss started');
 
-const EXTRACTION_BATCH_SIZE = Math.max(1, config.gemini.maxConcurrent);
+const EXTRACTION_BATCH_SIZE = Math.max(1, MAX_CONCURRENT_EXTRACTIONS);
 await boss.work(
 	EXTRACTION_QUEUE,
 	{ batchSize: EXTRACTION_BATCH_SIZE, includeMetadata: true },
@@ -77,7 +77,7 @@ await boss.work(
 );
 console.info(
 	`[worker] Listening for "${EXTRACTION_QUEUE}" jobs (batchSize ${EXTRACTION_BATCH_SIZE}, ` +
-	`global cap ${config.gemini.maxConcurrent})`,
+	`global cap ${MAX_CONCURRENT_EXTRACTIONS})`,
 );
 
 await boss.work(

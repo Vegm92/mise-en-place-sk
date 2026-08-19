@@ -2,7 +2,7 @@ import { SvelteKitAuth } from '@auth/sveltekit';
 import Credentials from '@auth/sveltekit/providers/credentials';
 import Google from '@auth/sveltekit/providers/google';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
-import { config } from './env';
+import { env } from '$env/dynamic/private';
 import { getDb } from './db';
 import { users, accounts, sessions, verificationTokens } from './schema/auth';
 import { verifyCredentials } from './auth-credentials';
@@ -13,7 +13,7 @@ export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 	trustHost: true,
-	secret:    config.auth.secret,
+	secret:    env.AUTH_SECRET,
 	adapter:   DrizzleAdapter(getDb(), {
 		usersTable:              users,
 		accountsTable:           accounts,
@@ -29,8 +29,8 @@ export const { handle, signIn, signOut } = SvelteKitAuth(async () => ({
 			},
 		}),
 		Google({
-			clientId:     config.auth.googleId,
-			clientSecret: config.auth.googleSecret,
+			clientId:     env.AUTH_GOOGLE_ID,
+			clientSecret: env.AUTH_GOOGLE_SECRET,
 			authorization: { params: { prompt: 'select_account' } },
 		}),
 	],

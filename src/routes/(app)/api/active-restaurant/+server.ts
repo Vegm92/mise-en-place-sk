@@ -4,7 +4,6 @@ import { db, forTenant } from '$lib/server/db';
 import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
-import { config } from '$lib/server/env';
 
 export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const user = locals.user;
@@ -29,7 +28,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: config.app.nodeEnv === 'production',
+		secure: process.env.NODE_ENV === 'production',
 		maxAge: 60 * 60 * 24 * 365,
 	});
 

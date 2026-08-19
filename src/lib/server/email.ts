@@ -1,13 +1,13 @@
 import { Resend } from 'resend';
 import * as Sentry from '@sentry/sveltekit';
-import { config } from './env';
+import { env } from '$env/dynamic/private';
 
-const apiKey = config.email.resendApiKey;
-const FROM_ADDRESS = config.email.from;
-const APP_URL = config.app.baseUrl || 'https://miseenplace.app';
-const COMPANY_LEGAL_NAME = config.email.companyLegalName;
-const COMPANY_ADDRESS = config.email.companyAddress;
-const COMPANY_NIF = config.email.companyNif;
+const apiKey = env.RESEND_API_KEY ?? '';
+const FROM_ADDRESS = env.EMAIL_FROM ?? 'Mise en Place <noreply@miseenplace.app>';
+const APP_URL = env.APP_BASE_URL || 'https://miseenplace.app';
+const COMPANY_LEGAL_NAME = env.COMPANY_LEGAL_NAME ?? '';
+const COMPANY_ADDRESS = env.COMPANY_ADDRESS ?? '';
+const COMPANY_NIF = env.COMPANY_NIF ?? '';
 
 const resend = apiKey ? new Resend(apiKey) : null;
 

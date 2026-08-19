@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET, config } from '$lib/server/env';
+import { WHATSAPP_VERIFY_TOKEN, WHATSAPP_APP_SECRET } from '$lib/server/env';
 import {
 	handleWhatsAppMessage,
 	type WhatsAppInboundMessage,
@@ -10,7 +10,7 @@ import { recordAccountEvent, type AccountEventInput } from '$lib/server/whatsapp
 
 function verifySignature(rawBody: string, header: string | null): boolean {
 	if (!WHATSAPP_APP_SECRET) {
-		if (config.app.nodeEnv === 'production') {
+		if (process.env['NODE_ENV'] === 'production') {
 			console.error('[whatsapp-webhook] WHATSAPP_APP_SECRET not set — rejecting unauthenticated webhook POST');
 			return false;
 		}

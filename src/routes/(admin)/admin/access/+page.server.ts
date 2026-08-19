@@ -1,6 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { eq, sql } from 'drizzle-orm';
-import { config } from '$lib/server/env';
+import { env } from '$env/dynamic/private';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { users, waitlist } from '$lib/server/schema';
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async () => {
 		`) as unknown as WaitlistRow[], []),
 	]);
 
-	return { accessOpen, accounts, pendingInvites, founderCoupon: config.stripe.founderCouponId || null };
+	return { accessOpen, accounts, pendingInvites, founderCoupon: env.STRIPE_FOUNDER_COUPON_ID ?? null };
 };
 
 export const actions: Actions = {
@@ -71,7 +71,7 @@ export const actions: Actions = {
 
 		await sendEmail(accessApprovedEmail(
 			updated.email,
-			founder ? (config.stripe.founderCouponId || undefined) : undefined,
+			founder ? (env.STRIPE_FOUNDER_COUPON_ID ?? undefined) : undefined,
 		));
 
 		return { success: true };
@@ -95,7 +95,7 @@ export const actions: Actions = {
 		const email = (data.get('email') as string ?? '').trim().toLowerCase();
 		if (!email) return fail(422, { error: 'missing_email' });
 
-		await sendEmail(waitlistInviteEmail(email, config.stripe.founderCouponId || undefined));
+		await sendEmail(waitlistInviteEmail(email, env.STRIPE_FOUNDER_COUPON_ID ?? undefined));
 		return { success: true };
 	},
 };
