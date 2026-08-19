@@ -6,7 +6,24 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: {} }));
+vi.mock('$lib/server/env', () => ({
+	config: {
+		stripe: {
+			secretKey: '',
+			webhookSecret: '',
+			founderCouponId: '',
+			priceStarter: '',
+			pricePro: '',
+			priceBusiness: '',
+			planPriceStarterEur: '',
+			planPriceProEur: '',
+			planPriceBusinessEur: '',
+		},
+		email: { resendApiKey: '', from: 'test@example.com' },
+		app: { baseUrl: '', nodeEnv: 'test' },
+		auth: { secret: '', adminEmail: '' },
+	},
+}));
 
 const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null as unknown } }));
 vi.mock('../src/lib/server/db', () => {

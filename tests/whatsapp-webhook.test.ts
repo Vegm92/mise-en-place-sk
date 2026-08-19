@@ -19,7 +19,11 @@ const { handleMock, accountEventMock } = vi.hoisted(() => ({
 // WHATSAPP_APP_SECRET is intentionally empty here: with no secret the route
 // skips HMAC verification (dev behaviour), so these tests isolate the route
 // plumbing. Signature rejection is covered separately below.
-vi.mock('$lib/server/env', () => ({ WHATSAPP_VERIFY_TOKEN: 'verify-me', WHATSAPP_APP_SECRET: '' }));
+vi.mock('$lib/server/env', () => ({
+	WHATSAPP_VERIFY_TOKEN: 'verify-me',
+	WHATSAPP_APP_SECRET: '',
+	config: { app: { nodeEnv: 'test' } },
+}));
 vi.mock('$lib/server/whatsapp-bot', () => ({ handleWhatsAppMessage: handleMock }));
 vi.mock('$lib/server/whatsapp-health', () => ({ recordAccountEvent: accountEventMock }));
 

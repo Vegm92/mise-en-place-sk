@@ -15,7 +15,7 @@ import { createVerificationToken } from '$lib/server/verification-token';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
 import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
-import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
+import { config } from '$lib/server/env';
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
 import { renderQrSvg } from '$lib/server/qr-svg';
 import { activePairingCode, generatePairingCode, revokePairingCodes } from '$lib/server/whatsapp-pairing';
@@ -26,11 +26,11 @@ const RESTAURANT_NAME_KEY = 'restaurant_name';
 
 const MIN_PASSWORD_LENGTH = 8;
 
-const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
+const WHATSAPP_ENABLED = Boolean(config.whatsapp.accessToken && config.whatsapp.phoneNumberId);
 
 const WHATSAPP_BOT_NUMBER = (() => {
-	if (!WHATSAPP_ENABLED || !WHATSAPP_DISPLAY_NUMBER) return null;
-	const normalized = normalizePhoneNumber(WHATSAPP_DISPLAY_NUMBER);
+	if (!WHATSAPP_ENABLED || !config.whatsapp.displayNumber) return null;
+	const normalized = normalizePhoneNumber(config.whatsapp.displayNumber);
 	if (!normalized.ok) {
 		console.warn(`[settings] WHATSAPP_DISPLAY_NUMBER is not a usable phone number (${normalized.reason}) — hiding the click-to-chat block`);
 		return null;
@@ -241,7 +241,7 @@ export const actions: Actions = {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: process.env.NODE_ENV === 'production',
+			secure: config.app.nodeEnv === 'production',
 			maxAge: 60 * 60 * 24 * 365,
 		});
 		redirect(303, '/');

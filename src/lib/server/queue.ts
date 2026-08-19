@@ -1,5 +1,6 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl';
+import { config } from './env';
 
 export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
@@ -26,14 +27,14 @@ let startPromise: Promise<PgBoss> | null = null;
 async function getBoss(): Promise<PgBoss> {
 	if (boss) return boss;
 	if (!startPromise) {
-		startPromise = (async () => {
-			const connectionString = process.env.DATABASE_URL;
-			if (!connectionString) throw new Error('DATABASE_URL is required');
-			const b = new PgBoss({
-				connectionString,
-				ssl: pgSslConfig(),
-				max: 2,
-			});
+	startPromise = (async () => {
+		const connectionString = config.database.url;
+		if (!connectionString) throw new Error('DATABASE_URL is required');
+		const b = new PgBoss({
+			connectionString,
+			ssl: pgSslConfig(),
+			max: 2,
+		});
 			await b.start();
 			await createQueuesWithDeadLetters(b);
 			boss = b;

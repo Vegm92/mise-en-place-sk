@@ -1,8 +1,9 @@
 import { error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
+import { config } from './env';
 import { withTimeout } from './with-timeout';
 
-const SAFE_TIMEOUT_MS = parseInt(process.env['LOAD_BLOCK_TIMEOUT_MS'] ?? '8000', 10);
+const SAFE_TIMEOUT_MS = config.app.loadBlockTimeoutMs;
 
 export async function handleLoad<T>(label: string, fn: () => Promise<T>): Promise<T> {
 	try {
