@@ -15,11 +15,16 @@ import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
+const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
+const SENTRY_RELEASE = process.env.SENTRY_RELEASE || undefined;
+const DATABASE_URL = process.env.DATABASE_URL ?? '';
+
 Sentry.init({
-	dsn: process.env.SENTRY_DSN ?? '',
-	release: process.env.SENTRY_RELEASE || undefined,
-	environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
-	tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+	dsn: SENTRY_DSN,
+	release: SENTRY_RELEASE,
+	environment: NODE_ENV === 'production' ? 'production' : 'development',
+	tracesSampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 });
 
@@ -36,7 +41,6 @@ function fatal(kind: string): (err: unknown) => void {
 process.on('unhandledRejection', fatal('unhandledRejection'));
 process.on('uncaughtException', fatal('uncaughtException'));
 
-const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
 	console.error('[worker] DATABASE_URL is required');
 	process.exit(1);

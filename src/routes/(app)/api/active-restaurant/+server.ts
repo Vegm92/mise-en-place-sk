@@ -5,6 +5,8 @@ import { userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
+
 export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
@@ -28,7 +30,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: process.env.NODE_ENV === 'production',
+		secure: NODE_ENV === 'production',
 		maxAge: 60 * 60 * 24 * 365,
 	});
 
