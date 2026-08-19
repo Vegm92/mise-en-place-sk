@@ -1,21 +1,25 @@
-import { env } from '$env/dynamic/private';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import { restaurants, userRestaurants, users } from './schema';
 
+const AUTH_ADMIN_EMAIL = process.env.AUTH_ADMIN_EMAIL ?? '';
+const AUTH_ADMIN_PASSWORD = process.env.AUTH_ADMIN_PASSWORD ?? '';
+const AUTH_ADMIN_RESTAURANT_NAME = process.env.AUTH_ADMIN_RESTAURANT_NAME ?? 'Mi Restaurante';
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
+
 export async function seedAdminUser(): Promise<void> {
-	const email           = env.AUTH_ADMIN_EMAIL;
-	const password        = env.AUTH_ADMIN_PASSWORD;
-	const restaurantName  = env.AUTH_ADMIN_RESTAURANT_NAME ?? 'Mi Restaurante';
+	const email           = AUTH_ADMIN_EMAIL;
+	const password        = AUTH_ADMIN_PASSWORD;
+	const restaurantName  = AUTH_ADMIN_RESTAURANT_NAME;
 
 	if (!email || !password) return;
 
-	if (password === 'changeme' && process.env['NODE_ENV'] === 'production') {
+	if (password === 'changeme' && NODE_ENV === 'production') {
 		throw new Error('[auth-seed] AUTH_ADMIN_PASSWORD is still the default "changeme" — refusing to start in production. Set a strong password in your environment.');
 	}
 
-	if (/@example\.(com|org|net)$/i.test(email) && process.env['NODE_ENV'] === 'production') {
+	if (/@example\.(com|org|net)$/i.test(email) && NODE_ENV === 'production') {
 		throw new Error(`[auth-seed] AUTH_ADMIN_EMAIL is still a placeholder address (${email}) — refusing to start in production. Set a real, routable admin address.`);
 	}
 
