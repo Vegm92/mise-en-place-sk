@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import MobileSuppliersList from '$lib/components/mobile/MobileSuppliersList.svelte';
   import DesktopSuppliersList from '$lib/components/desktop/DesktopSuppliersList.svelte';
+  import ComprasTabs from '$lib/components/mep/ComprasTabs.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -23,6 +24,9 @@
 </div>
 
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
+  <div style="padding:0 24px;flex-shrink:0;">
+    <ComprasTabs />
+  </div>
   <DesktopSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}

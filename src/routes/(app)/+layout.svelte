@@ -8,11 +8,7 @@
   import { TOUR_PAGES, tourPageAccessible, nextAccessibleIndex } from '$lib/tour-gating';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import FileText from '@lucide/svelte/icons/file-text';
-  import Truck from '@lucide/svelte/icons/truck';
-  import Package from '@lucide/svelte/icons/package';
   import TrendingUp from '@lucide/svelte/icons/trending-up';
-  import Tag from '@lucide/svelte/icons/tag';
-  import Bell from '@lucide/svelte/icons/bell';
   import Settings from '@lucide/svelte/icons/settings';
   import Upload from '@lucide/svelte/icons/upload';
   import Sun from '@lucide/svelte/icons/sun';
@@ -21,9 +17,8 @@
   import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
-  import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
@@ -119,24 +114,24 @@
   }
 
   const navItems = $derived<NavItem[]>([
-    { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
-    { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: data.invoiceBadge },
+    { href: '/dashboard', icon: LayoutDashboard, label: $t('nav.hoy'),       badge: data.reminderBadge },
+    { href: '/invoices',  icon: FileText,        label: $t('nav.albaranes'), badge: data.invoiceBadge },
     ...(revealAll ? [
-    { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
-    { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
-    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
+    { href: '/analytics/spend', icon: TrendingUp, label: $t('nav.compras'), badge: 0,
       sub: [
-        { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
-        { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
-        { href: '/analytics/extraction', label: $t('nav.analytics.extraction') },
+        { href: '/analytics/spend',  label: $t('nav.compras.resumen') },
+        { href: '/suppliers',        label: $t('nav.compras.proveedores') },
+        { href: '/products',         label: $t('nav.compras.productos') },
+        { href: '/analytics/prices', label: $t('nav.compras.comparativa') },
+        { href: '/budgets',          label: $t('nav.compras.presupuestos') },
       ]
     },
-    { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
-    { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
-    { href: '/digest',          icon: Newspaper,       label: $t('nav.digest'),     badge: 0 },
-    { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
     ] satisfies NavItem[] : []),
   ]);
+
+  const secondaryItems = $derived(
+    revealAll ? [{ href: '/digest', icon: Newspaper, label: $t('nav.digest') }] : []
+  );
 
   let switchingLocation = $state(false);
   async function switchLocation(restaurantId: string) {
@@ -169,7 +164,7 @@
   <meta name="description" content={$t('app.metaDesc')} />
 </svelte:head>
 
-<div class="mep" data-accent="amber" data-density="default"
+<div class="mep" data-accent="marigold" data-density="default"
   style="width:100%;height:100vh;height:100dvh;display:flex;overflow:hidden;">
 
   {#if mobileOpen}
@@ -246,6 +241,7 @@
     <nav style="display:flex;flex-direction:column;gap:1px;">
       {#each navItems as item}
         {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
+        {@const badgeIsCritical = item.href === '/dashboard'}
         <a
           href={item.href}
           onclick={() => mobileOpen = false}
@@ -262,7 +258,7 @@
           "
         >
           <item.icon size={16} />
-          {#if !sidebarCollapsed}
+{#if !sidebarCollapsed}
             <span style="flex:1;">{item.label}</span>
             {#if item.badge}
               <span
@@ -270,8 +266,8 @@
                 style="
                   font-size:10px;font-weight:600;min-width:16px;height:16px;
                   padding:0 5px;border-radius:8px;
-                  background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
-                  color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
+                  background:{badgeIsCritical ? 'var(--mep-neg-soft)' : 'var(--mep-warn-soft)'};
+                  color:{badgeIsCritical ? 'var(--mep-neg)' : 'var(--mep-warn)'};
                   display:inline-flex;align-items:center;justify-content:center;
                 "
               >{item.badge}</span>
@@ -315,12 +311,22 @@
     </a>
     {/if}
 
-    {#if !sidebarCollapsed}
+{#if !sidebarCollapsed}
       <div style="display:flex;flex-direction:column;gap:1px;">
+        {#each secondaryItems as item}
+          <a
+            href={item.href}
+            onclick={() => mobileOpen = false}
+            style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:{is(item.href) ? 'var(--mep-fg-2)' : 'var(--mep-fg-3)'};font-size:13px;text-decoration:none;"
+          >
+            <item.icon size={15} />
+            <span>{item.label}</span>
+          </a>
+        {/each}
         <a
           href="/settings"
           onclick={() => mobileOpen = false}
-          style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
+          style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:{is('/settings') ? 'var(--mep-fg-2)' : 'var(--mep-fg-3)'};font-size:13px;text-decoration:none;"
         >
           <Settings size={15} />
           <span>{$t('nav.settings')}</span>
@@ -333,7 +339,7 @@
       </div>
 
       <div style="margin-top:10px;padding:8px;display:flex;align-items:center;gap:10px;border-radius:8px;">
-        <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#b8741a,#7a3a4a);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">
+        <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">
           {userInitials}
         </div>
         <div style="min-width:0;flex:1;">
