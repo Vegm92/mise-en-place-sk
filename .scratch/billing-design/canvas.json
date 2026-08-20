@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Current.dc.html", "x": 0, "y": 0, "w": 948, "h": 1320, "title": "Hoy" },
+    { "file": "Main.dc.html", "x": 1060, "y": 0, "w": 948, "h": 1010, "title": "Opción A — Tu plan primero" },
+    { "file": "OptionB.dc.html", "x": 2120, "y": 0, "w": 948, "h": 1130, "title": "Opción B — Una sola tabla" }
+  ],
+  "annotations": [
+    { "id": "note-hoy", "x": 0, "y": -150, "w": 340, "text": "HOY\n\nEl problema: \"Estado: Activa\" no dice en qué plan estás. El plan solo aparece abajo, marcado con una etiqueta pequeña dentro de una de las tres tarjetas.\n\nAdemás, las tarjetas y la tabla cuentan lo mismo dos veces." },
+    { "id": "note-a", "x": 1060, "y": -150, "w": 340, "text": "OPCIÓN A — Tu plan primero\n\nApuesta: un panel \"Tu plan\" arriba con el nombre en grande, estado, renovación y consumo. Al volver del portal de Stripe se ve el cambio de un vistazo.\n\nLos planes pasan a ser una lista de tres filas en vez de tres columnas: se lee de arriba abajo y cae bien en móvil. La tabla completa queda plegada." },
+    { "id": "note-b", "x": 2120, "y": -150, "w": 340, "text": "OPCIÓN B — Una sola tabla\n\nApuesta: eliminar la duplicación. La tabla comparativa ES el selector: precio y botón viven en la cabecera de cada columna, y la columna de tu plan va resaltada de arriba abajo.\n\nUna sola superficie que leer en vez de dos. A cambio, en móvil hay que hacer scroll horizontal." }
+  ],
+  "launch": { "view": "canvas" }
+}

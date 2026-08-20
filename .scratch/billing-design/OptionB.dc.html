@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; }
+    .mep {
+      font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #1a1f26;
+    }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15,20,30,0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15,20,30,0.04), 0 1px 2px rgba(15,20,30,0.04); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; }
+    .btn { font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 7px 12px; height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid transparent; cursor: pointer; white-space: nowrap; }
+    .btn-primary { background: #0f5f5c; color: #ffffff; }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15,20,30,0.18); }
+    .cmp { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; table-layout: fixed; }
+    .cmp td, .cmp th { padding: 9px 16px; text-align: left; }
+    .cmp tbody td { border-top: 1px solid rgba(15,20,30,0.06); }
+    .cmp .c { text-align: center; }
+    .cmp .cur { background: rgba(15,95,92,0.10); }
+    a { color: #0f5f5c; } a:hover { color: #0b4f4c; }
+  </style>
+</helmet>
+<div class="mep" style="width: 948px; background: #f5f4f0; padding: 40px 24px 64px; box-sizing: border-box;">
+  <div style="max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px;">
+
+    <div>
+      <h1 style="font-size: 20px; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 4px;">Facturación</h1>
+      <p style="font-size: 14px; color: #5f6b78; margin: 0;">Bistró Marisol</p>
+    </div>
+
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <div style="padding: 22px 24px; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span class="label">Tu plan</span>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span style="font-size: 32px; font-weight: 600; letter-spacing: -0.025em; line-height: 1;">Pro</span>
+            <span style="background: rgba(20,105,74,0.12); color: #14694a; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 500;">Activa</span>
+          </div>
+          <span style="font-size: 13px; color: #5f6b78;">Se renueva el 20 de septiembre de 2026 · 59 €/mes</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+          <button class="btn btn-secondary" style="height: 34px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path></svg>
+            Gestionar suscripción
+          </button>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 12.5px; color: #5f6b78;">Facturas este mes</span>
+            <span class="num" style="font-size: 13px; font-weight: 600;">42 / 300</span>
+            <div style="width: 96px; height: 4px; border-radius: 2px; background: rgba(15,20,30,0.06); overflow: hidden;">
+              <div style="width: 14%; height: 100%; background: #0f5f5c; border-radius: 2px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div>
+        <div style="font-size: 16px; font-weight: 600; letter-spacing: -0.01em;">Planes</div>
+        <div style="font-size: 13px; color: #4a5562; margin-top: 3px;">Precios por restaurante. Cambia o cancela cuando quieras.</div>
+      </div>
+
+      <div class="card" style="overflow: hidden;">
+        <table class="cmp">
+          <colgroup>
+            <col style="width: 276px;">
+            <col style="width: 156px;">
+            <col style="width: 156px;">
+            <col style="width: 156px;">
+            <col style="width: 156px;">
+          </colgroup>
+          <thead>
+            <tr>
+              <th style="vertical-align: bottom; padding-bottom: 18px;">
+                <span style="font-size: 10.5px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; border: 1px dashed rgba(15,20,30,0.18); border-radius: 4px; padding: 1px 5px;">precios provisionales</span>
+              </th>
+              <th class="c" style="vertical-align: top; padding-top: 18px; padding-bottom: 18px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px; font-weight: 600; color: #4a5562;">Prueba</span>
+                  <span class="num" style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #4a5562;">0 €</span>
+                  <span style="font-size: 12px; color: #64707d;">14 días o 20 facturas</span>
+                </div>
+              </th>
+              <th class="c" style="vertical-align: top; padding-top: 18px; padding-bottom: 18px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px; font-weight: 600;">Starter</span>
+                  <div style="display: flex; align-items: baseline; gap: 4px;">
+                    <span class="num" style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">29 €</span>
+                    <span style="font-size: 12px; color: #5f6b78;">/mes</span>
+                  </div>
+                  <button class="btn btn-secondary" style="width: 124px;">Cambiar a Starter</button>
+                </div>
+              </th>
+              <th class="c cur" style="vertical-align: top; padding-top: 18px; padding-bottom: 18px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px; font-weight: 600; color: #0f5f5c;">Pro</span>
+                  <div style="display: flex; align-items: baseline; gap: 4px;">
+                    <span class="num" style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: #0f5f5c;">59 €</span>
+                    <span style="font-size: 12px; color: #0f5f5c;">/mes</span>
+                  </div>
+                  <span style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 124px; height: 32px; font-size: 13px; font-weight: 500; color: #0f5f5c; border: 1px solid rgba(15,95,92,0.30); border-radius: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Tu plan
+                  </span>
+                </div>
+              </th>
+              <th class="c" style="vertical-align: top; padding-top: 18px; padding-bottom: 18px;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px; font-weight: 600;">Business</span>
+                  <div style="display: flex; align-items: baseline; gap: 4px;">
+                    <span class="num" style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">129 €</span>
+                    <span style="font-size: 12px; color: #5f6b78;">/mes</span>
+                  </div>
+                  <button class="btn btn-secondary" style="width: 124px;">Cambiar a Business</button>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <tr>
+              <td colspan="5" style="height: 38px; background: #fafaf7; vertical-align: middle; border-top: 1px solid rgba(15,20,30,0.06);">
+                <span class="label" style="color: #4a5562;">Digitalización</span>
+              </td>
+            </tr>
+            <tr>
+              <td>Facturas incluidas al mes</td>
+              <td class="c num" style="color: #4a5562; font-weight: 500;">20</td>
+              <td class="c num" style="color: #4a5562; font-weight: 500;">100</td>
+              <td class="c num cur" style="color: #0f5f5c; font-weight: 600;">300</td>
+              <td class="c num" style="color: #4a5562; font-weight: 500;">Ilimitadas</td>
+            </tr>
+
+            <tr>
+              <td colspan="5" style="height: 38px; background: #fafaf7; vertical-align: middle;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <span class="label" style="color: #4a5562;">Inteligencia</span>
+                  <span style="font-size: 11.5px; color: #5f6b78;">Funciones con coste de cómputo por uso. Fuera de la prueba gratuita.</span>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>Resumen automático por email</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c cur" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td class="c" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+            </tr>
+            <tr>
+              <td>Asistente IA</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c cur" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td class="c" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+            </tr>
+            <tr>
+              <td>Análisis de precios y proveedores</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c cur" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td class="c" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+            </tr>
+
+            <tr>
+              <td colspan="5" style="height: 38px; background: #fafaf7; vertical-align: middle;">
+                <span class="label" style="color: #4a5562;">Operación</span>
+              </td>
+            </tr>
+            <tr>
+              <td>Control de stock</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c cur" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+              <td class="c" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+            </tr>
+
+            <tr>
+              <td colspan="5" style="height: 38px; background: #fafaf7; vertical-align: middle;">
+                <span class="label" style="color: #4a5562;">Cuenta</span>
+              </td>
+            </tr>
+            <tr>
+              <td>Restaurantes</td>
+              <td class="c num" style="color: #4a5562; font-weight: 500;">1</td>
+              <td class="c num" style="color: #4a5562; font-weight: 500;">1</td>
+              <td class="c num cur" style="color: #0f5f5c; font-weight: 600;">1</td>
+              <td class="c num" style="color: #4a5562; font-weight: 500;">Hasta 5</td>
+            </tr>
+            <tr>
+              <td>Soporte prioritario</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c" style="color: #64707d;">–</td>
+              <td class="c cur" style="color: #64707d;">–</td>
+              <td class="c" style="color: #0f5f5c;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
