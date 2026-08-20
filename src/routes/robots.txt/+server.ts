@@ -4,9 +4,12 @@ export const GET: RequestHandler = ({ url }) => {
 	const body = [
 		'User-agent: *',
 		'Disallow: /dashboard',
+		'Disallow: /avisos',
 		'Disallow: /invoices',
 		'Disallow: /invoice/',
 		'Disallow: /suppliers',
+		'Disallow: /products',
+		'Disallow: /recipes',
 		'Disallow: /analytics',
 		'Disallow: /budgets',
 		'Disallow: /reminders',

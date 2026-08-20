@@ -172,7 +172,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 async function settledRedirect(batchId: string): Promise<never> {
 	const items = await getBatchItems(batchId);
 	const confirmed = items.some(i => i.status === 'confirmed');
-	redirect(303, confirmed ? '/dashboard' : '/');
+	redirect(303, confirmed ? '/avisos' : '/');
 }
 
 export const actions: Actions = {
@@ -231,7 +231,7 @@ export const actions: Actions = {
 
 		if (!(await isBatchSettled(params.id))) redirect(303, `/batch/${params.id}`);
 
-		if (outcome.isFirstInvoice) redirect(303, '/dashboard?first_invoice=1');
+		if (outcome.isFirstInvoice) redirect(303, '/avisos?first_invoice=1');
 		redirect(303, `/invoices?saved=${outcome.invoiceId}`);
 	},
 

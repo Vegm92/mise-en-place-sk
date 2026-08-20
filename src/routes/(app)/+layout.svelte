@@ -6,12 +6,9 @@
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
   import { tutorialStep, setTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
   import { TOUR_PAGES, tourPageAccessible, nextAccessibleIndex } from '$lib/tour-gating';
-  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import FileText from '@lucide/svelte/icons/file-text';
-  import Truck from '@lucide/svelte/icons/truck';
-  import Package from '@lucide/svelte/icons/package';
-  import TrendingUp from '@lucide/svelte/icons/trending-up';
-  import Tag from '@lucide/svelte/icons/tag';
+  import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
+  import ChefHat from '@lucide/svelte/icons/chef-hat';
   import Bell from '@lucide/svelte/icons/bell';
   import Settings from '@lucide/svelte/icons/settings';
   import Upload from '@lucide/svelte/icons/upload';
@@ -23,8 +20,6 @@
   import X from '@lucide/svelte/icons/x';
 import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import MessageCircle from '@lucide/svelte/icons/message-circle';
-  import Newspaper from '@lucide/svelte/icons/newspaper';
   import { locale, t, initLocale } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
@@ -65,7 +60,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   let completeDismissed = $state(false);
 
-  const showTourNudge = $derived($tutorialStep === 'done' && curPath === '/dashboard');
+  const showTourNudge = $derived($tutorialStep === 'done' && curPath === '/avisos');
 
   const tourIndex = $derived(TOUR_PAGES.findIndex(p => p.step === $tutorialStep));
   const activeTourPage = $derived(tourIndex >= 0 ? TOUR_PAGES[tourIndex] : null);
@@ -112,30 +107,23 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   interface NavItem {
     href: string;
-    icon: typeof LayoutDashboard;
+    icon: typeof Bell;
     label: string;
     badge: number;
     sub?: { href: string; label: string }[];
   }
 
   const navItems = $derived<NavItem[]>([
-    { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
+    { href: '/avisos',          icon: Bell,            label: $t('nav.avisos'),     badge: data.avisosBadge },
     { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: data.invoiceBadge },
-    ...(revealAll ? [
-    { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
-    { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
-    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
+    { href: '/analytics/spend', icon: ShoppingCart,    label: $t('nav.purchases'),  badge: 0,
       sub: [
-        { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
-        { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
-        { href: '/analytics/extraction', label: $t('nav.analytics.extraction') },
+        { href: '/analytics/spend', label: $t('nav.purchases.analytics') },
+        { href: '/products',        label: $t('nav.products') },
+        { href: '/suppliers',       label: $t('nav.suppliers') },
       ]
     },
-    { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
-    { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
-    { href: '/digest',          icon: Newspaper,       label: $t('nav.digest'),     badge: 0 },
-    { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
-    ] satisfies NavItem[] : []),
+    { href: '/recipes',         icon: ChefHat,         label: $t('nav.recipes'),    badge: 0 },
   ]);
 
   let switchingLocation = $state(false);

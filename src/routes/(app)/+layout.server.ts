@@ -1,8 +1,8 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
-import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
+import { systemNotifications, invoices, invoiceLineItems, settings, restaurants, userRestaurants } from '$lib/server/schema';
+import { asc, eq, desc, and, gte, isNull, lt, sql } from 'drizzle-orm';
 import { TIERS, resolveMonthlyQuota, type PlanTier } from '$lib/server/billing';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
@@ -14,8 +14,9 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!rid) redirect(303, '/onboarding');
 
 	const tdb = forTenant(rid);
+	const avisosWindowStart = new Date(Date.now() - 30 * 86_400_000);
 
-	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, lowConfidenceBadgeRow, pendingPriceBadgeRow] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -80,6 +81,24 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 			.where(eq(userRestaurants.userId, locals.user.id))
 			.orderBy(asc(restaurants.name)),
+
+		db.select({ cnt: sql<number>`COUNT(*)` })
+			.from(invoices)
+			.where(and(
+				tdb.scope(invoices.restaurantId),
+				isNull(invoices.deletedAt),
+				lt(invoices.confidence, 0.85),
+				gte(invoices.createdAt, avisosWindowStart),
+			)),
+
+		db.select({ cnt: sql<number>`COUNT(DISTINCT ${invoiceLineItems.invoiceId})` })
+			.from(invoiceLineItems)
+			.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+			.where(and(
+				tdb.scope(invoiceLineItems.restaurantId),
+				isNull(invoices.deletedAt),
+				sql`${invoiceLineItems.unitPrice} IS NULL`,
+			)),
 	]);
 
 	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
@@ -98,6 +117,11 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const planTier: PlanTier = entitlements?.tier ?? 'trial';
 	const tierConfig = TIERS[planTier];
 
+	const avisosBadge =
+		notifications.filter(n => n.notificationType === 'possible_duplicate_purchase' || n.notificationType === 'price_shock').length +
+		Number(lowConfidenceBadgeRow[0]?.cnt ?? 0) +
+		Number(pendingPriceBadgeRow[0]?.cnt ?? 0);
+
 	return {
 		user: {
 			id:    locals.user.id,
@@ -106,6 +130,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		},
 		restaurantId: rid,
 		notifications,
+		avisosBadge,
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
 		reminderBadge:           Number(overdueBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,

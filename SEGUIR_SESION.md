@@ -114,4 +114,32 @@ Trampas a vigilar:
 
 **Cómo quedó la fusión (paso 4 de esta lista):** solo se activa cuando el documento nuevo es una factura (nunca un albarán) y el proveedor ya existe. Si hay un albarán candidato, el guardado se bloquea con un aviso "¿Es la factura de esa entrega?" con tres opciones: fusionar, guardar aparte (es otra compra), o volver a revisar. Al fusionar, las líneas se emparejan por descripción; una línea de la factura sin correspondencia en el albarán se añade como línea nueva. El PDF/foto de la factura no se guarda como documento aparte — solo queda el albarán, actualizado.
 
+7. **Trabajar la interfaz (UI/UX)** — arrancado el 2026-08-20, en curso. Ver sección 4 más abajo.
+
+---
+
+## 4. Interfaz (UI/UX) — sesión en curso, sin cerrar
+
+**Punto de partida (sesión 1):** se arrancó el servidor local para verla en el navegador por primera vez. Primera impresión: **"de momento es un desastre"**. Al retomar, se descubrió que el servidor llevaba corriendo desde muchas sesiones anteriores sin reiniciarse — eso corrompió su estado interno y hacía fallar la pantalla "Subir factura" con un error genérico. Se reinició limpio (`corepack pnpm dev`) y desapareció; no era un fallo de diseño ni de código.
+
+**Restructuración del menú (sesión 2, 2026-08-20 continuada):** antes de pulir visualmente (herramienta "impeccable"), se restructuró qué pestañas tiene la app, porque mezclaba lo que sí es del MVP con lo que ya estaba pospuesto (Presupuestos, Chat, Resumen semanal). Menú nuevo, decidido por la usuaria:
+
+- **Subir factura** — botón fijo arriba, no es pestaña (ya era así).
+- **Avisos** — pestaña nueva, sustituye a "Resumen" como pantalla de entrada. Bandeja de "lo que necesita tu atención hoy", con las 4 señales que el sistema sí sabe detectar hoy: posibles duplicados, cambios de precio >15%, albaranes guardados con confianza baja, y líneas "pendiente de tarificación". **Importante:** tachones, notas de abono y cascos/portes (hallazgos C y D, aparcados) NO están aquí porque el sistema todavía no los detecta — cuando se construyan, se añaden a esta bandeja.
+- **Albaranes** — la antigua "Facturas", renombrada solo en el menú y el título de la página. **Pendiente:** el contenido interno de esa pantalla (cabeceras, botones, "Sin facturas todavía") sigue diciendo "factura" por dentro — no se ha tocado, es un cambio más grande y se decidió no mezclarlo con la restructuración del menú.
+- **Compras** — agrupa Analíticas (antes "Análisis de gasto", vista por defecto), Productos y Proveedores en un solo apartado con sub-pestañas.
+- **Escandallos** — pestaña nueva, de momento solo dice "Todavía no está construido" (Paso 3 no existe aún).
+
+Las 4 pestañas (Avisos, Albaranes, Compras, Escandallos) están **siempre visibles**, incluso antes de completar el tutorial inicial — a petición explícita, ya no se ocultan hasta terminar el onboarding como pasaba antes con Proveedores/Productos/Análisis.
+
+**Se dejaron aparcadas sin quitar del código** (siguen accesibles por URL directa, ya no aparecen en el menú): Resumen (`/dashboard`), Presupuestos, Recordatorios de pago, Resumen semanal (Digest), Chat con IA.
+
+**Detectado pero sin resolver — para decidir en otra sesión:** la campanita de notificaciones arriba a la derecha (🔔) sigue mostrando "Alertas" con un contenido parecido pero no idéntico al de la nueva pantalla "Avisos" (esa campanita también avisa de proveedores sin categorizar, presupuesto superado, etc.). Puede que convenga fusionarlas o quitar la campanita ahora que existe Avisos como pantalla propia — pendiente de decidir contigo.
+
+**Siguiente paso al retomar:**
+1. Releer este documento y `PROPUESTA_MVP.md`.
+2. Abrir `http://localhost:5173/avisos` y recorrer el menú nuevo con la usuaria, pantalla a pantalla, anotando cualquier cosa que no encaje.
+3. Decidir qué hacer con la campanita de notificaciones (ver arriba) y con el renombrado interno de "Albaranes".
+4. Cuando el menú esté validado, ahí sí invocar la herramienta de diseño ("impeccable") para pulir visualmente.
+
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
