@@ -44,7 +44,22 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   );
   let sidebarHasInteracted = $state(false);
   let isDesktop = $state(false);
+  let locationOpen = $state(false);
+  let locationRef: HTMLDivElement | undefined = $state();
   let mounted = $state(false);
+
+  $effect(() => {
+    if (!locationOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (locationRef && !locationRef.contains(e.target as Node)) locationOpen = false;
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  });
+
+  const currentLocation = $derived(
+    data.locations?.find((loc) => loc.id === data.restaurantId)?.name ?? ''
+  );
 
   $effect(() => {
     if (!browser) return;
@@ -230,18 +245,61 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         <label for="location-switch" style="display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
           {$t('nav.location')}
         </label>
-        <select
-          id="location-switch"
-          class="input"
-          style="height:32px;font-size:12.5px;width:100%;"
-          disabled={switchingLocation}
-          value={data.restaurantId}
-          onchange={(e) => switchLocation((e.currentTarget as HTMLSelectElement).value)}
-        >
-          {#each data.locations as loc}
-            <option value={loc.id}>{loc.name}</option>
-          {/each}
-        </select>
+        <div style="position:relative;" bind:this={locationRef}>
+          <button
+            type="button"
+            id="location-switch"
+            disabled={switchingLocation}
+            onclick={() => (locationOpen = !locationOpen)}
+            aria-haspopup="listbox"
+            aria-expanded={locationOpen}
+            style="
+              height:32px;width:100%;font-size:12.5px;text-align:left;cursor:pointer;
+              border-radius:var(--mep-r-input);border:1px solid var(--mep-border-strong);
+              background:var(--mep-surface);color:var(--mep-fg);padding:0 10px;
+              display:flex;align-items:center;justify-content:space-between;gap:8px;
+              {locationOpen ? 'border-color:var(--mep-acc);box-shadow:0 0 0 3px var(--mep-acc-ring);' : ''}
+            "
+          >
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{currentLocation}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--mep-fg-3);{locationOpen ? 'transform:rotate(180deg);' : ''}transition:transform 120ms;">
+              <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          {#if locationOpen}
+            <div
+              role="listbox"
+              style="
+                position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;
+                background:var(--mep-surface);border:1px solid var(--mep-border-strong);
+                border-radius:var(--mep-r-input);box-shadow:0 6px 20px rgba(0,0,0,0.15);
+                padding:4px;max-height:220px;overflow-y:auto;
+              "
+            >
+              {#each data.locations as loc}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={loc.id === data.restaurantId}
+                  onclick={() => {
+                    locationOpen = false;
+                    if (loc.id !== data.restaurantId) switchLocation(loc.id);
+                  }}
+                  style="
+                    display:block;width:100%;text-align:left;cursor:pointer;
+                    padding:7px 10px;border:none;border-radius:6px;font-size:12.5px;
+                    background:{loc.id === data.restaurantId ? 'var(--mep-acc-soft)' : 'transparent'};
+                    color:{loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)'};
+                    font-weight:{loc.id === data.restaurantId ? 500 : 400};
+                  "
+                  onmouseenter={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
+                  onmouseleave={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'transparent'; }}
+                >{loc.name}</button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       </div>
     {/if}
 
