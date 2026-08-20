@@ -85,23 +85,41 @@ function checkTemplate(file, src, rel) {
 		process.exit(1);
 	}
 
+	const isStyleOrScript = (node) =>
+		node.type === 'RegularElement' && (node.name === 'style' || node.name === 'script');
+
+	const report = (kind, text, pos) =>
+		violations.push({ rel, line: lineOf(src, pos), kind, text });
+
+	const checkAttribute = (node) => {
+		if (!TEXT_ATTRS.has(node.name) || !Array.isArray(node.value)) return;
+		for (const part of node.value) {
+			if (part.type === 'Text' && isProse(part.data)) {
+				report(node.name, part.data, part.start);
+			}
+		}
+	};
+
+	const checkText = (node) => {
+		if (!isProse(node.data ?? '')) return;
+		report('text', node.data, node.start);
+	};
+
+	const checkNode = (node, inStyle) => {
+		if (node.type === 'Attribute') {
+			checkAttribute(node);
+			return true;
+		}
+		if (node.type === 'Text' && !inStyle) {
+			checkText(node);
+		}
+		return false;
+	};
+
 	const visit = (node, inStyle) => {
 		if (!node || typeof node !== 'object') return;
-		if (node.type === 'Attribute') {
-			if (TEXT_ATTRS.has(node.name) && Array.isArray(node.value)) {
-				for (const part of node.value) {
-					if (part.type === 'Text' && isProse(part.data)) {
-						violations.push({ rel, line: lineOf(src, part.start), kind: node.name, text: part.data });
-					}
-				}
-			}
-			return;
-		}
-		if (node.type === 'Text' && !inStyle && isProse(node.data ?? '')) {
-			violations.push({ rel, line: lineOf(src, node.start), kind: 'text', text: node.data });
-		}
-		const nextInStyle =
-			inStyle || (node.type === 'RegularElement' && (node.name === 'style' || node.name === 'script'));
+		if (checkNode(node, inStyle)) return;
+		const nextInStyle = inStyle || isStyleOrScript(node);
 		for (const key of Object.keys(node)) {
 			if (key === 'parent') continue;
 			const value = node[key];

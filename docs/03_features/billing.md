@@ -315,6 +315,7 @@ guard; quota arithmetic.
 - On handler failure the dedup claim is released so Stripe's retry reprocesses the event instead of being suppressed as a duplicate (#240 + #253).
 - A webhook branch that can't be applied because the payload is missing `restaurantId`/`subscriptionId` metadata logs at error level + Sentry instead of a silent `break` — a 200 OK with nothing applied is otherwise indistinguishable from success in logs.
 - Each applied event logs an `[billing] <event> applied` info line (restaurant, tier, status, subscription id) so the webhook→tier pipeline is traceable end to end.
+- Structure: `handleWebhookEvent` is a thin orchestrator — it runs the config guard (`webhookConfigured`), verifies the signature, claims the idempotency key, and delegates to `dispatchEvent`, which routes by `event.type` to a dedicated handler per event family (`handleCheckoutCompleted`, `handleSubscriptionChanged`, `handleTrialWillEnd`). Shared logic is factored into `subscriptionFields` (price/tier/period-end derivation), `missingSubscriptionMetadata`/`logIgnored` (missing-metadata logging + Sentry), `applyStatusSettings` (active → paid tier, terminal → trial), `trackSubscriptionEvent` (payment-lifecycle telemetry), and `sendSubscriptionConfirmation` (email side-effect). Behavior is unchanged from the previous single-switch version.
 
 **`function syncSubscriptionFromStripe`**
 
