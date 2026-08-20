@@ -57,137 +57,169 @@ function worst(checks: HealthCheck[]): HealthStatus {
 	return 'ok';
 }
 
-export async function runSystemChecks(): Promise<SystemHealth> {
-	const checks: HealthCheck[] = [];
-
-	let dbOk = false;
+async function checkDatabase(): Promise<{ checks: HealthCheck[]; ok: boolean }> {
 	try {
 		await db.execute(sql`SELECT 1`);
-		dbOk = true;
-		checks.push({ name: 'Database', status: 'ok', detail: 'Connection healthy' });
+		return { checks: [{ name: 'Database', status: 'ok', detail: 'Connection healthy' }], ok: true };
 	} catch (e) {
-		checks.push({ name: 'Database', status: 'error', detail: String(e) });
+		return { checks: [{ name: 'Database', status: 'error', detail: String(e) }], ok: false };
 	}
+}
 
-	let stuck = 0;
-	let lastExtraction: string | null = null;
-	if (dbOk) {
-		try {
-			const cutoff = new Date(Date.now() - STUCK_MINUTES * 60 * 1000);
-			// tenant-scope-ok: platform-wide queue health for the admin ops dashboard —
-			// a per-tenant count would hide a stalled worker. Returns a bare count, no rows.
-			const [stuckRow] = await db
-				.select({ n: sql<number>`count(*)::int` })
-				.from(batchItems)
-				.where(and(
-					inArray(batchItems.status, ['queued', 'extracting']),
-					lt(batchItems.updatedAt, cutoff),
-				));
-			stuck = stuckRow?.n ?? 0;
-			checks.push({
-				name: 'Extraction queue',
-				status: stuck > STUCK_ERROR_THRESHOLD ? 'error' : stuck > 0 ? 'warn' : 'ok',
-				detail: stuck > 0
-					? `${stuck} item(s) stuck in queued/extracting > ${STUCK_MINUTES} min`
-					: 'No stalled items',
-			});
+async function checkExtractionQueue(): Promise<{ checks: HealthCheck[]; stuck: number; lastExtraction: string | null }> {
+	try {
+		const cutoff = new Date(Date.now() - STUCK_MINUTES * 60 * 1000);
+		// tenant-scope-ok: platform-wide queue health for the admin ops dashboard —
+		// a per-tenant count would hide a stalled worker. Returns a bare count, no rows.
+		const [stuckRow] = await db
+			.select({ n: sql<number>`count(*)::int` })
+			.from(batchItems)
+			.where(and(
+				inArray(batchItems.status, ['queued', 'extracting']),
+				lt(batchItems.updatedAt, cutoff),
+			));
+		const stuck = stuckRow?.n ?? 0;
 
-			// tenant-scope-ok: platform-wide liveness probe for the admin ops dashboard,
-			// same gate as the stuck-item count. Returns a timestamp, no tenant rows.
-			const [lastRow] = await db
-				.select({ at: sql<string | null>`max(${batchItems.updatedAt})` })
-				.from(batchItems)
-				.where(inArray(batchItems.status, ['done', 'failed', 'confirmed']));
-			lastExtraction = lastRow?.at ? new Date(lastRow.at).toISOString() : null;
-			checks.push({
-				name: 'Last extraction',
-				status: 'ok',
-				detail: lastExtraction ?? 'No extractions yet',
-			});
-		} catch (e) {
-			checks.push({ name: 'Extraction queue', status: 'warn', detail: `Check failed: ${String(e)}` });
-		}
+		// tenant-scope-ok: platform-wide liveness probe for the admin ops dashboard,
+		// same gate as the stuck-item count. Returns a timestamp, no tenant rows.
+		const [lastRow] = await db
+			.select({ at: sql<string | null>`max(${batchItems.updatedAt})` })
+			.from(batchItems)
+			.where(inArray(batchItems.status, ['done', 'failed', 'confirmed']));
+		const lastExtraction = lastRow?.at ? new Date(lastRow.at).toISOString() : null;
+
+		return {
+			stuck,
+			lastExtraction,
+			checks: [
+				{
+					name: 'Extraction queue',
+					status: stuck > STUCK_ERROR_THRESHOLD ? 'error' : stuck > 0 ? 'warn' : 'ok',
+					detail: stuck > 0
+						? `${stuck} item(s) stuck in queued/extracting > ${STUCK_MINUTES} min`
+						: 'No stalled items',
+				},
+				{
+					name: 'Last extraction',
+					status: 'ok',
+					detail: lastExtraction ?? 'No extractions yet',
+				},
+			],
+		};
+	} catch (e) {
+		return { stuck: 0, lastExtraction: null, checks: [{ name: 'Extraction queue', status: 'warn', detail: `Check failed: ${String(e)}` }] };
 	}
+}
 
-	let pendingDeadLetters = 0;
-	if (dbOk) {
-		try {
-			pendingDeadLetters = await pendingDeadLetterCount();
-			checks.push({
+async function checkDeadLetterQueue(): Promise<{ checks: HealthCheck[]; pending: number }> {
+	try {
+		const pending = await pendingDeadLetterCount();
+		return {
+			pending,
+			checks: [{
 				name: 'Dead letter queue',
-				status: pendingDeadLetters > DEAD_LETTER_ERROR_THRESHOLD
-					? 'error'
-					: pendingDeadLetters > 0 ? 'warn' : 'ok',
-				detail: pendingDeadLetters > 0
-					? `${pendingDeadLetters} record(s) parked for audit`
-					: 'No parked records',
+				status: pending > DEAD_LETTER_ERROR_THRESHOLD ? 'error' : pending > 0 ? 'warn' : 'ok',
+				detail: pending > 0 ? `${pending} record(s) parked for audit` : 'No parked records',
 				href: '/admin/dead-letters',
-			});
-		} catch (e) {
-			checks.push({ name: 'Dead letter queue', status: 'warn', detail: `Check failed: ${String(e)}` });
-		}
+			}],
+		};
+	} catch (e) {
+		return { pending: 0, checks: [{ name: 'Dead letter queue', status: 'warn', detail: `Check failed: ${String(e)}` }] };
 	}
+}
 
-	let whatsapp: WhatsAppDetail | null = null;
-	if (dbOk) {
-		try {
-			const [health, events, tenants] = await Promise.all([
-				getNumberHealth(),
-				recentAccountEvents(),
-				contactsPerTenant(),
-			]);
-			whatsapp = { health, events, tenants };
-			checks.push({
-				name: 'WhatsApp number',
-				status: !health.everReported
-					? 'warn'
-					: health.severity === 'critical' ? 'error' : health.severity === 'warning' ? 'warn' : 'ok',
-				detail: !health.everReported
-					? 'No account events received — subscribe to account_update / phone_number_quality_update'
-					: `Quality ${health.qualityRating ?? 'unknown'}`
-						+ (health.messagingLimit ? `, limit ${health.messagingLimit}` : '')
-						+ (health.lastEvent ? ` · last: ${health.lastEvent}` : ''),
-			});
-		} catch (e) {
-			checks.push({ name: 'WhatsApp number', status: 'warn', detail: `Check failed: ${String(e)}` });
-		}
+function whatsAppStatus(health: NumberHealth): HealthStatus {
+	if (!health.everReported) return 'warn';
+	if (health.severity === 'critical') return 'error';
+	if (health.severity === 'warning') return 'warn';
+	return 'ok';
+}
+
+function whatsAppDetail(health: NumberHealth): string {
+	if (!health.everReported) return 'No account events received — subscribe to account_update / phone_number_quality_update';
+	return `Quality ${health.qualityRating ?? 'unknown'}`
+		+ (health.messagingLimit ? `, limit ${health.messagingLimit}` : '')
+		+ (health.lastEvent ? ` · last: ${health.lastEvent}` : '');
+}
+
+async function checkWhatsApp(): Promise<{ checks: HealthCheck[]; detail: WhatsAppDetail | null }> {
+	try {
+		const [health, events, tenants] = await Promise.all([
+			getNumberHealth(),
+			recentAccountEvents(),
+			contactsPerTenant(),
+		]);
+		return {
+			detail: { health, events, tenants },
+			checks: [{ name: 'WhatsApp number', status: whatsAppStatus(health), detail: whatsAppDetail(health) }],
+		};
+	} catch (e) {
+		return { detail: null, checks: [{ name: 'WhatsApp number', status: 'warn', detail: `Check failed: ${String(e)}` }] };
 	}
+}
 
-	let unresolved = 0;
-	let critical = 0;
+async function checkSentry(): Promise<{ checks: HealthCheck[]; unresolved: number; critical: number }> {
 	if (!isSentryConfigured()) {
-		checks.push({ name: 'Sentry', status: 'warn', detail: 'Not configured (set SENTRY_AUTH_TOKEN and SENTRY_ORG)' });
-	} else {
-		try {
-			const summary = await getIssueSummary();
-			unresolved = summary?.unresolvedCount ?? 0;
-			critical = summary?.criticalCount ?? 0;
-			checks.push({
+		return { unresolved: 0, critical: 0, checks: [{ name: 'Sentry', status: 'warn', detail: 'Not configured (set SENTRY_AUTH_TOKEN and SENTRY_ORG)' }] };
+	}
+	try {
+		const summary = await getIssueSummary();
+		const unresolved = summary?.unresolvedCount ?? 0;
+		const critical = summary?.criticalCount ?? 0;
+		return {
+			unresolved,
+			critical,
+			checks: [{
 				name: 'Sentry',
 				status: critical > 0 ? 'error' : unresolved > 0 ? 'warn' : 'ok',
 				detail: `${unresolved} unresolved (${critical} critical)`,
 				href: '/admin/errors',
-			});
-		} catch (e) {
-			checks.push({ name: 'Sentry', status: 'warn', detail: `Check failed: ${String(e)}` });
-		}
+			}],
+		};
+	} catch (e) {
+		return { unresolved: 0, critical: 0, checks: [{ name: 'Sentry', status: 'warn', detail: `Check failed: ${String(e)}` }] };
+	}
+}
+
+function checkEnvVars(): HealthCheck[] {
+	const envMap: Record<string, string> = { DATABASE_URL, GEMINI_API_KEY, AUTH_ADMIN_EMAIL, AUTH_SECRET };
+	return REQUIRED_VARS.map(varName => ({
+		name: `Env: ${varName}`,
+		status: envMap[varName] ? 'ok' : 'warn',
+		detail: envMap[varName] ? 'Set' : 'Missing',
+	}));
+}
+
+export async function runSystemChecks(): Promise<SystemHealth> {
+	const db_ = await checkDatabase();
+	const checks: HealthCheck[] = [...db_.checks];
+
+	let stuck = 0;
+	let lastExtraction: string | null = null;
+	let whatsapp: WhatsAppDetail | null = null;
+	let unresolved = 0;
+	let critical = 0;
+	let pendingDeadLetters = 0;
+
+	if (db_.ok) {
+		const [queue, deadLetter, wa] = await Promise.all([
+			checkExtractionQueue(),
+			checkDeadLetterQueue(),
+			checkWhatsApp(),
+		]);
+		checks.push(...queue.checks, ...deadLetter.checks, ...wa.checks);
+		stuck = queue.stuck;
+		lastExtraction = queue.lastExtraction;
+		pendingDeadLetters = deadLetter.pending;
+		whatsapp = wa.detail;
 	}
 
-	const envMap: Record<string, string> = {
-		DATABASE_URL,
-		GEMINI_API_KEY,
-		AUTH_ADMIN_EMAIL,
-		AUTH_SECRET,
-	};
+	const sentry = await checkSentry();
+	checks.push(...sentry.checks);
+	unresolved = sentry.unresolved;
+	critical = sentry.critical;
 
-	for (const varName of REQUIRED_VARS) {
-		const val = envMap[varName];
-		checks.push({
-			name: `Env: ${varName}`,
-			status: val ? 'ok' : 'warn',
-			detail: val ? 'Set' : 'Missing',
-		});
-	}
+	checks.push(...checkEnvVars());
 
 	return {
 		checks,
