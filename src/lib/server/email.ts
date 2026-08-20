@@ -12,8 +12,8 @@ const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
-	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'quota_warning'
-	| 'verify_email' | 'password_reset' | 'access_approved';
+	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'subscription_consolidated'
+	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved';
 
 export interface EmailPayload {
 	to: string;
@@ -350,6 +350,27 @@ export function subscriptionConfirmationEmail(email: string, restaurantName: str
 ${p(`¡Gracias! Tu suscripción al plan ${strong(plan)} para ${strong(name)} ya está activa.`)}
 ${p('Puedes consultar tu factura y gestionar la suscripción en cualquier momento desde la sección de facturación.')}`,
 			cta: { href: `${APP_BASE_URL}/billing`, label: 'Gestionar suscripción' },
+		}),
+	};
+}
+
+export function subscriptionConsolidatedEmail(email: string, restaurantName: string, keptRestaurantName: string): EmailPayload {
+	const name = escapeHtml(restaurantName);
+	const keptName = escapeHtml(keptRestaurantName);
+	return {
+		to: email,
+		kind: 'subscription_consolidated',
+		subject: `Tu plan de pago en ${restaurantName} ha sido cancelado`,
+		html: renderEmailLayout({
+			preheader: `Cada cuenta solo puede tener un plan activo; hemos mantenido el de ${keptName}.`,
+			tagChip: 'Plan cancelado',
+			eyebrow: 'Suscripción',
+			headline: 'Tu plan ha cambiado a prueba gratuita',
+			bodyHtml: `
+${p(`Detectamos que tu cuenta tenía dos suscripciones activas. Como cada cuenta solo puede tener un plan, hemos cancelado la de ${strong(name)} y mantenido la de ${strong(keptName)}.`)}
+${p(`${strong(name)} ha vuelto a acceso de prueba. Si necesitas plan de pago allí, puedes activarlo desde la sección de facturación de ese restaurante.`)}`,
+			cta: { href: `${APP_BASE_URL}/billing`, label: 'Ver facturación' },
+			footerLinks: true,
 		}),
 	};
 }
