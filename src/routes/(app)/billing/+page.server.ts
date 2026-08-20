@@ -1,6 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, TIERS, type PlanTier } from '$lib/server/billing';
+import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, syncSubscriptionFromStripe, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -12,6 +12,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const rid = locals.restaurantId;
 	const billingTdb = forTenant(await billingRestaurantId(rid));
+
+	await syncSubscriptionFromStripe(rid);
 
 	const [sub] = await db.select()
 		.from(subscriptions)
@@ -28,6 +30,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const hasAccess = isAccessAllowed(status, trialEndsAt);
 	const stripeConfigured = !!stripe;
 	const currentTier = (sub?.planTier ?? 'trial') as PlanTier;
+	const hasSubscription = !!sub?.stripeSubscriptionId;
 
 	return {
 		status,
@@ -35,6 +38,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		currentPeriodEnd: sub?.currentPeriodEnd?.toISOString() ?? null,
 		cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
 		hasAccess,
+		hasSubscription,
 		stripeConfigured,
 		restaurantName: restaurant?.name ?? '',
 		checkoutSuccess: url.searchParams.get('checkout') === 'success',
@@ -77,6 +81,14 @@ export const actions: Actions = {
 			return fail(503, { error: 'billing.err.tierUnavailable' });
 		}
 
+		const rootRid = await billingRestaurantId(rid);
+		const ownedActive = await ownedActiveSubscriptions(locals.user.id);
+		const currentActive = ownedActive.find(s => s.restaurantId === rootRid);
+		const otherActive = ownedActive.find(s => s.restaurantId !== rootRid);
+		if (otherActive) {
+			return fail(409, { error: 'billing.err.oneSubscription' });
+		}
+
 		const [existing] = await db.select({
 			status: subscriptions.status,
 			stripeSubscriptionId: subscriptions.stripeSubscriptionId,
@@ -89,6 +101,14 @@ export const actions: Actions = {
 		if (existing && (existing.status === 'active' || existing.stripeSubscriptionId)) {
 			if (existing.stripeCustomerId) {
 				const portalUrl = await createPortalSession(existing.stripeCustomerId, `${url.origin}/billing`);
+				redirect(303, portalUrl);
+			}
+			redirect(303, '/billing');
+		}
+
+		if (currentActive) {
+			if (currentActive.stripeCustomerId) {
+				const portalUrl = await createPortalSession(currentActive.stripeCustomerId, `${url.origin}/billing`);
 				redirect(303, portalUrl);
 			}
 			redirect(303, '/billing');
@@ -113,9 +133,10 @@ export const actions: Actions = {
 				rid,
 				customerId,
 				tier,
-				`${url.origin}/billing?checkout=success`,
+				`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
 				`${url.origin}/billing`,
 				idemKey ?? undefined,
+				locals.user.id,
 			);
 		} catch (err) {
 			if (idemKey) await releaseRequest(idemKey);
@@ -140,5 +161,38 @@ export const actions: Actions = {
 
 		const portalUrl = await createPortalSession(sub.stripeCustomerId, `${url.origin}/billing`);
 		redirect(303, portalUrl);
+	},
+
+	switch: async ({ locals, request }) => {
+		if (!locals.user || !locals.restaurantId) redirect(303, '/login');
+		if (!stripe) error(503, 'Billing not configured — contact support');
+
+		const rid = locals.restaurantId;
+		const tdb = forTenant(rid);
+
+		const formData = await request.formData();
+		const tierParam = (formData.get('tier') as string | null) ?? '';
+		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : null) as PlanTier | null;
+		if (!tier || !isTierAvailable(tier)) return fail(400, { error: 'billing.err.tierUnavailable' });
+
+		const [sub] = await db.select({
+			stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+			planTier: subscriptions.planTier,
+		})
+			.from(subscriptions)
+			.where(tdb.scope(subscriptions.restaurantId))
+			.limit(1);
+
+		if (!sub?.stripeSubscriptionId) return fail(400, { error: 'billing.err.noSubscription' });
+		if (tier === sub.planTier) redirect(303, '/billing');
+
+		try {
+			await switchTier(rid, tier);
+		} catch (err) {
+			console.error(`[billing] switch failed for ${rid}:`, err);
+			return fail(500, { error: 'billing.err.switchFailed' });
+		}
+		trackEvent('plan_switched', rid, { tier });
+		redirect(303, '/billing');
 	},
 };
