@@ -28,6 +28,7 @@ Sirve para dos cosas a la vez:
 | `05_medicion/` | Qué medimos y cómo se lee | Al cerrar o evaluar algo |
 | `06_decisiones/` | Las decisiones de marketing ya tomadas, con su porqué | Cuando quieras cambiar algo que ya estaba decidido |
 | `07_con_claude/` | Cómo trabajar con Claude aquí, y la biblioteca de prompts | Cada vez que abras una conversación |
+| `08_incidencias/` | Cosas detectadas que hay que revisar antes de publicar, y que aún no son una decisión | Cuando algo no cuadra entre lo que se dice y lo que el producto o una fuente externa confirman |
 
 ## Dónde está la verdad
 

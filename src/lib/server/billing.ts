@@ -1,7 +1,16 @@
 import Stripe from 'stripe';
+import { error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
-import { env } from '$env/dynamic/private';
 import { and, eq, isNull, lte, or, sql } from 'drizzle-orm';
+
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
+const STRIPE_FOUNDER_COUPON_ID = process.env.STRIPE_FOUNDER_COUPON_ID ?? '';
+const STRIPE_PRICE_ID_STARTER = process.env.STRIPE_PRICE_ID_STARTER ?? '';
+const STRIPE_PRICE_ID_PRO = process.env.STRIPE_PRICE_ID_PRO ?? '';
+const STRIPE_PRICE_ID_BUSINESS = process.env.STRIPE_PRICE_ID_BUSINESS ?? '';
+const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID ?? '';
 import { db, forTenant } from './db';
 import { subscriptions, restaurants, settings } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
@@ -9,13 +18,13 @@ import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail } from './email';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
 
-const secretKey = env.STRIPE_SECRET_KEY ?? '';
+const secretKey = STRIPE_SECRET_KEY;
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
 
-export const WEBHOOK_SECRET = env.STRIPE_WEBHOOK_SECRET ?? '';
+export const WEBHOOK_SECRET = STRIPE_WEBHOOK_SECRET;
 export const TRIAL_DAYS         = 14;
 export const FOUNDER_TRIAL_DAYS = 30;
-export const FOUNDER_COUPON_ID  = env.STRIPE_FOUNDER_COUPON_ID ?? '';
+export const FOUNDER_COUPON_ID  = STRIPE_FOUNDER_COUPON_ID;
 
 export function trialDaysFor(founder: boolean): number {
 	return founder ? FOUNDER_TRIAL_DAYS : TRIAL_DAYS;
@@ -67,21 +76,21 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 	starter: {
 		name: 'Starter',
 		monthlyInvoiceQuota: 100,
-		stripePriceId: env.STRIPE_PRICE_ID_STARTER ?? env.STRIPE_PRICE_ID ?? '',
+		stripePriceId: STRIPE_PRICE_ID_STARTER ?? STRIPE_PRICE_ID ?? '',
 		maxLocations: 1,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
 	},
 	pro: {
 		name: 'Pro',
 		monthlyInvoiceQuota: 300,
-		stripePriceId: env.STRIPE_PRICE_ID_PRO ?? '',
+		stripePriceId: STRIPE_PRICE_ID_PRO ?? '',
 		maxLocations: 1,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false, aiAssistant: true },
 	},
 	business: {
 		name: 'Business',
 		monthlyInvoiceQuota: null,
-		stripePriceId: env.STRIPE_PRICE_ID_BUSINESS ?? '',
+		stripePriceId: STRIPE_PRICE_ID_BUSINESS ?? '',
 		maxLocations: 5,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true, aiAssistant: true },
 	},
@@ -93,7 +102,7 @@ export function isTierAvailable(tier: PlanTier): boolean {
 
 export function planMonthlyPriceCents(tier: PlanTier): number {
 	if (tier === 'trial') return 0;
-	const raw = env[`PLAN_PRICE_${tier.toUpperCase()}_EUR`]?.trim();
+	const raw = process.env[`PLAN_PRICE_${tier.toUpperCase()}_EUR`]?.trim();
 	const override = raw ? Number(raw) : NaN;
 	const eur = Number.isFinite(override) && override >= 0 ? override : PROVISIONAL_PRICE[tier];
 	return Math.round(eur * 100);
@@ -159,6 +168,11 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 		upsert('plan_name', config.name),
 		upsert('plan_quota', String(quota)),
 	]);
+}
+
+export async function requireFeature(feature: keyof TierConfig['features'], restaurantId: string): Promise<void> {
+	const features = await getTierFeatures(restaurantId);
+	if (!features[feature]) throw error(403, `This feature requires a higher plan tier`);
 }
 
 export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | null): boolean {
@@ -326,9 +340,15 @@ export async function createPortalSession(customerId: string, returnUrl: string)
 }
 
 export async function handleWebhookEvent(body: string, signature: string): Promise<void> {
-	if (!stripe) return;
+	if (!stripe) {
+		if (NODE_ENV === 'production') {
+			throw new Error('STRIPE_SECRET_KEY is required in production — refusing to silently accept webhook');
+		}
+		console.warn('[billing] STRIPE_SECRET_KEY not set — skipping webhook processing (dev only)');
+		return;
+	}
 	if (!WEBHOOK_SECRET) {
-		if (process.env.NODE_ENV === 'production') {
+		if (NODE_ENV === 'production') {
 			throw new Error('STRIPE_WEBHOOK_SECRET is required in production — refusing to process unverified webhook');
 		}
 		console.warn('[billing] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev only)');

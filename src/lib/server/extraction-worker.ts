@@ -47,9 +47,11 @@ function classifyExtractionError(err: unknown): string {
 export async function processExtractionJob(
 	jobData: ExtractionJobData,
 	generateOverride?: GenerateFn,
+	retryInfo?: { retryCount: number; retryLimit: number },
 ): Promise<void> {
 	const itemId = jobData.itemId ?? jobData.sessionId;
 	const { restaurantId } = jobData;
+	const isFinalAttempt = !retryInfo || retryInfo.retryCount >= retryInfo.retryLimit;
 	if (!itemId) {
 		console.warn('[worker] Job without itemId — routing to the dead-letter queue');
 		await recordDeadLetter({
@@ -73,6 +75,12 @@ export async function processExtractionJob(
 			sourceId: itemId,
 			payload: jobData,
 		});
+		return;
+	}
+
+	const claimed = await markExtracting(itemId);
+	if (!claimed) {
+		console.warn(`[worker] Item ${itemId} not in queued/extracting state — skipping`);
 		return;
 	}
 
@@ -103,13 +111,6 @@ export async function processExtractionJob(
 			return;
 		}
 		claimedMonthlySlot = true;
-	}
-
-	const claimed = await markExtracting(itemId);
-	if (!claimed) {
-		console.warn(`[worker] Item ${itemId} not in queued state — skipping`);
-		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
-		return;
 	}
 
 	let filePath: string;
@@ -172,7 +173,8 @@ export async function processExtractionJob(
 		console.info(`[worker] Extraction done for item ${itemId}`);
 	} catch (err) {
 		const extractError = classifyExtractionError(err);
-		console.error(`[worker] Extraction failed for item ${itemId}:`, err);
+		const willRetry = DEGRADATION_ERRORS.has(extractError) && !isFinalAttempt;
+		console.error(`[worker] Extraction failed for item ${itemId}${willRetry ? ' (will retry)' : ''}:`, err);
 		if (DEGRADATION_ERRORS.has(extractError)) {
 			Sentry.captureException(err, {
 				level: 'warning',
@@ -192,7 +194,7 @@ export async function processExtractionJob(
 				payload: { ...jobData, fileKey: item.fileKey, displayName: item.displayName },
 			});
 		}
-		await markFailed(itemId, extractError);
+		if (!willRetry) await markFailed(itemId, extractError);
 		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
 	} finally {
 		cleanupTmp?.();

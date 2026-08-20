@@ -363,7 +363,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 			tdb.scope(invoices.restaurantId),
 			isNull(invoices.deletedAt),
 			sql`COALESCE(${suppliers.category}, 'Other') = ${category}`,
-			sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
+			sql`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
 		));
 	const totalSpend = moneyToNumber(spendRows[0]?.total ?? '0');
 	const pctFrac = totalSpend / monthlyBudget;
@@ -438,10 +438,10 @@ export async function runPossibleDuplicatePurchase(
 			isNull(invoices.deletedAt),
 			isNotNull(invoices.totalAmount),
 			isNotNull(invoices.invoiceDate),
-			sql`ABS((${invoices.invoiceDate})::date - ${invoiceDate}::date) <= ${DUPLICATE_DATE_WINDOW_DAYS}`,
+			sql`ABS(${invoices.invoiceDate} - ${invoiceDate}::date) <= ${DUPLICATE_DATE_WINDOW_DAYS}`,
 			sql`ABS(${invoices.totalAmount} - ${totalAmount}) <= GREATEST(${invoices.totalAmount}, ${totalAmount}) * ${DUPLICATE_AMOUNT_TOLERANCE}`,
 		))
-		.orderBy(sql`ABS((${invoices.invoiceDate})::date - ${invoiceDate}::date) ASC`)
+		.orderBy(sql`ABS(${invoices.invoiceDate} - ${invoiceDate}::date) ASC`)
 		.limit(1);
 
 	if (matches.length === 0) return [];

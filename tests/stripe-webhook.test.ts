@@ -19,18 +19,18 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 const WEBHOOK_SECRET = 'whsec_test_dummy';
 const PRICE_PRO = 'price_pro_test';
 
+const originalEnv = { ...process.env };
+
 // Stripe config for the module under test (constructEvent / generateTestHeaderString
 // run locally; no network). A dummy secret key is enough to instantiate Stripe.
 // NB: factory is hoisted above the const declarations — inline the literals.
-vi.mock('$env/dynamic/private', () => ({
-	env: {
-		STRIPE_SECRET_KEY: 'sk_test_dummy_for_local_signature_verification',
-		STRIPE_WEBHOOK_SECRET: 'whsec_test_dummy',
-		STRIPE_PRICE_ID_STARTER: 'price_starter_test',
-		STRIPE_PRICE_ID_PRO: 'price_pro_test',
-		STRIPE_PRICE_ID_BUSINESS: 'price_business_test',
-	},
-}));
+vi.hoisted(() => {
+	process.env.STRIPE_SECRET_KEY = 'sk_test_dummy_for_local_signature_verification';
+	process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_dummy';
+	process.env.STRIPE_PRICE_ID_STARTER = 'price_starter_test';
+	process.env.STRIPE_PRICE_ID_PRO = 'price_pro_test';
+	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business_test';
+});
 
 // Don't send real emails from the confirmation path.
 vi.mock('../src/lib/server/email', () => ({
@@ -101,6 +101,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	process.env = { ...originalEnv };
 	if (!hasDbEnv) return;
 	await cleanupTestRestaurant(rid);
 	await closeDb();

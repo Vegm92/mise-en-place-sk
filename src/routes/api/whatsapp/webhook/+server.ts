@@ -8,9 +8,11 @@ import {
 } from '$lib/server/whatsapp-bot';
 import { recordAccountEvent, type AccountEventInput } from '$lib/server/whatsapp-health';
 
+const NODE_ENV = process.env.NODE_ENV ?? 'development';
+
 function verifySignature(rawBody: string, header: string | null): boolean {
 	if (!WHATSAPP_APP_SECRET) {
-		if (process.env['NODE_ENV'] === 'production') {
+		if (NODE_ENV === 'production') {
 			console.error('[whatsapp-webhook] WHATSAPP_APP_SECRET not set — rejecting unauthenticated webhook POST');
 			return false;
 		}

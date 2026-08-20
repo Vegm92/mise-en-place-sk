@@ -422,7 +422,7 @@
           bind:this={fileInputEl}
           type="file"
           class="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,.heic"
+          accept=".pdf,.jpg,.jpeg,.png,.heic,.xml"
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
@@ -576,7 +576,7 @@
           bind:this={fileInputEl}
           type="file"
           class="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,.heic"
+          accept=".pdf,.jpg,.jpeg,.png,.heic,.xml"
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />

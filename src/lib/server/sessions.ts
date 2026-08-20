@@ -3,14 +3,24 @@ import { randomBytes } from 'crypto';
 import { UPLOADS_DIR } from './env';
 import { getStorage } from './storage';
 
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.xml']);
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
+
+const UTF8_BOM = [0xEF, 0xBB, 0xBF];
+const XML_LESS_THAN = 0x3C;
+
+function looksLikeXml(b: Buffer): boolean {
+	let start = (b[0] === UTF8_BOM[0] && b[1] === UTF8_BOM[1] && b[2] === UTF8_BOM[2]) ? 3 : 0;
+	while (start < b.length && (b[start] === 0x20 || b[start] === 0x09 || b[start] === 0x0A || b[start] === 0x0D)) start++;
+	return b[start] === XML_LESS_THAN;
+}
 
 const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
 	'.pdf':  (b) => b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46 && b[4] === 0x2D,
 	'.jpg':  (b) => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,
 	'.jpeg': (b) => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,
 	'.png':  (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 && b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A,
+	'.xml':  looksLikeXml,
 };
 
 export function uploadsDir(): string {

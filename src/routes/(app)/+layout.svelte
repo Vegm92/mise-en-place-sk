@@ -18,8 +18,11 @@
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
   import LogOut from '@lucide/svelte/icons/log-out';
+  import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
+import ChevronLeft from '@lucide/svelte/icons/chevron-left';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import { locale, t, initLocale } from '$lib/i18n';
@@ -36,6 +39,17 @@
     browser ? ((document.documentElement.dataset.theme as 'light' | 'dark') || 'light') : 'light'
   );
   let mobileOpen = $state(false);
+  let sidebarCollapsed = $state(
+    typeof localStorage !== 'undefined' && localStorage.getItem('mep-sidebar-collapsed') === 'true'
+  );
+  let sidebarHasInteracted = $state(false);
+  let mounted = $state(false);
+
+  function toggleSidebar() {
+    sidebarCollapsed = !sidebarCollapsed;
+    sidebarHasInteracted = true;
+    localStorage.setItem('mep-sidebar-collapsed', String(sidebarCollapsed));
+  }
 
   $effect(() => {
     tutorialStep.set((data.tutorialStep as TutorialStep) ?? null);
@@ -75,6 +89,7 @@
   });
 
   onMount(() => {
+    mounted = true;
     const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
     if (storedTheme && storedTheme !== theme) theme = storedTheme;
     initLocale();
@@ -159,40 +174,45 @@
 
   {#if mobileOpen}
     <div
-      class="fixed inset-0 z-[99] bg-black/60 md:hidden"
+      class="fixed inset-0 z-99 bg-black/60 md:hidden"
       onclick={() => mobileOpen = false}
       role="presentation"
     ></div>
   {/if}
 
+  {#if mounted}
   <aside
     style="
-      width:232px;height:100%;flex-shrink:0;
+      width:{sidebarCollapsed ? '64px' : '232px'};
+      {sidebarHasInteracted ? 'transition:width 200ms ease;' : ''}
+      height:100%;flex-shrink:0;
       background:var(--mep-surface);
       border-right:1px solid var(--mep-divider);
       display:flex;flex-direction:column;
-      padding:20px 12px 16px;
-      overflow-y:auto;
+      padding:{sidebarCollapsed ? '20px 6px 16px' : '20px 12px 16px'};
+      overflow-y:auto;overflow-x:hidden;
     "
     class="
-      fixed left-0 top-0 bottom-0 h-full z-[100]
+      fixed left-0 top-0 bottom-0 h-full z-100
       transition-transform duration-200
       md:static md:z-auto md:translate-x-0 md:transition-none
       {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     "
   >
-    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;{sidebarCollapsed ? 'justify-content:center;' : ''}">
       <svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
         <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
         <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
         <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
       </svg>
-      <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
-        Mise en Place
-      </span>
+      {#if !sidebarCollapsed}
+        <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
+          Mise en Place
+        </span>
+      {/if}
     </div>
 
-    {#if data.locations && data.locations.length > 1}
+    {#if !sidebarCollapsed && data.locations && data.locations.length > 1}
       <div style="padding:0 10px 14px;">
         <label for="location-switch" style="display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
           {$t('nav.location')}
@@ -216,10 +236,11 @@
       href="/"
       onclick={() => mobileOpen = false}
       class="btn btn-primary"
-      style="height:38px;justify-content:center;margin-bottom:20px;width:100%;text-decoration:none;"
+      style="height:38px;justify-content:center;margin-bottom:20px;width:100%;text-decoration:none;{sidebarCollapsed ? 'padding:0;' : ''}"
+      title={sidebarCollapsed ? $t('action.upload') : undefined}
     >
       <Upload size={15} />
-      <span>{$t('action.upload')}</span>
+      {#if !sidebarCollapsed}<span>{$t('action.upload')}</span>{/if}
     </a>
 
     <nav style="display:flex;flex-direction:column;gap:1px;">
@@ -228,32 +249,37 @@
         <a
           href={item.href}
           onclick={() => mobileOpen = false}
+          title={sidebarCollapsed ? item.label : undefined}
           style="
             display:flex;align-items:center;gap:10px;
-            padding:7px 10px;height:32px;border-radius:6px;
+            padding:{sidebarCollapsed ? '7px' : '7px 10px'};
+            height:32px;border-radius:6px;
             cursor:pointer;text-decoration:none;
+            justify-content:{sidebarCollapsed ? 'center' : 'flex-start'};
             background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
             color:{parentActive ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};
             font-size:13.5px;font-weight:{parentActive ? 500 : 400};
           "
         >
           <item.icon size={16} />
-          <span style="flex:1;">{item.label}</span>
-          {#if item.badge}
-            <span
-              class="num"
-              style="
-                font-size:10px;font-weight:600;min-width:16px;height:16px;
-                padding:0 5px;border-radius:8px;
-                background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
-                color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
-                display:inline-flex;align-items:center;justify-content:center;
-              "
-            >{item.badge}</span>
+          {#if !sidebarCollapsed}
+            <span style="flex:1;">{item.label}</span>
+            {#if item.badge}
+              <span
+                class="num"
+                style="
+                  font-size:10px;font-weight:600;min-width:16px;height:16px;
+                  padding:0 5px;border-radius:8px;
+                  background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
+                  color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
+                  display:inline-flex;align-items:center;justify-content:center;
+                "
+              >{item.badge}</span>
+            {/if}
           {/if}
         </a>
 
-        {#if item.sub && (is(item.href) || (item.sub?.some(s => is(s.href)) ?? false))}
+        {#if !sidebarCollapsed && item.sub && (is(item.href) || (item.sub?.some(s => is(s.href)) ?? false))}
           <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
             {#each item.sub as sub}
               <a
@@ -275,7 +301,7 @@
 
     <div style="flex:1;"></div>
 
-    {#if revealAll}
+    {#if !sidebarCollapsed && revealAll}
     <a href="/billing" onclick={() => mobileOpen = false}
       style="display:block;margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -289,43 +315,57 @@
     </a>
     {/if}
 
-    <div style="display:flex;flex-direction:column;gap:1px;">
-      <a
-        href="/settings"
-        onclick={() => mobileOpen = false}
-        style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
-      >
-        <Settings size={15} />
-        <span>{$t('nav.settings')}</span>
-      </a>
-    </div>
-
-    <div style="display:flex;gap:10px;padding:8px 10px 0;flex-wrap:wrap;">
-      <a href="/privacy" style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.privacy')}</a>
-      <a href="/terms"   style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.terms')}</a>
-    </div>
-
-    <div style="margin-top:10px;padding:8px;display:flex;align-items:center;gap:10px;border-radius:8px;">
-      <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:linear-gradient(135deg,#b8741a,#7a3a4a);color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">
-        {userInitials}
-      </div>
-      <div style="min-width:0;flex:1;">
-        <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {userName}
-        </div>
-        <div style="font-size:11px;color:var(--mep-fg-3);">{data.restaurantName}</div>
-      </div>
-      <form method="POST" action="/logout" style="flex-shrink:0;">
-        <button
-          type="submit"
-          title={$t('action.logout')}
-          style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;padding:2px;border-radius:4px;"
+{#if !sidebarCollapsed}
+      <div style="display:flex;flex-direction:column;gap:1px;">
+        <a
+          href="/settings"
+          onclick={() => mobileOpen = false}
+          style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
         >
-          <LogOut size={13} />
-        </button>
-      </form>
-    </div>
+          <Settings size={15} />
+          <span>{$t('nav.settings')}</span>
+        </a>
+      </div>
+
+      <div style="display:flex;gap:10px;padding:8px 10px 0;flex-wrap:wrap;">
+        <a href="/privacy" style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.privacy')}</a>
+        <a href="/terms"   style="font-size:11px;color:var(--mep-fg-3);text-decoration:none;white-space:nowrap;">{$t('footer.terms')}</a>
+      </div>
+
+      <div style="margin-top:10px;padding:8px;display:flex;align-items:center;gap:10px;border-radius:8px;">
+        <div style="width:28px;height:28px;border-radius:14px;flex-shrink:0;background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;">
+          {userInitials}
+        </div>
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+            {userName}
+          </div>
+          <div style="font-size:11px;color:var(--mep-fg-3);">{data.restaurantName}</div>
+        </div>
+        <form method="POST" action="/logout" style="flex-shrink:0;">
+          <button
+            type="submit"
+            title={$t('action.switchAccount')}
+            style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;padding:2px;border-radius:4px;"
+          >
+            <ArrowLeftRight size={13} />
+          </button>
+        </form>
+        <form method="POST" action="/logout" style="flex-shrink:0;">
+          <button
+            type="submit"
+            title={$t('action.logout')}
+            style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;padding:2px;border-radius:4px;"
+          >
+            <LogOut size={13} />
+          </button>
+        </form>
+      </div>
+    {/if}
   </aside>
+  {:else}
+    <div style="width:232px;flex-shrink:0;display:flex;flex-direction:column;"></div>
+  {/if}
 
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
@@ -338,6 +378,15 @@
         aria-label={$t('a11y.openMenu')}
       >
         {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
+      </button>
+
+      <button
+        class="btn btn-ghost hidden md:flex"
+        style="width:34px;height:34px;padding:0;justify-content:center;"
+        onclick={toggleSidebar}
+        title={sidebarCollapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
+      >
+        {#if sidebarCollapsed}<ChevronRight size={16} />{:else}<ChevronLeft size={16} />{/if}
       </button>
 
       <h1 style="margin:0;flex:1;min-width:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
