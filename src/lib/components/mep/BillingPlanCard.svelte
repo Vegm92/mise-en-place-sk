@@ -51,15 +51,23 @@
 
 	<div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{$t(copy.tagline)}</div>
 
-	<form method="POST" action={switchable ? '?/portal' : '?/checkout'}>
-		<input type="hidden" name="tier" value={tier.tier} />
-		<input type="hidden" name="idempotency_key" value={idempotencyKey} />
-		<button type="submit" class={isRecommended ? 'btn btn-primary' : 'btn btn-secondary'}
-			disabled={tier.isCurrent || !available}
-			style="height:36px;justify-content:center;width:100%;opacity:{(tier.isCurrent || !available) ? 0.5 : 1};">
-			{tier.isCurrent ? $t('billing.currentPlan') : $ti(switchable ? 'billing.switchTo' : 'billing.choose', { name: tier.name })}
-		</button>
-	</form>
+	{#if tier.isCurrent}
+		<div style="display:flex;align-items:center;justify-content:center;gap:6px;height:36px;width:100%;
+			font-size:13px;font-weight:500;color:var(--mep-acc);
+			border:1px solid var(--mep-acc-ring);border-radius:var(--mep-r-input);">
+			<Check size={14} /> {$t('billing.currentPlan')}
+		</div>
+	{:else}
+		<form method="POST" action={switchable ? '?/portal' : '?/checkout'}>
+			<input type="hidden" name="tier" value={tier.tier} />
+			<input type="hidden" name="idempotency_key" value={idempotencyKey} />
+			<button type="submit" class={isRecommended ? 'btn btn-primary' : 'btn btn-secondary'}
+				disabled={!available}
+				style="height:36px;justify-content:center;width:100%;opacity:{available ? 1 : 0.5};">
+				{$ti(switchable ? 'billing.switchTo' : 'billing.choose', { name: tier.name })}
+			</button>
+		</form>
+	{/if}
 
 	<div style="height:1px;background:var(--mep-divider);"></div>
 

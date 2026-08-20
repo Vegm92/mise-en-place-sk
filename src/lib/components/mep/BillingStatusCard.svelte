@@ -59,7 +59,7 @@
 				<span style="font-size:13px;color:var(--mep-fg-3);">
 					{cancelAtPeriodEnd
 						? $ti('billing.cancelsOn', { date: fmt(periodEnd) })
-						: $ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null} · <span class="num">{price} €</span>{$t('billing.perMonthShort')}{/if}
+						: $ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{$t('billing.perMonthShort')}{/if}
 				</span>
 				{#if cancelAtPeriodEnd}
 					<span style="font-size:13px;color:var(--mep-fg-3);">{$ti('billing.cancelsOnNote', { date: fmt(periodEnd) })}</span>
