@@ -2,8 +2,9 @@
 	import { locale, t, ti } from '$lib/i18n';
 	import Wallet from '@lucide/svelte/icons/wallet';
 
-	const { status, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd, hasSubscription, stripeConfigured }: {
+	const { status, tierName, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd, hasSubscription, stripeConfigured }: {
 		status: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
+		tierName: string;
 		trialEndsAt: string | null;
 		currentPeriodEnd: string | null;
 		cancelAtPeriodEnd: boolean;
@@ -36,6 +37,11 @@
 			{:else}
 				<span style="background:var(--mep-fg-soft);color:var(--mep-fg-3);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.canceled')}</span>
 			{/if}
+			<span style="display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;
+				background:var(--mep-hover);border:1px solid var(--mep-border);font-size:12px;">
+				<span style="color:var(--mep-fg-3);">{$t('billing.currentPlan')}</span>
+				<span style="color:var(--mep-fg);font-weight:600;">{tierName}</span>
+			</span>
 		</div>
 		{#if hasSubscription && stripeConfigured}
 			<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
