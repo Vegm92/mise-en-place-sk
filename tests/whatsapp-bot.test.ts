@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock, sendMock, downloadMock, rateLimitMock, redeemMock, selectQueue, insertQueue } = vi.hoisted(() => {
+const { dbMock, sendMock, downloadMock, rateLimitMock, redeemMock, accessMock, selectQueue, insertQueue } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
 	const insertQueue: unknown[][] = [];
 
@@ -50,6 +50,11 @@ const { dbMock, sendMock, downloadMock, rateLimitMock, redeemMock, selectQueue, 
 		// across tests, which would make ordering matter.
 		rateLimitMock: vi.fn().mockResolvedValue(true),
 		redeemMock: vi.fn(),
+		// Billing access defaults to "live" so the pre-existing media tests keep
+		// exercising the upload path rather than the new refusal branch.
+		accessMock: vi.fn().mockResolvedValue({
+			allowed: true, status: 'active', trialEndsAt: null, trialExpired: false,
+		}),
 		selectQueue,
 		insertQueue,
 	};
@@ -62,6 +67,7 @@ vi.mock('../src/lib/server/whatsapp', () => ({
 }));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: vi.fn() }) }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('../src/lib/server/billing', () => ({ getAccessState: accessMock }));
 // Keep the real normalizeCode: whether a message *looks* like a code is the
 // routing decision under test here, so stubbing it would test nothing.
 vi.mock('../src/lib/server/whatsapp-pairing', async (importActual) => ({
@@ -98,6 +104,41 @@ beforeEach(() => {
 	selectQueue.length = 0;
 	insertQueue.length = 0;
 	rateLimitMock.mockResolvedValue(true);
+	accessMock.mockResolvedValue({
+		allowed: true, status: 'active', trialEndsAt: null, trialExpired: false,
+	});
+});
+
+describe('billing gate on ingestion', () => {
+	it('refuses media and downloads nothing when the trial has expired', async () => {
+		queueSelects(CONTACT);
+		accessMock.mockResolvedValue({
+			allowed: false, status: 'trialing', trialEndsAt: new Date(0), trialExpired: true,
+		});
+
+		await handleWhatsAppMessage({ from: '+34600', id: 'g1', type: 'image', image: { id: 'media-1' } });
+
+		expect(downloadMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/prueba gratuita/i);
+	});
+
+	it('refuses a document when the subscription is inactive', async () => {
+		queueSelects(CONTACT);
+		accessMock.mockResolvedValue({
+			allowed: false, status: 'canceled', trialEndsAt: null, trialExpired: false,
+		});
+
+		await handleWhatsAppMessage({ from: '+34600', id: 'g2', type: 'document', document: { id: 'media-2' } });
+
+		expect(downloadMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/suscripción no está activa/i);
+	});
+
+	it('does not consult billing for a plain text message', async () => {
+		queueSelects(CONTACT);
+		await handleWhatsAppMessage({ from: '+34600', id: 'g3', type: 'text', text: { body: 'hola' } });
+		expect(accessMock).not.toHaveBeenCalled();
+	});
 });
 
 describe('message-id dedup (issue #245)', () => {
