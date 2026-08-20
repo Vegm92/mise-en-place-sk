@@ -192,12 +192,11 @@ const entitlementHandle: Handle = async ({ event, resolve }) => {
 	if (!policy || policy === 'open') return resolve(event);
 
 	const entitlements = await event.locals.entitlements();
-	if (!entitlements) return resolve(event);
 
 	const decision = resolveEntitlement({
 		policy,
-		features: entitlements.features,
-		access:   entitlements.access,
+		features: entitlements?.features ?? null,
+		access:   entitlements?.access   ?? null,
 	});
 
 	const refusal = refusalFor(decision, event.url.pathname.startsWith('/api/'));
