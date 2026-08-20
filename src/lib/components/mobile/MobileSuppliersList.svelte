@@ -13,20 +13,25 @@
     delta_pct: number | null;
     month_invoice_count: number | null;
     price_trend?: number[];
+    is_favorite?: boolean;
+  }
+
+  interface PeriodStats {
+    total_spend: number;
+    total_invoices: number;
   }
 
   let {
     suppliers,
     categories = [],
-    totalSpend = 0,
-    totalMonthInvoices = 0,
+    periodStats = { total_spend: 0, total_invoices: 0 },
     unassigned = 0,
     firstUnassigned = '',
   }: {
     suppliers: Supplier[];
     categories?: string[];
-    totalSpend?: number;
-    totalMonthInvoices?: number;
+    period?: 'day' | 'month' | 'year' | 'all';
+    periodStats?: PeriodStats;
     unassigned?: number;
     firstUnassigned?: string;
   } = $props();
@@ -100,12 +105,12 @@
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
-      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend)}</div>
+      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(periodStats.total_spend)}</div>
       <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
-      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{totalMonthInvoices}</div>
+      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{periodStats.total_invoices}</div>
       <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.invoicesList')}</div>
     </div>
   </div>
@@ -133,8 +138,17 @@
             {initials(s.name)}
           </div>
           <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-              {s.name}
+            <div style="display:flex;align-items:center;gap:5px;">
+              <span style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {s.name}
+              </span>
+              {#if s.is_favorite}
+                <span style="
+                  flex-shrink:0;font-size:9px;font-weight:700;
+                  background:var(--mep-pos-soft,var(--mep-acc-soft));color:var(--mep-pos,var(--mep-acc));
+                  padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
+                ">{$t('sup.favoriteBadge')}</span>
+              {/if}
             </div>
             <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
               {$tcat(s.category)}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${$t('sup.invoicesSuffix')}` : ''}

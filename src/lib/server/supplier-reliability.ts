@@ -29,7 +29,7 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 		LIMIT 5
 	`);
 
-	if (!topItems.length) return { score: 20, cv: null };
+	if (!topItems.length) return { score: 30, cv: null };
 
 	const descriptions = topItems.map((t) => t.description);
 
@@ -63,10 +63,10 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 		itemCvs.push((Math.sqrt(variance) / mean) * 100);
 	}
 
-	if (itemCvs.length === 0) return { score: 20, cv: null };
+	if (itemCvs.length === 0) return { score: 30, cv: null };
 	const cv = itemCvs.reduce((a, b) => a + b, 0) / itemCvs.length;
 
-	return { score: cv < 5 ? 33 : cv <= 15 ? 20 : 0, cv };
+	return { score: cv < 5 ? 50 : cv <= 15 ? 30 : 0, cv };
 }
 
 async function computeFrequencyScore(supplierId: number, restaurantId: string): Promise<number> {
@@ -82,7 +82,7 @@ async function computeFrequencyScore(supplierId: number, restaurantId: string): 
 		))
 		.orderBy(invoices.invoiceDate);
 
-	if (invoiceDates.length < 2) return 15;
+	if (invoiceDates.length < 2) return 23;
 
 	const dateObjs = invoiceDates
 		.filter(r => r.invoice_date)
@@ -100,37 +100,20 @@ async function computeFrequencyScore(supplierId: number, restaurantId: string): 
 	const daysSinceLast = (Date.now() - lastDate.getTime()) / 86400000;
 	const missedCount = gaps.filter(g => g > threshold * 1.5).length + (daysSinceLast > threshold * 1.5 ? 1 : 0);
 
-	return missedCount === 0 ? 33 : missedCount <= 2 ? 15 : 0;
-}
-
-async function computeTimelinessScore(supplierId: number, restaurantId: string): Promise<number> {
-	const today = new Date().toISOString().slice(0, 10);
-
-	const row = await db.execute<{ paid: number; overdue: number; total: number }>(sql`
-		SELECT
-			COUNT(CASE WHEN status = 'paid' AND due_date IS NOT NULL THEN 1 END) AS paid,
-			COUNT(CASE WHEN status = 'pending' AND due_date IS NOT NULL AND due_date < ${today} THEN 1 END) AS overdue,
-			COUNT(CASE WHEN due_date IS NOT NULL THEN 1 END) AS total
-		FROM invoices
-		WHERE supplier_id = ${supplierId}
-		  AND restaurant_id = ${restaurantId}
-		  AND deleted_at IS NULL
-	`);
-
-	const r = row[0];
-	if (!r || Number(r.total) === 0) return 17;
-	const onTimePct = (Number(r.paid) / Number(r.total)) * 100;
-	return onTimePct >= 90 ? 34 : onTimePct >= 70 ? 20 : 0;
+	return missedCount === 0 ? 50 : missedCount <= 2 ? 23 : 0;
 }
 
 export async function computeAndCacheReliabilityScore(supplierId: number, restaurantId: string): Promise<ReliabilityResult> {
-	const [{ score: priceStabilityScore, cv }, frequencyScore, timelinessScore] = await Promise.all([
+	const [{ score: priceStabilityScore, cv }, frequencyScore] = await Promise.all([
 		computePriceStability(supplierId, restaurantId),
 		computeFrequencyScore(supplierId, restaurantId),
-		computeTimelinessScore(supplierId, restaurantId),
 	]);
 
-	const score = priceStabilityScore + frequencyScore + timelinessScore;
+	// La fiabilidad ya no incluye puntualidad de pago (dependía de fechas de
+	// vencimiento que dejamos de pedir) — se mantiene la columna en BD por
+	// compatibilidad, pero siempre en 0 y fuera de la suma de `score`.
+	const timelinessScore = 0;
+	const score = priceStabilityScore + frequencyScore;
 	const computedAt = new Date();
 
 	await db.insert(supplierMetrics)

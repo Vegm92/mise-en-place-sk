@@ -3,11 +3,13 @@
   import { t, tcat } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import Plus from '@lucide/svelte/icons/plus';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
   const { products, suggestions, categories, colors } = $derived(data);
+  const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
 
   let tab = $state<'catalog' | 'suggestions'>('catalog');
 
@@ -28,7 +30,29 @@
   }
 </script>
 
-<div class="flex flex-col gap-4 p-6">
+<div class="flex flex-col gap-4 p-6" data-coach="products-main">
+
+  <div class="grid grid-cols-3 gap-3 max-[700px]:grid-cols-1">
+    <KpiCard
+      label={$t('prod.title')}
+      value={products.length}
+      sub={$t('inv.kpi.totalSub')}
+    />
+    <KpiCard
+      label={$t('prod.kpi.needsConversion')}
+      value={needsConversionCount}
+      variant={needsConversionCount > 0 ? 'warn' : 'default'}
+      sub={$t('nav.products')}
+    />
+    <button type="button" onclick={() => (tab = 'suggestions')} style="text-align:left;border:none;background:none;padding:0;cursor:pointer;">
+      <KpiCard
+        label={$t('prod.tab.suggestions')}
+        value={suggestions.length}
+        variant={suggestions.length > 0 ? 'warn' : 'default'}
+        sub={$t('nav.products')}
+      />
+    </button>
+  </div>
 
   <div class="flex items-center gap-2">
     <button type="button" class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-ghost'}"

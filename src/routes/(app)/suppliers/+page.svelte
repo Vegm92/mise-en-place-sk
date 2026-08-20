@@ -5,8 +5,6 @@
 
   let { data }: { data: PageData } = $props();
 
-  const totalSpend         = $derived(data.suppliers.reduce((s, x) => s + (x.month_spend ?? 0), 0));
-  const totalMonthInvoices = $derived(data.suppliers.reduce((s, x) => s + (x.month_invoice_count ?? 0), 0));
   const unassigned         = $derived(data.suppliers.filter(s => !s.category || s.category === 'Other').length);
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
 </script>
@@ -15,8 +13,8 @@
   <MobileSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}
-    totalSpend={totalSpend}
-    totalMonthInvoices={totalMonthInvoices}
+    period={data.period}
+    periodStats={data.periodStats}
     unassigned={unassigned}
     firstUnassigned={firstUnassigned}
   />
@@ -26,8 +24,8 @@
   <DesktopSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}
-    totalSpend={totalSpend}
-    totalMonthInvoices={totalMonthInvoices}
+    period={data.period}
+    periodStats={data.periodStats}
     unassigned={unassigned}
     firstUnassigned={firstUnassigned}
   />

@@ -2,40 +2,60 @@ import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, gte, lt, isNull } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
+import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('suppliers', async () => {
-		const today   = new Date().toISOString().slice(0, 10);
-		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+		const periodParam = url.searchParams.get('period') ?? '';
+		const period: PeriodKey = isPeriodKey(periodParam) ? periodParam : 'month';
+		const { from: periodFrom, prevFrom, prevTo } = periodRange(period);
 
 		type PriceTrendRow = { supplier_id: number; month: string; avg_price: number };
+		type PeriodStatsRow = { supplier_id: number; spend: number; invoice_count: number };
 
-		const [rows, metricsRows, priceTrendRows] = await Promise.all([
+		const [rows, periodRows, prevPeriodRows, metricsRows, priceTrendRows] = await Promise.all([
 			db.select({
 				id:               suppliers.id,
 				name:             suppliers.name,
 				cif:              suppliers.cif,
 				createdAt:        suppliers.createdAt,
 				category:         sql<string>`COALESCE(${suppliers.category}, 'Other')`.as('category'),
-				month_spend:      sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`.as('month_spend'),
-				open_count:       sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`.as('open_count'),
+				total_spend:      sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`.as('total_spend'),
 				invoice_count:    sql<number>`COUNT(${invoices.id})`.as('invoice_count'),
 				last_invoice_date:   sql<string | null>`MAX(${invoices.invoiceDate})`.as('last_invoice_date'),
-				has_overdue:         sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} < ${today} THEN 1 ELSE 0 END)`.as('has_overdue'),
-				has_due_soon:        sql<number>`MAX(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} IS NOT NULL AND ${invoices.dueDate} BETWEEN ${today} AND ${weekEnd} THEN 1 ELSE 0 END)`.as('has_due_soon'),
-				month_invoice_count: sql<number>`COALESCE(COUNT(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN 1 END),0)`.as('month_invoice_count'),
-				last_month_spend:    sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW()-INTERVAL'1 month','YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`.as('last_month_spend'),
 			})
 				.from(suppliers)
 				.leftJoin(invoices, and(eq(invoices.supplierId, suppliers.id), tdb.scope(invoices.restaurantId)))
 				.where(tdb.scope(suppliers.restaurantId))
 				.groupBy(suppliers.id)
-				.orderBy(sql`month_spend DESC`, suppliers.name),
+				.orderBy(sql`total_spend DESC`, suppliers.name),
+
+			db.select({
+				supplier_id:   invoices.supplierId,
+				spend:         sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`,
+				invoice_count: sql<number>`COUNT(*)`,
+			})
+				.from(invoices)
+				.where(tdb.scope(invoices.restaurantId, periodFrom
+					? and(isNull(invoices.deletedAt), gte(invoices.createdAt, periodFrom))
+					: isNull(invoices.deletedAt)))
+				.groupBy(invoices.supplierId),
+
+			prevFrom && prevTo
+				? db.select({
+					supplier_id:   invoices.supplierId,
+					spend:         sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`,
+					invoice_count: sql<number>`COUNT(*)`,
+				})
+					.from(invoices)
+					.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.createdAt, prevFrom), lt(invoices.createdAt, prevTo))))
+					.groupBy(invoices.supplierId)
+				: Promise.resolve([] as PeriodStatsRow[]),
 
 			db.select().from(supplierMetrics)
 				.where(tdb.scope(supplierMetrics.restaurantId)),
@@ -58,6 +78,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		const metricsMap = new Map(metricsRows.map((m) => [m.supplierId, m]));
 
+		const periodMap = new Map(periodRows.map(r => [r.supplier_id, r]));
+		const prevPeriodMap = new Map(prevPeriodRows.map(r => [r.supplier_id, r]));
+
 		const priceTrendMap = new Map<number, number[]>();
 		for (const row of priceTrendRows) {
 			const sid = Number(row.supplier_id);
@@ -78,11 +101,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		await Promise.all(staleRefreshes);
 
-		const supplierList = rows.map((r) => {
-			const badge: 'overdue' | 'due_soon' | 'paid_up' = Number(r.has_overdue)
-				? 'overdue'
-				: Number(r.has_due_soon) ? 'due_soon' : 'paid_up';
+		const favoriteIds = new Set(
+			rows
+				.filter(r => Number(r.invoice_count) >= 2)
+				.sort((a, b) => Number(b.total_spend) - Number(a.total_spend))
+				.slice(0, Math.max(1, Math.ceil(rows.length * 0.2)))
+				.filter(r => Number(r.total_spend) > 0)
+				.map(r => r.id)
+		);
 
+		const supplierList = rows.map((r) => {
 			const cat = r.category ?? 'Other';
 			const metrics = metricsMap.get(r.id);
 			const invoiceCount = Number(r.invoice_count);
@@ -93,10 +121,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				stabilityLevel = cv < 5 ? 'stable' : cv <= 15 ? 'moderate' : 'volatile';
 			}
 
-			const lastMonthSpend = Number(r.last_month_spend);
-			const deltaPct = lastMonthSpend > 0
-				? ((Number(r.month_spend) - lastMonthSpend) / lastMonthSpend) * 100
-				: null;
+			const periodSpend = Number(periodMap.get(r.id)?.spend ?? 0);
+			const periodInvoiceCount = Number(periodMap.get(r.id)?.invoice_count ?? 0);
+			const prevPeriodSpend = prevPeriodMap.get(r.id)?.spend != null ? Number(prevPeriodMap.get(r.id)!.spend) : null;
+			const supplierDeltaPct = prevPeriodSpend !== null ? deltaPct(periodSpend, prevPeriodSpend) : null;
 
 			const rawTrend = priceTrendMap.get(r.id) ?? [];
 			const price_trend = rawTrend.length >= 3 ? rawTrend : [];
@@ -104,12 +132,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			return {
 				...r,
 				invoice_count: invoiceCount,
-				open_count: Number(r.open_count),
-				month_spend: Number(r.month_spend),
-				month_invoice_count: Number(r.month_invoice_count),
-				last_month_spend: lastMonthSpend,
-				delta_pct: deltaPct,
-				badge,
+				total_spend: Number(r.total_spend),
+				month_spend: periodSpend,
+				month_invoice_count: periodInvoiceCount,
+				delta_pct: supplierDeltaPct,
+				is_favorite: favoriteIds.has(r.id),
 				color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
 				reliability_score: metrics && invoiceCount >= 3 ? metrics.score : null,
 				stability_level: stabilityLevel,
@@ -117,11 +144,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 			};
 		});
 
+		const hasPrevPeriod = Boolean(prevFrom && prevTo);
+		const periodTotalSpend = periodRows.reduce((s, r) => s + Number(r.spend), 0);
+		const periodTotalInvoices = periodRows.reduce((s, r) => s + Number(r.invoice_count), 0);
+		const prevPeriodTotalSpend = hasPrevPeriod
+			? prevPeriodRows.reduce((s, r) => s + Number(r.spend), 0)
+			: null;
+		const prevPeriodTotalInvoices = hasPrevPeriod
+			? prevPeriodRows.reduce((s, r) => s + Number(r.invoice_count), 0)
+			: null;
+
 		return {
 			title: 'nav.suppliers',
 			subtitle: 'All active suppliers',
 			suppliers: supplierList,
 			categories: VALID_CATEGORIES,
+			period,
+			periodStats: {
+				total_spend: periodTotalSpend,
+				total_invoices: periodTotalInvoices,
+				spend_delta_pct: prevPeriodTotalSpend !== null ? deltaPct(periodTotalSpend, prevPeriodTotalSpend) : null,
+				invoices_delta_pct: prevPeriodTotalInvoices !== null ? deltaPct(periodTotalInvoices, prevPeriodTotalInvoices) : null,
+			},
 		};
 	});
 };

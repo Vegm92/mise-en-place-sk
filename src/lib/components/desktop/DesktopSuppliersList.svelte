@@ -5,6 +5,7 @@
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Plus from '@lucide/svelte/icons/plus';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
+  import KpiCard from '$lib/components/mep/KpiCard.svelte';
 
   interface Supplier {
     id: number;
@@ -19,20 +20,35 @@
     createdAt: Date | null;
     month_invoice_count: number | null;
     price_trend?: number[];
+    is_favorite?: boolean;
   }
+
+  interface PeriodStats {
+    total_spend: number;
+    total_invoices: number;
+    spend_delta_pct: number | null;
+    invoices_delta_pct: number | null;
+  }
+
+  const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
+    ['day',   'inv.period.day'],
+    ['month', 'inv.period.month'],
+    ['year',  'inv.period.year'],
+    ['all',   'inv.period.all'],
+  ];
 
   let {
     suppliers,
     categories = [],
-    totalSpend = 0,
-    totalMonthInvoices = 0,
+    period = 'month',
+    periodStats = { total_spend: 0, total_invoices: 0, spend_delta_pct: null, invoices_delta_pct: null },
     unassigned = 0,
     firstUnassigned = '',
   }: {
     suppliers: Supplier[];
     categories?: string[];
-    totalSpend?: number;
-    totalMonthInvoices?: number;
+    period?: 'day' | 'month' | 'year' | 'all';
+    periodStats?: PeriodStats;
     unassigned?: number;
     firstUnassigned?: string;
   } = $props();
@@ -60,6 +76,51 @@
 
 <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="flex:1;"></div>
+    <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
+      {#each PERIODS as [val, labelKey]}
+        <a href="?period={val}" style="
+          background:{period === val ? 'var(--mep-surface)' : 'transparent'};
+          color:{period === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
+          font-size:12px;font-weight:{period === val ? 500 : 400};
+          padding:5px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;
+          box-shadow:{period === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
+          font-family:inherit;
+        ">{$t(labelKey)}</a>
+      {/each}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0" data-coach="suppliers-main">
+    <KpiCard
+      label={$t('dsup.activeSuppliers')}
+      value={suppliers.length}
+      sub={$t('dsup.inTotal')}
+    />
+    <KpiCard
+      label={$t('spend.totalSpend')}
+      value={fmtEur(periodStats.total_spend)}
+      sub={period === 'all' ? $t('inv.kpi.amountSub') : undefined}
+      delta={periodStats.spend_delta_pct !== null ? Math.round(periodStats.spend_delta_pct * 10) / 10 : undefined}
+      deltaCtx={periodStats.spend_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+      invert
+    />
+    <KpiCard
+      label={$t('nav.invoices')}
+      value={periodStats.total_invoices}
+      sub={period === 'all' ? $t('inv.kpi.totalSub') : undefined}
+      delta={periodStats.invoices_delta_pct !== null ? Math.round(periodStats.invoices_delta_pct * 10) / 10 : undefined}
+      deltaCtx={periodStats.invoices_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+    />
+    <KpiCard
+      label={$t('dsup.unassigned')}
+      value={unassigned}
+      variant={unassigned > 0 ? 'warn' : 'default'}
+      sub={unassigned === 0 ? $t('dsup.allAssigned') : unassigned === 1 ? firstUnassigned : $ti('dsup.nSuppliers', { n: unassigned })}
+    />
+  </div>
+
   <div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
     <div style="position:relative;flex:1;min-width:180px;">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);">
@@ -79,43 +140,11 @@
       </select>
       <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
     </div>
-    <button class="btn btn-secondary max-[1050px]:hidden"
-      style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;white-space:nowrap;flex-shrink:0;" disabled>
-      {$t('dsup.activityFilter')} <span style="font-size:10px;margin-left:2px;">▾</span>
-    </button>
     <div style="flex:1;"></div>
     <button class="btn btn-secondary"
       style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
       <Plus size={13} /> {$t('dsup.addSupplier')}
     </button>
-  </div>
-
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0" data-coach="suppliers-main">
-    <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">{$t('dsup.activeSuppliers')}</div>
-      <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{suppliers.length}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('dsup.inTotal')}</div>
-    </div>
-    <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">{$t('spend.totalSpend')}</div>
-      <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{fmtEur(totalSpend)}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('dash.category.sub')}</div>
-    </div>
-    <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">{$t('nav.invoices')}</div>
-      <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{totalMonthInvoices}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('dash.category.sub')}</div>
-    </div>
-    <div class="card" style="padding:14px;">
-      <div class="label" style="margin-bottom:6px;">{$t('dsup.unassigned')}</div>
-      <div class="num" style="font-size:22px;font-weight:600;color:{unassigned > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">{unassigned}</div>
-      <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-        {#if unassigned === 0}{$t('dsup.allAssigned')}
-        {:else if unassigned === 1}{firstUnassigned}
-        {:else}{$ti('dsup.nSuppliers', { n: unassigned })}
-        {/if}
-      </div>
-    </div>
   </div>
 
   <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
@@ -165,6 +194,13 @@
                         background:var(--mep-acc-soft);color:var(--mep-acc);
                         padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
                       ">{$t('dsup.newBadge')}</span>
+                    {/if}
+                    {#if s.is_favorite}
+                      <span style="
+                        flex-shrink:0;font-size:9px;font-weight:700;
+                        background:var(--mep-pos-soft,var(--mep-acc-soft));color:var(--mep-pos,var(--mep-acc));
+                        padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
+                      ">{$t('sup.favoriteBadge')}</span>
                     {/if}
                   </div>
                 </td>

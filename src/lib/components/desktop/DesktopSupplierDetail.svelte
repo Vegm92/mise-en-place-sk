@@ -84,8 +84,6 @@
 
   const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
 
-  const today = new Date().toISOString().slice(0, 10);
-
   const totalSpend = $derived(invoices.reduce((a, i) => a + (i.totalAmount ?? 0), 0));
   const paidCount  = $derived(invoices.filter(i => i.status === 'paid').length);
   const openCount  = $derived(invoices.filter(i => i.status === 'pending').length);
@@ -149,8 +147,6 @@
     return '#E05555';
   }
   function invoiceStatus(inv: Invoice): string {
-    if (inv.status === 'paid') return 'paid';
-    if (inv.dueDate && inv.dueDate < today) return 'overdue';
     return inv.status ?? 'pending';
   }
 </script>
@@ -203,7 +199,7 @@
               onclick={() => { editing = true; confirmDelete = false; }}>
               <Pencil size={13} /> {$t('action.edit')}
             </button>
-            <button class="btn" style="height:32px;font-size:12.5px;color:#E05555;border-color:#E05555;display:inline-flex;align-items:center;gap:6px;"
+            <button class="btn" style="height:32px;font-size:12.5px;color:var(--mep-neg);border-color:var(--mep-neg);display:inline-flex;align-items:center;gap:6px;"
               onclick={() => { confirmDelete = !confirmDelete; }}>
               <Trash2 size={13} /> {$t('action.delete')}
             </button>
@@ -212,14 +208,14 @@
       </div>
 
       {#if confirmDelete}
-        <div class="card" style="padding:14px;border-left:3px solid #E05555;margin-bottom:14px;">
-          <p class="body-strong" style="color:#E05555;margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
+        <div class="card bg-neg-soft border-neg" style="padding:14px;margin-bottom:14px;">
+          <p class="body-strong text-neg" style="margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
           <p class="body" style="color:var(--mep-fg-3);font-size:12px;margin-bottom:12px;">
             {$tp('sup.confirmDelete.body', invoices.length)}
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
-              <button type="submit" class="btn" style="background:#E05555;color:#fff;border-color:#E05555;height:30px;font-size:12px;">
+              <button type="submit" class="btn" style="background:var(--mep-neg);color:#fff;border-color:var(--mep-neg);height:30px;font-size:12px;">
                 {$t('sup.confirmDelete.yes')}
               </button>
             </form>
@@ -405,11 +401,11 @@
                   </div>
                   <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{m.score >= 70 ? $t('sup.score.very') : m.score >= 40 ? $t('sup.score.ok') : $t('sup.score.poor')}</span>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.prices')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.priceStabilityScore * 3)};">{m.priceStabilityScore}/33</span>
+                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.priceStabilityScore * 2)};">{m.priceStabilityScore}/50</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">
                       {#if m.priceStabilityCv !== null}CV: {m.priceStabilityCv.toFixed(1)}%{:else}{$t('sup.score.noData')}{/if}
@@ -418,16 +414,9 @@
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.regularity')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.frequencyScore * 3)};">{m.frequencyScore}/33</span>
+                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.frequencyScore * 2)};">{m.frequencyScore}/50</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.historical')}</p>
-                  </div>
-                  <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                      <span class="label">{$t('sup.score.punctuality')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.timelinessScore * 2.9)};">{m.timelinessScore}/34</span>
-                    </div>
-                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.timeliness')}</p>
                   </div>
                 </div>
               </div>
@@ -549,7 +538,6 @@
                 <tr>
                   <th style="width:150px;">{$t('sup.tbl.number')}</th>
                   <th style="width:110px;">{$t('tbl.date')}</th>
-                  <th style="width:110px;">{$t('tbl.due')}</th>
                   <th class="num" style="width:130px;">{$t('sup.tbl.amount')}</th>
                   <th style="width:100px;">{$t('tbl.status')}</th>
                 </tr>
@@ -559,7 +547,6 @@
                   <tr class="row" onclick={() => location.replace(`/invoice/${inv.id}`)} style="cursor:pointer;">
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{inv.invoiceNumber ?? 'â€”'}</td>
                     <td style="font-size:12.5px;">{fmtDate(inv.invoiceDate, $locale)}</td>
-                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDate(inv.dueDate, $locale)}</td>
                     <td class="num" style="font-weight:500;">{fmtEur(inv.totalAmount ?? 0)}</td>
                     <td><StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:2px 7px;" /></td>
                   </tr>

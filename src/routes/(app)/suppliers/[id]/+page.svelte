@@ -59,9 +59,6 @@
     return { slices, total };
   })());
 
-  const today   = new Date().toISOString().slice(0, 10);
-  const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-
   function scoreColor(score: number) {
     if (score >= 70) return '#3A8C5C';
     if (score >= 40) return '#C8843A';
@@ -75,8 +72,6 @@
   }
 
   function invoiceStatus(inv: typeof data.invoices[0]): string {
-    if (inv.status === 'paid') return 'paid';
-    if (inv.dueDate && inv.dueDate < today) return 'overdue';
     return inv.status ?? 'pending';
   }
 
@@ -284,14 +279,13 @@
             </div>
             <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
             {#each [
-              { label: $t('sup.score.prices'), score: m.priceStabilityScore, max: 33 },
-              { label: $t('sup.score.regularity'), score: m.frequencyScore, max: 33 },
-              { label: $t('sup.score.punctuality'), score: m.timelinessScore, max: 34 },
+              { label: $t('sup.score.prices'), score: m.priceStabilityScore, max: 50 },
+              { label: $t('sup.score.regularity'), score: m.frequencyScore, max: 50 },
             ] as kpi}
               <div style="padding:8px;background:var(--mep-surface-2);border-radius:8px;text-align:center;">
-                <div style="font-size:14px;font-weight:700;color:{scoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
+                <div style="font-size:14px;font-weight:700;color:{scoreColor(kpi.score * 2)};" class="num">{kpi.score}/{kpi.max}</div>
                 <div class="label" style="font-size:10px;margin-top:2px;">{kpi.label}</div>
               </div>
             {/each}
@@ -315,7 +309,7 @@
           <a href="/invoice/{inv.id}" class="card" style="padding:12px 14px;display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
             <div style="flex:1;min-width:0;">
               <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
-              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · ${$t('sup.dueShort')} ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
+              <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}</div>
             </div>
             <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
             <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
