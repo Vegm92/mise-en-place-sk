@@ -100,13 +100,13 @@
         <span class="body-strong" style="font-size:14px;">{$t('edit.lineItems')}</span>
       </div>
       <div class="p-5">
-        <div class="grid gap-2 mb-2 items-end" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;">
-          {#each [$t('tbl.desc'), $t('tbl.qty'), $t('tbl.unit'), $t('tbl.unitPrice'), $t('tbl.total'), ''] as h}
+        <div class="grid gap-2 mb-2 items-end" style="grid-template-columns:2fr 1fr 1fr 1fr 0.7fr 1fr auto;">
+          {#each [$t('tbl.desc'), $t('tbl.qty'), $t('tbl.unit'), $t('tbl.unitPrice'), $t('tbl.taxRate'), $t('tbl.total'), ''] as h}
             <span class="label" style="font-size:10.5px;">{h}</span>
           {/each}
         </div>
         {#each rowsWithTotals as row, idx (idx)}
-          <div class="grid gap-2 items-center mb-2" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;">
+          <div class="grid gap-2 items-center mb-2" style="grid-template-columns:2fr 1fr 1fr 1fr 0.7fr 1fr auto;">
             <input type="text" name="line_descriptions" value={row.description ?? ''}
               oninput={(e) => { items = updateRow(items, idx, { description: (e.target as HTMLInputElement).value }); }}
               class="input" style="height:32px;font-size:12.5px;" />
@@ -119,10 +119,12 @@
             <input type="text" name="line_unit_prices" value={row.unit_price ?? ''}
               oninput={(e) => { items = updateRow(items, idx, { unit_price: (e.target as HTMLInputElement).value }); }}
               class="input" style="height:32px;font-size:12.5px;" />
+            <input type="text" name="line_tax_rates" value={row.tax_rate ?? ''} placeholder="%"
+              oninput={(e) => { items = updateRow(items, idx, { tax_rate: (e.target as HTMLInputElement).value }); }}
+              class="input" style="height:32px;font-size:12.5px;" />
             <input type="text" value={row.total_price != null ? row.total_price.toFixed(2) : ''} readonly tabindex="-1"
               class="input bg-surface-2 cursor-default" style="height:32px;font-size:12.5px;" />
             <input type="hidden" name="line_total_prices" value={row.total_price != null ? row.total_price.toFixed(2) : ''} />
-            <input type="hidden" name="line_tax_rates" value={row.tax_rate ?? ''} />
             <button type="button" class="bg-transparent border-none cursor-pointer text-neg text-[18px] px-1 pb-1 leading-none"
               onclick={() => { items = removeRow(items, idx); }}>×</button>
           </div>

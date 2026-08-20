@@ -18,6 +18,10 @@
     const d = new Date(s);
     return isNaN(d.getTime()) ? s : d.toLocaleDateString($locale, { day: '2-digit', month: 'short', year: 'numeric' });
   }
+  function fmtTaxRate(rate: number | null | undefined) {
+    if (rate == null) return '—';
+    return rate + '%';
+  }
 
   const timelineEvents = $derived([
     { labelKey: 'inv.detail.uploaded',  ts: invoice.created_at },
@@ -179,6 +183,7 @@
             <th class="num">{$t('tbl.qty')}</th>
             <th>{$t('tbl.unit')}</th>
             <th class="num">{$t('tbl.unitPrice')}</th>
+            <th class="num">{$t('tbl.taxRate')}</th>
             <th class="num">{$t('tbl.total')}</th>
           </tr>
         </thead>
@@ -189,6 +194,7 @@
               <td class="num">{item.quantity ?? '—'}</td>
               <td class="body">{item.unit ?? '—'}</td>
               <td class="num">{fmt(item.unit_price)}</td>
+              <td class="num">{fmtTaxRate(item.tax_rate)}</td>
               <td class="num">{fmt(item.total_price)}</td>
             </tr>
           {/each}

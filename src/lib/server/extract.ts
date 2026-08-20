@@ -51,6 +51,7 @@ Return ONLY valid JSON with this exact structure:
       "unit": "string or null",
       "unit_price": number or null,
       "total_price": number or null,
+      "tax_rate": the IVA percentage that applies to THIS specific line as a plain number (e.g. 21, 10, 4 — NOT a decimal fraction), or null if not determinable,
       "confidence": 0.0 to 1.0
     }
   ],
@@ -70,6 +71,11 @@ Rules:
 - total_amount must be the final amount INCLUDING all taxes (total a pagar), not the pre-tax base.
 - If tax is shown separately, sum tax_base + all tax_amount values to get total_amount.
 - tax_breakdown must reflect what is explicitly printed on the document — do not invent rates.
+- Assign each line item the tax_rate that applies to it. If the document prints a rate per line, use that.
+  If it only prints a single overall rate, apply that rate to every line. If several rates apply and the
+  document does not indicate which line carries which rate, use your best judgement from context (e.g. food
+  items are typically 10% in Spain, non-food/services typically 21%) and lower that line's confidence
+  accordingly rather than leaving tax_rate null.
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
@@ -137,6 +143,7 @@ export interface ExtractedInvoice {
 		unit: string | null;
 		unit_price: number | null;
 		total_price: number | null;
+		tax_rate?: number | null;
 		confidence?: number;
 	}>;
 	qr_url?: string | null;

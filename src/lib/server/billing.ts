@@ -68,7 +68,7 @@ export interface TierConfig {
 export const TIERS: Record<PlanTier, TierConfig> = {
 	trial: {
 		name: 'Prueba gratuita',
-		monthlyInvoiceQuota: 20,
+		monthlyInvoiceQuota: null,
 		stripePriceId: '',
 		maxLocations: 1,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },

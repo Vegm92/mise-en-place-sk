@@ -180,8 +180,10 @@ describe('TIERS configuration', () => {
 		}
 	});
 
-	it('invoice quotas increase by tier, with business unlimited', () => {
-		expect(TIERS.trial.monthlyInvoiceQuota).toBeLessThan(TIERS.starter.monthlyInvoiceQuota!);
+	it('invoice quotas increase by tier, with trial and business unlimited', () => {
+		// Trial quota is unlimited during the MVP market-validation phase (PROPUESTA_MVP.md) —
+		// the old 20/month cap could cut a real restaurant's trial short mid-week.
+		expect(TIERS.trial.monthlyInvoiceQuota).toBeNull();
 		expect(TIERS.starter.monthlyInvoiceQuota!).toBeLessThan(TIERS.pro.monthlyInvoiceQuota!);
 		expect(TIERS.business.monthlyInvoiceQuota).toBeNull(); // unlimited
 	});

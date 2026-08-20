@@ -16,6 +16,7 @@
     unit: string | null;
     unit_price: number | null;
     total_price: number | null;
+    tax_rate?: number | null;
   }
 
   interface Invoice {
@@ -48,6 +49,10 @@
     if (!s) return '—';
     const d = new Date(s as string);
     return isNaN(d.getTime()) ? String(s) : d.toLocaleDateString($locale, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  function fmtTaxRate(rate: number | null | undefined) {
+    if (rate == null) return null;
+    return rate + '%';
   }
 
   const shown = $derived(lineItems.slice(0, 5));
@@ -172,6 +177,9 @@
               {#if item.quantity != null && item.unit_price != null}
                 <div class="num" style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
                   {item.quantity.toFixed(2).replace('.', ',')} {item.unit ?? ''} × {item.unit_price.toFixed(2).replace('.', ',')} €
+                  {#if fmtTaxRate(item.tax_rate)}
+                    · {$t('tbl.taxRate')} {fmtTaxRate(item.tax_rate)}
+                  {/if}
                 </div>
               {/if}
             </div>

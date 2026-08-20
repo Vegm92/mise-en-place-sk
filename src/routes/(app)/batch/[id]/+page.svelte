@@ -483,6 +483,7 @@
                       <th class="num" style="width:60px;">{$t('tbl.qty')}</th>
                       <th style="width:52px;">{$t('tbl.unit')}</th>
                       <th class="num" style="width:86px;">{$t('tbl.unitPrice')}</th>
+                      <th class="num" style="width:60px;">{$t('tbl.taxRate')}</th>
                       <th class="num" style="width:86px;">{$t('tbl.total')}</th>
                       <th style="width:28px;"></th>
                     </tr>
@@ -512,11 +513,17 @@
                             style="width:100%;font-size:12px;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                         </td>
                         <td class="num" style="padding:7px 10px;">
+                          <div style="display:flex;align-items:center;justify-content:flex-end;gap:2px;">
+                            <input type="text" name="line_tax_rates" value={str(item.tax_rate ?? '')} class="num"
+                              style="width:100%;font-size:12px;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
+                            <span style="font-size:11px;color:var(--mep-fg-3);">%</span>
+                          </div>
+                        </td>
+                        <td class="num" style="padding:7px 10px;">
                           <input type="text" name="line_total_prices" value={priceStr(item.total_price)} class="num"
                             style="width:100%;font-size:12px;font-weight:500;color:var(--mep-fg);background:transparent;border:none;outline:none;text-align:right;font-family:var(--mep-font);" />
                         </td>
                         <td style="padding:7px 10px;">
-                          <input type="hidden" name="line_tax_rates" value={str(item.tax_rate ?? '')} />
                           <button type="button" class="btn btn-ghost" style="width:22px;height:22px;padding:0;justify-content:center;" onclick={() => removeRow(i)}>
                             <Trash size={11} />
                           </button>
