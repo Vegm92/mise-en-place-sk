@@ -180,6 +180,108 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 
 ---
 
+## 15. Avisos de diseño pendientes de revisar (detectados durante la limpieza factura/albarán)
+
+**Dónde:** `src/routes/(app)/+layout.svelte:177`, `src/lib/components/desktop/DesktopSupplierDetail.svelte:211` y `:587`.
+
+**Qué pasaba:** al corregir el vocabulario factura/albarán y ocultar el seguimiento automático de pagos (ver `PROPUESTA_MVP.md` y el trabajo de esta sesión), el revisor automático de diseño (`impeccable`) señaló 3 detalles preexistentes, ninguno introducido en esta sesión:
+1. La animación del menú lateral al colapsarlo/expandirlo podría ir más suave técnicamente (`+layout.svelte:177`).
+2. ✅ **Corregido.** La tarjeta de aviso "¿eliminar este proveedor?" tenía una rayita roja pegada al borde izquierdo — se cambió por el mismo tratamiento de aviso (fondo tintado + texto en color) que ya usa el resto de la app (`DesktopSupplierDetail.svelte`, clases `bg-neg-soft`/`border-neg`/`text-neg`).
+3. ✅ **Descartado — falso positivo.** La animación al pasar el ratón sobre el gráfico circular de productos anima `stroke-width` de un SVG, no una propiedad de layout CSS (ancho/alto/margen) — no causa el problema de rendimiento que busca esa regla. Ignorado explícitamente en la config del detector.
+
+**Riesgo:** ninguno funcional — son detalles visuales/de pulido, no errores que afecten a los datos.
+
+**Estado:** ⚠️ **Queda 1 de 3 pendiente y sin decidir — punto 1 (animación del menú lateral).** Arreglarlo bien significa cambiar cómo se colapsa el panel lateral (de animar `width` a animar `transform`), lo que toca el esqueleto de toda la app — se preguntó explícitamente si abordarlo ahora o dejarlo para otra sesión, **sin respuesta todavía**. Retomar preguntando directamente antes de tocarlo.
+
+---
+
+## 16. Las tarjetas numéricas de arriba (Albaranes, Proveedores) no seguían ningún criterio claro
+
+**Dónde:** `src/routes/(app)/invoices/+page.svelte` (+ `.server.ts`), `src/lib/components/desktop/DesktopSuppliersList.svelte` (+ `suppliers/+page.server.ts`).
+
+**Qué pasaba:** las tarjetas de arriba de cada pantalla mezclaban totales sin criterio de periodo, y con etiquetas que no decían a qué periodo correspondían — en algunos casos, al revés de lo que parecía:
+- En **Albaranes**, la tarjeta "Albaranes" era el total histórico (no de este mes, como podría parecer).
+- En **Proveedores**, la tarjeta decía "Gasto total" pero en realidad solo sumaba **el mes en curso** — justo el problema contrario.
+- Un número suelto sin comparación (¿es mucho? ¿es normal?) no ayuda a decidir nada — sea cual sea el periodo.
+
+**Decisión tomada:** rediseñar estas pantallas (y Productos, más adelante) bajo un criterio único:
+1. **Selector de periodo arriba de todo**, igual para todas: Histórico / Último año / Último mes / Último día.
+2. **Segunda línea**: estadísticas comparativas (p. ej. gasto vs. periodo anterior) y avisos relevantes del periodo (nuevos albaranes, proveedores nuevos por verificar, líneas a revisar/rectificar) — no números sueltos.
+3. **Tabla dinámica filtrable** debajo, donde al hacer clic en una fila se abre el detalle correspondiente (un albarán abre su foto + tabla editable; un proveedor abre su ficha).
+
+**Estado:** ✅ **Aplicado en Albaranes, Proveedores y Productos.** Se creó `src/lib/server/period.ts` (helper compartido: calcula el periodo actual y el periodo anterior equivalente, para no reinventar el cálculo en cada pantalla). Detalle por pantalla:
+- **Albaranes:** selector Día/Mes/Año/Total + 4 tarjetas (`KpiCard`): Albaranes (con variación), Importe total (con variación), Por revisar (confianza baja o líneas sin precio — mismo criterio que ya usa Avisos, enlaza allí), Con comentarios.
+- **Proveedores:** mismo selector, mismas 4 tarjetas ahora con `KpiCard` en vez de HTML suelto (antes no soportaban variación): Proveedores activos, Gasto (con variación), Albaranes (con variación), Sin asignar.
+- **Productos:** sin selector de periodo (un catálogo no tiene periodo real, forzarlo habría sido decorativo) pero sí la misma fila de `KpiCard`: Catálogo, Sin conversión, Sugerencias pendientes.
+- Reliability score de proveedor: ver incidencia 17. Etiqueta "Favorito": ver incidencia 18.
+
+**Nota — por qué Analíticas no usa el mismo selector:** Analíticas (Compras →
+Analíticas) ya tenía su propio selector de periodo (30 d / 90 d / 6 m / Todo)
+antes de esta pasada. Se decidió **no** forzarlo al mismo Día/Mes/Año/Total de
+las pantallas de lista: Analíticas dibuja gráficas de tendencia y necesita
+esa granularidad más fina (un filtro de "día" no sirve para ver una curva de
+6 meses). El criterio que sí se mantiene igual en todas partes es el
+**mecanismo** (pastillas, `?period=` en la URL, sin JS) — solo las opciones
+concretas cambian cuando el contenido lo pide de verdad. Etiquetas elegidas
+para las pantallas de lista: **Día / Mes / Año / Total** (no "Histórico" —
+más claro).
+
+---
+
+## 17. Puntuación de fiabilidad del proveedor incluía "puntualidad de pago" — dependía de vencimientos que ya no se piden
+
+**Dónde:** `src/lib/server/supplier-reliability.ts`, `DesktopSupplierDetail.svelte`, `suppliers/[id]/+page.svelte`.
+
+**Qué pasaba:** la puntuación (sobre 100) se calculaba como Precio (33) + Regularidad (33) + Puntualidad de pago (34). Al dejar de pedir fecha de vencimiento en el formulario de edición (incidencia 16), ese tercio del cálculo se iba a quedar cada vez más vacío o desactualizado, aunque la puntuación total lo siguiera sumando como válido.
+
+**Decisión tomada (a petición explícita):** se quitó la puntualidad de pago del cálculo. La puntuación pasa a ser Precio (50) + Regularidad (50), reescalados proporcionalmente. La columna `timeliness_score` se mantiene en la base de datos por compatibilidad, pero siempre a 0 y fuera de la suma.
+
+**Estado:** ✅ **Corregido.**
+
+---
+
+## 18. Etiqueta "Favorito" para proveedores recurrentes (a petición explícita)
+
+**Dónde:** `suppliers/+page.server.ts`, `DesktopSuppliersList.svelte`, `MobileSuppliersList.svelte`.
+
+**Qué pasaba/pedido:** en vez de (o además de) la puntualidad de pago quitada en la incidencia 17, se pidió poder identificar qué proveedores "traen más" — los recurrentes/favoritos.
+
+**Decisión tomada:** se marca como "Favorito" (etiqueta junto al nombre en la lista de Proveedores) al ~20% de proveedores con más gasto acumulado histórico, exigiendo al menos 2 albaranes para evitar que una compra puntual grande cuente como favorito.
+
+**Estado:** ✅ **Corregido.**
+
+---
+
+## 19. Umbral de alerta de presupuesto en Ajustes, huérfano (Presupuestos no está en el menú)
+
+**Dónde:** `settings/+page.svelte`, `settings/+page.server.ts`.
+
+**Qué pasaba:** Ajustes → Alertas tenía un control para el umbral de aviso de presupuesto por categoría, pero Presupuestos no está en el menú de esta fase del MVP (pospuesto) — no había ningún sitio donde configurar un presupuesto real, así que el control ajustaba algo invisible.
+
+**Estado:** ✅ **Corregido — quitado.** Solo queda el umbral de alerta de precio, que sí tiene dónde aplicarse.
+
+---
+
+## 20. Tour guiado recorría pantallas que ya no existen en el menú
+
+**Dónde:** `src/lib/tour-gating.ts`, `src/lib/stores/tutorial.ts`, `src/routes/(app)/+layout.svelte`.
+
+**Qué pasaba:** el tour (`TOUR_PAGES`) señalaba 5 paradas (Avisos, Albaranes, Proveedores, Analíticas, Ajustes) heredadas del menú antiguo. El texto de otros pasos (`tour.step7`-`step10` en `i18n.ts`) hablaba de Presupuestos, Recordatorios de pago, Resumen periódico y Chat — contenido nunca mostrado porque esas rutas ya no están en `TOUR_PAGES`, pero seguía ahí como texto muerto.
+
+**Estado:** ✅ **Corregido.** El tour ahora recorre las 8 paradas reales en el orden del menú actual: Avisos → Albaranes → Analíticas → Productos → Proveedores → Escandallos → Facturación → Ajustes. Se añadieron anclas (`data-coach`) a Productos, Escandallos y Facturación, que no las tenían. Probado paso a paso en el navegador.
+
+---
+
+## 21. El logo de "Mise en Place" estaba invertido respecto al favicon real
+
+**Dónde:** 9 archivos (`+layout.svelte`, login/signup/onboarding/waitlist/pending, `AuthShell.svelte`, panel admin, plantilla de email) — todos con la misma marca SVG de 3 barras.
+
+**Qué pasaba:** las 3 barras del logo colgaban del mismo borde superior (alturas 17/13/9 desde `y=3.5`), sin compartir línea de base — al revés que `static/favicon.svg`, donde las 3 barras sí comparten la misma línea de base inferior (crecen hacia arriba, como una barra de progreso). El logo dentro de la app no coincidía con el favicon real.
+
+**Estado:** ✅ **Corregido.** Las 3 barras ahora comparten línea de base (`y=3.5/7.5/11.5`, mismas alturas), igual que el favicon, en los 9 sitios.
+
+---
+
 ## Resumen para quien retome esto en `main`
 
 | # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |
