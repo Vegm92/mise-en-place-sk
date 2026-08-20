@@ -178,7 +178,6 @@
       label={$t('inv.kpi.paid')}
       value={stats.paid_count}
       sub={$t('misc.invoices')}
-      variant="pos"
     />
     <KpiCard
       label={$t('inv.kpi.suppliers')}

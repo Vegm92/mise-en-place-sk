@@ -24,12 +24,6 @@
     invert?: boolean;
   } = $props();
 
-  const tintClass: Record<Variant, string> = {
-    default: '',
-    neg:  'bg-neg-soft  border-neg',
-    pos:  'bg-pos-soft  border-pos',
-    warn: 'bg-warn-soft border-warn',
-  };
   const labelColor: Record<Variant, string> = {
     default: '',
     neg:  'text-neg',
@@ -44,7 +38,7 @@
   };
 </script>
 
-<div class="card flex flex-col gap-1.5 p-4 {tintClass[variant]}">
+<div class="card flex flex-col gap-1.5 p-4">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
     <span class="label {labelColor[variant]}">{label}</span>
     {#if spark && spark.length >= 2}

@@ -1,21 +1,34 @@
-@import '@fontsource-variable/mona-sans';
+@import '@fontsource-variable/figtree';
 @import "tailwindcss";
+
+/* ── DIRECTION — reset 2026-08-20 ───────────────────────────────────────
+   The "Mostrador del carnicero" pass (kraft tones, squared tile shapes,
+   Mona Sans) was tried and rejected in review: it read as cluttered
+   ("hortera") rather than trustworthy, and Mona Sans is an overused
+   AI-UI face. Replaced with a plainer brief, pinned directly by the
+   person who owns this app: simple over decorative, one clean neutral
+   base, one confident orange accent — no tone-on-tone material texture.
+   Buttons round toward a pill, tactile and obviously pressable; cards
+   and inputs round enough to read as soft, not sharp. Figtree replaces
+   Mona Sans. Still open: the same reset needs to reach every screen,
+   not just the tokens, and DESIGN.md still needs writing once it does.
+   ─────────────────────────────────────────────────────────────────── */
 
 /* ── §1  MEP DESIGN TOKENS ───────────────────────────────────────────
    All visual values live here. Never put hex codes in components.
    ─────────────────────────────────────────────────────────────────── */
 
 .mep {
-  font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'Figtree Variable', 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mep-fs-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
   -webkit-font-smoothing: antialiased;
   color: var(--mep-fg);
   background: var(--mep-bg);
 
-  /* Radii */
-  --mep-r-tag:   4px;
-  --mep-r-input: 6px;
-  --mep-r-card:  10px;
+  /* Radii — soft and pressable, not sharp */
+  --mep-r-tag:   8px;
+  --mep-r-input: 10px;
+  --mep-r-card:  16px;
   --mep-r-pill:  999px;
 
   /* Semantic (theme-independent base — overridden in dark) */
@@ -23,32 +36,32 @@
   --mep-pos-soft: rgba(20, 105, 74, 0.12);
   --mep-neg:      #b03a3a;
   --mep-neg-soft: rgba(176, 58, 58, 0.12);
-  --mep-warn:     #7e4c0d;
-  --mep-warn-soft:rgba(126, 76, 13, 0.14);
+  --mep-warn:     #8a4a12;
+  --mep-warn-soft:rgba(138, 74, 18, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
 }
 
-/* Light */
+/* Light — one clean neutral base, no material tint */
 :root[data-theme="light"] {
-  --mep-bg:       #f5f4f0;
-  --mep-surface:  #ffffff;
-  --mep-surface-2:#fafaf7;
-  --mep-overlay:  #ffffff;
-  --mep-hover:    rgba(15, 20, 30, 0.04);
-  --mep-pressed:  rgba(15, 20, 30, 0.07);
+  --mep-bg:       #FAFAF9;
+  --mep-surface:  #FFFFFF;
+  --mep-surface-2:#F2F1EF;
+  --mep-overlay:  #FFFFFF;
+  --mep-hover:    rgba(30, 28, 26, 0.04);
+  --mep-pressed:  rgba(30, 28, 26, 0.07);
 
-  --mep-fg:   #1a1f26;
-  --mep-fg-2: #4a5562;
-  --mep-fg-3: #5f6b78;
-  --mep-fg-4: #64707d;
+  --mep-fg:   #1E1C1A;
+  --mep-fg-2: #57534E;
+  --mep-fg-3: #78746D;
+  --mep-fg-4: #8B867E;
 
-  --mep-border:       rgba(15, 20, 30, 0.10);
-  --mep-border-strong:rgba(15, 20, 30, 0.18);
-  --mep-divider:      rgba(15, 20, 30, 0.06);
+  --mep-border:       rgba(30, 28, 26, 0.10);
+  --mep-border-strong:rgba(30, 28, 26, 0.18);
+  --mep-divider:      rgba(30, 28, 26, 0.08);
 
-  --mep-shadow-card: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);
-  --mep-shadow-pop:  0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10);
+  --mep-shadow-card: 0 1px 2px rgba(30, 28, 26, 0.05), 0 1px 1px rgba(30, 28, 26, 0.03);
+  --mep-shadow-pop:  0 8px 20px rgba(30, 28, 26, 0.10), 0 2px 6px rgba(30, 28, 26, 0.06);
 
   /* Categorical series (fixed order, never cycled — see dataviz color formula) */
   --mep-series-1: #2a78d6;
@@ -59,23 +72,23 @@
   --mep-series-other: #9aa3af;
 }
 
-/* Dark */
+/* Dark — same neutral system, restated for low light */
 :root[data-theme="dark"] {
-  --mep-bg:       #16151a;
-  --mep-surface:  #1e1d23;
-  --mep-surface-2:#25242b;
-  --mep-overlay:  #2b2a32;
-  --mep-hover:    rgba(255, 255, 255, 0.05);
-  --mep-pressed:  rgba(255, 255, 255, 0.08);
+  --mep-bg:       #19181A;
+  --mep-surface:  #211F21;
+  --mep-surface-2:#29272A;
+  --mep-overlay:  #2F2D30;
+  --mep-hover:    rgba(240, 238, 235, 0.05);
+  --mep-pressed:  rgba(240, 238, 235, 0.08);
 
-  --mep-fg:   #ece9e2;
-  --mep-fg-2: #a8a39a;
-  --mep-fg-3: #6f6a62;
-  --mep-fg-4: #524d46;
+  --mep-fg:   #F2F0ED;
+  --mep-fg-2: #B3AFA9;
+  --mep-fg-3: #837E77;
+  --mep-fg-4: #635F59;
 
-  --mep-border:       rgba(255, 255, 255, 0.08);
-  --mep-border-strong:rgba(255, 255, 255, 0.14);
-  --mep-divider:      rgba(255, 255, 255, 0.05);
+  --mep-border:       rgba(240, 238, 235, 0.08);
+  --mep-border-strong:rgba(240, 238, 235, 0.15);
+  --mep-divider:      rgba(240, 238, 235, 0.06);
 
   --mep-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
   --mep-shadow-pop:  0 8px 24px rgba(0, 0, 0, 0.4), 0 16px 48px rgba(0, 0, 0, 0.4);
@@ -131,20 +144,20 @@
   --mep-acc-ring: rgba(111, 143, 196, 0.30);
 }
 
-/* Accent — amber */
+/* Accent — amber (one clean, confident orange; used sparingly) */
 .mep[data-accent="amber"] {
-  --mep-acc:      #8a530f;
+  --mep-acc:      #EA580C;
   --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(138, 83, 15, 0.10);
-  --mep-acc-hover:#7e4c0d;
-  --mep-acc-ring: rgba(138, 83, 15, 0.30);
+  --mep-acc-soft: rgba(234, 88, 12, 0.10);
+  --mep-acc-hover:#C2410C;
+  --mep-acc-ring: rgba(234, 88, 12, 0.30);
 }
 :root[data-theme="dark"] .mep[data-accent="amber"] {
-  --mep-acc:      #d59854;
-  --mep-acc-fg:   #2a1a08;
-  --mep-acc-soft: rgba(213, 152, 84, 0.18);
-  --mep-acc-hover:#e0a665;
-  --mep-acc-ring: rgba(213, 152, 84, 0.30);
+  --mep-acc:      #FB8A3C;
+  --mep-acc-fg:   #2A1608;
+  --mep-acc-soft: rgba(251, 138, 60, 0.18);
+  --mep-acc-hover:#FC9C57;
+  --mep-acc-ring: rgba(251, 138, 60, 0.30);
 }
 
 /* Density */
@@ -159,7 +172,7 @@
    ─────────────────────────────────────────────────────────────────── */
 
 @theme inline {
-  --font-sans: 'Mona Sans', system-ui, sans-serif;
+  --font-sans: 'Figtree Variable', 'Figtree', system-ui, sans-serif;
 
   --color-bg:            var(--mep-bg);
   --color-surface:       var(--mep-surface);
@@ -239,8 +252,8 @@
     font-family: inherit;
     font-size: 13px;
     font-weight: 500;
-    border-radius: var(--mep-r-input);
-    padding: 7px 12px;
+    border-radius: var(--mep-r-pill);
+    padding: 7px 14px;
     height: 32px;
     display: inline-flex;
     align-items: center;
@@ -354,6 +367,6 @@
     font-family: var(--font-sans);
     margin: 0;
     /* Prevents white flash on dark theme before .mep paints */
-    background: var(--mep-bg, #f5f4f0);
+    background: var(--mep-bg, #FAFAF9);
   }
 }
