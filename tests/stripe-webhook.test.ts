@@ -285,7 +285,7 @@ describe.skipIf(!hasDbEnv)('Stripe — reconcile subscription from Stripe', () =
 		}
 	});
 
-	it('adopts the live subscription when the stored one is canceled', async () => {
+	it('adopts the live subscription when the stored one is canceled, if metadata confirms ownership', async () => {
 		const r = await createTestRestaurant('stripe-reconcile-adopt');
 		await testDb.insert(subscriptions).values({
 			restaurantId: r.id, planTier: 'trial', status: 'canceled',
@@ -297,7 +297,7 @@ describe.skipIf(!hasDbEnv)('Stripe — reconcile subscription from Stripe', () =
 		} as never);
 		const listSpy = vi.spyOn(stripe!.subscriptions, 'list').mockResolvedValue({
 			data: [{ id: 'sub_live_pro', status: 'active', cancel_at_period_end: false, trial_end: null,
-				metadata: {}, created: Math.floor(Date.now() / 1000),
+				metadata: { restaurantId: r.id }, created: Math.floor(Date.now() / 1000),
 				items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } }],
 		} as never);
 		try {
@@ -307,6 +307,68 @@ describe.skipIf(!hasDbEnv)('Stripe — reconcile subscription from Stripe', () =
 			expect(row?.stripeSubscriptionId).toBe('sub_live_pro');
 			expect(row?.planTier).toBe('pro');
 			expect(row?.status).toBe('active');
+		} finally {
+			retrieveSpy.mockRestore();
+			listSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('stays unresolved when no live subscription is tagged for this restaurant', async () => {
+		const r = await createTestRestaurant('stripe-reconcile-ambiguous');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'trial', status: 'canceled',
+			stripeSubscriptionId: 'sub_stale_canceled', stripeCustomerId: 'cus_reconcile',
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_stale_canceled', status: 'canceled', cancel_at_period_end: false, trial_end: null,
+			items: { data: [{ price: { id: 'price_starter_test' }, current_period_end: null }] },
+		} as never);
+		const listSpy = vi.spyOn(stripe!.subscriptions, 'list').mockResolvedValue({
+			data: [{ id: 'sub_other_restaurant', status: 'active', cancel_at_period_end: false, trial_end: null,
+				metadata: {}, created: Math.floor(Date.now() / 1000),
+				items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } }],
+		} as never);
+		try {
+			await syncSubscriptionFromStripe(r.id);
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.stripeSubscriptionId).toBe('sub_stale_canceled');
+			expect(row?.planTier).toBe('trial');
+			expect(row?.status).toBe('canceled');
+		} finally {
+			retrieveSpy.mockRestore();
+			listSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('stays unresolved when the customer has multiple live subscriptions tagged for this restaurant', async () => {
+		const r = await createTestRestaurant('stripe-reconcile-multi');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'trial', status: 'canceled',
+			stripeSubscriptionId: 'sub_stale_canceled', stripeCustomerId: 'cus_reconcile',
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_stale_canceled', status: 'canceled', cancel_at_period_end: false, trial_end: null,
+			items: { data: [{ price: { id: 'price_starter_test' }, current_period_end: null }] },
+		} as never);
+		const listSpy = vi.spyOn(stripe!.subscriptions, 'list').mockResolvedValue({
+			data: [
+				{ id: 'sub_dup_1', status: 'active', cancel_at_period_end: false, trial_end: null,
+					metadata: { restaurantId: r.id }, created: Math.floor(Date.now() / 1000),
+					items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } },
+				{ id: 'sub_dup_2', status: 'active', cancel_at_period_end: false, trial_end: null,
+					metadata: { restaurantId: r.id }, created: Math.floor(Date.now() / 1000) - 100,
+					items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } },
+			],
+		} as never);
+		try {
+			await syncSubscriptionFromStripe(r.id);
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.stripeSubscriptionId).toBe('sub_stale_canceled');
+			expect(row?.status).toBe('canceled');
 		} finally {
 			retrieveSpy.mockRestore();
 			listSpy.mockRestore();
