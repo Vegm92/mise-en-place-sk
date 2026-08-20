@@ -1,8 +1,8 @@
 # PROPUESTA MVP — Sistema de Albaranes y Escandallos
 
 **Rama asociada:** `mvp-modular-limpio`
-**Fecha:** 2026-08-20
-**Estado:** Fase 1 sin empezar (documento de referencia, aún no hay código de esta iniciativa)
+**Fecha:** 2026-08-20 (revisado el mismo día tras auditar el código real)
+**Estado:** ver sección 6
 
 ---
 
@@ -26,74 +26,101 @@ Antes de tocar nada, y de nuevo al terminar, comprobar dos cosas (pedirle a Clau
 
 Si en algún momento se me olvida, quiero que se me recuerde explícitamente en vez de darlo por hecho.
 
+### ⚠️ Corrección importante (2026-08-20)
+
+La primera versión de este documento decía "Fase 1 sin empezar, sin código todavía". **Eso era falso.** Esta rama parte del historial completo de `main`, y `main` ya es una aplicación real en producción (con cobro por Stripe activo) que cubre gran parte de lo descrito aquí. Se hizo una auditoría línea a línea del código antes de escribir esta versión del documento — ver sección 3 para el estado real, comprobado, de cada pieza.
+
 ---
 
 ## 1. Objetivo del MVP
 
-Validar, con el mínimo desarrollo posible, si una app que **fotografía un albarán, extrae sus datos automáticamente (OCR) y calcula el coste real de las recetas (escandallos)** aporta valor real a un restaurante independiente español, antes de invertir en las funcionalidades avanzadas (auditoría completa, cumplimiento HACCP, funcionamiento sin conexión, etc.) que sí forman parte de la visión final del producto pero no son necesarias para la primera validación.
+Validar, con el mínimo desarrollo posible, si una app que **fotografía un albarán, extrae sus datos automáticamente (OCR) y calcula el coste real de las recetas (escandallos)** aporta valor real a un restaurante independiente español, antes de invertir en las funcionalidades avanzadas que sí forman parte de la visión final del producto pero no son necesarias para la primera validación.
 
-La visión completa del producto está documentada en `ESPECIFICACIÓN_APP_ALBARANES_v2.md` (fuera de este repositorio). **Este documento es una versión recortada y reordenada de esa especificación, pensada específicamente para un MVP construible por una sola persona sin experiencia previa programando.**
+**El objetivo, en una frase:** *leer papel* (factura, factura-albarán, albarán) → *administrar la información* (saber qué productos tengo, avisos de precio, proveedores) → *controlar escandallos y mermas* — con **cero fricción**, para poder validar el mercado y luego diseñar el UX que compita en eficiencia por ser una app de nicho.
+
+La visión completa del producto está documentada en `ESPECIFICACIÓN_APP_ALBARANES_v2.md` (fuera de este repositorio). Este documento es una versión recortada, pensada para un MVP de validación de mercado.
 
 ---
 
 ## 2. Reglas de trabajo de esta rama
 
 1. **Fases estrictamente secuenciales.** No se empieza una fase hasta que la anterior está probada y funcionando de verdad (no solo "el código compila", sino "lo he usado y hace lo que tiene que hacer").
-2. **Nada de funcionalidades avanzadas por adelantado.** Si algo no es imprescindible para que la fase actual funcione, se anota como pendiente y no se construye todavía (ver sección 4, "Fuera de alcance del MVP").
+2. **Nada de funcionalidades avanzadas por adelantado.** Si algo no es imprescindible para que la fase actual funcione, se anota como pendiente y no se construye todavía (ver sección 4).
 3. **Todo el trabajo vive en `mvp-modular-limpio`.** No se hace merge a `main` hasta que se decida explícitamente, fase por fase o al final.
 4. **Commits frecuentes y explicados**, como puntos de guardado seguros dentro de esta rama.
+5. **Reconstrucción, no invención.** Lo que ya existe en `main` y funciona de forma completa y coherente se trae/pule en esta rama tal cual. No se reescribe desde cero solo por reescribir.
 
 ---
 
-## 3. Las 4 fases — versión MVP
+## 3. Los 3 pasos del MVP — estado real, verificado
 
-### Fase 1 — Captura y extracción OCR *(la que empezamos ahora)*
+### Paso 1 — Recepción y digitalización de albaranes por OCR
 
-**Objetivo:** de una foto de un albarán a un dato estructurado, validado, guardado. Nada más.
+**Objetivo:** de una foto (por la app o por WhatsApp) a un dato estructurado, validado, guardado.
 
-- Pantalla con un botón para escanear el albarán (cámara).
-- Aviso simple si la foto sale borrosa o mal encuadrada.
-- El OCR extrae: proveedor, fecha, y las líneas del albarán (artículo, cantidad, unidad, precio unitario, importe), **separando correctamente el IVA** de cada línea o del total.
-- Validación estructural mínima: si faltan datos obligatorios (proveedor, fecha, al menos una línea con cantidad), el albarán queda marcado como "incompleto" y no se da por válido.
-- El resultado se guarda tal cual se ha extraído — **sin** intentar todavía relacionarlo con una lista maestra de ingredientes (eso es Fase 2).
-
-**Qué NO incluye esta fase** (aunque el documento original lo mencionaba dentro de "Fase 1"):
-- Vinculación automática (fuzzy matching) del nombre del artículo con un ingrediente ya existente. Se guarda el nombre tal cual lo lee el OCR; la vinculación llega en Fase 2.
-- Cualquier lógica de precios históricos, alertas de subida de precio, o escandallos.
-
-**Criterio de "fase terminada":** puedes fotografiar un albarán real de un proveedor, ver los datos extraídos en pantalla, y son correctos (incluyendo el IVA separado) en la mayoría de los casos.
-
-### Fase 2 — Vinculación de ingredientes e histórico de precios
-
-- Cada línea del albarán se intenta vincular a un ingrediente ya conocido, por nombre parecido (fuzzy matching simple basado en texto — sin modelos de inteligencia artificial de por medio, eso se valora más adelante si hace falta).
-- Si la coincidencia es clara, se vincula sola. Si es dudosa, se pregunta. Si no hay ninguna parecida, se puede crear un ingrediente nuevo.
-- Se guarda un histórico simple de precios por ingrediente y proveedor (para saber si ha subido o bajado).
-- Alerta simple si un precio sube más de un % configurable.
-- Si un albarán llega sin precio en alguna línea, esa línea queda marcada como "pendiente de precio" en vez de asumir 0€.
-
-### Fase 3 — Recetas y escandallos
-
-- Crear una receta añadiendo ingredientes (de los ya vinculados en Fase 2) y sus cantidades.
-- Cálculo automático de: coste total, % Food Cost, margen en € y en %, con un código de color simple (verde/ámbar/rojo) para saber de un vistazo si el precio de venta es rentable.
-- Si algún ingrediente de la receta está "pendiente de precio" (de Fase 2), no se puede guardar la receta como definitiva — evita calcular un margen con datos falsos.
-
-### Fase 4 — Recálculo cuando cambia un precio
-
-- Cuando el precio de un ingrediente cambia (por un nuevo albarán), se recalculan automáticamente las recetas que lo usan.
-- Se muestra en algún sitio visible (ej. un panel o lista) qué recetas han cambiado y cuánto, para que no sea un cambio invisible.
-
----
-
-## 4. Fuera de alcance del MVP (pospuesto, no descartado)
-
-Estas ideas del documento original son buenas y quedan documentadas para el futuro, pero **no se construyen en esta rama** porque añaden mucha complejidad antes de saber si el MVP básico funciona:
-
-| Idea pospuesta | Por qué se pospone |
+| Pieza | Estado |
 |---|---|
-| **Funcionamiento sin conexión (offline-first) con sincronización** | Es, con diferencia, lo más complejo técnicamente de todo el documento original — más que el propio OCR. Se revisará si usuarios reales lo piden explícitamente. |
-| **Auditoría completa con hash (SHA256) en cada cambio, cumplimiento HACCP** | Tiene sentido como diferenciador comercial más adelante, pero implica tocar cada punto de guardado de la app desde el primer día. Se pospone hasta tener usuarios reales. |
-| **Matching por inteligencia artificial (embeddings/sentence-transformers)** | Para el MVP basta con una comparación de texto simple. Se valorará IA solo si el matching simple no da buenos resultados. |
-| **Gestión multi-proveedor avanzada (mismo ingrediente con varios proveedores a la vez)** | Se simplifica en el MVP: un ingrediente-proveedor es una combinación única, sin lógica avanzada de "proveedor sugerido" todavía. |
+| Captura fotográfica (cámara/archivo, con cola si no hay conexión) | ✅ Ya existe y funciona |
+| Envío del albarán por **WhatsApp** como vía alternativa de entrada | ✅ Ya existe y funciona (webhook con verificación de firma) — **confirmado dentro del MVP** |
+| Extracción por IA: proveedor, artículos, cantidades, unidad, precio unitario, importe | ✅ Ya existe y funciona, distingue factura vs. albarán |
+| **IVA**, incluidos documentos con **varios tipos de IVA a la vez** (ej. 10% + 21% en el mismo albarán) | ⚠️ Se extrae y se guarda bien por línea, **pero no se muestra en ninguna pantalla de revisión ni de detalle**. **Pendiente de arreglar**: mostrar el IVA leído en la pantalla donde se revisa/edita el albarán, para poder comprobar a simple vista que la IA lo ha leído bien. |
+| Línea sin precio → se registra igualmente, con estado **"Pendiente de tarificación"** | ⚠️ Hoy se guarda con el precio vacío, sin etiqueta. **Pendiente de construir**: el estado explícito "Pendiente de tarificación", visible en pantalla. |
+| Foto defectuosa | ✅ **Decisión tomada**: no hace falta rechazo automático en el momento de la foto. Basta con lo que ya existe: si la IA tiene menos del 85% de confianza en un dato clave, bloquea el guardado y resalta los campos dudosos para revisión manual. |
+| Vinculación inteligente de nombres manuscritos/comerciales a la materia prima interna (fuzzy matching + IA de refuerzo) | ✅ Ya existe y funciona. **Decisión tomada**: se mantiene el uso de IA como segundo nivel, aunque la idea original era "solo texto" — ya demostró que hacía falta. |
+
+**Criterio de "paso terminado":** fotografías un albarán real (por la app o por WhatsApp), ves los datos extraídos en pantalla **incluyendo el IVA correctamente separado por línea**, y las líneas sin precio aparecen marcadas como "Pendiente de tarificación".
+
+### Paso 2 — Procesamiento y control histórico de precios
+
+**Objetivo:** con cada albarán guardado, saber si un precio ha cambiado y tener organizada la información de productos y proveedores.
+
+| Pieza | Estado |
+|---|---|
+| Los precios anteriores no se sobrescriben; quedan archivados con fecha | ✅ Ya existe: cada albarán guardado es un registro histórico permanente, el precio "vigente" es simplemente el más reciente |
+| Comparación del precio nuevo contra el último precio de ese artículo+proveedor exactos | ✅ Ya existe y funciona así literalmente |
+| Alerta visual si el precio cambia más de un % configurable | ✅ Ya existe, umbral configurable (hoy 15% por defecto). **Decisión tomada**: avisa tanto si sube como si baja fuerte (una bajada fuerte también puede ser un error de lectura) |
+| Línea "Pendiente de tarificación" (ver Paso 1) | Se resuelve aquí: cuando llega el precio real (por ejemplo con la factura), se actualiza esa línea de forma retroactiva. **Pendiente de construir** junto con la etiqueta del Paso 1. |
+| Productos y proveedores organizados automáticamente a partir de los albaranes | ✅ Ya existe y funciona |
+| Evolución de precios (analítica) | ✅ Ya existe, se mantiene como parte natural de "administrar información" |
+| Avisos de stock bajo | ❌ **Descartado del MVP.** Existe una tabla y una conexión técnica a medio construir, pero no hay ninguna pantalla donde el restaurante pueda introducir su stock actual o su consumo diario — y un albarán, por sí solo, nunca dice cuánto queda en el almacén. Hacerlo bien exigiría que alguien apuntara stock a mano cada día, lo cual va en contra del objetivo de "cero fricción". Se descarta, no se aparca — no encaja en el pipeline de este MVP tal como está planteado. |
+
+**Criterio de "paso terminado":** al guardar un albarán con un precio distinto al anterior, ves la alerta; al guardar uno con un precio muy parecido, no ves ninguna; las líneas "pendientes de tarificación" se resuelven cuando llega el precio real.
+
+### Paso 3 — Creador de recetas y escandallos dinámicos *(a construir desde cero — no existe nada todavía)*
+
+**Objetivo:** saber, por cada plato, cuánto cuesta de verdad y cuánto margen deja — y que ese cálculo se mantenga siempre al día.
+
+- **Clic 1:** crear un plato nuevo con su nombre comercial.
+- **Clic 2:** añadir ingredientes con un buscador predictivo (sobre los productos ya vinculados en el Paso 2), cantidad neta, y merma técnica opcional.
+- **Clic 3:** introducir el PVP (precio de venta al público).
+- **Cálculo automático:** coste de materia prima por ración, % Food Cost, margen bruto en € — con semáforo verde/ámbar/rojo para saber de un vistazo si el precio de venta es rentable.
+- **Bloqueo de seguridad:** si algún ingrediente de la receta está "Pendiente de tarificación" (Paso 1/2), no se puede guardar la receta como definitiva, para no calcular un margen con datos falsos.
+- **Actualización en cadena:** cuando cambia el precio de un ingrediente (por un nuevo albarán), se recalculan automáticamente todas las recetas que lo usan, y se muestra en algún sitio visible qué recetas cambiaron y cuánto — para que no sea un cambio invisible.
+
+**Criterio de "paso terminado":** creas una receta real con 3-4 ingredientes, ves el coste/food cost/margen calculados correctamente, y al cambiar el precio de uno de esos ingredientes (subiendo un albarán nuevo), la receta se actualiza sola y lo ves reflejado en algún sitio.
+
+---
+
+## 4. Fuera de alcance del MVP (pospuesto o descartado)
+
+Ya existe código construido y funcionando para varias de estas piezas en `main` — pero no forman parte del pipeline "leer → administrar → escandallar" que define este MVP, así que no se destacan ni se prueban activamente en esta fase.
+
+| Idea | Estado del código | Decisión |
+|---|---|---|
+| Chat con IA sobre los datos de compra | Completo, funcionando | Pospuesto |
+| Resumen semanal generado por IA | Completo, funcionando | Pospuesto |
+| Presupuestos mensuales por categoría | Completo, funcionando | Pospuesto — es gestión financiera, no de producto/escandallo |
+| Recordatorios de pago de facturas vencidas | Completo, funcionando | Pospuesto — mismo motivo |
+| Avisos de stock bajo | A medias, no usable hoy (ver Paso 2) | Descartado del MVP, no solo pospuesto |
+| Funcionamiento sin conexión (offline-first) avanzado | Parcial (cola de subida sí existe) | Pospuesto, se revisará si usuarios reales lo piden |
+| Auditoría completa con hash (SHA256), cumplimiento HACCP | No existe | Pospuesto hasta tener usuarios reales |
+| Gestión multi-proveedor avanzada (mismo ingrediente, varios proveedores a la vez) | Simplificado | Se mantiene simplificado en el MVP |
+
+**Herramientas internas que se mantienen sin más debate** (no las ve el restaurante, no añaden fricción a su flujo): exportar a CSV/Excel, panel de administración interno.
+
+**Pendiente de decidir — sistema de planes de pago (Stripe):**
+- El plan gratuito de prueba tenía un límite de 20 albaranes al mes. **Decisión tomada: se quita ese límite mientras dure la fase de validación de mercado**, para no cortar la prueba a mitad de camino.
+- El resto del sistema de cobro (planes, Stripe) se deja tal cual está construido, sin desactivar, pero sin que bloquee ninguna funcionalidad del núcleo (Pasos 1-3) durante esta fase.
 
 ---
 
@@ -105,9 +132,9 @@ Estas ideas del documento original son buenas y quedan documentadas para el futu
 
 ## 6. Estado actual
 
-- [ ] Fase 1 — en preparación, sin código todavía.
-- [ ] Fase 2
-- [ ] Fase 3
-- [ ] Fase 4
+- [x] **Paso 1** — el flujo base ya existe y funciona; quedan 2 correcciones pendientes: mostrar el IVA en pantalla, y construir el estado "Pendiente de tarificación".
+- [x] **Paso 2** — el flujo base ya existe y funciona; queda pendiente la etiqueta "Pendiente de tarificación" (compartida con el Paso 1) y quitar el límite de 20 albaranes/mes.
+- [ ] **Paso 3** — no empezado, se construye desde cero.
+- [ ] Ajuste de cuota de Stripe (quitar límite de 20/mes durante la validación).
 
-*(Este documento se debe actualizar según avancen las fases, marcando lo completado y anotando cualquier decisión importante que se tome por el camino.)*
+*(Este documento se debe actualizar según avancen los pasos, marcando lo completado y anotando cualquier decisión importante que se tome por el camino.)*
