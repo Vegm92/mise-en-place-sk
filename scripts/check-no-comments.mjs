@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import ts from 'typescript';
+import { parse } from 'svelte/compiler';
 import { PROJECT_DIRECTIVES } from './lint-directives.mjs';
 
 const STAGED = process.argv.includes('--staged');
@@ -58,54 +59,43 @@ function scriptRanges(text) {
 	return out;
 }
 
-function svelteBlocks(text, tag) {
-	const blocks = [];
-	const re = new RegExp(`<${tag}(\\s[^>]*)?>`, 'gi');
+function templateCommentRanges(text) {
+	const ast = parse(text, { modern: true });
+	const ranges = [];
+	const visit = (node) => {
+		if (!node || typeof node !== 'object') return;
+		if (node.type === 'Comment') {
+			ranges.push([node.start, node.end]);
+			return;
+		}
+		for (const key of Object.keys(node)) {
+			if (key === 'parent') continue;
+			const value = node[key];
+			if (Array.isArray(value)) value.forEach((child) => visit(child));
+			else if (value && typeof value === 'object' && 'type' in value) visit(value);
+		}
+	};
+	visit(ast.fragment);
+	return ranges;
+}
+
+function scriptBlockRanges(text) {
+	const ranges = [];
+	const re = /<script(\s[^>]*)?>/gi;
 	let m;
 	while ((m = re.exec(text))) {
 		const s = m.index + m[0].length;
-		const e = text.toLowerCase().indexOf(`</${tag}>`, s);
+		const e = text.toLowerCase().indexOf('</script>', s);
 		if (e === -1) continue;
-		blocks.push([s, e]);
-		re.lastIndex = e;
+		for (const [a, b] of scriptRanges(text.slice(s, e))) ranges.push([a + s, b + s]);
 	}
-	return blocks;
+	return ranges;
 }
 
-function findComments(file, text) {
-	const ranges = [];
-	if (file.endsWith('.ts')) {
-		ranges.push(...scriptRanges(text));
-	} else {
-		const scripts = svelteBlocks(text, 'script');
-		const styles = svelteBlocks(text, 'style');
-		for (const [s, e] of scripts) {
-			for (const [a, b] of scriptRanges(text.slice(s, e))) ranges.push([a + s, b + s]);
-		}
-		const covered = [...scripts, ...styles].sort((a, b) => a[0] - b[0]);
-		const regions = [];
-		let cursor = 0;
-		for (const [s, e] of covered) {
-			if (s > cursor) regions.push([cursor, s]);
-			cursor = Math.max(cursor, e);
-		}
-		if (cursor < text.length) regions.push([cursor, text.length]);
-		for (const [rs, re_] of regions) {
-			let i = rs;
-			while (i < re_) {
-				const open = text.indexOf('<!--', i);
-				if (open === -1 || open >= re_) break;
-				let close = text.indexOf('-->', open + 4);
-				if (close === -1 || close + 3 > re_) close = re_ - 3;
-				ranges.push([open, close + 3]);
-				i = close + 3;
-			}
-		}
-	}
-
+function makeLineOf(text) {
 	const lineStarts = [0];
 	for (let i = 0; i < text.length; i++) if (text[i] === '\n') lineStarts.push(i + 1);
-	const lineOf = (pos) => {
+	return (pos) => {
 		let lo = 0;
 		let hi = lineStarts.length - 1;
 		while (lo < hi) {
@@ -115,6 +105,13 @@ function findComments(file, text) {
 		}
 		return lo + 1;
 	};
+}
+
+function findComments(file, text) {
+	const ranges = file.endsWith('.ts')
+		? scriptRanges(text)
+		: [...templateCommentRanges(text), ...scriptBlockRanges(text)];
+	const lineOf = makeLineOf(text);
 
 	// A `//` directive runs until the first non-comment line. The scanner sees each
 	// of those lines as its own comment, so an allowed opener vouches for the
