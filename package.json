@@ -6,7 +6,7 @@
 	"packageManager": "pnpm@10.0.0",
 	"scripts": {
 		"dev": "vite dev",
-		"dev:all": "concurrently -n web,worker -c blue,green \"pnpm dev\" \"pnpm worker\"",
+		"dev:all": "concurrently -n web,worker,stripe -c blue,green,yellow \"pnpm dev\" \"pnpm worker\" \"stripe listen --forward-to localhost:5173/api/stripe-webhook || echo Stripe CLI not available - install it to sync webhook state locally\"",
 		"build": "vite build && pnpm build:worker",
 		"build:worker": "vite build --config vite.worker.config.ts",
 		"preview": "vite preview",
