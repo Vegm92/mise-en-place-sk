@@ -61,6 +61,11 @@ billing peer; there is no per-location subscription, customer, or quota.
 
 ### 2. One subscription per group
 
+Nested under the one-subscription-per-user rule (ADR-024): a user may hold at
+most one live subscription, and that subscription's tier (`maxLocations`)
+decides how many restaurants it covers — the group here is the unit the
+subscription pays for, not a licence to buy a second one.
+
 - The `subscriptions` row exists **only on the parent**. Locations have no
   subscription row.
 - `getAccessState`, `getTierFeatures`, `getMonthlyQuota` already resolve via
