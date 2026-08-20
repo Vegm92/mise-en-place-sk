@@ -467,24 +467,11 @@ export async function createPortalSession(customerId: string, returnUrl: string)
 }
 
 export async function handleWebhookEvent(body: string, signature: string): Promise<void> {
-	if (!stripe) {
-		if (NODE_ENV === 'production') {
-			throw new Error('STRIPE_SECRET_KEY is required in production — refusing to silently accept webhook');
-		}
-		console.warn('[billing] STRIPE_SECRET_KEY not set — skipping webhook processing (dev only)');
-		return;
-	}
-	if (!WEBHOOK_SECRET) {
-		if (NODE_ENV === 'production') {
-			throw new Error('STRIPE_WEBHOOK_SECRET is required in production — refusing to process unverified webhook');
-		}
-		console.warn('[billing] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev only)');
-		return;
-	}
+	if (!webhookConfigured()) return;
 
 	let event: Stripe.Event;
 	try {
-		event = stripe.webhooks.constructEvent(body, signature, WEBHOOK_SECRET);
+		event = stripe!.webhooks.constructEvent(body, signature, WEBHOOK_SECRET);
 	} catch (err) {
 		console.error('[billing] webhook signature verification failed:', err);
 		throw new WebhookSignatureError('Webhook signature verification failed', { cause: err });
@@ -496,148 +483,189 @@ export async function handleWebhookEvent(body: string, signature: string): Promi
 		return;
 	}
 
-	const eventCreatedAt = new Date(event.created * 1000);
-
 	try {
-		switch (event.type) {
-			case 'checkout.session.completed': {
-				const session = event.data.object as Stripe.Checkout.Session;
-				const restaurantId = session.metadata?.restaurantId;
-				const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
-				if (!restaurantId || !subscriptionId) {
-					const msg = `[billing] checkout.session.completed ignored: missing metadata — restaurantId=${restaurantId ?? 'null'}, subscriptionId=${subscriptionId ?? 'null'}, session=${session.id}`;
-					console.error(msg);
-					Sentry.captureMessage(msg, { tags: { area: 'billing', event: event.type } });
-					break;
-				}
-
-				const sub = await stripe.subscriptions.retrieve(subscriptionId);
-				const priceId = sub.items.data[0]?.price?.id ?? null;
-				const tier = tierFromPriceId(priceId);
-				const periodEnd = sub.items.data[0]?.current_period_end
-					? new Date(sub.items.data[0].current_period_end * 1000)
-					: null;
-				const userId = typeof session.metadata?.userId === 'string' ? session.metadata.userId : null;
-				await db.insert(subscriptions)
-					.values({
-						restaurantId,
-						stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? '',
-						stripeSubscriptionId: subscriptionId,
-						stripePriceId: priceId,
-						planTier: tier,
-						status: sub.status as SubscriptionStatus,
-						currentPeriodEnd: periodEnd,
-						cancelAtPeriodEnd: sub.cancel_at_period_end,
-						lastEventAt: eventCreatedAt,
-					})
-					.onConflictDoUpdate({
-						target: subscriptions.restaurantId,
-						set: {
-							stripeSubscriptionId: subscriptionId,
-							stripePriceId: priceId,
-							planTier: tier,
-							status: sub.status,
-							currentPeriodEnd: periodEnd,
-							cancelAtPeriodEnd: sub.cancel_at_period_end,
-							lastEventAt: eventCreatedAt,
-							updatedAt: new Date(),
-						},
-					});
-				await applyTierSettings(restaurantId, tier);
-				trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
-				console.info(`[billing] checkout.session.completed applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${subscriptionId}`);
-
-				if (userId) {
-					await cancelDuplicateSubscriptionsForUser(userId, restaurantId);
-				}
-
-				const customerEmail = session.customer_details?.email ?? session.customer_email;
-				if (customerEmail) {
-					const [restaurant] = await db.select({ name: restaurants.name })
-						.from(restaurants)
-						.where(eq(restaurants.id, restaurantId));
-					sendEmail(subscriptionConfirmationEmail(
-						customerEmail,
-						restaurant?.name ?? 'tu restaurante',
-						TIERS[tier].name,
-					)).catch(e => console.error('[billing] subscription confirmation email failed:', e));
-				}
-				break;
-			}
-
-			case 'customer.subscription.updated':
-			case 'customer.subscription.deleted':
-			case 'customer.subscription.paused':
-			case 'customer.subscription.resumed': {
-				const sub = event.data.object as Stripe.Subscription;
-				const restaurantId = sub.metadata?.restaurantId;
-				if (!restaurantId) {
-					const msg = `[billing] ${event.type} ignored: subscription has no restaurantId metadata — subscription=${sub.id}`;
-					console.error(msg);
-					Sentry.captureMessage(msg, { tags: { area: 'billing', event: event.type } });
-					break;
-				}
-
-				const priceId = sub.items.data[0]?.price?.id ?? null;
-				const tier = tierFromPriceId(priceId);
-				const periodEnd = sub.items.data[0]?.current_period_end
-					? new Date(sub.items.data[0].current_period_end * 1000)
-					: null;
-				const applied = await db.update(subscriptions)
-					.set({
-						stripePriceId: priceId,
-						planTier: tier,
-						status: sub.status as SubscriptionStatus,
-						currentPeriodEnd: periodEnd,
-						cancelAtPeriodEnd: sub.cancel_at_period_end,
-						lastEventAt: eventCreatedAt,
-						updatedAt: new Date(),
-					})
-					.where(and(
-						forTenant(restaurantId).scope(subscriptions.restaurantId),
-						or(isNull(subscriptions.lastEventAt), lte(subscriptions.lastEventAt, eventCreatedAt)),
-					))
-					.returning({ id: subscriptions.id });
-				if (applied.length === 0) break;
-
-				if (sub.status === 'active') {
-					await applyTierSettings(restaurantId, tier);
-				} else if (sub.status === 'canceled' || sub.status === 'paused' || sub.status === 'incomplete') {
-					await applyTierSettings(restaurantId, 'trial');
-				}
-
-				if (event.type === 'customer.subscription.deleted' || sub.status === 'canceled') {
-					trackEvent('subscription_canceled', restaurantId, { tier, status: sub.status });
-				} else if (sub.status === 'past_due') {
-					trackEvent('payment_past_due', restaurantId, { tier, status: sub.status });
-				} else if (event.type === 'customer.subscription.paused') {
-					trackEvent('subscription_paused', restaurantId, { tier, status: sub.status });
-				} else if (event.type === 'customer.subscription.resumed') {
-					trackEvent('subscription_resumed', restaurantId, { tier, status: sub.status });
-				}
-				console.info(`[billing] ${event.type} applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${sub.id}`);
-				break;
-			}
-
-			case 'customer.subscription.trial_will_end': {
-				const sub = event.data.object as Stripe.Subscription;
-				const restaurantId = sub.metadata?.restaurantId;
-				if (!restaurantId) {
-					const msg = `[billing] customer.subscription.trial_will_end ignored: subscription has no restaurantId metadata — subscription=${sub.id}`;
-					console.error(msg);
-					Sentry.captureMessage(msg, { tags: { area: 'billing', event: event.type } });
-					break;
-				}
-
-				trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
-				break;
-			}
-		}
+		await dispatchEvent(event, new Date(event.created * 1000));
 	} catch (err) {
 		await releaseIdempotencyKey(STRIPE_WEBHOOK_SCOPE, event.id)
 			.catch((e) => console.error('[billing] failed to release webhook claim:', e));
 		throw err;
 	}
+}
+
+function webhookConfigured(): boolean {
+	if (!stripe) {
+		if (NODE_ENV === 'production') {
+			throw new Error('STRIPE_SECRET_KEY is required in production — refusing to silently accept webhook');
+		}
+		console.warn('[billing] STRIPE_SECRET_KEY not set — skipping webhook processing (dev only)');
+		return false;
+	}
+	if (!WEBHOOK_SECRET) {
+		if (NODE_ENV === 'production') {
+			throw new Error('STRIPE_WEBHOOK_SECRET is required in production — refusing to process unverified webhook');
+		}
+		console.warn('[billing] STRIPE_WEBHOOK_SECRET not set — skipping signature verification (dev only)');
+		return false;
+	}
+	return true;
+}
+
+async function dispatchEvent(event: Stripe.Event, eventCreatedAt: Date): Promise<void> {
+	switch (event.type) {
+		case 'checkout.session.completed':
+			await handleCheckoutCompleted(event, eventCreatedAt);
+			break;
+		case 'customer.subscription.updated':
+		case 'customer.subscription.deleted':
+		case 'customer.subscription.paused':
+		case 'customer.subscription.resumed':
+			await handleSubscriptionChanged(event, eventCreatedAt);
+			break;
+		case 'customer.subscription.trial_will_end':
+			await handleTrialWillEnd(event);
+			break;
+	}
+}
+
+function subscriptionFields(sub: Stripe.Subscription): { priceId: string | null; tier: PlanTier; periodEnd: Date | null } {
+	const priceId = sub.items.data[0]?.price?.id ?? null;
+	const tier = tierFromPriceId(priceId);
+	const periodEnd = sub.items.data[0]?.current_period_end
+		? new Date(sub.items.data[0].current_period_end * 1000)
+		: null;
+	return { priceId, tier, periodEnd };
+}
+
+function logIgnored(eventType: string, detail: string): void {
+	const msg = `[billing] ${eventType} ignored: ${detail}`;
+	console.error(msg);
+	Sentry.captureMessage(msg, { tags: { area: 'billing', event: eventType } });
+}
+
+function missingSubscriptionMetadata(eventType: string, subscriptionId: string | undefined, restaurantId: string | undefined): boolean {
+	if (restaurantId) return false;
+	logIgnored(eventType, `subscription has no restaurantId metadata — subscription=${subscriptionId}`);
+	return true;
+}
+
+async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date): Promise<void> {
+	const session = event.data.object as Stripe.Checkout.Session;
+	const restaurantId = session.metadata?.restaurantId;
+	const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
+	if (!restaurantId || !subscriptionId) {
+		logIgnored(event.type, `missing metadata — restaurantId=${restaurantId ?? 'null'}, subscriptionId=${subscriptionId ?? 'null'}, session=${session.id}`);
+		return;
+	}
+
+	const sub = await stripe!.subscriptions.retrieve(subscriptionId);
+	const { priceId, tier, periodEnd } = subscriptionFields(sub);
+	const userId = typeof session.metadata?.userId === 'string' ? session.metadata.userId : null;
+	const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? '';
+
+	await db.insert(subscriptions)
+		.values({
+			restaurantId,
+			stripeCustomerId,
+			stripeSubscriptionId: subscriptionId,
+			stripePriceId: priceId,
+			planTier: tier,
+			status: sub.status as SubscriptionStatus,
+			currentPeriodEnd: periodEnd,
+			cancelAtPeriodEnd: sub.cancel_at_period_end,
+			lastEventAt: eventCreatedAt,
+		})
+		.onConflictDoUpdate({
+			target: subscriptions.restaurantId,
+			set: {
+				stripeSubscriptionId: subscriptionId,
+				stripePriceId: priceId,
+				planTier: tier,
+				status: sub.status,
+				currentPeriodEnd: periodEnd,
+				cancelAtPeriodEnd: sub.cancel_at_period_end,
+				lastEventAt: eventCreatedAt,
+				updatedAt: new Date(),
+			},
+		});
+	await applyTierSettings(restaurantId, tier);
+	trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
+	console.info(`[billing] checkout.session.completed applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${subscriptionId}`);
+
+	if (userId) {
+		await cancelDuplicateSubscriptionsForUser(userId, restaurantId);
+	}
+
+	const customerEmail = session.customer_details?.email ?? session.customer_email;
+	if (customerEmail) {
+		await sendSubscriptionConfirmation(restaurantId, customerEmail, tier);
+	}
+}
+
+async function sendSubscriptionConfirmation(restaurantId: string, email: string, tier: PlanTier): Promise<void> {
+	const [restaurant] = await db.select({ name: restaurants.name })
+		.from(restaurants)
+		.where(eq(restaurants.id, restaurantId));
+	sendEmail(subscriptionConfirmationEmail(
+		email,
+		restaurant?.name ?? 'tu restaurante',
+		TIERS[tier].name,
+	)).catch(e => console.error('[billing] subscription confirmation email failed:', e));
+}
+
+async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Date): Promise<void> {
+	const sub = event.data.object as Stripe.Subscription;
+	const restaurantId = sub.metadata?.restaurantId;
+	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
+
+	const { priceId, tier, periodEnd } = subscriptionFields(sub);
+	const applied = await db.update(subscriptions)
+		.set({
+			stripePriceId: priceId,
+			planTier: tier,
+			status: sub.status as SubscriptionStatus,
+			currentPeriodEnd: periodEnd,
+			cancelAtPeriodEnd: sub.cancel_at_period_end,
+			lastEventAt: eventCreatedAt,
+			updatedAt: new Date(),
+		})
+		.where(and(
+			forTenant(restaurantId).scope(subscriptions.restaurantId),
+			or(isNull(subscriptions.lastEventAt), lte(subscriptions.lastEventAt, eventCreatedAt)),
+		))
+		.returning({ id: subscriptions.id });
+	if (applied.length === 0) return;
+
+	await applyStatusSettings(restaurantId, sub.status, tier);
+	trackSubscriptionEvent(event, restaurantId, tier, sub.status);
+	console.info(`[billing] ${event.type} applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${sub.id}`);
+}
+
+async function applyStatusSettings(restaurantId: string, status: string, tier: PlanTier): Promise<void> {
+	if (status === 'active') {
+		await applyTierSettings(restaurantId, tier);
+	} else if (status === 'canceled' || status === 'paused' || status === 'incomplete') {
+		await applyTierSettings(restaurantId, 'trial');
+	}
+}
+
+function trackSubscriptionEvent(event: Stripe.Event, restaurantId: string, tier: PlanTier, status: string): void {
+	if (event.type === 'customer.subscription.deleted' || status === 'canceled') {
+		trackEvent('subscription_canceled', restaurantId, { tier, status });
+	} else if (status === 'past_due') {
+		trackEvent('payment_past_due', restaurantId, { tier, status });
+	} else if (event.type === 'customer.subscription.paused') {
+		trackEvent('subscription_paused', restaurantId, { tier, status });
+	} else if (event.type === 'customer.subscription.resumed') {
+		trackEvent('subscription_resumed', restaurantId, { tier, status });
+	}
+}
+
+async function handleTrialWillEnd(event: Stripe.Event): Promise<void> {
+	const sub = event.data.object as Stripe.Subscription;
+	const restaurantId = sub.metadata?.restaurantId;
+	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
+
+	trackEvent('trial_will_end', restaurantId, { subscription_id: sub.id });
 }
 
 export async function syncSubscriptionFromStripe(restaurantId: string): Promise<void> {
@@ -652,48 +680,20 @@ export async function syncSubscriptionFromStripe(restaurantId: string): Promise<
 		.where(tdb.scope(subscriptions.restaurantId))
 		.limit(1);
 	const customerId = sub?.stripeCustomerId ?? null;
-	let targetSubId = sub?.stripeSubscriptionId ?? null;
+	const targetSubId = sub?.stripeSubscriptionId ?? null;
 
 	try {
-		let live: Stripe.Subscription | null = null;
-		if (targetSubId) {
-			const stored = await stripe.subscriptions.retrieve(targetSubId);
-			if (stored.status === 'active' || stored.status === 'trialing' || stored.status === 'past_due') {
-				live = stored;
-			}
-		}
-		if (!live && customerId) {
-			const liveList = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
-			const matches = liveList.data.filter(
-				(s) =>
-					(s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') &&
-					s.metadata?.restaurantId === rootRid,
-			);
-			if (matches.length > 1) {
-				const msg = `[billing] reconcile ambiguous: customer ${customerId} has ${matches.length} live subscriptions tagged for restaurant ${rootRid} — leaving unresolved`;
-				console.error(msg);
-				Sentry.captureMessage(msg, { tags: { area: 'billing', op: 'reconcile' } });
-				return;
-			}
-			const candidate = matches[0];
-			if (candidate) {
-				live = candidate;
-				targetSubId = candidate.id;
-			}
-		}
-		if (!live) return;
+		const resolved = await resolveLiveSubscription(stripe, targetSubId, customerId, rootRid);
+		if (!resolved) return;
 
-		const priceId = live.items.data[0]?.price?.id ?? null;
-		const tier = tierFromPriceId(priceId);
-		const periodEnd = live.items.data[0]?.current_period_end
-			? new Date(live.items.data[0].current_period_end * 1000)
-			: null;
+		const { live, targetSubId: resolvedSubId } = resolved;
+		const { priceId, tier, periodEnd } = subscriptionFields(live);
 		const trialEndsAt = live.trial_end ? new Date(live.trial_end * 1000) : null;
 		const status = live.status as SubscriptionStatus;
 
 		await db.update(subscriptions)
 			.set({
-				stripeSubscriptionId: targetSubId,
+				stripeSubscriptionId: resolvedSubId,
 				stripeCustomerId: customerId,
 				stripePriceId: priceId,
 				planTier: tier,
@@ -706,14 +706,39 @@ export async function syncSubscriptionFromStripe(restaurantId: string): Promise<
 			})
 			.where(tdb.scope(subscriptions.restaurantId));
 
-		if (status === 'active') {
-			await applyTierSettings(rootRid, tier);
-		} else if (status === 'canceled' || status === 'paused' || status === 'incomplete') {
-			await applyTierSettings(rootRid, 'trial');
-		}
-		console.info(`[billing] reconciled subscription from Stripe — restaurant=${rootRid}, tier=${tier}, status=${status}, subscription=${targetSubId}`);
+		await applyStatusSettings(rootRid, status, tier);
+		console.info(`[billing] reconciled subscription from Stripe — restaurant=${rootRid}, tier=${tier}, status=${status}, subscription=${resolvedSubId}`);
 	} catch (err) {
 		console.error(`[billing] reconcile failed for ${rootRid}:`, err);
 		Sentry.captureException(err, { tags: { area: 'billing', op: 'reconcile' } });
 	}
+}
+
+function isLiveSubscription(sub: Stripe.Subscription): boolean {
+	return sub.status === 'active' || sub.status === 'trialing' || sub.status === 'past_due';
+}
+
+async function resolveLiveSubscription(
+	stripe: Stripe,
+	targetSubId: string | null,
+	customerId: string | null,
+	rootRid: string,
+): Promise<{ live: Stripe.Subscription; targetSubId: string } | null> {
+	if (targetSubId) {
+		const stored = await stripe.subscriptions.retrieve(targetSubId);
+		if (isLiveSubscription(stored)) return { live: stored, targetSubId };
+	}
+	if (!customerId) return null;
+
+	const liveList = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
+	const matches = liveList.data.filter((s) => isLiveSubscription(s) && s.metadata?.restaurantId === rootRid);
+	if (matches.length > 1) {
+		const msg = `[billing] reconcile ambiguous: customer ${customerId} has ${matches.length} live subscriptions tagged for restaurant ${rootRid} — leaving unresolved`;
+		console.error(msg);
+		Sentry.captureMessage(msg, { tags: { area: 'billing', op: 'reconcile' } });
+		return null;
+	}
+	const candidate = matches[0];
+	if (!candidate) return null;
+	return { live: candidate, targetSubId: candidate.id };
 }
