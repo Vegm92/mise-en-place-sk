@@ -59,7 +59,8 @@ concept, add it here before using it in specs.
 |---|---|---|
 | **Subscription** | A restaurant's billing row; Stripe owns money, Postgres owns entitlement (ADR-013). | `subscriptions` |
 | **Plan / Tier** | `trial`, `starter`, `pro`, `business`. | `PlanTier` |
-| **Entitlement** | A feature flag or quota derived from the tier. | `getTierFeatures`, `resolveMonthlyQuota` |
+| **Entitlement** | A feature flag or quota derived from the tier. Resolved once per request by `getEntitlements` (ADR-023). | `getEntitlements`, `resolveMonthlyQuota` |
+| **Route policy** | The entitlement a route requires, declared per route id and enforced in one hook (ADR-023). | `ROUTE_POLICY`, `entitlementHandle` |
 | **Quota** | Monthly invoice extraction allowance per restaurant (trial 20, starter 100, pro 300, business unlimited). | `monthly_usage`, `tenant_llm_quotas` |
 | **Trial** | 30-day window from first contact; enforced via `subscriptions.trialEndsAt`. | `TRIAL_DAYS` |
 
