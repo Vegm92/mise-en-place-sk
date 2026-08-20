@@ -88,6 +88,12 @@ Rules:
   unit_price and total_price the same way as IVA. If it is bundled into the product's price with no way to
   tell it apart, leave it as part of the price (there is currently no separate field for it) but do not raise
   confidence above 0.6 for that line, since the true base imponible cannot be fully isolated.
+- Handwritten corrections take priority over the printed value. Spanish delivery drivers commonly cross out
+  a printed quantity/price with a pen and write the corrected figure by hand next to or over it (e.g. fewer
+  units delivered than ordered, or a damaged item removed). Whenever you see a struck-through printed number
+  with a handwritten replacement nearby, extract the HANDWRITTEN value, not the crossed-out printed one — the
+  handwriting is always the more recent, correct figure. Lower that field's confidence to reflect the reduced
+  legibility of handwriting, but never fall back to the printed value just because it is easier to read.
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
