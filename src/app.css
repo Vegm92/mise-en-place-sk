@@ -17,8 +17,12 @@
   --mep-r-input: 6px;
   --mep-r-card:  10px;
   --mep-r-pill:  999px;
+}
 
-  /* Semantic (theme-independent base — overridden in dark) */
+/* Semantic base. Must live on :root, not .mep — a custom property declared on
+   .mep beats the value it would inherit from :root[data-theme="dark"], so the
+   dark overrides below never reached any component. */
+:root {
   --mep-pos:      #14694a;
   --mep-pos-soft: rgba(20, 105, 74, 0.12);
   --mep-neg:      #b03a3a;
