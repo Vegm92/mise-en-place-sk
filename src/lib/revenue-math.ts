@@ -35,6 +35,24 @@ function byTenant(rows: TenantMrr[]): Map<string, number> {
 	return map;
 }
 
+function applyCurrent(
+	acc: { newCents: number; reactivationCents: number; expansionCents: number; contractionCents: number; churnedCents: number },
+	restaurantId: string,
+	before: number,
+	now: number,
+	everPaidBefore: Set<string>,
+): void {
+	if (before === 0 && now > 0) {
+		if (everPaidBefore.has(restaurantId)) acc.reactivationCents += now;
+		else acc.newCents += now;
+	} else if (now > before) {
+		acc.expansionCents += now - before;
+	} else if (now < before) {
+		if (now === 0) acc.churnedCents += before;
+		else acc.contractionCents += before - now;
+	}
+}
+
 export function mrrMovement(
 	previous: TenantMrr[],
 	current: TenantMrr[],
@@ -43,36 +61,30 @@ export function mrrMovement(
 	const prev = byTenant(previous);
 	const curr = byTenant(current);
 
-	let newCents = 0;
-	let reactivationCents = 0;
-	let expansionCents = 0;
-	let contractionCents = 0;
-	let churnedCents = 0;
+	const acc = {
+		newCents: 0,
+		reactivationCents: 0,
+		expansionCents: 0,
+		contractionCents: 0,
+		churnedCents: 0,
+	};
 
 	for (const [restaurantId, now] of curr) {
 		const before = prev.get(restaurantId) ?? 0;
-		if (before === 0 && now > 0) {
-			if (everPaidBefore.has(restaurantId)) reactivationCents += now;
-			else newCents += now;
-		} else if (now > before) {
-			expansionCents += now - before;
-		} else if (now < before) {
-			if (now === 0) churnedCents += before;
-			else contractionCents += before - now;
-		}
+		applyCurrent(acc, restaurantId, before, now, everPaidBefore);
 	}
 
 	for (const [restaurantId, before] of prev) {
-		if (before > 0 && !curr.has(restaurantId)) churnedCents += before;
+		if (before > 0 && !curr.has(restaurantId)) acc.churnedCents += before;
 	}
 
 	return {
 		startCents: total(previous),
-		newCents,
-		reactivationCents,
-		expansionCents,
-		contractionCents,
-		churnedCents,
+		newCents: acc.newCents,
+		reactivationCents: acc.reactivationCents,
+		expansionCents: acc.expansionCents,
+		contractionCents: acc.contractionCents,
+		churnedCents: acc.churnedCents,
 		endCents: total(current),
 	};
 }
