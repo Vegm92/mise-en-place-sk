@@ -44,6 +44,20 @@ describe('resolveEntitlement — open routes', () => {
 	});
 });
 
+describe('resolveEntitlement — missing entitlements', () => {
+	it('denies a gated route when entitlements are unresolved', () => {
+		for (const policy of [{ feature: 'aiAssistant' }, { access: true }] as RoutePolicy[]) {
+			expect(resolveEntitlement({ policy, features: null, access: null }))
+				.toEqual({ kind: 'deny-access', reason: 'inactive' });
+		}
+	});
+
+	it('still allows an open route when entitlements are unresolved', () => {
+		expect(resolveEntitlement({ policy: 'open', features: null, access: null }))
+			.toEqual({ kind: 'allow' });
+	});
+});
+
 describe('resolveEntitlement — feature gates across every tier', () => {
 	const featureKeys = Object.keys(UPGRADE_SLUG) as FeatureKey[];
 
