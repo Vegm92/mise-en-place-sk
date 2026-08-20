@@ -56,20 +56,68 @@ La visión completa del producto está documentada en `ESPECIFICACIÓN_APP_ALBAR
 
 ### Paso 1 — Recepción y digitalización de albaranes por OCR
 
-**Objetivo:** de una foto (por la app o por WhatsApp) a un dato estructurado, validado, guardado.
+**Qué hace este paso:** el restaurante fotografía un albarán o factura (con la app, o mandando la foto por WhatsApp), una IA (Gemini) lee el documento y extrae los datos estructurados (proveedor, artículos, cantidades, precios, IVA), y esos datos quedan guardados y visibles en pantalla, listos para alimentar el Paso 2 (histórico de precios) y, más adelante, el Paso 3 (escandallos).
 
-| Pieza | Estado |
-|---|---|
-| Captura fotográfica (cámara/archivo, con cola si no hay conexión) | ✅ Ya existe y funciona |
-| Envío del albarán por **WhatsApp** como vía alternativa de entrada | ✅ Ya existe y funciona (webhook con verificación de firma) — **confirmado dentro del MVP** |
-| Extracción por IA: proveedor, artículos, cantidades, unidad, precio unitario, importe | ✅ Ya existe y funciona, distingue factura vs. albarán |
-| **IVA**, incluidos documentos con **varios tipos de IVA a la vez** (ej. 10% + 21% en el mismo albarán) | ✅ **Corregido (2026-08-20).** Antes la IA no leía el IVA por línea en absoluto (solo un resumen global del documento) y el dato ni se guardaba ni se veía. Ahora la IA asigna el tipo de IVA a cada línea y se muestra en las 3 pantallas donde se revisa/edita/consulta el albarán (revisión tras el OCR, edición, detalle escritorio y móvil). |
-| El precio de cada línea debe ser siempre **base imponible** (sin IVA), para no contaminar el coste real que alimentará los escandallos (Paso 3) | ✅ **Corregido (2026-08-20).** No estaba dicho en ningún sitio — si un proveedor imprime el precio con IVA incluido, la IA podía copiarlo tal cual. Ahora se le exige explícitamente devolver siempre el precio sin IVA, calculándolo ella misma cuando el documento solo muestra el precio con impuestos. **Limitación que queda:** si el impuesto especial (ej. en bebidas alcohólicas) va mezclado en el precio sin desglosar en el documento, no hay forma de separarlo — se acepta como parte del precio y se marca con confianza más baja en esa línea. No se ha construido un campo específico para impuestos especiales; se revisará si aparece en la práctica con proveedores reales. |
-| Línea sin precio → se registra igualmente, con estado visible **"Pendiente de tarificación"** | ✅ **Corregido (2026-08-20).** Ya se guardaba sin precio (no bloqueaba el albarán), y ahora además se muestra la etiqueta "Pendiente de tarificación" en el detalle en vez de un importe vacío. **Sigue pendiente**: la resolución automática y retroactiva de esa línea cuando llega el precio real (ver Paso 2) — hoy la etiqueta es solo informativa, no hay un mecanismo que la actualice sola todavía. |
-| Foto defectuosa | ✅ **Decisión tomada**: no hace falta rechazo automático en el momento de la foto. Basta con lo que ya existe: si la IA tiene menos del 85% de confianza en un dato clave, bloquea el guardado y resalta los campos dudosos para revisión manual. |
-| Vinculación inteligente de nombres manuscritos/comerciales a la materia prima interna (fuzzy matching + IA de refuerzo) | ✅ Ya existe y funciona. **Decisión tomada**: se mantiene el uso de IA como segundo nivel, aunque la idea original era "solo texto" — ya demostró que hacía falta. |
+**De qué partes se compone:**
+1. Captura de la foto (app o WhatsApp).
+2. Extracción por IA (lectura del documento y conversión a datos).
+3. Pantalla de revisión (donde se ve lo que la IA leyó, antes de guardar).
+4. Guardado (con sus validaciones y protecciones).
+5. Pantallas de consulta posteriores (detalle del albarán, edición).
+6. Vinculación de cada artículo del albarán con la materia prima interna del restaurante.
 
-**Criterio de "paso terminado":** fotografías un albarán real (por la app o por WhatsApp), ves los datos extraídos en pantalla **incluyendo el IVA correctamente separado por línea**, y las líneas sin precio aparecen marcadas como "Pendiente de tarificación".
+A continuación, cada pieza: qué hace, cómo funcionaba antes de esta sesión, qué pregunta o error hizo saltar la alarma, y qué se corrigió.
+
+---
+
+**1. Captura de la foto — cámara o WhatsApp**
+- *Qué hace:* deja fotografiar el albarán con el móvil (con cola de subida si no hay conexión) o mandarlo directamente por WhatsApp a un número del restaurante.
+- *Cómo funcionaba antes:* ya funcionaba así, completo.
+- *Verificación:* se confirmó que el webhook de WhatsApp valida la firma de Meta correctamente y que existe cola offline en el navegador. No se encontró ningún problema.
+- *Corrección aplicada:* ninguna. Se confirma explícitamente que WhatsApp **forma parte del MVP** (antes no estaba en el documento).
+
+**2. Extracción por IA — lectura del documento**
+- *Qué hace:* la IA lee la foto/PDF y devuelve proveedor, número, fecha, y cada línea (artículo, cantidad, unidad, precio, IVA), distinguiendo si el documento es una factura o un albarán.
+- *Cómo funcionaba antes:* extraía proveedor/artículos/cantidades/precio/importe correctamente, pero:
+  - **No leía el IVA por línea en absoluto** — solo un resumen global del documento entero (ej. "10%: base 45€", sin decir qué línea concreta lleva ese 10%).
+  - **No le decía a la IA si el precio debía ir con o sin IVA** — si un proveedor imprimía el precio ya con el IVA incluido, la IA podía copiarlo tal cual.
+- *Pregunta/error que hizo saltar la alarma:* preguntaste explícitamente "¿el parser separa la base imponible del IVA por línea?". Al revisar el código se confirmó que no — el campo `tax_rate` por línea sencillamente no existía en lo que la IA devolvía, y el precio de línea era ambiguo (podía venir con o sin IVA según el documento).
+- *Corrección aplicada:*
+  - Se añadió `tax_rate` como campo obligatorio por línea en lo que la IA debe devolver, con instrucciones de cómo repartirlo cuando el documento solo trae un tipo global o varios tipos sin indicar cuál va con cada línea.
+  - Se le exige explícitamente que el precio de cada línea sea siempre la **base imponible** (sin IVA), calculándolo ella misma si el documento solo imprime el precio con IVA incluido — bajando la confianza de esa línea cuando tiene que hacer ese cálculo en vez de leerlo directo.
+  - **Limitación que queda, documentada y no resuelta:** si un **impuesto especial** (ej. en bebidas alcohólicas) va mezclado en el precio sin desglosar en el documento, no hay forma de separarlo — no existe un campo para eso. Se acepta como parte del precio y esa línea queda con confianza más baja. Se revisará si aparece en la práctica con proveedores reales.
+
+**3. Pantalla de revisión — antes de guardar**
+- *Qué hace:* muestra lo que la IA leyó para que el usuario lo revise/corrija antes de confirmar el guardado. Ya calculaba internamente "¿cuadra el total?" comparando la suma de las líneas + impuestos contra el total impreso en el documento.
+- *Cómo funcionaba antes:* el campo de IVA por línea existía como un campo **escondido** del formulario (invisible, aunque nunca tenía datos reales porque la IA no lo leía — ver punto 2). El aviso de "no cuadra" ya asumía en silencio que las líneas eran sin IVA, sin que nadie se lo hubiera pedido explícitamente a la IA — es decir, ya había una inconsistencia latente antes de esta sesión.
+- *Pregunta/error que hizo saltar la alarma:* al ir a "simplemente enseñar" el campo escondido, se descubrió que ese campo siempre estaba vacío (ver punto 2) — mostrarlo tal cual no hubiera arreglado nada.
+- *Corrección aplicada:* una vez la IA sí devuelve el IVA por línea (punto 2), se cambió el campo de escondido a visible y editable en la pantalla de revisión, con su columna propia.
+
+**4. Guardado — validaciones y protecciones**
+- *Qué hace:* guarda el albarán. Bloquea el guardado si algún dato de cabecera (proveedor, número, fechas, importe total) tiene menos del 85% de confianza, para forzar una revisión manual.
+- *Cómo funcionaba antes:* ese bloqueo por confianza **solo miraba los 5 campos de cabecera**, nunca la confianza de una línea individual. Una línea (cantidad, precio) mal leída con muy poca confianza se resaltaba en naranja, pero se podía guardar igual sin corregirla. Y ese dato de confianza de línea, una vez guardado, se perdía — no quedaba registrado en la base de datos.
+- *Pregunta/error que hizo saltar la alarma:* al preguntarte si quería extender el bloqueo también a nivel de línea (mismo riesgo que el punto 2: alimentar el escandallo con un precio mal leído), **decidiste dejarlo como está** — el resaltado visual es suficiente por ahora, sin añadir más fricción al guardado.
+- *Corrección aplicada:* ninguna — decisión consciente de no tocarlo, documentada aquí para que quede constancia de que se evaluó y se descartó a propósito.
+
+**5. Líneas sin precio — "Pendiente de tarificación"**
+- *Qué hace:* cuando un albarán llega sin precios (habitual: el precio llega después con la factura), la línea se guarda igual, con las cantidades, y debe quedar marcada como pendiente de tarificar.
+- *Cómo funcionaba antes:* se guardaba correctamente sin precio (no bloqueaba nada), pero no había ninguna etiqueta — el importe simplemente aparecía vacío, indistinguible de un error de lectura o de un artículo genuinamente gratis.
+- *Pregunta/error que hizo saltar la alarma:* preguntaste explícitamente si existía este estado en la base de datos. La respuesta es que **no existe como estado real guardado** — es una etiqueta que se calcula al mostrar la pantalla ("si no hay precio, escribe este texto"), no una columna en la base de datos.
+- *Corrección aplicada:* se añadió la etiqueta visible "Pendiente de tarificación" en el detalle del albarán (escritorio y móvil), en vez de dejar el importe vacío. **Sigue pendiente, sin resolver:** que esa línea se actualice sola cuando llega el precio real (con la factura) — eso pertenece al Paso 2 y no se ha construido todavía. Tampoco se ha convertido en un estado real de base de datos; si el Paso 3 necesita bloquear escandallos por esto de forma fiable, habrá que revisarlo entonces.
+
+**6. Foto defectuosa**
+- *Qué hace:* debería avisar o impedir seguir si la foto sale borrosa o mal encuadrada.
+- *Cómo funcionaba antes / verificación:* se confirmó que **no existe ninguna comprobación de calidad de imagen** (nitidez, resolución, iluminación) antes de mandar la foto a la IA — no hay ni la herramienta técnica para hacerlo en el proyecto. Solo se valida tamaño de archivo y tipo (jpg/png/pdf). La única protección es posterior: si la IA devuelve poca confianza, se bloquea el guardado (ver punto 4).
+- *Pregunta/error que hizo saltar la alarma:* preguntaste explícitamente si había validación de calidad de imagen antes de llamar a la IA.
+- *Corrección aplicada:* ninguna — **decisión consciente**: no hace falta el rechazo automático en el momento de la foto, la protección posterior (bloqueo por confianza) es suficiente para este MVP.
+
+**7. Vinculación de cada artículo con la materia prima interna**
+- *Qué hace:* cada línea del albarán ("Tomate pera roja") debe asociarse a un ingrediente ya conocido del restaurante ("Tomate pera"), aunque el nombre no sea idéntico (nombres manuscritos, abreviados, o de cada proveedor).
+- *Cómo funcionaba antes:* primero busca un texto ya visto antes → lo reutiliza directo (correcto, sin ambigüedad). Si no, compara por similitud de texto contra los artículos ya existentes; si la similitud supera un umbral, **vinculaba automáticamente esa línea al artículo existente y avisaba después** con una notificación de "sugerencia" — se podía deshacer, pero el vínculo ya se había hecho antes de que nadie lo confirmara. Si no encontraba nada parecido, creaba un artículo nuevo, y además lanzaba en segundo plano una segunda comprobación con IA (esta sí, sin vincular sola — solo sugiere).
+- *Pregunta/error que hizo saltar la alarma:* preguntaste cómo se comportaba el sistema ante una coincidencia dudosa. Al explicarte que "vinculaba y avisaba después" (no "preguntaba antes"), pediste explícitamente cambiarlo.
+- *Corrección aplicada:* ahora, igual que ya hacía el segundo nivel con IA, una coincidencia dudosa (no exacta) **nunca se vincula sola** — la línea se guarda como su propio artículo nuevo, y solo se fusiona con el candidato parecido si el usuario confirma la sugerencia. Se retiró la función `rejectProductAlias` y la acción "reject" de la API porque dejaron de tener sentido: ya no existe el estado de "vinculado por error, sin confirmar" que esa función arreglaba.
+
+**Criterio de "paso terminado":** fotografías un albarán real (por la app o por WhatsApp), ves los datos extraídos en pantalla incluyendo el IVA correctamente separado por línea y como base imponible, las líneas sin precio aparecen marcadas "Pendiente de tarificación", y una coincidencia dudosa de artículo no se vincula sola sin que lo confirmes. **Falta por hacer antes de darlo por cerrado del todo:** probarlo con un albarán real en la app funcionando — todo lo anterior está verificado por código y por tests automáticos, pero no se ha visto todavía funcionando en pantalla con un caso real.
 
 ### Paso 2 — Procesamiento y control histórico de precios
 
@@ -133,11 +181,11 @@ Ya existe código construido y funcionando para varias de estas piezas en `main`
 
 ## 6. Estado actual
 
-- [x] **Paso 1** — completo: OCR, WhatsApp, IVA por línea visible, "Pendiente de tarificación" visible, foto defectuosa gestionada por confianza. Probado con `pnpm check` + suite de tests (1088 tests, todos en verde) — **pendiente probar con un albarán real** antes de darlo por cerrado del todo.
+- [x] **Paso 1** — completo a nivel de código: OCR, WhatsApp, IVA por línea (visible y como base imponible), "Pendiente de tarificación" visible, foto defectuosa y confianza por línea revisadas y con decisión tomada, vinculación de artículos corregida para preguntar antes de fusionar. Probado con `pnpm check` + suite de tests (1088 tests, todos en verde). **Pendiente antes de cerrarlo del todo: probarlo con un albarán real en la app funcionando** — todo lo anterior está verificado por código y tests automáticos, no visto en pantalla todavía.
 - [x] Cuota de prueba sin límite (20/mes quitado) — hecho y probado.
 - [~] **Paso 2** — el flujo base ya existe y funciona (historial de precios, alertas, evolución de precios); queda pendiente la resolución automática de líneas "Pendiente de tarificación" cuando llega el precio real.
 - [ ] **Paso 3** — no empezado, se construye desde cero.
 
-*(Cambios de código de esta sesión: commits `6b8884a` y `fec4692` en `mvp-modular-limpio`.)*
+*(Cambios de código de esta sesión, en orden, en `mvp-modular-limpio`: `9a55895`, `6b8884a`, `fec4692`, `12524f4`, `f8099d8`, `0089d87`, `36df2a8`. El detalle de cada incidencia encontrada y su resolución está también recogido en `INCIDENCIAS_AUDITORIA.md`, pensado para consultarse si esta rama se fusiona alguna vez con `main`.)*
 
 *(Este documento se debe actualizar según avancen los pasos, marcando lo completado y anotando cualquier decisión importante que se tome por el camino.)*

@@ -1,0 +1,94 @@
+# Incidencias encontradas al auditar el Paso 1 (2026-08-20)
+
+**Por qué existe este documento:** durante esta sesión se auditó a fondo el código de captura y extracción OCR (Paso 1 de `PROPUESTA_MVP.md`), que ya existía en `main` antes de crear la rama `mvp-modular-limpio`. Se encontraron varias incidencias reales, algunas corregidas en esta rama y otras dejadas como decisiones conscientes sin tocar.
+
+**Importante — alcance de este documento:** las correcciones de este documento están aplicadas **solo en `mvp-modular-limpio`**, no en `main`. Si en algún momento se fusiona esta rama con `main`, o se retoma trabajo directamente en `main`, hay que saber que **estas incidencias siguen sin resolver ahí** hasta que se haga esa fusión. Este documento sirve como lista de comprobación para ese momento: qué correcciones hay que asegurarse de llevar, y qué decisiones ya se tomaron y por qué (para no tener que volver a discutirlas desde cero).
+
+Cada incidencia indica: en qué archivo(s) está, si está corregida o dejada así a propósito, y el commit donde se corrigió (si aplica).
+
+---
+
+## 1. El IVA no se extraía por línea, solo un resumen global del documento
+
+**Dónde:** `src/lib/server/extract.ts` (prompt de la IA), `src/lib/server/schema/core.ts` (columna `tax_rate` en `invoice_line_items`, existía pero siempre vacía).
+
+**Qué pasaba:** la columna de base de datos y el campo del formulario para el IVA por línea ya existían, pero la IA nunca los rellenaba — el prompt solo le pedía un resumen global del documento (`tax_breakdown`, con base/cuota por cada tipo de IVA encontrado), sin asociar ningún tipo de IVA a cada línea concreta. Además, ese campo estaba oculto en el formulario de revisión, así que aunque hubiera tenido datos, no se veían.
+
+**Riesgo:** en documentos con varios tipos de IVA a la vez (ej. 10% en comida + 21% en algo no alimentario), no había forma de comprobar visualmente que el IVA de cada artículo se había leído bien.
+
+**Estado:** ✅ **Corregido.** Commit `6b8884a`.
+
+---
+
+## 2. El precio de línea podía venir con o sin IVA incluido, sin ninguna regla que lo evitara
+
+**Dónde:** `src/lib/server/extract.ts` (prompt de la IA).
+
+**Qué pasaba:** ni el prompt de la IA ni ningún otro sitio del código decían explícitamente si `unit_price`/`total_price` por línea debían ser el precio **con** o **sin** IVA. Si un proveedor imprimía el precio unitario ya con el IVA incluido (frecuente en algunos albaranes/facturas-albarán), la IA podía copiarlo tal cual.
+
+**Cómo se descubrió que era un problema real y no solo teórico:** la pantalla de revisión del albarán (`src/routes/(app)/batch/[id]/+page.svelte`) **ya calculaba internamente** el total esperado como "suma de las líneas + impuestos" para compararlo con el total del documento y avisar si no cuadraba — es decir, ya asumía en silencio que las líneas eran importes sin IVA, sin que nadie se lo hubiera pedido nunca a la IA de forma explícita. Esto significa que, antes de esta corrección, cualquier albarán donde la IA hubiera copiado precios con IVA incluido podía estar generando avisos de "no cuadra" falsos, sin que quedara registrado en ningún sitio por qué.
+
+**Riesgo:** un coste de materia prima erróneo (con IVA incluido) alimentando directamente los escandallos del Paso 3 más adelante.
+
+**Estado:** ✅ **Corregido.** Se le exige a la IA devolver siempre la base imponible por línea, calculándola ella misma si el documento solo imprime el precio con impuestos, bajando la confianza de esa línea cuando tiene que hacer ese cálculo. Commit `f8099d8`.
+
+**Limitación que queda, sin resolver:** si un **impuesto especial** (ej. en bebidas alcohólicas) va mezclado en el precio sin desglosar en el documento, no hay forma de separarlo de la base imponible — no existe un campo específico para impuestos especiales en ningún sitio del sistema. Se decidió aceptarlo como limitación conocida (marcando esa línea con confianza más baja) en vez de construir un campo nuevo para un caso que, con proveedores de alimentación normales, debería ser poco frecuente. Se revisará si aparece en la práctica.
+
+---
+
+## 3. "Pendiente de tarificación" no existe como estado real, es una etiqueta calculada al mostrar la pantalla
+
+**Dónde:** `src/lib/server/schema/core.ts` (tabla `invoice_line_items`, sin columna de estado), pantallas de detalle (`src/routes/(app)/invoice/[id]/+page.svelte`, `src/lib/components/mobile/MobileInvoiceDetail.svelte`).
+
+**Qué pasaba:** el sistema sí permitía (y sigue permitiendo) guardar un albarán con líneas sin precio, sin bloquear nada. Pero no había ninguna forma visual de distinguir "esta línea está pendiente de que llegue el precio" de "la IA no pudo leer el precio por un fallo" o "el artículo cuesta 0€ de verdad" — las tres se veían igual (importe vacío).
+
+**Estado:** ⚠️ **Parcialmente corregido.** Se añadió una etiqueta visible "Pendiente de tarificación" en las pantallas de detalle (commit `fec4692`), pero **sigue sin ser un estado real guardado en la base de datos** — se calcula sobre la marcha ("si no hay precio, muestra este texto"). Tampoco existe todavía el mecanismo para que esa línea se actualice sola cuando llega el precio real (con la factura) — eso pertenece al Paso 2 y no se ha construido.
+
+**A tener en cuenta si se retoma:** si el Paso 3 (escandallos) necesita bloquear de forma fiable una receta por tener un ingrediente "pendiente de tarificación" (como dice la propuesta original), probablemente haga falta convertir esto en una columna real de estado en vez de un cálculo visual, para poder consultarlo/filtrarlo de forma consistente.
+
+---
+
+## 4. La confianza baja del OCR solo bloqueaba el guardado a nivel de cabecera, nunca por línea
+
+**Dónde:** `src/lib/server/invoice-save.ts`, función `saveReviewedInvoice` (variable `HEADER_FIELDS`).
+
+**Qué pasaba:** el bloqueo de guardado por confianza inferior al 85% solo comprobaba 5 campos de cabecera (proveedor, número, fechas, importe total). Una línea individual (cantidad, precio) con muy poca confianza se resaltaba en naranja en la pantalla de revisión, pero **no impedía guardar** — se podía confirmar sin corregirla si no se prestaba atención. Además, esa confianza de línea no se guarda en ningún sitio: una vez guardado el albarán, se pierde para siempre.
+
+**Estado:** ⚠️ **No corregido — decisión consciente de dejarlo así.** Se preguntó explícitamente si extender el bloqueo también a nivel de línea, y se decidió que no, que el resaltado visual ya es aviso suficiente y no conviene añadir más fricción al guardado en esta fase. Documentado aquí para que quede constancia de que se evaluó y se descartó a propósito, no por omisión.
+
+---
+
+## 5. No hay ninguna validación de calidad de imagen antes de llamar a la IA
+
+**Dónde:** no existe en ningún sitio del proyecto (se comprobó que no hay ninguna librería de procesado de imágenes entre las dependencias).
+
+**Qué pasaba:** ninguna foto se filtra por nitidez, resolución o iluminación antes de mandarla a la IA (Gemini). Solo se valida tamaño de archivo (máx. 20MB) y tipo (jpg/png/pdf). La única protección es posterior: si la IA devuelve poca confianza, se bloquea el guardado (ver incidencia 4).
+
+**Estado:** ⚠️ **No corregido — decisión consciente de dejarlo así.** Se decidió que la detección posterior por confianza es suficiente para este MVP; no hace falta rechazo automático en el momento de la foto.
+
+---
+
+## 6. La vinculación de un artículo dudoso se hacía sola, y solo avisaba después
+
+**Dónde:** `src/lib/server/products.ts` (función `resolveOne`), `src/lib/server/invoice-save.ts`, `src/routes/(app)/api/product-aliases/+server.ts`, `src/routes/(app)/reminders/+page.svelte`.
+
+**Qué pasaba:** cuando el nombre de un artículo del albarán se parecía (por similitud de texto), pero no coincidía exactamente, con un ingrediente ya existente, el sistema **lo vinculaba automáticamente de inmediato** y solo después mandaba una notificación de "sugerencia" que se podía revisar y deshacer. Es decir: vinculaba primero, preguntaba después — al revés de lo que pedía la especificación original ("si es dudosa, se pregunta").
+
+Curiosamente, el segundo nivel de comprobación (una IA que revisa en segundo plano los artículos que no encontraron ningún parecido por texto) **sí** seguía el patrón correcto: solo sugiere, nunca fusiona sola.
+
+**Estado:** ✅ **Corregido.** Ahora una coincidencia dudosa nunca se vincula sola: la línea se guarda como su propio artículo nuevo, y solo se fusiona con el candidato si el usuario confirma la sugerencia — igual que ya hacía el nivel de IA. Se retiró `rejectProductAlias` y la acción `"reject"` de la API (`/api/product-aliases`) porque dejaron de tener sentido: ya no existe el estado de "vinculado por error, sin confirmar" que esa función corregía. Commit `36df2a8`.
+
+**Tests actualizados como parte de esta corrección:** `tests/product-catalog.test.ts`, `tests/backfill.test.ts` (asumían el vínculo automático antiguo).
+
+---
+
+## Resumen para quien retome esto en `main`
+
+| # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |
+|---|---|---|---|
+| 1 | IVA no se extraía por línea | ✅ Corregido | ❌ Sigue sin corregir |
+| 2 | Precio de línea podía incluir IVA sin querer | ✅ Corregido (con límite en impuestos especiales) | ❌ Sigue sin corregir |
+| 3 | "Pendiente de tarificación" no es un estado real en BD | ⚠️ Etiqueta visual añadida, estado en BD sigue pendiente | ❌ Ni etiqueta ni estado |
+| 4 | Confianza baja no bloquea por línea | Decisión consciente: dejar así | (igual, sin decisión documentada) |
+| 5 | Sin validación de calidad de imagen | Decisión consciente: dejar así | (igual, sin decisión documentada) |
+| 6 | Vinculación dudosa se hacía sola | ✅ Corregido | ❌ Sigue sin corregir |
