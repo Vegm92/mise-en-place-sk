@@ -3,13 +3,15 @@
 	import Check from '@lucide/svelte/icons/check';
 	import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
 
-	const { tier, isRecommended }: {
+	const { tier, available, switchable, isRecommended }: {
 		tier: {
 			tier: string;
 			name: string;
 			monthlyInvoiceQuota: number | null;
 			isCurrent: boolean;
 		};
+		available: boolean;
+		switchable: boolean;
 		isRecommended: boolean;
 	} = $props();
 
@@ -49,12 +51,13 @@
 
 	<div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{$t(copy.tagline)}</div>
 
-	<form method="POST" action="?/checkout">
+	<form method="POST" action={switchable ? '?/portal' : '?/checkout'}>
 		<input type="hidden" name="tier" value={tier.tier} />
 		<input type="hidden" name="idempotency_key" value={idempotencyKey} />
-		<button type="submit" class={isRecommended ? 'btn btn-primary' : 'btn btn-secondary'} disabled={tier.isCurrent}
-			style="height:36px;justify-content:center;width:100%;opacity:{tier.isCurrent ? 0.5 : 1};">
-			{tier.isCurrent ? $t('billing.currentPlan') : $ti('billing.choose', { name: tier.name })}
+		<button type="submit" class={isRecommended ? 'btn btn-primary' : 'btn btn-secondary'}
+			disabled={tier.isCurrent || !available}
+			style="height:36px;justify-content:center;width:100%;opacity:{(tier.isCurrent || !available) ? 0.5 : 1};">
+			{tier.isCurrent ? $t('billing.currentPlan') : $ti(switchable ? 'billing.switchTo' : 'billing.choose', { name: tier.name })}
 		</button>
 	</form>
 
