@@ -15,7 +15,8 @@ import { db, forTenant } from './db';
 import { subscriptions, restaurants, settings, userRestaurants } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
-import { sendEmail, subscriptionConfirmationEmail } from './email';
+import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
+import { users } from './schema/auth';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
 
 const secretKey = STRIPE_SECRET_KEY;
@@ -166,6 +167,8 @@ export async function ownedActiveSubscriptions(userId: string): Promise<OwnedSub
 export async function cancelDuplicateSubscriptionsForUser(userId: string, keepRestaurantId: string): Promise<void> {
 	const active = await ownedActiveSubscriptions(userId);
 	const duplicates = active.filter(s => s.restaurantId !== keepRestaurantId && s.stripeSubscriptionId);
+	if (duplicates.length === 0) return;
+
 	for (const dup of duplicates) {
 		try {
 			if (stripe) await stripe.subscriptions.cancel(dup.stripeSubscriptionId!);
@@ -175,7 +178,36 @@ export async function cancelDuplicateSubscriptionsForUser(userId: string, keepRe
 			if (code === 'resource_missing') continue;
 			console.error(`[billing] one-subscription-per-user: failed to cancel duplicate ${dup.stripeSubscriptionId}:`, err);
 			Sentry.captureException(err, { tags: { area: 'billing', op: 'reconcile_duplicates' } });
+			continue;
 		}
+		await notifyDuplicateSubscriptionCanceled(dup.restaurantId, keepRestaurantId);
+	}
+}
+
+async function notifyDuplicateSubscriptionCanceled(canceledRestaurantId: string, keptRestaurantId: string): Promise<void> {
+	try {
+		const [owner] = await db.select({ userId: userRestaurants.userId })
+			.from(userRestaurants)
+			.where(forTenant(canceledRestaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.role, 'owner')))
+			.limit(1);
+		if (!owner) return;
+
+		const [ownerRow] = await db.select({ email: users.email }).from(users).where(eq(users.id, owner.userId)).limit(1);
+		if (!ownerRow?.email) return;
+
+		const [[canceled], [kept]] = await Promise.all([
+			db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, canceledRestaurantId)),
+			db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, keptRestaurantId)),
+		]);
+
+		await sendEmail(subscriptionConsolidatedEmail(
+			ownerRow.email,
+			canceled?.name ?? 'tu restaurante',
+			kept?.name ?? 'otro restaurante',
+		));
+	} catch (err) {
+		console.error(`[billing] failed to notify owner of duplicate-subscription cancellation (restaurant=${canceledRestaurantId}):`, err);
+		Sentry.captureException(err, { tags: { area: 'billing', op: 'reconcile_duplicates_notify' } });
 	}
 }
 
@@ -626,12 +658,18 @@ export async function syncSubscriptionFromStripe(restaurantId: string): Promise<
 		}
 		if (!live && customerId) {
 			const liveList = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
-			const candidate = liveList.data
-				.filter((s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
-				.sort((a, b) =>
-					(b.metadata?.restaurantId === rootRid ? 1 : 0) - (a.metadata?.restaurantId === rootRid ? 1 : 0) ||
-					b.created - a.created,
-				)[0];
+			const matches = liveList.data.filter(
+				(s) =>
+					(s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') &&
+					s.metadata?.restaurantId === rootRid,
+			);
+			if (matches.length > 1) {
+				const msg = `[billing] reconcile ambiguous: customer ${customerId} has ${matches.length} live subscriptions tagged for restaurant ${rootRid} — leaving unresolved`;
+				console.error(msg);
+				Sentry.captureMessage(msg, { tags: { area: 'billing', op: 'reconcile' } });
+				return;
+			}
+			const candidate = matches[0];
 			if (candidate) {
 				live = candidate;
 				targetSubId = candidate.id;
