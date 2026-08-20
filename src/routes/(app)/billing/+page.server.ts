@@ -1,6 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { stripe, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, TIERS, type PlanTier } from '$lib/server/billing';
+import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -11,11 +11,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
 
 	const rid = locals.restaurantId;
-	const tdb = forTenant(rid);
+	const billingTdb = forTenant(await billingRestaurantId(rid));
 
 	const [sub] = await db.select()
 		.from(subscriptions)
-		.where(tdb.scope(subscriptions.restaurantId))
+		.where(billingTdb.scope(subscriptions.restaurantId))
 		.limit(1);
 
 	const [restaurant] = await db.select({ name: restaurants.name })

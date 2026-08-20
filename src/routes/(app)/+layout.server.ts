@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { systemNotifications, invoices, settings, restaurants, subscriptions, userRestaurants } from '$lib/server/schema';
+import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
 import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
 import { TIERS, resolveMonthlyQuota, type PlanTier } from '$lib/server/billing';
 
@@ -15,7 +15,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, subRow, locationRows] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -75,11 +75,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.from(settings)
 			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'tutorial_step'))),
 
-		db.select({ planTier: subscriptions.planTier })
-			.from(subscriptions)
-			.where(tdb.scope(subscriptions.restaurantId))
-			.limit(1),
-
 		db.select({ id: restaurants.id, name: restaurants.name })
 			.from(userRestaurants)
 			.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
@@ -99,7 +94,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		return [{ ...n, payload }];
 	});
 
-	const planTier = (subRow?.[0]?.planTier ?? 'trial') as PlanTier;
+	const entitlements = await locals.entitlements();
+	const planTier: PlanTier = entitlements?.tier ?? 'trial';
 	const tierConfig = TIERS[planTier];
 
 	return {

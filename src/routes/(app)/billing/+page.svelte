@@ -7,13 +7,12 @@
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
-	const upgradeMessage = $derived(
-		data.upgradeFor === 'digest' ? $t('billing.upgrade.digest')
-			: data.upgradeFor === 'prices' ? $t('billing.upgrade.prices')
-			: data.upgradeFor === 'trial' ? $t('billing.upgrade.trial')
-			: data.upgradeFor === 'inactive' ? $t('billing.upgrade.inactive')
-			: null
-	);
+	const upgradeMessage = $derived.by(() => {
+		if (!data.upgradeFor) return null;
+		const key = `billing.upgrade.${data.upgradeFor}`;
+		const text = $t(key);
+		return text === key ? null : text;
+	});
 </script>
 
 <svelte:head>

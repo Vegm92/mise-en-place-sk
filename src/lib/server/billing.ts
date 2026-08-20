@@ -170,19 +170,6 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 	]);
 }
 
-export async function getPlanTier(restaurantId: string): Promise<PlanTier> {
-	const tdb = forTenant(await billingRestaurantId(restaurantId));
-	const [row] = await db.select({ planTier: subscriptions.planTier })
-		.from(subscriptions)
-		.where(tdb.scope(subscriptions.restaurantId))
-		.limit(1);
-	return (row?.planTier ?? 'trial') as PlanTier;
-}
-
-export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
-	return TIERS[await getPlanTier(restaurantId)].features;
-}
-
 export async function requireFeature(feature: keyof TierConfig['features'], restaurantId: string): Promise<void> {
 	const features = await getTierFeatures(restaurantId);
 	if (!features[feature]) throw error(403, `This feature requires a higher plan tier`);
@@ -201,22 +188,59 @@ export interface AccessState {
 	trialExpired: boolean;
 }
 
-export async function getAccessState(restaurantId: string): Promise<AccessState> {
-	const tdb = forTenant(await billingRestaurantId(restaurantId));
-	const [sub] = await db.select({
-		status: subscriptions.status,
-		trialEndsAt: subscriptions.trialEndsAt,
-	})
-		.from(subscriptions)
-		.where(tdb.scope(subscriptions.restaurantId))
-		.limit(1);
-
+export function resolveAccessState(
+	sub: { status: string; trialEndsAt: Date | null } | undefined,
+): AccessState {
 	if (!sub) return { allowed: true, status: 'trialing', trialEndsAt: null, trialExpired: false };
 
 	const status = sub.status as SubscriptionStatus;
 	const trialEndsAt = sub.trialEndsAt ?? null;
 	const allowed = isAccessAllowed(status, trialEndsAt);
 	return { allowed, status, trialEndsAt, trialExpired: !allowed && status === 'trialing' };
+}
+
+export interface Entitlements {
+	billingRestaurantId: string;
+	tier:         PlanTier;
+	features:     TierConfig['features'];
+	access:       AccessState;
+	maxLocations: number;
+}
+
+export async function getEntitlements(restaurantId: string): Promise<Entitlements> {
+	const billingRid = await billingRestaurantId(restaurantId);
+	const tdb = forTenant(billingRid);
+	const [sub] = await db.select({
+		planTier:    subscriptions.planTier,
+		status:      subscriptions.status,
+		trialEndsAt: subscriptions.trialEndsAt,
+	})
+		.from(subscriptions)
+		.where(tdb.scope(subscriptions.restaurantId))
+		.limit(1);
+
+	const tier = (sub?.planTier ?? 'trial') as PlanTier;
+	const config = TIERS[tier];
+
+	return {
+		billingRestaurantId: billingRid,
+		tier,
+		features:     config.features,
+		access:       resolveAccessState(sub),
+		maxLocations: config.maxLocations,
+	};
+}
+
+export async function getPlanTier(restaurantId: string): Promise<PlanTier> {
+	return (await getEntitlements(restaurantId)).tier;
+}
+
+export async function getTierFeatures(restaurantId: string): Promise<TierConfig['features']> {
+	return (await getEntitlements(restaurantId)).features;
+}
+
+export async function getAccessState(restaurantId: string): Promise<AccessState> {
+	return (await getEntitlements(restaurantId)).access;
 }
 
 export async function getOrCreateCustomer(restaurantId: string, email: string, restaurantName: string): Promise<string> {

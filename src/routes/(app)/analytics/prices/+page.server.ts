@@ -1,4 +1,3 @@
-import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers } from '$lib/server/schema';
@@ -24,12 +23,10 @@ interface SupplierRow {
 	name: string;
 }
 
-export const load: PageServerLoad = async ({ url, locals, parent }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	return handleLoad('analytics/prices', async () => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	const { features } = await parent();
-	if (!features.supplierScores) redirect(303, '/billing?upgrade=prices');
 	const supplierIdParam = url.searchParams.get('supplier_id');
 	const supplierId = supplierIdParam ? Number(supplierIdParam) : null;
 
