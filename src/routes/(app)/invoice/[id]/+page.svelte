@@ -195,7 +195,13 @@
               <td class="body">{item.unit ?? '—'}</td>
               <td class="num">{fmt(item.unit_price)}</td>
               <td class="num">{fmtTaxRate(item.tax_rate)}</td>
-              <td class="num">{fmt(item.total_price)}</td>
+              <td class="num">
+                {#if item.unit_price == null && item.total_price == null}
+                  <span class="badge badge-pending">{$t('line.pendingPricing')}</span>
+                {:else}
+                  {fmt(item.total_price)}
+                {/if}
+              </td>
             </tr>
           {/each}
         </tbody>

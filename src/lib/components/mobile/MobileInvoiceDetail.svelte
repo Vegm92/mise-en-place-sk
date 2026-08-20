@@ -183,8 +183,12 @@
                 </div>
               {/if}
             </div>
-            <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">
-              {fmt(item.total_price)}
+            <div style="flex-shrink: 0;">
+              {#if item.unit_price == null && item.total_price == null}
+                <span class="badge badge-pending">{$t('line.pendingPricing')}</span>
+              {:else}
+                <span class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">{fmt(item.total_price)}</span>
+              {/if}
             </div>
           </div>
         {/each}
