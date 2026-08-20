@@ -39,7 +39,7 @@ const COLOR_ACCENT_SOFT = 'rgba(184,116,26,.10)';
 const FONT_STACK = "'Mona Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO_STACK = "'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace";
 
-const LOGO_SVG = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"></rect><rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"></rect><rect x="18.5" y="3.5" width="3" height="9" rx="1.5" fill="currentColor"></rect></svg>';
+const LOGO_SVG = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"></rect><rect x="10.5" y="7.5" width="3" height="13" rx="1.5" fill="currentColor"></rect><rect x="18.5" y="11.5" width="3" height="9" rx="1.5" fill="currentColor"></rect></svg>';
 
 function escapeHtml(value: string): string {
 	return value

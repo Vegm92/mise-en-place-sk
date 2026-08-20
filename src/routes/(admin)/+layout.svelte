@@ -66,8 +66,8 @@
     <div style="display:flex;align-items:center;gap:10px;">
       <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
         <rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-        <rect x="18.5" y="3.5" width="3" height="9" rx="1.5" fill="currentColor"/>
+        <rect x="10.5" y="7.5" width="3" height="13" rx="1.5" fill="currentColor"/>
+        <rect x="18.5" y="11.5" width="3" height="9" rx="1.5" fill="currentColor"/>
       </svg>
       <div style="font-size:14px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;">
         Mise en Place
