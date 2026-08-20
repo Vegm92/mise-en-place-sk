@@ -93,6 +93,12 @@ A continuación, cada pieza: qué hace, cómo funcionaba antes de esta sesión, 
 - *Pregunta/error que hizo saltar la alarma:* al ir a "simplemente enseñar" el campo escondido, se descubrió que ese campo siempre estaba vacío (ver punto 2) — mostrarlo tal cual no hubiera arreglado nada.
 - *Corrección aplicada:* una vez la IA sí devuelve el IVA por línea (punto 2), se cambió el campo de escondido a visible y editable en la pantalla de revisión, con su columna propia.
 
+**3b. El tachón manual — correcciones a bolígrafo sobre el número impreso**
+- *Qué hace:* en la recepción, el repartidor a menudo corrige a mano una cantidad impresa (llega menos género del pedido, se retira una pieza defectuosa) tachando el número original y escribiendo el correcto al lado.
+- *Cómo funcionaba antes:* la IA puede "ver" tanto el número impreso como la corrección manuscrita en la foto, pero **no había ninguna instrucción sobre cuál de los dos usar** — podía leer cualquiera de los dos sin que hubiera forma de saber cuál.
+- *Pregunta/error que hizo saltar la alarma:* lo señalaste directamente como una trampa real de este paso.
+- *Corrección aplicada:* se le exige explícitamente a la IA que la corrección manuscrita gane siempre sobre el número impreso tachado, bajando la confianza de ese campo en vez de caer al valor impreso por ser más fácil de leer.
+
 **4. Guardado — validaciones y protecciones**
 - *Qué hace:* guarda el albarán. Bloquea el guardado si algún dato de cabecera (proveedor, número, fechas, importe total) tiene menos del 85% de confianza, para forzar una revisión manual.
 - *Cómo funcionaba antes:* ese bloqueo por confianza **solo miraba los 5 campos de cabecera**, nunca la confianza de una línea individual. Una línea (cantidad, precio) mal leída con muy poca confianza se resaltaba en naranja, pero se podía guardar igual sin corregirla. Y ese dato de confianza de línea, una vez guardado, se perdía — no quedaba registrado en la base de datos.
@@ -104,6 +110,7 @@ A continuación, cada pieza: qué hace, cómo funcionaba antes de esta sesión, 
 - *Cómo funcionaba antes:* se guardaba correctamente sin precio (no bloqueaba nada), pero no había ninguna etiqueta — el importe simplemente aparecía vacío, indistinguible de un error de lectura o de un artículo genuinamente gratis.
 - *Pregunta/error que hizo saltar la alarma:* preguntaste explícitamente si existía este estado en la base de datos. La respuesta es que **no existe como estado real guardado** — es una etiqueta que se calcula al mostrar la pantalla ("si no hay precio, escribe este texto"), no una columna en la base de datos.
 - *Corrección aplicada:* se añadió la etiqueta visible "Pendiente de tarificación" en el detalle del albarán (escritorio y móvil), en vez de dejar el importe vacío. **Sigue pendiente, sin resolver:** que esa línea se actualice sola cuando llega el precio real (con la factura) — eso pertenece al Paso 2 y no se ha construido todavía. Tampoco se ha convertido en un estado real de base de datos; si el Paso 3 necesita bloquear escandallos por esto de forma fiable, habrá que revisarlo entonces.
+- *Relacionado — agujero encontrado en la detección de duplicados (choque albarán/factura):* ya existe un aviso ("possible_duplicate_purchase" en `alerts.ts`) que compara facturas contra albaranes del mismo proveedor con fecha cercana e importe parecido, para avisar si parecen la misma entrega contada dos veces. Pero **exige que ambos documentos tengan importe** — si el albarán se guardó sin precio (justo el caso "Pendiente de tarificación" de arriba), queda excluido para siempre de esa comparación, así que cuando llega la factura no se detecta. **Decisión tomada: no se parchea suelto.** Es el mismo problema visto desde otro ángulo — la solución correcta no es "avisar de duplicado", es reconocer que es la misma entrega y fusionar el precio en la línea ya guardada. Se resuelve junto con la resolución retroactiva de "Pendiente de tarificación", no antes.
 
 **6. Foto defectuosa**
 - *Qué hace:* debería avisar o impedir seguir si la foto sale borrosa o mal encuadrada.

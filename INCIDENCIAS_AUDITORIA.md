@@ -82,6 +82,32 @@ Curiosamente, el segundo nivel de comprobación (una IA que revisa en segundo pl
 
 ---
 
+## 7. El tachón manual — correcciones a bolígrafo no tenían prioridad sobre el número impreso
+
+**Dónde:** `src/lib/server/extract.ts` (prompt de la IA).
+
+**Qué pasaba:** en la recepción del albarán es habitual que el repartidor tache a mano una cantidad impresa (llega menos género del pedido, se retira una pieza defectuosa) y escriba la corrección al lado. La IA puede ver ambos números en la foto, pero no había ninguna instrucción sobre cuál de los dos debía usar.
+
+**Riesgo:** que la IA lea el número impreso original en vez de la corrección manuscrita, descuadrando cantidades y, más adelante, costes.
+
+**Estado:** ✅ **Corregido.** Se le exige a la IA que la corrección manuscrita gane siempre sobre el número impreso tachado, bajando la confianza de ese campo en vez de caer al valor impreso por ser más fácil de leer. Commit `20bc135`.
+
+---
+
+## 8. Choque albarán/factura — el aviso de posible duplicado tiene un punto ciego justo en el caso más común
+
+**Dónde:** `src/lib/server/alerts.ts`, función `runPossibleDuplicatePurchase`.
+
+**Qué pasaba:** sí existe un mecanismo pensado para esto — cuando se guarda una factura, busca albaranes del mismo proveedor con fecha cercana (±21 días) e importe parecido (±10%), y viceversa, avisando si parecen la misma entrega. Pero la búsqueda **exige que ambos documentos tengan un importe** (`totalAmount IS NOT NULL`). Si el albarán se guardó sin precio (el caso típico de "Pendiente de tarificación", ver incidencia 3), queda excluido para siempre de la comparación — cuando llega la factura después con el precio real, el sistema no lo detecta como el mismo documento.
+
+Incluso cuando sí detecta la coincidencia, es solo una notificación de texto posterior (ambos documentos ya están guardados y ya cuentan en el histórico de precios y el gasto) — no bloquea nada, no fusiona nada, y no lleva un enlace directo al documento con el que coincide.
+
+**Riesgo:** el gasto y el histórico de precios de ese proveedor pueden quedar duplicados, sin ningún aviso, en el caso más habitual (fresco que llega sin precio y se tarifica con la factura).
+
+**Estado:** ⚠️ **No corregido — decisión consciente de no parchearlo suelto.** Es el mismo problema que la resolución retroactiva de "Pendiente de tarificación" (incidencia 3) visto desde otro ángulo: la solución correcta no es avisar de un duplicado, es reconocer que es la misma entrega y fusionar el precio en la línea ya guardada. Se resolverá junto con esa funcionalidad del Paso 2, no antes, para no construir un parche que luego haya que tirar.
+
+---
+
 ## Resumen para quien retome esto en `main`
 
 | # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |
@@ -92,3 +118,5 @@ Curiosamente, el segundo nivel de comprobación (una IA que revisa en segundo pl
 | 4 | Confianza baja no bloquea por línea | Decisión consciente: dejar así | (igual, sin decisión documentada) |
 | 5 | Sin validación de calidad de imagen | Decisión consciente: dejar así | (igual, sin decisión documentada) |
 | 6 | Vinculación dudosa se hacía sola | ✅ Corregido | ❌ Sigue sin corregir |
+| 7 | Tachón manual no tenía prioridad sobre lo impreso | ✅ Corregido | ❌ Sigue sin corregir |
+| 8 | Duplicado albarán/factura no se detecta si el albarán no tiene precio | ⚠️ Documentado, ligado a la incidencia 3 | ❌ Sin documentar |
