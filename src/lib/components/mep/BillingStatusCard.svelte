@@ -2,11 +2,12 @@
 	import { locale, t, ti } from '$lib/i18n';
 	import Wallet from '@lucide/svelte/icons/wallet';
 
-	const { status, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd, stripeConfigured }: {
+	const { status, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd, hasSubscription, stripeConfigured }: {
 		status: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
 		trialEndsAt: string | null;
 		currentPeriodEnd: string | null;
 		cancelAtPeriodEnd: boolean;
+		hasSubscription: boolean;
 		stripeConfigured: boolean;
 	} = $props();
 
@@ -36,12 +37,14 @@
 				<span style="background:var(--mep-fg-soft);color:var(--mep-fg-3);padding:2px 10px;border-radius:99px;font-size:12px;font-weight:500;">{$t('billing.canceled')}</span>
 			{/if}
 		</div>
-		{#if status === 'active' && stripeConfigured}
-			<form method="POST" action="?/portal">
-				<button type="submit" class="btn btn-secondary" style="height:34px;">
-					<Wallet size={14} /> {$t('billing.manage')}
-				</button>
-			</form>
+		{#if hasSubscription && stripeConfigured}
+			<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+				<form method="POST" action="?/portal">
+					<button type="submit" class="btn btn-secondary" style="height:34px;">
+						<Wallet size={14} /> {$t('billing.manage')}
+					</button>
+				</form>
+			</div>
 		{/if}
 	</div>
 
@@ -51,6 +54,11 @@
 				? $ti('billing.cancelsOn', { date: fmt(periodEnd) })
 				: $ti('billing.renewsOn', { date: fmt(periodEnd) })}
 		</p>
+		{#if cancelAtPeriodEnd}
+			<p style="font-size:13px;color:var(--mep-fg-3);margin:4px 0 0;">
+				{$ti('billing.cancelsOnNote', { date: fmt(periodEnd) })}
+			</p>
+		{/if}
 	{:else if status === 'trialing' && trialEnd && trialDaysLeft > 0}
 		<p style="font-size:13px;color:var(--mep-fg-3);margin:0;">
 			{$ti('billing.trialEndsOn', { date: fmt(trialEnd) })}

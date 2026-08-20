@@ -12,7 +12,8 @@ For deep per-file explanations, see the per-subsystem `## Code notes` sections.
 | Migrate fails mid-apply | Non-idempotent / invalid SQL migration | Roll forward with an additive migration; never hand-edit prod |
 | Extraction stuck `pending/queued` | Worker down or dead-letter growth | Check worker logs, `/admin` queue counts, DLQ rows |
 | Duplicate invoice after retry | content-hash gate bypassed (write outside `invoice-save.ts`) | Ensure all creates go through the single write path (ADR-008) |
-| Webhook "signature invalid" | Secret mismatch / URL wrong / event type unregistered | Compare env, dashboard URL + subscribed events |
+| Webhook "signature invalid" | Secret mismatch / URL wrong / event type unregistered | Compare env, dashboard URL + subscribed events; a 400 signature failure is permanent (Stripe won't retry) |
+| Webhook 200 but tier never updates | Payload missing `restaurantId`/`subscriptionId` metadata, or price-id mismatch | Look for `[billing] ... ignored: missing metadata` / `matches no configured tier` in logs/Sentry; check `subscriptions.stripePriceId` vs `STRIPE_PRICE_ID_*` env |
 | Chat 503 | Missing `GEMINI_API_KEY` | Set env on both units |
 | Chat 429 | Rate limit (user RPM) | Wait; check `checkRateLimit` key scope (#440) |
 | Billing tier wrong after upgrade | Out-of-order webhook or unknown price id | Check the `stripe-webhook` scope in `idempotency_keys` + `lastEventAt` guard; unknown → loud log (intended) |
