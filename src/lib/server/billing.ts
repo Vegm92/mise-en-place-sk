@@ -626,12 +626,18 @@ export async function syncSubscriptionFromStripe(restaurantId: string): Promise<
 		}
 		if (!live && customerId) {
 			const liveList = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
-			const candidate = liveList.data
-				.filter((s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due')
-				.sort((a, b) =>
-					(b.metadata?.restaurantId === rootRid ? 1 : 0) - (a.metadata?.restaurantId === rootRid ? 1 : 0) ||
-					b.created - a.created,
-				)[0];
+			const matches = liveList.data.filter(
+				(s) =>
+					(s.status === 'active' || s.status === 'trialing' || s.status === 'past_due') &&
+					s.metadata?.restaurantId === rootRid,
+			);
+			if (matches.length > 1) {
+				const msg = `[billing] reconcile ambiguous: customer ${customerId} has ${matches.length} live subscriptions tagged for restaurant ${rootRid} — leaving unresolved`;
+				console.error(msg);
+				Sentry.captureMessage(msg, { tags: { area: 'billing', op: 'reconcile' } });
+				return;
+			}
+			const candidate = matches[0];
 			if (candidate) {
 				live = candidate;
 				targetSubId = candidate.id;
