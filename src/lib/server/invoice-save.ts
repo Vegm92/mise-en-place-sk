@@ -306,6 +306,85 @@ export async function linkProductsToInvoice(
 	return productByKey;
 }
 
+async function runPostSaveEffects(
+	invoiceId: number,
+	supplierId: number,
+	rid: string,
+	savedItems: EnrichedLineItem[],
+	unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }>,
+	lineInputs: LineFormInput[],
+	supplierName: string,
+	extractedData: Record<string, unknown> | undefined,
+	lineDescriptions: string[],
+	lineQuantities: string[],
+	lineUnits: string[],
+	lineUnitPrices: string[],
+	lineTotalPrices: string[],
+	confidenceRaw: number | null,
+	proposedCategory: string,
+	qrMismatches: Array<{ field: string }>,
+	totalAmount: string | null,
+	invoiceNumber: string,
+	documentType: string | null,
+	invoiceDate: string | null,
+	dueDate: string | null,
+): Promise<boolean> {
+	const productByKey = await linkProductsToInvoice(invoiceId, supplierId, rid, lineInputs);
+
+	const priceAlerts = await runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey);
+	const { stockTracking } = await getTierFeatures(rid);
+	const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
+	const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
+	const categoryAlerts = await runCategorizationNudge(invoiceId, supplierId, rid);
+	const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
+	const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
+		invoiceId, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
+	);
+	const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
+		notificationType: 'verifactu_qr_mismatch',
+		message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
+		payload: {
+			invoiceNumber, mismatches: qrMismatches,
+			messageKey: 'notif.msg.verifactuMismatch',
+			messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
+		},
+	}] : [];
+	await saveAlerts(invoiceId, rid, [
+		...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
+		...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
+	]);
+
+	trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+
+	void maybeSendQuotaWarning(rid);
+
+	await logExtractionCorrections(
+		invoiceId,
+		supplierId,
+		rid,
+		extractedData,
+		{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+		{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+	);
+
+	const onboardingRows = await db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(forTenant(rid).scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
+		.limit(1);
+	const isFirstInvoice = onboardingRows[0]?.value !== 'true';
+	if (isFirstInvoice) {
+		await db.insert(settings)
+			.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
+			.onConflictDoUpdate({
+				target: [settings.restaurantId, settings.key],
+				set: { value: 'true' },
+			});
+	}
+
+	return isFirstInvoice;
+}
+
 export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
@@ -490,58 +569,29 @@ export async function saveReviewedInvoice(
 
 	let isFirstInvoice = false;
 	try {
-		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
-
-		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
-		const { stockTracking } = await getTierFeatures(rid);
-		const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
-		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
-		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
-		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
-		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
-			invoiceId!, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
-		);
-		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
-			notificationType: 'verifactu_qr_mismatch',
-			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
-			payload: {
-				invoiceNumber, mismatches: qrMismatches,
-				messageKey: 'notif.msg.verifactuMismatch',
-				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
-			},
-		}] : [];
-		await saveAlerts(invoiceId!, rid, [
-			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
-		]);
-
-		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
-
-		void maybeSendQuotaWarning(rid);
-
-		await logExtractionCorrections(
+		isFirstInvoice = await runPostSaveEffects(
 			invoiceId!,
 			supplierId,
 			rid,
+			savedItems,
+			unitConversionAlerts,
+			lineInputs,
+			supplierName,
 			extractedData,
-			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
-			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+			lineDescriptions,
+			lineQuantities,
+			lineUnits,
+			lineUnitPrices,
+			lineTotalPrices,
+			confidenceRaw,
+			proposedCategory,
+			qrMismatches,
+			totalAmount,
+			invoiceNumber,
+			documentType,
+			invoiceDate,
+			dueDate,
 		);
-
-		const onboardingRows = await db
-			.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
-			.limit(1);
-		isFirstInvoice = onboardingRows[0]?.value !== 'true';
-		if (isFirstInvoice) {
-			await db.insert(settings)
-				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
-				.onConflictDoUpdate({
-					target: [settings.restaurantId, settings.key],
-					set: { value: 'true' },
-				});
-		}
 	} catch (err) {
 		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
 	}
