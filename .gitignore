@@ -1,4 +1,4 @@
-node_modules
+﻿node_modules
 
 # Output
 .output
@@ -15,7 +15,7 @@ node_modules
 !/screenshots/.gitkeep
 /.playwright-mcp/
 
-# npm lockfile — this repo builds with pnpm (issue #225)
+# npm lockfile â€” this repo builds with pnpm (issue #225)
 /package-lock.json
 
 # OS
@@ -39,7 +39,7 @@ Thumbs.db
 *.sqlite-shm
 *.sqlite-wal
 
-# Runtime data — never commit (sessions contain auth tokens, uploads are user PII)
+# Runtime data â€” never commit (sessions contain auth tokens, uploads are user PII)
 /data/sk_sessions/
 /uploads/
 
@@ -50,11 +50,14 @@ CONTEXT.md
 PRD.md
 TODO.md
 .scratch/
+AGENTS.md
+DEPLOYMENT.md
+.vscode
 /.claude/
 /graphify-out
 .graphify_cached.json
 /docs/*
-# ...and the AI-native operating layers (added 2026-08-13) — tracked on purpose
+# ...and the AI-native operating layers (added 2026-08-13) â€” tracked on purpose
 !/docs/00_system/
 !/docs/01_architecture/
 !/docs/02_product/
@@ -64,16 +67,16 @@ TODO.md
 !/docs/06_decisions/
 !/docs/07_ai/
 !/docs/REVENUE_METRICS.md
-# Architecture decision records live in docs/06_decisions/ (not ignored) — see its README.md
+# Architecture decision records live in docs/06_decisions/ (not ignored) â€” see its README.md
 # ...and the onboarding pack, which has to reach new teammates (tracked on purpose)
 !/docs/onboarding/
 !/docs/onboarding/**
-# Architecture decision records live in /doc (not ignored) — see doc/README.md
+# Architecture decision records live in /doc (not ignored) â€” see doc/README.md
 /mise-en-place
 
 
 
-# Synthetic invoice generator (JS port) — sources tracked, they feed the
+# Synthetic invoice generator (JS port) â€” sources tracked, they feed the
 # category-taxonomy guard and the synth:* npm scripts. Local output is not.
 /synth/node_modules/
 /synth/output/

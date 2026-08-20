@@ -24,15 +24,15 @@ export async function buildChatContext(restaurantId: string): Promise<string> {
 		trendsSection(restaurantId),
 	]);
 
-	const context = sections.filter(Boolean).join('\n');
+	return truncate(sections.filter(Boolean).join('\n'));
+}
 
+function truncate(context: string): string {
 	const estimatedTokens = Math.ceil(context.length / 4);
-	if (estimatedTokens > TOKEN_LIMIT) {
-		console.warn(`[chat-context] estimated ${estimatedTokens} tokens — truncating to ~${TOKEN_LIMIT}`);
-		return context.slice(0, TOKEN_LIMIT * 4);
-	}
+	if (estimatedTokens <= TOKEN_LIMIT) return context;
 
-	return context;
+	console.warn(`[chat-context] estimated ${estimatedTokens} tokens — truncating to ~${TOKEN_LIMIT}`);
+	return context.slice(0, TOKEN_LIMIT * 4);
 }
 
 async function summarySection(restaurantId: string): Promise<string> {
@@ -68,11 +68,10 @@ async function suppliersSection(restaurantId: string): Promise<string> {
 		LIMIT 5
 	`);
 
-	const lines = ['\n## Top Suppliers (Year to Date)'];
-	for (const s of topSuppliers as SupplierRow[]) {
-		lines.push(`- ${s.name}: ${Number(s.ytd_spend).toFixed(2)} (${s.invoice_count} invoices)`);
-	}
-	return lines.join('\n');
+	const lines = (topSuppliers as SupplierRow[]).map((s) =>
+		`- ${s.name}: ${Number(s.ytd_spend).toFixed(2)} (${s.invoice_count} invoices)`,
+	);
+	return ['\n## Top Suppliers (Year to Date)', ...lines].join('\n');
 }
 
 async function budgetsSection(restaurantId: string): Promise<string> {
@@ -90,12 +89,15 @@ async function budgetsSection(restaurantId: string): Promise<string> {
 
 	if (!budgets.length) return '';
 
-	const lines = ['\n## Budget vs Actual (This Month)'];
-	for (const b of budgets as BudgetRow[]) {
-		const pct = b.monthly_budget > 0 ? Math.round(b.actual_this_month / b.monthly_budget * 100) : 0;
-		lines.push(`- ${b.category}: ${Number(b.actual_this_month).toFixed(2)} / ${Number(b.monthly_budget).toFixed(2)} (${pct}%)`);
-	}
-	return lines.join('\n');
+	const lines = (budgets as BudgetRow[]).map((b) => {
+		const pct = budgetPercent(b.monthly_budget, b.actual_this_month);
+		return `- ${b.category}: ${Number(b.actual_this_month).toFixed(2)} / ${Number(b.monthly_budget).toFixed(2)} (${pct}%)`;
+	});
+	return ['\n## Budget vs Actual (This Month)', ...lines].join('\n');
+}
+
+function budgetPercent(budget: number, actual: number): number {
+	return budget > 0 ? Math.round(actual / budget * 100) : 0;
 }
 
 async function recentSection(restaurantId: string): Promise<string> {
@@ -108,11 +110,10 @@ async function recentSection(restaurantId: string): Promise<string> {
 		LIMIT 10
 	`);
 
-	const lines = ['\n## Recent Invoices'];
-	for (const r of recent as RecentRow[]) {
-		lines.push(`- ${r.supplier ?? 'Unknown'} | ${r.invoice_date ?? '?'} | ${Number(r.total_amount)?.toFixed(2) ?? '?'} | ${r.status}`);
-	}
-	return lines.join('\n');
+	const lines = (recent as RecentRow[]).map((r) =>
+		`- ${r.supplier ?? 'Unknown'} | ${r.invoice_date ?? '?'} | ${Number(r.total_amount)?.toFixed(2) ?? '?'} | ${r.status}`,
+	);
+	return ['\n## Recent Invoices', ...lines].join('\n');
 }
 
 async function alertsSection(restaurantId: string): Promise<string> {
@@ -125,11 +126,8 @@ async function alertsSection(restaurantId: string): Promise<string> {
 
 	if (!alerts.length) return '';
 
-	const lines = ['\n## Active Alerts'];
-	for (const a of alerts as AlertRow[]) {
-		lines.push(`- [${a.notification_type}] ${a.message}`);
-	}
-	return lines.join('\n');
+	const lines = (alerts as AlertRow[]).map((a) => `- [${a.notification_type}] ${a.message}`);
+	return ['\n## Active Alerts', ...lines].join('\n');
 }
 
 async function stockSection(tdb: ReturnType<typeof forTenant>, restaurantId: string): Promise<string> {
@@ -142,12 +140,15 @@ async function stockSection(tdb: ReturnType<typeof forTenant>, restaurantId: str
 
 	if (!stock.length) return '';
 
-	const lines = ['\n## Stock Levels'];
-	for (const s of stock) {
-		const days = s.daily_burn_rate != null && s.daily_burn_rate > 0 ? Math.round((s.current_stock ?? 0) / s.daily_burn_rate) : null;
-		lines.push(`- ${s.ingredient}: ${s.current_stock} ${s.canonical_unit ?? ''}${days !== null ? ` (~${days} days left)` : ''}`);
-	}
-	return lines.join('\n');
+	const lines = stock.map((s) => {
+		const days = daysLeft(s.current_stock, s.daily_burn_rate);
+		return `- ${s.ingredient}: ${s.current_stock} ${s.canonical_unit ?? ''}${days !== null ? ` (~${days} days left)` : ''}`;
+	});
+	return ['\n## Stock Levels', ...lines].join('\n');
+}
+
+function daysLeft(currentStock: number, dailyBurnRate: number): number | null {
+	return dailyBurnRate != null && dailyBurnRate > 0 ? Math.round((currentStock ?? 0) / dailyBurnRate) : null;
 }
 
 async function trendsSection(restaurantId: string): Promise<string> {
@@ -170,10 +171,13 @@ async function trendsSection(restaurantId: string): Promise<string> {
 
 	if (!trends.length) return '';
 
-	const lines = ['\n## Price Trends (Last 90 Days, Most Volatile)'];
-	for (const t of trends as TrendRow[]) {
-		const pct = t.min_price > 0 ? Math.round((t.max_price - t.min_price) / t.min_price * 100) : 0;
-		lines.push(`- ${t.item}: ${Number(t.min_price).toFixed(2)} → ${Number(t.max_price).toFixed(2)} (+${pct}%)`);
-	}
-	return lines.join('\n');
+	const lines = (trends as TrendRow[]).map((t) => {
+		const pct = trendPercent(t.min_price, t.max_price);
+		return `- ${t.item}: ${Number(t.min_price).toFixed(2)} → ${Number(t.max_price).toFixed(2)} (+${pct}%)`;
+	});
+	return ['\n## Price Trends (Last 90 Days, Most Volatile)', ...lines].join('\n');
+}
+
+function trendPercent(minPrice: number, maxPrice: number): number {
+	return minPrice > 0 ? Math.round((maxPrice - minPrice) / minPrice * 100) : 0;
 }
