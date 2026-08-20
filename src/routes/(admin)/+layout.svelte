@@ -42,7 +42,7 @@
   );
 </script>
 
-<div class="mep" data-theme={theme} data-accent="marigold" data-density="default"
+<div class="mep" data-theme={theme} data-accent="amber" data-density="default"
   style="width:100%;min-height:100vh;display:flex;flex-direction:column;background:var(--mep-bg);border-top:4px solid var(--mep-acc);">
 
   <header style="

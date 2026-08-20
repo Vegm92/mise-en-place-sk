@@ -1,15 +1,14 @@
 import { Resend } from 'resend';
 import * as Sentry from '@sentry/sveltekit';
-import { env } from '$env/dynamic/private';
 
-const apiKey = env.RESEND_API_KEY ?? '';
-const FROM_ADDRESS = env.EMAIL_FROM ?? 'Mise en Place <noreply@miseenplace.app>';
-const APP_URL = env.APP_BASE_URL || 'https://miseenplace.app';
-const COMPANY_LEGAL_NAME = env.COMPANY_LEGAL_NAME ?? '';
-const COMPANY_ADDRESS = env.COMPANY_ADDRESS ?? '';
-const COMPANY_NIF = env.COMPANY_NIF ?? '';
+const RESEND_API_KEY = process.env.RESEND_API_KEY ?? '';
+const EMAIL_FROM = process.env.EMAIL_FROM ?? 'Mise en Place <noreply@mise-place.com>';
+const APP_BASE_URL = process.env.APP_BASE_URL || 'https://mise-place.com';
+const COMPANY_LEGAL_NAME = process.env.COMPANY_LEGAL_NAME ?? '';
+const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS ?? '';
+const COMPANY_NIF = process.env.COMPANY_NIF ?? '';
 
-const resend = apiKey ? new Resend(apiKey) : null;
+const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
@@ -26,19 +25,19 @@ export interface EmailPayload {
 const BRAND_NAME = 'Mise en Place';
 const BRAND_CITY = 'Barcelona';
 
-const COLOR_BG = '#f7f8f7';
+const COLOR_BG = '#f5f4f0';
 const COLOR_SURFACE = '#ffffff';
 const COLOR_SURFACE2 = '#fafaf7';
-const COLOR_FG = '#25282a';
+const COLOR_FG = '#1a1f26';
 const COLOR_FG2 = '#4a5562';
 const COLOR_FG3 = '#7a8492';
 const COLOR_BORDER = 'rgba(15,20,30,.10)';
 const COLOR_DIVIDER = 'rgba(15,20,30,.06)';
-const COLOR_ACCENT = '#9c6a1f';
-const COLOR_ACCENT_SOFT = 'rgba(156,106,31,.10)';
+const COLOR_ACCENT = '#b8741a';
+const COLOR_ACCENT_SOFT = 'rgba(184,116,26,.10)';
 
 const FONT_STACK = "'Mona Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-const MONO_STACK = "ui-monospace,'SF Mono','Cascadia Code',Menlo,monospace";
+const MONO_STACK = "'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace";
 
 const LOGO_SVG = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"></rect><rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"></rect><rect x="18.5" y="3.5" width="3" height="9" rx="1.5" fill="currentColor"></rect></svg>';
 
@@ -109,8 +108,8 @@ function renderEmailLayout(opts: LayoutOptions): string {
 
 	const footerLinksHtml = opts.footerLinks ? `
 	<div style="font-size:11px;margin:0 0 12px;">
-		<a href="${APP_URL}/settings" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(15,20,30,.14);padding-bottom:1px;margin-right:14px;">Preferencias de email</a>
-		<a href="${APP_URL}/privacy" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(15,20,30,.14);padding-bottom:1px;">Privacidad</a>
+		<a href="${APP_BASE_URL}/settings" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(15,20,30,.14);padding-bottom:1px;margin-right:14px;">Preferencias de email</a>
+		<a href="${APP_BASE_URL}/privacy" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(15,20,30,.14);padding-bottom:1px;">Privacidad</a>
 	</div>` : '';
 
 	const legalLines = [
@@ -176,7 +175,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 		return;
 	}
 	const { error } = await resend.emails.send({
-		from: FROM_ADDRESS,
+		from: EMAIL_FROM,
 		to:   payload.to,
 		subject: payload.subject,
 		html: payload.html,
@@ -206,7 +205,7 @@ ${steps([
 	{ title: 'Ves tu primer panel', desc: 'Gasto por categoría y proveedor, listo en minutos.' },
 ])}
 ${p('Tus primeros 14 días son gratis — sin tarjeta.')}`,
-			cta: { href: APP_URL, label: 'Abrir la aplicación' },
+			cta: { href: APP_BASE_URL, label: 'Abrir la aplicación' },
 			signature: `Nos vemos en la cocina,<br>${strong('El equipo de Mise en Place')}`,
 		}),
 	};
@@ -226,7 +225,7 @@ export function waitlistInviteEmail(email: string, couponCode?: string): EmailPa
 ${p('Estabas en nuestra lista de espera — y ya estamos listos para ti.')}
 ${p(`${strong('Mise en Place')} ya está disponible: inteligencia de facturas de proveedores con IA para restaurantes independientes.`)}
 ${couponCode ? callout(`Código ${escapeHtml(couponCode)}`, 'Úsalo al pagar y tu primer mes es gratis.') : ''}`,
-			cta: { href: `${APP_URL}/signup`, label: 'Crear tu cuenta' },
+			cta: { href: `${APP_BASE_URL}/signup`, label: 'Crear tu cuenta' },
 			signature: `Nos vemos pronto en el pase,<br>${strong('El equipo de Mise en Place')}`,
 			footerNote: 'Recibes este correo porque te apuntaste en la lista de espera de Mise en Place.',
 		}),
@@ -247,7 +246,7 @@ export function accessApprovedEmail(email: string, couponCode?: string): EmailPa
 ${p('Hemos activado tu cuenta: ya tienes acceso completo a Mise en Place.')}
 ${p(`Entra con el email con el que te registraste (${strong(escapeHtml(email))}) y monta tu restaurante en un par de minutos.`)}
 ${couponCode ? callout(`Código ${escapeHtml(couponCode)}`, 'Tu descuento de fundador. Úsalo al pasar por caja.') : ''}`,
-			cta: { href: `${APP_URL}/login`, label: 'Entrar en la aplicación' },
+			cta: { href: `${APP_BASE_URL}/login`, label: 'Entrar en la aplicación' },
 			signature: `Nos vemos en el pase,<br>${strong('El equipo de Mise en Place')}`,
 			footerNote: 'Recibes este correo porque tenías una cuenta pendiente de activación en Mise en Place.',
 		}),
@@ -268,7 +267,7 @@ export function weeklyDigestEmail(email: string, restaurantName: string, digestH
 			bodyHtml: `
 ${p('Este es el resumen semanal de gastos:')}
 ${styledDigest}`,
-			cta: { href: `${APP_URL}/digest`, label: 'Ver el resumen completo' },
+			cta: { href: `${APP_BASE_URL}/digest`, label: 'Ver el resumen completo' },
 			footerLinks: true,
 		}),
 	};
@@ -288,7 +287,7 @@ export function overdueInvoiceEmail(email: string, restaurantName: string, overd
 			eyebrow: 'Facturas vencidas',
 			headline: `${overdueCount} ${invoicesWord}`,
 			bodyHtml: p(`Tienes ${strong(`${overdueCount} ${invoicesWord}`)} por un total de ${strong(total)} en ${name}.`),
-			cta: { href: `${APP_URL}/reminders`, label: 'Revisar y marcar como pagadas' },
+			cta: { href: `${APP_BASE_URL}/reminders`, label: 'Revisar y marcar como pagadas' },
 			footerLinks: true,
 		}),
 	};
@@ -309,7 +308,7 @@ export function trialExpiryEmail(email: string, restaurantName: string, daysLeft
 			bodyHtml: `
 ${p(`Tu prueba gratuita de Mise en Place para ${strong(name)} termina en ${strong(`${daysLeft} ${daysWord}`)}.`)}
 ${p('Suscríbete ahora para mantener el acceso completo a tus facturas, analíticas y alertas.')}`,
-			cta: { href: `${APP_URL}/billing`, label: 'Activar suscripción' },
+			cta: { href: `${APP_BASE_URL}/billing`, label: 'Activar suscripción' },
 			footerNote: 'Mise en Place · Desde 49 €/mes por restaurante',
 		}),
 	};
@@ -329,7 +328,7 @@ export function trialExpiredEmail(email: string, restaurantName: string): EmailP
 			bodyHtml: `
 ${p(`La prueba gratuita de Mise en Place para ${strong(name)} ha terminado.`)}
 ${p('Tus datos siguen intactos y puedes consultarlos, exportarlos o descargarlos cuando quieras. Para volver a subir facturas y usar las funciones con IA, activa una suscripción.')}`,
-			cta: { href: `${APP_URL}/billing`, label: 'Activar suscripción' },
+			cta: { href: `${APP_BASE_URL}/billing`, label: 'Activar suscripción' },
 			footerNote: 'Mise en Place · Desde 49 €/mes por restaurante',
 		}),
 	};
@@ -350,7 +349,7 @@ export function subscriptionConfirmationEmail(email: string, restaurantName: str
 			bodyHtml: `
 ${p(`¡Gracias! Tu suscripción al plan ${strong(plan)} para ${strong(name)} ya está activa.`)}
 ${p('Puedes consultar tu factura y gestionar la suscripción en cualquier momento desde la sección de facturación.')}`,
-			cta: { href: `${APP_URL}/billing`, label: 'Gestionar suscripción' },
+			cta: { href: `${APP_BASE_URL}/billing`, label: 'Gestionar suscripción' },
 		}),
 	};
 }
@@ -418,7 +417,7 @@ export function quotaWarningEmail(email: string, restaurantName: string, used: n
 			bodyHtml: `
 ${p(`Este mes has procesado ${strong(`${used} de ${limit} facturas`)} incluidas en tu plan para ${strong(name)} (${pct} %).`)}
 ${p('Si superas el límite no podrás procesar más facturas hasta el mes siguiente. Puedes ampliar tu plan en cualquier momento:')}`,
-			cta: { href: `${APP_URL}/billing`, label: 'Ver planes' },
+			cta: { href: `${APP_BASE_URL}/billing`, label: 'Ver planes' },
 			footerLinks: true,
 		}),
 	};

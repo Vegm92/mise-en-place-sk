@@ -4,18 +4,17 @@
  * The pure decision logic is what gates paid features and trial access, so it is
  * tested in isolation: db is mocked away (the module imports the db singleton,
  * which would otherwise throw without DATABASE_URL) and the Stripe price IDs are
- * injected via a mocked $env so tierFromPriceId has a known mapping to assert.
+ * injected via process.env so TIERS has a known mapping to assert.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({
-	env: {
-		STRIPE_PRICE_ID_STARTER: 'price_starter',
-		STRIPE_PRICE_ID_PRO: 'price_pro',
-		STRIPE_PRICE_ID_BUSINESS: 'price_business',
-		// no STRIPE_SECRET_KEY → stripe stays null, module is a safe no-op
-	},
-}));
+const originalEnv = { ...process.env };
+
+vi.hoisted(() => {
+	process.env.STRIPE_PRICE_ID_STARTER = 'price_starter';
+	process.env.STRIPE_PRICE_ID_PRO = 'price_pro';
+	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business';
+});
 
 // db singleton throws at import without a connection string — stub it out.
 // `subscriptionRow` is what getAccessState reads; set it per test.
@@ -259,4 +258,8 @@ describe('getAccessState', () => {
 		subscriptionRow.value = null;
 		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
 	});
+});
+
+afterEach(() => {
+	process.env = { ...originalEnv };
 });

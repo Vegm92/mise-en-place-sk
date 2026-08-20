@@ -4,7 +4,6 @@
   import { locale, t, tcat } from '$lib/i18n';
   import { fmtEur, semColor, shiftMonth } from '$lib/formatters';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
-  import ComprasTabs from '$lib/components/mep/ComprasTabs.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -47,9 +46,6 @@
 </script>
 
 <div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
-  <div style="padding:0 24px;flex-shrink:0;">
-    <ComprasTabs />
-  </div>
   <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
     <div class="card" style="padding:18px 20px;flex-shrink:0;" data-coach="budgets-main">

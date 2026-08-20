@@ -1,7 +1,6 @@
 import { db } from './db';
 import { and, inArray, lt, sql } from 'drizzle-orm';
 import { batchItems } from './schema';
-import { env } from '$env/dynamic/private';
 import {
 	contactsPerTenant,
 	getNumberHealth,
@@ -10,6 +9,11 @@ import {
 } from './whatsapp-health';
 import { getIssueSummary, isSentryConfigured } from './sentry-api';
 import { pendingDeadLetterCount } from './dead-letter';
+
+const DATABASE_URL = process.env.DATABASE_URL ?? '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
+const AUTH_ADMIN_EMAIL = process.env.AUTH_ADMIN_EMAIL ?? '';
+const AUTH_SECRET = process.env.AUTH_SECRET ?? '';
 
 const STUCK_MINUTES = 15;
 const STUCK_ERROR_THRESHOLD = 10;
@@ -169,8 +173,15 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		}
 	}
 
+	const envMap: Record<string, string> = {
+		DATABASE_URL,
+		GEMINI_API_KEY,
+		AUTH_ADMIN_EMAIL,
+		AUTH_SECRET,
+	};
+
 	for (const varName of REQUIRED_VARS) {
-		const val = env[varName];
+		const val = envMap[varName];
 		checks.push({
 			name: `Env: ${varName}`,
 			status: val ? 'ok' : 'warn',

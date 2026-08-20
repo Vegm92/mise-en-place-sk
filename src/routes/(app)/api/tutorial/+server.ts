@@ -6,7 +6,7 @@ import { and, eq } from 'drizzle-orm';
 
 const VALID: readonly string[] = [
 	'1', '2', 'done',
-	'3', '4', '5', '6', '7', '8', '9', '10',
+	'3', '4', '5', '6', '7', '8', '9', '10', '11',
 	'dismissed',
 ];
 
