@@ -47,6 +47,7 @@
 
 	<BillingStatusCard
 		status={data.status}
+		tierName={data.currentTierName}
 		trialEndsAt={data.trialEndsAt}
 		currentPeriodEnd={data.currentPeriodEnd}
 		cancelAtPeriodEnd={data.cancelAtPeriodEnd}
