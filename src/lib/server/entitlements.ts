@@ -118,12 +118,14 @@ export function policyFor(routeId: string | null): RoutePolicy | undefined {
 
 export function resolveEntitlement(input: {
 	policy:   RoutePolicy;
-	features: TierConfig['features'];
-	access:   Pick<AccessState, 'allowed' | 'trialExpired'>;
+	features: TierConfig['features'] | null;
+	access:   Pick<AccessState, 'allowed' | 'trialExpired'> | null;
 }): EntitlementDecision {
 	const { policy, features, access } = input;
 
 	if (policy === 'open') return { kind: 'allow' };
+
+	if (!features || !access) return { kind: 'deny-access', reason: 'inactive' };
 
 	if (policy.access && !access.allowed) {
 		return { kind: 'deny-access', reason: access.trialExpired ? 'trial' : 'inactive' };
