@@ -30,6 +30,12 @@
     if (f?.contentDuplicate) showContentDuplicateModal = true;
   });
 
+  const invalidDateKey = $derived(
+    (form as Record<string, unknown> | null)?.errorKey === 'error.invalidDate'
+      ? ((form as Record<string, unknown>).errorField === 'due_date' ? 'error.invalidDueDate' : 'error.invalidInvoiceDate')
+      : null
+  );
+
   onMount(() => {
     const timer = setInterval(async () => {
       if (!data.anyInFlight) return;
@@ -296,7 +302,7 @@
           <label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-border-strong);cursor:pointer;font-size:12px;color:var(--mep-fg-3);background:var(--mep-surface-2);">
             <Upload size={14} />
             {$t('confirm.addMoreTitle')}
-            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" multiple onchange={onFileInputChange} />
+            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple onchange={onFileInputChange} />
           </label>
           {#each addFiles as f, i}
             <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mep-fg);">
@@ -365,6 +371,12 @@
             </div>
 
             <div style="padding:14px 16px;border-bottom:1px solid var(--mep-divider);flex-shrink:0;overflow-y:auto;">
+              {#if invalidDateKey}
+                <div role="alert" style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mep-neg);background:var(--mep-neg-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">
+                  <AlertTriangle size={12} style="flex-shrink:0;" />
+                  <span style="flex:1;">{$t(invalidDateKey)}</span>
+                </div>
+              {/if}
               {#if review.duplicateOfId}
                 <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--mep-neg);background:var(--mep-neg-soft);padding:6px 10px;border-radius:6px;margin-bottom:10px;">
                   <AlertTriangle size={12} style="flex-shrink:0;" />

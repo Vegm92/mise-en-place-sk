@@ -6,6 +6,8 @@ const MIME_TO_EXT: Record<string, string> = {
 	'image/jpeg':    'jpg',
 	'image/png':     'png',
 	'application/pdf': 'pdf',
+	'application/xml': 'xml',
+	'text/xml':        'xml',
 };
 
 function maskPhone(to: string): string {

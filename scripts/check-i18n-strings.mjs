@@ -46,7 +46,9 @@ const ALLOWED = new Set([
 	'YYYY-MM-DD',
 	'OK',
 	'WARN',
-	'ERR'
+	'ERR',
+	'var(--mep-fg)',
+	'var(--mep-fg-2)'
 ]);
 
 const LABEL_PROPS = /^(label|title|text|placeholder|heading|subtitle|sub|msg|message|caption|tooltip)$/;

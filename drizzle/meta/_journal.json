@@ -267,6 +267,20 @@
       "when": 1786914483758,
       "tag": "0037_beta_access_gate",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1786975809836,
+      "tag": "0038_user_restaurants_user_id_uuid",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1787000008399,
+      "tag": "0039_invoice_dates_typed",
+      "breakpoints": true
     }
   ]
 }

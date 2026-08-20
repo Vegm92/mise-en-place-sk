@@ -105,6 +105,15 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 		expect(item?.extractError).toBeNull();
 	});
 
+	it('extracting → extracting re-claims for a pg-boss retry redelivery (#482)', async () => {
+		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		await store.markQueued(id);
+		await store.markExtracting(id);
+
+		expect(await store.markExtracting(id)).toBe(true);
+		expect((await store.getItem(id))?.status).toBe('extracting');
+	});
+
 	it('discard wins over a late worker claim', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
 		await store.markQueued(id);
@@ -122,9 +131,20 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 		const { itemIds } = await store.createBatch(rid, twoFiles());
 		await store.markQueued(itemIds[0]);
 
-		expect(await store.removeItem(itemIds[0])).toBeNull(); // queued → protected
-		const removed = await store.removeItem(itemIds[1]);     // pending → removable
+		expect(await store.removeItem(itemIds[0], rid)).toBeNull(); // queued → protected
+		const removed = await store.removeItem(itemIds[1], rid);     // pending → removable
 		expect(removed?.fileKey).toBe('ns/b.pdf');
+	});
+
+	it('removeItem and deleteBatch refuse a foreign restaurantId (issue #480)', async () => {
+		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
+		const otherRid = crypto.randomUUID();
+
+		expect(await store.removeItem(itemIds[1], otherRid)).toBeNull();
+		expect(await store.getItem(itemIds[1])).not.toBeNull();
+
+		await store.deleteBatch(batchId, otherRid);
+		expect(await store.getItem(itemIds[0])).not.toBeNull();
 	});
 
 	it('nextReviewableItem skips settled items and wraps around', async () => {
@@ -157,7 +177,7 @@ describe.skipIf(!hasDbEnv)('batch lifecycle helpers', () => {
 
 	it('deleteBatch cascades to items', async () => {
 		const { batchId, itemIds } = await store.createBatch(rid, twoFiles());
-		await store.deleteBatch(batchId);
+		await store.deleteBatch(batchId, rid);
 		expect(await store.getItem(itemIds[0])).toBeNull();
 		expect(await store.getBatchItems(batchId)).toEqual([]);
 	});

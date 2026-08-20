@@ -1,5 +1,5 @@
 import {
-	index, integer, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
+	check, date, index, integer, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -15,7 +15,7 @@ export const restaurants = pgTable('restaurants', {
 ]);
 
 export const userRestaurants = pgTable('user_restaurants', {
-	userId:       text('user_id').notNull(),
+	userId:       uuid('user_id').notNull(),
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	role:         text('role').notNull().default('owner'),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -47,8 +47,8 @@ export const invoices = pgTable('invoices', {
 	supplierId:      integer('supplier_id').references(() => suppliers.id),
 	invoiceNumber:   text('invoice_number'),
 	documentType:    text('document_type'),
-	invoiceDate:     text('invoice_date'),
-	dueDate:         text('due_date'),
+	invoiceDate:     date('invoice_date'),
+	dueDate:         date('due_date'),
 	totalAmount:     numeric('total_amount', { precision: 12, scale: 2 }),
 	taxBase:         numeric('tax_base', { precision: 12, scale: 2 }),
 	taxBreakdown:    text('tax_breakdown'),
@@ -125,6 +125,7 @@ export const categoryBudgets = pgTable('category_budgets', {
 	monthlyBudget: numeric('monthly_budget', { precision: 12, scale: 2 }).notNull(),
 }, (t) => [
 	uniqueIndex('category_budgets_restaurant_category_month_unique').on(t.restaurantId, t.category, t.month),
+	check('category_budgets_month_format', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
 ]);
 
 export const systemNotifications = pgTable('system_notifications', {

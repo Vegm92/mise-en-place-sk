@@ -67,18 +67,18 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					tdb.scope(invoices.restaurantId),
 					eq(invoices.status, 'paid'),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date, 'YYYY-MM') = ${selectedMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM') = ${selectedMonth}`
 				)),
 
 			db.select({
-				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
-				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
 			})
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') >= ${prevMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') >= ${prevMonth}`
 				)),
 
 			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)` })
@@ -86,14 +86,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(and(
 					tdb.scope(invoices.restaurantId),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') = ${selectedMonth}`
 				))
 				.groupBy(sql`DATE(${invoices.invoiceDate})`)
 				.orderBy(sql`DATE(${invoices.invoiceDate}) ASC`),
 
 			db.select({
-				this_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${selectedMonth} THEN ${invoices.supplierId} END)`,
-				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN ${invoices.supplierId} END)`,
+				this_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN ${invoices.supplierId} END)`,
+				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN ${invoices.supplierId} END)`,
 			})
 				.from(invoices)
 				.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt))),
@@ -105,8 +105,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute(sql`
 				SELECT s.id, s.name,
 					COALESCE(s.category,'Other') AS category,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
 					COUNT(CASE WHEN i.status='pending' THEN 1 END) AS open_count,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ${todayIso} THEN 1 ELSE 0 END) AS has_overdue,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ${todayIso} AND ${weekEnd} THEN 1 ELSE 0 END) AS has_due_soon
@@ -123,7 +123,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN suppliers s ON i.supplier_id = s.id
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
-				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY COALESCE(s.category,'Other')
 				ORDER BY total DESC
 			`),
@@ -146,7 +146,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
-				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY i.id, s.name ORDER BY i.invoice_date DESC, i.created_at DESC LIMIT 6
 			`),
 
@@ -159,14 +159,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid} AND i.status = 'pending'
 				  AND i.deleted_at IS NULL
-				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY i.id, s.name ORDER BY i.created_at DESC LIMIT 5
 			`),
 
 			db.select({
-				fresh: sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) <= 7 THEN 1 END)`,
-				mid:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) BETWEEN 8 AND 30 THEN 1 END)`,
-				old:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) > 30 THEN 1 END)`,
+				fresh: sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) <= 7 THEN 1 END)`,
+				mid:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) BETWEEN 8 AND 30 THEN 1 END)`,
+				old:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) > 30 THEN 1 END)`,
 			})
 				.from(invoices)
 				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
@@ -177,7 +177,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					tdb.scope(invoices.restaurantId),
 					isNotNull(invoices.totalAmount),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') = ${selectedMonth}`
 				)),
 
 			db.execute(sql`

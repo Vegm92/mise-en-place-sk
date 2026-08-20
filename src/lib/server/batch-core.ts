@@ -4,6 +4,7 @@ import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/post
 import * as schema from './schema';
 import { uploadBatches, batchItems } from './schema';
 import { getStorage } from './storage';
+import { forTenant } from './tenant';
 
 export interface BatchFileStorage {
 	delete(key: string): Promise<void>;
@@ -129,16 +130,22 @@ export function createBatchStore(db: BatchDb) {
 		return open.find(i => i.position > afterPosition) ?? open[0] ?? null;
 	}
 
-	async function removeItem(itemId: string): Promise<BatchItem | null> {
+	async function removeItem(itemId: string, restaurantId: string): Promise<BatchItem | null> {
+		const tdb = forTenant(restaurantId);
 		const rows = await db
 			.delete(batchItems)
-			.where(and(eq(batchItems.id, itemId), inArray(batchItems.status, ['pending', 'failed'])))
+			.where(tdb.scope(
+				batchItems.restaurantId,
+				and(eq(batchItems.id, itemId), inArray(batchItems.status, ['pending', 'failed'])),
+			))
 			.returning(itemColumns);
 		return rows.length ? asItem(rows[0]) : null;
 	}
 
-	async function deleteBatch(batchId: string): Promise<void> {
-		await db.delete(uploadBatches).where(eq(uploadBatches.id, batchId));
+	async function deleteBatch(batchId: string, restaurantId: string): Promise<void> {
+		const tdb = forTenant(restaurantId);
+		await db.delete(uploadBatches)
+			.where(tdb.scope(uploadBatches.restaurantId, eq(uploadBatches.id, batchId)));
 	}
 
 	async function cleanupStaleBatches(
@@ -192,7 +199,7 @@ export function createBatchStore(db: BatchDb) {
 	}
 
 	function markExtracting(itemId: string): Promise<boolean> {
-		return transition(itemId, ['queued'], { status: 'extracting' });
+		return transition(itemId, ['queued', 'extracting'], { status: 'extracting' });
 	}
 
 	function markDone(

@@ -8,6 +8,8 @@ import { users } from '$lib/server/schema/auth';
 import { asc, eq, sql } from 'drizzle-orm';
 import { applyTierSettings, getEntitlements } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
+
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { verifyCredentials } from '$lib/server/auth-credentials';
@@ -240,7 +242,7 @@ export const actions: Actions = {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: process.env.NODE_ENV === 'production',
+			secure: NODE_ENV === 'production',
 			maxAge: 60 * 60 * 24 * 365,
 		});
 		redirect(303, '/');

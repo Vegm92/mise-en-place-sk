@@ -217,6 +217,7 @@ export const actions: Actions = {
 
 		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
 
+		if (outcome.type === 'invalidDate') return fail(400, { errorKey: 'error.invalidDate', errorField: outcome.field });
 		if (outcome.type === 'lowConfidenceBlocked') return fail(422, { lowConfidenceBlocked: true });
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
 
@@ -253,7 +254,7 @@ export const actions: Actions = {
 		for (const i of items) {
 			if (i.status !== 'confirmed') await deleteUploadFile(i.fileKey);
 		}
-		await deleteBatch(params.id);
+		await deleteBatch(params.id, rid);
 		redirect(303, '/');
 	},
 
@@ -281,16 +282,17 @@ export const actions: Actions = {
 	remove: async ({ params, request, locals }) => {
 		const formData = await request.formData();
 		const itemId = (formData.get('itemId') as string) ?? '';
+		const rid = locals.restaurantId!;
 		const items = await requireOwnedBatch(params.id, locals);
 		const item = items.find(i => i.id === itemId);
 		if (item) {
-			const removed = await removeItem(item.id);
+			const removed = await removeItem(item.id, rid);
 			if (removed) await deleteUploadFile(removed.fileKey);
 		}
 		const left = (await getBatchItems(params.id))
 			.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
 		if (!left.length) {
-			await deleteBatch(params.id);
+			await deleteBatch(params.id, rid);
 			redirect(303, '/');
 		}
 		redirect(303, `/batch/${params.id}`);
