@@ -79,12 +79,16 @@ Trampas a vigilar:
 ### Nuevos — encontrados al verificar el ancla de 5 pasos, confirmados en código y con decisión ya tomada (ver detalle e incidencia # en `INCIDENCIAS_AUDITORIA.md`)
 | # | Fallo | Paso | Decisión | Incidencia |
 |---|---|---|---|---|
-| A | Un proveedor nuevo se crea siempre solo, sin preguntar nunca (mismo patrón que ya se corrigió para artículos, pero aquí no) | Paso 0 | 🔧 Corregir ya | #9 |
-| B | Los proveedores se identifican solo por nombre exacto, nunca por CIF (que sí se guarda, pero no se usa) — si cambia la razón social, el histórico de precios se parte en dos en silencio | Paso 0 | 🔧 Corregir ya | #10 |
+| A | Un proveedor nuevo se crea siempre solo, sin preguntar nunca (mismo patrón que ya se corrigió para artículos, pero aquí no) | Paso 0 | ✅ Corregido | #9 |
+| B | Los proveedores se identifican solo por nombre exacto, nunca por CIF (que sí se guarda, pero no se usa) — si cambia la razón social, el histórico de precios se parte en dos en silencio | Paso 0 | ✅ Corregido | #10 |
 | C | Las notas de abono/devoluciones no se distinguen de una compra normal — sumarían al histórico en vez de restar | Paso 1 | 📌 Aparcar | #11 |
 | D | Portes y envases/cascos no se distinguen de artículos reales — contaminarían el catálogo de materia prima | Paso 1 | 📌 Aparcar | #12 |
 | E | Descuentos globales (rappels, pronto pago) no se prorratean por línea — el precio unitario guardado queda inflado | Paso 1 | 📌 Aparcar | #13 |
-| F | Trazabilidad de correcciones incompleta: al revisar justo tras el OCR se guarda **qué y cuándo** pero no **quién**; al editar después se guarda **quién y cuándo** pero no desglosado campo a campo | Paso 2 | 🔧 Corregir ya | #14 |
+| F | Trazabilidad de correcciones incompleta: al revisar justo tras el OCR se guarda **qué y cuándo** pero no **quién**; al editar después se guarda **quién y cuándo** pero no desglosado campo a campo | Paso 2 | ✅ Corregido | #14 |
+
+**Cómo quedó A:** al guardar un albarán/factura, si el proveedor escrito no coincide con ninguno existente (ni por CIF ni por nombre), aparece un aviso "Proveedor nuevo — ¿confirmas?" antes de crearlo. Solo cubre el guardado inicial del Paso 1; la edición posterior de una factura ya guardada sigue sin preguntar (alcance reducido a propósito).
+
+**Cómo quedó F:** cada corrección hecha justo tras el OCR ahora guarda también qué usuario la hizo (columna `user_id` nueva en `extraction_corrections`).
 
 ### No aplica (verificado, no es un problema con el diseño actual)
 - **Precio pactado vs. mercado**: el sistema nunca compara contra un precio de mercado externo (no existe esa fuente de datos en ningún sitio) — solo contra el propio histórico de compras. Un precio fijo pactado no puede disparar una alarma falsa con el diseño actual.
@@ -101,8 +105,8 @@ Trampas a vigilar:
 
 **Propuesta de orden (a confirmar contigo, no decidido todavía):**
 
-1. ~~Decidir prioridad de los hallazgos A–F~~ ✅ Decidido el 2026-08-20: **A, B y F se corrigen ya** (pendientes de implementar); **C, D y E se aparcan** para más adelante. Detalle en `INCIDENCIAS_AUDITORIA.md` (incidencias #9–#14).
-2. **Implementar A, B y F** (proveedor nuevo pregunta antes de crear; matching de proveedor por CIF; guardar quién corrige en la revisión post-OCR).
+1. ~~Decidir prioridad de los hallazgos A–F~~ ✅ Decidido el 2026-08-20: **A, B y F se corrigen ya**; **C, D y E se aparcan** para más adelante. Detalle en `INCIDENCIAS_AUDITORIA.md` (incidencias #9–#14).
+2. ~~Implementar A, B y F~~ ✅ Hecho el 2026-08-20 (proveedor nuevo pregunta antes de crear; matching de proveedor por CIF antes que por nombre; guardar quién corrige en la revisión post-OCR). 1088/1088 tests en verde.
 3. **Probar el Paso 1 con un albarán real** en la app funcionando (nunca se ha visto en pantalla, solo verificado por código y tests) — antes de dar el Paso 1 por cerrado del todo.
 4. **Construir la resolución retroactiva de "Pendiente de tarificación"** (Paso 2) — resuelve a la vez el punto de la etiqueta y el agujero de duplicidad albarán/factura.
 5. **Empezar el Paso 3 (recetas y escandallos)** desde cero, una vez cerrado el Paso 1 y con Paso 2 lo bastante sólido — teniendo en cuenta desde el diseño las mermas variables y las sub-recetas en cadena, para no tener que rehacer la estructura de datos después.

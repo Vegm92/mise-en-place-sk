@@ -64,7 +64,7 @@ afterAll(async () => {
 
 describe.skipIf(!hasDbEnv)('invoice edit action preserves enrichment (issue #481)', () => {
 	it('keeps product_id, tax_rate and pack columns, and recomputes content_hash', async () => {
-		const out = await saveReviewedInvoice(null, lineForm({ invoice_number: 'INV-481', low_confidence_ack: 'true' }, '60.00'), rid);
+		const out = await saveReviewedInvoice(null, lineForm({ invoice_number: 'INV-481', low_confidence_ack: 'true', new_supplier_ack: 'true' }, '60.00'), rid);
 		expect(out.type).toBe('saved');
 		const invoiceId = (out as { invoiceId: number }).invoiceId;
 

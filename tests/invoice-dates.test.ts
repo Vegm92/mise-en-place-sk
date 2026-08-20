@@ -93,6 +93,7 @@ function form(opts: { invoiceNumber: string; invoiceDate?: string; dueDate?: str
 	if (opts.dueDate !== undefined) fd.append('due_date', opts.dueDate);
 	fd.append('total_amount', '100.00');
 	fd.append('low_confidence_ack', 'true');
+	fd.append('new_supplier_ack', 'true');
 	fd.append('line_descriptions', 'Producto de prueba');
 	fd.append('line_quantities', '1');
 	fd.append('line_units', 'ud');

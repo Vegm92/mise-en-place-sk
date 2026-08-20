@@ -10,6 +10,41 @@ export interface SupplierContactInfo {
 	address?: string | null;
 }
 
+export interface SupplierMatch {
+	id: number;
+	name: string;
+}
+
+/**
+ * Looks up an existing supplier by CIF first (a CIF match wins even if the
+ * name was typed/read differently — company name changes shouldn't split the
+ * price history), falling back to an exact name match.
+ */
+export async function findSupplierMatch(
+	restaurantId: string,
+	name: string,
+	cif: string | null | undefined,
+	exec: BatchDb = db,
+): Promise<SupplierMatch | null> {
+	const trimmedCif = cif?.trim() || null;
+	if (trimmedCif) {
+		const byCif = await exec.execute<{ id: number; name: string }>(sql`
+			SELECT id, name FROM suppliers
+			WHERE restaurant_id = ${restaurantId} AND cif IS NOT NULL AND upper(cif) = upper(${trimmedCif})
+			LIMIT 1
+		`);
+		if (byCif.length > 0) return byCif[0];
+	}
+	const trimmedName = name.trim();
+	if (!trimmedName) return null;
+	const byName = await exec.execute<{ id: number; name: string }>(sql`
+		SELECT id, name FROM suppliers
+		WHERE restaurant_id = ${restaurantId} AND lower(name) = lower(${trimmedName})
+		LIMIT 1
+	`);
+	return byName[0] ?? null;
+}
+
 export async function getOrCreateSupplierId(
 	restaurantId: string,
 	name: string,
@@ -23,6 +58,25 @@ export async function getOrCreateSupplierId(
 	const email = contact.email?.trim() || null;
 	const phone = contact.phone?.trim() || null;
 	const address = contact.address?.trim() || null;
+
+	if (cif) {
+		const byCif = await exec.execute<{ id: number }>(sql`
+			SELECT id FROM suppliers
+			WHERE restaurant_id = ${restaurantId} AND cif IS NOT NULL AND upper(cif) = upper(${cif})
+			LIMIT 1
+		`);
+		if (byCif.length > 0) {
+			await exec.execute(sql`
+				UPDATE suppliers SET
+					contact_email = COALESCE(contact_email, ${email}),
+					contact_phone = COALESCE(contact_phone, ${phone}),
+					address = COALESCE(address, ${address})
+				WHERE id = ${byCif[0].id}
+			`);
+			return byCif[0].id;
+		}
+	}
+
 	const rows = await exec.execute<{ id: number }>(sql`
 		INSERT INTO suppliers (restaurant_id, name, category, cif, contact_email, contact_phone, address)
 		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${cif}, ${email}, ${phone}, ${address})

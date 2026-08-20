@@ -10,7 +10,7 @@ import { getTierFeatures } from './billing';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
-import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
+import { getOrCreateSupplierId, findSupplierMatch, type SupplierContactInfo } from './supplier';
 import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
@@ -21,6 +21,7 @@ import { isBlankOrIsoDate, toIsoDate } from './dates';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
+	| { type: 'newSupplierBlocked'; supplierName: string }
 	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
@@ -62,6 +63,7 @@ async function logExtractionCorrections(
 	invoiceId: number,
 	supplierId: number,
 	restaurantId: string,
+	userId: string | null,
 	originalData: Record<string, unknown> | undefined,
 	submitted: HeaderSnapshot,
 	submittedLines: LineSnapshot,
@@ -83,7 +85,7 @@ async function logExtractionCorrections(
 		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
 		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
 		if (orig !== sub) {
-			rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex: null });
+			rows.push({ invoiceId, supplierId, restaurantId, userId, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex: null });
 		}
 	}
 
@@ -107,7 +109,7 @@ async function logExtractionCorrections(
 			const o = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
 			const s = numeric ? normalizeNum(subVal)  : normalizeStr(subVal);
 			if (o !== s) {
-				rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: o || null, correctedValue: s || null, lineItemIndex: i });
+				rows.push({ invoiceId, supplierId, restaurantId, userId, fieldName: field, originalValue: o || null, correctedValue: s || null, lineItemIndex: i });
 			}
 		}
 	}
@@ -311,6 +313,7 @@ export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
 	rid: string,
+	userId: string | null = null,
 	onSaved?: (tx: BatchDb) => Promise<void>,
 ): Promise<SaveOutcome> {
 	const idemKeyRaw = formData.get('idempotency_key');
@@ -356,6 +359,14 @@ export async function saveReviewedInvoice(
 			address: extracted?.supplier_address ?? null,
 		}
 		: {};
+
+	const newSupplierAck = formData.get('new_supplier_ack') === 'true';
+	if (!newSupplierAck && supplierName.trim()) {
+		const existingSupplier = await findSupplierMatch(rid, supplierName, proposedContact.cif);
+		if (!existingSupplier) {
+			return { type: 'newSupplierBlocked', supplierName: supplierName.trim() };
+		}
+	}
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
@@ -524,6 +535,7 @@ export async function saveReviewedInvoice(
 			invoiceId!,
 			supplierId,
 			rid,
+			userId,
 			extractedData,
 			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
 			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },

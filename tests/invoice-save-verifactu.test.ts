@@ -55,6 +55,7 @@ function form(opts: {
 	fd.append('invoice_date', opts.invoiceDate);
 	fd.append('total_amount', opts.totalAmount);
 	fd.append('low_confidence_ack', 'true');
+	fd.append('new_supplier_ack', 'true');
 	fd.append('line_descriptions', 'Producto de prueba');
 	fd.append('line_quantities', '1');
 	fd.append('line_units', 'ud');

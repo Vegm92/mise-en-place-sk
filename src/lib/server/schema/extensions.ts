@@ -90,6 +90,7 @@ export const extractionCorrections = pgTable('extraction_corrections', {
 	restaurantId:   uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	invoiceId:      integer('invoice_id').references(() => invoices.id),
 	supplierId:     integer('supplier_id').references(() => suppliers.id),
+	userId:         text('user_id'),
 	fieldName:      text('field_name').notNull(),
 	originalValue:  text('original_value'),
 	correctedValue: text('corrected_value'),

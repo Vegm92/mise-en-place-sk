@@ -46,6 +46,7 @@ function form(opts: { invoiceNumber: string; supplier?: string; totalAmount?: st
 	fd.append('invoice_date', '2024-01-15');
 	fd.append('total_amount', opts.totalAmount ?? '100.00');
 	fd.append('low_confidence_ack', 'true');
+	fd.append('new_supplier_ack', 'true');
 	fd.append('line_descriptions', 'Producto de prueba');
 	fd.append('line_quantities', '1');
 	fd.append('line_units', 'ud');

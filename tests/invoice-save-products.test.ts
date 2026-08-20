@@ -28,6 +28,7 @@ function form(supplier: string, lines: Array<{ desc: string; unit: string; price
 	fd.append('invoice_number', `INV-${Math.random().toString(36).slice(2, 8)}`);
 	fd.append('invoice_date', '2026-07-20');
 	fd.append('total_amount', '100');
+	fd.append('new_supplier_ack', 'true');
 	for (const l of lines) {
 		fd.append('line_descriptions', l.desc);
 		fd.append('line_quantities', '1');

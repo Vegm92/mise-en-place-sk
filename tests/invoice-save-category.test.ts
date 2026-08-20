@@ -31,6 +31,7 @@ function form(supplier: string, lines: Array<{ desc: string; unit: string; price
 	fd.append('invoice_date', '2026-07-20');
 	fd.append('total_amount', '100');
 	fd.append('low_confidence_ack', 'true');
+	fd.append('new_supplier_ack', 'true');
 	for (const l of lines) {
 		fd.append('line_descriptions', l.desc);
 		fd.append('line_quantities', '1');

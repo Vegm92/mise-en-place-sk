@@ -23,11 +23,14 @@
   let lowConfAck = $state(false);
   let showLowConfModal = $state(false);
   let showContentDuplicateModal = $state(false);
+  let newSupplierAck = $state(false);
+  let showNewSupplierModal = $state(false);
 
   $effect(() => {
     const f = form as Record<string, unknown> | null;
     if (f?.lowConfidenceBlocked) showLowConfModal = true;
     if (f?.contentDuplicate) showContentDuplicateModal = true;
+    if (f?.newSupplierBlocked) showNewSupplierModal = true;
   });
 
   const invalidDateKey = $derived(
@@ -76,6 +79,9 @@
 
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let supplierNameInput = $state(str(data.review?.data?.supplier_name));
+  const newSupplierName = $derived(
+    ((form as Record<string, unknown> | null)?.supplierName as string | undefined) ?? supplierNameInput
+  );
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let invoiceNumberInput = $state(str(data.review?.data?.invoice_number));
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
@@ -109,6 +115,8 @@
     lowConfAck = false;
     showLowConfModal = false;
     showContentDuplicateModal = false;
+    newSupplierAck = false;
+    showNewSupplierModal = false;
     const rd = data.review?.data;
     supplierNameInput = str(rd?.supplier_name);
     invoiceNumberInput = str(rd?.invoice_number);
@@ -355,6 +363,7 @@
           <input type="hidden" name="idempotency_key" value={idempotencyKey} />
           <input type="hidden" name="confidence" value={str(confidence)} />
           <input type="hidden" name="low_confidence_ack" value={lowConfAck ? 'true' : 'false'} />
+          <input type="hidden" name="new_supplier_ack" value={newSupplierAck ? 'true' : 'false'} />
 
           <div class="card" data-coach="invoice-fields" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
 
@@ -701,6 +710,54 @@
           }}
         >
           {$t('batch.reviewedAll')}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showNewSupplierModal}
+  <div
+    style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
+    role="presentation"
+    onclick={() => showNewSupplierModal = false}
+  >
+    <div
+      style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
+      role="dialog"
+      tabindex="-1"
+      aria-modal="true"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <AlertTriangle size={18} style="color:var(--mep-warn);flex-shrink:0;" />
+        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.newSupplierTitle')}</strong>
+      </div>
+      <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 16px;">
+        {$t('batch.newSupplierPre')} <strong>&laquo;{newSupplierName}&raquo;</strong> {$t('batch.newSupplierPost')}
+      </p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          style="height:36px;font-size:13px;"
+          onclick={() => showNewSupplierModal = false}
+        >
+          {$t('batch.backToReview')}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="height:36px;font-size:13px;"
+          onclick={async () => {
+            newSupplierAck = true;
+            showNewSupplierModal = false;
+            await tick();
+            (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
+          }}
+        >
+          {$t('batch.createSupplier')}
         </button>
       </div>
     </div>

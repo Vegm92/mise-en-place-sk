@@ -116,7 +116,7 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 
 **Riesgo:** proveedores duplicados o mal escritos entrando en la base de datos sin que nadie se dé cuenta.
 
-**Estado:** 🔧 **Decidido corregir — pendiente de implementar.** Preguntar antes de crear un proveedor nuevo desconocido, igual que ya se hace para artículos.
+**Estado:** ✅ **Corregido.** Antes de guardar el albarán/factura, si el proveedor escrito no coincide (ni por CIF ni por nombre, ver incidencia 10) con ninguno ya existente, el guardado se bloquea con un modal de confirmación ("Proveedor nuevo: ¿confirmas que quieres crear este proveedor?") — mismo patrón ya usado para la baja confianza (`new_supplier_ack`, análogo a `low_confidence_ack`). Alcance: solo cubre el guardado inicial desde el Paso 1 (`saveReviewedInvoice` / pantalla de revisión del batch); la edición posterior de una factura ya guardada (`invoice/[id]/edit`) sigue creando el proveedor sin preguntar, decisión consciente de no ampliar el alcance por ahora. Commit pendiente de esta sesión.
 
 ---
 
@@ -128,7 +128,7 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 
 **Riesgo:** el histórico de precios de un proveedor se parte en dos en silencio si cambia ligeramente cómo se escribe su nombre (o su razón social).
 
-**Estado:** 🔧 **Decidido corregir — pendiente de implementar.** Usar el CIF (cuando la IA lo lea) para buscar/matchear proveedor existente antes que el nombre.
+**Estado:** ✅ **Corregido.** `getOrCreateSupplierId()` ahora busca primero por CIF (si la IA lo leyó) antes que por nombre; si encuentra un proveedor con ese CIF, reutiliza ese registro (rellenando datos de contacto que falten) en vez de crear uno nuevo, aunque el nombre no coincida exactamente. Se añadió también `findSupplierMatch()` (misma prioridad CIF → nombre) para la comprobación de "proveedor nuevo" de la incidencia 9. Commit pendiente de esta sesión.
 
 ---
 
@@ -176,7 +176,7 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 
 **Riesgo:** si en el futuro trabaja más de una persona con la app, no se podría saber quién corrigió un dato mal leído por la IA en el momento de la revisión inicial.
 
-**Estado:** 🔧 **Decidido corregir — pendiente de implementar.** Añadir el usuario que revisa/corrige justo tras el OCR en `extraction_corrections`, igual que ya se guarda en la edición posterior.
+**Estado:** ✅ **Corregido.** Se añadió la columna `user_id` a `extraction_corrections` (migración `drizzle/0040_add_user_id_to_extraction_corrections.sql`), y `saveReviewedInvoice()` recibe ahora el usuario autenticado (`locals.user.id` desde la ruta del batch) y lo guarda en cada fila de corrección. Commit pendiente de esta sesión.
 
 ---
 
@@ -192,9 +192,9 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 | 6 | Vinculación dudosa se hacía sola | ✅ Corregido | ❌ Sigue sin corregir |
 | 7 | Tachón manual no tenía prioridad sobre lo impreso | ✅ Corregido | ❌ Sigue sin corregir |
 | 8 | Duplicado albarán/factura no se detecta si el albarán no tiene precio | ⚠️ Documentado, ligado a la incidencia 3 | ❌ Sin documentar |
-| 9 | Proveedor nuevo se crea siempre solo, sin preguntar | 🔧 Decidido corregir, pendiente de implementar | ❌ Sin documentar |
-| 10 | Proveedores solo por nombre, nunca por CIF | 🔧 Decidido corregir, pendiente de implementar | ❌ Sin documentar |
+| 9 | Proveedor nuevo se crea siempre solo, sin preguntar | ✅ Corregido | ❌ Sigue sin corregir |
+| 10 | Proveedores solo por nombre, nunca por CIF | ✅ Corregido | ❌ Sigue sin corregir |
 | 11 | Notas de abono / devoluciones no existen | 📌 Aparcado para más adelante | ❌ Sin documentar |
 | 12 | Portes y envases (cascos) no se distinguen de artículos | 📌 Aparcado para más adelante | ❌ Sin documentar |
 | 13 | Descuentos globales no se prorratean por línea | 📌 Aparcado para más adelante | ❌ Sin documentar |
-| 14 | Revisión post-OCR no guarda quién corrigió cada campo | 🔧 Decidido corregir, pendiente de implementar | ❌ Sin documentar |
+| 14 | Revisión post-OCR no guarda quién corrigió cada campo | ✅ Corregido | ❌ Sigue sin corregir |

@@ -29,6 +29,7 @@ function form(supplier: string, invoiceNumber: string): FormData {
 	fd.append('invoice_date', '2026-07-20');
 	fd.append('total_amount', '100');
 	fd.append('low_confidence_ack', 'true');
+	fd.append('new_supplier_ack', 'true');
 	fd.append('line_descriptions', 'Aceite de oliva');
 	fd.append('line_quantities', '1');
 	fd.append('line_units', 'garrafa');
