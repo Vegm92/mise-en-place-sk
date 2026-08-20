@@ -42,9 +42,9 @@ Cada incidencia indica: en qué archivo(s) está, si está corregida o dejada as
 
 **Qué pasaba:** el sistema sí permitía (y sigue permitiendo) guardar un albarán con líneas sin precio, sin bloquear nada. Pero no había ninguna forma visual de distinguir "esta línea está pendiente de que llegue el precio" de "la IA no pudo leer el precio por un fallo" o "el artículo cuesta 0€ de verdad" — las tres se veían igual (importe vacío).
 
-**Estado:** ⚠️ **Parcialmente corregido.** Se añadió una etiqueta visible "Pendiente de tarificación" en las pantallas de detalle (commit `fec4692`), pero **sigue sin ser un estado real guardado en la base de datos** — se calcula sobre la marcha ("si no hay precio, muestra este texto"). Tampoco existe todavía el mecanismo para que esa línea se actualice sola cuando llega el precio real (con la factura) — eso pertenece al Paso 2 y no se ha construido.
+**Estado:** ✅ **Resolución retroactiva construida.** Se añadió una etiqueta visible "Pendiente de tarificación" en las pantallas de detalle (commit `fec4692`) y, en esta sesión, el mecanismo de resolución: al guardar una factura, `saveReviewedInvoice()` busca un albarán del mismo proveedor, con fecha cercana (±21 días) y al menos una línea sin precio (`findPendingAlbaranCandidate`). Si lo encuentra, bloquea el guardado con un modal de confirmación ("¿Es la factura de esa entrega?", análogo a `new_supplier_ack`/`low_confidence_ack`) — si se confirma, los precios de la factura se copian sobre las líneas del albarán ya guardado (`mergeLinesIntoAlbaran`, matching por descripción normalizada; una línea de la factura sin correspondencia se añade como línea nueva) y **no se crea un segundo documento** — el albarán pasa a `document_type = 'factura'` con el número fiscal. Si el usuario indica que no es la misma entrega, se guarda como documento aparte, normal. Esto resuelve a la vez esta incidencia y la 8 (duplicado albarán/factura): ya no hace falta el aviso de "posible duplicado" para este caso porque nunca llega a duplicarse.
 
-**A tener en cuenta si se retoma:** si el Paso 3 (escandallos) necesita bloquear de forma fiable una receta por tener un ingrediente "pendiente de tarificación" (como dice la propuesta original), probablemente haga falta convertir esto en una columna real de estado en vez de un cálculo visual, para poder consultarlo/filtrarlo de forma consistente.
+**Seguía sin ser un estado real en BD** (se sigue calculando "pendiente" como "precio nulo"), pero ahora sí existe la resolución automática que faltaba. Tests: `tests/invoice-save-merge-pending-albaran.test.ts`.
 
 ---
 
@@ -104,7 +104,7 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 
 **Riesgo:** el gasto y el histórico de precios de ese proveedor pueden quedar duplicados, sin ningún aviso, en el caso más habitual (fresco que llega sin precio y se tarifica con la factura).
 
-**Estado:** ⚠️ **No corregido — decisión consciente de no parchearlo suelto.** Es el mismo problema que la resolución retroactiva de "Pendiente de tarificación" (incidencia 3) visto desde otro ángulo: la solución correcta no es avisar de un duplicado, es reconocer que es la misma entrega y fusionar el precio en la línea ya guardada. Se resolverá junto con esa funcionalidad del Paso 2, no antes, para no construir un parche que luego haya que tirar.
+**Estado:** ✅ **Corregido**, junto con la incidencia 3 (mismo mecanismo, ver más abajo).
 
 ---
 
@@ -186,12 +186,12 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 |---|---|---|---|
 | 1 | IVA no se extraía por línea | ✅ Corregido | ❌ Sigue sin corregir |
 | 2 | Precio de línea podía incluir IVA sin querer | ✅ Corregido (con límite en impuestos especiales) | ❌ Sigue sin corregir |
-| 3 | "Pendiente de tarificación" no es un estado real en BD | ⚠️ Etiqueta visual añadida, estado en BD sigue pendiente | ❌ Ni etiqueta ni estado |
+| 3 | "Pendiente de tarificación" no es un estado real en BD | ✅ Etiqueta + resolución retroactiva (fusión con factura) construidas | ❌ Ni etiqueta ni resolución |
 | 4 | Confianza baja no bloquea por línea | Decisión consciente: dejar así | (igual, sin decisión documentada) |
 | 5 | Sin validación de calidad de imagen | Decisión consciente: dejar así | (igual, sin decisión documentada) |
 | 6 | Vinculación dudosa se hacía sola | ✅ Corregido | ❌ Sigue sin corregir |
 | 7 | Tachón manual no tenía prioridad sobre lo impreso | ✅ Corregido | ❌ Sigue sin corregir |
-| 8 | Duplicado albarán/factura no se detecta si el albarán no tiene precio | ⚠️ Documentado, ligado a la incidencia 3 | ❌ Sin documentar |
+| 8 | Duplicado albarán/factura no se detecta si el albarán no tiene precio | ✅ Corregido (fusión en vez de duplicado, ver incidencia 3) | ❌ Sigue sin corregir |
 | 9 | Proveedor nuevo se crea siempre solo, sin preguntar | ✅ Corregido | ❌ Sigue sin corregir |
 | 10 | Proveedores solo por nombre, nunca por CIF | ✅ Corregido | ❌ Sigue sin corregir |
 | 11 | Notas de abono / devoluciones no existen | 📌 Aparcado para más adelante | ❌ Sin documentar |

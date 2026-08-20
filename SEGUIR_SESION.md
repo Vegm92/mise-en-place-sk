@@ -106,10 +106,12 @@ Trampas a vigilar:
 **Propuesta de orden (a confirmar contigo, no decidido todavía):**
 
 1. ~~Decidir prioridad de los hallazgos A–F~~ ✅ Decidido el 2026-08-20: **A, B y F se corrigen ya**; **C, D y E se aparcan** para más adelante. Detalle en `INCIDENCIAS_AUDITORIA.md` (incidencias #9–#14).
-2. ~~Implementar A, B y F~~ ✅ Hecho el 2026-08-20 (proveedor nuevo pregunta antes de crear; matching de proveedor por CIF antes que por nombre; guardar quién corrige en la revisión post-OCR). 1088/1088 tests en verde.
-3. **Probar el Paso 1 con un albarán real** en la app funcionando (nunca se ha visto en pantalla, solo verificado por código y tests) — antes de dar el Paso 1 por cerrado del todo.
-4. **Construir la resolución retroactiva de "Pendiente de tarificación"** (Paso 2) — resuelve a la vez el punto de la etiqueta y el agujero de duplicidad albarán/factura.
+2. ~~Implementar A, B y F~~ ✅ Hecho el 2026-08-20 (proveedor nuevo pregunta antes de crear; matching de proveedor por CIF antes que por nombre; guardar quién corrige en la revisión post-OCR).
+3. **Probar el Paso 1 con un albarán real** en la app funcionando (nunca se ha visto en pantalla, solo verificado por código y tests) — sigue pendiente, aún no hay albaranes de prueba disponibles.
+4. ~~Construir la resolución retroactiva de "Pendiente de tarificación"~~ ✅ Hecho el 2026-08-20 (resuelve a la vez la incidencia 3 y la 8 — ver `INCIDENCIAS_AUDITORIA.md`). Al guardar una factura, si hay un albarán del mismo proveedor cerca en fecha con líneas sin precio, se ofrece fusionar los precios ahí en vez de crear un documento duplicado; el usuario confirma siempre antes. 1093/1093 tests en verde (nuevo archivo `tests/invoice-save-merge-pending-albaran.test.ts`).
 5. **Empezar el Paso 3 (recetas y escandallos)** desde cero, una vez cerrado el Paso 1 y con Paso 2 lo bastante sólido — teniendo en cuenta desde el diseño las mermas variables y las sub-recetas en cadena, para no tener que rehacer la estructura de datos después.
 6. Cuando llegue el momento del Paso 4, diseñar el criterio de "qué precio aplica con varios proveedores" y el sistema de avisos no intrusivos, antes de construir el recálculo en cadena.
+
+**Cómo quedó la fusión (paso 4 de esta lista):** solo se activa cuando el documento nuevo es una factura (nunca un albarán) y el proveedor ya existe. Si hay un albarán candidato, el guardado se bloquea con un aviso "¿Es la factura de esa entrega?" con tres opciones: fusionar, guardar aparte (es otra compra), o volver a revisar. Al fusionar, las líneas se emparejan por descripción; una línea de la factura sin correspondencia en el albarán se añade como línea nueva. El PDF/foto de la factura no se guarda como documento aparte — solo queda el albarán, actualizado.
 
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*

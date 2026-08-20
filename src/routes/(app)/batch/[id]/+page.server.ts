@@ -220,6 +220,7 @@ export const actions: Actions = {
 		if (outcome.type === 'invalidDate') return fail(400, { errorKey: 'error.invalidDate', errorField: outcome.field });
 		if (outcome.type === 'lowConfidenceBlocked') return fail(422, { lowConfidenceBlocked: true });
 		if (outcome.type === 'newSupplierBlocked') return fail(422, { newSupplierBlocked: true, supplierName: outcome.supplierName });
+		if (outcome.type === 'mergeCandidate') return fail(422, { mergeCandidate: true, candidate: outcome.candidate });
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
 
 		if (outcome.type === 'numberDuplicate') {

@@ -25,13 +25,25 @@
   let showContentDuplicateModal = $state(false);
   let newSupplierAck = $state(false);
   let showNewSupplierModal = $state(false);
+  let mergeAck = $state(false);
+  let mergeRejected = $state(false);
+  let showMergeModal = $state(false);
+  let mergeCandidateId = $state<number | null>(null);
+
+  type MergeCandidate = { invoiceId: number; invoiceNumber: string | null; invoiceDate: string | null; lineCount: number };
 
   $effect(() => {
     const f = form as Record<string, unknown> | null;
     if (f?.lowConfidenceBlocked) showLowConfModal = true;
     if (f?.contentDuplicate) showContentDuplicateModal = true;
     if (f?.newSupplierBlocked) showNewSupplierModal = true;
+    if (f?.mergeCandidate) {
+      mergeCandidateId = (f.candidate as MergeCandidate).invoiceId;
+      showMergeModal = true;
+    }
   });
+
+  const mergeCandidateData = $derived((form as Record<string, unknown> | null)?.candidate as MergeCandidate | undefined);
 
   const invalidDateKey = $derived(
     (form as Record<string, unknown> | null)?.errorKey === 'error.invalidDate'
@@ -117,6 +129,10 @@
     showContentDuplicateModal = false;
     newSupplierAck = false;
     showNewSupplierModal = false;
+    mergeAck = false;
+    mergeRejected = false;
+    showMergeModal = false;
+    mergeCandidateId = null;
     const rd = data.review?.data;
     supplierNameInput = str(rd?.supplier_name);
     invoiceNumberInput = str(rd?.invoice_number);
@@ -364,6 +380,9 @@
           <input type="hidden" name="confidence" value={str(confidence)} />
           <input type="hidden" name="low_confidence_ack" value={lowConfAck ? 'true' : 'false'} />
           <input type="hidden" name="new_supplier_ack" value={newSupplierAck ? 'true' : 'false'} />
+          <input type="hidden" name="merge_ack" value={mergeAck ? 'true' : 'false'} />
+          <input type="hidden" name="merge_rejected" value={mergeRejected ? 'true' : 'false'} />
+          <input type="hidden" name="merge_candidate_id" value={mergeCandidateId ?? ''} />
 
           <div class="card" data-coach="invoice-fields" style="padding:0;display:flex;flex-direction:column;overflow:hidden;">
 
@@ -758,6 +777,68 @@
           }}
         >
           {$t('batch.createSupplier')}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+{#if showMergeModal && mergeCandidateData}
+  <div
+    style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
+    role="presentation"
+    onclick={() => showMergeModal = false}
+  >
+    <div
+      style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:420px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
+      role="dialog"
+      tabindex="-1"
+      aria-modal="true"
+      onclick={(e) => e.stopPropagation()}
+      onkeydown={(e) => e.stopPropagation()}
+    >
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <AlertTriangle size={18} style="color:var(--mep-warn);flex-shrink:0;" />
+        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.mergeTitle')}</strong>
+      </div>
+      <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 16px;">
+        {$t('batch.mergePre')} <strong>{mergeCandidateData.invoiceDate}</strong>
+        ({mergeCandidateData.lineCount} {$tp('batch.line', mergeCandidateData.lineCount)}) {$t('batch.mergePost')}
+      </p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px;">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          style="height:36px;font-size:13px;"
+          onclick={() => showMergeModal = false}
+        >
+          {$t('batch.backToReview')}
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          style="height:36px;font-size:13px;"
+          onclick={async () => {
+            mergeRejected = true;
+            showMergeModal = false;
+            await tick();
+            (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
+          }}
+        >
+          {$t('batch.mergeReject')}
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary"
+          style="height:36px;font-size:13px;"
+          onclick={async () => {
+            mergeAck = true;
+            showMergeModal = false;
+            await tick();
+            (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
+          }}
+        >
+          {$t('batch.mergeConfirm')}
         </button>
       </div>
     </div>

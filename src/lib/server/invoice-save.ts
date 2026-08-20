@@ -1,7 +1,7 @@
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, sql } from 'drizzle-orm';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
 import { enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
@@ -19,14 +19,111 @@ import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 
+export interface PendingAlbaranCandidate {
+	invoiceId: number;
+	invoiceNumber: string | null;
+	invoiceDate: string | null;
+	lineCount: number;
+}
+
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
 	| { type: 'newSupplierBlocked'; supplierName: string }
+	| { type: 'mergeCandidate'; candidate: PendingAlbaranCandidate }
 	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
 	| { type: 'replay' }
 	| { type: 'saved'; invoiceId: number; isFirstInvoice: boolean };
+
+const PENDING_ALBARAN_DATE_WINDOW_DAYS = 21;
+
+/**
+ * A "pending" albaran is one saved without prices (see field.pendingPricing):
+ * at least one line has both unit_price and total_price still null. When a
+ * factura from the same supplier lands close in time, it's very likely the
+ * priced follow-up for that same delivery rather than a separate purchase.
+ */
+async function findPendingAlbaranCandidate(
+	rid: string,
+	supplierId: number,
+	invoiceDate: string,
+): Promise<PendingAlbaranCandidate | null> {
+	const rows = await db.execute<{ id: number; invoice_number: string | null; invoice_date: string | null; line_count: number }>(sql`
+		SELECT i.id, i.invoice_number, i.invoice_date,
+		       (SELECT count(*)::int FROM invoice_line_items p
+		        WHERE p.invoice_id = i.id AND p.unit_price IS NULL AND p.total_price IS NULL) AS line_count
+		FROM invoices i
+		WHERE i.restaurant_id = ${rid}
+		  AND i.supplier_id = ${supplierId}
+		  AND i.document_type = 'albaran'
+		  AND i.deleted_at IS NULL
+		  AND i.invoice_date IS NOT NULL
+		  AND ABS(i.invoice_date - ${invoiceDate}::date) <= ${PENDING_ALBARAN_DATE_WINDOW_DAYS}
+		  AND EXISTS (
+		    SELECT 1 FROM invoice_line_items p
+		    WHERE p.invoice_id = i.id AND p.unit_price IS NULL AND p.total_price IS NULL
+		  )
+		ORDER BY ABS(i.invoice_date - ${invoiceDate}::date) ASC
+		LIMIT 1
+	`);
+	if (rows.length === 0) return null;
+	const r = rows[0];
+	return { invoiceId: r.id, invoiceNumber: r.invoice_number, invoiceDate: r.invoice_date, lineCount: r.line_count };
+}
+
+async function isPendingAlbaran(rid: string, invoiceId: number, supplierId: number): Promise<boolean> {
+	const rows = await db.execute<{ id: number }>(sql`
+		SELECT i.id FROM invoices i
+		WHERE i.id = ${invoiceId} AND i.restaurant_id = ${rid} AND i.supplier_id = ${supplierId}
+		  AND i.document_type = 'albaran' AND i.deleted_at IS NULL
+		  AND EXISTS (
+		    SELECT 1 FROM invoice_line_items p
+		    WHERE p.invoice_id = i.id AND p.unit_price IS NULL AND p.total_price IS NULL
+		  )
+		LIMIT 1
+	`);
+	return rows.length > 0;
+}
+
+/**
+ * Backfills prices from a just-arrived factura onto the pending albaran's own
+ * line items (matched by normalized description) instead of inserting a
+ * second, duplicate document. Lines with no match are appended.
+ */
+async function mergeLinesIntoAlbaran(
+	tx: BatchDb,
+	rid: string,
+	albaranInvoiceId: number,
+	enrichedLines: EnrichedLine[],
+): Promise<EnrichedLineItem[]> {
+	const existing = await tx
+		.select({ id: invoiceLineItems.id, description: invoiceLineItems.description, unitPrice: invoiceLineItems.unitPrice, totalPrice: invoiceLineItems.totalPrice })
+		.from(invoiceLineItems)
+		.where(and(forTenant(rid).scope(invoiceLineItems.restaurantId), eq(invoiceLineItems.invoiceId, albaranInvoiceId)));
+
+	const pendingIdByKey = new Map<string, number>();
+	for (const row of existing) {
+		if (row.unitPrice == null && row.totalPrice == null) {
+			const key = normalizeProductKey(row.description ?? '');
+			if (key && !pendingIdByKey.has(key)) pendingIdByKey.set(key, row.id);
+		}
+	}
+
+	const savedItems: EnrichedLineItem[] = [];
+	for (const line of enrichedLines) {
+		const key = normalizeProductKey(line.input.desc);
+		const targetId = pendingIdByKey.get(key);
+		if (targetId != null) {
+			await tx.update(invoiceLineItems).set(line.columns).where(eq(invoiceLineItems.id, targetId));
+			pendingIdByKey.delete(key);
+		} else {
+			await tx.insert(invoiceLineItems).values({ invoiceId: albaranInvoiceId, restaurantId: rid, ...line.columns });
+		}
+		savedItems.push(line.item);
+	}
+	return savedItems;
+}
 
 function toFloat(value: unknown): number | null {
 	if (!value) return null;
@@ -361,11 +458,13 @@ export async function saveReviewedInvoice(
 		: {};
 
 	const newSupplierAck = formData.get('new_supplier_ack') === 'true';
-	if (!newSupplierAck && supplierName.trim()) {
+	let existingSupplierId: number | null = null;
+	if (supplierName.trim()) {
 		const existingSupplier = await findSupplierMatch(rid, supplierName, proposedContact.cif);
-		if (!existingSupplier) {
+		if (!existingSupplier && !newSupplierAck) {
 			return { type: 'newSupplierBlocked', supplierName: supplierName.trim() };
 		}
+		existingSupplierId = existingSupplier?.id ?? null;
 	}
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
@@ -397,6 +496,21 @@ export async function saveReviewedInvoice(
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;
 
+	const mergeAck = formData.get('merge_ack') === 'true';
+	const mergeRejected = formData.get('merge_rejected') === 'true';
+	let mergeTargetId: number | null = null;
+	if (documentType === 'factura' && existingSupplierId != null && invoiceDate) {
+		if (mergeAck) {
+			const requestedId = toFloat(formData.get('merge_candidate_id'));
+			if (requestedId != null && await isPendingAlbaran(rid, requestedId, existingSupplierId)) {
+				mergeTargetId = requestedId;
+			}
+		} else if (!mergeRejected) {
+			const candidate = await findPendingAlbaranCandidate(rid, existingSupplierId, invoiceDate);
+			if (candidate) return { type: 'mergeCandidate', candidate };
+		}
+	}
+
 	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
 	const qrResult = rawQrUrl ? parseQrUrl(rawQrUrl) : null;
 	const qrMismatches = detectVerifactuMismatch(qrResult, {
@@ -412,8 +526,24 @@ export async function saveReviewedInvoice(
 	let invoiceId: number | null = null;
 	let isDuplicate = false;
 	let isReplay = false;
+	let wasMerged = false;
 	const savedItems: EnrichedLineItem[] = [];
 	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
+
+	for (const line of enrichedLines) {
+		const li = line.input;
+		if (line.requiresUnitConversion) {
+			unitConversionAlerts.push({
+				notificationType: 'unit_conversion_needed',
+				message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
+				payload: {
+					supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
+					messageKey: 'notif.msg.unitConversion',
+					messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
+				},
+			});
+		}
+	}
 
 	await db.transaction(async (tx) => {
 		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
@@ -421,72 +551,79 @@ export async function saveReviewedInvoice(
 			return;
 		}
 
-		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
+		if (mergeTargetId != null) {
+			supplierId = existingSupplierId!;
+			invoiceId = mergeTargetId;
+			wasMerged = true;
 
-		if (invoiceNumber.trim()) {
-			const dup = await tx
-				.select({ id: invoices.id })
-				.from(invoices)
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
-				.limit(1);
-			if (dup.length > 0) {
+			await tx.update(invoices)
+				.set({
+					documentType: 'factura',
+					invoiceNumber: invoiceNumber || null,
+					totalAmount,
+					taxBase,
+					taxBreakdown,
+					contentHash,
+					confidence: confidenceRaw,
+					qrUrl: qrResult?.url ?? null,
+					qrMismatch: qrMismatches.length > 0 ? 1 : 0,
+				})
+				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, mergeTargetId)));
+
+			savedItems.push(...await mergeLinesIntoAlbaran(tx, rid, mergeTargetId, enrichedLines));
+		} else {
+			supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
+
+			if (invoiceNumber.trim()) {
+				const dup = await tx
+					.select({ id: invoices.id })
+					.from(invoices)
+					.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
+					.limit(1);
+				if (dup.length > 0) {
+					isDuplicate = true;
+					if (idemKey) await releaseRequest(idemKey, tx);
+					return;
+				}
+			}
+
+			const insertedInvoice = await tx
+				.insert(invoices)
+				.values({
+					restaurantId: rid,
+					supplierId,
+					invoiceNumber: invoiceNumber || null,
+					documentType,
+					invoiceDate,
+					dueDate,
+					totalAmount,
+					taxBase,
+					taxBreakdown,
+					status: 'pending',
+					sourceFile: primaryFile,
+					confidence: confidenceRaw,
+					contentHash,
+					notes,
+					qrUrl: qrResult?.url ?? null,
+					qrMismatch: qrMismatches.length > 0 ? 1 : 0,
+				})
+				.onConflictDoNothing()
+				.returning({ id: invoices.id });
+
+			if (!insertedInvoice.length) {
 				isDuplicate = true;
 				if (idemKey) await releaseRequest(idemKey, tx);
 				return;
 			}
-		}
+			invoiceId = insertedInvoice[0].id;
 
-		const insertedInvoice = await tx
-			.insert(invoices)
-			.values({
-				restaurantId: rid,
-				supplierId,
-				invoiceNumber: invoiceNumber || null,
-				documentType,
-				invoiceDate,
-				dueDate,
-				totalAmount,
-				taxBase,
-				taxBreakdown,
-				status: 'pending',
-				sourceFile: primaryFile,
-				confidence: confidenceRaw,
-				contentHash,
-				notes,
-				qrUrl: qrResult?.url ?? null,
-				qrMismatch: qrMismatches.length > 0 ? 1 : 0,
-			})
-			.onConflictDoNothing()
-			.returning({ id: invoices.id });
-
-		if (!insertedInvoice.length) {
-			isDuplicate = true;
-			if (idemKey) await releaseRequest(idemKey, tx);
-			return;
-		}
-		invoiceId = insertedInvoice[0].id;
-
-		for (const line of enrichedLines) {
-			const li = line.input;
-
-			await tx.insert(invoiceLineItems).values({
-				invoiceId: invoiceId!,
-				restaurantId: rid,
-				...line.columns,
-			});
-
-			savedItems.push(line.item);
-
-			if (line.requiresUnitConversion) {
-				unitConversionAlerts.push({
-					notificationType: 'unit_conversion_needed',
-					message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
-					payload: {
-						supplierId, supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
-						messageKey: 'notif.msg.unitConversion',
-						messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
-					},
+			for (const line of enrichedLines) {
+				await tx.insert(invoiceLineItems).values({
+					invoiceId: invoiceId!,
+					restaurantId: rid,
+					...line.columns,
 				});
+				savedItems.push(line.item);
 			}
 		}
 
@@ -510,7 +647,7 @@ export async function saveReviewedInvoice(
 		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
-		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
+		const duplicatePurchaseAlerts = wasMerged ? [] : await runPossibleDuplicatePurchase(
 			invoiceId!, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
 		);
 		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
@@ -527,19 +664,24 @@ export async function saveReviewedInvoice(
 			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
 		]);
 
-		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+		trackEvent(wasMerged ? 'invoice_merged_into_albaran' : 'invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
 		void maybeSendQuotaWarning(rid);
 
-		await logExtractionCorrections(
-			invoiceId!,
-			supplierId,
-			rid,
-			userId,
-			extractedData,
-			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
-			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
-		);
+		// The corrections log compares against the OCR read of *this* document; on a
+		// merge, this document's data was folded into the pre-existing albaran, so
+		// there is nothing meaningful to diff it against here.
+		if (!wasMerged) {
+			await logExtractionCorrections(
+				invoiceId!,
+				supplierId,
+				rid,
+				userId,
+				extractedData,
+				{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+				{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+			);
+		}
 
 		const onboardingRows = await db
 			.select({ value: settings.value })
