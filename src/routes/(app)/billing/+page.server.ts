@@ -1,19 +1,19 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, syncSubscriptionFromStripe, TIERS, type PlanTier } from '$lib/server/billing';
+import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 import { trackEvent } from '$lib/server/events';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	if (!locals.user || !locals.restaurantId) redirect(303, '/login');
+
+	await parent();
 
 	const rid = locals.restaurantId;
 	const billingTdb = forTenant(await billingRestaurantId(rid));
-
-	await syncSubscriptionFromStripe(rid);
 
 	const [sub] = await db.select()
 		.from(subscriptions)
@@ -44,6 +44,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		checkoutSuccess: url.searchParams.get('checkout') === 'success',
 		upgradeFor: url.searchParams.get('upgrade'),
 		currentTier,
+		currentTierName: TIERS[currentTier].name,
 		trialTier: {
 			monthlyInvoiceQuota: TIERS.trial.monthlyInvoiceQuota,
 			maxLocations: TIERS.trial.maxLocations,

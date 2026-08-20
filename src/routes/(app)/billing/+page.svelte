@@ -4,8 +4,16 @@
 	import BillingStatusCard from '$lib/components/mep/BillingStatusCard.svelte';
 	import BillingPlanCard from '$lib/components/mep/BillingPlanCard.svelte';
 	import BillingFeatureMatrix from '$lib/components/mep/BillingFeatureMatrix.svelte';
+	import { PROVISIONAL_PRICE, type TierId } from '$lib/billing-plans';
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
+
+	const maxLocations = $derived(
+		data.currentTier === 'trial'
+			? data.trialTier.maxLocations
+			: (data.tiers.find(t => t.tier === data.currentTier)?.maxLocations ?? 1)
+	);
+	const upgrade = $derived(data.tiers.find(t => t.maxLocations > maxLocations) ?? null);
 
 	const upgradeMessage = $derived.by(() => {
 		if (!data.upgradeFor) return null;
@@ -47,6 +55,14 @@
 
 	<BillingStatusCard
 		status={data.status}
+		planName={data.currentTierName}
+		price={PROVISIONAL_PRICE[data.currentTier as TierId] ?? null}
+		quotaUsed={data.quotaUsed}
+		quotaLimit={data.quotaLimit}
+		locationsUsed={data.locations.length}
+		{maxLocations}
+		upgradeName={upgrade?.name ?? null}
+		upgradeMaxLocations={upgrade?.maxLocations ?? 0}
 		trialEndsAt={data.trialEndsAt}
 		currentPeriodEnd={data.currentPeriodEnd}
 		cancelAtPeriodEnd={data.cancelAtPeriodEnd}

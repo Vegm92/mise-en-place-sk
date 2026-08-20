@@ -3,7 +3,7 @@ import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { systemNotifications, invoices, settings, restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
 import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
-import { TIERS, resolveMonthlyQuota, type PlanTier } from '$lib/server/billing';
+import { TIERS, resolveMonthlyQuota, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -12,6 +12,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/onboarding');
+
+	if (url.pathname === '/billing') await syncSubscriptionFromStripe(rid);
 
 	const tdb = forTenant(rid);
 
