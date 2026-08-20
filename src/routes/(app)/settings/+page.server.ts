@@ -22,7 +22,6 @@ import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
 import { renderQrSvg } from '$lib/server/qr-svg';
 import { activePairingCode, generatePairingCode, revokePairingCodes } from '$lib/server/whatsapp-pairing';
 
-const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
 const RESTAURANT_NAME_KEY = 'restaurant_name';
 
@@ -49,10 +48,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow] = await Promise.all([
-			db.select({ value: settings.value })
-				.from(settings)
-				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
+		const [priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, PRICE_ALERT_KEY))),
@@ -81,7 +77,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 		return {
 			title: 'nav.settings',
-			threshold:      row[0]      ? parseInt(row[0].value, 10)          : 80,
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
 			profile: {
 				name:  userRow[0]?.name ?? '',
@@ -105,20 +100,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	saveThreshold: async ({ request, locals }) => {
-		const rid = locals.restaurantId!;
-		const data = await request.formData();
-		const clamped = String(Math.max(1, Math.min(99, Number(data.get('value')) || 80)));
-
-		await db.insert(settings)
-			.values({ restaurantId: rid, key: THRESHOLD_KEY, value: clamped })
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: clamped },
-			});
-
-		redirect(303, '/settings');
-	},
 	savePriceThreshold: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
 		const data = await request.formData();

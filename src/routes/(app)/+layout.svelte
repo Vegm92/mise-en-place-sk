@@ -9,6 +9,7 @@
   import FileText from '@lucide/svelte/icons/file-text';
   import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
   import ChefHat from '@lucide/svelte/icons/chef-hat';
+  import CreditCard from '@lucide/svelte/icons/credit-card';
   import Bell from '@lucide/svelte/icons/bell';
   import Settings from '@lucide/svelte/icons/settings';
   import Upload from '@lucide/svelte/icons/upload';
@@ -124,6 +125,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       ]
     },
     { href: '/recipes',         icon: ChefHat,         label: $t('nav.recipes'),    badge: 0 },
+    { href: '/billing',         icon: CreditCard,      label: $t('billing.title'),  badge: 0 },
   ]);
 
   let switchingLocation = $state(false);
@@ -189,9 +191,9 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   >
     <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;{sidebarCollapsed ? 'justify-content:center;' : ''}">
       <svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
-        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
+        <rect x="2.5"  y="3.5"  width="3" height="17" rx="1.5" fill="currentColor"/>
+        <rect x="10.5" y="7.5"  width="3" height="13" rx="1.5" fill="currentColor"/>
+        <rect x="18.5" y="11.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
       </svg>
       {#if !sidebarCollapsed}
         <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
@@ -474,7 +476,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       body={$t(`tour.step${activeTourPage.step}.body`)}
       stepNum={tourIndex + 1}
       totalSteps={TOUR_PAGES.length}
-      nextLabel={activeTourPage.step === '11' ? $t('tour.step11.next') : undefined}
+      nextLabel={activeTourPage.step === '10' ? $t('tour.step10.next') : undefined}
       onNext={advanceTour}
       onSkip={() => setTutorialStep('dismissed')}
     />

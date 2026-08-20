@@ -3,7 +3,7 @@
   import ChefHat from '@lucide/svelte/icons/chef-hat';
 </script>
 
-<div style="max-width:520px;margin:0 auto;padding:64px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;">
+<div style="max-width:520px;margin:0 auto;padding:64px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;" data-coach="recipes-main">
   <div style="width:48px;height:48px;border-radius:24px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;">
     <ChefHat size={22} />
   </div>

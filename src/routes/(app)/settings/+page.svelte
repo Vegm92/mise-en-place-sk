@@ -74,8 +74,6 @@
   let activeSection = $state('cuenta');
 
   // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded data
-  let threshold = $state(data.threshold);
-  // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded data
   let priceThreshold = $state(data.priceThreshold);
 </script>
 
@@ -249,33 +247,6 @@
       {/if}
 
       {#if activeSection === 'alertas'}
-        <SectionCard title={$t('set.thresholdTitle')} sub={$t('set.thresholdDesc')} noPad>
-          <form method="post" action="?/saveThreshold" class="set-row" style="align-items:start;">
-            <span class="body-strong" style="font-size:13px;padding-top:6px;">{$t('set.nav.alerts')}</span>
-            <div style="max-width:440px;">
-              <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
-                <div style="flex:1 1 200px;max-width:240px;min-width:160px;">
-                  <Slider bind:value={threshold} min={50} max={100} name="value" />
-                  <div class="num" style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mep-fg-4);margin-top:6px;">
-                    <span>50%</span><span>100%</span>
-                  </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                  <button type="button" class="btn btn-secondary" style="width:26px;height:26px;padding:0;justify-content:center;"
-                    onclick={() => (threshold = Math.max(50, threshold - 1))}>−</button>
-                  <div class="num" style="min-width:54px;height:30px;border-radius:6px;border:1px solid var(--mep-border-strong);background:var(--mep-surface);display:flex;align-items:center;justify-content:center;gap:1px;font-size:13.5px;font-weight:600;color:var(--mep-fg);">
-                    {threshold}<span style="font-size:11px;color:var(--mep-fg-3);font-weight:400;">%</span>
-                  </div>
-                  <button type="button" class="btn btn-secondary" style="width:26px;height:26px;padding:0;justify-content:center;"
-                    onclick={() => (threshold = Math.min(100, threshold + 1))}>+</button>
-                </div>
-                <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
-              </div>
-              <p class="body text-fg-3" style="font-size:11.5px;margin:8px 0 0;">{$ti('set.thresholdPreview', { value: threshold })}</p>
-            </div>
-          </form>
-        </SectionCard>
-
         <SectionCard title={$t('set.priceThresholdTitle')} sub={$t('set.priceThresholdDesc')} noPad>
           <form method="post" action="?/savePriceThreshold" class="set-row" style="align-items:start;">
             <span class="body-strong" style="font-size:13px;padding-top:6px;">{$t('set.priceThresholdTitle')}</span>
