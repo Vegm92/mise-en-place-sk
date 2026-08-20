@@ -49,6 +49,7 @@ REFERENCES.md
 CONTEXT.md
 PRD.md
 TODO.md
+.scratch/
 /.claude/
 /graphify-out
 .graphify_cached.json
