@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { json, redirect, type Handle } from '@sveltejs/kit';
+import { json, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { handle as authHandle } from '$lib/server/auth';
 import { cleanupStaleBatches } from '$lib/server/batch';
@@ -8,7 +8,7 @@ import { isAdminUser } from '$lib/server/admin';
 import { db } from '$lib/server/db';
 import { userRestaurants, users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
-import { PENDING_PATH, resolveAccess } from '$lib/server/access-gate';
+import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
 import { policyFor, refusalFor, resolveEntitlement } from '$lib/server/entitlements';
 import { getEntitlements } from '$lib/server/billing';
 import { eq } from 'drizzle-orm';
@@ -68,6 +68,69 @@ function entitlementsFor(restaurantId: string | null): App.Locals['entitlements'
 	};
 }
 
+async function resolveMembership(event: RequestEvent, user: NonNullable<App.Locals['user']>) {
+	const activeCookie = event.cookies.get('active_restaurant');
+
+	const [memberships, accessRows, openFlag] = await withTimeout(
+		'hooks/memberships',
+		MEMBERSHIP_TIMEOUT_MS,
+		() => Promise.all([
+			db
+				.select({ restaurantId: userRestaurants.restaurantId })
+				.from(userRestaurants)
+				.where(eq(userRestaurants.userId, user.id)),
+			db
+				.select({ accessStatus: users.accessStatus })
+				.from(users)
+				.where(eq(users.id, user.id))
+				.limit(1),
+			isAccessOpen(),
+		]),
+	).catch(e => {
+		console.error('[hooks] membership lookup failed', e);
+		Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
+		return [[], [], false] as [Array<{ restaurantId: string }>, Array<{ accessStatus: string }>, boolean];
+	});
+
+	const ids = memberships.map(m => m.restaurantId);
+	const restaurantId = ids.length > 0
+		? (activeCookie && ids.includes(activeCookie) ? activeCookie : (ids[0] ?? null))
+		: null;
+
+	return {
+		userApproved: accessRows[0]?.accessStatus === 'approved',
+		accessOpen:   openFlag,
+		restaurantId,
+	};
+}
+
+function enforceAccessDecision(decision: AccessDecision) {
+	if (decision === 'deny-api') {
+		return new Response(JSON.stringify({ error: 'Access not yet approved' }), {
+			status: 403,
+			headers: { 'Content-Type': 'application/json' },
+		});
+	}
+	if (decision === 'redirect-pending') {
+		redirect(303, PENDING_PATH);
+	}
+	return null;
+}
+
+function enforceAuth(path: string, user: App.Locals['user']) {
+	if (path === '/' && !user) {
+		redirect(303, '/waitlist');
+	}
+	if (isPublicPath(path) || user) return;
+	if (path.startsWith('/api/')) {
+		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+			status: 401,
+			headers: { 'Content-Type': 'application/json' },
+		});
+	}
+	redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
+}
+
 const appHandle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
@@ -91,41 +154,10 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	let accessOpen   = false;
 
 	if (user) {
-		const activeCookie = event.cookies.get('active_restaurant');
-
-		const [memberships, accessRows, openFlag] = await withTimeout(
-			'hooks/memberships',
-			MEMBERSHIP_TIMEOUT_MS,
-			() => Promise.all([
-				db
-					.select({ restaurantId: userRestaurants.restaurantId })
-					.from(userRestaurants)
-					.where(eq(userRestaurants.userId, user.id)),
-				db
-					.select({ accessStatus: users.accessStatus })
-					.from(users)
-					.where(eq(users.id, user.id))
-					.limit(1),
-				isAccessOpen(),
-			]),
-		).catch(e => {
-			console.error('[hooks] membership lookup failed', e);
-			Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
-			return [[], [], false] as [Array<{ restaurantId: string }>, Array<{ accessStatus: string }>, boolean];
-		});
-
-		userApproved = accessRows[0]?.accessStatus === 'approved';
-		accessOpen   = openFlag;
-
-		const ids = memberships.map(m => m.restaurantId);
-
-		if (ids.length > 0) {
-			event.locals.restaurantId = (activeCookie && ids.includes(activeCookie))
-				? activeCookie
-				: (ids[0] ?? null);
-		} else {
-			event.locals.restaurantId = null;
-		}
+		const { userApproved: approved, accessOpen: open, restaurantId } = await resolveMembership(event, user);
+		userApproved = approved;
+		accessOpen   = open;
+		event.locals.restaurantId = restaurantId;
 	} else {
 		event.locals.restaurantId = null;
 	}
@@ -148,32 +180,12 @@ const appHandle: Handle = async ({ event, resolve }) => {
 			approved: userApproved,
 			accessOpen,
 		});
-
-		if (decision === 'deny-api') {
-			return new Response(JSON.stringify({ error: 'Access not yet approved' }), {
-				status: 403,
-				headers: { 'Content-Type': 'application/json' },
-			});
-		}
-
-		if (decision === 'redirect-pending') {
-			redirect(303, PENDING_PATH);
-		}
+		const refused = enforceAccessDecision(decision);
+		if (refused) return refused;
 	}
 
-	if (path === '/' && !event.locals.user) {
-		redirect(303, '/waitlist');
-	}
-
-	if (!isPublicPath(path) && !event.locals.user) {
-		if (path.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-				status: 401,
-				headers: { 'Content-Type': 'application/json' },
-			});
-		}
-		redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
-	}
+	const authResponse = enforceAuth(path, event.locals.user);
+	if (authResponse) return authResponse;
 
 	const response = await resolve(event);
 
