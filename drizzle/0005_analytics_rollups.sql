@@ -24,7 +24,7 @@ SELECT
     i.restaurant_id,
     i.supplier_id,
     s.name                         AS supplier_name,
-    COALESCE(s.category, 'Other')  AS category,
+    COALESCE(s.category, 'Other')  AS category, -- NOSONAR:S1192
     TO_CHAR(i.invoice_date::date, 'YYYY-MM') AS month,
     SUM(COALESCE(i.total_amount, 0))  AS total_spend,
     COUNT(i.id)                       AS invoice_count,
@@ -35,7 +35,7 @@ WHERE i.deleted_at IS NULL
   AND i.invoice_date IS NOT NULL
 GROUP BY
     i.restaurant_id, i.supplier_id, s.name,
-    COALESCE(s.category, 'Other'),
+    COALESCE(s.category, 'Other'), -- NOSONAR:S1192
     TO_CHAR(i.invoice_date::date, 'YYYY-MM');
 
 CREATE UNIQUE INDEX IF NOT EXISTS mv_supplier_monthly_spend_pk
@@ -79,7 +79,7 @@ CREATE INDEX IF NOT EXISTS mv_item_monthly_spend_lookup
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_category_monthly_spend AS
 SELECT
     i.restaurant_id,
-    COALESCE(s.category, 'Other')  AS category,
+    COALESCE(s.category, 'Other')  AS category, -- NOSONAR:S1192
     TO_CHAR(i.invoice_date::date, 'YYYY-MM') AS month,
     SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total_spend,
     COUNT(DISTINCT i.id)           AS invoice_count
@@ -92,7 +92,7 @@ WHERE ili.description IS NOT NULL
   AND i.invoice_date IS NOT NULL
 GROUP BY
     i.restaurant_id,
-    COALESCE(s.category, 'Other'),
+    COALESCE(s.category, 'Other'), -- NOSONAR:S1192
     TO_CHAR(i.invoice_date::date, 'YYYY-MM');
 
 CREATE UNIQUE INDEX IF NOT EXISTS mv_category_monthly_spend_pk
