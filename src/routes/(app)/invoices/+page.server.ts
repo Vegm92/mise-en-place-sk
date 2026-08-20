@@ -4,12 +4,15 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { trackEvent } from '$lib/server/events';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
+import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
+
+const LOW_CONFIDENCE_THRESHOLD = 0.85;
 
 const PAGE_SIZE = 50;
 
@@ -40,6 +43,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 		const offset     = (page - 1) * PAGE_SIZE;
 
+		const periodParam = url.searchParams.get('period') ?? '';
+		const period: PeriodKey = isPeriodKey(periodParam) ? periodParam : 'month';
+		const { from: periodFrom, prevFrom, prevTo } = periodRange(period);
+
 		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 		if (status)       conditions.push(eq(invoices.status, status));
 		if (supplierId)   conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
@@ -48,13 +55,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
 		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
 
-		const [invoiceRows, statsRow, supplierCountRow, supplierRows, countRow] = await Promise.all([
+		const periodScope = periodFrom ? gte(invoices.createdAt, periodFrom) : undefined;
+		const prevPeriodScope = prevFrom && prevTo
+			? and(gte(invoices.createdAt, prevFrom), lt(invoices.createdAt, prevTo))
+			: undefined;
+
+		const [invoiceRows, statsRow, prevStatsRow, needsReviewRow, supplierRows, countRow] = await Promise.all([
 			db.select({
 				id:             invoices.id,
 				supplier_name:  suppliers.name,
 				invoice_number: invoices.invoiceNumber,
 				invoice_date:   invoices.invoiceDate,
-				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
 				status:         invoices.status,
 				confidence:     invoices.confidence,
@@ -71,17 +82,32 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.offset(offset),
 
 			db.select({
-				pending_amount: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status}='pending' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
-				pending_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`,
-				overdue_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} < CURRENT_DATE AND ${invoices.dueDate} IS NOT NULL THEN 1 END)`,
-				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
+				total_count:     sql<number>`COUNT(*)`,
+				total_amount:    sql<string>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`,
+				commented_count: sql<number>`COUNT(CASE WHEN ${invoices.notes} IS NOT NULL AND ${invoices.notes} <> '' THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))),
+				.where(tdb.scope(invoices.restaurantId, periodScope
+					? and(isNull(invoices.deletedAt), periodScope)
+					: isNull(invoices.deletedAt))),
 
-			db.select({ cnt: sql<number>`COUNT(*)` })
-				.from(suppliers)
-				.where(tdb.scope(suppliers.restaurantId)),
+			prevPeriodScope
+				? db.select({
+					total_count:  sql<number>`COUNT(*)`,
+					total_amount: sql<string>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`,
+				})
+					.from(invoices)
+					.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), prevPeriodScope)))
+				: Promise.resolve(null),
+
+			db.select({ cnt: sql<number>`COUNT(DISTINCT ${invoices.id})` })
+				.from(invoices)
+				.leftJoin(invoiceLineItems, and(eq(invoiceLineItems.invoiceId, invoices.id), isNull(invoiceLineItems.unitPrice)))
+				.where(tdb.scope(invoices.restaurantId, and(
+					isNull(invoices.deletedAt),
+					or(lt(invoices.confidence, LOW_CONFIDENCE_THRESHOLD), sql`${invoiceLineItems.id} IS NOT NULL`),
+					...(periodScope ? [periodScope] : []),
+				))),
 
 			db.select({ id: suppliers.id, name: suppliers.name })
 				.from(suppliers)
@@ -132,18 +158,26 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})),
 		}));
 
+		const currentCount = statsRow[0]?.total_count ?? 0;
+		const currentAmount = moneyToNumber(statsRow[0]?.total_amount ?? '0');
+		const prevCount = prevStatsRow ? (prevStatsRow[0]?.total_count ?? 0) : null;
+		const prevAmount = prevStatsRow ? moneyToNumber(prevStatsRow[0]?.total_amount ?? '0') : null;
+
 		const stats = {
-			pending_amount: moneyToNumber(statsRow[0]?.pending_amount ?? '0'),
-			pending_count: statsRow[0]?.pending_count ?? 0,
-			overdue_count: statsRow[0]?.overdue_count ?? 0,
-			paid_count: statsRow[0]?.paid_count ?? 0,
+			total_count: currentCount,
+			total_amount: currentAmount,
+			commented_count: statsRow[0]?.commented_count ?? 0,
+			needs_review_count: needsReviewRow[0]?.cnt ?? 0,
+			count_delta_pct: prevCount !== null ? deltaPct(currentCount, prevCount) : null,
+			amount_delta_pct: prevAmount !== null ? deltaPct(currentAmount, prevAmount) : null,
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
 		return {
 			title: 'inv.title',
 			invoices: invoiceList,
-			stats: { ...stats, supplier_count: supplierCountRow[0]?.cnt ?? 0 },
+			stats,
+			period,
 			suppliers: supplierRows,
 			filters: {
 				status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo,

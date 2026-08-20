@@ -242,7 +242,7 @@ export function computeFormContentHash(
 		supplierName: string;
 		invoiceNumber: string;
 		invoiceDate: string | null;
-		dueDate: string | null;
+		dueDate?: string | null;
 		totalAmount: string | null;
 	},
 	formData: FormData,

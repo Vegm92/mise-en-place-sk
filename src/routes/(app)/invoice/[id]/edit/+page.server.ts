@@ -23,7 +23,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				supplier_name:  suppliers.name,
 				invoice_number: invoices.invoiceNumber,
 				invoice_date:   invoices.invoiceDate,
-				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
 				status:         invoices.status,
 				source_file:    invoices.sourceFile,
@@ -77,11 +76,8 @@ export const actions: Actions = {
 		const supplierName  = String(data.get('supplier_name') ?? '').trim();
 		const invoiceNumber = String(data.get('invoice_number') ?? '').trim() || null;
 		const invoiceDateRaw = data.get('invoice_date');
-		const dueDateRaw     = data.get('due_date');
 		if (!isBlankOrIsoDate(invoiceDateRaw)) return fail(400, { errorKey: 'error.invalidInvoiceDate' });
-		if (!isBlankOrIsoDate(dueDateRaw))     return fail(400, { errorKey: 'error.invalidDueDate' });
 		const invoiceDate   = toIsoDate(invoiceDateRaw);
-		const dueDate       = toIsoDate(dueDateRaw);
 		const totalAmount   = toMoneyString(data.get('total_amount') as string | null);
 		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
 
@@ -93,7 +89,7 @@ export const actions: Actions = {
 		const lineInputs = parseLineInputs(data);
 		const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
 		const contentHash = computeFormContentHash(
-			{ supplierName, invoiceNumber: invoiceNumber ?? '', invoiceDate, dueDate, totalAmount },
+			{ supplierName, invoiceNumber: invoiceNumber ?? '', invoiceDate, totalAmount },
 			data,
 		);
 
@@ -154,7 +150,7 @@ export const actions: Actions = {
 
 			const updated = await tx.update(invoices)
 				.set({
-					supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash,
+					supplierId, invoiceNumber, invoiceDate, totalAmount, notes, contentHash,
 					version: sql`${invoices.version} + 1`,
 				})
 				.where(and(

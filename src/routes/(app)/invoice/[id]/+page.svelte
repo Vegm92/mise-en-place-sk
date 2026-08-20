@@ -53,7 +53,7 @@
       <div class="card-header">
         <div class="section-title">
           <span class="body-strong" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px;">
-            {invoice.source_file ?? 'invoice.pdf'}
+            {invoice.source_file ?? 'albaran.pdf'}
           </span>
         </div>
         <div style="display:flex;gap:4px;">
@@ -85,7 +85,7 @@
 
       <div class="card p-4" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Invoice #${invoice.id}`}</span>
+          <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Albarán #${invoice.id}`}</span>
           <StatusBadge status={invoice.status ?? 'pending'} />
         </div>
 
@@ -111,10 +111,6 @@
             <span class="body-strong">{fmtDate(invoice.invoice_date)}</span>
           </div>
           <div style="display:flex;flex-direction:column;gap:2px;">
-            <span class="label">{$t('field.dueDate')}</span>
-            <span class="body-strong">{fmtDate(invoice.due_date)}</span>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:2px;">
             <span class="label">{$t('field.totalAmount')}</span>
             <span class="num body-strong" style="font-size:17px;">{fmt(invoice.total_amount)}</span>
           </div>
@@ -136,6 +132,15 @@
         >
           {$t('action.edit')}
         </a>
+        {#if invoice.status === 'pending'}
+          <form method="post" action="?/markPaid">
+            <button type="submit" class="btn btn-secondary">{$t('inv.markPaid')}</button>
+          </form>
+        {:else if invoice.status === 'paid'}
+          <form method="post" action="?/markUnpaid">
+            <button type="submit" class="btn btn-ghost">{$t('inv.markUnpaid')}</button>
+          </form>
+        {/if}
         {#if invoice.source_file}
           <a
             href="/invoice/{invoice.id}/file"

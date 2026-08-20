@@ -36,7 +36,7 @@ export function computeInvoiceContentHash(fields: {
 	supplierName: string;
 	invoiceNumber: string;
 	invoiceDate: string | null;
-	dueDate: string | null;
+	dueDate?: string | null;
 	totalAmount: string | null;
 	lineDescriptions: string[];
 	lineQuantities: (number | null)[];

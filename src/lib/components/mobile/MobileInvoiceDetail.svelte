@@ -29,7 +29,6 @@
     display_amount?: number | null;
     status: string | null;
     invoice_date: Date | string | null;
-    due_date: Date | string | null;
     source_file: string | null;
   }
 
@@ -122,10 +121,6 @@
         <div>
           <div style="color: var(--mep-fg-3);">{$t('mid.issued')}</div>
           <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.invoice_date)}</div>
-        </div>
-        <div>
-          <div style="color: var(--mep-fg-3);">{$t('tbl.due')}</div>
-          <div class="num" style="color: var(--mep-fg); font-weight: 500; margin-top: 2px;">{fmtDate(invoice.due_date)}</div>
         </div>
         <div>
           <div style="color: var(--mep-fg-3);">{$t('tbl.lines')}</div>

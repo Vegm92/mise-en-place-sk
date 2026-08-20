@@ -26,7 +26,7 @@
   const filters = [
     { id: 'month', labelKey: 'minv.filter.month' },
     { id: 'pending', labelKey: 'minv.filter.pending' },
-    { id: 'overdue', labelKey: 'minv.filter.overdue' },
+    { id: 'paid',    labelKey: 'status.paid' },
     { id: 'supplier', labelKey: 'minv.filter.supplier' },
     { id: 'category', labelKey: 'minv.filter.category' },
   ];
@@ -42,8 +42,8 @@
     }
     if (activeFilter === 'pending') {
       list = list.filter(inv => inv.status === 'pending');
-    } else if (activeFilter === 'overdue') {
-      list = list.filter(inv => inv.status === 'overdue');
+    } else if (activeFilter === 'paid') {
+      list = list.filter(inv => inv.status === 'paid');
     }
     return list;
   });

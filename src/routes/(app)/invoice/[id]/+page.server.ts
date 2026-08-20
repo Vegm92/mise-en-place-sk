@@ -5,6 +5,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { asc, eq, and, isNull } from 'drizzle-orm';
 import { moneyToNullableNumber } from '$lib/server/money';
+import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/detail', async () => {
@@ -20,7 +21,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				invoice_number: invoices.invoiceNumber,
 				document_type:  invoices.documentType,
 				invoice_date:   invoices.invoiceDate,
-				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
 				status:         invoices.status,
 				source_file:    invoices.sourceFile,
@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		if (!row) redirect(303, '/invoices');
 
 		return {
-			title: `Invoice ${row.invoice_number ?? row.id}`,
+			title: `Albarán ${row.invoice_number ?? row.id}`,
 			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
 			lineItems: lineItems.map(li => ({
 				...li,
@@ -62,6 +62,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
+	markPaid: async ({ params, locals }) => {
+		const id  = Number(params.id);
+		const rid = locals.restaurantId!;
+		await markInvoicePaid(id, rid);
+	},
+	markUnpaid: async ({ params, locals }) => {
+		const id  = Number(params.id);
+		const rid = locals.restaurantId!;
+		await markInvoiceUnpaid(id, rid);
+	},
 	delete: async ({ params, locals }) => {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;

@@ -18,7 +18,14 @@
   import Eye from '@lucide/svelte/icons/eye';
 
   const { data }: { data: PageData } = $props();
-  const { invoices, stats, suppliers, filters, pagination } = $derived(data);
+  const { invoices, stats, suppliers, filters, pagination, period } = $derived(data);
+
+  const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
+    ['day',   'inv.period.day'],
+    ['month', 'inv.period.month'],
+    ['year',  'inv.period.year'],
+    ['all',   'inv.period.all'],
+  ];
 
   let toastDismissed = $state(false);
   const showSavedToast = $derived(data.savedInvoiceId !== null && !toastDismissed);
@@ -161,28 +168,50 @@
     <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
   {/if}
 
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3" data-coach="invoices-main">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="flex:1;"></div>
+    <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
+      {#each PERIODS as [val, labelKey]}
+        <a href="?period={val}" style="
+          background:{period === val ? 'var(--mep-surface)' : 'transparent'};
+          color:{period === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
+          font-size:12px;font-weight:{period === val ? 500 : 400};
+          padding:5px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;
+          box-shadow:{period === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
+          font-family:inherit;
+        ">{$t(labelKey)}</a>
+      {/each}
+    </div>
+  </div>
+
+  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1" data-coach="invoices-main">
     <KpiCard
-      label={$t('inv.kpi.pending')}
-      value={Math.round(stats.pending_amount) + ' €'}
-      sub={$tp('misc.invoice', stats.pending_count)}
-      variant={stats.pending_count > 0 ? 'warn' : 'default'}
+      label={$t('inv.title')}
+      value={stats.total_count}
+      sub={period === 'all' ? $t('inv.kpi.totalSub') : undefined}
+      delta={stats.count_delta_pct !== null ? Math.round(stats.count_delta_pct * 10) / 10 : undefined}
+      deltaCtx={stats.count_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
     />
     <KpiCard
-      label={$t('inv.kpi.overdue')}
-      value={stats.overdue_count}
-      sub={$t('dash.kpi.overdue.sub')}
-      variant={stats.overdue_count > 0 ? 'neg' : 'default'}
+      label={$t('field.totalAmount')}
+      value={Math.round(stats.total_amount) + ' €'}
+      sub={period === 'all' ? $t('inv.kpi.amountSub') : undefined}
+      delta={stats.amount_delta_pct !== null ? Math.round(stats.amount_delta_pct * 10) / 10 : undefined}
+      deltaCtx={stats.amount_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+      invert
     />
+    <a href="/avisos" style="text-decoration:none;color:inherit;">
+      <KpiCard
+        label={$t('inv.kpi.needsReview')}
+        value={stats.needs_review_count}
+        sub={$t('misc.invoices')}
+        variant={stats.needs_review_count > 0 ? 'warn' : 'default'}
+      />
+    </a>
     <KpiCard
-      label={$t('inv.kpi.paid')}
-      value={stats.paid_count}
+      label={$t('inv.kpi.commented')}
+      value={stats.commented_count}
       sub={$t('misc.invoices')}
-    />
-    <KpiCard
-      label={$t('inv.kpi.suppliers')}
-      value={stats.supplier_count}
-      sub={$t('dash.kpi.active')}
     />
   </div>
 
@@ -213,7 +242,6 @@
           <option value="" selected={!filters.status}>{$t('inv.filter.allStatus')}</option>
           <option value="pending"  selected={filters.status === 'pending'}>{$t('status.pending')}</option>
           <option value="paid"     selected={filters.status === 'paid'}>{$t('status.paid')}</option>
-          <option value="overdue"  selected={filters.status === 'overdue'}>{$t('status.overdue')}</option>
         </select>
       </div>
 
@@ -307,7 +335,7 @@
         <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'xl:col-span-2' : ''}">
           <button type="button"
             class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
-                   grid-cols-[auto_minmax(0,1fr)_95px_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
+                   grid-cols-[auto_minmax(0,1fr)_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
             style="width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
             onclick={() => toggleDrawer(inv.id)}>
 
@@ -324,10 +352,6 @@
                 {inv.invoice_number ?? '—'} · {inv.invoice_date ?? '—'}
                 <span class="text-fg-4">· {$t('inv.uploadedOn')} {inv.created_at ? fmtDateShort(inv.created_at.toISOString(), $locale) : '—'}</span>
               </div>
-            </div>
-
-            <div class="body text-fg-3 max-[800px]:hidden" style="font-size:12px;">
-              {inv.due_date ?? '—'}
             </div>
 
             <div class="num text-right font-semibold" style="font-size:13px;">

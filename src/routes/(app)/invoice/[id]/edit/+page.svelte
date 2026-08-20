@@ -24,21 +24,6 @@
     invoice.total_amount != null ? invoice.total_amount : (computedLineTotal || null)
   );
 
-  const NET_30_DAYS = 30;
-  function addDays(dateStr: string, days: number): string {
-    const d = new Date(`${dateStr}T00:00:00`);
-    d.setDate(d.getDate() + days);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
-  const suggestedDueDate = $derived(
-    invoice.due_date == null && invoice.invoice_date
-      ? addDays(invoice.invoice_date, NET_30_DAYS)
-      : null
-  );
-  const dueDateDisplay = $derived(invoice.due_date ?? suggestedDueDate ?? '');
 </script>
 
 <div class="p-6 flex justify-center">
@@ -70,14 +55,6 @@
           <label class="label" for="edit-inv-date">{$t('field.invoiceDate')}</label>
           <input id="edit-inv-date" type="date" name="invoice_date" value={invoice.invoice_date ?? ''}
             class="input" style="height:36px;font-size:13px;" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="label" for="edit-due-date">{$t('field.dueDate')}</label>
-          <input id="edit-due-date" type="date" name="due_date" value={dueDateDisplay}
-            class="input" style="height:36px;font-size:13px;" />
-          {#if suggestedDueDate}
-            <span class="text-fg-3" style="font-size:11px;">{$t('field.dueDateSuggested')}</span>
-          {/if}
         </div>
         <div class="flex flex-col gap-1">
           <label class="label" for="edit-total">{$t('field.totalAmount')}</label>
