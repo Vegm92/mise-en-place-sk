@@ -283,6 +283,20 @@ export function resolveAccessState(
 	return { allowed, status, trialEndsAt, trialExpired: !allowed && status === 'trialing' };
 }
 
+export function effectiveTier(
+	sub: { planTier: string | null; status: string; trialEndsAt: Date | null } | undefined,
+): PlanTier {
+	if (!sub) return 'trial';
+
+	const downgraded =
+		sub.status === 'canceled' ||
+		sub.status === 'paused' ||
+		sub.status === 'incomplete' ||
+		(!resolveAccessState(sub).allowed && sub.status === 'trialing');
+
+	return downgraded ? 'trial' : ((sub.planTier ?? 'trial') as PlanTier);
+}
+
 export interface Entitlements {
 	billingRestaurantId: string;
 	tier:         PlanTier;
@@ -303,21 +317,13 @@ export async function getEntitlements(restaurantId: string): Promise<Entitlement
 		.where(tdb.scope(subscriptions.restaurantId))
 		.limit(1);
 
-	const tier = (sub?.planTier ?? 'trial') as PlanTier;
 	const access = resolveAccessState(sub);
-	const effectiveTier: PlanTier =
-		sub &&
-		(sub.status === 'canceled' ||
-			sub.status === 'paused' ||
-			sub.status === 'incomplete' ||
-			(!access.allowed && sub.status === 'trialing'))
-			? 'trial'
-			: tier;
-	const config = TIERS[effectiveTier];
+	const tier = effectiveTier(sub);
+	const config = TIERS[tier];
 
 	return {
 		billingRestaurantId: billingRid,
-		tier: effectiveTier,
+		tier,
 		features:     config.features,
 		access:       access,
 		maxLocations: config.maxLocations,
