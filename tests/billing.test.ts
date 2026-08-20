@@ -11,6 +11,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 const originalEnv = { ...process.env };
 
 vi.hoisted(() => {
+	process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
 	process.env.STRIPE_PRICE_ID_STARTER = 'price_starter';
 	process.env.STRIPE_PRICE_ID_PRO = 'price_pro';
 	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business';
@@ -22,12 +23,19 @@ const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null a
 vi.mock('../src/lib/server/db', () => {
 	const chain = () => {
 		const p: Record<string, unknown> = {};
-		for (const m of ['from', 'where', 'limit']) p[m] = () => p;
+		for (const m of ['from', 'where', 'limit', 'update', 'set', 'insert', 'values', 'onConflictDoUpdate', 'returning']) p[m] = () => p;
 		p.then = (res: (v: unknown) => unknown) =>
 			Promise.resolve(subscriptionRow.value ? [subscriptionRow.value] : []).then(res);
 		return p;
 	};
-	return { db: { select: chain }, forTenant: () => ({ scope: () => ({}) }) };
+	return { db: { select: chain, update: chain, insert: chain }, forTenant: () => ({ scope: () => ({}) }) };
+});
+
+// Mock the Stripe client so switchTier can be exercised without the network:
+// retrieve returns the subscription item id, update records the price swap.
+vi.mock('stripe', () => {
+	const subscriptions = { retrieve: vi.fn(), update: vi.fn() };
+	return { default: class { subscriptions = subscriptions; } };
 });
 
 import {
@@ -38,6 +46,8 @@ import {
 	isTierAvailable,
 	planMonthlyPriceCents,
 	resolveMonthlyQuota,
+	switchTier,
+	stripe,
 	UNLIMITED_QUOTA_SETTING,
 	type PlanTier,
 } from '../src/lib/server/billing';
@@ -262,4 +272,47 @@ describe('getAccessState', () => {
 
 afterEach(() => {
 	process.env = { ...originalEnv };
+	vi.mocked(stripe!.subscriptions.retrieve).mockReset();
+	vi.mocked(stripe!.subscriptions.update).mockReset();
+});
+
+// In-app plan change: one subscription, price swapped on it (any tier ↔ any
+// paid tier), upgrades pro-rate in Stripe, downgrades apply immediately.
+describe('switchTier', () => {
+	it('swaps the price on the existing subscription and clears a pending cancel', async () => {
+		vi.mocked(stripe!.subscriptions.retrieve).mockResolvedValue({ items: { data: [{ id: 'item_1' }] } } as never);
+		vi.mocked(stripe!.subscriptions.update).mockResolvedValue({} as never);
+
+		subscriptionRow.value = { stripeSubscriptionId: 'sub_1', planTier: 'starter' };
+		await switchTier('rest-1', 'pro');
+
+		expect(stripe!.subscriptions.retrieve).toHaveBeenCalledWith('sub_1');
+		expect(stripe!.subscriptions.update).toHaveBeenCalledWith('sub_1', {
+			items: [{ id: 'item_1', price: TIERS.pro.stripePriceId }],
+			cancel_at_period_end: false,
+		});
+	});
+
+	it('supports downgrades and business moves on the same subscription', async () => {
+		vi.mocked(stripe!.subscriptions.retrieve).mockResolvedValue({ items: { data: [{ id: 'item_1' }] } } as never);
+
+		subscriptionRow.value = { stripeSubscriptionId: 'sub_2', planTier: 'business' };
+		await switchTier('rest-1', 'starter');
+		expect(stripe!.subscriptions.update).toHaveBeenCalledWith('sub_2', {
+			items: [{ id: 'item_1', price: TIERS.starter.stripePriceId }],
+			cancel_at_period_end: false,
+		});
+	});
+
+	it('refuses to switch to a tier with no configured price id', async () => {
+		subscriptionRow.value = { stripeSubscriptionId: 'sub_1' };
+		await expect(switchTier('rest-1', 'trial')).rejects.toThrow(/not configured/);
+		expect(stripe!.subscriptions.update).not.toHaveBeenCalled();
+	});
+
+	it('refuses to switch when no subscription exists', async () => {
+		subscriptionRow.value = null;
+		await expect(switchTier('rest-1', 'pro')).rejects.toThrow(/No subscription to switch/);
+		expect(stripe!.subscriptions.update).not.toHaveBeenCalled();
+	});
 });
