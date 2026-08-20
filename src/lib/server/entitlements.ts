@@ -48,6 +48,7 @@ export const ROUTE_POLICY = {
 	'/(app)/batch':                      'open',
 	'/(app)/batch/[id]':                 'open',
 	'/(app)/billing':                    'open',
+	'/(app)/billing/confirm':              'open',
 	'/(app)/budgets':                    'open',
 	'/(app)/chat':                       'open',
 	'/(app)/confirm':                    'open',
