@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
+import { systemNotifications, invoices, settings, restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
 import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
 import { TIERS, resolveMonthlyQuota, type PlanTier } from '$lib/server/billing';
 
@@ -97,6 +97,19 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const entitlements = await locals.entitlements();
 	const planTier: PlanTier = entitlements?.tier ?? 'trial';
 	const tierConfig = TIERS[planTier];
+	const usable = entitlements
+		? (entitlements.access.allowed || entitlements.access.status === 'past_due')
+		: true;
+
+	const btdb = forTenant(entitlements?.billingRestaurantId ?? rid);
+	const [subRow] = await db.select({
+		status:           subscriptions.status,
+		cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+		currentPeriodEnd: subscriptions.currentPeriodEnd,
+	})
+		.from(subscriptions)
+		.where(btdb.scope(subscriptions.restaurantId))
+		.limit(1);
 
 	return {
 		user: {
@@ -109,13 +122,16 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
 		reminderBadge:           Number(overdueBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
-		quotaLimit:              resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier),
-		planName:                planNameRow[0]?.value      ?? tierConfig.name,
+		quotaLimit:              usable ? resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier) : TIERS.trial.monthlyInvoiceQuota ?? 0,
+		planName:                usable ? (planNameRow[0]?.value ?? tierConfig.name) : TIERS.trial.name,
 		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
 		locations: locationRows,
 		hasCompletedOnboarding,
 		tutorialStep,
 		planTier,
 		features: tierConfig.features,
+		subscriptionStatus: subRow?.status ?? null,
+		cancelAtPeriodEnd:  subRow?.cancelAtPeriodEnd ?? false,
+		currentPeriodEnd:   subRow?.currentPeriodEnd?.toISOString() ?? null,
 	};
 };

@@ -32,7 +32,12 @@ const config = {
 				// 'https://checkout.stripe.com' — the billing checkout form action
 				// redirects (303) there the same way; without it Chrome silently
 				// blocks the redirect and the buy button appears to do nothing.
-				'form-action':  ['self', 'https://accounts.google.com', 'https://checkout.stripe.com'],
+				// 'https://billing.stripe.com' — the Customer Portal session redirect.
+				// Once a subscription is active the /billing checkout action 303s to
+				// the portal (not a new checkout) so the buyer can switch plans or
+				// cancel; form-action governs that redirect too, and omitting the
+				// portal host made the buy/upgrade button appear dead.
+				'form-action':  ['self', 'https://accounts.google.com', 'https://checkout.stripe.com', 'https://billing.stripe.com'],
 			},
 		},
 	}
