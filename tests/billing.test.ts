@@ -44,6 +44,7 @@ import {
 	tierFromPriceId,
 	isAccessAllowed,
 	isTierAvailable,
+	effectiveTier,
 	planMonthlyPriceCents,
 	resolveMonthlyQuota,
 	switchTier,
@@ -173,6 +174,32 @@ describe('isAccessAllowed', () => {
 		expect(isAccessAllowed('past_due', future)).toBe(false);
 		expect(isAccessAllowed('canceled', future)).toBe(false);
 		expect(isAccessAllowed('incomplete', future)).toBe(false);
+	});
+});
+
+describe('effectiveTier', () => {
+	const future = new Date(Date.now() + 86_400_000);
+	const past = new Date(Date.now() - 86_400_000);
+
+	it('keeps the paid tier while the subscription is live', () => {
+		expect(effectiveTier({ planTier: 'pro', status: 'active', trialEndsAt: null })).toBe('pro');
+		expect(effectiveTier({ planTier: 'business', status: 'past_due', trialEndsAt: null })).toBe('business');
+	});
+
+	it('drops to trial when the subscription is no longer paying', () => {
+		for (const status of ['canceled', 'paused', 'incomplete']) {
+			expect(effectiveTier({ planTier: 'pro', status, trialEndsAt: null })).toBe('trial');
+		}
+	});
+
+	it('drops to trial once the trial has expired', () => {
+		expect(effectiveTier({ planTier: 'pro', status: 'trialing', trialEndsAt: past })).toBe('trial');
+		expect(effectiveTier({ planTier: 'pro', status: 'trialing', trialEndsAt: future })).toBe('pro');
+	});
+
+	it('treats a missing subscription as trial', () => {
+		expect(effectiveTier(undefined)).toBe('trial');
+		expect(effectiveTier({ planTier: null, status: 'active', trialEndsAt: null })).toBe('trial');
 	});
 });
 
