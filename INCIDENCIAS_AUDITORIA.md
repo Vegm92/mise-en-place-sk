@@ -108,6 +108,78 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 
 ---
 
+## 9. Proveedor nuevo se crea siempre solo, sin preguntar
+
+**Dónde:** `src/lib/server/supplier.ts:13-39` (`getOrCreateSupplierId()`), llamada desde `src/lib/server/invoice-save.ts:413` (guardado normal) y `src/routes/(app)/invoice/[id]/edit/+page.server.ts:118` (edición).
+
+**Qué pasaba:** cuando el nombre de proveedor leído por la IA no coincide con ninguno existente, se hace un `INSERT ... ON CONFLICT DO UPDATE` directo, sin ninguna pantalla de confirmación. Es el mismo patrón que ya se corrigió para artículos (incidencia 6), pero aquí sigue sin corregir. El texto `'confirm.stage.supplier'` en `src/lib/i18n.ts:499` es solo la etiqueta de una barra de progreso durante el OCR, no un diálogo real.
+
+**Riesgo:** proveedores duplicados o mal escritos entrando en la base de datos sin que nadie se dé cuenta.
+
+**Estado:** 🔧 **Decidido corregir — pendiente de implementar.** Preguntar antes de crear un proveedor nuevo desconocido, igual que ya se hace para artículos.
+
+---
+
+## 10. Proveedores se identifican solo por nombre, nunca por CIF
+
+**Dónde:** `src/lib/server/schema/core.ts:35` (columna `cif` existe pero no se usa para buscar), `:41` (restricción única `uq_suppliers_rid_name` solo sobre `lower(name)`), `src/lib/server/normalize.ts:39-45` (`isSameSupplierName()`, comparación puramente textual), `src/lib/server/invoice-save.ts:351-358` (el CIF leído por la IA solo rellena el dato de contacto si ya hubo match por nombre).
+
+**Qué pasaba:** el CIF se guarda pero nunca se usa para decidir si un proveedor ya existe. Si el mismo proveedor factura una vez como "Distribuciones Pérez S.L." y otra como "Dist. Perez SL", el sistema crea dos proveedores distintos aunque tengan el mismo CIF real.
+
+**Riesgo:** el histórico de precios de un proveedor se parte en dos en silencio si cambia ligeramente cómo se escribe su nombre (o su razón social).
+
+**Estado:** 🔧 **Decidido corregir — pendiente de implementar.** Usar el CIF (cuando la IA lo lea) para buscar/matchear proveedor existente antes que el nombre.
+
+---
+
+## 11. Notas de abono / devoluciones no existen en el sistema
+
+**Dónde:** `src/lib/server/extract.ts:38` y `:141` (`document_type` solo admite `'factura' | 'albaran' | null`), tabla `invoices` en `src/lib/server/schema/core.ts:44-81` (sin campo `isCredit`/`isReturn`), `src/lib/server/trend.ts:101` (`SUM(COALESCE(total_amount, 0))`, siempre en positivo).
+
+**Qué pasaba:** no hay ningún concepto de nota de abono. Si llegara una devolución, se guardaría como una compra normal más, sumando al histórico de gasto en vez de restar.
+
+**Riesgo:** el gasto y el histórico de precios quedarían inflados en cuanto aparezca una devolución real.
+
+**Estado:** 📌 **Aparcado para más adelante.** Es funcionalidad nueva (no un ajuste), se revisará cuando aparezcan devoluciones reales con los primeros albaranes de prueba.
+
+---
+
+## 12. Portes y envases (cascos) no se distinguen de artículos reales
+
+**Dónde:** tabla `invoice_line_items` en `src/lib/server/schema/core.ts:83-105` (sin ningún campo de tipo/categoría de línea). Búsqueda de "porte", "envase", "casco", "depósito", "transporte" en todo `src/`: cero resultados. El propio prompt de la IA reconoce la misma limitación para impuestos especiales en `src/lib/server/extract.ts:87-90` (ver también incidencia 2).
+
+**Qué pasaba:** cada línea de un albarán se trata igual. No hay forma de marcar "esto es transporte" o "esto es una fianza de envase" en vez de "esto es materia prima".
+
+**Riesgo:** el catálogo de materia prima se contamina con conceptos que no son comida, inflando el coste real de los ingredientes en los escandallos del Paso 3.
+
+**Estado:** 📌 **Aparcado para más adelante.** Es funcionalidad nueva, se revisará el impacto real con albaranes de proveedores concretos.
+
+---
+
+## 13. Descuentos globales (rappels, pronto pago) no se prorratean por línea
+
+**Dónde:** ni `invoices` ni `invoice_line_items` (`src/lib/server/schema/core.ts:44-105`) tienen columna de descuento/rappel. Búsqueda de "discount"/"descuento"/"rappel"/"pronto pago" en `src/`: el único resultado real (`src/lib/server/billing.ts:314`) es el cupón de Stripe de la propia suscripción del SaaS, no un descuento de proveedor.
+
+**Qué pasaba:** no existe ningún campo para un descuento del total del documento. Si un proveedor aplica un rappel y el total del documento no cuadra con la suma de líneas, hoy eso se interpretaría como un error de lectura del OCR, no como un descuento legítimo.
+
+**Riesgo:** el precio unitario guardado de cada ingrediente queda inflado (no refleja el descuento real aplicado).
+
+**Estado:** 📌 **Aparcado para más adelante.** Es funcionalidad nueva, se revisará con casos reales de descuentos de proveedores.
+
+---
+
+## 14. Trazabilidad de correcciones asimétrica: la revisión post-OCR no guarda quién corrigió
+
+**Dónde:** tabla `extraction_corrections` en `src/lib/server/schema/extensions.ts:88-98` (campos `fieldName`, `originalValue`, `correctedValue`, `lineItemIndex`, `correctedAt` — **sin columna `userId`**), rellenada desde `src/lib/server/invoice-save.ts:61-122` (`logExtractionCorrections`). Comparar con la tabla `invoice_audit_log` en `src/lib/server/schema/extensions.ts:7-19` (campos `action`, `userId`, `reason`, `snapshot`, `createdAt` — sí tiene `userId`), rellenada desde `src/routes/(app)/invoice/[id]/edit/+page.server.ts:180-186`.
+
+**Qué pasaba:** hay dos mecanismos de trazabilidad distintos y asimétricos. La revisión justo tras el OCR sabe *qué* campo cambió y *a qué valor*, pero no *quién* lo cambió. La edición posterior sabe *quién* y *cuándo*, pero solo guarda una foto general del "antes" (snapshot), no el detalle campo a campo.
+
+**Riesgo:** si en el futuro trabaja más de una persona con la app, no se podría saber quién corrigió un dato mal leído por la IA en el momento de la revisión inicial.
+
+**Estado:** 🔧 **Decidido corregir — pendiente de implementar.** Añadir el usuario que revisa/corrige justo tras el OCR en `extraction_corrections`, igual que ya se guarda en la edición posterior.
+
+---
+
 ## Resumen para quien retome esto en `main`
 
 | # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |
@@ -120,3 +192,9 @@ Incluso cuando sí detecta la coincidencia, es solo una notificación de texto p
 | 6 | Vinculación dudosa se hacía sola | ✅ Corregido | ❌ Sigue sin corregir |
 | 7 | Tachón manual no tenía prioridad sobre lo impreso | ✅ Corregido | ❌ Sigue sin corregir |
 | 8 | Duplicado albarán/factura no se detecta si el albarán no tiene precio | ⚠️ Documentado, ligado a la incidencia 3 | ❌ Sin documentar |
+| 9 | Proveedor nuevo se crea siempre solo, sin preguntar | 🔧 Decidido corregir, pendiente de implementar | ❌ Sin documentar |
+| 10 | Proveedores solo por nombre, nunca por CIF | 🔧 Decidido corregir, pendiente de implementar | ❌ Sin documentar |
+| 11 | Notas de abono / devoluciones no existen | 📌 Aparcado para más adelante | ❌ Sin documentar |
+| 12 | Portes y envases (cascos) no se distinguen de artículos | 📌 Aparcado para más adelante | ❌ Sin documentar |
+| 13 | Descuentos globales no se prorratean por línea | 📌 Aparcado para más adelante | ❌ Sin documentar |
+| 14 | Revisión post-OCR no guarda quién corrigió cada campo | 🔧 Decidido corregir, pendiente de implementar | ❌ Sin documentar |

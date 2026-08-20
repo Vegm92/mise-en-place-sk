@@ -76,15 +76,15 @@ Trampas a vigilar:
 - **"Pendiente de tarificación" no es un estado real en la base de datos**, es una etiqueta calculada al mostrar la pantalla. Falta construir la resolución automática cuando llega el precio real (pertenece al Paso 2).
 - **Duplicidad albarán/factura**: existe un aviso (`possible_duplicate_purchase`) que compara documentos por proveedor+fecha+importe parecido, pero **exige que ambos tengan importe** — si el albarán se guardó sin precio (el caso más común), nunca se compara. Decisión: no parchear suelto, se resuelve junto con la resolución retroactiva de "Pendiente de tarificación" de arriba, porque es el mismo problema visto desde otro ángulo.
 
-### Nuevos — encontrados al verificar el ancla de 5 pasos, aún sin decisión de prioridad
-| # | Fallo | Paso |
-|---|---|---|
-| A | Un proveedor nuevo se crea siempre solo, sin preguntar nunca (mismo patrón que ya se corrigió para artículos, pero aquí no) | Paso 0 |
-| B | Los proveedores se identifican solo por nombre exacto, nunca por CIF (que sí se guarda, pero no se usa) — si cambia la razón social, el histórico de precios se parte en dos en silencio | Paso 0 |
-| C | Las notas de abono/devoluciones no se distinguen de una compra normal — sumarían al histórico en vez de restar | Paso 1 |
-| D | Portes y envases/cascos no se distinguen de artículos reales — contaminarían el catálogo de materia prima | Paso 1 |
-| E | Descuentos globales (rappels, pronto pago) no se prorratean por línea — el precio unitario guardado queda inflado | Paso 1 |
-| F | Trazabilidad de correcciones incompleta: al revisar justo tras el OCR se guarda **qué y cuándo** pero no **quién**; al editar después se guarda **quién y cuándo** pero no desglosado campo a campo | Paso 2 |
+### Nuevos — encontrados al verificar el ancla de 5 pasos, confirmados en código y con decisión ya tomada (ver detalle e incidencia # en `INCIDENCIAS_AUDITORIA.md`)
+| # | Fallo | Paso | Decisión | Incidencia |
+|---|---|---|---|---|
+| A | Un proveedor nuevo se crea siempre solo, sin preguntar nunca (mismo patrón que ya se corrigió para artículos, pero aquí no) | Paso 0 | 🔧 Corregir ya | #9 |
+| B | Los proveedores se identifican solo por nombre exacto, nunca por CIF (que sí se guarda, pero no se usa) — si cambia la razón social, el histórico de precios se parte en dos en silencio | Paso 0 | 🔧 Corregir ya | #10 |
+| C | Las notas de abono/devoluciones no se distinguen de una compra normal — sumarían al histórico en vez de restar | Paso 1 | 📌 Aparcar | #11 |
+| D | Portes y envases/cascos no se distinguen de artículos reales — contaminarían el catálogo de materia prima | Paso 1 | 📌 Aparcar | #12 |
+| E | Descuentos globales (rappels, pronto pago) no se prorratean por línea — el precio unitario guardado queda inflado | Paso 1 | 📌 Aparcar | #13 |
+| F | Trazabilidad de correcciones incompleta: al revisar justo tras el OCR se guarda **qué y cuándo** pero no **quién**; al editar después se guarda **quién y cuándo** pero no desglosado campo a campo | Paso 2 | 🔧 Corregir ya | #14 |
 
 ### No aplica (verificado, no es un problema con el diseño actual)
 - **Precio pactado vs. mercado**: el sistema nunca compara contra un precio de mercado externo (no existe esa fuente de datos en ningún sitio) — solo contra el propio histórico de compras. Un precio fijo pactado no puede disparar una alarma falsa con el diseño actual.
@@ -101,10 +101,11 @@ Trampas a vigilar:
 
 **Propuesta de orden (a confirmar contigo, no decidido todavía):**
 
-1. **Decidir prioridad de los hallazgos A–F** (Paso 0 y trampas nuevas de Paso 1/2) — cuáles se corrigen ya, cuáles se documentan como decisión consciente de no tocar, cuál se aparca para más adelante.
-2. **Probar el Paso 1 con un albarán real** en la app funcionando (nunca se ha visto en pantalla, solo verificado por código y tests) — antes de dar el Paso 1 por cerrado del todo.
-3. **Construir la resolución retroactiva de "Pendiente de tarificación"** (Paso 2) — resuelve a la vez el punto de la etiqueta y el agujero de duplicidad albarán/factura.
-4. **Empezar el Paso 3 (recetas y escandallos)** desde cero, una vez cerrado el Paso 1 y con Paso 2 lo bastante sólido — teniendo en cuenta desde el diseño las mermas variables y las sub-recetas en cadena, para no tener que rehacer la estructura de datos después.
-5. Cuando llegue el momento del Paso 4, diseñar el criterio de "qué precio aplica con varios proveedores" y el sistema de avisos no intrusivos, antes de construir el recálculo en cadena.
+1. ~~Decidir prioridad de los hallazgos A–F~~ ✅ Decidido el 2026-08-20: **A, B y F se corrigen ya** (pendientes de implementar); **C, D y E se aparcan** para más adelante. Detalle en `INCIDENCIAS_AUDITORIA.md` (incidencias #9–#14).
+2. **Implementar A, B y F** (proveedor nuevo pregunta antes de crear; matching de proveedor por CIF; guardar quién corrige en la revisión post-OCR).
+3. **Probar el Paso 1 con un albarán real** en la app funcionando (nunca se ha visto en pantalla, solo verificado por código y tests) — antes de dar el Paso 1 por cerrado del todo.
+4. **Construir la resolución retroactiva de "Pendiente de tarificación"** (Paso 2) — resuelve a la vez el punto de la etiqueta y el agujero de duplicidad albarán/factura.
+5. **Empezar el Paso 3 (recetas y escandallos)** desde cero, una vez cerrado el Paso 1 y con Paso 2 lo bastante sólido — teniendo en cuenta desde el diseño las mermas variables y las sub-recetas en cadena, para no tener que rehacer la estructura de datos después.
+6. Cuando llegue el momento del Paso 4, diseñar el criterio de "qué precio aplica con varios proveedores" y el sistema de avisos no intrusivos, antes de construir el recálculo en cadena.
 
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
