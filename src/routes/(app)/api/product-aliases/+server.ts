@@ -4,7 +4,7 @@ import { db, forTenant } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
-import { confirmProductAlias, rejectProductAlias, mergeIntoProduct } from '$lib/server/products';
+import { confirmProductAlias, mergeIntoProduct } from '$lib/server/products';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -18,8 +18,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const targetProductId = typeof body?.targetProductId === 'number' ? body.targetProductId : null;
 
 	if (!normalizeProductKey(description)) return json({ error: 'description required' }, { status: 422 });
-	if (action !== 'confirm' && action !== 'reject' && action !== 'dismiss') {
-		return json({ error: "action must be 'confirm', 'reject' or 'dismiss'" }, { status: 422 });
+	if (action !== 'confirm' && action !== 'dismiss') {
+		return json({ error: "action must be 'confirm' or 'dismiss'" }, { status: 422 });
 	}
 
 	if (action === 'dismiss') {
@@ -27,11 +27,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ ok: true });
 	}
 
-	const result = action === 'reject'
-		? await rejectProductAlias(db, rid, description)
-		: targetProductId != null
-			? await mergeIntoProduct(db, rid, description, targetProductId)
-			: await confirmProductAlias(db, rid, description);
+	const result = targetProductId != null
+		? await mergeIntoProduct(db, rid, description, targetProductId)
+		: await confirmProductAlias(db, rid, description);
 
 	if (!result.ok) return json({ error: 'No suggestion found for that description' }, { status: 404 });
 

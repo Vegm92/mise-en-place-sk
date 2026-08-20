@@ -11,7 +11,7 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import {
-	resolveLineProducts, confirmProductAlias, rejectProductAlias, mergeIntoProduct, FUZZY_THRESHOLD,
+	resolveLineProducts, confirmProductAlias, mergeIntoProduct, FUZZY_THRESHOLD,
 } from '../src/lib/server/products';
 
 let rid = '';
@@ -88,22 +88,24 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — exact alias re-hit', () => {
 });
 
 describe.skipIf(!hasDbEnv)('resolveLineProducts — fuzzy suggestion', () => {
-	it('auto-links a near-duplicate to the existing product with a pending alias', async () => {
+	it('never auto-links a near-duplicate — creates its own product and only suggests merging', async () => {
 		const first = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
 		const basePid = first.get('Tomate pera')!.productId;
 
 		const resolved = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera roja', unit: 'kg' }]);
 		const r = resolved.get('Tomate pera roja')!;
 		expect(r.status).toBe('fuzzy');
-		expect(r.productId).toBe(basePid); // linked to the existing product, not a new one
+		expect(r.productId).not.toBe(basePid); // never linked on uncertain data — gets its own product
 		expect(r.suggestion?.candidateName).toBe('Tomate pera');
+		expect(r.suggestion?.candidateProductId).toBe(basePid);
 		expect(r.suggestion!.score).toBeGreaterThanOrEqual(FUZZY_THRESHOLD);
 
 		const [alias] = await testSql`
-			SELECT source, confirmed_at FROM product_aliases
+			SELECT source, confirmed_at, product_id FROM product_aliases
 			WHERE restaurant_id = ${rid} AND raw_key = 'tomate pera roja'`;
-		expect(alias.source).toBe('fuzzy');
-		expect(alias.confirmed_at).toBeNull(); // pending confirmation
+		expect(alias.product_id).toBe(r.productId); // its own alias, not the candidate's
+		expect(alias.source).toBe('exact');
+		expect(alias.confirmed_at).not.toBeNull(); // confirmed immediately — it's an exact match to its own (new) product
 	});
 
 	it('creates a distinct product when nothing is similar enough', async () => {
@@ -165,49 +167,43 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — batch behavior', () => {
 	});
 });
 
-describe.skipIf(!hasDbEnv)('confirmProductAlias / rejectProductAlias', () => {
-	it('confirm marks the pending fuzzy alias as user-confirmed', async () => {
-		await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
-		const fuzzy = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera roja', unit: 'kg' }]);
-		expect(fuzzy.get('Tomate pera roja')!.status).toBe('fuzzy');
-
-		const res = await confirmProductAlias(testDb, rid, 'Tomate pera roja');
-		expect(res.ok).toBe(true);
-
-		const [alias] = await testSql`
-			SELECT source, confirmed_at FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'tomate pera roja'`;
-		expect(alias.source).toBe('user');
-		expect(alias.confirmed_at).not.toBeNull();
-	});
-
-	it('reject splits the description into its own product and repoints line items', async () => {
+describe.skipIf(!hasDbEnv)('confirmProductAlias / mergeIntoProduct — deciding a fuzzy suggestion', () => {
+	it('confirming a fuzzy suggestion merges its throwaway product into the candidate', async () => {
 		const base = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
 		const basePid = base.get('Tomate pera')!.productId;
 		const fuzzy = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera roja', unit: 'kg' }]);
-		expect(fuzzy.get('Tomate pera roja')!.productId).toBe(basePid); // wrongly linked
+		const r = fuzzy.get('Tomate pera roja')!;
+		expect(r.status).toBe('fuzzy');
+		expect(r.suggestion?.candidateProductId).toBe(basePid);
 
-		// A line item fuzzy-linked to the wrong product.
-		const [inv] = await testSql`
-			INSERT INTO invoices (restaurant_id, status) VALUES (${rid}, 'pending') RETURNING id`;
-		const [li] = await testSql`
-			INSERT INTO invoice_line_items (invoice_id, restaurant_id, description, unit, unit_price, product_id)
-			VALUES (${inv.id}, ${rid}, 'Tomate pera roja', 'kg', 2.5, ${basePid}) RETURNING id`;
+		// This is what the "confirm" button on the notification does: merge into the suggested candidate.
+		const res = await mergeIntoProduct(testDb, rid, 'Tomate pera roja', r.suggestion!.candidateProductId);
+		expect(res).toEqual({ ok: true, productId: basePid });
 
-		const res = await rejectProductAlias(testDb, rid, 'Tomate pera roja');
-		expect(res.ok).toBe(true);
-		if (!res.ok) return;
-		expect(res.productId).not.toBe(basePid);
-
-		const [aliasAfter] = await testSql`
+		const [alias] = await testSql`
 			SELECT product_id, source, confirmed_at FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'tomate pera roja'`;
-		expect(aliasAfter.product_id).toBe(res.productId);
-		expect(aliasAfter.confirmed_at).not.toBeNull();
+		expect(alias.product_id).toBe(basePid);
+		expect(alias.source).toBe('user');
+		expect(alias.confirmed_at).not.toBeNull();
 
-		const [liAfter] = await testSql`SELECT product_id FROM invoice_line_items WHERE id = ${li.id}`;
-		expect(liAfter.product_id).toBe(res.productId); // repointed to the new product
+		const gone = await testSql`SELECT id FROM products WHERE id = ${r.productId}`;
+		expect(gone).toHaveLength(0); // the throwaway product created for the fuzzy line is cleaned up
 	});
 
-	it('returns not_found for an unknown description', async () => {
+	it('dismissing a fuzzy suggestion leaves its own product untouched (nothing was ever linked)', async () => {
+		const base = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera', unit: 'kg' }]);
+		const basePid = base.get('Tomate pera')!.productId;
+		const fuzzy = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'Tomate pera roja', unit: 'kg' }]);
+		const r = fuzzy.get('Tomate pera roja')!;
+
+		// Dismissing is just not acting — no undo is needed because nothing was auto-linked.
+		const [alias] = await testSql`
+			SELECT product_id FROM product_aliases WHERE restaurant_id = ${rid} AND raw_key = 'tomate pera roja'`;
+		expect(alias.product_id).toBe(r.productId);
+		expect(alias.product_id).not.toBe(basePid);
+	});
+
+	it('confirmProductAlias returns not_found for an unknown description', async () => {
 		const res = await confirmProductAlias(testDb, rid, 'Producto que no existe xyz');
 		expect(res).toEqual({ ok: false, reason: 'not_found' });
 	});
@@ -222,7 +218,7 @@ describe.skipIf(!hasDbEnv)('resolveLineProducts — dictionary-assisted fuzzy (i
 		const resolved = await resolveLineProducts(testDb, rid, supplierId, [{ description: 'REF.1042 TERN. AGUJA', unit: 'kg' }]);
 		const r = resolved.get('REF.1042 TERN. AGUJA')!;
 		expect(r.status).toBe('fuzzy');
-		expect(r.productId).toBe(basePid);
+		expect(r.suggestion?.candidateProductId).toBe(basePid); // suggested, not auto-linked
 	});
 });
 

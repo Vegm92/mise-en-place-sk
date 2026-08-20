@@ -289,6 +289,7 @@ export async function linkProductsToInvoice(
 						description: desc,
 						productId: r.productId,
 						candidateName: r.suggestion.candidateName,
+						candidateProductId: r.suggestion.candidateProductId,
 						score: Math.round(r.suggestion.score * 100) / 100,
 						messageKey: 'notif.msg.productSuggestion',
 						messageVars: { description: desc, candidateName: r.suggestion.candidateName },

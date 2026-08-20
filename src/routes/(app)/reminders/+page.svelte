@@ -58,16 +58,15 @@
   }
 
   async function decideProduct(n: Notif, accept: boolean) {
-    const p = n.payload as { description?: string; source?: string; candidateProductId?: number } | null;
+    const p = n.payload as { description?: string; candidateProductId?: number } | null;
     const description = p?.description;
     if (!description || deciding !== null) return;
-    const isLlm = p?.source === 'llm';
     const bodyObj: Record<string, unknown> = { description };
     if (accept) {
       bodyObj.action = 'confirm';
-      if (isLlm && typeof p?.candidateProductId === 'number') bodyObj.targetProductId = p.candidateProductId;
+      if (typeof p?.candidateProductId === 'number') bodyObj.targetProductId = p.candidateProductId;
     } else {
-      bodyObj.action = isLlm ? 'dismiss' : 'reject';
+      bodyObj.action = 'dismiss';
     }
     deciding = n.id;
     try {

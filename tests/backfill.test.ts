@@ -17,7 +17,7 @@ beforeAll(async () => {
 	rid = r.id;
 	const [s] = await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, '__backfill_sup__') RETURNING id`;
 	supplierId = s.id;
-	// An existing product the abbreviation/fuzzy layer should link to.
+	// An existing product the abbreviation/fuzzy layer should suggest (not auto-link).
 	await testSql`INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Ternera aguja', 'ternera aguja')`;
 
 	const [inv] = await testSql`
@@ -43,12 +43,13 @@ describe.skipIf(!hasDbEnv)('backfillRestaurant', () => {
 		expect(res.linked).toBe(2);
 		expect(res.packed).toBeGreaterThanOrEqual(1); // the 5L garrafa line
 
-		// The abbreviated line was linked to the existing "Ternera aguja" product.
+		// Fuzzy matches are never auto-linked: the abbreviated line gets its own product,
+		// distinct from the existing "Ternera aguja" one, pending a human merge decision.
 		const [tern] = await testSql`
 			SELECT li.product_id, p.name_key
 			FROM invoice_line_items li JOIN products p ON p.id = li.product_id
 			WHERE li.restaurant_id = ${rid} AND li.description = 'REF.1042 TERN. AGUJA'`;
-		expect(tern.name_key).toBe('ternera aguja');
+		expect(tern.name_key).not.toBe('ternera aguja');
 
 		// The garrafa line got €/base: 12.5 / 5 L = 2.5 €/L.
 		const [oil] = await testSql`

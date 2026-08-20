@@ -256,7 +256,7 @@ export const FUZZY_THRESHOLD = 0.42;
 export interface ResolvedLine {
 	productId: number;
 	status: 'exact' | 'fuzzy' | 'created';
-	suggestion?: { candidateName: string; score: number };
+	suggestion?: { candidateName: string; candidateProductId: number; score: number };
 }
 
 interface LineInput {
@@ -338,16 +338,10 @@ async function resolveOne(
 		ORDER BY score DESC
 		LIMIT 1
 	`);
-	if (fuzzyRows.length > 0) {
-		const candidate = fuzzyRows[0];
-		await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null);
-		return {
-			productId: candidate.id,
-			status: 'fuzzy',
-			suggestion: { candidateName: candidate.canonical_name, score: Number(candidate.score) },
-		};
-	}
 
+	// A fuzzy (non-exact) match is never linked automatically: we create this
+	// description's own product and only offer merging into the candidate as a
+	// suggestion the user must confirm — never guess a link on uncertain data.
 	const productRows = await tx.execute<{ id: number }>(sql`
 		INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit, units_per_pack, base_unit)
 		VALUES (${restaurantId}, ${raw}, ${key}, ${category}, ${unit}, ${unitsPerPack}, ${baseUnit})
@@ -356,6 +350,16 @@ async function resolveOne(
 	`);
 	const productId = productRows[0].id;
 	await insertAlias(tx, restaurantId, productId, supplierId, key, raw, 'exact', 'now()');
+
+	if (fuzzyRows.length > 0) {
+		const candidate = fuzzyRows[0];
+		return {
+			productId,
+			status: 'fuzzy',
+			suggestion: { candidateName: candidate.canonical_name, candidateProductId: candidate.id, score: Number(candidate.score) },
+		};
+	}
+
 	return { productId, status: 'created' };
 }
 
@@ -490,47 +494,6 @@ export async function confirmProductAlias(
 	`);
 	if (rows.length === 0) return { ok: false, reason: 'not_found' };
 	return { ok: true, productId: rows[0].product_id };
-}
-
-export async function rejectProductAlias(
-	database: Database,
-	restaurantId: string,
-	description: string,
-): Promise<AliasDecision> {
-	const rawKey = normalizeProductKey(description);
-	return database.transaction(async (tx) => {
-		const aliasRows = await tx.execute<{ id: number; product_id: number; raw_text: string | null }>(sql`
-			SELECT id, product_id, raw_text FROM product_aliases
-			WHERE restaurant_id = ${restaurantId} AND raw_key = ${rawKey}
-			LIMIT 1
-		`);
-		if (aliasRows.length === 0) return { ok: false, reason: 'not_found' } as AliasDecision;
-		const alias = aliasRows[0];
-
-		const created = await tx.execute<{ id: number }>(sql`
-			INSERT INTO products (restaurant_id, canonical_name, name_key)
-			VALUES (${restaurantId}, ${alias.raw_text ?? description.trim()}, ${rawKey})
-			ON CONFLICT (restaurant_id, name_key) DO UPDATE SET name_key = products.name_key
-			RETURNING id
-		`);
-		const newProductId = created[0].id;
-
-		await tx.execute(sql`
-			UPDATE product_aliases
-			SET product_id = ${newProductId}, source = 'user', confirmed_at = now()
-			WHERE id = ${alias.id}
-		`);
-
-		await tx.execute(sql`
-			UPDATE invoice_line_items
-			SET product_id = ${newProductId}
-			WHERE restaurant_id = ${restaurantId}
-			  AND product_id = ${alias.product_id}
-			  AND mep_norm_key(description) = ${rawKey}
-		`);
-
-		return { ok: true, productId: newProductId } as AliasDecision;
-	});
 }
 
 export async function mergeIntoProduct(
