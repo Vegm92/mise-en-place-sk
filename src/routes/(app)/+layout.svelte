@@ -43,10 +43,37 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     typeof localStorage !== 'undefined' && localStorage.getItem('mep-sidebar-collapsed') === 'true'
   );
   let sidebarHasInteracted = $state(false);
+  let isDesktop = $state(false);
+  let locationOpen = $state(false);
+  let locationRef: HTMLDivElement | undefined = $state();
   let mounted = $state(false);
 
+  $effect(() => {
+    if (!locationOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (locationRef && !locationRef.contains(e.target as Node)) locationOpen = false;
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  });
+
+  const currentLocation = $derived(
+    data.locations?.find((loc) => loc.id === data.restaurantId)?.name ?? ''
+  );
+
+  $effect(() => {
+    if (!browser) return;
+    const mq = window.matchMedia('(min-width: 768px)');
+    isDesktop = mq.matches;
+    const onChange = () => (isDesktop = mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  });
+
+  const collapsed = $derived(isDesktop && sidebarCollapsed);
+
   function toggleSidebar() {
-    sidebarCollapsed = !sidebarCollapsed;
+    sidebarCollapsed = !collapsed;
     sidebarHasInteracted = true;
     localStorage.setItem('mep-sidebar-collapsed', String(sidebarCollapsed));
   }
@@ -181,15 +208,16 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   {/if}
 
   {#if mounted}
+  <div style="position:relative;height:100%;flex-shrink:0;z-index:101;">
   <aside
     style="
-      width:{sidebarCollapsed ? '64px' : '232px'};
+      width:{collapsed ? '64px' : '232px'};
       {sidebarHasInteracted ? 'transition:width 200ms ease;' : ''}
-      height:100%;flex-shrink:0;
+      height:100%;
       background:var(--mep-surface);
       border-right:1px solid var(--mep-divider);
       display:flex;flex-direction:column;
-      padding:{sidebarCollapsed ? '20px 6px 16px' : '20px 12px 16px'};
+      padding:{collapsed ? '20px 6px 16px' : '20px 12px 16px'};
       overflow-y:auto;overflow-x:hidden;
     "
     class="
@@ -199,36 +227,79 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     "
   >
-    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;{sidebarCollapsed ? 'justify-content:center;' : ''}">
+    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;{collapsed ? 'justify-content:center;' : ''}">
       <svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
         <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
         <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
         <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
       </svg>
-      {#if !sidebarCollapsed}
+      {#if !collapsed}
         <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
           Mise en Place
         </span>
       {/if}
     </div>
 
-    {#if !sidebarCollapsed && data.locations && data.locations.length > 1}
+    {#if !collapsed && data.locations && data.locations.length > 1}
       <div style="padding:0 10px 14px;">
         <label for="location-switch" style="display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
           {$t('nav.location')}
         </label>
-        <select
-          id="location-switch"
-          class="input"
-          style="height:32px;font-size:12.5px;width:100%;"
-          disabled={switchingLocation}
-          value={data.restaurantId}
-          onchange={(e) => switchLocation((e.currentTarget as HTMLSelectElement).value)}
-        >
-          {#each data.locations as loc}
-            <option value={loc.id}>{loc.name}</option>
-          {/each}
-        </select>
+        <div style="position:relative;" bind:this={locationRef}>
+          <button
+            type="button"
+            id="location-switch"
+            disabled={switchingLocation}
+            onclick={() => (locationOpen = !locationOpen)}
+            aria-haspopup="listbox"
+            aria-expanded={locationOpen}
+            style="
+              height:32px;width:100%;font-size:12.5px;text-align:left;cursor:pointer;
+              border-radius:var(--mep-r-input);border:1px solid var(--mep-border-strong);
+              background:var(--mep-surface);color:var(--mep-fg);padding:0 10px;
+              display:flex;align-items:center;justify-content:space-between;gap:8px;
+              {locationOpen ? 'border-color:var(--mep-acc);box-shadow:0 0 0 3px var(--mep-acc-ring);' : ''}
+            "
+          >
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{currentLocation}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" style="flex-shrink:0;color:var(--mep-fg-3);{locationOpen ? 'transform:rotate(180deg);' : ''}transition:transform 120ms;">
+              <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          {#if locationOpen}
+            <div
+              role="listbox"
+              style="
+                position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;
+                background:var(--mep-surface);border:1px solid var(--mep-border-strong);
+                border-radius:var(--mep-r-input);box-shadow:0 6px 20px rgba(0,0,0,0.15);
+                padding:4px;max-height:220px;overflow-y:auto;
+              "
+            >
+              {#each data.locations as loc}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={loc.id === data.restaurantId}
+                  onclick={() => {
+                    locationOpen = false;
+                    if (loc.id !== data.restaurantId) switchLocation(loc.id);
+                  }}
+                  style="
+                    display:block;width:100%;text-align:left;cursor:pointer;
+                    padding:7px 10px;border:none;border-radius:6px;font-size:12.5px;
+                    background:{loc.id === data.restaurantId ? 'var(--mep-acc-soft)' : 'transparent'};
+                    color:{loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)'};
+                    font-weight:{loc.id === data.restaurantId ? 500 : 400};
+                  "
+                  onmouseenter={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
+                  onmouseleave={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'transparent'; }}
+                >{loc.name}</button>
+              {/each}
+            </div>
+          {/if}
+        </div>
       </div>
     {/if}
 
@@ -236,11 +307,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       href="/"
       onclick={() => mobileOpen = false}
       class="btn btn-primary"
-      style="height:38px;justify-content:center;margin-bottom:20px;width:100%;text-decoration:none;{sidebarCollapsed ? 'padding:0;' : ''}"
-      title={sidebarCollapsed ? $t('action.upload') : undefined}
+      style="height:38px;justify-content:center;margin-bottom:20px;width:100%;text-decoration:none;{collapsed ? 'padding:0;' : ''}"
+      title={collapsed ? $t('action.upload') : undefined}
     >
       <Upload size={15} />
-      {#if !sidebarCollapsed}<span>{$t('action.upload')}</span>{/if}
+      {#if !collapsed}<span>{$t('action.upload')}</span>{/if}
     </a>
 
     <nav style="display:flex;flex-direction:column;gap:1px;">
@@ -249,20 +320,20 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         <a
           href={item.href}
           onclick={() => mobileOpen = false}
-          title={sidebarCollapsed ? item.label : undefined}
+          title={collapsed ? item.label : undefined}
           style="
             display:flex;align-items:center;gap:10px;
-            padding:{sidebarCollapsed ? '7px' : '7px 10px'};
+            padding:{collapsed ? '7px' : '7px 10px'};
             height:32px;border-radius:6px;
             cursor:pointer;text-decoration:none;
-            justify-content:{sidebarCollapsed ? 'center' : 'flex-start'};
+            justify-content:{collapsed ? 'center' : 'flex-start'};
             background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
             color:{parentActive ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};
             font-size:13.5px;font-weight:{parentActive ? 500 : 400};
           "
         >
           <item.icon size={16} />
-          {#if !sidebarCollapsed}
+          {#if !collapsed}
             <span style="flex:1;">{item.label}</span>
             {#if item.badge}
               <span
@@ -279,7 +350,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
           {/if}
         </a>
 
-        {#if !sidebarCollapsed && item.sub && (is(item.href) || (item.sub?.some(s => is(s.href)) ?? false))}
+        {#if !collapsed && item.sub && (is(item.href) || (item.sub?.some(s => is(s.href)) ?? false))}
           <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
             {#each item.sub as sub}
               <a
@@ -301,7 +372,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     <div style="flex:1;"></div>
 
-    {#if !sidebarCollapsed && revealAll}
+    {#if !collapsed && revealAll}
     <a href="/billing" onclick={() => mobileOpen = false}
       style="display:block;margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -315,7 +386,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     </a>
     {/if}
 
-{#if !sidebarCollapsed}
+{#if !collapsed}
       <div style="display:flex;flex-direction:column;gap:1px;">
         <a
           href="/settings"
@@ -363,6 +434,16 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       </div>
     {/if}
   </aside>
+
+  <button
+    class="btn btn-ghost hidden md:flex"
+    style="position:absolute;top:50%;right:-17px;transform:translateY(-50%);width:34px;height:34px;padding:0;justify-content:center;border-radius:9999px;box-shadow:0 1px 3px rgba(0,0,0,0.15);"
+    onclick={toggleSidebar}
+    title={collapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
+  >
+    {#if collapsed}<ChevronRight size={16} />{:else}<ChevronLeft size={16} />{/if}
+  </button>
+  </div>
   {:else}
     <div style="width:232px;flex-shrink:0;display:flex;flex-direction:column;"></div>
   {/if}
@@ -378,15 +459,6 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         aria-label={$t('a11y.openMenu')}
       >
         {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
-      </button>
-
-      <button
-        class="btn btn-ghost hidden md:flex"
-        style="width:34px;height:34px;padding:0;justify-content:center;"
-        onclick={toggleSidebar}
-        title={sidebarCollapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
-      >
-        {#if sidebarCollapsed}<ChevronRight size={16} />{:else}<ChevronLeft size={16} />{/if}
       </button>
 
       <h1 style="margin:0;flex:1;min-width:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
