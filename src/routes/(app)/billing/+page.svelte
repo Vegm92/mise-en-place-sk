@@ -50,6 +50,7 @@
 		trialEndsAt={data.trialEndsAt}
 		currentPeriodEnd={data.currentPeriodEnd}
 		cancelAtPeriodEnd={data.cancelAtPeriodEnd}
+		hasSubscription={data.hasSubscription}
 		stripeConfigured={data.stripeConfigured}
 	/>
 
@@ -65,7 +66,7 @@
 
 		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;margin-bottom:28px;">
 			{#each data.tiers as tier (tier.tier)}
-				<BillingPlanCard {tier} isRecommended={tier.tier === 'pro'} />
+				<BillingPlanCard {tier} available={tier.available} switchable={data.hasSubscription} isRecommended={tier.tier === 'pro'} />
 			{/each}
 		</div>
 
