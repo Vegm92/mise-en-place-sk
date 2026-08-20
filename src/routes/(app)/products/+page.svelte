@@ -3,7 +3,6 @@
   import { t, tcat } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
-  import ComprasTabs from '$lib/components/mep/ComprasTabs.svelte';
   import Plus from '@lucide/svelte/icons/plus';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
@@ -30,12 +29,6 @@
 </script>
 
 <div class="flex flex-col gap-4 p-6">
-
-  <div class="hidden md:block" style="margin:-24px -24px 0;">
-    <div style="padding:0 24px;">
-      <ComprasTabs />
-    </div>
-  </div>
 
   <div class="flex items-center gap-2">
     <button type="button" class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-ghost'}"

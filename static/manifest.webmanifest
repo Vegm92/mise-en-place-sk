@@ -8,8 +8,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#F7F8F7",
-  "theme_color": "#CF8626",
+  "background_color": "#F5F4F0",
+  "theme_color": "#B8741A",
   "categories": ["business", "productivity", "finance"],
   "icons": [
     { "src": "/icons/icon-72x72.png",   "sizes": "72x72",   "type": "image/png" },
@@ -29,17 +29,17 @@
   ],
   "shortcuts": [
     {
-      "name": "Subir albarán",
+      "name": "Subir factura",
       "short_name": "Subir",
       "url": "/?action=upload",
-      "description": "Ir directamente a la subida de albaranes",
+      "description": "Ir directamente a la subida de facturas",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Albaranes",
-      "short_name": "Albaranes",
+      "name": "Facturas",
+      "short_name": "Facturas",
       "url": "/invoices",
-      "description": "Ver todos los albaranes",
+      "description": "Ver todas las facturas",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ]

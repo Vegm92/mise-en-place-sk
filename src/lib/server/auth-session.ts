@@ -1,7 +1,8 @@
 import { encode } from '@auth/core/jwt';
 import type { Cookies } from '@sveltejs/kit';
-import { env } from '$env/dynamic/private';
 import { SESSION_MAX_AGE_SECONDS } from './auth';
+
+const AUTH_SECRET = process.env.AUTH_SECRET ?? '';
 
 type SessionUser = { id: string; email: string; name: string | null; image: string | null };
 
@@ -9,7 +10,7 @@ export async function issueSessionCookie(cookies: Cookies, isHttps: boolean, use
 	const cookieName = `${isHttps ? '__Secure-' : ''}authjs.session-token`;
 
 	const token = await encode({
-		secret: env.AUTH_SECRET!,
+		secret: AUTH_SECRET,
 		salt:   cookieName,
 		maxAge: SESSION_MAX_AGE_SECONDS,
 		token:  { sub: user.id, email: user.email, name: user.name, picture: user.image },

@@ -3,7 +3,6 @@
   import { locale, t } from '$lib/i18n';
   import Search from '@lucide/svelte/icons/search';
   import MobileAnalyticsPrices from '$lib/components/mobile/MobileAnalyticsPrices.svelte';
-  import ComprasTabs from '$lib/components/mep/ComprasTabs.svelte';
 
   let { data }: { data: PageData } = $props();
 
@@ -67,9 +66,6 @@
 </div>
 
 <div class="hidden md:block" style="height:100%;overflow:auto;">
-  <div style="padding:0 24px;">
-    <ComprasTabs />
-  </div>
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <div style="display:flex;align-items:center;gap:12px;">
