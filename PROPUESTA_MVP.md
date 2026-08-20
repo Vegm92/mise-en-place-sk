@@ -63,8 +63,8 @@ La visión completa del producto está documentada en `ESPECIFICACIÓN_APP_ALBAR
 | Captura fotográfica (cámara/archivo, con cola si no hay conexión) | ✅ Ya existe y funciona |
 | Envío del albarán por **WhatsApp** como vía alternativa de entrada | ✅ Ya existe y funciona (webhook con verificación de firma) — **confirmado dentro del MVP** |
 | Extracción por IA: proveedor, artículos, cantidades, unidad, precio unitario, importe | ✅ Ya existe y funciona, distingue factura vs. albarán |
-| **IVA**, incluidos documentos con **varios tipos de IVA a la vez** (ej. 10% + 21% en el mismo albarán) | ⚠️ Se extrae y se guarda bien por línea, **pero no se muestra en ninguna pantalla de revisión ni de detalle**. **Pendiente de arreglar**: mostrar el IVA leído en la pantalla donde se revisa/edita el albarán, para poder comprobar a simple vista que la IA lo ha leído bien. |
-| Línea sin precio → se registra igualmente, con estado **"Pendiente de tarificación"** | ⚠️ Hoy se guarda con el precio vacío, sin etiqueta. **Pendiente de construir**: el estado explícito "Pendiente de tarificación", visible en pantalla. |
+| **IVA**, incluidos documentos con **varios tipos de IVA a la vez** (ej. 10% + 21% en el mismo albarán) | ✅ **Corregido (2026-08-20).** Antes la IA no leía el IVA por línea en absoluto (solo un resumen global del documento) y el dato ni se guardaba ni se veía. Ahora la IA asigna el tipo de IVA a cada línea y se muestra en las 3 pantallas donde se revisa/edita/consulta el albarán (revisión tras el OCR, edición, detalle escritorio y móvil). |
+| Línea sin precio → se registra igualmente, con estado visible **"Pendiente de tarificación"** | ✅ **Corregido (2026-08-20).** Ya se guardaba sin precio (no bloqueaba el albarán), y ahora además se muestra la etiqueta "Pendiente de tarificación" en el detalle en vez de un importe vacío. **Sigue pendiente**: la resolución automática y retroactiva de esa línea cuando llega el precio real (ver Paso 2) — hoy la etiqueta es solo informativa, no hay un mecanismo que la actualice sola todavía. |
 | Foto defectuosa | ✅ **Decisión tomada**: no hace falta rechazo automático en el momento de la foto. Basta con lo que ya existe: si la IA tiene menos del 85% de confianza en un dato clave, bloquea el guardado y resalta los campos dudosos para revisión manual. |
 | Vinculación inteligente de nombres manuscritos/comerciales a la materia prima interna (fuzzy matching + IA de refuerzo) | ✅ Ya existe y funciona. **Decisión tomada**: se mantiene el uso de IA como segundo nivel, aunque la idea original era "solo texto" — ya demostró que hacía falta. |
 
@@ -79,7 +79,7 @@ La visión completa del producto está documentada en `ESPECIFICACIÓN_APP_ALBAR
 | Los precios anteriores no se sobrescriben; quedan archivados con fecha | ✅ Ya existe: cada albarán guardado es un registro histórico permanente, el precio "vigente" es simplemente el más reciente |
 | Comparación del precio nuevo contra el último precio de ese artículo+proveedor exactos | ✅ Ya existe y funciona así literalmente |
 | Alerta visual si el precio cambia más de un % configurable | ✅ Ya existe, umbral configurable (hoy 15% por defecto). **Decisión tomada**: avisa tanto si sube como si baja fuerte (una bajada fuerte también puede ser un error de lectura) |
-| Línea "Pendiente de tarificación" (ver Paso 1) | Se resuelve aquí: cuando llega el precio real (por ejemplo con la factura), se actualiza esa línea de forma retroactiva. **Pendiente de construir** junto con la etiqueta del Paso 1. |
+| Línea "Pendiente de tarificación" (ver Paso 1) | ⚠️ La etiqueta ya se ve (Paso 1), pero falta construir la parte de este paso: cuando llega el precio real (por ejemplo con la factura), que esa línea se actualice sola en vez de quedar pendiente para siempre. **Pendiente de construir.** |
 | Productos y proveedores organizados automáticamente a partir de los albaranes | ✅ Ya existe y funciona |
 | Evolución de precios (analítica) | ✅ Ya existe, se mantiene como parte natural de "administrar información" |
 | Avisos de stock bajo | ❌ **Descartado del MVP.** Existe una tabla y una conexión técnica a medio construir, pero no hay ninguna pantalla donde el restaurante pueda introducir su stock actual o su consumo diario — y un albarán, por sí solo, nunca dice cuánto queda en el almacén. Hacerlo bien exigiría que alguien apuntara stock a mano cada día, lo cual va en contra del objetivo de "cero fricción". Se descarta, no se aparca — no encaja en el pipeline de este MVP tal como está planteado. |
@@ -118,8 +118,8 @@ Ya existe código construido y funcionando para varias de estas piezas en `main`
 
 **Herramientas internas que se mantienen sin más debate** (no las ve el restaurante, no añaden fricción a su flujo): exportar a CSV/Excel, panel de administración interno.
 
-**Pendiente de decidir — sistema de planes de pago (Stripe):**
-- El plan gratuito de prueba tenía un límite de 20 albaranes al mes. **Decisión tomada: se quita ese límite mientras dure la fase de validación de mercado**, para no cortar la prueba a mitad de camino.
+**Sistema de planes de pago (Stripe):**
+- El plan gratuito de prueba tenía un límite de 20 albaranes al mes. **Hecho:** se quitó ese límite mientras dure la fase de validación de mercado, para no cortar la prueba a mitad de camino.
 - El resto del sistema de cobro (planes, Stripe) se deja tal cual está construido, sin desactivar, pero sin que bloquee ninguna funcionalidad del núcleo (Pasos 1-3) durante esta fase.
 
 ---
@@ -132,9 +132,11 @@ Ya existe código construido y funcionando para varias de estas piezas en `main`
 
 ## 6. Estado actual
 
-- [x] **Paso 1** — el flujo base ya existe y funciona; quedan 2 correcciones pendientes: mostrar el IVA en pantalla, y construir el estado "Pendiente de tarificación".
-- [x] **Paso 2** — el flujo base ya existe y funciona; queda pendiente la etiqueta "Pendiente de tarificación" (compartida con el Paso 1) y quitar el límite de 20 albaranes/mes.
+- [x] **Paso 1** — completo: OCR, WhatsApp, IVA por línea visible, "Pendiente de tarificación" visible, foto defectuosa gestionada por confianza. Probado con `pnpm check` + suite de tests (1088 tests, todos en verde) — **pendiente probar con un albarán real** antes de darlo por cerrado del todo.
+- [x] Cuota de prueba sin límite (20/mes quitado) — hecho y probado.
+- [~] **Paso 2** — el flujo base ya existe y funciona (historial de precios, alertas, evolución de precios); queda pendiente la resolución automática de líneas "Pendiente de tarificación" cuando llega el precio real.
 - [ ] **Paso 3** — no empezado, se construye desde cero.
-- [ ] Ajuste de cuota de Stripe (quitar límite de 20/mes durante la validación).
+
+*(Cambios de código de esta sesión: commits `6b8884a` y `fec4692` en `mvp-modular-limpio`.)*
 
 *(Este documento se debe actualizar según avancen los pasos, marcando lo completado y anotando cualquier decisión importante que se tome por el camino.)*
