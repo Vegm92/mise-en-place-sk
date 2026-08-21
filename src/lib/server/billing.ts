@@ -433,7 +433,7 @@ export async function getAccessState(restaurantId: string): Promise<AccessState>
 	return (await getEntitlements(restaurantId)).access;
 }
 
-export async function getOrCreateCustomer(restaurantId: string, email: string, restaurantName: string): Promise<string> {
+export async function getOrCreateCustomer(restaurantId: string, email: string, restaurantName: string, forceNew = false): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 
 	const tdb = forTenant(restaurantId);
@@ -448,15 +448,16 @@ export async function getOrCreateCustomer(restaurantId: string, email: string, r
 			.where(tdb.scope(subscriptions.restaurantId))
 			.limit(1);
 
-		if (rows[0]?.stripeCustomerId) return rows[0].stripeCustomerId;
+		if (!forceNew && rows[0]?.stripeCustomerId) return rows[0].stripeCustomerId;
 
 		const trialDays = trialDaysFor(rows[0]?.founder ?? false);
 
+		const idempotencyKey = forceNew ? `cust:${restaurantId}:retry:${Date.now()}` : `cust:${restaurantId}`;
 		const customer = await stripe.customers.create({
 			email,
 			name: restaurantName,
 			metadata: { restaurantId },
-		}, { idempotencyKey: `cust:${restaurantId}` });
+		}, { idempotencyKey });
 
 		await tx.insert(subscriptions)
 			.values({
