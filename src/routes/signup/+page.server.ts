@@ -7,7 +7,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
 import { publicFormAction } from '$lib/server/public-form-action';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/schema/auth';
+import { users } from '$lib/server/schema';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { sendEmail, verifyEmailAddress } from '$lib/server/email';
 import { signIn } from '$lib/server/auth';

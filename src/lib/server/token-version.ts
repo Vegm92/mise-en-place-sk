@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from './db';
-import { users } from './schema/auth';
+import { users } from './schema';
 
 export async function checkTokenVersion(userId: string, claimedVersion: number | undefined): Promise<number | null> {
 	const [row] = await db.select({ tokenVersion: users.tokenVersion })

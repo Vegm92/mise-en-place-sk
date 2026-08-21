@@ -16,7 +16,8 @@ vi.mock('../src/lib/server/db', async () => {
 import {
 	buildNormalizePrompt, parseNormalizeResponse, processNormalizeJob, LLM_MATCH_THRESHOLD,
 } from '../src/lib/server/products';
-import type { LLMProvider } from '../src/lib/server/llm-provider';
+import type { createGeminiProvider } from '../src/lib/server/llm-provider';
+type LLMProvider = ReturnType<typeof createGeminiProvider>;
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';

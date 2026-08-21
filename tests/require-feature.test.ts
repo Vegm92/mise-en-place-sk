@@ -6,8 +6,6 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('$env/dynamic/private', () => ({ env: {} }));
-
 const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null as unknown } }));
 vi.mock('../src/lib/server/db', () => {
 	const chain = () => {

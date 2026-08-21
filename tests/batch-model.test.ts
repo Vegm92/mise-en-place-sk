@@ -10,7 +10,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
 	testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { createBatchStore } from '../src/lib/server/batch-core';
+import { createBatchStore } from '../src/lib/server/batch';
 
 let rid = '';
 const store = hasDbEnv ? createBatchStore(testDb) : null!;

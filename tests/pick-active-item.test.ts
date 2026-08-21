@@ -2,7 +2,7 @@
  * pickActiveItem — which item the batch page's right panel shows.
  */
 import { describe, it, expect } from 'vitest';
-import { pickActiveItem, type BatchItem, type BatchItemStatus } from '../src/lib/server/batch-core';
+import { pickActiveItem, type BatchItem, type BatchItemStatus } from '../src/lib/server/batch';
 
 function item(id: string, position: number, status: BatchItemStatus): BatchItem {
 	return {
