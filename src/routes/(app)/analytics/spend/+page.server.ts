@@ -161,10 +161,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		]);
 
 		const itemTrendMap = new Map<string, number[]>();
+		const itemTrendPoints = new Map<string, { bucket: string; value: number }[]>();
 		for (const row of itemTrendRows) {
 			const key = String(row.item_key);
 			if (!itemTrendMap.has(key)) itemTrendMap.set(key, []);
 			itemTrendMap.get(key)!.push(moneyToNumber(row.avg_price));
+			if (!itemTrendPoints.has(key)) itemTrendPoints.set(key, []);
+			itemTrendPoints.get(key)!.push({ bucket: row.month, value: moneyToNumber(row.avg_price) });
 		}
 
 		const maxSpend = moneyToNumber(topItems[0]?.total_spend) || 1;
@@ -179,6 +182,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				price_trend: rawTrend.length >= 2 ? rawTrend : [],
 			};
 		});
+
+		// Price history (not spend) for the "compare products" mode of the
+		// trend chart — reuses the same 6-month window as top_items.price_trend.
+		const priceTrendSeries = topItems.slice(0, 8).map(item => {
+			const key = item.description.toLowerCase().trim();
+			return { key, label: item.description, points: itemTrendPoints.get(key) ?? [] };
+		}).filter(s => s.points.length >= 2);
 
 		const maxCat = moneyToNumber(categorySpend[0]?.total) || 1;
 		const category_spend = categorySpend.map(cat => ({
@@ -214,9 +224,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		// a schedule) so this reflects invoices saved seconds ago.
 		const categoryTotals = new Map<string, number>();
 		for (const r of trend) categoryTotals.set(r.category, (categoryTotals.get(r.category) ?? 0) + r.amount);
-		const topCategoryEntry = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1])[0];
-		const topCategory = topCategoryEntry ? { category: topCategoryEntry[0], total: topCategoryEntry[1] } : null;
-		const trendCategories = [...categoryTotals.keys()].sort();
+		const rankedCategories = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1]);
+		const topCategory = rankedCategories[0] ? { category: rankedCategories[0][0], total: rankedCategories[0][1] } : null;
+		const trendCategories = rankedCategories.map(([category]) => category);
 
 		const kpis = {
 			total_items_spend: currentSpend,
@@ -228,6 +238,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			top_supplier: topSupplier,
 		};
 
-		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period, trend, trendCategories };
+		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period, trend, trendCategories, priceTrendSeries };
 	});
 };

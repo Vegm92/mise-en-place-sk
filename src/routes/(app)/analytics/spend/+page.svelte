@@ -4,30 +4,60 @@
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
-  import TrendBarChart from '$lib/components/mep/TrendBarChart.svelte';
+  import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
 
   let { data }: { data: PageData } = $props();
 
-  let trendCategory = $state('');
+  const SERIES_PALETTE = [
+    'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
+    'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)', 'var(--mep-series-other)',
+  ];
 
   const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
-  function formatBucketLabel(bucket: string): string {
+  function formatMonthBucket(bucket: string, withYear: boolean): string {
+    const [y, m] = bucket.split('-').map(Number);
+    const label = trendFmt.format(new Date(y, m - 1, 1));
+    return withYear ? `${label} ${String(y).slice(2)}` : label;
+  }
+  function formatSpendBucketLabel(bucket: string): string {
     // 'YYYY-MM' (year/all periods) or 'YYYY-MM-DD' (day/month periods)
-    if (bucket.length === 7) {
-      const [y, m] = bucket.split('-').map(Number);
-      const label = trendFmt.format(new Date(y, m - 1, 1));
-      return data.period === 'all' ? `${label} ${String(y).slice(2)}` : label;
-    }
+    if (bucket.length === 7) return formatMonthBucket(bucket, data.period === 'all');
     const [, , d] = bucket.split('-');
     return String(Number(d));
   }
-  const trendBars = $derived.by(() => {
-    const rows = trendCategory ? data.trend.filter(r => r.category === trendCategory) : data.trend;
-    const byBucket = new Map<string, number>();
-    for (const r of rows) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
-    return [...byBucket.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([bucket, value]) => ({ label: formatBucketLabel(bucket), value }));
+
+  let trendMode = $state<'category' | 'product'>('category');
+  let selectedCategories = $state<string[]>(data.trendCategories.slice(0, 4));
+  let selectedProducts = $state<string[]>(data.priceTrendSeries.slice(0, 4).map(s => s.key));
+
+  function toggle(list: string[], key: string): string[] {
+    return list.includes(key) ? list.filter(k => k !== key) : [...list, key];
+  }
+
+  const categoryChart = $derived.by(() => {
+    const buckets = [...new Set(data.trend.map(r => r.bucket))].sort();
+    const series = selectedCategories.map((cat, i) => {
+      const byBucket = new Map<string, number>();
+      for (const r of data.trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
+      return {
+        key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length],
+        values: buckets.map(b => byBucket.get(b) ?? 0),
+      };
+    });
+    return { xLabels: buckets.map(formatSpendBucketLabel), series };
+  });
+
+  const productChart = $derived.by(() => {
+    const selected = data.priceTrendSeries.filter(s => selectedProducts.includes(s.key));
+    const buckets = [...new Set(selected.flatMap(s => s.points.map(p => p.bucket)))].sort();
+    const series = selected.map((s, i) => {
+      const byBucket = new Map(s.points.map(p => [p.bucket, p.value]));
+      return {
+        key: s.key, label: s.label, color: SERIES_PALETTE[i % SERIES_PALETTE.length],
+        values: buckets.map(b => byBucket.get(b) ?? 0),
+      };
+    });
+    return { xLabels: buckets.map(b => formatMonthBucket(b, true)), series };
   });
 
   const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
@@ -87,6 +117,7 @@
     category_spend={data.category_spend}
     trend={data.trend}
     trendCategories={data.trendCategories}
+    priceTrendSeries={data.priceTrendSeries}
   />
 </div>
 
@@ -125,23 +156,59 @@
     </div>
 
     <div class="card" style="padding:16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
-        <div>
-          <div class="subtitle">{$t('spend.trend.title')}</div>
-        </div>
-        <div style="position:relative;">
-          <select class="btn btn-secondary"
-            style="height:30px;font-size:12px;appearance:none;padding:0 26px 0 10px;cursor:pointer;min-width:150px;"
-            bind:value={trendCategory}>
-            <option value="">{$t('spend.trend.allCategories')}</option>
-            {#each data.trendCategories as cat}
-              <option value={cat}>{$tcat(cat)}</option>
-            {/each}
-          </select>
-          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+        <div class="subtitle">{$t('spend.trend.title')}</div>
+        <div class="period-track" role="group">
+          <button type="button" class="period-pill {trendMode === 'category' ? 'active' : ''}" onclick={() => (trendMode = 'category')}>
+            {$t('spend.trend.byCategory')}
+          </button>
+          <button type="button" class="period-pill {trendMode === 'product' ? 'active' : ''}" onclick={() => (trendMode = 'product')}>
+            {$t('spend.trend.byProduct')}
+          </button>
         </div>
       </div>
-      <TrendBarChart bars={trendBars} valueFormatter={fmtEur} emptyLabel={$t('spend.noDataYet')} />
+
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+        {#if trendMode === 'category'}
+          {#each data.trendCategories as cat, i}
+            {@const active = selectedCategories.includes(cat)}
+            {@const color = SERIES_PALETTE[selectedCategories.indexOf(cat) % SERIES_PALETTE.length]}
+            <button type="button" onclick={() => (selectedCategories = toggle(selectedCategories, cat))}
+              class="badge" style="
+                cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
+                background:{active ? color + '1e' : 'transparent'};
+                color:{active ? color : 'var(--mep-fg-3)'};
+              ">
+              {$tcat(cat)}
+            </button>
+          {/each}
+          {#if !data.trendCategories.length}
+            <span class="body" style="font-size:12px;color:var(--mep-fg-3);">{$t('spend.kpi.noData')}</span>
+          {/if}
+        {:else}
+          {#each data.priceTrendSeries as item}
+            {@const active = selectedProducts.includes(item.key)}
+            {@const color = SERIES_PALETTE[selectedProducts.indexOf(item.key) % SERIES_PALETTE.length]}
+            <button type="button" onclick={() => (selectedProducts = toggle(selectedProducts, item.key))}
+              class="badge" style="
+                cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
+                background:{active ? color + '1e' : 'transparent'};
+                color:{active ? color : 'var(--mep-fg-3)'};
+              ">
+              {item.label}
+            </button>
+          {/each}
+          {#if !data.priceTrendSeries.length}
+            <span class="body" style="font-size:12px;color:var(--mep-fg-3);">{$t('spend.kpi.noData')}</span>
+          {/if}
+        {/if}
+      </div>
+
+      {#if trendMode === 'category'}
+        <TrendLineChart xLabels={categoryChart.xLabels} series={categoryChart.series} valueFormatter={fmtEur} emptyLabel={$t('spend.noDataYet')} />
+      {:else}
+        <TrendLineChart xLabels={productChart.xLabels} series={productChart.series} valueFormatter={(v) => fmtEur(v) + '/u'} emptyLabel={$t('spend.noDataYet')} />
+      {/if}
     </div>
 
     <div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;">
