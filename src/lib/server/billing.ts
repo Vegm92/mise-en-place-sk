@@ -459,11 +459,19 @@ export async function switchTier(restaurantId: string, newTier: PlanTier): Promi
 export async function createPortalSession(customerId: string, returnUrl: string): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 
-	const session = await stripe.billingPortal.sessions.create({
-		customer: customerId,
-		return_url: returnUrl,
-	});
-	return session.url;
+	try {
+		const session = await stripe.billingPortal.sessions.create({
+			customer: customerId,
+			return_url: returnUrl,
+		});
+		return session.url;
+	} catch (err) {
+		if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing') {
+			console.error(`[billing] stale Stripe customer ${customerId} — falling back to billing page`);
+			return returnUrl;
+		}
+		throw err;
+	}
 }
 
 export async function handleWebhookEvent(body: string, signature: string): Promise<void> {
