@@ -71,7 +71,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			? and(gte(invoices.createdAt, prevFrom), lt(invoices.createdAt, prevTo))
 			: undefined;
 
-		const [invoiceRows, statsRow, prevStatsRow, needsReviewRow, supplierRows, countRow, seriesRows] = await Promise.all([
+		// 'year'/'all' bucket by month, everything else by day -- same rule as
+		// every other trend chart in the app.
+		const trendBucketExpr = (period === 'year' || period === 'all')
+			? sql<string>`TO_CHAR(${invoices.createdAt}, 'YYYY-MM')`
+			: sql<string>`TO_CHAR(${invoices.createdAt}, 'YYYY-MM-DD')`;
+
+		const [invoiceRows, statsRow, prevStatsRow, needsReviewRow, supplierRows, countRow, seriesRows, trendRows] = await Promise.all([
 			db.select({
 				id:             invoices.id,
 				supplier_name:  suppliers.name,
@@ -135,6 +141,21 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					.from(invoices)
 					.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.createdAt, prevFrom))))
 				: Promise.resolve([] as { createdAt: Date | null; amount: string | null }[]),
+
+			db.select({
+				bucket:       trendBucketExpr.as('bucket'),
+				category:     sql<string>`COALESCE(${suppliers.category}, 'Other')`.as('category'),
+				supplierId:   suppliers.id,
+				supplierName: suppliers.name,
+				amount:       sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`.as('amount'),
+			})
+				.from(invoices)
+				.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
+				.where(tdb.scope(invoices.restaurantId, periodFrom
+					? and(isNull(invoices.deletedAt), gte(invoices.createdAt, periodFrom))
+					: isNull(invoices.deletedAt)))
+				.groupBy(trendBucketExpr, sql`COALESCE(${suppliers.category}, 'Other')`, suppliers.id, suppliers.name)
+				.orderBy(trendBucketExpr),
 		]);
 
 		const savedAlerts = Number.isFinite(savedId)
@@ -201,11 +222,20 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
+		const trend = trendRows.map(r => ({
+			bucket: r.bucket,
+			category: r.category,
+			supplierId: r.supplierId,
+			supplierName: r.supplierName,
+			amount: Number(r.amount),
+		}));
+
 		return {
 			title: 'inv.title',
 			invoices: invoiceList,
 			stats,
 			period,
+			trend,
 			suppliers: supplierRows,
 			filters: {
 				q, status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo,

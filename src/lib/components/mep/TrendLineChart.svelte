@@ -23,8 +23,15 @@
 
   const hasAnyData = $derived(series.some(s => s.values.some(v => v > 0)));
   const maxValue = $derived(Math.max(1, ...series.flatMap(s => s.values)));
-  const stepX = 36;
-  const width = $derived(Math.max(240, (xLabels.length - 1) * stepX + 24));
+
+  // Fills the card's full width (the plot line/area must occupy the space
+  // the grid gives it, not float at a fixed narrow width) -- only widens
+  // past the container, triggering horizontal scroll, once buckets would
+  // otherwise be packed closer than MIN_STEP.
+  const MIN_STEP = 28;
+  let containerWidth = $state(400);
+  const stepX = $derived(xLabels.length > 1 ? Math.max(MIN_STEP, (containerWidth - 24) / (xLabels.length - 1)) : containerWidth);
+  const width = $derived(Math.max(containerWidth, (xLabels.length - 1) * stepX + 24));
 
   function yFor(v: number): number {
     return PAD_TOP + plotHeight - (v / maxValue) * plotHeight;
@@ -52,7 +59,7 @@
     <span class="body" style="font-size:12px;color:var(--mep-fg-3);">{emptyLabel}</span>
   </div>
 {:else}
-  <div class="no-scrollbar" style="overflow-x:auto;position:relative;">
+  <div class="no-scrollbar" style="overflow-x:auto;position:relative;" bind:clientWidth={containerWidth}>
     <svg {width} {height} viewBox="0 0 {width} {height}" style="display:block;overflow:visible;">
       <defs>
         {#each series as s, i (s.key)}

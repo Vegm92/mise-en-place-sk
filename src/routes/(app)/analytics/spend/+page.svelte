@@ -73,41 +73,6 @@
   }
 
   const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
-  interface DonutSlice {
-    label: string; spend: number; pct: number; color: string;
-    itemCount: number | null; avgPrice: number | null; supplierName: string | null;
-    dash: number; offset: number;
-  }
-  const spendDonut = $derived((() => {
-    const ranked = [...data.top_items].sort((a, b) => b.total_spend - a.total_spend);
-    const total = ranked.reduce((a, p) => a + p.total_spend, 0);
-    if (total <= 0) return { slices: [] as DonutSlice[], total: 0 };
-
-    const top = ranked.slice(0, 5);
-    const rest = ranked.slice(5);
-    const restSpend = rest.reduce((a, p) => a + p.total_spend, 0);
-
-    const entries: Omit<DonutSlice, 'pct' | 'dash' | 'offset'>[] = top.map((p, i) => ({
-      label: p.description, spend: p.total_spend, color: SERIES_COLORS[i],
-      itemCount: p.item_count ?? null, avgPrice: p.avg_unit_price ?? null, supplierName: p.supplier_name ?? null,
-    }));
-    if (restSpend > 0) {
-      entries.push({ label: $t('spend.other'), spend: restSpend, color: 'var(--mep-series-other)',
-        itemCount: null, avgPrice: null, supplierName: null });
-    }
-
-    let cursor = 0;
-    const CIRC = 2 * Math.PI * 70;
-    const slices: DonutSlice[] = entries.map(e => {
-      const pct = e.spend / total;
-      const dash = pct * CIRC;
-      const slice: DonutSlice = { ...e, pct, dash, offset: cursor };
-      cursor += dash;
-      return slice;
-    });
-    return { slices, total };
-  })());
-  let hoveredSpendSlice = $state<number | null>(null);
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
@@ -144,11 +109,13 @@
         label={$t('spend.kpi.topCategory')}
         value={data.kpis.top_category ? $tcat(data.kpis.top_category.category) : $t('spend.kpi.noData')}
         sub={data.kpis.top_category ? fmtEur(data.kpis.top_category.total) : undefined}
+        valueIsName
       />
       <KpiCard
         label={$t('spend.kpi.topSupplier')}
         value={data.kpis.top_supplier ? data.kpis.top_supplier.name : $t('spend.kpi.noData')}
         sub={data.kpis.top_supplier ? fmtEur(data.kpis.top_supplier.total) : undefined}
+        valueIsName
       />
       <KpiCard
         label={$t('spend.avgItems')}
@@ -225,56 +192,25 @@
             <a href="/" style="font-size:12px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">{$t('spend.uploadFirst')}</a>
           </div>
         {:else}
-          <div style="display:flex;gap:24px;align-items:center;">
-            <div style="position:relative;flex-shrink:0;width:180px;height:180px;">
-              <svg width="180" height="180" viewBox="0 0 180 180" style="overflow:visible;transform:rotate(-90deg);">
-                {#each spendDonut.slices as slice, i}
-                  {@const CIRC = 2 * Math.PI * 70}
-                  {@const GAP = spendDonut.slices.length > 1 ? 2 : 0}
-                  <circle cx="90" cy="90" r="70" fill="none"
-                    stroke={slice.color}
-                    stroke-width={hoveredSpendSlice === i ? 30 : 26}
-                    stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
-                    stroke-dashoffset={-slice.offset}
-                    opacity={hoveredSpendSlice === null || hoveredSpendSlice === i ? 1 : 0.35}
-                    style="cursor:pointer;transition:stroke-width 120ms,opacity 120ms;"
-                    role="img"
-                    aria-label="{slice.label}: {fmtEur(slice.spend)} ({(slice.pct * 100).toFixed(0)}%)"
-                    onmouseenter={() => hoveredSpendSlice = i}
-                    onmouseleave={() => hoveredSpendSlice = null} />
-                {/each}
-              </svg>
-              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
-                {#if hoveredSpendSlice !== null && spendDonut.slices[hoveredSpendSlice]}
-                  <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{(spendDonut.slices[hoveredSpendSlice].pct * 100).toFixed(0)}%</span>
-                  <span style="font-size:10px;color:var(--mep-fg-3);max-width:120px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{spendDonut.slices[hoveredSpendSlice].label}</span>
-                {:else}
-                  <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmtEur(spendDonut.total)}</span>
-                  <span style="font-size:10px;color:var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
-                {/if}
-              </div>
-            </div>
-
-            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;">
-              {#each spendDonut.slices as slice, i}
-                <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:default;
-                  background:{hoveredSpendSlice === i ? 'var(--mep-surface-2)' : 'transparent'};"
-                  role="group" aria-label={slice.label}
-                  onmouseenter={() => hoveredSpendSlice = i} onmouseleave={() => hoveredSpendSlice = null}>
-                  <span style="width:9px;height:9px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
-                  <span style="font-size:12px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={slice.label}>
-                    {slice.label}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {#each data.top_items.slice(0, 6) as item, i}
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px;">
+                  <span style="font-size:12.5px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={item.description}>
+                    {item.description}
                   </span>
-                  <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);flex-shrink:0;width:34px;text-align:right;">{(slice.pct * 100).toFixed(0)}%</span>
-                  <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:80px;text-align:right;">{fmtEur(slice.spend)}</span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{fmtEur(item.total_spend)}</span>
                 </div>
-                {#if hoveredSpendSlice === i && slice.itemCount != null}
-                  <div style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
-                    {slice.itemCount} {$t('tbl.lines')}{slice.avgPrice != null ? ` · ${$t('sup.products.avgPrice')} ${fmtEur(slice.avgPrice)}` : ''}{slice.supplierName ? ` · ${slice.supplierName}` : ''}
+                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
+                  <div style="width:{item.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:4px;"></div>
+                </div>
+                {#if item.item_count != null}
+                  <div style="margin-top:3px;font-size:11px;color:var(--mep-fg-3);">
+                    {item.item_count} {$t('tbl.lines')}{item.avg_unit_price != null ? ` · ${$t('sup.products.avgPrice')} ${fmtEur(item.avg_unit_price)}` : ''}{item.supplier_name ? ` · ${item.supplier_name}` : ''}
                   </div>
                 {/if}
-              {/each}
-            </div>
+              </div>
+            {/each}
           </div>
         {/if}
       </div>

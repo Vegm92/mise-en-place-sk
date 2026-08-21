@@ -14,6 +14,7 @@
     delta,
     deltaCtx,
     invert = false,
+    valueIsName = false,
   }: {
     label: string;
     value: string | number;
@@ -25,6 +26,9 @@
     delta?: number;
     deltaCtx?: string;
     invert?: boolean;
+    /** True when `value` is a proper name (supplier, category, product) rather
+     * than a measurement — renders as a label, not the big tabular-nums figure. */
+    valueIsName?: boolean;
   } = $props();
 
   const labelColor: Record<Variant, string> = {
@@ -48,9 +52,18 @@
       <Sparkline data={spark} compareData={sparkPrev} width={84} height={28} />
     {/if}
   </div>
-  <span class="num {valueColor[variant]}" style="font-size:26px;font-weight:600;letter-spacing:-0.6px;line-height:1.1;">
-    {value}
-  </span>
+  {#if valueIsName}
+    <span class="{valueColor[variant]}" style="
+        font-size:17px;font-weight:600;letter-spacing:-0.1px;line-height:1.25;
+        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+      " title={String(value)}>
+      {value}
+    </span>
+  {:else}
+    <span class="num {valueColor[variant]}" style="font-size:26px;font-weight:600;letter-spacing:-0.6px;line-height:1.1;">
+      {value}
+    </span>
+  {/if}
   {#if delta !== undefined}
     <div style="display:flex;align-items:center;gap:6px;">
       <Delta value={delta} {invert} />

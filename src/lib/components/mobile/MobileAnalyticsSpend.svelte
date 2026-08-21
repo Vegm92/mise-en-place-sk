@@ -106,29 +106,6 @@
   }
 
   const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
-  const spendDonut = $derived((() => {
-    const ranked = [...top_items].sort((a, b) => b.total_spend - a.total_spend);
-    const total = ranked.reduce((a, p) => a + p.total_spend, 0);
-    if (total <= 0) return { slices: [], total: 0 };
-
-    const top = ranked.slice(0, 5);
-    const rest = ranked.slice(5);
-    const restSpend = rest.reduce((a, p) => a + p.total_spend, 0);
-
-    const entries = top.map((p, i) => ({ label: p.description, spend: p.total_spend, color: SERIES_COLORS[i] }));
-    if (restSpend > 0) entries.push({ label: $t('spend.other'), spend: restSpend, color: 'var(--mep-series-other)' });
-
-    let cursor = 0;
-    const CIRC = 2 * Math.PI * 60;
-    const slices = entries.map(e => {
-      const pct = e.spend / total;
-      const dash = pct * CIRC;
-      const slice = { ...e, pct, dash, offset: cursor };
-      cursor += dash;
-      return slice;
-    });
-    return { slices, total };
-  })());
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
@@ -156,14 +133,14 @@
       </div>
       <div class="card" style="padding: 12px;">
         <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.kpi.topCategory')}</div>
-        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px; line-height: 1.2;">
+        <div style="font-size: 15px; font-weight: 600; color: var(--mep-fg); line-height: 1.25; overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           {kpis?.top_category ? $tcat(kpis.top_category.category) : $t('spend.kpi.noData')}
         </div>
         {#if kpis?.top_category}<div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{fmtEur(kpis.top_category.total)}</div>{/if}
       </div>
       <div class="card" style="padding: 12px;">
         <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.kpi.topSupplier')}</div>
-        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px; line-height: 1.2;">
+        <div style="font-size: 15px; font-weight: 600; color: var(--mep-fg); line-height: 1.25; overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
           {kpis?.top_supplier ? kpis.top_supplier.name : $t('spend.kpi.noData')}
         </div>
         {#if kpis?.top_supplier}<div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{fmtEur(kpis.top_supplier.total)}</div>{/if}
@@ -221,34 +198,18 @@
     {#if top_items?.length > 0}
       <div class="card" style="padding: 14px;">
         <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.topProducts')}</div>
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
-          <div style="position: relative; width: 156px; height: 156px;">
-            <svg width="156" height="156" viewBox="0 0 156 156" style="overflow:visible;transform:rotate(-90deg);">
-              {#each spendDonut.slices as slice}
-                {@const CIRC = 2 * Math.PI * 60}
-                {@const GAP = spendDonut.slices.length > 1 ? 2 : 0}
-                <circle cx="78" cy="78" r="60" fill="none"
-                  stroke={slice.color} stroke-width="22"
-                  stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
-                  stroke-dashoffset={-slice.offset}
-                  role="img" aria-label="{slice.label}: {fmtEur(slice.spend)} ({(slice.pct * 100).toFixed(0)}%)" />
-              {/each}
-            </svg>
-            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-              <span class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtEur(spendDonut.total)}</span>
-              <span style="font-size: 9.5px; color: var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
-            </div>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 7px; width: 100%;">
-            {#each spendDonut.slices as slice}
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="width: 9px; height: 9px; border-radius: 2px; background: {slice.color}; flex-shrink: 0;"></span>
-                <span style="font-size: 12px; color: var(--mep-fg-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{slice.label}</span>
-                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{(slice.pct * 100).toFixed(0)}%</span>
-                <span class="num" style="font-size: 12px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0; width: 70px; text-align: right;">{fmtEur(slice.spend)}</span>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          {#each top_items.slice(0, 6) as item, i}
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 5px;">
+                <span style="font-size: 12px; color: var(--mep-fg-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{item.description}</span>
+                <span class="num" style="font-size: 12px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">{fmtEur(item.total_spend)}</span>
               </div>
-            {/each}
-          </div>
+              <div style="height: 7px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
+                <div style="width: {item.pct}%; height: 100%; background: {SERIES_COLORS[i % SERIES_COLORS.length]}; border-radius: 3px;"></div>
+              </div>
+            </div>
+          {/each}
         </div>
       </div>
     {/if}
