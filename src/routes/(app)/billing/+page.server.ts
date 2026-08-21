@@ -1,6 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, TIERS, type PlanTier } from '$lib/server/billing';
+import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, StaleCustomerError, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -101,16 +101,25 @@ export const actions: Actions = {
 
 		if (existing && (existing.status === 'active' || existing.stripeSubscriptionId)) {
 			if (existing.stripeCustomerId) {
-				const portalUrl = await createPortalSession(existing.stripeCustomerId, `${url.origin}/billing`);
-				redirect(303, portalUrl);
+				try {
+					redirect(303, await createPortalSession(existing.stripeCustomerId, `${url.origin}/billing`));
+				} catch (err) {
+					if (!(err instanceof StaleCustomerError)) throw err;
+					await db.update(subscriptions)
+						.set({ stripeCustomerId: null })
+						.where(tdb.scope(subscriptions.restaurantId));
+				}
 			}
 			redirect(303, '/billing');
 		}
 
 		if (currentActive) {
 			if (currentActive.stripeCustomerId) {
-				const portalUrl = await createPortalSession(currentActive.stripeCustomerId, `${url.origin}/billing`);
-				redirect(303, portalUrl);
+				try {
+					redirect(303, await createPortalSession(currentActive.stripeCustomerId, `${url.origin}/billing`));
+				} catch (err) {
+					if (!(err instanceof StaleCustomerError)) throw err;
+				}
 			}
 			redirect(303, '/billing');
 		}
@@ -160,8 +169,15 @@ export const actions: Actions = {
 
 		if (!sub?.stripeCustomerId) error(400, 'No billing account found. Subscribe first.');
 
-		const portalUrl = await createPortalSession(sub.stripeCustomerId, `${url.origin}/billing`);
-		redirect(303, portalUrl);
+		try {
+			redirect(303, await createPortalSession(sub.stripeCustomerId, `${url.origin}/billing`));
+		} catch (err) {
+			if (!(err instanceof StaleCustomerError)) throw err;
+			await db.update(subscriptions)
+				.set({ stripeCustomerId: null })
+				.where(tdb.scope(subscriptions.restaurantId));
+			redirect(303, '/billing');
+		}
 	},
 
 	switch: async ({ locals, request }) => {
