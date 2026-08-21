@@ -61,19 +61,6 @@ async function handleUnknownSender(msg: WhatsAppInboundMessage, from: string): P
 }
 
 async function dispatchMedia(msg: WhatsAppInboundMessage, from: string, restaurantId: string): Promise<void> {
-	if (msg.type === 'image' || msg.type === 'document') {
-		const access = await getAccessState(restaurantId);
-		if (!access.allowed) {
-			await sendWhatsAppMessage(
-				from,
-				access.trialExpired
-					? 'Tu prueba gratuita ha expirado. Actualiza tu plan en el panel web para seguir enviando facturas.'
-					: 'Tu suscripción no está activa. Actualiza tu plan en el panel web.',
-			);
-			return;
-		}
-	}
-
 	if (msg.type === 'image' && msg.image) {
 		await handleMediaUpload(from, restaurantId, msg.image.id);
 	} else if (msg.type === 'document' && msg.document) {
