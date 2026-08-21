@@ -75,8 +75,8 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 			await sendWhatsAppMessage(
 				from,
 				access.trialExpired
-					? '❌ Tu prueba gratuita ha terminado. Activa una suscripción para volver a procesar facturas.'
-					: '❌ Tu suscripción no está activa. Reactívala para volver a procesar facturas.',
+					? 'Tu prueba gratuita ha expirado. Actualiza tu plan en el panel web para seguir enviando facturas.'
+					: 'Tu suscripción no está activa. Actualiza tu plan en el panel web.',
 			);
 			return;
 		}
