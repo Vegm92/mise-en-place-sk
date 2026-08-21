@@ -6,7 +6,7 @@
  * which would otherwise throw without DATABASE_URL) and the Stripe price IDs are
  * injected via process.env so TIERS has a known mapping to assert.
  */
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const originalEnv = { ...process.env };
 
@@ -31,11 +31,14 @@ vi.mock('../src/lib/server/db', () => {
 	return { db: { select: chain, update: chain, insert: chain }, forTenant: () => ({ scope: () => ({}) }) };
 });
 
-// Mock the Stripe client so switchTier can be exercised without the network:
-// retrieve returns the subscription item id, update records the price swap.
+// Mock the Stripe client so switchTier / createPortalSession can be exercised without the network.
 vi.mock('stripe', () => {
 	const subscriptions = { retrieve: vi.fn(), update: vi.fn() };
-	return { default: class { subscriptions = subscriptions; } };
+	const billingPortal = {
+		configurations: { create: vi.fn() },
+		sessions: { create: vi.fn() },
+	};
+	return { default: class { subscriptions = subscriptions; billingPortal = billingPortal; } };
 });
 
 import {
@@ -48,6 +51,7 @@ import {
 	planMonthlyPriceCents,
 	resolveMonthlyQuota,
 	switchTier,
+	createPortalSession,
 	stripe,
 	UNLIMITED_QUOTA_SETTING,
 	type PlanTier,
@@ -341,5 +345,60 @@ describe('switchTier', () => {
 		subscriptionRow.value = null;
 		await expect(switchTier('rest-1', 'pro')).rejects.toThrow(/No subscription to switch/);
 		expect(stripe!.subscriptions.update).not.toHaveBeenCalled();
+	});
+});
+
+describe('createPortalSession — support contact info', () => {
+	const mockBillingPortal = () => stripe!.billingPortal as unknown as {
+		configurations: { create: ReturnType<typeof vi.fn> };
+		sessions: { create: ReturnType<typeof vi.fn> };
+	};
+
+	beforeEach(() => {
+		mockBillingPortal().sessions.create.mockResolvedValue({ url: 'https://billing.stripe.com/session/test' });
+		mockBillingPortal().configurations.create.mockResolvedValue({ id: 'bpc_auto' });
+	});
+
+	afterEach(() => {
+		mockBillingPortal().configurations.create.mockReset();
+		mockBillingPortal().sessions.create.mockReset();
+	});
+
+	it('passes a pinned config id directly without creating a new configuration', async () => {
+		process.env.STRIPE_PORTAL_CONFIG_ID = 'bpc_pinned';
+		const url = await createPortalSession('cus_1', 'https://app.test/billing');
+		expect(url).toBe('https://billing.stripe.com/session/test');
+		expect(mockBillingPortal().configurations.create).not.toHaveBeenCalled();
+		expect(mockBillingPortal().sessions.create).toHaveBeenCalledWith(
+			expect.objectContaining({ configuration: 'bpc_pinned' }),
+		);
+	});
+
+	it('creates a configuration with support email and url when no pin is set', async () => {
+		process.env.STRIPE_SUPPORT_EMAIL = 'support@test.com';
+		process.env.STRIPE_SUPPORT_URL = 'https://test.com/help';
+		const url = await createPortalSession('cus_1', 'https://app.test/billing');
+		expect(url).toBe('https://billing.stripe.com/session/test');
+		expect(mockBillingPortal().configurations.create).toHaveBeenCalledWith(
+			expect.objectContaining({
+				business_profile: expect.objectContaining({
+					support_email: 'support@test.com',
+					support_url: 'https://test.com/help',
+				}),
+			}),
+		);
+		expect(mockBillingPortal().sessions.create).toHaveBeenCalledWith(
+			expect.objectContaining({ configuration: 'bpc_auto' }),
+		);
+	});
+
+	it('skips configuration entirely when no support contact is configured', async () => {
+		delete process.env.STRIPE_PORTAL_CONFIG_ID;
+		delete process.env.STRIPE_SUPPORT_EMAIL;
+		delete process.env.STRIPE_SUPPORT_URL;
+		await createPortalSession('cus_1', 'https://app.test/billing');
+		expect(mockBillingPortal().configurations.create).not.toHaveBeenCalled();
+		const call = mockBillingPortal().sessions.create.mock.calls[0][0] as Record<string, unknown>;
+		expect(call.configuration).toBeUndefined();
 	});
 });

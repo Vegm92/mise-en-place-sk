@@ -471,13 +471,34 @@ export class StaleCustomerError extends Error {
 	}
 }
 
+async function resolvePortalConfig(): Promise<string | undefined> {
+	const pinned = process.env.STRIPE_PORTAL_CONFIG_ID?.trim();
+	if (pinned) return pinned;
+
+	const email = process.env.STRIPE_SUPPORT_EMAIL?.trim() ?? '';
+	const url = process.env.STRIPE_SUPPORT_URL?.trim() ?? '';
+	if (!stripe || (!email && !url)) return undefined;
+
+	type ExtendedBusinessProfile = Stripe.BillingPortal.ConfigurationCreateParams.BusinessProfile & { support_email?: string; support_url?: string };
+	const businessProfile: ExtendedBusinessProfile = {};
+	if (email) businessProfile.support_email = email;
+	if (url) businessProfile.support_url = url;
+	const config = await stripe.billingPortal.configurations.create({
+		business_profile: businessProfile as Stripe.BillingPortal.ConfigurationCreateParams.BusinessProfile,
+		features: { payment_method_update: { enabled: true }, invoice_history: { enabled: true } },
+	});
+	return config.id;
+}
+
 export async function createPortalSession(customerId: string, returnUrl: string): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 
+	const configuration = await resolvePortalConfig();
 	try {
 		const session = await stripe.billingPortal.sessions.create({
 			customer: customerId,
 			return_url: returnUrl,
+			...(configuration ? { configuration } : {}),
 		});
 		return session.url;
 	} catch (err) {
