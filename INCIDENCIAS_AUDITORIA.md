@@ -282,6 +282,18 @@ más claro).
 
 ---
 
+## 22. Lista de categorías con solapes reales — pendiente de decidir
+
+**Dónde:** `src/lib/constants.ts` (`VALID_CATEGORIES`, `CATEGORY_COLORS`), compartida entre `suppliers.category` y `products.category`.
+
+**Qué pasaba:** la lista tiene 13 categorías + "Other". Tres de ellas se pisan entre sí sin un criterio claro de cuál usar: **"Bebidas"**, **"Vinos y Cavas"** y **"Café y Bebidas Calientes"**. Un mismo artículo (ej. un vino, un refresco, un café) puede caer razonablemente en más de una según quién lo categorice — no hay una regla que las distinga. Detectado al revisar por qué la usuaria sentía que "algunas categorías no tienen sentido" en Productos.
+
+**Riesgo:** categorización inconsistente del mismo tipo de artículo según quién lo dé de alta (a mano, o por sugerencia de la IA); ensucia comparativas por categoría en Analíticas/Proveedores/Productos, que es justo lo que se ha reforzado esta sesión (ver incidencia 16 y `SEGUIR_SESION.md` puntos 6-7).
+
+**Estado:** ⚠️ **Sin resolver, pendiente de decisión de la usuaria.** Se propuso consolidar (ej. fusionar Vinos y Cavas + Café dentro de Bebidas) pero no se ha confirmado explícitamente — no se ha tocado la lista porque cambiar el catálogo de categorías afecta a datos ya guardados en `suppliers` y `products`. **No tocar sin confirmación explícita de qué categorías fusionar.**
+
+---
+
 ## Resumen para quien retome esto en `main`
 
 | # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |
