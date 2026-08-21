@@ -50,13 +50,12 @@
   ];
 
   const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
-  function formatMonthBucket(bucket: string, withYear: boolean): string {
+  function formatMonthBucket(bucket: string): string {
     const [y, m] = bucket.split('-').map(Number);
-    const label = trendFmt.format(new Date(y, m - 1, 1));
-    return withYear ? `${label} ${String(y).slice(2)}` : label;
+    return `${trendFmt.format(new Date(y, m - 1, 1))} ${String(y).slice(2)}`;
   }
   function formatSpendBucketLabel(bucket: string): string {
-    if (bucket.length === 7) return formatMonthBucket(bucket, period === 'all');
+    if (bucket.length === 7) return formatMonthBucket(bucket);
     const [, , d] = bucket.split('-');
     return String(Number(d));
   }
@@ -92,7 +91,7 @@
         values: buckets.map(b => byBucket.get(b) ?? 0),
       };
     });
-    return { xLabels: buckets.map(b => formatMonthBucket(b, true)), series };
+    return { xLabels: buckets.map(formatMonthBucket), series };
   });
 
   const periods: Array<[string, string]> = [

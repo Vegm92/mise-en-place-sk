@@ -14,14 +14,15 @@
   ];
 
   const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
-  function formatMonthBucket(bucket: string, withYear: boolean): string {
+  // Month-grain buckets always show the year -- same rule everywhere a bucket
+  // label is rendered, so switching between chart modes never changes format.
+  function formatMonthBucket(bucket: string): string {
     const [y, m] = bucket.split('-').map(Number);
-    const label = trendFmt.format(new Date(y, m - 1, 1));
-    return withYear ? `${label} ${String(y).slice(2)}` : label;
+    return `${trendFmt.format(new Date(y, m - 1, 1))} ${String(y).slice(2)}`;
   }
   function formatSpendBucketLabel(bucket: string): string {
     // 'YYYY-MM' (year/all periods) or 'YYYY-MM-DD' (day/month periods)
-    if (bucket.length === 7) return formatMonthBucket(bucket, data.period === 'all');
+    if (bucket.length === 7) return formatMonthBucket(bucket);
     const [, , d] = bucket.split('-');
     return String(Number(d));
   }
@@ -57,7 +58,7 @@
         values: buckets.map(b => byBucket.get(b) ?? 0),
       };
     });
-    return { xLabels: buckets.map(b => formatMonthBucket(b, true)), series };
+    return { xLabels: buckets.map(formatMonthBucket), series };
   });
 
   const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
@@ -211,9 +212,9 @@
       {/if}
     </div>
 
-    <div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;">
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
 
-      <div class="card" style="padding:16px;">
+      <div class="card col-span-3 max-[900px]:col-span-2" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.topItemsSub')}</div>
         {#if !data.top_items.length}
@@ -278,7 +279,7 @@
         {/if}
       </div>
 
-      <div class="card" style="padding:16px;">
+      <div class="card col-span-1 max-[900px]:col-span-2" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.byCategorySub')}</div>
         {#if !data.category_spend.length}

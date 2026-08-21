@@ -1,6 +1,8 @@
 <script lang="ts">
   type LineSeries = { key: string; label: string; color: string; values: number[] };
 
+  const gid = `tlc${Math.random().toString(36).slice(2, 8)}`;
+
   let {
     xLabels,
     series,
@@ -33,6 +35,11 @@
   function pointsFor(values: number[]): string {
     return values.map((v, i) => `${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(' ');
   }
+  function fillPointsFor(values: number[]): string {
+    if (values.length === 0) return '';
+    const base = yFor(0);
+    return `${xFor(0).toFixed(1)},${base} ${pointsFor(values)} ${xFor(values.length - 1).toFixed(1)},${base}`;
+  }
 
   let hovered = $state<number | null>(null);
 
@@ -47,6 +54,15 @@
 {:else}
   <div class="no-scrollbar" style="overflow-x:auto;position:relative;">
     <svg {width} {height} viewBox="0 0 {width} {height}" style="display:block;overflow:visible;">
+      <defs>
+        {#each series as s, i (s.key)}
+          <linearGradient id="{gid}-{i}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color={s.color} stop-opacity="0.35" />
+            <stop offset="100%" stop-color={s.color} stop-opacity="0.02" />
+          </linearGradient>
+        {/each}
+      </defs>
+
       <!-- baseline -->
       <line x1="0" y1={yFor(0)} x2={width} y2={yFor(0)} stroke="var(--mep-divider)" stroke-width="1" />
 
@@ -55,6 +71,9 @@
           stroke="var(--mep-border-strong)" stroke-width="1" stroke-dasharray="2 2" />
       {/if}
 
+      {#each series as s, i (s.key)}
+        <polygon points={fillPointsFor(s.values)} fill="url(#{gid}-{i})" opacity={hasAnyData ? 1 : 0.35} />
+      {/each}
       {#each series as s (s.key)}
         <polyline points={pointsFor(s.values)} fill="none" stroke={s.color} stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" opacity={hasAnyData ? 1 : 0.35} />
@@ -72,7 +91,7 @@
       {/each}
 
       {#each xLabels as _, i}
-        <rect x={xFor(i) - stepX / 2} y="0" width={stepX} {height} fill="transparent"
+        <rect x={xFor(i) - stepX / 2} y="0" width={stepX} {height} fill="transparent" pointer-events="all"
           onmouseenter={() => hovered = i} onmouseleave={() => hovered = null} role="presentation" />
       {/each}
     </svg>

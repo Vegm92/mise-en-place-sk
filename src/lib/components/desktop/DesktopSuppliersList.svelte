@@ -72,11 +72,12 @@
   ];
 
   const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
+  // Month-grain buckets always show the year -- same rule as every other
+  // trend chart in the app, so the format never shifts between screens.
   function formatTrendBucketLabel(bucket: string): string {
     if (bucket.length === 7) {
       const [y, m] = bucket.split('-').map(Number);
-      const label = trendFmt.format(new Date(y, m - 1, 1));
-      return period === 'all' ? `${label} ${String(y).slice(2)}` : label;
+      return `${trendFmt.format(new Date(y, m - 1, 1))} ${String(y).slice(2)}`;
     }
     const [, , d] = bucket.split('-');
     return String(Number(d));
