@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, locale } from '$lib/i18n';
+  import TrendBarChart from '$lib/components/mep/TrendBarChart.svelte';
 
   interface Kpis {
     total_items_spend: number | null;
-    total_line_items: number | null;
-    unique_items: number | null;
     avg_invoice_items: number | null;
+    top_category: { category: string; total: number } | null;
+    top_supplier: { name: string; total: number } | null;
   }
   interface TopItem {
     description: string;
@@ -22,18 +23,43 @@
     pct: number;
     color: string;
   }
+  interface TrendRow { bucket: string; category: string; amount: number; }
 
   let {
     period,
     kpis,
     top_items,
     category_spend,
+    trend,
+    trendCategories,
   }: {
     period: string;
     kpis: Kpis;
     top_items: TopItem[];
     category_spend: CategorySpend[];
+    trend: TrendRow[];
+    trendCategories: string[];
   } = $props();
+
+  let trendCategory = $state('');
+  const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
+  function formatBucketLabel(bucket: string): string {
+    if (bucket.length === 7) {
+      const [y, m] = bucket.split('-').map(Number);
+      const label = trendFmt.format(new Date(y, m - 1, 1));
+      return period === 'all' ? `${label} ${String(y).slice(2)}` : label;
+    }
+    const [, , d] = bucket.split('-');
+    return String(Number(d));
+  }
+  const trendBars = $derived.by(() => {
+    const rows = trendCategory ? trend.filter(r => r.category === trendCategory) : trend;
+    const byBucket = new Map<string, number>();
+    for (const r of rows) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
+    return [...byBucket.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucket, value]) => ({ label: formatBucketLabel(bucket), value }));
+  });
 
   const periods: Array<[string, string]> = [
     ['day',   $t('inv.period.day')],
@@ -96,16 +122,18 @@
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('tbl.lines')}</div>
-        <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
-          {kpis?.total_line_items ?? '—'}
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.kpi.topCategory')}</div>
+        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px; line-height: 1.2;">
+          {kpis?.top_category ? $tcat(kpis.top_category.category) : $t('spend.kpi.noData')}
         </div>
+        {#if kpis?.top_category}<div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{fmtEur(kpis.top_category.total)}</div>{/if}
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.uniqueItems')}</div>
-        <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
-          {kpis?.unique_items ?? '—'}
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.kpi.topSupplier')}</div>
+        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px; line-height: 1.2;">
+          {kpis?.top_supplier ? kpis.top_supplier.name : $t('spend.kpi.noData')}
         </div>
+        {#if kpis?.top_supplier}<div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{fmtEur(kpis.top_supplier.total)}</div>{/if}
       </div>
       <div class="card" style="padding: 12px;">
         <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.avgItems')}</div>
@@ -113,6 +141,24 @@
           {kpis?.avg_invoice_items != null ? kpis.avg_invoice_items.toFixed(1) : '—'}
         </div>
       </div>
+    </div>
+
+    <div class="card" style="padding: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;">
+        <div class="subtitle" style="font-size: 14px;">{$t('spend.trend.title')}</div>
+        <div style="position: relative;">
+          <select class="btn btn-secondary"
+            style="height: 28px; font-size: 11.5px; appearance: none; padding: 0 24px 0 8px; cursor: pointer;"
+            bind:value={trendCategory}>
+            <option value="">{$t('spend.trend.allCategories')}</option>
+            {#each trendCategories as cat}
+              <option value={cat}>{$tcat(cat)}</option>
+            {/each}
+          </select>
+          <span style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--mep-fg-3); font-size: 9px;">▾</span>
+        </div>
+      </div>
+      <TrendBarChart bars={trendBars} valueFormatter={fmtEur} emptyLabel={$t('spend.noDataYet')} />
     </div>
 
     {#if top_items?.length > 0}

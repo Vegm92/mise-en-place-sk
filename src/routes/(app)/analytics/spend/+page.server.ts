@@ -40,6 +40,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const prevDateFilter = (prevFrom && prevTo)
 			? sql`AND i.invoice_date >= ${isoDate(prevFrom)} AND i.invoice_date < ${isoDate(prevTo)}`
 			: null;
+		// 'year'/'all' bucket by month (invoice_date has no time component, so
+		// finer buckets than a day are meaningless); everything else buckets
+		// daily.
+		const trendBucketExpr = (period === 'year' || period === 'all')
+			? sql`TO_CHAR(i.invoice_date, 'YYYY-MM')`
+			: sql`TO_CHAR(i.invoice_date, 'YYYY-MM-DD')`;
 
 		type TopItem = { description: string; total_spend: string; item_count: number; avg_unit_price: string | null; supplier_name: string };
 		type CatRow = { category: string; total: string; invoice_count: number };
@@ -47,8 +53,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
 		type PrevKpisRow = { total_items_spend: string | null; total_line_items: number };
 		type SeriesRow = { invoice_date: string; amount: string | null };
+		type TopSupplierRow = { supplier_name: string; total: string };
+		type TrendRow = { bucket: string; category: string; amount: string };
 
-		const [topItems, categorySpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows] = await Promise.all([
+		const [topItems, categorySpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows, topSupplierRows, trendRows] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT
 					MAX(m.description)    AS description,
@@ -124,6 +132,32 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					  AND i.invoice_date >= ${isoDate(prevFrom)}
 				`)
 				: Promise.resolve([]),
+
+			db.execute<TopSupplierRow>(sql`
+				SELECT s.name AS supplier_name, SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
+				FROM invoice_line_items ili
+				JOIN invoices i ON i.id = ili.invoice_id
+				JOIN suppliers s ON s.id = i.supplier_id
+				WHERE ili.description IS NOT NULL AND ili.description != ''
+				  AND i.restaurant_id = ${rid}
+				  ${dateFilter}
+				GROUP BY s.id, s.name
+				ORDER BY total DESC
+				LIMIT 1
+			`),
+
+			db.execute<TrendRow>(sql`
+				SELECT ${trendBucketExpr} AS bucket, COALESCE(s.category, 'Other') AS category,
+					SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS amount
+				FROM invoice_line_items ili
+				JOIN invoices i ON i.id = ili.invoice_id
+				JOIN suppliers s ON s.id = i.supplier_id
+				WHERE ili.description IS NOT NULL AND ili.description != ''
+				  AND i.restaurant_id = ${rid}
+				  ${dateFilter}
+				GROUP BY bucket, category
+				ORDER BY bucket ASC
+			`),
 		]);
 
 		const itemTrendMap = new Map<string, number[]>();
@@ -157,30 +191,43 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		const kpisRow0 = kpisRows[0];
 		const currentSpend = moneyToNumber(kpisRow0?.total_items_spend ?? '0');
-		const currentLineItems = kpisRow0?.total_line_items ?? 0;
 
 		const prevRow0 = prevKpisRows[0];
 		const prevSpend = prevRow0 ? moneyToNumber(prevRow0.total_items_spend ?? '0') : null;
-		const prevLineItems = prevRow0 ? (prevRow0.total_line_items ?? 0) : null;
 
 		const seriesInput = seriesRows.map(r => ({ createdAt: parseLocalDate(r.invoice_date), amount: moneyToNumber(r.amount ?? '0') }));
-		const countSeriesInput = seriesInput.map(r => ({ createdAt: r.createdAt, amount: 1 }));
 		const spendSeries = bucketSeries(seriesInput, period, from, prevFrom, prevTo);
-		const lineItemsSeries = bucketSeries(countSeriesInput, period, from, prevFrom, prevTo);
+
+		const topSupplierRow = topSupplierRows[0];
+		const topSupplier = topSupplierRow
+			? { name: topSupplierRow.supplier_name, total: moneyToNumber(topSupplierRow.total) }
+			: null;
+
+		const trend = trendRows.map(r => ({
+			bucket: r.bucket,
+			category: r.category,
+			amount: moneyToNumber(r.amount),
+		}));
+
+		// Sourced live from the same join as the trend chart (not the
+		// mv_category_monthly_spend materialized view, which only refreshes on
+		// a schedule) so this reflects invoices saved seconds ago.
+		const categoryTotals = new Map<string, number>();
+		for (const r of trend) categoryTotals.set(r.category, (categoryTotals.get(r.category) ?? 0) + r.amount);
+		const topCategoryEntry = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1])[0];
+		const topCategory = topCategoryEntry ? { category: topCategoryEntry[0], total: topCategoryEntry[1] } : null;
+		const trendCategories = [...categoryTotals.keys()].sort();
 
 		const kpis = {
 			total_items_spend: currentSpend,
-			total_line_items: currentLineItems,
-			unique_items: kpisRow0?.unique_items ?? 0,
 			avg_invoice_items: kpisRow0?.avg_invoice_items ?? null,
 			spend_delta_pct: prevSpend !== null ? deltaPct(currentSpend, prevSpend) : null,
-			line_items_delta_pct: prevLineItems !== null ? deltaPct(currentLineItems, prevLineItems) : null,
 			spend_spark: spendSeries?.current ?? null,
 			spend_spark_prev: spendSeries?.previous ?? null,
-			line_items_spark: lineItemsSeries?.current ?? null,
-			line_items_spark_prev: lineItemsSeries?.previous ?? null,
+			top_category: topCategory,
+			top_supplier: topSupplier,
 		};
 
-		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period };
+		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period, trend, trendCategories };
 	});
 };

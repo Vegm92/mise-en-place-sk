@@ -1,11 +1,34 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, locale } from '$lib/i18n';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
+  import TrendBarChart from '$lib/components/mep/TrendBarChart.svelte';
 
   let { data }: { data: PageData } = $props();
+
+  let trendCategory = $state('');
+
+  const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
+  function formatBucketLabel(bucket: string): string {
+    // 'YYYY-MM' (year/all periods) or 'YYYY-MM-DD' (day/month periods)
+    if (bucket.length === 7) {
+      const [y, m] = bucket.split('-').map(Number);
+      const label = trendFmt.format(new Date(y, m - 1, 1));
+      return data.period === 'all' ? `${label} ${String(y).slice(2)}` : label;
+    }
+    const [, , d] = bucket.split('-');
+    return String(Number(d));
+  }
+  const trendBars = $derived.by(() => {
+    const rows = trendCategory ? data.trend.filter(r => r.category === trendCategory) : data.trend;
+    const byBucket = new Map<string, number>();
+    for (const r of rows) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
+    return [...byBucket.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucket, value]) => ({ label: formatBucketLabel(bucket), value }));
+  });
 
   const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
     ['day',   'inv.period.day'],
@@ -62,6 +85,8 @@
     kpis={data.kpis}
     top_items={data.top_items}
     category_spend={data.category_spend}
+    trend={data.trend}
+    trendCategories={data.trendCategories}
   />
 </div>
 
@@ -84,21 +109,39 @@
         invert
       />
       <KpiCard
-        label={$t('spend.lineItems')}
-        value={data.kpis.total_line_items}
-        delta={data.kpis.line_items_delta_pct !== null ? Math.round(data.kpis.line_items_delta_pct * 10) / 10 : undefined}
-        deltaCtx={data.kpis.line_items_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
-        spark={data.kpis.line_items_spark ?? undefined}
-        sparkPrev={data.kpis.line_items_spark_prev ?? undefined}
+        label={$t('spend.kpi.topCategory')}
+        value={data.kpis.top_category ? $tcat(data.kpis.top_category.category) : $t('spend.kpi.noData')}
+        sub={data.kpis.top_category ? fmtEur(data.kpis.top_category.total) : undefined}
       />
       <KpiCard
-        label={$t('spend.uniqueItems')}
-        value={data.kpis.unique_items}
+        label={$t('spend.kpi.topSupplier')}
+        value={data.kpis.top_supplier ? data.kpis.top_supplier.name : $t('spend.kpi.noData')}
+        sub={data.kpis.top_supplier ? fmtEur(data.kpis.top_supplier.total) : undefined}
       />
       <KpiCard
         label={$t('spend.avgItems')}
         value={data.kpis.avg_invoice_items != null ? data.kpis.avg_invoice_items.toFixed(1) : '—'}
       />
+    </div>
+
+    <div class="card" style="padding:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+        <div>
+          <div class="subtitle">{$t('spend.trend.title')}</div>
+        </div>
+        <div style="position:relative;">
+          <select class="btn btn-secondary"
+            style="height:30px;font-size:12px;appearance:none;padding:0 26px 0 10px;cursor:pointer;min-width:150px;"
+            bind:value={trendCategory}>
+            <option value="">{$t('spend.trend.allCategories')}</option>
+            {#each data.trendCategories as cat}
+              <option value={cat}>{$tcat(cat)}</option>
+            {/each}
+          </select>
+          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+        </div>
+      </div>
+      <TrendBarChart bars={trendBars} valueFormatter={fmtEur} emptyLabel={$t('spend.noDataYet')} />
     </div>
 
     <div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;">
