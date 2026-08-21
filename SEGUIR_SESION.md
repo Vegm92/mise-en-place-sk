@@ -175,4 +175,38 @@ Continuación directa del punto 4. La usuaria dio feedback visual concreto tras 
 5. **Revisar si Albaranes también necesita el bloque de "fila 3"** (filtro + acción) que ahora comparten Productos/Proveedores — Albaranes tiene su propia fila de filtros más completa (proveedor, estado, fechas, orden) dentro de la tarjeta de listado en vez de encima; no se ha tocado porque es un patrón distinto con más sentido ahí (más filtros que un simple desplegable de categoría), pero merece una pasada de ojo si se sigue viendo descoordinado.
 6. **Aviso de sesiones en paralelo:** durante esta sesión había otras dos ventanas de Claude Code abiertas a la vez sobre esta misma carpeta (no worktrees separados). No causaron conflicto esta vez, pero si se vuelve a trabajar con varias ventanas abiertas sobre `mvp-modular-limpio`, conviene confirmar antes cuál está tocando qué, para no pisarse cambios en los mismos archivos.
 
+---
+
+## 6. Correcciones de fallos reales + gráficos comparativos de verdad — 2026-08-21 (continuación)
+
+Tras ver el punto 5 en pantalla, la usuaria dio una lista nueva de fallos ("los errores sí afectan al uso, hay que corregirlos") y replanteó por completo cómo debían ser los gráficos comparativos. Commits: `e0c6f18`, `297d294`, `fc9f1bd`, `bea1ff8`, `cc9fdbe`, `f741075`.
+
+**Bugs corregidos (2 tests fallaban por estar desactualizados, no por fallo real de la app):**
+- `tests/i18n.test.ts` comparaba contra "factura/facturas" cuando el vocabulario ya se cambió a "albarán/albaranes" en una sesión anterior (commit `4ce4c3e`) — el código estaba bien, el test no.
+- `tests/supplier-reliability-price-stability.test.ts` esperaba 33 puntos (escala vieja de 3 bloques con puntualidad de pago, que ya se eliminó del cálculo) en vez de 50 (escala actual de 2 bloques). El código estaba bien, el test no.
+- Los 2 de `queue-depth` siguen siendo intermitentes por concurrencia de tests contra la misma base compartida — no relacionados con ningún cambio de esta rama, se dejan tal cual.
+
+**Copy:** "Albaranes" (tarjeta KPI) → "Albaranes subidos" — mismo fallo de título duplicado que ya se había corregido en Productos, se me había escapado en la propia pantalla de Albaranes.
+
+**Categorías (`VALID_CATEGORIES` en `src/lib/constants.ts`):** detectado un solape real entre "Bebidas", "Vinos y Cavas" y "Café y Bebidas Calientes" — un mismo artículo puede caer en más de una según quién lo categorice. **No se ha tocado** porque cambiar el catálogo de categorías afecta a datos ya guardados en proveedores y productos — queda pendiente de que la usuaria decida si se consolida.
+
+**Catalán:** pedido explícitamente, pero es un tercer idioma completo (~650 cadenas). Decisión de la usuaria: **queda registrado como incidencia/trabajo pendiente, no se aborda ahora.**
+
+**Rediseño de los gráficos comparativos (cambio de rumbo tras ver la primera versión):**
+La primera versión (commit `fc9f1bd`) era un gráfico de barras con un filtro de una sola categoría a la vez. La usuaria lo vio y pidió explícitamente otra cosa: gráfico de **líneas**, con un selector central que permita comparar **varias series a la vez** (categorías, o productos/proveedores concretos entre sí — ej. Coca-Cola vs. Fanta, o un proveedor frente a otro). Se reconstruyó con ese criterio:
+
+- **Componente nuevo `TrendLineChart.svelte`** (sustituye a `TrendBarChart.svelte`, que se borró): una línea por serie, hover con línea guía + tooltip de todas las series en ese punto, y si no hay datos dibuja igualmente el eje/línea base en vez de un hueco en blanco (pedido explícito: "cuando no haya datos, prioriza... una línea").
+- **Analíticas** (`/analytics/spend`): selector "Categorías" / "Productos" (píldora) + chips debajo (el "selector central"). "Categorías" = gasto por categoría en el tiempo. "Productos" = **histórico de precio unitario** (no gasto) de los artículos principales — permite ver si un ingrediente ha subido de precio, que es una pregunta distinta de cuánto se ha gastado en él.
+- **Proveedores** (`/suppliers`): mismo patrón, selector "Categorías" / "Proveedores" — con "Proveedores" se compara directamente cuánto se le compra a uno frente a otro en el tiempo.
+- **Productos** (`/products`): mismo gráfico pero sin selector de modo (no hay un segundo eje de comparación natural como "proveedor" en un catálogo) — solo categorías, mide productos catalogados por periodo (usa `products.created_at`, coherente con el selector de periodo que ya se le añadió en el punto 5).
+- **Corregido de paso:** "Categoría con más gasto" y el propio selector de categorías del gráfico de Analíticas sacaban los datos de `mv_category_monthly_spend` (vista materializada, solo se refresca por cron) — con un albarán recién guardado habría dicho "Sin datos" un rato. Ahora se calculan en vivo de las mismas filas que ya usa el gráfico. El resto de la página (paneles "Artículos principales"/"Por categoría" más abajo) sigue usando la vista materializada — no se ha tocado, es un comportamiento preexistente más amplio.
+- **Verificado con datos reales** insertados y borrados en la base local (Postgres del entorno de desarrollo) para las 3 pantallas — no queda ningún dato de prueba.
+- **Aviso de entorno, no de código:** en mitad de esta verificación, tests que habían pasado momentos antes empezaron a fallar en cascada (error Postgres `53300`, demasiadas conexiones) — causado por ~90 conexiones inactivas que habían dejado sueltas ejecuciones anteriores de `vitest` de esta misma sesión contra el Postgres local (`max_connections=100`). Se liberaron a mano y los tests volvieron a 1092/1092 en verde. Si en otra sesión los tests fallan todos de golpe con errores de conexión, revisar `pg_stat_activity` antes de asumir que es un fallo real.
+
+**Sin tocar, pendiente para otra sesión:**
+1. **`MobileSuppliersList.svelte`** no lleva el gráfico nuevo (solo se hizo en la versión de escritorio de Proveedores). Albaranes/Analíticas/Productos sí cubren móvil.
+2. **Albaranes no tiene el gráfico grande** — se quedó con las mini-gráficas por tarjeta KPI que ya tenía de antes. No se pidió explícitamente añadírselo aquí; valorar si hace falta para que las 4 pantallas queden a la misma altura.
+3. **Auditoría de "rejillas desordenadas"**: la usuaria mencionó que el layout general "da un toc" pero, preguntada, prefirió que seguir con Productos primero y dejar esta revisión para el final, viendo las 4 pantallas ya completas juntas — **queda por hacer**, es lo primero a retomar.
+4. Categorías solapadas (Bebidas/Vinos y Cavas/Café) y catalán (arriba) siguen sin decisión.
+
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
