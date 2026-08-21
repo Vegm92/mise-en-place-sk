@@ -62,6 +62,9 @@ describe.skipIf(!hasDbEnv)('supplier price-stability score (issue #308)', () => 
 		const result = await computeAndCacheReliabilityScore(supplierId, rid);
 		expect(result.priceStabilityCv).not.toBeNull();
 		expect(result.priceStabilityCv!).toBeLessThan(5);
-		expect(result.priceStabilityScore).toBe(33);
+		// Price stability is now one of 2 components (50/50) since the
+		// timeliness-of-payment component was dropped — was 33 (of 3 × ~33)
+		// before that change.
+		expect(result.priceStabilityScore).toBe(50);
 	});
 });
