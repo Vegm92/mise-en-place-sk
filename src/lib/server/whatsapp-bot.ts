@@ -6,6 +6,7 @@ import { claimIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { checkRateLimit } from './rate-limiter';
+import { getAccessState } from './billing';
 import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 import { createBatch, getItem, getBatchItems, markQueued } from './batch';
 import { enqueueBatchExtraction } from './extract-batch';
@@ -81,6 +82,18 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 	if (!restaurantId) {
 		await handleUnknownSender(msg, msg.from);
 		return;
+	}
+	if (msg.type === 'image' || msg.type === 'document') {
+		const access = await getAccessState(restaurantId);
+		if (!access.allowed) {
+			await sendWhatsAppMessage(
+				msg.from,
+				access.trialExpired
+					? '❌ Tu prueba gratuita ha terminado. Activa una suscripción para volver a procesar facturas.'
+					: '❌ Tu suscripción no está activa. Reactívala para volver a procesar facturas.',
+			);
+			return;
+		}
 	}
 	await dispatchMedia(msg, msg.from, restaurantId);
 }
