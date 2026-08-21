@@ -399,21 +399,29 @@ export async function createCheckoutSession(
 	const founder    = await isFounderRestaurant(restaurantId);
 	const useCoupon  = founder && FOUNDER_COUPON_ID !== '';
 
-	const session = await stripe.checkout.sessions.create({
-		customer: customerId,
-		mode: 'subscription',
-		line_items: [{ price: priceId, quantity: 1 }],
-		metadata: { restaurantId, ...(userId ? { userId } : {}) },
-		subscription_data: {
-			trial_period_days: trialDaysFor(founder),
+	let session: Stripe.Checkout.Session;
+	try {
+		session = await stripe.checkout.sessions.create({
+			customer: customerId,
+			mode: 'subscription',
+			line_items: [{ price: priceId, quantity: 1 }],
 			metadata: { restaurantId, ...(userId ? { userId } : {}) },
-		},
-		success_url: successUrl,
-		cancel_url: cancelUrl,
-		...(useCoupon
-			? { discounts: [{ coupon: FOUNDER_COUPON_ID }] }
-			: { allow_promotion_codes: true }),
-	}, idempotencyKey ? { idempotencyKey } : undefined);
+			subscription_data: {
+				trial_period_days: trialDaysFor(founder),
+				metadata: { restaurantId, ...(userId ? { userId } : {}) },
+			},
+			success_url: successUrl,
+			cancel_url: cancelUrl,
+			...(useCoupon
+				? { discounts: [{ coupon: FOUNDER_COUPON_ID }] }
+				: { allow_promotion_codes: true }),
+		}, idempotencyKey ? { idempotencyKey } : undefined);
+	} catch (err) {
+		if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing') {
+			throw new StaleCustomerError(customerId);
+		}
+		throw err;
+	}
 
 	return session.url!;
 }
@@ -724,6 +732,13 @@ export async function syncSubscriptionFromStripe(restaurantId: string): Promise<
 		await applyStatusSettings(rootRid, status, tier);
 		console.info(`[billing] reconciled subscription from Stripe — restaurant=${rootRid}, tier=${tier}, status=${status}, subscription=${resolvedSubId}`);
 	} catch (err) {
+		if (err instanceof StaleCustomerError) {
+			await db.update(subscriptions)
+				.set({ stripeCustomerId: null, updatedAt: new Date() })
+				.where(tdb.scope(subscriptions.restaurantId));
+			console.warn(`[billing] cleared stale Stripe customer ${err.customerId} for restaurant=${rootRid}`);
+			return;
+		}
 		console.error(`[billing] reconcile failed for ${rootRid}:`, err);
 		Sentry.captureException(err, { tags: { area: 'billing', op: 'reconcile' } });
 	}
@@ -745,7 +760,15 @@ async function resolveLiveSubscription(
 	}
 	if (!customerId) return null;
 
-	const liveList = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
+	let liveList: Stripe.ApiList<Stripe.Subscription>;
+	try {
+		liveList = await stripe.subscriptions.list({ customer: customerId, status: 'all', limit: 100 });
+	} catch (err) {
+		if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing') {
+			throw new StaleCustomerError(customerId);
+		}
+		throw err;
+	}
 	const matches = liveList.data.filter((s) => isLiveSubscription(s) && s.metadata?.restaurantId === rootRid);
 	if (matches.length > 1) {
 		const msg = `[billing] reconcile ambiguous: customer ${customerId} has ${matches.length} live subscriptions tagged for restaurant ${rootRid} — leaving unresolved`;
