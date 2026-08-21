@@ -93,6 +93,7 @@
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each overdue as r}
+              <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;display:contents;">
               <div class="card" style="padding: 12px 14px; background: var(--mep-neg-soft);">
                 <div style="display: flex; align-items: flex-start; gap: 12px;">
                   <div style="flex: 1; min-width: 0;">
@@ -115,6 +116,7 @@
                   </button>
                 </form>
               </div>
+              </a>
             {/each}
           </div>
         </div>
@@ -127,6 +129,7 @@
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each due_soon as r}
+              <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;display:contents;">
               <div class="card" style="padding: 12px 14px;">
                 <div style="display: flex; align-items: flex-start; gap: 12px;">
                   <div style="flex: 1; min-width: 0;">
@@ -149,6 +152,7 @@
                   </button>
                 </form>
               </div>
+              </a>
             {/each}
           </div>
         </div>
