@@ -456,6 +456,13 @@ export async function switchTier(restaurantId: string, newTier: PlanTier): Promi
 	await applyTierSettings(restaurantId, newTier);
 }
 
+export class StaleCustomerError extends Error {
+	constructor(public customerId: string) {
+		super(`Stripe customer not found: ${customerId}`);
+		this.name = 'StaleCustomerError';
+	}
+}
+
 export async function createPortalSession(customerId: string, returnUrl: string): Promise<string> {
 	if (!stripe) throw new Error('Stripe not configured');
 
@@ -467,8 +474,8 @@ export async function createPortalSession(customerId: string, returnUrl: string)
 		return session.url;
 	} catch (err) {
 		if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing') {
-			console.error(`[billing] stale Stripe customer ${customerId} — falling back to billing page`);
-			return returnUrl;
+			console.error(`[billing] stale Stripe customer ${customerId} (test/live key mismatch or deleted)`);
+			throw new StaleCustomerError(customerId);
 		}
 		throw err;
 	}
