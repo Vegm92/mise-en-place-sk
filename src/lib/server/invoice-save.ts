@@ -306,6 +306,114 @@ export async function linkProductsToInvoice(
 	return productByKey;
 }
 
+const HEADER_CONFIDENCE_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
+
+function isLowConfidenceBlocked(item: BatchItem | null, formData: FormData): boolean {
+	if (formData.get('low_confidence_ack') === 'true') return false;
+	const extractedData = item?.extractedData ?? undefined;
+	const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
+	const hasLowConf = HEADER_CONFIDENCE_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
+	const overallConf = typeof extractedData?.confidence === 'number' ? extractedData.confidence : 1;
+	return hasLowConf || overallConf < 0.85;
+}
+
+function resolveSupplierInfo(extracted: ExtractedInvoice | undefined, supplierName: string): { proposedCategory: string; proposedContact: SupplierContactInfo } {
+	const sameSupplier = typeof extracted?.supplier_name === 'string' && isSameSupplierName(extracted.supplier_name, supplierName);
+	return {
+		proposedCategory: sameSupplier
+			? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
+			: UNCATEGORIZED_CATEGORY,
+		proposedContact: sameSupplier
+			? { cif: extracted?.supplier_nif ?? null, email: extracted?.supplier_email ?? null, phone: extracted?.supplier_phone ?? null, address: extracted?.supplier_address ?? null }
+			: {},
+	};
+}
+
+async function runPostSaveEffects(params: {
+	invoiceId: number;
+	supplierId: number;
+	rid: string;
+	supplierName: string;
+	invoiceNumber: string;
+	invoiceDate: string | null;
+	dueDate: string | null;
+	totalAmount: string | null;
+	documentType: 'factura' | 'albaran' | null;
+	confidenceRaw: number | null;
+	lineInputs: LineFormInput[];
+	savedItems: EnrichedLineItem[];
+	unitConversionAlerts: Alert[];
+	qrMismatches: ReturnType<typeof detectVerifactuMismatch>;
+	extractedData: Record<string, unknown> | undefined;
+	lineDescriptions: string[];
+	lineQuantities: string[];
+	lineUnits: string[];
+	lineUnitPrices: string[];
+	lineTotalPrices: string[];
+	proposedCategory: string;
+	tdb: ReturnType<typeof forTenant>;
+}): Promise<boolean> {
+	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, tdb } = params;
+	let isFirstInvoice = false;
+	try {
+		const productByKey = await linkProductsToInvoice(invoiceId, supplierId, rid, lineInputs);
+
+		const priceAlerts = await runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey);
+		const { stockTracking } = await getTierFeatures(rid);
+		const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
+		const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
+		const categoryAlerts = await runCategorizationNudge(invoiceId, supplierId, rid);
+		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
+		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
+			invoiceId, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
+		);
+		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
+			notificationType: 'verifactu_qr_mismatch',
+			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
+			payload: {
+				invoiceNumber, mismatches: qrMismatches,
+				messageKey: 'notif.msg.verifactuMismatch',
+				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
+			},
+		}] : [];
+		await saveAlerts(invoiceId, rid, [
+			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
+			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
+		]);
+
+		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+
+		void maybeSendQuotaWarning(rid);
+
+		await logExtractionCorrections(
+			invoiceId,
+			supplierId,
+			rid,
+			extractedData,
+			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+		);
+
+		const onboardingRows = await db
+			.select({ value: settings.value })
+			.from(settings)
+			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
+			.limit(1);
+		isFirstInvoice = onboardingRows[0]?.value !== 'true';
+		if (isFirstInvoice) {
+			await db.insert(settings)
+				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
+				.onConflictDoUpdate({
+					target: [settings.restaurantId, settings.key],
+					set: { value: 'true' },
+				});
+		}
+	} catch (err) {
+		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
+	}
+	return isFirstInvoice;
+}
+
 export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
@@ -328,33 +436,10 @@ export async function saveReviewedInvoice(
 	const notesRaw = (formData.get('notes') as string) ?? '';
 	const notes = notesRaw.slice(0, 250) || null;
 
-	const lowConfAck = formData.get('low_confidence_ack') === 'true';
-	if (!lowConfAck) {
-		const extractedData = item?.extractedData ?? undefined;
-		const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
-		const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
-		const hasLowConf = HEADER_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
-		const overallConf = typeof extractedData?.confidence === 'number' ? extractedData.confidence : 1;
-		if (hasLowConf || overallConf < 0.85) {
-			return { type: 'lowConfidenceBlocked' };
-		}
-	}
+	if (isLowConfidenceBlocked(item, formData)) return { type: 'lowConfidenceBlocked' };
 
 	const extracted = item?.extractedData as ExtractedInvoice | undefined;
-	const sameSupplier =
-		typeof extracted?.supplier_name === 'string' &&
-		isSameSupplierName(extracted.supplier_name, supplierName);
-	const proposedCategory = sameSupplier
-		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
-		: UNCATEGORIZED_CATEGORY;
-	const proposedContact: SupplierContactInfo = sameSupplier
-		? {
-			cif: extracted?.supplier_nif ?? null,
-			email: extracted?.supplier_email ?? null,
-			phone: extracted?.supplier_phone ?? null,
-			address: extracted?.supplier_address ?? null,
-		}
-		: {};
+	const { proposedCategory, proposedContact } = resolveSupplierInfo(extracted, supplierName);
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
@@ -401,7 +486,7 @@ export async function saveReviewedInvoice(
 	let isDuplicate = false;
 	let isReplay = false;
 	const savedItems: EnrichedLineItem[] = [];
-	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
+	const unitConversionAlerts: Alert[] = [];
 
 	await db.transaction(async (tx) => {
 		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
@@ -488,63 +573,12 @@ export async function saveReviewedInvoice(
 		return { type: 'numberDuplicate' };
 	}
 
-	let isFirstInvoice = false;
-	try {
-		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
-
-		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
-		const { stockTracking } = await getTierFeatures(rid);
-		const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
-		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
-		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
-		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
-		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
-			invoiceId!, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
-		);
-		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
-			notificationType: 'verifactu_qr_mismatch',
-			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
-			payload: {
-				invoiceNumber, mismatches: qrMismatches,
-				messageKey: 'notif.msg.verifactuMismatch',
-				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
-			},
-		}] : [];
-		await saveAlerts(invoiceId!, rid, [
-			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
-		]);
-
-		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
-
-		void maybeSendQuotaWarning(rid);
-
-		await logExtractionCorrections(
-			invoiceId!,
-			supplierId,
-			rid,
-			extractedData,
-			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
-			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
-		);
-
-		const onboardingRows = await db
-			.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
-			.limit(1);
-		isFirstInvoice = onboardingRows[0]?.value !== 'true';
-		if (isFirstInvoice) {
-			await db.insert(settings)
-				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
-				.onConflictDoUpdate({
-					target: [settings.restaurantId, settings.key],
-					set: { value: 'true' },
-				});
-		}
-	} catch (err) {
-		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
-	}
+	const isFirstInvoice = await runPostSaveEffects({
+		invoiceId: invoiceId!, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate,
+		totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
+		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
+		lineTotalPrices, proposedCategory, tdb,
+	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };
 }
