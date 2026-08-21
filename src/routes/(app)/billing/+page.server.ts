@@ -157,7 +157,7 @@ export const actions: Actions = {
 					tier,
 					`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
 					`${url.origin}/billing`,
-					idemKey ?? undefined,
+					undefined,
 					locals.user.id,
 				);
 			}
