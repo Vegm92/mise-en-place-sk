@@ -223,7 +223,8 @@ La usuaria mandó una captura de Analíticas con líneas amarillas dibujadas a m
 - **Formato de fecha de los ejes unificado**: antes el modo "Productos" de Analíticas siempre mostraba el año y el modo "Categorías" solo a veces — ahora todos los buckets mensuales muestran siempre el año, en las 3+1 pantallas.
 
 **Sigue pendiente, sin resolver:**
-1. `MobileSuppliersList.svelte` sin el gráfico grande (ver punto 6.1).
-2. Categorías solapadas y catalán (ver punto 6.2) — la usuaria preguntó "¿categorías solapadas?" pero no llegó a decidir consolidar o no; sigue abierto.
+1. `MobileSuppliersList.svelte` sin el gráfico grande — Albaranes, Analíticas y Productos ya lo tienen en escritorio y móvil; Proveedores solo en escritorio.
+2. **Categorías solapadas** (Bebidas / Vinos y Cavas / Café y Bebidas Calientes) — registrado como incidencia **#22** en `INCIDENCIAS_AUDITORIA.md` con el detalle completo. No tocar `VALID_CATEGORIES` sin que la usuaria confirme explícitamente qué fusionar, porque afecta a datos ya guardados en `suppliers` y `products`.
+3. **Catalán** — tercer idioma completo (~650 cadenas en `src/lib/i18n.ts`). Decisión de la usuaria: aparcado, no es una sesión dedicada todavía. Al retomarlo, aclarar también si además de traducir el UI hace falta que el OCR/IA entienda albaranes escritos en catalán (pregunta distinta, sin resolver).
 
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
