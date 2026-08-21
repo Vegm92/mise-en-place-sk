@@ -120,6 +120,9 @@ Trampas a vigilar:
 
 ## 4. Interfaz (UI/UX) — sesión en curso, sin cerrar
 
+**Actualizado 2026-08-21.** Lo de abajo hasta "Siguiente paso al retomar" es historial (sesión del 20). Lo nuevo de hoy va después, en su propia sección.
+
+
 **Punto de partida (sesión 1):** se arrancó el servidor local para verla en el navegador por primera vez. Primera impresión: **"de momento es un desastre"**. Al retomar, se descubrió que el servidor llevaba corriendo desde muchas sesiones anteriores sin reiniciarse — eso corrompió su estado interno y hacía fallar la pantalla "Subir factura" con un error genérico. Se reinició limpio (`corepack pnpm dev`) y desapareció; no era un fallo de diseño ni de código.
 
 **Restructuración del menú (sesión 2, 2026-08-20 continuada):** antes de pulir visualmente (herramienta "impeccable"), se restructuró qué pestañas tiene la app, porque mezclaba lo que sí es del MVP con lo que ya estaba pospuesto (Presupuestos, Chat, Resumen semanal). Menú nuevo, decidido por la usuaria:
@@ -136,10 +139,35 @@ Las 4 pestañas (Avisos, Albaranes, Compras, Escandallos) están **siempre visib
 
 **Detectado pero sin resolver — para decidir en otra sesión:** la campanita de notificaciones arriba a la derecha (🔔) sigue mostrando "Alertas" con un contenido parecido pero no idéntico al de la nueva pantalla "Avisos" (esa campanita también avisa de proveedores sin categorizar, presupuesto superado, etc.). Puede que convenga fusionarlas o quitar la campanita ahora que existe Avisos como pantalla propia — pendiente de decidir contigo.
 
-**Siguiente paso al retomar:**
+**Siguiente paso al retomar (a fecha del 20, ya superado por la sección 5):**
 1. Releer este documento y `PROPUESTA_MVP.md`.
 2. Abrir `http://localhost:5173/avisos` y recorrer el menú nuevo con la usuaria, pantalla a pantalla, anotando cualquier cosa que no encaje.
 3. Decidir qué hacer con la campanita de notificaciones (ver arriba) y con el renombrado interno de "Albaranes".
 4. Cuando el menú esté validado, ahí sí invocar la herramienta de diseño ("impeccable") para pulir visualmente.
+
+---
+
+## 5. Rediseño de cabeceras — Albaranes / Compras (Analíticas, Productos, Proveedores) — 2026-08-21
+
+Continuación directa del punto 4. La usuaria dio feedback visual concreto tras ver Albaranes en el navegador (buscador + selector de periodo + gráficos ya montados desde la sesión del 20) y se pidió aplicar el mismo criterio a las 4 pantallas de listado del menú "Compras" + Albaranes. Commit: `8249c0c`.
+
+**Feedback original de la usuaria (resumen):** igualar diseño/composición entre Albaranes, Compras, Analíticas, Proveedores y Productos; añadir gráficos comparativos del periodo en las tarjetas KPI de cada pantalla; usar siempre "Día/Mes/Año/Total" como criterio de tiempo (no inventar otro por pantalla); el `dd/mm/aaaa` nativo del campo de fecha "molesta muchísimo" — buscar algo igual de claro pero menos abrumador; incoherencia entre formas redondas y cuadradas; títulos mal pensados (la tarjeta KPI y el título de la tabla no deberían repetir el mismo texto, y los colores no son coherentes entre pantallas); buscador arriba + periodo a la derecha cuando el buscador tiene sentido, periodo a la izquierda cuando no; el naranja "demasiado fosforito" — usar 3 colores (norma del CEO) para que no quede plano.
+
+**Hecho hoy:**
+- **Fallo real confirmado y corregido:** el placeholder `dd/mm/aaaa` del `<input type="date">` se solapaba con la etiqueta propia del campo (visto en pantalla, no solo en código) — `:placeholder-shown` no se aplica de forma fiable a inputs de fecha en Chrome. `DateField.svelte` ahora controla el estado vacío/lleno con una clase reactiva en JS (`oninput`), y la etiqueta dentro del campo se acortó a "Desde"/"Hasta" (la columna de la tabla ya dice de qué fecha se trata — antes repetía "Fecha albarán desde" dos veces).
+- **Analíticas** (`/analytics/spend`) pasó de un selector de periodo propio (30 d / 90 d / 6 m / todo) a `PeriodPills` compartido con Día/Mes/Año/Total (mismo criterio que Albaranes/Proveedores, vía `periodRange()` del lado servidor). Sin buscador (no tiene sentido en esta pantalla) → el selector de periodo quedó a la izquierda, siguiendo el criterio pedido. Las 4 tarjetas KPI pasaron de `<div class="card">` sueltas a `KpiCard`; "Gasto total" y "Líneas de albarán" ahora llevan gráfico comparativo (periodo actual vs. anterior), igual que Albaranes/Proveedores.
+- **Productos** (`/products`): se añadió buscador por nombre/categoría (client-side, mismo patrón que Proveedores). Se corrigió el título duplicado — la tarjeta KPI de conteo y el título de la tabla usaban literalmente la misma cadena (`prod.title`); ahora la tarjeta dice "Productos" (`prod.kpi.total`) y la tabla mantiene "Catálogo de productos". **Decisión consciente:** no se añadió selector de periodo aquí — el catálogo de productos no tiene una dimensión temporal real que mostrar (no es una lista de compras, es un maestro de artículos), así que forzar Día/Mes/Año/Total habría sido inconsistente con lo que pide la propia usuaria (periodo solo donde aporta). Tampoco se le añadió gráfico comparativo por el mismo motivo — no hay una serie histórica de "productos por periodo" que tenga sentido mostrar.
+- **Proveedores y Albaranes**: verificados en pantalla (claro y oscuro), sin cambios adicionales — ya estaban hechos desde antes de hoy.
+- Se corrigió, de paso, un error de tipos real que arrastraban `invoices/+page.server.ts` y `suppliers/+page.server.ts` desde la sesión anterior (`bucketSeries()` recibía `Date | null` por la rama vacía de un `Promise.all` condicional — `pnpm check` ya no lo marca).
+- Limpieza: se borraron las traducciones `spend.period.*` que quedaron sin usar al unificar el criterio de periodo.
+- Verificado en navegador, claro y oscuro: Albaranes, Analíticas, Productos, Proveedores. Sin datos de prueba cargados (restaurante de test vacío) — todo lo visto es con las 4 pantallas a cero, **falta comprobar con datos reales** (ver pendientes).
+- Tests: 1088/1092 en verde. Los 4 que fallan (pluralización de `tp()` en i18n, puntuación de estabilidad de precio de proveedor) ya fallaban antes de tocar nada hoy y no comparten archivo con este cambio — no se tocaron.
+
+**Pendiente para la próxima sesión:**
+1. **Ver las 4 pantallas con datos reales**, no solo vacías — falta confirmar que las tablas, el buscador y los gráficos comparativos se comportan bien con albaranes/proveedores/productos de verdad cargados.
+2. **Auditoría de color más a fondo**: se comprobó visualmente que el naranja ya no se ve "fosforito" (tono atenuado ya aplicado, `#C2540C` en claro) y que el segundo color (slate, `--mep-acc-2`) se usa en las líneas de "periodo anterior" de los gráficos — pero no se ha hecho un barrido sistemático de cada elemento coloreado de las 5 pantallas (badges, estados, iconos) para confirmar coherencia total.
+3. **El menú lateral (barra izquierda) no se tocó** — sigue con radio 6px en los enlaces de navegación, distinto de la píldora (999px) que ya usan `PeriodPills`/botones en el contenido. Se dejó fuera a propósito (la usuaria habló de las pestañas/contenido, no de la barra lateral), pero si al verlo en conjunto sigue chirriando, es el siguiente sitio a mirar.
+4. **Compras (Analíticas/Productos/Proveedores) no tiene una cabecera de sub-pestañas visible en el contenido** — hoy solo se navega entre ellas desde el menú lateral (enlaces anidados bajo "Compras"). No se ha tocado esto porque no se pidió explícitamente, pero es parte de por qué las 3 pantallas pueden sentirse "sueltas" entre sí.
+5. **Aviso de sesiones en paralelo:** durante esta sesión había otras dos ventanas de Claude Code abiertas a la vez sobre esta misma carpeta (no worktrees separados). No causaron conflicto esta vez, pero si se vuelve a trabajar con varias ventanas abiertas sobre `mvp-modular-limpio`, conviene confirmar antes cuál está tocando qué, para no pisarse cambios en los mismos archivos.
 
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
