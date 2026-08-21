@@ -10,7 +10,7 @@ import {
 } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
-import { createBatchStore } from '$lib/server/batch-core';
+import { createBatchStore } from '$lib/server/batch';
 import { saveReviewedInvoice } from '$lib/server/invoice-save';
 import { trackEvent } from '$lib/server/events';
 import { getStorage } from '$lib/server/storage';

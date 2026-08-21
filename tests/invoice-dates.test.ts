@@ -25,7 +25,7 @@ import {
 } from './helpers/test-db';
 import { toIsoDate, isBlankOrIsoDate, toMonthKey } from '../src/lib/server/dates';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
-import type { BatchItem } from '../src/lib/server/batch-core';
+import type { BatchItem } from '../src/lib/server/batch';
 
 describe('toIsoDate', () => {
 	it('accepts zero-padded ISO dates', () => {

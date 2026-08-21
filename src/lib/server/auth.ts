@@ -3,7 +3,7 @@ import Credentials from '@auth/sveltekit/providers/credentials';
 import Google from '@auth/sveltekit/providers/google';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import { getDb } from './db';
-import { users, accounts, sessions, verificationTokens } from './schema/auth';
+import { users, accounts, sessions, verificationTokens } from './schema';
 import { verifyCredentials } from './auth-credentials';
 import { recordConsent } from './consent';
 import { checkTokenVersion } from './token-version';

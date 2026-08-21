@@ -1,4 +1,4 @@
-import type { BatchItem } from './batch-core';
+import type { BatchItem } from './batch';
 
 export interface BatchEnqueueDeps {
 	getItem(itemId: string): Promise<BatchItem | null>;

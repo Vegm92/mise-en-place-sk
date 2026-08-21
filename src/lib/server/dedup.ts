@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import fs from 'fs';
 import { moneyToNumber } from './money';
+import { isoDateOffset } from './dates';
 
 export const SIMILAR_INVOICE_DATE_WINDOW_DAYS = 21;
 const SIMILAR_INVOICE_AMOUNT_ABS_TOLERANCE = 0.5;
@@ -14,11 +15,7 @@ export function amountsAreSimilar(a: number, b: number): boolean {
 	return Math.abs(a - b) <= tolerance;
 }
 
-export function isoDateOffset(dateStr: string, days: number): string {
-	const d = new Date(`${dateStr}T00:00:00Z`);
-	d.setUTCDate(d.getUTCDate() + days);
-	return d.toISOString().slice(0, 10);
-}
+export { isoDateOffset };
 
 export function findSimilarInvoice<T extends { totalAmount: string | null }>(
 	candidates: T[],
