@@ -461,13 +461,13 @@
                   onclick={handleDeleteAccount}
                   disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
                   class="btn"
-                  style="height:34px;font-size:13px;background:var(--mep-danger,#c0392b);color:#fff;border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
+                  style="height:34px;font-size:13px;background:var(--mep-neg);color:#fff;border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
                 >
                   {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
                 </button>
               </div>
               {#if deleteError}
-                <p style="font-size:12px;color:var(--mep-danger,#c0392b);margin:6px 0 0;">{deleteError}</p>
+                <p style="font-size:12px;color:var(--mep-neg);margin:6px 0 0;">{deleteError}</p>
               {/if}
             </div>
 
