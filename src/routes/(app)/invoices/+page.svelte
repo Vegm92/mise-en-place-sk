@@ -200,7 +200,7 @@
 
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1" data-coach="invoices-main">
     <KpiCard
-      label={$t('inv.title')}
+      label={$t('inv.kpi.uploaded')}
       value={stats.total_count}
       sub={period === 'all' ? $t('inv.kpi.totalSub') : undefined}
       delta={stats.count_delta_pct !== null ? Math.round(stats.count_delta_pct * 10) / 10 : undefined}
