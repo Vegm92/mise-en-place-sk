@@ -1,6 +1,7 @@
 import { db, forTenant } from './db';
 import { supplierMetrics, invoices, invoiceLineItems } from './schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
+import { DAY_MS } from '$lib/constants';
 
 interface ReliabilityResult {
 	score: number;
@@ -12,7 +13,7 @@ interface ReliabilityResult {
 }
 
 async function computePriceStability(supplierId: number, restaurantId: string): Promise<{ score: number; cv: number | null }> {
-	const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+	const sixMonthsAgo = new Date(Date.now() - 180 * DAY_MS).toISOString().slice(0, 10);
 
 	const topItems = await db.execute<{ description: string }>(sql`
 		SELECT ili.description

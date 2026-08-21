@@ -5,6 +5,7 @@ import * as schema from './schema';
 import { uploadBatches, batchItems } from './schema';
 import { getStorage } from './storage';
 import { forTenant } from './tenant';
+import { DAY_MS } from '$lib/constants';
 
 export interface BatchFileStorage {
 	delete(key: string): Promise<void>;
@@ -151,7 +152,7 @@ export function createBatchStore(db: BatchDb) {
 	async function cleanupStaleBatches(
 		storage: BatchFileStorage = getStorage(),
 	): Promise<{ batchesDeleted: number; filesDeleted: number; fileErrors: number }> {
-		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		const cutoff = new Date(Date.now() - DAY_MS);
 
 		// tenant-scope-ok: scheduled retention job, deliberately cross-tenant —
 		// deletes stale batches for every restaurant by age, not by owner.

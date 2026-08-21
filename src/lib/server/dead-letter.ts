@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { deadLetterQueue, restaurants } from './schema';
+import { DAY_MS } from '$lib/constants';
 
 export const DEAD_LETTER_STATUSES = ['pending', 'reviewed', 'replayed', 'discarded'] as const;
 export type DeadLetterStatus = (typeof DEAD_LETTER_STATUSES)[number];
@@ -383,9 +384,8 @@ export async function setDeadLetterStatus(
 }
 
 export async function purgeDeadLetters(now: Date = new Date()): Promise<{ purged: number }> {
-	const dayMs = 24 * 60 * 60 * 1000;
-	const resolvedCutoff = new Date(now.getTime() - DEAD_LETTER_RESOLVED_RETENTION_DAYS * dayMs);
-	const pendingCutoff = new Date(now.getTime() - DEAD_LETTER_PENDING_RETENTION_DAYS * dayMs);
+	const resolvedCutoff = new Date(now.getTime() - DEAD_LETTER_RESOLVED_RETENTION_DAYS * DAY_MS);
+	const pendingCutoff = new Date(now.getTime() - DEAD_LETTER_PENDING_RETENTION_DAYS * DAY_MS);
 	const rows = await db
 		.delete(deadLetterQueue)
 		.where(or(

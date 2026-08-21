@@ -6,6 +6,7 @@ import { STORAGE_DRIVER, UPLOADS_DIR } from '$lib/server/env';
 import fs from 'node:fs';
 import path from 'node:path';
 import { version } from '$app/environment';
+import { DAY_MS } from '$lib/constants';
 
 const START_TIME = Date.now();
 
@@ -34,7 +35,7 @@ export async function GET() {
 
 	let activeCount = 0;
 	try {
-		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		const cutoff = new Date(Date.now() - DAY_MS);
 		// tenant-scope-ok: system-wide queue-depth probe for /api/health, deliberately cross-tenant
 		const rows = await db
 			.select({ cnt: sql<number>`COUNT(*)` })

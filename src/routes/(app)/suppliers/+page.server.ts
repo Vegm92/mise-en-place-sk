@@ -3,7 +3,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
-import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { VALID_CATEGORIES, CATEGORY_COLORS, DAY_MS } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const tdb = forTenant(rid);
 	return handleLoad('suppliers', async () => {
 		const today   = new Date().toISOString().slice(0, 10);
-		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+		const weekEnd = new Date(Date.now() + 7 * DAY_MS).toISOString().slice(0, 10);
 
 		type PriceTrendRow = { supplier_id: number; month: string; avg_price: number };
 
@@ -65,7 +65,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			priceTrendMap.get(sid)!.push(Number(row.avg_price));
 		}
 
-		const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+		const yesterday = new Date(Date.now() - DAY_MS).toISOString();
 		const staleRefreshes = rows
 			.filter(row => Number(row.invoice_count) >= 3)
 			.filter(row => {

@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { desc, gte, sql } from 'drizzle-orm';
 import { db } from './db';
 import { whatsappAccountEvents } from './schema';
+import { DAY_MS } from '$lib/constants';
 
 export type Severity = 'info' | 'warning' | 'critical';
 
@@ -103,7 +104,7 @@ export interface NumberHealth {
 const HEALTH_WINDOW_DAYS = 30;
 
 export async function getNumberHealth(): Promise<NumberHealth> {
-	const since = new Date(Date.now() - HEALTH_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+	const since = new Date(Date.now() - HEALTH_WINDOW_DAYS * DAY_MS);
 
 	const [[latest], recent] = await Promise.all([
 		db.select({

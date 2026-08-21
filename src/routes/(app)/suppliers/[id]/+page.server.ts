@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems } from '$lib/server/schema';
 import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { VALID_CATEGORIES, DAY_MS } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { toCents, moneyToNumber } from '$lib/server/money';
 
@@ -80,7 +80,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	let metrics = metricsRows[0] ?? null;
 
 	if (supplierInvoices.length >= 3) {
-		const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+		const yesterday = new Date(Date.now() - DAY_MS);
 		if (!metrics || (metrics.computedAt ?? new Date(0)) < yesterday) {
 			const fresh = await computeAndCacheReliabilityScore(id, rid);
 			metrics = { id: metrics?.id ?? 0, restaurantId: rid, supplierId: id, ...fresh };
