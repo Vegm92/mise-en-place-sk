@@ -69,6 +69,11 @@ vi.mock('../src/lib/server/llm-quota', () => ({
 	releaseMonthlyExtraction: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('../src/lib/server/billing', () => ({
+	getAccessState: vi.fn().mockResolvedValue({
+		allowed: true, status: 'active', trialEndsAt: null, trialExpired: false,
+	}),
+}));
 vi.mock('../src/lib/server/whatsapp-pairing', async (importActual) => ({
 	...(await importActual<typeof import('../src/lib/server/whatsapp-pairing')>()),
 	redeemPairingCode: vi.fn(),

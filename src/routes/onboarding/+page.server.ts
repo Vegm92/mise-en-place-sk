@@ -43,7 +43,7 @@ export const actions: Actions = {
 			.replace(/[^a-z0-9]+/g, '-')
 			.replace(/^-|-$/g, '')
 			.slice(0, 60)
-			+ '-' + Math.random().toString(36).slice(2, 7);
+			+ '-' + crypto.randomUUID().replace(/-/g, '').slice(0, 5);
 
 		let newRestaurantId: string | null = null;
 		await db.transaction(async (tx) => {

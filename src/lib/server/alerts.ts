@@ -11,7 +11,7 @@ import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './product
 import { moneyToNumber, moneyToNullableNumber } from './money';
 import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
-import { TIERS, type PlanTier } from './billing';
+import { TIERS, effectiveTier, type PlanTier } from './billing';
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
@@ -620,7 +620,7 @@ async function perTenant<T extends { id?: string }>(
 
 export async function runWeeklyDigestJob(): Promise<{ considered: number; sent: number }> {
 	const week = isoWeek(new Date());
-	const tenants = (await allTenants()).filter(t => TIERS[t.planTier].features.weeklyDigest);
+	const tenants = (await allTenants()).filter(t => TIERS[effectiveTier(t)].features.weeklyDigest);
 
 	return await perTenant('weekly-digest', tenants, async (tenant) => {
 		const digest = await getOrGenerateWeeklyDigest(tenant.id, week);
