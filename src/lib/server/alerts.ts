@@ -32,6 +32,22 @@ function median(values: number[]): number {
 	return sorted[Math.floor((sorted.length - 1) / 2)];
 }
 
+function buildPriceHistory<K, R extends { unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(
+	rows: R[],
+	getKey: (row: R) => K,
+): Map<K, PricePoint> {
+	const history = new Map<K, PricePoint[]>();
+	for (const row of rows) {
+		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
+		const key = getKey(row);
+		const arr = history.get(key);
+		if (arr) arr.push(point); else history.set(key, [point]);
+	}
+	const map = new Map<K, PricePoint>();
+	for (const [key, points] of history) map.set(key, collapseHistory(points));
+	return map;
+}
+
 function collapseHistory(points: PricePoint[]): PricePoint {
 	if (points.length === 1) return points[0];
 	const unitPrice = median(points.map(p => p.unitPrice));
@@ -73,15 +89,7 @@ async function loadKeyPriceHistory(
 		WHERE rn <= ${PRICE_HISTORY_WINDOW}
 	`);
 
-	const history = new Map<string, PricePoint[]>();
-	for (const row of priceRows) {
-		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
-		const arr = history.get(row.itemKey);
-		if (arr) arr.push(point); else history.set(row.itemKey, [point]);
-	}
-	const map = new Map<string, PricePoint>();
-	for (const [key, points] of history) map.set(key, collapseHistory(points));
-	return map;
+	return buildPriceHistory(priceRows, r => r.itemKey);
 }
 
 async function loadProductPriceHistory(
@@ -118,14 +126,7 @@ async function loadProductPriceHistory(
 		WHERE rn <= ${PRICE_HISTORY_WINDOW}
 	`);
 
-	const history = new Map<number, PricePoint[]>();
-	for (const row of productRows) {
-		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
-		const arr = history.get(row.productId);
-		if (arr) arr.push(point); else history.set(row.productId, [point]);
-	}
-	for (const [productId, points] of history) map.set(productId, collapseHistory(points));
-	return map;
+	return buildPriceHistory(productRows, r => r.productId);
 }
 
 function evaluatePriceShock(
