@@ -19,6 +19,8 @@ export const VALID_CATEGORIES: string[] = [
 
 export const MIN_CATEGORY_CONFIDENCE = 0.6;
 
+export const DAY_MS = 24 * 60 * 60 * 1000;
+
 function categoryKey(value: string): string {
 	return value
 		.normalize('NFD')

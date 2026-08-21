@@ -18,6 +18,7 @@ import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
 import { users } from './schema/auth';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
+import { DAY_MS } from '$lib/constants';
 
 const secretKey = STRIPE_SECRET_KEY;
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
@@ -372,7 +373,7 @@ export async function getOrCreateCustomer(restaurantId: string, email: string, r
 				restaurantId,
 				stripeCustomerId: customer.id,
 				status: 'trialing',
-				trialEndsAt: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
+				trialEndsAt: new Date(Date.now() + trialDays * DAY_MS),
 			})
 			.onConflictDoUpdate({
 				target: subscriptions.restaurantId,
@@ -383,37 +384,39 @@ export async function getOrCreateCustomer(restaurantId: string, email: string, r
 	});
 }
 
-export async function createCheckoutSession(
-	restaurantId: string,
-	customerId: string,
-	tier: PlanTier,
-	successUrl: string,
-	cancelUrl: string,
-	idempotencyKey?: string,
-	userId?: string,
-): Promise<string> {
-	if (!stripe) throw new Error('Stripe not configured');
-	const priceId = TIERS[tier].stripePriceId;
-	if (!priceId) throw new Error(`STRIPE_PRICE_ID_${tier.toUpperCase()} not configured`);
+interface CreateCheckoutSessionOptions {
+	restaurantId: string;
+	customerId: string;
+	tier: PlanTier;
+	successUrl: string;
+	cancelUrl: string;
+	idempotencyKey?: string;
+	userId?: string;
+}
 
-	const founder    = await isFounderRestaurant(restaurantId);
+export async function createCheckoutSession(opts: CreateCheckoutSessionOptions): Promise<string> {
+	if (!stripe) throw new Error('Stripe not configured');
+	const priceId = TIERS[opts.tier].stripePriceId;
+	if (!priceId) throw new Error(`STRIPE_PRICE_ID_${opts.tier.toUpperCase()} not configured`);
+
+	const founder    = await isFounderRestaurant(opts.restaurantId);
 	const useCoupon  = founder && FOUNDER_COUPON_ID !== '';
 
 	const session = await stripe.checkout.sessions.create({
-		customer: customerId,
+		customer: opts.customerId,
 		mode: 'subscription',
 		line_items: [{ price: priceId, quantity: 1 }],
-		metadata: { restaurantId, ...(userId ? { userId } : {}) },
+		metadata: { restaurantId: opts.restaurantId, ...(opts.userId ? { userId: opts.userId } : {}) },
 		subscription_data: {
 			trial_period_days: trialDaysFor(founder),
-			metadata: { restaurantId, ...(userId ? { userId } : {}) },
+			metadata: { restaurantId: opts.restaurantId, ...(opts.userId ? { userId: opts.userId } : {}) },
 		},
-		success_url: successUrl,
-		cancel_url: cancelUrl,
+		success_url: opts.successUrl,
+		cancel_url: opts.cancelUrl,
 		...(useCoupon
 			? { discounts: [{ coupon: FOUNDER_COUPON_ID }] }
 			: { allow_promotion_codes: true }),
-	}, idempotencyKey ? { idempotencyKey } : undefined);
+	}, opts.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : undefined);
 
 	return session.url!;
 }
@@ -605,7 +608,7 @@ async function sendSubscriptionConfirmation(restaurantId: string, email: string,
 	const [restaurant] = await db.select({ name: restaurants.name })
 		.from(restaurants)
 		.where(eq(restaurants.id, restaurantId));
-	sendEmail(subscriptionConfirmationEmail(
+	void sendEmail(subscriptionConfirmationEmail(
 		email,
 		restaurant?.name ?? 'tu restaurante',
 		TIERS[tier].name,

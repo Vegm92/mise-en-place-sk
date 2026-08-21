@@ -130,15 +130,15 @@ export const actions: Actions = {
 		try {
 			const customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
 			trackEvent('checkout_started', rid, { tier });
-			checkoutUrl = await createCheckoutSession(
-				rid,
+			checkoutUrl = await createCheckoutSession({
+				restaurantId: rid,
 				customerId,
 				tier,
-				`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-				`${url.origin}/billing`,
-				idemKey ?? undefined,
-				locals.user.id,
-			);
+				successUrl: `${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
+				cancelUrl: `${url.origin}/billing`,
+				idempotencyKey: idemKey ?? undefined,
+				userId: locals.user.id,
+			});
 		} catch (err) {
 			if (idemKey) await releaseRequest(idemKey);
 			throw err;
