@@ -58,7 +58,7 @@ vi.mock('../src/lib/server/db', async () => {
 import { and, eq } from 'drizzle-orm';
 import { handleWebhookEvent, stripe, syncSubscriptionFromStripe, cancelDuplicateSubscriptionsForUser, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
 import { subscriptions, settings, idempotencyKeys, userRestaurants } from '../src/lib/server/schema';
-import { users } from '../src/lib/server/schema/auth';
+import { users } from '../src/lib/server/schema';
 import { testDb, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
 import { STRIPE_WEBHOOK_SCOPE } from '../src/lib/server/idempotency';
 import { sendEmail } from '../src/lib/server/email';

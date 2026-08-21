@@ -3,7 +3,7 @@ import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
-import { createLLMProvider, type LLMProvider, type LLMUsage } from './llm-provider';
+import { createGeminiProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spanish restaurants. Extract all relevant information from this document and return it as a JSON object.
@@ -302,7 +302,7 @@ export async function extractInvoice(
 }
 
 async function callProvider(
-	provider: LLMProvider,
+	provider: ReturnType<typeof createGeminiProvider>,
 	classified: ClassifiedFile,
 	filePath: string,
 	signal?: AbortSignal,
@@ -345,7 +345,7 @@ async function callProvider(
 
 export async function extractWithProvider(
 	filePath: string,
-	provider?: LLMProvider,
+	provider?: ReturnType<typeof createGeminiProvider>,
 ): Promise<{ invoice: ExtractedInvoice; usage: LLMUsage }> {
 	const classified = await classifyFile(filePath);
 
@@ -356,7 +356,7 @@ export async function extractWithProvider(
 		return { invoice: result, usage: zeroUsage };
 	}
 
-	const resolvedProvider = provider ?? createLLMProvider();
+	const resolvedProvider = provider ?? createGeminiProvider();
 
 	const controller = new AbortController();
 	let timeoutHandle: ReturnType<typeof setTimeout>;

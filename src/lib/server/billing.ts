@@ -16,7 +16,7 @@ import { subscriptions, restaurants, settings, userRestaurants } from './schema'
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
-import { users } from './schema/auth';
+import { users } from './schema';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
 
 const secretKey = STRIPE_SECRET_KEY;

@@ -4,7 +4,7 @@ import { eq, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/schema/auth';
+import { users } from '$lib/server/schema';
 import { consumeVerificationToken } from '$lib/server/verification-token';
 
 const MIN_PASSWORD_LENGTH = 8;

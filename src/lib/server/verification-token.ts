@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { and, eq, gt } from 'drizzle-orm';
 import { db } from './db';
-import { verificationTokens } from './schema/auth';
+import { verificationTokens } from './schema';
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 

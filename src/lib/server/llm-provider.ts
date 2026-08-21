@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_API_KEY, GEMINI_MODEL, LLM_PROVIDER } from './env';
+import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
 
 export interface LLMUsage {
 	inputTokens: number;
@@ -12,18 +12,10 @@ export interface LLMResponse {
 	usage: LLMUsage;
 }
 
-export interface LLMProvider {
-	readonly model: string;
-	generate(content: string | object[], signal?: AbortSignal): Promise<LLMResponse>;
-}
-
 const COST_PER_MILLION: Record<string, { input: number; output: number }> = {
 	'gemini-2.5-flash':      { input: 0.30, output: 2.50 },
 	'gemini-2.5-flash-lite': { input: 0.10, output: 0.40 },
 	'gemini-2.5-pro':        { input: 1.25, output: 10.00 },
-	'gemini-1.5-flash':      { input: 0.075, output: 0.30 },
-	'gemini-1.5-flash-8b':   { input: 0.0375, output: 0.15 },
-	'gemini-1.5-pro':        { input: 1.25, output: 5.00 },
 };
 
 export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
@@ -31,16 +23,14 @@ export function estimateCostUsd(model: string, inputTokens: number, outputTokens
 	return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
 }
 
-function createGeminiProvider(): LLMProvider {
+export function createGeminiProvider() {
 	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
 	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 	const model = GEMINI_MODEL;
 	return {
 		model,
-		async generate(content, signal) {
-			const contents = typeof content === 'string'
-				? content
-				: [{ role: 'user', parts: content }];
+		async generate(content: string | object[], signal?: AbortSignal) {
+			const contents = (typeof content === 'string' ? content : [{ role: 'user', parts: content }]) as Parameters<typeof ai.models.generateContent>[0]['contents'];
 			const response = await ai.models.generateContent({
 				model,
 				contents,
@@ -56,11 +46,4 @@ function createGeminiProvider(): LLMProvider {
 			};
 		},
 	};
-}
-
-export function createLLMProvider(name: string = LLM_PROVIDER): LLMProvider {
-	switch (name) {
-		case 'gemini': return createGeminiProvider();
-		default: throw new Error(`Unknown LLM_PROVIDER: "${name}". Supported: gemini`);
-	}
 }

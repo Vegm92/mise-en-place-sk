@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
-import { users } from './schema/auth';
+import { users } from './schema';
 
 export async function verifyCredentials(email: string, password: string) {
 	const normalizedEmail = email.toLowerCase().trim();

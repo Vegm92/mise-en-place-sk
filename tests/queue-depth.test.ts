@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
-import { createBatchStore } from '../src/lib/server/batch-core';
+import { createBatchStore } from '../src/lib/server/batch';
 
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');

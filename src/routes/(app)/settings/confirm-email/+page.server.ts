@@ -2,7 +2,7 @@ import { redirect, fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/schema/auth';
+import { users } from '$lib/server/schema';
 import { consumeVerificationToken } from '$lib/server/verification-token';
 
 export const load: PageServerLoad = async ({ url, locals }) => {

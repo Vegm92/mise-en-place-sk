@@ -14,7 +14,7 @@ import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
 import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
-import type { BatchDb, BatchItem } from './batch-core';
+import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
 import { isBlankOrIsoDate, toIsoDate } from './dates';

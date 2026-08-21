@@ -2,6 +2,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { addDays, addMonths, monday, firstOfMonth, isoDate, monthKeyStr } from './dates';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAY_ABBR   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -10,33 +11,6 @@ const RANGE_TO_DAYS: Record<string, number> = { '7d': 6, '30d': 29, '90d': 89, '
 const VALID_RANGES = new Set(['7d', '30d', '90d', '1y', 'all']);
 const VALID_GRANULARITIES = new Set(['daily', 'weekly', 'monthly']);
 const MAX_BUCKETS = 400;
-
-function addDays(d: Date, days: number): Date {
-	const r = new Date(d); r.setDate(r.getDate() + days); return r;
-}
-
-function addMonths(d: Date, months: number): Date {
-	const r = new Date(d); r.setMonth(r.getMonth() + months); return r;
-}
-
-function monday(d: Date): Date {
-	return addDays(d, -((d.getDay() + 6) % 7));
-}
-
-function firstOfMonth(d: Date): Date {
-	return new Date(d.getFullYear(), d.getMonth(), 1);
-}
-
-function isoDate(d: Date): string {
-	const y = d.getFullYear();
-	const m = String(d.getMonth() + 1).padStart(2, '0');
-	const day = String(d.getDate()).padStart(2, '0');
-	return `${y}-${m}-${day}`;
-}
-
-function monthKeyStr(d: Date): string {
-	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 export type Segment = { category: string | null; amount: number };
 export type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };

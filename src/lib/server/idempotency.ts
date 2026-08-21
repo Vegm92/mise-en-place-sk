@@ -1,9 +1,8 @@
 import { db } from './db';
 import { idempotencyKeys } from './schema';
 import { and, eq, lt, notInArray } from 'drizzle-orm';
-import type { BatchDb } from './batch-core';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import type { BatchDb } from './batch';
+import { UUID_RE } from './batch';
 
 export const FORM_SUBMIT_SCOPE = 'form-submit';
 export const WHATSAPP_SCOPE = 'whatsapp';
