@@ -6,6 +6,7 @@ import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { isPeriodKey, periodRange, type PeriodKey } from '$lib/server/period';
 
 type ProductRow = {
 	id: number;
@@ -16,6 +17,7 @@ type ProductRow = {
 	base_unit: string | null;
 	supplier_count: number;
 	alias_count: number;
+	created_at: string;
 };
 
 type SuggestionRow = {
@@ -24,19 +26,25 @@ type SuggestionRow = {
 	payload: string | null;
 };
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
 
 	return handleLoad('products', async () => {
+		const periodParam = url.searchParams.get('period') ?? 'all';
+		const period: PeriodKey = isPeriodKey(periodParam) ? periodParam : 'all';
+		const { from } = periodRange(period);
+		const createdFilter = from ? sql`AND p.created_at >= ${from.toISOString()}` : sql``;
+
 		const [products, suggestionRows] = await Promise.all([
 			db.execute<ProductRow>(sql`
-				SELECT p.id, p.canonical_name, p.category, p.canonical_unit, p.units_per_pack, p.base_unit,
+				SELECT p.id, p.canonical_name, p.category, p.canonical_unit, p.units_per_pack, p.base_unit, p.created_at,
 				       (SELECT count(DISTINCT a.supplier_id) FROM product_aliases a
 				          WHERE a.restaurant_id = ${rid} AND a.product_id = p.id AND a.supplier_id IS NOT NULL)::int AS supplier_count,
 				       (SELECT count(*) FROM product_aliases a
 				          WHERE a.restaurant_id = ${rid} AND a.product_id = p.id)::int AS alias_count
 				FROM products p
 				WHERE p.restaurant_id = ${rid}
+				  ${createdFilter}
 				ORDER BY p.canonical_name
 			`),
 			db.execute<SuggestionRow>(sql`
@@ -73,6 +81,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			suggestions,
 			categories: VALID_CATEGORIES,
 			colors: CATEGORY_COLORS,
+			period,
 		};
 	});
 };

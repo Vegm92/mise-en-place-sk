@@ -4,20 +4,32 @@
   import { invalidateAll } from '$app/navigation';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
+  import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import Search from '@lucide/svelte/icons/search';
   import Plus from '@lucide/svelte/icons/plus';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { products, suggestions, categories, colors } = $derived(data);
+  const { products, suggestions, categories, colors, period } = $derived(data);
   const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
+
+  const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
+    ['day',   'inv.period.day'],
+    ['month', 'inv.period.month'],
+    ['year',  'inv.period.year'],
+    ['all',   'inv.period.all'],
+  ];
 
   let tab = $state<'catalog' | 'suggestions'>('catalog');
   let search = $state('');
+  let catFilter = $state('');
+  let showAddForm = $state(false);
   const filteredProducts = $derived(
     products.filter(p => {
       const q = search.trim().toLowerCase();
-      return !q || p.canonicalName.toLowerCase().includes(q) || (p.category ?? '').toLowerCase().includes(q);
+      const matchSearch = !q || p.canonicalName.toLowerCase().includes(q) || (p.category ?? '').toLowerCase().includes(q);
+      const matchCat = !catFilter || p.category === catFilter;
+      return matchSearch && matchCat;
     })
   );
 
@@ -45,6 +57,7 @@
       <span class="search-icon"><Search size={14} /></span>
       <input class="input" placeholder={$t('prod.searchPlaceholder')} bind:value={search} />
     </div>
+    <PeriodPills active={period} pills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: `?period=${val}` }))} />
   </div>
 
   <div class="grid grid-cols-3 gap-3 max-[700px]:grid-cols-1">
@@ -69,6 +82,55 @@
     </button>
   </div>
 
+  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+    <div style="position:relative;">
+      <select class="btn btn-secondary"
+        style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
+        bind:value={catFilter}>
+        <option value="">{$t('sup.filterAllCategories')}</option>
+        {#each categories as cat}
+          <option value={cat}>{$tcat(cat)}</option>
+        {/each}
+      </select>
+      <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+    </div>
+    <div style="flex:1;"></div>
+    <button type="button" class="btn btn-secondary"
+      style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
+      onclick={() => (showAddForm = !showAddForm)}>
+      <Plus size={13} /> {$t('prod.new.add')}
+    </button>
+  </div>
+
+  {#if showAddForm}
+    <div class="card p-4">
+      <form method="post" action="?/create" class="flex flex-wrap items-end gap-2">
+        <div class="flex flex-col gap-1 min-w-[180px]">
+          <label class="label text-fg-3" style="font-size:10.5px;" for="prod-name">{$t('prod.new.name')}</label>
+          <input id="prod-name" name="canonicalName" required class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+        </div>
+        <div class="flex flex-col gap-1 min-w-[160px]">
+          <label class="label text-fg-3" style="font-size:10.5px;" for="prod-cat">{$t('prod.new.category')}</label>
+          <select id="prod-cat" name="category" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
+            <option value="">—</option>
+            {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1 min-w-[100px]">
+          <label class="label text-fg-3" style="font-size:10.5px;" for="prod-unit">{$t('prod.new.unit')}</label>
+          <input id="prod-unit" name="canonicalUnit" class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder="kg" />
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;gap:5px;">
+          <Plus size={13} />
+          {$t('prod.new.add')}
+        </button>
+      </form>
+      {#if form?.error}
+        <p class="body text-neg" style="font-size:12px;margin-top:6px;">{form.error}</p>
+      {/if}
+    </div>
+  {/if}
+
   <div class="flex items-center gap-2">
     <button type="button" class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-ghost'}"
       style="height:32px;font-size:12.5px;" onclick={() => (tab = 'catalog')}>
@@ -85,33 +147,6 @@
 
   {#if tab === 'catalog'}
     <SectionCard title={$t('prod.title')} sub={$t('prod.subtitle')} noPad>
-      <div class="p-4 border-b border-divider">
-        <form method="post" action="?/create" class="flex flex-wrap items-end gap-2">
-          <div class="flex flex-col gap-1 min-w-[180px]">
-            <label class="label text-fg-3" style="font-size:10.5px;" for="prod-name">{$t('prod.new.name')}</label>
-            <input id="prod-name" name="canonicalName" required class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
-          </div>
-          <div class="flex flex-col gap-1 min-w-[160px]">
-            <label class="label text-fg-3" style="font-size:10.5px;" for="prod-cat">{$t('prod.new.category')}</label>
-            <select id="prod-cat" name="category" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
-              <option value="">—</option>
-              {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
-            </select>
-          </div>
-          <div class="flex flex-col gap-1 min-w-[100px]">
-            <label class="label text-fg-3" style="font-size:10.5px;" for="prod-unit">{$t('prod.new.unit')}</label>
-            <input id="prod-unit" name="canonicalUnit" class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder="kg" />
-          </div>
-          <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;gap:5px;">
-            <Plus size={13} />
-            {$t('prod.new.add')}
-          </button>
-        </form>
-        {#if form?.error}
-          <p class="body text-neg" style="font-size:12px;margin-top:6px;">{form.error}</p>
-        {/if}
-      </div>
-
       {#if products.length === 0}
         <p class="body text-center py-16">{$t('prod.empty')}</p>
       {:else if filteredProducts.length === 0}

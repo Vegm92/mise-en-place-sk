@@ -69,9 +69,8 @@
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <div style="display:flex;align-items:center;gap:12px;">
+      <h2 style="margin:0;font-size:14px;font-weight:500;color:var(--mep-fg-3);flex:1;">{$t('spend.question')}</h2>
       <PeriodPills active={data.period} pills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: `?period=${val}` }))} />
-      <div style="flex:1;"></div>
-      <h2 style="margin:0;font-size:14px;font-weight:500;color:var(--mep-fg-3);">{$t('spend.question')}</h2>
     </div>
 
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2" data-coach="analytics-main">
