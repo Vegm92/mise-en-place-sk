@@ -7,7 +7,8 @@
         "rule": "layout-transition",
         "value": "stroke-width 120ms,opacity 120ms",
         "files": [
-          "src/lib/components/desktop/DesktopSupplierDetail.svelte"
+          "src/lib/components/desktop/DesktopSupplierDetail.svelte",
+          "src/routes/(app)/analytics/spend/+page.svelte"
         ],
         "createdAt": "2026-08-20T22:39:20.527Z",
         "reason": "SVG stroke-width transition on a donut chart hover slice, not a CSS layout property (width/height/margin/padding) — doesn't trigger reflow, mechanical false positive"
