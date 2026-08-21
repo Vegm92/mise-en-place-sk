@@ -18,6 +18,11 @@ import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
 import { sweepIdempotencyKeys } from './idempotency';
 
 const LOW_STOCK_DAYS = 3;
+const UNIT_PRICE = 'unitPrice';
+const NORMALIZED_UNIT_PRICE = 'normalizedUnitPrice';
+const BASE_UNIT = 'baseUnit';
+const MESSAGE_KEY = 'messageKey';
+const MESSAGE_VARS = 'messageVars';
 
 export interface Alert {
 	notificationType: string;
@@ -128,6 +133,21 @@ async function loadProductPriceHistory(
 	return map;
 }
 
+function determinePriceComparison(
+	newNorm: number | null,
+	baseline: PricePoint,
+	newPack: ReturnType<typeof parsePack>,
+): { useNorm: boolean; oldCmp: number; newCmp: number } | null {
+	const useNorm = newNorm != null && baseline.normalizedUnitPrice != null && baseline.normalizedUnitPrice > 0
+		&& newPack != null && baseline.baseUnit != null && newPack.baseUnit === baseline.baseUnit;
+
+	const oldCmp = useNorm ? baseline.normalizedUnitPrice! : baseline.unitPrice;
+	const newCmp = useNorm ? newNorm! : newPack ? undefined : 0;
+	if (newCmp === undefined) return null;
+
+	return { useNorm, oldCmp, newCmp };
+}
+
 function evaluatePriceShock(
 	item: EnrichedLineItem,
 	supplierName: string,
@@ -148,11 +168,10 @@ function evaluatePriceShock(
 
 	const newPack = parsePack(description, item.unit);
 	const newNorm = normalizedUnitPrice(newPrice, newPack);
-	const useNorm = newNorm != null && baseline.normalizedUnitPrice != null && baseline.normalizedUnitPrice > 0
-		&& newPack != null && baseline.baseUnit != null && newPack.baseUnit === baseline.baseUnit;
+	const comparison = determinePriceComparison(newNorm, baseline, newPack);
+	if (!comparison) return null;
 
-	const oldCmp = useNorm ? baseline.normalizedUnitPrice! : baseline.unitPrice;
-	const newCmp = useNorm ? newNorm! : newPrice;
+	const { useNorm, oldCmp, newCmp } = comparison;
 	if (oldCmp === 0) return null;
 
 	const deviation = (newCmp - oldCmp) / oldCmp;
@@ -295,7 +314,7 @@ export async function runCategorizationNudge(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { }
+		} catch (e) { console.error(e); }
 	}
 
 	return [{
@@ -338,7 +357,7 @@ export async function runCategorySuggestion(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { }
+		} catch (e) { console.error(e); }
 	}
 
 	await db
@@ -421,7 +440,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		try {
 			const p = JSON.parse(row.payload ?? '{}');
 			return p.category === category && p.level === level;
-		} catch { return false; }
+		} catch (e) { console.error(e); return false; }
 	});
 	if (alreadySent) return [];
 
