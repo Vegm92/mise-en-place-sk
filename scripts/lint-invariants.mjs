@@ -38,8 +38,14 @@ const NON_TENANT_TABLES = new Set(['userRestaurants', 'subscriptions']);
 function tenantScopedTables() {
 	const found = new Map();
 	const schemaDir = path.join(ROOT, 'src/lib/server/schema');
-	if (!fs.existsSync(schemaDir)) return found;
-	for (const file of walk(schemaDir, ['.ts'])) {
+	const schemaFile = path.join(ROOT, 'src/lib/server/schema.ts');
+	const schemaFiles = fs.existsSync(schemaDir)
+		? walk(schemaDir, ['.ts'])
+		: fs.existsSync(schemaFile)
+			? [schemaFile]
+			: [];
+	if (schemaFiles.length === 0) return found;
+	for (const file of schemaFiles) {
 		const src = fs.readFileSync(file, 'utf8');
 		const decl = /export const (\w+)\s*=\s*pgTable\(\s*['"](\w+)['"]/g;
 		const starts = [];
