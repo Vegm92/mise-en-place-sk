@@ -295,7 +295,7 @@ export async function runCategorizationNudge(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { }
+		} catch (e) { console.error('[alerts] failed to parse notification payload in runCategorizationNudge:', e); }
 	}
 
 	return [{
@@ -338,7 +338,7 @@ export async function runCategorySuggestion(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { }
+		} catch (e) { console.error('[alerts] failed to parse notification payload in runCategorySuggestion:', e); }
 	}
 
 	await db
@@ -421,7 +421,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		try {
 			const p = JSON.parse(row.payload ?? '{}');
 			return p.category === category && p.level === level;
-		} catch { return false; }
+		} catch (e) { console.error('[alerts] failed to parse budget notification payload in runBudgetCheck:', e); return false; }
 	});
 	if (alreadySent) return [];
 
