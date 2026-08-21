@@ -54,6 +54,29 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			`),
 		]);
 
+		// Volume of products catalogued over time, by category -- bucketed
+		// daily within a month, monthly otherwise (same convention as the
+		// other list pages' trend charts).
+		const monthBucket = period === 'year' || period === 'all';
+		function bucketKey(d: Date): string {
+			const y = d.getFullYear();
+			const m = String(d.getMonth() + 1).padStart(2, '0');
+			if (monthBucket) return `${y}-${m}`;
+			return `${y}-${m}-${String(d.getDate()).padStart(2, '0')}`;
+		}
+		const trendCounts = new Map<string, number>();
+		for (const p of products) {
+			const key = `${bucketKey(new Date(p.created_at))}|${p.category ?? 'Other'}`;
+			trendCounts.set(key, (trendCounts.get(key) ?? 0) + 1);
+		}
+		const trend = [...trendCounts.entries()].map(([key, count]) => {
+			const [bucket, category] = key.split('|');
+			return { bucket, category, amount: count };
+		});
+		const trendCategoryTotals = new Map<string, number>();
+		for (const t of trend) trendCategoryTotals.set(t.category, (trendCategoryTotals.get(t.category) ?? 0) + t.amount);
+		const trendCategories = [...trendCategoryTotals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+
 		const suggestions = suggestionRows.map((row) => {
 			const payload = row.payload ? JSON.parse(row.payload) : {};
 			return {
@@ -82,6 +105,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			categories: VALID_CATEGORIES,
 			colors: CATEGORY_COLORS,
 			period,
+			trend,
+			trendCategories,
 		};
 	});
 };

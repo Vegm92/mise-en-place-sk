@@ -1,16 +1,17 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, locale } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
+  import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
   import Search from '@lucide/svelte/icons/search';
   import Plus from '@lucide/svelte/icons/plus';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { products, suggestions, categories, colors, period } = $derived(data);
+  const { products, suggestions, categories, colors, period, trend, trendCategories } = $derived(data);
   const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
 
   const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
@@ -19,6 +20,34 @@
     ['year',  'inv.period.year'],
     ['all',   'inv.period.all'],
   ];
+
+  const SERIES_PALETTE = [
+    'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
+    'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)', 'var(--mep-series-other)',
+  ];
+  const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
+  function formatTrendBucketLabel(bucket: string): string {
+    if (bucket.length === 7) {
+      const [y, m] = bucket.split('-').map(Number);
+      const label = trendFmt.format(new Date(y, m - 1, 1));
+      return period === 'all' ? `${label} ${String(y).slice(2)}` : label;
+    }
+    const [, , d] = bucket.split('-');
+    return String(Number(d));
+  }
+  let selectedTrendCats = $state<string[]>(trendCategories.slice(0, 4));
+  function toggleTrendCat(key: string) {
+    selectedTrendCats = selectedTrendCats.includes(key) ? selectedTrendCats.filter(k => k !== key) : [...selectedTrendCats, key];
+  }
+  const trendChart = $derived.by(() => {
+    const buckets = [...new Set(trend.map(r => r.bucket))].sort();
+    const series = selectedTrendCats.map((cat, i) => {
+      const byBucket = new Map<string, number>();
+      for (const r of trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
+      return { key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+    });
+    return { xLabels: buckets.map(formatTrendBucketLabel), series };
+  });
 
   let tab = $state<'catalog' | 'suggestions'>('catalog');
   let search = $state('');
@@ -80,6 +109,24 @@
         sub={$t('nav.products')}
       />
     </button>
+  </div>
+
+  <div class="card" style="padding:16px;">
+    <div class="subtitle" style="margin-bottom:12px;">{$t('prod.trend.title')}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+      {#each trendCategories as cat}
+        {@const active = selectedTrendCats.includes(cat)}
+        {@const color = SERIES_PALETTE[selectedTrendCats.indexOf(cat) % SERIES_PALETTE.length]}
+        <button type="button" onclick={() => toggleTrendCat(cat)} class="badge" style="
+            cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
+            background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
+          ">
+          {$tcat(cat)}
+        </button>
+      {/each}
+      {#if !trendCategories.length}<span class="body" style="font-size:12px;color:var(--mep-fg-3);">{$t('spend.kpi.noData')}</span>{/if}
+    </div>
+    <TrendLineChart xLabels={trendChart.xLabels} series={trendChart.series} valueFormatter={(v) => String(v)} emptyLabel={$t('spend.noDataYet')} />
   </div>
 
   <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
