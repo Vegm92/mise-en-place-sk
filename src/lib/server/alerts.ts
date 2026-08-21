@@ -135,16 +135,16 @@ async function loadProductPriceHistory(
 }
 
 function determinePriceComparison(
+	newPrice: number,
 	newNorm: number | null,
 	baseline: PricePoint,
 	newPack: ReturnType<typeof parsePack>,
-): { useNorm: boolean; oldCmp: number; newCmp: number } | null {
+): { useNorm: boolean; oldCmp: number; newCmp: number } {
 	const useNorm = newNorm != null && baseline.normalizedUnitPrice != null && baseline.normalizedUnitPrice > 0
 		&& newPack != null && baseline.baseUnit != null && newPack.baseUnit === baseline.baseUnit;
 
 	const oldCmp = useNorm ? baseline.normalizedUnitPrice! : baseline.unitPrice;
-	const newCmp = useNorm ? newNorm! : newPack ? undefined : 0;
-	if (newCmp === undefined) return null;
+	const newCmp = useNorm ? newNorm! : newPrice;
 
 	return { useNorm, oldCmp, newCmp };
 }
@@ -169,8 +169,7 @@ function evaluatePriceShock(
 
 	const newPack = parsePack(description, item.unit);
 	const newNorm = normalizedUnitPrice(newPrice, newPack);
-	const comparison = determinePriceComparison(newNorm, baseline, newPack);
-	if (!comparison) return null;
+	const comparison = determinePriceComparison(newPrice, newNorm, baseline, newPack);
 
 	const { useNorm, oldCmp, newCmp } = comparison;
 	if (oldCmp === 0) return null;
