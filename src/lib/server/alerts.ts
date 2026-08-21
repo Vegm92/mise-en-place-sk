@@ -3,7 +3,7 @@ import { and, eq, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant } from './db';
 import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, restaurants, subscriptions, userRestaurants } from './schema';
-import { users } from './schema/auth';
+import { users } from './schema';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';

@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { userRestaurants, restaurants, subscriptions, invoices, batchItems } from '$lib/server/schema';
-import { users } from '$lib/server/schema/auth';
+import { users } from '$lib/server/schema';
 import { getStorage } from '$lib/server/storage';
 import { cancelSubscription } from '$lib/server/billing';
 import { checkRateLimit } from '$lib/server/rate-limiter';

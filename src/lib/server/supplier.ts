@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from './db';
-import type { BatchDb } from './batch-core';
+import type { BatchDb } from './batch';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 
 export interface SupplierContactInfo {

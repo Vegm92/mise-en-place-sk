@@ -4,7 +4,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
-import { users } from '$lib/server/schema/auth';
+import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
 import { applyTierSettings, getEntitlements } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';

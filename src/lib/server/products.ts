@@ -1,12 +1,12 @@
 import { sql, and, eq, isNull, or } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db, forTenant } from './db';
-import type { BatchDb } from './batch-core';
+import type { BatchDb } from './batch';
 import * as schema from './schema';
 import { unitConversions, systemNotifications } from './schema';
 import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { GEMINI_API_KEY } from './env';
-import { createLLMProvider, type LLMProvider } from './llm-provider';
+import { createGeminiProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
 import { NORMALIZE_QUEUE } from './queue';
@@ -638,7 +638,7 @@ export function parseNormalizeResponse(text: string, validIds: Set<number>): Nor
 }
 
 export interface NormalizeDeps {
-	provider?: LLMProvider;
+	provider?: ReturnType<typeof createGeminiProvider>;
 	recordUsage?: typeof recordLlmUsage;
 	recordFailure?: typeof recordDeadLetter;
 }
@@ -646,7 +646,7 @@ export interface NormalizeDeps {
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
 	const { restaurantId, productId, rawText } = data;
 	try {
-		const provider = deps.provider ?? (GEMINI_API_KEY ? createLLMProvider() : null);
+		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
 		if (!provider) return;
 
 		const candRows = await db.execute<{ id: number; canonical_name: string }>(sql`
