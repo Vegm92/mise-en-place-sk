@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import type { Ratelimit } from '@upstash/ratelimit';
+import type { Redis } from '@upstash/redis';
 import {
 	UPSTASH_REDIS_REST_URL,
 	UPSTASH_REDIS_REST_TOKEN,
@@ -9,10 +11,8 @@ import {
 type UpstashLimiter = { limit(key: string): Promise<{ success: boolean }> };
 
 let upstashEnabled = false;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let RatelimitClass: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let redisClient: any = null;
+let RatelimitClass: typeof Ratelimit | null = null;
+let redisClient: Redis | null = null;
 const upstashLimiters = new Map<string, UpstashLimiter>();
 
 if (UPSTASH_REDIS_REST_URL && UPSTASH_REDIS_REST_TOKEN) {
