@@ -6,7 +6,6 @@ import { claimIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { checkRateLimit } from './rate-limiter';
-import { getAccessState } from './billing';
 import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 import { createBatch, getItem, getBatchItems, markQueued } from './batch';
 import { enqueueBatchExtraction } from './extract-batch';
@@ -35,53 +34,32 @@ async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 	}
 }
 
-export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
-	if (!(await claimMessageId(msg.id))) {
-		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
-		return;
-	}
-
-	const from = msg.from;
-
+async function resolveRestaurantId(from: string): Promise<string | null> {
 	// tenant-scope-ok: this IS the tenant resolution step — the sender's number
 	// is globally unique across contacts and determines which restaurant they
 	// belong to. There is no tenant context to scope by until this query returns.
-	const contactRows = await db
+	const rows = await db
 		.select({ restaurantId: whatsappContacts.restaurantId })
 		.from(whatsappContacts)
 		.where(eq(whatsappContacts.phoneNumber, from))
 		.limit(1);
+	return rows[0]?.restaurantId ?? null;
+}
 
-	if (contactRows.length === 0) {
-		if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
-			await handlePairingAttempt(from, msg.text.body);
-			return;
-		}
-
-		if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
-			await sendWhatsAppMessage(
-				from,
-				'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
-			);
-		}
+async function handleUnknownSender(msg: WhatsAppInboundMessage, from: string): Promise<void> {
+	if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
+		await handlePairingAttempt(from, msg.text.body);
 		return;
 	}
-
-	const restaurantId = contactRows[0].restaurantId;
-
-	if (msg.type === 'image' || msg.type === 'document') {
-		const access = await getAccessState(restaurantId);
-		if (!access.allowed) {
-			await sendWhatsAppMessage(
-				from,
-				access.trialExpired
-					? '❌ Tu prueba gratuita ha terminado. Activa una suscripción para volver a procesar facturas.'
-					: '❌ Tu suscripción no está activa. Reactívala para volver a procesar facturas.',
-			);
-			return;
-		}
+	if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
+		await sendWhatsAppMessage(
+			from,
+			'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
+		);
 	}
+}
 
+async function dispatchMedia(msg: WhatsAppInboundMessage, from: string, restaurantId: string): Promise<void> {
 	if (msg.type === 'image' && msg.image) {
 		await handleMediaUpload(from, restaurantId, msg.image.id);
 	} else if (msg.type === 'document' && msg.document) {
@@ -92,6 +70,19 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 			'⚠️ Solo puedo procesar imágenes (JPG, PNG) o documentos PDF de facturas.',
 		);
 	}
+}
+
+export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
+	if (!(await claimMessageId(msg.id))) {
+		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
+		return;
+	}
+	const restaurantId = await resolveRestaurantId(msg.from);
+	if (!restaurantId) {
+		await handleUnknownSender(msg, msg.from);
+		return;
+	}
+	await dispatchMedia(msg, msg.from, restaurantId);
 }
 
 async function handlePairingAttempt(from: string, body: string): Promise<void> {

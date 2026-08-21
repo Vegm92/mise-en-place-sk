@@ -64,6 +64,11 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	};
 };
 
+async function getPortalOrBillingUrl(customerId: string | null | undefined, origin: string): Promise<string> {
+	if (customerId) return createPortalSession(customerId, `${origin}/billing`);
+	return '/billing';
+}
+
 export const actions: Actions = {
 	checkout: async ({ locals, url, request }) => {
 		if (!locals.user || !locals.restaurantId) redirect(303, '/login');
@@ -100,19 +105,11 @@ export const actions: Actions = {
 			.limit(1);
 
 		if (existing && (existing.status === 'active' || existing.stripeSubscriptionId)) {
-			if (existing.stripeCustomerId) {
-				const portalUrl = await createPortalSession(existing.stripeCustomerId, `${url.origin}/billing`);
-				redirect(303, portalUrl);
-			}
-			redirect(303, '/billing');
+			redirect(303, await getPortalOrBillingUrl(existing.stripeCustomerId, url.origin));
 		}
 
 		if (currentActive) {
-			if (currentActive.stripeCustomerId) {
-				const portalUrl = await createPortalSession(currentActive.stripeCustomerId, `${url.origin}/billing`);
-				redirect(303, portalUrl);
-			}
-			redirect(303, '/billing');
+			redirect(303, await getPortalOrBillingUrl(currentActive.stripeCustomerId, url.origin));
 		}
 
 		const idemKeyRaw = formData.get('idempotency_key');
