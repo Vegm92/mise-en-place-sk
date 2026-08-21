@@ -96,6 +96,18 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		await handleUnknownSender(msg, msg.from);
 		return;
 	}
+	if (msg.type === 'image' || msg.type === 'document') {
+		const access = await getAccessState(restaurantId);
+		if (!access.allowed) {
+			await sendWhatsAppMessage(
+				msg.from,
+				access.trialExpired
+					? '❌ Tu prueba gratuita ha terminado. Activa una suscripción para volver a procesar facturas.'
+					: '❌ Tu suscripción no está activa. Reactívala para volver a procesar facturas.',
+			);
+			return;
+		}
+	}
 	await dispatchMedia(msg, msg.from, restaurantId);
 }
 
