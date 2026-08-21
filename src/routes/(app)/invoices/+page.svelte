@@ -7,6 +7,9 @@
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
+  import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
+  import DateField from '$lib/components/mep/DateField.svelte';
+  import Search from '@lucide/svelte/icons/search';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -36,8 +39,9 @@
     return () => clearTimeout(timer);
   });
 
-  function pageUrl(p: number): string {
+  function sharedParams(): URLSearchParams {
     const params = new URLSearchParams();
+    if (filters.q)              params.set('q', filters.q);
     if (filters.status)        params.set('status', filters.status);
     if (filters.supplier_id)   params.set('supplier_id', filters.supplier_id);
     if (filters.date_from)     params.set('date_from', filters.date_from);
@@ -45,12 +49,22 @@
     if (filters.uploaded_from) params.set('uploaded_from', filters.uploaded_from);
     if (filters.uploaded_to)   params.set('uploaded_to', filters.uploaded_to);
     if (filters.sort && filters.sort !== 'uploaded_desc') params.set('sort', filters.sort);
-    if (p > 1)                 params.set('page', String(p));
+    return params;
+  }
+  function pageUrl(p: number): string {
+    const params = sharedParams();
+    if (period !== 'month') params.set('period', period);
+    if (p > 1) params.set('page', String(p));
     const qs = params.toString();
     return '/invoices' + (qs ? '?' + qs : '');
   }
+  function periodHref(value: string): string {
+    const params = sharedParams();
+    params.set('period', value);
+    return '/invoices?' + params.toString();
+  }
   const hasFilters = $derived(!!(
-    filters.status || filters.supplier_id || filters.date_from || filters.date_to ||
+    filters.q || filters.status || filters.supplier_id || filters.date_from || filters.date_to ||
     filters.uploaded_from || filters.uploaded_to || (filters.sort && filters.sort !== 'uploaded_desc')
   ));
 
@@ -168,21 +182,21 @@
     <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
   {/if}
 
-  <div style="display:flex;align-items:center;gap:12px;">
-    <div style="flex:1;"></div>
-    <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
-      {#each PERIODS as [val, labelKey]}
-        <a href="?period={val}" style="
-          background:{period === val ? 'var(--mep-surface)' : 'transparent'};
-          color:{period === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
-          font-size:12px;font-weight:{period === val ? 500 : 400};
-          padding:5px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;
-          box-shadow:{period === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
-          font-family:inherit;
-        ">{$t(labelKey)}</a>
-      {/each}
+  <form method="get" action="/invoices" style="display:flex;align-items:center;gap:12px;">
+    <div class="search-field">
+      <span class="search-icon"><Search size={14} /></span>
+      <input class="input" type="text" name="q" value={filters.q} placeholder={$t('inv.search')} />
     </div>
-  </div>
+    {#if filters.status}<input type="hidden" name="status" value={filters.status} />{/if}
+    {#if filters.supplier_id}<input type="hidden" name="supplier_id" value={filters.supplier_id} />{/if}
+    {#if filters.date_from}<input type="hidden" name="date_from" value={filters.date_from} />{/if}
+    {#if filters.date_to}<input type="hidden" name="date_to" value={filters.date_to} />{/if}
+    {#if filters.uploaded_from}<input type="hidden" name="uploaded_from" value={filters.uploaded_from} />{/if}
+    {#if filters.uploaded_to}<input type="hidden" name="uploaded_to" value={filters.uploaded_to} />{/if}
+    {#if filters.sort && filters.sort !== 'uploaded_desc'}<input type="hidden" name="sort" value={filters.sort} />{/if}
+    <input type="hidden" name="period" value={period} />
+    <PeriodPills active={period} pills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: periodHref(val) }))} />
+  </form>
 
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-1" data-coach="invoices-main">
     <KpiCard
@@ -191,6 +205,8 @@
       sub={period === 'all' ? $t('inv.kpi.totalSub') : undefined}
       delta={stats.count_delta_pct !== null ? Math.round(stats.count_delta_pct * 10) / 10 : undefined}
       deltaCtx={stats.count_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+      spark={stats.count_spark ?? undefined}
+      sparkPrev={stats.count_spark_prev ?? undefined}
     />
     <KpiCard
       label={$t('field.totalAmount')}
@@ -198,6 +214,8 @@
       sub={period === 'all' ? $t('inv.kpi.amountSub') : undefined}
       delta={stats.amount_delta_pct !== null ? Math.round(stats.amount_delta_pct * 10) / 10 : undefined}
       deltaCtx={stats.amount_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+      spark={stats.amount_spark ?? undefined}
+      sparkPrev={stats.amount_spark_prev ?? undefined}
       invert
     />
     <a href="/avisos" style="text-decoration:none;color:inherit;">
@@ -215,7 +233,7 @@
     />
   </div>
 
-  <SectionCard title={$t('inv.title')} noPad>
+  <SectionCard title={$t('inv.list.title')} sub={$t('inv.list.sub')} noPad>
     {#snippet headerRight()}
       <a href="/invoices/export" class="btn btn-ghost" style="height:30px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
         <FileDown size={13} />
@@ -225,6 +243,8 @@
 
     <form method="get" action="/invoices"
       class="flex flex-wrap items-end gap-2 px-4 py-3 border-b border-divider max-[700px]:flex-col max-[700px]:items-stretch">
+      <input type="hidden" name="q" value={filters.q} />
+      <input type="hidden" name="period" value={period} />
 
       <div class="flex flex-col gap-1 min-w-[140px]">
         <label class="label text-fg-3" style="font-size:10.5px;" for="inv-supplier">{$t('inv.filter.supplier')}</label>
@@ -247,26 +267,22 @@
 
       <div class="flex flex-col gap-1">
         <label class="label text-fg-3" style="font-size:10.5px;" for="inv-from">{$t('inv.filter.from')}</label>
-        <input id="inv-from" type="date" name="date_from" value={filters.date_from}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+        <DateField id="inv-from" name="date_from" value={filters.date_from} label={$t('date.from')} />
       </div>
 
       <div class="flex flex-col gap-1">
         <label class="label text-fg-3" style="font-size:10.5px;" for="inv-to">{$t('inv.filter.to')}</label>
-        <input id="inv-to" type="date" name="date_to" value={filters.date_to}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+        <DateField id="inv-to" name="date_to" value={filters.date_to} label={$t('date.to')} />
       </div>
 
       <div class="flex flex-col gap-1">
         <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
-        <input id="inv-uploaded-from" type="date" name="uploaded_from" value={filters.uploaded_from}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+        <DateField id="inv-uploaded-from" name="uploaded_from" value={filters.uploaded_from} label={$t('date.from')} />
       </div>
 
       <div class="flex flex-col gap-1">
         <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
-        <input id="inv-uploaded-to" type="date" name="uploaded_to" value={filters.uploaded_to}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+        <DateField id="inv-uploaded-to" name="uploaded_to" value={filters.uploaded_to} label={$t('date.to')} />
       </div>
 
       <div class="flex flex-col gap-1 min-w-[170px]">

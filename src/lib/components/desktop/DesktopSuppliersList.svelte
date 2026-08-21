@@ -6,6 +6,7 @@
   import Plus from '@lucide/svelte/icons/plus';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
+  import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
 
   interface Supplier {
     id: number;
@@ -28,6 +29,10 @@
     total_invoices: number;
     spend_delta_pct: number | null;
     invoices_delta_pct: number | null;
+    spend_spark?: number[] | null;
+    spend_spark_prev?: number[] | null;
+    invoices_spark?: number[] | null;
+    invoices_spark_prev?: number[] | null;
   }
 
   const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
@@ -77,19 +82,11 @@
 <div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
 
   <div style="display:flex;align-items:center;gap:12px;">
-    <div style="flex:1;"></div>
-    <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
-      {#each PERIODS as [val, labelKey]}
-        <a href="?period={val}" style="
-          background:{period === val ? 'var(--mep-surface)' : 'transparent'};
-          color:{period === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
-          font-size:12px;font-weight:{period === val ? 500 : 400};
-          padding:5px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;
-          box-shadow:{period === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
-          font-family:inherit;
-        ">{$t(labelKey)}</a>
-      {/each}
+    <div class="search-field">
+      <span class="search-icon"><Search size={14} /></span>
+      <input class="input" placeholder={$t('sup.searchPlaceholder')} bind:value={search} />
     </div>
+    <PeriodPills active={period} pills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: `?period=${val}` }))} />
   </div>
 
   <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 flex-shrink-0" data-coach="suppliers-main">
@@ -104,6 +101,8 @@
       sub={period === 'all' ? $t('inv.kpi.amountSub') : undefined}
       delta={periodStats.spend_delta_pct !== null ? Math.round(periodStats.spend_delta_pct * 10) / 10 : undefined}
       deltaCtx={periodStats.spend_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+      spark={periodStats.spend_spark ?? undefined}
+      sparkPrev={periodStats.spend_spark_prev ?? undefined}
       invert
     />
     <KpiCard
@@ -112,6 +111,8 @@
       sub={period === 'all' ? $t('inv.kpi.totalSub') : undefined}
       delta={periodStats.invoices_delta_pct !== null ? Math.round(periodStats.invoices_delta_pct * 10) / 10 : undefined}
       deltaCtx={periodStats.invoices_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+      spark={periodStats.invoices_spark ?? undefined}
+      sparkPrev={periodStats.invoices_spark_prev ?? undefined}
     />
     <KpiCard
       label={$t('dsup.unassigned')}
@@ -121,14 +122,7 @@
     />
   </div>
 
-  <div class="card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0;">
-    <div style="position:relative;flex:1;min-width:180px;">
-      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--mep-fg-3);">
-        <Search size={14} />
-      </span>
-      <input class="input" style="padding-left:32px;width:100%;"
-        placeholder={$t('sup.searchPlaceholder')} bind:value={search} />
-    </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
     <div style="position:relative;">
       <select class="btn btn-secondary"
         style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
@@ -142,12 +136,19 @@
     </div>
     <div style="flex:1;"></div>
     <button class="btn btn-secondary"
-      style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
+      style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled
+      title={$t('dsup.addSupplier.auto')}>
       <Plus size={13} /> {$t('dsup.addSupplier')}
     </button>
   </div>
 
   <div class="card" style="padding:0;overflow:hidden;flex:1;display:flex;flex-direction:column;">
+    <div class="card-header" style="flex-shrink:0;">
+      <div class="section-title">
+        <span class="subtitle">{$t('dsup.list.title')}</span>
+        <span class="body" style="font-size:12px;">{$t('dsup.list.sub')}</span>
+      </div>
+    </div>
     <div style="overflow:auto;flex:1;">
       {#if !filtered.length}
         <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">

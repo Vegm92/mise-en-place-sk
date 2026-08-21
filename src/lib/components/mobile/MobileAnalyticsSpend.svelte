@@ -36,10 +36,10 @@
   } = $props();
 
   const periods: Array<[string, string]> = [
-    ['month', '30 d'],
-    ['quarter', '90 d'],
-    ['half', '6 m'],
-    ['all', $t('spend.period.allShort')],
+    ['day',   $t('inv.period.day')],
+    ['month', $t('inv.period.month')],
+    ['year',  $t('inv.period.year')],
+    ['all',   $t('inv.period.all')],
   ];
 
   function fmtEur(n: number | null | undefined) {

@@ -6,6 +6,8 @@ import { sql, eq, and, gte, lt, isNull } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
+import { bucketSeries } from '$lib/server/period-series';
+import { moneyToNumber } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId!;
@@ -18,7 +20,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		type PriceTrendRow = { supplier_id: number; month: string; avg_price: number };
 		type PeriodStatsRow = { supplier_id: number; spend: number; invoice_count: number };
 
-		const [rows, periodRows, prevPeriodRows, metricsRows, priceTrendRows] = await Promise.all([
+		const [rows, periodRows, prevPeriodRows, metricsRows, priceTrendRows, seriesRows] = await Promise.all([
 			db.select({
 				id:               suppliers.id,
 				name:             suppliers.name,
@@ -74,6 +76,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				GROUP BY i.supplier_id, TO_CHAR(i.invoice_date, 'YYYY-MM')
 				ORDER BY i.supplier_id, month ASC
 			`),
+
+			prevFrom
+				? db.select({ createdAt: invoices.createdAt, amount: invoices.totalAmount })
+					.from(invoices)
+					.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.createdAt, prevFrom))))
+				: Promise.resolve([] as { createdAt: Date | null; amount: string | null }[]),
 		]);
 
 		const metricsMap = new Map(metricsRows.map((m) => [m.supplierId, m]));
@@ -144,6 +152,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			};
 		});
 
+		const seriesInput = seriesRows
+			.filter((r): r is { createdAt: Date; amount: string | null } => r.createdAt != null)
+			.map(r => ({ createdAt: r.createdAt, amount: moneyToNumber(r.amount ?? '0') }));
+		const countSeriesInput = seriesInput.map(r => ({ createdAt: r.createdAt, amount: 1 }));
+		const spendSeries = bucketSeries(seriesInput, period, periodFrom, prevFrom, prevTo);
+		const invoiceCountSeries = bucketSeries(countSeriesInput, period, periodFrom, prevFrom, prevTo);
+
 		const hasPrevPeriod = Boolean(prevFrom && prevTo);
 		const periodTotalSpend = periodRows.reduce((s, r) => s + Number(r.spend), 0);
 		const periodTotalInvoices = periodRows.reduce((s, r) => s + Number(r.invoice_count), 0);
@@ -165,6 +180,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				total_invoices: periodTotalInvoices,
 				spend_delta_pct: prevPeriodTotalSpend !== null ? deltaPct(periodTotalSpend, prevPeriodTotalSpend) : null,
 				invoices_delta_pct: prevPeriodTotalInvoices !== null ? deltaPct(periodTotalInvoices, prevPeriodTotalInvoices) : null,
+				spend_spark: spendSeries?.current ?? null,
+				spend_spark_prev: spendSeries?.previous ?? null,
+				invoices_spark: invoiceCountSeries?.current ?? null,
+				invoices_spark_prev: invoiceCountSeries?.previous ?? null,
 			},
 		};
 	});

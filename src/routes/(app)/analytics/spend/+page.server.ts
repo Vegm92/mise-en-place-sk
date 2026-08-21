@@ -4,36 +4,51 @@ import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
 import { CATEGORY_COLORS } from '$lib/constants';
 import { moneyToNumber } from '$lib/server/money';
+import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
+import { bucketSeries } from '$lib/server/period-series';
 
-const PERIOD_DATE_SQL: Record<string, SQL> = {
-	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::date`,
-	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date`,
-	half:    sql`AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date`,
-	all:     sql``,
+/** `mv_item_monthly_spend` / `mv_category_monthly_spend` are month-grained,
+ * so 'day' falls back to the current month bucket — same as 'month'. */
+const MONTH_BUCKET_FILTER: Record<PeriodKey, SQL | null> = {
+	day:   sql`AND month = TO_CHAR(NOW(), 'YYYY-MM')`,
+	month: sql`AND month = TO_CHAR(NOW(), 'YYYY-MM')`,
+	year:  sql`AND month >= TO_CHAR(NOW(), 'YYYY') || '-01'`,
+	all:   null,
 };
 
-const PERIOD_MONTH_FILTER: Record<string, SQL | null> = {
-	month:   sql`AND month = TO_CHAR(NOW(), 'YYYY-MM')`,
-	quarter: sql`AND month >= TO_CHAR((NOW() - INTERVAL '3 months')::date, 'YYYY-MM')`,
-	half:    sql`AND month >= TO_CHAR((NOW() - INTERVAL '6 months')::date, 'YYYY-MM')`,
-	all:     null,
-};
+function isoDate(d: Date): string {
+	const y = d.getFullYear();
+	const m = String(d.getMonth() + 1).padStart(2, '0');
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${y}-${m}-${day}`;
+}
+
+function parseLocalDate(iso: string): Date {
+	const [y, m, d] = iso.split('-').map(Number);
+	return new Date(y, m - 1, d);
+}
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	return handleLoad('analytics/spend', async () => {
-		let period = url.searchParams.get('period') ?? 'month';
-		if (!(period in PERIOD_MONTH_FILTER)) period = 'month';
-		const monthFilter = PERIOD_MONTH_FILTER[period];
-		const monthFilterSql = monthFilter ?? sql``;
-		const dateFilter = PERIOD_DATE_SQL[period]!;
+		const periodParam = url.searchParams.get('period') ?? 'month';
+		const period: PeriodKey = isPeriodKey(periodParam) ? periodParam : 'month';
+		const { from, prevFrom, prevTo } = periodRange(period);
+
+		const monthFilterSql = MONTH_BUCKET_FILTER[period] ?? sql``;
+		const dateFilter = from ? sql`AND i.invoice_date >= ${isoDate(from)}` : sql``;
+		const prevDateFilter = (prevFrom && prevTo)
+			? sql`AND i.invoice_date >= ${isoDate(prevFrom)} AND i.invoice_date < ${isoDate(prevTo)}`
+			: null;
 
 		type TopItem = { description: string; total_spend: string; item_count: number; avg_unit_price: string | null; supplier_name: string };
 		type CatRow = { category: string; total: string; invoice_count: number };
 		type KpisRow = { total_items_spend: string | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
+		type PrevKpisRow = { total_items_spend: string | null; total_line_items: number };
+		type SeriesRow = { invoice_date: string; amount: string | null };
 
-		const [topItems, categorySpend, kpisRows, itemTrendRows] = await Promise.all([
+		const [topItems, categorySpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT
 					MAX(m.description)    AS description,
@@ -85,6 +100,30 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				  AND m.month >= TO_CHAR((NOW() - INTERVAL '6 months')::date, 'YYYY-MM')
 				ORDER BY m.item_key, m.month ASC
 			`),
+
+			prevDateFilter
+				? db.execute<PrevKpisRow>(sql`
+					SELECT
+						SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total_items_spend,
+						COUNT(*) AS total_line_items
+					FROM invoice_line_items ili
+					JOIN invoices i ON i.id = ili.invoice_id
+					WHERE ili.description IS NOT NULL AND ili.description != ''
+					  AND i.restaurant_id = ${rid}
+					  ${prevDateFilter}
+				`)
+				: Promise.resolve([]),
+
+			prevFrom
+				? db.execute<SeriesRow>(sql`
+					SELECT i.invoice_date, COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0) AS amount
+					FROM invoice_line_items ili
+					JOIN invoices i ON i.id = ili.invoice_id
+					WHERE ili.description IS NOT NULL AND ili.description != ''
+					  AND i.restaurant_id = ${rid}
+					  AND i.invoice_date >= ${isoDate(prevFrom)}
+				`)
+				: Promise.resolve([]),
 		]);
 
 		const itemTrendMap = new Map<string, number[]>();
@@ -117,11 +156,29 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		}));
 
 		const kpisRow0 = kpisRows[0];
+		const currentSpend = moneyToNumber(kpisRow0?.total_items_spend ?? '0');
+		const currentLineItems = kpisRow0?.total_line_items ?? 0;
+
+		const prevRow0 = prevKpisRows[0];
+		const prevSpend = prevRow0 ? moneyToNumber(prevRow0.total_items_spend ?? '0') : null;
+		const prevLineItems = prevRow0 ? (prevRow0.total_line_items ?? 0) : null;
+
+		const seriesInput = seriesRows.map(r => ({ createdAt: parseLocalDate(r.invoice_date), amount: moneyToNumber(r.amount ?? '0') }));
+		const countSeriesInput = seriesInput.map(r => ({ createdAt: r.createdAt, amount: 1 }));
+		const spendSeries = bucketSeries(seriesInput, period, from, prevFrom, prevTo);
+		const lineItemsSeries = bucketSeries(countSeriesInput, period, from, prevFrom, prevTo);
+
 		const kpis = {
-			total_items_spend: moneyToNumber(kpisRow0?.total_items_spend ?? '0'),
-			total_line_items: kpisRow0?.total_line_items ?? 0,
+			total_items_spend: currentSpend,
+			total_line_items: currentLineItems,
 			unique_items: kpisRow0?.unique_items ?? 0,
 			avg_invoice_items: kpisRow0?.avg_invoice_items ?? null,
+			spend_delta_pct: prevSpend !== null ? deltaPct(currentSpend, prevSpend) : null,
+			line_items_delta_pct: prevLineItems !== null ? deltaPct(currentLineItems, prevLineItems) : null,
+			spend_spark: spendSeries?.current ?? null,
+			spend_spark_prev: spendSeries?.previous ?? null,
+			line_items_spark: lineItemsSeries?.current ?? null,
+			line_items_spark_prev: lineItemsSeries?.previous ?? null,
 		};
 
 		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period };

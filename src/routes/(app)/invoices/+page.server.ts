@@ -4,13 +4,14 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { trackEvent } from '$lib/server/events';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
 import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
+import { bucketSeries } from '$lib/server/period-series';
 
 const LOW_CONFIDENCE_THRESHOLD = 0.85;
 
@@ -32,6 +33,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
+		const q            = url.searchParams.get('q') ?? '';
 		const status       = url.searchParams.get('status') ?? '';
 		const supplierId   = url.searchParams.get('supplier_id') ?? '';
 		const dateFrom     = toIsoDate(url.searchParams.get('date_from')) ?? '';
@@ -54,13 +56,22 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		if (dateTo)       conditions.push(lte(invoices.invoiceDate, dateTo));
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
 		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
+		if (q) {
+			const likeQ = `%${q}%`;
+			const matchingSupplierIds = db.select({ id: suppliers.id }).from(suppliers)
+				.where(and(tdb.scope(suppliers.restaurantId), ilike(suppliers.name, likeQ)));
+			conditions.push(or(
+				ilike(invoices.invoiceNumber, likeQ),
+				inArray(invoices.supplierId, matchingSupplierIds),
+			) as SQL);
+		}
 
 		const periodScope = periodFrom ? gte(invoices.createdAt, periodFrom) : undefined;
 		const prevPeriodScope = prevFrom && prevTo
 			? and(gte(invoices.createdAt, prevFrom), lt(invoices.createdAt, prevTo))
 			: undefined;
 
-		const [invoiceRows, statsRow, prevStatsRow, needsReviewRow, supplierRows, countRow] = await Promise.all([
+		const [invoiceRows, statsRow, prevStatsRow, needsReviewRow, supplierRows, countRow, seriesRows] = await Promise.all([
 			db.select({
 				id:             invoices.id,
 				supplier_name:  suppliers.name,
@@ -118,6 +129,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({ cnt: count() })
 				.from(invoices)
 				.where(and(...conditions)),
+
+			prevFrom
+				? db.select({ createdAt: invoices.createdAt, amount: invoices.totalAmount })
+					.from(invoices)
+					.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.createdAt, prevFrom))))
+				: Promise.resolve([] as { createdAt: Date | null; amount: string | null }[]),
 		]);
 
 		const savedAlerts = Number.isFinite(savedId)
@@ -163,6 +180,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const prevCount = prevStatsRow ? (prevStatsRow[0]?.total_count ?? 0) : null;
 		const prevAmount = prevStatsRow ? moneyToNumber(prevStatsRow[0]?.total_amount ?? '0') : null;
 
+		const seriesInput = seriesRows
+			.filter((r): r is { createdAt: Date; amount: string | null } => r.createdAt != null)
+			.map(r => ({ createdAt: r.createdAt, amount: moneyToNumber(r.amount ?? '0') }));
+		const countSeriesInput = seriesInput.map(r => ({ createdAt: r.createdAt, amount: 1 }));
+		const amountSeries = bucketSeries(seriesInput, period, periodFrom, prevFrom, prevTo);
+		const countSeries = bucketSeries(countSeriesInput, period, periodFrom, prevFrom, prevTo);
+
 		const stats = {
 			total_count: currentCount,
 			total_amount: currentAmount,
@@ -170,6 +194,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			needs_review_count: needsReviewRow[0]?.cnt ?? 0,
 			count_delta_pct: prevCount !== null ? deltaPct(currentCount, prevCount) : null,
 			amount_delta_pct: prevAmount !== null ? deltaPct(currentAmount, prevAmount) : null,
+			count_spark: countSeries?.current ?? null,
+			count_spark_prev: countSeries?.previous ?? null,
+			amount_spark: amountSeries?.current ?? null,
+			amount_spark_prev: amountSeries?.previous ?? null,
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
@@ -180,7 +208,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			period,
 			suppliers: supplierRows,
 			filters: {
-				status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo,
+				q, status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo,
 				uploaded_from: uploadedFrom, uploaded_to: uploadedTo, sort,
 			},
 			conflict: url.searchParams.get('conflict') === '1',

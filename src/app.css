@@ -144,20 +144,39 @@
   --mep-acc-ring: rgba(111, 143, 196, 0.30);
 }
 
-/* Accent — amber (one clean, confident orange; used sparingly) */
+/* Accent — amber (one confident terracotta; used sparingly, per the One
+   Voice Rule — reserved for the single primary action on a screen, never
+   for every interactive surface). Toned down from pure orange-600: less
+   saturated, reads as considered rather than alarmed. */
 .mep[data-accent="amber"] {
-  --mep-acc:      #EA580C;
+  --mep-acc:      #C2540C;
   --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(234, 88, 12, 0.10);
-  --mep-acc-hover:#C2410C;
-  --mep-acc-ring: rgba(234, 88, 12, 0.30);
+  --mep-acc-soft: rgba(194, 84, 12, 0.10);
+  --mep-acc-hover:#A3460A;
+  --mep-acc-ring: rgba(194, 84, 12, 0.30);
 }
 :root[data-theme="dark"] .mep[data-accent="amber"] {
-  --mep-acc:      #FB8A3C;
+  --mep-acc:      #EC9455;
   --mep-acc-fg:   #2A1608;
-  --mep-acc-soft: rgba(251, 138, 60, 0.18);
-  --mep-acc-hover:#FC9C57;
-  --mep-acc-ring: rgba(251, 138, 60, 0.30);
+  --mep-acc-soft: rgba(236, 148, 85, 0.16);
+  --mep-acc-hover:#F0A468;
+  --mep-acc-ring: rgba(236, 148, 85, 0.30);
+}
+
+/* Secondary structural color — the second of the app's 3 named colors
+   (terracotta primary + deep slate secondary + neutral). Always available
+   alongside whichever data-accent is active; not itself switchable. Used
+   for the "previous period" series in comparative charts and other
+   structural-but-not-primary-action emphasis — never for a second CTA. */
+.mep {
+  --mep-acc-2:      #34507A;
+  --mep-acc-2-fg:   #ffffff;
+  --mep-acc-2-soft: rgba(52, 80, 122, 0.10);
+}
+:root[data-theme="dark"] .mep {
+  --mep-acc-2:      #7D9BCE;
+  --mep-acc-2-fg:   #0D1828;
+  --mep-acc-2-soft: rgba(125, 155, 206, 0.18);
 }
 
 /* Density */
@@ -188,6 +207,9 @@
   --color-acc:           var(--mep-acc);
   --color-acc-fg:        var(--mep-acc-fg);
   --color-acc-soft:      var(--mep-acc-soft);
+  --color-acc-2:         var(--mep-acc-2);
+  --color-acc-2-fg:      var(--mep-acc-2-fg);
+  --color-acc-2-soft:    var(--mep-acc-2-soft);
   --color-pos:           var(--mep-pos);
   --color-pos-soft:      var(--mep-pos-soft);
   --color-neg:           var(--mep-neg);
@@ -355,6 +377,90 @@
   /* Misc atoms */
   .swatch  { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
   .divider { height: 1px; background: var(--mep-divider); }
+
+  /* Period pill selector — one shared shape for every screen's time filter.
+     Always pill-radius, matching buttons; never a bespoke small radius. */
+  .period-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--mep-surface-2);
+    border: 1px solid var(--mep-divider);
+    border-radius: var(--mep-r-pill);
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .period-pill {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1;
+    padding: 6px 13px;
+    border: none;
+    border-radius: var(--mep-r-pill);
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--mep-fg-3);
+    background: transparent;
+    white-space: nowrap;
+    transition: background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+  }
+  .period-pill:hover { color: var(--mep-fg-2); }
+  .period-pill.active {
+    background: var(--mep-surface);
+    color: var(--mep-fg);
+    font-weight: 500;
+    box-shadow: var(--mep-shadow-card);
+  }
+
+  /* Search field — pairs with .period-track in a page toolbar row */
+  .search-field {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+  }
+  .search-field .input {
+    width: 100%;
+    padding-left: 34px;
+  }
+  .search-field .search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--mep-fg-3);
+    pointer-events: none;
+    display: flex;
+  }
+
+  /* Date field — replaces the browser's native dd/mm/aaaa placeholder with
+     a calendar glyph + our own label; the native input still drives the
+     real date picker underneath. */
+  .date-field { position: relative; }
+  .date-field input[type="date"] {
+    font-family: inherit;
+    color-scheme: light dark;
+  }
+  /* `:placeholder-shown` does not match <input type="date"> reliably across
+     browsers — the empty-state visual is driven by the `is-empty` class
+     instead, toggled in JS from the input's own value. */
+  .date-field input[type="date"].is-empty:not(:focus) { color: transparent; }
+  .date-field input[type="date"]:focus ~ .date-field-placeholder { opacity: 0; }
+  .date-field .date-field-placeholder {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--mep-fg-4);
+    pointer-events: none;
+    white-space: nowrap;
+    transition: opacity 100ms ease-out;
+  }
+  .date-field .date-field-placeholder.is-hidden { opacity: 0; }
 }
 
 @keyframes mepspin { to { transform: rotate(360deg); } }

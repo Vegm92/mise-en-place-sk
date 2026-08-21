@@ -10,6 +10,7 @@
     sub,
     variant = 'default' as Variant,
     spark,
+    sparkPrev,
     delta,
     deltaCtx,
     invert = false,
@@ -19,6 +20,8 @@
     sub?: string;
     variant?: Variant;
     spark?: number[];
+    /** Same-shape previous-period series — draws a second, dashed line for comparison. */
+    sparkPrev?: number[];
     delta?: number;
     deltaCtx?: string;
     invert?: boolean;
@@ -42,7 +45,7 @@
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
     <span class="label {labelColor[variant]}">{label}</span>
     {#if spark && spark.length >= 2}
-      <Sparkline data={spark} width={84} height={28} />
+      <Sparkline data={spark} compareData={sparkPrev} width={84} height={28} />
     {/if}
   </div>
   <span class="num {valueColor[variant]}" style="font-size:26px;font-weight:600;letter-spacing:-0.6px;line-height:1.1;">

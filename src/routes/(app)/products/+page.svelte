@@ -4,6 +4,7 @@
   import { invalidateAll } from '$app/navigation';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
+  import Search from '@lucide/svelte/icons/search';
   import Plus from '@lucide/svelte/icons/plus';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
@@ -12,6 +13,13 @@
   const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
 
   let tab = $state<'catalog' | 'suggestions'>('catalog');
+  let search = $state('');
+  const filteredProducts = $derived(
+    products.filter(p => {
+      const q = search.trim().toLowerCase();
+      return !q || p.canonicalName.toLowerCase().includes(q) || (p.category ?? '').toLowerCase().includes(q);
+    })
+  );
 
   let suggestionBusy = $state<Record<number, boolean>>({});
 
@@ -32,9 +40,16 @@
 
 <div class="flex flex-col gap-4 p-6" data-coach="products-main">
 
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="search-field">
+      <span class="search-icon"><Search size={14} /></span>
+      <input class="input" placeholder={$t('prod.searchPlaceholder')} bind:value={search} />
+    </div>
+  </div>
+
   <div class="grid grid-cols-3 gap-3 max-[700px]:grid-cols-1">
     <KpiCard
-      label={$t('prod.title')}
+      label={$t('prod.kpi.total')}
       value={products.length}
       sub={$t('inv.kpi.totalSub')}
     />
@@ -99,6 +114,8 @@
 
       {#if products.length === 0}
         <p class="body text-center py-16">{$t('prod.empty')}</p>
+      {:else if filteredProducts.length === 0}
+        <p class="body text-center py-16" style="color:var(--mep-fg-3);">{$t('prod.noResults')}</p>
       {:else}
         <table class="tbl">
           <thead>
@@ -112,7 +129,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each products as p (p.id)}
+            {#each filteredProducts as p (p.id)}
               <tr class="row">
                 <td>
                   <a href="/products/{p.id}" class="body-strong" style="text-decoration:none;color:inherit;">{p.canonicalName}</a>

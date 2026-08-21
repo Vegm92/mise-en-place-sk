@@ -2,14 +2,16 @@
   import type { PageData } from './$types';
   import { t, tcat } from '$lib/i18n';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
+  import KpiCard from '$lib/components/mep/KpiCard.svelte';
+  import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
 
   let { data }: { data: PageData } = $props();
 
-  const periods: Array<[string, string]> = [
-    ['month',   '30 d'],
-    ['quarter', '90 d'],
-    ['half',    '6 m'],
-    ['all',     $t('spend.period.allShort')],
+  const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
+    ['day',   'inv.period.day'],
+    ['month', 'inv.period.month'],
+    ['year',  'inv.period.year'],
+    ['all',   'inv.period.all'],
   ];
 
   function fmtEur(n: number | null | undefined) {
@@ -67,41 +69,37 @@
   <div style="padding:20px 24px 24px;display:flex;flex-direction:column;gap:14px;">
 
     <div style="display:flex;align-items:center;gap:12px;">
-      <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{$t('spend.question')}</h2>
+      <PeriodPills active={data.period} pills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: `?period=${val}` }))} />
       <div style="flex:1;"></div>
-      <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
-        {#each periods as [val, short]}
-          <a href="?period={val}" style="
-            background:{data.period === val ? 'var(--mep-surface)' : 'transparent'};
-            color:{data.period === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
-            font-size:12px;font-weight:{data.period === val ? 500 : 400};
-            padding:5px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;
-            box-shadow:{data.period === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
-            font-family:inherit;
-          ">{short}</a>
-        {/each}
-      </div>
+      <h2 style="margin:0;font-size:14px;font-weight:500;color:var(--mep-fg-3);">{$t('spend.question')}</h2>
     </div>
 
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2" data-coach="analytics-main">
-      <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">{$t('spend.totalSpend')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{fmtEur(data.kpis.total_items_spend)}</div>
-      </div>
-      <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">{$t('spend.lineItems')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.kpis.total_line_items}</div>
-      </div>
-      <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">{$t('spend.uniqueItems')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">{data.kpis.unique_items}</div>
-      </div>
-      <div class="card" style="padding:14px;">
-        <div class="label" style="margin-bottom:6px;">{$t('spend.avgItems')}</div>
-        <div class="num" style="font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
-          {data.kpis.avg_invoice_items != null ? data.kpis.avg_invoice_items.toFixed(1) : '—'}
-        </div>
-      </div>
+      <KpiCard
+        label={$t('spend.totalSpend')}
+        value={fmtEur(data.kpis.total_items_spend)}
+        delta={data.kpis.spend_delta_pct !== null ? Math.round(data.kpis.spend_delta_pct * 10) / 10 : undefined}
+        deltaCtx={data.kpis.spend_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+        spark={data.kpis.spend_spark ?? undefined}
+        sparkPrev={data.kpis.spend_spark_prev ?? undefined}
+        invert
+      />
+      <KpiCard
+        label={$t('spend.lineItems')}
+        value={data.kpis.total_line_items}
+        delta={data.kpis.line_items_delta_pct !== null ? Math.round(data.kpis.line_items_delta_pct * 10) / 10 : undefined}
+        deltaCtx={data.kpis.line_items_delta_pct !== null ? $t('inv.kpi.vsPrev') : undefined}
+        spark={data.kpis.line_items_spark ?? undefined}
+        sparkPrev={data.kpis.line_items_spark_prev ?? undefined}
+      />
+      <KpiCard
+        label={$t('spend.uniqueItems')}
+        value={data.kpis.unique_items}
+      />
+      <KpiCard
+        label={$t('spend.avgItems')}
+        value={data.kpis.avg_invoice_items != null ? data.kpis.avg_invoice_items.toFixed(1) : '—'}
+      />
     </div>
 
     <div style="display:grid;grid-template-columns:3fr 2fr;gap:12px;">

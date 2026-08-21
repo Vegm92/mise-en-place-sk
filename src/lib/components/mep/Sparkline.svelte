@@ -3,31 +3,43 @@
 
   let {
     data,
+    compareData,
     color = 'var(--mep-acc)',
+    compareColor = 'var(--mep-acc-2)',
     width = 64,
     height = 24,
   }: {
     data: number[];
+    /** Previous-period series, same length semantics — drawn behind, in compareColor, no fill. */
+    compareData?: number[];
     color?: string;
+    compareColor?: string;
     width?: number;
     height?: number;
   } = $props();
 
-  const points = $derived.by(() => {
-    if (data.length < 2) return '';
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const range = max - min || 1;
-    const xStep = width / (data.length - 1);
-    return data
+  const scale = $derived.by(() => {
+    const all = compareData && compareData.length >= 2 ? [...data, ...compareData] : data;
+    const min = Math.min(...all);
+    const max = Math.max(...all);
+    return { min, range: max - min || 1 };
+  });
+
+  function toPoints(series: number[]): string {
+    if (series.length < 2) return '';
+    const { min, range } = scale;
+    const xStep = width / (series.length - 1);
+    return series
       .map((v, i) => {
         const x = i * xStep;
         const y = height - ((v - min) / range) * (height - 3) - 1.5;
         return `${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(' ');
-  });
+  }
 
+  const points = $derived(toPoints(data));
+  const comparePoints = $derived(compareData ? toPoints(compareData) : '');
   const fillPoints = $derived(points ? `${points} ${width},${height} 0,${height}` : '');
 </script>
 
@@ -39,6 +51,17 @@
     </linearGradient>
   </defs>
   {#if data.length >= 2}
+    {#if comparePoints}
+      <polyline
+        points={comparePoints}
+        stroke={compareColor}
+        stroke-width="1.25"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-dasharray="2.5 2.5"
+        opacity="0.85"
+      />
+    {/if}
     <polygon points={fillPoints} fill="url(#{gid})" />
     <polyline
       {points}
