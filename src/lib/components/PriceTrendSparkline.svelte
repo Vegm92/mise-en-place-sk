@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { t } from '$lib/i18n';
 
   let {
@@ -42,8 +42,8 @@
   const color = $derived.by(() => {
     if (values.length < 2) return 'var(--mep-fg-3)';
     const diff = values[values.length - 1]! - values[0]!;
-    if (diff > 0) return '#22c55e';
-    if (diff < 0) return '#ef4444';
+    if (diff > 0) return 'var(--mep-pos)';
+    if (diff < 0) return 'var(--mep-neg)';
     return 'var(--mep-fg-3)';
   });
 
