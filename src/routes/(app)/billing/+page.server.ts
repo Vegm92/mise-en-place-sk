@@ -137,17 +137,32 @@ export const actions: Actions = {
 
 		let checkoutUrl: string;
 		try {
-			const customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
+			let customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
 			trackEvent('checkout_started', rid, { tier });
-			checkoutUrl = await createCheckoutSession(
-				rid,
-				customerId,
-				tier,
-				`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-				`${url.origin}/billing`,
-				idemKey ?? undefined,
-				locals.user.id,
-			);
+			try {
+				checkoutUrl = await createCheckoutSession(
+					rid,
+					customerId,
+					tier,
+					`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
+					`${url.origin}/billing`,
+					idemKey ?? undefined,
+					locals.user.id,
+				);
+			} catch (err) {
+				if (!(err instanceof StaleCustomerError)) throw err;
+				await db.update(subscriptions).set({ stripeCustomerId: null }).where(tdb.scope(subscriptions.restaurantId));
+				customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
+				checkoutUrl = await createCheckoutSession(
+					rid,
+					customerId,
+					tier,
+					`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
+					`${url.origin}/billing`,
+					idemKey ?? undefined,
+					locals.user.id,
+				);
+			}
 		} catch (err) {
 			if (idemKey) await releaseRequest(idemKey);
 			throw err;
