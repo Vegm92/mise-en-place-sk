@@ -204,9 +204,26 @@ La primera versión (commit `fc9f1bd`) era un gráfico de barras con un filtro d
 - **Aviso de entorno, no de código:** en mitad de esta verificación, tests que habían pasado momentos antes empezaron a fallar en cascada (error Postgres `53300`, demasiadas conexiones) — causado por ~90 conexiones inactivas que habían dejado sueltas ejecuciones anteriores de `vitest` de esta misma sesión contra el Postgres local (`max_connections=100`). Se liberaron a mano y los tests volvieron a 1092/1092 en verde. Si en otra sesión los tests fallan todos de golpe con errores de conexión, revisar `pg_stat_activity` antes de asumir que es un fallo real.
 
 **Sin tocar, pendiente para otra sesión:**
-1. **`MobileSuppliersList.svelte`** no lleva el gráfico nuevo (solo se hizo en la versión de escritorio de Proveedores). Albaranes/Analíticas/Productos sí cubren móvil.
-2. **Albaranes no tiene el gráfico grande** — se quedó con las mini-gráficas por tarjeta KPI que ya tenía de antes. No se pidió explícitamente añadírselo aquí; valorar si hace falta para que las 4 pantallas queden a la misma altura.
-3. **Auditoría de "rejillas desordenadas"**: la usuaria mencionó que el layout general "da un toc" pero, preguntada, prefirió que seguir con Productos primero y dejar esta revisión para el final, viendo las 4 pantallas ya completas juntas — **queda por hacer**, es lo primero a retomar.
-4. Categorías solapadas (Bebidas/Vinos y Cavas/Café) y catalán (arriba) siguen sin decisión.
+1. **`MobileSuppliersList.svelte`** sigue sin el gráfico grande (solo la versión de escritorio de Proveedores lo tiene). Albaranes/Analíticas/Productos ya cubren escritorio y móvil.
+2. Categorías solapadas (Bebidas/Vinos y Cavas/Café) y catalán siguen sin decisión — ver commit `419b47d` y este mismo apartado más arriba.
+
+---
+
+## 7. Ronda de pulido visual sobre los gráficos — 2026-08-21 (continuación, con capturas anotadas)
+
+La usuaria mandó una captura de Analíticas con líneas amarillas dibujadas a mano marcando que los bordes verticales del bloque de abajo no coincidían con las 4 columnas de las tarjetas KPI de arriba — esa captura es la referencia real de lo que significaba "las rejillas están desordenadas" en el punto 6. Junto con eso, más pedidos concretos. Todo corregido y verificado con datos reales. Commits: `419b47d`, `81bcd95`.
+
+- **Gráfico relleno** (área bajo la línea, no solo trazo) — pedido con imagen de referencia.
+- **Rejilla alineada en Analíticas**: el bloque "Artículos principales" + "Por categoría" pasó de una proporción `3fr 2fr` propia a la misma `grid-cols-4` de las tarjetas KPI (`col-span-3` + `col-span-1`) — los bordes ya coinciden exactamente, confirmado con la captura.
+- **Hover que no funcionaba — fallo real, no percepción**: el id del degradado de cada serie se construía con el nombre tal cual ("Frutas y Verduras"), y una URL SVG con espacios sin escapar no resuelve — el relleno salía negro sólido y el hover fallaba. Solo se detectaba con nombres reales (con espacio), no con las claves de prueba con guion bajo que se habían usado hasta entonces — por eso no salió antes. Corregido usando el índice de la serie para el id, y añadido `pointer-events="all"` explícito a las zonas de hover.
+- **"El gráfico no ocupa el espacio que le corresponde por rejilla"**: `TrendLineChart` tenía un ancho fijo en píxeles según el número de puntos, dejando un hueco vacío a la derecha de la tarjeta. Ahora usa `bind:clientWidth` y ocupa el 100% del ancho de la tarjeta; el scroll horizontal solo aparece si hay tantos puntos que quedarían más apretados que un mínimo legible.
+- **"No uses donuts, son horribles. Solo barras o líneas."** — el donut de "Artículos principales por gasto" (Analíticas, escritorio y móvil) se sustituyó por el mismo patrón de barra horizontal que ya usaba "Por categoría" al lado.
+- **"Si hay nombres escritos no puede ser en la misma fuente que los números"** — `KpiCard` gana la prop `valueIsName`: cuando el valor es un nombre (proveedor, categoría) en vez de una medida, se renderiza como etiqueta (17px, sin la tipografía tabular de números), no con el número grande de 26px. Aplicado a "Categoría con más gasto" y "Proveedor con más gasto".
+- **"Albaranes lo prefiero con gráfica grande"** — Albaranes ya tiene el mismo gráfico Categorías/Proveedores que Proveedores y Analíticas (antes solo tenía las mini-gráficas de las tarjetas KPI).
+- **Formato de fecha de los ejes unificado**: antes el modo "Productos" de Analíticas siempre mostraba el año y el modo "Categorías" solo a veces — ahora todos los buckets mensuales muestran siempre el año, en las 3+1 pantallas.
+
+**Sigue pendiente, sin resolver:**
+1. `MobileSuppliersList.svelte` sin el gráfico grande (ver punto 6.1).
+2. Categorías solapadas y catalán (ver punto 6.2) — la usuaria preguntó "¿categorías solapadas?" pero no llegó a decidir consolidar o no; sigue abierto.
 
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
