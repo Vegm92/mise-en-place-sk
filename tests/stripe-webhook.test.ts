@@ -382,30 +382,38 @@ describe.skipIf(!hasDbEnv)('Stripe — reconcile subscription from Stripe', () =
 
 describe.skipIf(!hasDbEnv)('cancelDuplicateSubscriptionsForUser — notifies the owner of the canceled restaurant', () => {
 	it('emails the owner of the canceled restaurant, not the kept one', async () => {
+		const ts = Date.now();
+		const cusKeep = `cus_keep_${ts}`;
+		const cusDropId = `cus_drop_${ts}`;
+		const subKeep = `sub_keep_${ts}`;
+		const subDropId = `sub_drop_${ts}`;
 		const keep = await createTestRestaurant('dup-keep');
 		const drop = await createTestRestaurant('dup-drop');
-		const [user] = await testDb.insert(users)
-			.values({ email: `dup-owner-${Date.now()}@example.com` })
-			.returning({ id: users.id });
-		await testDb.insert(userRestaurants).values([
-			{ userId: user.id, restaurantId: keep.id, role: 'owner' },
-			{ userId: user.id, restaurantId: drop.id, role: 'owner' },
-		]);
-		await testDb.insert(subscriptions).values([
-			{ restaurantId: keep.id, planTier: 'pro', status: 'active', stripeSubscriptionId: 'sub_keep', stripeCustomerId: 'cus_keep' },
-			{ restaurantId: drop.id, planTier: 'pro', status: 'active', stripeSubscriptionId: 'sub_drop', stripeCustomerId: 'cus_drop' },
-		]);
-		const cancelSpy = vi.spyOn(stripe!.subscriptions, 'cancel').mockResolvedValue({} as never);
 		try {
-			await cancelDuplicateSubscriptionsForUser(user.id, keep.id);
+			const [user] = await testDb.insert(users)
+				.values({ email: `dup-owner-${Date.now()}@example.com` })
+				.returning({ id: users.id });
+			await testDb.insert(userRestaurants).values([
+				{ userId: user.id, restaurantId: keep.id, role: 'owner' },
+				{ userId: user.id, restaurantId: drop.id, role: 'owner' },
+			]);
+			await testDb.insert(subscriptions).values([
+				{ restaurantId: keep.id, planTier: 'pro', status: 'active', stripeSubscriptionId: subKeep, stripeCustomerId: cusKeep },
+				{ restaurantId: drop.id, planTier: 'pro', status: 'active', stripeSubscriptionId: subDropId, stripeCustomerId: cusDropId },
+			]);
+			const cancelSpy = vi.spyOn(stripe!.subscriptions, 'cancel').mockResolvedValue({} as never);
+			try {
+				await cancelDuplicateSubscriptionsForUser(user.id, keep.id);
 
-			expect(cancelSpy).toHaveBeenCalledWith('sub_drop');
-			expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: expect.stringContaining('dup-owner-') }));
+				expect(cancelSpy).toHaveBeenCalledWith(subDropId);
+				expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: expect.stringContaining('dup-owner-') }));
+			} finally {
+				cancelSpy.mockRestore();
+				await testDb.delete(users).where(eq(users.id, user.id));
+			}
 		} finally {
-			cancelSpy.mockRestore();
 			await cleanupTestRestaurant(keep.id);
 			await cleanupTestRestaurant(drop.id);
-			await testDb.delete(users).where(eq(users.id, user.id));
 		}
 	});
 });
