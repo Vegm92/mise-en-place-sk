@@ -41,9 +41,9 @@ function getUpstashLimiter(max: number, windowSeconds: number): UpstashLimiter {
 	if (!upstashLimiters.has(id)) {
 		upstashLimiters.set(
 			id,
-			new RatelimitClass({
-				redis: redisClient,
-				limiter: RatelimitClass.slidingWindow(max, `${windowSeconds} s`),
+			new RatelimitClass!({
+				redis: redisClient!,
+				limiter: RatelimitClass!.slidingWindow(max, `${windowSeconds} s`),
 			}),
 		);
 	}
@@ -155,7 +155,7 @@ async function acquireExtractionSlotRedis(max: number): Promise<ExtractionSlot |
 	const token = `${process.pid}:${randomUUID()}`;
 	const deadline = Date.now() + SLOT_MAX_WAIT_MS;
 	for (;;) {
-		const granted = await redisClient.eval(
+		const granted = await redisClient!.eval(
 			ACQUIRE_SLOT_SCRIPT,
 			[SLOT_KEY],
 			[String(Date.now()), String(max), token, String(SLOT_LEASE_MS)],
@@ -167,7 +167,7 @@ async function acquireExtractionSlotRedis(max: number): Promise<ExtractionSlot |
 					if (released) return;
 					released = true;
 					try {
-						await redisClient.zrem(SLOT_KEY, token);
+						await redisClient!.zrem(SLOT_KEY, token);
 					} catch (e) {
 						console.error('[rate-limiter] Failed to release extraction slot in Redis:', e);
 					}
