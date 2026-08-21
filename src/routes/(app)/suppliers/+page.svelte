@@ -28,5 +28,6 @@
     periodStats={data.periodStats}
     unassigned={unassigned}
     firstUnassigned={firstUnassigned}
+    trend={data.trend}
   />
 </div>

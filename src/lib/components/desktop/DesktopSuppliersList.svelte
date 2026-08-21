@@ -7,6 +7,9 @@
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
+  import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
+
+  interface TrendRow { bucket: string; category: string; supplierId: number; supplierName: string; amount: number; }
 
   interface Supplier {
     id: number;
@@ -49,6 +52,7 @@
     periodStats = { total_spend: 0, total_invoices: 0, spend_delta_pct: null, invoices_delta_pct: null },
     unassigned = 0,
     firstUnassigned = '',
+    trend = [],
   }: {
     suppliers: Supplier[];
     categories?: string[];
@@ -56,10 +60,69 @@
     periodStats?: PeriodStats;
     unassigned?: number;
     firstUnassigned?: string;
+    trend?: TrendRow[];
   } = $props();
 
   let search    = $state('');
   let catFilter = $state('');
+
+  const SERIES_PALETTE = [
+    'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
+    'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)', 'var(--mep-series-other)',
+  ];
+
+  const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
+  function formatTrendBucketLabel(bucket: string): string {
+    if (bucket.length === 7) {
+      const [y, m] = bucket.split('-').map(Number);
+      const label = trendFmt.format(new Date(y, m - 1, 1));
+      return period === 'all' ? `${label} ${String(y).slice(2)}` : label;
+    }
+    const [, , d] = bucket.split('-');
+    return String(Number(d));
+  }
+
+  const rankedTrendCategories = $derived.by(() => {
+    const totals = new Map<string, number>();
+    for (const r of trend) totals.set(r.category, (totals.get(r.category) ?? 0) + r.amount);
+    return [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  });
+  const rankedTrendSuppliers = $derived.by(() => {
+    const totals = new Map<number, { name: string; total: number }>();
+    for (const r of trend) {
+      const e = totals.get(r.supplierId) ?? { name: r.supplierName, total: 0 };
+      e.total += r.amount;
+      totals.set(r.supplierId, e);
+    }
+    return [...totals.entries()].sort((a, b) => b[1].total - a[1].total).map(([id, v]) => ({ id, name: v.name }));
+  });
+
+  let trendMode = $state<'category' | 'supplier'>('category');
+  let selectedCats = $state<string[]>(rankedTrendCategories.slice(0, 4));
+  let selectedSuppliers = $state<number[]>(rankedTrendSuppliers.slice(0, 4).map(s => s.id));
+
+  function toggleCat(key: string) { selectedCats = selectedCats.includes(key) ? selectedCats.filter(k => k !== key) : [...selectedCats, key]; }
+  function toggleSupplier(key: number) { selectedSuppliers = selectedSuppliers.includes(key) ? selectedSuppliers.filter(k => k !== key) : [...selectedSuppliers, key]; }
+
+  const categoryChart = $derived.by(() => {
+    const buckets = [...new Set(trend.map(r => r.bucket))].sort();
+    const series = selectedCats.map((cat, i) => {
+      const byBucket = new Map<string, number>();
+      for (const r of trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
+      return { key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+    });
+    return { xLabels: buckets.map(formatTrendBucketLabel), series };
+  });
+  const supplierChart = $derived.by(() => {
+    const buckets = [...new Set(trend.map(r => r.bucket))].sort();
+    const series = selectedSuppliers.map((sid, i) => {
+      const name = rankedTrendSuppliers.find(s => s.id === sid)?.name ?? '';
+      const byBucket = new Map<string, number>();
+      for (const r of trend) if (r.supplierId === sid) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
+      return { key: String(sid), label: name, color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+    });
+    return { xLabels: buckets.map(formatTrendBucketLabel), series };
+  });
 
   const filtered = $derived(
     suppliers.filter(s => {
@@ -120,6 +183,54 @@
       variant={unassigned > 0 ? 'warn' : 'default'}
       sub={unassigned === 0 ? $t('dsup.allAssigned') : unassigned === 1 ? firstUnassigned : $ti('dsup.nSuppliers', { n: unassigned })}
     />
+  </div>
+
+  <div class="card flex-shrink-0" style="padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="subtitle">{$t('spend.trend.title')}</div>
+      <div class="period-track" role="group">
+        <button type="button" class="period-pill {trendMode === 'category' ? 'active' : ''}" onclick={() => (trendMode = 'category')}>
+          {$t('spend.trend.byCategory')}
+        </button>
+        <button type="button" class="period-pill {trendMode === 'supplier' ? 'active' : ''}" onclick={() => (trendMode = 'supplier')}>
+          {$t('dsup.trend.bySupplier')}
+        </button>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+      {#if trendMode === 'category'}
+        {#each rankedTrendCategories as cat}
+          {@const active = selectedCats.includes(cat)}
+          {@const color = SERIES_PALETTE[selectedCats.indexOf(cat) % SERIES_PALETTE.length]}
+          <button type="button" onclick={() => toggleCat(cat)} class="badge" style="
+              cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
+              background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
+            ">
+            {$tcat(cat)}
+          </button>
+        {/each}
+        {#if !rankedTrendCategories.length}<span class="body" style="font-size:12px;color:var(--mep-fg-3);">{$t('spend.kpi.noData')}</span>{/if}
+      {:else}
+        {#each rankedTrendSuppliers as s}
+          {@const active = selectedSuppliers.includes(s.id)}
+          {@const color = SERIES_PALETTE[selectedSuppliers.indexOf(s.id) % SERIES_PALETTE.length]}
+          <button type="button" onclick={() => toggleSupplier(s.id)} class="badge" style="
+              cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
+              background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
+            ">
+            {s.name}
+          </button>
+        {/each}
+        {#if !rankedTrendSuppliers.length}<span class="body" style="font-size:12px;color:var(--mep-fg-3);">{$t('spend.kpi.noData')}</span>{/if}
+      {/if}
+    </div>
+
+    {#if trendMode === 'category'}
+      <TrendLineChart xLabels={categoryChart.xLabels} series={categoryChart.series} valueFormatter={fmtEur} emptyLabel={$t('spend.noDataYet')} />
+    {:else}
+      <TrendLineChart xLabels={supplierChart.xLabels} series={supplierChart.series} valueFormatter={fmtEur} emptyLabel={$t('spend.noDataYet')} />
+    {/if}
   </div>
 
   <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
