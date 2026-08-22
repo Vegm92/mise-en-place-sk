@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { t, tcat, locale } from '$lib/i18n';
+  import { t, ti, tcat, locale } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
@@ -11,7 +11,20 @@
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { products, suggestions, categories, colors, period, trend, trendCategories } = $derived(data);
+  const { products, suggestions, categories, colors, period, trend, trendCategories, budget_pills } = $derived(data);
+
+  function budgetBucketLabel(bucket: string): string {
+    if (bucket === 'Comida') return $t('suptype.comida');
+    if (bucket === 'Bebidas') return $t('suptype.bebidas');
+    return $t('spend.other');
+  }
+
+  const BUDGET_STATUS_COLOR: Record<string, string> = {
+    ok: 'var(--mep-pos)',
+    near: 'var(--mep-warn)',
+    over: 'var(--mep-neg)',
+    none: 'var(--mep-fg-3)',
+  };
 
   const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
     ['day',   'inv.period.day'],
@@ -80,6 +93,23 @@
 </script>
 
 <div class="flex flex-col gap-4 p-6" data-coach="products-main">
+
+  <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    {#each budget_pills as pill (pill.bucket)}
+      {@const statusColor = BUDGET_STATUS_COLOR[pill.status]}
+      <a href="/budgets" class="badge" style="
+          text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+          border:1px solid {statusColor};
+          background:color-mix(in oklab, {statusColor} 10%, transparent);
+        ">
+        <span style="width:7px;height:7px;border-radius:50%;background:{pill.color};flex-shrink:0;"></span>
+        <span style="color:var(--mep-fg);">{budgetBucketLabel(pill.bucket)}</span>
+        <span style="color:{statusColor};font-weight:600;">
+          {pill.pct === null ? $t('prod.budget.none') : $ti('prod.budget.pct', { pct: pill.pct })}
+        </span>
+      </a>
+    {/each}
+  </div>
 
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="search-field">
@@ -211,7 +241,7 @@
                   <a href="/products/{p.id}" class="body-strong" style="text-decoration:none;color:inherit;">{p.canonicalName}</a>
                 </td>
                 <td>
-                  <span class="badge" style="background:{colors[p.category]}22;color:{colors[p.category]};">{$tcat(p.category)}</span>
+                  <span class="badge" style="background:color-mix(in oklab, {colors[p.category]} 16%, transparent);color:{colors[p.category]};">{$tcat(p.category)}</span>
                 </td>
                 <td class="body text-fg-3" style="font-size:12px;">{p.canonicalUnit ?? '—'}</td>
                 <td class="num">{p.supplierCount}</td>

@@ -138,7 +138,7 @@
         ">
           <div style="
             width: 40px; height: 40px; border-radius: 20px; flex-shrink: 0;
-            background: {s.color ?? 'var(--mep-acc)'}24; color: {s.color ?? 'var(--mep-acc)'};
+            background: color-mix(in oklab, {s.color ?? 'var(--mep-acc)'} 14%, transparent); color: {s.color ?? 'var(--mep-acc)'};
             display: flex; align-items: center; justify-content: center;
             font-size: 12px; font-weight: 600;
           ">

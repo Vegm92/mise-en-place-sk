@@ -122,6 +122,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         { href: '/analytics/spend', label: $t('nav.purchases.analytics') },
         { href: '/products',        label: $t('nav.products') },
         { href: '/suppliers',       label: $t('nav.suppliers') },
+        { href: '/budgets',         label: $t('nav.budgets') },
       ]
     },
     { href: '/recipes',         icon: ChefHat,         label: $t('nav.recipes'),    badge: 0 },
