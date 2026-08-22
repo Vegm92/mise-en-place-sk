@@ -227,4 +227,19 @@ La usuaria mandó una captura de Analíticas con líneas amarillas dibujadas a m
 2. **Categorías solapadas** (Bebidas / Vinos y Cavas / Café y Bebidas Calientes) — registrado como incidencia **#22** en `INCIDENCIAS_AUDITORIA.md` con el detalle completo. No tocar `VALID_CATEGORIES` sin que la usuaria confirme explícitamente qué fusionar, porque afecta a datos ya guardados en `suppliers` y `products`.
 3. **Catalán** — tercer idioma completo (~650 cadenas en `src/lib/i18n.ts`). Decisión de la usuaria: aparcado, no es una sesión dedicada todavía. Al retomarlo, aclarar también si además de traducir el UI hace falta que el OCR/IA entienda albaranes escritos en catalán (pregunta distinta, sin resolver).
 
+---
+
+## 8. Traer de `main` lo que el técnico había avanzado en paralelo — 2026-08-22
+
+La rama `mvp-modular-limpio` llevaba desde el 20 de agosto sin juntarse con `main`, y mientras tanto el técnico que mantiene `main` siguió trabajando ahí: 65 commits nuevos que esta rama no tenía. La usuaria lo detectó al preguntar por la pestaña de pagos/facturación y por el funcionamiento de WhatsApp, que en esta rama seguían tal y como estaban el día 20.
+
+**Decisión de la usuaria:** traer solo pagos/facturación, WhatsApp, y el botón de "Avisos" clicable — dejar fuera, por ahora, el resto de `main` (menú lateral nuevo, modo oscuro, limpieza interna de código, catálogo de modelos Gemini). Se trajeron 16 commits concretos, en este orden: sistema de portal de Stripe (alta, cancelación, cambio de plan, reconciliación automática), varios arreglos de casos raros de Stripe (cliente obsoleto, factura duplicada), el aviso de "gate falla abierto" en el control de acceso, el bloqueo de WhatsApp cuando el plan no permite subir más fotos, y la notificación de albarán pendiente ahora clicable.
+
+**Conflictos reales encontrados y resueltos:**
+- El menú lateral (`+layout.svelte`/`+layout.server.ts`) y el cálculo de las tarjetas de Avisos (`+layout.server.ts`) tocaban las mismas líneas que trajo el sistema de pagos — se fusionaron a mano sin perder nada de ninguno de los dos lados. La pestaña "Facturación" ahora aparece en el menú, debajo de Escandallos.
+- `billing.ts`: un commit de `main` intentaba re-crear una función que otro commit, ya traído antes, había reescrito de otra forma — se descartó la versión antigua y se aplicó la misma protección (contra un cliente de Stripe obsoleto) sobre el código ya existente.
+- Un arreglo de un fallo real de precio (`alerts.ts`) no se pudo traer porque dependía de una reorganización de código que se dejó fuera a propósito — se comprobó a mano y **esta rama nunca tuvo ese fallo**. Detalle completo en la incidencia #23 de `INCIDENCIAS_AUDITORIA.md`.
+
+**Pendiente para cerrar esto:** falta correr `pnpm check` y la suite de tests completa sobre el resultado antes de darlo por bueno, y llevarlo desde la copia de trabajo donde se hizo esto hasta la rama `mvp-modular-limpio` real (en la carpeta principal).
+
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
