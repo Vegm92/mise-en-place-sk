@@ -6,6 +6,7 @@ import { CATEGORY_COLORS, TYPE_COLORS, categoryToType, type SupplierType } from 
 import { moneyToNumber } from '$lib/server/money';
 import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
 import { bucketSeries } from '$lib/server/period-series';
+import { getBudgetPills } from '$lib/server/budget-pills';
 
 /** `mv_item_monthly_spend` / `mv_category_monthly_spend` are month-grained,
  * so 'day' falls back to the current month bucket — same as 'month'. */
@@ -57,7 +58,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type TrendRow = { bucket: string; category: string; amount: string };
 		type ItemCategoryRow = { item_key: string; category: string; line_count: number };
 
-		const [topItems, typeSpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows, recurringSuppliers, trendRows, itemCategoryRows] = await Promise.all([
+		const [topItems, typeSpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows, recurringSuppliers, trendRows, itemCategoryRows, budget_pills] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT
 					MAX(m.description)    AS description,
@@ -174,6 +175,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				  AND i.restaurant_id = ${rid}
 				GROUP BY LOWER(TRIM(ili.description)), COALESCE(p.category, 'Other')
 			`),
+
+			getBudgetPills(rid),
 		]);
 
 		// Same key wins most lines; picks a single category per item even when a
@@ -320,6 +323,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			spend_spark_prev: spendSeries?.previous ?? null,
 		};
 
-		return { title: 'spend.pageTitle', top_items, most_expensive_item, type_breakdown, recurring_suppliers, kpis, period, trend, trendCategories, priceTrendSeries };
+		return { title: 'spend.pageTitle', top_items, most_expensive_item, type_breakdown, recurring_suppliers, kpis, period, trend, trendCategories, priceTrendSeries, budget_pills };
 	});
 };

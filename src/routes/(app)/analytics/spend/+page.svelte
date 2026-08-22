@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { t, tcat, locale } from '$lib/i18n';
+  import { t, ti, tcat, locale } from '$lib/i18n';
   import { CATEGORY_COLORS } from '$lib/constants';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
@@ -25,6 +25,13 @@
     if (type === 'Artículos') return $t('suptype.articulos');
     return $t('spend.other');
   }
+
+  const BUDGET_STATUS_COLOR: Record<string, string> = {
+    ok: 'var(--mep-pos)',
+    near: 'var(--mep-warn)',
+    over: 'var(--mep-neg)',
+    none: 'var(--mep-fg-3)',
+  };
 
   const SERIES_PALETTE = [
     'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
@@ -103,6 +110,7 @@
     trend={data.trend}
     trendCategories={data.trendCategories}
     priceTrendSeries={data.priceTrendSeries}
+    budget_pills={data.budget_pills}
   />
 </div>
 
@@ -128,6 +136,26 @@
         label={$t('spend.invoiceCount')}
         value={data.kpis.invoice_count}
       />
+    </div>
+
+    <div class="card" style="padding:16px;">
+      <div class="subtitle" style="margin-bottom:12px;">{$t('spend.budgetScope')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        {#each data.budget_pills as pill (pill.bucket)}
+          {@const statusColor = BUDGET_STATUS_COLOR[pill.status]}
+          <a href="/budgets" class="badge" style="
+              text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+              border:1px solid {statusColor};
+              background:color-mix(in oklab, {statusColor} 10%, transparent);
+            ">
+            <span style="width:7px;height:7px;border-radius:50%;background:{pill.color};flex-shrink:0;"></span>
+            <span style="color:var(--mep-fg);">{typeLabel(pill.bucket)}</span>
+            <span style="color:{statusColor};font-weight:600;">
+              {pill.pct === null ? $t('prod.budget.none') : $ti('prod.budget.pct', { pct: pill.pct })}
+            </span>
+          </a>
+        {/each}
+      </div>
     </div>
 
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">

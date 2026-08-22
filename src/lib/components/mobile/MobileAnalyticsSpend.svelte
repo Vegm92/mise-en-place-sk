@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t, tcat, locale } from '$lib/i18n';
+  import { t, ti, tcat, locale } from '$lib/i18n';
   import { CATEGORY_COLORS } from '$lib/constants';
   import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -26,6 +26,7 @@
   interface RecurringSupplier { name: string; count: number; pct: number; color?: string; }
   interface TrendRow { bucket: string; category: string; amount: number; }
   interface PriceTrendItem { key: string; label: string; points: { bucket: string; value: number }[]; }
+  interface BudgetPill { bucket: string; pct: number | null; status: string; color: string; }
 
   let {
     period,
@@ -37,6 +38,7 @@
     trend,
     trendCategories,
     priceTrendSeries,
+    budget_pills,
   }: {
     period: string;
     kpis: Kpis;
@@ -47,7 +49,15 @@
     trend: TrendRow[];
     trendCategories: string[];
     priceTrendSeries: PriceTrendItem[];
+    budget_pills: BudgetPill[];
   } = $props();
+
+  const BUDGET_STATUS_COLOR: Record<string, string> = {
+    ok: 'var(--mep-pos)',
+    near: 'var(--mep-warn)',
+    over: 'var(--mep-neg)',
+    none: 'var(--mep-fg-3)',
+  };
 
   function typeLabel(type: string): string {
     if (type === 'Bebidas') return $t('suptype.bebidas');
@@ -157,6 +167,26 @@
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.invoice_count ?? '—'}
         </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 14px;">
+      <div class="subtitle" style="font-size: 15px; margin-bottom: 10px;">{$t('spend.budgetScope')}</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+        {#each budget_pills as pill (pill.bucket)}
+          {@const statusColor = BUDGET_STATUS_COLOR[pill.status]}
+          <a href="/budgets" class="badge" style="
+              text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+              border:1px solid {statusColor};
+              background:color-mix(in oklab, {statusColor} 10%, transparent);
+            ">
+            <span style="width:7px;height:7px;border-radius:50%;background:{pill.color};flex-shrink:0;"></span>
+            <span style="color:var(--mep-fg);">{typeLabel(pill.bucket)}</span>
+            <span style="color:{statusColor};font-weight:600;">
+              {pill.pct === null ? $t('prod.budget.none') : $ti('prod.budget.pct', { pct: pill.pct })}
+            </span>
+          </a>
+        {/each}
       </div>
     </div>
 
