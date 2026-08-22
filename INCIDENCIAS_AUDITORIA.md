@@ -290,7 +290,7 @@ más claro).
 
 **Decisión tomada el 2026-08-22 (con la usuaria, a raíz de la prueba con datos reales):** separar "categoría" en dos niveles, uno obligatorio y excluyente, otro opcional e informativo.
 
-1. **Tipo** (obligatorio, uno solo, es el filtro real de las pantallas): `Bebidas` · `Comida` · `Artículos` · `Ambas`. Responde a la pregunta que de verdad importa para organizar Compras: "¿a quién le compro qué clase de cosa?".
+1. **Tipo** (obligatorio, es el filtro real de las pantallas — **ajustado el 2026-08-22**: de "elige una entre 4" a "marca una o varias entre 3"): `Bebidas` · `Comida` · `Artículos`. Un proveedor que trae bebida y comida a la vez simplemente lleva las dos marcas — se descartó la 4ª opción "Ambas" por ser un cajón de sastre que además solo cubría el caso bebida+comida (¿y bebida+artículos?). Con marcado múltiple no hace falta un valor especial para "las dos a la vez", y filtrar es más simple, no más complicado: "quién trae Bebidas" busca directamente quién tiene esa marca, sin tener que acordarse también de incluir a los "Ambas". Responde a la pregunta que de verdad importa para organizar Compras: "¿a quién le compro qué clase de cosa?".
 2. **Etiquetas** (opcionales, se pueden poner varias a la vez, NUNCA sustituyen al tipo): `Carnes`, `Pescado`, `Lácteos`, `Frutas y Verduras`, `Panadería`, `Aceites y Conservas`, `Especias`, `Congelados`, `Embutidos`, `Limpieza`, `Vinos y Cavas`, `Café`, `Refrescos`. Sirven solo para buscar/encontrar ("¿quién me trae queso?"), nunca para filtrar de entrada — por eso ya no importa que se solapen entre sí ni que un proveedor lleve varias a la vez (Viñals Gourmet: tipo `Comida`, etiquetas `Carnes` + `Lácteos`).
 
 **Alcance de esta decisión:** solo **proveedores** (`suppliers`) por ahora — es donde se detectó el problema real (filtrar/buscar proveedores). **Productos (`products`) se quedan con su categoría única de siempre, sin tocar**, para no ampliar el alcance de golpe; se revisará si hace falta el mismo modelo ahí más adelante.
@@ -312,10 +312,10 @@ más claro).
 | Embutidos y Charcutería | Comida | Embutidos |
 | Vinos y Cavas | Bebidas | Vinos y Cavas |
 | Café y Bebidas Calientes | Bebidas | Café |
-| Other | Ambas | *(sin etiqueta — revisar a mano)* |
+| Other | *(sin tipo — revisar a mano)* | *(sin etiqueta — revisar a mano)* |
 
 **Lo que falta construir cuando se aborde (no hecho todavía, solo decidido):**
-- Columna `type` en `suppliers` (uno de los 4 valores, obligatorio) + una forma de guardar varias etiquetas por proveedor (columna de lista, o tabla aparte `supplier_tags`).
+- Columna `type` en `suppliers` que guarde **una o varias** de las 3 marcas (lista, no un valor único) + una forma de guardar varias etiquetas por proveedor (columna de lista, o tabla aparte `supplier_tags`) — mismo patrón de datos para ambas cosas, solo que `type` tiene una lista corta y cerrada (3 opciones) y las etiquetas una lista abierta.
 - Migración de datos: aplicar la tabla de arriba a los proveedores ya existentes.
 - Las pantallas de Compras (Proveedores, y el selector "Categoría: Todas" que hoy comparten Proveedores/Productos/Analíticas) pasan a filtrar por `Tipo`; las etiquetas se muestran como información/búsqueda, no como filtro principal.
 - Actualizar el buscador de Proveedores para que también encuentre por etiqueta (no solo por nombre).
