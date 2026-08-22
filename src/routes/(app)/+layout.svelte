@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
@@ -47,6 +47,15 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   let locationOpen = $state(false);
   let locationRef: HTMLDivElement | undefined = $state();
   let mounted = $state(false);
+  let upgradeModalOpen = $state(false);
+
+  function handleNavClick(item: NavItem, e: MouseEvent) {
+    const isPro = data.planTier === 'pro' || data.planTier === 'business';
+    if (item.proOnly && !isPro) {
+      e.preventDefault();
+      upgradeModalOpen = true;
+    }
+  }
 
   $effect(() => {
     if (!locationOpen) return;
@@ -138,6 +147,8 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   const revealAll = $derived(data.hasCompletedOnboarding);
 
   interface NavItem {
+    proOnly?: boolean;
+    feature?: 'aiAssistant' | 'weeklyDigest';
     href: string;
     icon: typeof LayoutDashboard;
     label: string;
@@ -151,7 +162,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     ...(revealAll ? [
     { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
     { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
-    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0,
+    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0, proOnly: true,
       sub: [
         { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
         { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
@@ -160,8 +171,8 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     },
     { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
     { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
-    { href: '/digest',          icon: Newspaper,       label: $t('nav.digest'),     badge: 0 },
-    { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0 },
+    { href: '/digest',          icon: Newspaper,       label: $t('nav.digest'),     badge: 0, proOnly: true, feature: 'weeklyDigest' },
+    { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0, proOnly: true, feature: 'aiAssistant' },
     ] satisfies NavItem[] : []),
   ]);
 
@@ -334,7 +345,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         >
           <item.icon size={16} />
           {#if !collapsed}
-            <span style="flex:1;">{item.label}</span>
+            <span style="flex:1;display:flex;align-items:center;gap:6px;">{item.label}{#if item.proOnly}<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--mep-acc);color:var(--mep-acc-fg);">{$t('nav.badge.pro')}</span>{/if}</span>
             {#if item.badge}
               <span
                 class="num"
@@ -597,6 +608,48 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         >
           {$t('tour.nudge.accept')}
         </button>
+      </div>
+    </div>
+  {/if}
+
+  {#if upgradeModalOpen}
+    <div
+      style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
+      role="presentation"
+      onclick={() => upgradeModalOpen = false}
+    >
+      <div
+        style="
+          background:var(--mep-bg);border:1px solid var(--mep-border-strong);
+          border-radius:16px;padding:32px 28px;max-width:420px;width:100%;
+          box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
+        "
+        role="dialog"
+        tabindex="-1"
+        aria-modal="true"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div style="font-size:32px;margin-bottom:16px;">✨</div>
+        <div style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
+          {$t('sidebar.upgradeToProTitle')}
+        </div>
+        <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
+          {$t('sidebar.upgradeToProDesc')}
+        </p>
+        <div style="display:flex;gap:12px;">
+          <button
+            type="button"
+            class="btn btn-ghost"
+            style="flex:1;height:40px;justify-content:center;font-size:14px;"
+            onclick={() => upgradeModalOpen = false}
+          >
+            {$t('action.cancel')}
+          </button>
+          <a href="/billing" class="btn btn-primary" style="flex:1;height:40px;justify-content:center;font-size:14px;text-decoration:none;" onclick={() => upgradeModalOpen = false}>
+            {$t('sidebar.upgradeCta')}
+          </a>
+        </div>
       </div>
     </div>
   {/if}
