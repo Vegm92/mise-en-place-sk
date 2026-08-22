@@ -310,6 +310,20 @@ En `main`, esos mismos dos ficheros pasaron además por una reorganización inte
 
 ---
 
+## 24. El IVA se guarda con dos unidades distintas según si es de cabecera o de línea
+
+**Dónde:** `src/lib/server/extract.ts` (prompt de la IA que define ambos campos).
+
+**Qué pasa:** el desglose de IVA a nivel de todo el documento (`tax_breakdown[].rate`) se guarda como fracción (0.10, 0.21...), pero el IVA de cada línea (`tax_rate`) se guarda como número entero de porcentaje (10, 21...) — mismo concepto, dos unidades distintas según en qué campo esté. La pantalla de detalle de albarán (`fmtTaxRate`) simplemente le añade el símbolo "%" al número guardado, así que si algún día alguien alimenta ese campo con la unidad equivocada (una fracción en vez de un entero), se ve mal en pantalla sin que salte ningún aviso — un "10%" real se vería como "0.1%".
+
+**Cómo se encontró:** al simular a mano dos albaranes reales para probar la pantalla con datos (ver `SEGUIR_SESION.md` sección 9), me equivoqué yo mismo usando la fracción en el campo de línea — el fallo era del dato de prueba, no de la app, pero puso de manifiesto que la app no protege contra ese error si algún día ocurre de verdad (por ejemplo, si se cambia el prompt de la IA sin darse cuenta de la diferencia entre los dos campos).
+
+**Riesgo:** bajo mientras nadie toque el prompt de extracción de IA. Si en el futuro se retoca `extract.ts`, conviene unificar ambos campos a la misma unidad, o al menos dejarlo documentado con un comentario en el propio código.
+
+**Estado:** 📌 Detectado, no corregido — es una inconsistencia menor y preexistente, no introducida hoy. Sin decisión de la usuaria sobre si unificarlo.
+
+---
+
 ## Resumen para quien retome esto en `main`
 
 | # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |

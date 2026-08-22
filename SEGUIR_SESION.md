@@ -242,4 +242,28 @@ La rama `mvp-modular-limpio` llevaba desde el 20 de agosto sin juntarse con `mai
 
 **Pendiente para cerrar esto:** falta correr `pnpm check` y la suite de tests completa sobre el resultado antes de darlo por bueno, y llevarlo desde la copia de trabajo donde se hizo esto hasta la rama `mvp-modular-limpio` real (en la carpeta principal).
 
+✅ **Hecho, mismo día:** se corrió `pnpm check` (0 errores) y la suite completa (1113/1113 tests) tanto en la copia de trabajo como, tras el fast-forward, en la rama real `mvp-modular-limpio`. Además se trajeron de `main`, ya sobre la rama real, 3 commits sueltos más: el modelo de IA por defecto se actualizó de `gemini-2.5-flash` a `gemini-3.1-flash-lite` (más nuevo y más barato) y se añadió su precio a la tabla de costes interna — sin relación con pagos/WhatsApp, evaluado aparte y aceptado por ser de bajo riesgo.
+
+---
+
+## 9. Primera prueba con datos reales (sin usar la IA todavía) — 2026-08-22
+
+La usuaria proporcionó dos facturas reales de un proveedor real (**Viñals Gourmet, S.L.**, cárnicas) para el restaurante de prueba, con la petición explícita de "fingir" que ya se habían leído — es decir, meter esos datos reales en la base de datos local sin gastar la clave de Gemini (que ni siquiera está configurada en este entorno de desarrollo, ver más abajo).
+
+**Cómo se hizo:** se leyeron a mano las dos facturas (14/0003840 del 11/07/2024 y 2024-14-4103 del 24/07/2024) y sus datos se pasaron por el mismo camino de guardado real que usa la app (`saveReviewedInvoice`), no por un atajo de base de datos — así se prueba de paso que el guardado, la vinculación de artículos y el cálculo de proveedores/categorías funcionan bien con datos reales. Se usó un script de un solo uso (borrado después de usarlo, no forma parte del código de la rama).
+
+**Aviso importante sobre la lectura real (Gemini):** el entorno de desarrollo local (esta copia en el ordenador) no tiene puesta una clave real de la IA — solo la app publicada en internet la tiene. Por eso se simuló el resultado de la lectura en vez de subir la foto de verdad; queda pendiente decidir con la usuaria si quiere conseguir una clave para probar la lectura real, o probarla directamente en la versión publicada.
+
+**Verificado en pantalla (navegador real de la usuaria, vía Chrome):**
+- Albaranes: las 2 facturas aparecen con proveedor, fechas, importes y líneas correctos; importe total acumulado 654 € coincide con la suma real.
+- Proveedores: "Viñals Gourmet, S.L." aparece como único proveedor activo, categoría "Carnes y Derivados", 2 albaranes, gasto correcto.
+- Productos: 10 productos distintos catalogados — coincide exactamente con lo esperado (4 artículos de la primera factura + 6 nuevos de la segunda, ya que 4 se repiten entre ambas y no se duplicaron).
+- Avisos: "No hay avisos pendientes" — correcto, ya que los precios de los artículos repetidos son idénticos en ambas facturas (no hay subida de precio que avisar).
+
+**Fallo real encontrado y corregido (de mi propio dato de prueba, no de la app):** el IVA de línea se guardó primero como fracción (0.10) en vez de número entero (10), y la pantalla lo mostró como "0.1%" en vez de "10%". Se corrigió borrando y volviendo a cargar los dos albaranes con el dato bien puesto. **Se descubrió de paso una inconsistencia real y menor, preexistente, en la propia app:** el IVA de cabecera se guarda como fracción pero el de línea como entero — mismo concepto, dos unidades distintas. Registrado como incidencia **#24** en `INCIDENCIAS_AUDITORIA.md`.
+
+**Limitación conocida y esperada:** al no haber subido un archivo real, la vista previa del documento en el detalle del albarán muestra "404 File not found" — es lo esperado dado que solo se simularon los datos, no el archivo.
+
+**Pendiente para la próxima sesión:** decidir cómo probar la lectura real (conseguir clave de Gemini, o probar en la app publicada), y seguir con el resto de la lista pendiente (categorías solapadas, retoques visuales menores).
+
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*
