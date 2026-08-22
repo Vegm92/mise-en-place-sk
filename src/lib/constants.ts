@@ -14,6 +14,9 @@ export const VALID_CATEGORIES: string[] = [
 	'Embutidos y Charcutería',
 	'Vinos y Cavas',
 	'Café y Bebidas Calientes',
+	'Mantenimiento y Reparaciones',
+	'Material y Menaje',
+	'Embalaje y Packaging',
 	'Other',
 ];
 
@@ -54,6 +57,9 @@ export const CATEGORY_COLORS: Record<string, string> = {
 	'Congelados':               '#3A6E8B',
 	'Embutidos y Charcutería':  '#7A2E2A',
 	'Vinos y Cavas':            '#6B4423',
-	'Café y Bebidas Calientes': '#4A3324',
-	'Other':                    '#555566',
+	'Café y Bebidas Calientes':      '#4A3324',
+	'Mantenimiento y Reparaciones':  '#5C5C5C',
+	'Material y Menaje':             '#7A6B55',
+	'Embalaje y Packaging':          '#6B7A5C',
+	'Other':                         '#555566',
 };
