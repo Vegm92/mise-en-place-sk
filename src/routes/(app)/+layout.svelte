@@ -50,12 +50,13 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   let upgradeModalOpen = $state(false);
 
   function handleNavClick(item: NavItem, e: MouseEvent) {
-    const isPro = data.planTier === 'pro' || data.planTier === 'business';
-    if (item.proOnly && !isPro) {
+    if (item.proOnly && item.feature && !data.features[item.feature]) {
       e.preventDefault();
       upgradeModalOpen = true;
     }
   }
+
+  function focusEl(node: HTMLElement) { node.focus(); }
 
   $effect(() => {
     if (!locationOpen) return;
@@ -148,7 +149,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   interface NavItem {
     proOnly?: boolean;
-    feature?: 'aiAssistant' | 'weeklyDigest';
+    feature?: 'aiAssistant' | 'weeklyDigest' | 'stockTracking';
     href: string;
     icon: typeof LayoutDashboard;
     label: string;
@@ -162,7 +163,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     ...(revealAll ? [
     { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
     { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
-    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0, proOnly: true,
+    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0, proOnly: true, feature: 'stockTracking',
       sub: [
         { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
         { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
@@ -330,9 +331,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
         <a
           href={item.href}
-          onclick={() => mobileOpen = false}
+          onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
+          data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
           title={collapsed ? item.label : undefined}
           style="
+            position:relative;
             display:flex;align-items:center;gap:10px;
             padding:{collapsed ? '7px' : '7px 10px'};
             height:32px;border-radius:6px;
@@ -344,8 +347,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
           "
         >
           <item.icon size={16} />
+          {#if collapsed && item.proOnly && item.feature && !data.features[item.feature]}
+            <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-acc);" aria-hidden="true"></span>
+          {/if}
           {#if !collapsed}
-            <span style="flex:1;display:flex;align-items:center;gap:6px;">{item.label}{#if item.proOnly}<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--mep-acc);color:var(--mep-acc-fg);">{$t('nav.badge.pro')}</span>{/if}</span>
+            <span style="flex:1;display:flex;align-items:center;gap:6px;">{item.label}{#if item.proOnly && item.feature && !data.features[item.feature]}<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--mep-acc);color:var(--mep-acc-fg);">{$t('nav.badge.pro')}</span>{/if}</span>
             {#if item.badge}
               <span
                 class="num"
@@ -627,11 +633,13 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         role="dialog"
         tabindex="-1"
         aria-modal="true"
+        aria-labelledby="upgrade-modal-title"
+        use:focusEl
         onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
+        onkeydown={(e) => { if (e.key === 'Escape') upgradeModalOpen = false; else e.stopPropagation(); }}
       >
         <div style="font-size:32px;margin-bottom:16px;">✨</div>
-        <div style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
+        <div id="upgrade-modal-title" style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
           {$t('sidebar.upgradeToProTitle')}
         </div>
         <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
