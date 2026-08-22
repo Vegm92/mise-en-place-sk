@@ -29,7 +29,7 @@ export async function getOrCreateSupplierId(
 		ON CONFLICT (restaurant_id, lower(name))
 		DO UPDATE SET
 			name = suppliers.name,
-			category = CASE WHEN suppliers.category IS NULL OR suppliers.category = ${UNCATEGORIZED_CATEGORY} THEN EXCLUDED.category ELSE suppliers.category END,
+			category = CASE WHEN suppliers.category IS NULL THEN EXCLUDED.category ELSE suppliers.category END,
 			cif = COALESCE(suppliers.cif, EXCLUDED.cif),
 			contact_email = COALESCE(suppliers.contact_email, EXCLUDED.contact_email),
 			contact_phone = COALESCE(suppliers.contact_phone, EXCLUDED.contact_phone),
