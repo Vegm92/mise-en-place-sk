@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { t, tcat, locale } from '$lib/i18n';
+  import { CATEGORY_COLORS } from '$lib/constants';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
@@ -54,11 +55,11 @@
 
   const categoryChart = $derived.by(() => {
     const buckets = [...new Set(data.trend.map(r => r.bucket))].sort();
-    const series = selectedCategories.map((cat, i) => {
+    const series = selectedCategories.map((cat) => {
       const byBucket = new Map<string, number>();
       for (const r of data.trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
       return {
-        key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length],
+        key: cat, label: $tcat(cat), color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
         values: buckets.map(b => byBucket.get(b) ?? 0),
       };
     });
@@ -89,7 +90,6 @@
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
   }
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
@@ -210,7 +210,7 @@
         <p class="body" style="color:var(--mep-fg-4);font-size:12px;">{$t('spend.noDataYet')}</p>
       {:else}
         <div style="display:flex;flex-direction:column;gap:9px;">
-          {#each data.top_items.slice(0, 5) as item, i}
+          {#each data.top_items.slice(0, 5) as item}
             <div>
               <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:4px;">
                 <span style="font-size:12px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={item.description}>
@@ -219,7 +219,7 @@
                 <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{item.pctOfTotal}%</span>
               </div>
               <div style="height:7px;border-radius:3px;background:var(--mep-surface-2);overflow:hidden;">
-                <div style="width:{item.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:3px;"></div>
+                <div style="width:{item.pct}%;height:100%;background:{item.color};border-radius:3px;"></div>
               </div>
             </div>
           {/each}
@@ -246,9 +246,9 @@
 
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
         {#if trendMode === 'category'}
-          {#each data.trendCategories as cat, i}
+          {#each data.trendCategories as cat}
             {@const active = selectedCategories.includes(cat)}
-            {@const color = SERIES_PALETTE[selectedCategories.indexOf(cat) % SERIES_PALETTE.length]}
+            {@const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other']}
             <button type="button" onclick={() => (selectedCategories = toggle(selectedCategories, cat))}
               class="badge" style="
                 cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
@@ -294,14 +294,14 @@
           <p class="body" style="color:var(--mep-fg-4);font-size:12px;">{$t('spend.noRecurring')}</p>
         {:else}
           <div style="display:flex;flex-direction:column;gap:10px;">
-            {#each data.recurring_suppliers.slice(0, 5) as sup, i}
+            {#each data.recurring_suppliers.slice(0, 5) as sup}
               <div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
                   <span style="font-size:12.5px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={sup.name}>{sup.name}</span>
                   <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{sup.count} · {sup.pct}%</span>
                 </div>
                 <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
-                  <div style="width:{sup.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:4px;"></div>
+                  <div style="width:{sup.pct}%;height:100%;background:{sup.color};border-radius:4px;"></div>
                 </div>
               </div>
             {/each}

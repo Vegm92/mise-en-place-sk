@@ -33,10 +33,6 @@
     ['all',   'inv.period.all'],
   ];
 
-  const SERIES_PALETTE = [
-    'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
-    'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)', 'var(--mep-series-other)',
-  ];
   const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
   // Month-grain buckets always show the year -- same rule as every other
   // trend chart in the app, so the format never shifts between screens.
@@ -54,10 +50,10 @@
   }
   const trendChart = $derived.by(() => {
     const buckets = [...new Set(trend.map(r => r.bucket))].sort();
-    const series = selectedTrendCats.map((cat, i) => {
+    const series = selectedTrendCats.map((cat) => {
       const byBucket = new Map<string, number>();
       for (const r of trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
-      return { key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+      return { key: cat, label: $tcat(cat), color: colors[cat] ?? colors['Other'], values: buckets.map(b => byBucket.get(b) ?? 0) };
     });
     return { xLabels: buckets.map(formatTrendBucketLabel), series };
   });
@@ -140,7 +136,7 @@
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
       {#each trendCategories as cat}
         {@const active = selectedTrendCats.includes(cat)}
-        {@const color = SERIES_PALETTE[selectedTrendCats.indexOf(cat) % SERIES_PALETTE.length]}
+        {@const color = colors[cat] ?? colors['Other']}
         <button type="button" onclick={() => toggleTrendCat(cat)} class="badge" style="
             cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
             background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};

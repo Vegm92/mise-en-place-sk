@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t, tcat, locale } from '$lib/i18n';
+  import { CATEGORY_COLORS } from '$lib/constants';
   import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
@@ -12,6 +13,8 @@
     total_spend: number;
     pct: number;
     pctOfTotal: number;
+    category?: string;
+    color?: string;
     item_count?: number | null;
     avg_unit_price?: number | null;
     supplier_name?: string | null;
@@ -20,7 +23,7 @@
   interface ProductNode { name: string; total: number; pct: number; }
   interface CategoryNode { category: string; total: number; pct: number; color: string; products: ProductNode[]; }
   interface TypeBreakdown { type: string; total: number; pct: number; color: string; categories: CategoryNode[]; }
-  interface RecurringSupplier { name: string; count: number; pct: number; }
+  interface RecurringSupplier { name: string; count: number; pct: number; color?: string; }
   interface TrendRow { bucket: string; category: string; amount: number; }
   interface PriceTrendItem { key: string; label: string; points: { bucket: string; value: number }[]; }
 
@@ -89,11 +92,11 @@
 
   const categoryChart = $derived.by(() => {
     const buckets = [...new Set(trend.map(r => r.bucket))].sort();
-    const series = selectedCategories.map((cat, i) => {
+    const series = selectedCategories.map((cat) => {
       const byBucket = new Map<string, number>();
       for (const r of trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
       return {
-        key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length],
+        key: cat, label: $tcat(cat), color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
         values: buckets.map(b => byBucket.get(b) ?? 0),
       };
     });
@@ -124,7 +127,6 @@
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
   }
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
@@ -235,7 +237,7 @@
         {#if trendMode === 'category'}
           {#each trendCategories as cat}
             {@const active = selectedCategories.includes(cat)}
-            {@const color = SERIES_PALETTE[selectedCategories.indexOf(cat) % SERIES_PALETTE.length]}
+            {@const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other']}
             <button type="button" onclick={() => (selectedCategories = toggle(selectedCategories, cat))}
               class="badge" style="cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};">
               {$tcat(cat)}
@@ -270,14 +272,14 @@
           </div>
         {/if}
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          {#each top_items.slice(0, 6) as item, i}
+          {#each top_items.slice(0, 6) as item}
             <div>
               <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 5px;">
                 <span style="font-size: 12px; color: var(--mep-fg-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{item.description}</span>
                 <span class="num" style="font-size: 12px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">{fmtEur(item.total_spend)} · {item.pctOfTotal}%</span>
               </div>
               <div style="height: 7px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-                <div style="width: {item.pct}%; height: 100%; background: {SERIES_COLORS[i % SERIES_COLORS.length]}; border-radius: 3px;"></div>
+                <div style="width: {item.pct}%; height: 100%; background: {item.color ?? 'var(--mep-series-other)'}; border-radius: 3px;"></div>
               </div>
             </div>
           {/each}
@@ -290,14 +292,14 @@
         <div class="subtitle" style="font-size: 15px; margin-bottom: 4px;">{$t('spend.recurringSuppliers')}</div>
         <div style="font-size: 11.5px; color: var(--mep-fg-3); margin-bottom: 12px;">{$t('spend.recurringSuppliersSub')}</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          {#each recurring_suppliers as sup, i}
+          {#each recurring_suppliers as sup}
             <div>
               <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span style="font-size: 12.5px; color: var(--mep-fg-2); flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{sup.name}</span>
                 <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{sup.count} · {sup.pct}%</span>
               </div>
               <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-                <div style="width: {sup.pct}%; height: 100%; background: {SERIES_COLORS[i % SERIES_COLORS.length]}; border-radius: 3px;"></div>
+                <div style="width: {sup.pct}%; height: 100%; background: {sup.color ?? 'var(--mep-series-other)'}; border-radius: 3px;"></div>
               </div>
             </div>
           {/each}

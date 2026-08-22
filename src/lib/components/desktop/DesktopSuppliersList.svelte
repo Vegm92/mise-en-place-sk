@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
+  import { CATEGORY_COLORS } from '$lib/constants';
   import Search from '@lucide/svelte/icons/search';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Plus from '@lucide/svelte/icons/plus';
@@ -74,10 +75,6 @@
     typeFilter = typeFilter.includes(ty) ? typeFilter.filter(t => t !== ty) : [...typeFilter, ty];
   }
 
-  const SERIES_PALETTE = [
-    'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
-    'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)', 'var(--mep-series-other)',
-  ];
 
   const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
   // Month-grain buckets always show the year -- same rule as every other
@@ -115,20 +112,24 @@
 
   const categoryChart = $derived.by(() => {
     const buckets = [...new Set(trend.map(r => r.bucket))].sort();
-    const series = selectedCats.map((cat, i) => {
+    const series = selectedCats.map((cat) => {
       const byBucket = new Map<string, number>();
       for (const r of trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
-      return { key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+      return { key: cat, label: $tcat(cat), color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'], values: buckets.map(b => byBucket.get(b) ?? 0) };
     });
     return { xLabels: buckets.map(formatTrendBucketLabel), series };
   });
   const supplierChart = $derived.by(() => {
     const buckets = [...new Set(trend.map(r => r.bucket))].sort();
-    const series = selectedSuppliers.map((sid, i) => {
-      const name = rankedTrendSuppliers.find(s => s.id === sid)?.name ?? '';
+    const series = selectedSuppliers.map((sid) => {
+      const sup = suppliers.find(s => s.id === sid);
       const byBucket = new Map<string, number>();
       for (const r of trend) if (r.supplierId === sid) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
-      return { key: String(sid), label: name, color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+      return {
+        key: String(sid), label: sup?.name ?? '',
+        color: sup?.color ?? CATEGORY_COLORS['Other'],
+        values: buckets.map(b => byBucket.get(b) ?? 0),
+      };
     });
     return { xLabels: buckets.map(formatTrendBucketLabel), series };
   });
@@ -215,7 +216,7 @@
       {#if trendMode === 'category'}
         {#each rankedTrendCategories as cat}
           {@const active = selectedCats.includes(cat)}
-          {@const color = SERIES_PALETTE[selectedCats.indexOf(cat) % SERIES_PALETTE.length]}
+          {@const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other']}
           <button type="button" onclick={() => toggleCat(cat)} class="badge" style="
               cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
               background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
@@ -227,7 +228,7 @@
       {:else}
         {#each rankedTrendSuppliers as s}
           {@const active = selectedSuppliers.includes(s.id)}
-          {@const color = SERIES_PALETTE[selectedSuppliers.indexOf(s.id) % SERIES_PALETTE.length]}
+          {@const color = suppliers.find(sup => sup.id === s.id)?.color ?? CATEGORY_COLORS['Other']}
           <button type="button" onclick={() => toggleSupplier(s.id)} class="badge" style="
               cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
               background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};

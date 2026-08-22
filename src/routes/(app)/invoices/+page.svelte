@@ -2,6 +2,7 @@
   import type { PageData } from './$types';
   import { fmt, fmtDateShort } from '$lib/formatters';
   import { t, ti, tp, tcat, locale } from '$lib/i18n';
+  import { CATEGORY_COLORS } from '$lib/constants';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -31,10 +32,6 @@
     ['all',   'inv.period.all'],
   ];
 
-  const SERIES_PALETTE = [
-    'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
-    'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)', 'var(--mep-series-other)',
-  ];
   const trendFmt = $derived(new Intl.DateTimeFormat($locale === 'en' ? 'en-US' : 'es-ES', { month: 'short' }));
   function formatTrendBucketLabel(bucket: string): string {
     if (bucket.length === 7) {
@@ -50,13 +47,13 @@
     return [...totals.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c);
   });
   const rankedTrendSuppliers = $derived.by(() => {
-    const totals = new Map<number, { name: string; total: number }>();
+    const totals = new Map<number, { name: string; category: string; total: number }>();
     for (const r of data.trend) {
-      const e = totals.get(r.supplierId) ?? { name: r.supplierName, total: 0 };
+      const e = totals.get(r.supplierId) ?? { name: r.supplierName, category: r.category, total: 0 };
       e.total += r.amount;
       totals.set(r.supplierId, e);
     }
-    return [...totals.entries()].sort((a, b) => b[1].total - a[1].total).map(([id, v]) => ({ id, name: v.name }));
+    return [...totals.entries()].sort((a, b) => b[1].total - a[1].total).map(([id, v]) => ({ id, name: v.name, category: v.category }));
   });
   let trendMode = $state<'category' | 'supplier'>('category');
   let selectedCats = $state<string[]>(rankedTrendCategories.slice(0, 4));
@@ -65,20 +62,24 @@
   function toggleSupplier(key: number) { selectedSuppliers = selectedSuppliers.includes(key) ? selectedSuppliers.filter(k => k !== key) : [...selectedSuppliers, key]; }
   const categoryChart = $derived.by(() => {
     const buckets = [...new Set(data.trend.map(r => r.bucket))].sort();
-    const series = selectedCats.map((cat, i) => {
+    const series = selectedCats.map((cat) => {
       const byBucket = new Map<string, number>();
       for (const r of data.trend) if (r.category === cat) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
-      return { key: cat, label: $tcat(cat), color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+      return { key: cat, label: $tcat(cat), color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'], values: buckets.map(b => byBucket.get(b) ?? 0) };
     });
     return { xLabels: buckets.map(formatTrendBucketLabel), series };
   });
   const supplierChart = $derived.by(() => {
     const buckets = [...new Set(data.trend.map(r => r.bucket))].sort();
-    const series = selectedSuppliers.map((sid, i) => {
-      const name = rankedTrendSuppliers.find(s => s.id === sid)?.name ?? '';
+    const series = selectedSuppliers.map((sid) => {
+      const sup = rankedTrendSuppliers.find(s => s.id === sid);
       const byBucket = new Map<string, number>();
       for (const r of data.trend) if (r.supplierId === sid) byBucket.set(r.bucket, (byBucket.get(r.bucket) ?? 0) + r.amount);
-      return { key: String(sid), label: name, color: SERIES_PALETTE[i % SERIES_PALETTE.length], values: buckets.map(b => byBucket.get(b) ?? 0) };
+      return {
+        key: String(sid), label: sup?.name ?? '',
+        color: CATEGORY_COLORS[sup?.category ?? 'Other'] ?? CATEGORY_COLORS['Other'],
+        values: buckets.map(b => byBucket.get(b) ?? 0),
+      };
     });
     return { xLabels: buckets.map(formatTrendBucketLabel), series };
   });
@@ -306,7 +307,7 @@
       {#if trendMode === 'category'}
         {#each rankedTrendCategories as cat}
           {@const active = selectedCats.includes(cat)}
-          {@const color = SERIES_PALETTE[selectedCats.indexOf(cat) % SERIES_PALETTE.length]}
+          {@const color = CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other']}
           <button type="button" onclick={() => toggleCat(cat)} class="badge" style="
               cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
               background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
@@ -318,7 +319,7 @@
       {:else}
         {#each rankedTrendSuppliers as s}
           {@const active = selectedSuppliers.includes(s.id)}
-          {@const color = SERIES_PALETTE[selectedSuppliers.indexOf(s.id) % SERIES_PALETTE.length]}
+          {@const color = CATEGORY_COLORS[s.category] ?? CATEGORY_COLORS['Other']}
           <button type="button" onclick={() => toggleSupplier(s.id)} class="badge" style="
               cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
               background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};

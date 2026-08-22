@@ -53,10 +53,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
 		type PrevKpisRow = { total_items_spend: string | null; total_line_items: number };
 		type SeriesRow = { invoice_date: string; amount: string | null };
-		type RecurringSupplierRow = { supplier_name: string; invoice_count: number };
+		type RecurringSupplierRow = { supplier_name: string; category: string; invoice_count: number };
 		type TrendRow = { bucket: string; category: string; amount: string };
+		type ItemCategoryRow = { item_key: string; category: string; line_count: number };
 
-		const [topItems, typeSpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows, recurringSuppliers, trendRows] = await Promise.all([
+		const [topItems, typeSpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows, recurringSuppliers, trendRows, itemCategoryRows] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT
 					MAX(m.description)    AS description,
@@ -136,7 +137,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				: Promise.resolve([]),
 
 			db.execute<RecurringSupplierRow>(sql`
-				SELECT s.name AS supplier_name, COUNT(*) AS invoice_count
+				SELECT s.name AS supplier_name, COALESCE(s.category, 'Other') AS category, COUNT(*) AS invoice_count
 				FROM invoices i
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
@@ -157,7 +158,36 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				GROUP BY bucket, category
 				ORDER BY bucket ASC
 			`),
+
+			// Category per normalized description, to color "Top productos" bars the
+			// same as everywhere else (Analíticas breakdown, Productos badges).
+			// Keyed the same way as mv_item_monthly_spend.item_key so it lines up
+			// with topItems below without needing product_id on that view.
+			db.execute<ItemCategoryRow>(sql`
+				SELECT LOWER(TRIM(ili.description)) AS item_key,
+				       COALESCE(p.category, 'Other') AS category,
+				       COUNT(*) AS line_count
+				FROM invoice_line_items ili
+				JOIN invoices i ON i.id = ili.invoice_id
+				LEFT JOIN products p ON p.id = ili.product_id
+				WHERE ili.description IS NOT NULL AND ili.description != ''
+				  AND i.restaurant_id = ${rid}
+				GROUP BY LOWER(TRIM(ili.description)), COALESCE(p.category, 'Other')
+			`),
 		]);
+
+		// Same key wins most lines; picks a single category per item even when a
+		// description was miscategorized on a handful of older lines.
+		const itemCategoryMap = new Map<string, string>();
+		const itemCategoryBest = new Map<string, number>();
+		for (const row of itemCategoryRows) {
+			const key = row.item_key;
+			const count = Number(row.line_count);
+			if (!itemCategoryBest.has(key) || count > itemCategoryBest.get(key)!) {
+				itemCategoryBest.set(key, count);
+				itemCategoryMap.set(key, row.category);
+			}
+		}
 
 		const itemTrendMap = new Map<string, number[]>();
 		const itemTrendPoints = new Map<string, { bucket: string; value: number }[]>();
@@ -181,6 +211,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			const key = item.description.toLowerCase().trim();
 			const rawTrend = itemTrendMap.get(key) ?? [];
 			const spend = moneyToNumber(item.total_spend) || 0;
+			const category = itemCategoryMap.get(key) ?? 'Other';
 			return {
 				...item,
 				total_spend: spend,
@@ -188,6 +219,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				pct: Math.round((spend / maxSpend) * 100),
 				pctOfTotal: Math.round((spend / totalSpendForPct) * 100),
 				price_trend: rawTrend.length >= 2 ? rawTrend : [],
+				category,
+				color: CATEGORY_COLORS[category] ?? CATEGORY_COLORS['Other'],
 			};
 		});
 
@@ -262,6 +295,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			name: r.supplier_name,
 			count: Number(r.invoice_count),
 			pct: Math.round((Number(r.invoice_count) / totalInvoiceCount) * 100),
+			color: CATEGORY_COLORS[r.category] ?? CATEGORY_COLORS['Other'],
 		}));
 
 		const trend = trendRows.map(r => ({
