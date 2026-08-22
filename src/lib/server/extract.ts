@@ -78,22 +78,35 @@ Rules:
   SUPPLIER issuing the invoice, never the restaurant/client receiving it — when in doubt, or when
   you cannot tell which party a detail belongs to, return null rather than guessing.
 
-supplier_category — what this supplier mainly sells, judged from its name and the line items.
+supplier_category — what this supplier mainly sells or provides, judged from its name, trade, and the line items.
 
 The ONLY permitted values are the ${VALID_CATEGORIES.length - 1} listed between the markers below, or null.
 <<<CATEGORY_VALUES>>>
-${VALID_CATEGORIES.filter(c => c !== UNCATEGORIZED_CATEGORY).join('\n')}
+Frutas y Verduras          — fresh or minimally processed fruit, vegetables, mushrooms, herbs
+Carnes y Derivados         — raw meat, poultry, game; offal; meat-based prepared foods
+Pescados y Mariscos        — fresh, smoked, or cured fish; shellfish; seafood products
+Lácteos                    — milk, cream, butter, cheese, yoghurt, eggs
+Aceites y Conservas        — cooking oils, vinegars, tinned/jarred foods, pickles, sauces
+Bebidas                    — water, soft drinks, juices, beer, spirits, non-wine alcohol
+Panadería y Bollería       — bread, pastries, cakes, flour-based bakery goods
+Especias y Condimentos     — spices, dried herbs, salt, pepper, mustards, seasonings
+Productos de Limpieza      — detergents, disinfectants, cleaning cloths, hygiene supplies
+Congelados                 — frozen food of any type (meat, fish, veg, pre-cooked meals)
+Embutidos y Charcutería    — cured meats, cold cuts, salami, chorizo, jamón, pâtés
+Vinos y Cavas              — still wine, sparkling wine, cava, champagne, vermouth
+Café y Bebidas Calientes   — coffee beans/pods/capsules, tea, hot chocolate, infusions
+Mantenimiento y Reparaciones — repair services, HVAC, plumbing, electrical work, technical servicing of equipment
+Material y Menaje          — tableware, crockery, glassware, cutlery, kitchen utensils, small appliances
+Embalaje y Packaging       — take-away containers, bags, cling film, napkins, food-grade packaging
 <<<END_CATEGORY_VALUES>>>
 
 Rules for supplier_category:
-- Copy one value EXACTLY as written above, including accents and capitalisation.
-- Return null if none of them clearly fits, if the supplier sells across several with no dominant
-  one, or if the line items are too sparse to tell. Null is the correct, expected answer in those
-  cases — it is not a failure.
+- Copy one value EXACTLY as written above (only the name before the dash), including accents and capitalisation.
+- If the supplier name alone unambiguously indicates a category (e.g. "Tecno-Frío Hostelería — Servicio Técnico" → Mantenimiento y Reparaciones, "Panadería …" → Panadería y Bollería), use it even if this one invoice has a few items from other categories.
+- Return null only when the supplier genuinely spans several categories with no dominant one, or when there is too little information to decide.
 - Never translate a value, never invent a new one, and never return "${UNCATEGORIZED_CATEGORY}".
-  Anything that is not an exact copy of a listed value is discarded.
-- Judge the supplier, not this one document: a general wholesaler that happens to have delivered only
-  cheese today is still a general wholesaler, so return null rather than "Lácteos".
+  Anything that is not an exact copy of a listed name is discarded.
+- Judge the supplier identity, not just this document: a general wholesaler that happens to have delivered only cheese today is still a general wholesaler, so return null rather than "Lácteos".
 
 Confidence scores (document-level and per-field):
 - 0.85+ : Clearly visible and readable
