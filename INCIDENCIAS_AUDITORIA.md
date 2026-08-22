@@ -319,6 +319,7 @@ más claro).
 - Migración de datos: aplicar la tabla de arriba a los proveedores ya existentes.
 - Las pantallas de Compras (Proveedores, y el selector "Categoría: Todas" que hoy comparten Proveedores/Productos/Analíticas) pasan a filtrar por `Tipo`; las etiquetas se muestran como información/búsqueda, no como filtro principal.
 - Actualizar el buscador de Proveedores para que también encuentre por etiqueta (no solo por nombre).
+- **Nuevo aviso (pedido explícitamente por la usuaria el 2026-08-22):** un proveedor sin ningún `Tipo` asignado (el caso "Other" de la migración, o uno nuevo que se cree sin que el sistema sepa inferirlo con confianza) debe generar una señal en **Avisos** — mismo patrón que ya usan duplicados/cambio de precio/confianza baja/pendiente de tarificación. No debe quedar un proveedor "invisible" sin clasificar y sin que nadie se entere.
 
 **Estado:** ✅ **Decidido — pendiente de construir.** No es urgente ni bloquea nada de hoy; se aborda como su propio bloque de trabajo cuando toque, sin volver a discutir el diseño.
 
