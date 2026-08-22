@@ -282,15 +282,45 @@ más claro).
 
 ---
 
-## 22. Lista de categorías con solapes reales — pendiente de decidir
+## 22. Lista de categorías con solapes reales — DECIDIDO: modelo de dos niveles (tipo + etiquetas)
 
 **Dónde:** `src/lib/constants.ts` (`VALID_CATEGORIES`, `CATEGORY_COLORS`), compartida entre `suppliers.category` y `products.category`.
 
-**Qué pasaba:** la lista tiene 13 categorías + "Other". Tres de ellas se pisan entre sí sin un criterio claro de cuál usar: **"Bebidas"**, **"Vinos y Cavas"** y **"Café y Bebidas Calientes"**. Un mismo artículo (ej. un vino, un refresco, un café) puede caer razonablemente en más de una según quién lo categorice — no hay una regla que las distinga. Detectado al revisar por qué la usuaria sentía que "algunas categorías no tienen sentido" en Productos.
+**Qué pasaba:** la lista tiene 13 categorías + "Other", y un proveedor/producto solo puede llevar UNA. Tres de ellas se pisaban entre sí sin criterio claro: **"Bebidas"**, **"Vinos y Cavas"** y **"Café y Bebidas Calientes"**. Detectado primero al revisar Productos, y confirmado con datos reales el 2026-08-22: al probar con el proveedor real Viñals Gourmet (carnes, pero con una línea de queso Edam), quedó claro que forzar una única categoría por proveedor es un error de fondo, no solo un problema de lista mal afinada — un proveedor de verdad casi nunca vende una sola cosa.
 
-**Riesgo:** categorización inconsistente del mismo tipo de artículo según quién lo dé de alta (a mano, o por sugerencia de la IA); ensucia comparativas por categoría en Analíticas/Proveedores/Productos, que es justo lo que se ha reforzado esta sesión (ver incidencia 16 y `SEGUIR_SESION.md` puntos 6-7).
+**Decisión tomada el 2026-08-22 (con la usuaria, a raíz de la prueba con datos reales):** separar "categoría" en dos niveles, uno obligatorio y excluyente, otro opcional e informativo.
 
-**Estado:** ⚠️ **Sin resolver, pendiente de decisión de la usuaria.** Se propuso consolidar (ej. fusionar Vinos y Cavas + Café dentro de Bebidas) pero no se ha confirmado explícitamente — no se ha tocado la lista porque cambiar el catálogo de categorías afecta a datos ya guardados en `suppliers` y `products`. **No tocar sin confirmación explícita de qué categorías fusionar.**
+1. **Tipo** (obligatorio, uno solo, es el filtro real de las pantallas): `Bebidas` · `Comida` · `Artículos` · `Ambas`. Responde a la pregunta que de verdad importa para organizar Compras: "¿a quién le compro qué clase de cosa?".
+2. **Etiquetas** (opcionales, se pueden poner varias a la vez, NUNCA sustituyen al tipo): `Carnes`, `Pescado`, `Lácteos`, `Frutas y Verduras`, `Panadería`, `Aceites y Conservas`, `Especias`, `Congelados`, `Embutidos`, `Limpieza`, `Vinos y Cavas`, `Café`, `Refrescos`. Sirven solo para buscar/encontrar ("¿quién me trae queso?"), nunca para filtrar de entrada — por eso ya no importa que se solapen entre sí ni que un proveedor lleve varias a la vez (Viñals Gourmet: tipo `Comida`, etiquetas `Carnes` + `Lácteos`).
+
+**Alcance de esta decisión:** solo **proveedores** (`suppliers`) por ahora — es donde se detectó el problema real (filtrar/buscar proveedores). **Productos (`products`) se quedan con su categoría única de siempre, sin tocar**, para no ampliar el alcance de golpe; se revisará si hace falta el mismo modelo ahí más adelante.
+
+**Mapeo de migración (categoría única de hoy → tipo + etiqueta sugerida de mañana), para cuando se construya:**
+
+| Categoría actual | Tipo nuevo | Etiqueta sugerida |
+|---|---|---|
+| Frutas y Verduras | Comida | Frutas y Verduras |
+| Carnes y Derivados | Comida | Carnes |
+| Pescados y Mariscos | Comida | Pescado |
+| Lácteos | Comida | Lácteos |
+| Aceites y Conservas | Comida | Aceites y Conservas |
+| Bebidas | Bebidas | Refrescos |
+| Panadería y Bollería | Comida | Panadería |
+| Especias y Condimentos | Comida | Especias |
+| Productos de Limpieza | Artículos | Limpieza |
+| Congelados | Comida | Congelados |
+| Embutidos y Charcutería | Comida | Embutidos |
+| Vinos y Cavas | Bebidas | Vinos y Cavas |
+| Café y Bebidas Calientes | Bebidas | Café |
+| Other | Ambas | *(sin etiqueta — revisar a mano)* |
+
+**Lo que falta construir cuando se aborde (no hecho todavía, solo decidido):**
+- Columna `type` en `suppliers` (uno de los 4 valores, obligatorio) + una forma de guardar varias etiquetas por proveedor (columna de lista, o tabla aparte `supplier_tags`).
+- Migración de datos: aplicar la tabla de arriba a los proveedores ya existentes.
+- Las pantallas de Compras (Proveedores, y el selector "Categoría: Todas" que hoy comparten Proveedores/Productos/Analíticas) pasan a filtrar por `Tipo`; las etiquetas se muestran como información/búsqueda, no como filtro principal.
+- Actualizar el buscador de Proveedores para que también encuentre por etiqueta (no solo por nombre).
+
+**Estado:** ✅ **Decidido — pendiente de construir.** No es urgente ni bloquea nada de hoy; se aborda como su propio bloque de trabajo cuando toque, sin volver a discutir el diseño.
 
 ---
 
