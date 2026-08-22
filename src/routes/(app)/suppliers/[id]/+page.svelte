@@ -86,7 +86,7 @@
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
       <div style="
         width:44px;height:44px;border-radius:22px;flex-shrink:0;
-        background:{color}24;color:{color};
+        background:color-mix(in oklab, {color} 14%, transparent);color:{color};
         display:flex;align-items:center;justify-content:center;
         font-size:14px;font-weight:700;
       ">{initials(s.name)}</div>

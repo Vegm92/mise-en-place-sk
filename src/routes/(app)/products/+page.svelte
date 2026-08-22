@@ -113,7 +113,7 @@
         {@const color = SERIES_PALETTE[selectedTrendCats.indexOf(cat) % SERIES_PALETTE.length]}
         <button type="button" onclick={() => toggleTrendCat(cat)} class="badge" style="
             cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
-            background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
+            background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
           ">
           {$tcat(cat)}
         </button>

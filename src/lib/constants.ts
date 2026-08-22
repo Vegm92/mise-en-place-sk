@@ -85,19 +85,32 @@ export function categoryToType(category: string | null | undefined): SupplierTyp
 	return category ? CATEGORY_TO_TYPE_AND_TAG[category]?.type ?? null : null;
 }
 
+/** Colores fijos por Tipo (Bebidas/Comida/Artículos) — ver `--mep-type-*` en
+ * app.css. Cada Tipo tiene su propio color, distinto de los demás, para
+ * reconocerse de un vistazo en filtros y desgloses (incidencia de color #29). */
+export const TYPE_COLORS: Record<SupplierType, string> = {
+	'Bebidas':   'var(--mep-type-bebidas)',
+	'Comida':    'var(--mep-type-comida)',
+	'Artículos': 'var(--mep-type-articulos)',
+};
+
+/** Colores por categoría de producto — tonos de la familia de su Tipo
+ * (verde=Comida, azul=Bebidas, magenta=Artículos), ver `--mep-cat-*` en
+ * app.css. Definidos como referencias a variables CSS para que cambien con
+ * el tema claro/oscuro sin tocar este archivo. */
 export const CATEGORY_COLORS: Record<string, string> = {
-	'Frutas y Verduras':        '#3B6B20',
-	'Carnes y Derivados':       '#8B3530',
-	'Pescados y Mariscos':      '#2C5F8A',
-	'Lácteos':                  '#C9A227',
-	'Aceites y Conservas':      '#9A7B1E',
-	'Bebidas':                  '#1B5E5E',
-	'Panadería y Bollería':     '#A8642B',
-	'Especias y Condimentos':   '#7A3B6B',
-	'Productos de Limpieza':    '#4A6B7A',
-	'Congelados':               '#3A6E8B',
-	'Embutidos y Charcutería':  '#7A2E2A',
-	'Vinos y Cavas':            '#6B4423',
-	'Café y Bebidas Calientes': '#4A3324',
-	'Other':                    '#555566',
+	'Frutas y Verduras':        'var(--mep-cat-frutas)',
+	'Carnes y Derivados':       'var(--mep-cat-carnes)',
+	'Pescados y Mariscos':      'var(--mep-cat-pescado)',
+	'Lácteos':                  'var(--mep-cat-lacteos)',
+	'Aceites y Conservas':      'var(--mep-cat-aceites)',
+	'Bebidas':                  'var(--mep-cat-bebidas)',
+	'Panadería y Bollería':     'var(--mep-cat-panaderia)',
+	'Especias y Condimentos':   'var(--mep-cat-especias)',
+	'Productos de Limpieza':    'var(--mep-cat-limpieza)',
+	'Congelados':               'var(--mep-cat-congelados)',
+	'Embutidos y Charcutería':  'var(--mep-cat-embutidos)',
+	'Vinos y Cavas':            'var(--mep-cat-vinos)',
+	'Café y Bebidas Calientes': 'var(--mep-cat-cafe)',
+	'Other':                    'var(--mep-series-other)',
 };

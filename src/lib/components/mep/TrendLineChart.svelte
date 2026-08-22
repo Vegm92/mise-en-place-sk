@@ -85,9 +85,7 @@
         <polyline points={pointsFor(s.values)} fill="none" stroke={s.color} stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round" opacity={hasAnyData ? 1 : 0.35} />
         {#each s.values as v, i}
-          {#if hovered === i}
-            <circle cx={xFor(i)} cy={yFor(v)} r="3" fill={s.color} />
-          {/if}
+          <circle cx={xFor(i)} cy={yFor(v)} r={hovered === i ? 3.5 : 2.5} fill={s.color} opacity={hasAnyData ? 1 : 0.35} />
         {/each}
       {/each}
 

@@ -174,7 +174,7 @@
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
         <div style="
           width:52px;height:52px;border-radius:26px;flex-shrink:0;
-          background:{color}24;color:{color};
+          background:color-mix(in oklab, {color} 14%, transparent);color:{color};
           display:inline-flex;align-items:center;justify-content:center;
           font-size:16px;font-weight:700;
         ">{initials(s.name)}</div>

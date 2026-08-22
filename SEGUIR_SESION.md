@@ -323,6 +323,32 @@ Primera vez que la usuaria usa el prototipo en su propio navegador (no capturas,
 
 ---
 
+## 12. Bugs de Analíticas y sistema de color por Tipo/Categoría — 2026-08-22 (continuación)
+
+La usuaria reportó dos cosas al retomar: "Gasto en el tiempo" no sacaba bien los datos, y a la app le falta color para ser intuitiva (pidió que cada etiqueta de Bebidas/Comida tenga su propio color). Verificado y corregido:
+
+**Bugs reales corregidos en Analíticas:**
+- **`TrendLineChart.svelte` no dibujaba nada visible con un solo mes de datos** — el punto siempre se marcaba con un círculo, pero ese círculo solo se pintaba al pasar el ratón por encima (`{#if hovered === i}`); con un único bucket la línea no tiene con qué conectar, así que el gráfico parecía vacío aunque sí tenía datos debajo. Ahora el punto de cada mes se pinta siempre (más grande al pasar el ratón). Afecta a todos los usos de este componente: Analíticas, Proveedores, Productos, Albaranes.
+- **"Gasto en el tiempo" agrupaba por la categoría del proveedor, no del producto** — inconsistente con "Bebida/Comida/Otros" (que sí agrupa por producto, tras la incidencia #22). Con Viñals Gourmet los números coincidían por casualidad porque solo vende una categoría real; con un proveedor mixto (carnicería + queso) habría mezclado todo bajo una sola categoría. Corregido en `analytics/spend/+page.server.ts`: la consulta de `trend` ahora hace `LEFT JOIN products` y agrupa por `p.category`, igual que `type_breakdown`. Verificado que los 3 totales (KPI, desglose, gráfico de tiempo) cuadran exactamente (596 €) tras el cambio.
+- Revisadas número a número contra la base de datos real el resto de tarjetas de Analíticas (Top productos, Proveedores más recurrentes, KPIs) — correctas, ninguna otra requirió cambio.
+
+**Sistema de color por Tipo/Categoría (nuevo, en `src/app.css` + `src/lib/constants.ts`):**
+- 3 colores fijos para **Tipo** (Bebidas=azul, Comida=verde, Artículos=magenta) — `--mep-type-bebidas/comida/articulos`, alias de los `--mep-series-1/2/3` ya validados por la skill `dataviz` (paleta categórica de 8 tonos, sin usar naranja/amarillo/rojo para no confundirse con `--mep-acc`, reservado a acciones).
+- 13 colores de **categoría** (`--mep-cat-*`), uno por cada entrada de `VALID_CATEGORIES`, como variaciones de luminosidad dentro de la familia de color de su Tipo (las 9 categorías de Comida en verdes, las 3 de Bebidas en azules, Limpieza en magenta) — para que un vistazo rápido ya sugiera el Tipo antes de leer el texto. Contraste verificado ≥3:1 sobre superficie clara/oscura.
+- `CATEGORY_COLORS` y el nuevo `TYPE_COLORS` en `constants.ts` ahora devuelven referencias `var(--mep-cat-*)` / `var(--mep-type-*)` en vez de hex fijos — cambian solo/automáticamente si se retoca la paleta en `app.css`.
+- El desglose Bebida/Comida/Otros de Analíticas usaba un apaño (`Comida` tomaba prestado el color de "Carnes y Derivados") — ahora usa `TYPE_COLORS` de verdad.
+
+**Bug de color pre-existente encontrado de paso y corregido en toda la app:** los chips de categoría/producto/proveedor seleccionados (Albaranes, Analíticas, Productos, Proveedores) nunca mostraban su fondo de color al estar activos — el código construía el color con `color + '1e'` (pensado para un hex fijo tipo `#2a78d6` → `#2a78d61e`), pero como esos colores ya eran variables CSS (`var(--mep-acc)`), el resultado (`var(--mep-acc)1e`) es CSS inválido y el navegador lo ignoraba en silencio (fondo transparente). Corregido usando `color-mix(in oklab, {color} 12%, transparent)` en los 9 sitios afectados (`analytics/spend`, `products`, `invoices`, `DesktopSuppliersList`, `MobileAnalyticsSpend`) y también en los 4 sitios que hacían lo mismo con el hex de `CATEGORY_COLORS` para los avatares circulares de proveedor (`{color}24` → mismo `color-mix`). Verificado en navegador (antes: `background-color: rgba(0,0,0,0)`; ahora: color translúcido real).
+
+**Verificado en navegador (Chrome vía herramienta), claro y oscuro:** Analíticas (desglose, gráfico, chips), Proveedores (avatar + swatch). No se ha hecho un barrido visual completo de "dónde falta color" en el resto de pantallas — la usuaria no supo señalar zonas concretas más allá de las etiquetas, así que queda abierto para la próxima sesión si al ver esto en vivo sigue sintiendo que falta color en botones/estados.
+
+**Pendiente para la próxima sesión:**
+1. Ver el nuevo sistema de color con la usuaria en su propio navegador y confirmar si ya resuelve la sensación de "falta color", o si hay que tocar botones/estados/iconos también.
+2. Seguir con los pendientes ya conocidos: Tipo+Etiquetas en móvil (sección 10), menú lateral (esquinas), gráfico grande de Proveedores en móvil.
+3. Categorías solapadas *de producto* si sigue pareciendo un problema.
+
+---
+
 ## Cómo seguir la próxima sesión (tras el `/clear` de hoy)
 
 **Lee primero, en este orden:** este documento completo (`SEGUIR_SESION.md`) y `PROPUESTA_MVP.md`. Confirma con `git branch --show-current` que estás en `mvp-modular-limpio`, nunca en `main`.

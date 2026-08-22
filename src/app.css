@@ -40,6 +40,14 @@
   --mep-warn-soft:rgba(138, 74, 18, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
+
+  /* Tipo de proveedor/producto (Bebidas/Comida/Artículos) — cada uno con su
+     propio color fijo y distinto entre sí, para reconocerse de un vistazo en
+     filtros, gráficos y desgloses. Aliasan la serie categórica ya validada
+     (dataviz skill) en vez de introducir hues nuevos. */
+  --mep-type-bebidas:   var(--mep-series-1);
+  --mep-type-comida:    var(--mep-series-2);
+  --mep-type-articulos: var(--mep-series-3);
 }
 
 /* Light — one clean neutral base, no material tint */
@@ -70,6 +78,24 @@
   --mep-series-4: #eda100;
   --mep-series-5: #1baf7a;
   --mep-series-other: #9aa3af;
+
+  /* Categorías de producto — 3 familias de tono emparentadas con su Tipo
+     (verde=Comida, azul=Bebidas, magenta=Artículos), en pasos de luminosidad
+     para que cada categoría se reconozca como "de la misma familia" que su
+     Tipo sin depender solo del color (siempre va acompañado de texto). */
+  --mep-cat-frutas:     #1c5f1c;
+  --mep-cat-carnes:     #1e671e;
+  --mep-cat-pescado:    #206f20;
+  --mep-cat-lacteos:    #227722;
+  --mep-cat-aceites:    #257e25;
+  --mep-cat-panaderia:  #278627;
+  --mep-cat-especias:   #298e29;
+  --mep-cat-congelados: #2c962c;
+  --mep-cat-embutidos:  #2e9e2e;
+  --mep-cat-bebidas:    #20466f;
+  --mep-cat-vinos:      #2a5d92;
+  --mep-cat-cafe:       #3573b6;
+  --mep-cat-limpieza:   #6f2043;
 }
 
 /* Dark — same neutral system, restated for low light */
@@ -100,6 +126,22 @@
   --mep-series-4: #c98500;
   --mep-series-5: #199e70;
   --mep-series-other: #6f6a62;
+
+  /* Categorías de producto — mismas 3 familias, pasos aclarados para la
+     superficie oscura (mismo criterio que --mep-series-* arriba). */
+  --mep-cat-frutas:     #57c757;
+  --mep-cat-carnes:     #5fca5f;
+  --mep-cat-pescado:    #68cd68;
+  --mep-cat-lacteos:    #71d071;
+  --mep-cat-aceites:    #79d279;
+  --mep-cat-panaderia:  #82d582;
+  --mep-cat-especias:   #8ad88a;
+  --mep-cat-congelados: #93db93;
+  --mep-cat-embutidos:  #9cde9c;
+  --mep-cat-bebidas:    #5e92c9;
+  --mep-cat-vinos:      #81a9d5;
+  --mep-cat-cafe:       #a3c1e0;
+  --mep-cat-limpieza:   #c95e8f;
 
   /* WCAG AA-adjusted semantics for dark */
   --mep-pos:       #4cae7d;
@@ -144,23 +186,25 @@
   --mep-acc-ring: rgba(111, 143, 196, 0.30);
 }
 
-/* Accent — amber (one confident terracotta; used sparingly, per the One
-   Voice Rule — reserved for the single primary action on a screen, never
-   for every interactive surface). Toned down from pure orange-600: less
-   saturated, reads as considered rather than alarmed. */
+/* Accent — amber (one confident color; used sparingly, per the One Voice
+   Rule — reserved for the single primary action on a screen, never for
+   every interactive surface). Matches the app icon's gold/amber directly
+   (2026-08-22, user-picked from the logo) -- darkened just enough from the
+   raw logo hex (#B8741A) to clear 4.5:1 text contrast on white; the logo
+   hex itself sits at 3.8:1, fine for a button fill but not for small text. */
 .mep[data-accent="amber"] {
-  --mep-acc:      #C2540C;
+  --mep-acc:      #A56818;
   --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(194, 84, 12, 0.10);
-  --mep-acc-hover:#A3460A;
-  --mep-acc-ring: rgba(194, 84, 12, 0.30);
+  --mep-acc-soft: rgba(165, 104, 24, 0.10);
+  --mep-acc-hover:#865413;
+  --mep-acc-ring: rgba(165, 104, 24, 0.30);
 }
 :root[data-theme="dark"] .mep[data-accent="amber"] {
-  --mep-acc:      #EC9455;
+  --mep-acc:      #E8AC5E;
   --mep-acc-fg:   #2A1608;
-  --mep-acc-soft: rgba(236, 148, 85, 0.16);
-  --mep-acc-hover:#F0A468;
-  --mep-acc-ring: rgba(236, 148, 85, 0.30);
+  --mep-acc-soft: rgba(232, 172, 94, 0.16);
+  --mep-acc-hover:#ECBA79;
+  --mep-acc-ring: rgba(232, 172, 94, 0.30);
 }
 
 /* Secondary structural color — the second of the app's 3 named colors

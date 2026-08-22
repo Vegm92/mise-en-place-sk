@@ -237,7 +237,7 @@
             {@const active = selectedCategories.includes(cat)}
             {@const color = SERIES_PALETTE[selectedCategories.indexOf(cat) % SERIES_PALETTE.length]}
             <button type="button" onclick={() => (selectedCategories = toggle(selectedCategories, cat))}
-              class="badge" style="cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};">
+              class="badge" style="cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};">
               {$tcat(cat)}
             </button>
           {/each}
@@ -246,7 +246,7 @@
             {@const active = selectedProducts.includes(item.key)}
             {@const color = SERIES_PALETTE[selectedProducts.indexOf(item.key) % SERIES_PALETTE.length]}
             <button type="button" onclick={() => (selectedProducts = toggle(selectedProducts, item.key))}
-              class="badge" style="cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};">
+              class="badge" style="cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};">
               {item.label}
             </button>
           {/each}

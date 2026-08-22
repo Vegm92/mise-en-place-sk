@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
-import { CATEGORY_COLORS, categoryToType } from '$lib/constants';
+import { CATEGORY_COLORS, TYPE_COLORS, categoryToType, type SupplierType } from '$lib/constants';
 import { moneyToNumber } from '$lib/server/money';
 import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
 import { bucketSeries } from '$lib/server/period-series';
@@ -146,11 +146,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			`),
 
 			db.execute<TrendRow>(sql`
-				SELECT ${trendBucketExpr} AS bucket, COALESCE(s.category, 'Other') AS category,
+				SELECT ${trendBucketExpr} AS bucket, COALESCE(p.category, 'Other') AS category,
 					SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS amount
 				FROM invoice_line_items ili
 				JOIN invoices i ON i.id = ili.invoice_id
-				JOIN suppliers s ON s.id = i.supplier_id
+				LEFT JOIN products p ON p.id = ili.product_id
 				WHERE ili.description IS NOT NULL AND ili.description != ''
 				  AND i.restaurant_id = ${rid}
 				  ${dateFilter}
@@ -244,7 +244,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					type,
 					total: typeTotal,
 					pct: Math.round((typeTotal / breakdownTotalForPct) * 100),
-					color: type === 'Bebidas' ? CATEGORY_COLORS['Bebidas'] : type === 'Comida' ? CATEGORY_COLORS['Carnes y Derivados'] : CATEGORY_COLORS['Other'],
+					color: TYPE_COLORS[type as SupplierType] ?? CATEGORY_COLORS['Other'],
 					categories,
 				};
 			})

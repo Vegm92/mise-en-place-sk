@@ -218,7 +218,7 @@
           {@const color = SERIES_PALETTE[selectedCats.indexOf(cat) % SERIES_PALETTE.length]}
           <button type="button" onclick={() => toggleCat(cat)} class="badge" style="
               cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
-              background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
+              background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
             ">
             {$tcat(cat)}
           </button>
@@ -230,7 +230,7 @@
           {@const color = SERIES_PALETTE[selectedSuppliers.indexOf(s.id) % SERIES_PALETTE.length]}
           <button type="button" onclick={() => toggleSupplier(s.id)} class="badge" style="
               cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
-              background:{active ? color + '1e' : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
+              background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};color:{active ? color : 'var(--mep-fg-3)'};
             ">
             {s.name}
           </button>
@@ -314,7 +314,7 @@
                   <div style="display:flex;align-items:center;gap:10px;">
                     <span style="
                       width:28px;height:28px;border-radius:14px;flex-shrink:0;
-                      background:{s.color}24;color:{s.color};
+                      background:color-mix(in oklab, {s.color} 14%, transparent);color:{s.color};
                       display:inline-flex;align-items:center;justify-content:center;
                       font-size:11px;font-weight:600;
                     ">{initials(s.name)}</span>

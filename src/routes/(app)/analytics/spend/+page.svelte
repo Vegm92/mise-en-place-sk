@@ -252,7 +252,7 @@
             <button type="button" onclick={() => (selectedCategories = toggle(selectedCategories, cat))}
               class="badge" style="
                 cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
-                background:{active ? color + '1e' : 'transparent'};
+                background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};
                 color:{active ? color : 'var(--mep-fg-3)'};
               ">
               {$tcat(cat)}
@@ -268,7 +268,7 @@
             <button type="button" onclick={() => (selectedProducts = toggle(selectedProducts, item.key))}
               class="badge" style="
                 cursor:pointer;border:1px solid {active ? color : 'var(--mep-border)'};
-                background:{active ? color + '1e' : 'transparent'};
+                background:{active ? `color-mix(in oklab, ${color} 12%, transparent)` : 'transparent'};
                 color:{active ? color : 'var(--mep-fg-3)'};
               ">
               {item.label}
