@@ -180,7 +180,7 @@
   const taxBreakdown = $derived.by(() => {
     const raw = review?.data?.tax_breakdown;
     if (!Array.isArray(raw) || raw.length === 0) return null;
-    return raw as Array<{ rate: number; base: number; tax_amount: number }>;
+    return raw as Array<{ rate: number; base: number; tax_amount: number; type?: string }>;
   });
   const taxTotal = $derived(
     taxBreakdown ? taxBreakdown.reduce((s, b) => s + ((b as { tax_amount: number }).tax_amount ?? 0), 0) : 0
@@ -528,6 +528,19 @@
               </div>
             </div>
 
+            {#if taxBreakdown && taxBreakdown.length > 0}
+              <div style="padding:8px 16px;border-top:1px solid var(--mep-divider);background:var(--mep-surface-2);display:flex;flex-direction:column;gap:4px;">
+                {#each taxBreakdown as b}
+                  <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mep-fg-2);">
+                    <span style="display:flex;align-items:center;gap:6px;">
+                      <span style="font-size:10px;font-weight:600;padding:1px 5px;border-radius:3px;background:{b.type === 'rec' ? 'var(--mep-warn-soft,#fef3c7)' : 'var(--mep-acc-soft)'};color:{b.type === 'rec' ? 'var(--mep-warn,#b45309)' : 'var(--mep-acc)'};">{b.type === 'rec' ? 'REC' : 'IVA'}</span>
+                      {b.rate}% · base {fmt(b.base)}
+                    </span>
+                    <span class="num">{fmt(b.tax_amount)}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
             <div style="padding:12px 16px;border-top:1px solid var(--mep-divider);background:var(--mep-surface-2);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-shrink:0;">
               {#if hasDiscrepancy}
                 <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mep-warn);font-weight:500;">
