@@ -288,11 +288,48 @@ Continuación directa del punto 9: al ver el caso real de Viñals Gourmet (carne
 
 ---
 
+## 11. Depurando el prototipo con la usuaria en directo — 2026-08-22 (continuación)
+
+Primera vez que la usuaria usa el prototipo en su propio navegador (no capturas, ella pilotando). Salieron de golpe varias confusiones reales de UI/UX y varios bugs de verdad. Incidencias #25–#28 en `INCIDENCIAS_AUDITORIA.md` con el detalle técnico completo; aquí el resumen.
+
+**Bugs reales corregidos:**
+- **#25 — "Por revisar" significaba dos cosas distintas a la vez.** El estado de pago del albarán (`invoices.status`) usaba la misma palabra que el aviso real de la IA (confianza baja). Primero se cambió a "Sin revisar"/"Revisado" y, tras ver que seguía sonando a "revisión de la IA", la usuaria pidió algo más directo: **"Marcado pagado" / "Marcado no pagado"**, dejando claro que es una marca manual, no un dato de pago verificado. Aplicado en la pantalla, el filtro, los botones y el Excel exportado.
+- **#26 — Analíticas parecía rota.** El mensaje de "sin datos" decía "cuando tengas albaranes confirmados" (un estado que la app ya no usa) cuando el motivo real era que esa pantalla filtra por la fecha *del papel*, no la de subida, y por defecto solo mira "este mes". Corregido el mensaje para apuntar al selector de periodo.
+- **#27 — Los pills Día/Mes/Año/Total de Albaranes no filtraban la tabla**, solo las tarjetas y el gráfico de arriba — exactamente lo que la usuaria reportó como "los filtros no funcionan bien". Corregido: el periodo ahora también entra en la consulta de la tabla. **Comprobado que Productos ya lo hacía bien** (el periodo sí filtra su lista) y que **Proveedores es distinto a propósito**: la lista de proveedores nunca se filtra por periodo (es un directorio, no quieres que un proveedor desaparezca por no pedirle este mes), solo cambian sus columnas de gasto/nº de albaranes con el periodo. **Confirmado con la usuaria: así está bien, no se toca.**
+- **#28 — Proveedores no dejaba desplazarse hacia abajo.** Esa pantalla (a diferencia de Albaranes/Productos/Analíticas) tenía las tarjetas y el gráfico "fijos" y solo la tabla con scroll propio; en ventanas no muy altas la tabla quedaba aplastada a unos pocos píxeles sin ninguna forma de llegar a ella — sin ningún error visible. Corregido igualándola al patrón de las demás pantallas (toda la página se desplaza junta). Reproducido a propósito con una ventana de 1280×650 para confirmar el arreglo.
+- **De paso, un bug fantasma que no era tal:** justo antes de encontrar el #28, los pills de filtro Bebidas/Comida/Artículos de Proveedores parecían no reaccionar al clic. Era el servidor de desarrollo con el estado de recarga en caliente corrompido tras muchísimas ediciones seguidas en la misma sesión (mismo gotcha ya documentado en memoria del 20 de agosto, reconfirmado hoy). Reiniciar el servidor lo arregló al instante; el filtro en sí nunca estuvo roto.
+
+**Rediseño de Analíticas (`/analytics/spend`), a petición de la usuaria:**
+- Quitadas las tarjetas sueltas "Categoría con más gasto" / "Proveedor con más gasto" (un nombre + un euro no le servía de nada).
+- Nuevo panel **"Bebida / Comida / Otros"**: calculado desde la categoría de cada *producto* de la línea (no la del proveedor, que puede vender de todo) — reutiliza el mapeo categoría→tipo de la incidencia #22 (`categoryToType()` en `constants.ts`).
+- Nuevo panel **"Proveedores más recurrentes"**: ranking por número de albaranes, no por euros.
+- **"Top productos"** (antes "Artículos principales por gasto"): ahora cada línea muestra el € y el **% real sobre el gasto total** — antes ese número (que solo existía como ancho de barra, sin imprimirse) era relativo al artículo más caro, no al total, así que al empezar a imprimirlo como "%" el número **mentía**. Corregido separando dos valores: `pct` (para el ancho de la barra, relativo al primero, solo visual) y `pctOfTotal` (el que se imprime, de verdad sobre el total).
+- Arriba del todo, línea "El más caro ahora: [producto] — X€/u".
+- **Colocación en rejilla, a petición explícita:** "Gasto en el tiempo" (más estrecha) + "Proveedores más recurrentes" en la misma fila; "Top productos" + "Bebida/Comida/Otros" en la fila de abajo — las 4 siguen la misma rejilla de 4 columnas que las tarjetas KPI.
+- **La tarjeta "Media por albarán" se quitó del todo.** Primero se corrigió la etiqueta (no decía de qué era la media — la usuaria preguntó "¿está mal?" al ver un "7.5" sin unidad), pero al preguntarle si el dato en sí era relevante, la respuesta fue "lo desconozco" — así que se sustituyó por algo simple y sin ambigüedad: **"Albaranes en el periodo"** (recuento, no media).
+- Todo esto se replicó también en la versión móvil (`MobileAnalyticsSpend.svelte`) para no romperla.
+
+**Productos:** quitada la tarjeta KPI "Sin conversión" (9) — la usuaria no entendió la explicación ni siquiera en su segunda versión, y es un dato de cara al futuro Paso 3 (Escandallos) que hoy no se puede accionar. Se deja el aviso pequeño por fila (icono, al pasar el ratón) para quien quiera mirarlo, pero no como número suelto arriba.
+
+**Proveedores:** la columna/tarjeta "Albaranes" no se entendía sola — renombrada a "Albaranes recibidos" (tarjeta) / "Nº albaranes" (columna de tabla).
+
+**Avisos — decisión de diseño de la usuaria, más simple de lo que se planteó al principio:** se pensó primero en un sistema de "marcar como leído" con estado guardado para las 5 señales. La usuaria lo simplificó: **no hace falta guardar nada** — las señales que son un problema real (confianza baja, líneas sin precio, proveedor sin tipo) ya desaparecen solas en cuanto se corrigen, así que se quedan tal cual; y lo que es solo información ("subiste esto", "esto tiene un comentario") **se recalcula en cada visita**, sin marcar nada como leído. Añadido:
+- Nueva sección **"Novedades"**: albaranes subidos en las últimas 24h, y por separado los que además tienen un comentario. **Limitación conocida:** el comentario no tiene su propia fecha guardada (no hay columna `notes_updated_at`), así que "comentario nuevo" se aproxima como "recién subido y ya tiene nota" — un comentario añadido días después a un albarán antiguo no aparecerá aquí. Aceptable por ahora, documentado.
+- No se tocó el sistema de "descartar" que ya tenían duplicados/subidas de precio (`systemNotifications`, con estado en BD) — sigue igual, es un mecanismo aparte que ya funcionaba.
+
+**Verificado:** 1113/1113 tests en verde en la comprobación final (hubo un par de tandas intermedias con fallos en cascada por acumular conexiones de Postgres de tanto repetir `vitest run` en la misma sesión — mismo gotcha ya conocido, no una regresión; ver memoria del proyecto). `svelte-check` sin errores nuevos (los 20 que salen son de `ImpeccableLiveRoot.svelte`, preexistentes, de la herramienta de diseño, no de esta rama).
+
+**Sin resolver, para la próxima sesión:**
+1. Categoría "Necesita modificación" de Avisos — confirmado que es "líneas sin precio" (ya existe), no hacía falta nada nuevo ahí.
+2. Seguir con los pendientes de la sección 10 (Tipo+Etiquetas en móvil) y los retoques visuales de siempre (menú lateral, gráfico grande de Proveedores en móvil).
+
+---
+
 ## Cómo seguir la próxima sesión (tras el `/clear` de hoy)
 
 **Lee primero, en este orden:** este documento completo (`SEGUIR_SESION.md`) y `PROPUESTA_MVP.md`. Confirma con `git branch --show-current` que estás en `mvp-modular-limpio`, nunca en `main`.
 
-**Estado de hoy, en una frase:** el MVP tiene Paso 1 y Paso 2 completos, pagos/facturación y WhatsApp traídos de `main`, dos albaranes reales de prueba cargados (Viñals Gourmet), y el modelo de Tipo+Etiquetas de proveedores recién construido — todo commiteado en `mvp-modular-limpio`, 1113 tests en verde.
+**Estado de hoy, en una frase:** el MVP tiene Paso 1 y Paso 2 completos, pagos/facturación y WhatsApp traídos de `main`, dos albaranes reales de prueba cargados (Viñals Gourmet), el modelo de Tipo+Etiquetas de proveedores construido, y una ronda larga de depuración en vivo del prototipo con la usuaria (ver sección 11: Analíticas rediseñada, tres bugs de filtros/scroll corregidos, Avisos ampliado con "Novedades") — todo commiteado en `mvp-modular-limpio`, 1113 tests en verde.
 
 **Lo próximo, por orden de lo que más falta:**
 1. **Probar la lectura real con la IA** — sigue sin hacerse, falta una clave de Gemini (ver punto 9 de arriba: hay dos caminos, conseguir la clave o probar en la app ya publicada).

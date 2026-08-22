@@ -79,6 +79,12 @@ export function deriveSupplierTypeAndTags(category: string | null | undefined): 
 	return { type: [mapped.type], tags: [mapped.tag] };
 }
 
+/** Same mapping as `deriveSupplierTypeAndTags`, for a single product's category — used to bucket
+ * product spend into Bebidas/Comida/Artículos on the spend analytics page. */
+export function categoryToType(category: string | null | undefined): SupplierType | null {
+	return category ? CATEGORY_TO_TYPE_AND_TAG[category]?.type ?? null : null;
+}
+
 export const CATEGORY_COLORS: Record<string, string> = {
 	'Frutas y Verduras':        '#3B6B20',
 	'Carnes y Derivados':       '#8B3530',

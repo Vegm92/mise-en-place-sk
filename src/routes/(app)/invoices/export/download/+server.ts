@@ -7,9 +7,9 @@ import { moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
 
 const STATUS_LABELS: Record<string, string> = {
-	pending:  'Pendiente',
+	pending:  'Marcado no pagado',
 	approved: 'Aprobada',
-	paid:     'Pagada',
+	paid:     'Marcado pagado',
 	overdue:  'Vencida',
 };
 

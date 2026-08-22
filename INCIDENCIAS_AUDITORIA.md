@@ -362,6 +362,64 @@ En `main`, esos mismos dos ficheros pasaron además por una reorganización inte
 
 ---
 
+## 25. La etiqueta "Por revisar" del estado de pago chocaba con el aviso real de la IA — probablemente heredado de `main`
+
+**Dónde:** `src/lib/i18n.ts` (claves `status.pending` / `status.paid`), `src/routes/(app)/invoices/+page.svelte`, `src/routes/(app)/invoices/export/download/+server.ts`.
+
+**Qué pasaba:** el campo `invoices.status` (que en la práctica solo toma `pending`/`paid` — `src/lib/server/invoice-status.ts` nunca escribe otra cosa) se mostraba en la fila de cada albarán y en el filtro "ESTADO" como **"Por revisar" / "Pagada"**. Esa es la misma frase, palabra por palabra, que usa la tarjeta KPI `inv.kpi.needsReview` para un concepto totalmente distinto (si la IA tuvo dudas leyendo el documento). Resultado: la usuaria veía "Por revisar" en todos los albaranes y no entendía qué había que revisar ni por qué, cuando en realidad ese texto solo significaba "sin marcar como pagado".
+
+**Cómo se encontró:** al probar el prototipo con la usuaria (sesión 2026-08-22), reportó que "la tarjeta 'por revisar' da 0 pero en el historial parecen pendientes de revisar". Se confirmó consultando la base de datos local y el código: son dos sistemas distintos (`invoices.status` vs. `invoices.confidence`/líneas sin precio) que compartían la misma palabra por accidente de traducción.
+
+**Por qué se sospecha que también está en `main`:** el campo `invoices.status` y su etiqueta de pago vienen de cuando la pantalla era "Facturas" (con seguimiento de pagos), de antes de la rama `mvp-modular-limpio`. La colisión de texto con `inv.kpi.needsReview` (que si es nueva, de esta rama) puede no existir tal cual en `main`, pero **el problema de fondo sí**: en `main`, "pagado/no pagado" para un documento sigue sin tener ninguna fuente de datos real detrás (no hay integración de cobro), así que es la misma ambigüedad de fondo que señaló la usuaria hoy.
+
+**Estado:** ✅ Corregido en esta rama — la etiqueta ahora dice **"Marcado pagado" / "Marcado no pagado"** (se dejó claro que es una marca manual, no un dato de pago verificado). Sin revisar si `main` tiene el mismo problema de fondo.
+
+---
+
+## 26. El mensaje de "Analíticas vacía" mencionaba un estado ("confirmados") que la app ya no usa
+
+**Dónde:** `src/lib/i18n.ts` (clave `spend.emptyHint`), `src/routes/(app)/analytics/spend/+page.server.ts`.
+
+**Qué pasaba:** cuando el panel "Artículos principales por gasto" no tenía datos, el mensaje decía *"Los análisis aparecen una vez que tengas albaranes confirmados"* — pero el código actual **nunca** pone `invoices.status = 'confirmed'` (se comprobó: solo `pending`/`paid` son alcanzables desde el flujo de guardado y desde `invoice-status.ts`). El motivo real de que el panel saliera vacío era otro: esa pantalla filtra por la fecha **del propio albarán** (no la de subida) y por defecto solo mira "este mes" — con los 2 albaranes de prueba (fechados en julio 2024), no había forma de que aparecieran bajo ese filtro por defecto, y el mensaje no lo explicaba, apuntando a una causa falsa.
+
+**Cómo se encontró:** al reproducir la pantalla vacía que reportó la usuaria y comparar contra la base de datos: el dinero de esos 2 albaranes sí estaba (654 €, visible en Albaranes), pero no en Analíticas con el periodo por defecto.
+
+**Por qué se sospecha que también está en `main`:** el texto menciona un estado (`confirmed`) que no encaja con el modelo `pending`/`paid` actual — probablemente es copy antiguo que quedó huérfano tras algún cambio anterior de estados, en `main` o ya en esta rama antes de esta sesión. Si `main` tiene esta misma pantalla de Analíticas con el mismo filtro por fecha de documento, el mensaje engañoso probablemente también está ahí.
+
+**Nota aparte, no es un fallo de código:** los paneles de Analíticas que usan `mv_item_monthly_spend`/`mv_category_monthly_spend` (vistas materializadas) dependen de una tarea nocturna (`refresh_analytics_rollups()`, pensada para `pg_cron`) que no corre sola en un Postgres local de desarrollo — hay que llamarla a mano tras cargar datos de prueba, o los paneles de "más comprados" parecen vacíos aunque haya datos reales guardados. No es un bug de la app (en producción sí debería estar programada), pero conviene recordarlo si se vuelve a probar con datos de prueba en local.
+
+**Estado:** ✅ Corregido en esta rama — el mensaje ahora indica que se pruebe a cambiar el periodo, en vez de mencionar un estado inexistente. Sin revisar si `main` tiene el mismo texto huérfano.
+
+---
+
+## 27. Los pills de periodo (Día/Mes/Año/Total) en Albaranes no filtraban la tabla, solo las tarjetas de arriba
+
+**Dónde:** `src/routes/(app)/invoices/+page.server.ts`.
+
+**Qué pasaba:** en la pantalla Albaranes, el periodo (Día/Mes/Año/Total) solo se aplicaba a las tarjetas KPI y al gráfico de arriba (`statsRow`, `needsReviewRow`, `trendRows`, todos filtrados con `periodScope`), pero **nunca** a la tabla "Historial de albaranes" — el array `conditions` que arma esa consulta nunca incluía `periodScope`. Cambiar de "Mes" a "Año" cambiaba los números de arriba pero la lista de abajo se quedaba exactamente igual, sin ningún aviso de que eso fuera a pasar.
+
+**Cómo se encontró:** la usuaria reportó que "los filtros de tabla son incorrectos" y, en una segunda vuelta, que "al probarlo no filtra bien". Se verificó que los filtros del propio formulario (proveedor, estado, fechas) sí funcionaban correctamente contrastando contra la base de datos — el fallo real estaba en los pills de periodo, que visualmente están justo encima de la tabla y dan la impresión de filtrarla también.
+
+**Por qué se sospecha que también está en `main`:** el patrón de "el periodo scopea tarjetas + gráfico pero no la tabla" es específico de cómo se construyó esta pantalla; si `main` tiene una pantalla de facturas con la misma estructura de KPIs + tabla + pills de periodo, conviene revisar si tiene el mismo hueco.
+
+**Estado:** ✅ Corregido en esta rama — el periodo ahora también se añade a las condiciones de la consulta de la tabla (misma columna, `invoices.created_at`, que ya usaban las tarjetas). Verificado sin errores; 1113/1113 tests en verde tras el cambio.
+
+---
+
+## 28. La pantalla de Proveedores no dejaba desplazarse hacia abajo cuando el contenido no cabía
+
+**Dónde:** `src/routes/(app)/suppliers/+page.svelte` (envoltorio `height:100%;overflow:hidden`), `src/lib/components/desktop/DesktopSuppliersList.svelte` (raíz `flex:1;min-height:0`).
+
+**Qué pasaba:** a diferencia de Albaranes, Productos y Analíticas (donde toda la pantalla se desplaza junta, de forma natural), Proveedores usaba un diseño distinto: las tarjetas KPI, el gráfico y la fila de filtros quedaban fijas, y solo la tabla de abajo tenía su propio scroll interno diminuto. Si la ventana del navegador no era lo bastante alta (o había suficientes proveedores/categorías como para que las tarjetas y el gráfico ocuparan más espacio), la tabla quedaba aplastada a unos pocos píxeles — y como el contenedor exterior tiene `overflow:hidden`, no había ninguna forma de desplazarse para revisarla. No se veía ningún error, la pantalla simplemente "no dejaba bajar".
+
+**Cómo se encontró:** la usuaria reportó "proveedores no me deja deslizar hacia abajo". Se reprodujo forzando una ventana más baja (1280×650) y comprobando en el DOM: la tarjeta de la tabla medía 54px de alto (contra los ~300px+ que necesita para mostrar algo), y `overflow-y` del contenedor principal seguía marcando "auto" pero sin nada que desplazar porque el recorte pasaba en una capa interior.
+
+**Riesgo de que sea el mismo patrón en `main`:** si la pantalla de proveedores de `main` usa esta misma estructura de "tarjetas fijas + tabla con scroll propio", puede tener el mismo problema en pantallas pequeñas o portátiles.
+
+**Estado:** ✅ Corregido en esta rama — se quitó el `overflow:hidden` del envoltorio y el `flex:1;min-height:0` de la raíz del componente, dejando que toda la pantalla se desplace junta (mismo patrón que ya usan Albaranes/Productos/Analíticas). Verificado forzando una ventana baja: ahora la página completa se desplaza y la tabla es alcanzable. `svelte-check` sin errores nuevos.
+
+---
+
 ## Resumen para quien retome esto en `main`
 
 | # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |

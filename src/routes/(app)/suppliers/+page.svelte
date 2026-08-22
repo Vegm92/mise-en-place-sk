@@ -21,7 +21,7 @@
   />
 </div>
 
-<div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
+<div class="hidden md:flex" style="flex-direction:column;">
   <DesktopSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}

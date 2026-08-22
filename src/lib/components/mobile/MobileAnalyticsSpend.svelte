@@ -4,25 +4,25 @@
 
   interface Kpis {
     total_items_spend: number | null;
-    avg_invoice_items: number | null;
-    top_category: { category: string; total: number } | null;
-    top_supplier: { name: string; total: number } | null;
+    invoice_count: number;
   }
   interface TopItem {
     description: string;
     total_spend: number;
     pct: number;
+    pctOfTotal: number;
     item_count?: number | null;
     avg_unit_price?: number | null;
     supplier_name?: string | null;
     price_trend?: number[];
   }
-  interface CategorySpend {
-    category: string;
+  interface TypeSpend {
+    type: string;
     total: number;
     pct: number;
     color: string;
   }
+  interface RecurringSupplier { name: string; count: number; pct: number; }
   interface TrendRow { bucket: string; category: string; amount: number; }
   interface PriceTrendItem { key: string; label: string; points: { bucket: string; value: number }[]; }
 
@@ -30,7 +30,9 @@
     period,
     kpis,
     top_items,
-    category_spend,
+    most_expensive_item,
+    type_spend,
+    recurring_suppliers,
     trend,
     trendCategories,
     priceTrendSeries,
@@ -38,11 +40,20 @@
     period: string;
     kpis: Kpis;
     top_items: TopItem[];
-    category_spend: CategorySpend[];
+    most_expensive_item: TopItem | null;
+    type_spend: TypeSpend[];
+    recurring_suppliers: RecurringSupplier[];
     trend: TrendRow[];
     trendCategories: string[];
     priceTrendSeries: PriceTrendItem[];
   } = $props();
+
+  function typeLabel(type: string): string {
+    if (type === 'Bebidas') return $t('suptype.bebidas');
+    if (type === 'Comida') return $t('suptype.comida');
+    if (type === 'Artículos') return $t('suptype.articulos');
+    return $t('spend.other');
+  }
 
   const SERIES_PALETTE = [
     'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
@@ -132,23 +143,9 @@
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.kpi.topCategory')}</div>
-        <div style="font-size: 15px; font-weight: 600; color: var(--mep-fg); line-height: 1.25; overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {kpis?.top_category ? $tcat(kpis.top_category.category) : $t('spend.kpi.noData')}
-        </div>
-        {#if kpis?.top_category}<div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{fmtEur(kpis.top_category.total)}</div>{/if}
-      </div>
-      <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.kpi.topSupplier')}</div>
-        <div style="font-size: 15px; font-weight: 600; color: var(--mep-fg); line-height: 1.25; overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          {kpis?.top_supplier ? kpis.top_supplier.name : $t('spend.kpi.noData')}
-        </div>
-        {#if kpis?.top_supplier}<div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{fmtEur(kpis.top_supplier.total)}</div>{/if}
-      </div>
-      <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.avgItems')}</div>
+        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.invoiceCount')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
-          {kpis?.avg_invoice_items != null ? kpis.avg_invoice_items.toFixed(1) : '—'}
+          {kpis?.invoice_count ?? '—'}
         </div>
       </div>
     </div>
@@ -197,13 +194,19 @@
 
     {#if top_items?.length > 0}
       <div class="card" style="padding: 14px;">
-        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.topProducts')}</div>
+        <div class="subtitle" style="font-size: 15px; margin-bottom: 4px;">{$t('spend.topProducts')}</div>
+        {#if most_expensive_item}
+          <div style="font-size: 11.5px; color: var(--mep-fg-3); margin-bottom: 12px;">
+            {$t('spend.mostExpensive')} <span style="color:var(--mep-fg-2);font-weight:500;">{most_expensive_item.description}</span>
+            {most_expensive_item.avg_unit_price != null ? `— ${fmtEur(most_expensive_item.avg_unit_price)}/u` : ''}
+          </div>
+        {/if}
         <div style="display: flex; flex-direction: column; gap: 10px;">
           {#each top_items.slice(0, 6) as item, i}
             <div>
               <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 5px;">
                 <span style="font-size: 12px; color: var(--mep-fg-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{item.description}</span>
-                <span class="num" style="font-size: 12px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">{fmtEur(item.total_spend)}</span>
+                <span class="num" style="font-size: 12px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0;">{fmtEur(item.total_spend)} · {item.pctOfTotal}%</span>
               </div>
               <div style="height: 7px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
                 <div style="width: {item.pct}%; height: 100%; background: {SERIES_COLORS[i % SERIES_COLORS.length]}; border-radius: 3px;"></div>
@@ -214,21 +217,42 @@
       </div>
     {/if}
 
-    {#if category_spend?.length > 0}
+    {#if type_spend?.length > 0}
       <div class="card" style="padding: 14px 14px 6px;">
-        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.byCategory')}</div>
+        <div class="subtitle" style="font-size: 15px; margin-bottom: 4px;">{$t('spend.byCategory')}</div>
+        <div style="font-size: 11.5px; color: var(--mep-fg-3); margin-bottom: 12px;">{$t('spend.byCategorySub')}</div>
         <div style="display: flex; flex-direction: column; gap: 10px;">
-          {#each category_spend as cat}
+          {#each type_spend as t2}
             <div>
               <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--mep-fg-2);">
-                  <span style="width: 10px; height: 10px; border-radius: 2px; background: {cat.color}; display: inline-block; flex-shrink: 0;"></span>
-                  {$tcat(cat.category)}
+                  <span style="width: 10px; height: 10px; border-radius: 2px; background: {t2.color}; display: inline-block; flex-shrink: 0;"></span>
+                  {typeLabel(t2.type)}
                 </span>
-                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{fmtEur(cat.total)}</span>
+                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{fmtEur(t2.total)} · {t2.pct}%</span>
               </div>
               <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-                <div style="width: {cat.pct}%; height: 100%; background: {cat.color}; border-radius: 3px;"></div>
+                <div style="width: {t2.pct}%; height: 100%; background: {t2.color}; border-radius: 3px;"></div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if recurring_suppliers?.length > 0}
+      <div class="card" style="padding: 14px 14px 6px;">
+        <div class="subtitle" style="font-size: 15px; margin-bottom: 4px;">{$t('spend.recurringSuppliers')}</div>
+        <div style="font-size: 11.5px; color: var(--mep-fg-3); margin-bottom: 12px;">{$t('spend.recurringSuppliersSub')}</div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          {#each recurring_suppliers as sup, i}
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="font-size: 12.5px; color: var(--mep-fg-2); flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{sup.name}</span>
+                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{sup.count} · {sup.pct}%</span>
+              </div>
+              <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
+                <div style="width: {sup.pct}%; height: 100%; background: {SERIES_COLORS[i % SERIES_COLORS.length]}; border-radius: 3px;"></div>
               </div>
             </div>
           {/each}

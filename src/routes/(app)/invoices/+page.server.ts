@@ -67,6 +67,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		}
 
 		const periodScope = periodFrom ? gte(invoices.createdAt, periodFrom) : undefined;
+		// The Día/Mes/Año/Total pills scope the KPI cards and chart above the
+		// table -- they must also scope the table itself, or picking "Mes" and
+		// seeing the list unchanged reads as a broken filter, not a no-op.
+		if (periodScope) conditions.push(periodScope);
 		const prevPeriodScope = prevFrom && prevTo
 			? and(gte(invoices.createdAt, prevFrom), lt(invoices.createdAt, prevTo))
 			: undefined;

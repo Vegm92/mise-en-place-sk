@@ -80,7 +80,9 @@
     period={data.period}
     kpis={data.kpis}
     top_items={data.top_items}
-    category_spend={data.category_spend}
+    most_expensive_item={data.most_expensive_item}
+    type_spend={data.type_spend}
+    recurring_suppliers={data.recurring_suppliers}
     trend={data.trend}
     trendCategories={data.trendCategories}
     priceTrendSeries={data.priceTrendSeries}
@@ -95,7 +97,7 @@
       <PeriodPills active={data.period} pills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: `?period=${val}` }))} />
     </div>
 
-    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2" data-coach="analytics-main">
+    <div class="grid grid-cols-2 gap-3 max-[560px]:grid-cols-1" data-coach="analytics-main">
       <KpiCard
         label={$t('spend.totalSpend')}
         value={fmtEur(data.kpis.total_items_spend)}
@@ -106,24 +108,14 @@
         invert
       />
       <KpiCard
-        label={$t('spend.kpi.topCategory')}
-        value={data.kpis.top_category ? $tcat(data.kpis.top_category.category) : $t('spend.kpi.noData')}
-        sub={data.kpis.top_category ? fmtEur(data.kpis.top_category.total) : undefined}
-        valueIsName
-      />
-      <KpiCard
-        label={$t('spend.kpi.topSupplier')}
-        value={data.kpis.top_supplier ? data.kpis.top_supplier.name : $t('spend.kpi.noData')}
-        sub={data.kpis.top_supplier ? fmtEur(data.kpis.top_supplier.total) : undefined}
-        valueIsName
-      />
-      <KpiCard
-        label={$t('spend.avgItems')}
-        value={data.kpis.avg_invoice_items != null ? data.kpis.avg_invoice_items.toFixed(1) : '—'}
+        label={$t('spend.invoiceCount')}
+        value={data.kpis.invoice_count}
       />
     </div>
 
-    <div class="card" style="padding:16px;">
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
+
+      <div class="card col-span-3 max-[900px]:col-span-2" style="padding:16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
         <div class="subtitle">{$t('spend.trend.title')}</div>
         <div class="period-track" role="group">
@@ -177,13 +169,44 @@
       {:else}
         <TrendLineChart xLabels={productChart.xLabels} series={productChart.series} valueFormatter={(v) => fmtEur(v) + '/u'} emptyLabel={$t('spend.noDataYet')} />
       {/if}
+      </div>
+
+      <div class="card col-span-1 max-[900px]:col-span-2" style="padding:16px;">
+        <div class="subtitle" style="margin-bottom:4px;">{$t('spend.recurringSuppliers')}</div>
+        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.recurringSuppliersSub')}</div>
+        {#if !data.recurring_suppliers.length}
+          <p class="body" style="color:var(--mep-fg-4);font-size:12px;">{$t('spend.noRecurring')}</p>
+        {:else}
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            {#each data.recurring_suppliers.slice(0, 5) as sup, i}
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                  <span style="font-size:12.5px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={sup.name}>{sup.name}</span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{sup.count} · {sup.pct}%</span>
+                </div>
+                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
+                  <div style="width:{sup.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:4px;"></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
     </div>
 
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
 
       <div class="card col-span-3 max-[900px]:col-span-2" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
-        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.topItemsSub')}</div>
+        {#if data.most_expensive_item}
+          <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
+            {$t('spend.mostExpensive')} <span style="color:var(--mep-fg-2);font-weight:500;">{data.most_expensive_item.description}</span>
+            {data.most_expensive_item.avg_unit_price != null ? `— ${fmtEur(data.most_expensive_item.avg_unit_price)}/u` : ''}
+          </div>
+        {:else}
+          <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.topItemsSub')}</div>
+        {/if}
         {#if !data.top_items.length}
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
             <div style="font-size:24px;opacity:0.25;">📊</div>
@@ -199,7 +222,7 @@
                   <span style="font-size:12.5px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={item.description}>
                     {item.description}
                   </span>
-                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{fmtEur(item.total_spend)}</span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{fmtEur(item.total_spend)} · {item.pctOfTotal}%</span>
                 </div>
                 <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
                   <div style="width:{item.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:4px;"></div>
@@ -218,24 +241,24 @@
       <div class="card col-span-1 max-[900px]:col-span-2" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.byCategorySub')}</div>
-        {#if !data.category_spend.length}
+        {#if !data.type_spend.length}
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
             <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:200px;">{$t('spend.assignCategories')}</p>
-            <a href="/suppliers" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">{$t('spend.viewSuppliers')}</a>
+            <a href="/products" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">{$t('spend.viewSuppliers')}</a>
           </div>
         {:else}
           <div style="display:flex;flex-direction:column;gap:10px;">
-            {#each data.category_spend as cat}
+            {#each data.type_spend as t2}
               <div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
                   <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mep-fg-2);">
-                    <span style="width:10px;height:10px;border-radius:2px;background:{cat.color};display:inline-block;flex-shrink:0;"></span>
-                    {$tcat(cat.category)}
+                    <span style="width:10px;height:10px;border-radius:2px;background:{t2.color};display:inline-block;flex-shrink:0;"></span>
+                    {t2.type === 'Bebidas' ? $t('suptype.bebidas') : t2.type === 'Comida' ? $t('suptype.comida') : t2.type === 'Artículos' ? $t('suptype.articulos') : $t('spend.other')}
                   </span>
-                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmtEur(cat.total)}</span>
+                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmtEur(t2.total)} · {t2.pct}%</span>
                 </div>
                 <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
-                  <div style="width:{cat.pct}%;height:100%;background:{cat.color};border-radius:4px;"></div>
+                  <div style="width:{t2.pct}%;height:100%;background:{t2.color};border-radius:4px;"></div>
                 </div>
               </div>
             {/each}

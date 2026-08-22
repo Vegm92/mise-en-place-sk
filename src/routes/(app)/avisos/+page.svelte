@@ -8,6 +8,8 @@
   import Clock from '@lucide/svelte/icons/clock';
   import Tag from '@lucide/svelte/icons/tag';
   import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
+  import Upload from '@lucide/svelte/icons/upload';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
   import type { Notif } from '$lib/notification-display';
 
   let { data }: { data: PageData } = $props();
@@ -135,6 +137,40 @@
               </div>
               <a href="/suppliers/{sup.id}?edit=1" class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 8px;margin-top:6px;text-decoration:none;display:inline-flex;align-items:center;">
                 {$t('avisos.review')}
+              </a>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </SectionCard>
+  {/if}
+
+  {#if data.recentUploads.length > 0 || data.recentWithComments.length > 0}
+    <SectionCard title={$t('avisos.section.new')} noPad>
+      <div style="display:flex;flex-direction:column;">
+        {#each data.recentWithComments as r, i (r.id)}
+          <div style="padding:12px 16px;{i > 0 ? 'border-top:1px solid var(--mep-divider);' : ''}display:flex;align-items:flex-start;gap:10px;">
+            <MessageCircle size={14} style="flex-shrink:0;margin-top:1px;color:var(--mep-fg-3);" />
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
+                {$ti('avisos.recentComment.msg', { supplier: r.supplier_name ?? '—' })}
+              </div>
+              <a href="/invoice/{r.id}" class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 8px;margin-top:6px;text-decoration:none;display:inline-flex;align-items:center;">
+                {$t('avisos.viewInvoice')}
+              </a>
+            </div>
+          </div>
+        {/each}
+
+        {#each data.recentUploads as r, i (r.id)}
+          <div style="padding:12px 16px;{(data.recentWithComments.length + i) > 0 ? 'border-top:1px solid var(--mep-divider);' : ''}display:flex;align-items:flex-start;gap:10px;">
+            <Upload size={14} style="flex-shrink:0;margin-top:1px;color:var(--mep-fg-3);" />
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
+                {$ti('avisos.recentUpload.msg', { supplier: r.supplier_name ?? '—' })}
+              </div>
+              <a href="/invoice/{r.id}" class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 8px;margin-top:6px;text-decoration:none;display:inline-flex;align-items:center;">
+                {$t('avisos.viewInvoice')}
               </a>
             </div>
           </div>

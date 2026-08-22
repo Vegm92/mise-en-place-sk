@@ -12,7 +12,6 @@
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
   const { products, suggestions, categories, colors, period, trend, trendCategories } = $derived(data);
-  const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
 
   const PERIODS: Array<['day' | 'month' | 'year' | 'all', string]> = [
     ['day',   'inv.period.day'],
@@ -90,17 +89,11 @@
     <PeriodPills active={period} pills={PERIODS.map(([val, labelKey]) => ({ value: val, label: $t(labelKey), href: `?period=${val}` }))} />
   </div>
 
-  <div class="grid grid-cols-3 gap-3 max-[700px]:grid-cols-1">
+  <div class="grid grid-cols-2 gap-3 max-[700px]:grid-cols-1">
     <KpiCard
       label={$t('prod.kpi.total')}
       value={products.length}
       sub={$t('inv.kpi.totalSub')}
-    />
-    <KpiCard
-      label={$t('prod.kpi.needsConversion')}
-      value={needsConversionCount}
-      variant={needsConversionCount > 0 ? 'warn' : 'default'}
-      sub={$t('nav.products')}
     />
     <button type="button" onclick={() => (tab = 'suggestions')} style="text-align:left;border:none;background:none;padding:0;cursor:pointer;">
       <KpiCard

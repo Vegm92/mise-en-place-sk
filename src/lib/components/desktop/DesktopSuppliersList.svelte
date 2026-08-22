@@ -155,7 +155,7 @@
   function deltaArrow(v: number) { return v > 0.05 ? '↑' : v < -0.05 ? '↓' : '·'; }
 </script>
 
-<div style="padding:20px 24px 0;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;">
+<div style="padding:20px 24px 20px;display:flex;flex-direction:column;gap:14px;">
 
   <div style="display:flex;align-items:center;gap:12px;">
     <div class="search-field">
@@ -182,7 +182,7 @@
       invert
     />
     <KpiCard
-      label={$t('nav.invoices')}
+      label={$t('sup.kpi.invoiceCount')}
       value={periodStats.total_invoices}
       sub={period === 'all' ? $t('inv.kpi.totalSub') : undefined}
       delta={periodStats.invoices_delta_pct !== null ? Math.round(periodStats.invoices_delta_pct * 10) / 10 : undefined}
@@ -299,7 +299,7 @@
               <th style="width:28%;">{$t('tbl.supplier')}</th>
               <th style="width:100px;">{$t('sup.field.cif')}</th>
               <th style="width:120px;">{$t('sup.field.category')}</th>
-              <th class="num" style="width:75px;">{$t('nav.invoices')}</th>
+              <th class="num" style="width:75px;">{$t('sup.col.invoiceCount')}</th>
               <th class="num" style="width:115px;">{$t('tbl.spendMonth')}</th>
               <th style="width:90px;">{$t('tbl.trend')}</th>
               <th class="num" style="width:65px;">Δ</th>

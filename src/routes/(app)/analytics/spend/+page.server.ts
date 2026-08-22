@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
-import { CATEGORY_COLORS } from '$lib/constants';
+import { CATEGORY_COLORS, categoryToType, SUPPLIER_TYPES } from '$lib/constants';
 import { moneyToNumber } from '$lib/server/money';
 import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
 import { bucketSeries } from '$lib/server/period-series';
@@ -48,15 +48,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			: sql`TO_CHAR(i.invoice_date, 'YYYY-MM-DD')`;
 
 		type TopItem = { description: string; total_spend: string; item_count: number; avg_unit_price: string | null; supplier_name: string };
-		type CatRow = { category: string; total: string; invoice_count: number };
+		type TypeSpendRow = { category: string | null; total: string };
 		type KpisRow = { total_items_spend: string | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
 		type PrevKpisRow = { total_items_spend: string | null; total_line_items: number };
 		type SeriesRow = { invoice_date: string; amount: string | null };
-		type TopSupplierRow = { supplier_name: string; total: string };
+		type RecurringSupplierRow = { supplier_name: string; invoice_count: number };
 		type TrendRow = { bucket: string; category: string; amount: string };
 
-		const [topItems, categorySpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows, topSupplierRows, trendRows] = await Promise.all([
+		const [topItems, typeSpend, kpisRows, itemTrendRows, prevKpisRows, seriesRows, recurringSuppliers, trendRows] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT
 					MAX(m.description)    AS description,
@@ -72,16 +72,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LIMIT 15
 			`),
 
-			db.execute<CatRow>(sql`
+			db.execute<TypeSpendRow>(sql`
 				SELECT
-					c.category,
-					SUM(c.total_spend)    AS total,
-					SUM(c.invoice_count)  AS invoice_count
-				FROM mv_category_monthly_spend c
-				WHERE c.restaurant_id = ${rid}
-				  ${monthFilterSql}
-				GROUP BY c.category
-				ORDER BY total DESC
+					p.category AS category,
+					SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
+				FROM invoice_line_items ili
+				JOIN invoices i ON i.id = ili.invoice_id
+				JOIN products p ON p.id = ili.product_id
+				WHERE ili.description IS NOT NULL AND ili.description != ''
+				  AND i.restaurant_id = ${rid}
+				  ${dateFilter}
+				GROUP BY p.category
 			`),
 
 			db.execute<KpisRow>(sql`
@@ -133,17 +134,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				`)
 				: Promise.resolve([]),
 
-			db.execute<TopSupplierRow>(sql`
-				SELECT s.name AS supplier_name, SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
-				FROM invoice_line_items ili
-				JOIN invoices i ON i.id = ili.invoice_id
+			db.execute<RecurringSupplierRow>(sql`
+				SELECT s.name AS supplier_name, COUNT(*) AS invoice_count
+				FROM invoices i
 				JOIN suppliers s ON s.id = i.supplier_id
-				WHERE ili.description IS NOT NULL AND ili.description != ''
-				  AND i.restaurant_id = ${rid}
+				WHERE i.restaurant_id = ${rid}
 				  ${dateFilter}
 				GROUP BY s.id, s.name
-				ORDER BY total DESC
-				LIMIT 1
+				ORDER BY invoice_count DESC
 			`),
 
 			db.execute<TrendRow>(sql`
@@ -170,18 +168,33 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			itemTrendPoints.get(key)!.push({ bucket: row.month, value: moneyToNumber(row.avg_price) });
 		}
 
+		const kpisRow0 = kpisRows[0];
+		const currentSpend = moneyToNumber(kpisRow0?.total_items_spend ?? '0');
+		const totalSpendForPct = currentSpend || 1;
+
+		// `pct` sizes the bar relative to the #1 item (so the ranking reads well
+		// even with a long tail); `pctOfTotal` is the number actually printed as
+		// "X%" next to each item, so it must be a real share of total spend.
 		const maxSpend = moneyToNumber(topItems[0]?.total_spend) || 1;
 		const top_items = topItems.map(item => {
 			const key = item.description.toLowerCase().trim();
 			const rawTrend = itemTrendMap.get(key) ?? [];
+			const spend = moneyToNumber(item.total_spend) || 0;
 			return {
 				...item,
-				total_spend: moneyToNumber(item.total_spend),
+				total_spend: spend,
 				avg_unit_price: item.avg_unit_price == null ? null : moneyToNumber(item.avg_unit_price),
-				pct: Math.round((moneyToNumber(item.total_spend) || 0) / maxSpend * 100),
+				pct: Math.round((spend / maxSpend) * 100),
+				pctOfTotal: Math.round((spend / totalSpendForPct) * 100),
 				price_trend: rawTrend.length >= 2 ? rawTrend : [],
 			};
 		});
+
+		const most_expensive_item = top_items.reduce<typeof top_items[number] | null>((max, item) => {
+			if (item.avg_unit_price == null) return max;
+			if (max == null || item.avg_unit_price > (max.avg_unit_price ?? 0)) return item;
+			return max;
+		}, null);
 
 		// Price history (not spend) for the "compare products" mode of the
 		// trend chart — reuses the same 6-month window as top_items.price_trend.
@@ -190,17 +203,28 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			return { key, label: item.description, points: itemTrendPoints.get(key) ?? [] };
 		}).filter(s => s.points.length >= 2);
 
-		const maxCat = moneyToNumber(categorySpend[0]?.total) || 1;
-		const category_spend = categorySpend.map(cat => ({
-			category: String(cat.category),
-			total: moneyToNumber(cat.total),
-			invoice_count: Number(cat.invoice_count),
-			pct: Math.round((moneyToNumber(cat.total) || 0) / maxCat * 100),
-			color: CATEGORY_COLORS[cat.category] ?? CATEGORY_COLORS['Other'],
-		}));
-
-		const kpisRow0 = kpisRows[0];
-		const currentSpend = moneyToNumber(kpisRow0?.total_items_spend ?? '0');
+		// Bebida/Comida/Otros: derived from each line item's linked *product*
+		// category (not the supplier's), since one supplier can sell both food
+		// and drinks — a product only ever has one category.
+		const typeBuckets = new Map<string, number>(SUPPLIER_TYPES.map(t => [t, 0]));
+		let otherTypeTotal = 0;
+		for (const row of typeSpend) {
+			const amount = moneyToNumber(row.total);
+			const type = categoryToType(row.category);
+			if (type) typeBuckets.set(type, (typeBuckets.get(type) ?? 0) + amount);
+			else otherTypeTotal += amount;
+		}
+		if (otherTypeTotal > 0) typeBuckets.set('Otros', otherTypeTotal);
+		const typeTotalSum = [...typeBuckets.values()].reduce((a, b) => a + b, 0) || 1;
+		const type_spend = [...typeBuckets.entries()]
+			.filter(([, total]) => total > 0)
+			.sort((a, b) => b[1] - a[1])
+			.map(([type, total]) => ({
+				type,
+				total,
+				pct: Math.round((total / typeTotalSum) * 100),
+				color: type === 'Bebidas' ? CATEGORY_COLORS['Bebidas'] : type === 'Comida' ? CATEGORY_COLORS['Carnes y Derivados'] : CATEGORY_COLORS['Other'],
+			}));
 
 		const prevRow0 = prevKpisRows[0];
 		const prevSpend = prevRow0 ? moneyToNumber(prevRow0.total_items_spend ?? '0') : null;
@@ -208,10 +232,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const seriesInput = seriesRows.map(r => ({ createdAt: parseLocalDate(r.invoice_date), amount: moneyToNumber(r.amount ?? '0') }));
 		const spendSeries = bucketSeries(seriesInput, period, from, prevFrom, prevTo);
 
-		const topSupplierRow = topSupplierRows[0];
-		const topSupplier = topSupplierRow
-			? { name: topSupplierRow.supplier_name, total: moneyToNumber(topSupplierRow.total) }
-			: null;
+		const invoiceCount = recurringSuppliers.reduce((sum, r) => sum + Number(r.invoice_count), 0);
+		const totalInvoiceCount = invoiceCount || 1;
+		const recurring_suppliers = recurringSuppliers.slice(0, 6).map(r => ({
+			name: r.supplier_name,
+			count: Number(r.invoice_count),
+			pct: Math.round((Number(r.invoice_count) / totalInvoiceCount) * 100),
+		}));
 
 		const trend = trendRows.map(r => ({
 			bucket: r.bucket,
@@ -225,19 +252,16 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const categoryTotals = new Map<string, number>();
 		for (const r of trend) categoryTotals.set(r.category, (categoryTotals.get(r.category) ?? 0) + r.amount);
 		const rankedCategories = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1]);
-		const topCategory = rankedCategories[0] ? { category: rankedCategories[0][0], total: rankedCategories[0][1] } : null;
 		const trendCategories = rankedCategories.map(([category]) => category);
 
 		const kpis = {
 			total_items_spend: currentSpend,
-			avg_invoice_items: kpisRow0?.avg_invoice_items ?? null,
+			invoice_count: invoiceCount,
 			spend_delta_pct: prevSpend !== null ? deltaPct(currentSpend, prevSpend) : null,
 			spend_spark: spendSeries?.current ?? null,
 			spend_spark_prev: spendSeries?.previous ?? null,
-			top_category: topCategory,
-			top_supplier: topSupplier,
 		};
 
-		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period, trend, trendCategories, priceTrendSeries };
+		return { title: 'spend.pageTitle', top_items, most_expensive_item, type_spend, recurring_suppliers, kpis, period, trend, trendCategories, priceTrendSeries };
 	});
 };

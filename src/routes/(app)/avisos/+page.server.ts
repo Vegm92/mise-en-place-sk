@@ -6,6 +6,7 @@ import { and, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm';
 
 const LOW_CONFIDENCE_THRESHOLD = 0.85;
 const LOW_CONFIDENCE_WINDOW_DAYS = 30;
+const RECENT_UPLOAD_WINDOW_HOURS = 24;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
@@ -13,8 +14,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	return handleLoad('avisos', async () => {
 		const windowStart = new Date(Date.now() - LOW_CONFIDENCE_WINDOW_DAYS * 86_400_000);
+		const recentUploadStart = new Date(Date.now() - RECENT_UPLOAD_WINDOW_HOURS * 3_600_000);
 
-		const [notifRows, lowConfidenceRows, pendingPriceRows, untypedSupplierRows] = await Promise.all([
+		const [notifRows, lowConfidenceRows, pendingPriceRows, untypedSupplierRows, recentUploadRows] = await Promise.all([
 			db.select()
 				.from(systemNotifications)
 				.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -66,6 +68,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 				))
 				.orderBy(suppliers.name)
 				.limit(20),
+
+			// Nada que marcar como leído aquí a propósito: se recalcula en cada
+			// visita (últimas 24h) y desaparece solo al salir de la ventana.
+			db.select({
+				id:            invoices.id,
+				supplier_name: suppliers.name,
+				created_at:    invoices.createdAt,
+				notes:         invoices.notes,
+			})
+				.from(invoices)
+				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+				.where(and(
+					tdb.scope(invoices.restaurantId),
+					isNull(invoices.deletedAt),
+					gte(invoices.createdAt, recentUploadStart),
+				))
+				.orderBy(desc(invoices.createdAt))
+				.limit(20),
 		]);
 
 		const notifications = notifRows.flatMap((n) => {
@@ -79,6 +99,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const duplicates  = notifications.filter(n => n.notificationType === 'possible_duplicate_purchase');
 		const priceShocks = notifications.filter(n => n.notificationType === 'price_shock');
 
+		// "Nuevo comentario" no tiene una fecha propia guardada (la nota no lleva
+		// su propio timestamp) -- se aproxima como "recién subido y ya tiene una
+		// nota puesta", que es el caso real de uso (comentar al revisar). Se
+		// separan en dos listas disjuntas para no repetir el mismo albarán dos
+		// veces en la pantalla.
+		const recentWithComments = recentUploadRows.filter(r => r.notes != null && r.notes.trim() !== '');
+		const recentUploads = recentUploadRows.filter(r => r.notes == null || r.notes.trim() === '');
+
 		return {
 			title: 'avisos.title',
 			duplicates,
@@ -86,6 +114,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			lowConfidence: lowConfidenceRows,
 			pendingPrice:  pendingPriceRows,
 			untypedSuppliers: untypedSupplierRows,
+			recentUploads,
+			recentWithComments,
 		};
 	});
 };
