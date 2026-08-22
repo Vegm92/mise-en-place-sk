@@ -268,4 +268,37 @@ La usuaria proporcionó dos facturas reales de un proveedor real (**Viñals Gour
 
 **Pendiente para la próxima sesión:** decidir cómo probar la lectura real (conseguir clave de Gemini, o probar en la app publicada); construir el modelo de tipo+etiquetas de proveedores (incidencia #22, ya diseñado); y seguir con el resto de retoques visuales menores pendientes.
 
+---
+
+## 10. Modelo de Tipo + Etiquetas para proveedores — construido y verificado (2026-08-22)
+
+Continuación directa del punto 9: al ver el caso real de Viñals Gourmet (carnes + una línea de queso, forzado a una sola categoría), la usuaria pidió corregir el diseño de fondo, no solo la lista de nombres — y luego pidió construirlo ya, en la misma sesión, antes de cerrar con un `/clear`.
+
+**Decisión de diseño** (detalle completo, con tabla de mapeo, en la incidencia **#22** de `INCIDENCIAS_AUDITORIA.md`): "categoría única" se separa en **Tipo** (Bebidas/Comida/Artículos, un proveedor puede llevar varias marcas a la vez, es el filtro real) + **Etiquetas** (Carnes, Lácteos, Pescado... libres, varias a la vez, solo para buscar/informar, nunca para filtrar).
+
+**Construido:** columnas nuevas en `suppliers` con migración y backfill automático de los proveedores ya existentes; los proveedores nuevos (creados al subir un albarán) ya nacen con tipo+etiqueta si la categoría es reconocible; pantalla Proveedores con nuevo filtro por Tipo (pills) + etiquetas visibles + buscador que también encuentra por etiqueta; ficha de proveedor con badges de tipo/etiquetas y formulario de edición con casillas de Tipo + campo de Etiquetas; nuevo aviso en **Avisos** cuando un proveedor se queda sin tipo. Todo verificado en pantalla (capturas en esta conversación) y con **1113/1113 tests en verde**.
+
+**Fallo real encontrado y corregido en el camino:** guardar un proveedor sin ningún tipo (el caso más común) rompía con un error de SQL — un array vacío de JavaScript, metido directo en la plantilla de consulta, se convertía en algo inválido en vez de en un array vacío de verdad. Se arregló construyendo ese array a mano antes de mandarlo a la base de datos. Detalle técnico completo en la incidencia #22.
+
+**Sin hacer, pendiente para otra sesión (pulido, no bloquea nada):**
+1. El filtro por Tipo (los pills Bebidas/Comida/Artículos) solo se añadió en la versión de **escritorio** de Proveedores — en móvil se ve la etiqueta y el aviso, pero todavía no se puede filtrar por tipo ahí.
+2. No se ha comprobado si el formulario de edición de proveedor en móvil (si es distinto al de escritorio) necesita los mismos campos nuevos.
+3. Productos sigue con su categoría única de siempre — a propósito, fuera de alcance de esta decisión.
+4. Sigue pendiente probar la lectura real de albaranes con la IA (falta la clave de Gemini — ver punto 9), las categorías **de producto** solapadas si aparecen en otro contexto, y los retoques visuales menores (menú lateral, gráfico grande de Proveedores en móvil).
+
+---
+
+## Cómo seguir la próxima sesión (tras el `/clear` de hoy)
+
+**Lee primero, en este orden:** este documento completo (`SEGUIR_SESION.md`) y `PROPUESTA_MVP.md`. Confirma con `git branch --show-current` que estás en `mvp-modular-limpio`, nunca en `main`.
+
+**Estado de hoy, en una frase:** el MVP tiene Paso 1 y Paso 2 completos, pagos/facturación y WhatsApp traídos de `main`, dos albaranes reales de prueba cargados (Viñals Gourmet), y el modelo de Tipo+Etiquetas de proveedores recién construido — todo commiteado en `mvp-modular-limpio`, 1113 tests en verde.
+
+**Lo próximo, por orden de lo que más falta:**
+1. **Probar la lectura real con la IA** — sigue sin hacerse, falta una clave de Gemini (ver punto 9 de arriba: hay dos caminos, conseguir la clave o probar en la app ya publicada).
+2. **Pulir el Tipo+Etiquetas en móvil** (punto 10 de arriba) — es lo más reciente y lo más a medio terminar.
+3. **Categorías solapadas *de producto*** (no de proveedor, eso ya se resolvió) si sigue pareciendo un problema al verlo con más datos reales.
+4. **Retoques visuales menores** que llevan varias sesiones aparcados: menú lateral (esquinas distintas al resto), gráfico grande de Proveedores en móvil, pestañas visibles en el contenido de Compras.
+5. Cuando el Paso 1 y 2 se den por completamente cerrados: **empezar el Paso 3 (recetas y escandallos)**, que todavía no existe.
+
 *(Este documento se debe releer al empezar cualquier sesión nueva sobre esta rama, junto con `PROPUESTA_MVP.md` para el detalle del Paso 1.)*

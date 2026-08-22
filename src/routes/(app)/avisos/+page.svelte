@@ -6,6 +6,7 @@
   import Bell from '@lucide/svelte/icons/bell';
   import Search from '@lucide/svelte/icons/search';
   import Clock from '@lucide/svelte/icons/clock';
+  import Tag from '@lucide/svelte/icons/tag';
   import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
   import type { Notif } from '$lib/notification-display';
 
@@ -20,7 +21,8 @@
     duplicates.length === 0 &&
     priceShocks.length === 0 &&
     data.lowConfidence.length === 0 &&
-    data.pendingPrice.length === 0
+    data.pendingPrice.length === 0 &&
+    data.untypedSuppliers.length === 0
   );
 
   async function dismiss(id: number, from: 'duplicates' | 'priceShocks') {
@@ -82,7 +84,7 @@
     </SectionCard>
   {/if}
 
-  {#if priceShocks.length > 0 || data.lowConfidence.length > 0 || data.pendingPrice.length > 0}
+  {#if priceShocks.length > 0 || data.lowConfidence.length > 0 || data.pendingPrice.length > 0 || data.untypedSuppliers.length > 0}
     <SectionCard title={$t('avisos.section.review')} noPad>
       <div style="display:flex;flex-direction:column;">
         {#each priceShocks as n, i (n.id)}
@@ -118,6 +120,20 @@
                 {$ti('avisos.pendingPrice.msg', { supplier: r.supplier_name ?? '—', count: r.missing_count })}
               </div>
               <a href="/invoice/{r.invoice_id}" class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 8px;margin-top:6px;text-decoration:none;display:inline-flex;align-items:center;">
+                {$t('avisos.review')}
+              </a>
+            </div>
+          </div>
+        {/each}
+
+        {#each data.untypedSuppliers as sup, i (sup.id)}
+          <div style="padding:12px 16px;{(priceShocks.length + data.lowConfidence.length + data.pendingPrice.length + i) > 0 ? 'border-top:1px solid var(--mep-divider);' : ''}display:flex;align-items:flex-start;gap:10px;">
+            <Tag size={14} style="flex-shrink:0;margin-top:1px;color:var(--mep-warn);" />
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
+                {$ti('avisos.untypedSupplier.msg', { supplier: sup.name })}
+              </div>
+              <a href="/suppliers/{sup.id}?edit=1" class="btn btn-ghost" style="height:24px;font-size:11px;padding:0 8px;margin-top:6px;text-decoration:none;display:inline-flex;align-items:center;">
                 {$t('avisos.review')}
               </a>
             </div>

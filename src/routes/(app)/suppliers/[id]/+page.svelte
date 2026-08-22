@@ -413,6 +413,7 @@
     monthly={data.monthly}
     conversions={data.conversions}
     products={data.products}
+    supplierTypes={data.supplierTypes}
     prefillIngredient={data.initialIngredient}
     prefillPurchaseUnit={data.initialPurchaseUnit}
     bind:tab

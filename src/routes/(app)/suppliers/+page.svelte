@@ -13,6 +13,7 @@
   <MobileSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}
+    supplierTypes={data.supplierTypes}
     period={data.period}
     periodStats={data.periodStats}
     unassigned={unassigned}
@@ -24,6 +25,7 @@
   <DesktopSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}
+    supplierTypes={data.supplierTypes}
     period={data.period}
     periodStats={data.periodStats}
     unassigned={unassigned}

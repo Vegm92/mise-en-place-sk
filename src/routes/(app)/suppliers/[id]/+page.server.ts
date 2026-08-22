@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems } from '$lib/server/schema';
 import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { VALID_CATEGORIES, SUPPLIER_TYPES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { toCents, moneyToNumber } from '$lib/server/money';
 
@@ -115,6 +115,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		metrics: supplierInvoices.length >= 3 ? metrics ?? null : null,
 		monthly,
 		categories: VALID_CATEGORIES,
+		supplierTypes: SUPPLIER_TYPES,
 		conversions,
 		products: products.map(p => ({ ...p, avgPrice: p.avgPrice == null ? null : moneyToNumber(p.avgPrice) })),
 		initialTab,
@@ -133,6 +134,8 @@ export const actions: Actions = {
 
 		const name         = String(data.get('name') ?? '').trim();
 		const category     = String(data.get('category') ?? '');
+		const type         = data.getAll('type').map(String).filter((v): v is typeof SUPPLIER_TYPES[number] => (SUPPLIER_TYPES as readonly string[]).includes(v));
+		const tags         = String(data.get('tags') ?? '').split(',').map(t => t.trim()).filter(Boolean);
 		const contactEmail = String(data.get('contact_email') ?? '').trim() || null;
 		const contactPhone = String(data.get('contact_phone') ?? '').trim() || null;
 		const cif          = String(data.get('cif') ?? '').trim() || null;
@@ -146,7 +149,7 @@ export const actions: Actions = {
 		const cat = VALID_CATEGORIES.includes(category) ? category : null;
 
 		await db.update(suppliers)
-			.set({ name, category: cat, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })
+			.set({ name, category: cat, type, tags, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
 		if (cat) {

@@ -14,7 +14,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return handleLoad('avisos', async () => {
 		const windowStart = new Date(Date.now() - LOW_CONFIDENCE_WINDOW_DAYS * 86_400_000);
 
-		const [notifRows, lowConfidenceRows, pendingPriceRows] = await Promise.all([
+		const [notifRows, lowConfidenceRows, pendingPriceRows, untypedSupplierRows] = await Promise.all([
 			db.select()
 				.from(systemNotifications)
 				.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -55,6 +55,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.groupBy(invoiceLineItems.invoiceId, suppliers.name, invoices.createdAt)
 				.orderBy(desc(invoices.createdAt))
 				.limit(20),
+
+			// Incidencia #22: un proveedor sin ningún Tipo asignado (Bebidas/Comida/Artículos)
+			// no debe quedar invisible — se avisa igual que el resto de señales de arriba.
+			db.select({ id: suppliers.id, name: suppliers.name })
+				.from(suppliers)
+				.where(and(
+					tdb.scope(suppliers.restaurantId),
+					sql`(${suppliers.type} IS NULL OR array_length(${suppliers.type}, 1) IS NULL)`,
+				))
+				.orderBy(suppliers.name)
+				.limit(20),
 		]);
 
 		const notifications = notifRows.flatMap((n) => {
@@ -74,6 +85,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			priceShocks,
 			lowConfidence: lowConfidenceRows,
 			pendingPrice:  pendingPriceRows,
+			untypedSuppliers: untypedSupplierRows,
 		};
 	});
 };

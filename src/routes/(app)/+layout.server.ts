@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { systemNotifications, invoices, invoiceLineItems, settings, restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
+import { systemNotifications, invoices, invoiceLineItems, settings, restaurants, userRestaurants, subscriptions, suppliers } from '$lib/server/schema';
 import { asc, eq, desc, and, gte, isNull, lt, sql } from 'drizzle-orm';
 import { TIERS, resolveMonthlyQuota, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 
@@ -18,7 +18,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const tdb = forTenant(rid);
 	const avisosWindowStart = new Date(Date.now() - 30 * 86_400_000);
 
-	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, lowConfidenceBadgeRow, pendingPriceBadgeRow] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, lowConfidenceBadgeRow, pendingPriceBadgeRow, untypedSupplierBadgeRow] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -101,6 +101,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 				isNull(invoices.deletedAt),
 				sql`${invoiceLineItems.unitPrice} IS NULL`,
 			)),
+
+		db.select({ cnt: sql<number>`COUNT(*)` })
+			.from(suppliers)
+			.where(and(
+				tdb.scope(suppliers.restaurantId),
+				sql`(${suppliers.type} IS NULL OR array_length(${suppliers.type}, 1) IS NULL)`,
+			)),
 	]);
 
 	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
@@ -135,7 +142,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const avisosBadge =
 		notifications.filter(n => n.notificationType === 'possible_duplicate_purchase' || n.notificationType === 'price_shock').length +
 		Number(lowConfidenceBadgeRow[0]?.cnt ?? 0) +
-		Number(pendingPriceBadgeRow[0]?.cnt ?? 0);
+		Number(pendingPriceBadgeRow[0]?.cnt ?? 0) +
+		Number(untypedSupplierBadgeRow[0]?.cnt ?? 0);
 
 	return {
 		user: {

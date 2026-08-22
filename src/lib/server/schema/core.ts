@@ -30,6 +30,8 @@ export const suppliers = pgTable('suppliers', {
 	alias:         text('alias'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 	category:      text('category'),
+	type:          text('type').array(),
+	tags:          text('tags').array(),
 	contactEmail:  text('contact_email'),
 	contactPhone:  text('contact_phone'),
 	cif:           text('cif'),

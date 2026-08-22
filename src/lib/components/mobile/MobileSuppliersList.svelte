@@ -9,6 +9,8 @@
     name: string;
     color: string | null;
     category: string | null;
+    type?: string[] | null;
+    tags?: string[] | null;
     month_spend: number | null;
     delta_pct: number | null;
     month_invoice_count: number | null;
@@ -24,12 +26,14 @@
   let {
     suppliers,
     categories = [],
+    supplierTypes = [],
     periodStats = { total_spend: 0, total_invoices: 0 },
     unassigned = 0,
     firstUnassigned = '',
   }: {
     suppliers: Supplier[];
     categories?: string[];
+    supplierTypes?: readonly string[];
     period?: 'day' | 'month' | 'year' | 'all';
     periodStats?: PeriodStats;
     unassigned?: number;
@@ -42,7 +46,10 @@
   const filtered = $derived(
     suppliers.filter(s => {
       const q = search.trim().toLowerCase();
-      const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
+      const matchSearch = !q
+        || s.name.toLowerCase().includes(q)
+        || (s.category ?? '').toLowerCase().includes(q)
+        || (s.tags ?? []).some(tag => tag.toLowerCase().includes(q));
       const matchCat = !catFilter || s.category === catFilter;
       return matchSearch && matchCat;
     })
@@ -153,6 +160,11 @@
             <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
               {$tcat(s.category)}{s.month_invoice_count ? ` · ${s.month_invoice_count} ${$t('sup.invoicesSuffix')}` : ''}
             </div>
+            {#if s.tags?.length}
+              <div style="font-size:10.5px;color:var(--mep-fg-4);margin-top:1px;">{s.tags.join(' · ')}</div>
+            {:else if !s.type?.length}
+              <div class="badge badge-pending" style="font-size:9.5px;margin-top:3px;display:inline-block;">{$t('sup.noType')}</div>
+            {/if}
           </div>
           <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">

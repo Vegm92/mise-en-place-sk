@@ -16,6 +16,8 @@
   interface Supplier {
     name: string;
     category: string | null;
+    type: string[] | null;
+    tags: string[] | null;
     contactEmail: string | null;
     contactPhone: string | null;
     cif: string | null;
@@ -63,6 +65,7 @@
     monthly,
     conversions,
     products,
+    supplierTypes = [],
     prefillIngredient = '',
     prefillPurchaseUnit = '',
     tab       = $bindable<'resumen'|'facturas'|'productos'|'conversiones'>('resumen'),
@@ -75,6 +78,7 @@
     monthly: MonthlyBar[];
     conversions: Conversion[];
     products: Product[];
+    supplierTypes?: readonly string[];
     prefillIngredient?: string;
     prefillPurchaseUnit?: string;
     tab?: 'resumen'|'facturas'|'productos'|'conversiones';
@@ -83,6 +87,9 @@
   } = $props();
 
   const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
+  function typeLabel(type: string): string {
+    return $t(`suptype.${type.toLowerCase().replace('í', 'i')}`);
+  }
 
   const totalSpend = $derived(invoices.reduce((a, i) => a + (i.totalAmount ?? 0), 0));
   const paidCount  = $derived(invoices.filter(i => i.status === 'paid').length);
@@ -173,7 +180,7 @@
         ">{initials(s.name)}</div>
         <div style="flex:1;min-width:0;">
           <h1 style="margin:0 0 4px;font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;">{s.name}</h1>
-          <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--mep-fg-3);">
+          <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--mep-fg-3);flex-wrap:wrap;">
             {#if s.category}
               <span style="display:inline-flex;align-items:center;gap:5px;">
                 <span class="swatch" style="background:{color};"></span>
@@ -181,6 +188,18 @@
               </span>
             {:else}
               <span style="font-style:italic;">{$t('sup.noCategory')}</span>
+            {/if}
+            {#if s.type?.length}
+              {#each s.type as ty}
+                <span class="badge badge-neutral" style="font-size:11px;">{typeLabel(ty)}</span>
+              {/each}
+            {:else}
+              <span class="badge badge-pending" style="font-size:11px;">{$t('sup.noType')}</span>
+            {/if}
+            {#if s.tags?.length}
+              {#each s.tags as tag}
+                <span style="color:var(--mep-fg-4);font-size:11.5px;">#{tag}</span>
+              {/each}
             {/if}
             {#if s.contactEmail}
               <span>Â· {s.contactEmail}</span>
@@ -241,6 +260,21 @@
                     <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
                   {/each}
                 </select>
+              </div>
+              <div style="grid-column:1 / -1;">
+                <span class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.type')}</span>
+                <div style="display:flex;gap:14px;">
+                  {#each supplierTypes as ty}
+                    <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+                      <input type="checkbox" name="type" value={ty} checked={s.type?.includes(ty) ?? false} />
+                      {typeLabel(ty)}
+                    </label>
+                  {/each}
+                </div>
+              </div>
+              <div style="grid-column:1 / -1;">
+                <label for="edit-tags" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.tags')}</label>
+                <input id="edit-tags" class="input" name="tags" value={(s.tags ?? []).join(', ')} style="width:100%;" placeholder={$t('sup.ph.tags')} />
               </div>
               <div>
                 <label for="edit-cif" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.cif')}</label>

@@ -3,7 +3,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and, gte, lt, isNull } from 'drizzle-orm';
-import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { VALID_CATEGORIES, CATEGORY_COLORS, SUPPLIER_TYPES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
 import { bucketSeries } from '$lib/server/period-series';
@@ -33,6 +33,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				cif:              suppliers.cif,
 				createdAt:        suppliers.createdAt,
 				category:         sql<string>`COALESCE(${suppliers.category}, 'Other')`.as('category'),
+				type:             suppliers.type,
+				tags:             suppliers.tags,
 				total_spend:      sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`.as('total_spend'),
 				invoice_count:    sql<number>`COUNT(${invoices.id})`.as('invoice_count'),
 				last_invoice_date:   sql<string | null>`MAX(${invoices.invoiceDate})`.as('last_invoice_date'),
@@ -203,6 +205,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			subtitle: 'All active suppliers',
 			suppliers: supplierList,
 			categories: VALID_CATEGORIES,
+			supplierTypes: SUPPLIER_TYPES,
 			period,
 			trend,
 			periodStats: {

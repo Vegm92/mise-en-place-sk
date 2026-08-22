@@ -282,7 +282,7 @@ más claro).
 
 ---
 
-## 22. Lista de categorías con solapes reales — DECIDIDO: modelo de dos niveles (tipo + etiquetas)
+## 22. Lista de categorías con solapes reales — CONSTRUIDO: modelo de dos niveles (tipo + etiquetas)
 
 **Dónde:** `src/lib/constants.ts` (`VALID_CATEGORIES`, `CATEGORY_COLORS`), compartida entre `suppliers.category` y `products.category`.
 
@@ -314,14 +314,21 @@ más claro).
 | Café y Bebidas Calientes | Bebidas | Café |
 | Other | *(sin tipo — revisar a mano)* | *(sin etiqueta — revisar a mano)* |
 
-**Lo que falta construir cuando se aborde (no hecho todavía, solo decidido):**
-- Columna `type` en `suppliers` que guarde **una o varias** de las 3 marcas (lista, no un valor único) + una forma de guardar varias etiquetas por proveedor (columna de lista, o tabla aparte `supplier_tags`) — mismo patrón de datos para ambas cosas, solo que `type` tiene una lista corta y cerrada (3 opciones) y las etiquetas una lista abierta.
-- Migración de datos: aplicar la tabla de arriba a los proveedores ya existentes.
-- Las pantallas de Compras (Proveedores, y el selector "Categoría: Todas" que hoy comparten Proveedores/Productos/Analíticas) pasan a filtrar por `Tipo`; las etiquetas se muestran como información/búsqueda, no como filtro principal.
-- Actualizar el buscador de Proveedores para que también encuentre por etiqueta (no solo por nombre).
-- **Nuevo aviso (pedido explícitamente por la usuaria el 2026-08-22):** un proveedor sin ningún `Tipo` asignado (el caso "Other" de la migración, o uno nuevo que se cree sin que el sistema sepa inferirlo con confianza) debe generar una señal en **Avisos** — mismo patrón que ya usan duplicados/cambio de precio/confianza baja/pendiente de tarificación. No debe quedar un proveedor "invisible" sin clasificar y sin que nadie se entere.
+**Construido el 2026-08-22 (mismo día de la decisión), todo verificado en pantalla y con 1113/1113 tests en verde:**
+- Columnas `type` y `tags` (ambas `text[]`, listas — no un valor único) en `suppliers`. Migración `drizzle/0041_flat_shaman.sql`: añade las columnas y hace el backfill automático de la tabla de arriba sobre los proveedores ya existentes (los que no tienen categoría reconocida, incl. "Other", se quedan con `type`/`tags` vacíos — a propósito, para que salga el aviso de abajo).
+- `deriveSupplierTypeAndTags()` en `src/lib/constants.ts`: misma tabla de mapeo, usada tanto por la migración como por la creación automática de proveedores nuevos (`src/lib/server/supplier.ts`, al guardar un albarán) — un proveedor nuevo ya nace con tipo+etiqueta si su categoría es reconocible.
+- Pantalla Proveedores (`/suppliers`): nuevos pills "Bebidas / Comida / Artículos" (marcado múltiple) junto al desplegable de categoría de siempre — no se tocó ni se quitó el filtro de categoría existente. Etiquetas visibles bajo cada fila; el buscador ahora también encuentra por etiqueta. Igual en la versión móvil, salvo los pills de filtro (solo se añadió ahí la visualización de etiquetas + aviso de "sin tipo" — el filtro por tipo en móvil queda pendiente, ver más abajo).
+- Ficha de un proveedor (`/suppliers/[id]`): cabecera muestra el/los tipo(s) como badges + etiquetas con `#`; el formulario de edición (solo versión escritorio) tiene checkboxes de Tipo y un campo de texto de Etiquetas separadas por coma.
+- **Aviso nuevo en Avisos:** un proveedor sin ningún tipo asignado genera una señal ("'Nombre' no tiene ningún tipo asignado... — revísalo") con enlace directo a su edición, y suma al contador de la campanita — mismo patrón que duplicados/confianza baja/pendiente de tarificación. Probado en pantalla quitando y devolviendo el tipo de un proveedor real.
+- **Fallo real encontrado y corregido durante la construcción:** al guardar un proveedor sin ningún tipo (el caso más común, el de "Other"), la consulta SQL fallaba con un error de sintaxis — interpolar un array de JavaScript vacío directamente en una plantilla `sql` de drizzle lo convierte en `()` en vez de en un array Postgres vacío `{}`. Se corrigió construyendo el literal de array a mano (`pgTextArrayLiteral()` en `supplier.ts`) antes de interpolarlo. El test suite completo lo detectó de inmediato al fallar 48 tests — quedó arreglado y verificado antes de dar esto por terminado.
 
-**Estado:** ✅ **Decidido — pendiente de construir.** No es urgente ni bloquea nada de hoy; se aborda como su propio bloque de trabajo cuando toque, sin volver a discutir el diseño.
+**Sin hacer todavía, pendiente para otra sesión (no bloquea nada, es pulido):**
+- El filtro por Tipo (pills) no se añadió a la versión **móvil** de Proveedores — solo a la de escritorio. Hoy en móvil se ve la etiqueta y el aviso de "sin tipo", pero no se puede filtrar por tipo ahí todavía.
+- El formulario de edición de proveedor **en móvil** (si existe uno inline distinto al de escritorio dentro de la misma página) no se tocó — falta confirmar si necesita los mismos campos de Tipo/Etiquetas.
+- **Productos** sigue sin este modelo (a propósito, fuera de alcance de esta decisión) — sigue con su categoría única de siempre.
+- No se ha revisado si `Analíticas` debería tener también un desglose por Tipo (hoy sigue funcionando igual que antes, sin cambios).
+
+**Estado:** ✅ **Construido y verificado.** Queda como pulido pendiente lo de arriba (móvil, sobre todo), no como huecos que rompan nada.
 
 ---
 

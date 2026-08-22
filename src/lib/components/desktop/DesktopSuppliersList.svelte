@@ -16,6 +16,8 @@
     name: string;
     color: string | null;
     category: string | null;
+    type?: string[] | null;
+    tags?: string[] | null;
     cif: string | null;
     invoice_count: number;
     month_spend: number | null;
@@ -48,6 +50,7 @@
   let {
     suppliers,
     categories = [],
+    supplierTypes = [],
     period = 'month',
     periodStats = { total_spend: 0, total_invoices: 0, spend_delta_pct: null, invoices_delta_pct: null },
     unassigned = 0,
@@ -56,6 +59,7 @@
   }: {
     suppliers: Supplier[];
     categories?: string[];
+    supplierTypes?: readonly string[];
     period?: 'day' | 'month' | 'year' | 'all';
     periodStats?: PeriodStats;
     unassigned?: number;
@@ -65,6 +69,10 @@
 
   let search    = $state('');
   let catFilter = $state('');
+  let typeFilter = $state<string[]>([]);
+  function toggleTypeFilter(ty: string) {
+    typeFilter = typeFilter.includes(ty) ? typeFilter.filter(t => t !== ty) : [...typeFilter, ty];
+  }
 
   const SERIES_PALETTE = [
     'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
@@ -128,9 +136,13 @@
   const filtered = $derived(
     suppliers.filter(s => {
       const q = search.trim().toLowerCase();
-      const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
+      const matchSearch = !q
+        || s.name.toLowerCase().includes(q)
+        || (s.category ?? '').toLowerCase().includes(q)
+        || (s.tags ?? []).some(tag => tag.toLowerCase().includes(q));
       const matchCat = !catFilter || s.category === catFilter;
-      return matchSearch && matchCat;
+      const matchType = typeFilter.length === 0 || (s.type ?? []).some(ty => typeFilter.includes(ty));
+      return matchSearch && matchCat && matchType;
     })
   );
 
@@ -246,6 +258,13 @@
       </select>
       <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
     </div>
+    <div style="display:flex;gap:4px;">
+      {#each supplierTypes as ty}
+        <button type="button" class="period-pill {typeFilter.includes(ty) ? 'active' : ''}" onclick={() => toggleTypeFilter(ty)}>
+          {$t(`suptype.${ty.toLowerCase().replace('í', 'i')}`)}
+        </button>
+      {/each}
+    </div>
     <div style="flex:1;"></div>
     <button class="btn btn-secondary"
       style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled
@@ -325,6 +344,13 @@
                     <span class="swatch" style="background:{s.color};"></span>
                     {$tcat(s.category)}
                   </span>
+                  {#if s.tags?.length}
+                    <div style="margin-top:2px;font-size:11px;color:var(--mep-fg-4);">
+                      {s.tags.join(' · ')}
+                    </div>
+                  {:else if !s.type?.length}
+                    <div class="badge badge-pending" style="font-size:10px;margin-top:2px;display:inline-block;">{$t('sup.noType')}</div>
+                  {/if}
                 </td>
                 <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>
                 <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0)}</td>

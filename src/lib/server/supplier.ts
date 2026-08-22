@@ -1,7 +1,19 @@
 import { sql } from 'drizzle-orm';
 import { db } from './db';
 import type { BatchDb } from './batch-core';
-import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY, deriveSupplierTypeAndTags } from '$lib/constants';
+
+/**
+ * Interpolating a bare JS array into drizzle's `sql` template flattens it
+ * into a comma list (e.g. for `IN (...)`) instead of binding it as a single
+ * array parameter — an empty array becomes literal `()`, invalid SQL next to
+ * `::text[]`. Building the Postgres array-literal string ourselves sidesteps
+ * that (see incidencia in SEGUIR_SESION.md: found via the untyped-supplier
+ * test case, which is exactly the common empty-array path).
+ */
+function pgTextArrayLiteral(values: string[]): string {
+	return '{' + values.map(v => `"${v.replace(/"/g, '\\"')}"`).join(',') + '}';
+}
 
 export interface SupplierContactInfo {
 	cif?: string | null;
@@ -54,6 +66,7 @@ export async function getOrCreateSupplierId(
 ): Promise<number> {
 	const trimmed = name.trim();
 	const resolved = VALID_CATEGORIES.includes(category) ? category : UNCATEGORIZED_CATEGORY;
+	const { type, tags } = deriveSupplierTypeAndTags(resolved);
 	const cif = contact.cif?.trim() || null;
 	const email = contact.email?.trim() || null;
 	const phone = contact.phone?.trim() || null;
@@ -78,8 +91,8 @@ export async function getOrCreateSupplierId(
 	}
 
 	const rows = await exec.execute<{ id: number }>(sql`
-		INSERT INTO suppliers (restaurant_id, name, category, cif, contact_email, contact_phone, address)
-		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${cif}, ${email}, ${phone}, ${address})
+		INSERT INTO suppliers (restaurant_id, name, category, type, tags, cif, contact_email, contact_phone, address)
+		VALUES (${restaurantId}, ${trimmed}, ${resolved}, ${pgTextArrayLiteral(type)}::text[], ${pgTextArrayLiteral(tags)}::text[], ${cif}, ${email}, ${phone}, ${address})
 		ON CONFLICT (restaurant_id, lower(name))
 		DO UPDATE SET
 			name = suppliers.name,
