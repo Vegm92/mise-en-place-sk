@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t, tcat, locale } from '$lib/i18n';
   import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
   interface Kpis {
     total_items_spend: number | null;
@@ -16,12 +17,9 @@
     supplier_name?: string | null;
     price_trend?: number[];
   }
-  interface TypeSpend {
-    type: string;
-    total: number;
-    pct: number;
-    color: string;
-  }
+  interface ProductNode { name: string; total: number; pct: number; }
+  interface CategoryNode { category: string; total: number; pct: number; color: string; products: ProductNode[]; }
+  interface TypeBreakdown { type: string; total: number; pct: number; color: string; categories: CategoryNode[]; }
   interface RecurringSupplier { name: string; count: number; pct: number; }
   interface TrendRow { bucket: string; category: string; amount: number; }
   interface PriceTrendItem { key: string; label: string; points: { bucket: string; value: number }[]; }
@@ -31,7 +29,7 @@
     kpis,
     top_items,
     most_expensive_item,
-    type_spend,
+    type_breakdown,
     recurring_suppliers,
     trend,
     trendCategories,
@@ -41,7 +39,7 @@
     kpis: Kpis;
     top_items: TopItem[];
     most_expensive_item: TopItem | null;
-    type_spend: TypeSpend[];
+    type_breakdown: TypeBreakdown[];
     recurring_suppliers: RecurringSupplier[];
     trend: TrendRow[];
     trendCategories: string[];
@@ -53,6 +51,16 @@
     if (type === 'Comida') return $t('suptype.comida');
     if (type === 'Artículos') return $t('suptype.articulos');
     return $t('spend.other');
+  }
+
+  let expandedType = $state<string | null>(null);
+  let expandedCategory = $state<string | null>(null);
+  function toggleType(type: string) {
+    expandedType = expandedType === type ? null : type;
+    expandedCategory = null;
+  }
+  function toggleCategory(cat: string) {
+    expandedCategory = expandedCategory === cat ? null : cat;
   }
 
   const SERIES_PALETTE = [
@@ -150,6 +158,66 @@
       </div>
     </div>
 
+    {#if type_breakdown?.length > 0}
+      <div class="card" style="padding: 14px;">
+        <div class="subtitle" style="font-size: 15px; margin-bottom: 4px;">{$t('spend.byCategory')}</div>
+        <div style="font-size: 11.5px; color: var(--mep-fg-3); margin-bottom: 10px;">{$t('spend.byCategorySub')}</div>
+        <div style="display: flex; flex-direction: column;">
+          {#each type_breakdown as t, ti (t.type)}
+            <div style="border-top:{ti > 0 ? '1px solid var(--mep-divider)' : 'none'};padding:9px 0;">
+              <button type="button" onclick={() => toggleType(t.type)}
+                style="width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;display:block;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+                  <span style="display:inline-flex;align-items:center;gap:5px;font-size:13.5px;font-weight:600;color:var(--mep-fg);">
+                    <ChevronRight size={13} style="color:var(--mep-fg-3);transition:transform .15s;transform:rotate({expandedType === t.type ? 90 : 0}deg);flex-shrink:0;" />
+                    {typeLabel(t.type)}
+                  </span>
+                  <span class="num" style="font-size:13.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(t.total)} · {t.pct}%</span>
+                </div>
+                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
+                  <div style="width:{t.pct}%;height:100%;background:{t.color};border-radius:4px;"></div>
+                </div>
+              </button>
+
+              {#if expandedType === t.type}
+                <div style="padding:8px 0 0 16px;display:flex;flex-direction:column;gap:7px;">
+                  {#each t.categories as c (c.category)}
+                    <div>
+                      <button type="button" onclick={() => toggleCategory(c.category)}
+                        style="width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;display:block;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+                          <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--mep-fg-2);">
+                            <ChevronRight size={11} style="color:var(--mep-fg-3);transition:transform .15s;transform:rotate({expandedCategory === c.category ? 90 : 0}deg);flex-shrink:0;" />
+                            <span style="width:7px;height:7px;border-radius:2px;background:{c.color};display:inline-block;flex-shrink:0;"></span>
+                            {$tcat(c.category)}
+                          </span>
+                          <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);">{fmtEur(c.total)} · {c.pct}%</span>
+                        </div>
+                        <div style="height:6px;border-radius:3px;background:var(--mep-surface-2);overflow:hidden;">
+                          <div style="width:{c.pct}%;height:100%;background:{c.color};border-radius:3px;"></div>
+                        </div>
+                      </button>
+
+                      {#if expandedCategory === c.category}
+                        <div style="padding:5px 0 2px 15px;display:flex;flex-direction:column;gap:3px;">
+                          {#each c.products as p (p.name)}
+                            <div style="display:flex;justify-content:space-between;gap:8px;">
+                              <span style="font-size:11px;color:var(--mep-fg-3);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{p.name}</span>
+                              <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{fmtEur(p.total)} · {p.pct}%</span>
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
     <div class="card" style="padding: 14px;">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;">
         <div class="subtitle" style="font-size: 14px;">{$t('spend.trend.title')}</div>
@@ -210,29 +278,6 @@
               </div>
               <div style="height: 7px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
                 <div style="width: {item.pct}%; height: 100%; background: {SERIES_COLORS[i % SERIES_COLORS.length]}; border-radius: 3px;"></div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    {#if type_spend?.length > 0}
-      <div class="card" style="padding: 14px 14px 6px;">
-        <div class="subtitle" style="font-size: 15px; margin-bottom: 4px;">{$t('spend.byCategory')}</div>
-        <div style="font-size: 11.5px; color: var(--mep-fg-3); margin-bottom: 12px;">{$t('spend.byCategorySub')}</div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          {#each type_spend as t2}
-            <div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--mep-fg-2);">
-                  <span style="width: 10px; height: 10px; border-radius: 2px; background: {t2.color}; display: inline-block; flex-shrink: 0;"></span>
-                  {typeLabel(t2.type)}
-                </span>
-                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{fmtEur(t2.total)} · {t2.pct}%</span>
-              </div>
-              <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-                <div style="width: {t2.pct}%; height: 100%; background: {t2.color}; border-radius: 3px;"></div>
               </div>
             </div>
           {/each}

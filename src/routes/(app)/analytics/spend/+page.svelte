@@ -5,8 +5,25 @@
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
   let { data }: { data: PageData } = $props();
+
+  let expandedType = $state<string | null>(null);
+  let expandedCategory = $state<string | null>(null);
+  function toggleType(type: string) {
+    expandedType = expandedType === type ? null : type;
+    expandedCategory = null;
+  }
+  function toggleCategory(cat: string) {
+    expandedCategory = expandedCategory === cat ? null : cat;
+  }
+  function typeLabel(type: string): string {
+    if (type === 'Bebidas') return $t('suptype.bebidas');
+    if (type === 'Comida') return $t('suptype.comida');
+    if (type === 'Artículos') return $t('suptype.articulos');
+    return $t('spend.other');
+  }
 
   const SERIES_PALETTE = [
     'var(--mep-acc)', 'var(--mep-acc-2)', 'var(--mep-series-1)', 'var(--mep-series-2)',
@@ -81,7 +98,7 @@
     kpis={data.kpis}
     top_items={data.top_items}
     most_expensive_item={data.most_expensive_item}
-    type_spend={data.type_spend}
+    type_breakdown={data.type_breakdown}
     recurring_suppliers={data.recurring_suppliers}
     trend={data.trend}
     trendCategories={data.trendCategories}
@@ -111,6 +128,105 @@
         label={$t('spend.invoiceCount')}
         value={data.kpis.invoice_count}
       />
+    </div>
+
+    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
+
+    <div class="card col-span-3 max-[900px]:col-span-2" style="padding:16px;">
+      <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
+      <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.byCategorySub')}</div>
+      {#if !data.type_breakdown.length}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
+          <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:280px;">{$t('spend.assignCategories')}</p>
+          <a href="/products" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">{$t('spend.viewSuppliers')}</a>
+        </div>
+      {:else}
+        <div style="display:flex;flex-direction:column;">
+          {#each data.type_breakdown as t, ti (t.type)}
+            <div style="border-top:{ti > 0 ? '1px solid var(--mep-divider)' : 'none'};padding:10px 0;">
+              <button type="button" onclick={() => toggleType(t.type)}
+                style="width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;display:block;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                  <span style="display:inline-flex;align-items:center;gap:6px;font-size:14.5px;font-weight:600;color:var(--mep-fg);">
+                    <ChevronRight size={14} style="color:var(--mep-fg-3);transition:transform .15s;transform:rotate({expandedType === t.type ? 90 : 0}deg);flex-shrink:0;" />
+                    {typeLabel(t.type)}
+                  </span>
+                  <span class="num" style="font-size:14.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(t.total)} · {t.pct}%</span>
+                </div>
+                <div style="height:10px;border-radius:5px;background:var(--mep-surface-2);overflow:hidden;">
+                  <div style="width:{t.pct}%;height:100%;background:{t.color};border-radius:5px;"></div>
+                </div>
+              </button>
+
+              {#if expandedType === t.type}
+                <div style="padding:10px 0 0 20px;display:flex;flex-direction:column;gap:8px;">
+                  {#each t.categories as c (c.category)}
+                    <div>
+                      <button type="button" onclick={() => toggleCategory(c.category)}
+                        style="width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;display:block;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                          <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mep-fg-2);">
+                            <ChevronRight size={12} style="color:var(--mep-fg-3);transition:transform .15s;transform:rotate({expandedCategory === c.category ? 90 : 0}deg);flex-shrink:0;" />
+                            <span style="width:8px;height:8px;border-radius:2px;background:{c.color};display:inline-block;flex-shrink:0;"></span>
+                            {$tcat(c.category)}
+                          </span>
+                          <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmtEur(c.total)} · {c.pct}%</span>
+                        </div>
+                        <div style="height:7px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
+                          <div style="width:{c.pct}%;height:100%;background:{c.color};border-radius:4px;"></div>
+                        </div>
+                      </button>
+
+                      {#if expandedCategory === c.category}
+                        <div style="padding:6px 0 2px 18px;display:flex;flex-direction:column;gap:4px;">
+                          {#each c.products as p (p.name)}
+                            <div style="display:flex;justify-content:space-between;gap:8px;">
+                              <span style="font-size:11.5px;color:var(--mep-fg-3);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={p.name}>{p.name}</span>
+                              <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);flex-shrink:0;">{fmtEur(p.total)} · {p.pct}%</span>
+                            </div>
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <div class="card col-span-1 max-[900px]:col-span-2" style="padding:16px;">
+      <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
+      {#if data.most_expensive_item}
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:14px;">
+          {$t('spend.mostExpensive')} <span style="color:var(--mep-fg-2);font-weight:500;">{data.most_expensive_item.description}</span>
+        </div>
+      {:else}
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-bottom:14px;">{$t('spend.topItemsSub')}</div>
+      {/if}
+      {#if !data.top_items.length}
+        <p class="body" style="color:var(--mep-fg-4);font-size:12px;">{$t('spend.noDataYet')}</p>
+      {:else}
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          {#each data.top_items.slice(0, 5) as item, i}
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:4px;">
+                <span style="font-size:12px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={item.description}>
+                  {item.description}
+                </span>
+                <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{item.pctOfTotal}%</span>
+              </div>
+              <div style="height:7px;border-radius:3px;background:var(--mep-surface-2);overflow:hidden;">
+                <div style="width:{item.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:3px;"></div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
     </div>
 
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
@@ -186,79 +302,6 @@
                 </div>
                 <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
                   <div style="width:{sup.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:4px;"></div>
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-
-    </div>
-
-    <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2">
-
-      <div class="card col-span-3 max-[900px]:col-span-2" style="padding:16px;">
-        <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
-        {#if data.most_expensive_item}
-          <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">
-            {$t('spend.mostExpensive')} <span style="color:var(--mep-fg-2);font-weight:500;">{data.most_expensive_item.description}</span>
-            {data.most_expensive_item.avg_unit_price != null ? `— ${fmtEur(data.most_expensive_item.avg_unit_price)}/u` : ''}
-          </div>
-        {:else}
-          <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.topItemsSub')}</div>
-        {/if}
-        {#if !data.top_items.length}
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
-            <div style="font-size:24px;opacity:0.25;">📊</div>
-            <p class="body-strong" style="color:var(--mep-fg-3);">{$t('spend.noDataYet')}</p>
-            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:240px;">{$t('spend.emptyHint')}</p>
-            <a href="/" style="font-size:12px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">{$t('spend.uploadFirst')}</a>
-          </div>
-        {:else}
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            {#each data.top_items.slice(0, 6) as item, i}
-              <div>
-                <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px;">
-                  <span style="font-size:12.5px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={item.description}>
-                    {item.description}
-                  </span>
-                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);flex-shrink:0;">{fmtEur(item.total_spend)} · {item.pctOfTotal}%</span>
-                </div>
-                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
-                  <div style="width:{item.pct}%;height:100%;background:{SERIES_COLORS[i % SERIES_COLORS.length]};border-radius:4px;"></div>
-                </div>
-                {#if item.item_count != null}
-                  <div style="margin-top:3px;font-size:11px;color:var(--mep-fg-3);">
-                    {item.item_count} {$t('tbl.lines')}{item.avg_unit_price != null ? ` · ${$t('sup.products.avgPrice')} ${fmtEur(item.avg_unit_price)}` : ''}{item.supplier_name ? ` · ${item.supplier_name}` : ''}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-
-      <div class="card col-span-1 max-[900px]:col-span-2" style="padding:16px;">
-        <div class="subtitle" style="margin-bottom:4px;">{$t('spend.byCategory')}</div>
-        <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.byCategorySub')}</div>
-        {#if !data.type_spend.length}
-          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
-            <p class="body" style="color:var(--mep-fg-4);font-size:12px;max-width:200px;">{$t('spend.assignCategories')}</p>
-            <a href="/products" style="font-size:12px;color:var(--mep-acc);text-decoration:none;">{$t('spend.viewSuppliers')}</a>
-          </div>
-        {:else}
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            {#each data.type_spend as t2}
-              <div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-                  <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mep-fg-2);">
-                    <span style="width:10px;height:10px;border-radius:2px;background:{t2.color};display:inline-block;flex-shrink:0;"></span>
-                    {t2.type === 'Bebidas' ? $t('suptype.bebidas') : t2.type === 'Comida' ? $t('suptype.comida') : t2.type === 'Artículos' ? $t('suptype.articulos') : $t('spend.other')}
-                  </span>
-                  <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmtEur(t2.total)} · {t2.pct}%</span>
-                </div>
-                <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
-                  <div style="width:{t2.pct}%;height:100%;background:{t2.color};border-radius:4px;"></div>
                 </div>
               </div>
             {/each}

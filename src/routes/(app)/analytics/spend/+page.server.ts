@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
-import { CATEGORY_COLORS, categoryToType, SUPPLIER_TYPES } from '$lib/constants';
+import { CATEGORY_COLORS, categoryToType } from '$lib/constants';
 import { moneyToNumber } from '$lib/server/money';
 import { isPeriodKey, periodRange, deltaPct, type PeriodKey } from '$lib/server/period';
 import { bucketSeries } from '$lib/server/period-series';
@@ -48,7 +48,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			: sql`TO_CHAR(i.invoice_date, 'YYYY-MM-DD')`;
 
 		type TopItem = { description: string; total_spend: string; item_count: number; avg_unit_price: string | null; supplier_name: string };
-		type TypeSpendRow = { category: string | null; total: string };
+		type TypeSpendRow = { category: string | null; product_name: string; total: string };
 		type KpisRow = { total_items_spend: string | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
 		type PrevKpisRow = { total_items_spend: string | null; total_line_items: number };
@@ -75,6 +75,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute<TypeSpendRow>(sql`
 				SELECT
 					p.category AS category,
+					p.canonical_name AS product_name,
 					SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
 				FROM invoice_line_items ili
 				JOIN invoices i ON i.id = ili.invoice_id
@@ -82,7 +83,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				WHERE ili.description IS NOT NULL AND ili.description != ''
 				  AND i.restaurant_id = ${rid}
 				  ${dateFilter}
-				GROUP BY p.category
+				GROUP BY p.category, p.canonical_name
 			`),
 
 			db.execute<KpisRow>(sql`
@@ -203,28 +204,51 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			return { key, label: item.description, points: itemTrendPoints.get(key) ?? [] };
 		}).filter(s => s.points.length >= 2);
 
-		// Bebida/Comida/Otros: derived from each line item's linked *product*
-		// category (not the supplier's), since one supplier can sell both food
-		// and drinks — a product only ever has one category.
-		const typeBuckets = new Map<string, number>(SUPPLIER_TYPES.map(t => [t, 0]));
-		let otherTypeTotal = 0;
+		// Bebida/Comida/Otros, con desglose: Tipo -> categoría de producto -> producto.
+		// Se agrupa desde el producto de cada línea (no del proveedor, que puede
+		// vender de todo) en un único árbol de 3 niveles, para que el clic en un
+		// nivel no necesite ir de nuevo al servidor.
+		const typeMap = new Map<string, Map<string, Map<string, number>>>();
 		for (const row of typeSpend) {
 			const amount = moneyToNumber(row.total);
-			const type = categoryToType(row.category);
-			if (type) typeBuckets.set(type, (typeBuckets.get(type) ?? 0) + amount);
-			else otherTypeTotal += amount;
+			const type = categoryToType(row.category) ?? 'Otros';
+			const category = row.category ?? 'Other';
+			if (!typeMap.has(type)) typeMap.set(type, new Map());
+			const catMap = typeMap.get(type)!;
+			if (!catMap.has(category)) catMap.set(category, new Map());
+			const prodMap = catMap.get(category)!;
+			prodMap.set(row.product_name, (prodMap.get(row.product_name) ?? 0) + amount);
 		}
-		if (otherTypeTotal > 0) typeBuckets.set('Otros', otherTypeTotal);
-		const typeTotalSum = [...typeBuckets.values()].reduce((a, b) => a + b, 0) || 1;
-		const type_spend = [...typeBuckets.entries()]
-			.filter(([, total]) => total > 0)
-			.sort((a, b) => b[1] - a[1])
-			.map(([type, total]) => ({
-				type,
-				total,
-				pct: Math.round((total / typeTotalSum) * 100),
-				color: type === 'Bebidas' ? CATEGORY_COLORS['Bebidas'] : type === 'Comida' ? CATEGORY_COLORS['Carnes y Derivados'] : CATEGORY_COLORS['Other'],
-			}));
+		let breakdownGrandTotal = 0;
+		for (const catMap of typeMap.values()) for (const prodMap of catMap.values()) for (const t of prodMap.values()) breakdownGrandTotal += t;
+		const breakdownTotalForPct = breakdownGrandTotal || 1;
+		const type_breakdown = [...typeMap.entries()]
+			.map(([type, catMap]) => {
+				const categories = [...catMap.entries()]
+					.map(([category, prodMap]) => {
+						const products = [...prodMap.entries()]
+							.map(([name, total]) => ({ name, total, pct: Math.round((total / breakdownTotalForPct) * 100) }))
+							.sort((a, b) => b.total - a.total);
+						const catTotal = products.reduce((s, p) => s + p.total, 0);
+						return {
+							category,
+							total: catTotal,
+							pct: Math.round((catTotal / breakdownTotalForPct) * 100),
+							color: CATEGORY_COLORS[category] ?? CATEGORY_COLORS['Other'],
+							products,
+						};
+					})
+					.sort((a, b) => b.total - a.total);
+				const typeTotal = categories.reduce((s, c) => s + c.total, 0);
+				return {
+					type,
+					total: typeTotal,
+					pct: Math.round((typeTotal / breakdownTotalForPct) * 100),
+					color: type === 'Bebidas' ? CATEGORY_COLORS['Bebidas'] : type === 'Comida' ? CATEGORY_COLORS['Carnes y Derivados'] : CATEGORY_COLORS['Other'],
+					categories,
+				};
+			})
+			.sort((a, b) => b.total - a.total);
 
 		const prevRow0 = prevKpisRows[0];
 		const prevSpend = prevRow0 ? moneyToNumber(prevRow0.total_items_spend ?? '0') : null;
@@ -262,6 +286,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			spend_spark_prev: spendSeries?.previous ?? null,
 		};
 
-		return { title: 'spend.pageTitle', top_items, most_expensive_item, type_spend, recurring_suppliers, kpis, period, trend, trendCategories, priceTrendSeries };
+		return { title: 'spend.pageTitle', top_items, most_expensive_item, type_breakdown, recurring_suppliers, kpis, period, trend, trendCategories, priceTrendSeries };
 	});
 };
