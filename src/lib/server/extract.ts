@@ -42,11 +42,12 @@ Return ONLY valid JSON with this exact structure:
   "currency": "3-letter code, almost always EUR for Spanish documents",
   "tax_base": total taxable amount before tax (sum of all line totals), or null if not present,
   "tax_breakdown": [
-    {"rate": 0.21, "base": 100.00, "tax_amount": 21.00}
-  ] or null if no tax info is present. One entry per tax rate found. rate is a decimal (0.04, 0.10, 0.21 for Spain; use whatever rate is on the document for other countries),
+    {"rate": 0.21, "base": 100.00, "tax_amount": 21.00, "type": "iva"}
+  ] or null if no tax info is present. One entry per tax rate AND type found. rate is a decimal (0.04, 0.10, 0.21 for Spain; use whatever rate is on the document for other countries). type is "iva" for standard VAT or "rec" for Recargo de Equivalencia (a Spanish surcharge printed as %REC on produce invoices) — omit type if neither label is visible,
   "line_items": [
     {
       "description": "string",
+      "product_code": "supplier's product code / SKU (CODI, referencia, código artículo) — or null if not printed",
       "quantity": number or null,
       "unit": "string or null",
       "unit_price": number or null,
@@ -54,6 +55,7 @@ Return ONLY valid JSON with this exact structure:
       "confidence": 0.0 to 1.0
     }
   ],
+  "outstanding_balance": number or null (the outstanding balance owed to the supplier — printed as Saldo, saldo pendiente, saldo anterior, etc. — or null if not present),
   "field_confidences": {
     "supplier_name": 0.0 to 1.0,
     "supplier_category": 0.0 to 1.0,
@@ -68,8 +70,9 @@ Return ONLY valid JSON with this exact structure:
 
 Rules:
 - total_amount must be the final amount INCLUDING all taxes (total a pagar), not the pre-tax base.
-- If tax is shown separately, sum tax_base + all tax_amount values to get total_amount.
-- tax_breakdown must reflect what is explicitly printed on the document — do not invent rates.
+- If tax is shown separately, sum tax_base + all tax_amount values to get total_amount (include both IVA and REC amounts).
+- tax_breakdown must reflect what is explicitly printed on the document — do not invent rates or types.
+- If a document shows both IVA and Recargo de Equivalencia (REC) columns, emit two separate entries in tax_breakdown: one with type "iva" and one with type "rec".
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
@@ -133,7 +136,7 @@ export interface ExtractedInvoice {
 	total_amount: number | null;
 	currency: string | null;
 	tax_base: number | null;
-	tax_breakdown: Array<{ rate: number; base: number; tax_amount: number }> | null;
+	tax_breakdown: Array<{ rate: number; base: number; tax_amount: number; type?: 'iva' | 'rec' }> | null;
 	confidence: number;
 	field_confidences?: {
 		supplier_name?: number;
@@ -146,12 +149,14 @@ export interface ExtractedInvoice {
 	};
 	line_items: Array<{
 		description: string;
+		product_code?: string | null;
 		quantity: number | null;
 		unit: string | null;
 		unit_price: number | null;
 		total_price: number | null;
 		confidence?: number;
 	}>;
+	outstanding_balance?: number | null;
 	qr_url?: string | null;
 	qr_mismatch?: boolean;
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
