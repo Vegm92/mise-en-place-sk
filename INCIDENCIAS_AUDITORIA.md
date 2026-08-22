@@ -294,6 +294,22 @@ más claro).
 
 ---
 
+## 23. `invoice-save.ts` y `alerts.ts` tienen una reorganización de código en `main` sin traer — revisar antes de fusionar con `main`
+
+**Dónde:** `src/lib/server/invoice-save.ts` y `src/lib/server/alerts.ts`.
+
+**Qué pasó:** el 2026-08-22 se trajeron a esta rama los commits de `main` de pagos/facturación (portal Stripe, cancelación, reconciliación) y de WhatsApp (control de plan de pago para poder seguir mandando fotos), más el botón de "Avisos" clicable — todo lo demás de `main` se dejó fuera a propósito (limpieza de código, menú lateral, modo oscuro, catálogo Gemini). Ver `SEGUIR_SESION.md` sección 8 para el detalle completo de qué se trajo y qué no.
+
+En `main`, esos mismos dos ficheros pasaron además por una reorganización interna ("SonarCloud": reducir complejidad, extraer funciones) que se dejó fuera aquí a propósito porque no cambia nada de cara al usuario. El problema es que **algunos arreglos posteriores de `main` daban por hecho que esa reorganización ya estaba aplicada**:
+- Un arreglo de un fallo real en el cálculo de alertas de cambio de precio (`determinePriceComparison` usaba `0` en vez del precio real de la línea) no se pudo traer tal cual porque esa función solo existe en la versión reorganizada de `alerts.ts`. **Se comprobó a mano: esta rama nunca tuvo ese fallo** (su versión, escrita de otra forma, ya usa el precio correcto) — no hizo falta arreglar nada, pero queda anotado por si al fusionar con `main` alguien ve el commit del arreglo y se pregunta por qué no está aquí.
+- Dos arreglos del control de plan de pago por WhatsApp (`b70f9e1`, `cf0e010` en `main`) tampoco se trajeron por el mismo motivo: corrigen un problema que la propia reorganización de `main` había creado, y que aquí nunca existió.
+
+**Riesgo real, para cuando se junte esta rama con `main`:** ambas ramas modificaron `invoice-save.ts` por separado desde el mismo punto de partida (una con reglas de negocio nuevas del MVP, la otra solo reordenando el código) — habrá que revisar ese fichero con calma en ese momento, comparando que ninguna lógica se pierda por el camino.
+
+**Estado:** 📌 No es un fallo activo hoy — es una nota para el día que esta rama y `main` se junten de verdad.
+
+---
+
 ## Resumen para quien retome esto en `main`
 
 | # | Incidencia | Estado en `mvp-modular-limpio` | Estado en `main` |
