@@ -101,9 +101,11 @@ async function resolveMembershipAndAccess(
 	});
 
 	const ids = memberships.map(m => m.restaurantId);
-	event.locals.restaurantId = ids.length > 0
-		? ((activeCookie && ids.includes(activeCookie)) ? activeCookie : (ids[0] ?? null))
-		: null;
+	if (ids.length > 0) {
+		event.locals.restaurantId = (activeCookie && ids.includes(activeCookie)) ? activeCookie : (ids[0] ?? null);
+	} else {
+		event.locals.restaurantId = null;
+	}
 
 	return {
 		userApproved: accessRows[0]?.accessStatus === 'approved',

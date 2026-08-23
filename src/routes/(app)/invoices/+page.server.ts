@@ -92,11 +92,9 @@ function buildInvoiceStats(
 	prevStatsRow: { total_count: number; total_amount: string }[] | null,
 	needsReviewRow: { cnt: number }[],
 	seriesRows: { createdAt: Date | null; amount: string | null }[],
-	period: PeriodKey,
-	periodFrom: Date | null,
-	prevFrom: Date | null,
-	prevTo: Date | null,
+	periodParams: Pick<ReturnType<typeof parseInvoiceListParams>, 'period' | 'periodFrom' | 'prevFrom' | 'prevTo'>,
 ) {
+	const { period, periodFrom, prevFrom, prevTo } = periodParams;
 	const currentCount = statsRow[0]?.total_count ?? 0;
 	const currentAmount = moneyToNumber(statsRow[0]?.total_amount ?? '0');
 	const prevCount = prevStatsRow ? (prevStatsRow[0]?.total_count ?? 0) : null;
@@ -250,7 +248,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})),
 		}));
 
-		const stats = buildInvoiceStats(statsRow, prevStatsRow, needsReviewRow, seriesRows, period, periodFrom, prevFrom, prevTo);
+		const stats = buildInvoiceStats(statsRow, prevStatsRow, needsReviewRow, seriesRows, params);
 		const total = Number(countRow[0]?.cnt ?? 0);
 
 		const trend = trendRows.map(r => ({

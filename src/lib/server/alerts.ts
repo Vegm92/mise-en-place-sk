@@ -137,6 +137,49 @@ async function fetchProductPriceMap(
 	return productPriceMap;
 }
 
+function computePriceShockAlert(
+	item: EnrichedLineItem,
+	productByKey: Map<string, number> | undefined,
+	keyPriceMap: Map<string, PricePoint>,
+	productPriceMap: Map<number, PricePoint>,
+	threshold: number,
+	supplierName: string,
+): Alert | null {
+	const description = (item.description ?? '').trim();
+	const newPrice = item.unitPrice;
+	if (!description || newPrice == null) return null;
+
+	const key = normalizeProductKey(description);
+	const pid = productByKey?.get(key);
+	const prev = (pid != null ? productPriceMap.get(pid) : undefined) ?? keyPriceMap.get(key);
+	if (!prev) return null;
+
+	const newPack = parsePack(description, item.unit);
+	const newNorm = normalizedUnitPrice(newPrice, newPack);
+	const useNorm = newNorm != null && prev.normalizedUnitPrice != null && prev.normalizedUnitPrice > 0
+		&& newPack != null && prev.baseUnit != null && newPack.baseUnit === prev.baseUnit;
+
+	const oldCmp = useNorm ? prev.normalizedUnitPrice! : prev.unitPrice;
+	const newCmp = useNorm ? newNorm! : newPrice;
+	if (oldCmp === 0) return null;
+
+	const deviation = (newCmp - oldCmp) / oldCmp;
+	if (Math.abs(deviation) < threshold) return null;
+
+	const pct = Math.round(deviation * 1000) / 10;
+	const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
+
+	return {
+		notificationType: 'price_shock',
+		message: `price_shock: ${description} ${pct > 0 ? '+' : ''}${pct}%`,
+		payload: {
+			ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null,
+			messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
+			messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
+		},
+	};
+}
+
 function detectPriceShocks(
 	lineItems: EnrichedLineItem[],
 	productByKey: Map<string, number> | undefined,
@@ -147,39 +190,8 @@ function detectPriceShocks(
 ): Alert[] {
 	const alerts: Alert[] = [];
 	for (const item of lineItems) {
-		const description = (item.description ?? '').trim();
-		const newPrice = item.unitPrice;
-		if (!description || newPrice == null) continue;
-
-		const key = normalizeProductKey(description);
-		const pid = productByKey?.get(key);
-		const prev = (pid != null ? productPriceMap.get(pid) : undefined) ?? keyPriceMap.get(key);
-		if (!prev) continue;
-
-		const newPack = parsePack(description, item.unit);
-		const newNorm = normalizedUnitPrice(newPrice, newPack);
-		const useNorm = newNorm != null && prev.normalizedUnitPrice != null && prev.normalizedUnitPrice > 0
-			&& newPack != null && prev.baseUnit != null && newPack.baseUnit === prev.baseUnit;
-
-		const oldCmp = useNorm ? prev.normalizedUnitPrice! : prev.unitPrice;
-		const newCmp = useNorm ? newNorm! : newPrice;
-		if (oldCmp === 0) continue;
-
-		const deviation = (newCmp - oldCmp) / oldCmp;
-		if (Math.abs(deviation) < threshold) continue;
-
-		const pct = Math.round(deviation * 1000) / 10;
-		const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
-
-		alerts.push({
-			notificationType: 'price_shock',
-			message: `price_shock: ${description} ${pct > 0 ? '+' : ''}${pct}%`,
-			payload: {
-				ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null,
-				messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
-				messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
-			},
-		});
+		const alert = computePriceShockAlert(item, productByKey, keyPriceMap, productPriceMap, threshold, supplierName);
+		if (alert) alerts.push(alert);
 	}
 	return alerts;
 }

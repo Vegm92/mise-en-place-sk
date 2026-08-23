@@ -19,6 +19,8 @@ import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 
+type InvoiceDocumentType = 'factura' | 'albaran' | null;
+
 export interface PendingAlbaranCandidate {
 	invoiceId: number;
 	invoiceNumber: string | null;
@@ -464,7 +466,7 @@ async function checkContentDuplicate(tdb: ReturnType<typeof forTenant>, contentH
 
 async function resolveMergeTarget(
 	rid: string,
-	documentType: 'factura' | 'albaran' | null,
+	documentType: InvoiceDocumentType,
 	existingSupplierId: number | null,
 	invoiceDate: ReturnType<typeof toIsoDate>,
 	formData: FormData,
@@ -524,7 +526,7 @@ interface PersistInvoiceParams {
 	supplierName: string;
 	proposedCategory: ReturnType<typeof resolveSupplierCategory>;
 	proposedContact: SupplierContactInfo;
-	documentType: 'factura' | 'albaran' | null;
+	documentType: InvoiceDocumentType;
 	invoiceDate: ReturnType<typeof toIsoDate>;
 	dueDate: ReturnType<typeof toIsoDate>;
 	notes: string | null;
@@ -542,93 +544,98 @@ interface PersistInvoiceResult {
 	savedItems: EnrichedLineItem[];
 }
 
-async function persistInvoiceInTransaction(tx: BatchDb, p: PersistInvoiceParams): Promise<PersistInvoiceResult> {
-	let supplierId = 0;
-	let invoiceId: number | null = null;
-	let isDuplicate = false;
-	const wasMerged = p.mergeTargetId != null;
+async function persistMergedInvoice(tx: BatchDb, p: PersistInvoiceParams, mergeTargetId: number): Promise<PersistInvoiceResult> {
+	const supplierId = p.existingSupplierId!;
 	const savedItems: EnrichedLineItem[] = [];
 
-	if (p.idemKey && !(await claimRequest(p.idemKey, p.rid, tx))) {
-		return { supplierId, invoiceId, isDuplicate, isReplay: true, wasMerged, savedItems };
-	}
+	await tx.update(invoices)
+		.set({
+			documentType: 'factura',
+			invoiceNumber: p.invoiceNumber || null,
+			totalAmount: p.totalAmount,
+			taxBase: p.taxBase,
+			taxBreakdown: p.taxBreakdown,
+			contentHash: p.contentHash,
+			confidence: p.confidenceRaw,
+			qrUrl: p.qrResult?.url ?? null,
+			qrMismatch: p.qrMismatches.length > 0 ? 1 : 0,
+		})
+		.where(and(p.tdb.scope(invoices.restaurantId), eq(invoices.id, mergeTargetId)));
 
-	if (p.mergeTargetId != null) {
-		supplierId = p.existingSupplierId!;
-		invoiceId = p.mergeTargetId;
+	savedItems.push(...await mergeLinesIntoAlbaran(tx, p.rid, mergeTargetId, p.enrichedLines));
 
-		await tx.update(invoices)
-			.set({
-				documentType: 'factura',
-				invoiceNumber: p.invoiceNumber || null,
-				totalAmount: p.totalAmount,
-				taxBase: p.taxBase,
-				taxBreakdown: p.taxBreakdown,
-				contentHash: p.contentHash,
-				confidence: p.confidenceRaw,
-				qrUrl: p.qrResult?.url ?? null,
-				qrMismatch: p.qrMismatches.length > 0 ? 1 : 0,
-			})
-			.where(and(p.tdb.scope(invoices.restaurantId), eq(invoices.id, p.mergeTargetId)));
+	return { supplierId, invoiceId: mergeTargetId, isDuplicate: false, isReplay: false, wasMerged: true, savedItems };
+}
 
-		savedItems.push(...await mergeLinesIntoAlbaran(tx, p.rid, p.mergeTargetId, p.enrichedLines));
-	} else {
-		supplierId = await getOrCreateSupplierId(p.rid, p.supplierName, tx, p.proposedCategory, p.proposedContact);
+async function persistNewInvoice(tx: BatchDb, p: PersistInvoiceParams): Promise<PersistInvoiceResult> {
+	const savedItems: EnrichedLineItem[] = [];
+	const supplierId = await getOrCreateSupplierId(p.rid, p.supplierName, tx, p.proposedCategory, p.proposedContact);
 
-		if (p.invoiceNumber.trim()) {
-			const dup = await tx
-				.select({ id: invoices.id })
-				.from(invoices)
-				.where(and(p.tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, p.invoiceNumber.trim())))
-				.limit(1);
-			if (dup.length > 0) {
-				if (p.idemKey) await releaseRequest(p.idemKey, tx);
-				return { supplierId, invoiceId, isDuplicate: true, isReplay: false, wasMerged, savedItems };
-			}
-		}
-
-		const insertedInvoice = await tx
-			.insert(invoices)
-			.values({
-				restaurantId: p.rid,
-				supplierId,
-				invoiceNumber: p.invoiceNumber || null,
-				documentType: p.documentType,
-				invoiceDate: p.invoiceDate,
-				dueDate: p.dueDate,
-				totalAmount: p.totalAmount,
-				taxBase: p.taxBase,
-				taxBreakdown: p.taxBreakdown,
-				status: 'pending',
-				sourceFile: p.primaryFile,
-				confidence: p.confidenceRaw,
-				contentHash: p.contentHash,
-				notes: p.notes,
-				qrUrl: p.qrResult?.url ?? null,
-				qrMismatch: p.qrMismatches.length > 0 ? 1 : 0,
-			})
-			.onConflictDoNothing()
-			.returning({ id: invoices.id });
-
-		if (!insertedInvoice.length) {
+	if (p.invoiceNumber.trim()) {
+		const dup = await tx
+			.select({ id: invoices.id })
+			.from(invoices)
+			.where(and(p.tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, p.invoiceNumber.trim())))
+			.limit(1);
+		if (dup.length > 0) {
 			if (p.idemKey) await releaseRequest(p.idemKey, tx);
-			return { supplierId, invoiceId, isDuplicate: true, isReplay: false, wasMerged, savedItems };
-		}
-		invoiceId = insertedInvoice[0].id;
-
-		for (const line of p.enrichedLines) {
-			await tx.insert(invoiceLineItems).values({
-				invoiceId: invoiceId!,
-				restaurantId: p.rid,
-				...line.columns,
-			});
-			savedItems.push(line.item);
+			return { supplierId, invoiceId: null, isDuplicate: true, isReplay: false, wasMerged: false, savedItems };
 		}
 	}
+
+	const insertedInvoice = await tx
+		.insert(invoices)
+		.values({
+			restaurantId: p.rid,
+			supplierId,
+			invoiceNumber: p.invoiceNumber || null,
+			documentType: p.documentType,
+			invoiceDate: p.invoiceDate,
+			dueDate: p.dueDate,
+			totalAmount: p.totalAmount,
+			taxBase: p.taxBase,
+			taxBreakdown: p.taxBreakdown,
+			status: 'pending',
+			sourceFile: p.primaryFile,
+			confidence: p.confidenceRaw,
+			contentHash: p.contentHash,
+			notes: p.notes,
+			qrUrl: p.qrResult?.url ?? null,
+			qrMismatch: p.qrMismatches.length > 0 ? 1 : 0,
+		})
+		.onConflictDoNothing()
+		.returning({ id: invoices.id });
+
+	if (!insertedInvoice.length) {
+		if (p.idemKey) await releaseRequest(p.idemKey, tx);
+		return { supplierId, invoiceId: null, isDuplicate: true, isReplay: false, wasMerged: false, savedItems };
+	}
+	const invoiceId = insertedInvoice[0].id;
+
+	for (const line of p.enrichedLines) {
+		await tx.insert(invoiceLineItems).values({
+			invoiceId,
+			restaurantId: p.rid,
+			...line.columns,
+		});
+		savedItems.push(line.item);
+	}
+
+	return { supplierId, invoiceId, isDuplicate: false, isReplay: false, wasMerged: false, savedItems };
+}
+
+async function persistInvoiceInTransaction(tx: BatchDb, p: PersistInvoiceParams): Promise<PersistInvoiceResult> {
+	if (p.idemKey && !(await claimRequest(p.idemKey, p.rid, tx))) {
+		return { supplierId: 0, invoiceId: null, isDuplicate: false, isReplay: true, wasMerged: p.mergeTargetId != null, savedItems: [] };
+	}
+
+	const result = p.mergeTargetId != null
+		? await persistMergedInvoice(tx, p, p.mergeTargetId)
+		: await persistNewInvoice(tx, p);
 
 	if (p.onSaved) await p.onSaved(tx);
 
-	return { supplierId, invoiceId, isDuplicate, isReplay: false, wasMerged, savedItems };
+	return result;
 }
 
 interface PostSaveContext {
@@ -641,7 +648,7 @@ interface PostSaveContext {
 	savedItems: EnrichedLineItem[];
 	proposedCategory: ReturnType<typeof resolveSupplierCategory>;
 	wasMerged: boolean;
-	documentType: 'factura' | 'albaran' | null;
+	documentType: InvoiceDocumentType;
 	invoiceDate: ReturnType<typeof toIsoDate>;
 	dueDate: ReturnType<typeof toIsoDate>;
 	totalAmount: ReturnType<typeof toMoneyString>;

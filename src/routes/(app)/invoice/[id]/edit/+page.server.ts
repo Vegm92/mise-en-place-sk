@@ -83,6 +83,34 @@ interface EditInvoiceParams {
 	enrichedLines: Awaited<ReturnType<typeof enrichLineItems>>;
 }
 
+async function hasEditConflict(tx: Tx, p: EditInvoiceParams, supplierId: number | null): Promise<boolean> {
+	if (supplierId && p.invoiceNumber) {
+		const duplicate = await tx
+			.select({ id: invoices.id })
+			.from(invoices)
+			.where(and(
+				p.tdb.scope(invoices.restaurantId),
+				eq(invoices.supplierId, supplierId),
+				eq(invoices.invoiceNumber, p.invoiceNumber),
+				ne(invoices.id, p.id),
+			))
+			.limit(1);
+		if (duplicate.length > 0) return true;
+	}
+
+	const hashMatch = await tx
+		.select({ id: invoices.id })
+		.from(invoices)
+		.where(and(
+			p.tdb.scope(invoices.restaurantId),
+			eq(invoices.contentHash, p.contentHash),
+			ne(invoices.id, p.id),
+			isNull(invoices.deletedAt),
+		))
+		.limit(1);
+	return hashMatch.length > 0;
+}
+
 async function performInvoiceEdit(
 	tx: Tx,
 	p: EditInvoiceParams,
@@ -105,34 +133,7 @@ async function performInvoiceEdit(
 		supplierId = await getOrCreateSupplierId(p.rid, p.supplierName, tx);
 	}
 
-	if (supplierId && p.invoiceNumber) {
-		const duplicate = await tx
-			.select({ id: invoices.id })
-			.from(invoices)
-			.where(and(
-				p.tdb.scope(invoices.restaurantId),
-				eq(invoices.supplierId, supplierId),
-				eq(invoices.invoiceNumber, p.invoiceNumber),
-				ne(invoices.id, p.id),
-			))
-			.limit(1);
-		if (duplicate.length > 0) {
-			if (p.idemKey) await releaseRequest(p.idemKey, tx);
-			return { conflict: 'duplicate', savedSupplierId: null };
-		}
-	}
-
-	const hashMatch = await tx
-		.select({ id: invoices.id })
-		.from(invoices)
-		.where(and(
-			p.tdb.scope(invoices.restaurantId),
-			eq(invoices.contentHash, p.contentHash),
-			ne(invoices.id, p.id),
-			isNull(invoices.deletedAt),
-		))
-		.limit(1);
-	if (hashMatch.length > 0) {
+	if (await hasEditConflict(tx, p, supplierId)) {
 		if (p.idemKey) await releaseRequest(p.idemKey, tx);
 		return { conflict: 'duplicate', savedSupplierId: null };
 	}
