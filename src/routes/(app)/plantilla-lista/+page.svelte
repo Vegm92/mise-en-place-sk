@@ -3,6 +3,7 @@
   import { t, ti } from '$lib/i18n';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import Plus from '@lucide/svelte/icons/plus';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 
   type PeriodKey = 'day' | 'month' | 'year' | 'all';
 
@@ -39,6 +40,7 @@
   let categoryFilter = $state('');
   let view = $state<'list' | 'chart'>('list');
   let selectedId = $state<number | null>(null);
+  $effect(() => { if (view === 'chart') selectedId = null; });
 
   const filtered = $derived(scaled.filter(r => {
     const q = search.trim().toLowerCase();
@@ -114,12 +116,27 @@
 
     {#snippet table()}
       <div class="card-header">
-        <div class="section-title">
-          <span class="subtitle">{$t('tpl.demo.tableTitle')}</span>
-          <span class="body" style="font-size:12px;">{$ti('tpl.demo.itemCount', { n: filtered.length })}</span>
-        </div>
+        {#if selected}
+          <div style="display:flex;align-items:center;gap:8px;">
+            <button type="button" class="btn btn-ghost" style="height:28px;font-size:12px;padding:0 8px 0 4px;gap:4px;" onclick={() => (selectedId = null)}>
+              <ArrowLeft size={14} /> {$t('tpl.demo.back')}
+            </button>
+            <span class="subtitle">{$ti('tpl.demo.detailTitle', { name: selected.name })}</span>
+          </div>
+        {:else}
+          <div class="section-title">
+            <span class="subtitle">{$t('tpl.demo.tableTitle')}</span>
+            <span class="body" style="font-size:12px;">{$ti('tpl.demo.itemCount', { n: filtered.length })}</span>
+          </div>
+        {/if}
       </div>
-      {#if !filtered.length}
+      {#if selected}
+        <div style="padding:16px;">
+          <p class="body" style="font-size:12.5px;">
+            {$ti('tpl.demo.detailBody', { category: categoryLabel(selected.category), unit: selected.unit, spend: fmtEur(selected.monthSpend), id: selected.id })}
+          </p>
+        </div>
+      {:else if !filtered.length}
         <div style="text-align:center;padding:48px 24px;">
           <span class="body">{$t('tpl.demo.empty')}</span>
         </div>
@@ -135,7 +152,7 @@
           </thead>
           <tbody>
             {#each filtered as r (r.id)}
-              <tr class="row" onclick={() => (selectedId = selectedId === r.id ? null : r.id)}>
+              <tr class="row" onclick={() => (selectedId = r.id)}>
                 <td class="body-strong">{r.name}</td>
                 <td>
                   <span class="badge" style="background:color-mix(in oklab, {categoryColor(r.category)} 16%, transparent);color:{categoryColor(r.category)};">
@@ -151,13 +168,4 @@
       {/if}
     {/snippet}
   </ListPageTemplate>
-
-  {#if selected}
-    <div class="card" style="padding:16px;">
-      <div class="subtitle" style="margin-bottom:8px;">{$ti('tpl.demo.detailTitle', { name: selected.name })}</div>
-      <p class="body" style="font-size:12.5px;">
-        {$ti('tpl.demo.detailBody', { category: categoryLabel(selected.category), unit: selected.unit, spend: fmtEur(selected.monthSpend), id: selected.id })}
-      </p>
-    </div>
-  {/if}
 </div>
