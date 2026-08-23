@@ -89,13 +89,16 @@
     </div>
   {/if}
 
-  <div class="period-track" role="group" style="align-self:flex-start;">
-    <button type="button" class="period-pill {view === 'list' ? 'active' : ''}" onclick={() => (view = 'list')}>
-      <LayoutList size={13} style="vertical-align:-2px;margin-right:5px;" />{viewLabels.list}
-    </button>
-    <button type="button" class="period-pill {view === 'chart' ? 'active' : ''}" onclick={() => (view = 'chart')}>
-      <LineChart size={13} style="vertical-align:-2px;margin-right:5px;" />{viewLabels.chart}
-    </button>
+  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">
+    <div class="period-track" role="group" style="flex-shrink:0;">
+      <button type="button" class="period-pill {view === 'list' ? 'active' : ''}" title={viewLabels.list} aria-label={viewLabels.list} style="padding:7px 9px;" onclick={() => (view = 'list')}>
+        <LayoutList size={14} />
+      </button>
+      <button type="button" class="period-pill {view === 'chart' ? 'active' : ''}" title={viewLabels.chart} aria-label={viewLabels.chart} style="padding:7px 9px;" onclick={() => (view = 'chart')}>
+        <LineChart size={14} />
+      </button>
+    </div>
+    {#if filters}{@render filters()}{/if}
   </div>
 
   {#if view === 'chart'}
@@ -116,11 +119,6 @@
       <TrendLineChart xLabels={trendXLabels} series={trendSeries} valueFormatter={trendValueFormatter} emptyLabel={trendEmptyLabel} />
     </div>
   {:else}
-    {#if filters}
-      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;">
-        {@render filters()}
-      </div>
-    {/if}
     <div class="card" style="padding:0;overflow:hidden;">
       {@render table()}
     </div>
