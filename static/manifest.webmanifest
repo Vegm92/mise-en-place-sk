@@ -1,7 +1,7 @@
 {
   "name": "Mise en Place",
   "short_name": "Mise",
-  "description": "Gestión inteligente de facturas de proveedores para restaurantes",
+  "description": "Gestión inteligente de albaranes de proveedores para restaurantes",
   "lang": "es",
   "dir": "ltr",
   "start_url": "/",
@@ -29,17 +29,17 @@
   ],
   "shortcuts": [
     {
-      "name": "Subir factura",
+      "name": "Subir albarán",
       "short_name": "Subir",
       "url": "/?action=upload",
-      "description": "Ir directamente a la subida de facturas",
+      "description": "Ir directamente a la subida de albaranes",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     },
     {
-      "name": "Facturas",
-      "short_name": "Facturas",
+      "name": "Albaranes",
+      "short_name": "Albaranes",
       "url": "/invoices",
-      "description": "Ver todas las facturas",
+      "description": "Ver todos los albaranes",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ]
