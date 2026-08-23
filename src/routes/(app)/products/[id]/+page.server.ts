@@ -30,6 +30,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		db.select({
 			id:          productAliases.id,
 			rawText:     productAliases.rawText,
+			supplierSku: productAliases.supplierSku,
 			source:      productAliases.source,
 			confirmedAt: productAliases.confirmedAt,
 			createdAt:   productAliases.createdAt,
