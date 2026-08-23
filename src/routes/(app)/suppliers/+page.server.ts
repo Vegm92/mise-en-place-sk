@@ -134,7 +134,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		});
 
 		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-		const allMonths = [...new Set(spendTrendRows.map(r => r.month))].sort();
+		const allMonths = [...new Set(spendTrendRows.map(r => r.month))].sort((a, b) => a.localeCompare(b));
 		const allCats   = [...new Set(spendTrendRows.map(r => r.category))];
 		const spendByMonthCat = new Map<string, Map<string, number>>();
 		for (const r of spendTrendRows) {
@@ -142,7 +142,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			spendByMonthCat.get(r.month)!.set(r.category, Number(r.spend));
 		}
 		const trendData = {
-			xLabels: allMonths.map(m => MONTH_LABELS[(parseInt(m.split('-')[1], 10) - 1)] ?? m),
+			xLabels: allMonths.map(m => MONTH_LABELS[(Number.parseInt(m.split('-')[1], 10) - 1)] ?? m),
 			series: allCats.map(cat => ({
 				key: cat,
 				label: cat,
