@@ -6,16 +6,18 @@ import { sql, eq, and } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('suppliers', async () => {
+		const period = url.searchParams.get('period') ?? '30d';
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 		type PriceTrendRow = { supplier_id: number; month: string; avg_price: number };
+		type SpendTrendRow = { month: string; category: string; spend: string };
 
-		const [rows, metricsRows, priceTrendRows] = await Promise.all([
+		const [rows, metricsRows, priceTrendRows, spendTrendRows] = await Promise.all([
 			db.select({
 				id:               suppliers.id,
 				name:             suppliers.name,
@@ -53,6 +55,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date
 				GROUP BY i.supplier_id, TO_CHAR(i.invoice_date, 'YYYY-MM')
 				ORDER BY i.supplier_id, month ASC
+			`),
+
+			db.execute<SpendTrendRow>(sql`
+				SELECT
+					TO_CHAR(DATE_TRUNC('month', i.invoice_date), 'YYYY-MM') AS month,
+					COALESCE(s.category, 'Other') AS category,
+					COALESCE(SUM(i.total_amount::numeric), 0) AS spend
+				FROM invoices i
+				JOIN suppliers s ON s.id = i.supplier_id
+				WHERE i.restaurant_id = ${rid}
+				  AND i.deleted_at IS NULL
+				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date
+				GROUP BY DATE_TRUNC('month', i.invoice_date), COALESCE(s.category, 'Other')
+				ORDER BY DATE_TRUNC('month', i.invoice_date) ASC
 			`),
 		]);
 
@@ -117,11 +133,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 			};
 		});
 
+		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+		const allMonths = [...new Set(spendTrendRows.map(r => r.month))].sort((a, b) => a.localeCompare(b));
+		const allCats   = [...new Set(spendTrendRows.map(r => r.category))];
+		const spendByMonthCat = new Map<string, Map<string, number>>();
+		for (const r of spendTrendRows) {
+			if (!spendByMonthCat.has(r.month)) spendByMonthCat.set(r.month, new Map());
+			spendByMonthCat.get(r.month)!.set(r.category, Number(r.spend));
+		}
+		const trendData = {
+			xLabels: allMonths.map(m => MONTH_LABELS[(Number.parseInt(m.split('-')[1], 10) - 1)] ?? m),
+			series: allCats.map(cat => ({
+				key: cat,
+				label: cat,
+				color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
+				values: allMonths.map(m => spendByMonthCat.get(m)?.get(cat) ?? 0),
+			})),
+		};
+
 		return {
 			title: 'nav.suppliers',
 			subtitle: 'All active suppliers',
 			suppliers: supplierList,
 			categories: VALID_CATEGORIES,
+			period,
+			trendData,
 		};
 	});
 };

@@ -1,7 +1,14 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { page } from '$app/stores';
+  import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
+  import { locale, t, ti, tcat } from '$lib/i18n';
+  import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import MobileSuppliersList from '$lib/components/mobile/MobileSuppliersList.svelte';
-  import DesktopSuppliersList from '$lib/components/desktop/DesktopSuppliersList.svelte';
+  import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
+  import { PERIOD_PILLS } from '$lib/constants';
+  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import Plus from '@lucide/svelte/icons/plus';
 
   let { data }: { data: PageData } = $props();
 
@@ -9,26 +16,193 @@
   const totalMonthInvoices = $derived(data.suppliers.reduce((s, x) => s + (x.month_invoice_count ?? 0), 0));
   const unassigned         = $derived(data.suppliers.filter(s => !s.category || s.category === 'Other').length);
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
+
+  let search    = $state('');
+  let catFilter = $state('');
+  let view      = $state<'list' | 'chart'>('list');
+
+  const filtered = $derived(
+    data.suppliers.filter(s => {
+      const q = search.trim().toLowerCase();
+      const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
+      const matchCat = !catFilter || s.category === catFilter;
+      return matchSearch && matchCat;
+    })
+  );
+
+  const periodPills = $derived(PERIOD_PILLS.map(p => {
+    const params = new URLSearchParams($page.url.searchParams);
+    params.set('period', p.value);
+    return { value: p.value, label: $t(p.labelKey), href: `/suppliers?${params.toString()}` };
+  }));
+
+  let activeTrendKeys = $state<string[]>([]);
+  $effect(() => { if (activeTrendKeys.length === 0) activeTrendKeys = data.trendData.series.map(s => s.key); });
+  function toggleTrendBadge(key: string) {
+    activeTrendKeys = activeTrendKeys.includes(key)
+      ? activeTrendKeys.filter(k => k !== key)
+      : [...activeTrendKeys, key];
+  }
+  const trendSeries = $derived(
+    data.trendData.series
+      .filter(s => activeTrendKeys.includes(s.key))
+      .map(s => ({ key: s.key, label: s.label, color: s.color, values: s.values }))
+  );
+
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  function isNew(createdAt: Date | null) {
+    return createdAt ? new Date(createdAt) >= thirtyDaysAgo : false;
+  }
+  function deltaColor(v: number) { return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'; }
+  function deltaArrow(v: number) { return v > 0.05 ? '↑' : v < -0.05 ? '↓' : '·'; }
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}
-    totalSpend={totalSpend}
-    totalMonthInvoices={totalMonthInvoices}
-    unassigned={unassigned}
-    firstUnassigned={firstUnassigned}
+    {totalSpend}
+    {totalMonthInvoices}
+    {unassigned}
+    {firstUnassigned}
   />
 </div>
 
-<div class="hidden md:flex" style="height:100%;flex-direction:column;overflow:hidden;">
-  <DesktopSuppliersList
-    suppliers={data.suppliers}
-    categories={data.categories}
-    totalSpend={totalSpend}
-    totalMonthInvoices={totalMonthInvoices}
-    unassigned={unassigned}
-    firstUnassigned={firstUnassigned}
-  />
+<div class="hidden md:block p-6">
+  <ListPageTemplate
+    dataCoach="suppliers-main"
+    bind:search
+    bind:view
+    searchPlaceholder={$t('sup.searchPlaceholder')}
+    period={data.period}
+    {periodPills}
+    viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
+    kpis={[
+      { key: 'count',     label: $t('dsup.activeSuppliers'), value: data.suppliers.length, sub: $t('dsup.inTotal') },
+      { key: 'spend',     label: $t('spend.totalSpend'),     value: fmtEur(totalSpend),     sub: $t('dash.category.sub') },
+      { key: 'invoices',  label: $t('nav.invoices'),         value: totalMonthInvoices,     sub: $t('dash.category.sub') },
+      { key: 'unassigned',label: $t('dsup.unassigned'),      value: unassigned, sub: unassigned === 0 ? $t('dsup.allAssigned') : unassigned === 1 ? firstUnassigned : $ti('dsup.nSuppliers', { n: unassigned }), variant: unassigned > 0 ? 'warn' : 'default' },
+    ]}
+    trendTitle={$t('sup.trend.title')}
+    trendBadges={data.trendData.series.map(s => ({ key: s.key, label: s.label, color: s.color, active: activeTrendKeys.includes(s.key) }))}
+    onToggleTrendBadge={toggleTrendBadge}
+    trendXLabels={data.trendData.xLabels}
+    {trendSeries}
+    trendValueFormatter={fmtEur}
+    trendEmptyLabel={$t('tpl.trend.empty')}
+  >
+    {#snippet filters()}
+      <div style="position:relative;">
+        <select class="btn btn-secondary"
+          style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
+          bind:value={catFilter}>
+          <option value="">{$t('sup.filterAllCategories')}</option>
+          {#each data.categories as cat}
+            <option value={cat}>{$tcat(cat)}</option>
+          {/each}
+        </select>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+      </div>
+      <button class="btn btn-secondary max-[1050px]:hidden"
+        style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;white-space:nowrap;flex-shrink:0;" disabled>
+        {$t('dsup.activityFilter')} <span style="font-size:10px;margin-left:2px;">▾</span>
+      </button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-secondary"
+        style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
+        <Plus size={13} /> {$t('dsup.addSupplier')}
+      </button>
+    {/snippet}
+
+    {#snippet table()}
+      {#if !filtered.length}
+        <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+          {#if search || catFilter}
+            <p class="body" style="color:var(--mep-fg-3);">{$t('sup.noResults')}</p>
+          {:else}
+            <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
+            <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.emptyTitle')}</p>
+            <p class="body" style="color:var(--mep-fg-3);max-width:320px;">{$t('sup.emptyDesc')}</p>
+            <a href="/" class="btn btn-primary" style="height:34px;font-size:13px;text-decoration:none;margin-top:8px;">{$t('action.upload')}</a>
+          {/if}
+        </div>
+      {:else}
+        <div style="overflow-x:auto;">
+          <table class="tbl" style="table-layout:fixed;">
+            <thead>
+              <tr>
+                <th style="width:28%;">{$t('tbl.supplier')}</th>
+                <th style="width:100px;">{$t('sup.field.cif')}</th>
+                <th style="width:120px;">{$t('sup.field.category')}</th>
+                <th class="num" style="width:75px;">{$t('nav.invoices')}</th>
+                <th class="num" style="width:115px;">{$t('tbl.spendMonth')}</th>
+                <th style="width:90px;">{$t('tbl.trend')}</th>
+                <th class="num" style="width:65px;">Δ</th>
+                <th style="width:100px;">{$t('tbl.lastOrder')}</th>
+                <th style="width:32px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each filtered as s (s.id)}
+                <tr class="row" onclick={() => location.replace(`/suppliers/${s.id}`)} style="cursor:pointer;">
+                  <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                      <span style="
+                        width:28px;height:28px;border-radius:14px;flex-shrink:0;
+                        background:{s.color}24;color:{s.color};
+                        display:inline-flex;align-items:center;justify-content:center;
+                        font-size:11px;font-weight:600;
+                      ">{initials(s.name)}</span>
+                      <span style="font-size:13px;font-weight:500;color:var(--mep-fg);
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</span>
+                      {#if isNew(s.createdAt)}
+                        <span style="
+                          flex-shrink:0;font-size:9px;font-weight:700;
+                          background:var(--mep-acc-soft);color:var(--mep-acc);
+                          padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
+                        ">{$t('dsup.newBadge')}</span>
+                      {/if}
+                    </div>
+                  </td>
+                  <td style="font-size:12px;color:var(--mep-fg-3);">{s.cif ?? '—'}</td>
+                  <td>
+                    <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
+                      color:{s.category === 'Other' ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
+                      font-style:{s.category === 'Other' ? 'italic' : 'normal'};">
+                      <span class="swatch" style="background:{s.color};"></span>
+                      {$tcat(s.category)}
+                    </span>
+                  </td>
+                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>
+                  <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0)}</td>
+                  <td style="padding:0 8px;">
+                    {#if s.price_trend && s.price_trend.length >= 3}
+                      <Sparkline values={s.price_trend} width={80} height={24} />
+                    {:else}
+                      <span style="font-size:11.5px;color:var(--mep-fg-3);">—</span>
+                    {/if}
+                  </td>
+                  <td class="num">
+                    {#if s.delta_pct === null || Math.abs(s.delta_pct) < 0.1}
+                      <span style="font-size:11.5px;color:var(--mep-fg-3);">—</span>
+                    {:else}
+                      <span style="font-size:12px;font-weight:500;color:{deltaColor(s.delta_pct)};
+                        display:inline-flex;align-items:center;gap:2px;">
+                        <span style="font-size:11px;">{deltaArrow(s.delta_pct)}</span>
+                        {Math.abs(s.delta_pct).toFixed(1).replace('.', ',')}%
+                      </span>
+                    {/if}
+                  </td>
+                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDateShort(s.last_invoice_date, $locale)}</td>
+                  <td style="text-align:right;">
+                    <ChevronRight size={13} style="color:var(--mep-fg-3);" />
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    {/snippet}
+  </ListPageTemplate>
 </div>

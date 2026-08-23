@@ -10,6 +10,7 @@ import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/s
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
+import { periodToDate } from '$lib/constants';
 
 const PAGE_SIZE = 50;
 
@@ -37,6 +38,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const uploadedTo   = url.searchParams.get('uploaded_to') ?? '';
 		const sortParam    = url.searchParams.get('sort') ?? '';
 		const sort: SortKey = isSortKey(sortParam) ? sortParam : 'uploaded_desc';
+		const period = url.searchParams.get('period') ?? '30d';
+		const periodStartStr = periodToDate(period).toISOString().slice(0, 10);
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 		const offset     = (page - 1) * PAGE_SIZE;
 
@@ -48,7 +51,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
 		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
 
-		const [invoiceRows, statsRow, supplierCountRow, supplierRows, countRow] = await Promise.all([
+		const [invoiceRows, statsRow, trendRows, supplierCountRow, supplierRows, countRow] = await Promise.all([
 			db.select({
 				id:             invoices.id,
 				supplier_name:  suppliers.name,
@@ -77,7 +80,21 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))),
+				.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.invoiceDate, periodStartStr)))),
+
+			db.execute<{ month: string; paid: string; pending: string; overdue: string }>(sql`
+				SELECT
+					TO_CHAR(DATE_TRUNC('month', invoice_date), 'YYYY-MM') AS month,
+					COALESCE(SUM(CASE WHEN status='paid' THEN total_amount::numeric ELSE 0 END),0) AS paid,
+					COALESCE(SUM(CASE WHEN status='pending' AND (due_date IS NULL OR due_date >= CURRENT_DATE) THEN total_amount::numeric ELSE 0 END),0) AS pending,
+					COALESCE(SUM(CASE WHEN status='pending' AND due_date IS NOT NULL AND due_date < CURRENT_DATE THEN total_amount::numeric ELSE 0 END),0) AS overdue
+				FROM invoices
+				WHERE restaurant_id = ${rid}
+				  AND deleted_at IS NULL
+				  AND invoice_date >= (NOW() - INTERVAL '6 months')::date
+				GROUP BY DATE_TRUNC('month', invoice_date)
+				ORDER BY DATE_TRUNC('month', invoice_date) ASC
+			`),
 
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(suppliers)
@@ -140,11 +157,23 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
+		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+		const trendData = {
+			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1], 10) - 1)] ?? r.month),
+			series: [
+				{ key: 'paid',    labelKey: 'inv.kpi.paid',    color: 'var(--mep-series-1)', values: trendRows.map(r => Number(r.paid))    },
+				{ key: 'pending', labelKey: 'inv.kpi.pending',  color: 'var(--mep-series-2)', values: trendRows.map(r => Number(r.pending)) },
+				{ key: 'overdue', labelKey: 'inv.kpi.overdue',  color: 'var(--mep-series-3)', values: trendRows.map(r => Number(r.overdue)) },
+			],
+		};
+
 		return {
 			title: 'inv.title',
 			invoices: invoiceList,
 			stats: { ...stats, supplier_count: supplierCountRow[0]?.cnt ?? 0 },
 			suppliers: supplierRows,
+			period,
+			trendData,
 			filters: {
 				status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo,
 				uploaded_from: uploadedFrom, uploaded_to: uploadedTo, sort,
