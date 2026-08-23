@@ -207,6 +207,7 @@ export const productAliases = pgTable('product_aliases', {
 	supplierId:   integer('supplier_id').references(() => suppliers.id, { onDelete: 'set null' }),
 	rawKey:       text('raw_key').notNull(),
 	rawText:      text('raw_text'),
+	supplierSku:  text('supplier_sku'),
 	source:       text('source').notNull().default('exact'),
 	confirmedAt:  timestamp('confirmed_at', { withTimezone: true }),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),

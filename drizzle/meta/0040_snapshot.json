@@ -1,5 +1,5 @@
 {
-  "id": "3c54161c-c3a9-4716-b37d-03e2039b022d",
+  "id": "ebe1950d-a14c-4c77-ae60-501fd6ee6796",
   "prevId": "953ca742-e99b-4e01-a1d8-edafd1da3a9b",
   "version": "7",
   "dialect": "postgresql",
@@ -2010,6 +2010,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "supplier_sku": {
+          "name": "supplier_sku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "source": {
           "name": "source",
           "type": "text",
@@ -2029,12 +2035,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": "now()"
-        },
-        "supplier_sku": {
-          "name": "supplier_sku",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -2901,12 +2901,6 @@
         "notes": {
           "name": "notes",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "outstanding_balance": {
-          "name": "outstanding_balance",
-          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": false
         }
