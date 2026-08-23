@@ -1427,7 +1427,7 @@ export const translations = {
     'prod.detail.aliases':           'Alias / descripciones de factura',
     'prod.detail.noAliases':         'Sin alias registrados.',
     'prod.detail.aliasText':         'Descripción original',
-    'prod.detail.aliasSku':          'Codi proveïdor',
+    'prod.detail.aliasSku':          'Código proveedor',
     'prod.detail.aliasSource':       'Origen',
     'prod.detail.priceHistory':      'Histórico de precios',
     'prod.detail.noPriceHistory':    'Sin historial de precios todavía.',
