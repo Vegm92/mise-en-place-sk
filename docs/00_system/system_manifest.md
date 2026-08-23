@@ -155,7 +155,6 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 - `tests/*.test.ts` (Vitest). DB-backed suites require a local Postgres
   (`DATABASE_TEST_URL`); they skip on non-local hosts.
-- Synthetic fixture generation (dev-only, not in the repo): `synth/` JS generator, `pnpm synth:generate`.
 - Coverage gate: v8 ≥80% lines on 7 core modules (vite.config.ts).
 - Location map: `docs/04_engineering/testing_strategy.md`.
 
