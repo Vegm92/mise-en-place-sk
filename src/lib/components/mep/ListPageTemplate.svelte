@@ -30,8 +30,8 @@
     dataCoach,
     search = $bindable(''),
     searchPlaceholder = '',
-    period,
-    periodPills,
+    period = '',
+    periodPills = [],
     kpis = [],
     view = $bindable<View>('list'),
     viewLabels,
@@ -42,14 +42,15 @@
     trendSeries = [],
     trendValueFormatter = (v: number) => String(v),
     trendEmptyLabel,
+    topBar,
     filters,
     table,
   }: {
     dataCoach?: string;
     search?: string;
     searchPlaceholder?: string;
-    period: string;
-    periodPills: Pill[];
+    period?: string;
+    periodPills?: Pill[];
     kpis?: KpiConfig[];
     view?: View;
     viewLabels: { list: string; chart: string };
@@ -60,6 +61,7 @@
     trendSeries?: TrendSeries[];
     trendValueFormatter?: (v: number) => string;
     trendEmptyLabel: string;
+    topBar?: Snippet;
     filters?: Snippet;
     table: Snippet;
   } = $props();
@@ -67,13 +69,17 @@
 
 <div class="flex flex-col gap-4" data-coach={dataCoach}>
 
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-    <div class="search-field">
-      <span class="search-icon"><Search size={14} /></span>
-      <input class="input" placeholder={searchPlaceholder} bind:value={search} />
+  {#if topBar}
+    {@render topBar()}
+  {:else}
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div class="search-field">
+        <span class="search-icon"><Search size={14} /></span>
+        <input class="input" placeholder={searchPlaceholder} bind:value={search} />
+      </div>
+      <PeriodPills active={period} pills={periodPills} />
     </div>
-    <PeriodPills active={period} pills={periodPills} />
-  </div>
+  {/if}
 
   {#if kpis.length}
     <div class="grid gap-3 flex-shrink-0" style="grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));">

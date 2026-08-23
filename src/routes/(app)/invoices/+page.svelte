@@ -1,13 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { page } from '$app/stores';
   import { fmt, fmtDateShort, fmtEur } from '$lib/formatters';
   import { t, ti, tp, locale } from '$lib/i18n';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
-  import { PERIOD_PILLS } from '$lib/constants';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -49,24 +47,9 @@
     serverFilters.uploaded_from || serverFilters.uploaded_to || (serverFilters.sort && serverFilters.sort !== 'uploaded_desc')
   ));
 
-  let search = $state('');
   let view = $state<'list' | 'chart'>('list');
-
-  const filteredInvoices = $derived(
-    search.trim()
-      ? invoices.filter(inv =>
-          (inv.supplier_name?.toLowerCase() ?? '').includes(search.trim().toLowerCase()) ||
-          (inv.invoice_number?.toLowerCase() ?? '').includes(search.trim().toLowerCase())
-        )
-      : invoices
-  );
-
-  const periodPills = $derived(PERIOD_PILLS.map(p => {
-    const params = new URLSearchParams($page.url.searchParams);
-    params.set('period', p.value);
-    params.delete('page');
-    return { value: p.value, label: $t(p.labelKey), href: `/invoices?${params.toString()}` };
-  }));
+  let filterForm: HTMLFormElement;
+  function autoSubmit() { filterForm.requestSubmit(); }
 
   let activeTrendKeys = $state(['paid', 'pending', 'overdue']);
   function toggleTrendBadge(key: string) {
@@ -194,11 +177,7 @@
 
   <ListPageTemplate
     dataCoach="invoices-main"
-    bind:search
     bind:view
-    searchPlaceholder={$t('inv.filter.supplier')}
-    period={data.period}
-    {periodPills}
     viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
     kpis={[
       { key: 'pending',   label: $t('inv.kpi.pending'),   value: Math.round(stats.pending_amount) + ' €', sub: $tp('misc.invoice', stats.pending_count), variant: stats.pending_count > 0 ? 'warn' : 'default' },
@@ -214,13 +193,14 @@
     trendValueFormatter={fmtEur}
     trendEmptyLabel={$t('tpl.trend.empty')}
   >
-    {#snippet filters()}
-      <form method="get" action="/invoices"
-        class="flex flex-wrap items-end gap-2 max-[700px]:flex-col max-[700px]:items-stretch" style="flex:1;">
+    {#snippet topBar()}
+      <form method="get" action="/invoices" bind:this={filterForm}
+        class="flex flex-wrap items-end gap-3">
+        <input type="hidden" name="period" value={data.period} />
 
-        <div class="flex flex-col gap-1 min-w-[140px]">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="inv-supplier">{$t('inv.filter.supplier')}</label>
-          <select id="inv-supplier" name="supplier_id" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
+        <div class="flex flex-col gap-1">
+          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{$t('inv.filter.supplier')}</label>
+          <select id="inv-supplier" name="supplier_id" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:160px;" onchange={autoSubmit}>
             <option value="">{$t('inv.filter.all')}</option>
             {#each suppliers as s}
               <option value={s.id} selected={serverFilters.supplier_id === String(s.id)}>{s.name}</option>
@@ -228,9 +208,9 @@
           </select>
         </div>
 
-        <div class="flex flex-col gap-1 min-w-[110px]">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="inv-status">{$t('inv.filter.status')}</label>
-          <select id="inv-status" name="status" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
+        <div class="flex flex-col gap-1">
+          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{$t('inv.filter.status')}</label>
+          <select id="inv-status" name="status" class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit}>
             <option value="" selected={!serverFilters.status}>{$t('inv.filter.allStatus')}</option>
             <option value="pending"  selected={serverFilters.status === 'pending'}>{$t('status.pending')}</option>
             <option value="paid"     selected={serverFilters.status === 'paid'}>{$t('status.paid')}</option>
@@ -239,60 +219,57 @@
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="inv-from">{$t('inv.filter.from')}</label>
+          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{$t('inv.filter.from')}</label>
           <input id="inv-from" type="date" name="date_from" value={serverFilters.date_from}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="inv-to">{$t('inv.filter.to')}</label>
+          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{$t('inv.filter.to')}</label>
           <input id="inv-to" type="date" name="date_to" value={serverFilters.date_to}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
+          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
           <input id="inv-uploaded-from" type="date" name="uploaded_from" value={serverFilters.uploaded_from}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
         </div>
 
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
+          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
           <input id="inv-uploaded-to" type="date" name="uploaded_to" value={serverFilters.uploaded_to}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
         </div>
 
-        <div class="flex flex-col gap-1 min-w-[170px]">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="inv-sort">{$t('inv.filter.sort')}</label>
-          <select id="inv-sort" name="sort" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
-            <option value="uploaded_desc"     selected={serverFilters.sort === 'uploaded_desc'}>{$t('inv.filter.sort.uploadedDesc')}</option>
+        <div class="flex flex-col gap-1">
+          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{$t('inv.filter.sort')}</label>
+          <select id="inv-sort" name="sort" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:185px;" onchange={autoSubmit}>
+            <option value="uploaded_desc"     selected={!serverFilters.sort || serverFilters.sort === 'uploaded_desc'}>{$t('inv.filter.sort.uploadedDesc')}</option>
             <option value="uploaded_asc"      selected={serverFilters.sort === 'uploaded_asc'}>{$t('inv.filter.sort.uploadedAsc')}</option>
             <option value="invoice_date_desc" selected={serverFilters.sort === 'invoice_date_desc'}>{$t('inv.filter.sort.invoiceDateDesc')}</option>
             <option value="invoice_date_asc"  selected={serverFilters.sort === 'invoice_date_asc'}>{$t('inv.filter.sort.invoiceDateAsc')}</option>
           </select>
         </div>
 
-        <input type="hidden" name="period" value={data.period} />
-
-        <div class="flex items-end gap-2">
-          <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">
-            {$t('inv.filter.apply')}
-          </button>
-          {#if hasFilters}
-            <a href="/invoices" class="btn btn-ghost" style="height:32px;font-size:12.5px;text-decoration:none;">
-              {$t('inv.filter.clear')}
-            </a>
-          {/if}
-        </div>
+        {#if hasFilters}
+          <div class="flex flex-col gap-1" style="justify-content:flex-end;">
+            <a href="/invoices" class="btn btn-ghost" style="height:32px;font-size:12.5px;text-decoration:none;">{$t('inv.filter.clear')}</a>
+          </div>
+        {/if}
       </form>
-      <a href="/invoices/export" class="btn btn-ghost" style="height:32px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;align-self:flex-end;">
+    {/snippet}
+
+    {#snippet filters()}
+      <div style="flex:1;"></div>
+      <a href="/invoices/export" class="btn btn-ghost" style="height:32px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
         <FileDown size={13} />
         {$t('inv.export')}
       </a>
     {/snippet}
 
     {#snippet table()}
-      {#if filteredInvoices.length === 0}
+      {#if invoices.length === 0}
         <p class="body text-center py-16">{$t('inv.noInvoices')}</p>
       {:else}
         <form id="bulk-paid-form" method="post" action="?/bulkPaid" class="hidden">
@@ -329,7 +306,7 @@
         </div>
 
         <div class="grid gap-3 p-4 xl:grid-cols-2">
-        {#each filteredInvoices as inv (inv.id)}
+        {#each invoices as inv (inv.id)}
           {@const noteVal = getNoteText(inv.id, inv.notes)}
           {@const expanded = openIds.has(inv.id)}
 
