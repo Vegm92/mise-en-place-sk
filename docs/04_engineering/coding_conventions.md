@@ -154,7 +154,7 @@ These comments were deliberately left in the code because a tool reads them.
 
 **`const UNCATEGORIZED_CATEGORY`**
 
-- Canonical category taxonomy — single source of truth for the whole app. Suppliers (`suppliers.category`) and budgets (`category_budgets.category`) MUST store one of these exact strings; the synth seed generators and a guard test (tests/category-taxonomy.test.ts) enforce this — do not diverge.
+- Canonical category taxonomy — single source of truth for the whole app. Suppliers (`suppliers.category`) and budgets (`category_budgets.category`) MUST store one of these exact strings; a guard test (tests/category-taxonomy.test.ts) enforces this — do not diverge.
 - Bucket for suppliers nobody has categorised (issue #301). Stored, not fabricated per query: `getOrCreateSupplierId` writes it on creation, the budget check and analytics coalesce legacy NULLs into it, and the UI renders it as "Sin categoría" / "Uncategorised" rather than as a literal category.
 
 **`const MIN_CATEGORY_CONFIDENCE`**

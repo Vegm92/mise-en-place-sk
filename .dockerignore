@@ -7,6 +7,5 @@ build
 .env.*
 !.env.example
 uploads
-synth
 graphify-out
 *.md

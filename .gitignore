@@ -73,10 +73,3 @@ DEPLOYMENT.md
 !/docs/onboarding/**
 # Architecture decision records live in /doc (not ignored) â€” see doc/README.md
 /mise-en-place
-
-
-
-# Synthetic invoice generator (JS port) â€” sources tracked, they feed the
-# category-taxonomy guard and the synth:* npm scripts. Local output is not.
-/synth/node_modules/
-/synth/output/

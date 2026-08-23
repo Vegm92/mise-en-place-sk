@@ -211,7 +211,6 @@ export const productAliases = pgTable('product_aliases', {
 	source:       text('source').notNull().default('exact'),
 	confirmedAt:  timestamp('confirmed_at', { withTimezone: true }),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
-	supplierSku:  text('supplier_sku'),
 }, (t) => [
 	uniqueIndex('product_aliases_restaurant_raw_key_unique').on(t.restaurantId, t.rawKey),
 	index('product_aliases_product_idx').on(t.restaurantId, t.productId),
