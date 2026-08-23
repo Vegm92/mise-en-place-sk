@@ -265,6 +265,7 @@ interface LineInput {
 	category?: string | null;
 	unitsPerPack?: number | null;
 	baseUnit?: string | null;
+	supplierSku?: string | null;
 }
 
 export async function resolveLineProducts(
@@ -277,7 +278,7 @@ export async function resolveLineProducts(
 
 	const byKey = new Map<string, {
 		raw: string; key: string; unit: string | null; category: string | null;
-		unitsPerPack: number | null; baseUnit: string | null;
+		unitsPerPack: number | null; baseUnit: string | null; supplierSku: string | null;
 	}>();
 	for (const line of lines) {
 		const raw = (line.description ?? '').trim();
@@ -291,13 +292,14 @@ export async function resolveLineProducts(
 				category: line.category ?? null,
 				unitsPerPack: line.unitsPerPack ?? null,
 				baseUnit: line.baseUnit ?? null,
+				supplierSku: line.supplierSku ?? null,
 			});
 		}
 	}
 	if (byKey.size === 0) return out;
 
-	for (const { raw, key, unit, category, unitsPerPack, baseUnit } of byKey.values()) {
-		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category, unitsPerPack, baseUnit);
+	for (const { raw, key, unit, category, unitsPerPack, baseUnit, supplierSku } of byKey.values()) {
+		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category, unitsPerPack, baseUnit, supplierSku);
 		for (const line of lines) {
 			if (normalizeProductKey((line.description ?? '').trim()) === key) {
 				out.set(line.description ?? '', resolved);
@@ -317,7 +319,19 @@ async function resolveOne(
 	category: string | null,
 	unitsPerPack: number | null,
 	baseUnit: string | null,
+	supplierSku: string | null = null,
 ): Promise<ResolvedLine> {
+	if (supplierSku && supplierId != null) {
+		const skuRows = await tx.execute<{ product_id: number }>(sql`
+			SELECT product_id FROM product_aliases
+			WHERE restaurant_id = ${restaurantId} AND supplier_id = ${supplierId} AND supplier_sku = ${supplierSku}
+			LIMIT 1
+		`);
+		if (skuRows.length > 0) {
+			return { productId: skuRows[0].product_id, status: 'exact' };
+		}
+	}
+
 	const aliasRows = await tx.execute<{ product_id: number }>(sql`
 		SELECT product_id FROM product_aliases
 		WHERE restaurant_id = ${restaurantId} AND raw_key = ${key}
@@ -340,7 +354,7 @@ async function resolveOne(
 	`);
 	if (fuzzyRows.length > 0) {
 		const candidate = fuzzyRows[0];
-		await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null);
+		await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null, supplierSku);
 		return {
 			productId: candidate.id,
 			status: 'fuzzy',
@@ -355,7 +369,7 @@ async function resolveOne(
 		RETURNING id
 	`);
 	const productId = productRows[0].id;
-	await insertAlias(tx, restaurantId, productId, supplierId, key, raw, 'exact', 'now()');
+	await insertAlias(tx, restaurantId, productId, supplierId, key, raw, 'exact', 'now()', supplierSku);
 	return { productId, status: 'created' };
 }
 
@@ -368,11 +382,12 @@ async function insertAlias(
 	rawText: string,
 	source: 'exact' | 'fuzzy',
 	confirmedAt: 'now()' | null,
+	supplierSku: string | null = null,
 ): Promise<void> {
 	const confirmedExpr = confirmedAt === 'now()' ? sql`now()` : sql`NULL`;
 	await tx.execute(sql`
-		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, source, confirmed_at)
-		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${rawKey}, ${rawText}, ${source}, ${confirmedExpr})
+		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, supplier_sku, source, confirmed_at)
+		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${rawKey}, ${rawText}, ${supplierSku}, ${source}, ${confirmedExpr})
 		ON CONFLICT (restaurant_id, raw_key) DO NOTHING
 	`);
 }
