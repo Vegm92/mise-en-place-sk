@@ -281,6 +281,13 @@
       "when": 1787000008399,
       "tag": "0039_invoice_dates_typed",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1787493928065,
+      "tag": "0040_sudden_lightspeed",
+      "breakpoints": true
     }
   ]
 }
