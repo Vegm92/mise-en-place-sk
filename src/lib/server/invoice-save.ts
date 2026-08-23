@@ -501,6 +501,11 @@ export async function saveReviewedInvoice(
 
 		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
 
+		const outstandingBalance = typeof extracted?.outstanding_balance === 'number' ? String(extracted.outstanding_balance) : null;
+		if (outstandingBalance !== null) {
+			await tx.update(suppliers).set({ outstandingBalance }).where(eq(suppliers.id, supplierId));
+		}
+
 		if (invoiceNumber.trim()) {
 			const dup = await tx
 				.select({ id: invoices.id })
