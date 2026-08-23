@@ -215,16 +215,8 @@
     trendEmptyLabel={$t('tpl.trend.empty')}
   >
     {#snippet filters()}
-      <div style="flex:1;"></div>
-      <a href="/invoices/export" class="btn btn-ghost" style="height:32px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
-        <FileDown size={13} />
-        {$t('inv.export')}
-      </a>
-    {/snippet}
-
-    {#snippet table()}
       <form method="get" action="/invoices"
-        class="flex flex-wrap items-end gap-2 px-4 py-3 border-b border-divider max-[700px]:flex-col max-[700px]:items-stretch">
+        class="flex flex-wrap items-end gap-2 max-[700px]:flex-col max-[700px]:items-stretch" style="flex:1;">
 
         <div class="flex flex-col gap-1 min-w-[140px]">
           <label class="label text-fg-3" style="font-size:10.5px;" for="inv-supplier">{$t('inv.filter.supplier')}</label>
@@ -293,7 +285,13 @@
           {/if}
         </div>
       </form>
+      <a href="/invoices/export" class="btn btn-ghost" style="height:32px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;align-self:flex-end;">
+        <FileDown size={13} />
+        {$t('inv.export')}
+      </a>
+    {/snippet}
 
+    {#snippet table()}
       {#if filteredInvoices.length === 0}
         <p class="body text-center py-16">{$t('inv.noInvoices')}</p>
       {:else}
