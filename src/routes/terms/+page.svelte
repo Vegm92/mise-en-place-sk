@@ -36,10 +36,10 @@
       h5:         '5. Propiedad intelectual',
       p5:         'Todo el software, diseño y marca son propiedad de Mise en Place SL. Tus datos (albaranes, proveedores, etc.) son y permanecen de tu propiedad; nos otorgas una licencia para procesarlos únicamente con el fin de prestar el Servicio.',
 
-      h6:         '6. Facturación y pagos',
+      h6:         '6. Pagos y suscripción',
       d6a:        'El Servicio se ofrece con un periodo de prueba gratuito de 30 días.',
-      d6b:        'Los planes de pago se facturan mensualmente mediante Stripe.',
-      d6c:        'Las cancelaciones surten efecto al final del período de facturación en curso.',
+      d6b:        'Los planes de pago se cobran mensualmente mediante Stripe.',
+      d6c:        'Las cancelaciones surten efecto al final del período de pago en curso.',
       d6d:        'No se realizan reembolsos parciales por períodos no utilizados, salvo exigencia legal.',
 
       h7:         '7. Disponibilidad y SLA',
