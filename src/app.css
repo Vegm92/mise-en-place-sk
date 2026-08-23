@@ -295,6 +295,7 @@
   .input::placeholder { color: var(--mep-fg-4); }
   .input:focus { border-color: var(--mep-acc); box-shadow: 0 0 0 3px var(--mep-acc-ring); }
   .input option { background: var(--mep-surface); color: var(--mep-fg); }
+  select option  { background: var(--mep-surface); color: var(--mep-fg); }
 
   /* Table */
   .tbl {
