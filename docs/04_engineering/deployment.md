@@ -100,14 +100,7 @@ pnpm db:generate     # generate a migration from schema.ts changes — commit it
 pnpm db:push         # push schema.ts → the DB directly — local dev convenience only, never staging/prod
 pnpm db:check-sync   # CI check: fails if schema.ts changed without a committed migration
 pnpm db:studio       # open Drizzle Studio browser UI
-pnpm db:seed-demo    # seed demo account (demo@mise-en-place.app) with 55 invoices (idempotent)
 ```
-
-`pnpm db:seed-demo` renders a real PDF per seeded invoice through the synth
-engine + Puppeteer (see `testing_strategy.md` → Test fixtures (synth)) and
-stores it via `saveDemoFile()` (honors `STORAGE_DRIVER`), so demo invoices
-carry a genuine `source_file`. Demo user, restaurant and supplier setup is
-idempotent — it is skipped when the demo account already exists.
 
 ## Code notes
 
