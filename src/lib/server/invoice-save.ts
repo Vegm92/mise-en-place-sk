@@ -230,7 +230,7 @@ export async function enrichLineItems(
 				sizeUnit: pack?.sizeUnit ?? null,
 				baseUnit: pack?.baseUnit ?? null,
 				normalizedUnitPrice: toMoneyString(normalizedUnitPrice(li.unitPriceFloat, pack)),
-			supplierSku: li.supplierSku,
+				supplierSku: li.supplierSku,
 			},
 			item: {
 				description: li.desc,
@@ -252,7 +252,7 @@ export async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
-	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null }>,
+	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null; supplierSku: string | null }>,
 ): Promise<Map<string, number>> {
 	const productByKey = new Map<string, number>();
 	try {
@@ -271,6 +271,7 @@ export async function linkProductsToInvoice(
 				category,
 				unitsPerPack: li.pack?.unitsPerPack ?? null,
 				baseUnit: li.pack?.baseUnit ?? null,
+				supplierSku: li.supplierSku,
 			})),
 		);
 
