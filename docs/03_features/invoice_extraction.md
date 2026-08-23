@@ -125,7 +125,6 @@ Quota, access, classification, JSON shape, error classification.
 
 - Extraction failure classes are countable from `dead_letter_queue` +
   `/admin/dead-letters`; `llm_usage_log` tracks cost.
-- Synthetic fixtures for regression testing: `pnpm synth:generate` (local, dev-only).
 
 ## Acceptance criteria
 

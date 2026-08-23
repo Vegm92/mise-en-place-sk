@@ -12,8 +12,6 @@
 import { describe, it, expect } from 'vitest';
 import { VALID_CATEGORIES, CATEGORY_COLORS, categorySlug } from '../src/lib/constants';
 import { translations } from '../src/lib/i18n';
-import { SUPPLIER_CATEGORIES } from '../synth/js/data/commodities.mjs';
-import { DEFAULT_BUDGETS } from '../synth/js/data/budget-defaults.mjs';
 
 const canonical = new Set(VALID_CATEGORIES);
 
@@ -34,17 +32,6 @@ describe('category taxonomy', () => {
 		}
 	});
 
-	it('every seeded supplier category is canonical', () => {
-		for (const cat of SUPPLIER_CATEGORIES) {
-			expect(canonical.has(cat), `supplier category "${cat}" not in VALID_CATEGORIES`).toBe(true);
-		}
-	});
-
-	it('every seeded budget category is canonical', () => {
-		for (const [cat] of DEFAULT_BUDGETS) {
-			expect(canonical.has(cat), `budget category "${cat}" not in VALID_CATEGORIES`).toBe(true);
-		}
-	});
 });
 
 describe('category display labels (issue #338)', () => {
