@@ -60,8 +60,6 @@ function createGeminiProvider(): LLMProvider {
 }
 
 export function createLLMProvider(name: string = LLM_PROVIDER): LLMProvider {
-	switch (name) {
-		case 'gemini': return createGeminiProvider();
-		default: throw new Error(`Unknown LLM_PROVIDER: "${name}". Supported: gemini`);
-	}
+	if (name === 'gemini') return createGeminiProvider();
+	throw new Error(`Unknown LLM_PROVIDER: "${name}". Supported: gemini`);
 }

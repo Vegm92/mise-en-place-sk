@@ -406,6 +406,326 @@ export async function linkProductsToInvoice(
 	return productByKey;
 }
 
+function resolveProposedSupplierInfo(
+	item: BatchItem | null,
+	supplierName: string,
+): { proposedCategory: ReturnType<typeof resolveSupplierCategory>; proposedContact: SupplierContactInfo } {
+	const extracted = item?.extractedData as ExtractedInvoice | undefined;
+	const sameSupplier =
+		typeof extracted?.supplier_name === 'string' &&
+		isSameSupplierName(extracted.supplier_name, supplierName);
+	const proposedCategory = sameSupplier
+		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
+		: UNCATEGORIZED_CATEGORY;
+	const proposedContact: SupplierContactInfo = sameSupplier
+		? {
+			cif: extracted?.supplier_nif ?? null,
+			email: extracted?.supplier_email ?? null,
+			phone: extracted?.supplier_phone ?? null,
+			address: extracted?.supplier_address ?? null,
+		}
+		: {};
+	return { proposedCategory, proposedContact };
+}
+
+function isLowConfidenceBlocked(item: BatchItem | null, formData: FormData): boolean {
+	const lowConfAck = formData.get('low_confidence_ack') === 'true';
+	if (lowConfAck) return false;
+	const extractedData = item?.extractedData ?? undefined;
+	const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
+	const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
+	const hasLowConf = HEADER_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
+	const overallConf = typeof extractedData?.confidence === 'number' ? extractedData.confidence : 1;
+	return hasLowConf || overallConf < 0.85;
+}
+
+async function resolveExistingSupplierId(
+	rid: string,
+	supplierName: string,
+	proposedContact: SupplierContactInfo,
+	newSupplierAck: boolean,
+): Promise<{ existingSupplierId: number | null; blocked?: undefined } | { blocked: true; supplierName: string }> {
+	if (!supplierName.trim()) return { existingSupplierId: null };
+	const existingSupplier = await findSupplierMatch(rid, supplierName, proposedContact.cif);
+	if (!existingSupplier && !newSupplierAck) {
+		return { blocked: true, supplierName: supplierName.trim() };
+	}
+	return { existingSupplierId: existingSupplier?.id ?? null };
+}
+
+async function checkContentDuplicate(tdb: ReturnType<typeof forTenant>, contentHash: ReturnType<typeof computeFormContentHash>): Promise<number | null> {
+	const hashMatch = await db
+		.select({ id: invoices.id })
+		.from(invoices)
+		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
+		.limit(1);
+	return hashMatch[0]?.id ?? null;
+}
+
+async function resolveMergeTarget(
+	rid: string,
+	documentType: 'factura' | 'albaran' | null,
+	existingSupplierId: number | null,
+	invoiceDate: ReturnType<typeof toIsoDate>,
+	formData: FormData,
+): Promise<{ mergeTargetId: number | null; candidate?: undefined } | { candidate: PendingAlbaranCandidate }> {
+	const mergeAck = formData.get('merge_ack') === 'true';
+	const mergeRejected = formData.get('merge_rejected') === 'true';
+	if (documentType === 'factura' && existingSupplierId != null && invoiceDate) {
+		if (mergeAck) {
+			const requestedId = toFloat(formData.get('merge_candidate_id'));
+			if (requestedId != null && await isPendingAlbaran(rid, requestedId, existingSupplierId)) {
+				return { mergeTargetId: requestedId };
+			}
+		} else if (!mergeRejected) {
+			const candidate = await findPendingAlbaranCandidate(rid, existingSupplierId, invoiceDate);
+			if (candidate) return { candidate };
+		}
+	}
+	return { mergeTargetId: null };
+}
+
+function buildUnitConversionAlerts(
+	enrichedLines: Awaited<ReturnType<typeof enrichLineItems>>,
+	supplierName: string,
+): Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> {
+	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
+	for (const line of enrichedLines) {
+		const li = line.input;
+		if (line.requiresUnitConversion) {
+			unitConversionAlerts.push({
+				notificationType: 'unit_conversion_needed',
+				message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
+				payload: {
+					supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
+					messageKey: 'notif.msg.unitConversion',
+					messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
+				},
+			});
+		}
+	}
+	return unitConversionAlerts;
+}
+
+interface PersistInvoiceParams {
+	idemKey: string | null;
+	rid: string;
+	tdb: ReturnType<typeof forTenant>;
+	mergeTargetId: number | null;
+	existingSupplierId: number | null;
+	invoiceNumber: string;
+	totalAmount: ReturnType<typeof toMoneyString>;
+	taxBase: ReturnType<typeof toMoneyString>;
+	taxBreakdown: string | null;
+	contentHash: ReturnType<typeof computeFormContentHash>;
+	confidenceRaw: ReturnType<typeof toFloat>;
+	qrResult: ReturnType<typeof parseQrUrl> | null;
+	qrMismatches: ReturnType<typeof detectVerifactuMismatch>;
+	supplierName: string;
+	proposedCategory: ReturnType<typeof resolveSupplierCategory>;
+	proposedContact: SupplierContactInfo;
+	documentType: 'factura' | 'albaran' | null;
+	invoiceDate: ReturnType<typeof toIsoDate>;
+	dueDate: ReturnType<typeof toIsoDate>;
+	notes: string | null;
+	primaryFile: string | null;
+	enrichedLines: Awaited<ReturnType<typeof enrichLineItems>>;
+	onSaved?: (tx: BatchDb) => Promise<void>;
+}
+
+interface PersistInvoiceResult {
+	supplierId: number;
+	invoiceId: number | null;
+	isDuplicate: boolean;
+	isReplay: boolean;
+	wasMerged: boolean;
+	savedItems: EnrichedLineItem[];
+}
+
+async function persistInvoiceInTransaction(tx: BatchDb, p: PersistInvoiceParams): Promise<PersistInvoiceResult> {
+	let supplierId = 0;
+	let invoiceId: number | null = null;
+	let isDuplicate = false;
+	const wasMerged = p.mergeTargetId != null;
+	const savedItems: EnrichedLineItem[] = [];
+
+	if (p.idemKey && !(await claimRequest(p.idemKey, p.rid, tx))) {
+		return { supplierId, invoiceId, isDuplicate, isReplay: true, wasMerged, savedItems };
+	}
+
+	if (p.mergeTargetId != null) {
+		supplierId = p.existingSupplierId!;
+		invoiceId = p.mergeTargetId;
+
+		await tx.update(invoices)
+			.set({
+				documentType: 'factura',
+				invoiceNumber: p.invoiceNumber || null,
+				totalAmount: p.totalAmount,
+				taxBase: p.taxBase,
+				taxBreakdown: p.taxBreakdown,
+				contentHash: p.contentHash,
+				confidence: p.confidenceRaw,
+				qrUrl: p.qrResult?.url ?? null,
+				qrMismatch: p.qrMismatches.length > 0 ? 1 : 0,
+			})
+			.where(and(p.tdb.scope(invoices.restaurantId), eq(invoices.id, p.mergeTargetId)));
+
+		savedItems.push(...await mergeLinesIntoAlbaran(tx, p.rid, p.mergeTargetId, p.enrichedLines));
+	} else {
+		supplierId = await getOrCreateSupplierId(p.rid, p.supplierName, tx, p.proposedCategory, p.proposedContact);
+
+		if (p.invoiceNumber.trim()) {
+			const dup = await tx
+				.select({ id: invoices.id })
+				.from(invoices)
+				.where(and(p.tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, p.invoiceNumber.trim())))
+				.limit(1);
+			if (dup.length > 0) {
+				if (p.idemKey) await releaseRequest(p.idemKey, tx);
+				return { supplierId, invoiceId, isDuplicate: true, isReplay: false, wasMerged, savedItems };
+			}
+		}
+
+		const insertedInvoice = await tx
+			.insert(invoices)
+			.values({
+				restaurantId: p.rid,
+				supplierId,
+				invoiceNumber: p.invoiceNumber || null,
+				documentType: p.documentType,
+				invoiceDate: p.invoiceDate,
+				dueDate: p.dueDate,
+				totalAmount: p.totalAmount,
+				taxBase: p.taxBase,
+				taxBreakdown: p.taxBreakdown,
+				status: 'pending',
+				sourceFile: p.primaryFile,
+				confidence: p.confidenceRaw,
+				contentHash: p.contentHash,
+				notes: p.notes,
+				qrUrl: p.qrResult?.url ?? null,
+				qrMismatch: p.qrMismatches.length > 0 ? 1 : 0,
+			})
+			.onConflictDoNothing()
+			.returning({ id: invoices.id });
+
+		if (!insertedInvoice.length) {
+			if (p.idemKey) await releaseRequest(p.idemKey, tx);
+			return { supplierId, invoiceId, isDuplicate: true, isReplay: false, wasMerged, savedItems };
+		}
+		invoiceId = insertedInvoice[0].id;
+
+		for (const line of p.enrichedLines) {
+			await tx.insert(invoiceLineItems).values({
+				invoiceId: invoiceId!,
+				restaurantId: p.rid,
+				...line.columns,
+			});
+			savedItems.push(line.item);
+		}
+	}
+
+	if (p.onSaved) await p.onSaved(tx);
+
+	return { supplierId, invoiceId, isDuplicate, isReplay: false, wasMerged, savedItems };
+}
+
+interface PostSaveContext {
+	invoiceId: number;
+	supplierId: number;
+	rid: string;
+	userId: string | null;
+	supplierName: string;
+	lineInputs: ReturnType<typeof parseLineInputs>;
+	savedItems: EnrichedLineItem[];
+	proposedCategory: ReturnType<typeof resolveSupplierCategory>;
+	wasMerged: boolean;
+	documentType: 'factura' | 'albaran' | null;
+	invoiceDate: ReturnType<typeof toIsoDate>;
+	dueDate: ReturnType<typeof toIsoDate>;
+	totalAmount: ReturnType<typeof toMoneyString>;
+	confidenceRaw: ReturnType<typeof toFloat>;
+	qrMismatches: ReturnType<typeof detectVerifactuMismatch>;
+	invoiceNumber: string;
+	unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }>;
+	extractedData: Record<string, unknown> | undefined;
+	lineDescriptions: string[];
+	lineQuantities: string[];
+	lineUnits: string[];
+	lineUnitPrices: string[];
+	lineTotalPrices: string[];
+	tdb: ReturnType<typeof forTenant>;
+}
+
+/** Best-effort alerting/bookkeeping after the invoice row is committed — failures here are logged, not thrown. */
+async function runPostSaveSideEffects(ctx: PostSaveContext): Promise<boolean> {
+	let isFirstInvoice = false;
+	try {
+		const productByKey = await linkProductsToInvoice(ctx.invoiceId, ctx.supplierId, ctx.rid, ctx.lineInputs);
+
+		const priceAlerts = await runPriceShock(ctx.invoiceId, ctx.supplierName, ctx.savedItems, ctx.rid, productByKey);
+		const { stockTracking } = await getTierFeatures(ctx.rid);
+		const stockAlerts = stockTracking ? await runStockForecast(ctx.savedItems, ctx.rid) : [];
+		const budgetAlerts = await runBudgetCheck(ctx.invoiceId, ctx.supplierId, ctx.rid);
+		const categoryAlerts = await runCategorizationNudge(ctx.invoiceId, ctx.supplierId, ctx.rid);
+		const categorySuggestions = await runCategorySuggestion(ctx.supplierId, ctx.rid, ctx.proposedCategory);
+		const duplicatePurchaseAlerts = ctx.wasMerged ? [] : await runPossibleDuplicatePurchase(
+			ctx.invoiceId, ctx.supplierId, ctx.supplierName, ctx.rid, ctx.documentType, ctx.invoiceDate, ctx.totalAmount,
+		);
+		const verifactuAlerts: Alert[] = ctx.qrMismatches.length > 0 ? [{
+			notificationType: 'verifactu_qr_mismatch',
+			message: `verifactu_qr_mismatch: ${ctx.qrMismatches.map((m) => m.field).join(', ')}`,
+			payload: {
+				invoiceNumber: ctx.invoiceNumber, mismatches: ctx.qrMismatches,
+				messageKey: 'notif.msg.verifactuMismatch',
+				messageVars: { fields: ctx.qrMismatches.map((m) => m.field).join(', ') },
+			},
+		}] : [];
+		await saveAlerts(ctx.invoiceId, ctx.rid, [
+			...ctx.unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
+			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
+		]);
+
+		trackEvent(ctx.wasMerged ? 'invoice_merged_into_albaran' : 'invoice_saved', ctx.rid, { confidence: ctx.confidenceRaw, line_count: ctx.lineInputs.length }, ctx.invoiceId);
+
+		void maybeSendQuotaWarning(ctx.rid);
+
+		// The corrections log compares against the OCR read of *this* document; on a
+		// merge, this document's data was folded into the pre-existing albaran, so
+		// there is nothing meaningful to diff it against here.
+		if (!ctx.wasMerged) {
+			await logExtractionCorrections(
+				ctx.invoiceId,
+				ctx.supplierId,
+				ctx.rid,
+				ctx.userId,
+				ctx.extractedData,
+				{ supplierName: ctx.supplierName, invoiceNumber: ctx.invoiceNumber, invoiceDate: ctx.invoiceDate, dueDate: ctx.dueDate, totalAmount: ctx.totalAmount },
+				{ lineDescriptions: ctx.lineDescriptions, lineQuantities: ctx.lineQuantities, lineUnits: ctx.lineUnits, lineUnitPrices: ctx.lineUnitPrices, lineTotalPrices: ctx.lineTotalPrices },
+			);
+		}
+
+		const onboardingRows = await db
+			.select({ value: settings.value })
+			.from(settings)
+			.where(ctx.tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
+			.limit(1);
+		isFirstInvoice = onboardingRows[0]?.value !== 'true';
+		if (isFirstInvoice) {
+			await db.insert(settings)
+				.values({ restaurantId: ctx.rid, key: 'has_completed_onboarding', value: 'true' })
+				.onConflictDoUpdate({
+					target: [settings.restaurantId, settings.key],
+					set: { value: 'true' },
+				});
+		}
+	} catch (err) {
+		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
+	}
+	return isFirstInvoice;
+}
+
 export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
@@ -429,43 +749,14 @@ export async function saveReviewedInvoice(
 	const notesRaw = (formData.get('notes') as string) ?? '';
 	const notes = notesRaw.slice(0, 250) || null;
 
-	const lowConfAck = formData.get('low_confidence_ack') === 'true';
-	if (!lowConfAck) {
-		const extractedData = item?.extractedData ?? undefined;
-		const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
-		const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
-		const hasLowConf = HEADER_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
-		const overallConf = typeof extractedData?.confidence === 'number' ? extractedData.confidence : 1;
-		if (hasLowConf || overallConf < 0.85) {
-			return { type: 'lowConfidenceBlocked' };
-		}
-	}
+	if (isLowConfidenceBlocked(item, formData)) return { type: 'lowConfidenceBlocked' };
 
-	const extracted = item?.extractedData as ExtractedInvoice | undefined;
-	const sameSupplier =
-		typeof extracted?.supplier_name === 'string' &&
-		isSameSupplierName(extracted.supplier_name, supplierName);
-	const proposedCategory = sameSupplier
-		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
-		: UNCATEGORIZED_CATEGORY;
-	const proposedContact: SupplierContactInfo = sameSupplier
-		? {
-			cif: extracted?.supplier_nif ?? null,
-			email: extracted?.supplier_email ?? null,
-			phone: extracted?.supplier_phone ?? null,
-			address: extracted?.supplier_address ?? null,
-		}
-		: {};
+	const { proposedCategory, proposedContact } = resolveProposedSupplierInfo(item, supplierName);
 
 	const newSupplierAck = formData.get('new_supplier_ack') === 'true';
-	let existingSupplierId: number | null = null;
-	if (supplierName.trim()) {
-		const existingSupplier = await findSupplierMatch(rid, supplierName, proposedContact.cif);
-		if (!existingSupplier && !newSupplierAck) {
-			return { type: 'newSupplierBlocked', supplierName: supplierName.trim() };
-		}
-		existingSupplierId = existingSupplier?.id ?? null;
-	}
+	const supplierResolution = await resolveExistingSupplierId(rid, supplierName, proposedContact, newSupplierAck);
+	if (supplierResolution.blocked) return { type: 'newSupplierBlocked', supplierName: supplierResolution.supplierName };
+	const existingSupplierId = supplierResolution.existingSupplierId;
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
@@ -478,15 +769,8 @@ export async function saveReviewedInvoice(
 		formData,
 	);
 
-	const hashMatch = await db
-		.select({ id: invoices.id })
-		.from(invoices)
-		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
-		.limit(1);
-
-	if (hashMatch.length > 0) {
-		return { type: 'contentDuplicate', duplicateId: hashMatch[0].id };
-	}
+	const duplicateId = await checkContentDuplicate(tdb, contentHash);
+	if (duplicateId != null) return { type: 'contentDuplicate', duplicateId };
 
 	const extractedData = item?.extractedData ?? undefined;
 	const taxBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
@@ -496,20 +780,9 @@ export async function saveReviewedInvoice(
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;
 
-	const mergeAck = formData.get('merge_ack') === 'true';
-	const mergeRejected = formData.get('merge_rejected') === 'true';
-	let mergeTargetId: number | null = null;
-	if (documentType === 'factura' && existingSupplierId != null && invoiceDate) {
-		if (mergeAck) {
-			const requestedId = toFloat(formData.get('merge_candidate_id'));
-			if (requestedId != null && await isPendingAlbaran(rid, requestedId, existingSupplierId)) {
-				mergeTargetId = requestedId;
-			}
-		} else if (!mergeRejected) {
-			const candidate = await findPendingAlbaranCandidate(rid, existingSupplierId, invoiceDate);
-			if (candidate) return { type: 'mergeCandidate', candidate };
-		}
-	}
+	const mergeResolution = await resolveMergeTarget(rid, documentType, existingSupplierId, invoiceDate, formData);
+	if (mergeResolution.candidate) return { type: 'mergeCandidate', candidate: mergeResolution.candidate };
+	const mergeTargetId = mergeResolution.mergeTargetId;
 
 	const rawQrUrl = typeof extractedData?.qr_url === 'string' ? extractedData.qr_url : null;
 	const qrResult = rawQrUrl ? parseQrUrl(rawQrUrl) : null;
@@ -522,113 +795,15 @@ export async function saveReviewedInvoice(
 	const lineInputs = parseLineInputs(formData);
 	const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
 
-	let supplierId = 0;
-	let invoiceId: number | null = null;
-	let isDuplicate = false;
-	let isReplay = false;
-	let wasMerged = false;
-	const savedItems: EnrichedLineItem[] = [];
-	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
+	const unitConversionAlerts = buildUnitConversionAlerts(enrichedLines, supplierName);
 
-	for (const line of enrichedLines) {
-		const li = line.input;
-		if (line.requiresUnitConversion) {
-			unitConversionAlerts.push({
-				notificationType: 'unit_conversion_needed',
-				message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
-				payload: {
-					supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
-					messageKey: 'notif.msg.unitConversion',
-					messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
-				},
-			});
-		}
-	}
-
-	await db.transaction(async (tx) => {
-		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
-			isReplay = true;
-			return;
-		}
-
-		if (mergeTargetId != null) {
-			supplierId = existingSupplierId!;
-			invoiceId = mergeTargetId;
-			wasMerged = true;
-
-			await tx.update(invoices)
-				.set({
-					documentType: 'factura',
-					invoiceNumber: invoiceNumber || null,
-					totalAmount,
-					taxBase,
-					taxBreakdown,
-					contentHash,
-					confidence: confidenceRaw,
-					qrUrl: qrResult?.url ?? null,
-					qrMismatch: qrMismatches.length > 0 ? 1 : 0,
-				})
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, mergeTargetId)));
-
-			savedItems.push(...await mergeLinesIntoAlbaran(tx, rid, mergeTargetId, enrichedLines));
-		} else {
-			supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
-
-			if (invoiceNumber.trim()) {
-				const dup = await tx
-					.select({ id: invoices.id })
-					.from(invoices)
-					.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
-					.limit(1);
-				if (dup.length > 0) {
-					isDuplicate = true;
-					if (idemKey) await releaseRequest(idemKey, tx);
-					return;
-				}
-			}
-
-			const insertedInvoice = await tx
-				.insert(invoices)
-				.values({
-					restaurantId: rid,
-					supplierId,
-					invoiceNumber: invoiceNumber || null,
-					documentType,
-					invoiceDate,
-					dueDate,
-					totalAmount,
-					taxBase,
-					taxBreakdown,
-					status: 'pending',
-					sourceFile: primaryFile,
-					confidence: confidenceRaw,
-					contentHash,
-					notes,
-					qrUrl: qrResult?.url ?? null,
-					qrMismatch: qrMismatches.length > 0 ? 1 : 0,
-				})
-				.onConflictDoNothing()
-				.returning({ id: invoices.id });
-
-			if (!insertedInvoice.length) {
-				isDuplicate = true;
-				if (idemKey) await releaseRequest(idemKey, tx);
-				return;
-			}
-			invoiceId = insertedInvoice[0].id;
-
-			for (const line of enrichedLines) {
-				await tx.insert(invoiceLineItems).values({
-					invoiceId: invoiceId!,
-					restaurantId: rid,
-					...line.columns,
-				});
-				savedItems.push(line.item);
-			}
-		}
-
-		if (onSaved) await onSaved(tx);
-	});
+	const { supplierId, invoiceId, isDuplicate, isReplay, wasMerged, savedItems } = await db.transaction((tx) =>
+		persistInvoiceInTransaction(tx, {
+			idemKey, rid, tdb, mergeTargetId, existingSupplierId, invoiceNumber, totalAmount, taxBase, taxBreakdown,
+			contentHash, confidenceRaw, qrResult, qrMismatches, supplierName, proposedCategory, proposedContact,
+			documentType, invoiceDate, dueDate, notes, primaryFile, enrichedLines, onSaved,
+		})
+	);
 
 	if (isReplay) return { type: 'replay' };
 
@@ -637,69 +812,11 @@ export async function saveReviewedInvoice(
 		return { type: 'numberDuplicate' };
 	}
 
-	let isFirstInvoice = false;
-	try {
-		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
-
-		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
-		const { stockTracking } = await getTierFeatures(rid);
-		const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
-		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
-		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
-		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
-		const duplicatePurchaseAlerts = wasMerged ? [] : await runPossibleDuplicatePurchase(
-			invoiceId!, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
-		);
-		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
-			notificationType: 'verifactu_qr_mismatch',
-			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
-			payload: {
-				invoiceNumber, mismatches: qrMismatches,
-				messageKey: 'notif.msg.verifactuMismatch',
-				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
-			},
-		}] : [];
-		await saveAlerts(invoiceId!, rid, [
-			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
-		]);
-
-		trackEvent(wasMerged ? 'invoice_merged_into_albaran' : 'invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
-
-		void maybeSendQuotaWarning(rid);
-
-		// The corrections log compares against the OCR read of *this* document; on a
-		// merge, this document's data was folded into the pre-existing albaran, so
-		// there is nothing meaningful to diff it against here.
-		if (!wasMerged) {
-			await logExtractionCorrections(
-				invoiceId!,
-				supplierId,
-				rid,
-				userId,
-				extractedData,
-				{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
-				{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
-			);
-		}
-
-		const onboardingRows = await db
-			.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
-			.limit(1);
-		isFirstInvoice = onboardingRows[0]?.value !== 'true';
-		if (isFirstInvoice) {
-			await db.insert(settings)
-				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
-				.onConflictDoUpdate({
-					target: [settings.restaurantId, settings.key],
-					set: { value: 'true' },
-				});
-		}
-	} catch (err) {
-		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
-	}
+	const isFirstInvoice = await runPostSaveSideEffects({
+		invoiceId: invoiceId!, supplierId, rid, userId, supplierName, lineInputs, savedItems, proposedCategory,
+		wasMerged, documentType, invoiceDate, dueDate, totalAmount, confidenceRaw, qrMismatches, invoiceNumber,
+		unitConversionAlerts, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, tdb,
+	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };
 }

@@ -29,6 +29,83 @@ function parseLocalDate(iso: string): Date {
 	return new Date(y, m - 1, d);
 }
 
+function buildItemCategoryMap(itemCategoryRows: { item_key: string; category: string; line_count: number }[]): Map<string, string> {
+	// Same key wins most lines; picks a single category per item even when a
+	// description was miscategorized on a handful of older lines.
+	const itemCategoryMap = new Map<string, string>();
+	const itemCategoryBest = new Map<string, number>();
+	for (const row of itemCategoryRows) {
+		const key = row.item_key;
+		const count = Number(row.line_count);
+		if (!itemCategoryBest.has(key) || count > itemCategoryBest.get(key)!) {
+			itemCategoryBest.set(key, count);
+			itemCategoryMap.set(key, row.category);
+		}
+	}
+	return itemCategoryMap;
+}
+
+function buildItemTrendMaps(itemTrendRows: { item_key: string; month: string; avg_price: string }[]) {
+	const itemTrendMap = new Map<string, number[]>();
+	const itemTrendPoints = new Map<string, { bucket: string; value: number }[]>();
+	for (const row of itemTrendRows) {
+		const key = String(row.item_key);
+		if (!itemTrendMap.has(key)) itemTrendMap.set(key, []);
+		itemTrendMap.get(key)!.push(moneyToNumber(row.avg_price));
+		if (!itemTrendPoints.has(key)) itemTrendPoints.set(key, []);
+		itemTrendPoints.get(key)!.push({ bucket: row.month, value: moneyToNumber(row.avg_price) });
+	}
+	return { itemTrendMap, itemTrendPoints };
+}
+
+function buildTypeBreakdown(typeSpend: { category: string | null; product_name: string; total: string }[]) {
+	// Bebida/Comida/Otros, con desglose: Tipo -> categoría de producto -> producto.
+	// Se agrupa desde el producto de cada línea (no del proveedor, que puede
+	// vender de todo) en un único árbol de 3 niveles, para que el clic en un
+	// nivel no necesite ir de nuevo al servidor.
+	const typeMap = new Map<string, Map<string, Map<string, number>>>();
+	for (const row of typeSpend) {
+		const amount = moneyToNumber(row.total);
+		const type = categoryToType(row.category) ?? 'Otros';
+		const category = row.category ?? 'Other';
+		if (!typeMap.has(type)) typeMap.set(type, new Map());
+		const catMap = typeMap.get(type)!;
+		if (!catMap.has(category)) catMap.set(category, new Map());
+		const prodMap = catMap.get(category)!;
+		prodMap.set(row.product_name, (prodMap.get(row.product_name) ?? 0) + amount);
+	}
+	let breakdownGrandTotal = 0;
+	for (const catMap of typeMap.values()) for (const prodMap of catMap.values()) for (const t of prodMap.values()) breakdownGrandTotal += t;
+	const breakdownTotalForPct = breakdownGrandTotal || 1;
+	return [...typeMap.entries()]
+		.map(([type, catMap]) => {
+			const categories = [...catMap.entries()]
+				.map(([category, prodMap]) => {
+					const products = [...prodMap.entries()]
+						.map(([name, total]) => ({ name, total, pct: Math.round((total / breakdownTotalForPct) * 100) }))
+						.sort((a, b) => b.total - a.total);
+					const catTotal = products.reduce((s, p) => s + p.total, 0);
+					return {
+						category,
+						total: catTotal,
+						pct: Math.round((catTotal / breakdownTotalForPct) * 100),
+						color: CATEGORY_COLORS[category] ?? CATEGORY_COLORS['Other'],
+						products,
+					};
+				})
+				.sort((a, b) => b.total - a.total);
+			const typeTotal = categories.reduce((s, c) => s + c.total, 0);
+			return {
+				type,
+				total: typeTotal,
+				pct: Math.round((typeTotal / breakdownTotalForPct) * 100),
+				color: TYPE_COLORS[type as SupplierType] ?? CATEGORY_COLORS['Other'],
+				categories,
+			};
+		})
+		.sort((a, b) => b.total - a.total);
+}
+
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	return handleLoad('analytics/spend', async () => {
@@ -179,28 +256,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			getBudgetPills(rid),
 		]);
 
-		// Same key wins most lines; picks a single category per item even when a
-		// description was miscategorized on a handful of older lines.
-		const itemCategoryMap = new Map<string, string>();
-		const itemCategoryBest = new Map<string, number>();
-		for (const row of itemCategoryRows) {
-			const key = row.item_key;
-			const count = Number(row.line_count);
-			if (!itemCategoryBest.has(key) || count > itemCategoryBest.get(key)!) {
-				itemCategoryBest.set(key, count);
-				itemCategoryMap.set(key, row.category);
-			}
-		}
-
-		const itemTrendMap = new Map<string, number[]>();
-		const itemTrendPoints = new Map<string, { bucket: string; value: number }[]>();
-		for (const row of itemTrendRows) {
-			const key = String(row.item_key);
-			if (!itemTrendMap.has(key)) itemTrendMap.set(key, []);
-			itemTrendMap.get(key)!.push(moneyToNumber(row.avg_price));
-			if (!itemTrendPoints.has(key)) itemTrendPoints.set(key, []);
-			itemTrendPoints.get(key)!.push({ bucket: row.month, value: moneyToNumber(row.avg_price) });
-		}
+		const itemCategoryMap = buildItemCategoryMap(itemCategoryRows);
+		const { itemTrendMap, itemTrendPoints } = buildItemTrendMaps(itemTrendRows);
 
 		const kpisRow0 = kpisRows[0];
 		const currentSpend = moneyToNumber(kpisRow0?.total_items_spend ?? '0');
@@ -240,51 +297,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			return { key, label: item.description, points: itemTrendPoints.get(key) ?? [] };
 		}).filter(s => s.points.length >= 2);
 
-		// Bebida/Comida/Otros, con desglose: Tipo -> categoría de producto -> producto.
-		// Se agrupa desde el producto de cada línea (no del proveedor, que puede
-		// vender de todo) en un único árbol de 3 niveles, para que el clic en un
-		// nivel no necesite ir de nuevo al servidor.
-		const typeMap = new Map<string, Map<string, Map<string, number>>>();
-		for (const row of typeSpend) {
-			const amount = moneyToNumber(row.total);
-			const type = categoryToType(row.category) ?? 'Otros';
-			const category = row.category ?? 'Other';
-			if (!typeMap.has(type)) typeMap.set(type, new Map());
-			const catMap = typeMap.get(type)!;
-			if (!catMap.has(category)) catMap.set(category, new Map());
-			const prodMap = catMap.get(category)!;
-			prodMap.set(row.product_name, (prodMap.get(row.product_name) ?? 0) + amount);
-		}
-		let breakdownGrandTotal = 0;
-		for (const catMap of typeMap.values()) for (const prodMap of catMap.values()) for (const t of prodMap.values()) breakdownGrandTotal += t;
-		const breakdownTotalForPct = breakdownGrandTotal || 1;
-		const type_breakdown = [...typeMap.entries()]
-			.map(([type, catMap]) => {
-				const categories = [...catMap.entries()]
-					.map(([category, prodMap]) => {
-						const products = [...prodMap.entries()]
-							.map(([name, total]) => ({ name, total, pct: Math.round((total / breakdownTotalForPct) * 100) }))
-							.sort((a, b) => b.total - a.total);
-						const catTotal = products.reduce((s, p) => s + p.total, 0);
-						return {
-							category,
-							total: catTotal,
-							pct: Math.round((catTotal / breakdownTotalForPct) * 100),
-							color: CATEGORY_COLORS[category] ?? CATEGORY_COLORS['Other'],
-							products,
-						};
-					})
-					.sort((a, b) => b.total - a.total);
-				const typeTotal = categories.reduce((s, c) => s + c.total, 0);
-				return {
-					type,
-					total: typeTotal,
-					pct: Math.round((typeTotal / breakdownTotalForPct) * 100),
-					color: TYPE_COLORS[type as SupplierType] ?? CATEGORY_COLORS['Other'],
-					categories,
-				};
-			})
-			.sort((a, b) => b.total - a.total);
+		const type_breakdown = buildTypeBreakdown(typeSpend);
 
 		const prevRow0 = prevKpisRows[0];
 		const prevSpend = prevRow0 ? moneyToNumber(prevRow0.total_items_spend ?? '0') : null;

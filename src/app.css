@@ -48,6 +48,15 @@
   --mep-type-bebidas:   var(--mep-series-1);
   --mep-type-comida:    var(--mep-series-2);
   --mep-type-articulos: var(--mep-series-3);
+
+  /* Secondary structural color — the second of the app's 3 named colors
+     (terracotta primary + deep slate secondary + neutral). Always available
+     alongside whichever data-accent is active; not itself switchable. Used
+     for the "previous period" series in comparative charts and other
+     structural-but-not-primary-action emphasis — never for a second CTA. */
+  --mep-acc-2:      #34507A;
+  --mep-acc-2-fg:   #ffffff;
+  --mep-acc-2-soft: rgba(52, 80, 122, 0.10);
 }
 
 /* Light — one clean neutral base, no material tint */
@@ -207,16 +216,8 @@
   --mep-acc-ring: rgba(232, 172, 94, 0.30);
 }
 
-/* Secondary structural color — the second of the app's 3 named colors
-   (terracotta primary + deep slate secondary + neutral). Always available
-   alongside whichever data-accent is active; not itself switchable. Used
-   for the "previous period" series in comparative charts and other
-   structural-but-not-primary-action emphasis — never for a second CTA. */
-.mep {
-  --mep-acc-2:      #34507A;
-  --mep-acc-2-fg:   #ffffff;
-  --mep-acc-2-soft: rgba(52, 80, 122, 0.10);
-}
+/* Secondary structural color — dark-mode override (base values live in the
+   main .mep block above). */
 :root[data-theme="dark"] .mep {
   --mep-acc-2:      #7D9BCE;
   --mep-acc-2-fg:   #0D1828;

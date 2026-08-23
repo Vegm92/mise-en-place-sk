@@ -18,7 +18,7 @@ describe('nextAccessibleIndex', () => {
 			visited.push(TOUR_PAGES[idx].path);
 			idx = nextAccessibleIndex(TOUR_PAGES, idx + 1, trialFeatures);
 		}
-		expect(visited.length).toBe(TOUR_PAGES.length);
+		expect(visited).toHaveLength(TOUR_PAGES.length);
 	});
 
 	it('returns -1 when no accessible step remains', () => {

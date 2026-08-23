@@ -68,75 +68,61 @@ function entitlementsFor(restaurantId: string | null): App.Locals['entitlements'
 	};
 }
 
-const appHandle: Handle = async ({ event, resolve }) => {
-	const path = event.url.pathname;
+/**
+ * Looks up the user's restaurant memberships and access status, setting
+ * event.locals.restaurantId as a side effect (mirrors appHandle's prior
+ * inline behavior — split out purely to keep appHandle's complexity down).
+ */
+async function resolveMembershipAndAccess(
+	event: Parameters<Handle>[0]['event'],
+	user: { id: string },
+): Promise<{ userApproved: boolean; accessOpen: boolean }> {
+	const activeCookie = event.cookies.get('active_restaurant');
 
-	if (path.startsWith('/_app/') || path === '/favicon.ico' ||
-	    path === '/sw.js' || path === '/manifest.webmanifest') {
-		return resolve(event);
-	}
+	const [memberships, accessRows, openFlag] = await withTimeout(
+		'hooks/memberships',
+		MEMBERSHIP_TIMEOUT_MS,
+		() => Promise.all([
+			db
+				.select({ restaurantId: userRestaurants.restaurantId })
+				.from(userRestaurants)
+				.where(eq(userRestaurants.userId, user.id)),
+			db
+				.select({ accessStatus: users.accessStatus })
+				.from(users)
+				.where(eq(users.id, user.id))
+				.limit(1),
+			isAccessOpen(),
+		]),
+	).catch(e => {
+		console.error('[hooks] membership lookup failed', e);
+		Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
+		return [[], [], false] as [Array<{ restaurantId: string }>, Array<{ accessStatus: string }>, boolean];
+	});
 
-	const session = await event.locals.auth();
-	const user: App.Locals['user'] = session?.user?.id
-		? {
-			id:    session.user.id,
-			email: session.user.email ?? '',
-			name:  session.user.name ?? null,
-			image: session.user.image ?? null,
-		}
+	const ids = memberships.map(m => m.restaurantId);
+	event.locals.restaurantId = ids.length > 0
+		? ((activeCookie && ids.includes(activeCookie)) ? activeCookie : (ids[0] ?? null))
 		: null;
-	event.locals.user = user;
 
-	let userApproved = false;
-	let accessOpen   = false;
+	return {
+		userApproved: accessRows[0]?.accessStatus === 'approved',
+		accessOpen: openFlag,
+	};
+}
 
-	if (user) {
-		const activeCookie = event.cookies.get('active_restaurant');
-
-		const [memberships, accessRows, openFlag] = await withTimeout(
-			'hooks/memberships',
-			MEMBERSHIP_TIMEOUT_MS,
-			() => Promise.all([
-				db
-					.select({ restaurantId: userRestaurants.restaurantId })
-					.from(userRestaurants)
-					.where(eq(userRestaurants.userId, user.id)),
-				db
-					.select({ accessStatus: users.accessStatus })
-					.from(users)
-					.where(eq(users.id, user.id))
-					.limit(1),
-				isAccessOpen(),
-			]),
-		).catch(e => {
-			console.error('[hooks] membership lookup failed', e);
-			Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
-			return [[], [], false] as [Array<{ restaurantId: string }>, Array<{ accessStatus: string }>, boolean];
-		});
-
-		userApproved = accessRows[0]?.accessStatus === 'approved';
-		accessOpen   = openFlag;
-
-		const ids = memberships.map(m => m.restaurantId);
-
-		if (ids.length > 0) {
-			event.locals.restaurantId = (activeCookie && ids.includes(activeCookie))
-				? activeCookie
-				: (ids[0] ?? null);
-		} else {
-			event.locals.restaurantId = null;
-		}
-	} else {
-		event.locals.restaurantId = null;
-	}
-
-	event.locals.accessApproved = isAdminUser(user) || accessOpen || userApproved;
-	event.locals.entitlements = entitlementsFor(event.locals.restaurantId);
-
-	if (event.locals.restaurantId) {
-		Sentry.getCurrentScope().setTag('restaurantId', event.locals.restaurantId);
-	}
-
+/**
+ * Admin/entitlement/auth gating for one request. Returns a Response to
+ * short-circuit with, or undefined to let appHandle continue to resolve().
+ * `redirect()` still throws through here exactly as it did inline.
+ */
+function checkAccessGuards(
+	event: Parameters<Handle>[0]['event'],
+	path: string,
+	user: App.Locals['user'],
+	userApproved: boolean,
+	accessOpen: boolean,
+): Response | undefined {
 	if ((path === '/admin' || path.startsWith('/admin/')) && !isAdminUser(event.locals.user)) {
 		redirect(303, '/');
 	}
@@ -175,15 +161,58 @@ const appHandle: Handle = async ({ event, resolve }) => {
 		redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
 	}
 
-	const response = await resolve(event);
+	return undefined;
+}
 
+function applySecurityHeaders(response: Response, path: string): void {
 	const isFramedByApp = path.startsWith('/api/upload/') || /^\/invoice\/[^/]+\/file$/.test(path);
 	response.headers.set('X-Frame-Options', isFramedByApp ? 'SAMEORIGIN' : 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+}
 
+const appHandle: Handle = async ({ event, resolve }) => {
+	const path = event.url.pathname;
+
+	if (path.startsWith('/_app/') || path === '/favicon.ico' ||
+	    path === '/sw.js' || path === '/manifest.webmanifest') {
+		return resolve(event);
+	}
+
+	const session = await event.locals.auth();
+	const user: App.Locals['user'] = session?.user?.id
+		? {
+			id:    session.user.id,
+			email: session.user.email ?? '',
+			name:  session.user.name ?? null,
+			image: session.user.image ?? null,
+		}
+		: null;
+	event.locals.user = user;
+
+	let userApproved = false;
+	let accessOpen   = false;
+
+	if (user) {
+		({ userApproved, accessOpen } = await resolveMembershipAndAccess(event, user));
+	} else {
+		event.locals.restaurantId = null;
+	}
+
+	event.locals.accessApproved = isAdminUser(user) || accessOpen || userApproved;
+	event.locals.entitlements = entitlementsFor(event.locals.restaurantId);
+
+	if (event.locals.restaurantId) {
+		Sentry.getCurrentScope().setTag('restaurantId', event.locals.restaurantId);
+	}
+
+	const guardResponse = checkAccessGuards(event, path, user, userApproved, accessOpen);
+	if (guardResponse) return guardResponse;
+
+	const response = await resolve(event);
+	applySecurityHeaders(response, path);
 	return response;
 };
 

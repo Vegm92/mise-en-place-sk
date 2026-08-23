@@ -12,7 +12,7 @@ import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY, deriveSupplierTypeAndTags } f
  * test case, which is exactly the common empty-array path).
  */
 function pgTextArrayLiteral(values: string[]): string {
-	return '{' + values.map(v => `"${v.replace(/"/g, '\\"')}"`).join(',') + '}';
+	return '{' + values.map(v => `"${v.replaceAll('"', String.raw`\"`)}"`).join(',') + '}';
 }
 
 export interface SupplierContactInfo {

@@ -65,14 +65,17 @@ export async function getBudgetPills(rid: string): Promise<BudgetPill[]> {
 	const spendByBucket: Record<BudgetBucket, number> = { Comida: 0, Bebidas: 0, Otros: 0 };
 	for (const row of monthSpendRows) spendByBucket[budgetBucketOf(row.category)] += moneyToNumber(row.total);
 
-	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
+	const thresholdPct = thresholdRows[0] ? Number.parseInt(thresholdRows[0].value, 10) : 80;
 
 	return BUDGET_BUCKETS.map((bucket) => {
 		const budget = budgetByBucket[bucket];
 		const spent = spendByBucket[bucket];
 		const pct = budget > 0 ? Math.round((spent / budget) * 100) : null;
-		const status: BudgetPill['status'] =
-			pct === null ? 'none' : pct >= 100 ? 'over' : pct >= thresholdPct ? 'near' : 'ok';
+		let status: BudgetPill['status'];
+		if (pct === null) status = 'none';
+		else if (pct >= 100) status = 'over';
+		else if (pct >= thresholdPct) status = 'near';
+		else status = 'ok';
 		return { bucket, budget, spent, pct, status, color: BUCKET_COLOR[bucket] };
 	});
 }

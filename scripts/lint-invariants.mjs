@@ -86,7 +86,7 @@ function tenantScopedTables() {
  *
  * Boundaries are `;` and `,` at depth 0, or the opening bracket we are nested in.
  */
-function statementBounds(src, index) {
+function scanBackToStatementStart(src, index) {
 	let depth = 0;
 	let start = index;
 	while (start > 0) {
@@ -98,7 +98,11 @@ function statementBounds(src, index) {
 		} else if ((ch === ';' || ch === ',') && depth === 0) break;
 		start--;
 	}
-	depth = 0;
+	return start;
+}
+
+function scanForwardToStatementEnd(src, index) {
+	let depth = 0;
 	let end = index;
 	while (end < src.length) {
 		const ch = src[end];
@@ -109,7 +113,40 @@ function statementBounds(src, index) {
 		} else if ((ch === ';' || ch === ',') && depth === 0) break;
 		end++;
 	}
-	return [start, end];
+	return end;
+}
+
+function statementBounds(src, index) {
+	return [scanBackToStatementStart(src, index), scanForwardToStatementEnd(src, index)];
+}
+
+/**
+ * Scans one file for `.from(<tenantTable>)` calls with no tenant predicate.
+ * Split out of runUnscopedQueryGate so each function stays independently
+ * readable — same matching logic as before, just per-file instead of inline.
+ */
+function findUnscopedViolationsInFile(file, tables) {
+	const violations = [];
+	const src = fs.readFileSync(file, 'utf8');
+	const re = /\.from\(\s*(\w+)/g;
+	let m;
+	while ((m = re.exec(src))) {
+		if (!tables.has(m[1])) continue;
+		const [start, end] = statementBounds(src, m.index);
+		const statement = src.slice(start, end);
+		// Only a restaurantId in the *filter* counts. Selecting the column
+		// (`.select({ restaurantId: x.restaurantId })`) proves nothing about
+		// which rows come back.
+		const whereAt = statement.indexOf('.where(');
+		const filter = whereAt === -1 ? '' : statement.slice(whereAt);
+		if (/scope\(/.test(filter) || /\.restaurantId\b/.test(filter)) continue;
+		const lineNo = src.slice(0, m.index).split('\n').length;
+		// The annotation may sit inside the statement or on a line above it.
+		const above = src.slice(0, start).split('\n').slice(-3).join('\n');
+		if (SCOPE_OK.test(statement) || SCOPE_OK.test(above)) continue;
+		violations.push(`${path.relative(ROOT, file)}:${lineNo}: .from(${m[1]}) with no tenant predicate`);
+	}
+	return violations;
 }
 
 function runUnscopedQueryGate() {
@@ -125,25 +162,7 @@ function runUnscopedQueryGate() {
 		for (const file of walk(absRoot, ['.ts'])) {
 			// Admin tooling is cross-tenant by definition, same carve-out as tenant-scope.
 			if (file.includes(`${path.sep}admin${path.sep}`)) continue;
-			const src = fs.readFileSync(file, 'utf8');
-			const re = /\.from\(\s*(\w+)/g;
-			let m;
-			while ((m = re.exec(src))) {
-				if (!tables.has(m[1])) continue;
-				const [start, end] = statementBounds(src, m.index);
-				const statement = src.slice(start, end);
-				// Only a restaurantId in the *filter* counts. Selecting the column
-				// (`.select({ restaurantId: x.restaurantId })`) proves nothing about
-				// which rows come back.
-				const whereAt = statement.indexOf('.where(');
-				const filter = whereAt === -1 ? '' : statement.slice(whereAt);
-				if (/scope\(/.test(filter) || /\.restaurantId\b/.test(filter)) continue;
-				const lineNo = src.slice(0, m.index).split('\n').length;
-				// The annotation may sit inside the statement or on a line above it.
-				const above = src.slice(0, start).split('\n').slice(-3).join('\n');
-				if (SCOPE_OK.test(statement) || SCOPE_OK.test(above)) continue;
-				violations.push(`${path.relative(ROOT, file)}:${lineNo}: .from(${m[1]}) with no tenant predicate`);
-			}
+			violations.push(...findUnscopedViolationsInFile(file, tables));
 		}
 	}
 	if (violations.length > 0) {
