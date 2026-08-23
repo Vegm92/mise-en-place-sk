@@ -34,9 +34,10 @@ export const suppliers = pgTable('suppliers', {
 	contactPhone:  text('contact_phone'),
 	cif:           text('cif'),
 	address:       text('address'),
-	deliveryDays:  text('delivery_days'),
-	paymentTerms:  text('payment_terms'),
-	notes:         text('notes'),
+	deliveryDays:       text('delivery_days'),
+	paymentTerms:       text('payment_terms'),
+	notes:              text('notes'),
+	outstandingBalance: numeric('outstanding_balance', { precision: 12, scale: 2 }),
 }, (t) => [
 	uniqueIndex('uq_suppliers_rid_name').on(t.restaurantId, sql`lower(${t.name})`),
 ]);
@@ -210,6 +211,7 @@ export const productAliases = pgTable('product_aliases', {
 	source:       text('source').notNull().default('exact'),
 	confirmedAt:  timestamp('confirmed_at', { withTimezone: true }),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
+	supplierSku:  text('supplier_sku'),
 }, (t) => [
 	uniqueIndex('product_aliases_restaurant_raw_key_unique').on(t.restaurantId, t.rawKey),
 	index('product_aliases_product_idx').on(t.restaurantId, t.productId),
