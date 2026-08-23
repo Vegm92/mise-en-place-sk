@@ -129,6 +129,7 @@ export type LineFormInput = {
 	totalPriceVal: number | null;
 	taxRateVal: number | null;
 	pack: PackInfo | null;
+	supplierSku: string | null;
 };
 
 export type EnrichedLine = {
@@ -172,6 +173,7 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 	const unitPrices   = formData.getAll('line_unit_prices').map(String);
 	const totalPrices  = formData.getAll('line_total_prices').map(String);
 	const taxRates     = formData.getAll('line_tax_rates').map(String);
+	const supplierSkus = formData.getAll('line_supplier_skus').map(String);
 
 	const out: LineFormInput[] = [];
 	for (let i = 0; i < descriptions.length; i++) {
@@ -186,6 +188,7 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 			totalPriceVal: toFloat(totalPrices[i]),
 			taxRateVal: toFloat(taxRates[i]),
 			pack: parsePack(desc, unitVal),
+			supplierSku: supplierSkus[i]?.trim() || null,
 		});
 	}
 	return out;
@@ -227,6 +230,7 @@ export async function enrichLineItems(
 				sizeUnit: pack?.sizeUnit ?? null,
 				baseUnit: pack?.baseUnit ?? null,
 				normalizedUnitPrice: toMoneyString(normalizedUnitPrice(li.unitPriceFloat, pack)),
+				supplierSku: li.supplierSku,
 			},
 			item: {
 				description: li.desc,
@@ -248,7 +252,7 @@ export async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
-	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null }>,
+	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null; supplierSku: string | null }>,
 ): Promise<Map<string, number>> {
 	const productByKey = new Map<string, number>();
 	try {
@@ -267,6 +271,7 @@ export async function linkProductsToInvoice(
 				category,
 				unitsPerPack: li.pack?.unitsPerPack ?? null,
 				baseUnit: li.pack?.baseUnit ?? null,
+				supplierSku: li.supplierSku,
 			})),
 		);
 

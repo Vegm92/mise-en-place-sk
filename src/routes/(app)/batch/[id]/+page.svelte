@@ -60,6 +60,7 @@
     total_price?: number | string | null;
     tax_rate?: number | null;
     confidence?: number | null;
+    product_code?: string | null;
   };
 
   let lineItems = $state<LineItem[]>([]);
@@ -517,6 +518,7 @@
                         </td>
                         <td style="padding:7px 10px;">
                           <input type="hidden" name="line_tax_rates" value={str(item.tax_rate ?? '')} />
+                          <input type="hidden" name="line_supplier_skus" value={str(item.product_code ?? '')} />
                           <button type="button" class="btn btn-ghost" style="width:22px;height:22px;padding:0;justify-content:center;" onclick={() => removeRow(i)}>
                             <Trash size={11} />
                           </button>
