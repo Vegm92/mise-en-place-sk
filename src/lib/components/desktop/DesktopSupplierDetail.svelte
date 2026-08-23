@@ -65,7 +65,7 @@
     products,
     prefillIngredient = '',
     prefillPurchaseUnit = '',
-    tab       = $bindable<'resumen'|'facturas'|'productos'|'conversiones'>('resumen'),
+    tab       = $bindable<'resumen'|'albaranes'|'productos'|'conversiones'>('resumen'),
     editing   = $bindable(false),
     confirmDelete = $bindable(false),
   }: {
@@ -77,7 +77,7 @@
     products: Product[];
     prefillIngredient?: string;
     prefillPurchaseUnit?: string;
-    tab?: 'resumen'|'facturas'|'productos'|'conversiones';
+    tab?: 'resumen'|'albaranes'|'productos'|'conversiones';
     editing?: boolean;
     confirmDelete?: boolean;
   } = $props();
@@ -286,7 +286,7 @@
       <div style="display:flex;gap:0;border-bottom:1px solid var(--mep-divider);">
         {#each [
           { id: 'resumen',      label: $t('sup.tab.resumen') },
-          { id: 'facturas',     label: $t('nav.invoices'),    count: invoices.length },
+          { id: 'albaranes',     label: $t('nav.invoices'),    count: invoices.length },
           { id: 'productos',    label: $t('sup.tab.productos') },
           { id: 'conversiones', label: $t('sup.tab.conversiones') },
         ] as tabItem}
@@ -506,7 +506,7 @@
                 <div class="subtitle">{$t('dash.invoices')}</div>
                 {#if invoices.length > 5}
                   <button style="font-size:12.5px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
-                    onclick={() => tab = 'facturas'}>
+                    onclick={() => tab = 'albaranes'}>
                     {$ti('sup.viewAll', { n: invoices.length })}
                   </button>
                 {/if}
@@ -537,7 +537,7 @@
           </div>
         </div>
 
-      {:else if tab === 'facturas'}
+      {:else if tab === 'albaranes'}
         {#if !invoices.length}
           <div style="text-align:center;padding:48px 24px;">
             <p style="font-size:13px;color:var(--mep-fg-3);">{$t('sup.noInvoices')}</p>

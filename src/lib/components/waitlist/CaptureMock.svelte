@@ -27,7 +27,7 @@
     <div style="font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">CIF B81234567 · Madrid</div>
     <div style="height:1px;background:var(--mep-divider);margin:4px 0;"></div>
     <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--mep-fg-2);font-family:var(--mep-fs-mono);">
-      <span>FACTURA</span><span>N.º 2026-A-0471</span>
+      <span>ALBARÁN</span><span>N.º 2026-A-0471</span>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">
       <span>Fecha</span><span>19/05/2026</span>

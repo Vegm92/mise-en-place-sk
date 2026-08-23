@@ -7,7 +7,7 @@ import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { toCents, moneyToNumber } from '$lib/server/money';
 
-const VALID_TABS = ['resumen', 'facturas', 'productos', 'conversiones'] as const;
+const VALID_TABS = ['resumen', 'albaranes', 'productos', 'conversiones'] as const;
 type Tab = typeof VALID_TABS[number];
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
