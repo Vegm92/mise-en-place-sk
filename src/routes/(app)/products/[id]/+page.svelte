@@ -115,6 +115,7 @@
           <tr>
             <th>{$t('prod.detail.aliasText')}</th>
             <th>{$t('prod.col.suppliers')}</th>
+            <th>{$t('prod.detail.aliasSku')}</th>
             <th>{$t('prod.detail.aliasSource')}</th>
           </tr>
         </thead>
@@ -123,6 +124,7 @@
             <tr class="row">
               <td>{a.rawText ?? '—'}</td>
               <td class="body text-fg-3" style="font-size:12px;">{a.supplierName ?? '—'}</td>
+              <td class="body text-fg-3" style="font-size:12px;">{a.supplierSku ?? '—'}</td>
               <td class="body text-fg-3" style="font-size:12px;">{a.source}</td>
             </tr>
           {/each}
