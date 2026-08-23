@@ -223,21 +223,21 @@ describe('tp (pluralizing translator)', () => {
     locale.set('en');
     expect(trp('misc.invoice', 1)).toBe('1 invoice');
     locale.set('es');
-    expect(trp('misc.invoice', 1)).toBe('1 factura');
+    expect(trp('misc.invoice', 1)).toBe('1 albarán');
   });
 
   it('selects the .other form and interpolates the count', () => {
     locale.set('en');
     expect(trp('misc.invoice', 3)).toBe('3 invoices');
     locale.set('es');
-    expect(trp('misc.invoice', 3)).toBe('3 facturas');
+    expect(trp('misc.invoice', 3)).toBe('3 albaranes');
   });
 
   it('uses the .zero form when defined for a count of 0', () => {
     locale.set('en');
     expect(trp('misc.invoice', 0)).toBe('No invoices');
     locale.set('es');
-    expect(trp('misc.invoice', 0)).toBe('Sin facturas');
+    expect(trp('misc.invoice', 0)).toBe('Sin albaranes');
   });
 
   it('falls back to the .other form at 0 when no .zero form exists', () => {

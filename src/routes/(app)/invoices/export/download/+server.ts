@@ -55,12 +55,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	workbook.creator = 'Mise en Place';
 	workbook.created = new Date();
 
-	const sheet = workbook.addWorksheet('Facturas', { views: [{ state: 'frozen', ySplit: 1 }] });
+	const sheet = workbook.addWorksheet('Albaranes', { views: [{ state: 'frozen', ySplit: 1 }] });
 
 	sheet.columns = [
 		{ header: 'ID',            key: 'id',             width: 8  },
 		{ header: 'Proveedor',     key: 'supplier',       width: 32 },
-		{ header: 'Nº factura',    key: 'invoice_number', width: 16 },
+		{ header: 'Nº albarán',    key: 'invoice_number', width: 16 },
 		{ header: 'Fecha',         key: 'invoice_date',   width: 13 },
 		{ header: 'Vencimiento',   key: 'due_date',        width: 13 },
 		{ header: 'Importe (€)',   key: 'total_amount',   width: 14 },
