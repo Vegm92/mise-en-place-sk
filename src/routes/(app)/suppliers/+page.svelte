@@ -32,7 +32,13 @@
     return $ti('dsup.nSuppliers', { n: unassigned });
   });
 
-  let view = $state<'list' | 'chart'>('list');
+  let view        = $state<'list' | 'chart'>('list');
+  let badgeFilter = $state('');
+  let showAdd     = $state(false);
+
+  const displaySuppliers = $derived(
+    badgeFilter ? data.suppliers.filter(s => s.badge === badgeFilter) : data.suppliers
+  );
 
   function listUrl(patch: Record<string, string | null>) {
     const params = new URLSearchParams($page.url.searchParams);
@@ -164,17 +170,31 @@
         {$t('sup.filterUncategorized')}
       </button>
 
+      <div class="max-[1050px]:hidden" style="position:relative;">
+        <select class="btn btn-secondary"
+          style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
+          aria-label={$t('dsup.activityAll')}
+          bind:value={badgeFilter}>
+          <option value="">{$t('dsup.activityAll')}</option>
+          <option value="overdue">{$t('status.overdue')}</option>
+          <option value="due_soon">{$t('status.due_soon')}</option>
+          <option value="paid_up">{$t('status.paid')}</option>
+        </select>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+      </div>
+
       <div style="flex:1;"></div>
       <button class="btn btn-secondary"
-        style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
+        style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
+        onclick={() => showAdd = true}>
         <Plus size={13} /> {$t('dsup.addSupplier')}
       </button>
     {/snippet}
 
     {#snippet table()}
-      {#if !data.suppliers.length}
+      {#if !displaySuppliers.length}
         <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
-          {#if hasFilters}
+          {#if hasFilters || badgeFilter}
             <p class="body" style="color:var(--mep-fg-3);">{$t('sup.noResults')}</p>
           {:else}
             <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
@@ -201,7 +221,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each data.suppliers as s (s.id)}
+              {#each displaySuppliers as s (s.id)}
                 <tr class="row" onclick={() => location.replace(`/suppliers/${s.id}`)} style="cursor:pointer;">
                   <td>
                     <div style="display:flex;align-items:center;gap:10px;">
@@ -265,3 +285,36 @@
     {/snippet}
   </ListPageTemplate>
 </div>
+
+{#if showAdd}
+  <div style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);"
+    role="dialog" aria-modal="true" tabindex="-1"
+    onclick={() => showAdd = false}
+    onkeydown={(e) => { if (e.key === 'Escape') showAdd = false; }}>
+    <div class="card" style="width:360px;padding:24px;display:flex;flex-direction:column;gap:16px;"
+      role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+      <p class="body-strong" style="font-size:15px;margin:0;">{$t('dsup.addSupplier')}</p>
+      <form method="POST" action="?/create" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label class="label" for="sup-name">{$t('tbl.supplier')}</label>
+          <input id="sup-name" name="name" class="input" required
+            style="height:36px;font-size:13px;" />
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label class="label" for="sup-cat">{$t('sup.field.category')}</label>
+          <select id="sup-cat" name="category" class="input" style="height:36px;font-size:13px;">
+            <option value="">—</option>
+            {#each data.categories as cat}
+              <option value={cat}>{$tcat(cat)}</option>
+            {/each}
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+          <button type="button" class="btn btn-secondary" style="height:34px;font-size:13px;"
+            onclick={() => showAdd = false}>{$t('action.cancel')}</button>
+          <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;">{$t('set.save')}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
