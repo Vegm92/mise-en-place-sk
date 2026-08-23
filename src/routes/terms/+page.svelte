@@ -18,7 +18,7 @@
       p1:         'Al registrarte o usar Mise en Place (el "Servicio"), aceptas estos Términos en su totalidad. Si no estás de acuerdo, no uses el Servicio.',
 
       h2:         '2. Descripción del Servicio',
-      p2:         'Mise en Place es una plataforma SaaS de gestión de facturas y control de costes para el sector de la hostelería. Proporciona extracción automática de facturas mediante inteligencia artificial, análisis de gasto por proveedor, presupuestos por categoría y alertas de precio.',
+      p2:         'Mise en Place es una plataforma SaaS de gestión de albaranes y control de costes para el sector de la hostelería. Proporciona extracción automática de albaranes mediante inteligencia artificial, análisis de gasto por proveedor, presupuestos por categoría y alertas de precio.',
 
       h3:         '3. Cuentas y seguridad',
       d3a:        'Debes proporcionar información veraz y mantenerla actualizada.',
@@ -34,7 +34,7 @@
       d4d:        'Sobrecargar la infraestructura mediante ataques automatizados (scraping masivo, DoS).',
 
       h5:         '5. Propiedad intelectual',
-      p5:         'Todo el software, diseño y marca son propiedad de Mise en Place SL. Tus datos (facturas, proveedores, etc.) son y permanecen de tu propiedad; nos otorgas una licencia para procesarlos únicamente con el fin de prestar el Servicio.',
+      p5:         'Todo el software, diseño y marca son propiedad de Mise en Place SL. Tus datos (albaranes, proveedores, etc.) son y permanecen de tu propiedad; nos otorgas una licencia para procesarlos únicamente con el fin de prestar el Servicio.',
 
       h6:         '6. Facturación y pagos',
       d6a:        'El Servicio se ofrece con un periodo de prueba gratuito de 30 días.',

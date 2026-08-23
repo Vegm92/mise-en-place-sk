@@ -22,7 +22,7 @@
       d2a1:         'Datos de cuenta:',
       d2a2:         ' dirección de correo electrónico, nombre y contraseña cifrada.',
       d2b1:         'Datos del negocio:',
-      d2b2:         ' facturas, albaranes e información de proveedores que tú mismo subes.',
+      d2b2:         ' albaranes e información de proveedores que tú mismo subes.',
       d2c1:         'Datos de uso:',
       d2c2:         ' registros de acceso, identificadores de sesión, métricas de rendimiento anónimas.',
       d2d1:         'Datos de pago:',
@@ -43,7 +43,7 @@
       thCountry:    'País',
       r1Function:   'Base de datos y autenticación',
       r1Country:    'Sudeste asiático',
-      r2Function:   'Extracción de datos de facturas mediante IA',
+      r2Function:   'Extracción de datos de albaranes mediante IA',
       r2Country:    'EE.UU. (cláusulas contractuales tipo)',
       r3Function:   'Procesamiento de pagos',
       r3Country:    'EE.UU. (cláusulas contractuales tipo)',
@@ -55,7 +55,7 @@
 
       h6:           '6. Conservación de datos',
       d6a:          'Datos de cuenta: hasta la eliminación de la cuenta + 30 días de retención para reversión.',
-      d6b:          'Facturas y datos financieros: 5 años desde la fecha del documento (obligación legal contable).',
+      d6b:          'Albaranes y datos financieros: 5 años desde la fecha del documento (obligación legal contable).',
       d6c:          'Registros de auditoría: 5 años.',
       d6d:          'Datos de sesión y logs: 90 días.',
 

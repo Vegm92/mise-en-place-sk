@@ -17,7 +17,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  let tab = $state<'resumen' | 'facturas' | 'productos' | 'conversiones'>(untrack(() => data.initialTab));
+  let tab = $state<'resumen' | 'albaranes' | 'productos' | 'conversiones'>(untrack(() => data.initialTab));
   let editing       = $state(untrack(() => data.initialEditing));
   let confirmDelete = $state(false);
 
@@ -172,7 +172,7 @@
     <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;">
       {#each [
         { id: 'resumen',      label: $t('sup.tab.resumen') },
-        { id: 'facturas',     label: $t('nav.invoices'), count: data.invoices.length },
+        { id: 'albaranes',     label: $t('nav.invoices'), count: data.invoices.length },
         { id: 'productos',    label: $t('sup.tab.productos') },
         { id: 'conversiones', label: $t('sup.tab.conversiones'), count: data.conversions.length || undefined },
       ] as tabItem}
@@ -254,7 +254,7 @@
             <div class="subtitle">{$t('sup.recentInvoices')}</div>
             {#if data.invoices.length > 4}
               <button style="font-size:12px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
-                onclick={() => tab = 'facturas'}>{$ti('sup.viewAll', { n: data.invoices.length })}</button>
+                onclick={() => tab = 'albaranes'}>{$ti('sup.viewAll', { n: data.invoices.length })}</button>
             {/if}
           </div>
           {#each data.invoices.slice(0, 4) as inv (inv.id)}
@@ -299,7 +299,7 @@
         </div>
       {/if}
 
-    {:else if tab === 'facturas'}
+    {:else if tab === 'albaranes'}
 
       {#if !data.invoices.length}
         <div style="padding:40px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
