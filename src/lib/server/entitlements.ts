@@ -63,6 +63,7 @@ export const ROUTE_POLICY = {
 	'/(app)/invoices':                   'open',
 	'/(app)/invoices/export':            'open',
 	'/(app)/invoices/export/download':   'open',
+	'/(app)/plantilla-lista':            'open',
 	'/(app)/products':                   'open',
 	'/(app)/products/[id]':              'open',
 	'/(app)/reminders':                  'open',
