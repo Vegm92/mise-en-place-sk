@@ -348,6 +348,61 @@
   /* Misc atoms */
   .swatch  { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
   .divider { height: 1px; background: var(--mep-divider); }
+
+  /* Period pill selector — one shared shape for every screen's time filter
+     and for the chart/list view switch on ListPageTemplate. */
+  .period-track {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--mep-surface-2);
+    border: 1px solid var(--mep-divider);
+    border-radius: var(--mep-r-pill);
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .period-pill {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1;
+    padding: 6px 13px;
+    border: none;
+    border-radius: var(--mep-r-pill);
+    cursor: pointer;
+    text-decoration: none;
+    color: var(--mep-fg-3);
+    background: transparent;
+    white-space: nowrap;
+    transition: background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+  }
+  .period-pill:hover { color: var(--mep-fg-2); }
+  .period-pill.active {
+    background: var(--mep-surface);
+    color: var(--mep-fg);
+    font-weight: 500;
+    box-shadow: var(--mep-shadow-card);
+  }
+
+  /* Search field — pairs with .period-track in a page toolbar row */
+  .search-field {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+  }
+  .search-field .input {
+    width: 100%;
+    padding-left: 34px;
+  }
+  .search-field .search-icon {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--mep-fg-3);
+    pointer-events: none;
+    display: flex;
+  }
 }
 
 @keyframes mepspin { to { transform: rotate(360deg); } }
