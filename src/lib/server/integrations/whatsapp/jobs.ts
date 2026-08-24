@@ -4,6 +4,7 @@ import { db } from '../../db';
 import { batchItems } from '../../schema';
 import { CODE_ALPHABET } from '../../whatsapp-pairing';
 import { APP_BASE_URL } from '../../env';
+import { saveAlerts } from '../../alerts';
 import type { BatchItem, BatchItemReviewStatus } from '../../batch';
 
 const JOB_CODE_LENGTH = 4;
@@ -122,4 +123,59 @@ export async function setReviewStatus(
 
 export function batchLink(batchId: string): string {
 	return APP_BASE_URL ? `${APP_BASE_URL}/batch/${batchId}` : `/batch/${batchId}`;
+}
+
+export type ReviewDecision = Extract<BatchItemReviewStatus, 'reviewed' | 'to_review'>;
+
+export interface ParsedReview {
+	decision: ReviewDecision;
+	code: string | null;
+}
+
+const AFFIRMATIVE = new Set(['ok', 'okey', 'oka', 'vale', 'si', 'sip', 'correcto', 'correcta', 'bien']);
+const NEGATIVE = new Set(['no', 'nope', 'mal', 'incorrecto', 'incorrecta', 'error']);
+
+function stripAccents(value: string): string {
+	return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function parseReview(body: string): ParsedReview | null {
+	const words = stripAccents((body ?? '').toLowerCase())
+		.replace(/[^a-z0-9\s]/g, ' ')
+		.split(/\s+/)
+		.filter(Boolean);
+	if (!words.length || words.length > 3) return null;
+
+	const [head, ...rest] = words;
+	const decision: ReviewDecision | null = AFFIRMATIVE.has(head)
+		? 'reviewed'
+		: NEGATIVE.has(head)
+			? 'to_review'
+			: null;
+	if (!decision) return null;
+
+	for (const word of rest) {
+		const code = normalizeJobCode(word);
+		if (code) return { decision, code };
+	}
+	return rest.length ? null : { decision, code: null };
+}
+
+export function supplierOf(job: WhatsAppJob): string {
+	const supplier = (job.extractedData as { supplier_name?: unknown } | null)?.supplier_name;
+	return typeof supplier === 'string' && supplier.trim() ? supplier.trim() : job.displayName;
+}
+
+export async function raiseReviewNotification(job: WhatsAppJob, decision: ReviewDecision): Promise<void> {
+	const notificationType = decision === 'reviewed' ? 'whatsapp_pending_save' : 'whatsapp_needs_review';
+	await saveAlerts(null, job.restaurantId, [{
+		notificationType,
+		message: '',
+		payload: {
+			messageKey: `notif.msg.${decision === 'reviewed' ? 'whatsappPendingSave' : 'whatsappNeedsReview'}`,
+			messageVars: { supplier: supplierOf(job), code: job.jobCode ?? '' },
+			batchId: job.batchId,
+			itemId: job.id,
+		},
+	}]);
 }
