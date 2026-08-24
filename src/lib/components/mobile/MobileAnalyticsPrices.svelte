@@ -77,7 +77,7 @@
     </span>
     <input
       class="input"
-      style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
+      style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
       placeholder={$t('prices.searchPlaceholder')}
       bind:value={search}
     />
@@ -86,14 +86,7 @@
   <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0;">
     {#each filterOptions as [val, label]}
       <button
-        style="
-          border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap;
-          background: {filterChange === val ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-          color: {filterChange === val ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-          font-size: 12px; font-weight: 500; cursor: pointer;
-          box-shadow: {filterChange === val ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-          font-family: inherit;
-        "
+        class="chip {filterChange === val ? 'active' : ''}"
         onclick={() => filterChange = val}
       >{label}</button>
     {/each}
@@ -103,13 +96,13 @@
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('prices.up')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('prices.up')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalUp > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'};">
           {totalUp}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('prices.down')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('prices.down')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalDown > 0 ? 'var(--mep-pos)' : 'var(--mep-fg)'};">
           {totalDown}
         </div>

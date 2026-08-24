@@ -547,9 +547,9 @@
                 <div style="flex:1;min-width:0;">
                   <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:12px;">{r.supplier_name ?? '—'}</div>
                   {#if r.overdue}
-                    <span class="badge badge-overdue" style="font-size:10px;">{Math.abs(r.days_delta)}{$t('misc.daysLate')}</span>
+                    <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('misc.daysLate')}</span>
                   {:else}
-                    <span class="badge badge-pending" style="font-size:10px;">{r.days_delta}{$t('misc.daysLeft')}</span>
+                    <span class="badge badge-pending">{r.days_delta}{$t('misc.daysLeft')}</span>
                   {/if}
                 </div>
                 <span class="num text-fg" style="font-size:12px;font-weight:500;flex-shrink:0;">{fmtEur(r.display_amount ?? 0)}</span>
@@ -613,7 +613,7 @@
         {@const numColor  = { default: 'text-fg', neg: 'text-neg', warn: 'text-warn', pos: 'text-pos' }[bucket.variant]}
         <div class="card text-center p-2.5 {tintClass}">
           <div class="num {numColor}" style="font-size:22px;font-weight:600;line-height:1;">{bucket.count}</div>
-          <div class="body" style="font-size:10px;margin-top:4px;">{bucket.label}</div>
+          <div class="body" style="font-size:11px;margin-top:4px;">{bucket.label}</div>
         </div>
       {/each}
     </div>
@@ -631,7 +631,7 @@
         {#each data.missing_invoices as m (m.supplier_name)}
           <div class="card p-3 bg-neg-soft border-neg">
             <p class="body-strong text-sm">{m.supplier_name}</p>
-            <p class="body" style="font-size:10.5px;margin-top:2px;">{m.days_late}d · {m.frequency}</p>
+            <p class="body" style="font-size:11px;margin-top:2px;">{m.days_late}d · {m.frequency}</p>
           </div>
         {/each}
       </div>

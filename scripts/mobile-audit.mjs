@@ -25,6 +25,7 @@
  *   --width=<px>       default 390 (>= 768 drops the phone emulation)
  *   --height=<px>      default 844
  *   --out=<path>       default tests/fixtures/mobile-audit.json ('-' for stdout only)
+ *   --routes=<a,b,c>   audit these paths instead of ROUTES (ad-hoc checks)
  *   --shots=<dir>      also write a full-page screenshot per route
  *   --quiet            suppress the per-route console table
  */
@@ -40,6 +41,7 @@ export const TEXT_MIN_PX = 11;
 export const INPUT_MIN_PX = 16;
 
 export const ROUTES = [
+	'/',
 	'/dashboard',
 	'/invoices',
 	'/invoices/export',
@@ -49,7 +51,22 @@ export const ROUTES = [
 	'/reminders',
 	'/settings',
 	'/chat',
+	'/billing',
+	'/reports',
+	'/plantilla-lista',
 	'/analytics/spend',
+	'/analytics/prices',
+	'/analytics/extraction',
+];
+
+/**
+ * Detail screens have no fixed URL, so their ids are read off the list screens
+ * at run time. A list with no rows contributes no route rather than a 404.
+ */
+export const DETAIL_ROUTES = [
+	{ list: '/suppliers', pattern: '^/suppliers/\\d+$', paths: (href) => [href] },
+	{ list: '/products', pattern: '^/products/\\d+$', paths: (href) => [href] },
+	{ list: '/invoices', pattern: '^/invoice/\\d+$', paths: (href) => [href, `${href}/edit`] },
 ];
 
 const DEFAULTS = {
@@ -225,6 +242,23 @@ function collect(limits) {
 	return { smallTargets, sidebarTargets, tinyText, smallInputs };
 }
 
+async function resolveDetailRoutes(page, baseUrl) {
+	const found = [];
+	for (const spec of DETAIL_ROUTES) {
+		await page.goto(`${baseUrl}${spec.list}`, { waitUntil: 'networkidle' });
+		const href = await page.evaluate((pattern) => {
+			const re = new RegExp(pattern);
+			for (const a of document.querySelectorAll('a[href]')) {
+				const path = new URL(a.href, location.origin).pathname;
+				if (re.test(path)) return path;
+			}
+			return null;
+		}, spec.pattern);
+		if (href) found.push(...spec.paths(href));
+	}
+	return found;
+}
+
 async function login(page, baseUrl, email, password) {
 	await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
 	const result = await page.evaluate(async ({ email, password }) => {
@@ -255,7 +289,8 @@ export async function audit(options = {}) {
 	const routes = [];
 	try {
 		await login(page, cfg.baseUrl, cfg.email, cfg.password);
-		for (const route of ROUTES) {
+		const targets = cfg.routes ?? [...ROUTES, ...(await resolveDetailRoutes(page, cfg.baseUrl))];
+		for (const route of targets) {
 			const response = await page.goto(`${cfg.baseUrl}${route}`, { waitUntil: 'networkidle' });
 			await page.waitForTimeout(400);
 			const found = await page.evaluate(collect, {
@@ -299,6 +334,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 		baseUrl: arg('base-url', DEFAULTS.baseUrl),
 		width: arg('width', DEFAULTS.width),
 		height: arg('height', DEFAULTS.height),
+		routes: arg('routes', '') ? arg('routes', '').split(',') : undefined,
 		out: arg('out', DEFAULTS.out),
 		shots: arg('shots', undefined),
 	});

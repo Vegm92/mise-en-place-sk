@@ -28,7 +28,10 @@ const TARGET_MIN_PX = 44;
 const TEXT_MIN_PX = 11;
 const INPUT_MIN_PX = 16;
 
+/** Every app route with a fixed URL. Detail screens are covered too, under
+ *  ids the harness reads off the list screens, so they are matched by shape. */
 const AUDITED_ROUTES = [
+	'/',
 	'/dashboard',
 	'/invoices',
 	'/invoices/export',
@@ -38,7 +41,19 @@ const AUDITED_ROUTES = [
 	'/reminders',
 	'/settings',
 	'/chat',
+	'/billing',
+	'/reports',
+	'/plantilla-lista',
 	'/analytics/spend',
+	'/analytics/prices',
+	'/analytics/extraction',
+];
+
+const AUDITED_DETAIL_SHAPES = [
+	/^\/suppliers\/\d+$/,
+	/^\/products\/\d+$/,
+	/^\/invoice\/\d+$/,
+	/^\/invoice\/\d+\/edit$/,
 ];
 
 type Finding = { selector: string };
@@ -76,7 +91,11 @@ describe('mobile audit report', () => {
 	});
 
 	it('covers every app route, each rendered rather than redirected', () => {
-		expect(report.routes.map((r) => r.route)).toEqual(AUDITED_ROUTES);
+		const covered = report.routes.map((r) => r.route);
+		expect(covered).toEqual(expect.arrayContaining(AUDITED_ROUTES));
+		for (const shape of AUDITED_DETAIL_SHAPES) {
+			expect(covered.some((r) => shape.test(r)), `no route matching ${shape} was audited`).toBe(true);
+		}
 		for (const r of report.routes) {
 			expect(r.status, `${r.route} did not render`).toBe(200);
 			expect(r.url, `${r.route} redirected to ${r.url}`).toBe(r.route);
@@ -191,9 +210,10 @@ describe('static guards so the mobile rules cannot be overridden again', () => {
 		).toBe(0);
 	});
 
-	it(`has no inline font-size under ${INPUT_MIN_PX}px on an .input`, () => {
+	it(`has no inline font-size under ${INPUT_MIN_PX}px on a form field`, () => {
 		const offenders = STYLED.filter((t) => {
-			if (!t.classes.includes('input')) return false;
+			const name = t.text.match(/^<([a-zA-Z][\w:-]*)/)?.[1] ?? '';
+			if (!['input', 'select', 'textarea'].includes(name) && !t.classes.includes('input')) return false;
 			const fs = decl(t.style, 'font-size');
 			if (fs === null) return false;
 			const px = parseFloat(fs);

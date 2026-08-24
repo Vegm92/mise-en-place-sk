@@ -15,7 +15,7 @@
   </h1>
   <div style="display: flex; align-items: center; gap: 8px;">
     <button style="
-      width: 36px; height: 36px; border-radius: 18px;
+      width: 44px; height: 44px; border-radius: 999px;
       border: 0; background: var(--mep-surface);
       color: var(--mep-fg-2); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
@@ -24,7 +24,7 @@
       <Search size={16} />
     </button>
     <a href="/reminders" style="
-      width: 36px; height: 36px; border-radius: 18px;
+      width: 44px; height: 44px; border-radius: 999px;
       border: 0; background: var(--mep-surface);
       color: var(--mep-fg-2); cursor: pointer; position: relative;
       display: flex; align-items: center; justify-content: center;

@@ -75,7 +75,7 @@
         display:inline-flex;align-items:center;
         padding:2px 7px;border-radius:4px;
         background:var(--mep-acc);color:var(--mep-acc-fg);
-        font-size:10px;font-weight:700;letter-spacing:0.12em;
+        font-size:11px;font-weight:700;letter-spacing:0.12em;
         line-height:14px;text-transform:uppercase;
       ">
         {$t('admin.banner')}
@@ -118,7 +118,7 @@
         width:22px;height:22px;border-radius:50%;flex-shrink:0;
         background:var(--mep-acc-soft);color:var(--mep-acc);
         display:flex;align-items:center;justify-content:center;
-        font-size:10px;font-weight:600;
+        font-size:11px;font-weight:600;
       ">{initials}</div>
       <div class="num" style="font-size:11.5px;color:var(--mep-fg-2);">
         {data.adminEmail}

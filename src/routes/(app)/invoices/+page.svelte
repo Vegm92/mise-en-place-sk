@@ -237,7 +237,7 @@
       <div class="flex flex-col gap-3">
         <div class="flex items-center gap-2 flex-wrap">
           <button type="button" class="btn btn-ghost"
-            style="height:32px;font-size:12.5px;gap:6px;"
+            style="font-size:12.5px;gap:6px;"
             aria-expanded={filtersOpen}
             aria-controls="inv-filter-panel"
             onclick={() => (filtersOpen = !filtersOpen)}>
@@ -256,7 +256,7 @@
           </button>
 
           {#if activeCount > 0}
-            <button type="button" class="btn btn-ghost" style="height:32px;font-size:12.5px;" onclick={clearFilters}>
+            <button type="button" class="btn btn-ghost" style="font-size:12.5px;" onclick={clearFilters}>
               {$t('inv.filter.clear')}
             </button>
           {/if}
@@ -267,11 +267,11 @@
             <div class="flex flex-wrap items-end gap-3">
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-q">{$t('inv.filter.search')}</label>
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-q">{$t('inv.filter.search')}</label>
                 <div class="search-field">
                   <span class="search-icon"><Search size={13} /></span>
                   <input id="inv-q" type="search" class="input"
-                    style="height:32px;font-size:12.5px;padding-left:32px;min-width:200px;"
+                    style="padding-left:32px;min-width:200px;"
                     placeholder={$t('inv.searchPlaceholder')}
                     value={filterDraft.q}
                     oninput={(e) => setSearch((e.target as HTMLInputElement).value)} />
@@ -279,8 +279,8 @@
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{$t('inv.filter.supplier')}</label>
-                <select id="inv-supplier" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:160px;"
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{$t('inv.filter.supplier')}</label>
+                <select id="inv-supplier" class="input" style="padding:0 8px;min-width:160px;"
                   value={filterDraft.supplier_id}
                   onchange={(e) => setFilter('supplier_id', (e.target as HTMLSelectElement).value)}>
                   <option value="">{$t('inv.filter.all')}</option>
@@ -291,8 +291,8 @@
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{$t('inv.filter.status')}</label>
-                <select id="inv-status" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{$t('inv.filter.status')}</label>
+                <select id="inv-status" class="input" style="padding:0 8px;"
                   value={filterDraft.status}
                   onchange={(e) => setFilter('status', (e.target as HTMLSelectElement).value)}>
                   <option value="">{$t('inv.filter.allStatus')}</option>
@@ -303,36 +303,36 @@
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{$t('inv.filter.from')}</label>
-                <input id="inv-from" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{$t('inv.filter.from')}</label>
+                <input id="inv-from" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.date_from}
                   onchange={(e) => setFilter('date_from', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{$t('inv.filter.to')}</label>
-                <input id="inv-to" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{$t('inv.filter.to')}</label>
+                <input id="inv-to" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.date_to}
                   onchange={(e) => setFilter('date_to', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
-                <input id="inv-uploaded-from" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
+                <input id="inv-uploaded-from" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.uploaded_from}
                   onchange={(e) => setFilter('uploaded_from', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
-                <input id="inv-uploaded-to" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
+                <input id="inv-uploaded-to" type="date" class="input" style="padding:0 8px;"
                   value={filterDraft.uploaded_to}
                   onchange={(e) => setFilter('uploaded_to', (e.target as HTMLInputElement).value)} />
               </div>
 
               <div class="flex flex-col gap-1">
-                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{$t('inv.filter.sort')}</label>
-                <select id="inv-sort" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:185px;"
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{$t('inv.filter.sort')}</label>
+                <select id="inv-sort" class="input" style="padding:0 8px;min-width:185px;"
                   value={filterDraft.sort}
                   onchange={(e) => setFilter('sort', (e.target as HTMLSelectElement).value as InvoiceSortKey)}>
                   <option value="uploaded_desc">{$t('inv.filter.sort.uploadedDesc')}</option>
@@ -350,7 +350,7 @@
 
     {#snippet filters()}
       <div style="flex:1;"></div>
-      <a href="/invoices/export" class="btn btn-ghost" style="height:32px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
+      <a href="/invoices/export" class="btn btn-ghost" style="font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
         <FileDown size={13} />
         {$t('inv.export')}
       </a>
@@ -517,7 +517,7 @@
                     placeholder={$t('inv.detail.addNote')}
                     value={noteVal}
                     class="input resize-y"
-                    style="min-height:52px;max-height:120px;padding:8px 10px;font-size:12.5px;"
+                    style="min-height:52px;max-height:120px;padding:8px 10px;"
                     oninput={(e: Event) => setNoteText(inv.id, (e.target as HTMLTextAreaElement).value)}
                     onblur={() => saveNote(inv.id)}
                   ></textarea>

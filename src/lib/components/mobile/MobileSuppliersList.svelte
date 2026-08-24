@@ -66,12 +66,8 @@
     return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
   }
 
-  function chipStyle(active: boolean) {
-    return `border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
-      background: ${active ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-      color: ${active ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-      font-size: 12px; font-weight: 500; font-family: inherit;
-      box-shadow: ${active ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};`;
+  function chipClass(active: boolean) {
+    return active ? 'chip active' : 'chip';
   }
 </script>
 
@@ -85,7 +81,7 @@
     </span>
     <input
       class="input"
-      style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
+      style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
       placeholder={$t('sup.searchPlaceholder')}
       bind:value={search}
     />
@@ -94,7 +90,7 @@
   <div style="padding: 0 18px 10px;">
     <select
       class="input"
-      style="width: 100%; height: 36px; font-size: 13px; box-sizing: border-box;"
+      style="width: 100%; height: 36px; box-sizing: border-box;"
       aria-label={$t('sup.sort.label')}
       value={sort}
       onchange={(e) => onApply?.({ sort: e.currentTarget.value })}
@@ -106,16 +102,16 @@
   </div>
 
   <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none;">
-    <button onclick={() => onApply?.({ category: null })} style={chipStyle(!category)}>{$t('sup.allChip')}</button>
+    <button class={chipClass(!category)} onclick={() => onApply?.({ category: null })}>{$t('sup.allChip')}</button>
     <button
+      class={chipClass(uncategorizedOnly)}
       aria-pressed={uncategorizedOnly}
       onclick={() => onApply?.({ uncategorized: uncategorizedOnly ? null : '1' })}
-      style={chipStyle(uncategorizedOnly)}
     >{$t('sup.filterUncategorized')}</button>
     {#each categories as cat}
       <button
+        class={chipClass(category === cat)}
         onclick={() => onApply?.({ category: category === cat ? null : cat })}
-        style={chipStyle(category === cat)}
       >{$tcat(cat)}</button>
     {/each}
   </div>
@@ -123,17 +119,17 @@
   <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{suppliers.length}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.suppliersChip')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.suppliersChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend)}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{totalMonthInvoices}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.invoicesList')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.invoicesList')}</div>
     </div>
   </div>
 

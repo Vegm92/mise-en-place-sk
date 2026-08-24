@@ -102,14 +102,14 @@
   >
     {#snippet filters()}
       <div style="position:relative;">
-        <select class="btn btn-secondary" style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:150px;" bind:value={categoryFilter}>
+        <select class="btn btn-secondary" style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:150px;" bind:value={categoryFilter}>
           <option value="">{$t('tpl.demo.filterAll')}</option>
           {#each CATEGORIES as c}<option value={c.key}>{$t(c.labelKey)}</option>{/each}
         </select>
-        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
       </div>
       <div style="flex:1;"></div>
-      <button type="button" class="btn btn-primary" style="height:32px;font-size:12.5px;gap:5px;">
+      <button type="button" class="btn btn-primary" style="font-size:12.5px;gap:5px;">
         <Plus size={13} /> {$t('tpl.demo.add')}
       </button>
     {/snippet}

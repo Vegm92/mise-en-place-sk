@@ -253,19 +253,20 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     {#if !collapsed && data.locations && data.locations.length > 1}
       <div style="padding:0 10px 14px;">
-        <label for="location-switch" style="display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
+        <label for="location-switch" style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
           {$t('nav.location')}
         </label>
         <div style="position:relative;" bind:this={locationRef}>
           <button
             type="button"
             id="location-switch"
+            class="sidenav-item"
             disabled={switchingLocation}
             onclick={() => (locationOpen = !locationOpen)}
             aria-haspopup="listbox"
             aria-expanded={locationOpen}
             style="
-              height:32px;width:100%;font-size:12.5px;text-align:left;cursor:pointer;
+              width:100%;font-size:12.5px;text-align:left;cursor:pointer;
               border-radius:var(--mep-r-input);border:1px solid var(--mep-border-strong);
               background:var(--mep-surface);color:var(--mep-fg);padding:0 10px;
               display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -330,6 +331,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
         <a
           href={item.href}
+          class="sidenav-item"
           onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
           data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
           title={collapsed ? item.label : undefined}
@@ -337,7 +339,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             position:relative;
             display:flex;align-items:center;gap:10px;
             padding:{collapsed ? '7px' : '7px 10px'};
-            height:32px;border-radius:6px;
+            border-radius:6px;
             cursor:pointer;text-decoration:none;
             justify-content:{collapsed ? 'center' : 'flex-start'};
             background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
@@ -350,12 +352,12 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-acc);" aria-hidden="true"></span>
           {/if}
           {#if !collapsed}
-            <span style="flex:1;display:flex;align-items:center;gap:6px;">{item.label}{#if item.proOnly && item.feature && !data.features[item.feature]}<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--mep-acc);color:var(--mep-acc-fg);">{$t('nav.badge.pro')}</span>{/if}</span>
+            <span style="flex:1;display:flex;align-items:center;gap:6px;">{item.label}{#if item.proOnly && item.feature && !data.features[item.feature]}<span style="font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--mep-acc);color:var(--mep-acc-fg);">{$t('nav.badge.pro')}</span>{/if}</span>
             {#if item.badge}
               <span
                 class="num"
                 style="
-                  font-size:10px;font-weight:600;min-width:16px;height:16px;
+                  font-size:11px;font-weight:600;min-width:16px;height:16px;
                   padding:0 5px;border-radius:8px;
                   background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
                   color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
@@ -466,7 +468,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <header style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:10px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
+    <header class="app-header" style="height:56px;flex-shrink:0;display:flex;align-items:center;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
 
       <button
         class="md:hidden btn btn-ghost"

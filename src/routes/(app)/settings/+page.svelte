@@ -105,7 +105,7 @@
             <div>
               <div class="flex items-center gap-3 flex-wrap">
                 <input id="profile-name" name="name" type="text" maxlength="80" required
-                  value={data.profile.name} class="input" style="height:34px;font-size:13px;width:100%;max-width:300px;" />
+                  value={data.profile.name} class="input" style="height:34px;width:100%;max-width:300px;" />
                 <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
               </div>
               {#if feedback('name')?.error}
@@ -130,7 +130,7 @@
               </div>
               <div class="flex items-center gap-3 flex-wrap">
                 <input id="profile-email" name="email" type="email" required
-                  value={data.profile.email} class="input" style="height:34px;font-size:13px;width:100%;max-width:300px;" />
+                  value={data.profile.email} class="input" style="height:34px;width:100%;max-width:300px;" />
                 <button type="submit" class="btn btn-secondary" style="height:34px;">{$t('set.profile.emailBtn')}</button>
               </div>
               <p class="body text-fg-3" style="font-size:11.5px;margin:6px 0 0;">{$t('set.profile.emailDesc')}</p>
@@ -147,11 +147,11 @@
               <label for="pw-current" class="body-strong" style="font-size:13px;">{$t('set.profile.password')}</label>
               <form method="POST" action="?/changePassword" class="flex flex-col gap-2" style="max-width:300px;">
                 <input id="pw-current" name="current" type="password" required autocomplete="current-password"
-                  placeholder={$t('set.profile.currentPassword')} class="input" style="height:34px;font-size:13px;" />
+                  placeholder={$t('set.profile.currentPassword')} class="input" style="height:34px;" />
                 <input name="password" type="password" required minlength="8" autocomplete="new-password"
-                  placeholder={$t('set.profile.newPassword')} class="input" style="height:34px;font-size:13px;" />
+                  placeholder={$t('set.profile.newPassword')} class="input" style="height:34px;" />
                 <input name="confirm" type="password" required minlength="8" autocomplete="new-password"
-                  placeholder={$t('set.profile.confirmPassword')} class="input" style="height:34px;font-size:13px;" />
+                  placeholder={$t('set.profile.confirmPassword')} class="input" style="height:34px;" />
                 <div>
                   <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.profile.passwordBtn')}</button>
                 </div>
@@ -182,7 +182,7 @@
               <form method="POST" action="?/renameRestaurant">
                 <div class="flex items-center gap-3 flex-wrap">
                   <input id="restaurant-name" name="name" type="text" maxlength="120" required
-                    value={data.restaurantName} class="input" style="height:34px;font-size:13px;width:100%;max-width:300px;" />
+                    value={data.restaurantName} class="input" style="height:34px;width:100%;max-width:300px;" />
                   <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
                 </div>
                 {#if feedback('restaurant')?.error}
@@ -234,7 +234,7 @@
                 <form method="POST" action="?/addLocation" class="flex items-center gap-3 flex-wrap">
                   <input name="name" type="text" maxlength="120" required
                     placeholder={$t('set.locations.newPlaceholder')}
-                    class="input" style="height:36px;font-size:13px;min-width:180px;flex:1;" />
+                    class="input" style="height:36px;min-width:180px;flex:1;" />
                   <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.locations.add')}</button>
                 </form>
               {:else}
@@ -257,7 +257,7 @@
               <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
                 <div style="flex:1 1 200px;max-width:240px;min-width:160px;">
                   <Slider bind:value={threshold} min={50} max={100} name="value" />
-                  <div class="num" style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mep-fg-4);margin-top:6px;">
+                  <div class="num" style="display:flex;justify-content:space-between;font-size:11px;color:var(--mep-fg-4);margin-top:6px;">
                     <span>50%</span><span>100%</span>
                   </div>
                 </div>
@@ -284,7 +284,7 @@
               <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
                 <div style="flex:1 1 200px;max-width:240px;min-width:160px;">
                   <Slider bind:value={priceThreshold} min={1} max={50} name="value" />
-                  <div class="num" style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mep-fg-4);margin-top:6px;">
+                  <div class="num" style="display:flex;justify-content:space-between;font-size:11px;color:var(--mep-fg-4);margin-top:6px;">
                     <span>1%</span><span>50%</span>
                   </div>
                 </div>
@@ -414,8 +414,8 @@
                   <form method="POST" action="?/generateWhatsappPairingCode" class="flex items-center gap-3 flex-wrap">
                     <input name="name" type="text" maxlength="80"
                       placeholder={$t('set.whatsapp.namePlaceholder')}
-                      class="input" style="height:32px;font-size:13px;min-width:120px;flex:1;" />
-                    <button type="submit" class="btn btn-secondary" style="height:32px;font-size:12px;">
+                      class="input" style="min-width:120px;flex:1;" />
+                    <button type="submit" class="btn btn-secondary" style="font-size:12px;">
                       {$t('set.whatsapp.pairGenerate')}
                     </button>
                   </form>
@@ -425,10 +425,10 @@
               <form method="POST" action="?/addWhatsappContact" class="flex items-center gap-3 flex-wrap">
                 <input name="phone" type="tel" required
                   placeholder={$t('set.whatsapp.phonePlaceholder')}
-                  class="input" style="height:36px;font-size:13px;min-width:150px;flex:1;" />
+                  class="input" style="height:36px;min-width:150px;flex:1;" />
                 <input name="name" type="text" maxlength="80"
                   placeholder={$t('set.whatsapp.namePlaceholder')}
-                  class="input" style="height:36px;font-size:13px;min-width:120px;flex:1;" />
+                  class="input" style="height:36px;min-width:120px;flex:1;" />
                 <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.whatsapp.add')}</button>
               </form>
             {:else}
@@ -488,7 +488,7 @@
                     placeholder={$t('set.deleteConfirmWord')}
                     bind:value={deleteConfirm}
                     class="input"
-                    style="height:34px;font-size:13px;width:140px;"
+                    style="height:34px;width:140px;"
                   />
                   <button
                     type="button"

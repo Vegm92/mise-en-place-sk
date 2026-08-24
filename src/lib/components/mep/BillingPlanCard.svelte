@@ -47,7 +47,7 @@
 			<span style="font-size:13px;color:var(--mep-fg-3);">{$t('billing.perMonth')}</span>
 		</div>
 		<div style="margin-top:8px;">
-			<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:500;
+			<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:500;
 				letter-spacing:0.02em;text-transform:uppercase;color:var(--mep-fg-3);
 				border:1px dashed var(--mep-border-strong);border-radius:var(--mep-r-tag);padding:1px 5px;">
 				{$t('billing.provisional')}

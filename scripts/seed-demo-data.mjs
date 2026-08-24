@@ -24,7 +24,14 @@ export const DEMO_PASSWORD = 'Test1234!';
 
 const sql = postgres(url, { ssl: false, max: 1 });
 
-const CATEGORIES = ['carne', 'pescado', 'verdura', 'bebidas', 'lacteos', 'panaderia'];
+const CATEGORIES = [
+	'Frutas y Verduras',
+	'Carnes y Derivados',
+	'Pescados y Mariscos',
+	'Lácteos',
+	'Bebidas',
+	'Panadería y Bollería',
+];
 const UNITS = ['kg', 'ud', 'l', 'caja'];
 
 function isoDay(offset) {
