@@ -9,10 +9,23 @@ import { getOrCreateSupplierId } from '$lib/server/supplier';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
 import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
 import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice } from '$lib/server/invoice-save';
+import type { TaxBand } from '$lib/tax';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type TenantDb = ReturnType<typeof forTenant>;
 type EditConflict = 'duplicate' | 'stale' | null;
+
+async function storedTaxBands(tdb: TenantDb, id: number): Promise<TaxBand[] | null> {
+	const [row] = await db.select({ taxBreakdown: invoices.taxBreakdown }).from(invoices)
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id))).limit(1);
+	if (!row?.taxBreakdown) return null;
+	try {
+		const parsed = JSON.parse(row.taxBreakdown);
+		return Array.isArray(parsed) ? (parsed as TaxBand[]) : null;
+	} catch {
+		return null;
+	}
+}
 
 async function checkDuplicateInvoice(
 	tx: Tx, tdb: TenantDb, id: number,
@@ -158,6 +171,7 @@ export const actions: Actions = {
 		const contentHash = computeFormContentHash(
 			{ supplierName, invoiceNumber: invoiceNumber ?? '', invoiceDate, dueDate, totalAmount },
 			data,
+			await storedTaxBands(tdb, id),
 		);
 
 		let conflict: EditConflict = null;

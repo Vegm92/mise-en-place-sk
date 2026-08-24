@@ -35,9 +35,16 @@ gate. **This is THE invoice write path (ADR-008). Do not add another.**
 
 1. **Low-confidence gate** (`invoice-save.ts:200-210`): block unless ack when a
    header field conf < 0.85 or overall conf < 0.85 → `lowConfidenceBlocked`.
-2. **Content-hash dedup** (`dedup.ts:9-36`): SHA-256 over canonicalized
-   supplier/num/date/due/total + line desc/qty/unit/price; matched against
-   `contentHash` WHERE `deletedAt IS NULL` → `contentDuplicate`.
+2. **Content-hash dedup** (`dedup.ts`): SHA-256 over canonicalized
+   supplier/num/date/due/total + line desc/qty/unit/price/rate **and the tax
+   breakdown**; matched against `contentHash` WHERE `deletedAt IS NULL` →
+   `contentDuplicate`. Tax is part of the identity because an albarán and the
+   factura for the same delivery carry the same lines and differ mainly in the
+   tax on top — without it the second was refused as a duplicate of the first.
+   Bands are sorted before hashing so reordering them in the UI does not change
+   the document's identity, and money is canonicalized so 121.7 and 121.70 hash
+   alike. Rows written before this change need
+   `pnpm db:backfill-content-hash`.
 2a. **Similar-invoice pre-warning** (`dedup.ts` — `amountsAreSimilar`,
    `findSimilarInvoice`; issue #449): advisory only, not a save-time gate. When
    the exact supplier+number check finds nothing, `batch/[id]`'s `load` also
@@ -274,6 +281,13 @@ shapes, `low_confidence_ack` value.
 
 - Legacy route superseded by /batch/[batchId]: old links carry an item id, resolved to the batch when possible, otherwise home.
 
+### `src/lib/server/rehash.ts`
+
+**`function hashForStoredInvoice`**
+
+- Recomputes a saved invoice's `contentHash` from its stored columns, for the one-off backfill (`pnpm db:backfill-content-hash`) that migrates rows written before tax entered the hash. Without it those rows keep a hash no new save can reproduce, so re-uploading an already-saved albarán would slip past the content gate — the supplier+number index does not cover documents with no number. A test pins it against `computeFormContentHash` so the two cannot drift.
+- The backfill skips a row whose new hash is already taken rather than failing on `uq_invoices_rid_content_hash`: two rows that were distinct only because the old formula ignored tax can legitimately collide under the new one, and leaving the loser on its old hash is safer than touching either row's data.
+
 ### `src/lib/tax.ts`
 
 **`function percentToFraction`**
@@ -290,8 +304,14 @@ shapes, `low_confidence_ack` value.
 
 ### `src/lib/server/invoice-save.ts`
 
+**`function computeFormContentHash`**
+
+- Keeps the surviving line *indices*, not just the surviving descriptions: it used to index quantities/units/prices by position in the filtered list, so one blank description among real ones shifted every later column against its description and hashed an invoice that was never saved. `parseLineInputs` always skipped blanks correctly, so the hash and the stored rows disagreed.
+- Takes the tax bands as an argument rather than re-reading the form, so the batch path and the edit path (which posts no bands and passes the invoice's stored ones) produce the same hash for the same document.
+
 **`function resolveTaxBreakdown`**
 
+- Also returns the parsed `bands`: the same values feed both the stored `tax_breakdown` and the content hash, and deriving them twice would let the two drift. It is called before the hash for that reason.
 - The form wins when it posts `tax_bands_present`, the extraction is the fallback otherwise. The marker matters: without it, a reviewer deleting every band would be indistinguishable from a caller that never sent tax fields, and the extraction's bands would silently come back.
 
 **`type SaveOutcome`**
