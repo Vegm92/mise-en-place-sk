@@ -8,7 +8,15 @@ try {
 	if (t !== 'dark' && t !== 'light') {
 		t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 	}
-	document.documentElement.dataset.theme = t;
+	setTheme(t);
 } catch (e) {
-	document.documentElement.dataset.theme = 'light';
+	setTheme('light');
+}
+
+/* Mirrors applyTheme() in src/lib/theme.ts, minus the write-back to storage —
+   this only ever reflects what is already stored. CHROME must match --mep-bg. */
+function setTheme(t) {
+	document.documentElement.dataset.theme = t;
+	var meta = document.querySelector('meta[name="theme-color"]');
+	if (meta) meta.setAttribute('content', t === 'dark' ? '#16151a' : '#f5f4f0');
 }
