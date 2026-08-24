@@ -349,7 +349,7 @@
                     href={data.whatsappBotNumber.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--mep-fg-1);"
+                    style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--mep-fg);"
                   >{data.whatsappBotNumber.display}</a>
                   <button
                     type="button"
@@ -495,7 +495,7 @@
                     onclick={handleDeleteAccount}
                     disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
                     class="btn"
-                    style="height:34px;font-size:13px;background:var(--mep-neg);color:#fff;border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
+                    style="height:34px;font-size:13px;background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
                   >
                     {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
                   </button>
@@ -662,7 +662,7 @@
     font-size: 26px;
     font-weight: 700;
     letter-spacing: 0.18em;
-    color: var(--mep-fg-1);
+    color: var(--mep-fg);
   }
 
   .wa-qr {

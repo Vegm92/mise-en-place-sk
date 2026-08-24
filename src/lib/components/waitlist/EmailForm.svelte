@@ -47,7 +47,7 @@
   <div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);border-radius:10px;
               padding:{big ? '18px 20px' : '14px 16px'};display:flex;align-items:flex-start;gap:12px;">
     <div style="width:26px;height:26px;border-radius:13px;flex-shrink:0;background:var(--mep-pos);
-                color:#fff;display:flex;align-items:center;justify-content:center;">
+                color:var(--mep-pos-fg);display:flex;align-items:center;justify-content:center;">
       <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
     </div>
     <div>

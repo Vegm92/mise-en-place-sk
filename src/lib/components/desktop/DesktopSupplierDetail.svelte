@@ -216,7 +216,7 @@
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
-              <button type="submit" class="btn" style="background:var(--mep-neg);color:#fff;border-color:var(--mep-neg);height:30px;font-size:12px;">
+              <button type="submit" class="btn" style="background:var(--mep-neg);color:var(--mep-neg-fg);border-color:var(--mep-neg);height:30px;font-size:12px;">
                 {$t('sup.confirmDelete.yes')}
               </button>
             </form>
@@ -681,7 +681,7 @@
                         <form method="post" action="?/deleteConversion" style="margin:0;">
                           <input type="hidden" name="conversion_id" value={conv.id} />
                           <button type="submit" class="btn"
-                            style="height:26px;font-size:11px;color:#E05555;border-color:#E05555;padding:0 8px;">
+                            style="height:26px;font-size:11px;color:var(--mep-neg);border-color:var(--mep-neg);padding:0 8px;">
                             {$t('sup.conv.delete')}
                           </button>
                         </form>

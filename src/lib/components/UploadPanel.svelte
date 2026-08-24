@@ -347,8 +347,8 @@
       <div style="
         display:flex;align-items:center;gap:10px;
         padding:10px 12px;border-radius:10px;
-        background:#fff8e6;border:1px solid #f5a623;
-        font-size:12.5px;color:#7a5200;
+        background:var(--mep-warn-soft);border:1px solid var(--mep-warn);
+        font-size:12.5px;color:var(--mep-warn);
       ">
         {#if offlineBanner === 'retrying'}
           <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">

@@ -34,7 +34,7 @@
     const pct   = limit > 0 ? (spent / limit) * 100 : 0;
     const remaining  = limit - spent;
     const projected  = today > 0 ? pct * 31 / today : 0;
-    const color = data.colors[cat] ?? '#888';
+    const color = data.colors[cat] ?? 'var(--mep-fg-3)';
     return { cat, limit, spent, pct, remaining, projected, color };
   }));
 

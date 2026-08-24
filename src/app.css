@@ -7,7 +7,8 @@
 
 .mep {
   font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mep-fs-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --mep-font:    'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mep-fs-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   color: var(--mep-fg);
   background: var(--mep-bg);
@@ -31,6 +32,14 @@
   --mep-warn-soft:rgba(126, 76, 13, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
+
+  /* Ink for text/glyphs sitting ON a solid semantic fill. Same role as
+     --mep-acc-fg: never hard-code #fff against --mep-neg/-warn/-pos/-info,
+     the dark ramp is far too light for white to stay legible. */
+  --mep-pos-fg:  #ffffff;
+  --mep-neg-fg:  #ffffff;
+  --mep-warn-fg: #ffffff;
+  --mep-info-fg: #ffffff;
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
@@ -80,8 +89,8 @@
 
   --mep-fg:   #ece9e2;
   --mep-fg-2: #a8a39a;
-  --mep-fg-3: #6f6a62;
-  --mep-fg-4: #524d46;
+  --mep-fg-3: #918b82;
+  --mep-fg-4: #787168;
 
   --mep-border:       rgba(255, 255, 255, 0.08);
   --mep-border-strong:rgba(255, 255, 255, 0.14);
@@ -107,6 +116,11 @@
   --mep-warn-soft: rgba(208, 149, 72, 0.18);
   --mep-info:      #5f8ee0;
   --mep-info-soft: rgba(95, 142, 224, 0.18);
+
+  --mep-pos-fg:  #08211a;
+  --mep-neg-fg:  #2a0d0d;
+  --mep-warn-fg: #2a1a08;
+  --mep-info-fg: #0d1828;
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
@@ -190,12 +204,16 @@
   --color-acc-soft:      var(--mep-acc-soft);
   --color-pos:           var(--mep-pos);
   --color-pos-soft:      var(--mep-pos-soft);
+  --color-pos-fg:        var(--mep-pos-fg);
   --color-neg:           var(--mep-neg);
   --color-neg-soft:      var(--mep-neg-soft);
+  --color-neg-fg:        var(--mep-neg-fg);
   --color-warn:          var(--mep-warn);
   --color-warn-soft:     var(--mep-warn-soft);
+  --color-warn-fg:       var(--mep-warn-fg);
   --color-info:          var(--mep-info);
   --color-info-soft:     var(--mep-info-soft);
+  --color-info-fg:       var(--mep-info-fg);
 
   --shadow-card: var(--mep-shadow-card);
   --shadow-pop:  var(--mep-shadow-pop);

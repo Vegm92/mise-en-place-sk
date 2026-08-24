@@ -51,7 +51,7 @@
         style="
           position:absolute;top:4px;right:4px;
           min-width:14px;height:14px;border-radius:7px;
-          background:var(--mep-neg);color:#fff;
+          background:var(--mep-neg);color:var(--mep-neg-fg);
           font-size:9px;font-weight:700;
           display:flex;align-items:center;justify-content:center;
           padding:0 3px;line-height:1;
