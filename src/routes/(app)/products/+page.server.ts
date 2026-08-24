@@ -4,6 +4,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
+import { loadConversionPrompts } from '$lib/server/products';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
@@ -29,7 +30,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const period = url.searchParams.get('period') ?? '30d';
 
 	return handleLoad('products', async () => {
-		const [products, suggestionRows, trendRows] = await Promise.all([
+		const [products, suggestionRows, trendRows, conversionPrompts] = await Promise.all([
 			db.execute<ProductRow>(sql`
 				SELECT p.id, p.canonical_name, p.category, p.canonical_unit, p.units_per_pack, p.base_unit,
 				       (SELECT count(DISTINCT a.supplier_id) FROM product_aliases a
@@ -56,6 +57,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				GROUP BY DATE_TRUNC('month', created_at)
 				ORDER BY DATE_TRUNC('month', created_at) ASC
 			`),
+
+			loadConversionPrompts(db, rid),
 		]);
 
 		const suggestions = suggestionRows.map((row) => {
@@ -96,6 +99,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				needsConversion: p.canonical_unit != null && p.units_per_pack == null,
 			})),
 			suggestions,
+			conversionPrompts,
 			categories: VALID_CATEGORIES,
 			colors: CATEGORY_COLORS,
 		};
