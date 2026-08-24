@@ -5,7 +5,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { loadConversionPrompts } from '$lib/server/products';
-import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { VALID_CATEGORIES } from '$lib/constants';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 type ProductRow = {
@@ -78,7 +78,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			series: [{
 				key: 'new',
 				label: 'prod.trend.title',
-				color: 'var(--mep-series-1)',
 				values: trendRows.map(r => Number(r.count)),
 			}],
 		};
@@ -101,7 +100,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			suggestions,
 			conversionPrompts,
 			categories: VALID_CATEGORIES,
-			colors: CATEGORY_COLORS,
 		};
 	});
 };

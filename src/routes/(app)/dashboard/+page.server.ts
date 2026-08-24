@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
 import { desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
-import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
+import { VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
 import { getTrendDataByRange } from '$lib/server/trend';
@@ -332,7 +332,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				month_spend: Number(r.month_spend),
 				prev_month_spend: Number(r.prev_month_spend),
 				badge: Number(r.has_overdue) ? 'overdue' : Number(r.has_due_soon) ? 'due_soon' : 'paid_up',
-				color: CATEGORY_COLORS[r.category] ?? CATEGORY_COLORS['Other'],
 				delta,
 			};
 		});
@@ -343,7 +342,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			category: String(cat.category),
 			total: Number(cat.total),
 			pct: Math.round(Number(cat.total) / maxCat * 100),
-			color: CATEGORY_COLORS[cat.category] ?? CATEGORY_COLORS['Other'],
 		}));
 		const categorySpendMap: Record<string, number> = {};
 		for (const cat of categorySpend) categorySpendMap[cat.category] = cat.total;

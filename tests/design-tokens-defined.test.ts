@@ -15,6 +15,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { VALID_CATEGORIES, categorySlug } from '../src/lib/constants';
+import { CATEGORY_COLORS, categoryColor, categoryTint } from '../src/lib/colors';
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
@@ -37,7 +39,8 @@ const referencedIn = new Map<string, Set<string>>();
 for (const file of walk(SRC)) {
 	if (file.endsWith(`${path.sep}app.css`)) continue;
 	const src = readFileSync(file, 'utf8');
-	for (const m of src.matchAll(/var\(\s*(--mep-[a-z0-9-]+)/g)) {
+	for (const m of src.matchAll(/var\(\s*(--mep-[a-z0-9-]+)(\$\{)?/g)) {
+		if (m[2]) continue; // `var(--mep-cat-${slug})` — the name is built, not read
 		const rel = path.relative(ROOT, file);
 		if (!referencedIn.has(m[1])) referencedIn.set(m[1], new Set());
 		referencedIn.get(m[1])!.add(rel);
@@ -66,6 +69,50 @@ describe('MEP design tokens', () => {
 			expect(css).toMatch(new RegExp(`${token}\\s*:`));
 			expect(dark).toContain(token);
 		}
+	});
+
+	it('gives every category a --mep-cat-* token in both themes', () => {
+		const block = (sel: RegExp) => css.match(sel)?.[0] ?? '';
+		const light = block(/:root\[data-theme=["']light["']\]\s*{[\s\S]*?\n}/);
+		const dark = block(/:root\[data-theme=["']dark["']\]\s*{[\s\S]*?\n}/);
+		const missing: string[] = [];
+		for (const cat of VALID_CATEGORIES) {
+			const token = `--mep-cat-${categorySlug(cat)}`;
+			if (!light.includes(token)) missing.push(`${token} (light)`);
+			if (!dark.includes(token)) missing.push(`${token} (dark)`);
+		}
+		expect(missing).toEqual([]);
+		expect(CATEGORY_COLORS['Other']).toBe('var(--mep-cat-other)');
+	});
+
+	it('resolves every category to a token, never a literal', () => {
+		// categoryColor() feeds `background`, `color` and SVG fill/stroke alike;
+		// a hex here would be a colour that cannot follow the theme.
+		for (const cat of [...VALID_CATEGORIES, 'Not A Category', '', null, undefined]) {
+			expect(categoryColor(cat)).toMatch(/^var\(--mep-cat-[a-z0-9-]+\)$/);
+		}
+		// The tint replaced `background:{color}24`, which produced
+		// `var(--mep-cat-bebidas)24` — not a colour — once the value became a token.
+		expect(categoryTint('Bebidas')).toBe(
+			'color-mix(in oklab, var(--mep-cat-bebidas) 14%, transparent)',
+		);
+	});
+
+	it('keeps colour decisions out of the load functions', () => {
+		// The load functions run on the server, which cannot know the theme: it
+		// lives in localStorage and is stamped onto documentElement by
+		// static/theme-init.js. Anything they colour is stuck on one ramp.
+		const offenders: string[] = [];
+		for (const file of walk(SRC)) {
+			if (!/\+(page|layout)\.server\.ts$|\+server\.ts$/.test(file)) continue;
+			const src = readFileSync(file, 'utf8');
+			// `color: { argb }` is an ExcelJS cell style in the .xlsx export —
+			// a generated file, with no theme to follow. Only CSS-shaped values count.
+			if (/\bcolors?\s*:(?!\s*\{)/.test(src) || /#[0-9a-fA-F]{6}\b/.test(src)) {
+				offenders.push(path.relative(ROOT, file));
+			}
+		}
+		expect(offenders).toEqual([]);
 	});
 
 	it('never pairs a hard-coded #fff with a solid semantic fill', () => {

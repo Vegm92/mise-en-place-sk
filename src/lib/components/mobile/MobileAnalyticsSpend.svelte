@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t, tcat } from '$lib/i18n';
 
+  import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
   interface Kpis {
     total_items_spend: number | null;
     total_line_items: number | null;
@@ -20,7 +21,6 @@
     category: string;
     total: number;
     pct: number;
-    color: string;
   }
 
   let {
@@ -46,7 +46,6 @@
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
   }
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   const spendDonut = $derived((() => {
     const ranked = [...top_items].sort((a, b) => b.total_spend - a.total_spend);
     const total = ranked.reduce((a, p) => a + p.total_spend, 0);
@@ -56,8 +55,8 @@
     const rest = ranked.slice(5);
     const restSpend = rest.reduce((a, p) => a + p.total_spend, 0);
 
-    const entries = top.map((p, i) => ({ label: p.description, spend: p.total_spend, color: SERIES_COLORS[i] }));
-    if (restSpend > 0) entries.push({ label: $t('spend.other'), spend: restSpend, color: 'var(--mep-series-other)' });
+    const entries = top.map((p, i) => ({ label: p.description, spend: p.total_spend, color: seriesColor(i) }));
+    if (restSpend > 0) entries.push({ label: $t('spend.other'), spend: restSpend, color: SERIES_OTHER });
 
     let cursor = 0;
     const CIRC = 2 * Math.PI * 60;
@@ -158,13 +157,13 @@
             <div>
               <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--mep-fg-2);">
-                  <span style="width: 10px; height: 10px; border-radius: 2px; background: {cat.color}; display: inline-block; flex-shrink: 0;"></span>
+                  <span style="width: 10px; height: 10px; border-radius: 2px; background: {categoryColor(cat.category)}; display: inline-block; flex-shrink: 0;"></span>
                   {$tcat(cat.category)}
                 </span>
                 <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{fmtEur(cat.total)}</span>
               </div>
               <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-                <div style="width: {cat.pct}%; height: 100%; background: {cat.color}; border-radius: 3px;"></div>
+                <div style="width: {cat.pct}%; height: 100%; background: {categoryColor(cat.category)}; border-radius: 3px;"></div>
               </div>
             </div>
           {/each}
