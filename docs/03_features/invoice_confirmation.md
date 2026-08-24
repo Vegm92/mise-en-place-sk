@@ -81,7 +81,8 @@ number-duplicate). `api/batch-status/[id]` for status.
 
 `batch/[id]/+page.svelte` (per-item review, low-confidence + duplicate modals,
 `duplicateOfId` exact pre-warning, `similarInvoiceId` fuzzy pre-warning).
-Legacy `confirm/[id]`/`extract/[id]` redirect here.
+Its three-pane workspace shape lives in the `.rev-*` component classes in
+`src/app.css`. Legacy `confirm/[id]`/`extract/[id]` redirect here.
 
 ## Background dependencies
 
@@ -200,6 +201,22 @@ shapes, `low_confidence_ack` value.
 
 - Focus the first uncertain field when a new review item appears.
 
+**`const queueOpen`**
+
+- Workspace layout state: queue rail folded/expanded, document pane shown/hidden, and its dragged width. Seeded so the rail starts folded whenever a review is already on screen (the editor is what the reviewer needs, not the file list), then overridden in `onMount` by whatever the user last chose. Persisted under `mep-review-*` localStorage keys; every write goes through `persist()` so a blocked storage API is a no-op rather than a crash.
+
+**`function onSplitDown`**
+
+- Pointer-capture drag on the pane splitter, clamped to `PREVIEW_MIN_W`/`PREVIEW_MAX_W`; arrow keys resize it from the keyboard and double-click restores the default. `.rev-dragging` on the page root kills the width transition and blocks iframe pointer events so the drag doesn't get swallowed by the PDF viewer.
+
+**`function jumpToUncertain`**
+
+- Cycles focus through every field extraction was unsure about — flagged header inputs first, then flagged line rows — so a reviewer can clear the warning banner without hunting. Both the banner and the header count badge trigger it.
+
+**`function onWindowKeydown`**
+
+- Shortcuts are modifier-based (⌘/Ctrl+Enter save, ⌘/Ctrl+\ document, ⌘/Ctrl+B queue, F2 next uncertain field) precisely because this page keeps focus inside an input almost the whole time — bare letter keys would type instead of act.
+
 **`const addFiles`**
 
 - Add-more-file state.
@@ -207,9 +224,11 @@ shapes, `low_confidence_ack` value.
 **`markup`**
 
 - Step cue for Upload → Extract → Review (issue #232); extract stays current while anything is in flight.
-- Two-column grid: queue + active panel. Doc viewer, cabecera fields, line items, totals footer, failed-item and in-flight panels.
+- Three panes on one flex row (`.rev-*` classes in `app.css`): a queue rail that folds to an icon strip, a document preview that is resizable, hideable and expandable to full screen, and the editor pane taking every remaining pixel — the editor is where the work happens, so the other two are sized to get out of its way.
+- The editor pane is a sticky header + one scrolling body + a sticky totals footer, so an invoice with many fields or many lines scrolls in place while the identity and the save action stay visible. Header fields sit in an `auto-fit` grid, so a wider pane shows more fields per row instead of more whitespace; the line-item table's section head and column head both stick as it scrolls.
 - The discard button sits visually inside the save form's header but targets an out-of-tree `#discard-item-form` — nesting real forms is invalid HTML.
 - Content-duplicate block + low-confidence review gate modals; `svelte-ignore a11y_no_static_element_interactions` on their click-catchers.
+- Under 900px the three panes stack and the page scrolls as one; the rail becomes a horizontal strip of file chips.
 
 ### `src/routes/(app)/confirm/[id]/+page.server.ts`
 
