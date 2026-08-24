@@ -38,6 +38,12 @@ price-shock history.
   from extraction and edits.
 - **Name normalization** (`normalize.ts`): Spanish legal forms (SLU, SCP, SA…)
   stripped for same-supplier detection.
+- **Product aggregates** (issue #575): the detail "Productos" tab groups a
+  supplier's `invoice_line_items` by `(description, unit)` across its
+  non-deleted invoices and reports average unit price, **total spend**
+  (`SUM(total_price)`) and **units purchased** (`SUM(quantity)`), plus the last
+  purchase date. Total spend is `null` (rendered as `—`) when no line in the
+  group prints a total price; units are always summed.
 - **Reliability** (`supplier-reliability.ts`): score = price stability (CV of
   unit price, 180 d, top 5 items; <5% → 33, ≤15% → 20, else 0) + frequency
   (gap analysis → 33/15/0) + timeliness (% paid vs total with due dates;
@@ -104,8 +110,12 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
   ≥ 0.6) and contact data.
 - Editing category persists; suggestions mark their nudge `sent`.
 - Reliability scores compute from price/frequency/timeliness inputs.
+- The "Productos" tab shows a "Gasto total" column and a "Unidades compradas"
+  column, aggregated per product, in both the mobile and desktop variants, and
+  labelled in ES and EN (issue #575).
 - Tests: `tests/supplier-category.test.ts`, `tests/supplier-contact-save.test.ts`,
-  `tests/supplier-reliability-price-stability.test.ts`, `tests/db-crud.test.ts`.
+  `tests/supplier-reliability-price-stability.test.ts`, `tests/db-crud.test.ts`,
+  `tests/supplier-products-aggregates.test.ts`.
 
 ## Code notes
 
@@ -138,6 +148,7 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 
 **`const load`**
 - Builds 7-month spend history for the chart.
+- The `products` aggregate groups line items by `(description, unit)` over this supplier's non-deleted invoices; `totalSpend` sums `total_price` and `totalQty` sums `quantity` (issue #575). `SUM(numeric)` comes back as a string, so `totalSpend` goes through `moneyToNullableNumber` (null stays null — "no priced line" is not "€0"), and `totalQty` through `Number(...)`; neither is trusted as a JS number straight from the driver.
 
 **`property update`**
 - Backfill (issue #307): products from this supplier's invoices only ever get a category at creation time (usually the 'Other' default). Editing the supplier here is the one moment a user expresses a real category, so carry it onto still-uncategorized products instead of leaving them on 'Other' forever.
@@ -150,8 +161,12 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 **`const SERIES_COLORS`**
 - Product spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
 
+**`const productDonut`**
+- Slice spend now prefers the exact `totalSpend` aggregate and only falls back to `avgPrice × totalQty` when no line in the group printed a total price (issue #575) — otherwise the donut and the "Gasto total" column below it would disagree.
+
 **`markup`**
 - Mobile (edit form, KPI strip, tabs, info card, recent invoices, reliability, add form) and desktop supplier detail variants; `editing` toggles the edit form.
+- Each mobile product card carries a two-up "Gasto total" / "Unidades compradas" block — the mobile counterpart of the desktop table columns (ADR-020: both variants ship, CSS picks one).
 
 ### `src/routes/(app)/suppliers/+page.server.ts`
 
@@ -192,7 +207,8 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 - SVG chart constants.
 
 **`markup`**
-- Sticky header (breadcrumb, supplier header, delete confirmation, edit form); tabs resumen / facturas / productos / conversiones. Resumen: monthly spend chart, KPI strip, reliability breakdown, info card, recent invoices. Productos: donut + legend with hover detail. Conversiones: add-conversion form.
+- Sticky header (breadcrumb, supplier header, delete confirmation, edit form); tabs resumen / facturas / productos / conversiones. Resumen: monthly spend chart, KPI strip, reliability breakdown, info card, recent invoices. Productos: donut + legend with hover detail, then the product table. Conversiones: add-conversion form.
+- Product table columns: description, unit, average price, "Gasto total" (`sup.products.colSpend`), "Unidades compradas" (`sup.products.colUnits`), last purchase (issue #575). `colUnits` replaced the old `sup.products.totalQty` / "Cant. total" header — same number, the name the issue asked for — so that key was dropped rather than left as a dead duplicate.
 
 ### `src/lib/components/desktop/DesktopSuppliersList.svelte`
 
