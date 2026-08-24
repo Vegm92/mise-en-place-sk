@@ -270,6 +270,7 @@ shapes, `low_confidence_ack` value.
 - `toIsoDate` rejects anything that isn't `YYYY-MM-DD` and then round-trips it through `Date.UTC` to reject dates that match the shape but don't exist (`2026-02-30`, `2025-02-29`). A regex alone would let those reach Postgres and throw at insert time instead of at the boundary.
 - The two are split because blank and malformed need different answers: an absent date is legitimately `null`, a malformed one is a user error. `isBlankOrIsoDate` gates the write (`saveReviewedInvoice` returns `{ type: 'invalidDate' }`, the edit action returns `fail(400, { errorKey })`), `toIsoDate` normalises after the gate has passed.
 - Drizzle's `date()` defaults to `mode: 'string'`, so the TS type stayed `string | null` and the value stayed `YYYY-MM-DD` — the column type change touched no component.
+- `toIsoDate` itself now lives in `src/lib/dates.ts` and is re-exported here (issue #579): the `/invoices` filter parser runs on the client too, and `$lib/server/*` cannot be imported from client code. Server callers are unchanged.
 - On read paths that take a date from the URL (`date_from`/`date_to` on the invoices list and the xlsx export), `toIsoDate` is used to drop a malformed filter rather than reject it. Against a `text` column garbage silently matched nothing; against a `date` column it makes Postgres throw, so an unvalidated query string would 500 the page.
 
 **`toMonthKey`**

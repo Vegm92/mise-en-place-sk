@@ -1,12 +1,19 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { untrack } from 'svelte';
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import MobileSuppliersList from '$lib/components/mobile/MobileSuppliersList.svelte';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
   import { PERIOD_PILLS } from '$lib/constants';
+  import {
+    SUPPLIER_SEARCH_DEBOUNCE_MS,
+    SUPPLIER_SORT_KEYS,
+    SUPPLIER_SORT_LABEL_KEYS,
+  } from '$lib/supplier-list';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Plus from '@lucide/svelte/icons/plus';
 
@@ -16,19 +23,31 @@
   const totalMonthInvoices = $derived(data.suppliers.reduce((s, x) => s + (x.month_invoice_count ?? 0), 0));
   const unassigned         = $derived(data.suppliers.filter(s => !s.category || s.category === 'Other').length);
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
+  const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly));
 
-  let search    = $state('');
-  let catFilter = $state('');
-  let view      = $state<'list' | 'chart'>('list');
+  let view = $state<'list' | 'chart'>('list');
 
-  const filtered = $derived(
-    data.suppliers.filter(s => {
-      const q = search.trim().toLowerCase();
-      const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
-      const matchCat = !catFilter || s.category === catFilter;
-      return matchSearch && matchCat;
-    })
-  );
+  function listUrl(patch: Record<string, string | null>) {
+    const params = new URLSearchParams($page.url.searchParams);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) params.set(key, value); else params.delete(key);
+    }
+    const qs = params.toString();
+    return qs ? `/suppliers?${qs}` : '/suppliers';
+  }
+
+  function applyFilters(patch: Record<string, string | null>, replace = false) {
+    goto(listUrl(patch), { keepFocus: true, noScroll: true, replaceState: replace });
+  }
+
+  let search = $state(untrack(() => data.search));
+
+  $effect(() => {
+    const value = search.trim();
+    if (value === data.search) return;
+    const timer = setTimeout(() => applyFilters({ q: value || null }, true), SUPPLIER_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  });
 
   const periodPills = $derived(PERIOD_PILLS.map(p => {
     const params = new URLSearchParams($page.url.searchParams);
@@ -61,6 +80,11 @@
   <MobileSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}
+    search={data.search}
+    category={data.category}
+    sort={data.sort}
+    uncategorizedOnly={data.uncategorizedOnly}
+    onApply={applyFilters}
     {totalSpend}
     {totalMonthInvoices}
     {unassigned}
@@ -95,7 +119,9 @@
       <div style="position:relative;">
         <select class="btn btn-secondary"
           style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
-          bind:value={catFilter}>
+          aria-label={$t('sup.filterAllCategories')}
+          value={data.category}
+          onchange={(e) => applyFilters({ category: e.currentTarget.value || null })}>
           <option value="">{$t('sup.filterAllCategories')}</option>
           {#each data.categories as cat}
             <option value={cat}>{$tcat(cat)}</option>
@@ -103,10 +129,29 @@
         </select>
         <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
       </div>
-      <button class="btn btn-secondary max-[1050px]:hidden"
-        style="height:32px;font-size:12.5px;opacity:0.55;cursor:default;white-space:nowrap;flex-shrink:0;" disabled>
-        {$t('dsup.activityFilter')} <span style="font-size:10px;margin-left:2px;">▾</span>
+
+      <div style="position:relative;">
+        <select class="btn btn-secondary"
+          style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
+          aria-label={$t('sup.sort.label')}
+          value={data.sort}
+          onchange={(e) => applyFilters({ sort: e.currentTarget.value })}>
+          {#each SUPPLIER_SORT_KEYS as key}
+            <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
+          {/each}
+        </select>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+      </div>
+
+      <button type="button" class="btn btn-secondary max-[1050px]:hidden"
+        aria-pressed={data.uncategorizedOnly}
+        style="height:32px;font-size:12.5px;white-space:nowrap;flex-shrink:0;
+          border-color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-border)'};
+          color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};"
+        onclick={() => applyFilters({ uncategorized: data.uncategorizedOnly ? null : '1' })}>
+        {$t('sup.filterUncategorized')}
       </button>
+
       <div style="flex:1;"></div>
       <button class="btn btn-secondary"
         style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
@@ -115,9 +160,9 @@
     {/snippet}
 
     {#snippet table()}
-      {#if !filtered.length}
+      {#if !data.suppliers.length}
         <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
-          {#if search || catFilter}
+          {#if hasFilters}
             <p class="body" style="color:var(--mep-fg-3);">{$t('sup.noResults')}</p>
           {:else}
             <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
@@ -131,11 +176,12 @@
           <table class="tbl" style="table-layout:fixed;">
             <thead>
               <tr>
-                <th style="width:28%;">{$t('tbl.supplier')}</th>
+                <th style="width:24%;">{$t('tbl.supplier')}</th>
                 <th style="width:100px;">{$t('sup.field.cif')}</th>
                 <th style="width:120px;">{$t('sup.field.category')}</th>
                 <th class="num" style="width:75px;">{$t('nav.invoices')}</th>
                 <th class="num" style="width:115px;">{$t('tbl.spendMonth')}</th>
+                <th class="num" style="width:115px;">{$t('tbl.spendTotal')}</th>
                 <th style="width:90px;">{$t('tbl.trend')}</th>
                 <th class="num" style="width:65px;">Δ</th>
                 <th style="width:100px;">{$t('tbl.lastOrder')}</th>
@@ -143,7 +189,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each filtered as s (s.id)}
+              {#each data.suppliers as s (s.id)}
                 <tr class="row" onclick={() => location.replace(`/suppliers/${s.id}`)} style="cursor:pointer;">
                   <td>
                     <div style="display:flex;align-items:center;gap:10px;">
@@ -175,6 +221,7 @@
                   </td>
                   <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>
                   <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0)}</td>
+                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtEur(s.total_spend ?? 0)}</td>
                   <td style="padding:0 8px;">
                     {#if s.price_trend && s.price_trend.length >= 3}
                       <Sparkline values={s.price_trend} width={80} height={24} />

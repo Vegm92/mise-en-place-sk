@@ -54,6 +54,7 @@
     unit: string | null;
     avgPrice: number | null;
     totalQty: number | null;
+    totalSpend: number | null;
     lastDate: string | null;
   }
 
@@ -107,7 +108,7 @@
   }
   const productDonut = $derived((() => {
     const ranked = [...products]
-      .map(p => ({ ...p, spend: (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
+      .map(p => ({ ...p, spend: p.totalSpend ?? (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
       .sort((a, b) => b.spend - a.spend);
     const total = ranked.reduce((a, p) => a + p.spend, 0);
     if (total <= 0) return { slices: [] as DonutSlice[], total: 0 };
@@ -632,8 +633,9 @@
                 <tr>
                   <th>{$t('tbl.desc')}</th>
                   <th style="width:90px;">{$t('tbl.unit')}</th>
-                  <th class="num" style="width:130px;">{$t('sup.products.avgPrice')}</th>
-                  <th class="num" style="width:110px;">{$t('sup.products.totalQty')}</th>
+                  <th class="num" style="width:120px;">{$t('sup.products.avgPrice')}</th>
+                  <th class="num" style="width:130px;">{$t('sup.products.colSpend')}</th>
+                  <th class="num" style="width:150px;">{$t('sup.products.colUnits')}</th>
                   <th style="width:130px;">{$t('sup.products.lastDate')}</th>
                 </tr>
               </thead>
@@ -643,6 +645,7 @@
                     <td style="font-size:12.5px;">{p.description ?? 'â€”'}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.unit ?? 'â€”'}</td>
                     <td class="num" style="font-size:12.5px;">{p.avgPrice != null ? fmtEur(p.avgPrice) : 'â€”'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.totalSpend != null ? fmtEur(p.totalSpend) : 'â€”'}</td>
                     <td class="num" style="font-size:12.5px;">{p.totalQty != null ? p.totalQty.toFixed(2) : 'â€”'}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.lastDate ? fmtDateShort(p.lastDate, $locale) : 'â€”'}</td>
                   </tr>

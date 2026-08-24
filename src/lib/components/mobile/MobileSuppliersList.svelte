@@ -1,8 +1,16 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { fmtEur } from '$lib/formatters';
   import { t, tcat } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
+  import {
+    DEFAULT_SUPPLIER_SORT,
+    SUPPLIER_SEARCH_DEBOUNCE_MS,
+    SUPPLIER_SORT_KEYS,
+    SUPPLIER_SORT_LABEL_KEYS,
+    type SupplierSortKey,
+  } from '$lib/supplier-list';
 
   interface Supplier {
     id: number;
@@ -22,6 +30,11 @@
     totalMonthInvoices = 0,
     unassigned = 0,
     firstUnassigned = '',
+    search: appliedSearch = '',
+    category = '',
+    sort = DEFAULT_SUPPLIER_SORT,
+    uncategorizedOnly = false,
+    onApply,
   }: {
     suppliers: Supplier[];
     categories?: string[];
@@ -29,19 +42,21 @@
     totalMonthInvoices?: number;
     unassigned?: number;
     firstUnassigned?: string;
+    search?: string;
+    category?: string;
+    sort?: SupplierSortKey;
+    uncategorizedOnly?: boolean;
+    onApply?: (patch: Record<string, string | null>, replace?: boolean) => void;
   } = $props();
 
-  let search = $state('');
-  let catFilter = $state('');
+  let search = $state(untrack(() => appliedSearch));
 
-  const filtered = $derived(
-    suppliers.filter(s => {
-      const q = search.trim().toLowerCase();
-      const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
-      const matchCat = !catFilter || s.category === catFilter;
-      return matchSearch && matchCat;
-    })
-  );
+  $effect(() => {
+    const value = search.trim();
+    if (value === appliedSearch) return;
+    const timer = setTimeout(() => onApply?.({ q: value || null }, true), SUPPLIER_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  });
 
   function initials(name: string) {
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -49,6 +64,14 @@
 
   function deltaColor(v: number) {
     return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
+  }
+
+  function chipStyle(active: boolean) {
+    return `border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
+      background: ${active ? 'var(--mep-acc)' : 'var(--mep-surface)'};
+      color: ${active ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
+      font-size: 12px; font-weight: 500; font-family: inherit;
+      box-shadow: ${active ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};`;
   }
 </script>
 
@@ -68,27 +91,31 @@
     />
   </div>
 
+  <div style="padding: 0 18px 10px;">
+    <select
+      class="input"
+      style="width: 100%; height: 36px; font-size: 13px; box-sizing: border-box;"
+      aria-label={$t('sup.sort.label')}
+      value={sort}
+      onchange={(e) => onApply?.({ sort: e.currentTarget.value })}
+    >
+      {#each SUPPLIER_SORT_KEYS as key}
+        <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
+      {/each}
+    </select>
+  </div>
+
   <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none;">
+    <button onclick={() => onApply?.({ category: null })} style={chipStyle(!category)}>{$t('sup.allChip')}</button>
     <button
-      onclick={() => catFilter = ''}
-      style="
-        border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
-        background: {!catFilter ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-        color: {!catFilter ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-        font-size: 12px; font-weight: 500; font-family: inherit;
-        box-shadow: {!catFilter ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-      "
-    >{$t('sup.allChip')}</button>
+      aria-pressed={uncategorizedOnly}
+      onclick={() => onApply?.({ uncategorized: uncategorizedOnly ? null : '1' })}
+      style={chipStyle(uncategorizedOnly)}
+    >{$t('sup.filterUncategorized')}</button>
     {#each categories as cat}
       <button
-        onclick={() => catFilter = catFilter === cat ? '' : cat}
-        style="
-          border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
-          background: {catFilter === cat ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-          color: {catFilter === cat ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-          font-size: 12px; font-weight: 500; font-family: inherit;
-          box-shadow: {catFilter === cat ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-        "
+        onclick={() => onApply?.({ category: category === cat ? null : cat })}
+        style={chipStyle(category === cat)}
       >{$tcat(cat)}</button>
     {/each}
   </div>
@@ -111,12 +138,12 @@
   </div>
 
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 8px;">
-    {#if filtered.length === 0}
+    {#if suppliers.length === 0}
       <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        {$t('sup.noSuppliers')}
+        {appliedSearch || category || uncategorizedOnly ? $t('sup.noResults') : $t('sup.noSuppliers')}
       </div>
     {:else}
-      {#each filtered as s}
+      {#each suppliers as s}
         <a href="/suppliers/{s.id}" style="
           display: flex; align-items: center; gap: 12px;
           padding: 12px; border-radius: 10px;

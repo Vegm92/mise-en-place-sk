@@ -120,6 +120,7 @@ beforeEach(() => {
 		user_restaurants: [{ userId: 'user-1' }],
 		users: [{ id: 'user-1', email: 'owner@example.com' }],
 		invoices: [],
+		settings: [],
 	};
 	state.claims = [];
 	state.claimCalls = [];
@@ -234,6 +235,16 @@ describe('runOverdueRemindersJob', () => {
 		expect(sendEmailMock).not.toHaveBeenCalled();
 		expect(state.claimCalls).toEqual([]);
 	});
+
+	it('stays quiet for a tenant that switched invoice reminders off (issue #577)', async () => {
+		state.rows.restaurants = [tenant()];
+		state.rows.invoices = [{ count: 3, total: 1250.5 }];
+		state.rows.settings = [{ key: 'alert_pref_invoice_reminders', value: 'false' }];
+
+		expect(await runOverdueRemindersJob()).toEqual({ considered: 1, sent: 0 });
+		expect(sendEmailMock).not.toHaveBeenCalled();
+		expect(state.claimCalls).toEqual([]);
+	});
 });
 
 describe('runWeeklyDigestJob', () => {
@@ -249,6 +260,15 @@ describe('runWeeklyDigestJob', () => {
 		expect(sendEmailMock).toHaveBeenCalledOnce();
 		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ kind: 'weekly_digest' });
 		expect(state.claimCalls[0]).toEqual({ key: 'weekly_digest_email_week', value: '2026-W30' });
+	});
+
+	it('stays quiet for a tenant that switched the weekly digest off (issue #577)', async () => {
+		state.rows.restaurants = [tenant({ id: 'rest-pro', planTier: 'pro', status: 'active' })];
+		state.rows.settings = [{ key: 'alert_pref_weekly_digest', value: 'false' }];
+
+		expect(await runWeeklyDigestJob()).toEqual({ considered: 1, sent: 0 });
+		expect(sendEmailMock).not.toHaveBeenCalled();
+		expect(state.claimCalls).toEqual([]);
 	});
 });
 
