@@ -18,6 +18,7 @@
   import Upload from '@lucide/svelte/icons/upload';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
+  import Languages from '@lucide/svelte/icons/languages';
   import LogOut from '@lucide/svelte/icons/log-out';
   import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
   import Menu from '@lucide/svelte/icons/menu';
@@ -195,7 +196,13 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     switchingLocation = false;
   }
 
-  const pageTitle = $derived($page.data.title ? $t($page.data.title) : 'Mise en Place');
+  const pageTitle = $derived(
+    $page.data.title
+      ? ($page.data.titleParams
+          ? $ti($page.data.title, $page.data.titleParams as Record<string, string | number>)
+          : $t($page.data.title))
+      : 'Mise en Place'
+  );
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const userInitials = $derived(
     userName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
@@ -412,6 +419,26 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
           <Settings size={15} />
           <span>{$t('nav.settings')}</span>
         </a>
+
+        <button
+          type="button"
+          class="md:hidden flex"
+          onclick={toggleLocale}
+          style="align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;background:transparent;border:none;cursor:pointer;text-align:left;width:100%;"
+        >
+          <Languages size={15} />
+          <span>{$t('a11y.switchLanguage')}</span>
+        </button>
+
+        <button
+          type="button"
+          class="md:hidden flex"
+          onclick={toggleTheme}
+          style="align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;background:transparent;border:none;cursor:pointer;text-align:left;width:100%;"
+        >
+          {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
+          <span>{$t('a11y.switchTheme')}</span>
+        </button>
       </div>
 
       <div style="display:flex;gap:10px;padding:8px 10px 0;flex-wrap:wrap;">
@@ -466,7 +493,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <header style="height:56px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;gap:10px;border-bottom:1px solid var(--mep-divider);background:var(--mep-bg);">
+    <header class="shell-header">
 
       <button
         class="md:hidden btn btn-ghost"
@@ -477,15 +504,15 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
       </button>
 
-      <h1 style="margin:0;flex:1;min-width:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+      <h1 class="shell-title">
         {pageTitle}
       </h1>
 
       <span class="hidden md:inline-flex"><ChatFab /></span>
 
       <button
-        class="btn btn-ghost"
-        style="height:34px;padding:0 10px;font-size:12px;font-weight:600;letter-spacing:0.02em;font-variant-numeric:tabular-nums;min-width:44px;justify-content:center;"
+        class="hidden md:flex btn btn-ghost"
+        style="height:34px;padding:0 10px;font-size:13px;font-weight:600;letter-spacing:0.02em;font-variant-numeric:tabular-nums;min-width:44px;justify-content:center;"
         onclick={toggleLocale}
         title={$t('a11y.switchLanguage')}
       >
@@ -495,7 +522,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       <NotificationBell notifications={data.notifications ?? []} />
 
       <button
-        class="btn btn-ghost"
+        class="hidden md:flex btn btn-ghost"
         style="width:34px;height:34px;padding:0;justify-content:center;"
         onclick={toggleTheme}
         title={$t('a11y.switchTheme')}
