@@ -24,23 +24,38 @@
 
 <div style="width: 390px; height: 844px; background: #f5f4f0; color: #1a1f26; position: relative; overflow: hidden; display: flex; flex-direction: column;">
 
-  <div style="padding: 16px 18px 10px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;">
-    <h1 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.4px;">Informes</h1>
-    <div style="display: flex; align-items: center; gap: 8px;">
-      <span class="circ">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>
-        </svg>
-      </span>
-      <span class="circ">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M10.268 21a2 2 0 0 0 3.464 0"></path>
-          <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path>
-        </svg>
-        <span style="position: absolute; top: 8px; right: 8px; width: 6px; height: 6px; border-radius: 3px; background: #b03a3a; border: 1.5px solid #ffffff;"></span>
-      </span>
-    </div>
-  </div>
+  <header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; padding: 0 16px; gap: 10px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); background: #f5f4f0;">
+    <button type="button" style="width: 34px; height: 34px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #4a5562; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 12h16"></path><path d="M4 6h16"></path><path d="M4 18h16"></path>
+      </svg>
+    </button>
+
+    <h1 style="margin: 0; flex: 1; min-width: 0; font-size: 20px; font-weight: 600; letter-spacing: -0.3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Informes</h1>
+
+    <button type="button" class="num" style="height: 34px; padding: 0 10px; min-width: 44px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #4a5562; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;">EN</button>
+
+    <button type="button" style="width: 34px; height: 34px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #4a5562; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; position: relative; flex-shrink: 0;" aria-label="Avisos">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M10.268 21a2 2 0 0 0 3.464 0"></path>
+        <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path>
+      </svg>
+      <span class="num" style="position: absolute; top: 1px; right: 0; min-width: 14px; height: 14px; padding: 0 4px; border-radius: 7px; font-size: 9px; font-weight: 700; background: #b03a3a; color: #fff; display: inline-flex; align-items: center; justify-content: center;">2</span>
+    </button>
+
+    <button type="button" style="width: 34px; height: 34px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #4a5562; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;" aria-label="Cambiar tema">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+      </svg>
+    </button>
+
+    <span style="height: 34px; padding: 0 12px; border-radius: 6px; background: {{ acc }}; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <path d="m17 8-5-5-5 5"></path><path d="M12 3v12"></path>
+      </svg>
+    </span>
+  </header>
 
   <div style="flex: 1; min-height: 0; overflow: hidden; padding: 0 18px; display: flex; flex-direction: column; gap: 13px;">
 
@@ -76,9 +91,9 @@
       <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
         <sc-for list="{{ estilos }}" as="e" hint-placeholder-count="3">
           <button type="button" style="{{ e.estilo }}" onClick="{{ e.pick }}">
-            <span style="width: 26px; height: 34px; border-radius: 3px; overflow: hidden; border: 1px solid rgba(15, 20, 30, 0.14); background: #ffffff; display: flex; flex-direction: column;">
+            <span style="width: 26px; height: 34px; flex-shrink: 0; border-radius: 3px; overflow: hidden; border: 1px solid rgba(15, 20, 30, 0.14); background: #ffffff; display: flex; flex-direction: column;">
               <span style="{{ e.miniBanda }}"></span>
-              <span style="flex: 1; padding: 3px; display: flex; flex-direction: column; gap: 2px;">
+              <span style="flex: 1; min-height: 0; padding: 3px; display: flex; flex-direction: column; gap: 2px; overflow: hidden;">
                 <span style="{{ e.miniLinea1 }}"></span>
                 <span style="{{ e.miniLinea2 }}"></span>
               </span>
@@ -89,9 +104,9 @@
       </div>
     </div>
 
-    <div class="card" style="height: 196px; flex-shrink: 0; display: flex; overflow: hidden;">
-      <div style="width: 142px; flex-shrink: 0; background: #fafaf7; border-right: 1px solid rgba(15, 20, 30, 0.06); display: flex; align-items: center; justify-content: center; padding: 13px;">
-        <div style="width: 118px; height: 167px; background: #ffffff; box-shadow: 0 2px 6px rgba(15, 20, 30, 0.12); display: flex; flex-direction: column; overflow: hidden;">
+    <div class="card" style="flex: 1; min-height: 0; display: flex; overflow: hidden;">
+      <div style="width: 190px; flex-shrink: 0; background: #fafaf7; border-right: 1px solid rgba(15, 20, 30, 0.06); display: flex; align-items: center; justify-content: center; padding: 14px;">
+        <div style="height: 92%; aspect-ratio: 210 / 297; background: #ffffff; box-shadow: 0 2px 6px rgba(15, 20, 30, 0.12); display: flex; flex-direction: column; overflow: hidden;">
           <span style="{{ vistaBanda }}"></span>
           <span style="flex: 1; padding: 7px; display: flex; flex-direction: column; gap: 4px;">
             <span style="{{ vistaTitulo }}"></span>
@@ -108,6 +123,7 @@
         <span style="font-size: 14px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25;">{{ tituloInforme }}</span>
         <span style="font-size: 11.5px; color: #4a5562; line-height: 1.4;">{{ subtituloInforme }}</span>
         <span class="num" style="font-size: 10.5px; color: #5f6b78; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ nombreArchivo }}</span>
+        <span style="font-size: 11px; color: #5f6b78; line-height: 1.35;">CSV: {{ grano }}</span>
       </div>
     </div>
 
@@ -129,42 +145,6 @@
     </button>
   </div>
 
-  <nav style="flex-shrink: 0; display: flex; align-items: flex-end; justify-content: space-around; padding-top: 8px; padding-bottom: 20px; background: #ffffff; border-top: 1px solid rgba(15, 20, 30, 0.06);">
-    <span class="tab" style="color: #5f6b78;">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 4h7v7H4z"></path><path d="M13 4h7v4h-7z"></path><path d="M13 11h7v9h-7z"></path><path d="M4 14h7v6H4z"></path>
-      </svg>
-      <span class="tablbl" style="font-weight: 500;">Inicio</span>
-    </span>
-    <span class="tab" style="color: #5f6b78;">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
-        <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
-      </svg>
-      <span class="tablbl" style="font-weight: 500;">Albaranes</span>
-    </span>
-    <span style="position: relative; top: -18px; width: 54px; height: 54px; border-radius: 27px; background: {{ acc }}; color: #ffffff; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(184, 116, 26, 0.40), 0 2px 4px rgba(0, 0, 0, 0.10);">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M5 12h14"></path><path d="M12 5v14"></path>
-      </svg>
-    </span>
-    <span class="tab" style="color: {{ acc }};">
-      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M16 7h6v6"></path><path d="m22 7-8.5 8.5-5-5L2 17"></path>
-      </svg>
-      <span class="tablbl" style="font-weight: 600;">Análisis</span>
-    </span>
-    <span class="tab" style="color: #5f6b78; position: relative;">
-      <span style="position: relative; display: flex;">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M10.268 21a2 2 0 0 0 3.464 0"></path>
-          <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path>
-        </svg>
-        <span class="num" style="position: absolute; top: -4px; right: -8px; min-width: 14px; height: 14px; padding: 0 4px; border-radius: 7px; font-size: 9px; font-weight: 700; background: #b03a3a; color: #fff; display: inline-flex; align-items: center; justify-content: center;">2</span>
-      </span>
-      <span class="tablbl" style="font-weight: 500;">Avisos</span>
-    </span>
-  </nav>
 
 </div>
 </x-dc>
@@ -212,10 +192,10 @@ class Component extends DCLogic {
       : [{ n: 'Mes', s: true }, { n: 'Trimestre' }, { n: 'Semestre' }, { n: 'Año' }];
 
     const CONTENIDO = {
-      semanal: { titulo: 'Cierre semanal de compras', sub: 'Semana 31 · 27 jul – 2 ago · 31 albaranes', archivo: 'mep_cierre-semanal_2026-W31' },
-      cierre:  { titulo: 'Cierre mensual de compras', sub: 'Julio 2026 · 128 albaranes · 24 proveedores', archivo: 'mep_cierre-mensual_2026-07' },
-      precios: { titulo: 'Variación de precios',      sub: '76 artículos con cambio · 2 sobre el umbral', archivo: 'mep_variacion-precios_2026-07' },
-      pagos:   { titulo: 'Estado de cuentas',         sub: '18.744,20 € pendientes · 3.912,60 € vencidos', archivo: 'mep_cuentas-pagar_2026-07' },
+      semanal: { titulo: 'Cierre semanal de compras', sub: 'Semana 31 · 27 jul – 2 ago · 31 albaranes', archivo: 'mep_cierre-semanal_2026-W31', grano: 'una fila por día, 8 columnas' },
+      cierre:  { titulo: 'Cierre mensual de compras', sub: 'Julio 2026 · 128 albaranes · 24 proveedores', archivo: 'mep_cierre-mensual_2026-07', grano: 'una fila por categoría, 8 columnas' },
+      precios: { titulo: 'Variación de precios',      sub: '76 artículos con cambio · 2 sobre el umbral', archivo: 'mep_variacion-precios_2026-07', grano: 'una fila por artículo, 12 columnas' },
+      pagos:   { titulo: 'Estado de cuentas',         sub: '18.744,20 € pendientes · 3.912,60 € vencidos', archivo: 'mep_cuentas-pagar_2026-07', grano: 'una fila por albarán, 10 columnas' },
     };
     const c = CONTENIDO[tipo];
 
@@ -261,6 +241,7 @@ class Component extends DCLogic {
       tituloInforme: c.titulo,
       subtituloInforme: c.sub,
       nombreArchivo: c.archivo + '_casa-bruna',
+      grano: c.grano,
       vistaBanda:  VISTA[estilo].banda,
       vistaTitulo: VISTA[estilo].titulo,
       vistaKpis:   VISTA[estilo].kpis,
