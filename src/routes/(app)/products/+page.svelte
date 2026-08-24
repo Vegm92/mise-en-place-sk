@@ -1,21 +1,25 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { page } from '$app/stores';
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, ti } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import { PERIOD_PILLS } from '$lib/constants';
   import Plus from '@lucide/svelte/icons/plus';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
+  type ConversionPrompt = PageData['conversionPrompts'][number];
+
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { products, suggestions, categories, colors } = $derived(data);
+  const { products, suggestions, conversionPrompts, categories, colors } = $derived(data);
 
   let tab            = $state<'catalog' | 'suggestions'>('catalog');
   let search         = $state('');
   let catFilter      = $state('');
   let view           = $state<'list' | 'chart'>('list');
   let suggestionBusy = $state<Record<number, boolean>>({});
+  let conversionBusy = $state<Record<number, boolean>>({});
+  let conversionError = $state<Record<number, boolean>>({});
 
   const filteredProducts = $derived(
     products.filter(p => {
@@ -27,6 +31,7 @@
   );
 
   const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
+  const pendingCount         = $derived(suggestions.length + conversionPrompts.length);
   const categoryCount        = $derived(new Set(products.map(p => p.category).filter(Boolean)).size);
 
   const periodPills = $derived(PERIOD_PILLS.map(p => {
@@ -38,6 +43,35 @@
   const trendSeries = $derived(
     data.trendData.series.map(s => ({ key: s.key, label: $t(s.label), color: s.color, values: s.values }))
   );
+
+  async function saveConversion(prompt: ConversionPrompt, event: SubmitEvent) {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const fields = new FormData(form);
+    conversionBusy = { ...conversionBusy, [prompt.notificationId]: true };
+    conversionError = { ...conversionError, [prompt.notificationId]: false };
+    try {
+      const res = await fetch('/api/unit-conversions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          supplier_id:       prompt.supplierId,
+          supplier_name:     prompt.supplierName,
+          ingredient:        prompt.ingredient,
+          purchase_unit:     prompt.purchaseUnit,
+          canonical_unit:    String(fields.get('canonical_unit') ?? ''),
+          conversion_factor: String(fields.get('conversion_factor') ?? ''),
+        }),
+      });
+      if (!res.ok) {
+        conversionError = { ...conversionError, [prompt.notificationId]: true };
+        return;
+      }
+      await invalidateAll();
+    } finally {
+      conversionBusy = { ...conversionBusy, [prompt.notificationId]: false };
+    }
+  }
 
   async function respondSuggestion(id: number, action: 'confirm' | 'reject', description: string) {
     suggestionBusy = { ...suggestionBusy, [id]: true };
@@ -85,8 +119,8 @@
         <button type="button" class="btn {tab === 'suggestions' ? 'btn-primary' : 'btn-ghost'}"
           style="height:32px;font-size:12.5px;gap:6px;" onclick={() => (tab = 'suggestions')}>
           {$t('prod.tab.suggestions')}
-          {#if suggestions.length > 0}
-            <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);">{suggestions.length}</span>
+          {#if pendingCount > 0}
+            <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);">{pendingCount}</span>
           {/if}
         </button>
       </div>
@@ -171,9 +205,50 @@
           </table>
         {/if}
       {:else}
-        {#if suggestions.length === 0}
+        {#if pendingCount === 0}
           <p class="body text-center py-16">{$t('prod.suggestions.empty')}</p>
         {:else}
+          {#if conversionPrompts.length > 0}
+            <div class="flex flex-col gap-3 p-4">
+              <p class="label text-fg-3" style="font-size:10.5px;">{$t('prod.conv.heading')}</p>
+              {#each conversionPrompts as c (c.notificationId)}
+                <div class="border border-divider rounded-lg p-3 flex flex-col gap-2"
+                  style="border-left:3px solid var(--mep-warn);">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="badge flex items-center gap-1"
+                      style="background:var(--mep-warn-soft);color:var(--mep-warn);">
+                      <AlertTriangle size={11} />
+                      {$t('prod.conv.badge')}
+                    </span>
+                    <p class="body" style="font-size:13px;">
+                      {$ti('prod.conv.ask', { unit: c.purchaseUnit, ingredient: c.ingredient, supplier: c.supplierName })}
+                    </p>
+                  </div>
+                  <form class="flex flex-wrap items-end gap-2"
+                    onsubmit={(e) => saveConversion(c, e)}>
+                    <div class="flex flex-col gap-1 min-w-[110px]">
+                      <label class="label text-fg-3" style="font-size:10.5px;" for="conv-unit-{c.notificationId}">{$t('prod.conv.canonicalUnit')}</label>
+                      <input id="conv-unit-{c.notificationId}" name="canonical_unit" required
+                        class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder={$t('sup.conv.ph.canonical')} />
+                    </div>
+                    <div class="flex flex-col gap-1 min-w-[110px]">
+                      <label class="label text-fg-3" style="font-size:10.5px;" for="conv-factor-{c.notificationId}">{$t('prod.conv.factor')}</label>
+                      <input id="conv-factor-{c.notificationId}" name="conversion_factor" type="number" min="0.001" step="any" required
+                        class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder={$t('sup.conv.ph.factor')} />
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;"
+                      disabled={conversionBusy[c.notificationId]}>
+                      {$t('prod.conv.save')}
+                    </button>
+                  </form>
+                  {#if conversionError[c.notificationId]}
+                    <p class="body text-neg" style="font-size:12px;">{$t('prod.conv.error')}</p>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          {/if}
+          {#if suggestions.length > 0}
           <div class="flex flex-col gap-3 p-4">
             {#each suggestions as s (s.id)}
               <div class="border border-divider rounded-lg p-3 flex items-center justify-between gap-3 flex-wrap">
@@ -193,6 +268,7 @@
               </div>
             {/each}
           </div>
+          {/if}
         {/if}
       {/if}
     {/snippet}
