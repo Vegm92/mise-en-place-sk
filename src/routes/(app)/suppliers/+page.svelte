@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { categoryColor, categoryTint } from '$lib/colors';
   import { untrack } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -65,7 +66,7 @@
   const trendSeries = $derived(
     data.trendData.series
       .filter(s => activeTrendKeys.includes(s.key))
-      .map(s => ({ key: s.key, label: s.label, color: s.color, values: s.values }))
+      .map(s => ({ key: s.key, label: s.label, color: categoryColor(s.key), values: s.values }))
   );
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -108,7 +109,7 @@
       { key: 'unassigned',label: $t('dsup.unassigned'),      value: unassigned, sub: unassigned === 0 ? $t('dsup.allAssigned') : unassigned === 1 ? firstUnassigned : $ti('dsup.nSuppliers', { n: unassigned }), variant: unassigned > 0 ? 'warn' : 'default' },
     ]}
     trendTitle={$t('sup.trend.title')}
-    trendBadges={data.trendData.series.map(s => ({ key: s.key, label: s.label, color: s.color, active: activeTrendKeys.includes(s.key) }))}
+    trendBadges={data.trendData.series.map(s => ({ key: s.key, label: s.label, color: categoryColor(s.key), active: activeTrendKeys.includes(s.key) }))}
     onToggleTrendBadge={toggleTrendBadge}
     trendXLabels={data.trendData.xLabels}
     {trendSeries}
@@ -195,7 +196,7 @@
                     <div style="display:flex;align-items:center;gap:10px;">
                       <span style="
                         width:28px;height:28px;border-radius:14px;flex-shrink:0;
-                        background:{s.color}24;color:{s.color};
+                        background:{categoryTint(s.category)};color:{categoryColor(s.category)};
                         display:inline-flex;align-items:center;justify-content:center;
                         font-size:11px;font-weight:600;
                       ">{initials(s.name)}</span>
@@ -215,7 +216,7 @@
                     <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;
                       color:{s.category === 'Other' ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
                       font-style:{s.category === 'Other' ? 'italic' : 'normal'};">
-                      <span class="swatch" style="background:{s.color};"></span>
+                      <span class="swatch" style="background:{categoryColor(s.category)};"></span>
                       {$tcat(s.category)}
                     </span>
                   </td>

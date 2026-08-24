@@ -13,7 +13,7 @@
 
 <span style="
   width:{size}px;height:{size}px;border-radius:{size / 2}px;flex-shrink:0;
-  background:{color}24;color:{color};
+  background:color-mix(in oklab, {color} 14%, transparent);color:{color};
   display:inline-flex;align-items:center;justify-content:center;
   font-size:{fontSize}px;font-weight:{fontWeight};
 ">{initials(name)}</span>

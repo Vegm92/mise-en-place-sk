@@ -1,7 +1,8 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { PageData } from './$types';
-  import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+  import { VALID_CATEGORIES } from '$lib/constants';
+  import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
   import { getScoreColor } from '$lib/status';
@@ -31,9 +32,9 @@
   const avgInvoice  = $derived(data.invoices.length ? totalSpend / data.invoices.length : 0);
   const pendingAmt  = $derived(data.invoices.filter(i => i.status === 'pending').reduce((a, i) => a + (i.totalAmount ?? 0), 0));
 
-  const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
+  const color = $derived(categoryColor(s.category));
+  const tint  = $derived(categoryTint(s.category));
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   const productDonut = $derived((() => {
     const ranked = [...data.products]
       .map(p => ({ ...p, spend: p.totalSpend ?? (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
@@ -45,8 +46,8 @@
     const rest = ranked.slice(5);
     const restSpend = rest.reduce((a, p) => a + p.spend, 0);
 
-    const entries = top.map((p, i) => ({ label: p.description ?? 'â€”', spend: p.spend, color: SERIES_COLORS[i] }));
-    if (restSpend > 0) entries.push({ label: $t('sup.products.other'), spend: restSpend, color: 'var(--mep-series-other)' });
+    const entries = top.map((p, i) => ({ label: p.description ?? 'â€”', spend: p.spend, color: seriesColor(i) }));
+    if (restSpend > 0) entries.push({ label: $t('sup.products.other'), spend: restSpend, color: SERIES_OTHER });
 
     let cursor = 0;
     const CIRC = 2 * Math.PI * 60;
@@ -86,7 +87,7 @@
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
       <div style="
         width:44px;height:44px;border-radius:22px;flex-shrink:0;
-        background:{color}24;color:{color};
+        background:{tint};color:{color};
         display:flex;align-items:center;justify-content:center;
         font-size:14px;font-weight:700;
       ">{initials(s.name)}</div>

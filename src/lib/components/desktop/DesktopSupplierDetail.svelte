@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
-  import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+  import { VALID_CATEGORIES } from '$lib/constants';
+  import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -84,7 +85,8 @@
     confirmDelete?: boolean;
   } = $props();
 
-  const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
+  const color = $derived(categoryColor(s.category));
+  const tint  = $derived(categoryTint(s.category));
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -100,7 +102,6 @@
     return nonZero.length ? nonZero.reduce((s, m) => s + m.value, 0) / nonZero.length : 0;
   })());
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   interface DonutSlice {
     label: string; spend: number; pct: number; color: string;
     unit: string | null; totalQty: number | null; avgPrice: number | null; lastDate: string | null;
@@ -118,11 +119,11 @@
     const restSpend = rest.reduce((a, p) => a + p.spend, 0);
 
     const entries = top.map((p, i) => ({
-      label: p.description ?? 'â€”', spend: p.spend, color: SERIES_COLORS[i],
+      label: p.description ?? 'â€”', spend: p.spend, color: seriesColor(i),
       unit: p.unit, totalQty: p.totalQty, avgPrice: p.avgPrice, lastDate: p.lastDate,
     }));
     if (restSpend > 0) {
-      entries.push({ label: $t('sup.products.other'), spend: restSpend, color: 'var(--mep-series-other)',
+      entries.push({ label: $t('sup.products.other'), spend: restSpend, color: SERIES_OTHER,
         unit: null, totalQty: null, avgPrice: null, lastDate: null });
     }
 
@@ -168,7 +169,7 @@
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
         <div style="
           width:52px;height:52px;border-radius:26px;flex-shrink:0;
-          background:{color}24;color:{color};
+          background:{tint};color:{color};
           display:inline-flex;align-items:center;justify-content:center;
           font-size:16px;font-weight:700;
         ">{initials(s.name)}</div>
@@ -216,7 +217,7 @@
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
-              <button type="submit" class="btn" style="background:var(--mep-neg);color:#fff;border-color:var(--mep-neg);height:30px;font-size:12px;">
+              <button type="submit" class="btn" style="background:var(--mep-neg);color:var(--mep-neg-fg);border-color:var(--mep-neg);height:30px;font-size:12px;">
                 {$t('sup.confirmDelete.yes')}
               </button>
             </form>
@@ -681,7 +682,7 @@
                         <form method="post" action="?/deleteConversion" style="margin:0;">
                           <input type="hidden" name="conversion_id" value={conv.id} />
                           <button type="submit" class="btn"
-                            style="height:26px;font-size:11px;color:#E05555;border-color:#E05555;padding:0 8px;">
+                            style="height:26px;font-size:11px;color:var(--mep-neg);border-color:var(--mep-neg);padding:0 8px;">
                             {$t('sup.conv.delete')}
                           </button>
                         </form>

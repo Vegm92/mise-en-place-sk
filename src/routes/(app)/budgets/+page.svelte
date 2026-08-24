@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { categoryColor } from '$lib/colors';
   import { enhance } from '$app/forms';
   import { locale, t, tcat } from '$lib/i18n';
   import { fmtEur, semColor, shiftMonth } from '$lib/formatters';
@@ -34,7 +35,7 @@
     const pct   = limit > 0 ? (spent / limit) * 100 : 0;
     const remaining  = limit - spent;
     const projected  = today > 0 ? pct * 31 / today : 0;
-    const color = data.colors[cat] ?? '#888';
+    const color = categoryColor(cat);
     return { cat, limit, spent, pct, remaining, projected, color };
   }));
 

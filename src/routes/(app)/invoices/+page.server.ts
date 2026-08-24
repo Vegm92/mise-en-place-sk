@@ -167,9 +167,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const trendData = {
 			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1], 10) - 1)] ?? r.month),
 			series: [
-				{ key: 'paid',    labelKey: 'inv.kpi.paid',    color: 'var(--mep-series-1)', values: trendRows.map(r => Number(r.paid))    },
-				{ key: 'pending', labelKey: 'inv.kpi.pending',  color: 'var(--mep-series-2)', values: trendRows.map(r => Number(r.pending)) },
-				{ key: 'overdue', labelKey: 'inv.kpi.overdue',  color: 'var(--mep-series-3)', values: trendRows.map(r => Number(r.overdue)) },
+				{ key: 'paid',    labelKey: 'inv.kpi.paid',    values: trendRows.map(r => Number(r.paid))    },
+				{ key: 'pending', labelKey: 'inv.kpi.pending',  values: trendRows.map(r => Number(r.pending)) },
+				{ key: 'overdue', labelKey: 'inv.kpi.overdue',  values: trendRows.map(r => Number(r.overdue)) },
 			],
 		};
 
