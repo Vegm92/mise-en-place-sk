@@ -14,6 +14,7 @@
   import Wallet from '@lucide/svelte/icons/wallet';
   import Mail from '@lucide/svelte/icons/mail';
   import Check from '@lucide/svelte/icons/check';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -441,34 +442,37 @@
 
             <hr style="border:none;border-top:1px solid var(--mep-divider);margin:4px 0;" />
 
-            <div>
-              <p class="body text-fg-2" style="font-size:13px;margin:0 0 4px;">
-                {$t('set.deleteDesc')}
-              </p>
-              <p class="body text-fg-3" style="font-size:12px;margin:0 0 10px;">
-                {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
-              </p>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <input
-                  type="text"
-                  placeholder={$t('set.deleteConfirmWord')}
-                  bind:value={deleteConfirm}
-                  class="input"
-                  style="height:34px;font-size:13px;width:140px;"
-                />
-                <button
-                  type="button"
-                  onclick={handleDeleteAccount}
-                  disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
-                  class="btn"
-                  style="height:34px;font-size:13px;background:var(--mep-neg);color:#fff;border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
-                >
-                  {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
-                </button>
+            <div style="border:1px solid var(--mep-neg);background:var(--mep-neg-soft);border-radius:var(--mep-r-card);padding:14px;display:flex;gap:10px;align-items:flex-start;">
+              <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;margin-top:2px;" />
+              <div style="flex:1;min-width:0;">
+                <p class="body" style="font-size:13px;margin:0 0 4px;color:var(--mep-neg);font-weight:500;">
+                  {$t('set.deleteDesc')}
+                </p>
+                <p class="body text-fg-3" style="font-size:12px;margin:0 0 10px;">
+                  {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
+                </p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <input
+                    type="text"
+                    placeholder={$t('set.deleteConfirmWord')}
+                    bind:value={deleteConfirm}
+                    class="input"
+                    style="height:34px;font-size:13px;width:140px;"
+                  />
+                  <button
+                    type="button"
+                    onclick={handleDeleteAccount}
+                    disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
+                    class="btn"
+                    style="height:34px;font-size:13px;background:var(--mep-neg);color:#fff;border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
+                  >
+                    {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
+                  </button>
+                </div>
+                {#if deleteError}
+                  <p style="font-size:12px;color:var(--mep-neg);margin:6px 0 0;">{deleteError}</p>
+                {/if}
               </div>
-              {#if deleteError}
-                <p style="font-size:12px;color:var(--mep-neg);margin:6px 0 0;">{deleteError}</p>
-              {/if}
             </div>
 
             <div style="display:flex;gap:12px;margin-top:4px;">
