@@ -49,7 +49,8 @@ export function supplierListOrderBy(sort: SupplierSortKey): SQL[] {
 }
 
 function likeTerm(raw: string): string {
-	return `%${raw.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+	const escaped = raw.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+	return `%${escaped}%`;
 }
 
 function hasUncategorizedProducts(tdb: TenantScope): SQL {

@@ -22,11 +22,11 @@
   const borderStyle = $derived(
     hasWarn ? '1px solid var(--mep-warn)' : '1px solid transparent'
   );
-  const borderBottomStyle = $derived(
-    hasWarn ? '2px solid var(--mep-warn)' :
-    confidence != null && confidence < 0.85 ? '2px solid var(--mep-warn)' :
-    '1px solid var(--mep-divider)'
-  );
+  const borderBottomStyle = $derived.by(() => {
+    if (hasWarn) return '2px solid var(--mep-warn)';
+    if (confidence != null && confidence < 0.85) return '2px solid var(--mep-warn)';
+    return '1px solid var(--mep-divider)';
+  });
 </script>
 
 <div>

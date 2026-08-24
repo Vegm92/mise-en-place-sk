@@ -24,17 +24,18 @@
 
 	const urlError = $derived($page.url.searchParams.get('error'));
 
-	const errorMessage = $derived(
-		termsMissing                         ? $t('signup.err.terms') :
-		form?.error === 'missing'            ? $t('login.err.missing') :
-		form?.error === 'password_too_short' ? $t('signup.err.passwordShort') :
-		form?.error === 'terms_required'     ? $t('signup.err.terms') :
-		form?.error === 'already_registered' ? $t('signup.err.exists') :
-		form?.error === 'generic'            ? $t('signup.err.generic') :
-		form?.error === 'rate_limited'       ? $t('signup.err.rateLimited') :
-		urlError     === 'oauth'             ? $t('signup.err.oauth') :
-		null
-	);
+	const errorMessage = $derived.by(() => {
+		if (termsMissing) return $t('signup.err.terms');
+		const formError = form?.error;
+		if (formError === 'missing') return $t('login.err.missing');
+		if (formError === 'password_too_short') return $t('signup.err.passwordShort');
+		if (formError === 'terms_required') return $t('signup.err.terms');
+		if (formError === 'already_registered') return $t('signup.err.exists');
+		if (formError === 'generic') return $t('signup.err.generic');
+		if (formError === 'rate_limited') return $t('signup.err.rateLimited');
+		if (urlError === 'oauth') return $t('signup.err.oauth');
+		return null;
+	});
 </script>
 
 <svelte:head>

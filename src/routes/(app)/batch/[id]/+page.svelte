@@ -43,11 +43,11 @@
     if (f?.contentDuplicate) showContentDuplicateModal = true;
   });
 
-  const invalidDateKey = $derived(
-    (form as Record<string, unknown> | null)?.errorKey === 'error.invalidDate'
-      ? ((form as Record<string, unknown>).errorField === 'due_date' ? 'error.invalidDueDate' : 'error.invalidInvoiceDate')
-      : null
-  );
+  const invalidDateKey = $derived.by(() => {
+    const f = form as Record<string, unknown> | null;
+    if (f?.errorKey !== 'error.invalidDate') return null;
+    return f.errorField === 'due_date' ? 'error.invalidDueDate' : 'error.invalidInvoiceDate';
+  });
 
   const RAIL_OPEN_W = 234;
   const RAIL_SHUT_W = 54;
@@ -254,7 +254,8 @@
   }
 
   const review = $derived(data.review);
-  const idempotencyKey = $derived.by(() => { void review?.itemId; return crypto.randomUUID(); });
+  const newIdempotencyKeyFor = (_scope: unknown): string => crypto.randomUUID();
+  const idempotencyKey = $derived(newIdempotencyKeyFor(review?.itemId));
   const fieldConf = $derived((review?.fieldConfidences ?? {}) as Record<string, number>);
 
   const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'] as const;
@@ -334,10 +335,35 @@
   const confidence = $derived(
     typeof review?.data?.confidence === 'number' ? (review.data.confidence as number) : 0
   );
+  const CONFIDENCE_BADGE_KEYS: Record<string, string> = {
+    high:   'extract.badge.high',
+    medium: 'extract.badge.med',
+  };
   const confidenceBadgeKey = $derived(
-    review?.confidenceLevel === 'high' ? 'extract.badge.high' :
-    review?.confidenceLevel === 'medium' ? 'extract.badge.med' : 'extract.badge.low'
+    CONFIDENCE_BADGE_KEYS[review?.confidenceLevel ?? ''] ?? 'extract.badge.low'
   );
+
+  const QUEUE_STATUS_KEYS: Record<string, string> = {
+    confirmed:  'confirm.extractDone',
+    done:       'batch.queue.ready',
+    extracting: 'confirm.extractActive',
+    queued:     'confirm.inQueue',
+    failed:     'extract.error',
+  };
+  function queueItemSubLabel(item: { status: string; type: string; size: string }): string {
+    const key = QUEUE_STATUS_KEYS[item.status];
+    return key ? $t(key) : `${item.type} · ${item.size}`;
+  }
+
+  const UNCERTAIN_FIELD_LABEL_KEYS: Record<string, string> = {
+    supplier_name:  'field.supplier',
+    invoice_number: 'field.invoiceNum',
+    invoice_date:   'field.invoiceDate',
+    due_date:       'field.dueDate',
+  };
+  function uncertainFieldLabel(field: string): string {
+    return $t(UNCERTAIN_FIELD_LABEL_KEYS[field] ?? 'field.totalAmount');
+  }
 
   const needsReview = (val: unknown) => !val && val !== 0;
 
@@ -582,12 +608,7 @@
             <span style="flex:1;min-width:0;">
               <span class="rev-strip-file">{q.name}</span>
               <span class="rev-strip-sub">
-                {q.status === 'confirmed' ? $t('confirm.extractDone')
-                  : q.status === 'done' ? $t('batch.queue.ready')
-                  : q.status === 'extracting' ? $t('confirm.extractActive')
-                  : q.status === 'queued' ? $t('confirm.inQueue')
-                  : q.status === 'failed' ? $t('extract.error')
-                  : `${q.type} · ${q.size}`}
+                {queueItemSubLabel(q)}
               </span>
             </span>
             {#if q.id === data.review?.itemId}
@@ -652,12 +673,7 @@
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:{q.status === 'confirmed' ? 'var(--mep-fg-3)' : 'var(--mep-fg)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{q.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">
-                  {q.status === 'confirmed' ? $t('confirm.extractDone')
-                    : q.status === 'done' ? $t('batch.queue.ready')
-                    : q.status === 'extracting' ? $t('confirm.extractActive')
-                    : q.status === 'queued' ? $t('confirm.inQueue')
-                    : q.status === 'failed' ? $t('extract.error')
-                    : `${q.type} · ${q.size}`}
+                  {queueItemSubLabel(q)}
                 </div>
               </div>
             {/if}
@@ -1371,7 +1387,7 @@
       {#if uncertainHeaderFields.length > 0}
         <ul style="font-size:12.5px;color:var(--mep-fg-3);margin:0 0 16px;padding-left:16px;">
           {#each uncertainHeaderFields as f}
-            <li>{$t(`field.${f === 'supplier_name' ? 'supplier' : f === 'invoice_number' ? 'invoiceNum' : f === 'invoice_date' ? 'invoiceDate' : f === 'due_date' ? 'dueDate' : 'totalAmount'}`)}</li>
+            <li>{uncertainFieldLabel(f)}</li>
           {/each}
         </ul>
       {/if}

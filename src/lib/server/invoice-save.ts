@@ -59,6 +59,25 @@ function normalizeNum(v: unknown): string {
 	return isNaN(n) ? '' : n.toString();
 }
 
+type CorrectionRow = typeof extractionCorrections.$inferInsert;
+type FieldComparison = { field: string; origRaw: unknown; submittedVal: string; numeric?: boolean };
+
+function correctionRows(
+	comparisons: FieldComparison[],
+	target: { invoiceId: number; supplierId: number; restaurantId: string },
+	lineItemIndex: number | null,
+): CorrectionRow[] {
+	const rows: CorrectionRow[] = [];
+	for (const { field, origRaw, submittedVal, numeric } of comparisons) {
+		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
+		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
+		if (orig !== sub) {
+			rows.push({ ...target, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex });
+		}
+	}
+	return rows;
+}
+
 async function logExtractionCorrections(
 	invoiceId: number,
 	supplierId: number,
@@ -69,10 +88,10 @@ async function logExtractionCorrections(
 ) {
 	if (!originalData) return;
 
-	type CorrectionRow = typeof extractionCorrections.$inferInsert;
+	const target = { invoiceId, supplierId, restaurantId };
 	const rows: CorrectionRow[] = [];
 
-	const headerComparisons: Array<{ field: string; origRaw: unknown; submittedVal: string; numeric?: boolean }> = [
+	const headerComparisons: FieldComparison[] = [
 		{ field: 'supplier_name',  origRaw: originalData.supplier_name,  submittedVal: submitted.supplierName },
 		{ field: 'invoice_number', origRaw: originalData.invoice_number, submittedVal: submitted.invoiceNumber },
 		{ field: 'invoice_date',   origRaw: originalData.invoice_date,   submittedVal: submitted.invoiceDate ?? '' },
@@ -80,13 +99,7 @@ async function logExtractionCorrections(
 		{ field: 'total_amount',   origRaw: originalData.total_amount,   submittedVal: String(submitted.totalAmount ?? ''), numeric: true },
 	];
 
-	for (const { field, origRaw, submittedVal, numeric } of headerComparisons) {
-		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
-		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
-		if (orig !== sub) {
-			rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex: null });
-		}
-	}
+	rows.push(...correctionRows(headerComparisons, target, null));
 
 	const originalLines = Array.isArray(originalData.line_items)
 		? (originalData.line_items as Array<Record<string, unknown>>)
@@ -97,20 +110,14 @@ async function logExtractionCorrections(
 
 	for (let i = 0; i < compareCount; i++) {
 		const orig = originalLines[i];
-		const lineFields: Array<{ field: string; origRaw: unknown; subVal: string; numeric?: boolean }> = [
-			{ field: 'line_item.description', origRaw: orig.description, subVal: lineDescriptions[i] ?? '' },
-			{ field: 'line_item.quantity',    origRaw: orig.quantity,    subVal: lineQuantities[i] ?? '',    numeric: true },
-			{ field: 'line_item.unit',        origRaw: orig.unit,        subVal: lineUnits[i] ?? '' },
-			{ field: 'line_item.unit_price',  origRaw: orig.unit_price,  subVal: lineUnitPrices[i] ?? '',   numeric: true },
-			{ field: 'line_item.total_price', origRaw: orig.total_price, subVal: lineTotalPrices[i] ?? '',  numeric: true },
+		const lineFields: FieldComparison[] = [
+			{ field: 'line_item.description', origRaw: orig.description, submittedVal: lineDescriptions[i] ?? '' },
+			{ field: 'line_item.quantity',    origRaw: orig.quantity,    submittedVal: lineQuantities[i] ?? '',    numeric: true },
+			{ field: 'line_item.unit',        origRaw: orig.unit,        submittedVal: lineUnits[i] ?? '' },
+			{ field: 'line_item.unit_price',  origRaw: orig.unit_price,  submittedVal: lineUnitPrices[i] ?? '',   numeric: true },
+			{ field: 'line_item.total_price', origRaw: orig.total_price, submittedVal: lineTotalPrices[i] ?? '',  numeric: true },
 		];
-		for (const { field, origRaw, subVal, numeric } of lineFields) {
-			const o = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
-			const s = numeric ? normalizeNum(subVal)  : normalizeStr(subVal);
-			if (o !== s) {
-				rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: o || null, correctedValue: s || null, lineItemIndex: i });
-			}
-		}
+		rows.push(...correctionRows(lineFields, target, i));
 	}
 
 	if (rows.length > 0) {
@@ -120,6 +127,54 @@ async function logExtractionCorrections(
 			fields: rows.map((r) => r.fieldName),
 		}, invoiceId);
 	}
+}
+
+type TenantScope = ReturnType<typeof forTenant>;
+
+async function insertEnrichedLines(
+	tx: BatchDb,
+	target: { invoiceId: number; rid: string; supplierId: number; supplierName: string },
+	enrichedLines: EnrichedLine[],
+	savedItems: EnrichedLineItem[],
+	unitConversionAlerts: Alert[],
+): Promise<void> {
+	for (const line of enrichedLines) {
+		const li = line.input;
+
+		await tx.insert(invoiceLineItems).values({
+			invoiceId: target.invoiceId,
+			restaurantId: target.rid,
+			...line.columns,
+		});
+
+		savedItems.push(line.item);
+
+		if (line.requiresUnitConversion) {
+			unitConversionAlerts.push({
+				notificationType: 'unit_conversion_needed',
+				message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
+				payload: {
+					supplierId: target.supplierId, supplierName: target.supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
+					messageKey: 'notif.msg.unitConversion',
+					messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
+				},
+			});
+		}
+	}
+}
+
+async function invoiceNumberTaken(
+	tx: BatchDb,
+	tdb: TenantScope,
+	supplierId: number,
+	invoiceNumber: string,
+): Promise<boolean> {
+	const dup = await tx
+		.select({ id: invoices.id })
+		.from(invoices)
+		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber)))
+		.limit(1);
+	return dup.length > 0;
 }
 
 export type LineFormInput = {
@@ -552,17 +607,10 @@ export async function saveReviewedInvoice(
 			await tx.update(suppliers).set({ outstandingBalance }).where(eq(suppliers.id, supplierId));
 		}
 
-		if (invoiceNumber.trim()) {
-			const dup = await tx
-				.select({ id: invoices.id })
-				.from(invoices)
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
-				.limit(1);
-			if (dup.length > 0) {
-				isDuplicate = true;
-				if (idemKey) await releaseRequest(idemKey, tx);
-				return;
-			}
+		if (invoiceNumber.trim() && await invoiceNumberTaken(tx, tdb, supplierId, invoiceNumber.trim())) {
+			isDuplicate = true;
+			if (idemKey) await releaseRequest(idemKey, tx);
+			return;
 		}
 
 		const insertedInvoice = await tx
@@ -595,29 +643,7 @@ export async function saveReviewedInvoice(
 		}
 		invoiceId = insertedInvoice[0].id;
 
-		for (const line of enrichedLines) {
-			const li = line.input;
-
-			await tx.insert(invoiceLineItems).values({
-				invoiceId: invoiceId!,
-				restaurantId: rid,
-				...line.columns,
-			});
-
-			savedItems.push(line.item);
-
-			if (line.requiresUnitConversion) {
-				unitConversionAlerts.push({
-					notificationType: 'unit_conversion_needed',
-					message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
-					payload: {
-						supplierId, supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
-						messageKey: 'notif.msg.unitConversion',
-						messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
-					},
-				});
-			}
-		}
+		await insertEnrichedLines(tx, { invoiceId: invoiceId!, rid, supplierId, supplierName }, enrichedLines, savedItems, unitConversionAlerts);
 
 		if (onSaved) await onSaved(tx);
 	});

@@ -93,9 +93,8 @@ async function resolveMembership(event: RequestEvent, user: NonNullable<App.Loca
 	});
 
 	const ids = memberships.map(m => m.restaurantId);
-	const restaurantId = ids.length > 0
-		? (activeCookie && ids.includes(activeCookie) ? activeCookie : (ids[0] ?? null))
-		: null;
+	const preferred = activeCookie && ids.includes(activeCookie) ? activeCookie : ids[0];
+	const restaurantId = preferred ?? null;
 
 	return {
 		userApproved: accessRows[0]?.accessStatus === 'approved',

@@ -25,7 +25,7 @@
   } = $props();
 
   let emailError = $state('');
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const EMAIL_RE = /^[^\s@]+@[^\s@](?=[^\s@]*\.[^\s@])[^\s@]*$/;
 
   function validateEmail(value: string): string {
     if (!value.trim()) return copy.errRequired;

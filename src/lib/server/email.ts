@@ -96,10 +96,14 @@ function renderEmailLayout(opts: LayoutOptions): string {
 		? `<span style="font-family:${MONO_STACK};font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:${COLOR_ACCENT};background:${COLOR_ACCENT_SOFT};padding:4px 8px;border-radius:4px;white-space:nowrap;">${opts.tagChip}</span>`
 		: '';
 
+	const ctaNoteHtml = opts.ctaNote
+		? `<p style="font-size:12px;color:${COLOR_FG3};margin:16px 0 0;line-height:1.5;text-align:center;">${opts.ctaNote}</p>`
+		: '';
+
 	const ctaHtml = opts.cta ? `
 	<tr><td align="center" style="padding:32px 40px 40px;">
 		<a href="${opts.cta.href}" style="display:inline-block;background:${COLOR_ACCENT};color:#ffffff;font-size:14px;font-weight:600;letter-spacing:-.005em;padding:14px 32px;border-radius:6px;text-decoration:none;">${opts.cta.label}</a>
-		${opts.ctaNote ? `<p style="font-size:12px;color:${COLOR_FG3};margin:16px 0 0;line-height:1.5;text-align:center;">${opts.ctaNote}</p>` : ''}
+		${ctaNoteHtml}
 	</td></tr>` : '';
 
 	const signatureHtml = opts.signature
@@ -212,6 +216,9 @@ ${p('Tus primeros 14 días son gratis — sin tarjeta.')}`,
 }
 
 export function waitlistInviteEmail(email: string, couponCode?: string): EmailPayload {
+	const couponCallout = couponCode
+		? callout(`Código ${escapeHtml(couponCode)}`, 'Úsalo al pagar y tu primer mes es gratis.')
+		: '';
 	return {
 		to: email,
 		kind: 'waitlist_invite',
@@ -224,7 +231,7 @@ export function waitlistInviteEmail(email: string, couponCode?: string): EmailPa
 			bodyHtml: `
 ${p('Estabas en nuestra lista de espera — y ya estamos listos para ti.')}
 ${p(`${strong('Mise en Place')} ya está disponible: inteligencia de facturas de proveedores con IA para restaurantes independientes.`)}
-${couponCode ? callout(`Código ${escapeHtml(couponCode)}`, 'Úsalo al pagar y tu primer mes es gratis.') : ''}`,
+${couponCallout}`,
 			cta: { href: `${APP_BASE_URL}/signup`, label: 'Crear tu cuenta' },
 			signature: `Nos vemos pronto en el pase,<br>${strong('El equipo de Mise en Place')}`,
 			footerNote: 'Recibes este correo porque te apuntaste en la lista de espera de Mise en Place.',
@@ -233,6 +240,9 @@ ${couponCode ? callout(`Código ${escapeHtml(couponCode)}`, 'Úsalo al pagar y t
 }
 
 export function accessApprovedEmail(email: string, couponCode?: string): EmailPayload {
+	const couponCallout = couponCode
+		? callout(`Código ${escapeHtml(couponCode)}`, 'Tu descuento de fundador. Úsalo al pasar por caja.')
+		: '';
 	return {
 		to: email,
 		kind: 'access_approved',
@@ -245,7 +255,7 @@ export function accessApprovedEmail(email: string, couponCode?: string): EmailPa
 			bodyHtml: `
 ${p('Hemos activado tu cuenta: ya tienes acceso completo a Mise en Place.')}
 ${p(`Entra con el email con el que te registraste (${strong(escapeHtml(email))}) y monta tu restaurante en un par de minutos.`)}
-${couponCode ? callout(`Código ${escapeHtml(couponCode)}`, 'Tu descuento de fundador. Úsalo al pasar por caja.') : ''}`,
+${couponCallout}`,
 			cta: { href: `${APP_BASE_URL}/login`, label: 'Entrar en la aplicación' },
 			signature: `Nos vemos en el pase,<br>${strong('El equipo de Mise en Place')}`,
 			footerNote: 'Recibes este correo porque tenías una cuenta pendiente de activación en Mise en Place.',
@@ -275,18 +285,19 @@ ${styledDigest}`,
 
 export function overdueInvoiceEmail(email: string, restaurantName: string, overdueCount: number, totalOwed: string): EmailPayload {
 	const invoicesWord = overdueCount === 1 ? 'factura vencida' : 'facturas vencidas';
+	const invoicesLabel = `${overdueCount} ${invoicesWord}`;
 	const name = escapeHtml(restaurantName);
 	const total = escapeHtml(totalOwed);
 	return {
 		to: email,
 		kind: 'overdue_invoice',
-		subject: `${overdueCount} ${invoicesWord} — ${restaurantName}`,
+		subject: `${invoicesLabel} — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `${overdueCount} ${invoicesWord} por un total de ${totalOwed} en ${name}.`,
+			preheader: `${invoicesLabel} por un total de ${totalOwed} en ${name}.`,
 			tagChip: 'Recordatorio',
 			eyebrow: 'Facturas vencidas',
-			headline: `${overdueCount} ${invoicesWord}`,
-			bodyHtml: p(`Tienes ${strong(`${overdueCount} ${invoicesWord}`)} por un total de ${strong(total)} en ${name}.`),
+			headline: invoicesLabel,
+			bodyHtml: p(`Tienes ${strong(invoicesLabel)} por un total de ${strong(total)} en ${name}.`),
 			cta: { href: `${APP_BASE_URL}/reminders`, label: 'Revisar y marcar como pagadas' },
 			footerLinks: true,
 		}),
@@ -295,18 +306,19 @@ export function overdueInvoiceEmail(email: string, restaurantName: string, overd
 
 export function trialExpiryEmail(email: string, restaurantName: string, daysLeft: number): EmailPayload {
 	const daysWord = daysLeft === 1 ? 'día' : 'días';
+	const daysLabel = `${daysLeft} ${daysWord}`;
 	const name = escapeHtml(restaurantName);
 	return {
 		to: email,
 		kind: 'trial_expiry',
-		subject: `Tu prueba gratuita termina en ${daysLeft} ${daysWord} — ${restaurantName}`,
+		subject: `Tu prueba gratuita termina en ${daysLabel} — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `Tu prueba gratuita para ${name} termina en ${daysLeft} ${daysWord}.`,
+			preheader: `Tu prueba gratuita para ${name} termina en ${daysLabel}.`,
 			tagChip: 'Prueba gratuita',
 			eyebrow: 'Prueba gratuita',
-			headline: `Termina en ${daysLeft} ${daysWord}`,
+			headline: `Termina en ${daysLabel}`,
 			bodyHtml: `
-${p(`Tu prueba gratuita de Mise en Place para ${strong(name)} termina en ${strong(`${daysLeft} ${daysWord}`)}.`)}
+${p(`Tu prueba gratuita de Mise en Place para ${strong(name)} termina en ${strong(daysLabel)}.`)}
 ${p('Suscríbete ahora para mantener el acceso completo a tus facturas, analíticas y alertas.')}`,
 			cta: { href: `${APP_BASE_URL}/billing`, label: 'Activar suscripción' },
 			footerNote: 'Mise en Place · Desde 49 €/mes por restaurante',
@@ -357,6 +369,7 @@ ${p('Puedes consultar tu factura y gestionar la suscripción en cualquier moment
 export function subscriptionConsolidatedEmail(email: string, restaurantName: string, keptRestaurantName: string): EmailPayload {
 	const name = escapeHtml(restaurantName);
 	const keptName = escapeHtml(keptRestaurantName);
+	const downgradedParagraph = p(`${strong(name)} ha vuelto a acceso de prueba. Si necesitas plan de pago allí, puedes activarlo desde la sección de facturación de ese restaurante.`);
 	return {
 		to: email,
 		kind: 'subscription_consolidated',
@@ -368,7 +381,7 @@ export function subscriptionConsolidatedEmail(email: string, restaurantName: str
 			headline: 'Tu plan ha cambiado a prueba gratuita',
 			bodyHtml: `
 ${p(`Detectamos que tu cuenta tenía dos suscripciones activas. Como cada cuenta solo puede tener un plan, hemos cancelado la de ${strong(name)} y mantenido la de ${strong(keptName)}.`)}
-${p(`${strong(name)} ha vuelto a acceso de prueba. Si necesitas plan de pago allí, puedes activarlo desde la sección de facturación de ese restaurante.`)}`,
+${downgradedParagraph}`,
 			cta: { href: `${APP_BASE_URL}/billing`, label: 'Ver facturación' },
 			footerLinks: true,
 		}),
@@ -425,18 +438,19 @@ export function changeEmailAddress(newEmail: string, confirmUrl: string): EmailP
 
 export function quotaWarningEmail(email: string, restaurantName: string, used: number, limit: number): EmailPayload {
 	const pct = Math.round((used / limit) * 100);
+	const invoicesLabel = `${used} de ${limit} facturas`;
 	const name = escapeHtml(restaurantName);
 	return {
 		to: email,
 		kind: 'quota_warning',
 		subject: `Tu cuota de facturas está al ${pct} % — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `Este mes has procesado ${used} de ${limit} facturas incluidas en tu plan.`,
+			preheader: `Este mes has procesado ${invoicesLabel} incluidas en tu plan.`,
 			tagChip: `${pct} %`,
 			eyebrow: 'Cuota de facturas',
 			headline: `Cuota al ${pct} %`,
 			bodyHtml: `
-${p(`Este mes has procesado ${strong(`${used} de ${limit} facturas`)} incluidas en tu plan para ${strong(name)} (${pct} %).`)}
+${p(`Este mes has procesado ${strong(invoicesLabel)} incluidas en tu plan para ${strong(name)} (${pct} %).`)}
 ${p('Si superas el límite no podrás procesar más facturas hasta el mes siguiente. Puedes ampliar tu plan en cualquier momento:')}`,
 			cta: { href: `${APP_BASE_URL}/billing`, label: 'Ver planes' },
 			footerLinks: true,

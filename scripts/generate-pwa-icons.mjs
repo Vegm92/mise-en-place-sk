@@ -154,7 +154,6 @@ function drawIcon(size) {
 	const lx0    = s * 0.20; // left outer edge
 	const lx1    = s * 0.32; // left inner edge
 	const rx0    = s * 0.68; // right inner edge
-	const rx1    = s * 0.80; // right outer edge
 	const vx     = s * 0.50; // valley x centre
 	const vy     = s * 0.57; // valley y
 
@@ -223,7 +222,6 @@ function drawMaskable(size) {
 	const lx0    = s * (0.20 * scale + offset);
 	const lx1    = s * (0.32 * scale + offset);
 	const rx0    = s * (0.68 * scale + offset);
-	const rx1    = s * (0.80 * scale + offset);
 	const vx     = s * (0.50 * scale + offset);
 	const vy     = s * (0.57 * scale + offset);
 	const strokeW = lx1 - lx0;

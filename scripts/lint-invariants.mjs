@@ -39,11 +39,9 @@ function tenantScopedTables() {
 	const found = new Map();
 	const schemaDir = path.join(ROOT, 'src/lib/server/schema');
 	const schemaFile = path.join(ROOT, 'src/lib/server/schema.ts');
-	const schemaFiles = fs.existsSync(schemaDir)
-		? walk(schemaDir, ['.ts'])
-		: fs.existsSync(schemaFile)
-			? [schemaFile]
-			: [];
+	let schemaFiles = [];
+	if (fs.existsSync(schemaDir)) schemaFiles = walk(schemaDir, ['.ts']);
+	else if (fs.existsSync(schemaFile)) schemaFiles = [schemaFile];
 	if (schemaFiles.length === 0) return found;
 	for (const file of schemaFiles) {
 		const src = fs.readFileSync(file, 'utf8');

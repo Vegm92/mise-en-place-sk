@@ -1,6 +1,8 @@
 const MONEY_INPUT = /^(-)?(\d+)(?:[.,](\d+))?$/;
 
-export function toCents(value: string | number | null | undefined): number | null {
+export type MoneyInput = string | number | null | undefined;
+
+export function toCents(value: MoneyInput): number | null {
 	if (value === null || value === undefined) return null;
 	if (typeof value === 'number') {
 		if (!Number.isFinite(value)) return null;
@@ -30,30 +32,30 @@ export function fromCents(cents: number): string {
 	return `${sign}${intPart}.${fracPart}`;
 }
 
-export function toMoneyString(value: string | number | null | undefined): string | null {
+export function toMoneyString(value: MoneyInput): string | null {
 	const cents = toCents(value);
 	return cents === null ? null : fromCents(cents);
 }
 
-export function sumCents(values: Iterable<string | number | null | undefined>): number {
+export function sumCents(values: Iterable<MoneyInput>): number {
 	let total = 0;
 	for (const v of values) total += toCents(v) ?? 0;
 	return total;
 }
 
-export function sumMoney(values: Iterable<string | number | null | undefined>): string {
+export function sumMoney(values: Iterable<MoneyInput>): string {
 	return fromCents(sumCents(values));
 }
 
-export function moneyEquals(a: string | number | null | undefined, b: string | number | null | undefined): boolean {
+export function moneyEquals(a: MoneyInput, b: MoneyInput): boolean {
 	return toCents(a) === toCents(b);
 }
 
-export function moneyToNumber(value: string | number | null | undefined): number {
+export function moneyToNumber(value: MoneyInput): number {
 	return (toCents(value) ?? 0) / 100;
 }
 
-export function moneyToNullableNumber(value: string | number | null | undefined): number | null {
+export function moneyToNullableNumber(value: MoneyInput): number | null {
 	const cents = toCents(value);
 	return cents === null ? null : cents / 100;
 }

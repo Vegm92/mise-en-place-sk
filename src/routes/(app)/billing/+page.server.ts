@@ -2,7 +2,7 @@ import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, StaleCustomerError, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
-import { subscriptions, restaurants, userRestaurants } from '$lib/server/schema';
+import { subscriptions, restaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 import { trackEvent } from '$lib/server/events';
@@ -69,6 +69,56 @@ async function getPortalOrBillingUrl(customerId: string | null | undefined, orig
 	return '/billing';
 }
 
+async function clearStaleCustomer(rid: string): Promise<void> {
+	const tdb = forTenant(rid);
+	await db.update(subscriptions)
+		.set({ stripeCustomerId: null })
+		.where(tdb.scope(subscriptions.restaurantId));
+}
+
+async function redirectExistingSubscriber(
+	rid: string,
+	stripeCustomerId: string | null,
+	origin: string,
+): Promise<never> {
+	if (stripeCustomerId) {
+		try {
+			redirect(303, await createPortalSession(stripeCustomerId, `${origin}/billing`));
+		} catch (err) {
+			if (!(err instanceof StaleCustomerError)) throw err;
+			await clearStaleCustomer(rid);
+		}
+	}
+	redirect(303, '/billing');
+}
+
+async function createCheckoutUrl(args: {
+	rid: string;
+	email: string;
+	restaurantName: string;
+	tier: PlanTier;
+	origin: string;
+	idemKey: string | null;
+	userId: string;
+}): Promise<string> {
+	const successUrl = `${args.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`;
+	const cancelUrl = `${args.origin}/billing`;
+	let customerId = await getOrCreateCustomer(args.rid, args.email, args.restaurantName);
+	trackEvent('checkout_started', args.rid, { tier: args.tier });
+	try {
+		return await createCheckoutSession(
+			args.rid, customerId, args.tier, successUrl, cancelUrl, args.idemKey ?? undefined, args.userId,
+		);
+	} catch (err) {
+		if (!(err instanceof StaleCustomerError)) throw err;
+		await clearStaleCustomer(args.rid);
+		customerId = await getOrCreateCustomer(args.rid, args.email, args.restaurantName);
+		return createCheckoutSession(
+			args.rid, customerId, args.tier, successUrl, cancelUrl, undefined, args.userId,
+		);
+	}
+}
+
 export const actions: Actions = {
 	checkout: async ({ locals, url, request }) => {
 		if (!locals.user || !locals.restaurantId) redirect(303, '/login');
@@ -105,17 +155,7 @@ export const actions: Actions = {
 			.limit(1);
 
 		if (existing && (existing.status === 'active' || existing.stripeSubscriptionId)) {
-			if (existing.stripeCustomerId) {
-				try {
-					redirect(303, await createPortalSession(existing.stripeCustomerId, `${url.origin}/billing`));
-				} catch (err) {
-					if (!(err instanceof StaleCustomerError)) throw err;
-					await db.update(subscriptions)
-						.set({ stripeCustomerId: null })
-						.where(tdb.scope(subscriptions.restaurantId));
-				}
-			}
-			redirect(303, '/billing');
+			await redirectExistingSubscriber(rid, existing.stripeCustomerId, url.origin);
 		}
 
 		if (currentActive) {
@@ -135,32 +175,15 @@ export const actions: Actions = {
 
 		let checkoutUrl: string;
 		try {
-			let customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
-			trackEvent('checkout_started', rid, { tier });
-			try {
-				checkoutUrl = await createCheckoutSession(
-					rid,
-					customerId,
-					tier,
-					`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-					`${url.origin}/billing`,
-					idemKey ?? undefined,
-					locals.user.id,
-				);
-			} catch (err) {
-				if (!(err instanceof StaleCustomerError)) throw err;
-				await db.update(subscriptions).set({ stripeCustomerId: null }).where(tdb.scope(subscriptions.restaurantId));
-				customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
-				checkoutUrl = await createCheckoutSession(
-					rid,
-					customerId,
-					tier,
-					`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-					`${url.origin}/billing`,
-					undefined,
-					locals.user.id,
-				);
-			}
+			checkoutUrl = await createCheckoutUrl({
+				rid,
+				email,
+				restaurantName: restaurant?.name ?? rid,
+				tier,
+				origin: url.origin,
+				idemKey,
+				userId: locals.user.id,
+			});
 		} catch (err) {
 			if (idemKey) await releaseRequest(idemKey);
 			throw err;

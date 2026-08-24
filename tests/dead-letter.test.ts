@@ -24,33 +24,30 @@ const { state } = vi.hoisted(() => ({
 }));
 
 vi.mock('$lib/server/db', () => {
+	const selectLimit = async () => state.selectReturns.shift() ?? [];
+	const selectFrom = () => ({ where: () => ({ limit: selectLimit }) });
+
+	const insertReturning = async (values: Record<string, unknown>) => {
+		if (state.failInsert) throw new Error('db down');
+		state.inserted.push(values);
+		return [{ id: state.inserted.length }];
+	};
+	const insertValues = (values: Record<string, unknown>) => ({
+		returning: () => insertReturning(values),
+	});
+
+	const updateReturning = async (values: Record<string, unknown>) => {
+		state.updated.push(values);
+		return state.updateReturns.shift() ?? [];
+	};
+	const updateSet = (values: Record<string, unknown>) => ({
+		where: () => ({ returning: () => updateReturning(values) }),
+	});
+
 	const db = {
-		select: () => ({
-			from: () => ({
-				where: () => ({
-					limit: async () => state.selectReturns.shift() ?? [],
-				}),
-			}),
-		}),
-		insert: () => ({
-			values: (values: Record<string, unknown>) => ({
-				returning: async () => {
-					if (state.failInsert) throw new Error('db down');
-					state.inserted.push(values);
-					return [{ id: state.inserted.length }];
-				},
-			}),
-		}),
-		update: () => ({
-			set: (values: Record<string, unknown>) => ({
-				where: () => ({
-					returning: async () => {
-						state.updated.push(values);
-						return state.updateReturns.shift() ?? [];
-					},
-				}),
-			}),
-		}),
+		select: () => ({ from: selectFrom }),
+		insert: () => ({ values: insertValues }),
+		update: () => ({ set: updateSet }),
 	};
 	return { db, forTenant: (rid: string) => ({ rid, scope: () => undefined }) };
 });

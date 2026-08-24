@@ -8,7 +8,6 @@
   import { getScoreColor } from '$lib/status';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Pencil from '@lucide/svelte/icons/pencil';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
   import Mail from '@lucide/svelte/icons/mail';
   import Phone from '@lucide/svelte/icons/phone';
   import Truck from '@lucide/svelte/icons/truck';

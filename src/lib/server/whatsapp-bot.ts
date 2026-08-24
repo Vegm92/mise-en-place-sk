@@ -107,9 +107,10 @@ async function handlePairingAttempt(from: string, body: string): Promise<void> {
 			.from(restaurants)
 			.where(eq(restaurants.id, result.restaurantId))
 			.limit(1);
+		const scopeSuffix = restaurant?.name ? ` para *${restaurant.name}*` : '';
 		await sendWhatsAppMessage(
 			from,
-			`✅ Número autorizado${restaurant?.name ? ` para *${restaurant.name}*` : ''}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
+			`✅ Número autorizado${scopeSuffix}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
 		);
 		return;
 	}

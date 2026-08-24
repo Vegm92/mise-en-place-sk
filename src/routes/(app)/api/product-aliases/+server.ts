@@ -5,6 +5,7 @@ import { systemNotifications } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { confirmProductAlias, rejectProductAlias, mergeIntoProduct } from '$lib/server/products';
+import type { AliasDecision } from '$lib/server/products';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -27,11 +28,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ ok: true });
 	}
 
-	const result = action === 'reject'
-		? await rejectProductAlias(db, rid, description)
-		: targetProductId != null
-			? await mergeIntoProduct(db, rid, description, targetProductId)
-			: await confirmProductAlias(db, rid, description);
+	let result: AliasDecision;
+	if (action === 'reject') {
+		result = await rejectProductAlias(db, rid, description);
+	} else if (targetProductId != null) {
+		result = await mergeIntoProduct(db, rid, description, targetProductId);
+	} else {
+		result = await confirmProductAlias(db, rid, description);
+	}
 
 	if (!result.ok) return json({ error: 'No suggestion found for that description' }, { status: 404 });
 
