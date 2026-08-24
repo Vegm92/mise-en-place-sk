@@ -1,0 +1,184 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #1a1f26; text-decoration: underline; }
+    a:hover { color: #000000; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace; font-variant-numeric: tabular-nums; }
+    table.ct { width: 100%; border-collapse: collapse; }
+    table.ct th {
+      font-size: 12px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+      color: #1a1f26; text-align: left; padding: 6px 8px; white-space: nowrap;
+      border-top: 1px solid #1a1f26; border-bottom: 1px solid #1a1f26;
+    }
+    table.ct td {
+      font-size: 16px; color: #1a1f26; padding: 5px 8px; height: 20px;
+      border-bottom: 1px solid rgba(15, 20, 30, 0.14); vertical-align: middle;
+    }
+    table.ct th.n, table.ct td.n { text-align: right; font-variant-numeric: tabular-nums; }
+    table.ct tr.tot td {
+      font-weight: 700; border-top: 1px solid #1a1f26;
+      border-bottom: 2.5px double #1a1f26; padding: 7px 8px;
+    }
+    .idcell { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border-right: 1px solid rgba(15, 20, 30, 0.18); }
+    .idcell:last-child { border-right: 0; }
+    .idlabel { font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b78; }
+    .idval { font-size: 14px; color: #1a1f26; }
+  </style>
+</helmet>
+
+<div style="width: 794px; height: 1123px; background: #ffffff; padding: 40px 52px 32px; display: flex; flex-direction: column; gap: 16px; color: #1a1f26;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;">
+      <div style="display: flex; align-items: center; gap: 9px;">
+        <svg viewBox="0 0 64 64" width="22" height="22" style="display: block;">
+          <rect width="64" height="64" fill="#1a1f26"></rect>
+          <rect x="8" y="8" width="8" height="48" rx="4" fill="#FFFFFF"></rect>
+          <rect x="28" y="20" width="8" height="36" rx="4" fill="#FFFFFF"></rect>
+          <rect x="48" y="32" width="8" height="24" rx="4" fill="#FFFFFF"></rect>
+        </svg>
+        <span style="font-size: 14px; font-weight: 600; letter-spacing: 0.01em;">MISE EN PLACE</span>
+      </div>
+      <span class="mono" style="font-size: 12px; color: #5f6b78;">MEP-CIE-2026-07 · pág. 1/1</span>
+    </div>
+
+    <h1 style="font-size: 21px; font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; text-transform: uppercase;">
+      Relación de compras · Cierre mensual
+    </h1>
+
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid rgba(15, 20, 30, 0.18);">
+      <div class="idcell">
+        <span class="idlabel">Titular</span>
+        <span class="idval">Restaurante Casa Bruna, S.L.</span>
+      </div>
+      <div class="idcell">
+        <span class="idlabel">NIF</span>
+        <span class="idval mono">B-00000000</span>
+      </div>
+      <div class="idcell">
+        <span class="idlabel">Periodo</span>
+        <span class="idval mono">01/07/2026 – 31/07/2026</span>
+      </div>
+      <div class="idcell">
+        <span class="idlabel">Emisión</span>
+        <span class="idval mono">03/08/2026</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;">
+      <h2 style="font-size: 14px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; margin: 0;">1. Compras por categoría</h2>
+      <span style="font-size: 12px; color: #5f6b78;">Base imponible en euros · 128 documentos</span>
+    </div>
+    <table class="ct">
+      <thead>
+        <tr>
+          <th style="width: 74px;">Cuenta</th>
+          <th>Categoría</th>
+          <th class="n" style="width: 104px;">Base imp.</th>
+          <th class="n" style="width: 104px;">Presupuesto</th>
+          <th class="n" style="width: 96px;">Desvío</th>
+          <th class="n" style="width: 68px;">% s/tot</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">600.100</td><td>Carnes y derivados</td><td class="n">11.842,30</td><td class="n">11.000,00</td><td class="n" style="color: #b03a3a;">+842,30</td><td class="n">28,0</td></tr>
+        <tr><td class="mono">600.200</td><td>Frutas y verduras</td><td class="n">7.965,15</td><td class="n">8.500,00</td><td class="n">−534,85</td><td class="n">18,8</td></tr>
+        <tr><td class="mono">600.300</td><td>Pescados y mariscos</td><td class="n">6.104,80</td><td class="n">5.800,00</td><td class="n" style="color: #b03a3a;">+304,80</td><td class="n">14,4</td></tr>
+        <tr><td class="mono">600.400</td><td>Lácteos</td><td class="n">4.238,90</td><td class="n">4.400,00</td><td class="n">−161,10</td><td class="n">10,0</td></tr>
+        <tr><td class="mono">600.500</td><td>Bebidas</td><td class="n">3.712,45</td><td class="n">3.500,00</td><td class="n" style="color: #b03a3a;">+212,45</td><td class="n">8,8</td></tr>
+        <tr><td class="mono">600.510</td><td>Vinos y cavas</td><td class="n">3.190,00</td><td class="n">3.600,00</td><td class="n">−410,00</td><td class="n">7,5</td></tr>
+        <tr><td class="mono">600.600</td><td>Aceites y conservas</td><td class="n">2.845,60</td><td class="n">2.700,00</td><td class="n" style="color: #b03a3a;">+145,60</td><td class="n">6,7</td></tr>
+        <tr><td class="mono">600.900</td><td>Otras categorías (4)</td><td class="n">2.419,40</td><td class="n">2.500,00</td><td class="n">−80,60</td><td class="n">5,8</td></tr>
+        <tr class="tot">
+          <td class="mono">—</td><td>TOTAL COMPRAS</td>
+          <td class="n">42.318,60</td><td class="n">42.000,00</td>
+          <td class="n" style="color: #b03a3a;">+318,60</td><td class="n">100,0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <h2 style="font-size: 14px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; margin: 0;">2. Desglose de IVA soportado</h2>
+    <table class="ct">
+      <thead>
+        <tr>
+          <th style="width: 74px;">Tipo</th>
+          <th>Concepto</th>
+          <th class="n" style="width: 104px;">Base imp.</th>
+          <th class="n" style="width: 104px;">Cuota IVA</th>
+          <th class="n" style="width: 120px;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="mono">10 %</td><td>Productos alimenticios</td><td class="n">31.740,20</td><td class="n">3.174,02</td><td class="n">34.914,22</td></tr>
+        <tr><td class="mono">21 %</td><td>Bebidas alcohólicas y otros</td><td class="n">10.578,40</td><td class="n">2.221,46</td><td class="n">12.799,86</td></tr>
+        <tr class="tot">
+          <td class="mono">—</td><td>TOTAL</td>
+          <td class="n">42.318,60</td><td class="n">5.395,48</td><td class="n">47.714,08</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 7px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;">
+      <h2 style="font-size: 14px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; margin: 0;">3. Detalle por proveedor</h2>
+      <span style="font-size: 12px; color: #5f6b78;">5 de 24 · resto agrupado</span>
+    </div>
+    <table class="ct">
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th class="n" style="width: 116px;">NIF</th>
+          <th class="n" style="width: 76px;">Docs.</th>
+          <th class="n" style="width: 110px;">Base imp.</th>
+          <th class="n" style="width: 76px;">% s/tot</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Cárnicas Berrocal, S.L.</td><td class="n mono">B-00000001</td><td class="n">22</td><td class="n">9.418,20</td><td class="n">22,3</td></tr>
+        <tr><td>Frutas Ortega</td><td class="n mono">00000002-A</td><td class="n">31</td><td class="n">6.240,75</td><td class="n">14,7</td></tr>
+        <tr><td>Pescados Ría de Vigo</td><td class="n mono">B-00000003</td><td class="n">14</td><td class="n">5.882,40</td><td class="n">13,9</td></tr>
+        <tr><td>Lácteos Valdemar</td><td class="n mono">B-00000004</td><td class="n">18</td><td class="n">3.905,10</td><td class="n">9,2</td></tr>
+        <tr><td style="color: #4a5562;">Resto de proveedores (20)</td><td class="n mono">—</td><td class="n">43</td><td class="n">16.872,15</td><td class="n">39,9</td></tr>
+        <tr class="tot">
+          <td>TOTAL</td><td class="n mono">—</td><td class="n">128</td><td class="n">42.318,60</td><td class="n">100,0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px;">
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="height: 30px; border-bottom: 1px solid #1a1f26;"></div>
+        <span style="font-size: 12px; color: #4a5562;">Conforme · Dirección</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div style="height: 30px; border-bottom: 1px solid #1a1f26;"></div>
+        <span style="font-size: 12px; color: #4a5562;">Recibido · Asesoría contable</span>
+      </div>
+    </div>
+    <div style="padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.18); display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+      <span style="font-size: 11.5px; color: #5f6b78;">Documento generado automáticamente desde albaranes confirmados. No sustituye a la factura original.</span>
+      <span class="mono" style="font-size: 11.5px; color: #5f6b78;">1/1</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
