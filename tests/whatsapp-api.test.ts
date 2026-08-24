@@ -8,6 +8,7 @@
  * can't quietly hardcode a version that will rot again.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { MAX_FILE_BYTES } from '../src/lib/server/file-validation';
 
 vi.mock('../src/lib/server/env', () => ({
 	WHATSAPP_ACCESS_TOKEN: 'test-token',
@@ -72,7 +73,11 @@ describe('downloadWhatsAppMedia', () => {
 				ok: true,
 				json: async () => ({ url: 'https://lookaside.fbsbx.com/abc', mime_type: 'application/pdf' }),
 			})
-			.mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new TextEncoder().encode('pdf').buffer });
+			.mockResolvedValueOnce({
+				ok: true,
+				headers: new Headers(),
+				arrayBuffer: async () => new TextEncoder().encode('pdf').buffer,
+			});
 
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
 		const result = await downloadWhatsAppMedia('media-1');
@@ -91,9 +96,47 @@ describe('downloadWhatsAppMedia', () => {
 				ok: true,
 				json: async () => ({ url: 'https://lookaside.fbsbx.com/x', mime_type: 'image/heic' }),
 			})
-			.mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new ArrayBuffer(1) });
+			.mockResolvedValueOnce({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(1) });
 
 		const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
 		expect((await downloadWhatsAppMedia('media-2')).extension).toBe('jpg');
+	});
+
+	// Issue #483: the bytes were buffered unconditionally, so a 2 GB "invoice"
+	// was a one-message OOM. Both the size the Graph metadata declares and the
+	// one the CDN declares are checked before anything is read.
+	it('rejects on the declared media size without fetching the bytes', async () => {
+		fetchMock.mockResolvedValueOnce({
+			ok: true,
+			json: async () => ({
+				url: 'https://lookaside.fbsbx.com/big',
+				mime_type: 'application/pdf',
+				file_size: MAX_FILE_BYTES + 1,
+			}),
+		});
+
+		const { downloadWhatsAppMedia, MediaTooLargeError } = await import('../src/lib/server/whatsapp');
+
+		await expect(downloadWhatsAppMedia('media-3')).rejects.toBeInstanceOf(MediaTooLargeError);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('rejects on content-length without reading the body', async () => {
+		const arrayBuffer = vi.fn();
+		fetchMock
+			.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ url: 'https://lookaside.fbsbx.com/big', mime_type: 'application/pdf' }),
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				headers: new Headers({ 'content-length': String(MAX_FILE_BYTES + 1) }),
+				arrayBuffer,
+			});
+
+		const { downloadWhatsAppMedia, MediaTooLargeError } = await import('../src/lib/server/whatsapp');
+
+		await expect(downloadWhatsAppMedia('media-4')).rejects.toBeInstanceOf(MediaTooLargeError);
+		expect(arrayBuffer).not.toHaveBeenCalled();
 	});
 });

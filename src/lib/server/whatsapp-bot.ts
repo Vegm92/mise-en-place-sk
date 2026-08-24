@@ -4,7 +4,7 @@ import { db } from './db';
 import { restaurants, whatsappContacts } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
 import { getStorage } from './storage';
-import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
+import { downloadWhatsAppMedia, MediaTooLargeError, sendWhatsAppMessage } from './whatsapp';
 import { checkRateLimit } from './rate-limiter';
 import { getAccessState } from './billing';
 import { isLocationLocked } from './locations';
@@ -12,9 +12,17 @@ import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 import { createBatch, getItem, getBatchItems, markQueued } from './batch';
 import { enqueueBatchExtraction } from './extract-batch';
 import { enqueueExtraction } from './queue';
-import { APP_BASE_URL } from './env';
+import { APP_BASE_URL, WHATSAPP_SENDER_HOURLY_LIMIT } from './env';
+import { MAX_FILE_BYTES, validateBuffer, type RejectReason } from './file-validation';
 
 const UNAUTHORIZED_REPLY_COOLDOWN_S = 6 * 60 * 60;
+const SENDER_WINDOW_S = 60 * 60;
+
+const REJECT_REPLY: Record<RejectReason, string> = {
+	unsupportedType: '❌ Ese tipo de archivo no me sirve. Envíame una foto (JPG, PNG) o un PDF de la factura.',
+	tooLarge: `❌ El archivo es demasiado grande (máx. ${MAX_FILE_BYTES / (1024 * 1024)} MB).`,
+	contentMismatch: '❌ El archivo parece dañado o no es lo que dice ser. Vuelve a enviarlo.',
+};
 
 export interface WhatsAppInboundMessage {
 	from: string;
@@ -108,6 +116,13 @@ async function routeMessage(msg: WhatsAppInboundMessage, committed: CommitFlag):
 		return;
 	}
 	if (msg.type === 'image' || msg.type === 'document') {
+		if (!(await checkRateLimit(`whatsapp:${msg.from}`, WHATSAPP_SENDER_HOURLY_LIMIT, SENDER_WINDOW_S))) {
+			await sendWhatsAppMessage(
+				msg.from,
+				'⏳ Has enviado demasiadas facturas seguidas. Espera un momento e inténtalo de nuevo.',
+			);
+			return;
+		}
 		if (await isLocationLocked(restaurantId)) {
 			await sendWhatsAppMessage(
 				msg.from,
@@ -170,9 +185,19 @@ async function handleMediaUpload(
 	try {
 		({ buffer, extension } = await downloadWhatsAppMedia(mediaId));
 	} catch (err) {
+		if (err instanceof MediaTooLargeError) {
+			await sendWhatsAppMessage(from, REJECT_REPLY.tooLarge);
+			return;
+		}
 		console.error('[whatsapp-bot] media download error:', err);
 		await sendWhatsAppMessage(from, '❌ No he podido descargar el archivo. Inténtalo de nuevo.');
 		throw err;
+	}
+
+	const rejection = validateBuffer(buffer, `.${extension}`);
+	if (rejection) {
+		await sendWhatsAppMessage(from, REJECT_REPLY[rejection]);
+		return;
 	}
 
 	const fileKey = `whatsapp/${restaurantId}/${randomUUID()}.${extension}`;
