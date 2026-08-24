@@ -31,6 +31,9 @@
   --mep-warn-soft:rgba(126, 76, 13, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
+
+  --mep-badge-pdf:   #c14a4a;
+  --mep-badge-other: #6a8a6a;
 }
 
 /* Light */
@@ -61,6 +64,9 @@
   --mep-series-4: #eda100;
   --mep-series-5: #1baf7a;
   --mep-series-other: #9aa3af;
+
+  --mep-badge-pdf:   #c14a4a;
+  --mep-badge-other: #6a8a6a;
 }
 
 /* Dark */
@@ -101,6 +107,9 @@
   --mep-warn-soft: rgba(208, 149, 72, 0.18);
   --mep-info:      #5f8ee0;
   --mep-info-soft: rgba(95, 142, 224, 0.18);
+
+  --mep-badge-pdf:   #c14a4a;
+  --mep-badge-other: #6a8a6a;
 }
 
 /* Accent — teal (default) */
