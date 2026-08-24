@@ -227,6 +227,18 @@
    Add an entry here when a new MEP token needs a Tailwind utility.
    ─────────────────────────────────────────────────────────────────── */
 
+/* Rewire Tailwind's `dark:` onto the signal this app actually themes on.
+   By default it compiles to @media (prefers-color-scheme: dark) — the OS
+   setting — while MEP themes on data-theme, which theme-init.js takes from
+   localStorage and only falls back to the OS preference for. The two agree
+   until someone uses the theme toggle, at which point a `dark:` utility paints
+   for the opposite theme from every token around it.
+
+   Nothing needs `dark:` today: the tokens below are already theme-aware, so
+   `bg-surface` flips on its own. This is here so that if someone does reach for
+   it, it follows the toggle instead of silently disagreeing with it. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme inline {
   --font-sans: 'Mona Sans', system-ui, sans-serif;
 
