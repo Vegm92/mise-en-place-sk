@@ -49,9 +49,9 @@
 				{:else if status === 'past_due'}
 					<span style="background:var(--mep-neg-soft);color:var(--mep-neg);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{$t('billing.pastDue')}</span>
 				{:else if status === 'paused'}
-					<span style="background:var(--mep-fg-soft);color:var(--mep-fg-3);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{$t('billing.paused')}</span>
+					<span style="background:var(--mep-hover);color:var(--mep-fg-2);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{$t('billing.paused')}</span>
 				{:else}
-					<span style="background:var(--mep-fg-soft);color:var(--mep-fg-3);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{$t('billing.canceled')}</span>
+					<span style="background:var(--mep-hover);color:var(--mep-fg-2);padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;">{$t('billing.canceled')}</span>
 				{/if}
 			</div>
 
