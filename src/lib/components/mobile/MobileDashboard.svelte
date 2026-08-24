@@ -182,7 +182,7 @@
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
         <div class="num" style="
           font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
           color: {pendingAmount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
@@ -194,7 +194,7 @@
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('status.pending')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('status.pending')}</div>
         <div class="num" style="
           font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
           color: {pendingCount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
@@ -211,7 +211,7 @@
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
           <div class="subtitle" style="font-size: 15px;">{$t('dash.suppliers')}</div>
-          <a href="/suppliers" style="color: var(--mep-fg-3); text-decoration: none; display: flex;">
+          <a href="/suppliers" style="color: var(--mep-fg-3); text-decoration: none; display: flex; align-items: center; justify-content: flex-end; min-width: 44px; min-height: 44px;">
             <ChevronRight size={14} />
           </a>
         </div>
@@ -248,7 +248,7 @@
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
           <div class="subtitle" style="font-size: 15px;">{$t('mdash.recent')}</div>
-          <a href="/invoices" style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none;">{$t('action.viewAll')}</a>
+          <a href="/invoices" style="font-size: 13px; color: var(--mep-acc); font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('action.viewAll')}</a>
         </div>
         {#each recentInvoices.slice(0, 3) as inv, i}
           <a href="/invoice/{inv.id}" style="
@@ -279,7 +279,7 @@
               <div class="num" style="font-size: 13.5px; font-weight: 600; color: var(--mep-fg);">
                 {inv.display_amount != null ? fmtEur(inv.display_amount) : '—'}
               </div>
-              <StatusBadge status={inv.status ?? 'pending'} style="font-size: 9.5px; padding: 1px 5px;" />
+              <StatusBadge status={inv.status ?? 'pending'} style="font-size: 11px; padding: 1px 5px;" />
             </div>
           </a>
         {/each}

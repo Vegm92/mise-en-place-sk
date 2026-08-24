@@ -168,7 +168,7 @@
               color:{isActive ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 2px;
             ">{session.title}</p>
-            <p style="font-size:10px;color:var(--mep-fg-3);margin:0;">{formatDate(session.updatedAt)}</p>
+            <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{formatDate(session.updatedAt)}</p>
           </a>
           <form id="delete-session-{session.id}" method="POST" action="?/deleteSession" style="flex-shrink:0;margin-right:4px;">
             <input type="hidden" name="id" value={session.id} />
@@ -195,7 +195,7 @@
       <button
         onclick={() => (mobileSidebarOpen = !mobileSidebarOpen)}
         class="btn btn-ghost"
-        style="height:32px;padding:0 10px;gap:6px;font-size:13px;font-weight:500;"
+        style="padding:0 10px;gap:6px;font-size:13px;font-weight:500;"
         aria-label={$t('chat.historyAria')}
       >
         <History size={15} />
@@ -231,7 +231,7 @@
               <button
                 onclick={() => sendMessage($t(key))}
                 class="btn btn-secondary"
-                style="font-size:12px;height:32px;padding:0 14px;border-radius:99px;"
+                style="font-size:12px;padding:0 14px;border-radius:99px;"
               >{$t(key)}</button>
             {/each}
           </div>
@@ -291,7 +291,7 @@
 
     <div style="border-top:1px solid var(--mep-divider);background:var(--mep-bg);padding:12px 24px 16px;" data-coach="chat-main">
       <div style="max-width:800px;margin:0 auto;">
-        <p style="font-size:10px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{$t('chat.privacy')}</p>
+        <p style="font-size:11px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{$t('chat.privacy')}</p>
         <div style="display:flex;gap:10px;align-items:center;">
           <input
             type="text"
@@ -300,7 +300,7 @@
             placeholder={$t('chat.placeholder')}
             disabled={chatLoading}
             class="input flex-1"
-            style="height:42px;font-size:13px;"
+            style="height:42px;"
           />
           <button
             onclick={() => sendMessage()}

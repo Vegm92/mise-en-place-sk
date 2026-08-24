@@ -114,11 +114,11 @@
     {#snippet filters()}
       <div class="flex items-center gap-2">
         <button type="button" class="btn {tab === 'catalog' ? 'btn-primary' : 'btn-ghost'}"
-          style="height:32px;font-size:12.5px;" onclick={() => (tab = 'catalog')}>
+          style="font-size:12.5px;" onclick={() => (tab = 'catalog')}>
           {$t('prod.tab.catalog')}
         </button>
         <button type="button" class="btn {tab === 'suggestions' ? 'btn-primary' : 'btn-ghost'}"
-          style="height:32px;font-size:12.5px;gap:6px;" onclick={() => (tab = 'suggestions')}>
+          style="font-size:12.5px;gap:6px;" onclick={() => (tab = 'suggestions')}>
           {$t('prod.tab.suggestions')}
           {#if pendingCount > 0}
             <span class="badge" style="background:var(--mep-warn-soft);color:var(--mep-warn);">{pendingCount}</span>
@@ -128,12 +128,12 @@
       {#if tab === 'catalog'}
         <div style="position:relative;">
           <select class="btn btn-secondary"
-            style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:140px;"
+            style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:140px;"
             bind:value={catFilter}>
             <option value="">—</option>
             {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
           </select>
-          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
         </div>
       {/if}
     {/snippet}
@@ -143,21 +143,21 @@
         <div class="p-4 border-b border-divider">
           <form method="post" action="?/create" class="flex flex-wrap items-end gap-2">
             <div class="flex flex-col gap-1 min-w-[180px]">
-              <label class="label text-fg-3" style="font-size:10.5px;" for="prod-name">{$t('prod.new.name')}</label>
-              <input id="prod-name" name="canonicalName" required class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+              <label class="label text-fg-3" for="prod-name">{$t('prod.new.name')}</label>
+              <input id="prod-name" name="canonicalName" required class="input" style="padding:0 8px;" />
             </div>
             <div class="flex flex-col gap-1 min-w-[160px]">
-              <label class="label text-fg-3" style="font-size:10.5px;" for="prod-cat">{$t('prod.new.category')}</label>
-              <select id="prod-cat" name="category" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
+              <label class="label text-fg-3" for="prod-cat">{$t('prod.new.category')}</label>
+              <select id="prod-cat" name="category" class="input" style="padding:0 8px;">
                 <option value="">—</option>
                 {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
               </select>
             </div>
             <div class="flex flex-col gap-1 min-w-[100px]">
-              <label class="label text-fg-3" style="font-size:10.5px;" for="prod-unit">{$t('prod.new.unit')}</label>
-              <input id="prod-unit" name="canonicalUnit" class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder="kg" />
+              <label class="label text-fg-3" for="prod-unit">{$t('prod.new.unit')}</label>
+              <input id="prod-unit" name="canonicalUnit" class="input" style="padding:0 8px;" placeholder="kg" />
             </div>
-            <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;gap:5px;">
+            <button type="submit" class="btn btn-primary" style="font-size:12.5px;gap:5px;">
               <Plus size={13} />
               {$t('prod.new.add')}
             </button>
@@ -211,7 +211,7 @@
         {:else}
           {#if conversionPrompts.length > 0}
             <div class="flex flex-col gap-3 p-4">
-              <p class="label text-fg-3" style="font-size:10.5px;">{$t('prod.conv.heading')}</p>
+              <p class="label text-fg-3">{$t('prod.conv.heading')}</p>
               {#each conversionPrompts as c (c.notificationId)}
                 <div class="border border-divider rounded-lg p-3 flex flex-col gap-2"
                   style="border-left:3px solid var(--mep-warn);">
@@ -228,16 +228,16 @@
                   <form class="flex flex-wrap items-end gap-2"
                     onsubmit={(e) => saveConversion(c, e)}>
                     <div class="flex flex-col gap-1 min-w-[110px]">
-                      <label class="label text-fg-3" style="font-size:10.5px;" for="conv-unit-{c.notificationId}">{$t('prod.conv.canonicalUnit')}</label>
+                      <label class="label text-fg-3" for="conv-unit-{c.notificationId}">{$t('prod.conv.canonicalUnit')}</label>
                       <input id="conv-unit-{c.notificationId}" name="canonical_unit" required
-                        class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder={$t('sup.conv.ph.canonical')} />
+                        class="input" style="padding:0 8px;" placeholder={$t('sup.conv.ph.canonical')} />
                     </div>
                     <div class="flex flex-col gap-1 min-w-[110px]">
-                      <label class="label text-fg-3" style="font-size:10.5px;" for="conv-factor-{c.notificationId}">{$t('prod.conv.factor')}</label>
+                      <label class="label text-fg-3" for="conv-factor-{c.notificationId}">{$t('prod.conv.factor')}</label>
                       <input id="conv-factor-{c.notificationId}" name="conversion_factor" type="number" min="0.001" step="any" required
-                        class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder={$t('sup.conv.ph.factor')} />
+                        class="input" style="padding:0 8px;" placeholder={$t('sup.conv.ph.factor')} />
                     </div>
-                    <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;"
+                    <button type="submit" class="btn btn-primary" style="font-size:12.5px;"
                       disabled={conversionBusy[c.notificationId]}>
                       {$t('prod.conv.save')}
                     </button>

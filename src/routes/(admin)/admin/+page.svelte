@@ -122,7 +122,7 @@
               <td style="padding:9px 16px;min-width:0;">
                 <div style="display:flex;align-items:center;gap:8px;">
                   <span class="num" style="
-                    font-size:10px;padding:2px 6px;border-radius:4px;flex-shrink:0;
+                    font-size:11px;padding:2px 6px;border-radius:4px;flex-shrink:0;
                     background:var(--mep-acc-soft);color:var(--mep-acc);
                     text-transform:uppercase;letter-spacing:0.04em;
                   ">{ev.notification_type.replace(/_/g, ' ')}</span>

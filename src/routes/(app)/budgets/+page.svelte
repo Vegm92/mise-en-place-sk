@@ -125,7 +125,7 @@
                         value={r.limit > 0 ? r.limit : ''}
                         placeholder={$t('bud.noLimit')}
                         class="input"
-                        style="height:30px;font-size:12.5px;width:130px;text-align:right;" />
+                        style="height:30px;width:130px;text-align:right;" />
                     {/if}
                   </td>
                   <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent)}</td>
@@ -174,7 +174,7 @@
                           bind:value={newCatName}
                           placeholder={$t('bud.namePlaceholder')}
                           class="input"
-                          style="height:30px;font-size:12.5px;width:220px;"
+                          style="height:30px;width:220px;"
                           onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
                         />
                         <button type="button" class="btn btn-primary" style="height:30px;font-size:12.5px;"
@@ -327,7 +327,7 @@
                 value={r.limit > 0 ? r.limit : ''}
                 placeholder={$t('bud.noLimit')}
                 class="input"
-                style="flex:1;height:34px;font-size:13px;text-align:right;" />
+                style="flex:1;height:34px;text-align:right;" />
             {/if}
           </div>
         </div>
@@ -342,7 +342,7 @@
             bind:value={newCatName}
             placeholder={$t('bud.namePlaceholder')}
             class="input"
-            style="height:40px;font-size:14px;"
+            style="height:40px;"
             onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
           />
           <div style="display:flex;gap:8px;">

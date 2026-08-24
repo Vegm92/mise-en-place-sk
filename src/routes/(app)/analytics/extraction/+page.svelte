@@ -40,7 +40,7 @@
       <p style="font-size:13px;color:var(--mep-fg-4);max-width:320px;margin:0;line-height:1.5;">
         {$t('extract.acc.noDataHint')}
       </p>
-      <a href="/" style="font-size:13px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">
+      <a href="/" style="font-size:13px;color:var(--mep-acc);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;">
         {$t('spend.uploadFirst')}
       </a>
     </div>
@@ -172,7 +172,7 @@
                     <span style="color:var(--mep-fg);font-weight:500;">{row.supplier_name}</span>
                     {#if lowAccuracy}
                       <span style="
-                        font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;
+                        font-size:11px;font-weight:600;padding:1px 6px;border-radius:10px;
                         background:var(--mep-warn-soft);color:var(--mep-warn);
                       ">{$t('extract.acc.review')}</span>
                     {/if}

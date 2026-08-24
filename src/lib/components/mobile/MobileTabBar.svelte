@@ -26,7 +26,7 @@
     text-decoration: none; padding: 4px 6px; min-width: 50px;
   ">
     <LayoutDashboard size={20} strokeWidth={is('/dashboard') ? 2 : 1.7} />
-    <span style="font-size: 10.5px; font-weight: {is('/dashboard') ? 600 : 500};">{$t('nav.dashboard')}</span>
+    <span style="font-size: 11px; font-weight: {is('/dashboard') ? 600 : 500};">{$t('nav.dashboard')}</span>
   </a>
 
   <a href="/invoices" style="
@@ -40,13 +40,13 @@
         <span class="num" style="
           position: absolute; top: -4px; right: -8px;
           min-width: 14px; height: 14px; padding: 0 4px;
-          border-radius: 7px; font-size: 9px; font-weight: 700;
+          border-radius: 7px; font-size: 11px; font-weight: 700;
           background: var(--mep-warn); color: var(--mep-warn-fg);
           display: inline-flex; align-items: center; justify-content: center;
         ">{invBadge}</span>
       {/if}
     </div>
-    <span style="font-size: 10.5px; font-weight: {is('/invoices') ? 600 : 500};">{$t('nav.invoices')}</span>
+    <span style="font-size: 11px; font-weight: {is('/invoices') ? 600 : 500};">{$t('nav.invoices')}</span>
   </a>
 
   <a href="/" style="
@@ -66,7 +66,7 @@
     text-decoration: none; padding: 4px 6px; min-width: 50px;
   ">
     <TrendingUp size={20} strokeWidth={is('/analytics') ? 2 : 1.7} />
-    <span style="font-size: 10.5px; font-weight: {is('/analytics') ? 600 : 500};">{$t('nav.analytics')}</span>
+    <span style="font-size: 11px; font-weight: {is('/analytics') ? 600 : 500};">{$t('nav.analytics')}</span>
   </a>
 
   <a href="/reminders" style="
@@ -80,12 +80,12 @@
         <span class="num" style="
           position: absolute; top: -4px; right: -8px;
           min-width: 14px; height: 14px; padding: 0 4px;
-          border-radius: 7px; font-size: 9px; font-weight: 700;
+          border-radius: 7px; font-size: 11px; font-weight: 700;
           background: var(--mep-neg); color: var(--mep-neg-fg);
           display: inline-flex; align-items: center; justify-content: center;
         ">{alertBadge}</span>
       {/if}
     </div>
-    <span style="font-size: 10.5px; font-weight: {is('/reminders') ? 600 : 500};">{$t('notif.title')}</span>
+    <span style="font-size: 11px; font-weight: {is('/reminders') ? 600 : 500};">{$t('notif.title')}</span>
   </a>
 </nav>
