@@ -4,40 +4,41 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { trackEvent } from '$lib/server/events';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
-import { toIsoDate } from '$lib/server/dates';
 import { periodToDate } from '$lib/constants';
+import {
+	countActiveInvoiceFilters,
+	escapeLikePattern,
+	parseInvoiceFilters,
+	type InvoiceSortKey,
+} from '$lib/invoice-filters';
 
 const PAGE_SIZE = 50;
 
-const SORT_OPTIONS = {
+const SORT_OPTIONS: Record<InvoiceSortKey, SQL> = {
 	uploaded_desc:     desc(invoices.createdAt),
 	uploaded_asc:      asc(invoices.createdAt),
 	invoice_date_desc: desc(invoices.invoiceDate),
 	invoice_date_asc:  asc(invoices.invoiceDate),
-} as const;
-type SortKey = keyof typeof SORT_OPTIONS;
-function isSortKey(v: string): v is SortKey {
-	return v in SORT_OPTIONS;
-}
+};
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
-		const status       = url.searchParams.get('status') ?? '';
-		const supplierId   = url.searchParams.get('supplier_id') ?? '';
-		const dateFrom     = toIsoDate(url.searchParams.get('date_from')) ?? '';
-		const dateTo       = toIsoDate(url.searchParams.get('date_to')) ?? '';
-		const uploadedFrom = url.searchParams.get('uploaded_from') ?? '';
-		const uploadedTo   = url.searchParams.get('uploaded_to') ?? '';
-		const sortParam    = url.searchParams.get('sort') ?? '';
-		const sort: SortKey = isSortKey(sortParam) ? sortParam : 'uploaded_desc';
+		const filters = parseInvoiceFilters(url.searchParams);
+		const {
+			q, status, supplier_id: supplierId,
+			date_from: dateFrom, date_to: dateTo,
+			uploaded_from: uploadedFrom, uploaded_to: uploadedTo,
+			sort,
+		} = filters;
+		const supplierIdNum = Number.parseInt(supplierId, 10);
 		const period = url.searchParams.get('period') ?? '30d';
 		const periodStartStr = periodToDate(period).toISOString().slice(0, 10);
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
@@ -45,11 +46,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 		if (status)       conditions.push(eq(invoices.status, status));
-		if (supplierId)   conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
+		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
 		if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));
 		if (dateTo)       conditions.push(lte(invoices.invoiceDate, dateTo));
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
 		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
+		if (q) {
+			const pattern = `%${escapeLikePattern(q)}%`;
+			conditions.push(or(ilike(invoices.invoiceNumber, pattern), ilike(suppliers.name, pattern))!);
+		}
 
 		const [invoiceRows, statsRow, trendRows, supplierCountRow, supplierRows, countRow] = await Promise.all([
 			db.select({
@@ -108,6 +113,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			// tenant-scope-ok: conditions[0] is tdb.scope(invoices.restaurantId)
 			db.select({ cnt: count() })
 				.from(invoices)
+				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 				.where(and(...conditions)),
 		]);
 
@@ -174,10 +180,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			suppliers: supplierRows,
 			period,
 			trendData,
-			filters: {
-				status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo,
-				uploaded_from: uploadedFrom, uploaded_to: uploadedTo, sort,
-			},
+			filters,
+			activeFilterCount: countActiveInvoiceFilters(filters),
 			conflict: url.searchParams.get('conflict') === '1',
 			savedInvoiceId: Number.isFinite(savedId) ? savedId : null,
 			savedAlerts,
