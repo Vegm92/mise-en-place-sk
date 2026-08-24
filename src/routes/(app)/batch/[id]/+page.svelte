@@ -23,6 +23,7 @@
   import ChevronsRight from '@lucide/svelte/icons/chevrons-right';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import FileText from '@lucide/svelte/icons/file-text';
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import {
     percentInputValue, percentToFraction, fractionToPercent, isTaxType, bandsFromInputs, bandAmountCents,
     sumTaxCents, taxableBaseCents, lineRateFractions, bandsFromLines,
@@ -224,6 +225,10 @@
     showContentDuplicateModal = false;
     previewFull = false;
     taxPanelOpen = false;
+    docStripOpen = false;
+    openLine = -1;
+    returnField = null;
+    lastFocusedField = null;
     uncertainCursor = 0;
     taxBands = bandRowsFrom(data.review?.data?.tax_breakdown);
     originalTotal = priceStr(str(data.review?.data?.total_amount));
@@ -454,19 +459,154 @@
   const doneCount = $derived(data.queue.filter(q => q.status === 'done' || q.status === 'confirmed').length);
   const previewSrc = $derived(review ? `/api/upload/${review.itemId}/${encodeURIComponent(review.filename)}` : '');
   const railWidth = $derived(queueOpen ? RAIL_OPEN_W : RAIL_SHUT_W);
+
+  let isMobile = $state(false);
+  $effect(() => {
+    const mq = window.matchMedia('(max-width: 900px)');
+    isMobile = mq.matches;
+    const onChange = () => { isMobile = mq.matches; };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  });
+
+  let docStripOpen = $state(false);
+  let openLine = $state(-1);
+  let returnField = $state<string | null>(null);
+
+  const RETURN_LABELS: Record<string, string> = {
+    supplier_name: 'field.supplier',
+    invoice_number: 'field.invoiceNum',
+    invoice_date: 'field.invoiceDate',
+    due_date: 'extract.due',
+    total_amount: 'tbl.total',
+  };
+
+  const returnTarget = $derived.by(() => {
+    if (!returnField) return null;
+    const values: Record<string, string> = {
+      supplier_name: supplierNameInput,
+      invoice_number: invoiceNumberInput,
+      invoice_date: invoiceDateInput,
+      due_date: dueDateInput,
+      total_amount: totalAmountInput,
+    };
+    return { labelKey: RETURN_LABELS[returnField], value: values[returnField] ?? '' };
+  });
+
+  let lastFocusedField: string | null = null;
+  function onFocusIn(e: FocusEvent) {
+    const el = e.target as HTMLInputElement | null;
+    if (el && el.tagName === 'INPUT' && RETURN_LABELS[el.name]) lastFocusedField = el.name;
+  }
+
+  function openDocViewer() {
+    returnField = lastFocusedField;
+    (document.activeElement as HTMLElement | null)?.blur();
+    previewFull = true;
+  }
+
+  function closeDocViewer() {
+    previewFull = false;
+    const name = returnField;
+    returnField = null;
+    if (!name) return;
+    tick().then(() => {
+      const input = document.querySelector<HTMLElement>(`input[name="${name}"]`);
+      if (!input) return;
+      input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      input.focus();
+    });
+  }
+
+  const previewExt = $derived((review?.filename ?? '').toLowerCase().split('.').pop() ?? '');
+  const previewIsImage = $derived(previewExt === 'jpg' || previewExt === 'jpeg' || previewExt === 'png');
+  const previewIsPdf = $derived(previewExt === 'pdf');
+  const previewFitSrc = $derived(previewIsPdf ? `${previewSrc}#toolbar=0&navpanes=0&view=FitH` : previewSrc);
+
+  const activeDoc = $derived(data.queue.find(q => q.id === data.review?.itemId) ?? data.queue.find(q => q.status === 'extracting') ?? data.queue[0]);
+  const queueRemaining = $derived(data.queue.filter(q => q.status === 'queued' || q.status === 'pending').length);
+
+  function toggleLine(i: number) {
+    openLine = openLine === i ? -1 : i;
+  }
 </script>
 
-<svelte:window onkeydown={onWindowKeydown} />
+<svelte:window onkeydown={onWindowKeydown} onfocusin={onFocusIn} />
 
 <div class:rev-dragging={dragging} style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
 
-  <div style="padding:12px 20px 0;flex-shrink:0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+  <div class="rev-desktop-only" style="padding:12px 20px 0;flex-shrink:0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
     <FlowSteps active={data.anyInFlight ? 1 : 2} size="sm" />
   </div>
 
+  <div class="rev-mobile-only rev-strip">
+    <button type="button" class="rev-strip-row" onclick={() => docStripOpen = !docStripOpen} aria-expanded={docStripOpen}>
+      <FileTypeBadge
+        kind={activeDoc?.type === 'PDF' ? 'pdf' : 'other'}
+        label={activeDoc?.type ?? ''}
+        opacity={1}
+      />
+      <span class="rev-strip-name">
+        <span class="rev-strip-file">{activeDoc?.name ?? ''}</span>
+        <span class="num rev-strip-sub">
+          {$ti('review.docOf', { i: doneCount, n: data.queue.length })}{queueRemaining > 0 ? ` · ${$tp('review.inQueue', queueRemaining)}` : ''}
+        </span>
+      </span>
+      <span class="rev-strip-dots">
+        {#each data.queue as q (q.id)}
+          <span class="rev-strip-dot" class:on={q.id === data.review?.itemId || q.status === 'extracting'} class:done={q.status === 'confirmed'}></span>
+        {/each}
+      </span>
+      <span class="rev-tax-caret" class:open={docStripOpen}><ChevronsRight size={14} /></span>
+    </button>
+
+    {#if docStripOpen}
+      <div class="rev-strip-list">
+        {#each data.queue as q (q.id)}
+          <div class="rev-strip-item" class:active={q.id === data.review?.itemId}>
+            <FileTypeBadge
+              kind={q.type === 'PDF' ? 'pdf' : 'other'}
+              label={q.type}
+              opacity={q.status === 'confirmed' ? 0.55 : 1}
+            />
+            <span style="flex:1;min-width:0;">
+              <span class="rev-strip-file">{q.name}</span>
+              <span class="rev-strip-sub">
+                {q.status === 'confirmed' ? $t('confirm.extractDone')
+                  : q.status === 'done' ? $t('batch.queue.ready')
+                  : q.status === 'extracting' ? $t('confirm.extractActive')
+                  : q.status === 'queued' ? $t('confirm.inQueue')
+                  : q.status === 'failed' ? $t('extract.error')
+                  : `${q.type} · ${q.size}`}
+              </span>
+            </span>
+            {#if q.id === data.review?.itemId}
+              <span class="rev-strip-mark">{$t('review.reviewing')}</span>
+            {:else if q.status === 'confirmed'}
+              <span style="color:var(--mep-pos);display:inline-flex;"><Check size={14} /></span>
+            {:else if q.status === 'failed'}
+              <span style="color:var(--mep-neg);display:inline-flex;"><AlertTriangle size={14} /></span>
+            {/if}
+          </div>
+        {/each}
+        <div class="rev-strip-actions">
+          <label class="rev-strip-action">
+            <Plus size={15} /> {$t('review.addFiles')}
+            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple onchange={(e) => { onFileInputChange(e); submitAddFiles(); }} />
+          </label>
+          <button type="submit" form="discard-batch-form" class="rev-strip-action danger">
+            <Trash size={15} /> {$t('confirm.discard')}
+          </button>
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <form id="discard-batch-form" method="POST" action="?/discardBatch" style="display:none;"></form>
+
   <div class="rev-shell" style="padding:12px 20px 16px;">
 
-    <div class="card rev-col rev-col-fixed rev-sizing" style="width:{railWidth}px;padding:8px 0 6px;">
+    <div class="card rev-col rev-col-fixed rev-sizing rev-desktop-only" style="width:{railWidth}px;padding:8px 0 6px;">
       <div class="rev-rail-head" style="display:flex;align-items:center;gap:6px;padding:0 {queueOpen ? 10 : 8}px 8px;{queueOpen ? '' : 'flex-direction:column;'}">
         <button
           type="button"
@@ -592,7 +732,7 @@
         <input type="hidden" name="itemId" value={review.itemId} />
       </form>
 
-      <div class="card rev-col rev-col-fixed rev-sizing rev-preview-frame" style="width:{previewOpen ? previewW : PREVIEW_SHUT_W}px;padding:0;">
+      <div class="card rev-col rev-col-fixed rev-sizing rev-preview-frame rev-desktop-only" style="width:{previewOpen ? previewW : PREVIEW_SHUT_W}px;padding:0;">
         {#if previewOpen}
           <div class="rev-bar rev-bar-head" style="padding:8px 8px 8px 12px;gap:6px;">
             <span style="display:inline-flex;color:var(--mep-fg-3);flex-shrink:0;"><FileText size={13} /></span>
@@ -634,7 +774,7 @@
       {#if previewOpen}
         <button
           type="button"
-          class="rev-split"
+          class="rev-split rev-desktop-only"
           onpointerdown={onSplitDown}
           onpointermove={onSplitMove}
           onpointerup={onSplitUp}
@@ -677,8 +817,8 @@
                 <Check size={11} />
               </span>
             {/if}
-            <button type="submit" form="discard-item-form" class="btn btn-secondary" style="height:32px;font-size:12.5px;padding:0 12px;flex-shrink:0;">{$t('extract.discard')}</button>
-            <button type="submit" form="save-form" class="btn btn-primary" style="height:32px;font-size:12.5px;gap:6px;flex-shrink:0;padding:0 12px;">
+            <button type="submit" form="discard-item-form" class="btn btn-secondary rev-desktop-only" style="height:32px;font-size:12.5px;padding:0 12px;flex-shrink:0;">{$t('extract.discard')}</button>
+            <button type="submit" form="save-form" class="btn btn-primary rev-desktop-only" style="height:32px;font-size:12.5px;gap:6px;flex-shrink:0;padding:0 12px;">
               <Check size={13} /> {$t('extract.confirmSave')}
               <kbd class="rev-kbd" style="background:transparent;border-color:currentColor;color:inherit;opacity:0.7;">⌘↵</kbd>
             </button>
@@ -718,7 +858,7 @@
               {/if}
 
               <div class="rev-grid">
-                <div>
+                <div class="rev-field-wide">
                   <div class="rev-field-label">
                     {$t('field.supplier')}
                     <ConfidenceDot confidence={fieldConf.supplier_name} />
@@ -759,7 +899,7 @@
                     <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('field.dueDateSuggested')}</div>
                   {/if}
                 </div>
-                <div>
+                <div class="rev-field-wide">
                   <div class="rev-field-label">
                     {$t('tbl.total')}
                     <ConfidenceDot confidence={fieldConf.total_amount} />
@@ -792,6 +932,73 @@
 
             {#if lineItems.length === 0}
               <div class="rev-section" style="font-size:12.5px;color:var(--mep-fg-3);">{$t('review.noLines')}</div>
+            {:else if isMobile}
+              <div class="rev-cards">
+                {#each lineItems as item, i}
+                  {@const itemConf = typeof item.confidence === 'number' ? item.confidence : null}
+                  {@const confLow = itemConf != null && itemConf < 0.85}
+                  {@const isOpen = openLine === i}
+                  <div class="rev-card" class:flagged={confLow} class:open={isOpen} data-line={i}>
+                    <button type="button" class="rev-card-head" onclick={() => toggleLine(i)} aria-expanded={isOpen}>
+                      <span class="rev-card-main">
+                        <span class="rev-card-name">{str(item.description) || $t('extract.fieldEmpty')}</span>
+                        <span class="num rev-card-meta">{str(item.quantity)} {str(item.unit)} × {str(item.unit_price)} €</span>
+                      </span>
+                      <span class="rev-card-side">
+                        <span class="num rev-card-total">{str(item.total_price)} €</span>
+                        <span class="rev-card-rate" class:none={!percentToFraction(item.tax_rate)}>
+                          {percentToFraction(item.tax_rate) ? `${str(item.tax_rate)}%` : $t('review.noRate')}
+                        </span>
+                      </span>
+                      {#if confLow}<span class="rev-card-dot"></span>{/if}
+                    </button>
+
+                    {#if isOpen}
+                      <div class="rev-card-body">
+                        <div>
+                          <div class="rev-field-label">{$t('tbl.desc')} <ConfidenceDot confidence={itemConf} size={6} /></div>
+                          <input type="text" name="line_descriptions" bind:value={lineItems[i].description} class="rev-input" />
+                        </div>
+                        <div class="rev-card-grid3">
+                          <div>
+                            <div class="rev-field-label">{$t('tbl.qty')}</div>
+                            <input type="text" name="line_quantities" bind:value={lineItems[i].quantity} class="rev-input num" style="text-align:right;" />
+                          </div>
+                          <div>
+                            <div class="rev-field-label">{$t('tbl.unit')}</div>
+                            <input type="text" name="line_units" bind:value={lineItems[i].unit} class="rev-input" />
+                          </div>
+                          <div>
+                            <div class="rev-field-label">{$t('review.lineRate')}</div>
+                            <input type="text" bind:value={lineItems[i].tax_rate} class="rev-input num" placeholder="%" style="text-align:right;" />
+                          </div>
+                        </div>
+                        <div class="rev-card-grid2">
+                          <div>
+                            <div class="rev-field-label">{$t('tbl.unitPrice')}</div>
+                            <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-input num" style="text-align:right;" />
+                          </div>
+                          <div>
+                            <div class="rev-field-label">{$t('tbl.total')}</div>
+                            <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-input num" style="text-align:right;font-weight:600;" />
+                          </div>
+                        </div>
+                        <button type="button" class="rev-card-remove" onclick={() => removeRow(i)}>
+                          <Trash size={14} /> {$t('review.removeLine')}
+                        </button>
+                      </div>
+                    {:else}
+                      <input type="hidden" name="line_descriptions" value={str(item.description)} />
+                      <input type="hidden" name="line_quantities" value={str(item.quantity)} />
+                      <input type="hidden" name="line_units" value={str(item.unit)} />
+                      <input type="hidden" name="line_unit_prices" value={str(item.unit_price)} />
+                      <input type="hidden" name="line_total_prices" value={str(item.total_price)} />
+                    {/if}
+                    <input type="hidden" name="line_tax_rates" value={percentToFraction(item.tax_rate) ?? ''} />
+                    <input type="hidden" name="line_supplier_skus" value={str(item.product_code ?? '')} />
+                  </div>
+                {/each}
+              </div>
             {:else}
               <table class="tbl rev-lines" style="table-layout:fixed;width:100%;">
                 <thead>
@@ -1035,19 +1242,62 @@
       </div>
     {/if}
   </div>
+
+  {#if review}
+    <div class="rev-mobile-only rev-actionbar">
+      <button type="button" class="rev-actionbar-icon" onclick={openDocViewer} aria-label={$t('review.document')} title={$t('review.document')}>
+        <FileText size={20} />
+      </button>
+      <button type="submit" form="discard-item-form" class="rev-actionbar-icon danger" aria-label={$t('extract.discard')} title={$t('extract.discard')}>
+        <Trash size={19} />
+      </button>
+      <button type="submit" form="save-form" class="rev-actionbar-save">
+        <Check size={18} /> {$t('extract.confirmSave')}
+      </button>
+    </div>
+  {/if}
 </div>
 
 {#if previewFull && review}
-  <div class="rev-lightbox" role="presentation" onclick={() => previewFull = false}>
+  <div class="rev-lightbox" role="presentation" onclick={closeDocViewer}>
     <div class="rev-lightbox-bar">
       <span class="rev-lightbox-title">{review.filename}</span>
-      <button type="button" class="btn btn-secondary" style="height:32px;font-size:12.5px;gap:6px;" onclick={() => previewFull = false}>
+      {#if isMobile}
+        <a href={previewSrc} target="_blank" rel="noopener" class="rev-icon-btn" style="width:44px;height:44px;"
+          title={$t('review.openInTab')} aria-label={$t('review.openInTab')}>
+          <ExternalLink size={17} />
+        </a>
+      {/if}
+      <button type="button" class="btn btn-secondary" style="height:32px;font-size:12.5px;gap:6px;" onclick={closeDocViewer}>
         <X size={13} /> {$t('review.closeFullscreen')}
       </button>
     </div>
     <div class="rev-lightbox-frame" role="presentation" onclick={(e) => e.stopPropagation()}>
-      <iframe src={previewSrc} title={$t('a11y.documentPreview')} style="width:100%;height:100%;border:none;display:block;"></iframe>
+      {#if isMobile && previewIsImage}
+        <img src={previewSrc} alt={$t('a11y.documentPreview')} class="rev-lightbox-img" />
+      {:else}
+        <iframe src={isMobile ? previewFitSrc : previewSrc} title={$t('a11y.documentPreview')} style="width:100%;height:100%;border:none;display:block;"></iframe>
+      {/if}
     </div>
+    {#if isMobile}
+      <div class="rev-returnbar" role="presentation" onclick={(e) => e.stopPropagation()}>
+        {#if returnTarget}
+          <div class="rev-returnbar-label">{$t('review.returnTo')}</div>
+          <button type="button" class="rev-returnbar-btn" onclick={closeDocViewer}>
+            <ArrowLeft size={18} />
+            <span class="rev-returnbar-field">
+              <span class="rev-returnbar-name">{$t(returnTarget.labelKey)}</span>
+              <span class="num rev-returnbar-value">{returnTarget.value || $t('extract.fieldEmpty')}</span>
+            </span>
+            <span class="rev-returnbar-go">{$t('review.resume')}</span>
+          </button>
+        {:else}
+          <button type="button" class="rev-returnbar-btn plain" onclick={closeDocViewer}>
+            <ArrowLeft size={18} /> {$t('review.backToForm')}
+          </button>
+        {/if}
+      </div>
+    {/if}
   </div>
 {/if}
 

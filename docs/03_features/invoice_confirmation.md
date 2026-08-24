@@ -228,6 +228,18 @@ shapes, `low_confidence_ack` value.
 
 - Sums bases *per tax type*, then takes the largest group. A Spanish produce invoice carries IVA and Recargo de Equivalencia on the **same** base, so a flat sum across bands double-counts it; with a single type (or several rates of one type) the grouped max equals the plain sum. `taxableBaseCents` in `$lib/tax` is the shared implementation, so the figure shown and the figure stored cannot drift apart.
 
+**`const isMobile`**
+
+- A `matchMedia('(max-width: 900px)')` flag, not a CSS class, because this screen is a FORM: the codebase's usual `md:hidden` / `hidden md:block` pair (see `MobileInvoiceDetail`) puts both trees in the DOM, which is harmless for a read-only view and wrong here — duplicated inputs would post every line twice. Only the line-item block branches on it; the rest of the mobile treatment is CSS plus mobile-only chrome that carries no form values.
+
+**`const returnField`**
+
+- Option A's return path. A phone shows the document full-screen, so the field being checked goes off-screen; the viewer's bottom bar names the field you left and takes you back to it focused. `lastFocusedField` is tracked from `focusin` rather than read at click time — by the time the button's handler runs, activating it has already blurred the input.
+
+**`const previewIsImage`**
+
+- A photographed invoice is an image, and an `<img>` beats an iframe on a phone: pinch-zoom works and no PDF plugin chrome eats the viewport. PDFs get `#toolbar=0&navpanes=0&view=FitH` so the page fits the width instead of opening cropped at 100%. Both keep an open-in-a-new-tab escape, which is also the fallback that matters on iOS Safari, where in-iframe PDF rendering is unreliable.
+
 **`const addFiles`**
 
 - Add-more-file state.
@@ -239,7 +251,10 @@ shapes, `low_confidence_ack` value.
 - The editor pane is a sticky header + one scrolling body + a sticky totals footer, so an invoice with many fields or many lines scrolls in place while the identity and the save action stay visible. Header fields sit in an `auto-fit` grid, so a wider pane shows more fields per row instead of more whitespace; the line-item table's section head and column head both stick as it scrolls.
 - The discard button sits visually inside the save form's header but targets an out-of-tree `#discard-item-form` — nesting real forms is invalid HTML.
 - Content-duplicate block + low-confidence review gate modals; `svelte-ignore a11y_no_static_element_interactions` on their click-catchers.
-- Under 900px the three panes stack and the page scrolls as one; the rail becomes a horizontal strip of file chips.
+- Under 900px the phone gets its own treatment (`.rev-strip`, `.rev-card*`, `.rev-actionbar`, `.rev-returnbar` in `app.css`), reached through `.rev-mobile-only` / `.rev-desktop-only`. The desktop tree is untouched: the rail, the document pane and the splitter are simply hidden.
+- Chrome drops from roughly 790px before the first field (flow steps + queue card + squashed preview + a header bar wrapping to three rows) to ~164px: a one-row document strip that unfolds into the list by name, and a sticky action bar. The document moves to the existing full-screen lightbox, opened from that bar.
+- Line items become cards: the product name leads at 14.5px/600 and may wrap, quantity × price sits under it, total and the rate chip go right, and the line number is gone — at 390px the old fixed-width table crushed the description column to zero, which is the one thing a reviewer needs to read. Tapping a card expands it to 44px controls; collapsed cards keep their values in hidden inputs so every line still posts in order.
+- Both `display` toggles are order-sensitive: `.rev-mobile-only` and the component's own rule are single-class selectors, so whichever comes later in `app.css` wins. Mobile-only components therefore declare no `display` outside the media query, and `.rev-actionbar` re-declares `display: flex` inside it.
 - The tax desglose is an editable drawer that opens between the scroll body and the totals bar, toggled from the footer's tax figure — the number and its explanation live together, and it stays reachable without scrolling past every line. In-flow rather than an absolutely-positioned popover because the pane's `overflow: hidden` would clip one. Each band is rate / kind / base / cuota, all editable, with add and remove.
 - Line items carry a `% imp.` column, so different products on one document can carry different rates. It posts as `line_tax_rates` in fraction form through a hidden input beside the visible percent field, keeping `parseLineInputs`' positional alignment intact.
 - The footer separates two comparisons that are easy to conflate: **Discrepancia** is the calculated total against the header total field (which the reviewer can edit), while **Extraído … ±Δ** is the calculated total against what the AI originally read off the document, which nothing can edit away. A reviewer correcting a genuine extraction error should see the second figure move and be sure the change was meant.
