@@ -18,6 +18,8 @@ export async function whatsappBotEnabled(): Promise<boolean> {
 
 export async function startWhatsAppTransport(): Promise<WhatsAppTransport | null> {
 	if (!(await whatsappBotEnabled())) return null;
-	console.error('[whatsapp] bot enabled but no transport driver is configured');
-	return null;
+	const { createBaileysTransport } = await import('./driver-baileys');
+	const transport = createBaileysTransport();
+	await transport.start();
+	return transport;
 }
