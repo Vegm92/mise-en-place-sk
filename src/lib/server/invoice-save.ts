@@ -17,6 +17,7 @@ import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
+import { bandsFromInputs, taxableBaseMoney, type TaxBand } from '$lib/tax';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 
 export type SaveOutcome =
@@ -148,22 +149,64 @@ export function computeFormContentHash(
 		totalAmount: string | null;
 	},
 	formData: FormData,
+	taxBands: TaxBand[] | null = null,
 ): string {
 	const descriptions = formData.getAll('line_descriptions').map(String);
 	const quantities   = formData.getAll('line_quantities').map(String);
 	const units        = formData.getAll('line_units').map(String);
 	const unitPrices   = formData.getAll('line_unit_prices').map(String);
 	const totalPrices  = formData.getAll('line_total_prices').map(String);
+	const taxRates     = formData.getAll('line_tax_rates').map(String);
 
-	const nonEmptyDescs = descriptions.filter(d => d.trim());
+	const kept: number[] = [];
+	for (let i = 0; i < descriptions.length; i++) {
+		if (descriptions[i].trim()) kept.push(i);
+	}
+
 	return computeInvoiceContentHash({
 		...header,
-		lineDescriptions: nonEmptyDescs,
-		lineQuantities:   nonEmptyDescs.map((_, i) => toFloat(quantities[i])),
-		lineUnits:        nonEmptyDescs.map((_, i) => units[i]?.trim() || null),
-		lineUnitPrices:   nonEmptyDescs.map((_, i) => toMoneyString(unitPrices[i])),
-		lineTotalPrices:  nonEmptyDescs.map((_, i) => toMoneyString(totalPrices[i])),
+		lineDescriptions: kept.map(i => descriptions[i]),
+		lineQuantities:   kept.map(i => toFloat(quantities[i])),
+		lineUnits:        kept.map(i => units[i]?.trim() || null),
+		lineUnitPrices:   kept.map(i => toMoneyString(unitPrices[i])),
+		lineTotalPrices:  kept.map(i => toMoneyString(totalPrices[i])),
+		lineTaxRates:     kept.map(i => toFloat(taxRates[i])),
+		taxBands,
 	});
+}
+
+export function resolveTaxBreakdown(
+	formData: FormData,
+	extractedData: Record<string, unknown> | undefined,
+): { taxBase: string | null; taxBreakdown: string | null; bands: TaxBand[] | null } {
+	const raw = extractedData?.tax_breakdown;
+	const extractedBands = Array.isArray(raw) ? (raw as TaxBand[]) : null;
+	const extractedBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
+
+	if (formData.get('tax_bands_present') !== null) {
+		const rates   = formData.getAll('tax_rates').map(String);
+		const types   = formData.getAll('tax_types').map(String);
+		const bases   = formData.getAll('tax_bases').map(String);
+		const amounts = formData.getAll('tax_amounts').map(String);
+
+		const bands = bandsFromInputs(rates.map((rate, i) => ({
+			rate,
+			type: types[i] ?? '',
+			base: bases[i] ?? '',
+			amount: amounts[i] ?? '',
+		})));
+
+		if (bands.length) {
+			return { taxBase: taxableBaseMoney(bands), taxBreakdown: JSON.stringify(bands), bands };
+		}
+		return { taxBase: extractedBands ? null : extractedBase, taxBreakdown: null, bands: null };
+	}
+
+	return {
+		taxBase: extractedBase,
+		taxBreakdown: extractedBands ? JSON.stringify(extractedBands) : null,
+		bands: extractedBands,
+	};
 }
 
 export function parseLineInputs(formData: FormData): LineFormInput[] {
@@ -452,9 +495,15 @@ export async function saveReviewedInvoice(
 	const lineUnitPrices = formData.getAll('line_unit_prices') as string[];
 	const lineTotalPrices = formData.getAll('line_total_prices') as string[];
 
+	const { taxBase, taxBreakdown, bands: taxBands } = resolveTaxBreakdown(
+		formData,
+		item?.extractedData ?? undefined,
+	);
+
 	const contentHash = computeFormContentHash(
 		{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
 		formData,
+		taxBands,
 	);
 
 	const hashMatch = await db
@@ -468,9 +517,6 @@ export async function saveReviewedInvoice(
 	}
 
 	const extractedData = item?.extractedData ?? undefined;
-	const taxBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
-	const taxBreakdownRaw = extractedData?.tax_breakdown;
-	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 	const rawDocumentType = extractedData?.document_type;
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;
