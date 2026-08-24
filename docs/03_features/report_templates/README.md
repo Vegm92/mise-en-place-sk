@@ -74,10 +74,12 @@ La rampa de antigüedad del saldo no usa `warn`: verde/ámbar/rojo/oscuro daba
 20/27/32 en escala de grises, apiñado e ilegible impreso en B/N. Va con un solo
 tono que escalona 81/32/11.
 
-Los gráficos de gasto por categoría van con la paleta de series
-(`--mep-series-1..5` más `--mep-series-other` para el resto), igual que
-`MobileAnalyticsSpend`. Las barras de una sola serie (gasto por día) van en
-acento, como el `Sparkline`. El tipo de letra de
+Los gráficos de gasto por categoría van con la paleta **por categoría**
+(`--mep-cat-<slug>`, más `--mep-cat-other` para el bucket «resto»), que es lo
+que resuelve `categoryColor()` en `src/lib/colors.ts`. Cada categoría tiene su
+color fijo en toda la app. `seriesColor()` y `--mep-series-*` son para series
+posicionales —productos, por ejemplo—, no para categorías. Las barras de una
+sola serie (gasto por día) van en acento, como el `Sparkline`. El tipo de letra de
 los A4 sube al mínimo de imprenta (12 pt = 16 px a 96 ppp) en vez de la
 densidad de pantalla de la app.
 
