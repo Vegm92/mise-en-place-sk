@@ -154,6 +154,156 @@ export function resolveUnitFromMap(
 	return null;
 }
 
+export interface ConversionPrompt {
+	notificationId: number;
+	supplierId: number | null;
+	supplierName: string;
+	ingredient: string;
+	purchaseUnit: string;
+	quantity: number | null;
+}
+
+export interface UnitConversionInput {
+	supplierId: number | null;
+	supplierName: string;
+	ingredient: string;
+	purchaseUnit: string;
+	canonicalUnit: string;
+	conversionFactor: number;
+}
+
+export type UnitConversionResult =
+	| { ok: true; resolvedPrompts: number }
+	| { ok: false; reason: 'invalid' };
+
+function supplierConversionKey(supplierName: string, ingredient: string, purchaseUnit: string): string {
+	return `${normalizeProductKey(supplierName)}::${conversionKey(ingredient, purchaseUnit)}`;
+}
+
+function parseNotificationPayload(raw: string | null): Record<string, unknown> | null {
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw);
+		return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+	} catch {
+		return null;
+	}
+}
+
+export async function loadConversionPrompts(
+	database: Database,
+	restaurantId: string,
+): Promise<ConversionPrompt[]> {
+	const [alertRows, ruleRows] = await Promise.all([
+		database.execute<{ id: number; payload: string | null }>(sql`
+			SELECT id, payload FROM system_notifications
+			WHERE restaurant_id = ${restaurantId}
+			  AND notification_type = 'unit_conversion_needed'
+			  AND status = 'pending'
+			ORDER BY created_at DESC, id DESC
+		`),
+		database.execute<{ supplier_name: string; ingredient: string; purchase_unit: string }>(sql`
+			SELECT supplier_name, ingredient, purchase_unit FROM unit_conversions
+			WHERE restaurant_id = ${restaurantId}
+		`),
+	]);
+
+	const alreadyDefined = new Set(
+		ruleRows.map((r) => supplierConversionKey(r.supplier_name, r.ingredient, r.purchase_unit)),
+	);
+
+	const prompts: ConversionPrompt[] = [];
+	const seen = new Set<string>();
+
+	for (const row of alertRows) {
+		const payload = parseNotificationPayload(row.payload);
+		if (!payload) continue;
+
+		const ingredient   = String(payload.ingredient ?? '').trim();
+		const purchaseUnit = String(payload.purchaseUnit ?? '').trim();
+		const supplierName = String(payload.supplierName ?? '').trim();
+		if (!ingredient || !purchaseUnit) continue;
+
+		const key = supplierConversionKey(supplierName, ingredient, purchaseUnit);
+		if (alreadyDefined.has(key) || seen.has(key)) continue;
+		seen.add(key);
+
+		const supplierId = typeof payload.supplierId === 'number' ? payload.supplierId : null;
+		const quantity   = typeof payload.quantity === 'number' ? payload.quantity : null;
+
+		prompts.push({ notificationId: row.id, supplierId, supplierName, ingredient, purchaseUnit, quantity });
+	}
+
+	return prompts;
+}
+
+export async function defineUnitConversion(
+	database: Database,
+	restaurantId: string,
+	input: UnitConversionInput,
+): Promise<UnitConversionResult> {
+	const supplierName  = (input.supplierName ?? '').trim();
+	const ingredient    = (input.ingredient ?? '').trim();
+	const purchaseUnit  = (input.purchaseUnit ?? '').trim();
+	const canonicalUnit = (input.canonicalUnit ?? '').trim();
+	const factor        = Number(input.conversionFactor);
+	const supplierId    = input.supplierId ?? null;
+
+	if (!supplierName || !ingredient || !purchaseUnit || !canonicalUnit) return { ok: false, reason: 'invalid' };
+	if (!Number.isFinite(factor) || factor <= 0) return { ok: false, reason: 'invalid' };
+
+	const ingredientKey   = normalizeProductKey(ingredient);
+	const purchaseUnitKey = normalizeProductKey(purchaseUnit);
+	const supplierKey     = normalizeProductKey(supplierName);
+
+	await database.insert(unitConversions)
+		.values({
+			restaurantId,
+			supplierId,
+			supplierName,
+			ingredient,
+			purchaseUnit,
+			canonicalUnit,
+			conversionFactor: factor,
+		})
+		.onConflictDoUpdate({
+			target: [unitConversions.restaurantId, unitConversions.supplierName, unitConversions.ingredient, unitConversions.purchaseUnit],
+			set: { canonicalUnit, conversionFactor: factor, supplierId },
+		});
+
+	await database.execute(sql`
+		UPDATE invoice_line_items
+		SET requires_unit_conversion = 0,
+		    canonical_unit = ${canonicalUnit}
+		WHERE restaurant_id = ${restaurantId}
+		  AND requires_unit_conversion = 1
+		  AND mep_norm_key(description) = ${ingredientKey}
+		  AND mep_norm_key(unit) = ${purchaseUnitKey}
+		  AND invoice_id IN (
+		      SELECT i.id FROM invoices i
+		      LEFT JOIN suppliers s ON s.id = i.supplier_id
+		      WHERE i.restaurant_id = ${restaurantId}
+		        AND CASE WHEN ${supplierId}::int IS NULL
+		                 THEN mep_norm_key(s.name) = ${supplierKey}
+		                 ELSE i.supplier_id = ${supplierId}::int
+		            END
+		  )
+	`);
+
+	const resolved = await database.execute<{ id: number }>(sql`
+		UPDATE system_notifications
+		SET status = 'sent'
+		WHERE restaurant_id = ${restaurantId}
+		  AND notification_type = 'unit_conversion_needed'
+		  AND status = 'pending'
+		  AND mep_norm_key(payload::json->>'ingredient') = ${ingredientKey}
+		  AND mep_norm_key(payload::json->>'purchaseUnit') = ${purchaseUnitKey}
+		RETURNING id
+	`);
+
+	return { ok: true, resolvedPrompts: resolved.length };
+}
+
 export interface LineItem {
 	description: string;
 	quantity: number | null;
@@ -174,18 +324,19 @@ export async function loadConversionMap(
 	supplierName: string,
 	restaurantId: string,
 	supplierId?: number | null,
+	database: Database = db,
 ): Promise<Map<string, { canonicalUnit: string; conversionFactor: number }>> {
 	const tdb = forTenant(restaurantId);
-	const normalizedSupplier = supplierName.trim().toLowerCase();
+	const supplierNameMatches = sql`mep_norm_key(${unitConversions.supplierName}) = ${normalizeProductKey(supplierName)}`;
 
 	const supplierFilter = supplierId != null
 		? or(
 			eq(unitConversions.supplierId, supplierId),
-			and(isNull(unitConversions.supplierId), eq(unitConversions.supplierName, normalizedSupplier))
+			and(isNull(unitConversions.supplierId), supplierNameMatches)
 		  )
-		: eq(unitConversions.supplierName, normalizedSupplier);
+		: supplierNameMatches;
 
-	const rows = await db
+	const rows = await database
 		.select()
 		.from(unitConversions)
 		.where(and(tdb.scope(unitConversions.restaurantId), supplierFilter));
@@ -206,8 +357,9 @@ export async function resolveUnit(
 	unit: string,
 	restaurantId: string,
 	supplierId?: number | null,
+	database: Database = db,
 ): Promise<{ canonicalUnit: string; conversionFactor: number } | null> {
-	const map = await loadConversionMap(supplierName, restaurantId, supplierId);
+	const map = await loadConversionMap(supplierName, restaurantId, supplierId, database);
 	return resolveUnitFromMap(map, description, unit);
 }
 
@@ -216,10 +368,11 @@ export async function annotateLineItems(
 	items: LineItem[],
 	restaurantId: string,
 	supplierId?: number | null,
+	database: Database = db,
 ): Promise<{ enriched: EnrichedLineItem[]; conversionNotes: string[] }> {
 	const conversionNotes: string[] = [];
 
-	const conversionMap = await loadConversionMap(supplierName, restaurantId, supplierId);
+	const conversionMap = await loadConversionMap(supplierName, restaurantId, supplierId, database);
 
 	const enriched: EnrichedLineItem[] = items.map((item) => {
 		const unit = (item.unit ?? '').trim();

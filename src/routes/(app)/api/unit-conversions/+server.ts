@@ -1,8 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
-import { unitConversions, invoiceLineItems, invoices, suppliers } from '$lib/server/schema';
-import { sql, eq, and } from 'drizzle-orm';
+import { defineUnitConversion } from '$lib/server/products';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -22,58 +21,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		return json({ error: 'conversion_factor must be a positive number' }, { status: 422 });
 	}
 
-	const sName       = supplier_name.trim();
-	const sIngredient = ingredient.trim();
-	const sPurchase   = purchase_unit.trim();
-	const sCanonical  = canonical_unit.trim();
-	const sSupplierId = supplier_id != null ? parseInt(String(supplier_id), 10) : null;
-	const resolvedSupplierId = (sSupplierId != null && !isNaN(sSupplierId)) ? sSupplierId : null;
+	const parsedSupplierId = supplier_id != null ? parseInt(String(supplier_id), 10) : null;
 
-	await db.insert(unitConversions)
-		.values({
-			restaurantId:     rid,
-			supplierId:       resolvedSupplierId,
-			supplierName:     sName,
-			ingredient:       sIngredient,
-			purchaseUnit:     sPurchase,
-			canonicalUnit:    sCanonical,
-			conversionFactor: factor,
-		})
-		.onConflictDoUpdate({
-			target: [unitConversions.restaurantId, unitConversions.supplierName, unitConversions.ingredient, unitConversions.purchaseUnit],
-			set:    { canonicalUnit: sCanonical, conversionFactor: factor, supplierId: resolvedSupplierId },
-		});
+	const result = await defineUnitConversion(db, rid, {
+		supplierId:       parsedSupplierId != null && !isNaN(parsedSupplierId) ? parsedSupplierId : null,
+		supplierName:     String(supplier_name),
+		ingredient:       String(ingredient),
+		purchaseUnit:     String(purchase_unit),
+		canonicalUnit:    String(canonical_unit),
+		conversionFactor: factor,
+	});
 
-	if (resolvedSupplierId != null) {
-		await db.execute(sql`
-			UPDATE invoice_line_items
-			SET requires_unit_conversion = 0,
-			    canonical_unit = ${sCanonical}
-			WHERE mep_norm_key(description) = mep_norm_key(${sIngredient})
-			  AND mep_norm_key(unit) = mep_norm_key(${sPurchase})
-			  AND requires_unit_conversion = 1
-			  AND invoice_id IN (
-			      SELECT id FROM invoices
-			      WHERE supplier_id = ${resolvedSupplierId}
-			        AND restaurant_id = ${rid}
-			  )
-		`);
-	} else {
-		await db.execute(sql`
-			UPDATE invoice_line_items
-			SET requires_unit_conversion = 0,
-			    canonical_unit = ${sCanonical}
-			WHERE mep_norm_key(description) = mep_norm_key(${sIngredient})
-			  AND mep_norm_key(unit) = mep_norm_key(${sPurchase})
-			  AND requires_unit_conversion = 1
-			  AND invoice_id IN (
-			      SELECT i.id FROM invoices i
-			      JOIN suppliers s ON i.supplier_id = s.id
-			      WHERE s.name = ${sName}
-			        AND i.restaurant_id = ${rid}
-			  )
-		`);
+	if (!result.ok) {
+		return json({ error: 'conversion_factor must be a positive number' }, { status: 422 });
 	}
 
-	return json({ ok: true, message: `Rule saved: 1 ${sPurchase} = ${factor} ${sCanonical}` });
+	const purchaseUnit = String(purchase_unit).trim();
+	const canonicalUnit = String(canonical_unit).trim();
+	return json({ ok: true, message: `Rule saved: 1 ${purchaseUnit} = ${factor} ${canonicalUnit}`, resolvedPrompts: result.resolvedPrompts });
 };
