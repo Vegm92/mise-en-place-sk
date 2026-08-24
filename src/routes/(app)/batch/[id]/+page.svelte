@@ -245,9 +245,12 @@
 
   function addRow() {
     lineItems = [...lineItems, { description: '', quantity: '', unit: '', unit_price: '', total_price: '' }];
+    openLine = lineItems.length - 1;
   }
   function removeRow(i: number) {
     lineItems = lineItems.filter((_, j) => j !== i);
+    if (openLine === i) openLine = -1;
+    else if (openLine > i) openLine -= 1;
   }
 
   const review = $derived(data.review);
@@ -266,17 +269,23 @@
 
   let uncertainCursor = 0;
   function jumpToUncertain() {
-    const targets = [
-      ...uncertainHeaderFields.map(f => `input[name="${f}"]`),
-      ...uncertainLineIndexes.map(i => `[data-line="${i}"] input`),
+    const targets: Array<{ field?: string; line?: number }> = [
+      ...uncertainHeaderFields.map(f => ({ field: f as string })),
+      ...uncertainLineIndexes.map(i => ({ line: i })),
     ];
     if (targets.length === 0) return;
-    const selector = targets[uncertainCursor % targets.length];
+    const target = targets[uncertainCursor % targets.length];
     uncertainCursor += 1;
-    const el = document.querySelector<HTMLElement>(selector);
-    if (!el) return;
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    el.focus();
+    if (target.line !== undefined) openLine = target.line;
+    tick().then(() => {
+      const selector = target.field
+        ? `input[name="${target.field}"]`
+        : `[data-line="${target.line}"] input:not([type="hidden"])`;
+      const el = document.querySelector<HTMLElement>(selector);
+      if (!el) return;
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.focus();
+    });
   }
 
   let focusedItemId: string | null = null;
@@ -299,7 +308,7 @@
 
   function onWindowKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && previewFull) {
-      previewFull = false;
+      closeDocViewer();
       return;
     }
     if (e.key === 'F2') {
@@ -524,6 +533,7 @@
   const previewFitSrc = $derived(previewIsPdf ? `${previewSrc}#toolbar=0&navpanes=0&view=FitH` : previewSrc);
 
   const activeDoc = $derived(data.queue.find(q => q.id === data.review?.itemId) ?? data.queue.find(q => q.status === 'extracting') ?? data.queue[0]);
+  const activeDocIndex = $derived(Math.max(1, data.queue.findIndex(q => q.id === activeDoc?.id) + 1));
   const queueRemaining = $derived(data.queue.filter(q => q.status === 'queued' || q.status === 'pending').length);
 
   function toggleLine(i: number) {
@@ -549,7 +559,7 @@
       <span class="rev-strip-name">
         <span class="rev-strip-file">{activeDoc?.name ?? ''}</span>
         <span class="num rev-strip-sub">
-          {$ti('review.docOf', { i: doneCount, n: data.queue.length })}{queueRemaining > 0 ? ` · ${$tp('review.inQueue', queueRemaining)}` : ''}
+          {$ti('review.docOf', { i: activeDocIndex, n: data.queue.length })}{queueRemaining > 0 ? ` · ${$tp('review.inQueue', queueRemaining)}` : ''}
         </span>
       </span>
       <span class="rev-strip-dots">
@@ -938,6 +948,7 @@
                   {@const itemConf = typeof item.confidence === 'number' ? item.confidence : null}
                   {@const confLow = itemConf != null && itemConf < 0.85}
                   {@const isOpen = openLine === i}
+                  {@const lineRate = percentToFraction(item.tax_rate)}
                   <div class="rev-card" class:flagged={confLow} class:open={isOpen} data-line={i}>
                     <button type="button" class="rev-card-head" onclick={() => toggleLine(i)} aria-expanded={isOpen}>
                       <span class="rev-card-main">
@@ -946,8 +957,8 @@
                       </span>
                       <span class="rev-card-side">
                         <span class="num rev-card-total">{str(item.total_price)} €</span>
-                        <span class="rev-card-rate" class:none={!percentToFraction(item.tax_rate)}>
-                          {percentToFraction(item.tax_rate) ? `${str(item.tax_rate)}%` : $t('review.noRate')}
+                        <span class="rev-card-rate" class:none={lineRate === null}>
+                          {lineRate === null ? $t('review.noRate') : ratePctLabel(lineRate)}
                         </span>
                       </span>
                       {#if confLow}<span class="rev-card-dot"></span>{/if}

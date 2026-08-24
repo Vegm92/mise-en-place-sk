@@ -25,7 +25,7 @@ const PERCENT_INPUT = /^(\d+)(?:[.,](\d+))?$/;
 
 export function percentToFraction(value: string | number | null | undefined): number | null {
 	if (value === null || value === undefined) return null;
-	const raw = String(value).trim();
+	const raw = String(value).trim().replace(/\s*%$/, '').trim();
 	if (raw === '' || !PERCENT_INPUT.test(raw)) return null;
 	const n = Number(raw.replace(',', '.'));
 	if (!Number.isFinite(n)) return null;

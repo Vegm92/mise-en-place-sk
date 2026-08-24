@@ -236,6 +236,14 @@ shapes, `low_confidence_ack` value.
 
 - Option A's return path. A phone shows the document full-screen, so the field being checked goes off-screen; the viewer's bottom bar names the field you left and takes you back to it focused. `lastFocusedField` is tracked from `focusin` rather than read at click time — by the time the button's handler runs, activating it has already blurred the input.
 
+**`function addRow` / `function removeRow`**
+
+- Both maintain `openLine`, the index of the expanded mobile card. Adding opens the new row (a collapsed blank card reads as "nothing happened"); removing clears it when it was the open one and decrements it when an earlier row goes, or the index silently points at a different product — deleting one line would pop a different one open.
+
+**`function jumpToUncertain`**
+
+- Line targets carry an index rather than a selector, so the mobile path can expand the card before focusing it: a collapsed card's inputs are `type="hidden"`, which cannot be focused or scrolled to. The selector excludes hidden inputs on both layouts.
+
 **`const previewIsImage`**
 
 - A photographed invoice is an image, and an `<img>` beats an iframe on a phone: pinch-zoom works and no PDF plugin chrome eats the viewport. PDFs get `#toolbar=0&navpanes=0&view=FitH` so the page fits the width instead of opening cropped at 100%. Both keep an open-in-a-new-tab escape, which is also the fallback that matters on iOS Safari, where in-iframe PDF rendering is unreliable.
@@ -269,6 +277,8 @@ shapes, `low_confidence_ack` value.
 ### `src/lib/tax.ts`
 
 **`function percentToFraction`**
+
+- Tolerates a trailing `%`, since the field it backs is labelled `% imp.` and typing the sign is natural; the stored value stays the raw text and normalises on the way out. Rejects negatives, exponent notation and a bare `%`. A typed `0` is a real rate (exento) and must stay distinct from no rate at all — anything testing it for truthiness rather than `null` reads 0% as untaxed.
 
 - The UI always speaks percent, storage always speaks fraction — the Gemini schema asks for `0.21` and both e-invoice parsers divide by 100, so every stored `rate` (and every `invoice_line_items.tax_rate`) is a fraction. Keeping one direction per layer is what stops a "21" from ever being read as 2100%.
 - Deliberately unambiguous rather than clever: an input is *always* a percentage, so `0.21` typed into a `%` field means 0,21%, not 21%. Guessing by magnitude would silently mangle a genuine 0,5% REC band.
