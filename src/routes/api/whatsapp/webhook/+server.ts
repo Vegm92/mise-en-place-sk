@@ -69,6 +69,26 @@ export const POST: RequestHandler = async ({ request }) => {
 	return json({ ok: true });
 };
 
+function collectFromChange(
+	change: Record<string, unknown>,
+	messages: WhatsAppInboundMessage[],
+	accountEvents: AccountEventInput[],
+): void {
+	const value = change?.value as Record<string, unknown> | undefined;
+	if (!value) return;
+
+	const msgs = value.messages;
+	if (Array.isArray(msgs)) {
+		for (const m of msgs) messages.push(m as WhatsAppInboundMessage);
+		return;
+	}
+
+	if (Array.isArray(value.statuses)) return;
+
+	const field = typeof change.field === 'string' ? change.field : 'unknown';
+	accountEvents.push({ field, value });
+}
+
 function extractChanges(body: unknown): {
 	messages: WhatsAppInboundMessage[];
 	accountEvents: AccountEventInput[];
@@ -83,20 +103,7 @@ function extractChanges(body: unknown): {
 		const changes = (e as Record<string, unknown>)?.changes;
 		if (!Array.isArray(changes)) continue;
 		for (const c of changes) {
-			const change = c as Record<string, unknown>;
-			const value = change?.value as Record<string, unknown> | undefined;
-			if (!value) continue;
-
-			const msgs = value.messages;
-			if (Array.isArray(msgs)) {
-				for (const m of msgs) messages.push(m as WhatsAppInboundMessage);
-				continue;
-			}
-
-			if (Array.isArray(value.statuses)) continue;
-
-			const field = typeof change.field === 'string' ? change.field : 'unknown';
-			accountEvents.push({ field, value });
+			collectFromChange(c as Record<string, unknown>, messages, accountEvents);
 		}
 	}
 	return { messages, accountEvents };

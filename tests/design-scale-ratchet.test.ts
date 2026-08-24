@@ -23,7 +23,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
 /** Lower these as the drift is paid down. Never raise them. */
-const BUDGET = { fontSize: 748, borderRadius: 128 };
+const BUDGET = { fontSize: 737, borderRadius: 128 };
 
 const TYPE_SCALE = new Set(['11px', '13px', '16px', '20px', '24px', '32px']);
 const RADIUS_SCALE = new Set([
@@ -42,20 +42,25 @@ function walk(dir: string, out: string[] = []): string[] {
 
 type Offender = { file: string; value: string };
 
+function inlineDeclarations(src: string): Array<{ key: string; value: string }> {
+	const decls: Array<{ key: string; value: string }> = [];
+	for (const attr of src.matchAll(/style="([^"]*)"/g)) {
+		for (const decl of attr[1].split(';')) {
+			const at = decl.indexOf(':');
+			if (at < 0) continue;
+			decls.push({ key: decl.slice(0, at).trim(), value: decl.slice(at + 1).trim() });
+		}
+	}
+	return decls;
+}
+
 function offScale(prop: string, scale: Set<string>): Offender[] {
 	const found: Offender[] = [];
 	for (const file of walk(SRC)) {
-		const src = readFileSync(file, 'utf8');
-		for (const attr of src.matchAll(/style="([^"]*)"/g)) {
-			for (const decl of attr[1].split(';')) {
-				const at = decl.indexOf(':');
-				if (at < 0) continue;
-				const key = decl.slice(0, at).trim();
-				const value = decl.slice(at + 1).trim();
-				// Interpolated values are computed at runtime — not a scale choice.
-				if (key !== prop || value.includes('{')) continue;
-				if (!scale.has(value)) found.push({ file: path.relative(ROOT, file), value });
-			}
+		for (const { key, value } of inlineDeclarations(readFileSync(file, 'utf8'))) {
+			// Interpolated values are computed at runtime — not a scale choice.
+			if (key !== prop || value.includes('{')) continue;
+			if (!scale.has(value)) found.push({ file: path.relative(ROOT, file), value });
 		}
 	}
 	return found;

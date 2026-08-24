@@ -142,7 +142,8 @@ async function stockSection(tdb: ReturnType<typeof forTenant>, restaurantId: str
 
 	const lines = stock.map((s) => {
 		const days = daysLeft(s.current_stock, s.daily_burn_rate);
-		return `- ${s.ingredient}: ${s.current_stock} ${s.canonical_unit ?? ''}${days !== null ? ` (~${days} days left)` : ''}`;
+		const daysSuffix = days !== null ? ` (~${days} days left)` : '';
+		return `- ${s.ingredient}: ${s.current_stock} ${s.canonical_unit ?? ''}${daysSuffix}`;
 	});
 	return ['\n## Stock Levels', ...lines].join('\n');
 }

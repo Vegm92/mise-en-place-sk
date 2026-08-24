@@ -15,6 +15,72 @@ const MAX_BUCKETS = 400;
 export type Segment = { category: string | null; amount: number };
 export type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
 
+type TenantScope = ReturnType<typeof forTenant>;
+type TrendRow = { key: string; category: string; amount: number };
+
+async function resolveStartDate(tdb: TenantScope, range: string, today: Date): Promise<Date> {
+	if (range !== 'all') return addDays(today, -(RANGE_TO_DAYS[range] ?? 29));
+	const [row] = await db
+		.select({ minDate: sql<string | null>`MIN(${invoices.invoiceDate})::text` })
+		.from(invoices)
+		.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)));
+	return row?.minDate ? new Date(row.minDate) : addDays(today, -364);
+}
+
+function bucketDatesFor(granularity: string, startDate: Date, today: Date): Date[] {
+	const dates: Date[] = [];
+	if (granularity === 'daily') {
+		for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) dates.push(d);
+	} else if (granularity === 'monthly') {
+		for (let d = firstOfMonth(startDate); d <= firstOfMonth(today); d = addMonths(d, 1)) dates.push(d);
+	} else {
+		for (let d = monday(startDate); d <= monday(today); d = addDays(d, 7)) dates.push(d);
+	}
+	return dates.length > MAX_BUCKETS ? dates.slice(dates.length - MAX_BUCKETS) : dates;
+}
+
+function currentKeyFor(granularity: string, today: Date): string {
+	if (granularity === 'daily') return isoDate(today);
+	if (granularity === 'monthly') return monthKeyStr(today);
+	return isoDate(monday(today));
+}
+
+function labelForKey(key: string, granularity: string, spansMultipleYears: boolean): string {
+	if (granularity === 'daily') {
+		const d = new Date(key);
+		return `${DAY_ABBR[d.getDay()]} ${d.getDate()}`;
+	}
+	if (granularity === 'monthly') {
+		const monthNum = parseInt(key.substring(5, 7), 10) - 1;
+		const year = key.substring(2, 4);
+		return spansMultipleYears ? `${MONTH_ABBR[monthNum]} '${year}` : MONTH_ABBR[monthNum]!;
+	}
+	const d = new Date(key);
+	return `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
+}
+
+function mergeTrendRows(groupedRows: { key: string; category: string | null; amount: number }[]): TrendRow[] {
+	const rows: TrendRow[] = [];
+	const byBucket = new Map<string, Map<string, TrendRow>>();
+	for (const row of groupedRows) {
+		const category = row.category ?? UNCATEGORIZED_CATEGORY;
+		let bucket = byBucket.get(row.key);
+		if (!bucket) {
+			bucket = new Map();
+			byBucket.set(row.key, bucket);
+		}
+		const existing = bucket.get(category);
+		if (existing) {
+			existing.amount += Number(row.amount);
+		} else {
+			const merged: TrendRow = { key: row.key, category, amount: Number(row.amount) };
+			bucket.set(category, merged);
+			rows.push(merged);
+		}
+	}
+	return rows;
+}
+
 function buildSegments(
 	rows: { key: string; category: string | null; amount: number }[],
 	key: string,
@@ -40,34 +106,19 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
 
-	let startDate: Date;
-	if (range === 'all') {
-		const [row] = await db
-			.select({ minDate: sql<string | null>`MIN(${invoices.invoiceDate})::text` })
-			.from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)));
-		startDate = row?.minDate ? new Date(row.minDate) : addDays(today, -364);
-	} else {
-		startDate = addDays(today, -(RANGE_TO_DAYS[range] ?? 29));
-	}
+	const startDate = await resolveStartDate(tdb, range, today);
 
 	const dayKey   = sql<string>`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM-DD')`;
 	const weekKey  = sql<string>`DATE_TRUNC('week', ${invoices.invoiceDate})::date::text`;
 	const monthKey = sql<string>`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM')`;
 
-	let bucketDates: Date[] = [];
-	if (granularity === 'daily') {
-		for (let d = new Date(startDate); d <= today; d = addDays(d, 1)) bucketDates.push(d);
-	} else if (granularity === 'monthly') {
-		for (let d = firstOfMonth(startDate); d <= firstOfMonth(today); d = addMonths(d, 1)) bucketDates.push(d);
-	} else {
-		for (let d = monday(startDate); d <= monday(today); d = addDays(d, 7)) bucketDates.push(d);
-	}
-	if (bucketDates.length > MAX_BUCKETS) bucketDates = bucketDates.slice(bucketDates.length - MAX_BUCKETS);
+	const bucketDates = bucketDatesFor(granularity, startDate, today);
 	const clampedStart = bucketDates.length ? isoDate(bucketDates[0]!) : isoDate(startDate);
 	const keys = bucketDates.map(d => granularity === 'monthly' ? monthKeyStr(d) : isoDate(d));
 
-	const keyExpr = granularity === 'daily' ? dayKey : granularity === 'monthly' ? monthKey : weekKey;
+	let keyExpr = weekKey;
+	if (granularity === 'daily') keyExpr = dayKey;
+	else if (granularity === 'monthly') keyExpr = monthKey;
 	const groupedRows = await db
 		.select({
 			key: keyExpr,
@@ -84,50 +135,15 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 		.groupBy(keyExpr, suppliers.category)
 		.orderBy(keyExpr);
 
-	type TrendRow = { key: string; category: string; amount: number };
-	const rows: TrendRow[] = [];
-	const byBucket = new Map<string, Map<string, TrendRow>>();
-	for (const row of groupedRows) {
-		const category = row.category ?? UNCATEGORIZED_CATEGORY;
-		let bucket = byBucket.get(row.key);
-		if (!bucket) {
-			bucket = new Map();
-			byBucket.set(row.key, bucket);
-		}
-		const existing = bucket.get(category);
-		if (existing) {
-			existing.amount += Number(row.amount);
-		} else {
-			const merged: TrendRow = { key: row.key, category, amount: Number(row.amount) };
-			bucket.set(category, merged);
-			rows.push(merged);
-		}
-	}
+	const rows = mergeTrendRows(groupedRows);
 
 	const spansMultipleYears = startDate.getFullYear() !== today.getFullYear();
-
-	function labelFor(key: string): string {
-		if (granularity === 'daily') {
-			const d = new Date(key);
-			return `${DAY_ABBR[d.getDay()]} ${d.getDate()}`;
-		}
-		if (granularity === 'monthly') {
-			const monthNum = parseInt(key.substring(5, 7), 10) - 1;
-			const year = key.substring(2, 4);
-			return spansMultipleYears ? `${MONTH_ABBR[monthNum]} '${year}` : MONTH_ABBR[monthNum]!;
-		}
-		const d = new Date(key);
-		return `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`;
-	}
-
-	const currentKey =
-		granularity === 'daily'   ? isoDate(today) :
-		granularity === 'monthly' ? monthKeyStr(today) :
-		isoDate(monday(today));
+	const currentKey = currentKeyFor(granularity, today);
 
 	const buckets: Bucket[] = keys.map(k => {
 		const segs = buildSegments(rows, k);
-		return { label: labelFor(k), total: segs.reduce((s, r) => s + r.amount, 0), pct: 0, is_current: k === currentKey, segments: segs };
+		const label = labelForKey(k, granularity, spansMultipleYears);
+		return { label, total: segs.reduce((s, r) => s + r.amount, 0), pct: 0, is_current: k === currentKey, segments: segs };
 	});
 
 	const maxTotal = Math.max(...buckets.map(b => b.total), 1);

@@ -152,6 +152,10 @@ These comments were deliberately left in the code because a tool reads them.
 
 ### `src/lib/constants.ts`
 
+**_module level_**
+
+- Category colours deliberately do not live here. They are in `$lib/colors`, backed by the `--mep-cat-*` custom properties in `app.css`, so they follow the active theme. They were moved out of this module because it is imported by load functions, and a colour map here is what let styling leak server-side.
+
 **`const UNCATEGORIZED_CATEGORY`**
 
 - Canonical category taxonomy — single source of truth for the whole app. Suppliers (`suppliers.category`) and budgets (`category_budgets.category`) MUST store one of these exact strings; a guard test (tests/category-taxonomy.test.ts) enforces this — do not diverge.

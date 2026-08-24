@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
+import { categoryBudgets } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { trackEvent } from '$lib/server/events';

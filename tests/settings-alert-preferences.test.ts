@@ -60,8 +60,9 @@ beforeAll(async () => {
 	if (!hasDbEnv) return;
 	const r = await createTestRestaurant('settings-alert-prefs');
 	rid = r.id;
+	const email = `alert-prefs-${Date.now()}@example.com`;
 	const [user] = await testSql`
-		INSERT INTO users (email, name) VALUES (${`alert-prefs-${Date.now()}@example.com`}, ${'Chef'}) RETURNING id`;
+		INSERT INTO users (email, name) VALUES (${email}, ${'Chef'}) RETURNING id`;
 	userId = user.id;
 	await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${rid}, 'owner')`;
 });

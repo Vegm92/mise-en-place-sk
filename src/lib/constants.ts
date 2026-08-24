@@ -64,8 +64,3 @@ export function periodToDate(p: string): Date {
 	(map[p] ?? map['30d'])();
 	return d;
 }
-
-// Category colours now live in `$lib/colors`, backed by the
-// --mep-cat-* custom properties in app.css, so they follow the active theme.
-// They were deliberately moved out of this module: it is imported by load
-// functions, and a colour map here is what let styling leak server-side.

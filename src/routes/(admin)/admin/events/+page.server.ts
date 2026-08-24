@@ -1,8 +1,8 @@
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { systemNotifications, restaurants } from '$lib/server/schema';
-import { desc, sql } from 'drizzle-orm';
+import { systemNotifications } from '$lib/server/schema';
+import { sql } from 'drizzle-orm';
 
 const PAGE_SIZE = 50;
 

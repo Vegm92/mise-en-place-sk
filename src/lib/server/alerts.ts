@@ -234,6 +234,7 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
 
+	const itemKeyList = sql.join(itemKeys.map(k => sql`${k}`), sql`, `);
 	const stockRows = await db
 		.select({
 			ingredient: stockLevels.ingredient,
@@ -244,7 +245,7 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 		.from(stockLevels)
 		.where(and(
 			tdb.scope(stockLevels.restaurantId),
-			sql`mep_norm_key(${stockLevels.ingredient}) IN (${sql.join(itemKeys.map(k => sql`${k}`), sql`, `)})`,
+			sql`mep_norm_key(${stockLevels.ingredient}) IN (${itemKeyList})`,
 		));
 
 	const stockMap = new Map(stockRows.map(r => [normalizeProductKey(r.ingredient), r]));
@@ -386,6 +387,11 @@ export async function runCategorySuggestion(
 	}];
 }
 
+function budgetOverageLevel(pctFrac: number, thresholdFrac: number): 'exceeded' | 'warning' | null {
+	if (pctFrac >= 1.0) return 'exceeded';
+	return pctFrac >= thresholdFrac ? 'warning' : null;
+}
+
 export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 	const supplierRows = await db
@@ -425,7 +431,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const totalSpend = moneyToNumber(spendRows[0]?.total ?? '0');
 	const pctFrac = totalSpend / monthlyBudget;
 
-	const level = pctFrac >= 1.0 ? 'exceeded' : pctFrac >= thresholdFrac ? 'warning' : null;
+	const level = budgetOverageLevel(pctFrac, thresholdFrac);
 	if (!level) return [];
 
 	const monthPrefix = new Date().toISOString().slice(0, 7);

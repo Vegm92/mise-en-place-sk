@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
+import { invoices, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
 import { desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
@@ -47,11 +47,12 @@ function buildDashboardAlerts(
 		const p = a.payload ? JSON.parse(a.payload) as { ingredient?: string; supplier?: string; deviationPct?: number } : null;
 		const pct = p?.deviationPct != null ? Math.abs(p.deviationPct) : null;
 		const up = p?.deviationPct != null && p.deviationPct > 0;
+		const shockKey = up ? 'dash.alert.priceShockUp' : 'dash.alert.priceShockDown';
 		return {
 			id: `ps-${a.id}`, sev: 'high' as const, kind: 'price' as const,
 			text: a.message, detail: p?.supplier ?? '', when: relativeTime(a.createdAt, today),
 			payload: a.payload ? JSON.parse(a.payload) as Record<string, unknown> : null,
-			messageKey: p?.ingredient ? (up ? 'dash.alert.priceShockUp' : 'dash.alert.priceShockDown') : undefined,
+			messageKey: p?.ingredient ? shockKey : undefined,
 			messageVars: p?.ingredient ? { ingredient: p.ingredient, pct: pct ?? 0 } : undefined,
 		};
 	});
@@ -81,10 +82,12 @@ function buildProjection(
 		: null;
 	const isCurrentMonth = selectedMonth === currentMonth;
 	const isPastMonth = selectedMonth < currentMonth;
-	const daysElapsed = isCurrentMonth ? today.getDate() : (isPastMonth ? daysInMonth : 0);
+	const elapsedWhenNotCurrent = isPastMonth ? daysInMonth : 0;
+	const daysElapsed = isCurrentMonth ? today.getDate() : elapsedWhenNotCurrent;
 	const dailyRate = isCurrentMonth && daysElapsed > 0 ? p.thisMonth / daysElapsed : 0;
 	const projectedEom = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : p.thisMonth;
-	const projectedElapsedPct = isCurrentMonth ? Math.round((daysElapsed / daysInMonth) * 100) : (isPastMonth ? 100 : 0);
+	const elapsedPctWhenNotCurrent = isPastMonth ? 100 : 0;
+	const projectedElapsedPct = isCurrentMonth ? Math.round((daysElapsed / daysInMonth) * 100) : elapsedPctWhenNotCurrent;
 	return { avgPerSupplier, avgPerSupplierDelta, daysElapsed, dailyRate, projectedEom, projectedElapsedPct };
 }
 
@@ -327,11 +330,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			const delta = Number(r.prev_month_spend) > 0
 				? Math.round((Number(r.month_spend) - Number(r.prev_month_spend)) / Number(r.prev_month_spend) * 100 * 10) / 10
 				: null;
+			const dueBadge = Number(r.has_due_soon) ? 'due_soon' : 'paid_up';
 			return {
 				...r,
 				month_spend: Number(r.month_spend),
 				prev_month_spend: Number(r.prev_month_spend),
-				badge: Number(r.has_overdue) ? 'overdue' : Number(r.has_due_soon) ? 'due_soon' : 'paid_up',
+				badge: Number(r.has_overdue) ? 'overdue' : dueBadge,
 				delta,
 			};
 		});

@@ -6,7 +6,6 @@
   import Edit from '@lucide/svelte/icons/edit';
   import Download from '@lucide/svelte/icons/download';
   import Truck from '@lucide/svelte/icons/truck';
-  import Check from '@lucide/svelte/icons/check';
   import { locale, t, ti } from '$lib/i18n';
 
   interface LineItem {

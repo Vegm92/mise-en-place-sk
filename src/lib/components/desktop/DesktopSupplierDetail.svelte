@@ -15,6 +15,12 @@
   import { locale, t, ti, tp, tcat } from '$lib/i18n';
   import { getScoreColor } from '$lib/status';
 
+  function scoreLabelKey(score: number): string {
+    if (score >= 70) return 'sup.score.very';
+    if (score >= 40) return 'sup.score.ok';
+    return 'sup.score.poor';
+  }
+
   interface Supplier {
     name: string;
     category: string | null;
@@ -401,7 +407,7 @@
                     <span style="font-size:15px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
                     <span style="font-size:9px;color:var(--mep-fg-3);">/100</span>
                   </div>
-                  <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{m.score >= 70 ? $t('sup.score.very') : m.score >= 40 ? $t('sup.score.ok') : $t('sup.score.poor')}</span>
+                  <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">

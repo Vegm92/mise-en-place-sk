@@ -40,13 +40,14 @@ vi.mock('$lib/server/email', () => ({
 	changeEmailAddress: (email: string, url: string) => ({ to: email, subject: 's', html: url }),
 }));
 vi.mock('$lib/server/db', () => {
+	const rowsForTable = (name: string): Array<Record<string, unknown>> => {
+		if (name === 'user_restaurants') return state.membershipRole ? [{ role: state.membershipRole }] : [];
+		if (name === 'users') return state.emailTaken ? [{ id: 'someone-else' }] : [];
+		return [];
+	};
 	const select = () => ({
 		from: (table: never) => {
-			const name = getTableName(table);
-			const rows =
-				name === 'user_restaurants' ? (state.membershipRole ? [{ role: state.membershipRole }] : []) :
-				name === 'users'            ? (state.emailTaken ? [{ id: 'someone-else' }] : []) :
-				[];
+			const rows = rowsForTable(getTableName(table));
 			const p = { where: () => p, limit: () => Promise.resolve(rows) };
 			return Object.assign(Promise.resolve(rows), p);
 		},

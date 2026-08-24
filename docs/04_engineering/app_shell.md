@@ -253,6 +253,30 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 ## Shared library
 
+### `src/lib/colors.ts`
+
+**_module level_**
+- Chart and category colours, resolved in the browser. They used to be 17 fixed hexes in `constants.ts`, stamped onto rows by the page loads and shipped in the payload — light-only by construction, because the server has no idea which theme the browser is in (the choice lives in `localStorage` and is applied to `documentElement` by `static/theme-init.js`). The same values therefore rendered on both grounds, and eleven of the seventeen fell under 3:1 against the dark surface.
+- Every category now maps to a `--mep-cat-*` custom property with a light and a dark value in `app.css`, and the load functions send only `category`: the colour is picked by the cascade at paint time and re-picks itself when the theme toggles, with no re-render and nothing to keep in sync.
+- Keep this module free of hex codes — `app.css` owns the values.
+
+**`const CATEGORY_COLORS`**
+- Canonical category → the custom property holding its colour.
+
+**`function categoryColor`**
+- The colour for a category, safe for `background`, `color`, `border-color` and SVG `fill`/`stroke` alike. Unknown or missing categories fall back to the "Other" hue rather than to a literal, so the result is always theme-aware.
+
+**`function categoryTint`**
+- A translucent wash of the category colour, for the soft backgrounds that pair with `categoryColor()` as text — supplier avatars, product badges.
+- Replaces the old `background:{color}24` trick, which built an 8-digit hex by string concatenation. That only ever worked because the value was guaranteed to be a 6-digit hex; against a custom property it produces `var(--mep-cat-bebidas)24`, which is not a colour at all.
+
+**`const SERIES_COLORS`**
+- The categorical series ramp, for charts whose slices are ranked rather than named — top products, invoice status splits. Fixed order, never cycled: past the fifth entry use `SERIES_OTHER` rather than wrapping around, so two slices never share a hue.
+- Four components each kept their own copy of this array; it lives here now so a change to the ramp reaches all of them.
+
+**`function seriesColor`**
+- The nth series colour, falling back to the neutral "other" hue (`SERIES_OTHER`).
+
 ### `src/lib/formatters.ts`
 
 **`function fmtEur`**
@@ -289,6 +313,25 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - vite-plugin-pwa only emits sw.js during production builds (dev returns early).
 - When a new SW version is waiting, send SKIP_WAITING so it activates immediately — generateSW includes a SKIP_WAITING listener when `registerType:'autoUpdate'`.
 - Non-fatal — app works normally without a SW.
+
+### `src/lib/theme.ts`
+
+**_module level_**
+- The one place the active theme is written. Three layouts each had their own `toggleTheme()` doing the same two steps; there is now a third step — keeping the PWA `theme-color` in sync so the browser and OS chrome around the page match the theme — and a fourth copy of that is exactly how the first two drifted apart.
+- `static/theme-init.js` does the same work inline before first paint and cannot import this module, so the two must agree. That is why the chrome colours are named here rather than repeated at each call site.
+
+**`const CHROME`**
+- Browser/OS chrome colour per theme. Must match `--mep-bg` in `src/app.css` for each theme.
+
+**`function currentTheme`**
+- Read the theme currently applied to the document.
+
+**`function applyTheme`**
+- Apply a theme: stamp the attribute every `--mep-*` override keys off, tint the browser chrome to match, and remember the choice.
+- The `localStorage.setItem` sits in a swallowing `try/catch`: in private mode, or with storage disabled, the write throws. The theme still applies for this page; it just will not survive a reload.
+
+**`function toggleTheme`**
+- Flip to the other theme and apply it. Returns the theme now in effect.
 
 ### `src/lib/utils.ts`
 

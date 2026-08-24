@@ -123,7 +123,14 @@
 
   function momVariant(pct: number | null) {
     if (pct === null) return 'default' as const;
-    return pct > 10 ? 'neg' as const : pct < -5 ? 'pos' as const : 'default' as const;
+    if (pct > 10) return 'neg' as const;
+    if (pct < -5) return 'pos' as const;
+    return 'default' as const;
+  }
+  function budgetVariant(pct: number, threshold: number) {
+    if (pct >= 100) return 'neg' as const;
+    if (pct >= threshold) return 'warn' as const;
+    return 'default' as const;
   }
   function budgetPct(spend: number, budget: number) {
     return Math.min(Math.round((spend / budget) * 100), 100);
@@ -133,6 +140,13 @@
     if (pct >= threshold) return 'var(--mep-warn)';
     return 'var(--mep-acc)';
   }
+  const momValue = $derived.by(() => {
+    const pct = data.mom.pct_change;
+    if (pct == null) return '—';
+    const sign = pct >= 0 ? '+' : '';
+    return sign + pct + '%';
+  });
+
   function fmtDate(iso: string | null) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
@@ -212,7 +226,7 @@
       label={$t('ddash.budgetUsed')}
       value={data.total_budget > 0 ? (data.total_pct_actual + '%') : '—'}
       sub={data.total_budget > 0 ? $ti('ddash.ofBudget', { amount: fmtEurCompact(data.total_budget) }) : $t('ddash.noBudget')}
-      variant={data.total_pct_actual >= 100 ? 'neg' : data.total_pct_actual >= data.budget_threshold ? 'warn' : 'default'}
+      variant={budgetVariant(data.total_pct_actual, data.budget_threshold)}
       spark={data.total_budget > 0 ? [10, 22, 31, 39, 48, 56, 64, Number(data.total_pct_actual)] : undefined}
       invert
     />
@@ -264,7 +278,7 @@
       <div class="card overflow-hidden flex flex-col h-full">
         <div class="grid" style="grid-template-columns:repeat(3,1fr);">
           {#each [
-            { label: $t('dash.kpi.mom'),       value: data.mom.pct_change != null ? (data.mom.pct_change >= 0 ? '+' : '') + data.mom.pct_change + '%' : '—', sub: $t('dash.kpi.mom.sub'), variant: momVariant(data.mom.pct_change) },
+            { label: $t('dash.kpi.mom'),       value: momValue, sub: $t('dash.kpi.mom.sub'), variant: momVariant(data.mom.pct_change) },
             { label: $t('dash.kpi.avgInvoice'), value: data.avg_invoice != null ? fmtEurCompact(data.avg_invoice) : '—', sub: 'EUR', variant: 'default' as const },
             { label: $t('dash.kpi.suppliers'),  value: String(data.supplier_count), sub: $t('dash.kpi.active'), variant: 'default' as const, last: true },
           ] as kpi}

@@ -3,6 +3,8 @@ import { chromium } from 'playwright';
 import { writeFileSync } from 'fs';
 
 const BASE = 'http://localhost:5174';
+const EMAIL = process.env.AUTH_ADMIN_EMAIL ?? 'admin@gmail.com';
+const PASS = process.env.AUTH_ADMIN_PASSWORD ?? 'adminpass';
 const SESSION_ID = 'visual-verify-001';
 
 const browser = await chromium.launch({ headless: true });
@@ -10,7 +12,7 @@ const browser = await chromium.launch({ headless: true });
 // Authenticate via API
 const reqCtx = await browser.newContext();
 const authResp = await reqCtx.request.post(`${BASE}/api/auth/sign-in/email`, {
-  data: { email: 'admin@gmail.com', password: 'adminpass' },
+  data: { email: EMAIL, password: PASS },
   headers: { 'Content-Type': 'application/json' },
 });
 const cookies = await reqCtx.cookies();

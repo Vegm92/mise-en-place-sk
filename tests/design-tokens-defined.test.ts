@@ -139,7 +139,7 @@ describe('MEP design tokens', () => {
 		const offenders: string[] = [];
 		for (const file of walk(SRC)) {
 			const src = readFileSync(file, 'utf8');
-			const re = /var\(--mep-(pos|neg|warn|info|acc)\)\s*;?\s*color:\s*#(fff|ffffff)\b/gi;
+			const re = /var\(--mep-(pos|neg|warn|info|acc)\)\s*(?:;\s*)?color:\s*#(fff|ffffff)\b/gi;
 			if (re.test(src)) offenders.push(path.relative(ROOT, file));
 		}
 		expect(offenders).toEqual([]);

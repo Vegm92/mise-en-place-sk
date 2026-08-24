@@ -44,6 +44,72 @@ function classifyExtractionError(err: unknown): string {
 	return 'extract.err.generic';
 }
 
+async function claimExtractionAllowance(itemId: string, restaurantId: string): Promise<boolean> {
+	const access = await getAccessState(restaurantId);
+	if (!access.allowed) {
+		console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction`);
+		await markFailed(itemId, access.trialExpired ? 'extract.err.trialExpired' : 'extract.err.subscriptionInactive');
+		return false;
+	}
+
+	const quotaResult = await checkExtractionQuota(restaurantId);
+	if (!quotaResult.allowed) {
+		console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason}`);
+		await markFailed(itemId, 'extract.err.quotaExceeded');
+		return false;
+	}
+
+	const claim = await claimMonthlyExtraction(restaurantId);
+	if (!claim.claimed) {
+		console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
+		Sentry.captureMessage('extraction.quota_exhausted', {
+			level: 'warning',
+			tags: { restaurantId },
+		});
+		await markFailed(itemId, 'extract.err.quotaExceeded');
+		return false;
+	}
+
+	return true;
+}
+
+async function reportExtractionFailure(
+	err: unknown,
+	itemId: string,
+	restaurantId: string,
+	payload: unknown,
+	attempt: { isFinalAttempt: boolean; claimedMonthlySlot: boolean },
+): Promise<void> {
+	const extractError = classifyExtractionError(err);
+	const willRetry = DEGRADATION_ERRORS.has(extractError) && !attempt.isFinalAttempt;
+	console.error(`[worker] Extraction failed for item ${itemId}${willRetry ? ' (will retry)' : ''}:`, err);
+	if (DEGRADATION_ERRORS.has(extractError)) {
+		Sentry.captureException(err, {
+			level: 'warning',
+			tags: { errorClass: extractError, restaurantId },
+		});
+	} else {
+		Sentry.captureException(new Error(`extraction_failed:${extractError}`), {
+			level: 'error',
+			tags: { itemId, errorClass: extractError, restaurantId },
+		});
+		await recordDeadLetter({
+			queue: EXTRACTION_QUEUE,
+			errorClass: extractError,
+			error: err,
+			restaurantId,
+			sourceId: itemId,
+			payload,
+		});
+	}
+	if (!willRetry) await markFailed(itemId, extractError);
+	if (attempt.claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
+}
+
+function removeTmpFile(tmpPath: string): void {
+	try { fs.unlinkSync(tmpPath); } catch { }
+}
+
 export async function processExtractionJob(
 	jobData: ExtractionJobData,
 	generateOverride?: GenerateFn,
@@ -86,30 +152,8 @@ export async function processExtractionJob(
 
 	let claimedMonthlySlot = false;
 	if (!generateOverride) {
-		const access = await getAccessState(restaurantId);
-		if (!access.allowed) {
-			console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction`);
-			await markFailed(itemId, access.trialExpired ? 'extract.err.trialExpired' : 'extract.err.subscriptionInactive');
-			return;
-		}
-
-		const quotaResult = await checkExtractionQuota(restaurantId);
-		if (!quotaResult.allowed) {
-			console.warn(`[worker] Quota exceeded for tenant ${restaurantId}: ${quotaResult.reason}`);
-			await markFailed(itemId, 'extract.err.quotaExceeded');
-			return;
-		}
-
-		const claim = await claimMonthlyExtraction(restaurantId);
-		if (!claim.claimed) {
-			console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
-			Sentry.captureMessage('extraction.quota_exhausted', {
-				level: 'warning',
-				tags: { restaurantId },
-			});
-			await markFailed(itemId, 'extract.err.quotaExceeded');
-			return;
-		}
+		const allowed = await claimExtractionAllowance(itemId, restaurantId);
+		if (!allowed) return;
 		claimedMonthlySlot = true;
 	}
 
@@ -121,7 +165,7 @@ export async function processExtractionJob(
 		const tmpPath = path.join(os.tmpdir(), `mep_${itemId}_${path.basename(item.fileKey)}`);
 		fs.writeFileSync(tmpPath, buf);
 		filePath = tmpPath;
-		cleanupTmp = () => { try { fs.unlinkSync(tmpPath); } catch { } };
+		cleanupTmp = () => removeTmpFile(tmpPath);
 	} else {
 		filePath = path.join(uploadsDir(), item.fileKey);
 	}
@@ -172,30 +216,13 @@ export async function processExtractionJob(
 		await markDone(itemId, extractedData, conversionNotes);
 		console.info(`[worker] Extraction done for item ${itemId}`);
 	} catch (err) {
-		const extractError = classifyExtractionError(err);
-		const willRetry = DEGRADATION_ERRORS.has(extractError) && !isFinalAttempt;
-		console.error(`[worker] Extraction failed for item ${itemId}${willRetry ? ' (will retry)' : ''}:`, err);
-		if (DEGRADATION_ERRORS.has(extractError)) {
-			Sentry.captureException(err, {
-				level: 'warning',
-				tags: { errorClass: extractError, restaurantId },
-			});
-		} else {
-			Sentry.captureException(new Error(`extraction_failed:${extractError}`), {
-				level: 'error',
-				tags: { itemId, errorClass: extractError, restaurantId },
-			});
-			await recordDeadLetter({
-				queue: EXTRACTION_QUEUE,
-				errorClass: extractError,
-				error: err,
-				restaurantId,
-				sourceId: itemId,
-				payload: { ...jobData, fileKey: item.fileKey, displayName: item.displayName },
-			});
-		}
-		if (!willRetry) await markFailed(itemId, extractError);
-		if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
+		await reportExtractionFailure(
+			err,
+			itemId,
+			restaurantId,
+			{ ...jobData, fileKey: item.fileKey, displayName: item.displayName },
+			{ isFinalAttempt, claimedMonthlySlot },
+		);
 	} finally {
 		cleanupTmp?.();
 	}
