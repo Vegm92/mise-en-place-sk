@@ -3,12 +3,16 @@
 /**
  * Bans user-facing strings that bypass the i18n table (issues #294, #337, #338).
  *
- * Two passes over every .svelte file under src/:
+ * Three passes over every .svelte file under src/:
  *   1. template — text nodes and user-visible attributes (placeholder, title,
  *      aria-label, alt), parsed from the Svelte AST so inline styles and
  *      expressions are not mistaken for prose.
  *   2. script — string literals assigned to label-ish properties, plus any
  *      literal carrying Spanish orthography, which is prose by definition.
+ *   3. keys — every $t/$ti/$tiv/$tp call with a literal key must resolve in
+ *      every locale table (issue #661). Going through the table is not enough
+ *      if the key is not in it: the UI then renders the raw key. Keys built at
+ *      runtime cannot be resolved statically and are skipped, not guessed at.
  *
  * Language-neutral tokens (brand, currency codes, units, date formats) are
  * allowlisted below. Legal pages and the marketing landing keep their own
@@ -19,6 +23,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import ts from 'typescript';
 import { parse } from 'svelte/compiler';
+import { localeKeyTables, keyReferences, missingKeyRefs } from './i18n-keys.mjs';
 
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 
@@ -51,6 +56,8 @@ const ALLOWED = new Set([
 	'var(--mep-fg-2)'
 ]);
 
+const I18N_FILE = 'src/lib/i18n.ts';
+
 const LABEL_PROPS = /^(label|title|text|placeholder|heading|subtitle|sub|msg|message|caption|tooltip)$/;
 const SPANISH = /[áéíóúüñ¿¡ÁÉÍÓÚÜÑ]/;
 
@@ -75,6 +82,13 @@ function isProse(text) {
 }
 
 const violations = [];
+
+const localeTables = localeKeyTables(fs.readFileSync(path.join(ROOT, I18N_FILE), 'utf8'));
+
+if (localeTables.size === 0) {
+	console.error(`check-i18n-strings: no locale tables found in ${I18N_FILE}`);
+	process.exit(1);
+}
 
 function checkTemplate(file, src, rel) {
 	let ast;
@@ -131,6 +145,24 @@ function checkTemplate(file, src, rel) {
 	visit(ast.fragment, false);
 }
 
+function checkKeys(src, rel) {
+	const byLookup = new Map();
+	for (const miss of missingKeyRefs(keyReferences(src), localeTables)) {
+		const id = `${miss.ref.index}:${miss.key}`;
+		const entry = byLookup.get(id) ?? { ref: miss.ref, key: miss.key, locales: [] };
+		entry.locales.push(miss.locale);
+		byLookup.set(id, entry);
+	}
+	for (const { ref, key, locales } of byLookup.values()) {
+		violations.push({
+			rel,
+			line: lineOf(src, ref.index),
+			kind: `missing-key:${locales.join('/')}`,
+			text: key
+		});
+	}
+}
+
 function checkScript(src, rel) {
 	for (const block of src.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)) {
 		const code = block[1];
@@ -170,6 +202,7 @@ for (const file of walk(path.join(ROOT, 'src')).sort()) {
 	const src = fs.readFileSync(file, 'utf8');
 	checkTemplate(file, src, rel);
 	checkScript(src, rel);
+	checkKeys(src, rel);
 }
 
 const seen = new Set();
@@ -182,7 +215,8 @@ const unique = violations.filter((v) => {
 
 if (unique.length > 0) {
 	console.error(
-		'\nUser-facing strings must come from the i18n table — use $t / $ti / $tp instead of literals.\n' +
+		'\nUser-facing strings must come from the i18n table — use $t / $ti / $tp instead of literals,\n' +
+			'and every key they pass must exist ([missing-key:<locale>] below).\n' +
 			'Add the key to BOTH locales in src/lib/i18n.ts. Language-neutral tokens can be\n' +
 			'allowlisted in scripts/check-i18n-strings.mjs.\n'
 	);
