@@ -199,7 +199,7 @@
               onclick={() => { editing = true; confirmDelete = false; }}>
               <Pencil size={13} /> {$t('action.edit')}
             </button>
-            <button class="btn" style="height:32px;font-size:12.5px;color:#E05555;border-color:#E05555;display:inline-flex;align-items:center;gap:6px;"
+            <button class="btn" style="height:32px;font-size:12.5px;color:var(--mep-neg);border-color:var(--mep-neg);display:inline-flex;align-items:center;gap:6px;"
               onclick={() => { confirmDelete = !confirmDelete; }}>
               <Trash2 size={13} /> {$t('action.delete')}
             </button>
@@ -208,14 +208,14 @@
       </div>
 
       {#if confirmDelete}
-        <div class="card" style="padding:14px;border-left:3px solid #E05555;margin-bottom:14px;">
-          <p class="body-strong" style="color:#E05555;margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
+        <div class="card" style="padding:14px;border-left:3px solid var(--mep-neg);margin-bottom:14px;">
+          <p class="body-strong" style="color:var(--mep-neg);margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
           <p class="body" style="color:var(--mep-fg-3);font-size:12px;margin-bottom:12px;">
             {$tp('sup.confirmDelete.body', invoices.length)}
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
-              <button type="submit" class="btn" style="background:#E05555;color:#fff;border-color:#E05555;height:30px;font-size:12px;">
+              <button type="submit" class="btn" style="background:var(--mep-neg);color:#fff;border-color:var(--mep-neg);height:30px;font-size:12px;">
                 {$t('sup.confirmDelete.yes')}
               </button>
             </form>
