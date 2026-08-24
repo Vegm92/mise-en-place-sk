@@ -25,3 +25,9 @@ export function confColor(c: number | undefined | null): string {
 	if (c >= 0.6) return 'var(--mep-warn)';
 	return 'var(--mep-neg)';
 }
+
+export function getScoreColor(score: number): string {
+	if (score >= 70) return 'var(--mep-pos)';
+	if (score >= 40) return 'var(--mep-warn)';
+	return 'var(--mep-neg)';
+}
