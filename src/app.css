@@ -28,8 +28,8 @@
   --mep-pos-soft: rgba(20, 105, 74, 0.12);
   --mep-neg:      #b03a3a;
   --mep-neg-soft: rgba(176, 58, 58, 0.12);
-  --mep-warn:     #7e4c0d;
-  --mep-warn-soft:rgba(126, 76, 13, 0.14);
+  --mep-warn:     #654a00;
+  --mep-warn-soft:rgba(101, 74, 0, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
 
@@ -136,8 +136,8 @@
   --mep-pos-soft:  rgba(76, 174, 125, 0.18);
   --mep-neg:       #e16b6b;
   --mep-neg-soft:  rgba(225, 107, 107, 0.18);
-  --mep-warn:      #d09548;
-  --mep-warn-soft: rgba(208, 149, 72, 0.18);
+  --mep-warn:      #efc233;
+  --mep-warn-soft: rgba(239, 194, 51, 0.18);
   --mep-info:      #5f8ee0;
   --mep-info-soft: rgba(95, 142, 224, 0.18);
 
@@ -170,20 +170,20 @@
   --mep-cat-other:                        #8f8fa2;
 }
 
-/* Accent — teal (default) */
-.mep[data-accent="teal"] {
-  --mep-acc:      #0f5f5c;
+/* Accent — amber (default — every route sets data-accent="amber") */
+.mep[data-accent="amber"] {
+  --mep-acc:      #8a530f;
   --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(15, 95, 92, 0.10);
-  --mep-acc-hover:#0b4f4c;
-  --mep-acc-ring: rgba(15, 95, 92, 0.30);
+  --mep-acc-soft: rgba(138, 83, 15, 0.10);
+  --mep-acc-hover:#7e4c0d;
+  --mep-acc-ring: rgba(138, 83, 15, 0.30);
 }
-:root[data-theme="dark"] .mep[data-accent="teal"] {
-  --mep-acc:      #58b8b3;
-  --mep-acc-fg:   #0a2422;
-  --mep-acc-soft: rgba(88, 184, 179, 0.16);
-  --mep-acc-hover:#6cc4bf;
-  --mep-acc-ring: rgba(88, 184, 179, 0.30);
+:root[data-theme="dark"] .mep[data-accent="amber"] {
+  --mep-acc:      #d59854;
+  --mep-acc-fg:   #2a1a08;
+  --mep-acc-soft: rgba(213, 152, 84, 0.18);
+  --mep-acc-hover:#e0a665;
+  --mep-acc-ring: rgba(213, 152, 84, 0.30);
 }
 
 /* Accent — slate */
@@ -202,20 +202,20 @@
   --mep-acc-ring: rgba(111, 143, 196, 0.30);
 }
 
-/* Accent — amber */
-.mep[data-accent="amber"] {
-  --mep-acc:      #8a530f;
+/* Accent — teal (alternative, not currently used) */
+.mep[data-accent="teal"] {
+  --mep-acc:      #0f5f5c;
   --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(138, 83, 15, 0.10);
-  --mep-acc-hover:#7e4c0d;
-  --mep-acc-ring: rgba(138, 83, 15, 0.30);
+  --mep-acc-soft: rgba(15, 95, 92, 0.10);
+  --mep-acc-hover:#0b4f4c;
+  --mep-acc-ring: rgba(15, 95, 92, 0.30);
 }
-:root[data-theme="dark"] .mep[data-accent="amber"] {
-  --mep-acc:      #d59854;
-  --mep-acc-fg:   #2a1a08;
-  --mep-acc-soft: rgba(213, 152, 84, 0.18);
-  --mep-acc-hover:#e0a665;
-  --mep-acc-ring: rgba(213, 152, 84, 0.30);
+:root[data-theme="dark"] .mep[data-accent="teal"] {
+  --mep-acc:      #58b8b3;
+  --mep-acc-fg:   #0a2422;
+  --mep-acc-soft: rgba(88, 184, 179, 0.16);
+  --mep-acc-hover:#6cc4bf;
+  --mep-acc-ring: rgba(88, 184, 179, 0.30);
 }
 
 /* Density */
