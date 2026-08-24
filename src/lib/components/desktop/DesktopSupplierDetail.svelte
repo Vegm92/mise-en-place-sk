@@ -12,6 +12,7 @@
   import CreditCard from '@lucide/svelte/icons/credit-card';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { locale, t, ti, tp, tcat } from '$lib/i18n';
+  import { getScoreColor } from '$lib/status';
 
   interface Supplier {
     name: string;
@@ -143,11 +144,6 @@
   const CB = 170;
   const VW = 700;
 
-  function scoreColor(score: number) {
-    if (score >= 70) return '#3A8C5C';
-    if (score >= 40) return '#C8843A';
-    return '#E05555';
-  }
   function invoiceStatus(inv: Invoice): string {
     if (inv.status === 'paid') return 'paid';
     if (inv.dueDate && inv.dueDate < today) return 'overdue';
@@ -397,19 +393,19 @@
                   <div style="flex:1;"></div>
                   <div style="
                     width:52px;height:52px;border-radius:50%;
-                    border:3px solid {scoreColor(m.score)};
+                    border:3px solid {getScoreColor(m.score)};
                     display:flex;align-items:center;justify-content:center;flex-direction:column;
                   ">
-                    <span style="font-size:15px;font-weight:700;color:{scoreColor(m.score)};line-height:1;">{m.score}</span>
+                    <span style="font-size:15px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
                     <span style="font-size:9px;color:var(--mep-fg-3);">/100</span>
                   </div>
-                  <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{m.score >= 70 ? $t('sup.score.very') : m.score >= 40 ? $t('sup.score.ok') : $t('sup.score.poor')}</span>
+                  <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{m.score >= 70 ? $t('sup.score.very') : m.score >= 40 ? $t('sup.score.ok') : $t('sup.score.poor')}</span>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.prices')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.priceStabilityScore * 3)};">{m.priceStabilityScore}/33</span>
+                      <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.priceStabilityScore * 3)};">{m.priceStabilityScore}/33</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">
                       {#if m.priceStabilityCv !== null}CV: {m.priceStabilityCv.toFixed(1)}%{:else}{$t('sup.score.noData')}{/if}
@@ -418,14 +414,14 @@
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.regularity')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.frequencyScore * 3)};">{m.frequencyScore}/33</span>
+                      <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.frequencyScore * 3)};">{m.frequencyScore}/33</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.historical')}</p>
                   </div>
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.punctuality')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.timelinessScore * 2.9)};">{m.timelinessScore}/34</span>
+                      <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.timelinessScore * 2.9)};">{m.timelinessScore}/34</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.timeliness')}</p>
                   </div>
