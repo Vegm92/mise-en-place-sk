@@ -59,14 +59,20 @@ Ojo con esto: el bloque teal aparece primero en `app.css` y va comentado como
 `<div class="mep" data-accent="amber">`, así que el acento real de la app es
 amber. El comentario induce a error.
 
-`--mep-warn` es ahora un rojo de peligro (`#a5320a` en claro, `#ee8355` en
-oscuro), no el ocre de antes. Ojo: queda muy cerca de `--mep-neg` (`#b03a3a`),
-y ambos se usan juntos —`badge-pending` frente a `badge-overdue`, y la rampa de
-`semColor()`. En «Cuentas a pagar» se ve: las tarjetas «Vencido» y «Vence en
-7 días» son casi el mismo rojo.
+`--mep-warn` es ámbar, pero no el ocre de antes: `#654a00` en claro y `#efc233`
+en oscuro. El ocre original quedaba a ΔE 4,7 del acento en claro y 4,7 en
+oscuro — por debajo del umbral de percepción, así que un aviso y un botón se
+veían del mismo color. Los nuevos están a ΔE 15,1 y 33,3, y pasan AA también
+sobre su propio `warn-soft`, que es donde se usan como texto en
+`.badge-pending`.
 
-Por eso la rampa de antigüedad del saldo no usa `warn`: en gris daba 27/26/32
-y era ilegible impresa. Va con un solo tono que sí escalona (81/32/11).
+En claro no se puede separar mucho más sin romper AA: `warn` tiene que ser
+oscuro para contrastar sobre su tinte, y el acento también lo es. En oscuro hay
+margen de sobra.
+
+La rampa de antigüedad del saldo no usa `warn`: verde/ámbar/rojo/oscuro daba
+20/27/32 en escala de grises, apiñado e ilegible impreso en B/N. Va con un solo
+tono que escalona 81/32/11.
 
 Los gráficos de gasto por categoría van con la paleta de series
 (`--mep-series-1..5` más `--mep-series-other` para el resto), igual que
