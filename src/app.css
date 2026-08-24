@@ -696,6 +696,15 @@
     color: var(--mep-warn);
   }
   .rev-tax-tbl th { background: transparent; padding: 4px 10px; }
+  .rev-cell-rate::placeholder { color: var(--mep-fg-4); }
+  select.rev-cell { cursor: pointer; }
+  .rev-foot-drift {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    color: var(--mep-warn);
+  }
   .rev-tax-tbl td { height: auto; padding: 6px 10px; font-size: 12.5px; }
   .rev-tax-tbl tfoot td {
     border-top: 1px solid var(--mep-border);

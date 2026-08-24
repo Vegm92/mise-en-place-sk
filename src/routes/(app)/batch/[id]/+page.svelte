@@ -23,6 +23,10 @@
   import ChevronsRight from '@lucide/svelte/icons/chevrons-right';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import FileText from '@lucide/svelte/icons/file-text';
+  import {
+    percentInputValue, percentToFraction, fractionToPercent, isTaxType, bandsFromInputs, bandAmountCents,
+    sumTaxCents, taxableBaseCents, lineRateFractions, bandsFromLines,
+  } from '$lib/tax';
   import { t, ti, tp } from '$lib/i18n';
 
   import type { ActionData } from './$types';
@@ -146,13 +150,20 @@
     unit?: string | null;
     unit_price?: number | string | null;
     total_price?: number | string | null;
-    tax_rate?: number | null;
+    tax_rate?: number | string | null;
     confidence?: number | null;
     product_code?: string | null;
   };
 
   let lineItems = $state<LineItem[]>([]);
   let lineItemsSource: unknown = null;
+  let taxBandsSource: unknown = null;
+  $effect(() => {
+    const raw = data.review?.data?.tax_breakdown;
+    if (raw === taxBandsSource) return;
+    taxBandsSource = raw;
+    taxBands = bandRowsFrom(raw);
+  });
   function normalizeLine(item: LineItem): LineItem {
     return {
       ...item,
@@ -161,6 +172,7 @@
       unit: str(item.unit),
       unit_price: priceStr(item.unit_price),
       total_price: priceStr(item.total_price),
+      tax_rate: percentInputValue(item.tax_rate),
     };
   }
   $effect(() => {
@@ -199,6 +211,8 @@
   let dueDateSuggested = $state(!str(data.review?.data?.due_date) && !!dueDateInput);
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let totalAmountInput = $state(priceStr(str(data.review?.data?.total_amount)));
+  // svelte-ignore state_referenced_locally — intentional: the extraction's own total, never edited
+  let originalTotal = $state(priceStr(str(data.review?.data?.total_amount)));
   let notesInput = $state('');
 
   $effect(() => {
@@ -211,6 +225,8 @@
     previewFull = false;
     taxPanelOpen = false;
     uncertainCursor = 0;
+    taxBands = bandRowsFrom(data.review?.data?.tax_breakdown);
+    originalTotal = priceStr(str(data.review?.data?.total_amount));
     const rd = data.review?.data;
     supplierNameInput = str(rd?.supplier_name);
     invoiceNumberInput = str(rd?.invoice_number);
@@ -321,35 +337,76 @@
     const n = parseFloat(totalAmountInput);
     return isNaN(n) ? 0 : n;
   });
-  type TaxBand = { rate?: number | null; base?: number | null; tax_amount?: number | null; type?: 'iva' | 'rec' };
-  const taxBreakdown = $derived.by(() => {
-    const raw = review?.data?.tax_breakdown;
-    if (!Array.isArray(raw) || raw.length === 0) return null;
-    return raw as TaxBand[];
-  });
-  const taxTotal = $derived(
-    taxBreakdown ? taxBreakdown.reduce((s, b) => s + (b.tax_amount ?? 0), 0) : 0
-  );
-  const taxBase = $derived.by(() => {
-    if (!taxBreakdown) return 0;
-    const perType = new Map<string, number>();
-    for (const b of taxBreakdown) {
-      const key = b.type ?? '';
-      perType.set(key, (perType.get(key) ?? 0) + (b.base ?? 0));
-    }
-    return Math.max(0, ...perType.values());
-  });
-  const taxBaseMatchesLines = $derived(taxBase > 0 && Math.abs(taxBase - lineTotal) <= 0.01);
+  type BandRow = { rate: string; type: string; base: string; amount: string };
+  let taxBands = $state<BandRow[]>([]);
   let taxPanelOpen = $state(false);
 
-  function ratePct(rate: number | null | undefined): string {
-    if (typeof rate !== 'number' || !Number.isFinite(rate)) return '—';
-    const pct = rate > 1 ? rate : rate * 100;
-    return `${Number(pct.toFixed(2))}`.replace('.', ',') + '%';
+  function bandRowsFrom(raw: unknown): BandRow[] {
+    if (!Array.isArray(raw)) return [];
+    return (raw as Array<Record<string, unknown>>).map(b => ({
+      rate: percentInputValue(b.rate as number | null | undefined),
+      type: isTaxType(b.type) ? b.type : '',
+      base: priceStr(b.base as number | null | undefined),
+      amount: priceStr(b.tax_amount as number | null | undefined),
+    }));
+  }
+
+  const bandModels = $derived(bandsFromInputs(taxBands.map(b => ({ ...b }))));
+  const taxTotal = $derived(sumTaxCents(bandModels) / 100);
+  const taxBase = $derived(taxableBaseCents(bandModels) / 100);
+  const taxBaseMatchesLines = $derived(taxBase > 0 && Math.abs(taxBase - lineTotal) <= 0.01);
+
+  const lineRates = $derived(lineRateFractions(lineItems.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate }))));
+  const bandRates = $derived(new Set(bandModels.map(b => b.rate)));
+  const unbandedRates = $derived(lineRates.filter(r => !bandRates.has(r)));
+  const linesCarryRates = $derived(lineRates.length > 0);
+
+  function syncBandAmount(i: number) {
+    const cents = bandAmountCents(taxBands[i].base, taxBands[i].rate);
+    if (cents !== null) taxBands[i].amount = (cents / 100).toFixed(2);
+  }
+  function addBand() {
+    taxBands = [...taxBands, { rate: '', type: '', base: lineTotal.toFixed(2), amount: '' }];
+    taxPanelOpen = true;
+  }
+  function removeBand(i: number) {
+    taxBands = taxBands.filter((_, j) => j !== i);
+  }
+  function rebuildBandsFromLines() {
+    const derived = bandsFromLines(
+      lineItems.map(i => ({ totalPrice: i.total_price, rate: i.tax_rate })),
+      'iva',
+    );
+    const kept = taxBands.filter(b => b.type === 'rec');
+    taxBands = [
+      ...derived.map(b => ({
+        rate: percentInputValue(b.rate),
+        type: 'iva',
+        base: b.base.toFixed(2),
+        amount: b.tax_amount.toFixed(2),
+      })),
+      ...kept,
+    ];
+    taxPanelOpen = true;
+  }
+
+  function ratePctLabel(rate: number | null | undefined): string {
+    const pct = fractionToPercent(rate);
+    return pct === null ? '—' : String(pct).replace('.', ',') + '%';
   }
   const totalCalc = $derived(lineTotal + taxTotal);
   const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
   const hasDiscrepancy = $derived(discrepancy > 0.01 && extractedTotal > 0);
+  const originalTotalNum = $derived.by(() => {
+    const n = parseFloat(originalTotal);
+    return isNaN(n) ? 0 : n;
+  });
+  const drift = $derived(totalCalc - originalTotalNum);
+  const extractedDrift = $derived(originalTotalNum > 0 && Math.abs(drift) > 0.01);
+  const driftLabel = $derived(`${drift > 0 ? '+' : '−'}${fmt(Math.abs(drift))}`);
+  const taxNeedsAttention = $derived(
+    (taxBands.length > 0 && !taxBaseMatchesLines) || unbandedRates.length > 0
+  );
   const supplierName = $derived(str(review?.data?.supplier_name) || '—');
   const invoiceNumber = $derived(str(review?.data?.invoice_number) || '—');
 
@@ -594,6 +651,13 @@
         <input type="hidden" name="idempotency_key" value={idempotencyKey} />
         <input type="hidden" name="confidence" value={str(confidence)} />
         <input type="hidden" name="low_confidence_ack" value={lowConfAck ? 'true' : 'false'} />
+        <input type="hidden" name="tax_bands_present" value="1" />
+        {#each taxBands as band}
+          <input type="hidden" name="tax_rates" value={band.rate} />
+          <input type="hidden" name="tax_types" value={band.type} />
+          <input type="hidden" name="tax_bases" value={band.base} />
+          <input type="hidden" name="tax_amounts" value={band.amount} />
+        {/each}
 
         <div class="card rev-col rev-col-fill" data-coach="invoice-fields" style="padding:0;">
 
@@ -737,6 +801,7 @@
                     <th class="num" style="width:74px;">{$t('tbl.qty')}</th>
                     <th style="width:80px;">{$t('tbl.unit')}</th>
                     <th class="num" style="width:96px;">{$t('tbl.unitPrice')}</th>
+                    <th class="num" style="width:72px;" title={$t('review.lineRateHint')}>{$t('review.lineRate')}</th>
                     <th class="num" style="width:100px;">{$t('tbl.total')}</th>
                     <th style="width:36px;"></th>
                   </tr>
@@ -764,10 +829,14 @@
                         <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td class="num">
+                        <input type="text" bind:value={lineItems[i].tax_rate} class="rev-cell num rev-cell-rate"
+                          placeholder="%" aria-label={$t('review.lineRate')} style="text-align:right;" />
+                      </td>
+                      <td class="num">
                         <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-cell num" style="text-align:right;font-weight:500;" />
                       </td>
                       <td>
-                        <input type="hidden" name="line_tax_rates" value={str(item.tax_rate ?? '')} />
+                        <input type="hidden" name="line_tax_rates" value={percentToFraction(item.tax_rate) ?? ''} />
                         <input type="hidden" name="line_supplier_skus" value={str(item.product_code ?? '')} />
                         <button type="button" class="rev-icon-btn" style="width:22px;height:22px;" title={$t('review.removeLine')} aria-label={$t('review.removeLine')} onclick={() => removeRow(i)}>
                           <Trash size={11} />
@@ -782,48 +851,89 @@
 
           </div>
 
-          {#if taxBreakdown && taxPanelOpen}
+          {#if taxPanelOpen}
             <div class="rev-tax-panel">
               <div class="rev-tax-panel-head">
-                <span class="body-strong">{$t('review.taxes')}</span>
-                {#if !taxBaseMatchesLines}
+                <span class="body-strong">
+                  {$t('review.taxes')}
+                  <span class="num" style="color:var(--mep-fg-3);font-weight:400;">· {$tp('review.taxTypeCount', taxBands.length)}</span>
+                </span>
+                {#if !taxBaseMatchesLines && taxBands.length > 0}
                   <span class="rev-tax-stale" title={$t('review.taxBaseStaleHint')}>
                     <AlertTriangle size={11} /> {$t('review.taxBaseStale')}
                   </span>
                 {/if}
+                {#if unbandedRates.length > 0}
+                  <span class="rev-tax-stale" title={$t('review.taxRateUnbandedHint')}>
+                    <AlertTriangle size={11} /> {unbandedRates.map(ratePctLabel).join(' · ')}
+                  </span>
+                {/if}
+                <span style="flex:1;"></span>
+                {#if linesCarryRates}
+                  <button type="button" class="btn btn-ghost" style="height:24px;font-size:11.5px;padding:0 8px;gap:4px;"
+                    onclick={rebuildBandsFromLines} title={$t('review.taxRebuildHint')}>
+                    <RefreshCw size={11} /> {$t('review.taxRebuild')}
+                  </button>
+                {/if}
+                <button type="button" class="btn btn-ghost" style="height:24px;font-size:11.5px;padding:0 8px;gap:4px;" onclick={addBand}>
+                  <Plus size={11} /> {$t('review.taxAddBand')}
+                </button>
               </div>
-              <table class="tbl rev-tax-tbl">
-                <thead>
-                  <tr>
-                    <th>{$t('review.taxRate')}</th>
-                    <th class="num">{$t('review.taxBandBase')}</th>
-                    <th class="num">{$t('review.taxAmount')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {#each taxBreakdown as band}
+
+              {#if taxBands.length === 0}
+                <div style="font-size:12px;color:var(--mep-fg-3);padding:4px 0 10px;">{$t('review.taxNoBands')}</div>
+              {:else}
+                <table class="tbl rev-tax-tbl">
+                  <thead>
                     <tr>
-                      <td>
-                        <span class="num" style="font-weight:500;">{ratePct(band.rate)}</span>
-                        {#if band.type === 'rec'}
-                          <span class="badge badge-neutral" style="margin-left:6px;" title={$t('review.taxRecFull')}>{$t('review.taxRec')}</span>
-                        {:else if band.type === 'iva'}
-                          <span class="badge badge-neutral" style="margin-left:6px;">{$t('review.taxIva')}</span>
-                        {/if}
-                      </td>
-                      <td class="num">{fmt(band.base ?? 0)}</td>
-                      <td class="num" style="font-weight:500;">{fmt(band.tax_amount ?? 0)}</td>
+                      <th class="num" style="width:92px;">{$t('review.taxRate')}</th>
+                      <th style="width:96px;">{$t('review.taxKind')}</th>
+                      <th class="num">{$t('review.taxBandBase')}</th>
+                      <th class="num" style="width:120px;">{$t('review.taxAmount')}</th>
+                      <th style="width:32px;"></th>
                     </tr>
-                  {/each}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td style="color:var(--mep-fg-3);">{$t('tbl.total')}</td>
-                    <td class="num" style="color:var(--mep-fg-3);">{fmt(taxBase)}</td>
-                    <td class="num" style="font-weight:600;">{fmt(taxTotal)}</td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    {#each taxBands as band, i}
+                      <tr>
+                        <td>
+                          <input type="text" bind:value={taxBands[i].rate} oninput={() => syncBandAmount(i)}
+                            class="rev-cell num" placeholder="%" aria-label={$t('review.taxRate')} style="text-align:right;" />
+                        </td>
+                        <td>
+                          <select bind:value={taxBands[i].type} class="rev-cell" aria-label={$t('review.taxKind')}>
+                            <option value="">{$t('review.taxKindNone')}</option>
+                            <option value="iva">{$t('review.taxIva')}</option>
+                            <option value="rec">{$t('review.taxRec')}</option>
+                          </select>
+                        </td>
+                        <td class="num">
+                          <input type="text" bind:value={taxBands[i].base} oninput={() => syncBandAmount(i)}
+                            class="rev-cell num" aria-label={$t('review.taxBandBase')} style="text-align:right;" />
+                        </td>
+                        <td class="num">
+                          <input type="text" bind:value={taxBands[i].amount}
+                            class="rev-cell num" aria-label={$t('review.taxAmount')} style="text-align:right;font-weight:500;" />
+                        </td>
+                        <td>
+                          <button type="button" class="rev-icon-btn" style="width:22px;height:22px;"
+                            title={$t('review.taxRemoveBand')} aria-label={$t('review.taxRemoveBand')} onclick={() => removeBand(i)}>
+                            <Trash size={11} />
+                          </button>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="2" style="color:var(--mep-fg-3);">{$t('tbl.total')}</td>
+                      <td class="num" style="color:var(--mep-fg-3);">{fmt(taxBase)}</td>
+                      <td class="num" style="font-weight:600;">{fmt(taxTotal)}</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              {/if}
             </div>
           {/if}
 
@@ -848,19 +958,20 @@
             </div>
 
             <div class="rev-foot-totals">
-              {#if taxTotal > 0}
-                <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('extract.taxBase')} <span class="num" style="color:var(--mep-fg-2);">{fmt(lineTotal)}</span></span>
-                {#if taxBreakdown}
-                  <button type="button" class="rev-tax-toggle" onclick={() => taxPanelOpen = !taxPanelOpen}
-                    aria-expanded={taxPanelOpen}
-                    title={taxPanelOpen ? $t('review.hideTaxes') : $t('review.showTaxes')}>
-                    {$t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
-                    {#if !taxBaseMatchesLines}<AlertTriangle size={10} />{/if}
-                    <span class="rev-tax-caret" class:open={taxPanelOpen}><ChevronsRight size={11} /></span>
-                  </button>
-                {:else}
-                  <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('extract.vat')} <span class="num" style="color:var(--mep-fg-2);">{fmt(taxTotal)}</span></span>
-                {/if}
+              <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('extract.taxBase')} <span class="num" style="color:var(--mep-fg-2);">{fmt(lineTotal)}</span></span>
+              <button type="button" class="rev-tax-toggle" onclick={() => taxPanelOpen = !taxPanelOpen}
+                aria-expanded={taxPanelOpen}
+                title={taxPanelOpen ? $t('review.hideTaxes') : $t('review.showTaxes')}>
+                {$t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
+                {#if taxBands.length > 1}<span class="badge badge-neutral">{taxBands.length}</span>{/if}
+                {#if taxNeedsAttention}<AlertTriangle size={10} />{/if}
+                <span class="rev-tax-caret" class:open={taxPanelOpen}><ChevronsRight size={11} /></span>
+              </button>
+              {#if extractedDrift}
+                <span class="rev-foot-drift" title={$t('review.extractedDriftHint')}>
+                  {$t('review.extractedWas')} <span class="num">{fmt(originalTotalNum)}</span>
+                  <span class="num" style="font-weight:600;">{driftLabel}</span>
+                </span>
               {/if}
               <span style="font-size:12px;color:var(--mep-fg-2);">{$t('extract.calcTotal')}</span>
               <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmt(totalCalc)}</span>
