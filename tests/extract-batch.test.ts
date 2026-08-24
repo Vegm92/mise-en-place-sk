@@ -20,6 +20,10 @@ function makeItem(id: string, position: number, status: BatchItemStatus): BatchI
 		conversionNotes: null,
 		extractError: null,
 		queuedAt: null,
+		source: 'web',
+		sourceRef: null,
+		jobCode: null,
+		reviewStatus: null,
 	};
 }
 

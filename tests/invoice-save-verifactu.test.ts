@@ -41,6 +41,10 @@ function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
 		conversionNotes: null,
 		extractError: null,
 		queuedAt: null,
+		source: 'web',
+		sourceRef: null,
+		jobCode: null,
+		reviewStatus: null,
 	};
 }
 
