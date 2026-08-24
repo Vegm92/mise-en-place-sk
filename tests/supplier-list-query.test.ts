@@ -31,6 +31,7 @@ import {
 	type SupplierSortKey,
 } from '../src/lib/supplier-list';
 import { translations } from '../src/lib/i18n';
+import { VALID_CATEGORIES } from '../src/lib/constants';
 
 // ── Param parsing (pure — runs without a database) ────────────────────────────
 
@@ -137,6 +138,8 @@ type SupplierRow = {
 
 type LoadResult = {
 	suppliers: SupplierRow[];
+	categories: string[];
+	categoryCounts: Record<string, number>;
 	sort: SupplierSortKey;
 	search: string;
 	category: string;
@@ -347,5 +350,32 @@ describe.skipIf(!hasDbEnv)('suppliers load() — tenant scoping', () => {
 	it('serves the other restaurant only its own supplier', async () => {
 		const res = await loadSuppliers(ridB, 'sort=name_asc');
 		expect(names(res)).toEqual(['Alfa Pescados Ajeno']);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('suppliers load() — category chip order (issue #658)', () => {
+	it('puts the categories this tenant actually buys from first', async () => {
+		const res = await loadSuppliers(ridA, '');
+		const used = ['Pescados y Mariscos', 'Frutas y Verduras', 'Bebidas'];
+		expect(res.categories.slice(0, used.length).sort()).toEqual([...used].sort());
+		expect(res.categories).toHaveLength(VALID_CATEGORIES.length);
+	});
+
+	it('counts suppliers per category without counting another tenant\'s', async () => {
+		const res = await loadSuppliers(ridA, '');
+		expect(res.categoryCounts['Pescados y Mariscos']).toBe(1);
+		expect(res.categoryCounts['Frutas y Verduras']).toBe(1);
+		expect(res.categoryCounts['Bebidas']).toBe(1);
+		expect(res.categoryCounts['Congelados']).toBeUndefined();
+
+		const other = await loadSuppliers(ridB, '');
+		expect(other.categoryCounts['Pescados y Mariscos']).toBe(1);
+		expect(other.categories[0]).toBe('Pescados y Mariscos');
+	});
+
+	it('keeps the order stable when a filter narrows the list', async () => {
+		const unfiltered = await loadSuppliers(ridA, '');
+		const filtered = await loadSuppliers(ridA, 'q=alfa');
+		expect(filtered.categories).toEqual(unfiltered.categories);
 	});
 });
