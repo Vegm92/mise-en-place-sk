@@ -83,7 +83,7 @@ export function sumTaxCents(bands: TaxBand[]): number {
 export function taxableBaseCents(bands: TaxBand[]): number {
 	const perType = new Map<string, number>();
 	for (const band of bands) {
-		const key = band.type ?? '';
+		const key = band.type === 'rec' ? 'rec' : 'iva';
 		perType.set(key, (perType.get(key) ?? 0) + (toCents(band.base) ?? 0));
 	}
 	return Math.max(0, ...perType.values());
