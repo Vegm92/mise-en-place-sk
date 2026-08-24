@@ -4,6 +4,7 @@
   import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
+  import { getScoreColor } from '$lib/status';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Pencil from '@lucide/svelte/icons/pencil';
   import Trash2 from '@lucide/svelte/icons/trash-2';
@@ -61,12 +62,6 @@
 
   const today   = new Date().toISOString().slice(0, 10);
   const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-
-  function scoreColor(score: number) {
-    if (score >= 70) return '#3A8C5C';
-    if (score >= 40) return '#C8843A';
-    return '#E05555';
-  }
 
   function scoreLabelKey(score: number) {
     if (score >= 70) return 'sup.score.very';
@@ -276,13 +271,13 @@
             <div class="subtitle" style="flex:1;">{$t('sup.reliabilityShort')}</div>
             <div style="
               width:42px;height:42px;border-radius:50%;
-              border:3px solid {scoreColor(m.score)};
+              border:3px solid {getScoreColor(m.score)};
               display:flex;align-items:center;justify-content:center;flex-direction:column;
             ">
-              <span style="font-size:13px;font-weight:700;color:{scoreColor(m.score)};line-height:1;">{m.score}</span>
+              <span style="font-size:13px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
               <span style="font-size:8px;color:var(--mep-fg-3);">/100</span>
             </div>
-            <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
+            <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             {#each [
@@ -291,7 +286,7 @@
               { label: $t('sup.score.punctuality'), score: m.timelinessScore, max: 34 },
             ] as kpi}
               <div style="padding:8px;background:var(--mep-surface-2);border-radius:8px;text-align:center;">
-                <div style="font-size:14px;font-weight:700;color:{scoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
+                <div style="font-size:14px;font-weight:700;color:{getScoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
                 <div class="label" style="font-size:10px;margin-top:2px;">{kpi.label}</div>
               </div>
             {/each}
