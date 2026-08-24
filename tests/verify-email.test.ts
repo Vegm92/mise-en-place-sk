@@ -19,20 +19,23 @@ vi.mock('$lib/server/verification-token', () => ({
 	consumeVerificationToken: consumeVerificationTokenMock,
 }));
 vi.mock('$lib/server/db', () => {
-	const select = () => ({
-		from: () => ({ where: () => ({ limit: () => Promise.resolve(selectResult.rows) }) }),
-	});
-	const update = () => ({
-		set: (values: Record<string, unknown>) => {
-			updatedRows.push(values);
-			return { where: () => ({ returning: () => Promise.resolve([{ id: 'u1', email: 'a@b.com', ...values }]) }) };
-		},
-	});
+	const selectLimit = () => Promise.resolve(selectResult.rows);
+	const selectFrom = () => ({ where: () => ({ limit: selectLimit }) });
+	const select = () => ({ from: selectFrom });
+
+	const updateReturning = (values: Record<string, unknown>) =>
+		Promise.resolve([{ id: 'u1', email: 'a@b.com', ...values }]);
+	const updateSet = (values: Record<string, unknown>) => {
+		updatedRows.push(values);
+		return { where: () => ({ returning: () => updateReturning(values) }) };
+	};
+	const update = () => ({ set: updateSet });
+
 	return { db: { select, update } };
 });
 
 import { load as verifyLoad, actions as verifyActions } from '../src/routes/verify-email/+page.server';
-import { load as confirmLoad, actions as confirmActions } from '../src/routes/(app)/settings/confirm-email/+page.server';
+import { actions as confirmActions } from '../src/routes/(app)/settings/confirm-email/+page.server';
 
 function urlEvent(params: Record<string, string>, extra: Record<string, unknown> = {}) {
 	const url = new URL('https://app.example.test/verify-email');

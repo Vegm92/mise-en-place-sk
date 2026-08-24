@@ -28,6 +28,11 @@ const REQUIRED_VARS = [
 
 export type HealthStatus = 'ok' | 'warn' | 'error';
 
+function thresholdStatus(count: number, errorThreshold: number): HealthStatus {
+	if (count > errorThreshold) return 'error';
+	return count > 0 ? 'warn' : 'ok';
+}
+
 export interface HealthCheck {
 	name: string;
 	status: HealthStatus;
@@ -94,7 +99,7 @@ async function checkExtractionQueue(): Promise<{ checks: HealthCheck[]; stuck: n
 			checks: [
 				{
 					name: 'Extraction queue',
-					status: stuck > STUCK_ERROR_THRESHOLD ? 'error' : stuck > 0 ? 'warn' : 'ok',
+					status: thresholdStatus(stuck, STUCK_ERROR_THRESHOLD),
 					detail: stuck > 0
 						? `${stuck} item(s) stuck in queued/extracting > ${STUCK_MINUTES} min`
 						: 'No stalled items',
@@ -118,7 +123,7 @@ async function checkDeadLetterQueue(): Promise<{ checks: HealthCheck[]; pending:
 			pending,
 			checks: [{
 				name: 'Dead letter queue',
-				status: pending > DEAD_LETTER_ERROR_THRESHOLD ? 'error' : pending > 0 ? 'warn' : 'ok',
+				status: thresholdStatus(pending, DEAD_LETTER_ERROR_THRESHOLD),
 				detail: pending > 0 ? `${pending} record(s) parked for audit` : 'No parked records',
 				href: '/admin/dead-letters',
 			}],
@@ -166,12 +171,15 @@ async function checkSentry(): Promise<{ checks: HealthCheck[]; unresolved: numbe
 		const summary = await getIssueSummary();
 		const unresolved = summary?.unresolvedCount ?? 0;
 		const critical = summary?.criticalCount ?? 0;
+		let status: HealthStatus = 'ok';
+		if (critical > 0) status = 'error';
+		else if (unresolved > 0) status = 'warn';
 		return {
 			unresolved,
 			critical,
 			checks: [{
 				name: 'Sentry',
-				status: critical > 0 ? 'error' : unresolved > 0 ? 'warn' : 'ok',
+				status,
 				detail: `${unresolved} unresolved (${critical} critical)`,
 				href: '/admin/errors',
 			}],

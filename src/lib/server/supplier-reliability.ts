@@ -1,5 +1,5 @@
 import { db, forTenant } from './db';
-import { supplierMetrics, invoices, invoiceLineItems } from './schema';
+import { supplierMetrics, invoices } from './schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
 
 interface ReliabilityResult {
@@ -66,7 +66,9 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 	if (itemCvs.length === 0) return { score: 20, cv: null };
 	const cv = itemCvs.reduce((a, b) => a + b, 0) / itemCvs.length;
 
-	return { score: cv < 5 ? 33 : cv <= 15 ? 20 : 0, cv };
+	if (cv < 5) return { score: 33, cv };
+	if (cv <= 15) return { score: 20, cv };
+	return { score: 0, cv };
 }
 
 async function computeFrequencyScore(supplierId: number, restaurantId: string): Promise<number> {
@@ -95,12 +97,15 @@ async function computeFrequencyScore(supplierId: number, restaurantId: string): 
 	}
 
 	const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-	const threshold = avgGap <= 10 ? 10 : avgGap <= 20 ? 20 : 45;
+	let threshold = 45;
+	if (avgGap <= 10) threshold = 10;
+	else if (avgGap <= 20) threshold = 20;
 	const lastDate = dateObjs[dateObjs.length - 1]!;
 	const daysSinceLast = (Date.now() - lastDate.getTime()) / 86400000;
 	const missedCount = gaps.filter(g => g > threshold * 1.5).length + (daysSinceLast > threshold * 1.5 ? 1 : 0);
 
-	return missedCount === 0 ? 33 : missedCount <= 2 ? 15 : 0;
+	if (missedCount === 0) return 33;
+	return missedCount <= 2 ? 15 : 0;
 }
 
 async function computeTimelinessScore(supplierId: number, restaurantId: string): Promise<number> {
@@ -120,7 +125,8 @@ async function computeTimelinessScore(supplierId: number, restaurantId: string):
 	const r = row[0];
 	if (!r || Number(r.total) === 0) return 17;
 	const onTimePct = (Number(r.paid) / Number(r.total)) * 100;
-	return onTimePct >= 90 ? 34 : onTimePct >= 70 ? 20 : 0;
+	if (onTimePct >= 90) return 34;
+	return onTimePct >= 70 ? 20 : 0;
 }
 
 export async function computeAndCacheReliabilityScore(supplierId: number, restaurantId: string): Promise<ReliabilityResult> {

@@ -13,6 +13,18 @@ import {
 	supplierTotalSpendExpr,
 } from '$lib/server/supplier-list-query';
 
+function paymentBadge(hasOverdue: number, hasDueSoon: number): 'overdue' | 'due_soon' | 'paid_up' {
+	if (hasOverdue) return 'overdue';
+	if (hasDueSoon) return 'due_soon';
+	return 'paid_up';
+}
+
+function stabilityFromCv(cv: number): 'stable' | 'moderate' | 'volatile' {
+	if (cv < 5) return 'stable';
+	if (cv <= 15) return 'moderate';
+	return 'volatile';
+}
+
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
@@ -105,9 +117,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		await Promise.all(staleRefreshes);
 
 		const supplierList = rows.map((r) => {
-			const badge: 'overdue' | 'due_soon' | 'paid_up' = Number(r.has_overdue)
-				? 'overdue'
-				: Number(r.has_due_soon) ? 'due_soon' : 'paid_up';
+			const badge = paymentBadge(Number(r.has_overdue), Number(r.has_due_soon));
 
 			const cat = r.category ?? 'Other';
 			const metrics = metricsMap.get(r.id);
@@ -116,7 +126,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			let stabilityLevel: 'stable' | 'moderate' | 'volatile' | null = null;
 			if (metrics && invoiceCount >= 3) {
 				const cv = metrics.priceStabilityCv ?? 100;
-				stabilityLevel = cv < 5 ? 'stable' : cv <= 15 ? 'moderate' : 'volatile';
+				stabilityLevel = stabilityFromCv(cv);
 			}
 
 			const lastMonthSpend = Number(r.last_month_spend);

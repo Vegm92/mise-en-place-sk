@@ -11,7 +11,8 @@
 
   let items = $state<Row[]>(untrack(() => initRows(data.lineItems)));
 
-  const idempotencyKey = $derived.by(() => { void invoice.id; return crypto.randomUUID(); });
+  const newIdempotencyKeyFor = (_scope: unknown): string => crypto.randomUUID();
+  const idempotencyKey = $derived(newIdempotencyKeyFor(invoice.id));
 
   const rowsWithTotals = $derived(
     items.map(row => ({ ...row, total_price: calcTotal(row.quantity, row.unit_price) }))

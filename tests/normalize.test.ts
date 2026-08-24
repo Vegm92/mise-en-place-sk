@@ -65,6 +65,23 @@ describe('canonicalizeUnit', () => {
 		expect(canonicalizeUnit('Kg.')).toBe('kg');
 	});
 
+	it('strips a whole run of trailing dots, and nothing else', () => {
+		// The trailing-dot strip is anchored at the end of the key: a run of
+		// dots goes, dots elsewhere stay (and a dots-only unit is not a unit).
+		expect(canonicalizeUnit('kg...')).toBe('kg');
+		expect(canonicalizeUnit('ud ..')).toBeNull();
+		expect(canonicalizeUnit('...')).toBeNull();
+	});
+
+	it('does not blow up on a long trailing-dot run (regex backtracking DoS)', () => {
+		// unit text arrives from Gemini extraction and from supplier XML, so
+		// the strip must stay linear in the length of the dot run.
+		const start = performance.now();
+		expect(canonicalizeUnit(`kg${'.'.repeat(120000)}x`)).toBeNull();
+		expect(canonicalizeUnit(`kg${'.'.repeat(120000)}`)).toBe('kg');
+		expect(performance.now() - start).toBeLessThan(500);
+	});
+
 	it('maps UN/ECE Rec 20/21 codes (UBL unitCode)', () => {
 		expect(canonicalizeUnit('KGM')).toBe('kg');
 		expect(canonicalizeUnit('GRM')).toBe('g');
@@ -108,6 +125,35 @@ describe('normalizeSupplierName', () => {
 	it('converges a bare name and its legal-form variant on the same key', () => {
 		expect(normalizeSupplierName('Suministros Alimentarios Goya'))
 			.toBe(normalizeSupplierName('Suministros Alimentarios Goya, S.L.'));
+	});
+
+	it('recognises every legal form in the table, and reports it in compact form', () => {
+		// parseSupplierName's legal-form pattern is assembled from a token
+		// table; these cases pin one alternative each so a table edit that
+		// changes the generated pattern fails loudly.
+		const cases: Array<[string, string]> = [
+			['Goya S.L.U.',   'slu'],
+			['Goya S.L.N.E.', 'slne'],
+			['Goya S.A.U.',   'sau'],
+			['Goya S.C.P.',   'scp'],
+			['Goya S. Coop.', 'scoop'],
+			['Goya Coop.',    'coop'],
+			['Goya S.L.',     'sl'],
+			['Goya S.A.',     'sa'],
+			['Goya S.C.',     'sc'],
+			['Goya C.B.',     'cb'],
+		];
+		for (const [raw, legalForm] of cases) {
+			expect(parseSupplierName(raw)).toEqual({ base: 'goya', legalForm });
+		}
+	});
+
+	it('reads the legal form the same way however the separator is spelled', () => {
+		// Whitespace is collapsed before the pattern runs, so runs of spaces,
+		// tabs and a comma separator all reach it as a single space.
+		expect(parseSupplierName('Goya   S.  L.')).toEqual({ base: 'goya', legalForm: 'sl' });
+		expect(parseSupplierName('Goya,S.L.')).toEqual({ base: 'goya', legalForm: 'sl' });
+		expect(parseSupplierName('Goya\t\tS L')).toEqual({ base: 'goya', legalForm: 'sl' });
 	});
 
 	it('collapses whitespace and punctuation noise', () => {

@@ -54,20 +54,19 @@ vi.mock('$lib/server/db', () => {
 		return p;
 	};
 
+	const claimReturning = (values: { key: string; value: string }) => {
+		state.claimCalls.push({ key: values.key, value: values.value });
+		const granted = state.claims.shift() ?? true;
+		return Promise.resolve(granted ? [{ value: values.value }] : []);
+	};
+	const insertValues = (values: { key: string; value: string }) => ({
+		onConflictDoUpdate: () => ({ returning: () => claimReturning(values) }),
+	});
+
 	const db = {
 		select: () => chain(() => []),
 		execute: executeMock,
-		insert: () => ({
-			values: (values: { key: string; value: string }) => ({
-				onConflictDoUpdate: () => ({
-					returning: () => {
-						state.claimCalls.push({ key: values.key, value: values.value });
-						const granted = state.claims.shift() ?? true;
-						return Promise.resolve(granted ? [{ value: values.value }] : []);
-					},
-				}),
-			}),
-		}),
+		insert: () => ({ values: insertValues }),
 		update: () => ({
 			set: (values: Record<string, unknown>) => ({
 				where: () => {

@@ -18,10 +18,16 @@
 	const copy = $derived(TIER_COPY[tier.tier as TierId]);
 	const price = $derived(PROVISIONAL_PRICE[tier.tier as TierId]);
 	const idempotencyKey = crypto.randomUUID();
+
+	const borderColor = $derived.by(() => {
+		if (isRecommended) return 'var(--mep-acc)';
+		if (tier.isCurrent) return 'var(--mep-border-strong)';
+		return 'var(--mep-border)';
+	});
 </script>
 
 <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;position:relative;
-	border-color:{isRecommended ? 'var(--mep-acc)' : (tier.isCurrent ? 'var(--mep-border-strong)' : 'var(--mep-border)')};
+	border-color:{borderColor};
 	box-shadow:{isRecommended ? '0 0 0 1px var(--mep-acc), var(--mep-shadow-card)' : 'var(--mep-shadow-card)'};
 	background:{tier.isCurrent ? 'var(--mep-surface-2)' : 'var(--mep-surface)'};">
 	<div style="display:flex;align-items:center;gap:8px;">

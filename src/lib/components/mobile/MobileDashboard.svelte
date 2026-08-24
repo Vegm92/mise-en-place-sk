@@ -72,6 +72,12 @@
     [...suppliers].sort((a, b) => b.month_spend - a.month_spend).slice(0, 4)
   );
 
+  const budgetColor = $derived.by(() => {
+    if (budgetPct >= 90) return 'var(--mep-neg)';
+    if (budgetPct >= 70) return 'var(--mep-warn)';
+    return 'var(--mep-acc)';
+  });
+
   const currentMonthStr = $derived(toMonthStr(new Date()));
   const selectedMonth = $derived(
     ($page.data as { selectedMonth?: string }).selectedMonth
@@ -127,7 +133,7 @@
           <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 6px;">
             <span style="color: var(--mep-fg-3);">{$t('mdash.monthBudget')}</span>
             <span class="num" style="color: var(--mep-fg); font-weight: 500;">
-              <span style="color: {budgetPct >= 90 ? 'var(--mep-neg)' : budgetPct >= 70 ? 'var(--mep-warn)' : 'var(--mep-acc)'};">
+              <span style="color: {budgetColor};">
                 {budgetPct}%
               </span>
               {$ti('ddash.ofBudget', { amount: fmtEurCompact(totalBudget) })}
@@ -136,7 +142,7 @@
           <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
             <div style="
               width: {Math.min(budgetPct, 100)}%; height: 100%;
-              background: {budgetPct >= 90 ? 'var(--mep-neg)' : budgetPct >= 70 ? 'var(--mep-warn)' : 'var(--mep-acc)'};
+              background: {budgetColor};
             "></div>
           </div>
         </div>

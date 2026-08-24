@@ -46,7 +46,7 @@ function num(raw: string): number {
 
 function buildPackInfo(unitsPerPack: number, unitSize: number, token: string): PackInfo | null {
 	const base = SIZE_TO_BASE[token];
-	if (!base || !(unitsPerPack > 0) || !(unitSize > 0)) return null;
+	if (!base || unitsPerPack <= 0 || unitSize <= 0) return null;
 	return {
 		unitsPerPack,
 		unitSize,
@@ -56,39 +56,43 @@ function buildPackInfo(unitsPerPack: number, unitSize: number, token: string): P
 	};
 }
 
-const MULTIPACK = /(\d+)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/;
-const SINGLE = /(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/g;
+const MULTIPACK = /(?<!\d)(\d+)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/;
+const SINGLE = /(?<!\d)(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/g;
 const COUNT = /(?:caja|cajas|pack|packs|paquete|paquetes|estuche|estuches|blister|bandeja|display|lote|caja de|pack de)\s*(?:de\s*)?(\d+)\b/;
+
+function packFromMultipack(s: string): PackInfo | null {
+	const multi = MULTIPACK.exec(s);
+	if (!multi) return null;
+	const token = sizeToken(multi[3]);
+	if (!token) return null;
+	return buildPackInfo(num(multi[1]), num(multi[2]), token);
+}
+
+function packFromSingle(s: string): PackInfo | null {
+	SINGLE.lastIndex = 0;
+	let m: RegExpExecArray | null;
+	while ((m = SINGLE.exec(s)) !== null) {
+		const token = sizeToken(m[2]);
+		if (token) {
+			const info = buildPackInfo(1, num(m[1]), token);
+			if (info) return info;
+		}
+	}
+	return null;
+}
+
+function packFromCount(s: string): PackInfo | null {
+	const count = COUNT.exec(s);
+	if (!count) return null;
+	return buildPackInfo(num(count[1]), 1, 'ud');
+}
 
 export function parsePack(description: string | null | undefined, unit?: string | null): PackInfo | null {
 	for (const source of [description ?? '', unit ?? '']) {
 		const s = source.trim();
 		if (!s) continue;
-
-		const multi = MULTIPACK.exec(s);
-		if (multi) {
-			const token = sizeToken(multi[3]);
-			if (token) {
-				const info = buildPackInfo(num(multi[1]), num(multi[2]), token);
-				if (info) return info;
-			}
-		}
-
-		SINGLE.lastIndex = 0;
-		let m: RegExpExecArray | null;
-		while ((m = SINGLE.exec(s)) !== null) {
-			const token = sizeToken(m[2]);
-			if (token) {
-				const info = buildPackInfo(1, num(m[1]), token);
-				if (info) return info;
-			}
-		}
-
-		const count = COUNT.exec(s);
-		if (count) {
-			const info = buildPackInfo(num(count[1]), 1, 'ud');
-			if (info) return info;
-		}
+		const info = packFromMultipack(s) ?? packFromSingle(s) ?? packFromCount(s);
+		if (info) return info;
 	}
 	return null;
 }
@@ -120,7 +124,7 @@ const ABBREVIATIONS: Record<string, string> = {
 };
 
 function expandToken(token: string): string {
-	const key = token.includes('/') ? token.toLowerCase() : token.replace(/\.+$/, '').toLowerCase();
+	const key = token.includes('/') ? token.toLowerCase() : token.replace(/(?<!\.)\.+$/, '').toLowerCase();
 	return ABBREVIATIONS[key] ?? token;
 }
 
@@ -787,8 +791,9 @@ export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): 
 
 export function parseNormalizeResponse(text: string, validIds: Set<number>): NormalizeVerdict {
 	const trimmed = (text ?? '').trim();
+	const fenceEnd = trimmed.trimEnd().endsWith('```') ? -1 : undefined;
 	const body = trimmed.startsWith('```')
-		? trimmed.split('\n').slice(1, trimmed.trimEnd().endsWith('```') ? -1 : undefined).join('\n')
+		? trimmed.split('\n').slice(1, fenceEnd).join('\n')
 		: trimmed;
 	let parsed: unknown;
 	try {

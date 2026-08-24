@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad, Actions } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
+import { invoices, invoiceLineItems, invoiceAuditLog, suppliers } from '$lib/server/schema';
 import { asc, eq, and, isNull } from 'drizzle-orm';
 import { moneyToNullableNumber } from '$lib/server/money';
 

@@ -2,7 +2,7 @@
  * Golden tests for the deterministic pack parser (issue #299, Phase 3).
  */
 import { describe, it, expect } from 'vitest';
-import { parsePack, normalizedUnitPrice } from '../src/lib/server/products';
+import { parsePack, normalizedUnitPrice, expandAbbreviations } from '../src/lib/server/products';
 
 describe('parsePack — multipack "N x M<unit>"', () => {
 	it('parses 6x1L', () => {
@@ -66,6 +66,34 @@ describe('parsePack — no size found', () => {
 	it('returns null for empty input', () => {
 		expect(parsePack('', null)).toBeNull();
 		expect(parsePack(null, undefined)).toBeNull();
+	});
+});
+
+describe('parsePack — regex safety', () => {
+	it('still finds the size when a long code precedes it', () => {
+		// Supplier lines routinely start with a numeric reference; the size
+		// pattern must skip past it rather than latch onto its digits.
+		expect(parsePack('000123456789 Harina 6x1,5 kg')).toMatchObject({
+			unitsPerPack: 6, unitSize: 1.5, sizeUnit: 'kg', baseQuantity: 9,
+		});
+		expect(parsePack('987654321 Café molido 250 g')).toMatchObject({
+			unitsPerPack: 1, unitSize: 250, sizeUnit: 'g', baseQuantity: 0.25,
+		});
+	});
+
+	it('stays fast on a pathological all-digit description (regex backtracking DoS)', () => {
+		// description reaches parsePack straight from an upload or from Gemini
+		// output, so an unbounded digit run must not be quadratic.
+		const start = performance.now();
+		expect(parsePack('9'.repeat(60000))).toBeNull();
+		expect(performance.now() - start).toBeLessThan(500);
+	});
+
+	it('stays fast on a long trailing-dot token in expandAbbreviations', () => {
+		const start = performance.now();
+		expect(expandAbbreviations(`tern${'.'.repeat(120000)}`)).toBe('ternera');
+		expect(expandAbbreviations('Tern. picada')).toBe('ternera picada');
+		expect(performance.now() - start).toBeLessThan(500);
 	});
 });
 

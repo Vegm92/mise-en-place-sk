@@ -25,7 +25,8 @@ function groupDatesBySupplier(rows: SupplierInvoiceDate[]): Record<string, Set<s
 	const map: Record<string, Set<string>> = {};
 	for (const row of rows) {
 		if (!row.supplier_name || !row.invoice_date) continue;
-		(map[row.supplier_name] ??= new Set()).add(row.invoice_date);
+		map[row.supplier_name] ??= new Set();
+		map[row.supplier_name].add(row.invoice_date);
 	}
 	return map;
 }

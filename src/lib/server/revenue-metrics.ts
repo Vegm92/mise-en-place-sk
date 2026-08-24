@@ -136,6 +136,12 @@ async function liveSubscriptions(): Promise<LiveSubscription[]> {
 	return rows.map(row => ({ ...row, planTier: (row.planTier ?? 'trial') as PlanTier }));
 }
 
+function historySource(isCurrentMonth: boolean, monthRows: Array<{ source: string | null }>): string {
+	if (isCurrentMonth) return 'live';
+	if (monthRows.some(r => r.source === 'live')) return 'live';
+	return monthRows.length > 0 ? 'estimated' : 'none';
+}
+
 function mrrOf(sub: { planTier: PlanTier; status: string }): number {
 	return (ACTIVE_STATUSES as readonly string[]).includes(sub.status) ? planMonthlyPriceCents(sub.planTier) : 0;
 }
@@ -190,6 +196,37 @@ export async function runMrrSnapshotJob(): Promise<{ month: string; tenants: num
 	return await captureMrrSnapshot();
 }
 
+function backfillRowsFor(
+	sub: LiveSubscription,
+	today: string,
+): Array<typeof mrrSnapshots.$inferInsert> {
+	const price = planMonthlyPriceCents(sub.planTier);
+	if (price === 0) return [];
+
+	const startedAt = sub.trialEndsAt ?? sub.createdAt;
+	if (!startedAt) return [];
+	const from = monthKey(startedAt);
+
+	const endedAt = sub.status === 'canceled' ? sub.updatedAt : null;
+	const to = endedAt ? monthKey(endedAt) : today;
+	if (monthsBetween(from, to) < 0) return [];
+
+	const rows: Array<typeof mrrSnapshots.$inferInsert> = [];
+	for (const month of monthRange(from, to)) {
+		if (month === today) continue;
+		rows.push({
+			month,
+			restaurantId: sub.restaurantId,
+			planTier:     sub.planTier,
+			status:       'active',
+			mrrCents:     price,
+			atRiskCents:  0,
+			source:       'estimated',
+		});
+	}
+	return rows;
+}
+
 export async function backfillMrrSnapshots(
 	now: Date = new Date(),
 ): Promise<{ months: number; rows: number }> {
@@ -197,31 +234,7 @@ export async function backfillMrrSnapshots(
 	const today = currentMonth(now);
 	const rows: Array<typeof mrrSnapshots.$inferInsert> = [];
 
-	for (const sub of subs) {
-		const price = planMonthlyPriceCents(sub.planTier);
-		if (price === 0) continue;
-
-		const startedAt = sub.trialEndsAt ?? sub.createdAt;
-		if (!startedAt) continue;
-		const from = monthKey(startedAt);
-
-		const endedAt = sub.status === 'canceled' ? sub.updatedAt : null;
-		const to = endedAt ? monthKey(endedAt) : today;
-		if (monthsBetween(from, to) < 0) continue;
-
-		for (const month of monthRange(from, to)) {
-			if (month === today) continue;
-			rows.push({
-				month,
-				restaurantId: sub.restaurantId,
-				planTier:     sub.planTier,
-				status:       'active',
-				mrrCents:     price,
-				atRiskCents:  0,
-				source:       'estimated',
-			});
-		}
-	}
+	for (const sub of subs) rows.push(...backfillRowsFor(sub, today));
 
 	if (rows.length === 0) return { months: 0, rows: 0 };
 
@@ -475,7 +488,7 @@ export async function revenueOverview(now: Date = new Date()): Promise<RevenueOv
 			month: m,
 			mrrCents: rows.reduce((sum, r) => sum + r.mrrCents, 0),
 			payingCustomers: payers(rows),
-			source: m === month ? 'live' : (monthRows.some(r => r.source === 'live') ? 'live' : monthRows.length > 0 ? 'estimated' : 'none'),
+			source: historySource(m === month, monthRows),
 		};
 	});
 

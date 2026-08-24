@@ -2,7 +2,6 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { settings } from '$lib/server/schema';
-import { and, eq } from 'drizzle-orm';
 
 const VALID: readonly string[] = [
 	'1', '2', 'done',

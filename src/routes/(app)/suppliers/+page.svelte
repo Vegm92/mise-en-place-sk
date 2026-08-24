@@ -26,6 +26,12 @@
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
   const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly));
 
+  const unassignedSub = $derived.by(() => {
+    if (unassigned === 0) return $t('dsup.allAssigned');
+    if (unassigned === 1) return firstUnassigned;
+    return $ti('dsup.nSuppliers', { n: unassigned });
+  });
+
   let view = $state<'list' | 'chart'>('list');
 
   function listUrl(patch: Record<string, string | null>) {
@@ -74,7 +80,11 @@
     return createdAt ? new Date(createdAt) >= thirtyDaysAgo : false;
   }
   function deltaColor(v: number) { return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'; }
-  function deltaArrow(v: number) { return v > 0.05 ? '↑' : v < -0.05 ? '↓' : '·'; }
+  function deltaArrow(v: number) {
+    if (v > 0.05) return '↑';
+    if (v < -0.05) return '↓';
+    return '·';
+  }
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
@@ -106,7 +116,7 @@
       { key: 'count',     label: $t('dsup.activeSuppliers'), value: data.suppliers.length, sub: $t('dsup.inTotal') },
       { key: 'spend',     label: $t('spend.totalSpend'),     value: fmtEur(totalSpend),     sub: $t('dash.category.sub') },
       { key: 'invoices',  label: $t('nav.invoices'),         value: totalMonthInvoices,     sub: $t('dash.category.sub') },
-      { key: 'unassigned',label: $t('dsup.unassigned'),      value: unassigned, sub: unassigned === 0 ? $t('dsup.allAssigned') : unassigned === 1 ? firstUnassigned : $ti('dsup.nSuppliers', { n: unassigned }), variant: unassigned > 0 ? 'warn' : 'default' },
+      { key: 'unassigned',label: $t('dsup.unassigned'),      value: unassigned, sub: unassignedSub, variant: unassigned > 0 ? 'warn' : 'default' },
     ]}
     trendTitle={$t('sup.trend.title')}
     trendBadges={data.trendData.series.map(s => ({ key: s.key, label: s.label, color: categoryColor(s.key), active: activeTrendKeys.includes(s.key) }))}

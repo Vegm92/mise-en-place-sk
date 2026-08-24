@@ -32,10 +32,8 @@ function fatal(kind: string): (err: unknown) => void {
 	return (err) => {
 		console.error(`[worker] ${kind}:`, err);
 		Sentry.captureException(err);
-		void Promise.resolve(Sentry.flush(2000)).then(
-			() => process.exit(1),
-			() => process.exit(1),
-		);
+		const exit = () => process.exit(1);
+		Promise.resolve(Sentry.flush(2000)).then(exit, exit);
 	};
 }
 process.on('unhandledRejection', fatal('unhandledRejection'));
