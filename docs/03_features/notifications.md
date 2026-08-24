@@ -34,6 +34,20 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   `verifactu_qr_mismatch`.
 - **Storage**: `system_notifications(rid, invoiceId?, notificationType, message,
   payload, status pending|sent)`; index `(rid, status, created_at)`.
+- **Per-type preferences** (#577): each tenant can switch individual alert types
+  off in Ajustes → Alertas. The toggleable set is `price_shock`,
+  `budget_overage`, `possible_duplicate_purchase`, `supplier_uncategorized`,
+  `low_stock_forecast`, `weekly_digest`, `invoice_reminders`, grouped for the UI
+  as `purchase` / `inventory` / `reports`. Stored as `settings` rows keyed
+  `alert_pref_<type>` with value `true`/`false`; **absent means enabled**, so
+  existing tenants keep today's behaviour and no migration is needed.
+  `saveAlerts` is the single choke point: it drops every alert whose type maps
+  to a disabled preference before the insert, so a disabled type produces no
+  row at all. `supplier_category_suggested` rides on the
+  `supplier_uncategorized` toggle; alert types with no toggle
+  (`unit_conversion_needed`, `product_suggestion`, `verifactu_qr_mismatch`) are
+  never filtered. The two email jobs check their own toggle before doing any
+  work (`weekly_digest`, `invoice_reminders`).
 - **i18n**: `payload.messageKey/messageVars` rendered via `$tiv` in
   `NotificationItem.svelte`; icon/color/grouping from `notification-display.ts`
   (`priceShock`, `lowStock`, `budget`, `suppliers`, `other`).
@@ -54,6 +68,7 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
 
 `system_notifications`, `invoices`, `invoice_line_items`, `suppliers`,
 `stock_levels`, `category_budgets`, `settings`.
+Alert preferences live in `settings` under the `alert_pref_` key namespace.
 
 ## API dependencies
 
@@ -104,8 +119,12 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 - Every producer creates a `pending` row with the right payload; badge counts
   only overdue + exceeded budgets; dismiss → `sent`.
+- Every toggleable alert type has a switch in Ajustes → Alertas, grouped and
+  labelled; preferences round-trip through the `settings` table; a disabled type
+  generates no notification and no email.
 - Tests: `tests/events.test.ts`, `tests/alert-engine.test.ts`,
-  `tests/working-days.test.ts`.
+  `tests/working-days.test.ts`, `tests/alert-preferences.test.ts`,
+  `tests/settings-alert-preferences.test.ts`, `tests/scheduler.test.ts`.
 
 ## Code notes
 
@@ -188,6 +207,41 @@ Type ∈ known set; payload shape per type; tenant scope.
 **`function saveAlerts`**
 
 - Persists alert objects to system_notifications.
+- Filters the batch through `filterEnabledAlerts` first (#577). Gating here rather than inside each producer means one place decides, every producer (including future ones) inherits it, and the producers keep returning what they found — the preference is about delivery, not detection.
+
+### `src/lib/server/alert-preferences.ts`
+
+**`const ALERT_PREFERENCE_TYPES`**
+
+- The alert types a tenant may switch off (#577). Deliberately a subset: only alerts a restaurant can reasonably not want. Data-integrity nudges (`unit_conversion_needed`, `product_suggestion`, `verifactu_qr_mismatch`) are not toggleable — silencing them would silently degrade the numbers the rest of the app reports.
+
+**`const ALERT_PREFERENCE_GROUPS`**
+
+- The three groups the settings pane renders, in order. Group ids and type ids are also i18n key fragments (`set.alertPrefs.group.*`, `set.alertPrefs.type.*`, `set.alertPrefs.desc.*`), so adding a type is one entry here plus its two strings per locale.
+
+**`const ALERT_PREFERENCE_KEY_PREFIX`**
+
+- Namespaced so a preference key can never collide with the threshold keys already living in the same key/value `settings` table (`price_alert_threshold`, `budget_warning_threshold`, the one-shot job claims).
+
+**`const NOTIFICATION_TYPE_PREFERENCE`**
+
+- Producer notification type → the toggle that governs it. Not an identity map: `supplier_category_suggested` is the second half of the same conversation as `supplier_uncategorized`, so one switch turns both off; anything absent from this map is ungoverned and always delivered.
+
+**`function defaultAlertPreferences`**
+
+- Absent row means enabled. Existing tenants therefore keep exactly today's behaviour with no backfill, and no migration is needed for the feature at all.
+
+**`function loadAlertPreferences`**
+
+- One `IN` query for the whole set — the settings pane and `filterEnabledAlerts` both want every toggle at once.
+
+**`function isAlertEnabled`**
+
+- Single-toggle read for the two scheduled email jobs, which run per tenant and only care about one preference each.
+
+**`function filterEnabledAlerts`**
+
+- Early-outs before touching the database when nothing in the batch is governed, so the common invoice-save path adds a query only when it has something to gate.
 
 ### `src/lib/components/NotificationBell.svelte`
 
