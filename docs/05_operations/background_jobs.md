@@ -143,10 +143,12 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 **`function runWeeklyDigestJob`**
 
 - Weekly digest: generate this week's text via the same claim-then-generate path the dashboard uses, so a Monday visitor and this job never both pay Gemini; email to the owner. Only tiers whose plan includes the digest. Claim AFTER generating — a generation failure should not consume the week's email slot.
+- Per-tenant opt-out first (#577): `isAlertEnabled(rid, 'weekly_digest')` runs before generation, so a tenant that switched the digest off in Ajustes → Alertas never pays for a generation it will not receive.
 
 **`function runOverdueRemindersJob`**
 
 - Overdue invoices: one email per tenant per day, only when something is actually overdue.
+- Gated on the `invoice_reminders` toggle (#577), checked before the overdue query so a tenant that turned reminders off neither gets the email nor burns the day's claim.
 
 **`function trialDaysLeft`**
 

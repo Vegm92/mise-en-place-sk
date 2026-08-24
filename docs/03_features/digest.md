@@ -36,6 +36,10 @@ tenants) an email.
 - **Scheduling**: cron `0 6 * * 1` (Mon 06:00 UTC); filtered to
   `TIERS[tier].features.weeklyDigest`; email deduped by
   `claimOnce('weekly_digest_email_week')`.
+- **Opt-out** (#577): the scheduled email is skipped for tenants whose
+  `alert_pref_weekly_digest` setting is `false` (Ajustes → Alertas → Reportes),
+  checked before generation. The on-visit `/reports` page is unaffected — the
+  toggle governs the email, not the feature.
 - **On-visit**: `/digest` load generates if missing and the feature is enabled
   (gated: no feature → redirect `/billing?upgrade=digest`); `dismissDigest`
   action sets `_dismissed`.

@@ -21,6 +21,12 @@ import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_I
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
 import { renderQrSvg } from '$lib/server/qr-svg';
 import { activePairingCode, generatePairingCode, revokePairingCodes } from '$lib/server/whatsapp-pairing';
+import {
+	ALERT_PREFERENCE_GROUPS,
+	ALERT_PREFERENCE_TYPES,
+	loadAlertPreferences,
+	saveAlertPreferences as persistAlertPreferences,
+} from '$lib/server/alert-preferences';
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
@@ -49,7 +55,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -75,6 +81,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.from(users)
 				.where(eq(users.id, locals.user!.id))
 				.limit(1),
+			loadAlertPreferences(rid),
 		]);
 
 		const { features, maxLocations } = entitlements;
@@ -83,6 +90,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			title: 'nav.settings',
 			threshold:      row[0]      ? parseInt(row[0].value, 10)          : 80,
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
+			alertPreferences,
+			alertGroups: ALERT_PREFERENCE_GROUPS.map(group => ({ id: group.id, types: [...group.types] })),
 			profile: {
 				name:  userRow[0]?.name ?? '',
 				email: locals.user!.email,
@@ -130,6 +139,17 @@ export const actions: Actions = {
 				target: [settings.restaurantId, settings.key],
 				set: { value: stored },
 			});
+
+		redirect(303, '/settings');
+	},
+	saveAlertPreferences: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
+		const data = await request.formData();
+		const prefs = Object.fromEntries(
+			ALERT_PREFERENCE_TYPES.map(type => [type, data.has(`alert_${type}`)]),
+		) as Record<(typeof ALERT_PREFERENCE_TYPES)[number], boolean>;
+
+		await persistAlertPreferences(rid, prefs);
 
 		redirect(303, '/settings');
 	},

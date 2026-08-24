@@ -16,6 +16,7 @@ import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
 import { sweepIdempotencyKeys } from './idempotency';
+import { filterEnabledAlerts, isAlertEnabled } from './alert-preferences';
 
 const LOW_STOCK_DAYS = 3;
 const UNIT_PRICE = 'unitPrice';
@@ -526,8 +527,10 @@ export async function runPossibleDuplicatePurchase(
 
 export async function saveAlerts(invoiceId: number, restaurantId: string, alerts: Alert[]): Promise<void> {
 	if (alerts.length === 0) return;
+	const enabled = await filterEnabledAlerts(restaurantId, alerts);
+	if (enabled.length === 0) return;
 	await db.transaction(async (tx) => {
-		for (const alert of alerts) {
+		for (const alert of enabled) {
 			await tx.insert(systemNotifications).values({
 				invoiceId,
 				restaurantId,
@@ -642,6 +645,8 @@ export async function runWeeklyDigestJob(): Promise<{ considered: number; sent: 
 	const tenants = (await allTenants()).filter(t => TIERS[effectiveTier(t)].features.weeklyDigest);
 
 	return await perTenant('weekly-digest', tenants, async (tenant) => {
+		if (!(await isAlertEnabled(tenant.id, 'weekly_digest'))) return false;
+
 		const digest = await getOrGenerateWeeklyDigest(tenant.id, week);
 		if (!digest?.text) return false;
 
@@ -664,6 +669,8 @@ export async function runOverdueRemindersJob(): Promise<{ considered: number; se
 	const day = today();
 
 	return await perTenant('overdue-reminders', tenants, async (tenant) => {
+		if (!(await isAlertEnabled(tenant.id, 'invoice_reminders'))) return false;
+
 		const tdb = forTenant(tenant.id);
 		const [row] = await db.select({
 			count: sql<number>`COUNT(*)::int`,
