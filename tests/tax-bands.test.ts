@@ -232,7 +232,7 @@ describe('resolveTaxBreakdown (the form is authoritative once it posts bands)', 
 
   it('lets the reviewer clear the breakdown entirely', () => {
     const fd = form([['tax_bands_present', '1']]);
-    expect(resolveTaxBreakdown(fd, extracted)).toEqual({ taxBase: null, taxBreakdown: null });
+    expect(resolveTaxBreakdown(fd, extracted)).toEqual({ taxBase: null, taxBreakdown: null, bands: null });
   });
 
   it('falls back to the extraction when the form carries no tax fields', () => {
@@ -242,6 +242,6 @@ describe('resolveTaxBreakdown (the form is authoritative once it posts bands)', 
   });
 
   it('yields nulls when there is neither a form nor an extraction', () => {
-    expect(resolveTaxBreakdown(form([]), undefined)).toEqual({ taxBase: null, taxBreakdown: null });
+    expect(resolveTaxBreakdown(form([]), undefined)).toEqual({ taxBase: null, taxBreakdown: null, bands: null });
   });
 });
