@@ -7,23 +7,23 @@ describe('tourPageAccessible', () => {
 	});
 
 	it('blocks a gated page when the required feature is false', () => {
-		expect(tourPageAccessible('/digest', { weeklyDigest: false })).toBe(false);
+		expect(tourPageAccessible('/reports', { weeklyDigest: false })).toBe(false);
 	});
 
 	it('allows a gated page when the required feature is true', () => {
-		expect(tourPageAccessible('/digest', { weeklyDigest: true })).toBe(true);
+		expect(tourPageAccessible('/reports', { weeklyDigest: true })).toBe(true);
 	});
 });
 
 describe('nextAccessibleIndex', () => {
 	it('skips a gated step and lands on the next accessible one', () => {
-		const digestIndex = TOUR_PAGES.findIndex(p => p.path === '/digest');
+		const reportsIndex = TOUR_PAGES.findIndex(p => p.path === '/reports');
 		const trialFeatures = { weeklyDigest: false };
-		const idx = nextAccessibleIndex(TOUR_PAGES, digestIndex, trialFeatures);
-		expect(TOUR_PAGES[idx].path).not.toBe('/digest');
+		const idx = nextAccessibleIndex(TOUR_PAGES, reportsIndex, trialFeatures);
+		expect(TOUR_PAGES[idx].path).not.toBe('/reports');
 	});
 
-	it('walks a trial-tier user through the whole tour without ever landing on /digest', () => {
+	it('walks a trial-tier user through the whole tour without ever landing on /reports', () => {
 		const trialFeatures = { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false };
 		let idx = nextAccessibleIndex(TOUR_PAGES, 0, trialFeatures);
 		const visited: string[] = [];
@@ -31,7 +31,7 @@ describe('nextAccessibleIndex', () => {
 			visited.push(TOUR_PAGES[idx].path);
 			idx = nextAccessibleIndex(TOUR_PAGES, idx + 1, trialFeatures);
 		}
-		expect(visited).not.toContain('/digest');
+		expect(visited).not.toContain('/reports');
 		expect(visited.length).toBe(TOUR_PAGES.length - 1);
 	});
 

@@ -168,8 +168,12 @@ describe('ROUTE_POLICY — the routes issue #488 is about', () => {
 		expect(policyFor('/(app)/api/stock-levels')).toEqual({ feature: 'stockTracking' });
 	});
 
-	it('gates the digest route, covering both its load and its dismiss action', () => {
-		expect(policyFor('/(app)/digest')).toEqual({ feature: 'weeklyDigest', access: true });
+	it('gates the reports (weekly digest) route, covering both its load and its dismiss action', () => {
+		expect(policyFor('/(app)/reports')).toEqual({ feature: 'weeklyDigest', access: true });
+	});
+
+	it('leaves the retired /digest path open — it only redirects to /reports', () => {
+		expect(policyFor('/(app)/digest')).toBe('open');
 	});
 
 	it('gates price analytics and the chat api', () => {
