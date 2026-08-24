@@ -51,8 +51,18 @@ representan la navegación real. Conviene borrarlos o marcarlos.
 
 ## Tokens
 
-Todo sale de `src/app.css` (acento teal `#0f5f5c`, fondo `#f5f4f0`, familia
-Mona Sans) y, en móvil, de `src/lib/components/mobile`. El tipo de letra de
+Todo sale de `src/app.css`, con el acento **amber** (`--mep-acc: #8a530f`,
+hover `#7e4c0d`, soft `rgba(138,83,15,.10)`), fondo `#f5f4f0` y Mona Sans.
+
+Ojo con esto: el bloque teal aparece primero en `app.css` y va comentado como
+«Accent — teal (default)», pero **ninguna ruta lo usa**. Todas montan
+`<div class="mep" data-accent="amber">`, así que el acento real de la app es
+amber. El comentario induce a error.
+
+Los gráficos de gasto por categoría van con la paleta de series
+(`--mep-series-1..5` más `--mep-series-other` para el resto), igual que
+`MobileAnalyticsSpend`. Las barras de una sola serie (gasto por día) van en
+acento, como el `Sparkline`. El tipo de letra de
 los A4 sube al mínimo de imprenta (12 pt = 16 px a 96 ppp) en vez de la
 densidad de pantalla de la app.
 

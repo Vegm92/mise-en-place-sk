@@ -10,8 +10,8 @@
   <style>
     body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
     * { box-sizing: border-box; }
-    a { color: #0f5f5c; text-decoration: none; }
-    a:hover { color: #0b4f4c; }
+    a { color: #8a530f; text-decoration: none; }
+    a:hover { color: #7e4c0d; }
     .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
     .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
     .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
@@ -308,7 +308,7 @@
 </x-dc>
 
 <script data-dc-script data-props='{
-  "acento": {"editor": "enum", "options": ["teal", "slate", "amber"], "default": "teal", "section": "Marca"},
+  "acento": {"editor": "enum", "options": ["amber", "teal", "slate"], "default": "amber", "section": "Marca"},
   "estiloInicial": {"editor": "enum", "options": ["ejecutivo", "contable", "editorial"], "default": "ejecutivo", "section": "Estado inicial"},
   "tipoInicial": {"editor": "enum", "options": ["semanal", "cierre", "precios", "pagos"], "default": "cierre", "section": "Estado inicial"},
   "$preview": {"width": 1280, "height": 900}
@@ -321,7 +321,7 @@ class Component extends DCLogic {
       slate: { acc: '#34507a', soft: 'rgba(52, 80, 122, 0.10)', ring: 'rgba(52, 80, 122, 0.30)' },
       amber: { acc: '#8a530f', soft: 'rgba(138, 83, 15, 0.10)', ring: 'rgba(138, 83, 15, 0.30)' },
     };
-    const paleta = ACENTOS[this.props.acento] ?? ACENTOS.teal;
+    const paleta = ACENTOS[this.props.acento] ?? ACENTOS.amber;
     const acc = paleta.acc;
     const accSoft = paleta.soft;
 
