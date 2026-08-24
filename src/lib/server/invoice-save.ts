@@ -179,6 +179,10 @@ export function resolveTaxBreakdown(
 	formData: FormData,
 	extractedData: Record<string, unknown> | undefined,
 ): { taxBase: string | null; taxBreakdown: string | null; bands: TaxBand[] | null } {
+	const raw = extractedData?.tax_breakdown;
+	const extractedBands = Array.isArray(raw) ? (raw as TaxBand[]) : null;
+	const extractedBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
+
 	if (formData.get('tax_bands_present') !== null) {
 		const rates   = formData.getAll('tax_rates').map(String);
 		const types   = formData.getAll('tax_types').map(String);
@@ -192,17 +196,16 @@ export function resolveTaxBreakdown(
 			amount: amounts[i] ?? '',
 		})));
 
-		return bands.length
-			? { taxBase: taxableBaseMoney(bands), taxBreakdown: JSON.stringify(bands), bands }
-			: { taxBase: null, taxBreakdown: null, bands: null };
+		if (bands.length) {
+			return { taxBase: taxableBaseMoney(bands), taxBreakdown: JSON.stringify(bands), bands };
+		}
+		return { taxBase: extractedBands ? null : extractedBase, taxBreakdown: null, bands: null };
 	}
 
-	const raw = extractedData?.tax_breakdown;
-	const bands = Array.isArray(raw) ? (raw as TaxBand[]) : null;
 	return {
-		taxBase: toMoneyString(extractedData?.tax_base as string | number | null | undefined),
-		taxBreakdown: bands ? JSON.stringify(bands) : null,
-		bands,
+		taxBase: extractedBase,
+		taxBreakdown: extractedBands ? JSON.stringify(extractedBands) : null,
+		bands: extractedBands,
 	};
 }
 

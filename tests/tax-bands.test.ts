@@ -148,6 +148,22 @@ describe('taxableBaseCents (IVA and REC ride on the same base)', () => {
     expect(taxableBaseCents(bands)).toBe(55000);
   });
 
+  it('folds an untyped band into the IVA base instead of standing it up as its own', () => {
+    const bands = bandsFromInputs([
+      { rate: '21', type: 'iva', base: '100.00', amount: '21.00' },
+      { rate: '10', type: '', base: '50.00', amount: '5.00' },
+    ]);
+    expect(taxableBaseCents(bands)).toBe(15000);
+  });
+
+  it('still holds REC apart when it rides alongside an untyped band', () => {
+    const bands = bandsFromInputs([
+      { rate: '10', type: '', base: '739.85', amount: '73.98' },
+      { rate: '1,4', type: 'rec', base: '739.85', amount: '10.36' },
+    ]);
+    expect(taxableBaseCents(bands)).toBe(73985);
+  });
+
   it('sums untyped bands together', () => {
     const bands = bandsFromInputs([
       { rate: '10', type: '', base: '400.00', amount: '40.00' },
@@ -233,6 +249,14 @@ describe('resolveTaxBreakdown (the form is authoritative once it posts bands)', 
   it('lets the reviewer clear the breakdown entirely', () => {
     const fd = form([['tax_bands_present', '1']]);
     expect(resolveTaxBreakdown(fd, extracted)).toEqual({ taxBase: null, taxBreakdown: null, bands: null });
+  });
+
+  it('keeps an extracted tax_base when the extraction never carried bands to clear', () => {
+    const noBands = { tax_base: 500, tax_breakdown: null };
+    const fd = form([['tax_bands_present', '1']]);
+    expect(resolveTaxBreakdown(fd, noBands)).toEqual({
+      taxBase: '500.00', taxBreakdown: null, bands: null,
+    });
   });
 
   it('falls back to the extraction when the form carries no tax fields', () => {
