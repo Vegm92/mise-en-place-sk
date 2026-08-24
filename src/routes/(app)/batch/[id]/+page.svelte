@@ -679,10 +679,10 @@
             {/if}
             <div style="flex-shrink:0;display:flex;align-items:center;gap:6px;{queueOpen ? '' : 'position:absolute;'}">
               {#if q.status === 'confirmed'}
-                <div style="width:18px;height:18px;border-radius:9px;background:var(--mep-pos-soft);color:var(--mep-pos);display:flex;align-items:center;justify-content:center;"><Check size={11} /></div>
+                <div style="width:18px;height:18px;border-radius:var(--mep-r-pill);background:var(--mep-pos-soft);color:var(--mep-pos);display:flex;align-items:center;justify-content:center;"><Check size={11} /></div>
               {:else if q.status === 'done'}
                 {#if queueOpen}
-                  <div style="width:18px;height:18px;border-radius:9px;background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;"><Check size={11} /></div>
+                  <div style="width:18px;height:18px;border-radius:var(--mep-r-pill);background:var(--mep-acc-soft);color:var(--mep-acc);display:flex;align-items:center;justify-content:center;"><Check size={11} /></div>
                 {/if}
               {:else if q.status === 'extracting'}
                 <svg width="18" height="18" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;color:var(--mep-acc);">
@@ -691,7 +691,7 @@
                 </svg>
               {:else if q.status === 'queued'}
                 {#if queueOpen}
-                  <div style="width:18px;height:18px;border-radius:9px;border:1px dashed var(--mep-border);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;"><Clock size={10} /></div>
+                  <div style="width:18px;height:18px;border-radius:var(--mep-r-pill);border:1px dashed var(--mep-border);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;"><Clock size={10} /></div>
                 {/if}
               {:else if q.status === 'failed'}
                 <span style="color:var(--mep-neg);display:inline-flex;"><AlertTriangle size={13} /></span>
