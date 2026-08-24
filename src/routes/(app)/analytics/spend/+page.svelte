@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
   import { t, tcat } from '$lib/i18n';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
 
@@ -16,7 +17,6 @@
     return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
   }
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   interface DonutSlice {
     label: string; spend: number; pct: number; color: string;
     itemCount: number | null; avgPrice: number | null; supplierName: string | null;
@@ -32,11 +32,11 @@
     const restSpend = rest.reduce((a, p) => a + p.total_spend, 0);
 
     const entries: Omit<DonutSlice, 'pct' | 'dash' | 'offset'>[] = top.map((p, i) => ({
-      label: p.description, spend: p.total_spend, color: SERIES_COLORS[i],
+      label: p.description, spend: p.total_spend, color: seriesColor(i),
       itemCount: p.item_count ?? null, avgPrice: p.avg_unit_price ?? null, supplierName: p.supplier_name ?? null,
     }));
     if (restSpend > 0) {
-      entries.push({ label: $t('spend.other'), spend: restSpend, color: 'var(--mep-series-other)',
+      entries.push({ label: $t('spend.other'), spend: restSpend, color: SERIES_OTHER,
         itemCount: null, avgPrice: null, supplierName: null });
     }
 
@@ -185,13 +185,13 @@
               <div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
                   <span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--mep-fg-2);">
-                    <span style="width:10px;height:10px;border-radius:2px;background:{cat.color};display:inline-block;flex-shrink:0;"></span>
+                    <span style="width:10px;height:10px;border-radius:2px;background:{categoryColor(cat.category)};display:inline-block;flex-shrink:0;"></span>
                     {$tcat(cat.category)}
                   </span>
                   <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmtEur(cat.total)}</span>
                 </div>
                 <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;">
-                  <div style="width:{cat.pct}%;height:100%;background:{cat.color};border-radius:4px;"></div>
+                  <div style="width:{cat.pct}%;height:100%;background:{categoryColor(cat.category)};border-radius:4px;"></div>
                 </div>
               </div>
             {/each}

@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
-import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { VALID_CATEGORIES } from '$lib/constants';
 import { trackEvent } from '$lib/server/events';
 import { toMonthStr, parseMonthParam } from '$lib/formatters';
 import { toMoneyString, moneyToNumber } from '$lib/server/money';
@@ -50,7 +50,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			categories,
 			budgets,
 			category_spend,
-			colors: CATEGORY_COLORS,
 			selectedMonth,
 			currentMonth,
 		};

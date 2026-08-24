@@ -18,10 +18,10 @@
     caption?: string;
   } = $props();
 
-  const TONE: Record<Status, { fg: string; soft: string }> = {
-    ok:    { fg: 'var(--mep-pos)',  soft: 'var(--mep-pos-soft)' },
-    warn:  { fg: 'var(--mep-warn)', soft: 'var(--mep-warn-soft)' },
-    error: { fg: 'var(--mep-neg)',  soft: 'var(--mep-neg-soft)' },
+  const TONE: Record<Status, { fg: string; soft: string; ink: string }> = {
+    ok:    { fg: 'var(--mep-pos)',  soft: 'var(--mep-pos-soft)',  ink: 'var(--mep-pos-fg)' },
+    warn:  { fg: 'var(--mep-warn)', soft: 'var(--mep-warn-soft)', ink: 'var(--mep-warn-fg)' },
+    error: { fg: 'var(--mep-neg)',  soft: 'var(--mep-neg-soft)',  ink: 'var(--mep-neg-fg)' },
   };
 
   const tone = $derived(TONE[status] ?? TONE.ok);
@@ -34,7 +34,7 @@
   <div style="display:flex;align-items:center;gap:14px;min-width:0;">
     <div style="
       width:40px;height:40px;border-radius:20px;flex-shrink:0;
-      background:{tone.fg};color:#fff;
+      background:{tone.fg};color:{tone.ink};
       display:flex;align-items:center;justify-content:center;
       box-shadow:0 0 0 5px {tone.soft};
     ">

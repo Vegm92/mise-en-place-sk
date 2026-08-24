@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
   import { page } from '$app/stores';
+  import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
@@ -36,7 +37,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   const is = (path: string) => p === path || p.startsWith(path + '/');
 
   let theme = $state<'light' | 'dark'>(
-    browser ? ((document.documentElement.dataset.theme as 'light' | 'dark') || 'light') : 'light'
+    browser ? currentTheme() : 'light'
   );
   let mobileOpen = $state(false);
   let sidebarCollapsed = $state(
@@ -136,9 +137,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   });
 
   function toggleTheme() {
-    theme = theme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('mep-theme', theme);
-    document.documentElement.dataset.theme = theme;
+    theme = flipTheme();
   }
 
   function toggleLocale() {

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
+  import { categoryColor, categoryTint, seriesColor } from '$lib/colors';
   import { page } from '$app/stores';
   import { t, tcat, ti } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
@@ -11,7 +12,7 @@
   type ConversionPrompt = PageData['conversionPrompts'][number];
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { products, suggestions, conversionPrompts, categories, colors } = $derived(data);
+  const { products, suggestions, conversionPrompts, categories } = $derived(data);
 
   let tab            = $state<'catalog' | 'suggestions'>('catalog');
   let search         = $state('');
@@ -41,7 +42,7 @@
   }));
 
   const trendSeries = $derived(
-    data.trendData.series.map(s => ({ key: s.key, label: $t(s.label), color: s.color, values: s.values }))
+    data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.label), color: seriesColor(i), values: s.values }))
   );
 
   async function saveConversion(prompt: ConversionPrompt, event: SubmitEvent) {
@@ -104,7 +105,7 @@
       { key: 'categories',  label: $t('prod.kpi.categories'),     value: categoryCount },
     ]}
     trendTitle={$t('prod.trend.title')}
-    trendBadges={data.trendData.series.map(s => ({ key: s.key, label: $t(s.label), color: s.color, active: true }))}
+    trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.label), color: seriesColor(i), active: true }))}
     trendXLabels={data.trendData.xLabels}
     {trendSeries}
     trendValueFormatter={(v) => String(v)}
@@ -187,7 +188,7 @@
                     <a href="/products/{p.id}" class="body-strong" style="text-decoration:none;color:inherit;">{p.canonicalName}</a>
                   </td>
                   <td>
-                    <span class="badge" style="background:{colors[p.category]}22;color:{colors[p.category]};">{$tcat(p.category)}</span>
+                    <span class="badge" style="background:{categoryTint(p.category)};color:{categoryColor(p.category)};">{$tcat(p.category)}</span>
                   </td>
                   <td class="body text-fg-3" style="font-size:12px;">{p.canonicalUnit ?? '—'}</td>
                   <td class="num">{p.supplierCount}</td>

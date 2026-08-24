@@ -7,7 +7,8 @@
 
 .mep {
   font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mep-fs-mono: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+  --mep-font:    'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mep-fs-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   -webkit-font-smoothing: antialiased;
   color: var(--mep-fg);
   background: var(--mep-bg);
@@ -31,6 +32,14 @@
   --mep-warn-soft:rgba(126, 76, 13, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
+
+  /* Ink for text/glyphs sitting ON a solid semantic fill. Same role as
+     --mep-acc-fg: never hard-code #fff against --mep-neg/-warn/-pos/-info,
+     the dark ramp is far too light for white to stay legible. */
+  --mep-pos-fg:  #ffffff;
+  --mep-neg-fg:  #ffffff;
+  --mep-warn-fg: #ffffff;
+  --mep-info-fg: #ffffff;
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
@@ -57,16 +66,40 @@
   --mep-shadow-card: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);
   --mep-shadow-pop:  0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10);
 
-  /* Categorical series (fixed order, never cycled — see dataviz color formula) */
-  --mep-series-1: #2a78d6;
+  /* Categorical series (fixed order, never cycled — see dataviz color formula).
+     ListPageTemplate colours its trend-badge *text* with these over a 12% tint
+     of the same hue, so they carry a 4.5:1 target, not the 3:1 graphical floor. */
+  --mep-series-1: #2776d3;
   --mep-series-2: #008300;
-  --mep-series-3: #e87ba4;
-  --mep-series-4: #eda100;
-  --mep-series-5: #1baf7a;
-  --mep-series-other: #9aa3af;
+  --mep-series-3: #bb537c;
+  --mep-series-4: #9e6b0d;
+  --mep-series-5: #12865c;
+  --mep-series-other: #6e7682;
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
+
+  /* Spend categories. Light values are the originals; the dark ramp below is
+     the same 17 hues lifted in OKLCH until each clears 4.5:1 on --mep-surface,
+     because these are used as text on their own tint (supplier avatars,
+     product badges) as well as swatch fills. */
+  --mep-cat-frutas-y-verduras:            #3B6B20;
+  --mep-cat-carnes-y-derivados:           #8B3530;
+  --mep-cat-pescados-y-mariscos:          #2C5F8A;
+  --mep-cat-lacteos:                      #C9A227;
+  --mep-cat-aceites-y-conservas:          #9A7B1E;
+  --mep-cat-bebidas:                      #1B5E5E;
+  --mep-cat-panaderia-y-bolleria:         #A8642B;
+  --mep-cat-especias-y-condimentos:       #7A3B6B;
+  --mep-cat-productos-de-limpieza:        #4A6B7A;
+  --mep-cat-congelados:                   #3A6E8B;
+  --mep-cat-embutidos-y-charcuteria:      #7A2E2A;
+  --mep-cat-vinos-y-cavas:                #6B4423;
+  --mep-cat-cafe-y-bebidas-calientes:     #4A3324;
+  --mep-cat-mantenimiento-y-reparaciones: #5C5C5C;
+  --mep-cat-material-y-menaje:            #7A6B55;
+  --mep-cat-embalaje-y-packaging:         #6B7A5C;
+  --mep-cat-other:                        #555566;
 }
 
 /* Dark */
@@ -80,8 +113,8 @@
 
   --mep-fg:   #ece9e2;
   --mep-fg-2: #a8a39a;
-  --mep-fg-3: #6f6a62;
-  --mep-fg-4: #524d46;
+  --mep-fg-3: #918b82;
+  --mep-fg-4: #787168;
 
   --mep-border:       rgba(255, 255, 255, 0.08);
   --mep-border-strong:rgba(255, 255, 255, 0.14);
@@ -92,11 +125,11 @@
 
   /* Categorical series — same 6 hues, stepped for the dark surface */
   --mep-series-1: #3987e5;
-  --mep-series-2: #008300;
-  --mep-series-3: #d55181;
+  --mep-series-2: #2b9927;
+  --mep-series-3: #db5686;
   --mep-series-4: #c98500;
   --mep-series-5: #199e70;
-  --mep-series-other: #6f6a62;
+  --mep-series-other: #89847b;
 
   /* WCAG AA-adjusted semantics for dark */
   --mep-pos:       #4cae7d;
@@ -108,8 +141,33 @@
   --mep-info:      #5f8ee0;
   --mep-info-soft: rgba(95, 142, 224, 0.18);
 
+  --mep-pos-fg:  #08211a;
+  --mep-neg-fg:  #2a0d0d;
+  --mep-warn-fg: #2a1a08;
+  --mep-info-fg: #0d1828;
+
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
+
+  /* Spend categories — hue preserved, lightness lifted for the dark ground.
+     Every value clears 4.5:1 on --mep-surface and 4.15:1 on --mep-surface-2. */
+  --mep-cat-frutas-y-verduras:            #619348;
+  --mep-cat-carnes-y-derivados:           #d3756d;
+  --mep-cat-pescados-y-mariscos:          #6195c3;
+  --mep-cat-lacteos:                      #c9a227;
+  --mep-cat-aceites-y-conservas:          #a08126;
+  --mep-cat-bebidas:                      #508f8f;
+  --mep-cat-panaderia-y-bolleria:         #ba753d;
+  --mep-cat-especias-y-condimentos:       #b36fa1;
+  --mep-cat-productos-de-limpieza:        #6f91a1;
+  --mep-cat-congelados:                   #568ba9;
+  --mep-cat-embutidos-y-charcuteria:      #c16e67;
+  --mep-cat-vinos-y-cavas:                #a77c5a;
+  --mep-cat-cafe-y-bebidas-calientes:     #a68b79;
+  --mep-cat-mantenimiento-y-reparaciones: #868686;
+  --mep-cat-material-y-menaje:            #93846d;
+  --mep-cat-embalaje-y-packaging:         #7b8b6c;
+  --mep-cat-other:                        #8f8fa2;
 }
 
 /* Accent — teal (default) */
@@ -171,6 +229,18 @@
    Add an entry here when a new MEP token needs a Tailwind utility.
    ─────────────────────────────────────────────────────────────────── */
 
+/* Rewire Tailwind's `dark:` onto the signal this app actually themes on.
+   By default it compiles to @media (prefers-color-scheme: dark) — the OS
+   setting — while MEP themes on data-theme, which theme-init.js takes from
+   localStorage and only falls back to the OS preference for. The two agree
+   until someone uses the theme toggle, at which point a `dark:` utility paints
+   for the opposite theme from every token around it.
+
+   Nothing needs `dark:` today: the tokens below are already theme-aware, so
+   `bg-surface` flips on its own. This is here so that if someone does reach for
+   it, it follows the toggle instead of silently disagreeing with it. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme inline {
   --font-sans: 'Mona Sans', system-ui, sans-serif;
 
@@ -190,12 +260,16 @@
   --color-acc-soft:      var(--mep-acc-soft);
   --color-pos:           var(--mep-pos);
   --color-pos-soft:      var(--mep-pos-soft);
+  --color-pos-fg:        var(--mep-pos-fg);
   --color-neg:           var(--mep-neg);
   --color-neg-soft:      var(--mep-neg-soft);
+  --color-neg-fg:        var(--mep-neg-fg);
   --color-warn:          var(--mep-warn);
   --color-warn-soft:     var(--mep-warn-soft);
+  --color-warn-fg:       var(--mep-warn-fg);
   --color-info:          var(--mep-info);
   --color-info-soft:     var(--mep-info-soft);
+  --color-info-fg:       var(--mep-info-fg);
 
   --shadow-card: var(--mep-shadow-card);
   --shadow-pop:  var(--mep-shadow-pop);

@@ -41,7 +41,7 @@
           position: absolute; top: -4px; right: -8px;
           min-width: 14px; height: 14px; padding: 0 4px;
           border-radius: 7px; font-size: 9px; font-weight: 700;
-          background: var(--mep-warn); color: #fff;
+          background: var(--mep-warn); color: var(--mep-warn-fg);
           display: inline-flex; align-items: center; justify-content: center;
         ">{invBadge}</span>
       {/if}
@@ -81,7 +81,7 @@
           position: absolute; top: -4px; right: -8px;
           min-width: 14px; height: 14px; padding: 0 4px;
           border-radius: 7px; font-size: 9px; font-weight: 700;
-          background: var(--mep-neg); color: #fff;
+          background: var(--mep-neg); color: var(--mep-neg-fg);
           display: inline-flex; align-items: center; justify-content: center;
         ">{alertBadge}</span>
       {/if}

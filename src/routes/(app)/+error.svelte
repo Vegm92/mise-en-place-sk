@@ -19,6 +19,6 @@
 		gap: 1rem;
 	}
 	h1 { font-size: 3rem; margin: 0; }
-	p  { color: var(--muted, #666); }
+	p  { color: var(--mep-fg-3); }
 	a  { color: inherit; text-decoration: underline; }
 </style>

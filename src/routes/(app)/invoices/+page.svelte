@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { seriesColor } from '$lib/colors';
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { fmt, fmtDateShort, fmtEur } from '$lib/formatters';
@@ -99,7 +100,7 @@
   const trendSeries = $derived(
     data.trendData.series
       .filter(s => activeTrendKeys.includes(s.key))
-      .map(s => ({ key: s.key, label: $t(s.labelKey), color: s.color, values: s.values }))
+      .map((s, i) => ({ key: s.key, label: $t(s.labelKey), color: seriesColor(i), values: s.values }))
   );
 
   let checkedIds = $state<Set<number>>(new Set());
@@ -225,7 +226,7 @@
       { key: 'suppliers', label: $t('inv.kpi.suppliers'), value: stats.supplier_count, sub: $t('dash.kpi.active') },
     ]}
     trendTitle={$t('inv.trend.title')}
-    trendBadges={data.trendData.series.map(s => ({ key: s.key, label: $t(s.labelKey), color: s.color, active: activeTrendKeys.includes(s.key) }))}
+    trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.labelKey), color: seriesColor(i), active: activeTrendKeys.includes(s.key) }))}
     onToggleTrendBadge={toggleTrendBadge}
     trendXLabels={data.trendData.xLabels}
     {trendSeries}

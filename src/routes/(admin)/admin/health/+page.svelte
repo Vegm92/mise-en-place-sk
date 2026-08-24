@@ -32,7 +32,7 @@
     <div style="display:flex;align-items:center;gap:16px;min-width:0;">
       <div style="
         width:44px;height:44px;border-radius:22px;flex-shrink:0;
-        background:{isOk ? 'var(--mep-pos)' : 'var(--mep-neg)'};color:#fff;
+        background:{isOk ? 'var(--mep-pos)' : 'var(--mep-neg)'};color:{isOk ? 'var(--mep-pos-fg)' : 'var(--mep-neg-fg)'};
         display:flex;align-items:center;justify-content:center;
         box-shadow:0 0 0 6px {isOk ? 'var(--mep-pos-soft)' : 'var(--mep-neg-soft)'};
       ">

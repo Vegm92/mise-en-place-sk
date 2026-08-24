@@ -65,22 +65,7 @@ export function periodToDate(p: string): Date {
 	return d;
 }
 
-export const CATEGORY_COLORS: Record<string, string> = {
-	'Frutas y Verduras':        '#3B6B20',
-	'Carnes y Derivados':       '#8B3530',
-	'Pescados y Mariscos':      '#2C5F8A',
-	'Lácteos':                  '#C9A227',
-	'Aceites y Conservas':      '#9A7B1E',
-	'Bebidas':                  '#1B5E5E',
-	'Panadería y Bollería':     '#A8642B',
-	'Especias y Condimentos':   '#7A3B6B',
-	'Productos de Limpieza':    '#4A6B7A',
-	'Congelados':               '#3A6E8B',
-	'Embutidos y Charcutería':  '#7A2E2A',
-	'Vinos y Cavas':            '#6B4423',
-	'Café y Bebidas Calientes':      '#4A3324',
-	'Mantenimiento y Reparaciones':  '#5C5C5C',
-	'Material y Menaje':             '#7A6B55',
-	'Embalaje y Packaging':          '#6B7A5C',
-	'Other':                         '#555566',
-};
+// Category colours now live in `$lib/colors`, backed by the
+// --mep-cat-* custom properties in app.css, so they follow the active theme.
+// They were deliberately moved out of this module: it is imported by load
+// functions, and a colour map here is what let styling leak server-side.

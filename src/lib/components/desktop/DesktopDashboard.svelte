@@ -1,5 +1,6 @@
 <script lang="ts">
   import TrendChart from '$lib/components/TrendChart.svelte';
+  import { categoryColor } from '$lib/colors';
   import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
@@ -21,8 +22,8 @@
   interface Projection { projected_eom: number; days_elapsed: number; elapsed_pct: number }
   interface PendingInvoice { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; item_count: number; display_amount: number | null }
   interface RecentInvoice { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; item_count: number; display_amount: number | null; status: string }
-  interface Supplier { name: string; color: string | null; month_spend: number; delta: number | null }
-  interface CategorySpend { category: string; color: string; total: number; pct: number }
+  interface Supplier { name: string; category: string | null; month_spend: number; delta: number | null }
+  interface CategorySpend { category: string; total: number; pct: number }
   interface Reminder { id: number; supplier_name: string | null; display_amount: number | null; overdue: boolean; days_delta: number }
   interface Aging { fresh: number; mid: number; old: number }
   interface MissingInvoice { supplier_name: string; days_late: number; frequency: string }
@@ -146,7 +147,7 @@
     const slices = ranked.map((c) => {
       const pct = c.total / total;
       const dash = pct * CAT_DONUT_CIRC;
-      const slice = { category: c.category, total: c.total, pct, color: c.color, dash, offset: cursor };
+      const slice = { category: c.category, total: c.total, pct, color: categoryColor(c.category), dash, offset: cursor };
       cursor += dash;
       return slice;
     });
@@ -382,7 +383,7 @@
         {#each supplierRows as s (s.name)}
           <SupplierRow
             name={s.name}
-            color={s.color ?? 'var(--mep-fg-3)'}
+            color={categoryColor(s.category)}
             spend={s.month_spend}
             pct={s.pct}
             barWidth={s.barWidth}
@@ -552,11 +553,12 @@
         <SectionCard title={$t('dash.category')} sub={$t('dash.category.sub')}>
           <div class="flex flex-col gap-2.5">
             {#each data.category_spend as cat (cat.category)}
+              {@const catColor = categoryColor(cat.category)}
               <div class="flex items-center gap-3">
-                <span class="swatch" style="background:{cat.color};"></span>
+                <span class="swatch" style="background:{catColor};"></span>
                 <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap w-[90px] flex-shrink-0 text-xs" title={$tcat(cat.category)}>{$tcat(cat.category)}</span>
                 <div class="flex-1 h-1.5 bg-divider rounded-full overflow-hidden">
-                  <div class="h-full rounded-full" style="width:{cat.pct}%;background:{cat.color};"></div>
+                  <div class="h-full rounded-full" style="width:{cat.pct}%;background:{catColor};"></div>
                 </div>
                 <span class="num text-fg font-semibold w-[60px] text-right flex-shrink-0 text-xs">{fmtEurCompact(cat.total)}</span>
               </div>
