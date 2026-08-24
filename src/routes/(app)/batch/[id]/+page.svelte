@@ -6,6 +6,7 @@
   import { str } from '$lib/formatters';
   import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
   import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
+  import FileTypeBadge from '$lib/components/FileTypeBadge.svelte';
   import Check from '@lucide/svelte/icons/check';
   import Clock from '@lucide/svelte/icons/clock';
   import Sparkle from '@lucide/svelte/icons/sparkle';
@@ -253,9 +254,11 @@
       <div style="flex:1;overflow-y:auto;min-height:0;">
         {#each data.queue as q (q.id)}
           <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--mep-divider);background:{q.id === data.review?.itemId || q.status === 'extracting' ? 'var(--mep-acc-soft)' : 'transparent'};">
-            <div style="width:30px;height:38px;border-radius:4px;flex-shrink:0;background:{q.type === 'PDF' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;opacity:{q.status === 'confirmed' ? 0.55 : 1};">
-              {q.type}
-            </div>
+            <FileTypeBadge
+              kind={q.type === 'PDF' ? 'pdf' : 'other'}
+              label={q.type}
+              opacity={q.status === 'confirmed' ? 0.55 : 1}
+            />
             <div style="flex:1;min-width:0;">
               <div style="font-size:12.5px;font-weight:500;color:{q.status === 'confirmed' ? 'var(--mep-fg-3)' : 'var(--mep-fg)'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{q.name}</div>
               <div class="num" style="font-size:11px;color:var(--mep-fg-3);">
