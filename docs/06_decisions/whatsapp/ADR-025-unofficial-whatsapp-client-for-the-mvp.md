@@ -86,6 +86,14 @@ is bound the damage:
   ones while unpaired.
 - A logged-out session does not reconnect on its own. Status lands in
   `app_flags.whatsapp_status` and the panel shows it.
+- **The driver times its own connection.** Baileys emits
+  `connection: 'connecting'` and then nothing at all when the socket cannot be
+  established — no QR, no error, no close event — so a blocked egress, a DNS
+  failure and a WhatsApp outage are indistinguishable and all of them are
+  silent. A 60-second watchdog turns that into a logged error naming the likely
+  causes and a sticky `unreachable` status, then retries. Found by running the
+  worker against a network that blocks the WhatsApp WebSocket; without it the
+  worker looks healthy while the bot is permanently deaf.
 - The driver attaches `.catch()` to every internal promise. `src/worker.ts`
   exits the process on any unhandled rejection, and a socket library that let
   one escape would take extraction down with it.
@@ -99,6 +107,9 @@ a protocol change upstream breaks ingestion until the pin moves.
 `tests/whatsapp-notify.test.ts`, `tests/whatsapp-review-reply.test.ts` and
 `tests/whatsapp-bridge.test.ts` all drive the round trip through a fake
 transport, so the seam stays honest and none of them import Baileys.
+`tests/whatsapp-driver-watchdog.test.ts` is the exception that proves it: the
+driver is the adapter to the SDK, so there is no seam left underneath it and
+the library itself is mocked there.
 
 ## Related
 

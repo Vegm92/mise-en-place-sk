@@ -144,6 +144,9 @@ normalization; rate limits.
 - Media download failure → no batch created; claim released so a resend works.
 - Oversized / spoofed / unsupported file → refusal reply, claim retained.
 - Baileys logged out → status flag `logged_out`, no auto-reconnect, QR needed.
+- Baileys cannot reach WhatsApp → the connection hangs with no error of its own,
+  so a 60 s watchdog logs it, sets status `unreachable` and retries. `/admin/whatsapp`
+  shows it in red; check outbound `wss` to web.whatsapp.com first.
 
 ## Edge cases
 
@@ -222,7 +225,10 @@ applies it over the `jsonb` column.
 **`driver-baileys.ts`** — the only file importing the client. Every internal
 promise carries a `.catch()` because `src/worker.ts` exits the process on any
 unhandled rejection, and a socket library that let one escape would take
-extraction down with it. The JID is normalised with `normalizePhoneNumber`
+extraction down with it. The connect watchdog exists because Baileys reports a
+socket it cannot establish as `connecting` and then stays silent forever: the
+`unreachable` state is the driver's own, not the library's, and it is sticky
+across retries so the panel does not flicker back to `connecting` every minute. The JID is normalised with `normalizePhoneNumber`
 before the handler sees it, because contacts are stored as digits (ADR-019).
 
 ### `src/routes/api/whatsapp/webhook/+server.ts`

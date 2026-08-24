@@ -8,6 +8,8 @@
 
   const STATUS_COLOR: Record<string, string> = {
     ready:        'var(--mep-pos)',
+    connecting:   'var(--mep-fg-2)',
+    unreachable:  'var(--mep-neg)',
     pairing:      'var(--mep-warn)',
     reconnecting: 'var(--mep-warn)',
     logged_out:   'var(--mep-neg)',
