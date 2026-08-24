@@ -6,6 +6,7 @@ import {
 	DEAD_LETTER_QUEUES,
 	EXTRACTION_QUEUE,
 	NORMALIZE_QUEUE,
+	WHATSAPP_NOTIFY_QUEUE,
 	createQueuesWithDeadLetters,
 } from './lib/server/queue.js';
 import { pgSslConfig } from './lib/server/db-ssl.js';
@@ -15,6 +16,10 @@ import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
 import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker-heartbeat.js';
+import { handleInboundMessage } from './lib/server/integrations/whatsapp/message-handler.js';
+import { notifyWhatsAppSender, type WhatsAppNotifyJobData } from './lib/server/integrations/whatsapp/notify.js';
+import { startWhatsAppTransport } from './lib/server/integrations/whatsapp/runtime.js';
+import type { WhatsAppTransport } from './lib/server/integrations/whatsapp/transport.js';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
@@ -102,6 +107,26 @@ await boss.work(
 );
 console.info(`[worker] Listening for "${NORMALIZE_QUEUE}" jobs`);
 
+const whatsapp: WhatsAppTransport | null = await startWhatsAppTransport();
+if (whatsapp) {
+	whatsapp.onMessage((msg) => handleInboundMessage(msg, whatsapp));
+	await boss.work(
+		WHATSAPP_NOTIFY_QUEUE,
+		{ batchSize: 1, includeMetadata: true },
+		async (jobs: JobWithMetadata<WhatsAppNotifyJobData>[]) => {
+			for (const job of jobs) {
+				await runWithDeadLetter(
+					deadLetterRefFromJob(WHATSAPP_NOTIFY_QUEUE, job),
+					() => notifyWhatsAppSender(job.data, whatsapp),
+				);
+			}
+		},
+	);
+	console.info(`[worker] Listening for "${WHATSAPP_NOTIFY_QUEUE}" jobs`);
+} else {
+	console.info('[worker] WhatsApp bot disabled — not starting a transport');
+}
+
 for (const { source, deadLetter } of DEAD_LETTER_QUEUES) {
 	await boss.work(
 		deadLetter,
@@ -131,6 +156,7 @@ async function shutdown() {
 	console.info('[worker] Shutting down…');
 	stopHeartbeat();
 	await boss.stop();
+	await whatsapp?.stop().catch((err) => console.error('[worker] WhatsApp transport stop failed:', err));
 	process.exit(0);
 }
 process.on('SIGTERM', shutdown);
