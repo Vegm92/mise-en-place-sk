@@ -383,7 +383,8 @@ export const batchItems = pgTable('batch_items', {
 	index('batch_items_batch_id_idx').on(t.batchId),
 	index('batch_items_updated_at_idx').on(t.updatedAt),
 	index('batch_items_queued_at_idx').on(t.queuedAt),
-	uniqueIndex('batch_items_job_code_unique').on(t.jobCode),
+	uniqueIndex('batch_items_job_code_unique').on(t.jobCode)
+		.where(sql`${t.reviewStatus} is null or ${t.reviewStatus} = 'pending'`),
 	index('batch_items_source_ref_idx').on(t.sourceRef),
 ]);
 

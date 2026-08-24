@@ -132,7 +132,7 @@ vi.mock('../src/lib/server/locations', () => ({ isLocationLocked: vi.fn().mockRe
 });
 
 describe('WhatsApp → batch bridge', () => {
-	it('creates a batch/item, enqueues extraction, and replies with a /batch/[id] link', async () => {
+	it('creates a batch/item tagged with its origin, enqueues extraction, and acknowledges', async () => {
 		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		queueRouting();
 
@@ -141,12 +141,15 @@ describe('WhatsApp → batch bridge', () => {
 		expect(createBatchMock).toHaveBeenCalledWith(
 			'rest-1',
 			[{ key: expect.stringMatching(/^whatsapp\/rest-1\//), name: expect.any(String) }],
+			{ source: 'whatsapp', sourceRef: '+34600', jobCode: expect.stringMatching(/^[A-Z0-9]{4}$/) },
 		);
 		expect(enqueueBatchMock).toHaveBeenCalledWith('item-1', 'rest-1', expect.objectContaining({
 			enqueue: enqueueExtractionMock,
 		}));
+		// The ack only says the invoice arrived — the summary with the extracted
+		// data comes back from the worker once extraction finishes.
 		expect(sendMock).toHaveBeenCalledTimes(1);
-		expect(repliesText()).toContain('https://app.example.com/batch/batch-1');
+		expect(repliesText()).toMatch(/Factura recibida/i);
 		// No inline extracted-data summary, no SÍ/NO prompt on this path.
 		expect(repliesText()).not.toMatch(/¿Confirmas esta factura\?/);
 	});

@@ -1,5 +1,5 @@
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_PHONE_NUMBER_ID } from './env';
-import { MAX_FILE_BYTES } from './file-validation';
+import { MAX_FILE_BYTES, MediaTooLargeError } from './file-validation';
 
 const GRAPH_API_BASE = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
 
@@ -11,15 +11,7 @@ const MIME_TO_EXT: Record<string, string> = {
 	'text/xml':        'xml',
 };
 
-export class MediaTooLargeError extends Error {
-	readonly declaredSize: number;
-
-	constructor(declaredSize: number) {
-		super(`WhatsApp media is ${declaredSize} bytes, over the ${MAX_FILE_BYTES} byte limit`);
-		this.name = 'MediaTooLargeError';
-		this.declaredSize = declaredSize;
-	}
-}
+export { MediaTooLargeError };
 
 function maskPhone(to: string): string {
 	return `***${to.slice(-4)}`;

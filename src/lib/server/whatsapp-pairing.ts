@@ -5,7 +5,7 @@ import { whatsappPairingCodes } from './schema';
 import { addContact } from './whatsapp-contacts';
 import { checkRateLimit } from './rate-limiter';
 
-const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRTUVWXYZ';
+export const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRTUVWXYZ';
 const CODE_LENGTH = 6;
 
 export const CODE_TTL_MS = 15 * 60 * 1000;

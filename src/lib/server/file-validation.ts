@@ -22,6 +22,16 @@ export const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
 
 export type RejectReason = 'unsupportedType' | 'tooLarge' | 'contentMismatch';
 
+export class MediaTooLargeError extends Error {
+	readonly declaredSize: number;
+
+	constructor(declaredSize: number) {
+		super(`media is ${declaredSize} bytes, over the ${MAX_FILE_BYTES} byte limit`);
+		this.name = 'MediaTooLargeError';
+		this.declaredSize = declaredSize;
+	}
+}
+
 export function validateBuffer(buf: Buffer, ext: string): RejectReason | null {
 	if (!ALLOWED_EXTENSIONS.has(ext)) return 'unsupportedType';
 	if (buf.length > MAX_FILE_BYTES) return 'tooLarge';
