@@ -17,6 +17,7 @@ import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
+import { bandsFromInputs, taxableBaseMoney } from '$lib/tax';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 
 export type SaveOutcome =
@@ -164,6 +165,35 @@ export function computeFormContentHash(
 		lineUnitPrices:   nonEmptyDescs.map((_, i) => toMoneyString(unitPrices[i])),
 		lineTotalPrices:  nonEmptyDescs.map((_, i) => toMoneyString(totalPrices[i])),
 	});
+}
+
+export function resolveTaxBreakdown(
+	formData: FormData,
+	extractedData: Record<string, unknown> | undefined,
+): { taxBase: string | null; taxBreakdown: string | null } {
+	if (formData.get('tax_bands_present') !== null) {
+		const rates   = formData.getAll('tax_rates').map(String);
+		const types   = formData.getAll('tax_types').map(String);
+		const bases   = formData.getAll('tax_bases').map(String);
+		const amounts = formData.getAll('tax_amounts').map(String);
+
+		const bands = bandsFromInputs(rates.map((rate, i) => ({
+			rate,
+			type: types[i] ?? '',
+			base: bases[i] ?? '',
+			amount: amounts[i] ?? '',
+		})));
+
+		return bands.length
+			? { taxBase: taxableBaseMoney(bands), taxBreakdown: JSON.stringify(bands) }
+			: { taxBase: null, taxBreakdown: null };
+	}
+
+	const raw = extractedData?.tax_breakdown;
+	return {
+		taxBase: toMoneyString(extractedData?.tax_base as string | number | null | undefined),
+		taxBreakdown: Array.isArray(raw) ? JSON.stringify(raw) : null,
+	};
 }
 
 export function parseLineInputs(formData: FormData): LineFormInput[] {
@@ -468,9 +498,7 @@ export async function saveReviewedInvoice(
 	}
 
 	const extractedData = item?.extractedData ?? undefined;
-	const taxBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
-	const taxBreakdownRaw = extractedData?.tax_breakdown;
-	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
+	const { taxBase, taxBreakdown } = resolveTaxBreakdown(formData, extractedData);
 	const rawDocumentType = extractedData?.document_type;
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;

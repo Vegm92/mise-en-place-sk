@@ -217,11 +217,16 @@ shapes, `low_confidence_ack` value.
 
 - Shortcuts are modifier-based (⌘/Ctrl+Enter save, ⌘/Ctrl+\ document, ⌘/Ctrl+B queue, F2 next uncertain field) precisely because this page keeps focus inside an input almost the whole time — bare letter keys would type instead of act.
 
-**`const taxBreakdown`**
+**`const taxBands`**
 
-- `rate` arrives as a decimal fraction (0.21), not a percentage — both e-invoice parsers divide by 100 and the Gemini schema asks for the same — so `ratePct` is the only correct way to render it.
-- `taxBase` sums bases *per tax type*, then takes the largest group. A Spanish produce invoice carries IVA and Recargo de Equivalencia on the **same** base, so a flat sum across bands would double-count it; with a single type (or several rates of one type) the grouped max equals the plain sum.
-- The breakdown is display-only, and `invoice-save.ts` persists it from the stored extraction rather than the form — so a reviewer who corrects a line cannot correct the tax that hangs off it. `taxBaseMatchesLines` exists to say so out loud: when the edited lines drift from the extracted base, the footer chip and the drawer both flag it instead of letting the stale figure pass silently into `totalCalc`.
+- Editable tax bands, seeded from the extraction and posted back with the form. One row per rate *and* type, because a single albarán routinely mixes them: produce at 10%, cleaning supplies at 21%, and a Recargo de Equivalencia band riding on the same base as the IVA one.
+- The row model is what the reviewer types (percent strings, money strings); `$lib/tax` converts to the stored shape. Editing a rate or a base recomputes that band's cuota via `syncBandAmount`; editing the cuota itself is left alone, because a reviewer copying an odd figure off the paper must win over the arithmetic.
+- `rebuildBandsFromLines` regenerates the IVA bands by grouping lines on their `% imp.` column, and deliberately leaves REC bands untouched: the IVA→REC rate pairing (21→5,2, 10→1,4, 4→0,5) is statutory and changes by law, so deriving it here would be inventing tax policy in the UI.
+- `unbandedRates` catches the other direction — a line carrying a rate that no band covers — which is what silently loses tax when only some lines were annotated.
+
+**`const taxBase`**
+
+- Sums bases *per tax type*, then takes the largest group. A Spanish produce invoice carries IVA and Recargo de Equivalencia on the **same** base, so a flat sum across bands double-counts it; with a single type (or several rates of one type) the grouped max equals the plain sum. `taxableBaseCents` in `$lib/tax` is the shared implementation, so the figure shown and the figure stored cannot drift apart.
 
 **`const addFiles`**
 
@@ -235,7 +240,9 @@ shapes, `low_confidence_ack` value.
 - The discard button sits visually inside the save form's header but targets an out-of-tree `#discard-item-form` — nesting real forms is invalid HTML.
 - Content-duplicate block + low-confidence review gate modals; `svelte-ignore a11y_no_static_element_interactions` on their click-catchers.
 - Under 900px the three panes stack and the page scrolls as one; the rail becomes a horizontal strip of file chips.
-- The tax desglose is a drawer that opens between the scroll body and the totals bar, toggled from the footer's tax figure — the number and its explanation live together, and it stays reachable without scrolling past every line. In-flow rather than an absolutely-positioned popover because the pane's `overflow: hidden` would clip one. Bands show rate, an IVA/REC badge (only when the extraction actually labelled the type), base and cuota.
+- The tax desglose is an editable drawer that opens between the scroll body and the totals bar, toggled from the footer's tax figure — the number and its explanation live together, and it stays reachable without scrolling past every line. In-flow rather than an absolutely-positioned popover because the pane's `overflow: hidden` would clip one. Each band is rate / kind / base / cuota, all editable, with add and remove.
+- Line items carry a `% imp.` column, so different products on one document can carry different rates. It posts as `line_tax_rates` in fraction form through a hidden input beside the visible percent field, keeping `parseLineInputs`' positional alignment intact.
+- The footer separates two comparisons that are easy to conflate: **Discrepancia** is the calculated total against the header total field (which the reviewer can edit), while **Extraído … ±Δ** is the calculated total against what the AI originally read off the document, which nothing can edit away. A reviewer correcting a genuine extraction error should see the second figure move and be sure the change was meant.
 - Line-item inputs are bound to `lineItems` state. They were previously one-way `value={…}`, so `lineTotal`, `totalCalc` and the discrepancy indicator never moved when a reviewer corrected a price — the footer reported on the extraction, not on what was about to be saved.
 
 ### `src/routes/(app)/confirm/[id]/+page.server.ts`
@@ -244,7 +251,23 @@ shapes, `low_confidence_ack` value.
 
 - Legacy route superseded by /batch/[batchId]: old links carry an item id, resolved to the batch when possible, otherwise home.
 
+### `src/lib/tax.ts`
+
+**`function percentToFraction`**
+
+- The UI always speaks percent, storage always speaks fraction — the Gemini schema asks for `0.21` and both e-invoice parsers divide by 100, so every stored `rate` (and every `invoice_line_items.tax_rate`) is a fraction. Keeping one direction per layer is what stops a "21" from ever being read as 2100%.
+- Deliberately unambiguous rather than clever: an input is *always* a percentage, so `0.21` typed into a `%` field means 0,21%, not 21%. Guessing by magnitude would silently mangle a genuine 0,5% REC band.
+- `fractionToPercent` tolerates a stored value above 1 as already-percent, so a malformed extraction degrades to a wrong-looking figure the reviewer can correct rather than a 2100% one.
+
+**`function taxableBaseCents`**
+
+- Shared by the review page and `invoice-save.ts` so the base shown and the base stored are the same number. Lives outside `$lib/server` because the page needs it; `money.ts` moved to `$lib/money` for the same reason, with `$lib/server/money` left as a re-export so its existing importers are untouched.
+
 ### `src/lib/server/invoice-save.ts`
+
+**`function resolveTaxBreakdown`**
+
+- The form wins when it posts `tax_bands_present`, the extraction is the fallback otherwise. The marker matters: without it, a reviewer deleting every band would be indistinguishable from a caller that never sent tax fields, and the extraction's bands would silently come back.
 
 **`type SaveOutcome`**
 
