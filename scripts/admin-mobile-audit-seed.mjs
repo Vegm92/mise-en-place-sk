@@ -205,7 +205,7 @@ async function main() {
 		}
 	}
 
-	const categories = ['ads', 'content', 'sales', 'tooling', 'other'];
+	const categories = ['marketing', 'salaries', 'tools', 'other'];
 	for (const [i, month] of months.slice(-6).entries()) {
 		await sql`
 			INSERT INTO acquisition_costs (month, category, amount_cents, note, created_by)

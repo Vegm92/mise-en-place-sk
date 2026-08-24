@@ -14,6 +14,7 @@
   import AdminKpiCard from '$lib/components/admin/AdminKpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import InfoTooltip from '$lib/components/mep/InfoTooltip.svelte';
+  import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -66,7 +67,7 @@
   {/snippet}
 </AdminPageHead>
 
-<div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px;">
+<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:14px;">
 
   {#if form && 'error' in form && typeof form.error === 'string'}
     <div class="card" style="padding:10px 14px;border-color:var(--mep-neg);color:var(--mep-neg);font-size:13px;">{$t(form.error)}</div>
@@ -152,24 +153,26 @@
     {/snippet}
     {#if o.movement}
       {@const m = o.movement}
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <tbody>
-          {#each [
-            { key: 'admin.rev.mov.start', value: m.startCents, color: 'var(--mep-fg)' },
-            { key: 'admin.rev.mov.new', value: m.newCents, color: 'var(--mep-pos)' },
-            { key: 'admin.rev.mov.reactivation', value: m.reactivationCents, color: 'var(--mep-pos)' },
-            { key: 'admin.rev.mov.expansion', value: m.expansionCents, color: 'var(--mep-pos)' },
-            { key: 'admin.rev.mov.contraction', value: -m.contractionCents, color: 'var(--mep-warn)' },
-            { key: 'admin.rev.mov.churned', value: -m.churnedCents, color: 'var(--mep-neg)' },
-            { key: 'admin.rev.mov.end', value: m.endCents, color: 'var(--mep-fg)' },
-          ] as row}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;color:var(--mep-fg-2);">{$t(row.key)}</td>
-              <td style="padding:9px 16px;text-align:right;font-weight:600;color:{row.color};" class="num">{eur(row.value)}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+      <AdminTableScroll>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tbody>
+            {#each [
+              { key: 'admin.rev.mov.start', value: m.startCents, color: 'var(--mep-fg)' },
+              { key: 'admin.rev.mov.new', value: m.newCents, color: 'var(--mep-pos)' },
+              { key: 'admin.rev.mov.reactivation', value: m.reactivationCents, color: 'var(--mep-pos)' },
+              { key: 'admin.rev.mov.expansion', value: m.expansionCents, color: 'var(--mep-pos)' },
+              { key: 'admin.rev.mov.contraction', value: -m.contractionCents, color: 'var(--mep-warn)' },
+              { key: 'admin.rev.mov.churned', value: -m.churnedCents, color: 'var(--mep-neg)' },
+              { key: 'admin.rev.mov.end', value: m.endCents, color: 'var(--mep-fg)' },
+            ] as row}
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <td style="padding:9px 16px;color:var(--mep-fg-2);">{$t(row.key)}</td>
+                <td style="padding:9px 16px;text-align:right;font-weight:600;color:{row.color};" class="num">{eur(row.value)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
     {:else}
       <div style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);font-size:13px;">{$t('admin.rev.insufficient')}</div>
     {/if}
@@ -179,26 +182,28 @@
     {#snippet headerRight()}
       <InfoTooltip text={$t('admin.rev.section.history.info')} side="right" />
     {/snippet}
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--mep-divider);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
-          <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.mrr')}</th>
-          <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCustomers')}</th>
-          <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSource')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each [...o.history].reverse() as row}
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="padding:9px 16px;color:var(--mep-fg);font-weight:500;" class="num">{row.month}</td>
-            <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{eur(row.mrrCents)}</td>
-            <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{row.payingCustomers}</td>
-            <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-4);font-size:12px;">{$t('admin.rev.source.' + row.source)}</td>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.mrr')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCustomers')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSource')}</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each [...o.history].reverse() as row}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="padding:9px 16px;color:var(--mep-fg);font-weight:500;" class="num">{row.month}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{eur(row.mrrCents)}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{row.payingCustomers}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-4);font-size:12px;">{$t('admin.rev.source.' + row.source)}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
   <div>
@@ -206,38 +211,40 @@
       {#snippet headerRight()}
         <InfoTooltip text={$t('admin.rev.section.cohorts.info')} side="right" />
       {/snippet}
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCohort')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSize')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colStartMrr')}</th>
-            {#each COHORT_OFFSETS as offset}
-              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$ti('admin.rev.colMonthOffset', { n: offset })}</th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each o.cohorts as cohort}
+      <AdminTableScroll>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
             <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;color:var(--mep-fg);font-weight:500;" class="num">{cohort.month}</td>
-              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{cohort.customers}</td>
-              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{eur(cohort.startMrrCents)}</td>
-              {#each cohort.retention as point, i}
-                {@const revenue = cohort.revenueRetention[i]?.rate ?? null}
-                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">
-                  {pct(point.rate)}
-                  {#if revenue !== null}
-                    <span style="color:var(--mep-fg-4);font-size:11px;"> · {pct(revenue)}</span>
-                  {/if}
-                </td>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCohort')}</th>
+              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSize')}</th>
+              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colStartMrr')}</th>
+              {#each COHORT_OFFSETS as offset}
+                <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$ti('admin.rev.colMonthOffset', { n: offset })}</th>
               {/each}
             </tr>
-          {:else}
-            <tr><td colspan={3 + COHORT_OFFSETS.length} style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.rev.noCohorts')}</td></tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each o.cohorts as cohort}
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <td style="padding:9px 16px;color:var(--mep-fg);font-weight:500;" class="num">{cohort.month}</td>
+                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{cohort.customers}</td>
+                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{eur(cohort.startMrrCents)}</td>
+                {#each cohort.retention as point, i}
+                  {@const revenue = cohort.revenueRetention[i]?.rate ?? null}
+                  <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">
+                    {pct(point.rate)}
+                    {#if revenue !== null}
+                      <span style="color:var(--mep-fg-4);font-size:11px;"> · {pct(revenue)}</span>
+                    {/if}
+                  </td>
+                {/each}
+              </tr>
+            {:else}
+              <tr><td colspan={3 + COHORT_OFFSETS.length} style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.rev.noCohorts')}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
     </SectionCard>
     <div style="font-size:11px;color:var(--mep-fg-4);margin-top:6px;">{$t('admin.rev.cohortsHint')}</div>
   </div>
@@ -246,46 +253,50 @@
     {#snippet headerRight()}
       <InfoTooltip text={$t('admin.rev.section.funnel.info')} side="right" />
     {/snippet}
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <tbody>
-        {#each o.funnel as stage}
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="padding:9px 16px;color:var(--mep-fg-2);">{$t('admin.rev.funnel.' + stage.key)}</td>
-            <td style="padding:9px 16px;text-align:right;font-weight:600;color:var(--mep-fg);" class="num">{stage.count}</td>
-            <td style="padding:9px 16px;text-align:right;color:{stage.dropFromPrevious ? 'var(--mep-neg)' : 'var(--mep-fg-4)'};font-size:12px;" class="num">
-              {stage.dropFromPrevious === null ? '—' : '−' + stage.dropFromPrevious}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tbody>
+          {#each o.funnel as stage}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="padding:9px 16px;color:var(--mep-fg-2);">{$t('admin.rev.funnel.' + stage.key)}</td>
+              <td style="padding:9px 16px;text-align:right;font-weight:600;color:var(--mep-fg);" class="num">{stage.count}</td>
+              <td style="padding:9px 16px;text-align:right;color:{stage.dropFromPrevious ? 'var(--mep-neg)' : 'var(--mep-fg-4)'};font-size:12px;" class="num">
+                {stage.dropFromPrevious === null ? '—' : '−' + stage.dropFromPrevious}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
   <SectionCard title={$t('admin.rev.section.leakage')} noPad>
     {#snippet headerRight()}
       <InfoTooltip text={$t('admin.rev.section.leakage.info')} side="right" />
     {/snippet}
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--mep-divider);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colLeak')}</th>
-          <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCount')}</th>
-          <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colImpact')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each o.leaks as leak}
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="padding:9px 16px;color:var(--mep-fg-2);">
-              <span style="color:{leak.count > 0 ? SEVERITY_COLOR[leak.severity] : 'var(--mep-fg-4)'};font-weight:500;">{$t('admin.rev.leak.' + leak.key)}</span>
-              <div style="font-size:11px;color:var(--mep-fg-4);margin-top:2px;">{$t('admin.rev.leakHint.' + leak.key)}</div>
-            </td>
-            <td style="padding:9px 16px;text-align:right;font-weight:600;color:{leak.count > 0 ? SEVERITY_COLOR[leak.severity] : 'var(--mep-fg-4)'};" class="num">{leak.count}</td>
-            <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{leak.monthlyImpactCents > 0 ? eur(leak.monthlyImpactCents) : '—'}</td>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colLeak')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCount')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colImpact')}</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each o.leaks as leak}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="padding:9px 16px;color:var(--mep-fg-2);">
+                <span style="color:{leak.count > 0 ? SEVERITY_COLOR[leak.severity] : 'var(--mep-fg-4)'};font-weight:500;">{$t('admin.rev.leak.' + leak.key)}</span>
+                <div style="font-size:11px;color:var(--mep-fg-4);margin-top:2px;">{$t('admin.rev.leakHint.' + leak.key)}</div>
+              </td>
+              <td style="padding:9px 16px;text-align:right;font-weight:600;color:{leak.count > 0 ? SEVERITY_COLOR[leak.severity] : 'var(--mep-fg-4)'};" class="num">{leak.count}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{leak.monthlyImpactCents > 0 ? eur(leak.monthlyImpactCents) : '—'}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
   <SectionCard title={$t('admin.rev.section.spend')} noPad>
@@ -320,37 +331,39 @@
       </form>
     </div>
 
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--mep-divider);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCategory')}</th>
-          <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colAmount')}</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colNote')}</th>
-          <th style="padding:10px 16px;"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each o.costs as cost}
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="padding:9px 16px;color:var(--mep-fg);" class="num">{cost.month}</td>
-            <td style="padding:9px 16px;color:var(--mep-fg-2);">{$t('admin.rev.cat.' + cost.category)}</td>
-            <td style="padding:9px 16px;text-align:right;color:var(--mep-fg);font-weight:500;" class="num">{eur2(cost.amountCents)}</td>
-            <td style="padding:9px 16px;color:var(--mep-fg-3);font-size:12px;">{cost.note ?? ''}</td>
-            <td style="padding:9px 16px;text-align:right;">
-              <form method="POST" action="?/deleteCost">
-                <input type="hidden" name="id" value={cost.id} />
-                <button type="submit" style="background:none;border:0;color:var(--mep-neg);font-size:12px;cursor:pointer;padding:0;">
-                  {$t('admin.rev.delete')}
-                </button>
-              </form>
-            </td>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCategory')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colAmount')}</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colNote')}</th>
+            <th style="padding:10px 16px;"></th>
           </tr>
-        {:else}
-          <tr><td colspan="5" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.rev.noCosts')}</td></tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each o.costs as cost}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="padding:9px 16px;color:var(--mep-fg);" class="num">{cost.month}</td>
+              <td style="padding:9px 16px;color:var(--mep-fg-2);">{$t('admin.rev.cat.' + cost.category)}</td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg);font-weight:500;" class="num">{eur2(cost.amountCents)}</td>
+              <td style="padding:9px 16px;color:var(--mep-fg-3);font-size:12px;">{cost.note ?? ''}</td>
+              <td style="padding:9px 16px;text-align:right;">
+                <form method="POST" action="?/deleteCost">
+                  <input type="hidden" name="id" value={cost.id} />
+                  <button type="submit" style="background:none;border:0;color:var(--mep-neg);font-size:12px;cursor:pointer;padding:0;">
+                    {$t('admin.rev.delete')}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {:else}
+            <tr><td colspan="5" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.rev.noCosts')}</td></tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
   <SectionCard title={$t('admin.rev.section.assumptions')}>
