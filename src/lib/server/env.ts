@@ -28,6 +28,7 @@ export const WHATSAPP_APP_SECRET      = process.env.WHATSAPP_APP_SECRET      ?? 
 export const WHATSAPP_API_VERSION     = process.env.WHATSAPP_API_VERSION     ?? 'v25.0';
 export const WHATSAPP_DISPLAY_NUMBER  = process.env.WHATSAPP_DISPLAY_NUMBER  ?? '';
 export const WHATSAPP_SENDER_HOURLY_LIMIT = parseInt(process.env.WHATSAPP_SENDER_HOURLY_LIMIT ?? '30', 10);
+export const WHATSAPP_BOT_ENABLED      = process.env.WHATSAPP_BOT_ENABLED      ?? '';
 export const APP_BASE_URL             = process.env.APP_BASE_URL            ?? '';
 export const SENTRY_DSN               = process.env.SENTRY_DSN              ?? '';
 export const SENTRY_AUTH_TOKEN        = process.env.SENTRY_AUTH_TOKEN       ?? '';
