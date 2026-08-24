@@ -47,7 +47,7 @@ guarded for SSR.
 ### `lint:i18n` makes the invisible failure loud
 
 `scripts/check-i18n-strings.mjs` runs in CI on every `.svelte` file under `src/`,
-in two passes:
+in three passes:
 
 1. **Template** — parses the Svelte AST and flags text nodes and user-visible
    attributes (`placeholder`, `title`, `aria-label`, `alt`). Working from the AST
@@ -56,6 +56,13 @@ in two passes:
 2. **Script** — flags string literals assigned to label-ish properties, plus any
    literal carrying Spanish orthography (`ñ`, accented vowels, `¿`, `¡`), which is
    prose by definition.
+3. **Keys** — flags a literal key passed to `$t`/`$ti`/`$tiv`/`$tp` that no locale
+   table defines (issue #661). The first two passes catch prose that never reached
+   the table; this one catches prose that was *supposed* to be in the table and
+   is not, which fails silently as an uppercased raw key on the screen. The key
+   set is read back off the locale tables in `i18n.ts` (`scripts/i18n-keys.mjs`),
+   so it cannot drift from the catalog, and a key assembled at runtime is skipped
+   rather than guessed at — an unresolvable key is not evidence of a missing one.
 
 Language-neutral tokens are allowlisted: the brand name, currency codes, unit
 abbreviations, date-format strings. Three pages are skipped wholesale —
@@ -92,6 +99,10 @@ provider text or document content could be interpolated into it.
 - **`lint:i18n` can produce false positives** on legitimately language-neutral
   literals. The fix is the allowlist in the script, not an inline suppression —
   which keeps every exception in one reviewable place.
+- **The missing-key pass is deliberately partial.** It only sees keys written as
+  literals; the ~40 call sites that build a key from a variable or a template
+  literal stay uncovered by the linter and are covered by tests that derive the
+  key list from the source that emits it.
 - **The locale store is client-side only.** SSR always renders Spanish; the client
   corrects on hydration if the user chose English. A visible flash for English
   users on first paint, accepted because Spanish is the majority locale.
