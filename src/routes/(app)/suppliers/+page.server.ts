@@ -5,12 +5,20 @@ import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
+import { parseSupplierListParams } from '$lib/supplier-list';
+import {
+	supplierCategoryExpr,
+	supplierListFilter,
+	supplierListOrderBy,
+	supplierTotalSpendExpr,
+} from '$lib/server/supplier-list-query';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('suppliers', async () => {
 		const period = url.searchParams.get('period') ?? '30d';
+		const listParams = parseSupplierListParams(url.searchParams);
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -23,7 +31,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				name:             suppliers.name,
 				cif:              suppliers.cif,
 				createdAt:        suppliers.createdAt,
-				category:         sql<string>`COALESCE(${suppliers.category}, 'Other')`.as('category'),
+				category:         supplierCategoryExpr().as('category'),
+				total_spend:      supplierTotalSpendExpr().as('total_spend'),
 				month_spend:      sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=TO_CHAR(NOW(),'YYYY-MM') THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`.as('month_spend'),
 				open_count:       sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`.as('open_count'),
 				invoice_count:    sql<number>`COUNT(${invoices.id})`.as('invoice_count'),
@@ -35,9 +44,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})
 				.from(suppliers)
 				.leftJoin(invoices, and(eq(invoices.supplierId, suppliers.id), tdb.scope(invoices.restaurantId)))
-				.where(tdb.scope(suppliers.restaurantId))
+				.leftJoin(supplierMetrics, and(eq(supplierMetrics.supplierId, suppliers.id), tdb.scope(supplierMetrics.restaurantId)))
+				.where(tdb.scope(suppliers.restaurantId, supplierListFilter(tdb, listParams)))
 				.groupBy(suppliers.id)
-				.orderBy(sql`month_spend DESC`, suppliers.name),
+				.orderBy(...supplierListOrderBy(listParams.sort)),
 
 			db.select().from(supplierMetrics)
 				.where(tdb.scope(supplierMetrics.restaurantId)),
@@ -122,6 +132,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				invoice_count: invoiceCount,
 				open_count: Number(r.open_count),
 				month_spend: Number(r.month_spend),
+				total_spend: Number(r.total_spend),
 				month_invoice_count: Number(r.month_invoice_count),
 				last_month_spend: lastMonthSpend,
 				delta_pct: deltaPct,
@@ -158,6 +169,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			categories: VALID_CATEGORIES,
 			period,
 			trendData,
+			sort: listParams.sort,
+			search: listParams.search,
+			category: listParams.category,
+			uncategorizedOnly: listParams.uncategorizedOnly,
 		};
 	});
 };
