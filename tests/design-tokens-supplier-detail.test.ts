@@ -29,8 +29,9 @@ describe('DesktopSupplierDetail danger-button color token (issue #608)', () => {
     expect(source).not.toContain('background:#E05555;color:#fff;border-color:#E05555');
   });
 
-  it('leaves the reliability-score color scale function untouched (owned by issue #605)', () => {
-    expect(source).toContain("return '#E05555';");
+  it('reliability-score coloring now goes through the shared getScoreColor helper (issue #605)', () => {
+    expect(source).toContain("import { getScoreColor } from '$lib/status'");
+    expect(source).not.toContain("return '#E05555';");
   });
 
   it('leaves the unrelated conversion-row delete button untouched (out of scope for #608)', () => {
@@ -43,6 +44,8 @@ describe('DesktopSupplierDetail danger-button color token (issue #608)', () => {
     const totalHex = (source.match(/#E05555/g) ?? []).length;
     const totalToken = (source.match(/var\(--mep-neg\)/g) ?? []).length;
     expect(totalToken).toBe(6);
-    expect(totalHex).toBe(3);
+    // Only the unrelated conversion-row delete button's 2 occurrences remain —
+    // the reliability-score function's #E05555 was removed separately by #605.
+    expect(totalHex).toBe(2);
   });
 });
