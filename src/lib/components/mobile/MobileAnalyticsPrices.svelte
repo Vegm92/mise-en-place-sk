@@ -1,5 +1,6 @@
 <script lang="ts">
   import { locale, t } from '$lib/i18n';
+  import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
 
   interface PriceItem {
     description: string;
@@ -83,7 +84,7 @@
     />
   </div>
 
-  <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0;">
+  <ScrollStrip label={$t('anp.filterLabel')} extraStyle="flex-shrink:0;">
     {#each filterOptions as [val, label]}
       <button
         style="
@@ -97,7 +98,7 @@
         onclick={() => filterChange = val}
       >{label}</button>
     {/each}
-  </div>
+  </ScrollStrip>
 
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 

@@ -139,9 +139,11 @@ describe('scroll strips indicate that there is more content (issue #658)', () =>
 describe('the shared scroll strip', () => {
 	it('exists as one class with an edge fade and lead-in padding', () => {
 		expect(APP_CSS).toMatch(/\.scroll-strip\s*\{/);
-		const block = APP_CSS.slice(APP_CSS.indexOf('.scroll-strip {'));
-		expect(block).toMatch(/mask-image:\s*linear-gradient\(to right/);
-		expect(block).toMatch(/padding-left/);
+		const block = APP_CSS.slice(APP_CSS.indexOf('.scroll-strip {')).slice(0, 1600);
+		expect(block).toMatch(/mask-image:\s*linear-gradient\(\s*to right/);
+		expect(block).toMatch(/padding-left:/);
+		expect(block).toMatch(/\.scroll-strip\[data-more-end='true'\]/);
+		expect(block).toMatch(/\.scroll-strip\[data-more-start='true'\]/);
 	});
 
 	it('is backed by a component the call sites share', () => {
