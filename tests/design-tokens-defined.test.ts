@@ -115,6 +115,24 @@ describe('MEP design tokens', () => {
 		expect(offenders).toEqual([]);
 	});
 
+	it("binds Tailwind's dark: variant to data-theme, not the OS preference", () => {
+		// Tailwind 4 compiles `dark:` to @media (prefers-color-scheme: dark) by
+		// default. MEP themes on data-theme, which theme-init.js reads from
+		// localStorage and only falls back to the OS preference for — so the two
+		// signals diverge the moment someone uses the theme toggle, and a `dark:`
+		// utility would paint for the opposite theme from the tokens around it.
+		const variant = css.match(/@custom-variant\s+dark\s*\(([^)]*)\)/);
+		expect(variant, '@custom-variant dark is missing from app.css').not.toBeNull();
+		expect(variant![1]).toContain('data-theme');
+		expect(variant![1]).not.toContain('prefers-color-scheme');
+
+		// The whole stylesheet themes on the attribute; nothing keys off the OS.
+		// Comments stripped first — the block above this variant explains the
+		// default it overrides, and naming it is not the same as using it.
+		const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+		expect(rules).not.toContain('prefers-color-scheme');
+	});
+
 	it('never pairs a hard-coded #fff with a solid semantic fill', () => {
 		// White is legible on the light semantic ramp but not the dark one
 		// (#fff on --mep-warn is 2.6:1 there) — use the matching *-fg ink.
