@@ -3,7 +3,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
-import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { parseSupplierListParams } from '$lib/supplier-list';
 import {
@@ -137,7 +137,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				last_month_spend: lastMonthSpend,
 				delta_pct: deltaPct,
 				badge,
-				color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
+				category: cat,
 				reliability_score: metrics && invoiceCount >= 3 ? metrics.score : null,
 				stability_level: stabilityLevel,
 				price_trend,
@@ -157,7 +157,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			series: allCats.map(cat => ({
 				key: cat,
 				label: cat,
-				color: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS['Other'],
 				values: allMonths.map(m => spendByMonthCat.get(m)?.get(cat) ?? 0),
 			})),
 		};

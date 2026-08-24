@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { categoryColor, categoryTint } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
   import { t, tcat } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -15,7 +16,6 @@
   interface Supplier {
     id: number;
     name: string;
-    color: string | null;
     category: string | null;
     month_spend: number | null;
     delta_pct: number | null;
@@ -153,7 +153,7 @@
         ">
           <div style="
             width: 40px; height: 40px; border-radius: 20px; flex-shrink: 0;
-            background: {s.color ?? 'var(--mep-acc)'}24; color: {s.color ?? 'var(--mep-acc)'};
+            background: {categoryTint(s.category)}; color: {categoryColor(s.category)};
             display: flex; align-items: center; justify-content: center;
             font-size: 12px; font-weight: 600;
           ">

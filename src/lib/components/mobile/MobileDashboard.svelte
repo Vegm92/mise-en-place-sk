@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { categoryColor } from '$lib/colors';
   import Sparkline from '$lib/components/mep/Sparkline.svelte';
   import Delta from '$lib/components/mep/Delta.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -11,7 +12,6 @@
 
   interface Supplier {
     name: string;
-    color: string | null;
     month_spend: number;
     delta: number | null;
     invoices?: number;
@@ -216,7 +216,7 @@
             padding: 8px 0;
             border-bottom: {i < topSuppliers.length - 1 ? '1px solid var(--mep-divider)' : 'none'};
           ">
-            <span style="background: {s.color ?? 'var(--mep-fg-3)'}; width: 8px; height: 26px; border-radius: 2px; flex-shrink: 0;"></span>
+            <span style="background: {categoryColor(s.cat)}; width: 8px; height: 26px; border-radius: 2px; flex-shrink: 0;"></span>
             <div style="flex: 1; min-width: 0;">
               <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 {s.name}

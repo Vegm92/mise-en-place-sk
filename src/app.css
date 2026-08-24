@@ -76,6 +76,28 @@
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
+
+  /* Spend categories. Light values are the originals; the dark ramp below is
+     the same 17 hues lifted in OKLCH until each clears 4.5:1 on --mep-surface,
+     because these are used as text on their own tint (supplier avatars,
+     product badges) as well as swatch fills. */
+  --mep-cat-frutas-y-verduras:            #3B6B20;
+  --mep-cat-carnes-y-derivados:           #8B3530;
+  --mep-cat-pescados-y-mariscos:          #2C5F8A;
+  --mep-cat-lacteos:                      #C9A227;
+  --mep-cat-aceites-y-conservas:          #9A7B1E;
+  --mep-cat-bebidas:                      #1B5E5E;
+  --mep-cat-panaderia-y-bolleria:         #A8642B;
+  --mep-cat-especias-y-condimentos:       #7A3B6B;
+  --mep-cat-productos-de-limpieza:        #4A6B7A;
+  --mep-cat-congelados:                   #3A6E8B;
+  --mep-cat-embutidos-y-charcuteria:      #7A2E2A;
+  --mep-cat-vinos-y-cavas:                #6B4423;
+  --mep-cat-cafe-y-bebidas-calientes:     #4A3324;
+  --mep-cat-mantenimiento-y-reparaciones: #5C5C5C;
+  --mep-cat-material-y-menaje:            #7A6B55;
+  --mep-cat-embalaje-y-packaging:         #6B7A5C;
+  --mep-cat-other:                        #555566;
 }
 
 /* Dark */
@@ -124,6 +146,26 @@
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
+
+  /* Spend categories — hue preserved, lightness lifted for the dark ground.
+     Every value clears 4.5:1 on --mep-surface and 4.15:1 on --mep-surface-2. */
+  --mep-cat-frutas-y-verduras:            #619348;
+  --mep-cat-carnes-y-derivados:           #d3756d;
+  --mep-cat-pescados-y-mariscos:          #6195c3;
+  --mep-cat-lacteos:                      #c9a227;
+  --mep-cat-aceites-y-conservas:          #a08126;
+  --mep-cat-bebidas:                      #508f8f;
+  --mep-cat-panaderia-y-bolleria:         #ba753d;
+  --mep-cat-especias-y-condimentos:       #b36fa1;
+  --mep-cat-productos-de-limpieza:        #6f91a1;
+  --mep-cat-congelados:                   #568ba9;
+  --mep-cat-embutidos-y-charcuteria:      #c16e67;
+  --mep-cat-vinos-y-cavas:                #a77c5a;
+  --mep-cat-cafe-y-bebidas-calientes:     #a68b79;
+  --mep-cat-mantenimiento-y-reparaciones: #868686;
+  --mep-cat-material-y-menaje:            #93846d;
+  --mep-cat-embalaje-y-packaging:         #7b8b6c;
+  --mep-cat-other:                        #8f8fa2;
 }
 
 /* Accent — teal (default) */
