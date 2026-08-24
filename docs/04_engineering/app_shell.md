@@ -95,6 +95,12 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - …and where to send those invoices (issue #319).
 **`property whatsappPairingCode`**
 - Self-service enrolment (issue #320).
+**`property alertPreferences`**
+- Per-type alert toggles (issue #577), loaded alongside the two thresholds so the Alertas pane renders in one round trip.
+**`property alertGroups`**
+- The grouping the pane iterates. Shipped from the server rather than duplicated in the component, so the registry in `alert-preferences.ts` stays the only list of alert types.
+**`property saveAlertPreferences`**
+- Writes every toggle in one go (issue #577). An unchecked checkbox is simply absent from the form body, so the action iterates the registry and treats "missing" as off — reading only the present keys would make a type impossible to disable.
 **`property saveName`**
 - Profile (issue #293). Display name — stored on the `users` table (Auth.js's own adapter table), read by the layout.
 **`property saveEmail`**
@@ -132,9 +138,11 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Clipboard blocked (insecure context, denied permission) — the number is on screen and selectable, so there is nothing to recover from.
 **`markup`**
 - Forms: display name, email, password, restaurant name.
+- Alertas pane: the two thresholds, then one switch per alert type (issue #577), grouped and labelled from `data.alertGroups`. One form, one Save — a per-toggle auto-save would need `use:enhance` on a page that is otherwise plain progressive-enhancement forms.
 - Where to send invoices (issue #319). Authorising a number is useless if the staff member never learns what to message. QR injected via `{@html}` (eslint-disable-next-line svelte/no-at-html-tags).
 - Self-service enrolment (issue #320). The number is captured from the message, so it cannot be mistyped the way the form below can.
 **`style`**
+- `.alert-toggle*` (issue #577): a visually-hidden checkbox drives a CSS track/thumb, so the switch keeps native keyboard focus, form submission and label semantics without a component.
 - WhatsApp bot number + QR (issue #319).
 - Pairing code (issue #320) — read off a screen and typed into a phone, so set large, monospaced and widely tracked.
 - The QR is meant to be printed and taped up in the kitchen, so sized in absolute units — 45 mm on paper scans reliably from arm's length.

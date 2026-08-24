@@ -303,6 +303,37 @@
             </div>
           </form>
         </SectionCard>
+
+        <SectionCard title={$t('set.alertPrefs.title')} sub={$t('set.alertPrefs.sub')} noPad>
+          <form method="post" action="?/saveAlertPreferences">
+            {#each data.alertGroups as group}
+              <div class="set-row" style="align-items:start;">
+                <span class="body-strong" style="font-size:13px;padding-top:4px;">{$t(`set.alertPrefs.group.${group.id}`)}</span>
+                <div class="alert-toggle-list">
+                  {#each group.types as type}
+                    <label class="alert-toggle" for={`alert-pref-${type}`}>
+                      <input
+                        id={`alert-pref-${type}`}
+                        class="alert-toggle-input"
+                        type="checkbox"
+                        name={`alert_${type}`}
+                        checked={data.alertPreferences[type]}
+                      />
+                      <span class="alert-toggle-track"><span class="alert-toggle-thumb"></span></span>
+                      <span class="alert-toggle-copy">
+                        <span class="body-strong" style="font-size:13px;">{$t(`set.alertPrefs.type.${type}`)}</span>
+                        <span class="body text-fg-3" style="font-size:11.5px;">{$t(`set.alertPrefs.desc.${type}`)}</span>
+                      </span>
+                    </label>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+            <div class="alert-toggle-actions">
+              <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
+            </div>
+          </form>
+        </SectionCard>
       {/if}
 
       {#if activeSection === 'whatsapp' && data.whatsappEnabled}
@@ -547,6 +578,64 @@
       gap: 10px;
       align-items: stretch !important;
     }
+  }
+
+  .alert-toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .alert-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .alert-toggle-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+  }
+  .alert-toggle-track {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 20px;
+    margin-top: 1px;
+    border-radius: 999px;
+    background: var(--mep-border-strong);
+    transition: background 0.15s ease;
+  }
+  .alert-toggle-thumb {
+    display: block;
+    width: 16px;
+    height: 16px;
+    margin: 2px;
+    border-radius: 999px;
+    background: var(--mep-surface);
+    transition: transform 0.15s ease;
+  }
+  .alert-toggle-input:checked + .alert-toggle-track {
+    background: var(--mep-acc);
+  }
+  .alert-toggle-input:checked + .alert-toggle-track .alert-toggle-thumb {
+    transform: translateX(14px);
+  }
+  .alert-toggle-input:focus-visible + .alert-toggle-track {
+    outline: 2px solid var(--mep-acc);
+    outline-offset: 2px;
+  }
+  .alert-toggle-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .alert-toggle-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 15px 20px;
   }
 
   .wa-number-block {

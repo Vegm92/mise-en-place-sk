@@ -120,3 +120,4 @@ Numeric stock/burn; unit strings through `canonicalizeUnit`; tenant scope.
 
 - Saves a new UoM rule and clears pending flags; rate limit `unit-conversions:${locals.user!.id}`, 30/min (issue #223).
 - Clears pending flags joined by `supplier_id` when known, else by name; comparison is normalized (issue #296) so casing/accent/spacing drift between the pending line and the saved rule doesn't miss.
+- Since #582 the route is a thin validating shell over `defineUnitConversion` (`src/lib/server/products.ts`); the upsert, the line-item flag clearing and the resolution of pending `unit_conversion_needed` alerts all live in that one helper so the Products suggestions tab and the supplier "conversiones" tab cannot drift apart. The response echoes `resolvedPrompts` — how many pending alerts the rule closed.

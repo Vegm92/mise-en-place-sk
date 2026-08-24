@@ -43,6 +43,14 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
   rounded 4 dp.
 - **Conversions**: `unit_conversions` supplier-scoped override wins over
   name-matched; unknown unit → `requiresUnitConversion` + `unit_conversion_needed`.
+- **Conversion prompts in the suggestions tab** (issue #582): the pending
+  `unit_conversion_needed` alerts are surfaced as prompts alongside the product
+  suggestions (`loadConversionPrompts`), de-duplicated per
+  supplier+ingredient+purchase-unit and dropped once a matching rule exists.
+  Answering one posts to `(app)/api/unit-conversions`, which writes the
+  `unit_conversions` row, clears `requires_unit_conversion` on the matching
+  line items and flips the alert to `sent` — all through the single
+  `defineUnitConversion` helper.
 - **User actions** (`products.ts:404-458`): confirm/reject alias (reject splits
   product), merge (deletes orphan), unlink supplier, delete (refuses while
   linked to line items).
@@ -63,8 +71,11 @@ n/a for products (rows/aliases mutate); notifications go `pending → sent`.
 
 ## UI dependencies
 
-`products/+page.svelte`, `products/[id]/+page.svelte`, `NotificationItem.svelte`
-(product suggestion CTAs).
+`products/+page.svelte` (catalog warning + suggestions-tab conversion prompts),
+`products/[id]/+page.svelte`, `NotificationItem.svelte`
+(product suggestion CTAs). The Products list page is a single responsive
+component built on `ListPageTemplate` — it has no separate Mobile*/Desktop*
+variants (ADR-020).
 
 ## Background dependencies
 
@@ -110,12 +121,33 @@ candidates (never arbitrary ids).
 - A new line item resolves via alias → fuzzy → create in order, with correct
   `product_id` back-links and normalized price.
 - Confirm/reject/merge persist and clear/re-split appropriately.
+- The suggestions tab lists a conversion prompt for every unanswered
+  `unit_conversion_needed` alert; defining one from there stores a tenant-scoped
+  `unit_conversions` row, closes the alert, and is consulted by the next
+  extraction (`annotateLineItems`).
 - Tests: `tests/product-catalog.test.ts`, `tests/product-crud.test.ts`,
+  `tests/product-conversion-suggestions.test.ts`,
   `tests/product-dictionary.test.ts`, `tests/product-normalizer.test.ts`,
   `tests/norm-key-parity.test.ts`, `tests/pack-parser.test.ts`,
   `tests/unit-bridge.test.ts`, `tests/backfill.test.ts`.
 
 ## Code notes
+
+### `src/routes/(app)/products/+page.server.ts`
+
+**`const load`**
+
+- Loads the catalog, the pending `product_suggestion` rows and (issue #582) the pending unit-conversion prompts in one `Promise.all`. `needsConversion` on a catalog row is the *product-level* gap (a canonical unit with no pack size); `conversionPrompts` is the *line-level* gap (a purchase unit no rule can canonicalise) — two different questions, deliberately kept apart.
+
+### `src/routes/(app)/products/+page.svelte`
+
+**`function saveConversion`**
+
+- The suggestions tab's inline "define the conversion" form. Posts to `(app)/api/unit-conversions` — the same endpoint the notification-centre CTA links to — and re-runs `load` on success so the answered prompt disappears. A non-OK response sets a per-prompt error flag rather than a page-level one, so one bad factor doesn't blank the other prompts.
+
+**`const pendingCount`**
+
+- The suggestions tab badge and its empty state count product suggestions *and* conversion prompts; the tab is "sugerencias pendientes", and a pending conversion is one.
 
 ### `src/routes/(app)/products/[id]/+page.server.ts`
 
@@ -158,4 +190,5 @@ candidates (never arbitrary ids).
 - Catalog resolution (issue #298): per unique normalized key — 1) exact alias → `exact`; 2) pg_trgm ≥ `FUZZY_THRESHOLD` (0.42, conservative) → link + pending `fuzzy` alias; 3) else create product + `exact` alias. Runs inside the save transaction. `resolveLineProducts` de-dups by key so a repeated description resolves once. The fuzzy step also tries the dictionary-expanded key (issue #300). `deleteProduct` is blocked (not cascaded) while line items/aliases reference it — the UI unlinks suppliers first. `resolveUnitConversionAlerts` matches pending alerts by normalized key against the product name or aliases. Confirm/reject/merge decide the fate of pending suggestions.
 - Dictionary (issue #300): `SKU_PREFIX` requires a digit in the code so words like "REFRESCO"/"ARTESANO" are never stripped; `BARE_CODE` strips only 4+ digit leading codes (3 or fewer is usually a size). Whole-token, case-insensitive; slash tokens ("s/h") kept literal; abbreviations only, no cross-product synonyms.
 - LLM normalization (issue #300): pg-boss job for lines the deterministic layers couldn't match; Gemini asked whether the description is really an existing tenant product. `LLM_MATCH_THRESHOLD` (0.8) → PENDING `product_suggestion`, never a silent merge. Best-effort: any failure is swallowed so the worker/invoice never break. Cost metered via llm-quota (`normalize` caller context).
-- Unit-bridge (issue #296): rules keyed by `normalizeProductKey(ingredient)` + `normalizeProductKey(unit)` via `conversionKey`, so casing/accent/spacing drift doesn't miss rules. `loadConversionMap` fetches per-supplier rules and matches in memory (few rules per supplier). `resolveUnitFromMap` falls through to recognized spellings of canonical units ("Kgs", "KILO", "KGM" → kg) with factor 1.
+- Unit-bridge (issue #296): rules keyed by `normalizeProductKey(ingredient)` + `normalizeProductKey(unit)` via `conversionKey`, so casing/accent/spacing drift doesn't miss rules. `loadConversionMap` fetches per-supplier rules and matches in memory (few rules per supplier). `resolveUnitFromMap` falls through to recognized spellings of canonical units ("Kgs", "KILO", "KGM" → kg) with factor 1. `loadConversionMap`/`resolveUnit`/`annotateLineItems` take an optional trailing `database` argument defaulting to the app pool — the seam DB-backed tests use to run against the test connection instead of the module-level singleton. The supplier-name branch matches on `mep_norm_key(supplier_name)` (issue #582): the extraction worker and `enrichLineItems` look rules up by name only (no `supplier_id`), while every writer stores the supplier's real name, so a plain lowercase comparison silently missed every rule saved for a supplier whose name is not already lowercase.
+- Conversion prompts (issue #582): `loadConversionPrompts` reads the pending `unit_conversion_needed` alerts, parses each JSON payload defensively (a legacy or non-JSON payload is skipped rather than aborting the page load), keys them by `supplierConversionKey` = normalized supplier + `conversionKey`, drops the ones a `unit_conversions` row already answers and keeps only the newest alert per key — the same supplier re-billing the same unit must not produce N identical prompts. `defineUnitConversion` is the single write path behind both the API route and the suggestions tab: validate → upsert on the `(rid, supplier_name, ingredient, purchase_unit)` unique index → clear `requires_unit_conversion` (+ set `canonical_unit`) on this tenant's matching line items for that supplier → flip matching pending alerts to `sent`, returning how many it closed. Normalized keys are computed in TS and compared against `mep_norm_key(...)` in SQL, which the norm-key-parity test keeps in lockstep.
