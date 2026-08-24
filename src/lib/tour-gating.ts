@@ -5,7 +5,7 @@ export const TOUR_PAGES = [
 	{ step: '6',  path: '/analytics/spend', anchor: 'analytics-main' },
 	{ step: '7',  path: '/budgets',         anchor: 'budgets-main' },
 	{ step: '8',  path: '/reminders',       anchor: 'reminders-main' },
-	{ step: '9',  path: '/digest',          anchor: 'digest-main' },
+	{ step: '9',  path: '/reports',         anchor: 'digest-main' },
 	{ step: '10', path: '/chat',            anchor: 'chat-main' },
 	{ step: '11', path: '/settings',        anchor: 'settings-main' },
 ] as const;
@@ -13,7 +13,7 @@ export const TOUR_PAGES = [
 export type TourFeatureKey = 'weeklyDigest' | 'stockTracking' | 'supplierScores' | 'multiLocation' | 'prioritySupport';
 
 export const TOUR_FEATURE_REQUIREMENT: Partial<Record<string, TourFeatureKey>> = {
-	'/digest': 'weeklyDigest',
+	'/reports': 'weeklyDigest',
 };
 
 export function tourPageAccessible(path: string, features: Partial<Record<TourFeatureKey, boolean>>): boolean {

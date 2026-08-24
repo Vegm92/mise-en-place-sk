@@ -37,7 +37,7 @@ describe('t (translation lookup)', () => {
   });
 });
 
-describe('weekly digest keys (added with the dedicated /digest page)', () => {
+describe('weekly digest keys (added with the dedicated /reports page)', () => {
   const keys = [
     'nav.digest',
     'digest.title',
@@ -49,13 +49,42 @@ describe('weekly digest keys (added with the dedicated /digest page)', () => {
   it('resolves in Spanish', () => {
     locale.set('es');
     for (const k of keys) expect(tr(k)).not.toBe(k);
-    expect(tr('digest.title')).toBe('Resumen semanal');
+    expect(tr('digest.title')).toBe('Informes');
   });
 
   it('resolves in English', () => {
     locale.set('en');
     for (const k of keys) expect(tr(k)).not.toBe(k);
-    expect(tr('digest.title')).toBe('Weekly Digest');
+    expect(tr('digest.title')).toBe('Reports');
+  });
+});
+
+describe('issue #581 — nav label and page title renamed to Informes/Reports', () => {
+  it('the sidebar nav label resolves to Informes/Reports, not the old digest wording', () => {
+    locale.set('es');
+    expect(tr('nav.digest')).toBe('Informes');
+    expect(tr('nav.digest')).not.toBe('Resumen semanal');
+    locale.set('en');
+    expect(tr('nav.digest')).toBe('Reports');
+    expect(tr('nav.digest')).not.toBe('Weekly Digest');
+  });
+
+  it('the page title resolves to Informes/Reports, not the old digest wording', () => {
+    locale.set('es');
+    expect(tr('digest.title')).toBe('Informes');
+    expect(tr('digest.title')).not.toBe('Resumen semanal');
+    locale.set('en');
+    expect(tr('digest.title')).toBe('Reports');
+    expect(tr('digest.title')).not.toBe('Weekly Digest');
+  });
+
+  it('leaves the underlying digest-content strings alone (they describe the AI digest, not the page name)', () => {
+    locale.set('es');
+    expect(tr('digest.dismissed')).toBe('Resumen leído.');
+    expect(tr('digest.unavailable')).toBe('No hay resumen disponible para esta semana.');
+    locale.set('en');
+    expect(tr('digest.dismissed')).toBe('Digest acknowledged.');
+    expect(tr('digest.unavailable')).toBe('No digest available for this week.');
   });
 });
 
