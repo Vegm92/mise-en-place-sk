@@ -116,8 +116,10 @@ Leave both unset when the Node process is directly internet-facing.
 | `WHATSAPP_VERIFY_TOKEN` | For WhatsApp | Any secret string; Meta echoes it when verifying the webhook subscription. |
 | `WHATSAPP_APP_SECRET` | For WhatsApp | App secret (App Dashboard → Settings → Basic). Verifies `X-Hub-Signature-256` on inbound POSTs — **the webhook fails closed without it in production.** |
 | `WHATSAPP_API_VERSION` | No (default `v25.0`) | Graph API version for every Cloud API call. Meta expires each version ~2 years after release and calls to an expired one **fail outright** — check this at every upgrade. |
+| `WHATSAPP_SENDER_HOURLY_LIMIT` | No (default `30`) | Invoices one authorised number may send per hour. Guards the extraction queue and the monthly LLM quota against a burst from a single sender (issue #483). |
+| `WHATSAPP_BOT_ENABLED` | For the Baileys bot | `true` on the **worker** service starts the unofficial WhatsApp client (ADR-025). Anything else and no socket is opened. Independent of the Cloud API variables above. |
 
-Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` unset to disable the bot (the Settings card hides itself too).
+Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` unset to disable the Cloud API path (the Settings card hides itself too), and `WHATSAPP_BOT_ENABLED` unset to disable the Baileys path.
 
 ### Rate limiting (Upstash Redis)
 
@@ -210,10 +212,55 @@ Without these headers the app still works correctly — browsers check SW update
 on every navigation regardless of HTTP cache — but setting them explicitly
 prevents edge-case stale-SW bugs after deploys.
 
+## WhatsApp bot: which transport
+
+There are two, behind one interface (ADR-025). Pick one:
+
+- **Baileys (`WHATSAPP_BOT_ENABLED=true`)** — the MVP path. No business
+  registration, no Meta credentials; the worker holds a WhatsApp Web socket and
+  pairs by QR. See [Baileys bot setup](#baileys-bot-setup).
+- **Meta Cloud API** — the destination. Needs a verified business, so it cannot
+  be provisioned until registration completes. See
+  [WhatsApp bot setup](#whatsapp-bot-setup).
+
+Both feed the same handler, so pairing codes, contacts, ingestion, job codes
+and `OK`/`NO` replies behave identically either way.
+
+## Baileys bot setup
+
+1. Get a **dedicated SIM and phone number** for the bot. Never a personal
+   number: WhatsApp bans numbers using unofficial clients without notice, and a
+   banned personal number costs someone their own messaging.
+2. Set `WHATSAPP_BOT_ENABLED=true` on the **worker** service only. The web
+   service never opens a socket.
+3. **Disable `sleepApplication` on the worker service** in Railway. The repo's
+   `railway.json` sets it for the web service, and a slept process drops the
+   socket — the bot goes silent until something wakes it.
+4. Deploy, then pair. The worker has no HTTP port, so the QR is surfaced twice:
+   as ASCII in the worker log, and at **`/admin/whatsapp`** as a rendered code.
+   On the bot's phone: WhatsApp → Linked devices → Link a device → scan. A QR
+   expires in about 60 seconds; the worker keeps issuing new ones.
+5. Confirm the panel shows **Connected**, then send a test invoice photo from an
+   authorised number.
+
+The session lives in the `whatsapp_session` table, so it survives redeploys and
+needs no volume. To revoke it, unlink the device on the phone and clear that
+table; the worker will ask to pair again.
+
+**Kill switch.** `/admin/whatsapp` toggles `app_flags.whatsapp_bot_enabled`,
+which stops the bot without a redeploy — checked at worker boot and before every
+inbound message. `WHATSAPP_BOT_ENABLED=false` (or unset) is the harder gate: the
+flag cannot re-open what the env var has closed.
+
+**When the number gets banned,** which is a question of when and not if: set the
+kill switch, get a new SIM, pair it, and update `WHATSAPP_DISPLAY_NUMBER` so
+`/settings` sends staff to the right place. Contacts, pairings and invoices are
+unaffected — none of them key on the bot's own number.
+
 ## WhatsApp bot setup
 
-Only needed if you enable the WhatsApp invoice bot (issue #187). All four secret
-`WHATSAPP_*` variables must be set for the webhook to authenticate Meta.
+Only needed if you enable the **Meta Cloud API** path (issue #187). All four
+secret `WHATSAPP_*` variables must be set for the webhook to authenticate Meta.
 
 We run **one shared business number** that every restaurant sends invoices to;
 `whatsapp_contacts` maps each sender to its tenant. That means no Embedded Signup

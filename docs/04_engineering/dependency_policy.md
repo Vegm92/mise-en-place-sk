@@ -34,6 +34,9 @@ ones. Verify against `package.json` before assuming (dependencies evolve).
 - Auth via Auth.js seam; do not bolt on a second auth stack.
 - No Postgres-enum or migration tooling outside `drizzle-kit`.
 - Storage stays behind the driver seam (`storageDriver`, ADR-016).
+- WhatsApp stays behind the transport seam
+  (`src/lib/server/integrations/whatsapp/transport.ts`, ADR-025):
+  `driver-baileys.ts` is the only file allowed to import the client.
 
 ## Adding a dependency
 
