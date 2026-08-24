@@ -302,6 +302,13 @@
       "when": 1787678712747,
       "tag": "0042_careless_unus",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1787697226287,
+      "tag": "0043_damp_iron_fist",
+      "breakpoints": true
     }
   ]
 }
