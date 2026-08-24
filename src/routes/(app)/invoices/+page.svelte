@@ -1,7 +1,19 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
   import { fmt, fmtDateShort, fmtEur } from '$lib/formatters';
   import { t, ti, tp, locale } from '$lib/i18n';
+  import { debounce } from '$lib/debounce';
+  import {
+    EMPTY_INVOICE_FILTERS,
+    countActiveInvoiceFilters,
+    defaultFiltersOpen,
+    invoiceFilterParams,
+    invoiceFiltersHref,
+    type InvoiceFilters,
+    type InvoiceSortKey,
+  } from '$lib/invoice-filters';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
@@ -15,6 +27,8 @@
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Eye from '@lucide/svelte/icons/eye';
+  import Search from '@lucide/svelte/icons/search';
+  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
   const { data }: { data: PageData } = $props();
   const { invoices, stats, suppliers, filters: serverFilters, pagination } = $derived(data);
@@ -29,27 +43,52 @@
   });
 
   function pageUrl(p: number): string {
-    const params = new URLSearchParams();
-    if (serverFilters.status)        params.set('status', serverFilters.status);
-    if (serverFilters.supplier_id)   params.set('supplier_id', serverFilters.supplier_id);
-    if (serverFilters.date_from)     params.set('date_from', serverFilters.date_from);
-    if (serverFilters.date_to)       params.set('date_to', serverFilters.date_to);
-    if (serverFilters.uploaded_from) params.set('uploaded_from', serverFilters.uploaded_from);
-    if (serverFilters.uploaded_to)   params.set('uploaded_to', serverFilters.uploaded_to);
-    if (serverFilters.sort && serverFilters.sort !== 'uploaded_desc') params.set('sort', serverFilters.sort);
-    if (data.period && data.period !== '30d') params.set('period', data.period);
-    if (p > 1)                 params.set('page', String(p));
-    const qs = params.toString();
-    return '/invoices' + (qs ? '?' + qs : '');
+    return invoiceFiltersHref(serverFilters, { period: data.period, page: p });
   }
-  const hasFilters = $derived(!!(
-    serverFilters.status || serverFilters.supplier_id || serverFilters.date_from || serverFilters.date_to ||
-    serverFilters.uploaded_from || serverFilters.uploaded_to || (serverFilters.sort && serverFilters.sort !== 'uploaded_desc')
-  ));
+
+  const SEARCH_DEBOUNCE_MS = 300;
+
+  let filterDraft = $state<InvoiceFilters>(untrack(() => ({ ...data.filters })));
+  let filtersOpen = $state(untrack(() => defaultFiltersOpen(countActiveInvoiceFilters(data.filters))));
+  let lastRequested = untrack(() => invoiceFilterParams(data.filters).toString());
+  const activeCount = $derived(countActiveInvoiceFilters(filterDraft));
+
+  $effect(() => {
+    const incoming = invoiceFilterParams(data.filters).toString();
+    if (incoming === lastRequested) return;
+    lastRequested = incoming;
+    filterDraft = { ...data.filters };
+  });
+
+  function applyFilters(replace = false) {
+    lastRequested = invoiceFilterParams(filterDraft, { period: data.period }).toString();
+    goto(invoiceFiltersHref(filterDraft, { period: data.period }), {
+      keepFocus: true,
+      noScroll: true,
+      replaceState: replace,
+    });
+  }
+
+  const applySearch = debounce(() => applyFilters(true), SEARCH_DEBOUNCE_MS);
+
+  function setFilter<K extends keyof InvoiceFilters>(key: K, value: InvoiceFilters[K]) {
+    applySearch.cancel();
+    filterDraft = { ...filterDraft, [key]: value };
+    applyFilters();
+  }
+
+  function setSearch(value: string) {
+    filterDraft = { ...filterDraft, q: value };
+    applySearch();
+  }
+
+  function clearFilters() {
+    applySearch.cancel();
+    filterDraft = { ...EMPTY_INVOICE_FILTERS };
+    applyFilters();
+  }
 
   let view = $state<'list' | 'chart'>('list');
-  let filterForm: HTMLFormElement;
-  function autoSubmit() { filterForm.requestSubmit(); }
 
   let activeTrendKeys = $state(['paid', 'pending', 'overdue']);
   function toggleTrendBadge(key: string) {
@@ -167,7 +206,7 @@
 {/if}
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceList invoices={invoices} />
+  <MobileInvoiceList invoices={invoices} q={filterDraft.q} onSearch={setSearch} />
 </div>
 
 <div class="hidden md:block p-6">
@@ -194,70 +233,118 @@
     trendEmptyLabel={$t('tpl.trend.empty')}
   >
     {#snippet topBar()}
-      <form method="get" action="/invoices" bind:this={filterForm}
-        class="flex flex-wrap items-end gap-3">
-        <input type="hidden" name="period" value={data.period} />
+      <div class="flex flex-col gap-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" class="btn btn-ghost"
+            style="height:32px;font-size:12.5px;gap:6px;"
+            aria-expanded={filtersOpen}
+            aria-controls="inv-filter-panel"
+            onclick={() => (filtersOpen = !filtersOpen)}>
+            <SlidersHorizontal size={13} />
+            {$t('inv.filter.toggle')}
+            {#if activeCount > 0}
+              <span class="badge bg-acc-soft text-acc border border-acc"
+                aria-label={$ti('inv.filter.activeCount', { n: activeCount })}
+                style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
+                {activeCount}
+              </span>
+            {/if}
+            <span style="display:inline-flex;transition:transform 150ms;{filtersOpen ? 'transform:rotate(180deg);' : ''}">
+              <ChevronDown size={13} />
+            </span>
+          </button>
 
-        <div class="flex flex-col gap-1">
-          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{$t('inv.filter.supplier')}</label>
-          <select id="inv-supplier" name="supplier_id" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:160px;" onchange={autoSubmit}>
-            <option value="">{$t('inv.filter.all')}</option>
-            {#each suppliers as s}
-              <option value={s.id} selected={serverFilters.supplier_id === String(s.id)}>{s.name}</option>
-            {/each}
-          </select>
+          {#if activeCount > 0}
+            <button type="button" class="btn btn-ghost" style="height:32px;font-size:12.5px;" onclick={clearFilters}>
+              {$t('inv.filter.clear')}
+            </button>
+          {/if}
         </div>
 
-        <div class="flex flex-col gap-1">
-          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{$t('inv.filter.status')}</label>
-          <select id="inv-status" name="status" class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit}>
-            <option value="" selected={!serverFilters.status}>{$t('inv.filter.allStatus')}</option>
-            <option value="pending"  selected={serverFilters.status === 'pending'}>{$t('status.pending')}</option>
-            <option value="paid"     selected={serverFilters.status === 'paid'}>{$t('status.paid')}</option>
-            <option value="overdue"  selected={serverFilters.status === 'overdue'}>{$t('status.overdue')}</option>
-          </select>
-        </div>
+        <div id="inv-filter-panel">
+          {#if filtersOpen}
+            <div class="flex flex-wrap items-end gap-3">
 
-        <div class="flex flex-col gap-1">
-          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{$t('inv.filter.from')}</label>
-          <input id="inv-from" type="date" name="date_from" value={serverFilters.date_from}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
-        </div>
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-q">{$t('inv.filter.search')}</label>
+                <div class="search-field">
+                  <span class="search-icon"><Search size={13} /></span>
+                  <input id="inv-q" type="search" class="input"
+                    style="height:32px;font-size:12.5px;padding-left:32px;min-width:200px;"
+                    placeholder={$t('inv.searchPlaceholder')}
+                    value={filterDraft.q}
+                    oninput={(e) => setSearch((e.target as HTMLInputElement).value)} />
+                </div>
+              </div>
 
-        <div class="flex flex-col gap-1">
-          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{$t('inv.filter.to')}</label>
-          <input id="inv-to" type="date" name="date_to" value={serverFilters.date_to}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
-        </div>
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{$t('inv.filter.supplier')}</label>
+                <select id="inv-supplier" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:160px;"
+                  value={filterDraft.supplier_id}
+                  onchange={(e) => setFilter('supplier_id', (e.target as HTMLSelectElement).value)}>
+                  <option value="">{$t('inv.filter.all')}</option>
+                  {#each suppliers as s}
+                    <option value={String(s.id)}>{s.name}</option>
+                  {/each}
+                </select>
+              </div>
 
-        <div class="flex flex-col gap-1">
-          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
-          <input id="inv-uploaded-from" type="date" name="uploaded_from" value={serverFilters.uploaded_from}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
-        </div>
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{$t('inv.filter.status')}</label>
+                <select id="inv-status" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                  value={filterDraft.status}
+                  onchange={(e) => setFilter('status', (e.target as HTMLSelectElement).value)}>
+                  <option value="">{$t('inv.filter.allStatus')}</option>
+                  <option value="pending">{$t('status.pending')}</option>
+                  <option value="paid">{$t('status.paid')}</option>
+                  <option value="overdue">{$t('status.overdue')}</option>
+                </select>
+              </div>
 
-        <div class="flex flex-col gap-1">
-          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
-          <input id="inv-uploaded-to" type="date" name="uploaded_to" value={serverFilters.uploaded_to}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" onchange={autoSubmit} />
-        </div>
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{$t('inv.filter.from')}</label>
+                <input id="inv-from" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                  value={filterDraft.date_from}
+                  onchange={(e) => setFilter('date_from', (e.target as HTMLInputElement).value)} />
+              </div>
 
-        <div class="flex flex-col gap-1">
-          <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{$t('inv.filter.sort')}</label>
-          <select id="inv-sort" name="sort" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:185px;" onchange={autoSubmit}>
-            <option value="uploaded_desc"     selected={!serverFilters.sort || serverFilters.sort === 'uploaded_desc'}>{$t('inv.filter.sort.uploadedDesc')}</option>
-            <option value="uploaded_asc"      selected={serverFilters.sort === 'uploaded_asc'}>{$t('inv.filter.sort.uploadedAsc')}</option>
-            <option value="invoice_date_desc" selected={serverFilters.sort === 'invoice_date_desc'}>{$t('inv.filter.sort.invoiceDateDesc')}</option>
-            <option value="invoice_date_asc"  selected={serverFilters.sort === 'invoice_date_asc'}>{$t('inv.filter.sort.invoiceDateAsc')}</option>
-          </select>
-        </div>
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{$t('inv.filter.to')}</label>
+                <input id="inv-to" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                  value={filterDraft.date_to}
+                  onchange={(e) => setFilter('date_to', (e.target as HTMLInputElement).value)} />
+              </div>
 
-        {#if hasFilters}
-          <div class="flex flex-col gap-1" style="justify-content:flex-end;">
-            <a href="/invoices" class="btn btn-ghost" style="height:32px;font-size:12.5px;text-decoration:none;">{$t('inv.filter.clear')}</a>
-          </div>
-        {/if}
-      </form>
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
+                <input id="inv-uploaded-from" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                  value={filterDraft.uploaded_from}
+                  onchange={(e) => setFilter('uploaded_from', (e.target as HTMLInputElement).value)} />
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
+                <input id="inv-uploaded-to" type="date" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+                  value={filterDraft.uploaded_to}
+                  onchange={(e) => setFilter('uploaded_to', (e.target as HTMLInputElement).value)} />
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{$t('inv.filter.sort')}</label>
+                <select id="inv-sort" class="input" style="height:32px;font-size:12.5px;padding:0 8px;min-width:185px;"
+                  value={filterDraft.sort}
+                  onchange={(e) => setFilter('sort', (e.target as HTMLSelectElement).value as InvoiceSortKey)}>
+                  <option value="uploaded_desc">{$t('inv.filter.sort.uploadedDesc')}</option>
+                  <option value="uploaded_asc">{$t('inv.filter.sort.uploadedAsc')}</option>
+                  <option value="invoice_date_desc">{$t('inv.filter.sort.invoiceDateDesc')}</option>
+                  <option value="invoice_date_asc">{$t('inv.filter.sort.invoiceDateAsc')}</option>
+                </select>
+              </div>
+
+            </div>
+          {/if}
+        </div>
+      </div>
     {/snippet}
 
     {#snippet filters()}

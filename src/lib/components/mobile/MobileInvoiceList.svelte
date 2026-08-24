@@ -16,11 +16,14 @@
 
   let {
     invoices,
+    q,
+    onSearch,
   }: {
     invoices: Invoice[];
+    q: string;
+    onSearch: (value: string) => void;
     } = $props();
 
-  let searchQuery = $state('');
   let activeFilter = $state('month');
 
   const filters = [
@@ -33,13 +36,6 @@
 
   const filtered = $derived.by(() => {
     let list = invoices;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(inv =>
-        inv.supplier_name?.toLowerCase().includes(q) ||
-        inv.invoice_number?.toLowerCase().includes(q)
-      );
-    }
     if (activeFilter === 'pending') {
       list = list.filter(inv => inv.status === 'pending');
     } else if (activeFilter === 'overdue') {
@@ -85,8 +81,10 @@
     <input
       class="input"
       style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
+      type="search"
       placeholder={$t('inv.searchPlaceholder')}
-      bind:value={searchQuery}
+      value={q}
+      oninput={(e) => onSearch((e.target as HTMLInputElement).value)}
     />
   </div>
 
