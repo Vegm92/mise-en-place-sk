@@ -153,11 +153,21 @@
 
   let lineItems = $state<LineItem[]>([]);
   let lineItemsSource: unknown = null;
+  function normalizeLine(item: LineItem): LineItem {
+    return {
+      ...item,
+      description: str(item.description),
+      quantity: str(item.quantity),
+      unit: str(item.unit),
+      unit_price: priceStr(item.unit_price),
+      total_price: priceStr(item.total_price),
+    };
+  }
   $effect(() => {
     const raw = data.review?.data?.line_items;
     if (raw === lineItemsSource) return;
     lineItemsSource = raw;
-    lineItems = Array.isArray(raw) ? [...(raw as LineItem[])] : [];
+    lineItems = Array.isArray(raw) ? (raw as LineItem[]).map(normalizeLine) : [];
   });
 
   // svelte-ignore state_referenced_locally — reading the initial value is the point
@@ -199,6 +209,7 @@
     showLowConfModal = false;
     showContentDuplicateModal = false;
     previewFull = false;
+    taxPanelOpen = false;
     uncertainCursor = 0;
     const rd = data.review?.data;
     supplierNameInput = str(rd?.supplier_name);
@@ -310,14 +321,32 @@
     const n = parseFloat(totalAmountInput);
     return isNaN(n) ? 0 : n;
   });
+  type TaxBand = { rate?: number | null; base?: number | null; tax_amount?: number | null; type?: 'iva' | 'rec' };
   const taxBreakdown = $derived.by(() => {
     const raw = review?.data?.tax_breakdown;
     if (!Array.isArray(raw) || raw.length === 0) return null;
-    return raw as Array<{ rate: number; base: number; tax_amount: number }>;
+    return raw as TaxBand[];
   });
   const taxTotal = $derived(
-    taxBreakdown ? taxBreakdown.reduce((s, b) => s + ((b as { tax_amount: number }).tax_amount ?? 0), 0) : 0
+    taxBreakdown ? taxBreakdown.reduce((s, b) => s + (b.tax_amount ?? 0), 0) : 0
   );
+  const taxBase = $derived.by(() => {
+    if (!taxBreakdown) return 0;
+    const perType = new Map<string, number>();
+    for (const b of taxBreakdown) {
+      const key = b.type ?? '';
+      perType.set(key, (perType.get(key) ?? 0) + (b.base ?? 0));
+    }
+    return Math.max(0, ...perType.values());
+  });
+  const taxBaseMatchesLines = $derived(taxBase > 0 && Math.abs(taxBase - lineTotal) <= 0.01);
+  let taxPanelOpen = $state(false);
+
+  function ratePct(rate: number | null | undefined): string {
+    if (typeof rate !== 'number' || !Number.isFinite(rate)) return '—';
+    const pct = rate > 1 ? rate : rate * 100;
+    return `${Number(pct.toFixed(2))}`.replace('.', ',') + '%';
+  }
   const totalCalc = $derived(lineTotal + taxTotal);
   const discrepancy = $derived(Math.abs(totalCalc - extractedTotal));
   const hasDiscrepancy = $derived(discrepancy > 0.01 && extractedTotal > 0);
@@ -720,22 +749,22 @@
                       <td class="num" style="color:var(--mep-fg-4);font-size:11px;">{i + 1}</td>
                       <td>
                         <div style="display:flex;align-items:center;gap:5px;">
-                          <input type="text" name="line_descriptions" value={str(item.description)}
+                          <input type="text" name="line_descriptions" bind:value={lineItems[i].description}
                             class="rev-cell" style="font-size:12.5px;font-weight:500;" />
                           <ConfidenceDot confidence={itemConf} size={6} />
                         </div>
                       </td>
                       <td class="num">
-                        <input type="text" name="line_quantities" value={str(item.quantity)} class="rev-cell num" style="text-align:right;" />
+                        <input type="text" name="line_quantities" bind:value={lineItems[i].quantity} class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td>
-                        <input type="text" name="line_units" value={str(item.unit)} class="rev-cell" style="color:var(--mep-fg-2);" />
+                        <input type="text" name="line_units" bind:value={lineItems[i].unit} class="rev-cell" style="color:var(--mep-fg-2);" />
                       </td>
                       <td class="num">
-                        <input type="text" name="line_unit_prices" value={priceStr(item.unit_price)} class="rev-cell num" style="text-align:right;" />
+                        <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td class="num">
-                        <input type="text" name="line_total_prices" value={priceStr(item.total_price)} class="rev-cell num" style="text-align:right;font-weight:500;" />
+                        <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-cell num" style="text-align:right;font-weight:500;" />
                       </td>
                       <td>
                         <input type="hidden" name="line_tax_rates" value={str(item.tax_rate ?? '')} />
@@ -750,23 +779,53 @@
               </table>
             {/if}
 
-            {#if taxBreakdown}
-              <div class="rev-section">
-                <div class="rev-section-head">
-                  <div class="body-strong">{$t('review.taxes')}</div>
-                </div>
-                <div class="rev-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
-                  {#each taxBreakdown as band}
-                    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:8px 10px;border-radius:6px;background:var(--mep-surface-2);">
-                      <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);">{band.rate}%</span>
-                      <span class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">{fmt(band.tax_amount ?? 0)}</span>
-                    </div>
-                  {/each}
-                </div>
-              </div>
-            {/if}
 
           </div>
+
+          {#if taxBreakdown && taxPanelOpen}
+            <div class="rev-tax-panel">
+              <div class="rev-tax-panel-head">
+                <span class="body-strong">{$t('review.taxes')}</span>
+                {#if !taxBaseMatchesLines}
+                  <span class="rev-tax-stale" title={$t('review.taxBaseStaleHint')}>
+                    <AlertTriangle size={11} /> {$t('review.taxBaseStale')}
+                  </span>
+                {/if}
+              </div>
+              <table class="tbl rev-tax-tbl">
+                <thead>
+                  <tr>
+                    <th>{$t('review.taxRate')}</th>
+                    <th class="num">{$t('review.taxBandBase')}</th>
+                    <th class="num">{$t('review.taxAmount')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each taxBreakdown as band}
+                    <tr>
+                      <td>
+                        <span class="num" style="font-weight:500;">{ratePct(band.rate)}</span>
+                        {#if band.type === 'rec'}
+                          <span class="badge badge-neutral" style="margin-left:6px;" title={$t('review.taxRecFull')}>{$t('review.taxRec')}</span>
+                        {:else if band.type === 'iva'}
+                          <span class="badge badge-neutral" style="margin-left:6px;">{$t('review.taxIva')}</span>
+                        {/if}
+                      </td>
+                      <td class="num">{fmt(band.base ?? 0)}</td>
+                      <td class="num" style="font-weight:500;">{fmt(band.tax_amount ?? 0)}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td style="color:var(--mep-fg-3);">{$t('tbl.total')}</td>
+                    <td class="num" style="color:var(--mep-fg-3);">{fmt(taxBase)}</td>
+                    <td class="num" style="font-weight:600;">{fmt(taxTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          {/if}
 
           <div class="rev-bar rev-bar-foot">
             {#if hasDiscrepancy}
@@ -791,7 +850,17 @@
             <div class="rev-foot-totals">
               {#if taxTotal > 0}
                 <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('extract.taxBase')} <span class="num" style="color:var(--mep-fg-2);">{fmt(lineTotal)}</span></span>
-                <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('extract.vat')} <span class="num" style="color:var(--mep-fg-2);">{fmt(taxTotal)}</span></span>
+                {#if taxBreakdown}
+                  <button type="button" class="rev-tax-toggle" onclick={() => taxPanelOpen = !taxPanelOpen}
+                    aria-expanded={taxPanelOpen}
+                    title={taxPanelOpen ? $t('review.hideTaxes') : $t('review.showTaxes')}>
+                    {$t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
+                    {#if !taxBaseMatchesLines}<AlertTriangle size={10} />{/if}
+                    <span class="rev-tax-caret" class:open={taxPanelOpen}><ChevronsRight size={11} /></span>
+                  </button>
+                {:else}
+                  <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('extract.vat')} <span class="num" style="color:var(--mep-fg-2);">{fmt(taxTotal)}</span></span>
+                {/if}
               {/if}
               <span style="font-size:12px;color:var(--mep-fg-2);">{$t('extract.calcTotal')}</span>
               <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmt(totalCalc)}</span>

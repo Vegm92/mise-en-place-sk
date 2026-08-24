@@ -217,6 +217,12 @@ shapes, `low_confidence_ack` value.
 
 - Shortcuts are modifier-based (⌘/Ctrl+Enter save, ⌘/Ctrl+\ document, ⌘/Ctrl+B queue, F2 next uncertain field) precisely because this page keeps focus inside an input almost the whole time — bare letter keys would type instead of act.
 
+**`const taxBreakdown`**
+
+- `rate` arrives as a decimal fraction (0.21), not a percentage — both e-invoice parsers divide by 100 and the Gemini schema asks for the same — so `ratePct` is the only correct way to render it.
+- `taxBase` sums bases *per tax type*, then takes the largest group. A Spanish produce invoice carries IVA and Recargo de Equivalencia on the **same** base, so a flat sum across bands would double-count it; with a single type (or several rates of one type) the grouped max equals the plain sum.
+- The breakdown is display-only, and `invoice-save.ts` persists it from the stored extraction rather than the form — so a reviewer who corrects a line cannot correct the tax that hangs off it. `taxBaseMatchesLines` exists to say so out loud: when the edited lines drift from the extracted base, the footer chip and the drawer both flag it instead of letting the stale figure pass silently into `totalCalc`.
+
 **`const addFiles`**
 
 - Add-more-file state.
@@ -229,6 +235,8 @@ shapes, `low_confidence_ack` value.
 - The discard button sits visually inside the save form's header but targets an out-of-tree `#discard-item-form` — nesting real forms is invalid HTML.
 - Content-duplicate block + low-confidence review gate modals; `svelte-ignore a11y_no_static_element_interactions` on their click-catchers.
 - Under 900px the three panes stack and the page scrolls as one; the rail becomes a horizontal strip of file chips.
+- The tax desglose is a drawer that opens between the scroll body and the totals bar, toggled from the footer's tax figure — the number and its explanation live together, and it stays reachable without scrolling past every line. In-flow rather than an absolutely-positioned popover because the pane's `overflow: hidden` would clip one. Bands show rate, an IVA/REC badge (only when the extraction actually labelled the type), base and cuota.
+- Line-item inputs are bound to `lineItems` state. They were previously one-way `value={…}`, so `lineTotal`, `totalCalc` and the discrepancy indicator never moved when a reviewer corrected a price — the footer reported on the extraction, not on what was about to be saved.
 
 ### `src/routes/(app)/confirm/[id]/+page.server.ts`
 
