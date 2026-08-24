@@ -74,3 +74,6 @@ DEPLOYMENT.md
 !/docs/onboarding/**
 # Architecture decision records live in /doc (not ignored) â€” see doc/README.md
 /mise-en-place
+
+# Local audit screenshots (issue #659)
+/shots/
