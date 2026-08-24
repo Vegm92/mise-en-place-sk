@@ -173,7 +173,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     },
     { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
     { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
-    { href: '/digest',          icon: Newspaper,       label: $t('nav.digest'),     badge: 0, proOnly: true, feature: 'weeklyDigest' },
+    { href: '/reports',         icon: Newspaper,       label: $t('nav.digest'),     badge: 0, proOnly: true, feature: 'weeklyDigest' },
     { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0, proOnly: true, feature: 'aiAssistant' },
     { href: '/plantilla-lista', icon: LayoutTemplate,  label: $t('nav.template'),   badge: 0 },
     ] satisfies NavItem[] : []),

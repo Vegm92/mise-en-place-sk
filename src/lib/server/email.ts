@@ -267,7 +267,7 @@ export function weeklyDigestEmail(email: string, restaurantName: string, digestH
 			bodyHtml: `
 ${p('Este es el resumen semanal de gastos:')}
 ${styledDigest}`,
-			cta: { href: `${APP_BASE_URL}/digest`, label: 'Ver el resumen completo' },
+			cta: { href: `${APP_BASE_URL}/reports`, label: 'Ver el resumen completo' },
 			footerLinks: true,
 		}),
 	};

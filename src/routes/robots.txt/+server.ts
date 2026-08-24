@@ -11,6 +11,7 @@ export const GET: RequestHandler = ({ url }) => {
 		'Disallow: /budgets',
 		'Disallow: /reminders',
 		'Disallow: /digest',
+		'Disallow: /reports',
 		'Disallow: /settings',
 		'Disallow: /chat',
 		'Disallow: /batch',
