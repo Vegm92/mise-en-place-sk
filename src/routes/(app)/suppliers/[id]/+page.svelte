@@ -36,7 +36,7 @@
   const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   const productDonut = $derived((() => {
     const ranked = [...data.products]
-      .map(p => ({ ...p, spend: (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
+      .map(p => ({ ...p, spend: p.totalSpend ?? (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
       .sort((a, b) => b.spend - a.spend);
     const total = ranked.reduce((a, p) => a + p.spend, 0);
     if (total <= 0) return { slices: [], total: 0 };
@@ -366,6 +366,16 @@
               {#if prod.unit}<span>{prod.unit}</span>{/if}
               {#if prod.avgPrice != null}<span>· {fmtEur(prod.avgPrice)}</span>{/if}
               {#if prod.lastDate}<span>· {fmtDateShort(prod.lastDate, $locale)}</span>{/if}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;">
+              <div>
+                <div style="font-size:10px;color:var(--mep-fg-3);">{$t('sup.products.colSpend')}</div>
+                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalSpend != null ? fmtEur(prod.totalSpend) : '—'}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;color:var(--mep-fg-3);">{$t('sup.products.colUnits')}</div>
+                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalQty != null ? prod.totalQty.toFixed(2) : '—'}</div>
+              </div>
             </div>
           </div>
         {/each}
