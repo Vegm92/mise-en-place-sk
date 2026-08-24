@@ -34,11 +34,23 @@ describe('percentToFraction (the UI always speaks percent)', () => {
     expect(percentToFraction('0.21')).toBe(0.0021);
   });
 
+  it('tolerates the per-cent sign a reviewer types into a % field', () => {
+    expect(percentToFraction('21%')).toBe(0.21);
+    expect(percentToFraction('1,4 %')).toBe(0.014);
+  });
+
+  it('keeps a genuine zero rate distinct from no rate at all', () => {
+    expect(percentToFraction('0')).toBe(0);
+    expect(percentToFraction('')).toBeNull();
+  });
+
   it('rejects blanks and junk rather than guessing', () => {
     expect(percentToFraction('')).toBeNull();
     expect(percentToFraction('  ')).toBeNull();
     expect(percentToFraction('n/a')).toBeNull();
-    expect(percentToFraction('21%')).toBeNull();
+    expect(percentToFraction('%')).toBeNull();
+    expect(percentToFraction('-5')).toBeNull();
+    expect(percentToFraction('1e2')).toBeNull();
     expect(percentToFraction(null)).toBeNull();
     expect(percentToFraction(undefined)).toBeNull();
   });
