@@ -20,11 +20,14 @@ price-shock history.
 
 - Supplier name (+ optional contact, category) from extraction or user.
 - Category selection via `(app)/api/supplier-category`.
+- Supplier-list view state from `/suppliers` search params: `sort`, `q`,
+  `category`, `uncategorized` (issue #580).
 
 ## Outputs
 
 - `suppliers` row (unique per `(rid, lower(name))`).
 - `supplier_metrics` reliability scores (computed + cached).
+- Supplier list rows carrying `total_spend` alongside `month_spend`.
 - Category nudges/suggestions notifications.
 
 ## Business rules
@@ -38,6 +41,21 @@ price-shock history.
   from extraction and edits.
 - **Name normalization** (`normalize.ts`): Spanish legal forms (SLU, SCP, SA…)
   stripped for same-supplier detection.
+- **List sort/filter** (`supplier-list.ts`, `supplier-list-query.ts`, issue #580):
+  the `/suppliers` list is sorted and filtered in SQL, driven entirely by URL
+  search params so a view survives reload and can be shared.
+  - `sort` ∈ `spend_desc` (default), `spend_asc`, `name_asc`, `name_desc`,
+    `last_invoice_desc`, `last_invoice_asc`, `reliability_desc`,
+    `reliability_asc`. Anything else falls back to the default — an unvalidated
+    key never reaches SQL.
+  - `q` matches supplier name OR resolved category, case-insensitively; `%`,
+    `_` and `\` are escaped so a wildcard typed by the user stays literal.
+  - `category` must be one of `VALID_CATEGORIES`; anything else is ignored
+    (no filter) rather than returning an empty list.
+  - `uncategorized=1` keeps only suppliers with at least one line-item product
+    whose category is NULL or `'Other'`.
+  - Every predicate composes onto `forTenant().scope(suppliers.restaurantId, …)`,
+    including the `EXISTS` sub-select behind the uncategorized toggle.
 - **Reliability** (`supplier-reliability.ts`): score = price stability (CV of
   unit price, 180 d, top 5 items; <5% → 33, ≤15% → 20, else 0) + frequency
   (gap analysis → 33/15/0) + timeliness (% paid vs total with due dates;
@@ -59,8 +77,11 @@ n/a (row upsert + metric recompute).
 
 ## UI dependencies
 
-`MobileSuppliersList.svelte`, `DesktopSuppliersList.svelte`,
-`DesktopSupplierDetail.svelte`, `suppliers/[id]/+page.svelte`.
+`MobileSuppliersList.svelte` (mobile list), `suppliers/+page.svelte` (desktop
+list, built on `ListPageTemplate.svelte`), `DesktopSupplierDetail.svelte`,
+`suppliers/[id]/+page.svelte`. There is no `DesktopSuppliersList.svelte` — the
+desktop list lives inline in the route; both variants render and CSS picks one
+(ADR-020), so a list control has to be added to both.
 
 ## Background dependencies
 
@@ -72,7 +93,8 @@ None.
 
 ## Validation
 
-Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
+Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope. List search params
+validated by `parseSupplierListParams` before any of them reaches a query.
 
 ## Error states
 
@@ -104,8 +126,12 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
   ≥ 0.6) and contact data.
 - Editing category persists; suggestions mark their nudge `sent`.
 - Reliability scores compute from price/frequency/timeliness inputs.
+- The supplier list offers 4+ sort options, a debounced text search, a category
+  dropdown and an uncategorized-products toggle; all four live in the URL and
+  are applied server-side (issue #580).
 - Tests: `tests/supplier-category.test.ts`, `tests/supplier-contact-save.test.ts`,
-  `tests/supplier-reliability-price-stability.test.ts`, `tests/db-crud.test.ts`.
+  `tests/supplier-reliability-price-stability.test.ts`, `tests/db-crud.test.ts`,
+  `tests/supplier-list-query.test.ts`.
 
 ## Code notes
 
@@ -157,11 +183,46 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 
 **`const load`**
 - Refreshes stale reliability scores (>24h old) for suppliers with enough invoices.
+- `parseSupplierListParams(url.searchParams)` is the only door the list's view state comes through (issue #580); the parsed value — never the raw param — feeds `supplierListFilter` and `supplierListOrderBy`, so an unknown `sort` degrades to the default instead of reaching SQL.
+- The filter predicate is composed *inside* `tdb.scope(suppliers.restaurantId, …)` rather than beside it, so no future filter can be added without the tenant predicate travelling with it.
+- `supplier_metrics` is LEFT JOINed purely so reliability can be ordered in SQL. `supplier_metrics.supplier_id` is UNIQUE, so the join adds no rows and the invoice aggregates are unaffected. The ordering reads the *cached* score: right after a recompute the order can lag by one page load, which is why the score itself is still merged from `metricsRows` for display.
+- The parsed params are echoed back in the payload so both UI variants can rebuild the URL without re-parsing it.
+
+### `src/lib/supplier-list.ts`
+
+**`const SUPPLIER_SORT_KEYS`**
+- The closed set of sort options, shared by the loader and both UI variants. It lives outside `src/lib/server/` because the Svelte components need it to render the dropdown; it deliberately holds no Drizzle/schema import so it stays client-safe.
+
+**`function parseSupplierListParams`**
+- Validates every list search param: unknown `sort` → `DEFAULT_SUPPLIER_SORT`, unknown `category` → no category filter (an empty list would read as "this tenant has no such suppliers", which is a different and wrong answer), `q` trimmed, `uncategorized` strictly `'1'`.
+
+**`const SUPPLIER_SEARCH_DEBOUNCE_MS`**
+- One debounce interval for both variants — the search box navigates rather than filtering locally, so each keystroke would otherwise be a round trip.
+
+### `src/lib/server/supplier-list-query.ts`
+
+**`function supplierListOrderBy`**
+- Every ORDER BY is a Drizzle `sql` expression over real columns; the sort key only ever selects *which* prebuilt expression is used, so no user-supplied text is ever interpolated into SQL. Each option tie-breaks on `LOWER(name)` so equal spends/dates come back in a stable order.
+
+**`function supplierReliabilityExpr`**
+- `CASE WHEN COUNT(invoices.id) >= 3` mirrors the display rule: a supplier with a cached score but fewer than three invoices shows `—`, so it must not sort among the scored ones either.
+
+**`function likeTerm`**
+- Escapes `\`, `%` and `_` before wrapping the term in `%…%`. The term is a bound parameter, so this is not an injection guard — it stops a user typing `%` from silently matching every supplier.
+
+**`function hasUncategorizedProducts`**
+- Products have no `supplier_id`; the link is invoice → line item → product, so the toggle is an `EXISTS` sub-select correlated on `invoices.supplier_id = suppliers.id`. Every table inside it is scoped with `forTenant().scope()` — a correlated sub-select is exactly where a missing tenant predicate would go unnoticed.
 
 ### `src/routes/(app)/suppliers/+page.svelte`
 
 **`markup`**
-- Mobile / desktop supplier lists (CSS-selected variants).
+- Mobile / desktop supplier lists (CSS-selected variants). The desktop filter bar carries the category dropdown, the sort dropdown and the uncategorized-products toggle; the table renders `data.suppliers` straight from the server, with no second filtering pass in the browser.
+
+**`function listUrl`**
+- Patches the current search params instead of rebuilding them, so changing a filter preserves `period` (and anything a later feature adds).
+
+**`const search` / `$effect`**
+- The search box keeps local state and navigates on a debounce; `untrack` seeds it once, because re-seeding from `data` mid-flight would yank characters out from under someone still typing. Search navigations use `replaceState` so typing does not fill the history stack, while the dropdowns push a normal entry.
 
 ## Public routes (marketing, auth, webhooks)
 
@@ -194,12 +255,7 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 **`markup`**
 - Sticky header (breadcrumb, supplier header, delete confirmation, edit form); tabs resumen / facturas / productos / conversiones. Resumen: monthly spend chart, KPI strip, reliability breakdown, info card, recent invoices. Productos: donut + legend with hover detail. Conversiones: add-conversion form.
 
-### `src/lib/components/desktop/DesktopSuppliersList.svelte`
-
-**`markup`**
-- Filter bar, summary strip, table.
-
 ### `src/lib/components/mobile/MobileSuppliersList.svelte`
 
 **`markup`**
-- Search, category chips, summary strip, list.
+- Search, sort dropdown, category chips (plus an uncategorized-products chip), summary strip, list. Same URL-driven params as the desktop variant (ADR-020); the component owns no filtering, it only reports the patch through `onApply` and lets the loader answer.
