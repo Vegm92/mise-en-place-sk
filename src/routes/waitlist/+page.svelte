@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { browser } from '$app/environment';
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -15,7 +16,7 @@
   const { form, data }: { form: ActionData; data: PageData } = $props();
 
   let theme = $state<'light' | 'dark'>(
-    browser ? ((document.documentElement.dataset.theme as 'light' | 'dark') || 'light') : 'light'
+    browser ? currentTheme() : 'light'
   );
 
   onMount(() => {
@@ -24,9 +25,7 @@
   });
 
   function toggleTheme() {
-    theme = theme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('mep-theme', theme);
-    document.documentElement.dataset.theme = theme;
+    theme = flipTheme();
   }
 
   const copy = {

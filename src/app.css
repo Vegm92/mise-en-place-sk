@@ -66,13 +66,15 @@
   --mep-shadow-card: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);
   --mep-shadow-pop:  0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10);
 
-  /* Categorical series (fixed order, never cycled — see dataviz color formula) */
-  --mep-series-1: #2a78d6;
+  /* Categorical series (fixed order, never cycled — see dataviz color formula).
+     ListPageTemplate colours its trend-badge *text* with these over a 12% tint
+     of the same hue, so they carry a 4.5:1 target, not the 3:1 graphical floor. */
+  --mep-series-1: #2776d3;
   --mep-series-2: #008300;
-  --mep-series-3: #e87ba4;
-  --mep-series-4: #eda100;
-  --mep-series-5: #1baf7a;
-  --mep-series-other: #9aa3af;
+  --mep-series-3: #bb537c;
+  --mep-series-4: #9e6b0d;
+  --mep-series-5: #12865c;
+  --mep-series-other: #6e7682;
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
@@ -123,11 +125,11 @@
 
   /* Categorical series — same 6 hues, stepped for the dark surface */
   --mep-series-1: #3987e5;
-  --mep-series-2: #008300;
-  --mep-series-3: #d55181;
+  --mep-series-2: #2b9927;
+  --mep-series-3: #db5686;
   --mep-series-4: #c98500;
   --mep-series-5: #199e70;
-  --mep-series-other: #6f6a62;
+  --mep-series-other: #89847b;
 
   /* WCAG AA-adjusted semantics for dark */
   --mep-pos:       #4cae7d;
