@@ -1,0 +1,244 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #0f5f5c; text-decoration: none; }
+    a:hover { color: #0b4f4c; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    table.rt { width: 100%; border-collapse: separate; border-spacing: 0; }
+    table.rt th {
+      font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+      color: #5f6b78; text-align: left; padding: 0 10px 8px; white-space: nowrap;
+      border-bottom: 1px solid rgba(15, 20, 30, 0.18);
+    }
+    table.rt td {
+      font-size: 16px; color: #1a1f26; padding: 0 10px; height: 33px;
+      border-bottom: 1px solid rgba(15, 20, 30, 0.06); vertical-align: middle;
+    }
+    table.rt th.n, table.rt td.n { text-align: right; font-variant-numeric: tabular-nums; }
+    table.rt tr.tot td {
+      height: 38px; font-weight: 600; border-bottom: 0;
+      border-top: 1.5px solid rgba(15, 20, 30, 0.18); background: #fafaf7;
+    }
+    .badge {
+      font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 4px;
+      display: inline-flex; align-items: center; line-height: 18px;
+    }
+  </style>
+</helmet>
+
+<div style="width: 794px; height: 1123px; background: #ffffff; padding: 40px 56px 34px; display: flex; flex-direction: column; gap: 16px; color: #1a1f26;">
+
+  <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 13px; border-bottom: 2px solid #0f5f5c;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <svg viewBox="0 0 64 64" width="28" height="28" style="border-radius: 5px; display: block;">
+        <rect width="64" height="64" fill="#B8741A"></rect>
+        <rect x="8" y="8" width="8" height="48" rx="4" fill="#FFFFFF"></rect>
+        <rect x="28" y="20" width="8" height="36" rx="4" fill="#FFFFFF"></rect>
+        <rect x="48" y="32" width="8" height="24" rx="4" fill="#FFFFFF"></rect>
+      </svg>
+      <div style="display: flex; flex-direction: column; gap: 1px;">
+        <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Mise en Place</span>
+        <span style="font-size: 12px; color: #5f6b78;">Restaurante Casa Bruna</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #0f5f5c;">Cuentas a pagar</span>
+      <span style="font-size: 12px; color: #5f6b78;">Generado el 03 ago 2026, 08:14</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <h1 style="font-size: 27px; font-weight: 600; letter-spacing: -0.02em; margin: 0; line-height: 1.15;">Estado de cuentas por proveedor</h1>
+    <p style="font-size: 16px; color: #4a5562; margin: 0;">Saldo a 03/08/2026 &middot; 30 albaranes sin pagar &middot; 11 proveedores con saldo</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+    <div style="border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; padding: 12px 11px; display: flex; flex-direction: column; gap: 5px;">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #5f6b78;">Total pendiente</span>
+      <span class="num" style="font-size: 21px; font-weight: 600; letter-spacing: -0.5px; line-height: 1.15; white-space: nowrap;">18.744,20 €</span>
+      <span style="font-size: 13px; color: #5f6b78;">30 albaranes</span>
+    </div>
+    <div style="border: 1px solid rgba(176, 58, 58, 0.35); background: rgba(176, 58, 58, 0.12); border-radius: 10px; padding: 12px 11px; display: flex; flex-direction: column; gap: 5px;">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #b03a3a;">Vencido</span>
+      <span class="num" style="font-size: 21px; font-weight: 600; letter-spacing: -0.5px; line-height: 1.15; white-space: nowrap; color: #b03a3a;">3.912,60 €</span>
+      <span style="font-size: 13px; color: #4a5562;">3 proveedores &middot; 20,9 %</span>
+    </div>
+    <div style="border: 1px solid rgba(126, 76, 13, 0.35); background: rgba(126, 76, 13, 0.14); border-radius: 10px; padding: 12px 11px; display: flex; flex-direction: column; gap: 5px;">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #7e4c0d;">Vence en 7 días</span>
+      <span class="num" style="font-size: 21px; font-weight: 600; letter-spacing: -0.5px; line-height: 1.15; white-space: nowrap; color: #7e4c0d;">5.362,30 €</span>
+      <span style="font-size: 13px; color: #4a5562;">3 albaranes</span>
+    </div>
+    <div style="border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; padding: 12px 11px; display: flex; flex-direction: column; gap: 5px;">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #5f6b78;">Plazo medio</span>
+      <span class="num" style="font-size: 21px; font-weight: 600; letter-spacing: -0.5px; line-height: 1.15; white-space: nowrap;">28 días</span>
+      <span style="font-size: 13px; color: #5f6b78;">de emisión a pago</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <h2 style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0;">Antigüedad del saldo</h2>
+    <div style="display: flex; height: 22px; border-radius: 5px; overflow: hidden; gap: 2px;">
+      <div style="width: 79.1%; background: #14694a;"></div>
+      <div style="width: 13.2%; background: #7e4c0d;"></div>
+      <div style="width: 5.4%; background: #b03a3a;"></div>
+      <div style="width: 2.3%; background: #7a1f1f;"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;">
+      <div style="display: flex; flex-direction: column; gap: 2px; padding-left: 10px; border-left: 3px solid #14694a;">
+        <span style="font-size: 13px; color: #4a5562;">Corriente</span>
+        <span class="num" style="font-size: 16px; font-weight: 600;">14.831,60 €</span>
+        <span class="num" style="font-size: 13px; color: #5f6b78;">79,1 %</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding-left: 10px; border-left: 3px solid #7e4c0d;">
+        <span style="font-size: 13px; color: #4a5562;">Vencido 1–30 d</span>
+        <span class="num" style="font-size: 16px; font-weight: 600;">2.470,10 €</span>
+        <span class="num" style="font-size: 13px; color: #5f6b78;">13,2 %</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding-left: 10px; border-left: 3px solid #b03a3a;">
+        <span style="font-size: 13px; color: #4a5562;">Vencido 31–60 d</span>
+        <span class="num" style="font-size: 16px; font-weight: 600;">1.006,60 €</span>
+        <span class="num" style="font-size: 13px; color: #5f6b78;">5,4 %</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding-left: 10px; border-left: 3px solid #7a1f1f;">
+        <span style="font-size: 13px; color: #4a5562;">Vencido +60 d</span>
+        <span class="num" style="font-size: 16px; font-weight: 600;">435,90 €</span>
+        <span class="num" style="font-size: 13px; color: #5f6b78;">2,3 %</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 9px;">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;">
+      <h2 style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0;">Detalle por proveedor</h2>
+      <span style="font-size: 13px; color: #5f6b78;">Ordenado por saldo pendiente</span>
+    </div>
+    <table class="rt">
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th class="n" style="width: 76px;">Alb.</th>
+          <th class="n" style="width: 106px;">Pendiente</th>
+          <th class="n" style="width: 100px;">Vencido</th>
+          <th style="width: 96px;">Venc. + antiguo</th>
+          <th style="width: 92px;">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Cárnicas Berrocal, S.L.</td>
+          <td class="n">7</td>
+          <td class="n">5.842,10</td>
+          <td class="n" style="color: #b03a3a; font-weight: 500;">1.204,00</td>
+          <td class="num">24 jul</td>
+          <td><span class="badge" style="background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Vencida</span></td>
+        </tr>
+        <tr>
+          <td>Pescados Ría de Vigo</td>
+          <td class="n">4</td>
+          <td class="n">3.918,40</td>
+          <td class="n" style="color: #5f6b78;">—</td>
+          <td class="num">05 ago</td>
+          <td><span class="badge" style="background: rgba(126, 76, 13, 0.14); color: #7e4c0d;">Pendiente</span></td>
+        </tr>
+        <tr>
+          <td>Frutas Ortega</td>
+          <td class="n">9</td>
+          <td class="n">2.740,55</td>
+          <td class="n" style="color: #b03a3a; font-weight: 500;">868,20</td>
+          <td class="num">28 jul</td>
+          <td><span class="badge" style="background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Vencida</span></td>
+        </tr>
+        <tr>
+          <td>Bodegas Serrat</td>
+          <td class="n">2</td>
+          <td class="n">2.310,00</td>
+          <td class="n" style="color: #5f6b78;">—</td>
+          <td class="num">12 ago</td>
+          <td><span class="badge" style="background: rgba(126, 76, 13, 0.14); color: #7e4c0d;">Pendiente</span></td>
+        </tr>
+        <tr>
+          <td>Lácteos Valdemar</td>
+          <td class="n">5</td>
+          <td class="n">1.995,75</td>
+          <td class="n" style="color: #b03a3a; font-weight: 500;">1.840,40</td>
+          <td class="num">21 jul</td>
+          <td><span class="badge" style="background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Vencida</span></td>
+        </tr>
+        <tr>
+          <td>Aceites Manzanilla</td>
+          <td class="n">3</td>
+          <td class="n">1.937,40</td>
+          <td class="n" style="color: #5f6b78;">—</td>
+          <td class="num">09 ago</td>
+          <td><span class="badge" style="background: rgba(126, 76, 13, 0.14); color: #7e4c0d;">Pendiente</span></td>
+        </tr>
+        <tr class="tot">
+          <td>Total (11 proveedores)</td>
+          <td class="n">30</td>
+          <td class="n">18.744,20</td>
+          <td class="n" style="color: #b03a3a;">3.912,60</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 9px;">
+    <h2 style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin: 0;">Vencimientos de los próximos 14 días</h2>
+    <table class="rt">
+      <thead>
+        <tr>
+          <th style="width: 90px;">Fecha</th>
+          <th>Proveedor</th>
+          <th style="width: 132px;">Nº albarán</th>
+          <th class="n" style="width: 110px;">Importe</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="num">05 ago</td>
+          <td>Pescados Ría de Vigo</td>
+          <td class="num">2026-4417</td>
+          <td class="n">1.284,90</td>
+        </tr>
+        <tr>
+          <td class="num">07 ago</td>
+          <td>Cárnicas Berrocal, S.L.</td>
+          <td class="num">2026-8802</td>
+          <td class="n">2.140,00</td>
+        </tr>
+        <tr>
+          <td class="num">09 ago</td>
+          <td>Aceites Manzanilla</td>
+          <td class="num">A-1193</td>
+          <td class="n">1.937,40</td>
+        </tr>
+        <tr>
+          <td class="num">12 ago</td>
+          <td>Bodegas Serrat</td>
+          <td class="num">BS-0442</td>
+          <td class="n">2.310,00</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top: auto; padding-top: 12px; border-top: 1px solid rgba(15, 20, 30, 0.10); display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+    <span style="font-size: 12px; color: #64707d;">Mise en Place &middot; Restaurante Casa Bruna &middot; Documento interno</span>
+    <span style="font-size: 12px; color: #64707d;">Página 1 de 1</span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

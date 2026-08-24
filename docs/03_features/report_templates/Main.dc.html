@@ -1,0 +1,692 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #0f5f5c; text-decoration: none; }
+    a:hover { color: #0b4f4c; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; }
+    .subtitle { font-size: 16px; font-weight: 600; color: #1a1f26; letter-spacing: -0.01em; }
+    .body { font-size: 13px; color: #4a5562; }
+    .period-track { display: inline-flex; align-items: center; gap: 2px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.06); border-radius: 999px; padding: 3px; flex-shrink: 0; }
+    .period-pill {
+      font-family: inherit; font-size: 12px; font-weight: 400; line-height: 1; padding: 6px 13px;
+      border: none; border-radius: 999px; cursor: pointer; color: #5f6b78; background: transparent;
+      white-space: nowrap; transition: background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+    }
+    .period-pill:hover { color: #4a5562; }
+    .opt {
+      display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left;
+      font-family: inherit; padding: 13px 14px; border-radius: 8px; cursor: pointer;
+      transition: background 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+    }
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 0 14px;
+      height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+      transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
+    .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
+    .pv-row { display: flex; align-items: center; gap: 8px; }
+    .mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace; }
+  </style>
+</helmet>
+
+<div style="width: 1280px; height: 900px; background: #f5f4f0; padding: 26px 30px; display: flex; flex-direction: column; gap: 18px; color: #1a1f26; box-sizing: border-box;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-shrink: 0;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <h1 style="font-size: 20px; font-weight: 600; letter-spacing: -0.015em; margin: 0;">Informes</h1>
+      <p class="body" style="margin: 0;">Elige qué informe generar y con qué aspecto. La vista previa se actualiza al instante.</p>
+    </div>
+    <div class="period-track">
+      <sc-for list="{{ periodos }}" as="p" hint-placeholder-count="4">
+        <button type="button" class="period-pill" style="{{ p.estilo }}" onClick="{{ p.pick }}">{{ p.nombre }}</button>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 18px; flex: 1; min-height: 0;">
+
+    <div style="width: 476px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px;">
+
+      <div class="card">
+        <div class="card-header">
+          <div style="display: flex; align-items: center; gap: 9px;">
+            <span class="num" style="width: 20px; height: 20px; border-radius: 999px; background: {{ accSoft }}; color: {{ acc }}; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">1</span>
+            <span class="subtitle">Tipo de informe</span>
+          </div>
+        </div>
+        <div style="padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+          <sc-for list="{{ tipos }}" as="t" hint-placeholder-count="3">
+            <button type="button" class="opt" style="{{ t.estilo }}" onClick="{{ t.pick }}">
+              <span style="{{ t.iconoEstilo }}">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="{{ t.d1 }}"></path>
+                  <path d="{{ t.d2 }}"></path>
+                  <path d="{{ t.d3 }}"></path>
+                  <path d="{{ t.d4 }}"></path>
+                  <path d="{{ t.d5 }}"></path>
+                </svg>
+              </span>
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
+                <span style="font-size: 14px; font-weight: 600; color: #1a1f26;">{{ t.nombre }}</span>
+                <span style="font-size: 12.5px; color: #4a5562; line-height: 1.45;">{{ t.desc }}</span>
+              </span>
+              <span style="{{ t.checkEstilo }}">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5"></path>
+                </svg>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div style="display: flex; align-items: center; gap: 9px;">
+            <span class="num" style="width: 20px; height: 20px; border-radius: 999px; background: {{ accSoft }}; color: {{ acc }}; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;">2</span>
+            <span class="subtitle">Estilo</span>
+          </div>
+          <span class="body" style="font-size: 12px;">Mismo dato, distinto lector</span>
+        </div>
+        <div style="padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+          <sc-for list="{{ estilos }}" as="e" hint-placeholder-count="3">
+            <button type="button" class="opt" style="{{ e.estilo }}" onClick="{{ e.pick }}">
+              <span style="width: 40px; height: 52px; border-radius: 4px; overflow: hidden; flex-shrink: 0; border: 1px solid rgba(15, 20, 30, 0.14); background: #ffffff; display: flex; flex-direction: column;">
+                <span style="{{ e.miniBanda }}"></span>
+                <span style="flex: 1; padding: 4px; display: flex; flex-direction: column; gap: 3px;">
+                  <span style="{{ e.miniLinea1 }}"></span>
+                  <span style="{{ e.miniLinea2 }}"></span>
+                  <span style="{{ e.miniLinea3 }}"></span>
+                </span>
+              </span>
+              <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1;">
+                <span style="font-size: 14px; font-weight: 600; color: #1a1f26;">{{ e.nombre }}</span>
+                <span style="font-size: 12.5px; color: #4a5562; line-height: 1.45;">{{ e.desc }}</span>
+              </span>
+              <span style="{{ e.checkEstilo }}">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 6 9 17l-5-5"></path>
+                </svg>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="card" style="flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="card-header">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span class="subtitle">{{ tituloInforme }}</span>
+          <span class="body" style="font-size: 12px;">{{ subtituloInforme }}</span>
+        </div>
+        <span class="label" style="color: {{ acc }};">{{ nombreEstilo }}</span>
+      </div>
+
+      <div style="flex: 1; min-height: 0; background: #fafaf7; display: flex; align-items: center; justify-content: center; padding: 20px;">
+
+        <div style="width: 392px; height: 555px; background: #ffffff; box-shadow: 0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10); display: flex; flex-direction: column; overflow: hidden;">
+
+          <sc-if value="{{ esEditorial }}" hint-placeholder-val="{{ true }}">
+            <div style="background: #B8741A; padding: 20px 22px 18px; display: flex; flex-direction: column; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 64 64" width="13" height="13" aria-hidden="true">
+                  <rect x="8" y="8" width="8" height="48" rx="4" fill="#FFFFFF"></rect>
+                  <rect x="28" y="20" width="8" height="36" rx="4" fill="#FFFFFF"></rect>
+                  <rect x="48" y="32" width="8" height="24" rx="4" fill="#FFFFFF"></rect>
+                </svg>
+                <span style="font-size: 10px; font-weight: 600; color: #ffffff;">Mise en Place</span>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="font-size: 8.5px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255, 255, 255, 0.82);">{{ tituloInforme }} &middot; {{ periodoNombre }}</span>
+                <span class="num" style="font-size: 31px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; color: #ffffff;">{{ cifraHero }}</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ esEjecutivo }}" hint-placeholder-val="{{ true }}">
+            <div style="padding: 18px 22px 11px; border-bottom: 2px solid {{ acc }}; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <svg viewBox="0 0 64 64" width="15" height="15" style="border-radius: 3px;" aria-hidden="true">
+                  <rect width="64" height="64" fill="#B8741A"></rect>
+                  <rect x="8" y="8" width="8" height="48" rx="4" fill="#FFFFFF"></rect>
+                  <rect x="28" y="20" width="8" height="36" rx="4" fill="#FFFFFF"></rect>
+                  <rect x="48" y="32" width="8" height="24" rx="4" fill="#FFFFFF"></rect>
+                </svg>
+                <span style="font-size: 9.5px; font-weight: 600;">Mise en Place</span>
+              </div>
+              <span style="font-size: 8px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: {{ acc }};">{{ tituloInforme }}</span>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ esContable }}" hint-placeholder-val="{{ true }}">
+            <div style="padding: 18px 22px 10px; display: flex; flex-direction: column; gap: 9px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <svg viewBox="0 0 64 64" width="13" height="13" aria-hidden="true">
+                    <rect width="64" height="64" fill="#1a1f26"></rect>
+                    <rect x="8" y="8" width="8" height="48" rx="4" fill="#FFFFFF"></rect>
+                    <rect x="28" y="20" width="8" height="36" rx="4" fill="#FFFFFF"></rect>
+                    <rect x="48" y="32" width="8" height="24" rx="4" fill="#FFFFFF"></rect>
+                  </svg>
+                  <span style="font-size: 9px; font-weight: 600; letter-spacing: 0.02em;">MISE EN PLACE</span>
+                </div>
+                <span class="mono" style="font-size: 8px; color: #5f6b78;">MEP-2026-07 &middot; 1/1</span>
+              </div>
+              <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: -0.005em;">{{ tituloInforme }}</span>
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid rgba(15, 20, 30, 0.18);">
+                <span style="padding: 4px 6px; border-right: 1px solid rgba(15, 20, 30, 0.18); font-size: 8px; color: #4a5562;">Casa Bruna, S.L.</span>
+                <span class="mono" style="padding: 4px 6px; border-right: 1px solid rgba(15, 20, 30, 0.18); font-size: 8px; color: #4a5562;">B-00000000</span>
+                <span class="mono" style="padding: 4px 6px; font-size: 8px; color: #4a5562;">{{ periodoIso }}</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="flex: 1; padding: 14px 22px 18px; display: flex; flex-direction: column; gap: 13px; min-height: 0;">
+
+            <sc-if value="{{ mostrarTitulo }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <span style="font-size: 14px; font-weight: 600; letter-spacing: -0.018em;">{{ tituloLargo }}</span>
+                <span style="font-size: 9px; color: #4a5562;">{{ subtituloInforme }}</span>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ mostrarKpis }}" hint-placeholder-val="{{ true }}">
+              <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px;">
+                <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+                  <div style="{{ k.estilo }}">
+                    <span style="font-size: 6.5px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #5f6b78;">{{ k.lbl }}</span>
+                    <span class="num" style="font-size: 11px; font-weight: 600; letter-spacing: -0.3px; color: {{ k.color }};">{{ k.val }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ esEditorial }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 7px;">
+                <sc-for list="{{ barras }}" as="b" hint-placeholder-count="5">
+                  <div class="pv-row">
+                    <span style="font-size: 9px; width: 82px; flex-shrink: 0; color: #1a1f26;">{{ b.lbl }}</span>
+                    <span style="flex: 1; height: 11px; background: rgba(15, 20, 30, 0.05); border-radius: 2px; overflow: hidden;">
+                      <span style="{{ b.relleno }}"></span>
+                    </span>
+                    <span class="num" style="font-size: 9px; width: 58px; text-align: right; font-weight: 500;">{{ b.val }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="background: #f5f4f0; border-left: 2px solid {{ acc }}; padding: 9px 11px;">
+                <span style="font-size: 9.5px; line-height: 1.5; color: #1a1f26;">{{ citaResumen }}</span>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ mostrarTabla }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column;">
+                <div style="{{ estiloCabecera }}">
+                  <span style="flex: 1;">{{ col1 }}</span>
+                  <span style="width: 62px; text-align: right;">{{ col2 }}</span>
+                  <span style="width: 62px; text-align: right;">{{ col3 }}</span>
+                </div>
+                <sc-for list="{{ filas }}" as="f" hint-placeholder-count="6">
+                  <div style="{{ f.estiloFila }}">
+                    <span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.c1 }}</span>
+                    <span class="num" style="width: 62px; text-align: right;">{{ f.c2 }}</span>
+                    <span class="num" style="width: 62px; text-align: right; color: {{ f.c3Color }}; font-weight: 500;">{{ f.c3 }}</span>
+                  </div>
+                </sc-for>
+                <div style="{{ estiloTotal }}">
+                  <span style="flex: 1;">Total</span>
+                  <span class="num" style="width: 62px; text-align: right;">{{ totalC2 }}</span>
+                  <span class="num" style="width: 62px; text-align: right;">{{ totalC3 }}</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ mostrarExtras }}" hint-placeholder-val="{{ true }}">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="font-size: 8px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #5f6b78;">{{ extrasTitulo }}</span>
+                <sc-for list="{{ extras }}" as="x" hint-placeholder-count="3">
+                  <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 9px; padding: 3px 0; border-bottom: 1px solid rgba(15, 20, 30, 0.06);">
+                    <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ x.a }}</span>
+                    <span class="num" style="flex-shrink: 0; font-weight: 500;">{{ x.b }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <div style="margin-top: auto; padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.10); display: flex; align-items: center; justify-content: space-between;">
+              <span style="font-size: 7.5px; color: #64707d;">Restaurante Casa Bruna &middot; documento interno</span>
+              <span style="font-size: 7.5px; color: #64707d;">Página 1 de 1</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid rgba(15, 20, 30, 0.06); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 20px; background: #ffffff;">
+        <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+          <span class="mono" style="font-size: 11.5px; color: #4a5562; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ nombreArchivo }}</span>
+          <span style="font-size: 11.5px; color: #5f6b78;">CSV: {{ grano }}</span>
+        </div>
+        <div style="display: flex; gap: 9px; flex-shrink: 0;">
+          <button type="button" class="btn btn-secondary">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <path d="m7 10 5 5 5-5"></path>
+              <path d="M12 15V3"></path>
+            </svg>
+            Descargar CSV
+          </button>
+          <button type="button" class="btn" style="background: {{ acc }}; color: #ffffff;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <path d="m7 10 5 5 5-5"></path>
+              <path d="M12 15V3"></path>
+            </svg>
+            Descargar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{
+  "acento": {"editor": "enum", "options": ["teal", "slate", "amber"], "default": "teal", "section": "Marca"},
+  "estiloInicial": {"editor": "enum", "options": ["ejecutivo", "contable", "editorial"], "default": "ejecutivo", "section": "Estado inicial"},
+  "tipoInicial": {"editor": "enum", "options": ["semanal", "cierre", "precios", "pagos"], "default": "cierre", "section": "Estado inicial"},
+  "$preview": {"width": 1280, "height": 900}
+}'>
+class Component extends DCLogic {
+
+  renderVals() {
+    const ACENTOS = {
+      teal:  { acc: '#0f5f5c', soft: 'rgba(15, 95, 92, 0.10)',  ring: 'rgba(15, 95, 92, 0.30)' },
+      slate: { acc: '#34507a', soft: 'rgba(52, 80, 122, 0.10)', ring: 'rgba(52, 80, 122, 0.30)' },
+      amber: { acc: '#8a530f', soft: 'rgba(138, 83, 15, 0.10)', ring: 'rgba(138, 83, 15, 0.30)' },
+    };
+    const paleta = ACENTOS[this.props.acento] ?? ACENTOS.teal;
+    const acc = paleta.acc;
+    const accSoft = paleta.soft;
+
+    const tipo    = this.state.tipo    ?? this.props.tipoInicial    ?? 'cierre';
+    const estilo  = this.state.estilo  ?? this.props.estiloInicial  ?? 'ejecutivo';
+    const periodo = this.state.periodo ?? 'mes';
+
+    const ICONOS = {
+      semanal: [
+        { p: 'M8 2v4' },
+        { p: 'M16 2v4' },
+        { p: 'M21 10H3' },
+        { p: 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z' },
+        { p: 'm9 16 2 2 4-4' },
+      ],
+      cierre: [
+        { p: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z' },
+        { p: 'M14 2v4a2 2 0 0 0 2 2h4' },
+        { p: 'M8 18v-3' }, { p: 'M12 18v-6' }, { p: 'M16 18v-2' },
+      ],
+      precios: [
+        { p: 'M16 7h6v6' },
+        { p: 'm22 7-8.5 8.5-5-5L2 17' },
+      ],
+      pagos: [
+        { p: 'M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z' },
+        { p: 'M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8' },
+        { p: 'M12 17.5v-11' },
+      ],
+    };
+
+    const TIPOS = [
+      { id: 'semanal', nombre: 'Cierre semanal de compras',  desc: 'La semana que acaba de cerrar: gasto por día, resumen de la IA y lo que vence.' },
+      { id: 'cierre',  nombre: 'Cierre mensual de compras', desc: 'Gasto por categoría contra presupuesto, con desvíos y proveedores principales.' },
+      { id: 'precios', nombre: 'Variación de precios',      desc: 'Subidas y bajadas por artículo y proveedor, con el impacto en euros al mes.' },
+      { id: 'pagos',   nombre: 'Cuentas a pagar',           desc: 'Saldo por proveedor, antigüedad de la deuda y vencimientos próximos.' },
+    ];
+
+    const ESTILOS = [
+      { id: 'ejecutivo', nombre: 'Ejecutivo', desc: 'Para ti y tu jefe de cocina. Indicadores arriba, tablas claras, color de marca.' },
+      { id: 'contable',  nombre: 'Contable',  desc: 'Para la asesoría. Códigos de cuenta, desglose de IVA y espacio para firma.' },
+      { id: 'editorial', nombre: 'Editorial', desc: 'Para socios e inversores. Una cifra grande, gráfico y el resumen en una frase.' },
+    ];
+
+    const PERIODOS_SEMANA = [
+      { id: 'w31', nombre: 'Sem. 31', etiqueta: 'Semana 31 · 27 jul – 2 ago 2026', iso: '2026-W31', archivo: '2026-W31' },
+      { id: 'w30', nombre: 'Sem. 30', etiqueta: 'Semana 30 · 20 – 26 jul 2026',    iso: '2026-W30', archivo: '2026-W30' },
+      { id: 'w29', nombre: 'Sem. 29', etiqueta: 'Semana 29 · 13 – 19 jul 2026',    iso: '2026-W29', archivo: '2026-W29' },
+      { id: 'w28', nombre: 'Sem. 28', etiqueta: 'Semana 28 · 6 – 12 jul 2026',     iso: '2026-W28', archivo: '2026-W28' },
+    ];
+    const PERIODOS_LARGOS = [
+      { id: 'mes',  nombre: 'Mes',       etiqueta: 'Julio 2026',        iso: '2026-07', archivo: '2026-07' },
+      { id: 'trim', nombre: 'Trimestre', etiqueta: 'T2 2026',           iso: '2026-T2', archivo: '2026-T2' },
+      { id: 'sem',  nombre: 'Semestre',  etiqueta: '1er semestre 2026', iso: '2026-S1', archivo: '2026-S1' },
+      { id: 'ano',  nombre: 'Año',       etiqueta: 'Año 2026',          iso: '2026',    archivo: '2026' },
+    ];
+    const PERIODOS = tipo === 'semanal' ? PERIODOS_SEMANA : PERIODOS_LARGOS;
+    const per = PERIODOS.find((p) => p.id === periodo) ?? PERIODOS[0];
+
+    const CONTENIDO = {
+      semanal: {
+        titulo: 'Cierre semanal',
+        tituloLargo: 'Cierre semanal de compras',
+        tituloContable: 'Relación de compras · cierre semanal',
+        subtitulo: per.etiqueta + ' · 31 albaranes · 12 proveedores',
+        archivo: 'cierre-semanal',
+        grano: 'una fila por día, 8 columnas',
+        hero: '9.847,20 €',
+        kpis: [
+          { lbl: 'Gasto', val: '9.847,20', color: '#1a1f26' },
+          { lbl: 'vs. S30', val: '+7,9 %', color: '#b03a3a' },
+          { lbl: 'Albaranes', val: '31', color: '#1a1f26' },
+          { lbl: 'Por revisar', val: '4', color: '#7e4c0d' },
+        ],
+        col1: 'Día', col2: 'Gasto', col3: '% sem.',
+        extrasTitulo: 'Vencimientos próximos',
+        extras: [
+          { a: 'mié 05 ago · Pescados Ría de Vigo', b: '1.284,90' },
+          { a: 'vie 07 ago · Cárnicas Berrocal', b: '2.140,00' },
+          { a: 'dom 09 ago · Aceites Manzanilla', b: '1.937,40' },
+        ],
+        totalC2: '9.847,20', totalC3: '100,0',
+        filas: [
+          { c1: 'Lunes 27',     c2: '2.184,50', c3: '22,2', tono: 'plano' },
+          { c1: 'Martes 28',    c2: '1.642,30', c3: '16,7', tono: 'plano' },
+          { c1: 'Miércoles 29', c2: '1.918,75', c3: '19,4', tono: 'plano' },
+          { c1: 'Jueves 30',    c2: '1.203,40', c3: '12,2', tono: 'plano' },
+          { c1: 'Viernes 31',   c2: '2.410,85', c3: '24,5', tono: 'plano' },
+          { c1: 'Sábado 01',    c2: '487,40',   c3: '5,0',  tono: 'nulo' },
+          { c1: 'Domingo 02',   c2: '0,00',     c3: '0,0',  tono: 'nulo' },
+        ],
+        barras: [
+          { lbl: 'Lunes 27',     val: '2.184,50', ancho: 90.6 },
+          { lbl: 'Martes 28',    val: '1.642,30', ancho: 68.1 },
+          { lbl: 'Miércoles 29', val: '1.918,75', ancho: 79.6 },
+          { lbl: 'Jueves 30',    val: '1.203,40', ancho: 49.9 },
+          { lbl: 'Viernes 31',   val: '2.410,85', ancho: 100 },
+        ],
+        cita: '«Semana tranquila en volumen pero cara en carne: 2.847,60 € en Carnes, casi el 29 % del gasto. El viernes concentró un cuarto de la semana.»',
+      },
+      cierre: {
+        titulo: 'Cierre mensual',
+        tituloLargo: 'Cierre mensual de compras',
+        tituloContable: 'Relación de compras · cierre mensual',
+        subtitulo: per.etiqueta + ' · 128 albaranes · 24 proveedores',
+        archivo: 'cierre-mensual',
+        grano: 'una fila por categoría, 8 columnas',
+        hero: '42.318,60 €',
+        kpis: [
+          { lbl: 'Gasto', val: '42.318,60', color: '#1a1f26' },
+          { lbl: 'Presup.', val: '42.000,00', color: '#1a1f26' },
+          { lbl: 'Desvío', val: '+318,60', color: '#b03a3a' },
+          { lbl: 'Ticket', val: '330,61', color: '#1a1f26' },
+        ],
+        col1: 'Categoría', col2: 'Gasto', col3: 'Desvío',
+        extrasTitulo: 'Proveedores principales',
+        extras: [
+          { a: 'Cárnicas Berrocal, S.L.', b: '9.418,20' },
+          { a: 'Frutas Ortega', b: '6.240,75' },
+          { a: 'Pescados Ría de Vigo', b: '5.882,40' },
+        ],
+        totalC2: '42.318,60', totalC3: '+318,60',
+        filas: [
+          { c1: 'Carnes y Derivados',  c2: '11.842,30', c3: '+842,30',  neg: true },
+          { c1: 'Frutas y Verduras',   c2: '7.965,15',  c3: '−534,85',  neg: false },
+          { c1: 'Pescados y Mariscos', c2: '6.104,80',  c3: '+304,80',  neg: true },
+          { c1: 'Lácteos',             c2: '4.238,90',  c3: '−161,10',  neg: false },
+          { c1: 'Bebidas',             c2: '3.712,45',  c3: '+212,45',  neg: true },
+          { c1: 'Vinos y Cavas',       c2: '3.190,00',  c3: '−410,00',  neg: false },
+          { c1: 'Aceites y Conservas', c2: '2.845,60',  c3: '+145,60',  neg: true },
+          { c1: 'Otras 4 categorías',  c2: '2.419,40',  c3: '−80,60',   neg: false },
+        ],
+        barras: [
+          { lbl: 'Carnes',      val: '11.842,30', ancho: 100 },
+          { lbl: 'Frutas',      val: '7.965,15',  ancho: 67.3 },
+          { lbl: 'Pescados',    val: '6.104,80',  ancho: 51.6 },
+          { lbl: 'Lácteos',     val: '4.238,90',  ancho: 35.8 },
+          { lbl: 'Bebidas',     val: '3.712,45',  ancho: 31.3 },
+        ],
+        cita: '«La carne se llevó el 28 % del gasto y superó el presupuesto en 842 €, arrastrada por una subida del 18 % en el solomillo.»',
+      },
+      precios: {
+        titulo: 'Variación de precios',
+        tituloLargo: 'Variación de precios de compra',
+        tituloContable: 'Relación de variaciones de precio unitario',
+        subtitulo: per.etiqueta + ' · 342 artículos · umbral ±15 %',
+        archivo: 'variacion-precios',
+        grano: 'una fila por artículo y proveedor, 12 columnas',
+        hero: '+1.284,50 €',
+        kpis: [
+          { lbl: 'Con cambio', val: '76', color: '#1a1f26' },
+          { lbl: 'Subidas', val: '47', color: '#b03a3a' },
+          { lbl: 'Bajadas', val: '29', color: '#14694a' },
+          { lbl: 'Impacto', val: '+1.284,50', color: '#b03a3a' },
+        ],
+        col1: 'Artículo', col2: 'Actual', col3: 'Δ %',
+        extrasTitulo: 'Mayores bajadas',
+        extras: [
+          { a: 'Merluza fresca · Ría de Vigo', b: '−14,5 %' },
+          { a: 'Pimiento rojo · Frutas Ortega', b: '−12,5 %' },
+          { a: 'Pechuga de pollo · Berrocal', b: '−9,7 %' },
+        ],
+        totalC2: '—', totalC3: '+1.284,50',
+        filas: [
+          { c1: 'Solomillo de ternera', c2: '29,40', c3: '+18,1', neg: true },
+          { c1: 'Aceite de oliva V.E.', c2: '9,80',  c3: '+16,0', neg: true },
+          { c1: 'Gambón argentino',     c2: '17,35', c3: '+14,1', neg: true },
+          { c1: 'Merluza fresca',       c2: '10,95', c3: '−14,5', neg: false },
+          { c1: 'Pimiento rojo',        c2: '2,10',  c3: '−12,5', neg: false },
+          { c1: 'Pechuga de pollo',     c2: '5,60',  c3: '−9,7',  neg: false },
+        ],
+        barras: [
+          { lbl: 'Solomillo',  val: '+279,00', ancho: 100 },
+          { lbl: 'Aceite',     val: '+243,00', ancho: 87.1 },
+          { lbl: 'Gambón',     val: '+180,60', ancho: 64.7 },
+          { lbl: 'Mantequilla', val: '+81,60', ancho: 29.2 },
+          { lbl: 'Tomate rama', val: '+68,00', ancho: 24.4 },
+        ],
+        cita: '«Dos artículos superaron el umbral del 15 %: solomillo (+18,1 %) y aceite de oliva (+16,0 %). Entre ambos, 522 € al mes.»',
+      },
+      pagos: {
+        titulo: 'Cuentas a pagar',
+        tituloLargo: 'Estado de cuentas por proveedor',
+        tituloContable: 'Relación de saldos pendientes de pago',
+        subtitulo: 'A ' + per.etiqueta + ' · 30 albaranes · 11 proveedores',
+        archivo: 'cuentas-pagar',
+        grano: 'una fila por albarán pendiente, 10 columnas',
+        hero: '18.744,20 €',
+        kpis: [
+          { lbl: 'Pendiente', val: '18.744,20', color: '#1a1f26' },
+          { lbl: 'Vencido', val: '3.912,60', color: '#b03a3a' },
+          { lbl: '7 días', val: '5.362,30', color: '#7e4c0d' },
+          { lbl: 'Plazo', val: '28 d', color: '#1a1f26' },
+        ],
+        col1: 'Proveedor', col2: 'Pendiente', col3: 'Vencido',
+        extrasTitulo: 'Antigüedad del saldo',
+        extras: [
+          { a: 'Corriente', b: '14.831,60' },
+          { a: 'Vencido 1–30 d', b: '2.470,10' },
+          { a: 'Vencido +60 d', b: '435,90' },
+        ],
+        totalC2: '18.744,20', totalC3: '3.912,60',
+        filas: [
+          { c1: 'Cárnicas Berrocal, S.L.', c2: '5.842,10', c3: '1.204,00', neg: true },
+          { c1: 'Pescados Ría de Vigo',    c2: '3.918,40', c3: '—',        neg: false },
+          { c1: 'Frutas Ortega',           c2: '2.740,55', c3: '868,20',   neg: true },
+          { c1: 'Bodegas Serrat',          c2: '2.310,00', c3: '—',        neg: false },
+          { c1: 'Lácteos Valdemar',        c2: '1.995,75', c3: '1.840,40', neg: true },
+          { c1: 'Aceites Manzanilla',      c2: '1.937,40', c3: '—',        neg: false },
+        ],
+        barras: [
+          { lbl: 'Corriente',    val: '14.831,60', ancho: 100 },
+          { lbl: 'Vencido 1-30', val: '2.470,10',  ancho: 16.7 },
+          { lbl: 'Vencido 31-60', val: '1.006,60', ancho: 6.8 },
+          { lbl: 'Vencido +60',  val: '435,90',    ancho: 2.9 },
+        ],
+        cita: '«3.912,60 € están vencidos, el 21 % del saldo. Lácteos Valdemar concentra 1.840 € con 13 días de retraso.»',
+      },
+    };
+    const c = CONTENIDO[tipo];
+    const TONOS = { neg: '#b03a3a', pos: '#14694a', nulo: '#5f6b78', plano: '#1a1f26' };
+
+    const esEjecutivo = estilo === 'ejecutivo';
+    const esContable  = estilo === 'contable';
+    const esEditorial = estilo === 'editorial';
+
+    // in the editorial style the bars already carry the ageing buckets,
+    // so the second section shows balances instead of repeating them
+    let extrasTitulo = c.extrasTitulo;
+    let extras = c.extras;
+    if (tipo === 'pagos' && esEditorial) {
+      extrasTitulo = 'Mayor saldo pendiente';
+      extras = [
+        { a: 'Cárnicas Berrocal, S.L.', b: '5.842,10' },
+        { a: 'Pescados Ría de Vigo', b: '3.918,40' },
+        { a: 'Frutas Ortega', b: '2.740,55' },
+      ];
+    }
+
+    const optBase = 'display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; font-family: inherit; padding: 13px 14px; border-radius: 8px; cursor: pointer; ';
+    const optSel  = optBase + 'background: ' + accSoft + '; border: 1px solid ' + acc + '; box-shadow: 0 0 0 3px ' + paleta.ring + ';';
+    const optOff  = optBase + 'background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10);';
+
+    const iconoSel = 'width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: ' + acc + '; color: #ffffff;';
+    const iconoOff = 'width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(15, 20, 30, 0.04); color: #5f6b78;';
+
+    const checkSel = 'width: 18px; height: 18px; border-radius: 999px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: ' + acc + '; color: #ffffff; margin-top: 2px;';
+    const checkOff = 'width: 18px; height: 18px; border-radius: 999px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid rgba(15, 20, 30, 0.18); color: transparent; margin-top: 2px;';
+
+    const pillBase = 'font-family: inherit; font-size: 12px; line-height: 1; padding: 6px 13px; border: none; border-radius: 999px; cursor: pointer; white-space: nowrap; ';
+    const pillSel  = pillBase + 'background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);';
+    const pillOff  = pillBase + 'background: transparent; color: #5f6b78; font-weight: 400;';
+
+    const MINI = {
+      ejecutivo: {
+        banda: 'height: 9px; background: ' + acc + '; flex-shrink: 0;',
+        l1: 'height: 8px; border-radius: 2px; background: ' + accSoft + '; border: 1px solid rgba(15, 20, 30, 0.10);',
+        l2: 'height: 3px; border-radius: 1px; background: rgba(15, 20, 30, 0.14);',
+        l3: 'height: 3px; border-radius: 1px; background: rgba(15, 20, 30, 0.14); width: 72%;',
+      },
+      contable: {
+        banda: 'height: 3px; background: #1a1f26; flex-shrink: 0;',
+        l1: 'height: 3px; background: rgba(15, 20, 30, 0.24);',
+        l2: 'height: 3px; background: rgba(15, 20, 30, 0.24);',
+        l3: 'height: 3px; background: rgba(15, 20, 30, 0.24);',
+      },
+      editorial: {
+        banda: 'height: 22px; background: #B8741A; flex-shrink: 0;',
+        l1: 'height: 5px; border-radius: 1px; background: rgba(15, 20, 30, 0.24); width: 62%;',
+        l2: 'height: 3px; border-radius: 1px; background: ' + acc + ';',
+        l3: 'height: 3px; border-radius: 1px; background: ' + acc + '; width: 58%;',
+      },
+    };
+
+    const kpiEstilo = 'border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 5px; padding: 5px 6px; display: flex; flex-direction: column; gap: 2px; min-width: 0;';
+
+    const cabEjecutivo = 'display: flex; gap: 8px; font-size: 7px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #5f6b78; padding: 0 4px 5px; border-bottom: 1px solid rgba(15, 20, 30, 0.18);';
+    const cabContable  = 'display: flex; gap: 8px; font-size: 7px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: #1a1f26; padding: 4px; border-top: 1px solid #1a1f26; border-bottom: 1px solid #1a1f26;';
+
+    const filaEjecutivo = 'display: flex; gap: 8px; align-items: center; font-size: 9px; height: 20px; padding: 0 4px; border-bottom: 1px solid rgba(15, 20, 30, 0.06);';
+    const filaContable  = 'display: flex; gap: 8px; align-items: center; font-size: 9px; height: 17px; padding: 0 4px; border-bottom: 1px solid rgba(15, 20, 30, 0.14);';
+
+    const totalEjecutivo = 'display: flex; gap: 8px; align-items: center; font-size: 9px; font-weight: 600; height: 22px; padding: 0 4px; background: #fafaf7; border-top: 1.5px solid rgba(15, 20, 30, 0.18);';
+    const totalContable  = 'display: flex; gap: 8px; align-items: center; font-size: 9px; font-weight: 700; height: 20px; padding: 0 4px; border-top: 1px solid #1a1f26; border-bottom: 2.5px double #1a1f26;';
+
+    return {
+      acc,
+      accSoft,
+
+      esEjecutivo,
+      esContable,
+      esEditorial,
+      mostrarTitulo: esEjecutivo,
+      mostrarKpis:   esEjecutivo,
+      mostrarTabla:  esEjecutivo || esContable,
+      mostrarExtras: true,
+
+      tituloInforme:    c.titulo,
+      tituloLargo:      esContable ? c.tituloContable : c.tituloLargo,
+      subtituloInforme: c.subtitulo,
+      nombreEstilo:     (ESTILOS.find((e) => e.id === estilo) ?? ESTILOS[0]).nombre,
+      periodoNombre:    per.etiqueta,
+      periodoIso:       per.iso,
+      cifraHero:        c.hero,
+      citaResumen:      c.cita,
+      nombreArchivo:    'mep_' + c.archivo + '_' + per.archivo + '_casa-bruna',
+      grano:            c.grano,
+
+      col1: c.col1, col2: c.col2, col3: c.col3,
+      extrasTitulo,
+      extras,
+      totalC2: c.totalC2, totalC3: c.totalC3,
+      estiloCabecera: esContable ? cabContable : cabEjecutivo,
+      estiloTotal:    esContable ? totalContable : totalEjecutivo,
+
+      kpis: c.kpis.map((k) => ({ ...k, estilo: kpiEstilo })),
+
+      filas: c.filas.map((f) => ({
+        c1: f.c1,
+        c2: f.c2,
+        c3: f.c3,
+        c3Color: TONOS[f.tono] ?? (f.c3 === '—' ? '#5f6b78' : (f.neg ? '#b03a3a' : '#14694a')),
+        estiloFila: esContable ? filaContable : filaEjecutivo,
+      })),
+
+      barras: c.barras.map((b) => ({
+        lbl: b.lbl,
+        val: b.val,
+        relleno: 'display: block; height: 100%; border-radius: 2px; width: ' + b.ancho + '%; background: ' + acc + ';',
+      })),
+
+      tipos: TIPOS.map((t) => ({
+        nombre: t.nombre,
+        desc: t.desc,
+        d1: (ICONOS[t.id][0] || {}).p || '',
+        d2: (ICONOS[t.id][1] || {}).p || '',
+        d3: (ICONOS[t.id][2] || {}).p || '',
+        d4: (ICONOS[t.id][3] || {}).p || '',
+        d5: (ICONOS[t.id][4] || {}).p || '',
+        estilo:      t.id === tipo ? optSel : optOff,
+        iconoEstilo: t.id === tipo ? iconoSel : iconoOff,
+        checkEstilo: t.id === tipo ? checkSel : checkOff,
+        pick: () => this.setState({ tipo: t.id }),
+      })),
+
+      estilos: ESTILOS.map((e) => ({
+        nombre: e.nombre,
+        desc: e.desc,
+        estilo:      e.id === estilo ? optSel : optOff,
+        checkEstilo: e.id === estilo ? checkSel : checkOff,
+        miniBanda:  MINI[e.id].banda,
+        miniLinea1: MINI[e.id].l1,
+        miniLinea2: MINI[e.id].l2,
+        miniLinea3: MINI[e.id].l3,
+        pick: () => this.setState({ estilo: e.id }),
+      })),
+
+      periodos: PERIODOS.map((p) => ({
+        nombre: p.nombre,
+        estilo: p.id === per.id ? pillSel : pillOff,
+        pick: () => this.setState({ periodo: p.id }),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

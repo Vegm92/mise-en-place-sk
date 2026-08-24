@@ -1,0 +1,138 @@
+{
+  "pages": [
+    {
+      "id": "informes",
+      "name": "Informes"
+    },
+    {
+      "id": "estilos",
+      "name": "Estilos"
+    },
+    {
+      "id": "exportacion",
+      "name": "Exportación CSV"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "page": "informes",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 900,
+      "title": "Elegir informe (pantalla)",
+      "print": "flow"
+    },
+    {
+      "file": "MovilInformes.dc.html",
+      "page": "informes",
+      "x": 0,
+      "y": 1020,
+      "w": 390,
+      "h": 844,
+      "title": "Elegir informe (móvil)",
+      "print": "flow"
+    },
+    {
+      "file": "CierreSemanal.dc.html",
+      "page": "informes",
+      "x": 1400,
+      "y": 0,
+      "w": 794,
+      "h": 1123,
+      "title": "PDF · Cierre semanal",
+      "print": "fixed"
+    },
+    {
+      "file": "CierreMensual.dc.html",
+      "page": "informes",
+      "x": 2274,
+      "y": 0,
+      "w": 794,
+      "h": 1123,
+      "title": "PDF · Cierre mensual",
+      "print": "fixed"
+    },
+    {
+      "file": "Precios.dc.html",
+      "page": "informes",
+      "x": 3148,
+      "y": 0,
+      "w": 794,
+      "h": 1123,
+      "title": "PDF · Variación de precios",
+      "print": "fixed"
+    },
+    {
+      "file": "Proveedores.dc.html",
+      "page": "informes",
+      "x": 4022,
+      "y": 0,
+      "w": 794,
+      "h": 1123,
+      "title": "PDF · Cuentas a pagar",
+      "print": "fixed"
+    },
+    {
+      "file": "EstiloContable.dc.html",
+      "page": "estilos",
+      "x": 0,
+      "y": 0,
+      "w": 794,
+      "h": 1123,
+      "title": "Estilo Contable · cierre mensual",
+      "print": "fixed"
+    },
+    {
+      "file": "EstiloEditorial.dc.html",
+      "page": "estilos",
+      "x": 874,
+      "y": 0,
+      "w": 794,
+      "h": 1123,
+      "title": "Estilo Editorial · cierre mensual",
+      "print": "fixed"
+    },
+    {
+      "file": "ExportacionCSV.dc.html",
+      "page": "exportacion",
+      "x": 0,
+      "y": 0,
+      "w": 1820,
+      "h": 1360,
+      "title": "Especificación CSV",
+      "print": "flow"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nota-datos",
+      "page": "informes",
+      "x": 0,
+      "y": -250,
+      "w": 660,
+      "text": "Cuatro tipos, todos sobre datos que la app ya tiene:\n\nSemanal — weekly_digest + albaranes de la semana ISO, con el gasto por día.\nMensual — mv_category_monthly_spend contra presupuestos.\nPrecios — mv_price_snapshots y el umbral de alerta.\nCuentas a pagar — invoices con fecha de vencimiento.\n\nCifras de ejemplo, coherentes entre sí: los totales, los porcentajes y los desvíos cuadran, y la semana 31 encaja dentro de julio.\n\nLa misma pantalla en móvil va debajo de la de escritorio: tipos en rejilla 2×2, estilos en tres fichas y la barra de acción fija sobre el tab bar."
+    },
+    {
+      "id": "nota-estilos",
+      "page": "estilos",
+      "x": 0,
+      "y": -210,
+      "w": 620,
+      "text": "El mismo cierre de julio, con los tres lectores en mente. El estilo Ejecutivo (el que se ve por defecto) está en la página Informes.\n\nContable: códigos de cuenta, desglose de IVA, doble raya en los totales y hueco para firmar.\nEditorial: una cifra grande, gráfico de barras y el resumen de la IA en una frase.\n\nLos tres estilos valen para los cuatro tipos de informe."
+    },
+    {
+      "id": "nota-csv",
+      "page": "exportacion",
+      "x": 0,
+      "y": -190,
+      "w": 620,
+      "text": "Las tres reglas que más se rompen en un CSV español: BOM, punto y coma, y coma decimal. Sin las tres, Excel abre el archivo en una sola columna y con los acentos rotos.\n\nLa exportación de Albaranes actual sigue siendo XLSX; estos cuatro CSV son otra cosa y conviven con ella."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "informes"
+  }
+}

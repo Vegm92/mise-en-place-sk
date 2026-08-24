@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #0f5f5c; text-decoration: none; }
+    a:hover { color: #0b4f4c; }
+    .mono { font-family: 'JetBrains Mono', 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .lbl { font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #5f6b78; }
+    table.st { width: 100%; border-collapse: separate; border-spacing: 0; }
+    table.st th {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #5f6b78;
+      text-align: left; padding: 0 9px 7px; border-bottom: 1px solid rgba(15, 20, 30, 0.10); white-space: nowrap;
+    }
+    table.st td {
+      font-size: 13px; color: #1a1f26; padding: 7px 9px;
+      border-bottom: 1px solid rgba(15, 20, 30, 0.06); vertical-align: top;
+    }
+    table.st tr:last-child td { border-bottom: 0; }
+    .ty { font-size: 12px; color: #4a5562; line-height: 1.35; }
+  </style>
+</helmet>
+
+<div style="width: 1820px; min-height: 1360px; box-sizing: border-box; background: #f5f4f0; padding: 40px 44px 44px; display: flex; flex-direction: column; gap: 22px; color: #1a1f26;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 32px;">
+    <div style="display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 9px;">
+        <svg viewBox="0 0 64 64" width="22" height="22" style="border-radius: 4px; display: block;" aria-hidden="true">
+          <rect width="64" height="64" fill="#B8741A"></rect>
+          <rect x="8" y="8" width="8" height="48" rx="4" fill="#FFFFFF"></rect>
+          <rect x="28" y="20" width="8" height="36" rx="4" fill="#FFFFFF"></rect>
+          <rect x="48" y="32" width="8" height="24" rx="4" fill="#FFFFFF"></rect>
+        </svg>
+        <span class="lbl">Mise en Place &middot; Especificación de exportación</span>
+      </div>
+      <h1 style="font-size: 30px; font-weight: 600; letter-spacing: -0.022em; margin: 0; line-height: 1.15;">Exportación CSV de los cuatro informes</h1>
+      <p style="font-size: 15px; color: #4a5562; margin: 0; max-width: 760px; line-height: 1.5;">
+        Un archivo por informe, en el mismo grano que la tabla principal del PDF. Se abre limpio en Excel con configuración regional española, en Google Sheets y en los programas de contabilidad habituales.
+      </p>
+    </div>
+    <div class="card" style="padding: 13px 16px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
+      <span class="lbl">Convención de nombre</span>
+      <span class="mono" style="font-size: 14px; color: #1a1f26;">mep_&lt;informe&gt;_&lt;periodo&gt;_&lt;restaurante&gt;.csv</span>
+      <span class="mono" style="font-size: 13px; color: #0f5f5c;">mep_cierre-mensual_2026-07_casa-bruna.csv</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
+    <div class="card" style="padding: 15px 17px; display: flex; flex-direction: column; gap: 6px;">
+      <span class="lbl">Codificación</span>
+      <span class="mono" style="font-size: 15px; font-weight: 500;">UTF-8 con BOM</span>
+      <span style="font-size: 13.5px; color: #4a5562; line-height: 1.5;">Los tres bytes <span class="mono">EF BB BF</span> abren la cabecera. Sin ellos Excel rompe cada acento y cada «ñ».</span>
+    </div>
+    <div class="card" style="padding: 15px 17px; display: flex; flex-direction: column; gap: 6px;">
+      <span class="lbl">Separador de campos</span>
+      <span class="mono" style="font-size: 15px; font-weight: 500;">Punto y coma &nbsp;;</span>
+      <span style="font-size: 13.5px; color: #4a5562; line-height: 1.5;">Obligatorio en configuración española: la coma ya está ocupada como separador decimal.</span>
+    </div>
+    <div class="card" style="padding: 15px 17px; display: flex; flex-direction: column; gap: 6px;">
+      <span class="lbl">Decimales</span>
+      <span class="mono" style="font-size: 15px; font-weight: 500;">11842,30</span>
+      <span style="font-size: 13.5px; color: #4a5562; line-height: 1.5;">Coma decimal, 2 decimales fijos, sin separador de miles. Nunca <span class="mono">11.842,30</span> ni <span class="mono">11842.30</span>.</span>
+    </div>
+    <div class="card" style="padding: 15px 17px; display: flex; flex-direction: column; gap: 6px;">
+      <span class="lbl">Fechas</span>
+      <span class="mono" style="font-size: 15px; font-weight: 500;">2026-07-18</span>
+      <span style="font-size: 13.5px; color: #4a5562; line-height: 1.5;">ISO 8601. Se ordena como texto y no deja dudas entre día y mes al cruzar sistemas.</span>
+    </div>
+    <div class="card" style="padding: 15px 17px; display: flex; flex-direction: column; gap: 6px;">
+      <span class="lbl">Entrecomillado</span>
+      <span class="mono" style="font-size: 15px; font-weight: 500;">RFC 4180</span>
+      <span style="font-size: 13.5px; color: #4a5562; line-height: 1.5;">Solo si el valor lleva <span class="mono">;</span>, comillas o salto de línea. Las comillas internas se duplican.</span>
+    </div>
+    <div class="card" style="padding: 15px 17px; display: flex; flex-direction: column; gap: 6px;">
+      <span class="lbl">Estructura</span>
+      <span class="mono" style="font-size: 15px; font-weight: 500;">1 cabecera + N filas</span>
+      <span style="font-size: 13.5px; color: #4a5562; line-height: 1.5;">Sin título, sin fila de totales, sin celdas combinadas, sin filas en blanco. Fin de línea CRLF.</span>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start;">
+
+    <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); display: flex; flex-direction: column; gap: 3px;">
+        <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Cierre semanal</span>
+        <span class="mono" style="font-size: 12px; color: #0f5f5c;">cierre-semanal &middot; una fila por día</span>
+      </div>
+      <div style="padding: 12px 7px 12px;">
+        <table class="st">
+          <thead>
+            <tr><th>Columna</th><th>Tipo</th><th>Ejemplo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">semana_iso</td><td class="ty">texto AAAA-Wnn</td><td class="mono">2026-W31</td></tr>
+            <tr><td class="mono">fecha</td><td class="ty">fecha ISO</td><td class="mono">2026-07-27</td></tr>
+            <tr><td class="mono">dia_semana</td><td class="ty">texto</td><td class="mono">lunes</td></tr>
+            <tr><td class="mono">gasto_base</td><td class="ty">decimal (2)</td><td class="mono">2184,50</td></tr>
+            <tr><td class="mono">num_albaranes</td><td class="ty">entero</td><td class="mono">7</td></tr>
+            <tr><td class="mono">num_proveedores</td><td class="ty">entero</td><td class="mono">5</td></tr>
+            <tr><td class="mono">pct_semana</td><td class="ty">decimal (1)</td><td class="mono">22,2</td></tr>
+            <tr><td class="mono">por_revisar</td><td class="ty">entero</td><td class="mono">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); display: flex; flex-direction: column; gap: 3px;">
+        <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Cierre mensual</span>
+        <span class="mono" style="font-size: 12px; color: #0f5f5c;">cierre-mensual &middot; una fila por categoría</span>
+      </div>
+      <div style="padding: 12px 7px 12px;">
+        <table class="st">
+          <thead>
+            <tr><th>Columna</th><th>Tipo</th><th>Ejemplo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">periodo</td><td class="ty">texto AAAA-MM</td><td class="mono">2026-07</td></tr>
+            <tr><td class="mono">categoria</td><td class="ty">texto</td><td class="mono">Carnes y Derivados</td></tr>
+            <tr><td class="mono">codigo_cuenta</td><td class="ty">texto</td><td class="mono">600.100</td></tr>
+            <tr><td class="mono">gasto_base</td><td class="ty">decimal (2)</td><td class="mono">11842,30</td></tr>
+            <tr><td class="mono">presupuesto</td><td class="ty">decimal (2)</td><td class="mono">11000,00</td></tr>
+            <tr><td class="mono">desvio</td><td class="ty">decimal (2), con signo</td><td class="mono">842,30</td></tr>
+            <tr><td class="mono">pct_total</td><td class="ty">decimal (1)</td><td class="mono">28,0</td></tr>
+            <tr><td class="mono">num_albaranes</td><td class="ty">entero</td><td class="mono">22</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); display: flex; flex-direction: column; gap: 3px;">
+        <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Variación de precios</span>
+        <span class="mono" style="font-size: 12px; color: #0f5f5c;">variacion-precios &middot; una fila por artículo y proveedor</span>
+      </div>
+      <div style="padding: 12px 7px 12px;">
+        <table class="st">
+          <thead>
+            <tr><th>Columna</th><th>Tipo</th><th>Ejemplo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">periodo</td><td class="ty">texto AAAA-MM</td><td class="mono">2026-07</td></tr>
+            <tr><td class="mono">articulo</td><td class="ty">texto</td><td class="mono">Solomillo de ternera</td></tr>
+            <tr><td class="mono">proveedor</td><td class="ty">texto</td><td class="mono">Cárnicas Berrocal, S.L.</td></tr>
+            <tr><td class="mono">unidad_base</td><td class="ty">texto</td><td class="mono">kg</td></tr>
+            <tr><td class="mono">precio_anterior</td><td class="ty">decimal (2)</td><td class="mono">24,90</td></tr>
+            <tr><td class="mono">fecha_anterior</td><td class="ty">fecha ISO</td><td class="mono">2026-06-12</td></tr>
+            <tr><td class="mono">precio_actual</td><td class="ty">decimal (2)</td><td class="mono">29,40</td></tr>
+            <tr><td class="mono">fecha_actual</td><td class="ty">fecha ISO</td><td class="mono">2026-07-18</td></tr>
+            <tr><td class="mono">variacion_pct</td><td class="ty">decimal (2), con signo</td><td class="mono">18,07</td></tr>
+            <tr><td class="mono">volumen_mes</td><td class="ty">decimal (3)</td><td class="mono">62,000</td></tr>
+            <tr><td class="mono">impacto_mes</td><td class="ty">decimal (2), con signo</td><td class="mono">279,00</td></tr>
+            <tr><td class="mono">supera_umbral</td><td class="ty">si / no</td><td class="mono">si</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+      <div style="padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); display: flex; flex-direction: column; gap: 3px;">
+        <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Cuentas a pagar</span>
+        <span class="mono" style="font-size: 12px; color: #0f5f5c;">cuentas-pagar &middot; una fila por albarán pendiente</span>
+      </div>
+      <div style="padding: 12px 7px 12px;">
+        <table class="st">
+          <thead>
+            <tr><th>Columna</th><th>Tipo</th><th>Ejemplo</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">fecha_corte</td><td class="ty">fecha ISO</td><td class="mono">2026-08-03</td></tr>
+            <tr><td class="mono">proveedor</td><td class="ty">texto</td><td class="mono">Cárnicas Berrocal, S.L.</td></tr>
+            <tr><td class="mono">nif_proveedor</td><td class="ty">texto</td><td class="mono">B-00000001</td></tr>
+            <tr><td class="mono">numero_albaran</td><td class="ty">texto</td><td class="mono">2026-8802</td></tr>
+            <tr><td class="mono">fecha_albaran</td><td class="ty">fecha ISO</td><td class="mono">2026-07-08</td></tr>
+            <tr><td class="mono">fecha_vencimiento</td><td class="ty">fecha ISO</td><td class="mono">2026-08-07</td></tr>
+            <tr><td class="mono">dias_vencido</td><td class="ty">entero, ± días</td><td class="mono">-4</td></tr>
+            <tr><td class="mono">importe_pendiente</td><td class="ty">decimal (2)</td><td class="mono">2140,00</td></tr>
+            <tr><td class="mono">tramo_antiguedad</td><td class="ty">corriente / 1-30 / 31-60 / +60</td><td class="mono">corriente</td></tr>
+            <tr><td class="mono">estado</td><td class="ty">pendiente / vencida</td><td class="mono">pendiente</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+    <div style="padding: 13px 17px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); display: flex; align-items: baseline; justify-content: space-between; gap: 20px;">
+      <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Archivo de ejemplo, byte a byte</span>
+      <span class="mono" style="font-size: 12.5px; color: #5f6b78;">mep_cierre-mensual_2026-07_casa-bruna.csv</span>
+    </div>
+    <div style="padding: 16px 17px; background: #fafaf7; display: flex; flex-direction: column; gap: 3px; overflow-x: auto;">
+      <div class="mono" style="font-size: 13px; line-height: 1.75; white-space: pre;"><span style="background: rgba(184, 116, 26, 0.18); color: #7e4c0d; padding: 1px 4px; border-radius: 3px;">EF BB BF</span>  <span style="color: #5f6b78;">← BOM, no visible al abrir</span></div>
+      <div class="mono" style="font-size: 13px; line-height: 1.75; white-space: pre; color: #0f5f5c; font-weight: 500;">periodo;categoria;codigo_cuenta;gasto_base;presupuesto;desvio;pct_total;num_albaranes</div>
+      <div class="mono" style="font-size: 13px; line-height: 1.75; white-space: pre;">2026-07;Carnes y Derivados;600.100;11842,30;11000,00;842,30;28,0;22</div>
+      <div class="mono" style="font-size: 13px; line-height: 1.75; white-space: pre;">2026-07;Frutas y Verduras;600.200;7965,15;8500,00;-534,85;18,8;31</div>
+      <div class="mono" style="font-size: 13px; line-height: 1.75; white-space: pre;">2026-07;Pescados y Mariscos;600.300;6104,80;5800,00;304,80;14,4;14</div>
+      <div class="mono" style="font-size: 13px; line-height: 1.75; white-space: pre;">2026-07;Otras categorías (4);600.900;2419,40;2500,00;-80,60;5,8;19</div>
+    </div>
+    <div style="padding: 13px 17px; border-top: 1px solid rgba(15, 20, 30, 0.06); display: flex; flex-direction: column; gap: 5px;">
+      <span class="lbl">Un valor que necesita entrecomillado</span>
+      <div class="mono" style="font-size: 13px; line-height: 1.7; white-space: pre; overflow-x: auto;">2026-08-03;"Distribuciones ""El Puerto""; S.L.";B-00000009;A-1193;…</div>
+      <span style="font-size: 13px; color: #4a5562; line-height: 1.5;">El nombre lleva un punto y coma y comillas: se envuelve entero entre comillas y cada comilla interna se escribe dos veces.</span>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 8px; padding: 0 2px;">
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#5f6b78" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <path d="M12 16v-4"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+    <span style="font-size: 13.5px; color: #4a5562;">
+      Para el detalle línea a línea de cada albarán se sigue usando la exportación de Albaranes, que va en Excel con formato. Estos cuatro CSV son el contenido del informe, no su sustituto.
+    </span>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

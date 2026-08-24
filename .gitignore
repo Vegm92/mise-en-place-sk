@@ -66,6 +66,7 @@ DEPLOYMENT.md
 !/docs/05_operations/
 !/docs/06_decisions/
 !/docs/07_ai/
+!/docs/03_features/report_templates/
 !/docs/REVENUE_METRICS.md
 # Architecture decision records live in docs/06_decisions/ (not ignored) â€” see its README.md
 # ...and the onboarding pack, which has to reach new teammates (tracked on purpose)
