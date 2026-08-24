@@ -35,6 +35,16 @@
       "print": "flow"
     },
     {
+      "file": "MovilMenu.dc.html",
+      "page": "informes",
+      "x": 470,
+      "y": 1020,
+      "w": 390,
+      "h": 844,
+      "title": "Menú lateral (móvil)",
+      "print": "flow"
+    },
+    {
       "file": "CierreSemanal.dc.html",
       "page": "informes",
       "x": 1400,
@@ -112,7 +122,7 @@
       "x": 0,
       "y": -250,
       "w": 660,
-      "text": "Cuatro tipos, todos sobre datos que la app ya tiene:\n\nSemanal — weekly_digest + albaranes de la semana ISO, con el gasto por día.\nMensual — mv_category_monthly_spend contra presupuestos.\nPrecios — mv_price_snapshots y el umbral de alerta.\nCuentas a pagar — invoices con fecha de vencimiento.\n\nCifras de ejemplo, coherentes entre sí: los totales, los porcentajes y los desvíos cuadran, y la semana 31 encaja dentro de julio.\n\nLa misma pantalla en móvil va debajo de la de escritorio: tipos en rejilla 2×2, estilos en tres fichas y la barra de acción fija sobre el tab bar."
+      "text": "Cuatro tipos, todos sobre datos que la app ya tiene:\n\nSemanal — weekly_digest + albaranes de la semana ISO, con el gasto por día.\nMensual — mv_category_monthly_spend contra presupuestos.\nPrecios — mv_price_snapshots y el umbral de alerta.\nCuentas a pagar — invoices con fecha de vencimiento.\n\nCifras de ejemplo, coherentes entre sí: los totales, los porcentajes y los desvíos cuadran, y la semana 31 encaja dentro de julio.\n\nLa misma pantalla en móvil va debajo de la de escritorio: tipos en rejilla 2×2, estilos en tres fichas y la barra de acción fija abajo. La navegación es la del layout: cabecera de 56 px con hamburguesa y <aside> de 232 px que entra deslizando."
     },
     {
       "id": "nota-estilos",

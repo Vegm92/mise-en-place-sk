@@ -9,6 +9,7 @@ Cada `.dc.html` es una lámina (artboard) y `canvas.json` las coloca en el lienz
 |---|---|
 | `Main.dc.html` | Pantalla de elección (escritorio): tipo × estilo, vista previa en vivo |
 | `MovilInformes.dc.html` | La misma pantalla en móvil (390×844) |
+| `MovilMenu.dc.html` | El menú lateral abierto sobre esa pantalla |
 | `CierreSemanal.dc.html` | Informe semanal, A4, estilo Ejecutivo |
 | `CierreMensual.dc.html` | Informe mensual, A4, estilo Ejecutivo |
 | `Precios.dc.html` | Variación de precios, A4, estilo Ejecutivo |
@@ -37,6 +38,16 @@ Excel en español abre el fichero en una columna y con los acentos rotos.
 
 La exportación de Albaranes (`/invoices/export`) sigue siendo XLSX y no la
 sustituyen: aquélla va a nivel de línea, éstas al grano del informe.
+
+## Navegación en móvil
+
+La navegación sale de `src/routes/(app)/+layout.svelte`: cabecera de 56 px con
+hamburguesa, título y acciones, más un `<aside>` de 232 px que entra deslizando
+sobre una capa `bg-black/60`. **No hay barra inferior de pestañas.**
+
+`MobileTabBar.svelte` y `MobilePageHeader.svelte` siguen en
+`src/lib/components/mobile/` pero no los importa nadie — son código muerto y no
+representan la navegación real. Conviene borrarlos o marcarlos.
 
 ## Tokens
 
