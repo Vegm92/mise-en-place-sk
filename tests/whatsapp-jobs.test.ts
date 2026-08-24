@@ -45,7 +45,7 @@ vi.mock('../src/lib/server/env', async (importActual) => ({
 }));
 
 import {
-	batchLink, findJobByCode, generateJobCode, normalizeJobCode, pendingJobsFor,
+	batchLink, findJobByCode, generateJobCode, normalizeJobCode, parseReview, pendingJobsFor,
 	randomJobCode, setReviewStatus,
 } from '../src/lib/server/integrations/whatsapp/jobs';
 import { CODE_ALPHABET } from '../src/lib/server/whatsapp-pairing';
@@ -147,5 +147,37 @@ describe('review-status transition', () => {
 describe('batchLink', () => {
 	it('builds an absolute link when APP_BASE_URL is configured', () => {
 		expect(batchLink('batch-1')).toBe('https://app.example.com/batch/batch-1');
+	});
+});
+
+describe('parseReview', () => {
+	it('reads a bare OK as a confirmation', () => {
+		expect(parseReview('OK')).toEqual({ decision: 'reviewed', code: null });
+		expect(parseReview('ok')).toEqual({ decision: 'reviewed', code: null });
+		expect(parseReview('vale')).toEqual({ decision: 'reviewed', code: null });
+	});
+
+	it('reads an accented sí, however it was typed', () => {
+		expect(parseReview('sí')).toEqual({ decision: 'reviewed', code: null });
+		expect(parseReview('Sí!')).toEqual({ decision: 'reviewed', code: null });
+		expect(parseReview('si')).toEqual({ decision: 'reviewed', code: null });
+	});
+
+	it('reads a rejection', () => {
+		expect(parseReview('NO')).toEqual({ decision: 'to_review', code: null });
+		expect(parseReview('incorrecto')).toEqual({ decision: 'to_review', code: null });
+	});
+
+	it('picks up the job code the answer names', () => {
+		expect(parseReview('OK A7K2')).toEqual({ decision: 'reviewed', code: 'A7K2' });
+		expect(parseReview('no a7k2')).toEqual({ decision: 'to_review', code: 'A7K2' });
+	});
+
+	it('is not a chat parser — anything else is left alone', () => {
+		expect(parseReview('hola, ¿qué tal?')).toBeNull();
+		expect(parseReview('okay pero mándame otra cosa luego')).toBeNull();
+		expect(parseReview('')).toBeNull();
+		// "no" buried in a sentence is not an answer to the summary.
+		expect(parseReview('pues no lo sé')).toBeNull();
 	});
 });

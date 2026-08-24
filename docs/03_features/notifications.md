@@ -32,6 +32,13 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   `low_stock_forecast`, `budget_overage`, `supplier_uncategorized`,
   `supplier_category_suggested`, `unit_conversion_needed`, `product_suggestion`,
   `verifactu_qr_mismatch`.
+- **Producers** (`integrations/whatsapp/jobs.ts` `raiseReviewNotification`):
+  `whatsapp_pending_save` (sender answered `OK`), `whatsapp_needs_review`
+  (sender answered `NO`, or extraction failed). These are the only rows written
+  with `invoiceId = null` — an `OK` over WhatsApp reviews the extraction, it
+  does not save an invoice (ADR-008: one canonical write path), so the reminder
+  is what carries the invoice to the panel. Payload carries `batchId`/`itemId`
+  and the CTA deep-links to `/batch/[id]`.
 - **Storage**: `system_notifications(rid, invoiceId?, notificationType, message,
   payload, status pending|sent)`; index `(rid, status, created_at)`.
 - **Per-type preferences** (#577): each tenant can switch individual alert types
@@ -48,6 +55,8 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   (`unit_conversion_needed`, `product_suggestion`, `verifactu_qr_mismatch`) are
   never filtered. The two email jobs check their own toggle before doing any
   work (`weekly_digest`, `invoice_reminders`).
+  `notificationType` is free-form `text`, so a new type needs no migration —
+  `/reminders` selects every pending row and unknown types degrade to a bell.
 - **i18n**: `payload.messageKey/messageVars` rendered via `$tiv` in
   `NotificationItem.svelte`; icon/color/grouping from `notification-display.ts`
   (`priceShock`, `lowStock`, `budget`, `suppliers`, `other`).
@@ -82,7 +91,8 @@ Alert preferences live in `settings` under the `alert_pref_` key namespace.
 
 ## Background dependencies
 
-None (producers run inline post-save).
+Producers run inline post-save, except the two WhatsApp types: those are raised
+from the worker's inbound-message handler when the sender answers the summary.
 
 ## External dependencies
 

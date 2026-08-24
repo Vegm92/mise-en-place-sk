@@ -8,6 +8,10 @@ import { isLocationLocked } from '../../locations';
 import { normalizeCode, redeemPairingCode } from '../../whatsapp-pairing';
 import { WHATSAPP_SENDER_HOURLY_LIMIT } from '../../env';
 import { handleMediaUpload, type CommitFlag } from './media-handler';
+import {
+	batchLink, findJobByCode, parseReview, pendingJobsFor, raiseReviewNotification,
+	setReviewStatus, supplierOf, type WhatsAppJob,
+} from './jobs';
 import type { WhatsAppInboundMessage, WhatsAppMessageContext } from './transport';
 
 const UNAUTHORIZED_REPLY_COOLDOWN_S = 6 * 60 * 60;
@@ -85,6 +89,63 @@ async function handlePairingAttempt(
 	await ctx.sendText(from, '❌ Ese código no es válido o ha caducado. Pide uno nuevo al administrador.');
 }
 
+async function resolveJob(
+	from: string,
+	code: string | null,
+	ctx: WhatsAppMessageContext,
+): Promise<WhatsAppJob | null> {
+	if (code) {
+		const byCode = await findJobByCode(from, code);
+		if (byCode) return byCode;
+		await ctx.sendText(from, `⚠️ No tengo ninguna factura con el código ${code} esperando confirmación.`);
+		return null;
+	}
+
+	const pending = await pendingJobsFor(from);
+	if (pending.length === 1) return pending[0];
+	if (pending.length === 0) {
+		await ctx.sendText(from, 'No tengo ninguna factura esperando confirmación.');
+		return null;
+	}
+	await ctx.sendText(
+		from,
+		'Tengo varias facturas pendientes. Responde con el código:\n' +
+			pending.map((p) => `${p.jobCode} — ${supplierOf(p)}`).join('\n'),
+	);
+	return null;
+}
+
+async function handleTextReply(
+	from: string,
+	body: string,
+	ctx: WhatsAppMessageContext,
+): Promise<void> {
+	const parsed = parseReview(body);
+	if (!parsed) {
+		await ctx.sendText(
+			from,
+			'⚠️ Envíame una foto o PDF de la factura, o responde OK / NO al resumen.',
+		);
+		return;
+	}
+
+	const job = await resolveJob(from, parsed.code, ctx);
+	if (!job) return;
+
+	if (!(await setReviewStatus(job.id, parsed.decision, ['pending']))) {
+		await ctx.sendText(from, 'Esa factura ya estaba revisada.');
+		return;
+	}
+
+	await raiseReviewNotification(job, parsed.decision);
+	await ctx.sendText(
+		from,
+		parsed.decision === 'reviewed'
+			? `✅ Factura marcada como revisada.\nGuárdala en el panel cuando puedas:\n${batchLink(job.batchId)}`
+			: `⚠️ Factura marcada como "To Review".\nRevísala en el panel:\n${batchLink(job.batchId)}`,
+	);
+}
+
 async function dispatchMessage(
 	msg: WhatsAppInboundMessage,
 	from: string,
@@ -96,6 +157,8 @@ async function dispatchMessage(
 		await handleMediaUpload(from, restaurantId, msg.image, ctx, committed);
 	} else if (msg.type === 'document' && msg.document) {
 		await handleMediaUpload(from, restaurantId, msg.document, ctx, committed);
+	} else if (msg.type === 'text' && msg.text) {
+		await handleTextReply(from, msg.text.body, ctx);
 	} else {
 		await ctx.sendText(
 			from,

@@ -228,11 +228,12 @@ describe('pairing-code enrolment (issue #320)', () => {
 
 	it('never treats an authorised sender\'s text as a code', async () => {
 		// Redemption sits inside the unauthorised branch precisely so a
-		// code-shaped message from a known number can't be hijacked.
+		// code-shaped message from a known number can't be hijacked. From a
+		// known number the text goes to the review-reply parser instead.
 		queueSelects(CONTACT);
 		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
 		expect(redeemMock).not.toHaveBeenCalled();
-		expect(repliesText()).toMatch(/Solo puedo procesar imágenes/i);
+		expect(repliesText()).toMatch(/responde OK \/ NO/i);
 	});
 
 	it('does not treat media from an unknown number as a pairing attempt', async () => {
@@ -252,9 +253,9 @@ describe('message type routing (authorised contact)', () => {
 		expect(downloadMock).not.toHaveBeenCalled();
 	});
 
-	it('treats a plain text message from an authorised contact as unsupported', async () => {
+	it('answers chat from an authorised contact with what it can actually do', async () => {
 		queueSelects(CONTACT);
 		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'text', text: { body: 'hola' } });
-		expect(repliesText()).toMatch(/Solo puedo procesar imágenes/i);
+		expect(repliesText()).toMatch(/Envíame una foto o PDF/i);
 	});
 });
