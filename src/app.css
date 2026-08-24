@@ -412,6 +412,337 @@
     pointer-events: none;
     display: flex;
   }
+
+  /* ── Extraction review workspace (batch/[id]) ──────────────────────
+     Three panes on one row: a collapsible queue rail, a resizable
+     document preview, and the editor pane that takes every pixel left
+     over. Widths come from the page (drag + persisted prefs); shape,
+     chrome and scroll behaviour live here. */
+  .rev-shell {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .rev-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .rev-col-fixed { flex: 0 0 auto; }
+  .rev-col-fill  { flex: 1 1 0; }
+  .rev-sizing    { transition: width 180ms cubic-bezier(0.4, 0, 0.2, 1); }
+  .rev-dragging .rev-sizing { transition: none; }
+  .rev-dragging  { cursor: col-resize; user-select: none; }
+  .rev-dragging iframe { pointer-events: none; }
+
+  /* Drag handle between the preview and the editor */
+  .rev-split {
+    flex: 0 0 auto;
+    width: 7px;
+    margin: 0 -3px;
+    border: none;
+    padding: 0;
+    background: transparent;
+    cursor: col-resize;
+    position: relative;
+    align-self: stretch;
+    touch-action: none;
+  }
+  .rev-split::after {
+    content: '';
+    position: absolute;
+    inset: 12px 2px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background 140ms ease-out;
+  }
+  .rev-split:hover::after,
+  .rev-split:focus-visible::after,
+  .rev-dragging .rev-split::after { background: var(--mep-acc); }
+  .rev-split:focus-visible { outline: none; }
+
+  /* Queue rail */
+  .rev-rail-btn {
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: var(--mep-r-input);
+    background: transparent;
+    color: var(--mep-fg-2);
+    cursor: pointer;
+    text-align: left;
+    transition: background 140ms ease-out;
+  }
+  .rev-rail-btn:hover { background: var(--mep-hover); }
+  .rev-rail-btn.active { background: var(--mep-acc-soft); color: var(--mep-fg); }
+  .rev-rail-btn:disabled { cursor: default; }
+  .rev-rail-btn:disabled:hover { background: transparent; }
+  .rev-rail-btn.active:disabled:hover { background: var(--mep-acc-soft); }
+
+  /* Icon-only affordance used by every pane chrome control */
+  .rev-icon-btn {
+    font-family: inherit;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: var(--mep-r-input);
+    background: transparent;
+    color: var(--mep-fg-3);
+    cursor: pointer;
+    transition: background 140ms ease-out, color 140ms ease-out;
+  }
+  .rev-icon-btn:hover { background: var(--mep-hover); color: var(--mep-fg); }
+
+  /* Editor pane: sticky head + foot, one scrolling body between them */
+  .rev-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    padding: 10px 14px;
+  }
+  .rev-bar-head { border-bottom: 1px solid var(--mep-divider); }
+  .rev-bar-title { flex: 1 1 auto; min-width: 0; }
+  .rev-bar-foot {
+    border-top: 1px solid var(--mep-divider);
+    background: var(--mep-surface-2);
+    justify-content: space-between;
+  }
+  .rev-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .rev-section {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--mep-divider);
+  }
+  .rev-section:last-child { border-bottom: none; }
+  .rev-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  /* Field grid — column count follows the pane width, so a wider editor
+     shows more fields per row instead of more empty space. */
+  .rev-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+    gap: 12px 14px;
+  }
+  .rev-grid-wide { grid-column: 1 / -1; }
+  .rev-field-label {
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--mep-fg-3);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 15px;
+  }
+  .rev-input {
+    font-family: inherit;
+    width: 100%;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mep-fg);
+    padding: 8px 10px;
+    border-radius: var(--mep-r-input);
+    background: var(--mep-surface-2);
+    border: 1px solid var(--mep-divider);
+    outline: none;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  .rev-input::placeholder { color: var(--mep-fg-4); }
+  .rev-input:focus { border-color: var(--mep-acc); box-shadow: 0 0 0 3px var(--mep-acc-ring); }
+  .rev-input.flagged { border-bottom: 2px solid var(--mep-warn); }
+  .rev-input.mismatch { border: 1px solid var(--mep-warn); border-bottom-width: 2px; font-weight: 600; }
+  textarea.rev-input { resize: vertical; font-weight: 400; font-size: 12.5px; }
+
+  /* Line-item table cells — borderless until focused */
+  .rev-cell {
+    font-family: inherit;
+    width: 100%;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--mep-fg);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 4px 6px;
+    outline: none;
+    transition: border-color 120ms, background 120ms;
+  }
+  .rev-cell:hover { border-color: var(--mep-divider); }
+  .rev-cell:focus { border-color: var(--mep-acc); background: var(--mep-surface); }
+  /* Sticky section head above the line-item table; the table's own header
+     row parks directly beneath it. */
+  .rev-sticky-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 14px;
+    background: var(--mep-surface);
+    border-bottom: 1px solid var(--mep-divider);
+  }
+  .rev-lines thead th {
+    position: sticky;
+    top: 40px;
+    z-index: 2;
+  }
+
+  /* Footer row: status truncates, totals never do, hints go first when tight */
+  .rev-foot-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    min-width: 0;
+    flex-shrink: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .rev-foot-totals {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .rev-shortcuts {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    color: var(--mep-fg-3);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .rev-shortcuts span { display: inline-flex; align-items: center; gap: 4px; }
+  @media (max-width: 1700px) { .rev-shortcuts { display: none; } }
+  .rev-lines td { height: auto; padding: 5px 10px; }
+  .rev-lines th { padding: 8px 10px; }
+
+  /* Inline advisory strip — duplicate, low-confidence, date errors */
+  .rev-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .rev-note-warn { color: var(--mep-warn); background: var(--mep-warn-soft); }
+  .rev-note-neg  { color: var(--mep-neg);  background: var(--mep-neg-soft); }
+  button.rev-note {
+    font-family: inherit;
+    width: 100%;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  /* Full-screen document lightbox */
+  .rev-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 210;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.72);
+  }
+  .rev-lightbox-bar { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .rev-lightbox-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rev-lightbox-frame {
+    flex: 1;
+    min-height: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--mep-surface-2);
+  }
+
+  /* Keyboard-shortcut key cap shown in the editor footer */
+  .rev-kbd {
+    font-family: inherit;
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 5px;
+    border-radius: 4px;
+    border: 1px solid var(--mep-border);
+    background: var(--mep-surface);
+    color: var(--mep-fg-3);
+  }
+
+  /* Under ~900px the three panes stack and scroll as one page, and the queue
+     rail becomes a horizontal strip of file chips instead of a column. */
+  @media (max-width: 900px) {
+    .rev-shell {
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .rev-shell .rev-col,
+    .rev-shell .rev-col-fixed,
+    .rev-shell .rev-col-fill {
+      width: auto !important;
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+    .rev-shell .rev-scroll { overflow: visible; }
+    .rev-split { display: none; }
+    .rev-preview-frame { height: 340px; }
+    .rev-rail-list {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 6px;
+      overflow: visible !important;
+    }
+    .rev-rail-list .rev-rail-btn { width: auto; }
+    .rev-rail-foot { flex-direction: row !important; justify-content: center; }
+    .rev-rail-foot form { flex: 0 0 auto; }
+    .rev-rail-head { flex-direction: row !important; }
+    .rev-bar-head { flex-wrap: wrap; }
+    .rev-bar-title { flex: 1 0 100%; }
+  }
 }
 
 @keyframes mepspin { to { transform: rotate(360deg); } }
