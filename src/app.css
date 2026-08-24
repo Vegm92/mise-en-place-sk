@@ -671,6 +671,60 @@
     text-align: left;
   }
 
+  /* Tax breakdown drawer — opens between the scroll body and the totals bar
+     so it is reachable without scrolling past every line item, and is never
+     clipped the way an absolutely-positioned popover would be. */
+  .rev-tax-panel {
+    flex-shrink: 0;
+    border-top: 1px solid var(--mep-divider);
+    background: var(--mep-surface-2);
+    padding: 10px 14px 4px;
+    max-height: 40%;
+    overflow-y: auto;
+  }
+  .rev-tax-panel-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .rev-tax-stale {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--mep-warn);
+  }
+  .rev-tax-tbl th { background: transparent; padding: 4px 10px; }
+  .rev-tax-tbl td { height: auto; padding: 6px 10px; font-size: 12.5px; }
+  .rev-tax-tbl tfoot td {
+    border-top: 1px solid var(--mep-border);
+    border-bottom: 0;
+    font-size: 12px;
+  }
+  .rev-tax-toggle {
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: var(--mep-fg-3);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--mep-r-input);
+    padding: 3px 6px;
+    cursor: pointer;
+    transition: background 140ms ease-out, border-color 140ms ease-out;
+  }
+  .rev-tax-toggle:hover { background: var(--mep-hover); border-color: var(--mep-divider); }
+  .rev-tax-toggle .num { color: var(--mep-fg-2); }
+  .rev-tax-caret {
+    display: inline-flex;
+    color: var(--mep-fg-4);
+    transition: transform 160ms ease-out;
+  }
+  .rev-tax-caret.open { transform: rotate(90deg); }
+
   /* Full-screen document lightbox */
   .rev-lightbox {
     position: fixed;
