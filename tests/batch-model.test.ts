@@ -195,7 +195,8 @@ function fakeStorage(shouldFail: (key: string) => boolean = () => false) {
 }
 
 async function backdateBatch(batchId: string, hoursAgo: number) {
-	await testSql`UPDATE upload_batches SET created_at = now() - ${`${hoursAgo} hours`}::interval WHERE id = ${batchId}`;
+	const interval = `${hoursAgo} hours`;
+	await testSql`UPDATE upload_batches SET created_at = now() - ${interval}::interval WHERE id = ${batchId}`;
 }
 
 describe.skipIf(!hasDbEnv)('cleanupStaleBatches (#427)', () => {

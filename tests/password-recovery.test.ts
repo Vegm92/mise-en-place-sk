@@ -40,23 +40,18 @@ vi.mock('$lib/server/email', () => ({
 	resetPasswordEmail: (email: string, url: string) => ({ to: email, subject: 's', html: url }),
 }));
 vi.mock('$lib/server/db', () => {
-	const select = () => ({
-		from: () => ({
-			where: () => ({
-				limit: () => Promise.resolve(state.userExists ? [{ id: 'u1' }] : []),
-			}),
-		}),
-	});
-	const update = () => ({
-		set: (values: Record<string, unknown>) => {
-			updatedRows.push(values);
-			return {
-				where: () => ({
-					returning: () => Promise.resolve(state.userExists ? [{ id: 'u1', ...values }] : []),
-				}),
-			};
-		},
-	});
+	const selectLimit = () => Promise.resolve(state.userExists ? [{ id: 'u1' }] : []);
+	const selectFrom = () => ({ where: () => ({ limit: selectLimit }) });
+	const select = () => ({ from: selectFrom });
+
+	const updateReturning = (values: Record<string, unknown>) =>
+		Promise.resolve(state.userExists ? [{ id: 'u1', ...values }] : []);
+	const updateSet = (values: Record<string, unknown>) => {
+		updatedRows.push(values);
+		return { where: () => ({ returning: () => updateReturning(values) }) };
+	};
+	const update = () => ({ set: updateSet });
+
 	return { db: { select, update } };
 });
 

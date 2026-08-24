@@ -2,7 +2,7 @@ const SENSITIVE_PARAMS = ['code', 'token', 'access_token', 'refresh_token', 'ema
 
 export function scrubUrl(rawUrl: string): string {
 	try {
-		const url = new URL(rawUrl, 'http://scrub.local');
+		const url = new URL(rawUrl, 'https://scrub.local');
 		let changed = false;
 		for (const key of SENSITIVE_PARAMS) {
 			if (url.searchParams.has(key)) {

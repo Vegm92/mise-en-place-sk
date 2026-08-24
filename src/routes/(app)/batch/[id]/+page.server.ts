@@ -135,11 +135,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				supplierNameStr,
 				String(extractedData.invoice_number ?? ''),
 			);
+			const invoiceDateStr = typeof extractedData.invoice_date === 'string' ? extractedData.invoice_date : null;
+			const totalAmountNum = typeof extractedData.total_amount === 'number' ? extractedData.total_amount : null;
 			const similarInvoiceId = duplicateOfId ? null : await findSimilarInvoiceId(
 				locals.restaurantId!,
 				supplierNameStr,
-				typeof extractedData.invoice_date === 'string' ? extractedData.invoice_date : null,
-				typeof extractedData.total_amount === 'number' ? extractedData.total_amount : null,
+				invoiceDateStr,
+				totalAmountNum,
 			);
 			review = {
 				itemId: active.id,

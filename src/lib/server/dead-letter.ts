@@ -21,7 +21,7 @@ const MAX_DEPTH = 4;
 const REDACTED = '[redacted]';
 
 const SENSITIVE_KEY = /pass|secret|token|api[-_]?key|auth|cookie|credential|signature|session|dsn/i;
-const EMAIL_RE = /[^\s@"']+@[^\s@"']+\.[^\s@"']+/g;
+const EMAIL_RE = /(?<![^\s@"'])[^\s@"']+@[^\s@"'][^\s@"'.]*\.[^\s@"']+/g;
 
 const CORRUPTION_PATTERNS: Array<[RegExp, string]> = [
 	[/invalid json|is not valid json|unexpected token|json at position/i, 'corrupt.invalidJson'],
@@ -109,8 +109,13 @@ export function describeError(err: unknown): { message: string; stack: string | 
 	}
 }
 
+function rawErrorMessage(err: unknown): string {
+	if (err instanceof Error) return err.message;
+	return typeof err === 'string' ? err : '';
+}
+
 export function classifyDeadLetterError(err: unknown): string {
-	const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+	const message = rawErrorMessage(err);
 	for (const [pattern, errorClass] of CORRUPTION_PATTERNS) {
 		if (pattern.test(message)) return errorClass;
 	}

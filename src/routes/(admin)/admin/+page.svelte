@@ -7,34 +7,45 @@
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   let { data }: { data: PageData } = $props();
 
+  type ChipStatus = 'ok' | 'warn' | 'error';
+
   function fmt(n: number) { return n.toLocaleString('en-US'); }
+
+  function countStatus(count: number, errorAbove: number): ChipStatus {
+    if (count > errorAbove) return 'error';
+    if (count > 0) return 'warn';
+    return 'ok';
+  }
+
+  function sentryStatus(sentry: PageData['sentry']): ChipStatus {
+    if (!sentry.configured) return 'warn';
+    if (sentry.critical > 0) return 'error';
+    if (sentry.unresolved > 0) return 'warn';
+    return 'ok';
+  }
 
   const chips = $derived([
     {
       label: $t('admin.chip.errors'),
       value: data.sentry.configured ? data.sentry.unresolved : '—',
-      status: (!data.sentry.configured
-        ? 'warn'
-        : data.sentry.critical > 0 ? 'error' : data.sentry.unresolved > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: sentryStatus(data.sentry),
       href: '/admin/errors',
     },
     {
       label: $t('admin.chip.dlq'),
       value: data.deadLetters.pending,
-      status: (data.deadLetters.pending > 25
-        ? 'error' : data.deadLetters.pending > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: countStatus(data.deadLetters.pending, 25),
       href: '/admin/dead-letters',
     },
     {
       label: $t('admin.chip.stuck'),
       value: data.queue.stuck,
-      status: (data.queue.stuck > 10
-        ? 'error' : data.queue.stuck > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: countStatus(data.queue.stuck, 10),
     },
     {
       label: $t('admin.chip.pendingNotifs'),
       value: data.pendingNotifs,
-      status: (data.pendingNotifs > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: (data.pendingNotifs > 0 ? 'warn' : 'ok') as ChipStatus,
       href: '/admin/events',
     },
   ]);

@@ -11,7 +11,7 @@ const STAGED = process.argv.includes('--staged');
 const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 
 const ALLOWED = [
-	/^\s*\/?\s*@ts-/,
+	/^\s*(?:\/\s*)?@ts-/,
 	/^\s*eslint/,
 	/^\s*prettier-ignore/,
 	/^\s*svelte-ignore/,
@@ -177,7 +177,8 @@ for (const rel of targets()) {
 
 if (total > 0) {
 	console.error(`\n${total} comment${total === 1 ? '' : 's'} found.`);
-	console.error(`Allowed: @ts-*, eslint-*, svelte-ignore, prettier-ignore, @vite-ignore, c8/v8/istanbul ignore, @vitest-*, /// <reference>, ${PROJECT_DIRECTIVES.map((d) => `${d}:`).join(', ')}.`);
+	const directiveList = PROJECT_DIRECTIVES.map((d) => `${d}:`).join(', ');
+	console.error(`Allowed: @ts-*, eslint-*, svelte-ignore, prettier-ignore, @vite-ignore, c8/v8/istanbul ignore, @vitest-*, /// <reference>, ${directiveList}.`);
 	console.error('Bypass once with: git commit --no-verify');
 	process.exit(1);
 }

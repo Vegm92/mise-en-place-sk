@@ -53,7 +53,8 @@ const results = [];
 function check(label, got, expected) {
   const ok = expected === true ? !!got : got === expected;
   results.push({ label, ok });
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok ? '' : `  ← got: ${JSON.stringify(got)}`}`);
+  const detail = ok ? '' : `  ← got: ${JSON.stringify(got)}`;
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${detail}`);
   return ok;
 }
 

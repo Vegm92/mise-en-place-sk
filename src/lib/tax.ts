@@ -1,4 +1,4 @@
-import { toCents, fromCents } from './money';
+import { toCents, fromCents, type MoneyInput } from './money';
 
 export type TaxType = 'iva' | 'rec';
 
@@ -17,22 +17,22 @@ export type TaxBandInput = {
 };
 
 export type TaxedLine = {
-	totalPrice: string | number | null | undefined;
-	rate: string | number | null | undefined;
+	totalPrice: MoneyInput;
+	rate: MoneyInput;
 };
 
 const PERCENT_INPUT = /^(\d+)(?:[.,](\d+))?$/;
 
-export function percentToFraction(value: string | number | null | undefined): number | null {
+export function percentToFraction(value: MoneyInput): number | null {
 	if (value === null || value === undefined) return null;
-	const raw = String(value).trim().replace(/\s*%$/, '').trim();
+	const raw = String(value).trim().replace(/%$/, '').trim();
 	if (raw === '' || !PERCENT_INPUT.test(raw)) return null;
 	const n = Number(raw.replace(',', '.'));
 	if (!Number.isFinite(n)) return null;
 	return Math.round(n * 10000) / 1e6;
 }
 
-export function fractionToPercent(rate: string | number | null | undefined): number | null {
+export function fractionToPercent(rate: MoneyInput): number | null {
 	if (rate === null || rate === undefined) return null;
 	if (typeof rate === 'string' && rate.trim() === '') return null;
 	const n = typeof rate === 'number' ? rate : Number(rate.trim().replace(',', '.'));
@@ -40,7 +40,7 @@ export function fractionToPercent(rate: string | number | null | undefined): num
 	return n > 1 ? Math.round(n * 10000) / 10000 : Math.round(n * 1e6) / 1e4;
 }
 
-export function percentInputValue(rate: string | number | null | undefined): string {
+export function percentInputValue(rate: MoneyInput): string {
 	const pct = fractionToPercent(rate);
 	return pct === null ? '' : String(pct);
 }
@@ -49,7 +49,7 @@ export function isTaxType(value: unknown): value is TaxType {
 	return value === 'iva' || value === 'rec';
 }
 
-export function bandAmountCents(base: string | number | null | undefined, ratePercent: string | number | null | undefined): number | null {
+export function bandAmountCents(base: MoneyInput, ratePercent: MoneyInput): number | null {
 	const baseCents = toCents(base);
 	const rate = percentToFraction(ratePercent);
 	if (baseCents === null || rate === null) return null;
