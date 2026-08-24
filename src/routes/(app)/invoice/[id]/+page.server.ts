@@ -49,7 +49,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		if (!row) redirect(303, '/invoices');
 
 		return {
-			title: `Invoice ${row.invoice_number ?? row.id}`,
+			title: 'inv.detail.pageTitle',
+			titleParams: { number: row.invoice_number ?? row.id },
 			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
 			lineItems: lineItems.map(li => ({
 				...li,

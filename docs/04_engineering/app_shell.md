@@ -34,8 +34,11 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`function switchLocation`**
 - fall through — the select resets on the next render.
 **`markup`**
-- Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links, legal footer, user chip).
-- Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle, notification bell, theme toggle, upload CTA (mobile only).
+- Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links, legal footer, user chip). The util links carry the language and theme toggles below `md` only (#660): the off-canvas drawer is the mobile overflow menu, so the header row keeps just the hamburger, the title, the bell and the upload CTA.
+- Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle (desktop only, #660), notification bell, theme toggle (desktop only, #660), upload CTA (mobile only).
+**`const pageTitle`**
+- `$page.data.title` is an i18n key, not copy — a route that returns none falls back to the app name, which is what #660 fixed across `/billing`, `/products/[id]`, `/plantilla-lista`, `/suppliers/[id]` and the two confirmation pages. `titleParams` is the escape hatch for a title that names a record (`/invoice/[id]` → `inv.detail.pageTitle` = `Albarán {number}`); it resolves through `ti` so the string stays translated.
+- The header is `.shell-header` / `.shell-title` in `app.css` rather than inline styles, because the title needs a media query: 16px below `md`, 20px from `md` up. At 390px the title box is 240px, which fits the longest title in either locale (#660).
 - Page content — a `<main>` landmark contains a post-hydration client render/effect error (e.g. the /batch/[id] polling loop, the chat page) to this region so the shell survives; +error.svelte still covers load errors.
 - Tutorial coach marks: completion overlay and the app-wide tour nudge (small dismissible corner card, persists across dashboard visits) — both carry svelte-ignore a11y_no_static_element_interactions.
 
@@ -218,11 +221,6 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Period picker (self-contained — reads URL, generates prev/next links).
 **`markup`**
 - Mobile-only wrapper, full height, scroll with bottom clearance; greeting + period picker; hero spend card; alert tile (only when there are high/med alerts); 2-col KPI row; top suppliers; recent invoices.
-
-### `src/lib/components/mobile/MobileTabBar.svelte`
-
-**`markup`**
-- Raised upload button.
 
 ### `src/lib/components/PriceTrendSparkline.svelte`
 

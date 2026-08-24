@@ -45,9 +45,14 @@ La navegación sale de `src/routes/(app)/+layout.svelte`: cabecera de 56 px con
 hamburguesa, título y acciones, más un `<aside>` de 232 px que entra deslizando
 sobre una capa `bg-black/60`. **No hay barra inferior de pestañas.**
 
-`MobileTabBar.svelte` y `MobilePageHeader.svelte` siguen en
-`src/lib/components/mobile/` pero no los importa nadie — son código muerto y no
-representan la navegación real. Conviene borrarlos o marcarlos.
+`MobileTabBar.svelte` y `MobilePageHeader.svelte` se borraron en la issue #660:
+nadie los importaba y no representaban la navegación real. Adoptar una barra
+inferior de pestañas sigue siendo una opción de producto, pero es un cambio de
+UX que habría que aprobar aparte.
+
+Por debajo de `md` la cabecera deja en la fila solo hamburguesa, título,
+campana y CTA de subida; los conmutadores de idioma y tema viven en el
+`<aside>` deslizante, que hace de menú de desbordamiento (#660).
 
 ## Tokens
 

@@ -33,6 +33,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const hasSubscription = !!sub?.stripeSubscriptionId;
 
 	return {
+		title: 'billing.title',
 		status,
 		trialEndsAt: trialEndsAt?.toISOString() ?? null,
 		currentPeriodEnd: sub?.currentPeriodEnd?.toISOString() ?? null,

@@ -8,6 +8,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const sessionId = url.searchParams.get('session_id');
 
 	const base = {
+		title: 'billing.title',
 		received: true,
 		confirmed: false,
 		sessionId,
