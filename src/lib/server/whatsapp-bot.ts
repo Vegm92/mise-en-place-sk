@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import { restaurants, whatsappContacts } from './schema';
-import { claimIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
+import { claimIdempotencyKey, releaseIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { checkRateLimit } from './rate-limiter';
@@ -24,6 +24,10 @@ export interface WhatsAppInboundMessage {
 	text?: { body: string };
 	image?: { id: string; mime_type?: string };
 	document?: { id: string; mime_type?: string; filename?: string };
+}
+
+interface CommitFlag {
+	value: boolean;
 }
 
 async function claimMessageId(messageId: string | undefined): Promise<boolean> {
@@ -61,11 +65,16 @@ async function handleUnknownSender(msg: WhatsAppInboundMessage, from: string): P
 	}
 }
 
-async function dispatchMedia(msg: WhatsAppInboundMessage, from: string, restaurantId: string): Promise<void> {
+async function dispatchMedia(
+	msg: WhatsAppInboundMessage,
+	from: string,
+	restaurantId: string,
+	committed: CommitFlag,
+): Promise<void> {
 	if (msg.type === 'image' && msg.image) {
-		await handleMediaUpload(from, restaurantId, msg.image.id);
+		await handleMediaUpload(from, restaurantId, msg.image.id, committed);
 	} else if (msg.type === 'document' && msg.document) {
-		await handleMediaUpload(from, restaurantId, msg.document.id);
+		await handleMediaUpload(from, restaurantId, msg.document.id, committed);
 	} else {
 		await sendWhatsAppMessage(
 			from,
@@ -79,6 +88,20 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
 		return;
 	}
+
+	const committed: CommitFlag = { value: false };
+	try {
+		await routeMessage(msg, committed);
+	} catch (err) {
+		if (!committed.value && msg.id) {
+			await releaseIdempotencyKey(WHATSAPP_SCOPE, msg.id)
+				.catch((e) => console.error('[whatsapp-bot] failed to release claim:', e));
+		}
+		throw err;
+	}
+}
+
+async function routeMessage(msg: WhatsAppInboundMessage, committed: CommitFlag): Promise<void> {
 	const restaurantId = await resolveRestaurantId(msg.from);
 	if (!restaurantId) {
 		await handleUnknownSender(msg, msg.from);
@@ -103,7 +126,7 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 			return;
 		}
 	}
-	await dispatchMedia(msg, msg.from, restaurantId);
+	await dispatchMedia(msg, msg.from, restaurantId, committed);
 }
 
 async function handlePairingAttempt(from: string, body: string): Promise<void> {
@@ -140,6 +163,7 @@ async function handleMediaUpload(
 	from: string,
 	restaurantId: string,
 	mediaId: string,
+	committed: CommitFlag,
 ): Promise<void> {
 	let buffer: Buffer;
 	let extension: string;
@@ -148,7 +172,7 @@ async function handleMediaUpload(
 	} catch (err) {
 		console.error('[whatsapp-bot] media download error:', err);
 		await sendWhatsAppMessage(from, '❌ No he podido descargar el archivo. Inténtalo de nuevo.');
-		return;
+		throw err;
 	}
 
 	const fileKey = `whatsapp/${restaurantId}/${randomUUID()}.${extension}`;
@@ -157,7 +181,7 @@ async function handleMediaUpload(
 	} catch (err) {
 		console.error('[whatsapp-bot] storage error:', err);
 		await sendWhatsAppMessage(from, '❌ No he podido guardar el archivo. Inténtalo de nuevo.');
-		return;
+		throw err;
 	}
 
 	const displayName = `WhatsApp_${new Date().toISOString().slice(0, 10)}.${extension}`;
@@ -169,6 +193,7 @@ async function handleMediaUpload(
 		markQueued,
 		enqueue: enqueueExtraction,
 	});
+	committed.value = true;
 
 	const link = APP_BASE_URL ? `${APP_BASE_URL}/batch/${batchId}` : `/batch/${batchId}`;
 	await sendWhatsAppMessage(
