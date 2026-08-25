@@ -45,7 +45,7 @@ Spanish-first, bilingual (es/en). Product definition:
   `edit`, `batch/[id]`, `confirm/[id]` (legacy redirect stub), `extract/[id]`
   (legacy redirect stub), `suppliers[/id]`, `products[/id]`, `budgets`,
   `reminders`, `analytics/{spend,prices,extraction}`, `digest`, `chat`,
-  `billing`, `settings`, plus `(app)/api/*` endpoints.
+  `billing`, `settings`, `help`, plus `(app)/api/*` endpoints.
 - `(admin)` — `/admin` dashboard, `events`, `errors`, `health`, `revenue`,
   `dead-letters` (gated by `AUTH_ADMIN_EMAIL`).
 - Public — `login`, `signup`, `logout`, `forgot-password`, `reset-password`,

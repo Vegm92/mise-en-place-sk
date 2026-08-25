@@ -56,6 +56,7 @@ export const ROUTE_POLICY = {
 	'/(app)/digest':                     'open',
 	'/(app)/extract':                    'open',
 	'/(app)/extract/[id]':               'open',
+	'/(app)/help':                       'open',
 	'/(app)/invoice':                    'open',
 	'/(app)/invoice/[id]':               'open',
 	'/(app)/invoice/[id]/edit':          'open',

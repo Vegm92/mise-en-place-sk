@@ -433,7 +433,7 @@
       {/if}
 
       {#if section === 'ayuda'}
-        <div data-coach="settings-main">
+        <div>
           <SectionCard title={$t('set.tourTitle')}>
             <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">
               {$t('set.tourDesc')}
@@ -444,6 +444,14 @@
               </button>
             </form>
           </SectionCard>
+
+          <a href="/help" class="card p-4" style="display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;margin-top:12px;">
+            <div>
+              <div class="body-strong" style="font-size:13px;">{$t('set.helpLink')}</div>
+              <div class="body text-fg-3" style="font-size:11px;margin-top:2px;">{$t('set.helpLinkBody')}</div>
+            </div>
+            <span class="body text-fg-3" style="font-size:13px;">&rsaquo;</span>
+          </a>
         </div>
       {/if}
 
@@ -519,13 +527,13 @@
   </nav>
 
   <div class="settings-content">
-    <div class="set-content">
+    <div class="set-content" data-coach="settings-main">
       {@render sectionBody(activeSection, 'd')}
     </div>
   </div>
 </div>
 
-<div class="md:hidden set-acc">
+<div class="md:hidden set-acc" data-coach="settings-main">
   <div class="label" style="padding:0 2px 10px;">{$t('nav.settings')}</div>
   {#each sections as s (s.id)}
     <div class="set-acc-item">
