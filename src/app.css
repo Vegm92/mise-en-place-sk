@@ -298,6 +298,108 @@
   .mep button { font-family: inherit; }
   .mep .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
 
+  /* Horizontal chip strip: hides the scrollbar, fades the edge that has more
+     content behind it, and keeps the first chip off the frame edge. The fade
+     is driven by data-more-start / data-more-end from ScrollStrip.svelte, so
+     a strip that fits shows no fade at all. */
+  .scroll-strip {
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    padding: var(--mep-strip-pad, 0 18px 12px);
+    padding-left: var(--mep-strip-lead-in, 18px);
+    gap: var(--mep-strip-gap, 6px);
+    scroll-padding-inline: var(--mep-strip-lead-in, 18px) 32px;
+    --mep-strip-fade: 32px;
+    --mep-strip-lead: 0px;
+    --mep-strip-trail: 0px;
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--mep-strip-lead),
+      #000 calc(100% - var(--mep-strip-trail)),
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--mep-strip-lead),
+      #000 calc(100% - var(--mep-strip-trail)),
+      transparent 100%
+    );
+  }
+  .scroll-strip::-webkit-scrollbar { display: none; }
+  .scroll-strip:not([data-more-start='true']):not([data-more-end='true']) {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+  .scroll-strip[data-more-start='true'] { --mep-strip-lead: var(--mep-strip-fade); }
+  .scroll-strip[data-more-end='true'] { --mep-strip-trail: var(--mep-strip-fade); }
+  .scroll-strip > * { flex-shrink: 0; }
+
+  /* Bottom sheet that holds the full option list a strip cannot show */
+  .filter-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.45);
+  }
+  .filter-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 61;
+    display: flex;
+    flex-direction: column;
+    max-height: 72vh;
+    background: var(--mep-surface);
+    border-top-left-radius: var(--mep-r-card);
+    border-top-right-radius: var(--mep-r-card);
+    box-shadow: var(--mep-shadow-pop);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .filter-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--mep-divider);
+  }
+  .filter-sheet-list {
+    overflow-y: auto;
+    padding: 6px 10px 14px;
+  }
+  .filter-sheet-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--mep-r-input);
+    background: transparent;
+    color: var(--mep-fg);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .filter-sheet-option[aria-pressed='true'] {
+    background: var(--mep-acc);
+    color: var(--mep-acc-fg);
+  }
+  .filter-sheet-count { color: inherit; opacity: 0.65; font-size: 11px; }
+
   /* Card */
   .card {
     background: var(--mep-surface);
@@ -734,7 +836,8 @@
   .rev-foot-totals {
     display: flex;
     align-items: baseline;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 4px 12px;
     flex-shrink: 0;
     white-space: nowrap;
   }
@@ -1144,7 +1247,7 @@
     .rev-input { min-height: 44px; font-size: 15px; }
     .rev-sticky-head { padding: 0 14px; }
     .rev-bar-foot { padding: 10px 14px; flex-wrap: wrap; gap: 8px 12px; }
-    .rev-foot-totals { flex: 1 0 100%; justify-content: space-between; }
+    .rev-foot-totals { flex: 1 0 100%; }
     .rev-tax-panel { max-height: none; }
 
     .rev-tax-tbl thead { display: none; }

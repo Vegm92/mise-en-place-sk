@@ -13,6 +13,7 @@
 *.log
 /screenshots/*
 !/screenshots/.gitkeep
+/mobile-audit/
 /shots/
 /.playwright-mcp/
 
