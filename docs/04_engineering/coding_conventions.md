@@ -53,6 +53,12 @@ enforced by the lint scripts listed, which run in CI.
 - User-facing strings go through `src/lib/i18n.ts` (es-first, es/en). Components
   use `$t(key)`, `$ti(key, vars)`, `$tiv(...)`, `$tp(...)`. Hardcoded strings
   fail CI (`lint:i18n`).
+- Going through the table is not enough — the key has to be *in* it, or the UI
+  renders the raw key. `lint:i18n` resolves every literal key passed to
+  `$t`/`$ti`/`$tiv`/`$tp` against both locale tables and fails on a missing one
+  (issue #661). Keys assembled at runtime (`$t(row.labelKey)`, ``$t(`a.${b}`)``)
+  cannot be resolved statically and are skipped; cover those with a test that
+  derives the key list from its source, as `tests/i18n.test.ts` does.
 
 ## Comments and directives in source
 

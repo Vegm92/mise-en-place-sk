@@ -53,6 +53,7 @@ export type PlanTier = 'trial' | 'starter' | 'pro' | 'business';
 
 export interface TierConfig {
 	name: string;
+	nameKey: string;
 	monthlyInvoiceQuota: number | null;
 	stripePriceId: string;
 	maxLocations: number;
@@ -68,7 +69,8 @@ export interface TierConfig {
 
 export const TIERS: Record<PlanTier, TierConfig> = {
 	trial: {
-		name: 'Prueba gratuita',
+		name: 'Trial',
+		nameKey: 'billing.plan.trial',
 		monthlyInvoiceQuota: 20,
 		stripePriceId: '',
 		maxLocations: 1,
@@ -76,6 +78,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 	},
 	starter: {
 		name: 'Starter',
+		nameKey: 'billing.plan.starter',
 		monthlyInvoiceQuota: 100,
 		stripePriceId: STRIPE_PRICE_ID_STARTER ?? STRIPE_PRICE_ID ?? '',
 		maxLocations: 1,
@@ -83,6 +86,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 	},
 	pro: {
 		name: 'Pro',
+		nameKey: 'billing.plan.pro',
 		monthlyInvoiceQuota: 300,
 		stripePriceId: STRIPE_PRICE_ID_PRO ?? '',
 		maxLocations: 1,
@@ -90,6 +94,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 	},
 	business: {
 		name: 'Business',
+		nameKey: 'billing.plan.business',
 		monthlyInvoiceQuota: null,
 		stripePriceId: STRIPE_PRICE_ID_BUSINESS ?? '',
 		maxLocations: 5,
