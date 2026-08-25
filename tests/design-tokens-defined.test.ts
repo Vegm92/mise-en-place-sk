@@ -133,6 +133,26 @@ describe('MEP design tokens', () => {
 		expect(rules).not.toContain('prefers-color-scheme');
 	});
 
+	it('keeps native dropdown popups readable in both themes', () => {
+		// Two independent things have to hold, and each one alone looks fixed.
+		//
+		// `color-scheme` tells the browser which palette to draw native controls
+		// with. Without it every <select> popup keeps the light-scheme text
+		// colour, which is unreadable on a dark surface.
+		expect(css).toMatch(/\[data-theme="light"\][^}]*color-scheme:\s*light/);
+		expect(css).toMatch(/\[data-theme="dark"\][^}]*color-scheme:\s*dark/);
+
+		// Chrome propagates the <select>'s own background to the <option>s in the
+		// popup. The filter selects wear `.btn .btn-secondary`, whose :hover
+		// background is the translucent --mep-hover, so without an explicit opaque
+		// background here the popup faded to white 150ms after opening — the .btn
+		// transition animating it. Deleting this rule is silent everywhere else.
+		const option = css.match(/^\s*option\s*\{([^}]*)\}/m);
+		expect(option, 'the bare `option` rule is missing from app.css').not.toBeNull();
+		expect(option![1]).toContain('--mep-surface');
+		expect(option![1]).toContain('--mep-fg');
+	});
+
 	it('never pairs a hard-coded #fff with a solid semantic fill', () => {
 		// White is legible on the light semantic ramp but not the dark one
 		// (#fff on --mep-warn is 2.6:1 there) — use the matching *-fg ink.
