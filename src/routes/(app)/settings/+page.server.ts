@@ -13,6 +13,7 @@ const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { verifyCredentials } from '$lib/server/auth-credentials';
+import { passwordPolicyError } from '$lib/server/password-policy';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
@@ -31,8 +32,6 @@ import {
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
 const RESTAURANT_NAME_KEY = 'restaurant_name';
-
-const MIN_PASSWORD_LENGTH = 8;
 
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
 
@@ -201,7 +200,9 @@ export const actions: Actions = {
 		const email = locals.user!.email;
 
 		if (!current || !next) return fail(422, { section: 'password', error: 'set.profile.err.passwordRequired' });
-		if (next.length < MIN_PASSWORD_LENGTH) return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
+		const policyError = passwordPolicyError(next);
+		if (policyError === 'tooShort') return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
+		if (policyError === 'tooLong') return fail(422, { section: 'password', error: 'set.profile.err.passwordLong' });
 		if (next !== confirm) return fail(422, { section: 'password', error: 'set.profile.err.passwordMismatch' });
 
 		if (!(await checkRateLimit(`password-change:${locals.user!.id}`, 5))) {

@@ -33,6 +33,7 @@ export const SENTRY_AUTH_TOKEN        = process.env.SENTRY_AUTH_TOKEN       ?? '
 export const SENTRY_ORG               = process.env.SENTRY_ORG              ?? '';
 export const SENTRY_PROJECT           = process.env.SENTRY_PROJECT          ?? '';
 export const SENTRY_RELEASE           = process.env.SENTRY_RELEASE          ?? '';
+export const TURNSTILE_SECRET_KEY     = process.env.TURNSTILE_SECRET_KEY    ?? '';
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
 if (!APP_BASE_URL) {
