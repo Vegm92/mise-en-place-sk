@@ -27,11 +27,26 @@ const rawGit = (...a) => {
 };
 const tryGit = (...a) => rawGit(...a).trim();
 
+// The host is compared for equality, never matched by a substring pattern: an
+// unanchored /github\.com/ also accepts evil-github.com and github.com.attacker.net.
 function repoSlug() {
 	const url = tryGit('remote', 'get-url', 'origin');
-	const m = /github\.com[:/]([^/]+)\/(.+?)(?:\.git)?$/.exec(url);
-	if (!m) return null;
-	return { owner: m[1], repo: m[2] };
+	if (!url) return null;
+
+	const scp = /^(?:[A-Za-z0-9._-]+@)?github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/.exec(url);
+	if (scp) return { owner: scp[1], repo: scp[2] };
+
+	let parsed;
+	try {
+		parsed = new URL(url);
+	} catch {
+		return null;
+	}
+	if (parsed.hostname !== 'github.com') return null;
+
+	const [owner, repo] = parsed.pathname.replace(/^\//, '').replace(/\.git$/, '').split('/');
+	if (!owner || !repo) return null;
+	return { owner, repo };
 }
 
 function token() {
