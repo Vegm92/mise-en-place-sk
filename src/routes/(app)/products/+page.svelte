@@ -5,8 +5,12 @@
   import { t, tcat, ti } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
+  import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import { PERIOD_PILLS } from '$lib/constants';
   import Plus from '@lucide/svelte/icons/plus';
+  import Search from '@lucide/svelte/icons/search';
+  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   type ConversionPrompt = PageData['conversionPrompts'][number];
@@ -18,6 +22,7 @@
   let search         = $state('');
   let catFilter      = $state('');
   let view           = $state<'list' | 'chart'>('list');
+  let filtersOpen    = $state(false);
   let suggestionBusy = $state<Record<number, boolean>>({});
   let conversionBusy = $state<Record<number, boolean>>({});
   let conversionError = $state<Record<number, boolean>>({});
@@ -30,6 +35,13 @@
       return matchSearch && matchCat;
     })
   );
+
+  const activeFilterCount = $derived((search.trim() ? 1 : 0) + (catFilter ? 1 : 0));
+
+  function clearFilters() {
+    search = '';
+    catFilter = '';
+  }
 
   const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
   const pendingCount         = $derived(suggestions.length + conversionPrompts.length);
@@ -92,11 +104,7 @@
 <div class="p-6">
   <ListPageTemplate
     dataCoach="products-main"
-    bind:search
     bind:view
-    searchPlaceholder={$t('prod.col.name')}
-    period={data.period}
-    {periodPills}
     viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
     kpis={[
       { key: 'total',       label: $t('prod.kpi.total'),          value: products.length,       sub: $t('dsup.inTotal') },
@@ -126,14 +134,59 @@
         </button>
       </div>
       {#if tab === 'catalog'}
-        <div style="position:relative;">
-          <select class="btn btn-secondary"
-            style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:140px;"
-            bind:value={catFilter}>
-            <option value="">—</option>
-            {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
-          </select>
-          <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+        <button type="button" class="btn btn-ghost"
+          style="font-size:12.5px;gap:6px;"
+          aria-expanded={filtersOpen}
+          aria-controls="prod-filter-panel"
+          onclick={() => (filtersOpen = !filtersOpen)}>
+          <SlidersHorizontal size={13} />
+          {$t('tpl.filter.toggle')}
+          {#if activeFilterCount > 0}
+            <span class="badge bg-acc-soft text-acc border border-acc"
+              style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
+              {activeFilterCount}
+            </span>
+          {/if}
+          <span style="display:inline-flex;transition:transform 150ms;{filtersOpen ? 'transform:rotate(180deg);' : ''}">
+            <ChevronDown size={13} />
+          </span>
+        </button>
+
+        {#if activeFilterCount > 0}
+          <button type="button" class="btn btn-ghost" style="font-size:12.5px;" onclick={clearFilters}>
+            {$t('tpl.filter.clear')}
+          </button>
+        {/if}
+      {/if}
+
+      <div style="flex:1;"></div>
+      <PeriodPills active={data.period} pills={periodPills} />
+
+      {#if tab === 'catalog'}
+        <div id="prod-filter-panel" style="width:100%;">
+          {#if filtersOpen}
+            <div class="flex flex-wrap items-end gap-3">
+              <div class="search-field">
+                <span class="search-icon"><Search size={13} /></span>
+                <input type="search" class="input"
+                  style="padding-left:32px;min-width:200px;"
+                  placeholder={$t('prod.col.name')}
+                  aria-label={$t('prod.col.name')}
+                  bind:value={search} />
+              </div>
+
+              <div style="position:relative;">
+                <select class="btn btn-secondary"
+                  style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:140px;"
+                  aria-label={$t('prod.new.category')}
+                  bind:value={catFilter}>
+                  <option value="">—</option>
+                  {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
+                </select>
+                <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+              </div>
+            </div>
+          {/if}
         </div>
       {/if}
     {/snippet}
