@@ -128,7 +128,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 ## Code notes
 
-### `src/routes/api/notifications/+server.ts`
+### `src/routes/(app)/api/notifications/+server.ts`
 
 **`const GET`**
 
@@ -243,7 +243,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 - Early-outs before touching the database when nothing in the batch is governed, so the common invoice-save path adds a query only when it has something to gate.
 
-### `src/lib/components/NotificationBell.svelte`
+### `src/lib/components/mep/NotificationBell.svelte`
 
 **`const decidingCategory`**
 
@@ -270,7 +270,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 - Server-raised alerts carry an i18n key + vars so text follows the reader's locale; `message` is only the fallback for alerts not yet keyed. One-tap route to the supplier's category field (#301); suggested category: accept or pick another (#315).
 - The bell button's accessible name includes the badge count (e.g. "Notificaciones: 3") so the visible badge text matches the aria-label.
 
-### `src/lib/components/MobileAlerts.svelte`
+### `src/lib/components/mobile/MobileAlerts.svelte`
 
 **`markup`**
 

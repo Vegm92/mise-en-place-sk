@@ -60,6 +60,10 @@ vi.mock('$lib/server/batch', () => ({
 	markQueued: vi.fn(),
 	markDiscarded: vi.fn(),
 	pickActiveItem: (items: unknown[]) => items[0] ?? null,
+	pickStalledItem: () => null,
+	stallLevel: () => 'none',
+	requeueStalled: vi.fn(),
+	failStalledItems: vi.fn(async () => 0),
 }));
 
 // Pulled in by the batch route's action paths, irrelevant to load().
@@ -87,6 +91,7 @@ const batchItem = (restaurantId: string) => ({
 	extractedData: { supplier_name: 'Proveedor Secreto', invoice_number: 'F-001' },
 	conversionNotes: null,
 	extractError: null,
+	queuedAt: null,
 });
 
 const fakeRequest = (fields: Record<string, string>) => ({
