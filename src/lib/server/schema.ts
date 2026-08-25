@@ -372,11 +372,13 @@ export const batchItems = pgTable('batch_items', {
 	extractedData:   jsonb('extracted_data'),
 	conversionNotes: jsonb('conversion_notes'),
 	extractError:    text('extract_error'),
+	queuedAt:        timestamp('queued_at', { withTimezone: true }),
 	createdAt:       timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:       timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('batch_items_batch_id_idx').on(t.batchId),
 	index('batch_items_updated_at_idx').on(t.updatedAt),
+	index('batch_items_queued_at_idx').on(t.queuedAt),
 ]);
 
 export const whatsappContacts = pgTable('whatsapp_contacts', {
@@ -514,3 +516,11 @@ export const deadLetterQueue = pgTable('dead_letter_queue', {
 	index('dead_letter_queue_restaurant_idx').on(t.restaurantId),
 	index('dead_letter_queue_dedupe_idx').on(t.queue, t.sourceId, t.errorClass, t.status),
 ]);
+
+export const workerHeartbeats = pgTable('worker_heartbeats', {
+	id:                 text('id').primaryKey(),
+	startedAt:          timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+	lastSeenAt:         timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+	lastJobCompletedAt: timestamp('last_job_completed_at', { withTimezone: true }),
+	jobsCompleted:      integer('jobs_completed').notNull().default(0),
+});

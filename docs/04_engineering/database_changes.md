@@ -5,9 +5,8 @@ the schema file (ADR-003).
 
 ## Canonical sources
 
-- Drizzle schema split across `src/lib/server/schema/{core,extensions,auth}.ts`;
-  `schema.ts` is a re-export barrel — edit the per-area file.
-- Committed migrations in `drizzle/` (latest: `0038_*.sql`).
+- Drizzle schema in `src/lib/server/schema.ts` — one file, 40 tables.
+- Committed migrations in `drizzle/` (latest: `0042_*.sql`).
 - `drizzle.config.ts` drives generate/migrate/studio.
 
 ## Rules

@@ -43,6 +43,7 @@ function fakeItem(documentType: 'factura' | 'albaran' | null): BatchItem {
 		extractedData: { document_type: documentType, confidence: 1 },
 		conversionNotes: null,
 		extractError: null,
+		queuedAt: null,
 	};
 }
 

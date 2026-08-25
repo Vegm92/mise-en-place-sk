@@ -19,6 +19,7 @@ function makeItem(id: string, position: number, status: BatchItemStatus): BatchI
 		extractedData: null,
 		conversionNotes: null,
 		extractError: null,
+		queuedAt: null,
 	};
 }
 

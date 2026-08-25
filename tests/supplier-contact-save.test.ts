@@ -50,6 +50,7 @@ function batchItem(extractedData: Record<string, unknown> | null): BatchItem {
 		extractedData,
 		conversionNotes: null,
 		extractError: null,
+		queuedAt: null,
 	};
 }
 
