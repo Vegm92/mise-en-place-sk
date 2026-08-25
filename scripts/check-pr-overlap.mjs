@@ -8,6 +8,8 @@
 // docs/07_ai/parallel_sessions.md.
 
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 const args = process.argv.slice(2);
 const WARN_ONLY = args.includes('--warn-only');
@@ -16,11 +18,30 @@ const MAX_ADDED_LINES = Number(
 	(args.find((a) => a.startsWith('--max-added=')) ?? '--max-added=800').split('=')[1]
 );
 
+// Both binaries are resolved to an absolute path from a fixed set of standard
+// directories rather than invoked by bare name: a bare name is resolved through
+// PATH, so anyone who can prepend a writable directory to it chooses what runs.
+// GIT_BIN / GH_BIN override, and must themselves be absolute.
+const BIN_DIRS = ['/usr/local/bin', '/usr/bin', '/bin', '/opt/homebrew/bin', '/opt/local/bin'];
+
+function resolveBin(name, envVar) {
+	const override = process.env[envVar];
+	if (override) return path.isAbsolute(override) && existsSync(override) ? override : null;
+	for (const dir of BIN_DIRS) {
+		const candidate = path.join(dir, name);
+		if (existsSync(candidate)) return candidate;
+	}
+	return null;
+}
+
+const GIT_BIN = resolveBin('git', 'GIT_BIN');
+
 // rawGit must not trim: `git status --porcelain` encodes the status in the first
 // two columns, and trimming eats the leading space of the first line.
 const rawGit = (...a) => {
 	try {
-		return execFileSync('git', a, { encoding: 'utf8' });
+		if (!GIT_BIN) return '';
+		return execFileSync(GIT_BIN, a, { encoding: 'utf8' });
 	} catch {
 		return '';
 	}
@@ -60,8 +81,10 @@ function repoSlug() {
 function token() {
 	const fromEnv = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
 	if (fromEnv) return fromEnv;
+	const ghBin = resolveBin('gh', 'GH_BIN');
+	if (!ghBin) return null;
 	try {
-		return execFileSync('gh', ['auth', 'token'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+		return execFileSync(ghBin, ['auth', 'token'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 	} catch {
 		return null;
 	}
@@ -129,6 +152,8 @@ const skip = (why) => {
 	console.log(`pr-overlap: skipped — ${why}`);
 	process.exit(0);
 };
+
+if (!GIT_BIN) skip('git not found in a standard location (set GIT_BIN to an absolute path)');
 
 const slug = repoSlug();
 if (!slug) skip('origin is not a GitHub remote');
