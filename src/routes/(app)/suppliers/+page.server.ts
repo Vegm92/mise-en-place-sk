@@ -190,10 +190,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})),
 		};
 
+		const filteredList = listParams.badge
+			? supplierList.filter(s => s.badge === listParams.badge)
+			: supplierList;
+
 		return {
 			title: 'nav.suppliers',
 			subtitle: 'All active suppliers',
-			suppliers: supplierList,
+			suppliers: filteredList,
 			categories: orderedCategories,
 			categoryCounts,
 			period,
@@ -202,6 +206,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			search: listParams.search,
 			category: listParams.category,
 			uncategorizedOnly: listParams.uncategorizedOnly,
+			badge: listParams.badge,
 		};
 	});
 };
