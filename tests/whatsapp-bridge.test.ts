@@ -112,6 +112,7 @@ beforeEach(() => {
 	insertQueue.length = 0;
 	rateLimitMock.mockResolvedValue(true);
 	createBatchMock.mockResolvedValue({ batchId: 'batch-1', itemIds: ['item-1'] });
+vi.mock('../src/lib/server/locations', () => ({ isLocationLocked: vi.fn().mockResolvedValue(false) }));
 });
 
 describe('WhatsApp → batch bridge', () => {

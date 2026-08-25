@@ -17,6 +17,8 @@ const { state, rateLimitMock, applyTierSettingsMock } = vi.hoisted(() => ({
 		/** membership rows returned for the next select */
 		memberships: [] as Array<Record<string, unknown>>,
 		subscriptionTier: 'business' as string,
+		/** restaurants the plan no longer covers (#679) */
+		lockedIds: [] as string[],
 		inserted: [] as Array<{ table: string; values: unknown }>,
 	},
 	rateLimitMock: vi.fn().mockResolvedValue(true),
@@ -48,6 +50,13 @@ vi.mock('$lib/server/db', () => {
 	};
 	return { db, forTenant: (rid: string) => ({ rid, scope: () => ({}) }) };
 });
+vi.mock('$lib/server/locations', () => ({
+	memberLocations: vi.fn(async () => state.memberships.map(m => ({
+		restaurantId: m.restaurantId as string,
+		billingRestaurantId: m.restaurantId as string,
+		locked: state.lockedIds.includes(m.restaurantId as string),
+	}))),
+}));
 vi.mock('$lib/server/billing', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('../src/lib/server/billing')>();
 	return {
@@ -92,6 +101,7 @@ function addLocationEvent(name: string, cookies = cookieJar()) {
 beforeEach(() => {
 	state.memberships = [];
 	state.subscriptionTier = 'business';
+	state.lockedIds = [];
 	state.inserted = [];
 	rateLimitMock.mockClear().mockResolvedValue(true);
 	applyTierSettingsMock.mockClear();
@@ -126,6 +136,18 @@ describe('POST /api/active-restaurant', () => {
 			httpOnly: true,
 			sameSite: 'lax',
 		}));
+	});
+
+	// #679: after a Business → Pro downgrade the extra locations stay in the
+	// membership table but fall outside the plan, so the switch must be refused
+	// rather than handing the caller a cookie for a location they cannot use.
+	it('refuses a location the current plan no longer covers', async () => {
+		state.memberships = [{ restaurantId: 'rest-2' }];
+		state.lockedIds = ['rest-2'];
+		const cookies = cookieJar();
+		await expect(switchPost(switchEvent({ restaurantId: 'rest-2' }, USER, cookies)))
+			.rejects.toMatchObject({ status: 403 });
+		expect(cookies.set).not.toHaveBeenCalled();
 	});
 
 	it('rate limits switching', async () => {

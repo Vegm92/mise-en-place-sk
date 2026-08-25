@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
   import { get } from 'svelte/store';
-  import { t, ti } from '$lib/i18n';
+  import { t, ti, tp } from '$lib/i18n';
   import { formatPhoneNumber } from '$lib/phone';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import Slider from '$lib/components/mep/Slider.svelte';
+  import Lock from '@lucide/svelte/icons/lock';
   import SettingsIcon from '@lucide/svelte/icons/settings';
   import Truck from '@lucide/svelte/icons/truck';
   import Bell from '@lucide/svelte/icons/bell';
@@ -20,6 +21,8 @@
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   const feedback = (section: string) => (form?.section === section ? form : null);
+  const lockedLocations = $derived(data.locations.filter((loc) => loc.locked));
+  const usableLocations = $derived(data.locations.filter((loc) => !loc.locked));
 
   let deleteConfirm = $state('');
   let deleting = $state(false);
@@ -198,34 +201,45 @@
           </div>
         </SectionCard>
 
-        {#if data.multiLocation}
+        {#if data.multiLocation || lockedLocations.length > 0}
           <SectionCard title={$t('set.locations.title')}>
             <div style="display:flex;flex-direction:column;gap:12px;">
               <p class="body text-fg-3" style="font-size:12px;margin:0;">
-                {$ti('set.locations.desc', { used: data.locations.length, max: data.maxLocations })}
+                {$tp('set.locations.planIncludes', data.maxLocations)} {$ti('set.locations.inUse', { used: usableLocations.length })}
               </p>
 
               <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;">
                 {#each data.locations as loc}
-                  <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mep-fg-2);">
+                  <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:{loc.locked ? 'var(--mep-fg-4)' : 'var(--mep-fg-2)'};">
                     <span>{loc.name}</span>
                     {#if loc.id === data.activeRestaurantId}
                       <span style="font-size:11px;color:var(--mep-acc);border:1px solid var(--mep-acc);border-radius:99px;padding:1px 7px;">
                         {$t('set.locations.current')}
                       </span>
                     {/if}
+                    {#if loc.locked}
+                      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--mep-fg-3);border:1px solid var(--mep-divider);border-radius:999px;padding:1px 7px;">
+                        <Lock size={10} /> {$t('set.locations.locked')}
+                      </span>
+                    {/if}
                   </li>
                 {/each}
               </ul>
 
-              {#if data.locations.length < data.maxLocations}
+              {#if lockedLocations.length > 0}
+                <p class="body text-fg-3" style="font-size:11px;margin:0;">
+                  {$tp('set.locations.lockedCount', lockedLocations.length)} · {$t('set.locations.lockedHint')}
+                </p>
+              {/if}
+
+              {#if data.multiLocation && usableLocations.length < data.maxLocations}
                 <form method="POST" action="?/addLocation" class="flex items-center gap-3 flex-wrap">
                   <input name="name" type="text" maxlength="120" required
                     placeholder={$t('set.locations.newPlaceholder')}
                     class="input" style="height:36px;min-width:180px;flex:1;" />
                   <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.locations.add')}</button>
                 </form>
-              {:else}
+              {:else if data.multiLocation}
                 <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.locations.err.limitReached')}</p>
               {/if}
 
