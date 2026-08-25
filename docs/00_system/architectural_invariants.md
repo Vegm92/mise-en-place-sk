@@ -83,7 +83,7 @@ plan and explicit human approval — it is never a silent convenience.
 
 - Committed Drizzle migrations in `drizzle/` are canonical (ADR-003).
   `pnpm db:push` is dev-only. `pnpm db:check-sync` fails CI on drift.
-- Schema changes: edit `src/lib/server/schema/{core,extensions,auth}.ts`, then
+- Schema changes: edit `src/lib/server/schema.ts`, then
   `pnpm db:generate`, then commit the migration. Follow
   `docs/04_engineering/database_changes.md`.
 - All business tables carry `restaurant_id` (with `user_restaurants` and

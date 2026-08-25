@@ -1,8 +1,8 @@
 # Data Schemas and Relations
 
-Source of truth: `src/lib/server/schema/{core,extensions,auth}.ts` (re-exported
-by `schema.ts`) + committed migrations in `drizzle/` (ADR-003). ~42 tables + 5
-materialized views, latest migration `0038`. Statuses are `text` with app-level
+Source of truth: `src/lib/server/schema.ts` + committed migrations in
+`drizzle/` (ADR-003). 40 tables + 5 materialized views, latest migration
+`0042`. Statuses are `text` with app-level
 defaults — **there are no Postgres enums**. All business tables carry
 `restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE`.
 

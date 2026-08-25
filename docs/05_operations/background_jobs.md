@@ -50,15 +50,24 @@ than seeing a silent overwrite.
 
 ## Schedule (cron, registered in the worker — ADR-011)
 
-| Cron (UTC) | Job | Source |
+All eight are registered from the `JOBS` array in `src/lib/server/alerts.ts`
+(`registerScheduledJobs`); the cron strings live beside it. A job that throws is
+Sentry-reported and dead-lettered, then re-thrown so pg-boss records the failure.
+
+| Cron (UTC) | Job | Runner |
 |---|---|---|
-| `10 3 * * *` | `refresh_analytics_rollups()` — MV refresh (`mv_*` CONCURRENTLY) | `src/lib/server/analytics.ts` (ADR-012) |
-| `0 6 * * 1` | Weekly digest emails (feature-gated tenants, deduped per week) | `src/lib/server/digest.ts` + `alerts.ts` runner |
-| `15 2 * * *` | MRR snapshot (`mrr_snapshots`) for `/admin/revenue` | `revenue` module |
-| daily (see worker) | Trial-expiry notices; overdue-invoice reminders | `alerts.ts` runners |
-| every 2 min | Sweep in-memory rate-limit buckets | `rate-limiter.ts` (single-instance caveat) |
-| `20 3 * * *` | `cleanupDeadLetters` — dead-letter retention purge | `dead-letter.ts` |
-| `40 3 * * *` | `sweepIdempotencyKeys` — expire claims per scope (48 h; 96 h for `stripe-webhook`) | `idempotency.ts` (#389) |
+| `0 6 * * 1` | Weekly digest emails (feature-gated tenants, deduped per week) | `runWeeklyDigestJob` — `alerts.ts`; generates via `getOrGenerateWeeklyDigest` (`weekly-digest.ts`) |
+| `30 6 * * *` | Overdue-invoice reminders | `runOverdueRemindersJob` — `alerts.ts` |
+| `0 7 * * *` | Trial-expiry notices | `runTrialNoticesJob` — `alerts.ts` |
+| `0 3 * * *` | File retention purge | `runFilePurgeJob` — `alerts.ts` |
+| `15 2 * * *` | MRR snapshot (`mrr_snapshots`) for `/admin/revenue` | `runMrrSnapshotJob` — `revenue-metrics.ts` |
+| `20 3 * * *` | Dead-letter retention purge | `runDeadLetterPurgeJob` — `alerts.ts` / `dead-letter.ts` |
+| `10 3 * * *` | `refresh_analytics_rollups()` — MV refresh (`mv_*` CONCURRENTLY) | `runAnalyticsRefreshJob` — `alerts.ts` (ADR-012) |
+| `40 3 * * *` | `sweepIdempotencyKeys` — expire claims per scope (48 h; 96 h for `stripe-webhook`) | `runIdempotencySweepJob` — `alerts.ts` / `idempotency.ts` (#389) |
+
+Not on this schedule: `rate-limiter.ts` sweeps its in-memory buckets on its own
+`setInterval` (every 2 min, per process), and `worker-heartbeat.ts` beats every
+30 s the same way — neither is a pg-boss job.
 
 ## Invariants
 
