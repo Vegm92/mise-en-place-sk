@@ -12,7 +12,7 @@ const STRIPE_PRICE_ID_PRO = process.env.STRIPE_PRICE_ID_PRO ?? '';
 const STRIPE_PRICE_ID_BUSINESS = process.env.STRIPE_PRICE_ID_BUSINESS ?? '';
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID ?? '';
 import { db, forTenant } from './db';
-import { subscriptions, restaurants, settings, userRestaurants } from './schema';
+import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
@@ -216,6 +216,8 @@ async function notifyDuplicateSubscriptionCanceled(canceledRestaurantId: string,
 	}
 }
 
+export const LOCATIONS_LOCKED_NOTIFICATION = 'locations_locked';
+
 export const UNLIMITED_QUOTA_SETTING = 'unlimited';
 
 const LEGACY_UNLIMITED_QUOTA = 99999;
@@ -232,18 +234,40 @@ export function resolveMonthlyQuota(raw: string | null | undefined, tier: PlanTi
 }
 
 export async function getMonthlyQuota(restaurantId: string): Promise<number | null> {
-	const tdb = forTenant(await billingRestaurantId(restaurantId));
-	const [[quotaRow], [subRow]] = await Promise.all([
-		db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')))
-			.limit(1),
-		db.select({ planTier: subscriptions.planTier })
-			.from(subscriptions)
-			.where(tdb.scope(subscriptions.restaurantId))
-			.limit(1),
-	]);
-	return resolveMonthlyQuota(quotaRow?.value, (subRow?.planTier ?? 'trial') as PlanTier);
+	return (await getEntitlements(restaurantId)).monthlyQuota;
+}
+
+export async function countGroupLocations(billingRestaurantId: string): Promise<number> {
+	const [row] = await db.select({ cnt: sql<number>`count(*)::int` })
+		.from(restaurants)
+		.where(eq(BILLING_PARENT, billingRestaurantId));
+	return row?.cnt ?? 0;
+}
+
+export async function notifyLocationsLocked(billingRestaurantId: string, tier: PlanTier): Promise<void> {
+	const max = TIERS[tier].maxLocations;
+	const locked = (await countGroupLocations(billingRestaurantId)) - max;
+	if (locked <= 0) return;
+
+	const tdb = forTenant(billingRestaurantId);
+	const [pending] = await db.select({ id: systemNotifications.id })
+		.from(systemNotifications)
+		.where(tdb.scope(systemNotifications.restaurantId, and(
+			eq(systemNotifications.notificationType, LOCATIONS_LOCKED_NOTIFICATION),
+			eq(systemNotifications.status, 'pending'),
+		)))
+		.limit(1);
+	if (pending) return;
+
+	await db.insert(systemNotifications).values({
+		restaurantId: billingRestaurantId,
+		notificationType: LOCATIONS_LOCKED_NOTIFICATION,
+		message: `${locked} location(s) locked by the ${TIERS[tier].name} plan`,
+		payload: JSON.stringify({
+			messageKey: 'notif.msg.locationsLocked',
+			messageVars: { plan: TIERS[tier].name, max, n: locked },
+		}),
+	});
 }
 
 export async function applyTierSettings(restaurantId: string, tier: PlanTier): Promise<void> {
@@ -259,9 +283,12 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 	]);
 }
 
-export async function requireFeature(feature: keyof TierConfig['features'], restaurantId: string): Promise<void> {
-	const features = await getTierFeatures(restaurantId);
-	if (!features[feature]) throw error(403, `This feature requires a higher plan tier`);
+export async function requireFeature(
+	feature: keyof TierConfig['features'],
+	source: EntitlementSource,
+): Promise<void> {
+	const entitlements = await entitlementsFrom(source);
+	if (!entitlements?.features[feature]) throw error(403, `This feature requires a higher plan tier`);
 }
 
 export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | null): boolean {
@@ -302,36 +329,95 @@ export function effectiveTier(
 	return downgraded ? 'trial' : ((sub.planTier ?? 'trial') as PlanTier);
 }
 
+export interface SubscriptionSummary {
+	status:            SubscriptionStatus;
+	cancelAtPeriodEnd: boolean;
+	currentPeriodEnd:  Date | null;
+}
+
 export interface Entitlements {
 	billingRestaurantId: string;
 	tier:         PlanTier;
 	features:     TierConfig['features'];
 	access:       AccessState;
 	maxLocations: number;
+	monthlyQuota: number | null;
+	subscription: SubscriptionSummary | null;
+}
+
+export const BILLING_PARENT = sql<string>`COALESCE(${restaurants.parentId}, ${restaurants.id})`;
+
+interface EntitlementsRow {
+	billingRid:        string | null;
+	planTier:          string | null;
+	status:            string | null;
+	trialEndsAt:       Date | null;
+	cancelAtPeriodEnd: boolean | null;
+	currentPeriodEnd:  Date | null;
+	quotaValue:        string | null;
 }
 
 export async function getEntitlements(restaurantId: string): Promise<Entitlements> {
-	const billingRid = await billingRestaurantId(restaurantId);
-	const tdb = forTenant(billingRid);
-	const [sub] = await db.select({
-		planTier:    subscriptions.planTier,
-		status:      subscriptions.status,
-		trialEndsAt: subscriptions.trialEndsAt,
+	const [row] = await db.select({
+		billingRid:        BILLING_PARENT,
+		planTier:          subscriptions.planTier,
+		status:            subscriptions.status,
+		trialEndsAt:       subscriptions.trialEndsAt,
+		cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+		currentPeriodEnd:  subscriptions.currentPeriodEnd,
+		quotaValue:        settings.value,
 	})
-		.from(subscriptions)
-		.where(tdb.scope(subscriptions.restaurantId))
+		.from(restaurants)
+		.leftJoin(subscriptions, eq(BILLING_PARENT, subscriptions.restaurantId))
+		.leftJoin(settings, and(eq(BILLING_PARENT, settings.restaurantId), eq(settings.key, 'plan_quota')))
+		.where(eq(restaurants.id, restaurantId))
 		.limit(1);
+
+	return entitlementsFromRow(row, restaurantId);
+}
+
+function entitlementsFromRow(row: Partial<EntitlementsRow> | undefined, restaurantId: string): Entitlements {
+	const sub = row && (row.planTier != null || row.status != null)
+		? {
+			planTier:    row.planTier ?? null,
+			status:      row.status ?? '',
+			trialEndsAt: row.trialEndsAt ?? null,
+		}
+		: undefined;
 
 	const access = resolveAccessState(sub);
 	const tier = effectiveTier(sub);
 	const config = TIERS[tier];
 
 	return {
-		billingRestaurantId: billingRid,
+		billingRestaurantId: row?.billingRid ?? restaurantId,
 		tier,
 		features:     config.features,
 		access:       access,
 		maxLocations: config.maxLocations,
+		monthlyQuota: resolveMonthlyQuota(row?.quotaValue, tier),
+		subscription: sub
+			? {
+				status:            access.status,
+				cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
+				currentPeriodEnd:  row?.currentPeriodEnd ?? null,
+			}
+			: null,
+	};
+}
+
+export type EntitlementSource = string | { entitlements: () => Promise<Entitlements | null> };
+
+function entitlementsFrom(source: EntitlementSource): Promise<Entitlements | null> {
+	return typeof source === 'string' ? getEntitlements(source) : source.entitlements();
+}
+
+export function memoizeEntitlements(restaurantId: string | null): () => Promise<Entitlements | null> {
+	let cached: Promise<Entitlements | null> | null = null;
+	return () => {
+		if (!restaurantId) return Promise.resolve(null);
+		cached ??= getEntitlements(restaurantId);
+		return cached;
 	};
 }
 
@@ -467,6 +553,7 @@ export async function switchTier(restaurantId: string, newTier: PlanTier): Promi
 		.set({ planTier: newTier, stripePriceId: priceId, cancelAtPeriodEnd: false, updatedAt: new Date() })
 		.where(tdb.scope(subscriptions.restaurantId));
 	await applyTierSettings(restaurantId, newTier);
+	await notifyLocationsLocked(await billingRestaurantId(restaurantId), newTier);
 }
 
 export class StaleCustomerError extends Error {
@@ -664,6 +751,7 @@ async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Da
 	if (applied.length === 0) return;
 
 	await applyStatusSettings(restaurantId, sub.status, tier);
+	await notifyLocationsLocked(restaurantId, effectiveTier({ planTier: tier, status: sub.status, trialEndsAt: null }));
 	trackSubscriptionEvent(event, restaurantId, tier, sub.status);
 	console.info(`[billing] ${event.type} applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${sub.id}`);
 }

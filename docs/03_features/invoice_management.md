@@ -30,7 +30,11 @@ soft deletion.
   `pending|accepted ──markPaid──▶ paid`, `paid ──markUnpaid──▶ pending`.
   Bulk mark-paid supported. `overdue` is display-derivable (not a stored
   transition here).
-- **Edit** carries an optimistic-lock `version`; stale writes are rejected.
+- **Edit** carries an optimistic-lock `version`; stale writes are rejected. The
+  action delete-and-reinserts line items, so the edit form must post back every
+  column the save path reads — `line_supplier_skus` included, or the SKU is
+  nulled on every edit (issue #520). `tests/invoice-edit-enrichment.test.ts`
+  derives the column set from the schema and fails if one stops surviving.
 - **Soft delete**: invoices are soft-deleted (`deletedAt`); history survives in
   `invoice_audit_log` (no FK — rows survive deletes). Purged by the file
   retention cron after `DELETED_FILE_RETENTION_DAYS`.
@@ -111,7 +115,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - The list filter bar is collapsible (collapsed by default), badges the active
   filter count, applies instantly, debounces text input and keeps its whole
   state in the URL search params.
-- Tests: `tests/db-crud.test.ts`, `tests/invoice-status.test.ts` (status
+- Tests: `tests/db-crud.test.ts`, `tests/status.test.ts` (status
   transitions), `tests/xlsx-export.test.ts`, `tests/invoice-filters.test.ts`
   (parse / serialise / active count / default collapsed state),
   `tests/debounce.test.ts` (debounce timing),
@@ -246,6 +250,9 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 **`function markInvoicesPaidBulk`**
 - Bulk pending/accepted → paid; returns how many rows actually transitioned.
+
+**`function invoiceStatusFilter`**
+- Turns a status filter value from the URL into a predicate. `overdue` is not a stored status, so it compiles to `status='pending' AND due_date < CURRENT_DATE` rather than an equality that could never match (issue #520 — the list's overdue filter silently returned nothing). A value outside the vocabulary compiles to `false` instead of being passed through to SQL.
 
 ### `src/lib/server/working-days.ts`
 

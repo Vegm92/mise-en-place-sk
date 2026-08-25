@@ -1,16 +1,18 @@
 /**
- * Scheduled jobs (issues #288 / #289).
+ * Scheduled jobs (issues #288 / #289 / #518).
  *
  * These emails only matter for tenants who stopped opening the app, so the
- * behaviour under test is: the right tenants are picked, each notice is sent
- * exactly once (the claim is what makes a retried job safe), and the file purge
- * both deletes the object and stops the row pointing at it.
+ * behaviour under test is: the cron dispatcher picks the right tenants and
+ * queues one job each, and the per-tenant handler sends its notice exactly
+ * once (the claim is what makes a retried job safe). The file purge both
+ * deletes the object and stops the row pointing at it.
  *
  * db, storage, and Resend are mocked; the drizzle query builders are
  * replayed against per-table fixtures.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getTableName } from 'drizzle-orm';
+import type { PgBoss } from 'pg-boss';
 
 const { state, sendEmailMock, storageDeleteMock, executeMock } = vi.hoisted(() => ({
 	state: {
@@ -20,6 +22,7 @@ const { state, sendEmailMock, storageDeleteMock, executeMock } = vi.hoisted(() =
 		// claimOnce results, in call order (true = first time this value is stored)
 		claims: [] as boolean[],
 		claimCalls: [] as Array<{ key: string; value: string }>,
+		flags: [] as Array<{ key: string; value: string }>,
 		updates: [] as Array<Record<string, unknown>>,
 	},
 	sendEmailMock: vi.fn().mockResolvedValue(undefined),
@@ -59,14 +62,22 @@ vi.mock('$lib/server/db', () => {
 		const granted = state.claims.shift() ?? true;
 		return Promise.resolve(granted ? [{ value: values.value }] : []);
 	};
-	const insertValues = (values: { key: string; value: string }) => ({
-		onConflictDoUpdate: () => ({ returning: () => claimReturning(values) }),
+	const insertValues = (table: string, values: { key: string; value: string }) => ({
+		onConflictDoUpdate: () => {
+			if (table === 'app_flags') {
+				state.flags.push({ key: values.key, value: values.value });
+				return Promise.resolve([]);
+			}
+			return { returning: () => claimReturning(values) };
+		},
 	});
 
 	const db = {
 		select: () => chain(() => []),
 		execute: executeMock,
-		insert: () => ({ values: insertValues }),
+		insert: (table: never) => ({
+			values: (values: { key: string; value: string }) => insertValues(getTableName(table), values),
+		}),
 		update: () => ({
 			set: (values: Record<string, unknown>) => ({
 				where: () => {
@@ -93,14 +104,41 @@ import {
 	trialDaysLeft,
 	trialMilestoneFor,
 	runTrialNoticesJob,
+	sendTrialNotice,
 	runOverdueRemindersJob,
+	sendOverdueReminder,
 	runWeeklyDigestJob,
+	sendWeeklyDigest,
 	runFilePurgeJob,
 	runAnalyticsRefreshJob,
+	DIGEST_TENANT_QUEUE,
+	REMINDERS_TENANT_QUEUE,
+	TRIAL_TENANT_QUEUE,
 	DELETED_FILE_RETENTION_DAYS,
 } from '../src/lib/server/scheduler';
 
 const DAY = 86_400_000;
+
+interface InsertedJob {
+	data: Record<string, unknown>;
+	singletonKey: string;
+	deadLetter: string;
+}
+
+function fakeBoss() {
+	const inserts: Array<{ queue: string; jobs: InsertedJob[] }> = [];
+	const boss = {
+		insert: vi.fn(async (queue: string, jobs: InsertedJob[]) => {
+			inserts.push({ queue, jobs });
+			return jobs.map((_, i) => `job-${inserts.length}-${i}`);
+		}),
+	};
+	return { boss: boss as unknown as PgBoss, inserts, insertMock: boss.insert };
+}
+
+function jobsFor(inserts: Array<{ queue: string; jobs: InsertedJob[] }>): InsertedJob[] {
+	return inserts.flatMap(i => i.jobs);
+}
 
 function tenant(overrides: Record<string, unknown> = {}) {
 	return {
@@ -123,6 +161,7 @@ beforeEach(() => {
 	};
 	state.claims = [];
 	state.claimCalls = [];
+	state.flags = [];
 	state.updates = [];
 	sendEmailMock.mockClear();
 	storageDeleteMock.mockClear().mockResolvedValue(undefined);
@@ -160,66 +199,102 @@ describe('trialMilestoneFor', () => {
 });
 
 describe('runTrialNoticesJob', () => {
-	it('emails the owner once per milestone, keyed on the trial end date', async () => {
+	it('queues one job per tenant at a milestone, keyed on the trial end date', async () => {
 		const endsAt = new Date(Date.now() + 7 * DAY);
 		state.rows.restaurants = [tenant({ trialEndsAt: endsAt })];
+		const { boss, inserts } = fakeBoss();
 
-		const result = await runTrialNoticesJob();
+		const result = await runTrialNoticesJob(boss);
 
-		expect(result).toEqual({ considered: 1, sent: 1 });
-		expect(state.claimCalls[0]).toEqual({
-			key: 'trial_notice_sent',
-			value: `${endsAt.toISOString().slice(0, 10)}:7`,
+		expect(result).toEqual({ scanned: 1, considered: 1, dispatched: 1 });
+		expect(inserts[0].queue).toBe(TRIAL_TENANT_QUEUE);
+		expect(jobsFor(inserts)[0]).toMatchObject({
+			data: { restaurantId: 'rest-1', name: 'Casa Lua', milestone: 7, claim: `${endsAt.toISOString().slice(0, 10)}:7` },
+			singletonKey: `rest-1:${endsAt.toISOString().slice(0, 10)}:7`,
 		});
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	});
+
+	it('ignores tenants that are not on a trial', async () => {
+		state.rows.restaurants = [tenant({ status: 'active', planTier: 'pro' })];
+		const { boss, insertMock } = fakeBoss();
+
+		expect(await runTrialNoticesJob(boss)).toEqual({ scanned: 1, considered: 0, dispatched: 0 });
+		expect(insertMock).not.toHaveBeenCalled();
+	});
+
+	it('ignores trials that are still more than a week out', async () => {
+		state.rows.restaurants = [tenant({ trialEndsAt: new Date(Date.now() + 30 * DAY) })];
+		const { boss } = fakeBoss();
+
+		expect(await runTrialNoticesJob(boss)).toEqual({ scanned: 1, considered: 0, dispatched: 0 });
+	});
+
+	it('records the run summary so a half-finished dispatch is visible', async () => {
+		state.rows.restaurants = [tenant()];
+		const { boss } = fakeBoss();
+
+		await runTrialNoticesJob(boss);
+
+		const flag = state.flags.find(f => f.key === 'job_run:trial-notices');
+		expect(flag).toBeDefined();
+		expect(JSON.parse(flag!.value)).toMatchObject({ scanned: 1, considered: 1, dispatched: 1 });
+	});
+});
+
+describe('sendTrialNotice', () => {
+	it('emails the owner once per milestone', async () => {
+		expect(await sendTrialNotice({ restaurantId: 'rest-1', name: 'Casa Lua', milestone: 7, claim: '2026-08-01:7' })).toBe(true);
+
+		expect(state.claimCalls[0]).toEqual({ key: 'trial_notice_sent', value: '2026-08-01:7' });
 		expect(sendEmailMock).toHaveBeenCalledOnce();
 		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ kind: 'trial_expiry', to: 'owner@example.com' });
 	});
 
 	it('sends nothing when the milestone was already claimed', async () => {
-		state.rows.restaurants = [tenant()];
 		state.claims = [false];
 
-		expect(await runTrialNoticesJob()).toEqual({ considered: 1, sent: 0 });
+		expect(await sendTrialNotice({ restaurantId: 'rest-1', name: 'Casa Lua', milestone: 7, claim: '2026-08-01:7' })).toBe(false);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
 	it('uses the lapsed template once the trial has ended', async () => {
-		state.rows.restaurants = [tenant({ trialEndsAt: new Date(Date.now() - 2 * DAY) })];
-
-		await runTrialNoticesJob();
+		await sendTrialNotice({ restaurantId: 'rest-1', name: 'Casa Lua', milestone: 0, claim: '2026-08-01:0' });
 
 		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ kind: 'trial_expired' });
 	});
 
-	it('ignores tenants that are not on a trial', async () => {
-		state.rows.restaurants = [tenant({ status: 'active', planTier: 'pro' })];
+	it('stays quiet when the restaurant has no reachable owner', async () => {
+		state.rows.users = [];
 
-		expect(await runTrialNoticesJob()).toEqual({ considered: 0, sent: 0 });
+		expect(await sendTrialNotice({ restaurantId: 'rest-1', name: 'Casa Lua', milestone: 1, claim: '2026-08-01:1' })).toBe(false);
 		expect(sendEmailMock).not.toHaveBeenCalled();
-	});
-
-	it('keeps going when one tenant fails', async () => {
-		state.rows.restaurants = [tenant({ id: 'rest-1' }), tenant({ id: 'rest-2' })];
-		let call = 0;
-		state.rows.users = () => {
-			call++;
-			if (call === 1) throw new Error('db down');
-			return [{ id: 'user-1', email: 'owner2@example.com' }];
-		};
-		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-		expect(await runTrialNoticesJob()).toEqual({ considered: 2, sent: 1 });
-		spy.mockRestore();
 	});
 });
 
 describe('runOverdueRemindersJob', () => {
+	it('queues one job per tenant, keyed on the day', async () => {
+		state.rows.restaurants = [tenant({ id: 'rest-1' }), tenant({ id: 'rest-2' })];
+		const { boss, inserts } = fakeBoss();
+
+		const result = await runOverdueRemindersJob(boss);
+		const day = new Date().toISOString().slice(0, 10);
+
+		expect(result).toEqual({ scanned: 2, considered: 2, dispatched: 2 });
+		expect(inserts[0].queue).toBe(REMINDERS_TENANT_QUEUE);
+		expect(jobsFor(inserts).map(j => j.singletonKey)).toEqual([`rest-1:${day}`, `rest-2:${day}`]);
+		expect(jobsFor(inserts)[0].data).toMatchObject({ restaurantId: 'rest-1', day });
+	});
+});
+
+describe('sendOverdueReminder', () => {
+	const job = { restaurantId: 'rest-1', name: 'Casa Lua', day: '2026-08-20' };
+
 	it('emails the overdue count and total once per day', async () => {
-		state.rows.restaurants = [tenant()];
 		state.rows.invoices = [{ count: 3, total: 1250.5 }];
 
-		expect(await runOverdueRemindersJob()).toEqual({ considered: 1, sent: 1 });
-		expect(state.claimCalls[0].key).toBe('overdue_reminder_sent_day');
+		expect(await sendOverdueReminder(job)).toBe(true);
+		expect(state.claimCalls[0]).toEqual({ key: 'overdue_reminder_sent_day', value: '2026-08-20' });
 		const payload = sendEmailMock.mock.calls[0][0];
 		expect(payload.kind).toBe('overdue_invoice');
 		expect(payload.subject).toContain('3');
@@ -227,45 +302,64 @@ describe('runOverdueRemindersJob', () => {
 	});
 
 	it('sends nothing when nothing is overdue', async () => {
-		state.rows.restaurants = [tenant()];
 		state.rows.invoices = [{ count: 0, total: 0 }];
 
-		expect(await runOverdueRemindersJob()).toEqual({ considered: 1, sent: 0 });
+		expect(await sendOverdueReminder(job)).toBe(false);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 		expect(state.claimCalls).toEqual([]);
 	});
 
 	it('stays quiet for a tenant that switched invoice reminders off (issue #577)', async () => {
-		state.rows.restaurants = [tenant()];
 		state.rows.invoices = [{ count: 3, total: 1250.5 }];
 		state.rows.settings = [{ key: 'alert_pref_invoice_reminders', value: 'false' }];
 
-		expect(await runOverdueRemindersJob()).toEqual({ considered: 1, sent: 0 });
+		expect(await sendOverdueReminder(job)).toBe(false);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 		expect(state.claimCalls).toEqual([]);
 	});
 });
 
 describe('runWeeklyDigestJob', () => {
-	it('emails only tiers whose plan includes the digest', async () => {
+	it('queues only tiers whose plan includes the digest', async () => {
 		state.rows.restaurants = [
 			tenant({ id: 'rest-trial', planTier: 'trial' }),
 			tenant({ id: 'rest-pro', planTier: 'pro', status: 'active' }),
 		];
+		const { boss, inserts } = fakeBoss();
 
-		const result = await runWeeklyDigestJob();
+		const result = await runWeeklyDigestJob(boss);
 
-		expect(result).toEqual({ considered: 1, sent: 1 });
+		expect(result).toEqual({ scanned: 2, considered: 1, dispatched: 1 });
+		expect(inserts[0].queue).toBe(DIGEST_TENANT_QUEUE);
+		expect(jobsFor(inserts)[0]).toMatchObject({
+			data: { restaurantId: 'rest-pro', week: '2026-W30' },
+			singletonKey: 'rest-pro:2026-W30',
+		});
+	});
+});
+
+describe('sendWeeklyDigest', () => {
+	const job = { restaurantId: 'rest-pro', name: 'Casa Lua', week: '2026-W30' };
+
+	it('generates the digest and emails the owner', async () => {
+		expect(await sendWeeklyDigest(job)).toBe(true);
+
 		expect(sendEmailMock).toHaveBeenCalledOnce();
 		expect(sendEmailMock.mock.calls[0][0]).toMatchObject({ kind: 'weekly_digest' });
 		expect(state.claimCalls[0]).toEqual({ key: 'weekly_digest_email_week', value: '2026-W30' });
 	});
 
+	it('sends nothing when the week was already claimed', async () => {
+		state.claims = [false];
+
+		expect(await sendWeeklyDigest(job)).toBe(false);
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	});
+
 	it('stays quiet for a tenant that switched the weekly digest off (issue #577)', async () => {
-		state.rows.restaurants = [tenant({ id: 'rest-pro', planTier: 'pro', status: 'active' })];
 		state.rows.settings = [{ key: 'alert_pref_weekly_digest', value: 'false' }];
 
-		expect(await runWeeklyDigestJob()).toEqual({ considered: 1, sent: 0 });
+		expect(await sendWeeklyDigest(job)).toBe(false);
 		expect(sendEmailMock).not.toHaveBeenCalled();
 		expect(state.claimCalls).toEqual([]);
 	});

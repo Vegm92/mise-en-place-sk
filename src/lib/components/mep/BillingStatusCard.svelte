@@ -4,7 +4,7 @@
 
 	const {
 		status, trialEndsAt, currentPeriodEnd, cancelAtPeriodEnd, hasSubscription, stripeConfigured,
-		planName, price, quotaUsed, quotaLimit, locationsUsed, maxLocations, upgradeName, upgradeMaxLocations
+		planName, price, quotaUsed, quotaLimit, locationsUsed, lockedLocations, maxLocations, upgradeName, upgradeMaxLocations
 	}: {
 		status: 'trialing' | 'active' | 'past_due' | 'paused' | 'canceled' | 'incomplete';
 		trialEndsAt: string | null;
@@ -17,6 +17,7 @@
 		quotaUsed: number;
 		quotaLimit: number | null;
 		locationsUsed: number;
+		lockedLocations: number;
 		maxLocations: number;
 		upgradeName: string | null;
 		upgradeMaxLocations: number;
@@ -57,13 +58,8 @@
 
 			{#if status === 'active' && periodEnd}
 				<span style="font-size:13px;color:var(--mep-fg-3);">
-					{cancelAtPeriodEnd
-						? $ti('billing.cancelsOn', { date: fmt(periodEnd) })
-						: $ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{$t('billing.perMonthShort')}{/if}
+					{#if cancelAtPeriodEnd}{$ti('billing.cancelsOn', { date: fmt(periodEnd) })}{:else}{$ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{$t('billing.perMonthShort')}{/if}{/if}
 				</span>
-				{#if cancelAtPeriodEnd}
-					<span style="font-size:13px;color:var(--mep-fg-3);">{$ti('billing.cancelsOnNote', { date: fmt(periodEnd) })}</span>
-				{/if}
 			{:else if status === 'trialing' && trialEnd && trialDaysLeft > 0}
 				<span style="font-size:13px;color:var(--mep-fg-3);">{$ti('billing.trialEndsOn', { date: fmt(trialEnd) })}</span>
 			{:else if status === 'trialing' && trialDaysLeft <= 0}
@@ -101,6 +97,11 @@
 				<span class="num" style="font-size:20px;font-weight:600;letter-spacing:-0.015em;color:var(--mep-fg);">{locationsUsed}</span>
 				<span class="num" style="font-size:13px;color:var(--mep-fg-3);">{$ti('billing.ofQuota', { n: maxLocations })}</span>
 			</div>
+			{#if lockedLocations > 0}
+				<span style="font-size:11px;color:var(--mep-fg-3);">
+					{$ti('billing.locationsLocked', { n: lockedLocations })}
+				</span>
+			{/if}
 			{#if upgradeName}
 				<span style="font-size:12px;color:var(--mep-fg-3);">
 					{$ti('billing.higherTierLocations', { name: upgradeName, n: upgradeMaxLocations })}

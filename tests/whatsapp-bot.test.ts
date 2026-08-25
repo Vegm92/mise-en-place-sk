@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { dbMock, sendMock, downloadMock, rateLimitMock, redeemMock, accessMock, selectQueue, insertQueue } = vi.hoisted(() => {
+const { dbMock, sendMock, downloadMock, rateLimitMock, redeemMock, accessMock, lockedMock, selectQueue, insertQueue } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
 	const insertQueue: unknown[][] = [];
 
@@ -55,6 +55,9 @@ const { dbMock, sendMock, downloadMock, rateLimitMock, redeemMock, accessMock, s
 		accessMock: vi.fn().mockResolvedValue({
 			allowed: true, status: 'active', trialEndsAt: null, trialExpired: false,
 		}),
+		// The location-allowance gate (#679) defaults to "inside the plan" for the
+		// same reason: only the dedicated test flips it.
+		lockedMock: vi.fn().mockResolvedValue(false),
 		selectQueue,
 		insertQueue,
 	};
@@ -68,6 +71,7 @@ vi.mock('../src/lib/server/whatsapp', () => ({
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: vi.fn() }) }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
 vi.mock('../src/lib/server/billing', () => ({ getAccessState: accessMock }));
+vi.mock('../src/lib/server/locations', () => ({ isLocationLocked: lockedMock }));
 // Keep the real normalizeCode: whether a message *looks* like a code is the
 // routing decision under test here, so stubbing it would test nothing.
 vi.mock('../src/lib/server/whatsapp-pairing', async (importActual) => ({

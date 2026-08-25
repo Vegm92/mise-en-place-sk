@@ -9,6 +9,9 @@ import {
 } from './whatsapp-health';
 import { getIssueSummary, isSentryConfigured } from './sentry-api';
 import { pendingDeadLetterCount } from './dead-letter';
+import { TENANT_FANOUT_QUEUES } from './alerts';
+import { lastJobRuns, type JobRunSummary } from './tenant-fanout';
+import { readWorkerHeartbeat, workerLiveness, type WorkerLiveness } from './worker-heartbeat';
 
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
@@ -18,6 +21,8 @@ const AUTH_SECRET = process.env.AUTH_SECRET ?? '';
 const STUCK_MINUTES = 15;
 const STUCK_ERROR_THRESHOLD = 10;
 const DEAD_LETTER_ERROR_THRESHOLD = 25;
+const TENANT_JOB_FAILURE_ERROR_THRESHOLD = 10;
+const TENANT_JOB_WINDOW_HOURS = 24;
 
 const REQUIRED_VARS = [
 	'DATABASE_URL',
@@ -46,12 +51,27 @@ export interface WhatsAppDetail {
 	tenants: Awaited<ReturnType<typeof contactsPerTenant>>;
 }
 
+export interface TenantJobStats {
+	queue: string;
+	pending: number;
+	completed: number;
+	failed: number;
+	sent: number;
+}
+
+export interface ScheduledJobHealth {
+	queues: TenantJobStats[];
+	runs: JobRunSummary[];
+}
+
 export interface SystemHealth {
 	checks: HealthCheck[];
 	overall: HealthStatus;
 	whatsapp: WhatsAppDetail | null;
 	sentry: { configured: boolean; unresolved: number; critical: number };
 	queue: { stuck: number; lastExtraction: string | null };
+	scheduledJobs: ScheduledJobHealth;
+	worker: WorkerLiveness;
 	deadLetters: { pending: number };
 	checkedAt: string;
 }
@@ -116,6 +136,40 @@ async function checkExtractionQueue(): Promise<{ checks: HealthCheck[]; stuck: n
 	}
 }
 
+const WORKER_STATUS: Record<WorkerLiveness['state'], HealthStatus> = {
+	alive: 'ok',
+	stale: 'error',
+	unknown: 'warn',
+};
+
+function workerDetail(worker: WorkerLiveness): string {
+	if (worker.state === 'unknown') {
+		return 'No heartbeat recorded — the worker process has never started against this database';
+	}
+	const jobs = worker.lastJobCompletedAt
+		? `last job completed ${worker.lastJobCompletedAt} (${worker.jobsCompleted} total)`
+		: 'no job completed yet';
+	const seen = `last seen ${worker.lastSeenAt}`;
+	return worker.state === 'alive'
+		? `Alive · ${seen} · ${jobs}`
+		: `No heartbeat for over ${worker.staleAfterSeconds}s — worker is down or wedged · ${seen} · ${jobs}`;
+}
+
+async function checkWorkerHeartbeat(): Promise<{ checks: HealthCheck[]; worker: WorkerLiveness }> {
+	try {
+		const worker = workerLiveness(await readWorkerHeartbeat());
+		return {
+			worker,
+			checks: [{ name: 'Worker heartbeat', status: WORKER_STATUS[worker.state], detail: workerDetail(worker) }],
+		};
+	} catch (e) {
+		return {
+			worker: workerLiveness(null),
+			checks: [{ name: 'Worker heartbeat', status: 'warn', detail: `Check failed: ${String(e)}` }],
+		};
+	}
+}
+
 async function checkDeadLetterQueue(): Promise<{ checks: HealthCheck[]; pending: number }> {
 	try {
 		const pending = await pendingDeadLetterCount();
@@ -130,6 +184,59 @@ async function checkDeadLetterQueue(): Promise<{ checks: HealthCheck[]; pending:
 		};
 	} catch (e) {
 		return { pending: 0, checks: [{ name: 'Dead letter queue', status: 'warn', detail: `Check failed: ${String(e)}` }] };
+	}
+}
+
+async function tenantJobStats(): Promise<TenantJobStats[]> {
+	const names = sql.join(TENANT_FANOUT_QUEUES.map(q => sql`${q}`), sql`, `);
+	const rows = await db.execute(sql`
+		SELECT name,
+			COUNT(*) FILTER (WHERE state IN ('created', 'retry', 'active'))::int AS pending,
+			COUNT(*) FILTER (WHERE state = 'completed')::int AS completed,
+			COUNT(*) FILTER (WHERE state = 'failed')::int AS failed,
+			COUNT(*) FILTER (WHERE state = 'completed' AND output->>'sent' = 'true')::int AS sent
+		FROM pgboss.job
+		WHERE name IN (${names})
+			AND created_on > now() - ${`${TENANT_JOB_WINDOW_HOURS} hours`}::interval
+		GROUP BY name
+	`);
+	return (rows as unknown as Array<Record<string, unknown>>).map(r => ({
+		queue: String(r.name),
+		pending: Number(r.pending ?? 0),
+		completed: Number(r.completed ?? 0),
+		failed: Number(r.failed ?? 0),
+		sent: Number(r.sent ?? 0),
+	}));
+}
+
+function jobRunDetail(run: JobRunSummary): string {
+	return `${run.dispatched} of ${run.considered} eligible tenant(s) queued`
+		+ ` (${run.scanned} scanned) · ${run.at}`;
+}
+
+async function checkScheduledJobs(): Promise<{ checks: HealthCheck[]; detail: ScheduledJobHealth }> {
+	try {
+		const [queues, runs] = await Promise.all([tenantJobStats(), lastJobRuns()]);
+		const failed = queues.reduce((n, q) => n + q.failed, 0);
+		const pending = queues.reduce((n, q) => n + q.pending, 0);
+		const completed = queues.reduce((n, q) => n + q.completed, 0);
+		const sent = queues.reduce((n, q) => n + q.sent, 0);
+
+		const checks: HealthCheck[] = [{
+			name: 'Per-tenant jobs',
+			status: thresholdStatus(failed, TENANT_JOB_FAILURE_ERROR_THRESHOLD),
+			detail: `${completed} done (${sent} sent), ${pending} pending, ${failed} failed in the last ${TENANT_JOB_WINDOW_HOURS} h`,
+		}];
+		for (const run of runs.sort((a, b) => a.label.localeCompare(b.label))) {
+			checks.push({ name: `Dispatch: ${run.label}`, status: 'ok', detail: jobRunDetail(run) });
+		}
+
+		return { checks, detail: { queues, runs } };
+	} catch (e) {
+		return {
+			checks: [{ name: 'Per-tenant jobs', status: 'warn', detail: `Check failed: ${String(e)}` }],
+			detail: { queues: [], runs: [] },
+		};
 	}
 }
 
@@ -208,17 +315,23 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 	let unresolved = 0;
 	let critical = 0;
 	let pendingDeadLetters = 0;
+	let scheduledJobs: ScheduledJobHealth = { queues: [], runs: [] };
+	let worker = workerLiveness(null);
 
 	if (db_.ok) {
-		const [queue, deadLetter, wa] = await Promise.all([
+		const [heartbeat, queue, deadLetter, scheduled, wa] = await Promise.all([
+			checkWorkerHeartbeat(),
 			checkExtractionQueue(),
 			checkDeadLetterQueue(),
+			checkScheduledJobs(),
 			checkWhatsApp(),
 		]);
-		checks.push(...queue.checks, ...deadLetter.checks, ...wa.checks);
+		checks.push(...heartbeat.checks, ...queue.checks, ...deadLetter.checks, ...scheduled.checks, ...wa.checks);
+		worker = heartbeat.worker;
 		stuck = queue.stuck;
 		lastExtraction = queue.lastExtraction;
 		pendingDeadLetters = deadLetter.pending;
+		scheduledJobs = scheduled.detail;
 		whatsapp = wa.detail;
 	}
 
@@ -235,6 +348,8 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		whatsapp,
 		sentry: { configured: isSentryConfigured(), unresolved, critical },
 		queue: { stuck, lastExtraction },
+		scheduledJobs,
+		worker,
 		deadLetters: { pending: pendingDeadLetters },
 		checkedAt: new Date().toISOString(),
 	};

@@ -28,15 +28,20 @@ export const SUPPLIER_SORT_LABEL_KEYS: Record<SupplierSortKey, string> = {
 	reliability_asc: 'sup.sort.reliabilityAsc',
 };
 
+export const SUPPLIER_BADGE_VALUES = ['overdue', 'due_soon', 'paid_up'] as const;
+export type SupplierBadge = (typeof SUPPLIER_BADGE_VALUES)[number];
+
 export interface SupplierListParams {
 	sort: SupplierSortKey;
 	search: string;
 	category: string;
 	uncategorizedOnly: boolean;
+	badge: SupplierBadge | '';
 }
 
 const SORT_KEY_SET = new Set<string>(SUPPLIER_SORT_KEYS);
 const CATEGORY_SET = new Set<string>(VALID_CATEGORIES);
+const BADGE_SET = new Set<string>(SUPPLIER_BADGE_VALUES);
 
 export function isSupplierSortKey(value: unknown): value is SupplierSortKey {
 	return typeof value === 'string' && SORT_KEY_SET.has(value);
@@ -50,6 +55,7 @@ export function parseSupplierListParams(params: URLSearchParams): SupplierListPa
 		search: (params.get('q') ?? '').trim(),
 		category: CATEGORY_SET.has(rawCategory) ? rawCategory : '',
 		uncategorizedOnly: params.get('uncategorized') === '1',
+		badge: BADGE_SET.has(params.get('badge') ?? '') ? (params.get('badge') as SupplierBadge) : '',
 	};
 }
 

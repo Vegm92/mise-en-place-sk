@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import Turnstile from '$lib/components/Turnstile.svelte';
 
   type JoinFormResult = { success?: boolean; error?: string; alreadyRegistered?: boolean } | null | undefined;
 
@@ -20,6 +21,7 @@
       errRequired: string;
       errInvalid: string;
       errRateLimited: string;
+      errBot: string;
       privacy: string;
     };
   } = $props();
@@ -39,6 +41,7 @@
     if (err === 'required') return copy.errRequired;
     if (err === 'invalid') return copy.errInvalid;
     if (err === 'rate_limited') return copy.errRateLimited;
+    if (err === 'bot_suspected') return copy.errBot;
     return '';
   }
 </script>
@@ -85,6 +88,7 @@
         {big ? copy.submit : copy.submitShort}
       </button>
     </div>
+    <Turnstile />
     {#if emailError || serverError()}
       <div style="font-size:12.5px;color:var(--mep-neg);padding-left:4px;">{emailError || serverError()}</div>
     {/if}

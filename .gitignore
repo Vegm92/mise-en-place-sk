@@ -80,3 +80,4 @@ DEPLOYMENT.md
 # Local audit screenshots (issues #657, #659) — JSON reports are tracked, screenshots are not
 /shots/*.png
 /shots/admin-mobile-audit-before.json
+/[0-9][0-9][0-9]-*.png

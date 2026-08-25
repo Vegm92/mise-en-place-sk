@@ -40,14 +40,16 @@
 
   function measure() {
     if (!browser) return;
-    const el = document.querySelector(`[data-coach="${selector}"]`);
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    top = r.top;
-    left = r.left;
-    width = r.width;
-    height = r.height;
-    ready = true;
+    for (const el of document.querySelectorAll(`[data-coach="${selector}"]`)) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      top = r.top;
+      left = r.left;
+      width = r.width;
+      height = r.height;
+      ready = true;
+      return;
+    }
   }
 
   function pollUntilReady(attempt = 0) {
@@ -96,8 +98,8 @@
       left:{spotLeft}px;
       width:{spotWidth}px;
       height:{spotHeight}px;
-      border-radius:12px;
-      box-shadow:0 0 0 9999px rgba(0,0,0,0.52), 0 0 0 2.5px var(--mep-acc);
+      border-radius:var(--mep-r-card);
+      box-shadow:0 0 0 9999px var(--mep-scrim), 0 0 0 2px var(--mep-acc);
       z-index:111;
       pointer-events:none;
     "
@@ -111,11 +113,11 @@
       width:{TOOLTIP_W}px;
       max-width:calc(100vw - 32px);
       z-index:112;
-      background:var(--mep-bg);
+      background:var(--mep-overlay);
       border:1px solid var(--mep-border-strong);
-      border-radius:14px;
+      border-radius:var(--mep-r-card);
       padding:18px 18px 16px;
-      box-shadow:0 8px 32px rgba(0,0,0,0.18);
+      box-shadow:var(--mep-shadow-pop);
     "
     role="dialog"
     tabindex="-1"
@@ -128,8 +130,8 @@
       <div style="display:flex;gap:5px;">
         {#each Array(totalSteps) as _, i}
           <div style="
-            width:{i + 1 === stepNum ? 16 : 6}px;height:6px;border-radius:3px;
-            background:{i + 1 === stepNum ? 'var(--mep-acc)' : 'var(--mep-divider)'};
+            width:{i + 1 === stepNum ? 16 : 6}px;height:6px;border-radius:var(--mep-r-pill);
+            background:{i + 1 === stepNum ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
             transition:width 200ms;
           "></div>
         {/each}
@@ -138,8 +140,8 @@
         type="button"
         style="
           background:none;border:none;cursor:pointer;
-          font-size:11.5px;color:var(--mep-fg-3);padding:2px 6px;
-          border-radius:4px;line-height:1;
+          font-size:11px;color:var(--mep-fg-3);padding:2px 6px;
+          border-radius:var(--mep-r-tag);line-height:1;
         "
         onclick={onSkip}
       >
@@ -147,10 +149,10 @@
       </button>
     </div>
 
-    <div style="font-size:14px;font-weight:600;color:var(--mep-fg);margin-bottom:6px;line-height:1.3;">
+    <div class="subtitle" style="margin-bottom:6px;line-height:1.3;">
       {title}
     </div>
-    <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.5;margin:0 0 16px;">
+    <p class="body" style="line-height:1.5;margin:0 0 16px;">
       {body}
     </p>
 

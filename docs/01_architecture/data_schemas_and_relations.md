@@ -1,8 +1,8 @@
 # Data Schemas and Relations
 
-Source of truth: `src/lib/server/schema/{core,extensions,auth}.ts` (re-exported
-by `schema.ts`) + committed migrations in `drizzle/` (ADR-003). ~42 tables + 5
-materialized views, latest migration `0038`. Statuses are `text` with app-level
+Source of truth: `src/lib/server/schema.ts` + committed migrations in
+`drizzle/` (ADR-003). 40 tables + 5 materialized views, latest migration
+`0042`. Statuses are `text` with app-level
 defaults — **there are no Postgres enums**. All business tables carry
 `restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE`.
 
@@ -24,14 +24,14 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 | Table | Purpose | Notable columns | Notes |
 |---|---|---|---|
 | `upload_batches` | One upload group | — | Created per upload action |
-| `batch_items` | One file in a batch | `status` `pending\|extracting\|done\|failed\|confirmed`, `fileKey`, `extracted_data` jsonb, `conversion_notes`, `extractError`, `position` | Guarded state machine in `batch-core.ts` |
+| `batch_items` | One file in a batch | `status` `pending\|queued\|extracting\|done\|failed\|confirmed\|discarded`, `fileKey`, `extracted_data` jsonb, `conversion_notes`, `extractError`, `position`, `queued_at` | Guarded state machine in `batch.ts`; `queued_at` is the stall clock (#540) |
 | `idempotency_keys` | Idempotency ledger, all callers | PK = (`scope`, `key`), `restaurantId` | Claim-once in `idempotency.ts`; scopes `form-submit` / `whatsapp` / `stripe-webhook` (#389) |
 
 ## Invoicing
 
 | Table | Purpose | Notable columns | Notes |
 |---|---|---|---|
-| `invoices` | Canonical persisted invoice | `supplierId`, `invoiceNumber`, `invoiceDate`/`dueDate` `date` (#516 — were text, compared lexicographically), `totalAmount` numeric(12,2), `taxBase`, `taxBreakdown` text, `status` `pending\|confirmed\|exported\|overdue\|paid`, `sourceFile`, `confidence`, `contentHash`, `deletedAt` (soft delete), `eInvoiceFormat`, `qrUrl`/`qrMismatch`, `acceptedAt`/`rejectedAt`/`paidAt`, `version` int (optimistic lock) | Partial unique `(rid, supplier_id, invoice_number)` WHERE number NOT NULL; partial unique `(rid, content_hash)` WHERE active |
+| `invoices` | Canonical persisted invoice | `supplierId`, `invoiceNumber`, `invoiceDate`/`dueDate` `date` (#516 — were text, compared lexicographically), `totalAmount` numeric(12,2), `taxBase`, `taxBreakdown` text, `status` `pending\|accepted\|rejected\|paid` (`overdue` is derived at read time from `status='pending'` + `due_date`, never stored — `src/lib/status.ts`), `sourceFile`, `confidence`, `contentHash`, `deletedAt` (soft delete), `eInvoiceFormat`, `qrUrl`/`qrMismatch`, `acceptedAt`/`rejectedAt`/`paidAt`, `version` int (optimistic lock) | Partial unique `(rid, supplier_id, invoice_number)` WHERE number NOT NULL; partial unique `(rid, content_hash)` WHERE active |
 | `invoice_line_items` | Invoice lines | `invoiceId`, `description`, `quantity`, `unit`, `unitPrice`, `totalPrice`, `taxRate`, `productId` (SET NULL), `requiresUnitConversion`, `canonicalUnit`, `unitsPerPack`, `unitSize`, `sizeUnit`, `baseUnit`, `normalizedUnitPrice` | Indexes on invoiceId, `(rid, description)`, partial `(rid, product_id)` |
 | `invoice_audit_log` | Immutable history | `invoiceId`, `action`, `userId`, `reason`, `snapshot` jsonb | No FK — rows survive invoice deletion |
 | `extraction_corrections` | User edits vs extraction | `invoiceId`, `fieldName`, `originalValue`, `correctedValue`, `lineItemIndex` | Feeds `/analytics/extraction` |
@@ -100,6 +100,7 @@ directly at write time. Source of the trend/analytics pages.
 | `tenant_llm_quotas` | Per-tenant LLM caps | PK `restaurantId`, `monthlyExtractions`, `monthlyCostLimitUsd` |
 | `monthly_usage` | Extraction quota consumption | `(rid, month)` unique, `used`; CHECK on `month` format (#516) |
 | `dead_letter_queue` | Exhausted job audit | `queue`, `sourceId`, `jobId`, `errorClass`, `errorMessage`, `stack`, `payload` jsonb, `attempt`, `occurrences`, `status` `pending\|reviewed\|replayed\|discarded` | Dedupe index `(queue, source_id, error_class, status)` |
+| `worker_heartbeats` | Worker liveness (#540) | PK `id` (one row, `worker`), `startedAt`, `lastSeenAt`, `lastJobCompletedAt`, `jobsCompleted` | Written by `src/worker.ts` every 30 s and after each job batch; read by `/admin/health` and `/api/health`. Not tenant-scoped — it is a process-level signal |
 | `waitlist` | Landing email capture | `email` unique |
 
 ## Functions and extensions

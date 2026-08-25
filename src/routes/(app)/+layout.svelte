@@ -5,8 +5,9 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
-  import { tutorialStep, setTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
+  import { tutorialStep, setTutorialStep, seedTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
   import { TOUR_PAGES, tourPageAccessible, nextAccessibleIndex } from '$lib/tour-gating';
+  import Lock from '@lucide/svelte/icons/lock';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import FileText from '@lucide/svelte/icons/file-text';
   import Truck from '@lucide/svelte/icons/truck';
@@ -15,6 +16,7 @@
   import Tag from '@lucide/svelte/icons/tag';
   import Bell from '@lucide/svelte/icons/bell';
   import Settings from '@lucide/svelte/icons/settings';
+  import CircleHelp from '@lucide/svelte/icons/circle-help';
   import Upload from '@lucide/svelte/icons/upload';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
@@ -91,7 +93,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   }
 
   $effect(() => {
-    tutorialStep.set((data.tutorialStep as TutorialStep) ?? null);
+    seedTutorialStep((data.tutorialStep as TutorialStep) ?? null);
   });
 
   const curPath = $derived($page.url.pathname);
@@ -106,25 +108,34 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   const showTourNudge = $derived($tutorialStep === 'done' && curPath === '/dashboard');
 
-  const tourIndex = $derived(TOUR_PAGES.findIndex(p => p.step === $tutorialStep));
-  const activeTourPage = $derived(tourIndex >= 0 ? TOUR_PAGES[tourIndex] : null);
-  const showTourStep = $derived(
-    activeTourPage !== null && curPath === activeTourPage.path && tourPageAccessible(activeTourPage.path, data.features)
-  );
+  const tourPages = $derived(TOUR_PAGES.filter(p => tourPageAccessible(p.path, data.features)));
+  const tourIndex = $derived(tourPages.findIndex(p => p.step === $tutorialStep));
+  const activeTourPage = $derived(tourIndex >= 0 ? tourPages[tourIndex] : null);
+  const showTourStep = $derived(activeTourPage !== null && curPath === activeTourPage.path);
 
-  function advanceTour() {
-    const nextIdx = nextAccessibleIndex(TOUR_PAGES, tourIndex + 1, data.features);
+  async function goToTourStep(next: { step: string; path: string }) {
+    await setTutorialStep(next.step as TutorialStep);
+    if (next.path !== curPath) goto(next.path);
+  }
+
+  async function advanceTour() {
+    const next = tourPages[tourIndex + 1];
+    if (!next) {
+      await setTutorialStep('dismissed');
+      return;
+    }
+    await goToTourStep(next);
+  }
+
+  $effect(() => {
+    const stored = TOUR_PAGES.findIndex(p => p.step === $tutorialStep);
+    if (stored === -1 || tourPageAccessible(TOUR_PAGES[stored].path, data.features)) return;
+    const nextIdx = nextAccessibleIndex(TOUR_PAGES, stored + 1, data.features);
     if (nextIdx === -1) {
       setTutorialStep('dismissed');
       return;
     }
-    const next = TOUR_PAGES[nextIdx];
-    setTutorialStep(next.step);
-    if (next.path !== curPath) goto(next.path);
-  }
-
-  $effect(() => {
-    if (activeTourPage && !tourPageAccessible(activeTourPage.path, data.features)) advanceTour();
+    void goToTourStep(TOUR_PAGES[nextIdx]);
   });
 
   onMount(() => {
@@ -178,9 +189,16 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   ]);
 
   let switchingLocation = $state(false);
+  let locationError = $state<string | null>(null);
+
+  function locationColor(loc: { id: string; locked: boolean }): string {
+    if (loc.locked) return 'var(--mep-fg-4)';
+    return loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)';
+  }
   async function switchLocation(restaurantId: string) {
     if (!restaurantId || restaurantId === data.restaurantId || switchingLocation) return;
     switchingLocation = true;
+    locationError = null;
     try {
       const res = await fetch('/api/active-restaurant', {
         method: 'POST',
@@ -191,6 +209,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         window.location.href = '/';
         return;
       }
+      if (res.status === 403) locationError = 'set.locations.err.lockedSwitch';
     } catch {
     }
     switchingLocation = false;
@@ -300,23 +319,40 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
                 <button
                   type="button"
                   role="option"
+                  disabled={loc.locked}
                   aria-selected={loc.id === data.restaurantId}
+                  aria-disabled={loc.locked}
                   onclick={() => {
                     locationOpen = false;
                     if (loc.id !== data.restaurantId) switchLocation(loc.id);
                   }}
                   style="
-                    display:block;width:100%;text-align:left;cursor:pointer;
+                    display:flex;align-items:center;justify-content:space-between;gap:8px;
+                    width:100%;text-align:left;cursor:{loc.locked ? 'not-allowed' : 'pointer'};
                     padding:7px 10px;border:none;border-radius:6px;font-size:12.5px;
                     background:{loc.id === data.restaurantId ? 'var(--mep-acc-soft)' : 'transparent'};
-                    color:{loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)'};
+                    color:{locationColor(loc)};
                     font-weight:{loc.id === data.restaurantId ? 500 : 400};
                   "
-                  onmouseenter={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
-                  onmouseleave={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'transparent'; }}
-                >{loc.name}</button>
+                  onmouseenter={(e) => { if (!loc.locked && loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
+                  onmouseleave={(e) => { if (!loc.locked && loc.id !== data.restaurantId) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{loc.name}</span>
+                  {#if loc.locked}
+                    <Lock size={12} style="flex-shrink:0;" />
+                  {/if}
+                </button>
               {/each}
+              {#if data.locations.some((loc) => loc.locked)}
+                <div style="padding:6px 10px 4px;font-size:11px;line-height:1.4;color:var(--mep-fg-3);border-top:1px solid var(--mep-divider);margin-top:4px;">
+                  {$t('set.locations.lockedHint')}
+                </div>
+              {/if}
             </div>
+          {/if}
+
+          {#if locationError}
+            <p class="body" style="font-size:11px;line-height:1.4;color:var(--mep-warn);margin:6px 0 0;">{$t(locationError)}</p>
           {/if}
         </div>
       </div>
@@ -401,13 +437,12 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     <a href="/billing" onclick={() => mobileOpen = false}
       style="display:block;margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}{#if data.cancelAtPeriodEnd && data.currentPeriodEnd}<span style="color:var(--mep-warn);"> · {$ti('billing.cancelsOn', { date: new Date(data.currentPeriodEnd).toLocaleDateString($locale, { year: 'numeric', month: 'long', day: 'numeric' }) })}</span>{:else if data.subscriptionStatus === 'canceled'}<span style="color:var(--mep-fg-3);"> · {$t('billing.canceled')}</span>{/if}</span>
-        <span class="num" style="font-size:11px;color:var(--mep-fg-3);">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span>
+        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}{#if data.subscriptionStatus === 'canceled'}<span style="color:var(--mep-fg-3);"> · {$t('billing.canceled')}</span>{/if}</span>
       </div>
       <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
         <div style="width:{data.quotaLimit ? Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100)) : 0}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
       </div>
-      <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;">{$t('shell.quota')}</div>
+      <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;"><span class="num">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span> {$t('shell.quota')}</div>
     </a>
     {/if}
 
@@ -420,6 +455,15 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         >
           <Settings size={15} />
           <span>{$t('nav.settings')}</span>
+        </a>
+
+        <a
+          href="/help"
+          onclick={() => mobileOpen = false}
+          style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
+        >
+          <CircleHelp size={15} />
+          <span>{$t('nav.help')}</span>
         </a>
 
         <button
@@ -543,150 +587,150 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   </div>
 
-</div>
+  {#if browser}
+    {#if showReviewCoachMark}
+      <CoachMark
+        selector="invoice-fields"
+        title={$t('help.start.review.title')}
+        body={$t('help.start.review.body')}
+        stepNum={1}
+        totalSteps={1}
+        nextLabel={$t('tour.next.review')}
+        onNext={() => setTutorialStep('done')}
+        onSkip={() => setTutorialStep('dismissed')}
+      />
+    {/if}
 
-{#if browser}
-  {#if showReviewCoachMark}
-    <CoachMark
-      selector="invoice-fields"
-      title={$t('tour.step2.title')}
-      body={$t('tour.step2.body')}
-      stepNum={1}
-      totalSteps={1}
-      nextLabel={$t('tour.step2.next')}
-      onNext={() => setTutorialStep('done')}
-      onSkip={() => setTutorialStep('dismissed')}
-    />
-  {/if}
+    {#if showComplete && !completeDismissed}
+      <div
+        style="position:fixed;inset:0;z-index:110;background:var(--mep-scrim);display:flex;align-items:center;justify-content:center;padding:24px;"
+        role="presentation"
+        onclick={() => completeDismissed = true}
+      >
+        <div
+          style="
+            background:var(--mep-overlay);border:1px solid var(--mep-border-strong);
+            border-radius:var(--mep-r-card);padding:32px 28px;max-width:360px;width:100%;
+            box-shadow:var(--mep-shadow-pop);text-align:center;
+          "
+          role="dialog"
+          tabindex="-1"
+          aria-modal="true"
+          onclick={(e) => e.stopPropagation()}
+          onkeydown={(e) => e.stopPropagation()}
+        >
+          <div class="hero" style="margin-bottom:12px;">🎉</div>
+          <div class="title" style="margin-bottom:8px;">
+            {$t('tour.complete.title')}
+          </div>
+          <p class="body" style="line-height:1.6;margin:0 0 24px;">
+            {$t('tour.complete.body')}
+          </p>
+          <button
+            type="button"
+            class="btn btn-primary"
+            style="width:100%;height:40px;justify-content:center;font-size:13px;"
+            onclick={() => completeDismissed = true}
+          >
+            {$t('tour.complete.btn')}
+          </button>
+        </div>
+      </div>
+    {/if}
 
-  {#if showComplete && !completeDismissed}
-    <div
-      style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
-      role="presentation"
-      onclick={() => completeDismissed = true}
-    >
+    {#if showTourStep && activeTourPage}
+      <CoachMark
+        selector={activeTourPage.anchor}
+        title={$t(`help.tip.${activeTourPage.tip}.title`)}
+        body={$t(`help.tip.${activeTourPage.tip}.body`)}
+        stepNum={tourIndex + 1}
+        totalSteps={tourPages.length}
+        nextLabel={tourIndex === tourPages.length - 1 ? $t('tour.next.finish') : undefined}
+        onNext={advanceTour}
+        onSkip={() => setTutorialStep('dismissed')}
+      />
+    {/if}
+
+    {#if showTourNudge}
       <div
         style="
-          background:var(--mep-bg);border:1px solid var(--mep-border-strong);
-          border-radius:16px;padding:32px 28px;max-width:360px;width:100%;
-          box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
+          position:fixed;right:20px;bottom:20px;z-index:105;
+          width:300px;background:var(--mep-overlay);border:1px solid var(--mep-border-strong);
+          border-radius:var(--mep-r-card);padding:16px 16px 14px;box-shadow:var(--mep-shadow-pop);
         "
-        role="dialog"
-        tabindex="-1"
-        aria-modal="true"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
+        role="complementary"
+        aria-label={$t('tour.nudge.title')}
       >
-        <div style="font-size:36px;margin-bottom:12px;">🎉</div>
-        <div style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
-          {$t('tour.complete.title')}
+        <div class="subtitle" style="margin-bottom:6px;">
+          {$t('tour.nudge.title')}
         </div>
-        <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
-          {$t('tour.complete.body')}
+        <p class="body" style="line-height:1.5;margin:0 0 14px;">
+          {$ti('tour.nudge.body', { n: tourPages.length })}
         </p>
-        <button
-          type="button"
-          class="btn btn-primary"
-          style="width:100%;height:40px;justify-content:center;font-size:14px;"
-          onclick={() => completeDismissed = true}
-        >
-          {$t('tour.complete.btn')}
-        </button>
-      </div>
-    </div>
-  {/if}
-
-  {#if showTourStep && activeTourPage}
-    <CoachMark
-      selector={activeTourPage.anchor}
-      title={$t(`tour.step${activeTourPage.step}.title`)}
-      body={$t(`tour.step${activeTourPage.step}.body`)}
-      stepNum={tourIndex + 1}
-      totalSteps={TOUR_PAGES.length}
-      nextLabel={activeTourPage.step === '11' ? $t('tour.step11.next') : undefined}
-      onNext={advanceTour}
-      onSkip={() => setTutorialStep('dismissed')}
-    />
-  {/if}
-
-  {#if showTourNudge}
-    <div
-      style="
-        position:fixed;right:20px;bottom:20px;z-index:105;
-        width:300px;background:var(--mep-bg);border:1px solid var(--mep-border-strong);
-        border-radius:14px;padding:16px 16px 14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);
-      "
-      role="complementary"
-      aria-label={$t('tour.nudge.title')}
-    >
-      <div style="font-size:14px;font-weight:600;color:var(--mep-fg);margin-bottom:6px;">
-        {$t('tour.nudge.title')}
-      </div>
-      <p style="font-size:12.5px;color:var(--mep-fg-2);line-height:1.5;margin:0 0 14px;">
-        {$t('tour.nudge.body')}
-      </p>
-      <div style="display:flex;gap:8px;">
-        <button
-          type="button"
-          class="btn btn-ghost"
-          style="flex:1;height:34px;font-size:12.5px;justify-content:center;"
-          onclick={() => setTutorialStep('dismissed')}
-        >
-          {$t('tour.nudge.dismiss')}
-        </button>
-        <button
-          type="button"
-          class="btn btn-primary"
-          style="flex:1;height:34px;font-size:12.5px;justify-content:center;"
-          onclick={() => setTutorialStep('3')}
-        >
-          {$t('tour.nudge.accept')}
-        </button>
-      </div>
-    </div>
-  {/if}
-
-  {#if upgradeModalOpen}
-    <div
-      style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
-      role="presentation"
-      onclick={() => upgradeModalOpen = false}
-    >
-      <div
-        style="
-          background:var(--mep-bg);border:1px solid var(--mep-border-strong);
-          border-radius:16px;padding:32px 28px;max-width:420px;width:100%;
-          box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
-        "
-        role="dialog"
-        tabindex="-1"
-        aria-modal="true"
-        aria-labelledby="upgrade-modal-title"
-        use:focusEl
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => { if (e.key === 'Escape') upgradeModalOpen = false; else e.stopPropagation(); }}
-      >
-        <div style="font-size:32px;margin-bottom:16px;">✨</div>
-        <div id="upgrade-modal-title" style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
-          {$t('sidebar.upgradeToProTitle')}
-        </div>
-        <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
-          {$t('sidebar.upgradeToProDesc')}
-        </p>
-        <div style="display:flex;gap:12px;">
+        <div style="display:flex;gap:8px;">
           <button
             type="button"
             class="btn btn-ghost"
-            style="flex:1;height:40px;justify-content:center;font-size:14px;"
-            onclick={() => upgradeModalOpen = false}
+            style="flex:1;height:34px;font-size:13px;justify-content:center;"
+            onclick={() => setTutorialStep('dismissed')}
           >
-            {$t('action.cancel')}
+            {$t('tour.nudge.dismiss')}
           </button>
-          <a href="/billing" class="btn btn-primary" style="flex:1;height:40px;justify-content:center;font-size:14px;text-decoration:none;" onclick={() => upgradeModalOpen = false}>
-            {$t('sidebar.upgradeCta')}
-          </a>
+          <button
+            type="button"
+            class="btn btn-primary"
+            style="flex:1;height:34px;font-size:13px;justify-content:center;"
+            onclick={() => setTutorialStep(tourPages[0].step)}
+          >
+            {$t('tour.nudge.accept')}
+          </button>
         </div>
       </div>
-    </div>
+    {/if}
+
+    {#if upgradeModalOpen}
+      <div
+        style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
+        role="presentation"
+        onclick={() => upgradeModalOpen = false}
+      >
+        <div
+          style="
+            background:var(--mep-bg);border:1px solid var(--mep-border-strong);
+            border-radius:16px;padding:32px 28px;max-width:420px;width:100%;
+            box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
+          "
+          role="dialog"
+          tabindex="-1"
+          aria-modal="true"
+          aria-labelledby="upgrade-modal-title"
+          use:focusEl
+          onclick={(e) => e.stopPropagation()}
+          onkeydown={(e) => { if (e.key === 'Escape') upgradeModalOpen = false; else e.stopPropagation(); }}
+        >
+          <div style="font-size:32px;margin-bottom:16px;">✨</div>
+          <div id="upgrade-modal-title" style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
+            {$t('sidebar.upgradeToProTitle')}
+          </div>
+          <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
+            {$t('sidebar.upgradeToProDesc')}
+          </p>
+          <div style="display:flex;gap:12px;">
+            <button
+              type="button"
+              class="btn btn-ghost"
+              style="flex:1;height:40px;justify-content:center;font-size:14px;"
+              onclick={() => upgradeModalOpen = false}
+            >
+              {$t('action.cancel')}
+            </button>
+            <a href="/billing" class="btn btn-primary" style="flex:1;height:40px;justify-content:center;font-size:14px;text-decoration:none;" onclick={() => upgradeModalOpen = false}>
+              {$t('sidebar.upgradeCta')}
+            </a>
+          </div>
+        </div>
+      </div>
+    {/if}
   {/if}
-{/if}
+
+</div>

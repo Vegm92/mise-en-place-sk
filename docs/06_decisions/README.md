@@ -50,8 +50,9 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | ADR | Decision | Status |
 |---|---|---|
 | [010](./insights/ADR-010-alerts-computed-on-save.md) | Alerts computed at save time and persisted, not derived at read time | Active |
-| [011](./insights/ADR-011-scheduled-jobs-in-the-worker.md) | Cron jobs run on pg-boss in the worker; every send is claimed first | Active |
+| [011](./insights/ADR-011-scheduled-jobs-in-the-worker.md) | Cron jobs run on pg-boss in the worker; every send is claimed first | Active, amended by 025 |
 | [018](./insights/ADR-018-one-snapshot-for-chat-and-digest.md) | Chat and digest read one Markdown snapshot, never the database | Active |
+| [025](./insights/ADR-025-scheduled-jobs-fan-out-per-tenant.md) | Scheduled jobs dispatch one pg-boss job per tenant instead of looping | Active |
 
 ### [`analytics/`](./analytics) — spend, prices, extraction quality
 
