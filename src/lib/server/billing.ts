@@ -12,7 +12,7 @@ const STRIPE_PRICE_ID_PRO = process.env.STRIPE_PRICE_ID_PRO ?? '';
 const STRIPE_PRICE_ID_BUSINESS = process.env.STRIPE_PRICE_ID_BUSINESS ?? '';
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID ?? '';
 import { db, forTenant } from './db';
-import { subscriptions, restaurants, settings, userRestaurants } from './schema';
+import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
@@ -216,6 +216,8 @@ async function notifyDuplicateSubscriptionCanceled(canceledRestaurantId: string,
 	}
 }
 
+export const LOCATIONS_LOCKED_NOTIFICATION = 'locations_locked';
+
 export const UNLIMITED_QUOTA_SETTING = 'unlimited';
 
 const LEGACY_UNLIMITED_QUOTA = 99999;
@@ -233,6 +235,39 @@ export function resolveMonthlyQuota(raw: string | null | undefined, tier: PlanTi
 
 export async function getMonthlyQuota(restaurantId: string): Promise<number | null> {
 	return (await getEntitlements(restaurantId)).monthlyQuota;
+}
+
+export async function countGroupLocations(billingRestaurantId: string): Promise<number> {
+	const [row] = await db.select({ cnt: sql<number>`count(*)::int` })
+		.from(restaurants)
+		.where(eq(BILLING_PARENT, billingRestaurantId));
+	return row?.cnt ?? 0;
+}
+
+export async function notifyLocationsLocked(billingRestaurantId: string, tier: PlanTier): Promise<void> {
+	const max = TIERS[tier].maxLocations;
+	const locked = (await countGroupLocations(billingRestaurantId)) - max;
+	if (locked <= 0) return;
+
+	const tdb = forTenant(billingRestaurantId);
+	const [pending] = await db.select({ id: systemNotifications.id })
+		.from(systemNotifications)
+		.where(tdb.scope(systemNotifications.restaurantId, and(
+			eq(systemNotifications.notificationType, LOCATIONS_LOCKED_NOTIFICATION),
+			eq(systemNotifications.status, 'pending'),
+		)))
+		.limit(1);
+	if (pending) return;
+
+	await db.insert(systemNotifications).values({
+		restaurantId: billingRestaurantId,
+		notificationType: LOCATIONS_LOCKED_NOTIFICATION,
+		message: `${locked} location(s) locked by the ${TIERS[tier].name} plan`,
+		payload: JSON.stringify({
+			messageKey: 'notif.msg.locationsLocked',
+			messageVars: { plan: TIERS[tier].name, max, n: locked },
+		}),
+	});
 }
 
 export async function applyTierSettings(restaurantId: string, tier: PlanTier): Promise<void> {
@@ -310,7 +345,7 @@ export interface Entitlements {
 	subscription: SubscriptionSummary | null;
 }
 
-const BILLING_PARENT = sql<string>`COALESCE(${restaurants.parentId}, ${restaurants.id})`;
+export const BILLING_PARENT = sql<string>`COALESCE(${restaurants.parentId}, ${restaurants.id})`;
 
 interface EntitlementsRow {
 	billingRid:        string | null;
@@ -518,6 +553,7 @@ export async function switchTier(restaurantId: string, newTier: PlanTier): Promi
 		.set({ planTier: newTier, stripePriceId: priceId, cancelAtPeriodEnd: false, updatedAt: new Date() })
 		.where(tdb.scope(subscriptions.restaurantId));
 	await applyTierSettings(restaurantId, newTier);
+	await notifyLocationsLocked(await billingRestaurantId(restaurantId), newTier);
 }
 
 export class StaleCustomerError extends Error {
@@ -715,6 +751,7 @@ async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Da
 	if (applied.length === 0) return;
 
 	await applyStatusSettings(restaurantId, sub.status, tier);
+	await notifyLocationsLocked(restaurantId, effectiveTier({ planTier: tier, status: sub.status, trialEndsAt: null }));
 	trackSubscriptionEvent(event, restaurantId, tier, sub.status);
 	console.info(`[billing] ${event.type} applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${sub.id}`);
 }

@@ -7,6 +7,7 @@ import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { checkRateLimit } from './rate-limiter';
 import { getAccessState } from './billing';
+import { isLocationLocked } from './locations';
 import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 import { createBatch, getItem, getBatchItems, markQueued } from './batch';
 import { enqueueBatchExtraction } from './extract-batch';
@@ -84,6 +85,13 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		return;
 	}
 	if (msg.type === 'image' || msg.type === 'document') {
+		if (await isLocationLocked(restaurantId)) {
+			await sendWhatsAppMessage(
+				msg.from,
+				'❌ Este local está fuera de tu plan actual. Vuelve al plan Business para volver a procesar sus albaranes.',
+			);
+			return;
+		}
 		const access = await getAccessState(restaurantId);
 		if (!access.allowed) {
 			await sendWhatsAppMessage(

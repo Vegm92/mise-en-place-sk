@@ -6,11 +6,12 @@ import { cleanupStaleBatches } from '$lib/server/batch';
 import { seedAdminUser } from '$lib/server/auth-seed';
 import { isAdminUser } from '$lib/server/admin';
 import { db } from '$lib/server/db';
-import { userRestaurants, users } from '$lib/server/schema';
+import { users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
 import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
 import { policyFor, refusalFor, resolveEntitlement } from '$lib/server/entitlements';
 import { memoizeEntitlements } from '$lib/server/billing';
+import { memberLocations, type MemberLocation } from '$lib/server/locations';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
@@ -63,14 +64,11 @@ seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks
 async function resolveMembership(event: RequestEvent, user: NonNullable<App.Locals['user']>) {
 	const activeCookie = event.cookies.get('active_restaurant');
 
-	const [memberships, accessRows, openFlag] = await withTimeout(
+	const [locations, accessRows, openFlag] = await withTimeout(
 		'hooks/memberships',
 		MEMBERSHIP_TIMEOUT_MS,
 		() => Promise.all([
-			db
-				.select({ restaurantId: userRestaurants.restaurantId })
-				.from(userRestaurants)
-				.where(eq(userRestaurants.userId, user.id)),
+			memberLocations(user.id),
 			db
 				.select({ accessStatus: users.accessStatus })
 				.from(users)
@@ -81,10 +79,10 @@ async function resolveMembership(event: RequestEvent, user: NonNullable<App.Loca
 	).catch(e => {
 		console.error('[hooks] membership lookup failed', e);
 		Sentry.captureException(e, { tags: { degraded: 'hooks/memberships' } });
-		return [[], [], false] as [Array<{ restaurantId: string }>, Array<{ accessStatus: string }>, boolean];
+		return [[], [], false] as [MemberLocation[], Array<{ accessStatus: string }>, boolean];
 	});
 
-	const ids = memberships.map(m => m.restaurantId);
+	const ids = locations.filter(l => !l.locked).map(l => l.restaurantId);
 	const preferred = activeCookie && ids.includes(activeCookie) ? activeCookie : ids[0];
 	const restaurantId = preferred ?? null;
 
@@ -92,6 +90,7 @@ async function resolveMembership(event: RequestEvent, user: NonNullable<App.Loca
 		userApproved: accessRows[0]?.accessStatus === 'approved',
 		accessOpen:   openFlag,
 		restaurantId,
+		lockedRestaurantIds: locations.filter(l => l.locked).map(l => l.restaurantId),
 	};
 }
 
@@ -145,12 +144,14 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	let accessOpen   = false;
 
 	if (user) {
-		const { userApproved: approved, accessOpen: open, restaurantId } = await resolveMembership(event, user);
+		const { userApproved: approved, accessOpen: open, restaurantId, lockedRestaurantIds } = await resolveMembership(event, user);
 		userApproved = approved;
 		accessOpen   = open;
 		event.locals.restaurantId = restaurantId;
+		event.locals.lockedRestaurantIds = lockedRestaurantIds;
 	} else {
 		event.locals.restaurantId = null;
+		event.locals.lockedRestaurantIds = [];
 	}
 
 	event.locals.accessApproved = isAdminUser(user) || accessOpen || userApproved;
