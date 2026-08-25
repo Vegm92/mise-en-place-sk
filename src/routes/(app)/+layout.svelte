@@ -15,6 +15,7 @@
   import Tag from '@lucide/svelte/icons/tag';
   import Bell from '@lucide/svelte/icons/bell';
   import Settings from '@lucide/svelte/icons/settings';
+  import CircleHelp from '@lucide/svelte/icons/circle-help';
   import Upload from '@lucide/svelte/icons/upload';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
@@ -420,6 +421,15 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         >
           <Settings size={15} />
           <span>{$t('nav.settings')}</span>
+        </a>
+
+        <a
+          href="/help"
+          onclick={() => mobileOpen = false}
+          style="display:flex;align-items:center;gap:10px;padding:6px 10px;height:30px;border-radius:6px;color:var(--mep-fg-3);font-size:13px;text-decoration:none;"
+        >
+          <CircleHelp size={15} />
+          <span>{$t('nav.help')}</span>
         </a>
 
         <button

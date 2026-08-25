@@ -36,6 +36,7 @@ src/routes/
 │   ├── billing/                       # plans, checkout, portal (provisional prices)
 │   ├── settings/                      # profile, restaurant, locations, WhatsApp pairing
 │   │   └── confirm-email/             # change-email verification
+│   ├── help/                          # static help centre: getting started, tips, FAQ, tour launcher
 │   └── api/
 │       ├── active-restaurant/+server.ts  # switch restaurant (validates membership)
 │       ├── chat/+server.ts               # chat endpoint
@@ -76,7 +77,7 @@ src/routes/
 - **Sidebar** (`(app)/+layout.svelte`): location switcher (multi-location),
   upload CTA, nav (dashboard, invoices+badge, suppliers, products,
   analytics submenu, budgets, reminders+badge, digest, chat), billing quota card
-  (plan name + quota used/limit), settings, privacy/terms, user + logout.
+  (plan name + quota used/limit), settings, help, privacy/terms, user + logout.
 - **Header**: mobile menu, ChatFab, ES/EN toggle, NotificationBell (top-5),
   theme toggle.
 - **Nav badge** (`+layout.server.ts`): overdue invoices (status
@@ -117,6 +118,7 @@ src/routes/
 | `chat` | `chat` | `chat_sessions`/`chat_messages` |
 | `billing` | `billing` | `subscriptions` + `billing-plans.ts` |
 | `settings` | `whatsapp`, `billing`, auth | settings + `whatsapp_contacts` |
+| `help` | — (documentation page) | static: `src/lib/help-content.ts` + `i18n.ts` |
 | `admin/*` | ops (see `docs/05_operations/`) | various |
 
 ## Conventions

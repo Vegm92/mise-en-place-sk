@@ -444,6 +444,14 @@
               </button>
             </form>
           </SectionCard>
+
+          <a href="/help" class="card p-4" style="display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;margin-top:12px;">
+            <div>
+              <div class="body-strong" style="font-size:13px;">{$t('set.helpLink')}</div>
+              <div class="body text-fg-3" style="font-size:11px;margin-top:2px;">{$t('set.helpLinkBody')}</div>
+            </div>
+            <span class="body text-fg-3" style="font-size:13px;">&rsaquo;</span>
+          </a>
         </div>
       {/if}
 
