@@ -232,18 +232,7 @@ export function resolveMonthlyQuota(raw: string | null | undefined, tier: PlanTi
 }
 
 export async function getMonthlyQuota(restaurantId: string): Promise<number | null> {
-	const tdb = forTenant(await billingRestaurantId(restaurantId));
-	const [[quotaRow], [subRow]] = await Promise.all([
-		db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota')))
-			.limit(1),
-		db.select({ planTier: subscriptions.planTier })
-			.from(subscriptions)
-			.where(tdb.scope(subscriptions.restaurantId))
-			.limit(1),
-	]);
-	return resolveMonthlyQuota(quotaRow?.value, (subRow?.planTier ?? 'trial') as PlanTier);
+	return (await getEntitlements(restaurantId)).monthlyQuota;
 }
 
 export async function applyTierSettings(restaurantId: string, tier: PlanTier): Promise<void> {
@@ -259,9 +248,12 @@ export async function applyTierSettings(restaurantId: string, tier: PlanTier): P
 	]);
 }
 
-export async function requireFeature(feature: keyof TierConfig['features'], restaurantId: string): Promise<void> {
-	const features = await getTierFeatures(restaurantId);
-	if (!features[feature]) throw error(403, `This feature requires a higher plan tier`);
+export async function requireFeature(
+	feature: keyof TierConfig['features'],
+	source: EntitlementSource,
+): Promise<void> {
+	const entitlements = await entitlementsFrom(source);
+	if (!entitlements?.features[feature]) throw error(403, `This feature requires a higher plan tier`);
 }
 
 export function isAccessAllowed(status: SubscriptionStatus, trialEndsAt: Date | null): boolean {
@@ -302,36 +294,95 @@ export function effectiveTier(
 	return downgraded ? 'trial' : ((sub.planTier ?? 'trial') as PlanTier);
 }
 
+export interface SubscriptionSummary {
+	status:            SubscriptionStatus;
+	cancelAtPeriodEnd: boolean;
+	currentPeriodEnd:  Date | null;
+}
+
 export interface Entitlements {
 	billingRestaurantId: string;
 	tier:         PlanTier;
 	features:     TierConfig['features'];
 	access:       AccessState;
 	maxLocations: number;
+	monthlyQuota: number | null;
+	subscription: SubscriptionSummary | null;
+}
+
+const BILLING_PARENT = sql<string>`COALESCE(${restaurants.parentId}, ${restaurants.id})`;
+
+interface EntitlementsRow {
+	billingRid:        string | null;
+	planTier:          string | null;
+	status:            string | null;
+	trialEndsAt:       Date | null;
+	cancelAtPeriodEnd: boolean | null;
+	currentPeriodEnd:  Date | null;
+	quotaValue:        string | null;
 }
 
 export async function getEntitlements(restaurantId: string): Promise<Entitlements> {
-	const billingRid = await billingRestaurantId(restaurantId);
-	const tdb = forTenant(billingRid);
-	const [sub] = await db.select({
-		planTier:    subscriptions.planTier,
-		status:      subscriptions.status,
-		trialEndsAt: subscriptions.trialEndsAt,
+	const [row] = await db.select({
+		billingRid:        BILLING_PARENT,
+		planTier:          subscriptions.planTier,
+		status:            subscriptions.status,
+		trialEndsAt:       subscriptions.trialEndsAt,
+		cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
+		currentPeriodEnd:  subscriptions.currentPeriodEnd,
+		quotaValue:        settings.value,
 	})
-		.from(subscriptions)
-		.where(tdb.scope(subscriptions.restaurantId))
+		.from(restaurants)
+		.leftJoin(subscriptions, eq(BILLING_PARENT, subscriptions.restaurantId))
+		.leftJoin(settings, and(eq(BILLING_PARENT, settings.restaurantId), eq(settings.key, 'plan_quota')))
+		.where(eq(restaurants.id, restaurantId))
 		.limit(1);
+
+	return entitlementsFromRow(row, restaurantId);
+}
+
+function entitlementsFromRow(row: Partial<EntitlementsRow> | undefined, restaurantId: string): Entitlements {
+	const sub = row && (row.planTier != null || row.status != null)
+		? {
+			planTier:    row.planTier ?? null,
+			status:      row.status ?? '',
+			trialEndsAt: row.trialEndsAt ?? null,
+		}
+		: undefined;
 
 	const access = resolveAccessState(sub);
 	const tier = effectiveTier(sub);
 	const config = TIERS[tier];
 
 	return {
-		billingRestaurantId: billingRid,
+		billingRestaurantId: row?.billingRid ?? restaurantId,
 		tier,
 		features:     config.features,
 		access:       access,
 		maxLocations: config.maxLocations,
+		monthlyQuota: resolveMonthlyQuota(row?.quotaValue, tier),
+		subscription: sub
+			? {
+				status:            access.status,
+				cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
+				currentPeriodEnd:  row?.currentPeriodEnd ?? null,
+			}
+			: null,
+	};
+}
+
+export type EntitlementSource = string | { entitlements: () => Promise<Entitlements | null> };
+
+function entitlementsFrom(source: EntitlementSource): Promise<Entitlements | null> {
+	return typeof source === 'string' ? getEntitlements(source) : source.entitlements();
+}
+
+export function memoizeEntitlements(restaurantId: string | null): () => Promise<Entitlements | null> {
+	let cached: Promise<Entitlements | null> | null = null;
+	return () => {
+		if (!restaurantId) return Promise.resolve(null);
+		cached ??= getEntitlements(restaurantId);
+		return cached;
 	};
 }
 

@@ -10,7 +10,7 @@ import { userRestaurants, users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
 import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
 import { entitlementHandle } from '$lib/server/entitlements';
-import { getEntitlements } from '$lib/server/billing';
+import { memoizeEntitlements } from '$lib/server/billing';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
@@ -59,15 +59,6 @@ if (NODE_ENV === 'production' && !ADDRESS_HEADER) {
 
 cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });
-
-function entitlementsFor(restaurantId: string | null): App.Locals['entitlements'] {
-	let cached: ReturnType<App.Locals['entitlements']> | null = null;
-	return () => {
-		if (!restaurantId) return Promise.resolve(null);
-		cached ??= getEntitlements(restaurantId);
-		return cached;
-	};
-}
 
 async function resolveMembership(event: RequestEvent, user: NonNullable<App.Locals['user']>) {
 	const activeCookie = event.cookies.get('active_restaurant');
@@ -163,7 +154,7 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	}
 
 	event.locals.accessApproved = isAdminUser(user) || accessOpen || userApproved;
-	event.locals.entitlements = entitlementsFor(event.locals.restaurantId);
+	event.locals.entitlements = memoizeEntitlements(event.locals.restaurantId);
 
 	if (user) {
 		Sentry.getCurrentScope().setUser({ id: user.id });
