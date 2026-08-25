@@ -52,6 +52,9 @@ because each of these concepts had drifted into two or three disagreeing copies
 | `invoice-status-vocabulary.test.ts` | one `InvoiceStatus` union; every stored status has a badge class and an i18n key in es + en; the UI never offers a status the query layer cannot answer |
 | `supported-file-types.test.ts` | the picker's `accept`, `ALLOWED_EXTENSIONS`, `MAGIC_BYTES` and `classifyFile` admit the same set |
 | `skip-summary.test.ts` | the end-of-run summary names the files that did not run and why |
+| `invoice-edit-enrichment.test.ts` | every enrichment column of `invoice_line_items` survives the edit action's delete-and-reinsert — the column set comes from the schema, not a list |
+| `tenant-isolation-routes.test.ts` | every action `/batch/[id]` exports refuses a foreign batch **and** mutates nothing first; the action names come from the module |
+| `extraction-worker.test.ts` | the retry classification: which error classes earn a redelivery, which dead-letter, and that a failed attempt always returns the monthly quota slot |
 
 `src/lib/upload-formats.ts` and `src/lib/status.ts` are the single sources those
 suites check against — extend the constant there, not the copy at the call site.

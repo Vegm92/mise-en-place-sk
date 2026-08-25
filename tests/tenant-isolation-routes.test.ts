@@ -16,10 +16,10 @@
  *
  * db and the batch store are mocked, so these run everywhere — no DB needed.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
 
-const { state, getBatchItemsMock } = vi.hoisted(() => ({
+const { state, getBatchItemsMock, mutations } = vi.hoisted(() => ({
 	state: {
 		/** rid passed to forTenant(), or null when the route never scoped */
 		scopedTo: null as string | null,
@@ -28,6 +28,26 @@ const { state, getBatchItemsMock } = vi.hoisted(() => ({
 		supplierRows: [] as Array<Record<string, unknown>>,
 	},
 	getBatchItemsMock: vi.fn(),
+	/**
+	 * Every dependency an action can use to change something — storage, the
+	 * queue, the batch tables, the invoice write path, analytics. A guard that
+	 * redirects *after* one of these has run is not a guard, and asserting only
+	 * on the redirect cannot tell the difference (issue #520).
+	 */
+	mutations: {
+		addItems: vi.fn(),
+		removeItem: vi.fn(),
+		deleteBatch: vi.fn(),
+		markQueued: vi.fn(),
+		markDiscarded: vi.fn(),
+		saveUploadedFiles: vi.fn(),
+		deleteUploadFile: vi.fn(),
+		enqueueExtraction: vi.fn(),
+		enqueueBatchExtraction: vi.fn(),
+		saveReviewedInvoice: vi.fn(),
+		trackEvent: vi.fn(),
+		storageDelete: vi.fn(),
+	},
 }));
 
 vi.mock('$lib/server/db', () => {
@@ -53,25 +73,26 @@ vi.mock('$lib/server/db', () => {
 vi.mock('$lib/server/batch', () => ({
 	getBatchItems: getBatchItemsMock,
 	getItem: vi.fn(),
-	addItems: vi.fn(),
-	removeItem: vi.fn(),
-	deleteBatch: vi.fn(),
+	addItems: mutations.addItems,
+	removeItem: mutations.removeItem,
+	deleteBatch: mutations.deleteBatch,
 	isBatchSettled: vi.fn(),
-	markQueued: vi.fn(),
-	markDiscarded: vi.fn(),
+	markQueued: mutations.markQueued,
+	markDiscarded: mutations.markDiscarded,
 	pickActiveItem: (items: unknown[]) => items[0] ?? null,
 }));
 
-// Pulled in by the batch route's action paths, irrelevant to load().
 vi.mock('$lib/server/sessions', () => ({
-	localFilePath: vi.fn(), saveUploadedFiles: vi.fn(), deleteUploadFile: vi.fn(),
+	localFilePath: vi.fn(),
+	saveUploadedFiles: mutations.saveUploadedFiles,
+	deleteUploadFile: mutations.deleteUploadFile,
 }));
-vi.mock('$lib/server/queue', () => ({ enqueueExtraction: vi.fn() }));
-vi.mock('$lib/server/extract-batch', () => ({ enqueueBatchExtraction: vi.fn() }));
-vi.mock('$lib/server/batch-core', () => ({ createBatchStore: vi.fn() }));
-vi.mock('$lib/server/invoice-save', () => ({ saveReviewedInvoice: vi.fn() }));
-vi.mock('$lib/server/events', () => ({ trackEvent: vi.fn() }));
-vi.mock('$lib/server/storage', () => ({ getStorage: vi.fn() }));
+vi.mock('$lib/server/queue', () => ({ enqueueExtraction: mutations.enqueueExtraction }));
+vi.mock('$lib/server/extract-batch', () => ({ enqueueBatchExtraction: mutations.enqueueBatchExtraction }));
+vi.mock('$lib/server/batch-core', () => ({ createBatchStore: vi.fn(() => ({ markConfirmed: vi.fn() })) }));
+vi.mock('$lib/server/invoice-save', () => ({ saveReviewedInvoice: mutations.saveReviewedInvoice }));
+vi.mock('$lib/server/events', () => ({ trackEvent: mutations.trackEvent }));
+vi.mock('$lib/server/storage', () => ({ getStorage: () => ({ delete: mutations.storageDelete }) }));
 
 const RID_A = '11111111-1111-1111-1111-111111111111';
 const RID_B = '22222222-2222-2222-2222-222222222222';
@@ -101,6 +122,9 @@ beforeEach(() => {
 	state.whereApplied = false;
 	state.supplierRows = [];
 	getBatchItemsMock.mockReset();
+	for (const fn of Object.values(mutations)) fn.mockReset();
+	mutations.saveReviewedInvoice.mockResolvedValue({ type: 'replay' });
+	mutations.saveUploadedFiles.mockResolvedValue({ saved: [], keys: [], errors: [] });
 });
 
 describe('/invoices/export — supplier list must be tenant-scoped', () => {
@@ -173,24 +197,118 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 	});
 });
 
-describe('/batch/[id] actions — every action must reject a batch owned by another tenant (issue #479)', () => {
+describe('/batch/[id] actions — every action must reject a batch owned by another tenant (issues #479, #520)', () => {
 	// #479: `extract` enqueued extraction for any batch UUID with no ownership
 	// check at all, unlike `add` right below it in the same file. Fixed by
 	// routing every action through the same requireOwnedBatch() guard load()
 	// already used, so a future action cannot silently omit the check.
-	const actionNames = ['extract', 'retry', 'save', 'discardItem', 'discardBatch', 'add', 'remove'] as const;
+	//
+	// #520: the names used to be typed out here, so an eighth action would have
+	// been added without a test and nobody would have noticed. They now come
+	// from the module, and the assertions cover the side effects rather than
+	// only the redirect — the two bugs #479 found were a leak and a delete, and
+	// both would still have redirected afterwards.
+	const GUARD_LOCATION = '/?error=Session+not+found';
 
-	it.each(actionNames)('%s redirects instead of acting on a foreign batch', async (name) => {
+	const loadActions = async () => {
 		const { actions } = await import('../src/routes/(app)/batch/[id]/+page.server');
-		getBatchItemsMock.mockResolvedValue([batchItem(RID_B)]);
+		return actions as Record<string, (e: never) => Promise<unknown>>;
+	};
 
-		const event = {
-			params: { id: 'batch-1' },
-			locals: { restaurantId: RID_A },
-			request: fakeRequest({ itemId: 'item-1' }),
-		} as never;
+	const foreignEvent = () => ({
+		params: { id: 'batch-1' },
+		locals: { restaurantId: RID_A },
+		request: fakeRequest({ itemId: 'item-1' }),
+	}) as never;
 
-		await expect((actions as Record<string, (e: never) => Promise<unknown>>)[name](event))
-			.rejects.toSatisfy(isRedirect);
+	let actionNames: string[] = [];
+
+	beforeAll(async () => {
+		actionNames = Object.keys(await loadActions());
 	});
+
+	it('discovers the actions from the route module rather than a hand-written list', async () => {
+		const names = Object.keys(await loadActions());
+
+		expect(names.length).toBeGreaterThan(0);
+		// The seven that existed when #479 was fixed; a new one joins the table
+		// automatically, and losing one of these is a deletion worth noticing.
+		expect(names).toEqual(
+			expect.arrayContaining(['extract', 'retry', 'save', 'discardItem', 'discardBatch', 'add', 'remove'])
+		);
+	});
+
+	it('runs the table over every action the route exports', () => {
+		expect(actionNames.length).toBeGreaterThanOrEqual(7);
+	});
+
+	it.each(['extract', 'retry', 'save', 'discardItem', 'discardBatch', 'add', 'remove'])(
+		'%s redirects instead of acting on a foreign batch',
+		async (name) => {
+			const actions = await loadActions();
+			getBatchItemsMock.mockResolvedValue([batchItem(RID_B)]);
+
+			await expect(actions[name](foreignEvent())).rejects.toSatisfy(isRedirect);
+		}
+	);
+
+	it.each(['extract', 'retry', 'save', 'discardItem', 'discardBatch', 'add', 'remove'])(
+		'%s refuses with the guard\'s own redirect, not one of its own',
+		async (name) => {
+			const actions = await loadActions();
+			getBatchItemsMock.mockResolvedValue([batchItem(RID_B)]);
+
+			const outcome = await actions[name](foreignEvent()).catch((e: unknown) => e);
+
+			expect((outcome as { location: string }).location).toBe(GUARD_LOCATION);
+		}
+	);
+
+	it.each(['extract', 'retry', 'save', 'discardItem', 'discardBatch', 'add', 'remove'])(
+		'%s changes nothing before redirecting on a foreign batch',
+		async (name) => {
+			const actions = await loadActions();
+			getBatchItemsMock.mockResolvedValue([batchItem(RID_B)]);
+
+			await actions[name](foreignEvent()).catch(() => undefined);
+
+			for (const [dep, fn] of Object.entries(mutations)) {
+				expect(fn, `${name} called ${dep} on a batch it does not own`).not.toHaveBeenCalled();
+			}
+		}
+	);
+
+	it('refuses a mixed batch where only one item belongs to another tenant', async () => {
+		const actions = await loadActions();
+		getBatchItemsMock.mockResolvedValue([batchItem(RID_A), batchItem(RID_B)]);
+
+		await expect(actions.discardBatch(foreignEvent())).rejects.toSatisfy(isRedirect);
+		expect(mutations.deleteBatch).not.toHaveBeenCalled();
+	});
+});
+
+describe('/batch/[id] actions — the guard is not a blanket refusal', () => {
+	// Without this, an action that redirected unconditionally would pass every
+	// assertion above while being completely broken.
+	const GUARD_LOCATION = '/?error=Session+not+found';
+
+	const ownedEvent = () => ({
+		params: { id: 'batch-1' },
+		locals: { restaurantId: RID_A },
+		request: fakeRequest({ itemId: 'item-1' }),
+	}) as never;
+
+	it.each(['extract', 'retry', 'save', 'discardItem', 'discardBatch', 'add', 'remove'])(
+		'%s gets past the ownership guard for a batch the caller owns',
+		async (name) => {
+			const { actions } = await import('../src/routes/(app)/batch/[id]/+page.server');
+			getBatchItemsMock.mockResolvedValue([batchItem(RID_A)]);
+
+			const outcome = await (actions as Record<string, (e: never) => Promise<unknown>>)[name](
+				ownedEvent()
+			).catch((e: unknown) => e);
+
+			expect((outcome as { location?: string })?.location).not.toBe(GUARD_LOCATION);
+		}
+	);
 });
