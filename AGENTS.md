@@ -45,12 +45,15 @@ first, bilingual (es/en). WhatsApp is a second ingestion channel; XML e-invoices
 | `DEPLOYMENT.md` | Environment variables + deployment runbook | Deploy / env questions |
 | `README.md` | Product overview + getting started | First contact |
 | `CONTEXT.md` | Obsidian vault hub; project status + open audit items | Current state / open work |
+| `docs/07_ai/parallel_sessions.md` | Working agreement when several sessions run at once — surface ownership, branch lanes, PR size cap, model policy | Starting a session while others are running; opening a PR |
 
 ## How to approach a task
 
 Do NOT start editing after a non-trivial request. Follow the cycle in
 `docs/07_ai/agent_workflow.md`:
 
+0. **Claim** — if other sessions may be running, `pnpm pr:overlap` and open a
+   draft PR on your first commit (`docs/07_ai/parallel_sessions.md`).
 1. **Understand** — read the feature spec (`docs/03_features/`) and any ADRs that
    touch the area (`docs/06_decisions/`).
 2. **Locate** — use the system manifest + dependency map to find the implementation.
@@ -63,6 +66,31 @@ Do NOT start editing after a non-trivial request. Follow the cycle in
 6. **Verify** — see "How to validate" below.
 7. **Document** — update the affected spec and its `## Code notes` section; do not let docs drift.
 8. **Review** — check the invariants and the source-of-truth hierarchy.
+
+## Working agreement (several sessions at once)
+
+Full version: `docs/07_ai/parallel_sessions.md`. CI passes on both halves of a
+duplicated effort — these are the rules it cannot enforce.
+
+- **Claim the surface first.** Run `pnpm pr:overlap` before writing code and again
+  before opening the PR, and open the PR as a **draft on your first commit**. A local
+  branch claims nothing; a draft PR is the only claim other sessions can see. Fill in
+  the **Where / Surface** field in the issue and PR templates (`.github/`).
+- **Fan out by subsystem, serialize by surface.** Concurrent sessions must not be able
+  to touch the same files. The shared list pages, the app shell, `schema.ts`,
+  `i18n.ts` and the design tokens are one surface each — one session at a time.
+- **Two branch lanes only**: `claude/<issue-or-slug>-<suffix>` for a session,
+  `feat|fix|chore/<slug>` for hand-driven work. `worktree-*` is retired.
+- **Rebase onto fresh `main`; do not merge `main` in.** A branch older than ~2 hours is
+  stale at this merge rate.
+- **800 added lines** of hand-written source is the cap. Over it, cherry-pick the change
+  that must ship onto a fresh branch off `main`.
+- **Models**: every implementation agent, subagent and issue session runs the latest
+  Sonnet (`claude-sonnet-5`) — never Fable, never Opus. The coordinator is the
+  exception: it runs `claude-opus-5` by default, and `claude-fable-5` when the user
+  asks for it. Tune workers with effort, not model tier.
+- **Closing a PR unmerged?** Say why in a comment first, naming what superseded it.
+- **Commit messages in English**; Spanish belongs in `src/lib/i18n.ts`.
 
 ## Immutable rules (full list: `docs/00_system/architectural_invariants.md`)
 
@@ -117,6 +145,7 @@ pnpm lint:no-sql-raw        # no sql.raw()
 pnpm lint:i18n              # no hardcoded user-facing strings
 pnpm lint:no-comments       # no inline code comments (explanations live in the per-subsystem `## Code notes` sections)
 pnpm build          # app + worker build
+pnpm pr:overlap     # is another open PR already editing these files?
 ```
 
 After a non-trivial change: run the relevant tests, `pnpm check`, and the lint
