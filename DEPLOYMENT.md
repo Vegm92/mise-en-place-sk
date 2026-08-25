@@ -132,6 +132,7 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 |---|---|---|
 | `CHAT_RATE_LIMIT_RPM` | `20` | Chat requests/minute per user |
 | `MAX_CONCURRENT_EXTRACTIONS` | `3` | Parallel Gemini extraction cap, **per worker process** (in-process semaphore) |
+| `SCHEDULED_FANOUT_CONCURRENCY` | `5` | Tenants processed at once from the per-tenant scheduled-job queues (digest / reminders / trial notices), **per worker process**. Bounded by Gemini and Resend rate limits, not by throughput (ADR-025) |
 | `EXTRACTION_STALL_WARN_MS` | `120000` | How long a queued item may sit before `/batch/[id]` swaps the spinner for a "taking longer than expected" card with a Retry action |
 | `EXTRACTION_STALL_TIMEOUT_MS` | `900000` | Hard timeout: the **web** process marks an item still queued/extracting past this as `failed` / `extract.err.stalled`. Keep it above the worst legitimate run (pg-boss retries × `GEMINI_TIMEOUT_MS`) or a working extraction gets reaped |
 | `WORKER_HEARTBEAT_INTERVAL_MS` | `30000` | How often the worker upserts `worker_heartbeats` |

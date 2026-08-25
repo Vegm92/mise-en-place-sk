@@ -100,7 +100,12 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 - Scheduled cron jobs (see `docs/05_operations/background_jobs.md`):
   weekly digest, overdue reminders, trial-expiry notices, file purge,
   MRR snapshot, dead-letter purge, analytics MV refresh.
-- Enqueue seams: `src/lib/server/queue.ts`, `extract-batch.ts`.
+- The first three are dispatchers only: they keyset-page `restaurants` and queue
+  one job per tenant onto `tenant-weekly-digest` / `tenant-overdue-reminder` /
+  `tenant-trial-notice`, consumed `SCHEDULED_FANOUT_CONCURRENCY` at a time with
+  per-job settlement (`src/lib/server/tenant-fanout.ts`, ADR-025).
+- Enqueue seams: `src/lib/server/queue.ts`, `extract-batch.ts`,
+  `tenant-fanout.ts`.
 - Liveness: the worker upserts `worker_heartbeats` every 30 s and after every
   job batch (`worker-heartbeat.ts`). `/admin/health` and `/api/health` read it,
   so "queue not draining" is distinguishable from "worker busy" without log
