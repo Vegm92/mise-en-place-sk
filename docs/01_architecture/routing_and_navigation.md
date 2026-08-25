@@ -37,6 +37,7 @@ src/routes/
 │   ├── settings/                      # profile, restaurant, locations, WhatsApp pairing
 │   │   └── confirm-email/             # change-email verification
 │   ├── help/                          # static help centre: getting started, tips, FAQ, tour launcher
+│   │                                  #   its tip list is also the guided tour's script (help-content.ts)
 │   └── api/
 │       ├── active-restaurant/+server.ts  # switch restaurant (validates membership)
 │       ├── chat/+server.ts               # chat endpoint
@@ -119,6 +120,7 @@ src/routes/
 | `billing` | `billing` | `subscriptions` + `billing-plans.ts` |
 | `settings` | `whatsapp`, `billing`, auth | settings + `whatsapp_contacts` |
 | `help` | — (documentation page) | static: `src/lib/help-content.ts` + `i18n.ts` |
+| guided tour (shell overlay) | — | `src/lib/tour-gating.ts` + the same `help.tip.*` copy |
 | `admin/*` | ops (see `docs/05_operations/`) | various |
 
 ## Conventions

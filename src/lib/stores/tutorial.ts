@@ -7,7 +7,10 @@ export type TutorialStep =
 
 export const tutorialStep = writable<TutorialStep | null>(null);
 
+let pending: TutorialStep | null = null;
+
 export async function setTutorialStep(step: TutorialStep) {
+	pending = step;
 	tutorialStep.set(step);
 	try {
 		await fetch('/api/tutorial', {
@@ -16,5 +19,12 @@ export async function setTutorialStep(step: TutorialStep) {
 			body: JSON.stringify({ step }),
 		});
 	} catch {
+	} finally {
+		if (pending === step) pending = null;
 	}
+}
+
+export function seedTutorialStep(step: TutorialStep | null) {
+	if (pending !== null) return;
+	tutorialStep.set(step);
 }

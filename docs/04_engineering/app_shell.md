@@ -41,6 +41,13 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - The header is `.shell-header` / `.shell-title` in `app.css` rather than inline styles, because the title needs a media query: 16px below `md`, 20px from `md` up. At 390px the title box is 240px, which fits the longest title in either locale (#660).
 - Page content — a `<main>` landmark contains a post-hydration client render/effect error (e.g. the /batch/[id] polling loop, the chat page) to this region so the shell survives; +error.svelte still covers load errors.
 - Tutorial coach marks: completion overlay and the app-wide tour nudge (small dismissible corner card, persists across dashboard visits) — both carry svelte-ignore a11y_no_static_element_interactions.
+- All of it renders *inside* the `.mep` container (issue #569). It sat outside as a sibling, which costs nothing visible until you look for the accent: `--mep-acc` is scoped to `.mep[data-accent=…]`, so the primary buttons and the spotlight ring resolved to nothing in both themes.
+**`const tourPages`**
+- The tour is `TOUR_PAGES` minus what this plan cannot reach, resolved once (issue #569). Numbering the dots off the full list told a trial account "step 6 of 9" and then finished at 7; the filtered list is also what `advanceTour` steps through, so there is one definition of "the next step".
+**`function advanceTour`**
+- Awaits the step write before `goto`. See `src/lib/stores/tutorial.ts`.
+**`const showTourStep`**
+- No accessibility check here any more — `tourPages` has already dropped the gated pages. The `$effect` below still recovers a *stored* step that has since become inaccessible (a plan downgrade mid-tour), which is the one case the filter cannot express.
 
 ### `src/routes/(app)/+page.server.ts`
 
@@ -145,6 +152,7 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Where to send invoices (issue #319). Authorising a number is useless if the staff member never learns what to message. QR injected via `{@html}` (eslint-disable-next-line svelte/no-at-html-tags).
 - Self-service enrolment (issue #320). The number is captured from the message, so it cannot be mistyped the way the form below can.
 - Ayuda pane: the tour-reset form, then a card link to `/help` (issue #569). The pane is where users already come looking for guidance, so it points at the documentation rather than duplicating it.
+- The `settings-main` tour anchor sits on the section container, not inside the Ayuda pane where it started. The last step of the tour lands on `/settings` with whatever section was last open — usually Cuenta — so an anchor inside one pane meant the tour ended by rendering nothing and never dismissing itself.
 **`style`**
 - `.alert-toggle*` (issue #577): a visually-hidden checkbox drives a CSS track/thumb, so the switch keeps native keyboard focus, form submission and label semantics without a component.
 - WhatsApp bot number + QR (issue #319).
@@ -158,6 +166,7 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - The help centre (issue #569): getting-started guide, per-section tips, FAQ and a launcher for the guided tour. Static documentation — no server load beyond the page title, which is why the route has a `+page.ts` and no `+page.server.ts`.
 - Steps, tips and questions are rendered from the lists in `src/lib/help-content.ts` rather than written into the markup, so the copy stays entirely in the locale tables and adding an entry is a one-line change in two places (the list and both locales).
 - The tour launcher goes through `setTutorialStep('3')` (`src/lib/stores/tutorial.ts` → `POST /api/tutorial`) and then navigates to `/dashboard`, the same entry point as the dashboard nudge in `(app)/+layout.svelte`. Step `3` is the first of `TOUR_PAGES`; steps `1`/`2` only render their coach mark on `/batch/[id]`, so starting there would look like nothing happened.
+- `HELP_TIPS` is also the tour's script: every `TOUR_PAGES` entry names one by `tip`, and the coach marks render `help.tip.*` directly. The walkthrough and the documentation are the same words, so neither can go stale on its own; `tests/guided-tour.test.ts` holds the two lists to the same order.
 - FAQ entries are native `<details>`/`<summary>`: they open without JavaScript and keep the disclosure semantics a hand-rolled accordion would have to re-add.
 
 **`style`**
@@ -202,14 +211,13 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 ### `src/lib/components/mep/CoachMark.svelte`
 
-**`const spotTop`**
-- Small delay so the page renders first (measure after 80 ms).
-**`const tipLeft`**
-- Place tooltip below spotlight; flip above if too close to bottom.
-**`const tipTop`**
-- approximate card height.
+**`function measure`**
+- Walks every element carrying the anchor and takes the first with a non-zero box. Split pages render the same `data-coach` twice — once in the `md:` markup, once in the mobile markup (ADR-020) — and the hidden one measures 0×0, so taking `querySelector`'s first hit put the spotlight in the top-left corner as a dot. A zero box also means "not laid out yet", which is what the poll is waiting for either way.
+**`function pollUntilReady`**
+- The anchor belongs to the page, which mounts on its own schedule; 20 × 100 ms covers the gap without pinning a frame loop to a component that is usually ready on the first try.
 **`markup`**
-- Full-screen backdrop (click outside = skip); spotlight ring (box-shadow punches the dark overlay); tooltip card; step counter; content; CTA. svelte-ignore a11y_no_static_element_interactions.
+- Full-screen backdrop (click outside = skip); spotlight ring (box-shadow punches the scrim out around the anchor); tooltip card; step dots; content; CTA. svelte-ignore a11y_no_static_element_interactions.
+- Every colour is a token (issue #569): `--mep-scrim` for the punch-out, `--mep-overlay` + `--mep-shadow-pop` for the card, `--mep-acc` for the ring and the active dot. This only resolves because the shell renders the tour chrome inside its `.mep` container — `--mep-acc` is declared on `.mep[data-accent=…]`, not on `:root`, so the same markup as a sibling of the shell silently loses its accent in both themes.
 
 ### `src/lib/components/mep/ConfirmDialog.svelte`
 
@@ -274,7 +282,9 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 ### `src/lib/stores/tutorial.ts`
 
 **`function setTutorialStep`**
-- fire-and-forget — UI already updated.
+- Awaitable, and it records the step it is writing in `pending`. The UI is already updated optimistically; callers that navigate afterwards await it so the next page's layout load cannot read the step the user just left.
+**`function seedTutorialStep`**
+- The layout re-seeds the store from server data on every load. Without the `pending` guard that load could answer with the previous step mid-write and roll the store backwards, stranding the tour on a page whose step no longer matched — no coach mark, no way forward, at a different step each time (issue #569).
 
 ## Shared library
 

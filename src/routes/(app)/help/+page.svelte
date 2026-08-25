@@ -7,19 +7,26 @@
   import ArrowRight from '@lucide/svelte/icons/arrow-right';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import Compass from '@lucide/svelte/icons/compass';
+  import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
+  import FileText from '@lucide/svelte/icons/file-text';
   import TrendingUp from '@lucide/svelte/icons/trending-up';
   import Tag from '@lucide/svelte/icons/tag';
   import Bell from '@lucide/svelte/icons/bell';
   import Truck from '@lucide/svelte/icons/truck';
+  import Newspaper from '@lucide/svelte/icons/newspaper';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Settings from '@lucide/svelte/icons/settings';
 
   const TIP_ICONS: Record<string, typeof TrendingUp> = {
+    dashboard: LayoutDashboard,
+    invoices:  FileText,
+    suppliers: Truck,
     analytics: TrendingUp,
     budgets:   Tag,
     reminders: Bell,
-    suppliers: Truck,
+    reports:   Newspaper,
     chat:      MessageCircle,
+    settings:  Settings,
   };
 
   let startingTour = $state(false);
@@ -74,6 +81,7 @@
           <div class="help-tip-head">
             <Icon size={15} />
             <span class="body-strong">{$t(`help.tip.${tip.key}.title`)}</span>
+            {#if tip.pro}<span class="help-tip-pro">{$t('nav.badge.pro')}</span>{/if}
           </div>
           <p class="body help-prose">{$t(`help.tip.${tip.key}.body`)}</p>
           <a href={tip.href} class="btn btn-ghost help-action">
@@ -174,6 +182,15 @@
   }
 
   .help-tip-head { display: flex; align-items: center; gap: 8px; color: var(--mep-fg); }
+
+  .help-tip-pro {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: var(--mep-r-tag);
+    background: var(--mep-acc);
+    color: var(--mep-acc-fg);
+  }
 
   .help-faq { display: flex; flex-direction: column; }
 

@@ -14,14 +14,19 @@ export const HELP_STEPS: readonly HelpStep[] = [
 export interface HelpTip {
 	key: string;
 	href: string;
+	pro?: true;
 }
 
 export const HELP_TIPS: readonly HelpTip[] = [
+	{ key: 'dashboard', href: '/dashboard' },
+	{ key: 'invoices',  href: '/invoices' },
+	{ key: 'suppliers', href: '/suppliers' },
 	{ key: 'analytics', href: '/analytics/spend' },
 	{ key: 'budgets',   href: '/budgets' },
 	{ key: 'reminders', href: '/reminders' },
-	{ key: 'suppliers', href: '/suppliers' },
+	{ key: 'reports',   href: '/reports', pro: true },
 	{ key: 'chat',      href: '/chat' },
+	{ key: 'settings',  href: '/settings' },
 ];
 
 export const HELP_FAQ: readonly string[] = [
