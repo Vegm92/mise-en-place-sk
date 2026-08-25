@@ -43,7 +43,7 @@
 					name="password"
 					type="password"
 					required
-					minlength="8"
+					minlength="12"
 					autocomplete="new-password"
 					placeholder={$t('signup.passwordPlaceholder')}
 					class="input"
@@ -58,7 +58,7 @@
 					name="confirm"
 					type="password"
 					required
-					minlength="8"
+					minlength="12"
 					autocomplete="new-password"
 					class="input"
 					style="height:36px;"

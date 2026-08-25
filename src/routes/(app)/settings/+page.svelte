@@ -136,9 +136,9 @@
               <form method="POST" action="?/changePassword" class="flex flex-col gap-2" style="max-width:300px;">
                 <input id="{idp}-pw-current" name="current" type="password" required autocomplete="current-password"
                   placeholder={$t('set.profile.currentPassword')} class="input" style="height:34px;" />
-                <input name="password" type="password" required minlength="8" autocomplete="new-password"
+                <input name="password" type="password" required minlength="12" autocomplete="new-password"
                   placeholder={$t('set.profile.newPassword')} class="input" style="height:34px;" />
-                <input name="confirm" type="password" required minlength="8" autocomplete="new-password"
+                <input name="confirm" type="password" required minlength="12" autocomplete="new-password"
                   placeholder={$t('set.profile.confirmPassword')} class="input" style="height:34px;" />
                 <div>
                   <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.profile.passwordBtn')}</button>

@@ -17,11 +17,14 @@ import { scrubSentryEvent } from '$lib/sentry-scrub';
 import { withTimeout } from '$lib/server/with-timeout';
 import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
 import { assertProductionEnv } from '$lib/server/config';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 assertProductionEnv();
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env.MEMBERSHIP_TIMEOUT_MS ?? '5000', 10);
+const API_GLOBAL_RATE_LIMIT = parseInt(process.env.API_GLOBAL_RATE_LIMIT ?? '300', 10);
+const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/api/whatsapp/webhook']);
 const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
 const SENTRY_RELEASE = process.env.SENTRY_RELEASE || undefined;
 const ADDRESS_HEADER = process.env.ADDRESS_HEADER ?? '';
@@ -149,6 +152,13 @@ const appHandle: Handle = async ({ event, resolve }) => {
 		}
 		: null;
 	event.locals.user = user;
+
+	if (path.startsWith('/api/') && !API_RATE_LIMIT_EXEMPT.has(path) && API_GLOBAL_RATE_LIMIT > 0) {
+		const subject = user ? `u:${user.id}` : `ip:${event.getClientAddress()}`;
+		if (!(await checkRateLimit(`api-global:${subject}`, API_GLOBAL_RATE_LIMIT))) {
+			return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
+		}
+	}
 
 	let userApproved = false;
 	let accessOpen   = false;

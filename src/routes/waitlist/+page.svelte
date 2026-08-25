@@ -49,6 +49,7 @@
       errRequired:       'Introduce tu email para continuar.',
       errInvalid:        'Ese email no parece válido.',
       errRateLimited:    'Demasiados intentos. Por favor, espera un momento.',
+      errBot:            'No hemos podido verificar que la petición sea humana. Recarga la página e inténtalo de nuevo.',
       privacy:           'Solo guardamos tu email. Sin spam. Sin compromisos.',
       spotTotal:         50,
       spotLabel:         'plazas prioritarias asignadas',
@@ -145,6 +146,7 @@
       errRequired:       'Enter your email to continue.',
       errInvalid:        "That doesn't look like a valid email.",
       errRateLimited:    'Too many attempts. Please wait a moment.',
+      errBot:            'We could not verify the request as human. Reload the page and try again.',
       privacy:           'We only store your email. No spam. No commitment.',
       spotTotal:         50,
       spotLabel:         'priority spots claimed',
@@ -270,7 +272,7 @@
         creator: { '@type': 'Organization', name: 'Mise en Place', address: { '@type': 'PostalAddress', addressLocality: 'Barcelona', addressCountry: 'ES' } },
       },
     ],
-  })}</script>`}
+  }).replace(/</g, '\\u003c')}</script>`}
 </svelte:head>
 
 <div class="mep" data-accent="amber"

@@ -13,33 +13,33 @@ y los invariantes de `docs/00_system/architectural_invariants.md`.
 | # | Directriz | Estado |
 |---|-----------|--------|
 | 1 | Claves API en variables de entorno | ✅ |
-| 2 | Higiene de Git (secretos, .gitignore) | ⚠️ falta escaneo automático |
-| 3 | Aislamiento de la base de datos | ⚠️ cert. no verificado |
+| 2 | Higiene de Git (secretos, .gitignore) | ✅ (gitleaks en CI) |
+| 3 | Aislamiento de la base de datos | ✅ código listo — fijar `DATABASE_CA_CERT` en Railway |
 | 4 | Row-Level Security / aislamiento por tenant | ✅ (a nivel de app, ADR-005) |
 | 5 | Cifrado en reposo y en tránsito | ⚠️ sin cifrado a nivel de columna |
-| 6 | Fuerza de autenticación | ⚠️ mínimo de contraseña bajo |
+| 6 | Fuerza de autenticación | ✅ (mínimo 12) |
 | 7 | RBAC / restricción de acceso a registros | ✅ |
 | 8 | Bloqueo de mass assignment | ✅ |
 | 9 | Flags de cookies | ✅ |
 | 10 | Hashing de contraseñas | ✅ (bcrypt cost 12) |
 | 11 | Limitación de intentos de login | ✅ (requiere `ADDRESS_HEADER` en prod) |
-| 12 | Protección contra bots | ⚠️ honeypot sí, CAPTCHA no |
+| 12 | Protección contra bots | ✅ honeypot + Turnstile opt-in |
 | 13 | Parametrización de consultas (SQLi) | ✅ |
 | 14 | Validación de entradas | ✅ (manual por convención) |
-| 15 | Escape de output (XSS) | ⚠️ endurecer JSON-LD |
+| 15 | Escape de output (XSS) | ✅ (JSON-LD escapado) |
 | 16 | Restricción de subidas de archivos | ✅ |
-| 17 | Rate limiting general de API | ⚠️ por ruta sí, global por IP no |
+| 17 | Rate limiting general de API | ✅ por ruta + backstop global |
 | 18 | Cabeceras de seguridad HTTP | ✅ |
 | 19 | Fuerza HTTPS | ✅ (TLS en el edge de Railway) |
 | 20 | Logging sin PII | ✅ |
 
-**Acciones prioritarias** (lo único que de verdad falta):
-1. Añadir escaneo de secretos (gitleaks) al CI — punto 2.
-2. Fijar `DATABASE_CA_CERT` para verificar la cadena TLS de Postgres — punto 3.
-3. Subir el mínimo de contraseña de 8 a 12 — punto 6.
-4. Escapar `<` en el bloque JSON-LD de `waitlist/+page.svelte` — punto 15.
-5. Rate limit global por IP en `hooks.server.ts` para `/api/*` — punto 17.
-6. (Opcional) Turnstile en signup/waitlist — punto 12.
+**Acciones prioritarias** — las seis están implementadas en código:
+1. ✅ Escaneo de secretos (gitleaks) en CI — job `secret-scan` en `ci.yml` sobre todo el historial.
+2. ✅ `DATABASE_CA_CERT` en modo `require` ahora verifica la cadena TLS (sin hostname check) — `db-ssl.ts`. **Acción operativa pendiente:** fijar la variable en Railway con la root CA del servicio Postgres.
+3. ✅ Mínimo de contraseña 12 / máximo 128 — `src/lib/server/password-policy.ts`, aplicado en signup, reset y settings (server + formularios + i18n). Los usuarios existentes con contraseñas de 8-11 siguen pudiendo iniciar sesión; la política aplica a contraseñas nuevas.
+4. ✅ JSON-LD de `waitlist/+page.svelte` escapa `<` como `\u003c`.
+5. ✅ Backstop global por usuario/IP para `/api/*` en `hooks.server.ts` (`API_GLOBAL_RATE_LIMIT`, 300/min por defecto; health y webhooks firmados exentos).
+6. ✅ Turnstile opt-in en signup y waitlist — activo solo si `TURNSTILE_SECRET_KEY` + `PUBLIC_TURNSTILE_SITE_KEY` están configuradas; sin claves, ni widget ni verificación. Fail-open si Cloudflare no responde.
 
 ---
 
@@ -100,10 +100,12 @@ NODE_ENV=production node -e "
 **Riesgo:** una clave commiteada sigue viva en el historial aunque se borre del
 working tree; bots escanean GitHub en segundos tras un push.
 
-**Estado actual: ⚠️**
+**Estado actual: ✅**
 - `.gitignore` ya cubre `.env*`, `*.db`, `/uploads/` (PII de usuarios) y
   `/data/sk_sessions/` (tokens de sesión) con comentarios que explican el porqué.
-- No hay escaneo de secretos en `.github/workflows/ci.yml` — es el hueco.
+- Job `secret-scan` en `.github/workflows/ci.yml`: gitleaks sobre todo el
+  historial (`--log-opts=--all`) en cada push y PR; el build falla si detecta
+  un secreto.
 
 **Implementación:**
 
@@ -176,15 +178,17 @@ git add kaboom.txt   # el hook / el job de CI deben bloquearlo
 **Riesgo:** un Postgres con puerto público es escaneado y atacado por fuerza
 bruta en minutos; una conexión sin TLS verificado permite MITM.
 
-**Estado actual: ⚠️**
+**Estado actual: ✅ (código) — queda una acción operativa**
 - La app conecta por la red privada de Railway
   (`postgres.railway.internal:5432`) — el puerto no se expone a Internet
   mientras no se active el TCP Proxy del servicio Postgres.
-- `DATABASE_SSL_MODE=require` cifra la conexión, pero **no verifica el
-  certificado** (`rejectUnauthorized: false`, ver `src/lib/server/db-ssl.ts` e
-  issue #523). El cert de Railway es `CN=localhost`, así que `verify-full` con
-  hostname no puede pasar; el propio `.env.example` documenta la salida:
-  **fijar `DATABASE_CA_CERT`** para verificar al menos la cadena.
+- `src/lib/server/db-ssl.ts`: con `DATABASE_SSL_MODE=require` **y
+  `DATABASE_CA_CERT` fijada**, la conexión verifica la cadena de certificados
+  contra la CA pinneada (sin hostname check — el cert de Railway es
+  `CN=localhost`, así que `verify-full` con hostname no puede pasar). Sin la
+  variable, sigue cifrando sin verificar y lo avisa en producción.
+- **Acción operativa pendiente:** fijar `DATABASE_CA_CERT` en Railway con la
+  root CA del servicio Postgres (web y worker).
 - Timeouts defensivos ya configurados: `DB_CONNECT_TIMEOUT_SECONDS=10`,
   `DB_STATEMENT_TIMEOUT_MS=15000`.
 - El gate de tests (`tests/helpers/db-gate.ts`) impide que suites destructivas
@@ -354,10 +358,11 @@ sobreviven a un cambio de credenciales.
   o borrar la cuenta se incrementa y todas las sesiones emitidas mueren.
 - Login con credenciales exige `emailVerified` (`auth-credentials.ts:11`);
   tokens de verificación/reset de un solo uso con TTL 1 h.
-- **Hueco:** mínimo de contraseña de 8 caracteres en tres sitios
-  (`signup/+page.server.ts:38`, `reset-password/+page.server.ts:10`,
-  `settings/+page.server.ts:35`). OWASP/NIST actual: mínimo 12 sin reglas de
-  composición arbitrarias, con comprobación contra contraseñas filtradas.
+- Política de contraseñas centralizada en `src/lib/server/password-policy.ts`
+  (mínimo 12, máximo 128 como guard de truncado de bcrypt), aplicada en
+  signup, reset y settings — server, formularios (`minlength="12"`) e i18n.
+  Las contraseñas existentes de 8-11 caracteres siguen siendo válidas para
+  login; la política aplica al crear o cambiar contraseña.
 
 **Implementación:**
 
@@ -636,18 +641,31 @@ railway variables --service web | grep -E "ADDRESS_HEADER|XFF_DEPTH"
 
 **Riesgo:** signups masivos, spam en la waitlist, scraping de datos.
 
-**Estado actual: ⚠️**
-- **Honeypot ya activo**: `publicFormAction` rechaza con 422 cualquier envío
-  con el campo oculto `_hp` relleno (los bots lo rellenan, los humanos no lo
-  ven) — cubre waitlist/signup sin fricción para usuarios.
+**Estado actual: ✅**
+- **Honeypot siempre activo**: `publicFormAction` rechaza con 422 cualquier
+  envío con el campo oculto `_hp` relleno (los bots lo rellenan, los humanos
+  no lo ven) — cubre waitlist/signup sin fricción para usuarios.
 - Rate limiting por IP en todos los formularios públicos (punto 11) limita el
   volumen de cualquier bot.
+- **Cloudflare Turnstile opt-in** en signup y waitlist: `publicFormAction`
+  verifica el token contra siteverify cuando `TURNSTILE_SECRET_KEY` está
+  configurada (`src/lib/server/turnstile.ts`), y el widget
+  (`src/lib/components/Turnstile.svelte`) se renderiza solo cuando
+  `PUBLIC_TURNSTILE_SITE_KEY` existe. Sin claves, cero cambios de
+  comportamiento. Fail-open si Cloudflare no responde (disponibilidad antes
+  que bloqueo de bots). CSP ampliado a `challenges.cloudflare.com` en
+  `script-src`/`frame-src`.
 - Scraping de datos de negocio: irrelevante — todo lo valioso está detrás de
   login + tenant scoping; las páginas públicas son marketing.
-- **Hueco opcional:** sin CAPTCHA. Si el spam supera al honeypot, añadir
-  Cloudflare Turnstile (sin fricción, sin cookies de tracking):
 
-**Implementación (Turnstile, si llega a hacer falta):**
+**Implementación (ya aplicada — para activarla, fijar ambas claves):**
+
+```bash
+railway variables --service web --set "TURNSTILE_SECRET_KEY=..." \
+  --set "PUBLIC_TURNSTILE_SITE_KEY=..."
+```
+
+Referencia del flujo:
 
 ```svelte
 <!-- en el formulario de signup/waitlist -->
@@ -795,21 +813,21 @@ for (const c of bad) expect((await post('/products?/create', c)).status).toBe(42
 **Riesgo:** un nombre de proveedor como `<img src=x onerror=...>` ejecuta JS
 en el navegador de otro usuario y roba su sesión.
 
-**Estado actual: ⚠️ (base excelente, un endurecimiento pendiente)**
+**Estado actual: ✅**
 - Svelte **escapa por defecto** toda interpolación `{...}` — el 100 % del
   contenido de usuario (nombres de proveedores, facturas, notas, y todo lo
   extraído por el LLM de PDFs subidos) se renderiza escapado.
 - Solo existen **dos** usos de `{@html}` en todo `src/`:
-  1. `waitlist/+page.svelte:253` — bloque JSON-LD para SEO. Contenido
-     estático + `canonicalUrl` derivada en servidor. **Endurecer**: por
-     contrato, `JSON.stringify` dentro de `<script>` debe escapar `<` para
-     que un futuro campo dinámico no pueda cerrar el tag con `</script>`.
+  1. `waitlist/+page.svelte` — bloque JSON-LD para SEO. Contenido estático +
+     `canonicalUrl` derivada en servidor, y el `JSON.stringify` escapa `<`
+     como `\u003c`, de modo que ningún campo futuro pueda cerrar el tag con
+     `</script>`.
   2. `settings/+page.svelte:351` — SVG de QR **generado en servidor** por
      `qrcode-generator` (`src/lib/server/qr.ts`), sin input de usuario.
 - El CSP (punto 18) es la segunda muralla: `script-src 'self'` en modo hash
   bloquea cualquier script inline inyectado aunque un escape fallara.
 
-**Implementación (el fix del JSON-LD):**
+**Implementación (ya aplicada):**
 
 ```svelte
 <!-- src/routes/waitlist/+page.svelte -->
@@ -885,7 +903,7 @@ curl -s -o /dev/null -w "%{http_code}" https://<dominio>/api/upload/1/x.pdf  # s
 
 **Riesgo:** abuso de endpoints caros (LLM, exports) y DoS de capa 7.
 
-**Estado actual: ⚠️**
+**Estado actual: ✅**
 - **Por ruta: excelente.** Más de 25 endpoints ya limitados con
   `checkRateLimit` y presupuestos ajustados al coste real: chat LLM
   (`CHAT_RATE_LIMIT_RPM`), export de cuenta (5/min), borrado (3/min), uploads
@@ -893,10 +911,14 @@ curl -s -o /dev/null -w "%{http_code}" https://<dominio>/api/upload/1/x.pdf  # s
 - Los endpoints más caros del sistema (extracción con Gemini) tienen además
   un **semáforo distribuido** (`acquireExtractionSlot`, lease en Redis) que
   capa la concurrencia global.
-- **Hueco:** no hay un límite global por IP para rutas no cubiertas
-  individualmente. Defensa en profundidad barata:
+- **Backstop global** en `hooks.server.ts`: toda ruta `/api/*` (salvo
+  `/api/health` y los webhooks firmados de Stripe/WhatsApp) pasa por
+  `checkRateLimit('api-global:<sujeto>')` — sujeto = id de usuario
+  autenticado, o IP si no hay sesión. `API_GLOBAL_RATE_LIMIT` (300/min por
+  defecto, 0 lo desactiva) responde 429 con `Retry-After` antes de tocar la
+  DB de membresías.
 
-**Implementación (limiter global en hooks):**
+**Implementación (ya aplicada):**
 
 ```ts
 // hooks.server.ts — dentro de appHandle, tras resolver la sesión:
