@@ -91,6 +91,7 @@
   <MobileSuppliersList
     suppliers={data.suppliers}
     categories={data.categories}
+    categoryCounts={data.categoryCounts}
     search={data.search}
     category={data.category}
     sort={data.sort}

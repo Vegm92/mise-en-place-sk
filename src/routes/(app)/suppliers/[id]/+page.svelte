@@ -14,6 +14,7 @@
   import CreditCard from '@lucide/svelte/icons/credit-card';
   import MapPin from '@lucide/svelte/icons/map-pin';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import DesktopSupplierDetail from '$lib/components/desktop/DesktopSupplierDetail.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -164,7 +165,7 @@
       </div>
     </div>
 
-    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;">
+    <ScrollStrip label={$t('sup.tabsLabel')} padding="0 0 12px" leadIn="2px">
       {#each [
         { id: 'resumen',      label: $t('sup.tab.resumen') },
         { id: 'albaranes',     label: $t('nav.invoices'), count: data.invoices.length },
@@ -187,7 +188,7 @@
           {/if}
         </button>
       {/each}
-    </div>
+    </ScrollStrip>
   </div>
 
   <div style="flex:1;overflow:auto;padding:0 18px 24px;display:flex;flex-direction:column;gap:10px;">

@@ -283,6 +283,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 **`markup`**
 - Search, filter chips, grouped invoice list.
 - The search box is a controlled input driven by the page's `q` filter (issue #579): it goes through the same debounced URL update as the desktop bar, so mobile search covers every invoice instead of only the 50 on the current page. The status chips stay client-side over the loaded page.
+- The filter chips ride the shared `ScrollStrip` (issue #658). The row measured 516px against a 390px viewport with the scrollbar hidden, so "Por categoría" sat entirely off-screen and nothing on the screen said the row scrolled.
 
 ### `src/lib/invoice-filters.ts`
 

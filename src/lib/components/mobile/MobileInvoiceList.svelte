@@ -2,6 +2,7 @@
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { fmtEur } from '$lib/formatters';
   import { locale, t } from '$lib/i18n';
+  import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
 
   interface Invoice {
     id: number;
@@ -88,7 +89,7 @@
     />
   </div>
 
-  <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0;">
+  <ScrollStrip label={$t('inv.filterLabel')} extraStyle="flex-shrink:0;">
     {#each filters as f}
       <button
         style="
@@ -102,7 +103,7 @@
         onclick={() => activeFilter = f.id}
       >{$t(f.labelKey)}</button>
     {/each}
-  </div>
+  </ScrollStrip>
 
   <div style="flex: 1; overflow: auto; padding-bottom: 24px;">
     {#if grouped.length === 0}
