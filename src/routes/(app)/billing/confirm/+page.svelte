@@ -28,11 +28,11 @@
 			{$t('billing.confirm.body')}
 		</p>
 
-		{#if data.planName}
+		{#if data.planNameKey}
 			<div
 				style="display:inline-flex;align-items:center;gap:8px;background:var(--mep-acc-soft);color:var(--mep-acc);border-radius:99px;padding:6px 16px;font-size:13px;font-weight:500;margin-bottom:20px;"
 			>
-				{$t('billing.confirm.plan')}: <strong>{data.planName}</strong>
+				{$t('billing.confirm.plan')}: <strong>{$t(data.planNameKey)}</strong>
 			</div>
 		{/if}
 

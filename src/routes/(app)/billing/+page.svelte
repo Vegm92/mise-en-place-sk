@@ -55,13 +55,13 @@
 
 	<BillingStatusCard
 		status={data.status}
-		planName={data.currentTierName}
+		planName={$t(data.currentTierNameKey)}
 		price={PROVISIONAL_PRICE[data.currentTier as TierId] ?? null}
 		quotaUsed={data.quotaUsed}
 		quotaLimit={data.quotaLimit}
 		locationsUsed={data.locations.length}
 		{maxLocations}
-		upgradeName={upgrade?.name ?? null}
+		upgradeName={upgrade ? $t(upgrade.nameKey) : null}
 		upgradeMaxLocations={upgrade?.maxLocations ?? 0}
 		trialEndsAt={data.trialEndsAt}
 		currentPeriodEnd={data.currentPeriodEnd}
