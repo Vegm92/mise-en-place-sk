@@ -47,16 +47,14 @@ const ROUTES = (process.env.ROUTES ?? '/suppliers,/invoices,/suppliers/[id],/bat
 
 const MAX_VIEWPORT_RATIO = 3;
 
-function describe(el) {
-	const id = el.id ? `#${el.id}` : '';
-	const cls = typeof el.className === 'string' && el.className.trim()
-		? `.${el.className.trim().split(/\s+/).join('.')}`
-		: '';
-	return `${el.tagName.toLowerCase()}${id}${cls}`;
-}
-
-const collect = new Function('viewportWidth', `
-	const describe = ${describe.toString()};
+function collect(viewportWidth) {
+	const describe = (el) => {
+		const id = el.id ? `#${el.id}` : '';
+		const cls = typeof el.className === 'string' && el.className.trim()
+			? `.${el.className.trim().split(/\s+/).join('.')}`
+			: '';
+		return `${el.tagName.toLowerCase()}${id}${cls}`;
+	};
 	const out = [];
 	let seq = 0;
 	for (const el of document.querySelectorAll('*')) {
@@ -110,7 +108,7 @@ const collect = new Function('viewportWidth', `
 		});
 	}
 	return out;
-`);
+}
 
 function verdict(strip) {
 	const reasons = [];
