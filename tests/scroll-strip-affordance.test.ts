@@ -71,6 +71,10 @@ const NON_STRIP_SCROLLERS: Record<string, string> = {
 		'desktop-only supplier table; the pointer platform paints a real scrollbar',
 	'src/lib/components/mep/TrendLineChart.svelte':
 		'plot area — an edge fade would wash out the most recent data points',
+	'src/lib/components/admin/AdminTableScroll.svelte':
+		'admin data tables (issue #657) — a mask over cells would hide their content, and the scrollbar is the affordance',
+	'src/routes/(admin)/+layout.svelte':
+		'admin nav rail (issue #657) — scrolls only below md, and a fade would sit under the header border',
 };
 
 const HORIZONTAL_SCROLL = /overflow-x\s*:\s*(auto|scroll)|(?:^|["'\s])overflow-x-auto(?:["'\s]|$)/;
