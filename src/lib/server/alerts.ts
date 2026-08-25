@@ -638,14 +638,14 @@ export async function sendWeeklyDigest(data: WeeklyDigestJobData): Promise<boole
 	if (!(await isAlertEnabled(data.restaurantId, 'weekly_digest'))) return false;
 
 	const digest = await getOrGenerateWeeklyDigest(data.restaurantId, data.week);
-	if (!digest?.text) return false;
+	if (!digest) return false;
 
 	if (!(await claimOnce(data.restaurantId, 'weekly_digest_email_week', data.week))) return false;
 
 	const email = await ownerEmail(data.restaurantId);
 	if (!email) return false;
 
-	const html = digest.text
+	const html = digest
 		.split(/\n{2,}/)
 		.map(p => `<p>${p.trim()}</p>`)
 		.join('\n');

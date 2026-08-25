@@ -97,7 +97,7 @@ vi.mock('$lib/server/email', async (importOriginal) => {
 });
 vi.mock('$lib/server/weekly-digest', () => ({
 	isoWeek: () => '2026-W30',
-	getOrGenerateWeeklyDigest: vi.fn().mockResolvedValue({ text: 'Gasto estable.\n\nRecommended: nada.', dismissed: false }),
+	getOrGenerateWeeklyDigest: vi.fn().mockResolvedValue('Gasto estable.\n\nRecommended: nada.'),
 }));
 
 import {
