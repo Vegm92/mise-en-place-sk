@@ -15,7 +15,7 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 | `DATABASE_URL` | Yes | Railway Postgres connection string — used by drizzle-kit migrations and pg-boss. Railway exposes it on the Postgres service as `DATABASE_URL` (internal, `*.railway.internal`) and `DATABASE_PUBLIC_URL` (external, for migrations run from your machine or CI). SSL is enforced by the client. |
 | `DATABASE_POOL_URL` | No | Separate pooled connection string for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. |
 | `DATABASE_SSL_MODE` | No | `require` (default — encrypted, certificate **not** verified) or `verify-full` (certificate chain verified). Applies to both the web pool and the worker's pg-boss connection. Production logs a warning while it is `require`. |
-| `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
+| `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file — **not** a mode name; setting it to `verify-full` is the swap that takes both services down at startup. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
 
 ### Auth (Auth.js / SvelteKitAuth)
 
