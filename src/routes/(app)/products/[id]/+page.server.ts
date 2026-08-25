@@ -58,6 +58,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	]);
 
 	return {
+		title: 'prod.detail.pageTitle',
 		product,
 		linkedSuppliers,
 		aliases,

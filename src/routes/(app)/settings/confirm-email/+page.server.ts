@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const token = url.searchParams.get('token');
 
 	if (!email || !token || !locals.user) redirect(303, '/settings');
-	return { email };
+	return { title: 'confirmEmail.heading', email };
 };
 
 export const actions: Actions = {
