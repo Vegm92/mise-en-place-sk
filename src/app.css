@@ -47,6 +47,7 @@
 
 /* Light */
 :root[data-theme="light"] {
+  color-scheme: light;
   --mep-bg:       #f5f4f0;
   --mep-surface:  #ffffff;
   --mep-surface-2:#fafaf7;
@@ -104,6 +105,7 @@
 
 /* Dark */
 :root[data-theme="dark"] {
+  color-scheme: dark;
   --mep-bg:       #16151a;
   --mep-surface:  #1e1d23;
   --mep-surface-2:#25242b;
@@ -509,8 +511,6 @@
   }
   .input::placeholder { color: var(--mep-fg-4); }
   .input:focus { border-color: var(--mep-acc); box-shadow: 0 0 0 3px var(--mep-acc-ring); }
-  .input option { background: var(--mep-surface); color: var(--mep-fg); }
-  select option  { background: var(--mep-surface); color: var(--mep-fg); }
 
   /* Table */
   .tbl {
