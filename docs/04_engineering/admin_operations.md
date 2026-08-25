@@ -7,6 +7,11 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 ### `src/routes/(admin)/+layout.svelte`
 **`markup`**
 - Admin banner at the top; scrollable page content area beneath it.
+- One `md` (768px) branch, per ADR-020 (issue #657): below it the header keeps its 52px rail but drops the labels that do not survive a phone — the "back to app" caption, the wordmark, the ADMIN badge and the admin email — leaving the chevron, the mark, the avatar and the theme toggle. The seven-item nav becomes the flexible child (`flex:1;min-width:0`) and scrolls horizontally inside the rail; the active-item underline is desktop-only because `overflow-x: auto` also clips vertically. Page containers and `AdminPageHead` pad 12px instead of 24px.
+
+### `src/lib/components/admin/AdminTableScroll.svelte`
+**`markup`**
+- The scroll wrapper every admin `<table>` sits in (issue #657). Admin cards are `overflow: hidden`, so a table wider than its card used to have its right-hand columns clipped with no way to reach them — at 390px that was 11 of the 17 admin tables, up to 828px unreachable on the dead-letter queue. The wrapper scrolls that overflow instead of hiding it, and tables narrow enough to fit still fit. `tests/admin-mobile-tables.test.ts` fails if a new admin table is added outside this component, and asserts the measurements in `shots/admin-mobile-audit.json` written by `scripts/admin-mobile-audit.mjs`.
 
 ### `src/routes/(admin)/admin/+page.server.ts`
 **`const load`**

@@ -6,6 +6,7 @@
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import Check from '@lucide/svelte/icons/check';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
 
   const isOk = $derived(data.overallStatus === 'ok');
@@ -22,7 +23,7 @@
 
 <AdminPageHead route="/admin/health" title={$t('admin.systemHealth')} subtitle={$t('admin.healthSubtitle')} />
 
-<div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px;">
+<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:14px;">
 
   <div class="card" style="
     padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
@@ -53,29 +54,31 @@
   </div>
 
   <SectionCard title={$t('admin.checksTitle')} noPad>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--mep-divider);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCheck')}</th>
-          <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colDetail')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each data.checks as check}
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{check.name}</td>
-            <td style="padding:9px 16px;text-align:center;"><AdminStatusBadge status={check.status} /></td>
-            <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">
-              {check.detail}
-              {#if check.href}
-                <a href={check.href} style="color:var(--mep-acc);text-decoration:none;margin-left:6px;">{check.href}</a>
-              {/if}
-            </td>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCheck')}</th>
+            <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colDetail')}</th>
           </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each data.checks as check}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{check.name}</td>
+              <td style="padding:9px 16px;text-align:center;"><AdminStatusBadge status={check.status} /></td>
+              <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">
+                {check.detail}
+                {#if check.href}
+                  <a href={check.href} style="color:var(--mep-acc);text-decoration:none;margin-left:6px;">{check.href}</a>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
   {#if data.whatsapp}
@@ -107,46 +110,50 @@
 
       {#if data.whatsapp.events.length > 0}
         <div class="card" style="overflow:hidden;padding:0;margin-top:10px;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
-            <thead>
-              <tr style="border-bottom:1px solid var(--mep-divider);">
-                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colWhen')}</th>
-                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colEvent')}</th>
-                <th style="padding:8px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colSeverity')}</th>
-                <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.quality')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each data.whatsapp.events as evt (evt.id)}
+          <AdminTableScroll>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
                 <tr style="border-bottom:1px solid var(--mep-divider);">
-                  <td style="padding:7px 16px;color:var(--mep-fg-2);font-size:12px;white-space:nowrap;">
-                    {evt.receivedAt ? new Date(evt.receivedAt).toLocaleString('en-GB') : '—'}
-                  </td>
-                  <td style="padding:7px 16px;font-family:var(--mep-fs-mono);font-size:12px;color:var(--mep-fg);">
-                    {evt.field}/{evt.event ?? 'unknown'}
-                  </td>
-                  <td style="padding:7px 16px;text-align:center;"><AdminStatusBadge status={SEVERITY_STATUS[evt.severity as Severity]} /></td>
-                  <td style="padding:7px 16px;color:var(--mep-fg-2);font-size:12px;">{evt.qualityRating ?? '—'}</td>
+                  <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colWhen')}</th>
+                  <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colEvent')}</th>
+                  <th style="padding:8px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colSeverity')}</th>
+                  <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.quality')}</th>
                 </tr>
-              {/each}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {#each data.whatsapp.events as evt (evt.id)}
+                  <tr style="border-bottom:1px solid var(--mep-divider);">
+                    <td style="padding:7px 16px;color:var(--mep-fg-2);font-size:12px;white-space:nowrap;">
+                      {evt.receivedAt ? new Date(evt.receivedAt).toLocaleString('en-GB') : '—'}
+                    </td>
+                    <td style="padding:7px 16px;font-family:var(--mep-fs-mono);font-size:12px;color:var(--mep-fg);">
+                      {evt.field}/{evt.event ?? 'unknown'}
+                    </td>
+                    <td style="padding:7px 16px;text-align:center;"><AdminStatusBadge status={SEVERITY_STATUS[evt.severity as Severity]} /></td>
+                    <td style="padding:7px 16px;color:var(--mep-fg-2);font-size:12px;">{evt.qualityRating ?? '—'}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </AdminTableScroll>
         </div>
       {/if}
 
       {#if data.whatsapp.tenants.length > 0}
         <div class="label" style="margin:16px 0 10px;">{$t('admin.wa.tenantSenders')}</div>
         <div class="card" style="overflow:hidden;padding:0;">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
-            <tbody>
-              {#each data.whatsapp.tenants as tenant (tenant.restaurantId)}
-                <tr style="border-bottom:1px solid var(--mep-divider);">
-                  <td style="padding:7px 16px;color:var(--mep-fg);">{tenant.name}</td>
-                  <td style="padding:7px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{tenant.contacts}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+          <AdminTableScroll>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <tbody>
+                {#each data.whatsapp.tenants as tenant (tenant.restaurantId)}
+                  <tr style="border-bottom:1px solid var(--mep-divider);">
+                    <td style="padding:7px 16px;color:var(--mep-fg);">{tenant.name}</td>
+                    <td style="padding:7px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{tenant.contacts}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </AdminTableScroll>
         </div>
       {/if}
     </div>
@@ -154,22 +161,24 @@
 
   {#if data.tableCounts.length > 0}
     <SectionCard title={$t('admin.tableRowCounts')} noPad>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colTable')}</th>
-            <th style="padding:8px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRowsEst')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each data.tableCounts as row}
+      <AdminTableScroll>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
             <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:7px 16px;font-family:var(--mep-fs-mono);font-size:12px;color:var(--mep-fg-2);">{row.table}</td>
-              <td style="padding:7px 16px;text-align:right;color:var(--mep-fg);" class="num">{row.rows.toLocaleString('en-US')}</td>
+              <th style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colTable')}</th>
+              <th style="padding:8px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRowsEst')}</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each data.tableCounts as row}
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <td style="padding:7px 16px;font-family:var(--mep-fs-mono);font-size:12px;color:var(--mep-fg-2);">{row.table}</td>
+                <td style="padding:7px 16px;text-align:right;color:var(--mep-fg);" class="num">{row.rows.toLocaleString('en-US')}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
     </SectionCard>
   {/if}
 
