@@ -250,36 +250,38 @@
     trendValueFormatter={fmtEur}
     trendEmptyLabel={$t('tpl.trend.empty')}
   >
-    {#snippet topBar()}
-      <div class="flex flex-col gap-3">
-        <div class="flex items-center gap-2 flex-wrap">
-          <button type="button" class="btn btn-ghost"
-            style="font-size:12.5px;gap:6px;"
-            aria-expanded={filtersOpen}
-            aria-controls="inv-filter-panel"
-            onclick={() => (filtersOpen = !filtersOpen)}>
-            <SlidersHorizontal size={13} />
-            {$t('inv.filter.toggle')}
-            {#if activeCount > 0}
-              <span class="badge bg-acc-soft text-acc border border-acc"
-                aria-label={$ti('inv.filter.activeCount', { n: activeCount })}
-                style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
-                {activeCount}
-              </span>
-            {/if}
-            <span style="display:inline-flex;transition:transform 150ms;{filtersOpen ? 'transform:rotate(180deg);' : ''}">
-              <ChevronDown size={13} />
-            </span>
-          </button>
+    {#snippet filters()}
+      <button type="button" class="btn btn-ghost"
+        style="font-size:12.5px;gap:6px;"
+        aria-expanded={filtersOpen}
+        aria-controls="inv-filter-panel"
+        onclick={() => (filtersOpen = !filtersOpen)}>
+        <SlidersHorizontal size={13} />
+        {$t('inv.filter.toggle')}
+        {#if activeCount > 0}
+          <span class="badge bg-acc-soft text-acc border border-acc"
+            aria-label={$ti('inv.filter.activeCount', { n: activeCount })}
+            style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
+            {activeCount}
+          </span>
+        {/if}
+        <span style="display:inline-flex;transition:transform 150ms;{filtersOpen ? 'transform:rotate(180deg);' : ''}">
+          <ChevronDown size={13} />
+        </span>
+      </button>
 
-          {#if activeCount > 0}
-            <button type="button" class="btn btn-ghost" style="font-size:12.5px;" onclick={clearFilters}>
-              {$t('inv.filter.clear')}
-            </button>
-          {/if}
-        </div>
+      {#if activeCount > 0}
+        <button type="button" class="btn btn-ghost" style="font-size:12.5px;" onclick={clearFilters}>
+          {$t('inv.filter.clear')}
+        </button>
+      {/if}
+      <div style="flex:1;"></div>
+      <a href="/invoices/export" class="btn btn-ghost" style="font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
+        <FileDown size={13} />
+        {$t('inv.export')}
+      </a>
 
-        <div id="inv-filter-panel">
+      <div id="inv-filter-panel" style="width:100%;">
           {#if filtersOpen}
             <div class="flex flex-wrap items-end gap-3">
 
@@ -361,16 +363,7 @@
 
             </div>
           {/if}
-        </div>
       </div>
-    {/snippet}
-
-    {#snippet filters()}
-      <div style="flex:1;"></div>
-      <a href="/invoices/export" class="btn btn-ghost" style="font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
-        <FileDown size={13} />
-        {$t('inv.export')}
-      </a>
     {/snippet}
 
     {#snippet table()}
