@@ -13,7 +13,12 @@ const config = {
 			mode: 'hash',
 			directives: {
 				'default-src':  ['self'],
-				'script-src':   ['self'],
+				// 'https://challenges.cloudflare.com' — Cloudflare Turnstile
+				// (opt-in via TURNSTILE_SECRET_KEY / PUBLIC_TURNSTILE_SITE_KEY):
+				// api.js loads from that host and the widget runs in an iframe
+				// there, so script-src and frame-src both need it. Harmless when
+				// Turnstile is not configured — nothing references the host.
+				'script-src':   ['self', 'https://challenges.cloudflare.com'],
 				'style-src':    ['self', 'unsafe-inline'],
 				'font-src':     ['self'],
 				'img-src':      ['self', 'data:'],
@@ -23,7 +28,7 @@ const config = {
 				'worker-src':   ['self', 'blob:'],
 				// 'self' — the invoice PDF viewer embeds /api/upload/[id]/[file]
 				// in a same-origin iframe; still blocks third-party framing.
-				'frame-src':    ['self'],
+				'frame-src':    ['self', 'https://challenges.cloudflare.com'],
 				'object-src':   ['none'],
 				'base-uri':     ['self'],
 				// 'https://accounts.google.com' — the signInWithGoogle form action

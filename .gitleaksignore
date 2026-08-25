@@ -1,0 +1,7 @@
+# False positives, pinned by fingerprint (commit:file:rule:line).
+# Only add entries here for findings verified NOT to be real secrets, or for
+# secrets that have already been rotated and are dead in every provider.
+
+# sonar.projectKey is SonarCloud's public project identifier, not a credential
+# — visible in every SonarCloud URL for this repo.
+635934f8a6c56fc9a8497e330fd10e5d58c00576:sonar-project.properties:generic-api-key:1

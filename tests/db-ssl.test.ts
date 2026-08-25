@@ -34,8 +34,11 @@ describe('pgSslConfig', () => {
 			.toEqual({ rejectUnauthorized: true, ca: PEM });
 	});
 
-	it('ignores DATABASE_CA_CERT outside verify-full mode', () => {
-		expect(pgSslConfig({ DATABASE_CA_CERT: PEM })).toEqual({ rejectUnauthorized: false });
+	it('verifies the chain without hostname check when require mode pins a CA', () => {
+		const config = pgSslConfig({ DATABASE_CA_CERT: PEM });
+		expect(config).toMatchObject({ rejectUnauthorized: true, ca: PEM });
+		expect(config && config.checkServerIdentity?.()).toBeUndefined();
+		expect(typeof (config && config.checkServerIdentity)).toBe('function');
 	});
 
 	it('warns and falls back to require on an unknown mode', () => {
@@ -53,6 +56,12 @@ describe('pgSslConfig', () => {
 	it('stays quiet in production when verification is on', () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		pgSslConfig({ NODE_ENV: 'production', DATABASE_SSL_MODE: 'verify-full' });
+		expect(warn).not.toHaveBeenCalled();
+	});
+
+	it('stays quiet in production when require mode pins a CA', () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		pgSslConfig({ NODE_ENV: 'production', DATABASE_CA_CERT: PEM });
 		expect(warn).not.toHaveBeenCalled();
 	});
 });
