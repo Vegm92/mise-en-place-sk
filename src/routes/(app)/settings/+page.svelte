@@ -15,6 +15,7 @@
   import Mail from '@lucide/svelte/icons/mail';
   import Check from '@lucide/svelte/icons/check';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -73,6 +74,10 @@
   ]);
 
   let activeSection = $state('cuenta');
+  let openSection = $state<string | null>('cuenta');
+  const toggleSection = (id: string) => {
+    openSection = openSection === id ? null : id;
+  };
 
   // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded data
   let threshold = $state(data.threshold);
@@ -80,31 +85,14 @@
   let priceThreshold = $state(data.priceThreshold);
 </script>
 
-<div style="flex:1;min-height:0;display:flex;overflow:hidden;">
-  <nav class="settings-rail">
-    <div class="label" style="padding:0 10px 10px;">{$t('nav.settings')}</div>
-    {#each sections as s}
-      <button
-        type="button"
-        class="settings-rail-item"
-        class:active={activeSection === s.id}
-        onclick={() => (activeSection = s.id)}
-      >
-        <s.icon size={15} /><span>{s.label}</span>
-      </button>
-    {/each}
-  </nav>
-
-  <div class="settings-content">
-    <div class="set-content">
-
-      {#if activeSection === 'cuenta'}
+{#snippet sectionBody(section: string, idp: string)}
+      {#if section === 'cuenta'}
         <SectionCard title={$t('set.profile.title')} sub={$t('set.profile.sub')} noPad>
           <form method="POST" action="?/saveName" class="set-row">
-            <label for="profile-name" class="body-strong" style="font-size:13px;">{$t('set.profile.name')}</label>
+            <label for="{idp}-profile-name" class="body-strong" style="font-size:13px;">{$t('set.profile.name')}</label>
             <div>
               <div class="flex items-center gap-3 flex-wrap">
-                <input id="profile-name" name="name" type="text" maxlength="80" required
+                <input id="{idp}-profile-name" name="name" type="text" maxlength="80" required
                   value={data.profile.name} class="input" style="height:34px;width:100%;max-width:300px;" />
                 <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
               </div>
@@ -119,7 +107,7 @@
 
         <SectionCard title={$t('set.access.title')} sub={$t('set.access.sub')} noPad>
           <form method="POST" action="?/saveEmail" class="set-row">
-            <label for="profile-email" class="body-strong" style="font-size:13px;">{$t('set.profile.email')}</label>
+            <label for="{idp}-profile-email" class="body-strong" style="font-size:13px;">{$t('set.profile.email')}</label>
             <div>
               <div class="flex items-center gap-3 flex-wrap" style="margin-bottom:4px;">
                 <Mail size={14} style="color:var(--mep-fg-3);" />
@@ -129,7 +117,7 @@
                 {/if}
               </div>
               <div class="flex items-center gap-3 flex-wrap">
-                <input id="profile-email" name="email" type="email" required
+                <input id="{idp}-profile-email" name="email" type="email" required
                   value={data.profile.email} class="input" style="height:34px;width:100%;max-width:300px;" />
                 <button type="submit" class="btn btn-secondary" style="height:34px;">{$t('set.profile.emailBtn')}</button>
               </div>
@@ -144,9 +132,9 @@
 
           {#if data.profile.hasPassword}
             <div class="set-row">
-              <label for="pw-current" class="body-strong" style="font-size:13px;">{$t('set.profile.password')}</label>
+              <label for="{idp}-pw-current" class="body-strong" style="font-size:13px;">{$t('set.profile.password')}</label>
               <form method="POST" action="?/changePassword" class="flex flex-col gap-2" style="max-width:300px;">
-                <input id="pw-current" name="current" type="password" required autocomplete="current-password"
+                <input id="{idp}-pw-current" name="current" type="password" required autocomplete="current-password"
                   placeholder={$t('set.profile.currentPassword')} class="input" style="height:34px;" />
                 <input name="password" type="password" required minlength="8" autocomplete="new-password"
                   placeholder={$t('set.profile.newPassword')} class="input" style="height:34px;" />
@@ -174,14 +162,14 @@
         </a>
       {/if}
 
-      {#if activeSection === 'negocio'}
+      {#if section === 'negocio'}
         <SectionCard title={$t('set.business.title')} sub={$t('set.business.sub')} noPad>
           <div class="set-row">
-            <label for="restaurant-name" class="body-strong" style="font-size:13px;">{$t('set.profile.restaurant')}</label>
+            <label for="{idp}-restaurant-name" class="body-strong" style="font-size:13px;">{$t('set.profile.restaurant')}</label>
             {#if data.canRenameRestaurant}
               <form method="POST" action="?/renameRestaurant">
                 <div class="flex items-center gap-3 flex-wrap">
-                  <input id="restaurant-name" name="name" type="text" maxlength="120" required
+                  <input id="{idp}-restaurant-name" name="name" type="text" maxlength="120" required
                     value={data.restaurantName} class="input" style="height:34px;width:100%;max-width:300px;" />
                   <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
                 </div>
@@ -249,7 +237,7 @@
         {/if}
       {/if}
 
-      {#if activeSection === 'alertas'}
+      {#if section === 'alertas'}
         <SectionCard title={$t('set.thresholdTitle')} sub={$t('set.thresholdDesc')} noPad>
           <form method="post" action="?/saveThreshold" class="set-row" style="align-items:start;">
             <span class="body-strong" style="font-size:13px;padding-top:6px;">{$t('set.nav.alerts')}</span>
@@ -311,9 +299,9 @@
                 <span class="body-strong" style="font-size:13px;padding-top:4px;">{$t(`set.alertPrefs.group.${group.id}`)}</span>
                 <div class="alert-toggle-list">
                   {#each group.types as type}
-                    <label class="alert-toggle" for={`alert-pref-${type}`}>
+                    <label class="alert-toggle" for={`${idp}-alert-pref-${type}`}>
                       <input
-                        id={`alert-pref-${type}`}
+                        id={`${idp}-alert-pref-${type}`}
                         class="alert-toggle-input"
                         type="checkbox"
                         name={`alert_${type}`}
@@ -336,7 +324,7 @@
         </SectionCard>
       {/if}
 
-      {#if activeSection === 'whatsapp' && data.whatsappEnabled}
+      {#if section === 'whatsapp' && data.whatsappEnabled}
         <SectionCard title={$t('set.whatsapp.title')}>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.desc')}</p>
@@ -444,7 +432,7 @@
         </SectionCard>
       {/if}
 
-      {#if activeSection === 'ayuda'}
+      {#if section === 'ayuda'}
         <div data-coach="settings-main">
           <SectionCard title={$t('set.tourTitle')}>
             <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">
@@ -459,7 +447,7 @@
         </div>
       {/if}
 
-      {#if activeSection === 'datos'}
+      {#if section === 'datos'}
         <SectionCard title={$t('set.privacyTitle')}>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div>
@@ -507,15 +495,58 @@
             </div>
 
             <div style="display:flex;gap:12px;margin-top:4px;">
-              <a href="/privacy" style="font-size:12px;color:var(--mep-fg-3);">{$t('set.privacyLink')}</a>
-              <a href="/terms"   style="font-size:12px;color:var(--mep-fg-3);">{$t('set.termsLink')}</a>
+              <a href="/privacy" class="set-legal-link" style="font-size:12px;color:var(--mep-fg-3);">{$t('set.privacyLink')}</a>
+              <a href="/terms" class="set-legal-link" style="font-size:12px;color:var(--mep-fg-3);">{$t('set.termsLink')}</a>
             </div>
           </div>
         </SectionCard>
       {/if}
+{/snippet}
 
+<div class="hidden md:flex" style="flex:1;min-height:0;overflow:hidden;">
+  <nav class="settings-rail">
+    <div class="label" style="padding:0 10px 10px;">{$t('nav.settings')}</div>
+    {#each sections as s}
+      <button
+        type="button"
+        class="settings-rail-item"
+        class:active={activeSection === s.id}
+        onclick={() => (activeSection = s.id)}
+      >
+        <s.icon size={15} /><span>{s.label}</span>
+      </button>
+    {/each}
+  </nav>
+
+  <div class="settings-content">
+    <div class="set-content">
+      {@render sectionBody(activeSection, 'd')}
     </div>
   </div>
+</div>
+
+<div class="md:hidden set-acc">
+  <div class="label" style="padding:0 2px 10px;">{$t('nav.settings')}</div>
+  {#each sections as s (s.id)}
+    <div class="set-acc-item">
+      <button
+        type="button"
+        class="set-acc-head"
+        aria-expanded={openSection === s.id}
+        aria-controls="set-acc-panel-{s.id}"
+        onclick={() => toggleSection(s.id)}
+      >
+        <s.icon size={16} />
+        <span class="set-acc-label">{s.label}</span>
+        <span class="set-acc-chevron" class:open={openSection === s.id}><ChevronDown size={16} /></span>
+      </button>
+      {#if openSection === s.id}
+        <div class="set-acc-body" id="set-acc-panel-{s.id}">
+          {@render sectionBody(s.id, 'm')}
+        </div>
+      {/if}
+    </div>
+  {/each}
 </div>
 
 <style>
@@ -580,12 +611,88 @@
     }
   }
 
+  .set-acc {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 14px 40px;
+  }
+  .set-acc-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .set-acc-item + .set-acc-item {
+    margin-top: 10px;
+  }
+  .set-acc-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 14px;
+    background: var(--mep-surface);
+    border: 1px solid var(--mep-border);
+    border-radius: var(--mep-r-card);
+    box-shadow: var(--mep-shadow-card);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mep-fg-2);
+  }
+  .set-acc-head[aria-expanded='true'] {
+    color: var(--mep-acc);
+    background: var(--mep-acc-soft);
+    border-color: var(--mep-acc);
+  }
+  .set-acc-label {
+    flex: 1;
+    min-width: 0;
+  }
+  .set-acc-chevron {
+    display: inline-flex;
+    color: var(--mep-fg-3);
+    transition: transform 0.15s ease;
+  }
+  .set-acc-head[aria-expanded='true'] .set-acc-chevron {
+    color: inherit;
+  }
+  .set-acc-chevron.open {
+    transform: rotate(180deg);
+  }
+  .set-acc-body {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .set-acc-body :global(.card) {
+    width: 100%;
+    max-width: 100%;
+  }
+  @media (max-width: 767px) {
+    .set-legal-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+    .set-acc-body :global(.mep-slider-input) {
+      height: 44px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+  }
+
   .alert-toggle-list {
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
   .alert-toggle {
+    position: relative;
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -593,9 +700,8 @@
   }
   .alert-toggle-input {
     position: absolute;
+    inset: 0;
     opacity: 0;
-    width: 1px;
-    height: 1px;
     pointer-events: none;
   }
   .alert-toggle-track {
