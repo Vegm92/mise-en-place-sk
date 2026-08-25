@@ -72,10 +72,18 @@
 
   const applySearch = debounce(() => applyFilters(true), SEARCH_DEBOUNCE_MS);
 
-  function setFilter<K extends keyof InvoiceFilters>(key: K, value: InvoiceFilters[K]) {
+  function patchFilters(patch: Partial<InvoiceFilters>) {
     applySearch.cancel();
-    filterDraft = { ...filterDraft, [key]: value };
+    filterDraft = { ...filterDraft, ...patch };
     applyFilters();
+  }
+
+  function setFilter<K extends keyof InvoiceFilters>(key: K, value: InvoiceFilters[K]) {
+    patchFilters({ [key]: value });
+  }
+
+  function loadMoreMobile() {
+    goto(pageUrl(pagination.page + 1), { keepFocus: true, noScroll: true });
   }
 
   function setSearch(value: string) {
@@ -207,7 +215,16 @@
 {/if}
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceList invoices={invoices} q={filterDraft.q} onSearch={setSearch} />
+  <MobileInvoiceList
+    invoices={invoices}
+    q={filterDraft.q}
+    onSearch={setSearch}
+    filters={serverFilters}
+    suppliers={suppliers}
+    pagination={pagination}
+    onFilter={patchFilters}
+    onLoadMore={loadMoreMobile}
+  />
 </div>
 
 <div class="hidden md:block p-6">

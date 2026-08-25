@@ -1,8 +1,14 @@
 <script lang="ts">
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { fmtEur } from '$lib/formatters';
-  import { locale, t } from '$lib/i18n';
+  import { locale, t, tcat, ti } from '$lib/i18n';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
+  import FileDown from '@lucide/svelte/icons/file-down';
+  import {
+    currentMonthRange,
+    invoiceFilterParams,
+    type InvoiceFilters,
+  } from '$lib/invoice-filters';
 
   interface Invoice {
     id: number;
@@ -15,35 +21,80 @@
     line_items?: unknown[];
   }
 
+  interface SupplierOption {
+    id: number;
+    name: string;
+    category: string | null;
+  }
+
   let {
     invoices,
     q,
     onSearch,
+    filters,
+    suppliers = [],
+    pagination,
+    onFilter,
+    onLoadMore,
   }: {
     invoices: Invoice[];
     q: string;
     onSearch: (value: string) => void;
+    filters: InvoiceFilters;
+    suppliers?: SupplierOption[];
+    pagination: { page: number; pageSize: number; total: number; totalPages: number };
+    onFilter: (patch: Partial<InvoiceFilters>) => void;
+    onLoadMore: () => void;
     } = $props();
 
-  let activeFilter = $state('month');
+  let supplierSheetOpen = $state(false);
+  let categorySheetOpen = $state(false);
 
-  const filters = [
-    { id: 'month', labelKey: 'minv.filter.month' },
-    { id: 'pending', labelKey: 'minv.filter.pending' },
-    { id: 'overdue', labelKey: 'minv.filter.overdue' },
-    { id: 'supplier', labelKey: 'minv.filter.supplier' },
-    { id: 'category', labelKey: 'minv.filter.category' },
-  ];
+  const monthRange = currentMonthRange();
+  const monthActive = $derived(filters.date_from === monthRange.from && filters.date_to === monthRange.to);
+  const categories = $derived([...new Set(suppliers.map(s => s.category).filter((c): c is string => !!c))]);
 
-  const filtered = $derived.by(() => {
-    let list = invoices;
-    if (activeFilter === 'pending') {
-      list = list.filter(inv => inv.status === 'pending');
-    } else if (activeFilter === 'overdue') {
-      list = list.filter(inv => inv.status === 'overdue');
+  function toggleMonth() {
+    onFilter(monthActive
+      ? { date_from: '', date_to: '' }
+      : { date_from: monthRange.from, date_to: monthRange.to });
+  }
+
+  function toggleStatus(status: string) {
+    onFilter({ status: filters.status === status ? '' : status });
+  }
+
+  function pickSupplier(id: string | null) {
+    supplierSheetOpen = false;
+    onFilter({ supplier_id: id ?? '' });
+  }
+
+  function pickCategory(cat: string | null) {
+    categorySheetOpen = false;
+    onFilter({ category: cat ?? '' });
+  }
+
+  function chipClass(active: boolean) {
+    return active ? 'chip active' : 'chip';
+  }
+
+  const filterKey = $derived(invoiceFilterParams(filters).toString());
+
+  let acc = $state<{ key: string; page: number; items: Invoice[] }>({ key: '', page: 0, items: [] });
+
+  $effect(() => {
+    const key = filterKey;
+    const page = pagination.page;
+    const items = invoices;
+    if (key === acc.key && page === acc.page + 1) {
+      acc = { key, page, items: [...acc.items, ...items] };
+    } else if (key !== acc.key || page !== acc.page) {
+      acc = { key, page, items };
     }
-    return list;
   });
+
+  const shown = $derived(acc.page > 0 && acc.key === filterKey ? acc.items : invoices);
+  const hasMore = $derived(pagination.page < pagination.totalPages);
 
   const grouped = $derived.by(() => {
     const today = new Date();
@@ -52,7 +103,7 @@
     yesterday.setDate(yesterday.getDate() - 1);
 
     const groups: Map<string, Invoice[]> = new Map();
-    for (const inv of filtered) {
+    for (const inv of shown) {
       const d = inv.invoice_date ? new Date(inv.invoice_date) : null;
       let label = $t('misc.noDate');
       if (d) {
@@ -90,13 +141,98 @@
   </div>
 
   <ScrollStrip label={$t('inv.filterLabel')} extraStyle="flex-shrink:0;">
-    {#each filters as f}
-      <button
-        class="chip {activeFilter === f.id ? 'active' : ''}"
-        onclick={() => activeFilter = f.id}
-      >{$t(f.labelKey)}</button>
-    {/each}
+    <button
+      class={chipClass(monthActive)}
+      aria-pressed={monthActive}
+      onclick={toggleMonth}
+    >{$t('minv.filter.month')}</button>
+    <button
+      class={chipClass(filters.status === 'pending')}
+      aria-pressed={filters.status === 'pending'}
+      onclick={() => toggleStatus('pending')}
+    >{$t('minv.filter.pending')}</button>
+    <button
+      class={chipClass(filters.status === 'overdue')}
+      aria-pressed={filters.status === 'overdue'}
+      onclick={() => toggleStatus('overdue')}
+    >{$t('minv.filter.overdue')}</button>
+    <button
+      class={chipClass(filters.supplier_id !== '')}
+      aria-pressed={filters.supplier_id !== ''}
+      aria-haspopup="dialog"
+      onclick={() => supplierSheetOpen = true}
+    >{$t('minv.filter.supplier')}</button>
+    <button
+      class={chipClass(filters.category !== '')}
+      aria-pressed={filters.category !== ''}
+      aria-haspopup="dialog"
+      onclick={() => categorySheetOpen = true}
+    >{$t('minv.filter.category')}</button>
+    <a class="chip" href="/invoices/export" style="gap: 6px;">
+      <FileDown size={13} />
+      {$t('inv.export')}
+    </a>
   </ScrollStrip>
+
+  {#if supplierSheetOpen}
+    <button
+      type="button"
+      class="filter-sheet-backdrop"
+      aria-label={$t('minv.sheet.close')}
+      onclick={() => supplierSheetOpen = false}
+    ></button>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('minv.sheet.supplierTitle')}>
+      <div class="filter-sheet-head">
+        <span class="body-strong">{$t('minv.sheet.supplierTitle')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => supplierSheetOpen = false}>{$t('minv.sheet.close')}</button>
+      </div>
+      <div class="filter-sheet-list">
+        <button type="button" class="filter-sheet-option" aria-pressed={!filters.supplier_id} onclick={() => pickSupplier(null)}>
+          <span>{$t('inv.filter.all')}</span>
+        </button>
+        {#each suppliers as s}
+          <button
+            type="button"
+            class="filter-sheet-option"
+            aria-pressed={filters.supplier_id === String(s.id)}
+            onclick={() => pickSupplier(filters.supplier_id === String(s.id) ? null : String(s.id))}
+          >
+            <span>{s.name}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
+  {#if categorySheetOpen}
+    <button
+      type="button"
+      class="filter-sheet-backdrop"
+      aria-label={$t('minv.sheet.close')}
+      onclick={() => categorySheetOpen = false}
+    ></button>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('minv.sheet.categoryTitle')}>
+      <div class="filter-sheet-head">
+        <span class="body-strong">{$t('minv.sheet.categoryTitle')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => categorySheetOpen = false}>{$t('minv.sheet.close')}</button>
+      </div>
+      <div class="filter-sheet-list">
+        <button type="button" class="filter-sheet-option" aria-pressed={!filters.category} onclick={() => pickCategory(null)}>
+          <span>{$t('minv.sheet.allCategories')}</span>
+        </button>
+        {#each categories as cat}
+          <button
+            type="button"
+            class="filter-sheet-option"
+            aria-pressed={filters.category === cat}
+            onclick={() => pickCategory(filters.category === cat ? null : cat)}
+          >
+            <span>{$tcat(cat)}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <div style="flex: 1; overflow: auto; padding-bottom: 24px;">
     {#if grouped.length === 0}
@@ -112,7 +248,7 @@
             text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500;
           ">{label}</div>
           <div style="padding: 0 18px; display: flex; flex-direction: column; gap: 8px;">
-            {#each group as inv}
+            {#each group as inv (inv.id)}
               <a href="/invoice/{inv.id}" style="
                 display: flex; align-items: center; gap: 12px;
                 padding: 12px; border-radius: 10px;
@@ -156,6 +292,20 @@
           </div>
         </div>
       {/each}
+
+      {#if hasMore}
+        <div style="padding: 4px 18px 0;">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            style="width: 100%; justify-content: center;"
+            onclick={onLoadMore}
+          >{$t('minv.loadMore')}</button>
+        </div>
+      {/if}
+      <div style="padding: 10px 18px 0; text-align: center; font-size: 13px; color: var(--mep-fg-3);">
+        {$ti('minv.showing', { shown: shown.length, total: pagination.total })}
+      </div>
     {/if}
   </div>
 </div>
