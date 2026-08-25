@@ -81,7 +81,7 @@
 <div class="flex md:hidden" style="height:100%;flex-direction:column;overflow:hidden;">
 
   <div style="padding:14px 18px 0;flex-shrink:0;">
-    <a href="/suppliers" style="display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--mep-fg-3);text-decoration:none;margin-bottom:12px;">
+    <a href="/suppliers" style="display:inline-flex;align-items:center;min-height:44px;gap:4px;font-size:13px;color:var(--mep-fg-3);text-decoration:none;">
       <ArrowLeft size={14} /> {$t('sup.back')}
     </a>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
@@ -101,7 +101,7 @@
           {/if}
         </div>
       </div>
-      <button class="btn btn-secondary" style="height:32px;font-size:12px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;"
+      <button class="btn btn-secondary" style="font-size:12px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;"
         onclick={() => { editing = !editing; confirmDelete = false; }}>
         <Pencil size={12} /> {$t('action.edit')}
       </button>
@@ -141,8 +141,8 @@
             <input id="m-edit-phone" class="input" name="contact_phone" type="tel" value={s.contactPhone ?? ''} style="width:100%;" />
           </div>
           <div style="display:flex;gap:8px;margin-top:4px;">
-            <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">{$t('set.save')}</button>
-            <button type="button" class="btn" style="height:32px;font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
+            <button type="submit" class="btn btn-primary" style="font-size:12.5px;">{$t('set.save')}</button>
+            <button type="button" class="btn" style="font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
           </div>
         </form>
       </div>
@@ -151,17 +151,17 @@
     <div class="card" style="margin-bottom:12px;padding:10px 14px;display:flex;align-items:center;">
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend)}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.totalSpend')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.totalSpend')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{data.invoices.length}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.kpiInvoices')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.kpiInvoices')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.3px;">{fmtEur(pendingAmt)}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.pending')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.pending')}</div>
       </div>
     </div>
 
@@ -174,17 +174,11 @@
       ] as tabItem}
         <button
           onclick={() => tab = tabItem.id as typeof tab}
-          style="
-            border:0;height:30px;padding:0 12px;border-radius:15px;white-space:nowrap;cursor:pointer;font-family:inherit;
-            background:{tab === tabItem.id ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-            color:{tab === tabItem.id ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-            font-size:12px;font-weight:500;
-            box-shadow:{tab === tabItem.id ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-            display:inline-flex;align-items:center;gap:5px;
-          ">
+          class="chip {tab === tabItem.id ? 'active' : ''}"
+          style="gap:5px;">
           {tabItem.label}
           {#if tabItem.count !== undefined}
-            <span class="num" style="font-size:10px;font-weight:600;">{tabItem.count}</span>
+            <span class="num" style="font-size:11px;font-weight:600;">{tabItem.count}</span>
           {/if}
         </button>
       {/each}
@@ -204,13 +198,13 @@
             {#if s.contactEmail}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <Mail size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <a href="mailto:{s.contactEmail}" style="color:var(--mep-fg-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.contactEmail}</a>
+                <a href="mailto:{s.contactEmail}" style="color:var(--mep-fg-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex;align-items:center;min-height:44px;">{s.contactEmail}</a>
               </div>
             {/if}
             {#if s.contactPhone}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <Phone size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <a href="tel:{s.contactPhone}" style="color:var(--mep-fg-2);text-decoration:none;">{s.contactPhone}</a>
+                <a href="tel:{s.contactPhone}" style="color:var(--mep-fg-2);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;">{s.contactPhone}</a>
               </div>
             {/if}
             {#if s.cif}
@@ -260,7 +254,7 @@
                 <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
               </div>
               <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
-              <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
+              <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
             </a>
           {/each}
         </div>
@@ -276,7 +270,7 @@
               display:flex;align-items:center;justify-content:center;flex-direction:column;
             ">
               <span style="font-size:13px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
-              <span style="font-size:8px;color:var(--mep-fg-3);">/100</span>
+              <span style="font-size:11px;color:var(--mep-fg-3);">/100</span>
             </div>
             <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
           </div>
@@ -288,7 +282,7 @@
             ] as kpi}
               <div style="padding:8px;background:var(--mep-surface-2);border-radius:8px;text-align:center;">
                 <div style="font-size:14px;font-weight:700;color:{getScoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
-                <div class="label" style="font-size:10px;margin-top:2px;">{kpi.label}</div>
+                <div class="label" style="margin-top:2px;">{kpi.label}</div>
               </div>
             {/each}
           </div>
@@ -314,7 +308,7 @@
               <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · ${$t('sup.dueShort')} ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
             </div>
             <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
-            <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
+            <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
           </a>
         {/each}
       {/if}
@@ -343,7 +337,7 @@
               </svg>
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
                 <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total)}</span>
-                <span style="font-size:9.5px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
+                <span style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:7px;width:100%;">
@@ -370,11 +364,11 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;">
               <div>
-                <div style="font-size:10px;color:var(--mep-fg-3);">{$t('sup.products.colSpend')}</div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colSpend')}</div>
                 <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalSpend != null ? fmtEur(prod.totalSpend) : '—'}</div>
               </div>
               <div>
-                <div style="font-size:10px;color:var(--mep-fg-3);">{$t('sup.products.colUnits')}</div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colUnits')}</div>
                 <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalQty != null ? prod.totalQty.toFixed(2) : '—'}</div>
               </div>
             </div>

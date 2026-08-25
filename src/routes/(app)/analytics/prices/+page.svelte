@@ -81,7 +81,7 @@
           placeholder={$t('prices.searchPlaceholder')} bind:value={search} />
       </div>
       <form method="get" action="/analytics/prices">
-        <select name="supplier_id" class="input" style="height:32px;font-size:12.5px;padding:0 8px;"
+        <select name="supplier_id" class="input" style="padding:0 8px;"
           onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.submit()}>
           <option value="">{$t('prices.allSuppliers')}</option>
           {#each data.suppliers as s}
@@ -184,17 +184,17 @@
               <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--mep-divider);display:flex;gap:16px;">
                 {#if item.prev_price !== null}
                   <div>
-                    <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.prevPrice')}</div>
+                    <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.prevPrice')}</div>
                     <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-top:2px;">{fmtPrice(item.prev_price)}</div>
                   </div>
                 {/if}
                 <div>
-                  <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.latestPrice')}</div>
+                  <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.latestPrice')}</div>
                   <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);margin-top:2px;">{fmtPrice(item.latest_price)}</div>
                 </div>
                 {#if pct !== null}
                   <div>
-                    <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.variation')}</div>
+                    <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;">{$t('prices.variation')}</div>
                     <div class="num" style="font-size:13px;font-weight:500;color:{chipFg(pct)};margin-top:2px;">
                       {arrow(pct)} {flat ? '0%' : Math.abs(pct).toFixed(1).replace('.',',') + '%'}
                     </div>

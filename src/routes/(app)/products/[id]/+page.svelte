@@ -47,39 +47,39 @@
     <form method="post" action="?/update" class="flex flex-col gap-3">
       <div class="grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="p-name">{$t('prod.new.name')}</label>
+          <label class="label text-fg-3" for="p-name">{$t('prod.new.name')}</label>
           <input id="p-name" name="canonicalName" required value={product.canonicalName}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
+            class="input" style="padding:0 8px;" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="p-cat">{$t('prod.new.category')}</label>
-          <select id="p-cat" name="category" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
+          <label class="label text-fg-3" for="p-cat">{$t('prod.new.category')}</label>
+          <select id="p-cat" name="category" class="input" style="padding:0 8px;">
             <option value="">—</option>
             {#each categories as c}<option value={c} selected={product.category === c}>{$tcat(c)}</option>{/each}
           </select>
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="p-unit">{$t('prod.new.unit')}</label>
+          <label class="label text-fg-3" for="p-unit">{$t('prod.new.unit')}</label>
           <input id="p-unit" name="canonicalUnit" value={product.canonicalUnit ?? ''}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder="kg" />
+            class="input" style="padding:0 8px;" placeholder="kg" />
         </div>
         <div></div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="p-pack">{$t('prod.detail.unitsPerPack')}</label>
+          <label class="label text-fg-3" for="p-pack">{$t('prod.detail.unitsPerPack')}</label>
           <input id="p-pack" name="unitsPerPack" type="number" step="any" min="0"
             value={product.unitsPerPack ?? ''}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder="10" />
+            class="input" style="padding:0 8px;" placeholder="10" />
         </div>
         <div class="flex flex-col gap-1">
-          <label class="label text-fg-3" style="font-size:10.5px;" for="p-base">{$t('prod.detail.baseUnit')}</label>
+          <label class="label text-fg-3" for="p-base">{$t('prod.detail.baseUnit')}</label>
           <input id="p-base" name="baseUnit" value={product.baseUnit ?? ''}
-            class="input" style="height:32px;font-size:12.5px;padding:0 8px;" placeholder="kg" />
+            class="input" style="padding:0 8px;" placeholder="kg" />
         </div>
       </div>
       {#if form?.error}
         <p class="body text-neg" style="font-size:12px;">{form.error}</p>
       {/if}
-      <button type="submit" class="btn btn-primary self-start" style="height:32px;font-size:12.5px;">
+      <button type="submit" class="btn btn-primary self-start" style="font-size:12.5px;">
         {$t('prod.detail.save')}
       </button>
     </form>
@@ -166,7 +166,7 @@
 
   <SectionCard title={$t('prod.detail.dangerZone')}>
     <form id="delete-product-form" method="post" action="?/delete">
-      <button type="button" class="btn btn-ghost text-neg" style="height:32px;font-size:12.5px;gap:5px;"
+      <button type="button" class="btn btn-ghost text-neg" style="font-size:12.5px;gap:5px;"
         disabled={!canDelete}
         title={canDelete ? '' : $t('prod.detail.deleteBlockedHint')}
         onclick={() => (confirmDeleteOpen = true)}>

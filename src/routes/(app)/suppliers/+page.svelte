@@ -130,7 +130,7 @@
     {#snippet filters()}
       <div style="position:relative;">
         <select class="btn btn-secondary"
-          style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
+          style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
           aria-label={$t('sup.filterAllCategories')}
           value={data.category}
           onchange={(e) => applyFilters({ category: e.currentTarget.value || null })}>
@@ -139,12 +139,12 @@
             <option value={cat}>{$tcat(cat)}</option>
           {/each}
         </select>
-        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
       </div>
 
       <div style="position:relative;">
         <select class="btn btn-secondary"
-          style="height:32px;font-size:12.5px;appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
+          style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
           aria-label={$t('sup.sort.label')}
           value={data.sort}
           onchange={(e) => applyFilters({ sort: e.currentTarget.value })}>
@@ -152,12 +152,12 @@
             <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
           {/each}
         </select>
-        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:10px;">▾</span>
+        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
       </div>
 
       <button type="button" class="btn btn-secondary max-[1050px]:hidden"
         aria-pressed={data.uncategorizedOnly}
-        style="height:32px;font-size:12.5px;white-space:nowrap;flex-shrink:0;
+        style="font-size:12.5px;white-space:nowrap;flex-shrink:0;
           border-color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-border)'};
           color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};"
         onclick={() => applyFilters({ uncategorized: data.uncategorizedOnly ? null : '1' })}>
@@ -166,7 +166,7 @@
 
       <div style="flex:1;"></div>
       <button class="btn btn-secondary"
-        style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
+        style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
         <Plus size={13} /> {$t('dsup.addSupplier')}
       </button>
     {/snippet}
@@ -215,7 +215,7 @@
                         overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.name}</span>
                       {#if isNew(s.createdAt)}
                         <span style="
-                          flex-shrink:0;font-size:9px;font-weight:700;
+                          flex-shrink:0;font-size:11px;font-weight:700;
                           background:var(--mep-acc-soft);color:var(--mep-acc);
                           padding:1px 5px;border-radius:999px;letter-spacing:0.03em;
                         ">{$t('dsup.newBadge')}</span>
