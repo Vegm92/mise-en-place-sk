@@ -27,7 +27,7 @@ describe('budgets mobile collapses zero-activity categories (issue #653)', () =>
 	});
 
 	it('extracts the mobile card into a budgetCard snippet', () => {
-		expect(MOBILE).toMatch(/\{#snippet budgetCard\(r\)\}/);
+		expect(MOBILE).toMatch(/\{#snippet budgetCard\(r[):]/);
 		expect(MOBILE).toMatch(/\{#each activeRows as r/);
 		expect(MOBILE).toMatch(/\{@render budgetCard\(r\)\}/);
 	});
