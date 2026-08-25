@@ -29,7 +29,7 @@ Sentry.init({
 	dsn: SENTRY_DSN,
 	release: SENTRY_RELEASE,
 	environment: NODE_ENV === 'production' ? 'production' : 'development',
-	tracesSampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
+	tracesSampleRate: 1.0,
 	sendDefaultPii: false,
 	integrations: integrations => integrations.filter(i => i.name !== 'Http'),
 	beforeSend(event) {
@@ -163,6 +163,10 @@ const appHandle: Handle = async ({ event, resolve }) => {
 
 	event.locals.accessApproved = isAdminUser(user) || accessOpen || userApproved;
 	event.locals.entitlements = entitlementsFor(event.locals.restaurantId);
+
+	if (user) {
+		Sentry.getCurrentScope().setUser({ id: user.id });
+	}
 
 	if (event.locals.restaurantId) {
 		Sentry.getCurrentScope().setTag('restaurantId', event.locals.restaurantId);
