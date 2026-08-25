@@ -6,7 +6,7 @@ import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotificat
 import { trackEvent } from '$lib/server/events';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
+import { invoiceStatusFilter, markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { periodToDate } from '$lib/constants';
@@ -45,7 +45,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const offset     = (page - 1) * PAGE_SIZE;
 
 		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
-		if (status)       conditions.push(eq(invoices.status, status));
+		const statusFilter = invoiceStatusFilter(status);
+		if (statusFilter) conditions.push(statusFilter);
 		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
 		if (category)     conditions.push(eq(suppliers.category, category));
 		if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));

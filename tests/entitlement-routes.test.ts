@@ -67,7 +67,12 @@ describe('the gate is wired into the handle sequence', () => {
 	});
 
 	it('reads the policy from event.route.id rather than a pathname prefix', () => {
-		expect(hooks).toContain('policyFor(event.route.id)');
+		const gate = fs.readFileSync(
+			path.join(process.cwd(), 'src', 'lib', 'server', 'entitlements.ts'),
+			'utf8'
+		);
+
+		expect(gate).toContain('policyFor(event.route.id)');
 	});
 });
 

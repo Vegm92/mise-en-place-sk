@@ -40,7 +40,7 @@ first, bilingual (es/en). WhatsApp is a second ingestion channel; XML e-invoices
 | `docs/03_features/*` | One specification per feature (rules, transitions, dependencies, validation) | Feature work — the contract for a feature |
 | `docs/04_engineering/*` | Coding conventions, testing, security, DB/API change procedures, dependency policy, deployment | Engineering procedure |
 | `docs/05_operations/*` | Background jobs, monitoring, incident response, troubleshooting | Ops concerns |
-| `docs/06_decisions/README.md` + `docs/06_decisions/**/ADR-*.md` | Architecture Decision Records (why the code is shaped this way) | Changing an established decision; next number is 023 |
+| `docs/06_decisions/README.md` + `docs/06_decisions/**/ADR-*.md` | Architecture Decision Records (why the code is shaped this way) | Changing an established decision; next number is 026 |
 | Per-subsystem `## Code notes` sections (`docs/03_features/` + `docs/04_engineering/`) | Line-by-line "how the code works" notes for most files | Reading any specific file |
 | `DEPLOYMENT.md` | Environment variables + deployment runbook | Deploy / env questions |
 | `README.md` | Product overview + getting started | First contact |
@@ -143,8 +143,8 @@ gates above. CI runs them all on every PR.
 
 ## Conventions at a glance
 
-- Drizzle schema is split across `src/lib/server/schema/{core,extensions,auth}.ts`,
-  re-exported by `schema.ts`. All business tables carry `restaurant_id`.
+- Drizzle schema is one file, `src/lib/server/schema.ts` (40 tables). All
+  business tables carry `restaurant_id`.
 - Statuses are `text` columns with app-level defaults — there are NO Postgres enums.
 - No inline comments in code — explanatory notes live in the per-subsystem `## Code notes` sections
   (enforced by `lint:no-comments`).

@@ -88,6 +88,9 @@ export default defineConfig(({ mode }) => {
 		test: {
 			include: ['tests/**/*.test.ts'],
 			globalSetup: ['tests/setup/global-setup.ts'],
+			// Default reporter first; the skip summary prints below its
+			// "Test Files … skipped" line, where a developer actually looks.
+			reporters: ['default', './tests/setup/skip-summary-reporter.ts'],
 			environment: 'node',
 			globals: true,
 			coverage: {

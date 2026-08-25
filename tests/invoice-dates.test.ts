@@ -82,6 +82,7 @@ function fakeItem(): BatchItem {
 		extractedData: null,
 		conversionNotes: null,
 		extractError: null,
+		queuedAt: null,
 	};
 }
 

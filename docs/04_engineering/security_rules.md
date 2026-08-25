@@ -95,7 +95,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 ## Code notes
 
-### `src/routes/api/account-delete/+server.ts`
+### `src/routes/api/user/delete/+server.ts`
 
 **`function deleteTenantFiles`**
 
@@ -107,13 +107,13 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 - Cancel live Stripe subscriptions BEFORE deleting the rows linking the Stripe customer to the tenant — otherwise the card keeps charging and support can't trace it (#246). Immediate cancellation (GDPR, not cancel-at-period-end).
 - GDPR must reach the files, not just rows (#289): once the restaurant row goes, the cascade drops every pointer to the uploaded PDFs and nothing could find them again. Delete files first, best-effort — a storage hiccup must not block deletion. All row deletes commit atomically (clean retry state). Delete `users` + clear session cookies last — keeps the endpoint retryable; this is what ends the session.
 
-### `src/routes/api/account-export/+server.ts`
+### `src/routes/api/user/export/+server.ts`
 
 **`const GET`**
 
 - Heavy multi-table read — cap per user, key `account-export:${user.id}`.
 
-### `src/routes/(auth)/onboarding/consent/+server.ts`
+### `src/lib/server/consent.ts`
 
 **`const POLICY_VERSION`**
 
@@ -147,13 +147,13 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 - Public, provider-agnostic slot API (#454): waits for a global Gemini slot, returns a `release()`; the worker wraps the model call in acquire → try → finally release. Redis path first (distributed), in-process otherwise. A grant is idempotent to release — a `released` flag guards the timeout/finally double-release fixed in #455.
 - Redis semaphore = ZSET of live leases keyed by per-acquire token, scored by expiry; the acquire Lua script is atomic (sweep expired with ZREMRANGEBYSCORE, ZADD if ZCARD < max, else 0). Lease = GEMINI_TIMEOUT_MS + 60 s (floor 120 s), the dead-worker safety net. Caller polls with jitter up to SLOT_MAX_WAIT_MS, then proceeds slot-less rather than stalling past pg-boss expiry (fail-open; the lease still bounds the blast radius).
-### `src/lib/server/security/safe-redirect.ts`
+### `src/lib/server/safe-redirect.ts`
 
 **`function safeRedirect`**
 
 - Validates a same-origin relative redirect target; rejects absolute URLs, protocol-relative (//), and backslash variants.
 
-### `src/lib/server/security/tenant.ts`
+### `src/lib/server/tenant.ts`
 
 **`function forTenant`**
 
@@ -163,7 +163,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 - Builds a WHERE condition that always scopes to this tenant.
 
-### `src/lib/server/sentry-scrub.ts`
+### `src/lib/sentry-scrub.ts`
 
 **`const SENSITIVE_PARAMS`**
 

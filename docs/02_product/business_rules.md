@@ -8,7 +8,7 @@ with an ADR if structural. Feature-level detail lives in `docs/03_features/`.
 
 | Rule | Value | Where |
 |---|---|---|
-| Uploaded types | PDF/JPG/PNG; `.xml` not allowed via web upload (e-invoices enter via WhatsApp/media or direct parse) | `sessions.ts` |
+| Uploaded types | PDF/JPG/JPEG/PNG/XML — one list, `SUPPORTED_UPLOAD_EXTENSIONS` | `src/lib/upload-formats.ts` |
 | Max file size | 20 MB | `sessions.ts` |
 | Validation | extension whitelist + magic-byte check | `sessions.ts` |
 | Upload rate limit | `upload:{rid}` 10/min | `(app)/+page.server.ts` |

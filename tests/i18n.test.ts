@@ -162,9 +162,11 @@ describe('locale key parity (es vs en)', () => {
     'sup.insufficient', 'sup.insufficient.desc',
     'sup.products.title', 'sup.products.desc',
     'sup.conversions.title', 'sup.conversions.desc',
-    'tour.step1.title', 'tour.step1.body',
-    'tour.step2.title', 'tour.step2.body', 'tour.step2.next',
+    // The tour renders the help-centre copy (issue #569); only its own chrome
+    // keys are its own.
+    'tour.next.review', 'tour.next.finish',
     'tour.complete.title', 'tour.complete.body', 'tour.complete.btn',
+    'tour.nudge.title', 'tour.nudge.body', 'tour.nudge.accept', 'tour.nudge.dismiss',
   ];
 
   it('resolves every sampled key in both locales (no missing translations)', () => {

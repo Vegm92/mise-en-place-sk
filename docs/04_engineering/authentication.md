@@ -4,7 +4,7 @@ How sign-in, sign-up, onboarding consent and password recovery are implemented, 
 
 ## Auth structure
 
-Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAdapter` over `src/lib/server/schema/auth.ts` (users, accounts, sessions, verification_tokens). The sessions table is not the live store — the JWT cookie is self-contained; the tables exist to satisfy the adapter contract and the verification-token flow.
+Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAdapter` over the auth tables in `src/lib/server/schema.ts` (users, accounts, sessions, verification_tokens). The sessions table is not the live store — the JWT cookie is self-contained; the tables exist to satisfy the adapter contract and the verification-token flow.
 
 - **Providers** — Credentials (email/password via `verifyCredentials`, `auth-credentials.ts`) plus Google OAuth (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, configured in Google Cloud Console, not a Supabase dashboard). Email/password sign-in and sign-up go through custom routes (`login`/`signup` `+page.server.ts`) that apply app-level rate limiting and mint the session cookie themselves (`auth-session.ts#issueSessionCookie`); Google OAuth flows through Auth.js's own `/api/auth/*` callbacks. Config lives in `src/lib/server/auth.ts`.
 - **Admin seeding** — `seedAdminUser()` (`auth-seed.ts`) creates the admin user, a default restaurant and the `user_restaurants` link on first boot; no external Admin API.

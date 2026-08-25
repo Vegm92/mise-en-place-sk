@@ -14,6 +14,7 @@ import { processNormalizeJob, type NormalizeJobData } from './lib/server/product
 import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
+import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker-heartbeat.js';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
@@ -59,6 +60,9 @@ await boss.start();
 await createQueuesWithDeadLetters(boss);
 console.info('[worker] pg-boss started');
 
+const stopHeartbeat = startWorkerHeartbeat();
+console.info('[worker] Heartbeat registered — liveness visible on /admin/health');
+
 const EXTRACTION_BATCH_SIZE = Math.max(1, MAX_CONCURRENT_EXTRACTIONS);
 await boss.work(
 	EXTRACTION_QUEUE,
@@ -75,6 +79,7 @@ await boss.work(
 				),
 			),
 		);
+		await recordWorkerHeartbeat(jobs.length);
 	},
 );
 console.info(
@@ -92,6 +97,7 @@ await boss.work(
 				() => processNormalizeJob(job.data),
 			);
 		}
+		await recordWorkerHeartbeat(jobs.length);
 	},
 );
 console.info(`[worker] Listening for "${NORMALIZE_QUEUE}" jobs`);
@@ -123,6 +129,7 @@ await registerScheduledJobs(boss);
 
 async function shutdown() {
 	console.info('[worker] Shutting down…');
+	stopHeartbeat();
 	await boss.stop();
 	process.exit(0);
 }

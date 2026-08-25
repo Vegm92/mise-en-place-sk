@@ -23,8 +23,7 @@ enforced by the lint scripts listed, which run in CI.
 
 - Server-only code lives in `src/lib/server/`; shared client code in
   `src/lib/`; UI in `src/lib/components/{mep,mobile,desktop,waitlist,ui,admin}`.
-- Database schema is split by area in
-  `src/lib/server/schema/{core,extensions,auth}.ts`, re-exported by `schema.ts`.
+- Database schema lives in one file, `src/lib/server/schema.ts`.
   Business tables carry `restaurant_id`.
 - Route groups: `(app)` authenticated shell, `(admin)` ops shell, top-level
   public pages. Server logic lives in `+page.server.ts`/`+server.ts`, not in
@@ -210,6 +209,14 @@ These comments were deliberately left in the code because a tool reads them.
 - Pluralizing translator: picks the right plural form for `count` and interpolates the count as `{n}`. The optional `.zero` form lets a language phrase the empty case naturally ("No invoices" / "Sin facturas"); when absent, count 0 falls back to the `.other` form.
 
 ### `src/lib/status.ts`
+
+**`const STORED_INVOICE_STATUSES` / `const DERIVED_INVOICE_STATUSES`**
+
+- The invoice status vocabulary, split by where a value comes from. `pending | accepted | rejected | paid` are what `invoices.status` holds; `overdue` is computed at read time and never written. `DISPLAY_INVOICE_STATUSES` is the union the UI can be asked to render, and `InvoiceStatus` (the stored union) is re-exported by `invoice-status.ts` rather than redeclared — three disagreeing copies of this union is what issue #520 found.
+
+**`function badgeClass` / `function statusKey`**
+
+- Total over `DISPLAY_INVOICE_STATUSES`; an unrecognised value gets a neutral badge and renders its raw text rather than being painted as confirmed. `tests/invoice-status-vocabulary.test.ts` asserts every member has a class in app.css and a key in both locales.
 
 **`function confColor`**
 
