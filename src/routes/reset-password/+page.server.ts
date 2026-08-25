@@ -6,8 +6,7 @@ import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { consumeVerificationToken } from '$lib/server/verification-token';
-
-const MIN_PASSWORD_LENGTH = 8;
+import { passwordPolicyError } from '$lib/server/password-policy';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const email = url.searchParams.get('email')?.trim().toLowerCase() ?? '';
@@ -24,7 +23,8 @@ export const actions: Actions = {
 		const confirm  = form.get('confirm') as string;
 
 		if (!email || !token) return fail(400, { error: 'expired' });
-		if (!password || password.length < MIN_PASSWORD_LENGTH) return fail(422, { error: 'tooShort' });
+		const policyError = passwordPolicyError(password ?? '');
+		if (policyError) return fail(422, { error: policyError });
 		if (password !== confirm) return fail(422, { error: 'mismatch' });
 
 		const valid = await consumeVerificationToken(`reset-password:${email}`, token);

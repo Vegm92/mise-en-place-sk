@@ -26,7 +26,7 @@ const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null a
 vi.mock('../src/lib/server/db', () => {
 	const chain = () => {
 		const p: Record<string, unknown> = {};
-		for (const m of ['from', 'where', 'limit', 'update', 'set', 'insert', 'values', 'onConflictDoUpdate', 'returning']) p[m] = () => p;
+		for (const m of ['from', 'leftJoin', 'where', 'limit', 'update', 'set', 'insert', 'values', 'onConflictDoUpdate', 'returning']) p[m] = () => p;
 		p.then = (res: (v: unknown) => unknown) =>
 			Promise.resolve(subscriptionRow.value ? [subscriptionRow.value] : []).then(res);
 		return p;

@@ -1,4 +1,5 @@
-import type { PageServerLoad } from './$types';
+import { error, redirect } from '@sveltejs/kit';
+import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
@@ -190,10 +191,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})),
 		};
 
+		const filteredList = listParams.badge
+			? supplierList.filter(s => s.badge === listParams.badge)
+			: supplierList;
+
 		return {
 			title: 'nav.suppliers',
 			subtitle: 'All active suppliers',
-			suppliers: supplierList,
+			suppliers: filteredList,
 			categories: orderedCategories,
 			categoryCounts,
 			period,
@@ -202,7 +207,22 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			search: listParams.search,
 			category: listParams.category,
 			uncategorizedOnly: listParams.uncategorizedOnly,
+			badge: listParams.badge,
 		};
 	});
 };
 
+export const actions: Actions = {
+	create: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
+		const data = await request.formData();
+		const name = String(data.get('name') ?? '').trim();
+		const category = String(data.get('category') ?? '');
+		if (!name) error(400, 'Name is required');
+		const cat = VALID_CATEGORIES.includes(category) ? category : null;
+		const [row] = await db.insert(suppliers)
+			.values({ restaurantId: rid, name, category: cat })
+			.returning({ id: suppliers.id });
+		redirect(303, `/suppliers/${row.id}`);
+	},
+};

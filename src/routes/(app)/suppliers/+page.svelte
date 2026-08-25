@@ -28,7 +28,7 @@
   const totalMonthInvoices = $derived(data.suppliers.reduce((s, x) => s + (x.month_invoice_count ?? 0), 0));
   const unassigned         = $derived(data.suppliers.filter(s => !s.category || s.category === 'Other').length);
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
-  const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly));
+  const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly || data.badge));
 
   const unassignedSub = $derived.by(() => {
     if (unassigned === 0) return $t('dsup.allAssigned');
@@ -36,15 +36,17 @@
     return $ti('dsup.nSuppliers', { n: unassigned });
   });
 
-  let view = $state<'list' | 'chart'>('list');
+  let view    = $state<'list' | 'chart'>('list');
+  let showAdd = $state(false);
+
   const activeFilterCount = $derived(
-    (data.search ? 1 : 0) + (data.category ? 1 : 0) + (data.uncategorizedOnly ? 1 : 0)
+    (data.search ? 1 : 0) + (data.category ? 1 : 0) + (data.uncategorizedOnly ? 1 : 0) + (data.badge ? 1 : 0)
   );
   let filtersOpen = $state(untrack(() => hasFilters));
 
   function clearFilters() {
     search = '';
-    applyFilters({ q: null, category: null, uncategorized: null });
+    applyFilters({ q: null, category: null, uncategorized: null, badge: null });
   }
 
   function listUrl(patch: Record<string, string | null>) {
@@ -166,7 +168,8 @@
       <div style="flex:1;"></div>
       <PeriodPills active={data.period} pills={periodPills} />
       <button class="btn btn-secondary"
-        style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;opacity:0.5;cursor:not-allowed;" disabled>
+        style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
+        onclick={() => showAdd = true}>
         <Plus size={13} /> {$t('dsup.addSupplier')}
       </button>
 
@@ -196,6 +199,19 @@
               <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
             </div>
 
+            <div style="position:relative;">
+              <select class="btn btn-secondary"
+                style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
+                aria-label={$t('dsup.activityAll')}
+                value={data.badge}
+                onchange={(e) => applyFilters({ badge: e.currentTarget.value || null })}>
+                <option value="">{$t('dsup.activityAll')}</option>
+                <option value="overdue">{$t('status.overdue')}</option>
+                <option value="due_soon">{$t('status.due_soon')}</option>
+                <option value="paid_up">{$t('status.paid')}</option>
+              </select>
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+            </div>
             <div style="position:relative;">
               <select class="btn btn-secondary"
                 style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
@@ -316,3 +332,36 @@
     {/snippet}
   </ListPageTemplate>
 </div>
+
+{#if showAdd}
+  <div style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);"
+    role="dialog" aria-modal="true" tabindex="-1"
+    onclick={() => showAdd = false}
+    onkeydown={(e) => { if (e.key === 'Escape') showAdd = false; }}>
+    <div class="card" style="width:360px;padding:24px;display:flex;flex-direction:column;gap:16px;"
+      role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
+      <p class="body-strong" style="font-size:16px;margin:0;">{$t('dsup.addSupplier')}</p>
+      <form method="POST" action="?/create" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label class="label" for="sup-name">{$t('tbl.supplier')}</label>
+          <input id="sup-name" name="name" class="input" required
+            style="height:36px;" />
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label class="label" for="sup-cat">{$t('sup.field.category')}</label>
+          <select id="sup-cat" name="category" class="input" style="height:36px;">
+            <option value="">—</option>
+            {#each data.categories as cat}
+              <option value={cat}>{$tcat(cat)}</option>
+            {/each}
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+          <button type="button" class="btn btn-secondary" style="height:34px;font-size:13px;"
+            onclick={() => showAdd = false}>{$t('action.cancel')}</button>
+          <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;">{$t('set.save')}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}

@@ -6,13 +6,14 @@ import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
-import { applyTierSettings, getEntitlements } from '$lib/server/billing';
+import { applyTierSettings, TIERS } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { verifyCredentials } from '$lib/server/auth-credentials';
+import { passwordPolicyError } from '$lib/server/password-policy';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
@@ -31,8 +32,6 @@ import {
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
 const RESTAURANT_NAME_KEY = 'restaurant_name';
-
-const MIN_PASSWORD_LENGTH = 8;
 
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
 
@@ -74,7 +73,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 				.where(eq(userRestaurants.userId, locals.user!.id))
 				.orderBy(asc(restaurants.name)),
-			getEntitlements(rid),
+			locals.entitlements(),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
 			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
 			db.select({ name: users.name, passwordHash: users.passwordHash, emailVerified: users.emailVerified })
@@ -84,7 +83,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			loadAlertPreferences(rid),
 		]);
 
-		const { features, maxLocations } = entitlements;
+		const features     = entitlements?.features     ?? TIERS.trial.features;
+		const maxLocations = entitlements?.maxLocations ?? TIERS.trial.maxLocations;
 
 		return {
 			title: 'nav.settings',
@@ -100,7 +100,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			},
 			restaurantName: restaurantRow[0]?.name ?? '',
 			canRenameRestaurant: membership[0]?.role === 'owner',
-			locations: locationRows,
+			locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 			multiLocation: features.multiLocation,
 			maxLocations,
 			activeRestaurantId: rid,
@@ -200,7 +200,9 @@ export const actions: Actions = {
 		const email = locals.user!.email;
 
 		if (!current || !next) return fail(422, { section: 'password', error: 'set.profile.err.passwordRequired' });
-		if (next.length < MIN_PASSWORD_LENGTH) return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
+		const policyError = passwordPolicyError(next);
+		if (policyError === 'tooShort') return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
+		if (policyError === 'tooLong') return fail(422, { section: 'password', error: 'set.profile.err.passwordLong' });
 		if (next !== confirm) return fail(422, { section: 'password', error: 'set.profile.err.passwordMismatch' });
 
 		if (!(await checkRateLimit(`password-change:${locals.user!.id}`, 5))) {
@@ -233,7 +235,9 @@ export const actions: Actions = {
 		if (!name) return fail(422, { section: 'location', error: 'set.locations.err.nameRequired' });
 		if (name.length > 120) return fail(422, { section: 'location', error: 'set.profile.err.restaurantTooLong' });
 
-		const { billingRestaurantId: billingRid, tier, features, maxLocations } = await getEntitlements(rid);
+		const entitlements = await locals.entitlements();
+		const { billingRestaurantId: billingRid, tier, features, maxLocations } = entitlements
+			?? { billingRestaurantId: rid, tier: 'trial' as const, features: TIERS.trial.features, maxLocations: TIERS.trial.maxLocations };
 		if (!features.multiLocation) {
 			return fail(403, { section: 'location', error: 'set.locations.err.notAvailable' });
 		}

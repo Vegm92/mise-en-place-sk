@@ -10,6 +10,7 @@ import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.
 import { annotateLineItems } from './products.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 import { getAccessState } from './billing.js';
+import { isLocationLocked } from './locations.js';
 import { recordDeadLetter } from './dead-letter.js';
 import { EXTRACTION_QUEUE } from './queue.js';
 import { acquireExtractionSlot } from './rate-limiter.js';
@@ -45,6 +46,12 @@ function classifyExtractionError(err: unknown): string {
 }
 
 async function claimExtractionAllowance(itemId: string, restaurantId: string): Promise<boolean> {
+	if (await isLocationLocked(restaurantId)) {
+		console.warn(`[worker] Location ${restaurantId} is outside its plan's allowance — refusing extraction`);
+		await markFailed(itemId, 'extract.err.locationLocked');
+		return false;
+	}
+
 	const access = await getAccessState(restaurantId);
 	if (!access.allowed) {
 		console.warn(`[worker] Subscription inactive for tenant ${restaurantId} (${access.status}) — refusing extraction`);

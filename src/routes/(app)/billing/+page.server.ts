@@ -1,6 +1,6 @@
 import { redirect, error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { stripe, billingRestaurantId, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, StaleCustomerError, TIERS, type PlanTier } from '$lib/server/billing';
+import { stripe, billingRestaurantId, countGroupLocations, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, StaleCustomerError, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
@@ -13,7 +13,10 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	await parent();
 
 	const rid = locals.restaurantId;
-	const billingTdb = forTenant(await billingRestaurantId(rid));
+	const entitlements = await locals.entitlements();
+	const billingRid = entitlements?.billingRestaurantId ?? rid;
+	const billingTdb = forTenant(billingRid);
+	const groupLocations = await countGroupLocations(billingRid);
 
 	const [sub] = await db.select()
 		.from(subscriptions)
@@ -46,6 +49,8 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 		upgradeFor: url.searchParams.get('upgrade'),
 		currentTier,
 		currentTierNameKey: TIERS[currentTier].nameKey,
+		locationsUsed:   Math.min(groupLocations, TIERS[currentTier].maxLocations),
+		lockedLocations: Math.max(0, groupLocations - TIERS[currentTier].maxLocations),
 		trialTier: {
 			monthlyInvoiceQuota: TIERS.trial.monthlyInvoiceQuota,
 			maxLocations: TIERS.trial.maxLocations,
