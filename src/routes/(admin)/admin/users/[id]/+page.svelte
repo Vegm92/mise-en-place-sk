@@ -54,7 +54,7 @@
       </div>
       <div>
         <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.userId')}</div>
-        <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);">{data.user.id}</code>
+        <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:4px;color:var(--mep-fg-2);">{data.user.id}</code>
       </div>
     </div>
 
@@ -68,7 +68,7 @@
         {/if}
       </div>
     {:else}
-      <p style="margin-top:16px;font-size:12px;color:var(--mep-fg-3);">{$t('admin.sentryNotConfigured')}</p>
+      <p style="margin-top:16px;font-size:11px;color:var(--mep-fg-3);">{$t('admin.sentryNotConfigured')}</p>
     {/if}
   </SectionCard>
 
@@ -80,7 +80,7 @@
           <div style="font-size:11px;color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{issue.culprit ?? issue.shortId}</div>
         </div>
         <div style="text-align:right;white-space:nowrap;">
-          <div class="num" style="font-size:12px;color:var(--mep-fg-2);">{$ti('admin.issueEvents', { n: issue.count })}</div>
+          <div class="num" style="font-size:11px;color:var(--mep-fg-2);">{$ti('admin.issueEvents', { n: issue.count })}</div>
           <div style="font-size:11px;color:var(--mep-fg-3);">{day(issue.lastSeen)}</div>
         </div>
       </div>
@@ -94,15 +94,15 @@
       <details open={i === 0} style="border-bottom:1px solid var(--mep-divider);padding:8px 0;">
         <summary style="cursor:pointer;font-size:13px;color:var(--mep-fg);">
           <strong>{day(session.startedAt)}</strong>
-          <span style="color:var(--mep-fg-3);font-size:12px;margin-left:8px;">
+          <span style="color:var(--mep-fg-3);font-size:11px;margin-left:8px;">
             {$ti('admin.sessionSummary', { n: session.events.length, min: minutes(session.startedAt, session.endedAt) })}
           </span>
         </summary>
         <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
           {#each session.events as ev}
-            <div style="display:flex;gap:10px;align-items:baseline;font-size:12px;">
+            <div style="display:flex;gap:10px;align-items:baseline;font-size:11px;">
               <span class="num" style="color:var(--mep-fg-3);white-space:nowrap;">{clock(ev.created_at)}</span>
-              <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);white-space:nowrap;">{ev.notification_type}</code>
+              <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:4px;color:var(--mep-fg-2);white-space:nowrap;">{ev.notification_type}</code>
               <span style="color:var(--mep-fg-3);overflow:hidden;text-overflow:ellipsis;">{pretty(ev.payload)}</span>
             </div>
           {/each}

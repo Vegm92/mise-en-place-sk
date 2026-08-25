@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupIntoSessions } from '../src/routes/(admin)/admin/users/[id]/+page.server';
+import { groupIntoSessions } from '../src/lib/server/activity-sessions';
 
 function ev(id: number, iso: string) {
 	return {
