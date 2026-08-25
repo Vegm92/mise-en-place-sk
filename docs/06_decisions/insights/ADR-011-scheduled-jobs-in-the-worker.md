@@ -1,6 +1,6 @@
 # ADR-011 — Scheduled Jobs Live in the Worker, and Every Send Is Claimed First
 
-**Status:** Active
+**Status:** Active, amended by [ADR-025](./ADR-025-scheduled-jobs-fan-out-per-tenant.md)
 **Feature:** Insights (digest, reminders, retention)
 **Date:** 2026-08-09
 
@@ -78,14 +78,20 @@ mid-run, and against an operator firing a job manually.
 
 ### Per-tenant isolation inside a job
 
-`perTenant` iterates every tenant and contains failures per tenant, returning
-`{ considered, sent }`. One restaurant's broken data cannot stop the other 400
-from getting their digest. Every job returns that pair and the scheduler logs it
-with a duration, so a job that "ran fine" but sent nothing is visible in logs.
+> **Amended by [ADR-025](./ADR-025-scheduled-jobs-fan-out-per-tenant.md)
+> ([#518](https://github.com/Vegm92/mise-en-place-sk/issues/518)):** the
+> `perTenant` loop described below was replaced by a dispatcher that queues one
+> pg-boss job per tenant. Eligibility filtering and the claim-before-send rule
+> are unchanged; isolation, retries and dead-lettering are now pg-boss's.
 
-Tenant eligibility is filtered before the loop, not inside it: the digest job
-filters to plans where `TIERS[planTier].features.weeklyDigest` is true, and the
-trial job to `status === 'trialing'`.
+`perTenant` iterated every tenant and contained failures per tenant, returning
+`{ considered, sent }`. One restaurant's broken data could not stop the other 400
+from getting their digest. Every job returned that pair and the scheduler logged
+it with a duration, so a job that "ran fine" but sent nothing was visible in logs.
+
+Tenant eligibility is filtered before the fan-out, not inside the handler: the
+digest job filters to plans where `TIERS[planTier].features.weeklyDigest` is
+true, and the trial job to `status === 'trialing'`.
 
 ## Consequences
 
