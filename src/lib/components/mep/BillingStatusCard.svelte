@@ -57,13 +57,8 @@
 
 			{#if status === 'active' && periodEnd}
 				<span style="font-size:13px;color:var(--mep-fg-3);">
-					{cancelAtPeriodEnd
-						? $ti('billing.cancelsOn', { date: fmt(periodEnd) })
-						: $ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{$t('billing.perMonthShort')}{/if}
+					{#if cancelAtPeriodEnd}{$ti('billing.cancelsOn', { date: fmt(periodEnd) })}{:else}{$ti('billing.renewsOn', { date: fmt(periodEnd) })}{#if price !== null}{' · '}<span class="num">{price} €</span>{$t('billing.perMonthShort')}{/if}{/if}
 				</span>
-				{#if cancelAtPeriodEnd}
-					<span style="font-size:13px;color:var(--mep-fg-3);">{$ti('billing.cancelsOnNote', { date: fmt(periodEnd) })}</span>
-				{/if}
 			{:else if status === 'trialing' && trialEnd && trialDaysLeft > 0}
 				<span style="font-size:13px;color:var(--mep-fg-3);">{$ti('billing.trialEndsOn', { date: fmt(trialEnd) })}</span>
 			{:else if status === 'trialing' && trialDaysLeft <= 0}
