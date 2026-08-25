@@ -7,6 +7,7 @@
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
   import { tutorialStep, setTutorialStep, seedTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
   import { TOUR_PAGES, tourPageAccessible, nextAccessibleIndex } from '$lib/tour-gating';
+  import Lock from '@lucide/svelte/icons/lock';
   import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
   import FileText from '@lucide/svelte/icons/file-text';
   import Truck from '@lucide/svelte/icons/truck';
@@ -188,9 +189,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   ]);
 
   let switchingLocation = $state(false);
+  let locationError = $state<string | null>(null);
   async function switchLocation(restaurantId: string) {
     if (!restaurantId || restaurantId === data.restaurantId || switchingLocation) return;
     switchingLocation = true;
+    locationError = null;
     try {
       const res = await fetch('/api/active-restaurant', {
         method: 'POST',
@@ -201,6 +204,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         window.location.href = '/';
         return;
       }
+      if (res.status === 403) locationError = 'set.locations.err.lockedSwitch';
     } catch {
     }
     switchingLocation = false;
@@ -310,23 +314,40 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
                 <button
                   type="button"
                   role="option"
+                  disabled={loc.locked}
                   aria-selected={loc.id === data.restaurantId}
+                  aria-disabled={loc.locked}
                   onclick={() => {
                     locationOpen = false;
                     if (loc.id !== data.restaurantId) switchLocation(loc.id);
                   }}
                   style="
-                    display:block;width:100%;text-align:left;cursor:pointer;
+                    display:flex;align-items:center;justify-content:space-between;gap:8px;
+                    width:100%;text-align:left;cursor:{loc.locked ? 'not-allowed' : 'pointer'};
                     padding:7px 10px;border:none;border-radius:6px;font-size:12.5px;
                     background:{loc.id === data.restaurantId ? 'var(--mep-acc-soft)' : 'transparent'};
-                    color:{loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)'};
+                    color:{loc.locked ? 'var(--mep-fg-4)' : loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)'};
                     font-weight:{loc.id === data.restaurantId ? 500 : 400};
                   "
-                  onmouseenter={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
-                  onmouseleave={(e) => { if (loc.id !== data.restaurantId) e.currentTarget.style.background = 'transparent'; }}
-                >{loc.name}</button>
+                  onmouseenter={(e) => { if (!loc.locked && loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
+                  onmouseleave={(e) => { if (!loc.locked && loc.id !== data.restaurantId) e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{loc.name}</span>
+                  {#if loc.locked}
+                    <Lock size={12} style="flex-shrink:0;" />
+                  {/if}
+                </button>
               {/each}
+              {#if data.locations.some((loc) => loc.locked)}
+                <div style="padding:6px 10px 4px;font-size:11px;line-height:1.4;color:var(--mep-fg-3);border-top:1px solid var(--mep-divider);margin-top:4px;">
+                  {$t('set.locations.lockedHint')}
+                </div>
+              {/if}
             </div>
+          {/if}
+
+          {#if locationError}
+            <p class="body" style="font-size:11px;line-height:1.4;color:var(--mep-warn);margin:6px 0 0;">{$t(locationError)}</p>
           {/if}
         </div>
       </div>

@@ -101,7 +101,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			},
 			restaurantName: restaurantRow[0]?.name ?? '',
 			canRenameRestaurant: membership[0]?.role === 'owner',
-			locations: locationRows,
+			locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 			multiLocation: features.multiLocation,
 			maxLocations,
 			activeRestaurantId: rid,

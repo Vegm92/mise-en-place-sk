@@ -59,7 +59,8 @@
 		price={PROVISIONAL_PRICE[data.currentTier as TierId] ?? null}
 		quotaUsed={data.quotaUsed}
 		quotaLimit={data.quotaLimit}
-		locationsUsed={data.locations.length}
+		locationsUsed={data.locationsUsed}
+		lockedLocations={data.lockedLocations}
 		{maxLocations}
 		upgradeName={upgrade ? $t(upgrade.nameKey) : null}
 		upgradeMaxLocations={upgrade?.maxLocations ?? 0}

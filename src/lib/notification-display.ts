@@ -5,6 +5,7 @@ import Ruler from '@lucide/svelte/icons/ruler';
 import Boxes from '@lucide/svelte/icons/boxes';
 import Tag from '@lucide/svelte/icons/tag';
 import Wallet from '@lucide/svelte/icons/wallet';
+import Lock from '@lucide/svelte/icons/lock';
 
 export type Notif = {
   id: number;
@@ -22,6 +23,7 @@ export function notificationIcon(type: string) {
   if (type === 'supplier_uncategorized')      return Tag;
   if (type === 'supplier_category_suggested') return Tag;
   if (type === 'budget_overage')              return Wallet;
+  if (type === 'locations_locked')            return Lock;
   return Bell;
 }
 
@@ -33,6 +35,7 @@ export function notificationColor(type: string) {
   if (type === 'supplier_uncategorized')      return 'var(--mep-warn)';
   if (type === 'supplier_category_suggested') return 'var(--mep-info)';
   if (type === 'budget_overage')              return 'var(--mep-neg)';
+  if (type === 'locations_locked')            return 'var(--mep-warn)';
   return 'var(--mep-fg-2)';
 }
 

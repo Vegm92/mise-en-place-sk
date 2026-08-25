@@ -64,6 +64,7 @@ vi.mock('../src/lib/server/storage.js', () => ({
 const { processExtractionJob } = await import('../src/lib/server/extraction-worker');
 
 const rateLimited = Object.assign(new Error('rate limited'), { status: 429 });
+vi.mock('../src/lib/server/locations.js', () => ({ isLocationLocked: vi.fn().mockResolvedValue(false) }));
 
 beforeEach(() => {
 	vi.clearAllMocks();

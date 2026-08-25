@@ -44,8 +44,10 @@ function locals() {
 	return {
 		restaurantId: rid,
 		user: { id: userId, email: 'alert-prefs@example.com', name: 'Chef', image: null },
-		// hooks resolves the billing context once per request onto locals (#519).
+		// hooks resolves the billing context once per request onto locals (#519)
+		// and marks the locations the plan no longer covers (#679).
 		entitlements: memoizeEntitlements(rid),
+		lockedRestaurantIds: [] as string[],
 	};
 }
 
