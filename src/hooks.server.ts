@@ -15,6 +15,7 @@ import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
 import { withTimeout } from '$lib/server/with-timeout';
+import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
 import { assertProductionEnv } from '$lib/server/config';
 
 assertProductionEnv();
@@ -194,6 +195,8 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 	response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
+	if (event.route.id !== null) applyPrivateCacheHeaders(response.headers);
 
 	return response;
 };
