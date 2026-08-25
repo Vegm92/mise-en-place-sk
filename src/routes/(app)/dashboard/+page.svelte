@@ -50,6 +50,8 @@
     alertText={mobileAlertText}
     suppliers={data.suppliers}
     recentInvoices={data.recent_invoices}
+    totalSpent={data.total_spent}
+    trend={data.trend}
   />
 </div>
 
