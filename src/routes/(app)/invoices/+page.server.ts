@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
 		const filters = parseInvoiceFilters(url.searchParams);
 		const {
-			q, status, supplier_id: supplierId,
+			q, status, supplier_id: supplierId, category,
 			date_from: dateFrom, date_to: dateTo,
 			uploaded_from: uploadedFrom, uploaded_to: uploadedTo,
 			sort,
@@ -47,6 +47,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 		if (status)       conditions.push(eq(invoices.status, status));
 		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
+		if (category)     conditions.push(eq(suppliers.category, category));
 		if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));
 		if (dateTo)       conditions.push(lte(invoices.invoiceDate, dateTo));
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
@@ -105,7 +106,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.from(suppliers)
 				.where(tdb.scope(suppliers.restaurantId)),
 
-			db.select({ id: suppliers.id, name: suppliers.name })
+			db.select({ id: suppliers.id, name: suppliers.name, category: suppliers.category })
 				.from(suppliers)
 				.where(tdb.scope(suppliers.restaurantId))
 				.orderBy(asc(suppliers.name)),
