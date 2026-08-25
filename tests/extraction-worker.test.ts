@@ -316,7 +316,10 @@ describe('processExtractionJob — entitlement refusals never reach the provider
 		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, 'extract.err.quotaExceeded');
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
 		expect(quotaMocks.releaseMonthlyExtraction).not.toHaveBeenCalled();
+	});
+});
 
+/**
  * The worker is where extraction ends, and a WhatsApp sender has no other way
  * to learn the outcome. The hand-back goes through a pg-boss queue rather than
  * a direct call so this module never imports a WhatsApp client.
