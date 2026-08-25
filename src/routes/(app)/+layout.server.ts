@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { systemNotifications, invoices, settings, restaurants, userRestaurants, subscriptions } from '$lib/server/schema';
+import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
 import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
-import { TIERS, resolveMonthlyQuota, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
+import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -17,7 +17,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, entitlements] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -55,10 +55,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 		db.select({ value: settings.value })
 			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota'))),
-
-		db.select({ value: settings.value })
-			.from(settings)
 			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'restaurant_name'))),
 
 		db.select({ value: settings.value })
@@ -78,6 +74,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 			.where(eq(userRestaurants.userId, locals.user.id))
 			.orderBy(asc(restaurants.name)),
+		locals.entitlements(),
 	]);
 
 	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
@@ -92,22 +89,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		return [{ ...n, payload }];
 	});
 
-	const entitlements = await locals.entitlements();
 	const planTier: PlanTier = entitlements?.tier ?? 'trial';
 	const tierConfig = TIERS[planTier];
 	const usable = entitlements
 		? (entitlements.access.allowed || entitlements.access.status === 'past_due')
 		: true;
 
-	const btdb = forTenant(entitlements?.billingRestaurantId ?? rid);
-	const [subRow] = await db.select({
-		status:           subscriptions.status,
-		cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd,
-		currentPeriodEnd: subscriptions.currentPeriodEnd,
-	})
-		.from(subscriptions)
-		.where(btdb.scope(subscriptions.restaurantId))
-		.limit(1);
+	const subscription = entitlements?.subscription ?? null;
 
 	return {
 		user: {
@@ -120,7 +108,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
 		reminderBadge:           Number(overdueBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
-		quotaLimit:              usable ? resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier) : TIERS.trial.monthlyInvoiceQuota ?? 0,
+		quotaLimit:              usable ? entitlements?.monthlyQuota ?? null : TIERS.trial.monthlyInvoiceQuota ?? 0,
 		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
 		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
 		locations: locationRows,
@@ -128,8 +116,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		tutorialStep,
 		planTier,
 		features: tierConfig.features,
-		subscriptionStatus: subRow?.status ?? null,
-		cancelAtPeriodEnd:  subRow?.cancelAtPeriodEnd ?? false,
-		currentPeriodEnd:   subRow?.currentPeriodEnd?.toISOString() ?? null,
+		subscriptionStatus: subscription?.status ?? null,
+		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
+		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,
 	};
 };
