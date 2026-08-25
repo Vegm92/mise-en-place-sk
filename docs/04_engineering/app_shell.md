@@ -228,11 +228,6 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`markup`**
 - Mobile-only wrapper, full height, scroll with bottom clearance; greeting + period picker; hero spend card; alert tile (only when there are high/med alerts); 2-col KPI row; top suppliers; recent invoices.
 
-### `src/lib/components/mobile/MobileTabBar.svelte`
-
-**`markup`**
-- Raised upload button.
-
 ### `src/lib/components/PriceTrendSparkline.svelte`
 
 **`const color`**
