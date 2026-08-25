@@ -132,6 +132,11 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 - `pending` reads as queued once extraction was requested; the page only polls while something is in flight.
 
+**`property stalled`**
+
+- Crossing the stall threshold changes no item's status, so a status-only response would leave the page polling forever with nothing to react to (#540). The flag is what the client diffs to trigger `invalidateAll`.
+- The poll is also where the hard timeout is enforced for a page left open: reap first, then report, so the response already carries the reaped `failed` state instead of one poll's worth of stale spinner.
+
 ### `src/lib/server/batches/batch-core.ts`
 
 **`type BatchDb`**
@@ -142,6 +147,20 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 **`const UUID_RE`**
 
 - Route params land unvalidated; a non-UUID (e.g. legacy session id) would make Postgres throw on the uuid cast (22P02).
+
+**`function stallLevel`**
+
+- The stall clock is `queued_at`, not `updated_at`: `updated_at` moves on every transition, so a queued→extracting hop would silently reset the very timer that is supposed to measure the whole wait (#540).
+- A NULL `queued_at` is never stalled — rows written before migration 0042 have no clock, and inventing one from `created_at` would fail a batch the user never even submitted.
+
+**`function failStalledItems`**
+
+- The hard timeout runs in the **web** process, on batch reads, precisely because the failure it exists for is "the worker is not running" — a worker-side sweeper would be down at the same time (#540, #501).
+- Writes only `status` + `extract_error`, the columns the worker would have written itself, so a late-returning worker loses its result to the guarded transition rather than resurrecting a row the user has already been told is failed.
+
+**`function requeueStalled`**
+
+- Retrying a *stalled* item cannot go through `markQueued`, which only accepts `pending`/`failed`. Going `queued|extracting → failed → queued` keeps every state change inside the guarded transitions and restarts `queued_at`, so the user's retry gets a full fresh window rather than one that is already expired.
 
 **`function pickActiveItem`**
 

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lt, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, lt, ne, sql } from 'drizzle-orm';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
@@ -6,6 +6,7 @@ import { uploadBatches, batchItems } from './schema';
 import { getStorage } from './storage';
 import { forTenant } from './tenant';
 import { db } from './db';
+import { EXTRACTION_STALL_TIMEOUT_MS, EXTRACTION_STALL_WARN_MS } from './env';
 
 export interface BatchFileStorage {
 	delete(key: string): Promise<void>;
@@ -29,7 +30,14 @@ export interface BatchItem {
 	extractedData: Record<string, unknown> | null;
 	conversionNotes: string[] | null;
 	extractError: string | null;
+	queuedAt: Date | null;
 }
+
+export const STALL_ERROR = 'extract.err.stalled';
+
+export type StallLevel = 'none' | 'slow' | 'expired';
+
+const IN_FLIGHT: BatchItemStatus[] = ['queued', 'extracting'];
 
 const itemColumns = {
 	id: batchItems.id,
@@ -42,6 +50,7 @@ const itemColumns = {
 	extractedData: batchItems.extractedData,
 	conversionNotes: batchItems.conversionNotes,
 	extractError: batchItems.extractError,
+	queuedAt: batchItems.queuedAt,
 };
 
 function asItem(row: Record<string, unknown>): BatchItem {
@@ -51,6 +60,22 @@ function asItem(row: Record<string, unknown>): BatchItem {
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUuid(v: string): boolean {
 	return UUID_RE.test(v);
+}
+
+export function stallLevel(item: BatchItem, now = Date.now()): StallLevel {
+	if (item.status !== 'queued' && item.status !== 'extracting') return 'none';
+	if (!item.queuedAt) return 'none';
+	const waited = now - new Date(item.queuedAt).getTime();
+	if (waited >= EXTRACTION_STALL_TIMEOUT_MS) return 'expired';
+	if (waited >= EXTRACTION_STALL_WARN_MS) return 'slow';
+	return 'none';
+}
+
+export function pickStalledItem(items: BatchItem[], now = Date.now()): BatchItem | null {
+	const stalled = items
+		.filter(i => stallLevel(i, now) !== 'none')
+		.sort((a, b) => new Date(a.queuedAt!).getTime() - new Date(b.queuedAt!).getTime());
+	return stalled[0] ?? null;
 }
 
 export function pickActiveItem(items: BatchItem[]): BatchItem | null {
@@ -196,7 +221,40 @@ export function createBatchStore(db: BatchDb) {
 	}
 
 	function markQueued(itemId: string): Promise<boolean> {
-		return transition(itemId, ['pending', 'failed'], { status: 'queued', extractError: null });
+		return transition(itemId, ['pending', 'failed'], {
+			status: 'queued',
+			extractError: null,
+			queuedAt: new Date(),
+		});
+	}
+
+	async function requeueStalled(itemId: string): Promise<boolean> {
+		if (!(await transition(itemId, IN_FLIGHT, { status: 'failed', extractError: STALL_ERROR }))) {
+			return false;
+		}
+		return markQueued(itemId);
+	}
+
+	async function failStalledItems(batchId: string, now = Date.now()): Promise<number> {
+		if (!isUuid(batchId)) return 0;
+		const cutoff = new Date(now - EXTRACTION_STALL_TIMEOUT_MS);
+		// tenant-scope-ok: hard-timeout reaper for one batch the caller already
+		// owns; keyed by batchId and by age, and it writes only the two columns
+		// the worker would have written itself.
+		const rows = await db
+			.update(batchItems)
+			.set({ status: 'failed', extractError: STALL_ERROR, updatedAt: new Date() })
+			.where(and(
+				eq(batchItems.batchId, batchId),
+				inArray(batchItems.status, IN_FLIGHT),
+				isNotNull(batchItems.queuedAt),
+				lt(batchItems.queuedAt, cutoff),
+			))
+			.returning({ id: batchItems.id });
+		if (rows.length) {
+			console.warn(`[batch] ${rows.length} item(s) in batch ${batchId} timed out waiting for the worker`);
+		}
+		return rows.length;
 	}
 
 	function markExtracting(itemId: string): Promise<boolean> {
@@ -251,7 +309,7 @@ export function createBatchStore(db: BatchDb) {
 		createBatch, addItems, getItem, getBatchItems, nextReviewableItem,
 		removeItem, deleteBatch, cleanupStaleBatches,
 		markQueued, markExtracting, markDone, markFailed, markConfirmed, markDiscarded,
-		isBatchSettled,
+		requeueStalled, failStalledItems, isBatchSettled,
 	};
 }
 
@@ -259,5 +317,5 @@ export const {
 	createBatch, addItems, getItem, getBatchItems, nextReviewableItem,
 	removeItem, deleteBatch, cleanupStaleBatches,
 	markQueued, markExtracting, markDone, markFailed, markConfirmed, markDiscarded,
-	isBatchSettled,
+	requeueStalled, failStalledItems, isBatchSettled,
 } = createBatchStore(db);

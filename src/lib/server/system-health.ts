@@ -9,6 +9,7 @@ import {
 } from './whatsapp-health';
 import { getIssueSummary, isSentryConfigured } from './sentry-api';
 import { pendingDeadLetterCount } from './dead-letter';
+import { readWorkerHeartbeat, workerLiveness, type WorkerLiveness } from './worker-heartbeat';
 
 const DATABASE_URL = process.env.DATABASE_URL ?? '';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
@@ -52,6 +53,7 @@ export interface SystemHealth {
 	whatsapp: WhatsAppDetail | null;
 	sentry: { configured: boolean; unresolved: number; critical: number };
 	queue: { stuck: number; lastExtraction: string | null };
+	worker: WorkerLiveness;
 	deadLetters: { pending: number };
 	checkedAt: string;
 }
@@ -113,6 +115,40 @@ async function checkExtractionQueue(): Promise<{ checks: HealthCheck[]; stuck: n
 		};
 	} catch (e) {
 		return { stuck: 0, lastExtraction: null, checks: [{ name: 'Extraction queue', status: 'warn', detail: `Check failed: ${String(e)}` }] };
+	}
+}
+
+const WORKER_STATUS: Record<WorkerLiveness['state'], HealthStatus> = {
+	alive: 'ok',
+	stale: 'error',
+	unknown: 'warn',
+};
+
+function workerDetail(worker: WorkerLiveness): string {
+	if (worker.state === 'unknown') {
+		return 'No heartbeat recorded — the worker process has never started against this database';
+	}
+	const jobs = worker.lastJobCompletedAt
+		? `last job completed ${worker.lastJobCompletedAt} (${worker.jobsCompleted} total)`
+		: 'no job completed yet';
+	const seen = `last seen ${worker.lastSeenAt}`;
+	return worker.state === 'alive'
+		? `Alive · ${seen} · ${jobs}`
+		: `No heartbeat for over ${worker.staleAfterSeconds}s — worker is down or wedged · ${seen} · ${jobs}`;
+}
+
+async function checkWorkerHeartbeat(): Promise<{ checks: HealthCheck[]; worker: WorkerLiveness }> {
+	try {
+		const worker = workerLiveness(await readWorkerHeartbeat());
+		return {
+			worker,
+			checks: [{ name: 'Worker heartbeat', status: WORKER_STATUS[worker.state], detail: workerDetail(worker) }],
+		};
+	} catch (e) {
+		return {
+			worker: workerLiveness(null),
+			checks: [{ name: 'Worker heartbeat', status: 'warn', detail: `Check failed: ${String(e)}` }],
+		};
 	}
 }
 
@@ -208,14 +244,17 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 	let unresolved = 0;
 	let critical = 0;
 	let pendingDeadLetters = 0;
+	let worker = workerLiveness(null);
 
 	if (db_.ok) {
-		const [queue, deadLetter, wa] = await Promise.all([
+		const [heartbeat, queue, deadLetter, wa] = await Promise.all([
+			checkWorkerHeartbeat(),
 			checkExtractionQueue(),
 			checkDeadLetterQueue(),
 			checkWhatsApp(),
 		]);
-		checks.push(...queue.checks, ...deadLetter.checks, ...wa.checks);
+		checks.push(...heartbeat.checks, ...queue.checks, ...deadLetter.checks, ...wa.checks);
+		worker = heartbeat.worker;
 		stuck = queue.stuck;
 		lastExtraction = queue.lastExtraction;
 		pendingDeadLetters = deadLetter.pending;
@@ -235,6 +274,7 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		whatsapp,
 		sentry: { configured: isSentryConfigured(), unresolved, critical },
 		queue: { stuck, lastExtraction },
+		worker,
 		deadLetters: { pending: pendingDeadLetters },
 		checkedAt: new Date().toISOString(),
 	};
