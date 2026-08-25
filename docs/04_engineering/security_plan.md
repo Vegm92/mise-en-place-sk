@@ -104,8 +104,12 @@ working tree; bots escanean GitHub en segundos tras un push.
 - `.gitignore` ya cubre `.env*`, `*.db`, `/uploads/` (PII de usuarios) y
   `/data/sk_sessions/` (tokens de sesión) con comentarios que explican el porqué.
 - Job `secret-scan` en `.github/workflows/ci.yml`: gitleaks sobre todo el
-  historial (`--log-opts=--all`) en cada push y PR; el build falla si detecta
-  un secreto.
+  historial alcanzable desde el commit del PR (`--log-opts=HEAD` con
+  `fetch-depth: 0`); el build falla si detecta un secreto. Se acota a HEAD a
+  propósito: escanear todas las ramas (`--all`) haría que un falso positivo
+  en cualquier rama vieja rompiera el check de todos los PRs; los pushes a
+  otras ramas los cubre el push protection de GitHub en servidor. Falsos
+  positivos verificados se fijan por fingerprint en `.gitleaksignore`.
 
 **Implementación:**
 
