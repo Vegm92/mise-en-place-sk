@@ -74,7 +74,8 @@ duplicated effort — these are the rules it cannot enforce.
 
 - **Claim the surface first.** Run `pnpm pr:overlap` before writing code and again
   before opening the PR, and open the PR as a **draft on your first commit**. A local
-  branch claims nothing; a draft PR is the only claim other sessions can see.
+  branch claims nothing; a draft PR is the only claim other sessions can see. Fill in
+  the **Where / Surface** field in the issue and PR templates (`.github/`).
 - **Fan out by subsystem, serialize by surface.** Concurrent sessions must not be able
   to touch the same files. The shared list pages, the app shell, `schema.ts`,
   `i18n.ts` and the design tokens are one surface each — one session at a time.
@@ -85,9 +86,9 @@ duplicated effort — these are the rules it cannot enforce.
 - **800 added lines** of hand-written source is the cap. Over it, cherry-pick the change
   that must ship onto a fresh branch off `main`.
 - **Models**: every implementation agent, subagent and issue session runs the latest
-  Sonnet (`claude-sonnet-5`) — never Fable, never Opus. The coordinator runs Sonnet by
-  default and `claude-opus-5` / `claude-fable-5` only when the user explicitly asks.
-  Tune with effort, not model tier.
+  Sonnet (`claude-sonnet-5`) — never Fable, never Opus. The coordinator is the
+  exception: it runs `claude-opus-5` by default, and `claude-fable-5` when the user
+  asks for it. Tune workers with effort, not model tier.
 - **Closing a PR unmerged?** Say why in a comment first, naming what superseded it.
 - **Commit messages in English**; Spanish belongs in `src/lib/i18n.ts`.
 
