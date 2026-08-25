@@ -10,7 +10,10 @@ scheduled jobs. Changing async behaviour must account for this process split.
 |---|---|---|---|
 | `extract-invoice` | `src/worker.ts` | Pulls an uploaded file → `extractInvoice` (classify → OCR/pages → Gemini lines → product identity) → save draft | `batchSize` = `MAX_CONCURRENT_EXTRACTIONS` (default 3, parallel up to the cap); global Gemini cap via `acquireExtractionSlot()` (distributed with Redis, in-process fallback); failure → `dead-letter` sibling queue |
 | `normalize-product` | `src/worker.ts` | `normalizeProductForSupplier` — canonical product upsert keyed by supplier+norm-key | Idempotent upsert |
-| `*:dead-letter` | `src/worker.ts` | Rows that failed; payload redacted (secrets/emails stripped) | Inspect via `/admin` or DB |
+| `tenant-weekly-digest` | `src/lib/server/tenant-fanout.ts` | One tenant's weekly digest — generate + email (`sendWeeklyDigest`) | Fanned out by the cron dispatcher, one job per tenant; `batchSize` = `SCHEDULED_FANOUT_CONCURRENCY` (default 5) with `perJobResults`, 2 retries 120 s apart, then dead-letter (ADR-025) |
+| `tenant-overdue-reminder` | `src/lib/server/tenant-fanout.ts` | One tenant's overdue-invoice email (`sendOverdueReminder`) | Same fan-out contract |
+| `tenant-trial-notice` | `src/lib/server/tenant-fanout.ts` | One tenant's trial notice at T-7 / T-1 / lapsed (`sendTrialNotice`) | Same fan-out contract |
+| `*:dead-letter` | `src/worker.ts`, `tenant-fanout.ts` | Rows that failed; payload redacted (secrets/emails stripped) | Inspect via `/admin` or DB |
 
 State machine lives in `batch-core.ts` (pending → queued → extracting → done |
 failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
@@ -20,12 +23,37 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 | Cron (UTC) | Job | Source |
 |---|---|---|
 | `10 3 * * *` | `refresh_analytics_rollups()` — MV refresh (`mv_*` CONCURRENTLY) | `src/lib/server/analytics.ts` (ADR-012) |
-| `0 6 * * 1` | Weekly digest emails (feature-gated tenants, deduped per week) | `src/lib/server/digest.ts` + `alerts.ts` runner |
+| `0 6 * * 1` | Weekly digest **dispatcher** — queues one `tenant-weekly-digest` job per feature-gated tenant | `src/lib/server/digest.ts` + `alerts.ts` runner |
 | `15 2 * * *` | MRR snapshot (`mrr_snapshots`) for `/admin/revenue` | `revenue` module |
-| daily (see worker) | Trial-expiry notices; overdue-invoice reminders | `alerts.ts` runners |
+| daily (see worker) | Trial-notice and overdue-reminder **dispatchers** — queue one `tenant-trial-notice` / `tenant-overdue-reminder` job per eligible tenant | `alerts.ts` runners |
 | every 2 min | Sweep in-memory rate-limit buckets | `rate-limiter.ts` (single-instance caveat) |
 | `20 3 * * *` | `cleanupDeadLetters` — dead-letter retention purge | `dead-letter.ts` |
 | `40 3 * * *` | `sweepIdempotencyKeys` — expire claims per scope (48 h; 96 h for `stripe-webhook`) | `idempotency.ts` (#389) |
+
+## Tenant fan-out (ADR-025, [#518](https://github.com/Vegm92/mise-en-place-sk/issues/518))
+
+The three tenant-facing scheduled jobs do **not** iterate tenants. Each cron
+occurrence is a dispatcher:
+
+1. `dispatchTenantJobs` keyset-pages `restaurants` (200 rows at a time, ordered
+   by `id`), so the worker never holds the whole tenant table.
+2. Each eligible tenant gets one `boss.insert()` job on the matching
+   `tenant-*` queue, with `singletonKey = <restaurantId>:<occurrence>` (ISO week,
+   day, or `<trial end>:<milestone>`) on a `short`-policy queue, so a repeated
+   dispatch cannot double-queue a tenant.
+3. The consumer settles every job in a batch individually
+   (`perJobResults: true`): one tenant's failure is retried and eventually
+   dead-lettered without touching its batch-mates.
+
+`SCHEDULED_FANOUT_CONCURRENCY` (default 5) caps how many tenants one worker
+processes at once. It is a Gemini/Resend rate-limit ceiling, not a throughput
+target — raise it only with those quotas in mind.
+
+**Observability.** Each dispatcher writes `{ scanned, considered, dispatched }`
+to `app_flags` under `job_run:<label>`; `/admin/health` shows those alongside a
+24-hour per-queue roll-up (done / sent / pending / failed) read from
+`pgboss.job`. A run that only reached half the tenants shows up there — that was
+the silent failure mode before #518.
 
 ## Invariants
 
@@ -42,8 +70,10 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 
 - Check queue health: `/admin` shows worker/job status and dead-letter counts
   (`docs/05_operations/monitoring.md`).
-- Testing: `tests/scheduler.test.ts` asserts job registration; per-queue
-  consumers have integration tests in `tests/`.
+- Testing: `tests/scheduler.test.ts` covers dispatcher eligibility and the
+  per-tenant handlers; `tests/tenant-fanout.test.ts` covers keyset paging (up to
+  5,000 tenants), dispatch counts and per-job settlement; per-queue consumers
+  have integration tests in `tests/`.
 - Changing a schedule or adding a queue is a docs event (update this file +
   the affected feature spec + its `## Code notes` section).
 
@@ -136,16 +166,20 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 
 - Owner's email address, or null when the restaurant has no reachable owner.
 
-**`function allTenants`**
-
-- Every tenant with its plan tier, trial end and name — one query per job run. Join order avoids the `eq(*.restaurantId, …)` shape the tenant-scope lint bans; this is a deliberate all-tenant scan, not a tenant filter.
-
 **`function runWeeklyDigestJob`**
 
-- Weekly digest: generate this week's text via the same claim-then-generate path the dashboard uses, so a Monday visitor and this job never both pay Gemini; email to the owner. Only tiers whose plan includes the digest. Claim AFTER generating — a generation failure should not consume the week's email slot.
+- Dispatcher (#518): queues one `tenant-weekly-digest` job per tenant whose plan includes the digest. The ISO week is resolved once, here, and travels in the payload — a job that runs late still sends the week it was dispatched for.
+
+**`function sendWeeklyDigest`**
+
+- Weekly digest for one tenant: generate this week's text via the same claim-then-generate path the dashboard uses, so a Monday visitor and this job never both pay Gemini; email to the owner. Claim AFTER generating — a generation failure should not consume the week's email slot.
 - Per-tenant opt-out first (#577): `isAlertEnabled(rid, 'weekly_digest')` runs before generation, so a tenant that switched the digest off in Ajustes → Alertas never pays for a generation it will not receive.
 
 **`function runOverdueRemindersJob`**
+
+- Dispatcher (#518): one `tenant-overdue-reminder` job per tenant, keyed on today's date. Nothing is filtered here — whether anything is actually overdue is a per-tenant query, and it belongs in the handler.
+
+**`function sendOverdueReminder`**
 
 - Overdue invoices: one email per tenant per day, only when something is actually overdue.
 - Gated on the `invoice_reminders` toggle (#577), checked before the overdue query so a tenant that turned reminders off neither gets the email nor burns the day's claim.
@@ -160,6 +194,10 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 
 **`function runTrialNoticesJob`**
 
+- Dispatcher (#518): the milestone is computed at dispatch from the page row, so a tenant not on a trial — or still more than a week out — costs no queue job at all.
+
+**`function sendTrialNotice`**
+
 - Trial expiry notices at T-7, T-1 and on the day the trial lapses. The milestone is stored, so moving between milestones sends exactly one email each and a re-run sends none. Claim keyed on the trial end date too, so a tenant that starts a fresh trial gets the full sequence again.
 
 **`function runFilePurgeJob`**
@@ -168,7 +206,41 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
 
 **`function registerScheduledJobs`**
 
+- Registers the three per-tenant fan-out queues first, then the cron queues, so a dispatched job always has a consumer waiting for it.
 - Create the queues, register the cron schedules and start the consumers. `schedule()` is idempotent per queue: re-registering on every worker boot updates the cron rather than stacking duplicates, and pg-boss holds the schedule in the database so exactly one worker fires each occurrence.
+
+### `src/lib/server/tenant-fanout.ts`
+
+**`interface TenantSummary`**
+
+- Shared fan-out plumbing for the scheduled jobs (issue #518, ADR-025). The jobs used to load every tenant with no LIMIT and walk them sequentially; at a few thousand tenants that ran past its own cron window, let one slow tenant block the rest, and reported success after covering a fraction of the table.
+
+**`function tenantPage`**
+
+- One keyset page of tenants, ordered by `restaurants.id`, joined to `subscriptions` for the plan fields the dispatchers filter on. Join order avoids the `eq(*.restaurantId, …)` shape the tenant-scope lint bans; this is a deliberate all-tenant scan, not a tenant filter. A tenant created mid-run is included or missed depending on where its uuid sorts — for a daily or weekly notice that is at worst a one-occurrence delay.
+
+**`function dispatchTenantJobs`**
+
+- Pages to the end of the table and bulk-inserts one job per eligible tenant per page, so peak memory is one page (`TENANT_PAGE_SIZE`) regardless of how many tenants exist. `jobFor` returning null skips a tenant without enqueueing anything.
+- `dispatched` counts the ids pg-boss actually returned, which is lower than `considered` when the `short` queue policy deduped a tenant-occurrence that was already pending — a re-dispatch is visible rather than silently equal.
+
+**`function recordJobRun`**
+
+- The run summary is written to `app_flags` under `job_run:<label>` for `/admin/health`. Best-effort: a failed write is reported but never fails the dispatch, since losing the bookkeeping row must not cost the tenants their emails.
+
+**`const TENANT_JOB_RETENTION_SECONDS`**
+
+- A tenant job that never got picked up is deleted after 48 h rather than pg-boss's 14-day default. These are dated notices: a digest three days late is noise, and `claimOnce` means the tenant simply misses that occurrence instead of getting a stale one. Completed jobs keep pg-boss's default retention, which is what `/admin/health` reads its 24 h roll-up from.
+
+**`function registerTenantFanout`**
+
+- `perJobResults` is what makes one tenant's failure survivable: pg-boss settles each job in the batch on its own, so a throw fails that job (retry, then dead-letter) while its batch-mates complete. Throwing out of the handler itself would fail the whole batch, which is why `settleTenantJob` catches.
+- `batchSize` is `SCHEDULED_FANOUT_CONCURRENCY` — a Gemini/Resend rate-limit ceiling, not a throughput target.
+- The dead-letter drain mirrors the extraction one: a job pg-boss abandoned or exhausted retries on lands in the audit dead-letter table with its tenant id attached.
+
+**`function settleTenantJob`**
+
+- The handler's boolean becomes the job's `output.sent`, which is what `/admin/health` counts to answer "how many tenants actually got this?".
 
 ### `src/backfill-products.ts`
 
