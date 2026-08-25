@@ -34,7 +34,7 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`function switchLocation`**
 - fall through — the select resets on the next render.
 **`markup`**
-- Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links, legal footer, user chip). The util links carry the language and theme toggles below `md` only (#660): the off-canvas drawer is the mobile overflow menu, so the header row keeps just the hamburger, the title, the bell and the upload CTA.
+- Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links — Ajustes and Ayuda (#569) — legal footer, user chip). The util links carry the language and theme toggles below `md` only (#660): the off-canvas drawer is the mobile overflow menu, so the header row keeps just the hamburger, the title, the bell and the upload CTA.
 - Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle (desktop only, #660), notification bell, theme toggle (desktop only, #660), upload CTA (mobile only).
 **`const pageTitle`**
 - `$page.data.title` is an i18n key, not copy — a route that returns none falls back to the app name, which is what #660 fixed across `/billing`, `/products/[id]`, `/plantilla-lista`, `/suppliers/[id]` and the two confirmation pages. `titleParams` is the escape hatch for a title that names a record (`/invoice/[id]` → `inv.detail.pageTitle` = `Albarán {number}`); it resolves through `ti` so the string stays translated.
@@ -144,12 +144,30 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Alertas pane: the two thresholds, then one switch per alert type (issue #577), grouped and labelled from `data.alertGroups`. One form, one Save — a per-toggle auto-save would need `use:enhance` on a page that is otherwise plain progressive-enhancement forms.
 - Where to send invoices (issue #319). Authorising a number is useless if the staff member never learns what to message. QR injected via `{@html}` (eslint-disable-next-line svelte/no-at-html-tags).
 - Self-service enrolment (issue #320). The number is captured from the message, so it cannot be mistyped the way the form below can.
+- Ayuda pane: the tour-reset form, then a card link to `/help` (issue #569). The pane is where users already come looking for guidance, so it points at the documentation rather than duplicating it.
 **`style`**
 - `.alert-toggle*` (issue #577): a visually-hidden checkbox drives a CSS track/thumb, so the switch keeps native keyboard focus, form submission and label semantics without a component.
 - WhatsApp bot number + QR (issue #319).
 - Pairing code (issue #320) — read off a screen and typed into a phone, so set large, monospaced and widely tracked.
 - The QR is meant to be printed and taped up in the kitchen, so sized in absolute units — 45 mm on paper scans reliably from arm's length.
 - Explicit white backing: a dark-theme card behind a transparent QR inverts the modules and scanners reject it.
+
+### `src/routes/(app)/help/+page.svelte`
+
+**`markup`**
+- The help centre (issue #569): getting-started guide, per-section tips, FAQ and a launcher for the guided tour. Static documentation — no server load beyond the page title, which is why the route has a `+page.ts` and no `+page.server.ts`.
+- Steps, tips and questions are rendered from the lists in `src/lib/help-content.ts` rather than written into the markup, so the copy stays entirely in the locale tables and adding an entry is a one-line change in two places (the list and both locales).
+- The tour launcher goes through `setTutorialStep('3')` (`src/lib/stores/tutorial.ts` → `POST /api/tutorial`) and then navigates to `/dashboard`, the same entry point as the dashboard nudge in `(app)/+layout.svelte`. Step `3` is the first of `TOUR_PAGES`; steps `1`/`2` only render their coach mark on `/batch/[id]`, so starting there would look like nothing happened.
+- FAQ entries are native `<details>`/`<summary>`: they open without JavaScript and keep the disclosure semantics a hand-rolled accordion would have to re-add.
+
+**`style`**
+- Scoped, and single-markup rather than the `mobile/*`/`desktop/*` split (ADR-020): the page is a one-column read at every width, with only the tips grid switching to two columns at `md`.
+- `.help-prose` caps line length at 72ch. Prose is the whole page here; full-width paragraphs on a 1280px screen are unreadable.
+
+### `src/lib/help-content.ts`
+
+**`function helpContentKeys`**
+- The page resolves its keys at runtime (`` $t(`help.faq.${item}.q`) ``), which `lint:i18n` cannot follow. This derives the same key list from the same source so `tests/help-page.test.ts` fails on missing copy instead of the UI rendering a raw key — the convention documented in `coding_conventions.md`.
 
 ### `src/routes/waitlist/+page.server.ts`
 
