@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		received: true,
 		confirmed: false,
 		sessionId,
-		planName: null as string | null,
+		planNameKey: null as string | null,
 		email: null as string | null,
 	};
 
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			received: true,
 			confirmed: session.payment_status === 'paid' || session.payment_status === 'no_payment_required',
 			sessionId,
-			planName: tier ? TIERS[tier].name : null,
+			planNameKey: tier ? TIERS[tier].nameKey : null,
 			email: session.customer_details?.email ?? session.customer_email ?? null,
 		};
 	} catch (err) {
