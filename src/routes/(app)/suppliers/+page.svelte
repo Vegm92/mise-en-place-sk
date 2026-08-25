@@ -289,16 +289,16 @@
     onkeydown={(e) => { if (e.key === 'Escape') showAdd = false; }}>
     <div class="card" style="width:360px;padding:24px;display:flex;flex-direction:column;gap:16px;"
       role="presentation" onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()}>
-      <p class="body-strong" style="font-size:15px;margin:0;">{$t('dsup.addSupplier')}</p>
+      <p class="body-strong" style="font-size:16px;margin:0;">{$t('dsup.addSupplier')}</p>
       <form method="POST" action="?/create" style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:flex;flex-direction:column;gap:4px;">
           <label class="label" for="sup-name">{$t('tbl.supplier')}</label>
           <input id="sup-name" name="name" class="input" required
-            style="height:36px;font-size:13px;" />
+            style="height:36px;" />
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;">
           <label class="label" for="sup-cat">{$t('sup.field.category')}</label>
-          <select id="sup-cat" name="category" class="input" style="height:36px;font-size:13px;">
+          <select id="sup-cat" name="category" class="input" style="height:36px;">
             <option value="">—</option>
             {#each data.categories as cat}
               <option value={cat}>{$tcat(cat)}</option>
