@@ -569,6 +569,39 @@
     box-shadow: var(--mep-shadow-card);
   }
 
+  /* App chrome header — page title plus the icon controls. Below md the
+     controls are 44px wide, so the row trades its gaps for title space. */
+  .app-header { padding: 0 16px; gap: 10px; }
+
+  /* Sidebar row — nav link, location switcher. One height keeps the rail
+     reading as a single column. */
+  .sidenav-item { height: 32px; }
+
+  /* Filter chip — the horizontal quick-filter scroller on the phone list
+     screens. Touch-sized by definition; it has no desktop variant. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--mep-r-pill);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+    background: var(--mep-surface);
+    color: var(--mep-fg-2);
+    box-shadow: var(--mep-shadow-card);
+  }
+  .chip.active {
+    background: var(--mep-acc);
+    color: var(--mep-acc-fg);
+    box-shadow: none;
+  }
+
   /* Search field — pairs with .period-track in a page toolbar row */
   .search-field {
     position: relative;
@@ -1214,7 +1247,7 @@
     .rev-section { padding: 12px 14px; }
     .rev-grid { grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); }
     .rev-field-wide { grid-column: 1 / -1; }
-    .rev-input { min-height: 44px; font-size: 15px; }
+    .rev-input { min-height: 44px; font-size: 16px; }
     .rev-sticky-head { padding: 0 14px; }
     .rev-bar-foot { padding: 10px 14px; flex-wrap: wrap; gap: 8px 12px; }
     .rev-foot-totals { flex: 1 0 100%; }
@@ -1234,7 +1267,7 @@
     .rev-tax-tbl tbody td:nth-child(3) { grid-column: 1 / 3; }
     .rev-tax-tbl tbody td:nth-child(4) { grid-column: 1 / 3; }
     .rev-tax-tbl tbody td:nth-child(5) { grid-row: 1; grid-column: 3; }
-    .rev-tax-tbl .rev-cell { min-height: 44px; font-size: 15px; border-color: var(--mep-border-strong); background: var(--mep-surface); }
+    .rev-tax-tbl .rev-cell { min-height: 44px; font-size: 16px; border-color: var(--mep-border-strong); background: var(--mep-surface); }
     .rev-tax-tbl tfoot tr { grid-template-columns: 1fr auto; }
     .rev-tax-tbl tfoot td:nth-child(2), .rev-tax-tbl tfoot td:nth-child(3) { text-align: right; }
 
@@ -1243,6 +1276,68 @@
     .rev-lightbox-title { color: var(--mep-fg); font-weight: 600; }
     .rev-lightbox-frame { border-radius: 0; display: flex; align-items: center; justify-content: center; }
     .rev-lightbox-img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  }
+
+  /* ── MOBILE PRIMITIVES ─────────────────────────────────────────────
+     Below md the same controls are touched rather than clicked, so every
+     control clears 44px on its short edge and no type falls below the
+     bottom of the scale. `min-height` is deliberate: it outranks a `height`
+     an element still carries inline, which a plain `height` rule could not.
+     Inputs go to 16px because iOS Safari zooms the viewport on focus for
+     anything smaller and never zooms back — inline font sizes beat this
+     rule, so pages must not set one.
+     ─────────────────────────────────────────────────────────────────── */
+  @media (max-width: 767px) {
+    .btn {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    .input {
+      min-height: 44px;
+      font-size: 16px;
+    }
+    .mep input,
+    .mep select,
+    .mep textarea { font-size: 16px; }
+    .mep input[type="checkbox"],
+    .mep input[type="radio"] {
+      min-width: 20px;
+      min-height: 20px;
+    }
+    .mep label:has(> input[type="checkbox"]),
+    .mep label:has(> input[type="radio"]) {
+      min-height: 44px;
+    }
+    .badge { font-size: 11px; }
+    .label { font-size: 11px; }
+    .tbl  { font-size: 13px; }
+    .tbl td { height: max(var(--mep-row-h), 44px); }
+    .tbl td > a {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+    }
+    .period-track {
+      max-width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .period-track::-webkit-scrollbar { display: none; }
+    .period-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+    .period-nav { min-height: 44px; }
+    .period-nav-btn { min-width: 44px; min-height: 44px; }
+    .settings-rail-item, .sidenav-item { min-height: 44px; }
+    .app-header { padding: 0 8px; gap: 4px; }
+    .app-header .btn { padding-left: 0; padding-right: 0; }
   }
 }
 

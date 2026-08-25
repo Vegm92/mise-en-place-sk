@@ -139,10 +139,10 @@
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
                 {#if hoveredSpendSlice !== null && spendDonut.slices[hoveredSpendSlice]}
                   <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{(spendDonut.slices[hoveredSpendSlice].pct * 100).toFixed(0)}%</span>
-                  <span style="font-size:10px;color:var(--mep-fg-3);max-width:120px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{spendDonut.slices[hoveredSpendSlice].label}</span>
+                  <span style="font-size:11px;color:var(--mep-fg-3);max-width:120px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{spendDonut.slices[hoveredSpendSlice].label}</span>
                 {:else}
                   <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmtEur(spendDonut.total)}</span>
-                  <span style="font-size:10px;color:var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
+                  <span style="font-size:11px;color:var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
                 {/if}
               </div>
             </div>

@@ -23,7 +23,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
 /** Lower these as the drift is paid down. Never raise them. */
-const BUDGET = { fontSize: 731, borderRadius: 125 };
+const BUDGET = { fontSize: 602, borderRadius: 117 };
 
 const TYPE_SCALE = new Set(['11px', '13px', '16px', '20px', '24px', '32px']);
 const RADIUS_SCALE = new Set([

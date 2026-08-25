@@ -133,7 +133,7 @@
           {#each [...data.overdue, ...data.due_soon] as r (r.id)}
             <input type="hidden" name="invoice_ids" value={r.id} />
           {/each}
-          <button type="submit" class="btn btn-ghost text-pos" style="height:32px;font-size:12px;gap:4px;">
+          <button type="submit" class="btn btn-ghost text-pos" style="font-size:12px;gap:4px;">
             <Check size={12} />{$t('rem.markAllPaid')}
           </button>
         </form>

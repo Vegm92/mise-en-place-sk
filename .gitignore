@@ -77,6 +77,6 @@ DEPLOYMENT.md
 # Architecture decision records live in /doc (not ignored) â€” see doc/README.md
 /mise-en-place
 
-# Admin mobile audit (issue #657) — the JSON report is tracked, the screenshots are not
+# Local audit screenshots (issues #657, #659) — JSON reports are tracked, screenshots are not
 /shots/*.png
 /shots/admin-mobile-audit-before.json

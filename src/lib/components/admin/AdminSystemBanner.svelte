@@ -41,7 +41,7 @@
       {#if status === 'ok'}<Check size={20} />{:else}<AlertTriangle size={18} />{/if}
     </div>
     <div style="min-width:0;">
-      <div class="num" style="font-size:10.5px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{tone.fg};margin-bottom:2px;">
+      <div class="num" style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{tone.fg};margin-bottom:2px;">
         {caption}
       </div>
       <div style="font-size:26px;font-weight:600;color:{tone.fg};letter-spacing:-0.5px;line-height:1.1;">

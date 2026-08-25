@@ -106,7 +106,7 @@
                   </div>
                   <div style="text-align: right; flex-shrink: 0;">
                     <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                    <span class="badge badge-overdue" style="font-size: 9.5px;">{Math.abs(r.days_delta)}{$t('malert.dOverdue')}</span>
+                    <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('malert.dOverdue')}</span>
                   </div>
                 </div>
                 <form method="post" action="?/markPaid" style="margin-top: 10px;">
@@ -142,7 +142,7 @@
                   </div>
                   <div style="text-align: right; flex-shrink: 0;">
                     <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                    <span class="badge badge-pending" style="font-size: 9.5px;">{r.days_delta}{$t('malert.dLeft')}</span>
+                    <span class="badge badge-pending">{r.days_delta}{$t('malert.dLeft')}</span>
                   </div>
                 </div>
                 <form method="post" action="?/markPaid" style="margin-top: 10px;">
