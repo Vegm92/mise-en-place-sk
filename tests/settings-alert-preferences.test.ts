@@ -32,6 +32,7 @@ import {
 	loadAlertPreferences,
 	saveAlertPreferences,
 } from '../src/lib/server/alert-preferences';
+import { memoizeEntitlements } from '../src/lib/server/billing';
 import { actions, load } from '../src/routes/(app)/settings/+page.server';
 
 const PAGE = 'src/routes/(app)/settings/+page.svelte';
@@ -43,6 +44,8 @@ function locals() {
 	return {
 		restaurantId: rid,
 		user: { id: userId, email: 'alert-prefs@example.com', name: 'Chef', image: null },
+		// hooks resolves the billing context once per request onto locals (#519).
+		entitlements: memoizeEntitlements(rid),
 	};
 }
 
