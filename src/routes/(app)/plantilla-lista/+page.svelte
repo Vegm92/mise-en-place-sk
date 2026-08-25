@@ -141,7 +141,7 @@
           <span class="body">{$t('tpl.demo.empty')}</span>
         </div>
       {:else}
-        <table class="tbl">
+        <table class="tbl tbl-stack">
           <thead>
             <tr>
               <th>{$t('tpl.demo.col.name')}</th>
@@ -153,14 +153,14 @@
           <tbody>
             {#each filtered as r (r.id)}
               <tr class="row" onclick={() => (selectedId = r.id)}>
-                <td class="body-strong">{r.name}</td>
+                <td class="body-strong tbl-stack-lead">{r.name}</td>
                 <td>
                   <span class="badge" style="background:color-mix(in oklab, {categoryColor(r.category)} 16%, transparent);color:{categoryColor(r.category)};">
                     {categoryLabel(r.category)}
                   </span>
                 </td>
-                <td class="body" style="font-size:12px;">{r.unit}</td>
-                <td class="num">{fmtEur(r.monthSpend)}</td>
+                <td class="body" style="font-size:12px;" data-label={$t('tpl.demo.col.unit')}>{r.unit}</td>
+                <td class="num" data-label={$t('tpl.demo.col.spend')}>{fmtEur(r.monthSpend)}</td>
               </tr>
             {/each}
           </tbody>
