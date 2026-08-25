@@ -333,7 +333,7 @@
             {/if}
           </div>
           {#if upgradeUrl}
-            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
+            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;font-size:12.5px;text-decoration:none;">
               {$t('upload.upgradeCta')}
             </a>
           {/if}
@@ -525,7 +525,7 @@
             {/if}
           </div>
           {#if upgradeUrl}
-            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
+            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;font-size:12.5px;text-decoration:none;">
               {$t('upload.upgradeCta')}
             </a>
           {/if}

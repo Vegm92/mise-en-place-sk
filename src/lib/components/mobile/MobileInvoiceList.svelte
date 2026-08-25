@@ -81,7 +81,7 @@
     </span>
     <input
       class="input"
-      style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
+      style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
       type="search"
       placeholder={$t('inv.searchPlaceholder')}
       value={q}
@@ -92,14 +92,7 @@
   <ScrollStrip label={$t('inv.filterLabel')} extraStyle="flex-shrink:0;">
     {#each filters as f}
       <button
-        style="
-          border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap;
-          background: {activeFilter === f.id ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-          color: {activeFilter === f.id ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-          font-size: 12px; font-weight: 500; cursor: pointer;
-          box-shadow: {activeFilter === f.id ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-          font-family: inherit;
-        "
+        class="chip {activeFilter === f.id ? 'active' : ''}"
         onclick={() => activeFilter = f.id}
       >{$t(f.labelKey)}</button>
     {/each}
@@ -142,7 +135,7 @@
                     {inv.supplier_name ?? '—'}
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
-                    <StatusBadge status={inv.status ?? 'pending'} style="font-size: 9.5px; padding: 1px 5px;" />
+                    <StatusBadge status={inv.status ?? 'pending'} style="font-size: 11px; padding: 1px 5px;" />
                     <span class="num" style="font-size: 11px; color: var(--mep-fg-3);">
                       {inv.invoice_number ?? '—'}
                     </span>
@@ -153,7 +146,7 @@
                     {(inv.display_amount ?? inv.total_amount) != null ? fmtEur((inv.display_amount ?? inv.total_amount)!) : '—'}
                   </div>
                   {#if inv.line_items && inv.line_items.length > 0}
-                    <div class="num" style="font-size: 10.5px; color: var(--mep-fg-3);">
+                    <div class="num" style="font-size: 11px; color: var(--mep-fg-3);">
                       {inv.line_items.length} {$t('minv.linesSuffix')}
                     </div>
                   {/if}

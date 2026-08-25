@@ -8,10 +8,8 @@ const source = readFileSync(
 
 describe('DesktopSupplierDetail danger-button color token (issue #608)', () => {
   it('uses var(--mep-neg) for the delete-supplier button border/text', () => {
-    expect(source).toContain(
-      'height:32px;font-size:12.5px;color:var(--mep-neg);border-color:var(--mep-neg)',
-    );
-    expect(source).not.toContain('height:32px;font-size:12.5px;color:#E05555;border-color:#E05555');
+    expect(source).toContain('font-size:12.5px;color:var(--mep-neg);border-color:var(--mep-neg)');
+    expect(source).not.toContain('font-size:12.5px;color:#E05555;border-color:#E05555');
   });
 
   it('uses var(--mep-neg) for the confirm-delete card left border', () => {

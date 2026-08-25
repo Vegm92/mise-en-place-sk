@@ -76,38 +76,31 @@
 
     <div style="display: flex; gap: 6px; padding-top: 4px;">
       {#each periods as [val, short]}
-        <a href="?period={val}" style="
-          height: 30px; padding: 0 12px; border-radius: 15px;
-          background: {period === val ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-          color: {period === val ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-          font-size: 12px; font-weight: 500; text-decoration: none;
-          display: inline-flex; align-items: center;
-          box-shadow: {period === val ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-        ">{short}</a>
+        <a href="?period={val}" class="chip {period === val ? 'active' : ''}">{short}</a>
       {/each}
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.totalSpend')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('spend.totalSpend')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {fmtEur(kpis?.total_items_spend)}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('tbl.lines')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('tbl.lines')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.total_line_items ?? '—'}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.uniqueItems')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('spend.uniqueItems')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.unique_items ?? '—'}
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('spend.avgItems')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('spend.avgItems')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
           {kpis?.avg_invoice_items != null ? kpis.avg_invoice_items.toFixed(1) : '—'}
         </div>
@@ -132,7 +125,7 @@
             </svg>
             <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
               <span class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtEur(spendDonut.total)}</span>
-              <span style="font-size: 9.5px; color: var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
+              <span style="font-size: 11px; color: var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
             </div>
           </div>
           <div style="display: flex; flex-direction: column; gap: 7px; width: 100%;">

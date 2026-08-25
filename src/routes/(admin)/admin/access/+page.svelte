@@ -65,11 +65,11 @@
               <td style="{TD}color:var(--mep-fg);font-weight:500;">
                 {a.email}
                 {#if a.founder}
-                  <span style="margin-left:6px;font-size:10.5px;font-weight:600;letter-spacing:0.08em;
+                  <span style="margin-left:6px;font-size:11px;font-weight:600;letter-spacing:0.08em;
                                text-transform:uppercase;color:var(--mep-acc);">{$t('admin.access.founder')}</span>
                 {/if}
                 {#if !a.email_verified}
-                  <span style="margin-left:6px;font-size:10.5px;color:var(--mep-fg-4);">{$t('admin.access.unverified')}</span>
+                  <span style="margin-left:6px;font-size:11px;color:var(--mep-fg-4);">{$t('admin.access.unverified')}</span>
                 {/if}
               </td>
               <td style={TD}>

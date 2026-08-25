@@ -12,7 +12,7 @@
   {#snippet failed(_error, reset)}
     <div class="card p-4 text-center" role="alert" style="font-size:13px;color:var(--mep-fg-2);">
       <p style="margin:0 0 10px;">{label ?? $t('boundary.failed')}</p>
-      <button type="button" class="btn btn-secondary" style="height:32px;" onclick={reset}>
+      <button type="button" class="btn btn-secondary" onclick={reset}>
         {$t('boundary.retry')}
       </button>
     </div>
