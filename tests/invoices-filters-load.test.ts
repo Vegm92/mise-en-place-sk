@@ -91,6 +91,7 @@ describe('/invoices load() — filters come from the search params', () => {
 			q: 'tomate',
 			status: 'pending',
 			supplier_id: '42',
+			category: '',
 			date_from: '2026-01-01',
 			date_to: '2026-01-31',
 			uploaded_from: '2026-02-01',
@@ -128,6 +129,15 @@ describe('/invoices load() — filters come from the search params', () => {
 		expect(listWhere.params).toContain(42);
 		expect(listWhere.params).toContain('2026-01-01');
 		expect(listWhere.params).toContain('2026-01-31');
+	});
+
+	it('filters by supplier category on both the page and row-count queries', async () => {
+		await runLoad('?category=L%C3%A1cteos');
+		const listWhere = render(state.whereArgs[0]);
+		expect(listWhere.sql).toContain('"category" =');
+		expect(listWhere.params).toContain('Lácteos');
+		const countWhere = render(state.whereArgs[state.whereArgs.length - 1]);
+		expect(countWhere.params).toContain('Lácteos');
 	});
 
 	it('searches invoice number and supplier name for the text query', async () => {
