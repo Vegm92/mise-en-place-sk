@@ -78,11 +78,11 @@
   const RANGES = ['7d', '30d', '90d', '1y', 'all'] as const;
   const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const;
 
-  // svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
+  // svelte-ignore state_referenced_locally
   let activeRange = $state(trend.range || '30d');
-  // svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
+  // svelte-ignore state_referenced_locally
   let activeGranularity = $state(trend.granularity || 'weekly');
-  // svelte-ignore state_referenced_locally — intentional: seed once from props
+  // svelte-ignore state_referenced_locally
   let trendBuckets = $state<TrendBucket[]>(trend.buckets ?? []);
 
   const trendTotal = $derived(
