@@ -8,17 +8,17 @@ describe('badgeClass', () => {
   it('returns pending class', () => {
     expect(badgeClass('pending')).toBe('badge badge-pending');
   });
-  it('returns exported class', () => {
-    expect(badgeClass('exported')).toBe('badge badge-exported');
-  });
   it('returns confirmed class for paid', () => {
     expect(badgeClass('paid')).toBe('badge badge-confirmed');
   });
-  it('returns confirmed class for confirmed', () => {
-    expect(badgeClass('confirmed')).toBe('badge badge-confirmed');
+  it('returns confirmed class for accepted', () => {
+    expect(badgeClass('accepted')).toBe('badge badge-confirmed');
   });
-  it('falls back to confirmed class for unknown status', () => {
-    expect(badgeClass('unknown')).toBe('badge badge-confirmed');
+  it('returns rejected class for rejected', () => {
+    expect(badgeClass('rejected')).toBe('badge badge-rejected');
+  });
+  it('falls back to a neutral class for unknown status', () => {
+    expect(badgeClass('unknown')).toBe('badge badge-neutral');
   });
 });
 
@@ -26,11 +26,11 @@ describe('statusKey', () => {
   it('maps pending', () => {
     expect(statusKey('pending')).toBe('status.pending');
   });
-  it('maps confirmed', () => {
-    expect(statusKey('confirmed')).toBe('status.confirmed');
+  it('maps accepted', () => {
+    expect(statusKey('accepted')).toBe('status.accepted');
   });
-  it('maps exported', () => {
-    expect(statusKey('exported')).toBe('status.exported');
+  it('maps rejected', () => {
+    expect(statusKey('rejected')).toBe('status.rejected');
   });
   it('maps overdue', () => {
     expect(statusKey('overdue')).toBe('status.overdue');

@@ -68,8 +68,11 @@ plan and explicit human approval — it is never a silent convenience.
   must stay consistent with the local `subscriptions` row — never trust a price
   id or client claim to grant features.
 - Entitlement is declared per route in `ROUTE_POLICY` (`lib/server/entitlements.ts`)
-  and enforced by `entitlementHandle` in `hooks.server.ts`, which sees every verb
-  of a route. Do not hand-write a tier check in a handler that a route policy can
+  and enforced by `entitlementHandle`, which lives beside the policy in that same
+  module and is registered in the `hooks.server.ts` handle sequence. It keys off
+  `event.route.id`, so it sees every verb of a route;
+  `tests/entitlement-verbs.test.ts` drives it over every gated route × verb ×
+  tier to keep that true. Do not hand-write a tier check in a handler that a route policy can
   express — that is how ADR-023 got written. Every route id must appear in the
   map, as `'open'` or with a policy; the map `satisfies Record<RouteId, …>`, so
   omitting one fails `pnpm check`.
