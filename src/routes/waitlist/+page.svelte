@@ -305,10 +305,10 @@
                                             color:var(--mep-fg-2);">{otherLang}</button>
     </div>
     <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
-      <a href="/login" class="btn btn-secondary" style="height:32px;padding:0 14px;font-size:13px;
+      <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;
                                                        font-weight:600;text-decoration:none;
                                                        white-space:nowrap;">{t.signInLink}</a>
-      <a href="/signup" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:13px;
+      <a href="/signup" class="btn btn-primary" style="padding:0 14px;font-size:13px;
                                                       font-weight:600;text-decoration:none;
                                                       white-space:nowrap;">{t.createAccountLink}</a>
     </div>

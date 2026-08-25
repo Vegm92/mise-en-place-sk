@@ -727,7 +727,7 @@
               </div>
             {/each}
             {#if addFiles.length > 0}
-              <button disabled={addSubmitting} class="btn btn-primary" style="height:32px;justify-content:center;font-size:12.5px;" onclick={submitAddFiles}>
+              <button disabled={addSubmitting} class="btn btn-primary" style="justify-content:center;font-size:12.5px;" onclick={submitAddFiles}>
                 {addSubmitting ? $t('confirm.adding') : $tp('confirm.addFile', addFiles.length)}
               </button>
             {/if}
@@ -782,7 +782,7 @@
               style="width:100%;height:100%;border:none;display:block;"
             ></iframe>
           </div>
-          <div style="padding:6px 10px;border-top:1px solid var(--mep-divider);display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--mep-acc);">
+          <div style="padding:6px 10px;border-top:1px solid var(--mep-divider);display:flex;align-items:center;gap:5px;font-size:11px;color:var(--mep-acc);">
             <Sparkle size={10} /> {$t('extract.aiExtracted')} · {$t(confidenceBadgeKey)}
           </div>
         {:else}
@@ -843,8 +843,8 @@
                 <Check size={11} />
               </span>
             {/if}
-            <button type="submit" form="discard-item-form" class="btn btn-secondary rev-desktop-only" style="height:32px;font-size:12.5px;padding:0 12px;flex-shrink:0;">{$t('extract.discard')}</button>
-            <button type="submit" form="save-form" class="btn btn-primary rev-desktop-only" style="height:32px;font-size:12.5px;gap:6px;flex-shrink:0;padding:0 12px;">
+            <button type="submit" form="discard-item-form" class="btn btn-secondary rev-desktop-only" style="font-size:12.5px;padding:0 12px;flex-shrink:0;">{$t('extract.discard')}</button>
+            <button type="submit" form="save-form" class="btn btn-primary rev-desktop-only" style="font-size:12.5px;gap:6px;flex-shrink:0;padding:0 12px;">
               <Check size={13} /> {$t('extract.confirmSave')}
               <kbd class="rev-kbd" style="background:transparent;border-color:currentColor;color:inherit;opacity:0.7;">⌘↵</kbd>
             </button>
@@ -897,7 +897,7 @@
                     {$t('field.invoiceNum')}
                     <ConfidenceDot confidence={fieldConf.invoice_number} />
                     {#if review?.data?.document_type === 'factura' || review?.data?.document_type === 'albaran'}
-                      <span style="font-size:9.5px;font-weight:600;text-transform:none;letter-spacing:0;padding:1px 6px;border-radius:8px;background:var(--mep-surface-2);color:var(--mep-fg-3);">
+                      <span style="font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;padding:1px 6px;border-radius:8px;background:var(--mep-surface-2);color:var(--mep-fg-3);">
                         {$t(`field.documentType.${review.data.document_type}`)}
                       </span>
                     {/if}
@@ -1049,7 +1049,7 @@
                       <td>
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" bind:value={lineItems[i].description}
-                            class="rev-cell" style="font-size:12.5px;font-weight:500;" />
+                            class="rev-cell" style="font-weight:500;" />
                           <ConfidenceDot confidence={itemConf} size={6} />
                         </div>
                       </td>
@@ -1295,7 +1295,7 @@
           <ExternalLink size={17} />
         </a>
       {/if}
-      <button type="button" class="btn btn-secondary" style="height:32px;font-size:12.5px;gap:6px;" onclick={closeDocViewer}>
+      <button type="button" class="btn btn-secondary" style="font-size:12.5px;gap:6px;" onclick={closeDocViewer}>
         <X size={13} /> {$t('review.closeFullscreen')}
       </button>
     </div>

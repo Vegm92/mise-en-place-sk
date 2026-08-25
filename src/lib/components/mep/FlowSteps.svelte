@@ -21,7 +21,7 @@
 				width:{dot}px;height:{dot}px;border-radius:{dot / 2}px;
 				background:{current || done ? 'var(--mep-acc)' : 'var(--mep-surface-2)'};
 				color:{current || done ? 'var(--mep-acc-fg)' : 'var(--mep-fg-3)'};
-				font-size:{size === 'sm' ? 10 : 11}px;font-weight:600;
+				font-size:11px;font-weight:600;
 				display:inline-flex;align-items:center;justify-content:center;
 				border:{current || done ? 'none' : '1px solid var(--mep-divider)'};
 				flex-shrink:0;
