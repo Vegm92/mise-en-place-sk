@@ -13,7 +13,8 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	await parent();
 
 	const rid = locals.restaurantId;
-	const billingTdb = forTenant(await billingRestaurantId(rid));
+	const entitlements = await locals.entitlements();
+	const billingTdb = forTenant(entitlements?.billingRestaurantId ?? rid);
 
 	const [sub] = await db.select()
 		.from(subscriptions)
