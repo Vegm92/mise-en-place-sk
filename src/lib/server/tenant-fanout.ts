@@ -177,7 +177,6 @@ export async function registerTenantFanout<D extends TenantJobData>(
 	};
 	await boss.createQueue(deadLetter);
 	await boss.createQueue(handler.queue, options);
-	await boss.updateQueue(handler.queue, options);
 
 	await boss.work(
 		handler.queue,
