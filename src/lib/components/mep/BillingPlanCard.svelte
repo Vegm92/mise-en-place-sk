@@ -6,7 +6,7 @@
 	const { tier, available, switchable, isRecommended }: {
 		tier: {
 			tier: string;
-			name: string;
+			nameKey: string;
 			monthlyInvoiceQuota: number | null;
 			isCurrent: boolean;
 		};
@@ -31,7 +31,7 @@
 	box-shadow:{isRecommended ? '0 0 0 1px var(--mep-acc), var(--mep-shadow-card)' : 'var(--mep-shadow-card)'};
 	background:{tier.isCurrent ? 'var(--mep-surface-2)' : 'var(--mep-surface)'};">
 	<div style="display:flex;align-items:center;gap:8px;">
-		<div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{tier.name}</div>
+		<div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{$t(tier.nameKey)}</div>
 		{#if isRecommended}
 			<span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:11px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{$t('billing.recommended')}</span>
 		{/if}
@@ -70,7 +70,7 @@
 			<button type="submit" class={isRecommended ? 'btn btn-primary' : 'btn btn-secondary'}
 				disabled={!available}
 				style="height:36px;justify-content:center;width:100%;opacity:{available ? 1 : 0.5};">
-				{$ti(switchable ? 'billing.switchTo' : 'billing.choose', { name: tier.name })}
+				{$ti(switchable ? 'billing.switchTo' : 'billing.choose', { name: $t(tier.nameKey) })}
 			</button>
 		</form>
 	{/if}

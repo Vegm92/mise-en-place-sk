@@ -50,7 +50,7 @@
     </div>
   </div>
 
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1;min-width:0;">
+  <div class="basis-full grow shrink md:basis-0" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;">
     {#each chips as chip}
       {@const ct = TONE[chip.status] ?? TONE.ok}
       <svelte:element

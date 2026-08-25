@@ -3,6 +3,7 @@
   import { t, ti } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
 
   const STATUS_COLOR: Record<string, string> = {
@@ -29,7 +30,7 @@
   {/snippet}
 </AdminPageHead>
 
-<div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:16px;">
+<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:16px;">
 
   <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
     <span style="font-size:12px;color:var(--mep-fg-3);">{$t('admin.typeLabel')}</span>
@@ -46,40 +47,42 @@
   </div>
 
   <SectionCard title={$t('admin.events')} noPad>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--mep-divider);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colType')}</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colMessage')}</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
-          <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
-          <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colDate')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each data.events as ev}
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="padding:9px 16px;">
-              <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);">{ev.notification_type}</code>
-            </td>
-            <td style="padding:9px 16px;color:var(--mep-fg);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ev.message}</td>
-            <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">{ev.restaurant_name ?? '—'}</td>
-            <td style="padding:9px 16px;text-align:center;">
-              <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:{STATUS_BG[ev.status] ?? 'var(--mep-hover)'};color:{STATUS_COLOR[ev.status] ?? 'var(--mep-fg-3)'};">
-                {ev.status}
-              </span>
-            </td>
-            <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;white-space:nowrap;">
-              {new Date(ev.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
-            </td>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colType')}</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colMessage')}</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
+            <th style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
+            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colDate')}</th>
           </tr>
-        {:else}
-          <tr>
-            <td colspan="5" style="padding:32px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noEvents')}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each data.events as ev}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="padding:9px 16px;">
+                <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);">{ev.notification_type}</code>
+              </td>
+              <td style="padding:9px 16px;color:var(--mep-fg);max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{ev.message}</td>
+              <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">{ev.restaurant_name ?? '—'}</td>
+              <td style="padding:9px 16px;text-align:center;">
+                <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:{STATUS_BG[ev.status] ?? 'var(--mep-hover)'};color:{STATUS_COLOR[ev.status] ?? 'var(--mep-fg-3)'};">
+                  {ev.status}
+                </span>
+              </td>
+              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;white-space:nowrap;">
+                {new Date(ev.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+              </td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="5" style="padding:32px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noEvents')}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
   {#if data.totalPages > 1}

@@ -394,7 +394,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     <a href="/billing" onclick={() => mobileOpen = false}
       style="display:block;margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{data.planName}{#if data.cancelAtPeriodEnd && data.currentPeriodEnd}<span style="color:var(--mep-warn);"> · {$ti('billing.cancelsOn', { date: new Date(data.currentPeriodEnd).toLocaleDateString($locale, { year: 'numeric', month: 'long', day: 'numeric' }) })}</span>{:else if data.subscriptionStatus === 'canceled'}<span style="color:var(--mep-fg-3);"> · {$t('billing.canceled')}</span>{/if}</span>
+        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}{#if data.cancelAtPeriodEnd && data.currentPeriodEnd}<span style="color:var(--mep-warn);"> · {$ti('billing.cancelsOn', { date: new Date(data.currentPeriodEnd).toLocaleDateString($locale, { year: 'numeric', month: 'long', day: 'numeric' }) })}</span>{:else if data.subscriptionStatus === 'canceled'}<span style="color:var(--mep-fg-3);"> · {$t('billing.canceled')}</span>{/if}</span>
         <span class="num" style="font-size:11px;color:var(--mep-fg-3);">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span>
       </div>
       <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
