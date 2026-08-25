@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
   join: publicFormAction(
-    { limits: ({ ip }) => [{ key: `waitlist:${ip}`, max: 5 }] },
+    { limits: ({ ip }) => [{ key: `waitlist:${ip}`, max: 5 }], turnstile: true },
     async ({ form }) => {
       const email = (form.get('email') as string ?? '').trim().toLowerCase();
 

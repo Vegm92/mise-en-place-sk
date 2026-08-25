@@ -3,6 +3,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { t, initLocale } from '$lib/i18n';
+	import Turnstile from '$lib/components/Turnstile.svelte';
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -29,6 +30,8 @@
 		const formError = form?.error;
 		if (formError === 'missing') return $t('login.err.missing');
 		if (formError === 'password_too_short') return $t('signup.err.passwordShort');
+		if (formError === 'password_too_long') return $t('signup.err.passwordLong');
+		if (formError === 'bot_suspected') return $t('signup.err.bot');
 		if (formError === 'terms_required') return $t('signup.err.terms');
 		if (formError === 'already_registered') return $t('signup.err.exists');
 		if (formError === 'generic') return $t('signup.err.generic');
@@ -123,7 +126,7 @@
 							type="password"
 							required
 							autocomplete="new-password"
-							minlength="8"
+							minlength="12"
 							placeholder={$t('signup.passwordPlaceholder')}
 							class="input"
 							style="height:36px;"
@@ -147,6 +150,8 @@
 							<a href="/privacy" style="color:var(--mep-acc);">{$t('set.privacyLink')}</a>.
 						</span>
 					</label>
+
+					<Turnstile />
 
 					<button type="submit" class="btn btn-primary" style="height:36px;justify-content:center;margin-top:4px;">
 						{$t('signup.submit')}

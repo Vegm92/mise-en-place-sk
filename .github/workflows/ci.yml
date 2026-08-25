@@ -7,6 +7,20 @@ on:
     branches: [main]
 
 jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # Full history: a secret committed and later "deleted" still lives in
+          # past commits, so the scan must cover every reachable ref.
+          fetch-depth: 0
+
+      - name: Scan git history for secrets (gitleaks)
+        run: |
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+            detect --source /repo --log-opts="--all" --redact --exit-code 1
+
   ci:
     runs-on: ubuntu-latest
     services:
