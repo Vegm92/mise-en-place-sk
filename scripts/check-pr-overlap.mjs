@@ -27,6 +27,15 @@ const rawGit = (...a) => {
 };
 const tryGit = (...a) => rawGit(...a).trim();
 
+const enc = encodeURIComponent;
+const SLUG_PART = /^[A-Za-z0-9._-]{1,100}$/;
+
+function validSlug(owner, repo) {
+	if (!owner || !repo) return null;
+	if (!SLUG_PART.test(owner) || !SLUG_PART.test(repo)) return null;
+	return { owner, repo };
+}
+
 // The host is compared for equality, never matched by a substring pattern: an
 // unanchored /github\.com/ also accepts evil-github.com and github.com.attacker.net.
 function repoSlug() {
@@ -34,7 +43,7 @@ function repoSlug() {
 	if (!url) return null;
 
 	const scp = /^(?:[A-Za-z0-9._-]+@)?github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/.exec(url);
-	if (scp) return { owner: scp[1], repo: scp[2] };
+	if (scp) return validSlug(scp[1], scp[2]);
 
 	let parsed;
 	try {
@@ -45,8 +54,7 @@ function repoSlug() {
 	if (parsed.hostname !== 'github.com') return null;
 
 	const [owner, repo] = parsed.pathname.replace(/^\//, '').replace(/\.git$/, '').split('/');
-	if (!owner || !repo) return null;
-	return { owner, repo };
+	return validSlug(owner, repo);
 }
 
 function token() {
@@ -95,7 +103,7 @@ async function openPullRequests(slug, tok) {
 	const out = [];
 	for (let page = 1; page <= 3; page += 1) {
 		const batch = await api(
-			`/repos/${slug.owner}/${slug.repo}/pulls?state=open&per_page=100&page=${page}`,
+			`/repos/${enc(slug.owner)}/${enc(slug.repo)}/pulls?state=open&per_page=100&page=${page}`,
 			tok
 		);
 		out.push(...batch);
@@ -108,7 +116,7 @@ async function filesOf(slug, number, tok) {
 	const out = [];
 	for (let page = 1; page <= 3; page += 1) {
 		const batch = await api(
-			`/repos/${slug.owner}/${slug.repo}/pulls/${number}/files?per_page=100&page=${page}`,
+			`/repos/${enc(slug.owner)}/${enc(slug.repo)}/pulls/${Number(number)}/files?per_page=100&page=${page}`,
 			tok
 		);
 		out.push(...batch.map((f) => f.filename));
