@@ -50,7 +50,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		  ${supplierFilter}
 		ORDER BY ABS(COALESCE(change_pct, 0)) DESC
 	`);
-	const rows = rawRows as unknown as PriceRow[];
+	const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
+	const rows = (rawRows as unknown as Record<string, unknown>[]).map((r) => ({
+		...r,
+		latest_price: Number(r.latest_price),
+		latest_normalized_price: num(r.latest_normalized_price),
+		prev_price: num(r.prev_price),
+		change_pct: num(r.change_pct),
+	})) as unknown as PriceRow[];
 
 	const items = rows.sort((a, b) => {
 		const aAbs = a.change_pct !== null ? Math.abs(a.change_pct) : -1;
