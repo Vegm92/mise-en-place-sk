@@ -18,6 +18,32 @@ Cada `.dc.html` es una lámina (artboard) y `canvas.json` las coloca en el lienz
 | `EstiloEditorial.dc.html` | El cierre mensual en estilo Editorial |
 | `ExportacionCSV.dc.html` | Esquema de columnas y reglas de formato de los cuatro CSV |
 
+## Dónde vive el código
+
+Estas láminas ya no son solo diseño. La pantalla es `/reports` (elección) y
+`/reports/[type]` (el informe), con `?style=` y `?period=` en la URL.
+
+| Pieza | Fichero |
+|---|---|
+| Tipos, estilos y serializador CSV | `src/lib/reports.ts` |
+| Un constructor por informe | `src/lib/server/reports/{weekly,monthly,prices,payables}.ts` |
+| Despacho y traducción del CSV | `src/lib/server/reports/index.ts` |
+| Lámina A4 y los tres estilos | `src/routes/(app)/reports/[type]/+page.svelte` |
+| Descarga CSV | `src/routes/(app)/reports/[type]/csv/+server.ts` |
+
+Cada constructor devuelve un `ReportDoc` — cabecera, indicadores, gráfico,
+tabla y filas de CSV — y **un solo** componente dibuja los cuatro. Añadir un
+informe es escribir un constructor, no una pantalla.
+
+El PDF es `window.print()` contra un `@page { size: A4 }`: no hay librería de
+PDF ni navegador sin cabeza en el servidor.
+
+El cierre semanal y el mensual leen las tablas vivas, no
+`mv_category_monthly_spend`, para que un albarán subido hoy cuente hoy; la
+vista materializada solo se refresca por la noche. La variación de precios sí
+lee `mv_price_snapshots` — reconstruir esa ventana en vivo no compensa para un
+informe de tendencia.
+
 ## De dónde salen los datos
 
 - **Cierre semanal** — `weekly_digest` más los albaranes de la semana ISO
