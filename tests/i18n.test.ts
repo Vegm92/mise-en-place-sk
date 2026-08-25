@@ -554,3 +554,34 @@ describe('revenue console keys (admin SaaS metrics)', () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe('issue #661 — invoice export status filter label', () => {
+  const keys = [
+    'export.title',
+    'export.dateRange',
+    'export.dateHint',
+    'export.status',
+    'export.allStatus',
+    'export.paid',
+    'export.pending',
+    'export.download',
+    'export.cancel',
+    'export.backLabel',
+  ];
+
+  it('resolves every key the export page uses in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const k of keys) if (tr(k) === k) missing.push(`${lc}:${k}`);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('labels the status filter Estado in Spanish and Status in English', () => {
+    locale.set('es');
+    expect(tr('export.status')).toBe('Estado');
+    locale.set('en');
+    expect(tr('export.status')).toBe('Status');
+  });
+});

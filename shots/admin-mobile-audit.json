@@ -1,0 +1,266 @@
+{
+  "generatedAt": "2026-08-24T15:36:22.818Z",
+  "base": "http://127.0.0.1:5207",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "tag": "after",
+  "totals": {
+    "routes": 7,
+    "tables": 17,
+    "clipped": 0
+  },
+  "routes": [
+    {
+      "route": "/admin",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Actividad reciente",
+          "columns": 2,
+          "renderedWidth": 681.5,
+          "containerWidth": 364,
+          "overflowPx": 317.5,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Restaurantes recientes",
+          "columns": 4,
+          "renderedWidth": 464.3,
+          "containerWidth": 364,
+          "overflowPx": 100.3,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 2,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin.png"
+    },
+    {
+      "route": "/admin/access",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Cuentas",
+          "columns": 4,
+          "renderedWidth": 594.4,
+          "containerWidth": 364,
+          "overflowPx": 230.4,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Lista de espera sin cuenta",
+          "columns": 3,
+          "renderedWidth": 448.1,
+          "containerWidth": 364,
+          "overflowPx": 84.1,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 2,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_access.png"
+    },
+    {
+      "route": "/admin/revenue",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Movimiento de MRR · 2026-07 → 2026-08",
+          "columns": 2,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Histórico de MRR",
+          "columns": 4,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 2,
+          "label": "Cohortes de contratación",
+          "columns": 6,
+          "renderedWidth": 503.6,
+          "containerWidth": 364,
+          "overflowPx": 139.6,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 3,
+          "label": "Embudo comercial",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 4,
+          "label": "Fuga de ingresos",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 5,
+          "label": "Inversión en captación",
+          "columns": 5,
+          "renderedWidth": 450.6,
+          "containerWidth": 364,
+          "overflowPx": 86.6,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 6,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_revenue.png"
+    },
+    {
+      "route": "/admin/events",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Eventos",
+          "columns": 5,
+          "renderedWidth": 903,
+          "containerWidth": 364,
+          "overflowPx": 539,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 1,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_events.png"
+    },
+    {
+      "route": "/admin/dead-letters",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Cola de fallos",
+          "columns": 7,
+          "renderedWidth": 1168.3,
+          "containerWidth": 364,
+          "overflowPx": 804.3,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 1,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_dead-letters.png"
+    },
+    {
+      "route": "/admin/errors",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Issues sin resolver",
+          "columns": 5,
+          "renderedWidth": 737.5,
+          "containerWidth": 364,
+          "overflowPx": 373.5,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 1,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_errors.png"
+    },
+    {
+      "route": "/admin/health",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Comprobaciones",
+          "columns": 3,
+          "renderedWidth": 508.6,
+          "containerWidth": 364,
+          "overflowPx": 144.6,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Cuándo / Evento / Gravedad / Calidad",
+          "columns": 4,
+          "renderedWidth": 692.9,
+          "containerWidth": 364,
+          "overflowPx": 328.9,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 2,
+          "label": "",
+          "columns": 2,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 3,
+          "label": "Recuento de filas por tabla",
+          "columns": 2,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        }
+      ],
+      "tableCount": 4,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_health.png"
+    }
+  ]
+}
