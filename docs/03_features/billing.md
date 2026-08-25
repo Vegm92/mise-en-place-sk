@@ -251,11 +251,12 @@ guard; quota arithmetic.
 **`interface TierConfig`**
 
 - `stripePriceId` per tier; `maxLocations` = how many restaurants one subscription covers (issue #290).
+- Two names per tier, deliberately (follow-up to issue #661). `name` is the language-neutral token that gets *stored* — the `settings.plan_name` mirror and the plan word in the Spanish subscription-confirmation email — so it must never change with the reader's language. `nameKey` is the i18n key that gets *displayed*; every load function hands the client `nameKey` and the component resolves it with `$t`. The trial tier is the reason the split exists: its stored token is `Trial`, but it renders as `Prueba gratuita` / `Free trial`, and before the split the Spanish string was what English users saw in the sidebar badge.
 
 **`const TIERS`**
 
 - Prices are managed in Stripe; quotas + features define each tier. Starter €49/mo (~50–80 invoices), Pro €99/mo, Business €199/mo (custom for chains); trial has no price id.
-- Quota convention (issue #295): `settings.plan_quota` = `'unlimited'` | positive n | missing → tier's configured quota. Legacy rows stored the magic `99999` instead of the sentinel (`LEGACY_UNLIMITED_QUOTA`); `null` means unlimited at every call site. `resolveMonthlyQuota`/`getMonthlyQuota` apply the convention; `applyTierSettings` mirrors `plan_name`/`plan_quota` into settings so the layout serves them without a subscriptions join for the common case.
+- Quota convention (issue #295): `settings.plan_quota` = `'unlimited'` | positive n | missing → tier's configured quota. Legacy rows stored the magic `99999` instead of the sentinel (`LEGACY_UNLIMITED_QUOTA`); `null` means unlimited at every call site. `resolveMonthlyQuota`/`getMonthlyQuota` apply the convention; `applyTierSettings` mirrors `plan_name`/`plan_quota` into settings so the layout serves the quota without a subscriptions join for the common case. The layout no longer reads the `plan_name` mirror — a stored string cannot follow the reader's locale — and derives the displayed name from the tier's `nameKey` instead; the mirror stays as the record of the applied tier.
 
 **`function getEntitlements`**
 
