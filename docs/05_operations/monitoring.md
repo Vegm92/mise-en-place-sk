@@ -18,7 +18,8 @@ tables are the ground truth for jobs.
 ## Operational surface — `/admin`
 
 Owner-email gated. Provides:
-- System health: worker status, job queues + dead-letter counts, and the
+- System health: worker heartbeat (alive / stale / unknown, with
+  `last_job_completed_at`), job queues + dead-letter counts, and the
   per-tenant scheduled-job fan-out — last dispatch per job
   (`scanned / considered / dispatched`) plus a 24 h per-queue roll-up of
   done / sent / pending / failed (#518).
@@ -33,6 +34,8 @@ Owner-email gated. Provides:
 | Concern | Check |
 |---|---|
 | Extractions pending | `batch_items` status counts; `extract-invoice` queue |
+| Worker up? | `worker_heartbeats.last_seen_at` — stale > 2 min means down or wedged, whatever the queue depth says |
+| Extractions stalled | `batch_items` in `queued`/`extracting` with `queued_at` older than 15 min; the web process reaps these to `failed` / `extract.err.stalled` on the next batch read |
 | Invoice save correctness | duplicate `contentHash` hits (should be ~0); idempotency claims expired |
 | LLM usage vs quota | `llm_usage_log` / `monthly_usage` (note: chat + digest call Gemini directly and are **not** metered — open gap; fix contract in `docs/04_engineering/llm_usage_metering.md`) |
 | Webhook throughput | `idempotency_keys` grouped by `scope` |
@@ -45,8 +48,9 @@ Owner-email gated. Provides:
 - In-app alert types (price shock ≥15%, low stock <3 days, budget 80%/100%)
   are user-facing features, not ops alerts.
 - Ops alerts: Sentry errors, dead-letter growth, WhatsApp account events of
-  severity RED/YELLOW, worker down (cron misses), failed per-tenant scheduled
-  jobs (`/admin/health` warns above 0, errors above 10 in 24 h).
+  severity RED/YELLOW, worker down (stale `worker_heartbeats` row; cron misses),
+  failed per-tenant scheduled jobs (`/admin/health` warns above 0, errors above
+  10 in 24 h).
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
 

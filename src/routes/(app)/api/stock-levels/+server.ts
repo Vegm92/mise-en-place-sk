@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	await requireFeature('stockTracking', rid);
+	await requireFeature('stockTracking', locals);
 	const rows = await db.select().from(stockLevels).where(tdb.scope(stockLevels.restaurantId));
 	return json({ stock_levels: rows });
 };
@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
-	await requireFeature('stockTracking', rid);
+	await requireFeature('stockTracking', locals);
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
 
