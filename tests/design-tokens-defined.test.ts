@@ -151,6 +151,14 @@ describe('MEP design tokens', () => {
 		expect(option, 'the bare `option` rule is missing from app.css').not.toBeNull();
 		expect(option![1]).toContain('--mep-surface');
 		expect(option![1]).toContain('--mep-fg');
+
+		// Same propagation, the other half: Chrome paints the popup's own canvas
+		// with the <select>'s background too, so a translucent one composites over
+		// white. --mep-hover is rgba(255,255,255,.05) and .rev-cell is transparent,
+		// which is why the popup washed out on hover. Every state a <select> can be
+		// in has to resolve to an opaque colour.
+		expect(css).toMatch(/select\.btn-secondary:hover\s*\{[^}]*--mep-surface-2/);
+		expect(css).toMatch(/select\.rev-cell[^{]*\{[^}]*--mep-surface/);
 	});
 
 	it('never pairs a hard-coded #fff with a solid semantic fill', () => {
