@@ -25,6 +25,7 @@ const ALL: InvoiceFilters = {
 	q: 'tomate',
 	status: 'pending',
 	supplier_id: '42',
+	category: 'Carnicería',
 	date_from: '2026-01-01',
 	date_to: '2026-01-31',
 	uploaded_from: '2026-02-01',
@@ -40,7 +41,7 @@ describe('parseInvoiceFilters', () => {
 
 	it('reads every filter out of the search params', () => {
 		const parsed = parseInvoiceFilters(params(
-			'q=tomate&status=pending&supplier_id=42&date_from=2026-01-01&date_to=2026-01-31' +
+			'q=tomate&status=pending&supplier_id=42&category=Carnicer%C3%ADa&date_from=2026-01-01&date_to=2026-01-31' +
 			'&uploaded_from=2026-02-01&uploaded_to=2026-02-28&sort=invoice_date_asc'
 		));
 		expect(parsed).toEqual(ALL);
@@ -74,7 +75,7 @@ describe('countActiveInvoiceFilters', () => {
 		expect(countActiveInvoiceFilters({ ...EMPTY_INVOICE_FILTERS, q: 'tomate', supplier_id: '7' })).toBe(2);
 		expect(countActiveInvoiceFilters({ ...EMPTY_INVOICE_FILTERS, sort: DEFAULT_INVOICE_SORT })).toBe(0);
 		expect(countActiveInvoiceFilters({ ...EMPTY_INVOICE_FILTERS, sort: 'invoice_date_desc' })).toBe(1);
-		expect(countActiveInvoiceFilters(ALL)).toBe(8);
+		expect(countActiveInvoiceFilters(ALL)).toBe(9);
 	});
 
 	it('ignores blank and whitespace-only values', () => {
