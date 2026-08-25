@@ -111,7 +111,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		quotaLimit:              usable ? entitlements?.monthlyQuota ?? null : TIERS.trial.monthlyInvoiceQuota ?? 0,
 		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
 		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
-		locations: locationRows,
+		locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 		hasCompletedOnboarding,
 		tutorialStep,
 		planTier,
