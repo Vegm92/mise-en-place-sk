@@ -201,6 +201,7 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 - The filter predicate is composed *inside* `tdb.scope(suppliers.restaurantId, …)` rather than beside it, so no future filter can be added without the tenant predicate travelling with it.
 - `supplier_metrics` is LEFT JOINed purely so reliability can be ordered in SQL. `supplier_metrics.supplier_id` is UNIQUE, so the join adds no rows and the invoice aggregates are unaffected. The ordering reads the *cached* score: right after a recompute the order can lag by one page load, which is why the score itself is still merged from `metricsRows` for display.
 - The parsed params are echoed back in the payload so both UI variants can rebuild the URL without re-parsing it.
+- `categories` is `VALID_CATEGORIES` ordered by how many of *this tenant's* suppliers sit in each, with `categoryCounts` alongside it (issue #658). The count query is scoped like every other, and it is deliberately separate from the list query: reading the counts off the filtered rows would shrink the filter UI the moment a filter was applied.
 
 ### `src/lib/supplier-list.ts`
 
@@ -274,3 +275,5 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 
 **`markup`**
 - Search, sort dropdown, category chips (plus an uncategorized-products chip), summary strip, list. Same URL-driven params as the desktop variant (ADR-020); the component owns no filtering, it only reports the patch through `onApply` and lets the loader answer.
+- The category chips are a `ScrollStrip` holding at most `INLINE_CATEGORY_CHIPS` (4) of the categories the tenant actually buys from, plus a "+n categorías" chip that opens the filter sheet with the full list and per-category counts. Listing all 17 inline made a 2718px strip at 390px — nearly 7x the viewport, with the useful categories past the fold (issue #658). The active category is always pinned into the inline set, so a filter arrived at from the sheet or from a URL still reads as selected without opening anything.
+- The sheet is the alternative entry point the strip's length rule requires: a strip may stay long only while there is another way to reach what it hides.

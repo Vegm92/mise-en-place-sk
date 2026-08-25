@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-08-24T15:47:26.128Z",
+  "viewportWidth": 390,
+  "maxViewportRatio": 3,
+  "routes": [
+    {
+      "route": "/suppliers",
+      "strips": [
+        {
+          "auditId": "strip-0",
+          "selector": "div.scroll-strip",
+          "kind": "scrollable",
+          "scrollWidth": 925,
+          "clientWidth": 390,
+          "overflowPx": 535,
+          "viewportRatio": 2.37,
+          "maskImage": "linear-gradient(to right, rgba(0, 0, 0, 0) 0px, rgb(0, 0, 0) 0px, rgb(0, 0, 0) calc(100% - 32px), rgba(0, 0, 0, 0) 100%)",
+          "parentMaskImage": "none",
+          "scrollbarVisible": false,
+          "usesSharedStrip": true,
+          "altEntry": true,
+          "firstItem": "Todas",
+          "lastItem": "+13 categorías",
+          "lastItemRight": 907,
+          "hasAffordance": true,
+          "ok": true,
+          "reasons": [],
+          "screenshot": "shots/after/suppliers-strip-0.png"
+        }
+      ]
+    },
+    {
+      "route": "/invoices",
+      "strips": [
+        {
+          "auditId": "strip-0",
+          "selector": "div.scroll-strip",
+          "kind": "scrollable",
+          "scrollWidth": 516,
+          "clientWidth": 390,
+          "overflowPx": 126,
+          "viewportRatio": 1.32,
+          "maskImage": "linear-gradient(to right, rgba(0, 0, 0, 0) 0px, rgb(0, 0, 0) 0px, rgb(0, 0, 0) calc(100% - 32px), rgba(0, 0, 0, 0) 100%)",
+          "parentMaskImage": "none",
+          "scrollbarVisible": false,
+          "usesSharedStrip": true,
+          "altEntry": false,
+          "firstItem": "Este mes",
+          "lastItem": "Por categoría",
+          "lastItemRight": 498,
+          "hasAffordance": true,
+          "ok": true,
+          "reasons": [],
+          "screenshot": "shots/after/invoices-strip-0.png"
+        }
+      ]
+    },
+    {
+      "route": "/suppliers/18",
+      "strips": [
+        {
+          "auditId": "strip-0",
+          "selector": "div.scroll-strip",
+          "kind": "scrollable",
+          "scrollWidth": 384,
+          "clientWidth": 354,
+          "overflowPx": 30,
+          "viewportRatio": 0.98,
+          "maskImage": "linear-gradient(to right, rgba(0, 0, 0, 0) 0px, rgb(0, 0, 0) 0px, rgb(0, 0, 0) calc(100% - 32px), rgba(0, 0, 0, 0) 100%)",
+          "parentMaskImage": "none",
+          "scrollbarVisible": false,
+          "usesSharedStrip": true,
+          "altEntry": false,
+          "firstItem": "Resumen",
+          "lastItem": "Conversiones",
+          "lastItemRight": 402,
+          "hasAffordance": true,
+          "ok": true,
+          "reasons": [],
+          "screenshot": "shots/after/suppliers-18-strip-0.png"
+        }
+      ]
+    },
+    {
+      "route": "/batch/33333333-3333-3333-3333-333333333333",
+      "strips": []
+    }
+  ]
+}

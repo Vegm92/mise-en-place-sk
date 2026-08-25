@@ -3,7 +3,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { parseSupplierListParams } from '$lib/supplier-list';
 import {
@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type PriceTrendRow = { supplier_id: number; month: string; avg_price: number };
 		type SpendTrendRow = { month: string; category: string; spend: string };
 
-		const [rows, metricsRows, priceTrendRows, spendTrendRows] = await Promise.all([
+		const [rows, metricsRows, priceTrendRows, spendTrendRows, categoryRows] = await Promise.all([
 			db.select({
 				id:               suppliers.id,
 				name:             suppliers.name,
@@ -92,7 +92,25 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				GROUP BY DATE_TRUNC('month', i.invoice_date), COALESCE(s.category, 'Other')
 				ORDER BY DATE_TRUNC('month', i.invoice_date) ASC
 			`),
+
+			db.select({
+				category: suppliers.category,
+				supplier_count: sql<number>`COUNT(*)`.as('supplier_count'),
+			})
+				.from(suppliers)
+				.where(tdb.scope(suppliers.restaurantId))
+				.groupBy(suppliers.category),
 		]);
+
+		const categoryCounts: Record<string, number> = {};
+		for (const row of categoryRows) {
+			const key = row.category ?? UNCATEGORIZED_CATEGORY;
+			categoryCounts[key] = (categoryCounts[key] ?? 0) + Number(row.supplier_count);
+		}
+		const orderedCategories = [...VALID_CATEGORIES].sort((a, b) =>
+			(categoryCounts[b] ?? 0) - (categoryCounts[a] ?? 0)
+			|| VALID_CATEGORIES.indexOf(a) - VALID_CATEGORIES.indexOf(b),
+		);
 
 		const metricsMap = new Map(metricsRows.map((m) => [m.supplierId, m]));
 
@@ -175,7 +193,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			title: 'nav.suppliers',
 			subtitle: 'All active suppliers',
 			suppliers: supplierList,
-			categories: VALID_CATEGORIES,
+			categories: orderedCategories,
+			categoryCounts,
 			period,
 			trendData,
 			sort: listParams.sort,
