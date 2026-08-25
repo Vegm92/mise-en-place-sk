@@ -8,7 +8,7 @@ import { requireFeature } from '$lib/server/billing';
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/onboarding');
-	await requireFeature('aiAssistant', rid);
+	await requireFeature('aiAssistant', locals);
 	const tdb = forTenant(rid);
 	const sessionIdParam = url.searchParams.get('session');
 

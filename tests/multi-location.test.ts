@@ -58,6 +58,7 @@ vi.mock('$lib/server/billing', async (importOriginal) => {
 	};
 });
 
+import { getEntitlements } from '../src/lib/server/billing';
 import { POST as switchPost } from '../src/routes/(app)/api/active-restaurant/+server';
 import { actions as settingsActions } from '../src/routes/(app)/settings/+page.server';
 
@@ -81,7 +82,9 @@ function addLocationEvent(name: string, cookies = cookieJar()) {
 	data.append('name', name);
 	return {
 		request: { formData: async () => data },
-		locals: { user: USER, restaurantId: 'rest-1' },
+		// hooks resolves the billing context once per request and hands it to
+		// routes on locals (#519); the action reads the tier from there.
+		locals: { user: USER, restaurantId: 'rest-1', entitlements: () => getEntitlements('rest-1') },
 		cookies,
 	} as never;
 }

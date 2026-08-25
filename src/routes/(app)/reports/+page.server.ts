@@ -7,7 +7,7 @@ import { requireFeature } from '$lib/server/billing';
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/');
-	await requireFeature('weeklyDigest', rid);
+	await requireFeature('weeklyDigest', locals);
 
 	const currentWeek = isoWeek(new Date());
 	const weeklyDigest = await getOrGenerateWeeklyDigest(rid, currentWeek);
