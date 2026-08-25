@@ -181,7 +181,7 @@ describe('static guard: no new bare horizontal scroller', () => {
 	it('only the documented non-strip scrollers declare overflow-x themselves', () => {
 		const offenders: string[] = [];
 		for (const file of walk(SRC)) {
-			const rel = path.relative(ROOT, file);
+			const rel = path.relative(ROOT, file).split(path.sep).join('/');
 			if (rel in NON_STRIP_SCROLLERS) continue;
 			const src = readFileSync(file, 'utf8');
 			for (const [i, line] of src.split('\n').entries()) {
