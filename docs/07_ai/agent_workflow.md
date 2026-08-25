@@ -4,6 +4,19 @@ The operating cycle every agent (human or AI) follows in this repository.
 This is the "how to approach a task" that AGENTS.md summarizes. It is a cycle,
 not a pipeline: documentation and tests close the loop back into understanding.
 
+## 0. Claim
+
+Before anything else, when other sessions may be running: check that no open PR
+already edits the files you are about to touch, and make your own work visible.
+
+```
+pnpm pr:overlap
+```
+
+Open the PR as a **draft on your first commit** — a local branch claims nothing.
+Surface ownership, branch lanes, the 800-line cap and the model policy live in
+`docs/07_ai/parallel_sessions.md`.
+
 ## 1. Understand
 
 Read the feature spec (`docs/03_features/<feature>.md`) for the area you touch,
@@ -59,6 +72,7 @@ pnpm test                 # DB suites need local Postgres (DATABASE_TEST_URL)
 pnpm db:check-sync        # if schema touched
 pnpm lint:tenant-scope && pnpm lint:unscoped-query && pnpm lint:no-sql-raw && pnpm lint:i18n && pnpm lint:no-comments
 pnpm build
+pnpm pr:overlap           # no other open PR touches these files
 ```
 
 Local stack for auth/onboarding/invoice-save flows: `.claude/skills/verify/SKILL.md`.
