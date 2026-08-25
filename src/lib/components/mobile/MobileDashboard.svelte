@@ -79,11 +79,11 @@
     trend: TrendData;
   } = $props();
 
-  // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded trend
+  // svelte-ignore state_referenced_locally
   let activeRange = $state(trend.range);
-  // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded trend
+  // svelte-ignore state_referenced_locally
   let activeGranularity = $state(trend.granularity);
-  // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded trend
+  // svelte-ignore state_referenced_locally
   let trendBuckets = $state<TrendBucket[]>(trend.buckets);
   let trendLoading = $state(false);
 
