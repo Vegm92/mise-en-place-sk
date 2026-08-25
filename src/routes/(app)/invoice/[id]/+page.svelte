@@ -22,7 +22,7 @@
   const timelineEvents = $derived([
     { labelKey: 'inv.detail.uploaded',  ts: invoice.created_at },
     { labelKey: 'inv.detail.extracted', ts: invoice.created_at },
-    ...(invoice.status === 'confirmed' || invoice.status === 'exported'
+    ...(invoice.status === 'accepted' || invoice.status === 'paid'
       ? [{ labelKey: 'inv.detail.confirmed', ts: null }]
       : []),
   ]);

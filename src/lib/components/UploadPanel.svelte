@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
+  import { UPLOAD_ACCEPT } from '$lib/upload-formats';
   import { goto } from '$app/navigation';
   import Upload from '@lucide/svelte/icons/upload';
   import Sparkle from '@lucide/svelte/icons/sparkle';
@@ -423,7 +424,7 @@
           bind:this={fileInputEl}
           type="file"
           class="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,.heic,.xml"
+          accept={UPLOAD_ACCEPT}
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
@@ -575,7 +576,7 @@
           bind:this={fileInputEl}
           type="file"
           class="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,.heic,.xml"
+          accept={UPLOAD_ACCEPT}
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />

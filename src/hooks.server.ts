@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { json, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { handle as authHandle } from '$lib/server/auth';
 import { cleanupStaleBatches } from '$lib/server/batch';
@@ -9,7 +9,7 @@ import { db } from '$lib/server/db';
 import { userRestaurants, users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
 import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
-import { policyFor, refusalFor, resolveEntitlement } from '$lib/server/entitlements';
+import { entitlementHandle } from '$lib/server/entitlements';
 import { getEntitlements } from '$lib/server/billing';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
@@ -203,26 +203,6 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	if (event.route.id !== null) applyPrivateCacheHeaders(response.headers);
 
 	return response;
-};
-
-const entitlementHandle: Handle = async ({ event, resolve }) => {
-	const policy = policyFor(event.route.id);
-	if (!policy || policy === 'open') return resolve(event);
-
-	const entitlements = await event.locals.entitlements();
-
-	const decision = resolveEntitlement({
-		policy,
-		features: entitlements?.features ?? null,
-		access:   entitlements?.access   ?? null,
-	});
-
-	const refusal = refusalFor(decision, event.url.pathname.startsWith('/api/'));
-	if (!refusal) return resolve(event);
-
-	if (refusal.transport === 'api') return json(refusal.body, { status: refusal.status });
-
-	redirect(refusal.status, refusal.location);
 };
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), authHandle, appHandle, entitlementHandle);

@@ -4,6 +4,7 @@
   import { enhance } from '$app/forms';
   import type { PageData } from './$types';
   import { str } from '$lib/formatters';
+  import { UPLOAD_ACCEPT } from '$lib/upload-formats';
   import ConfidenceDot from '$lib/components/mep/ConfidenceDot.svelte';
   import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
   import FileTypeBadge from '$lib/components/FileTypeBadge.svelte';
@@ -623,7 +624,7 @@
         <div class="rev-strip-actions">
           <label class="rev-strip-action">
             <Plus size={15} /> {$t('review.addFiles')}
-            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple onchange={(e) => { onFileInputChange(e); submitAddFiles(); }} />
+            <input type="file" class="hidden" accept={UPLOAD_ACCEPT} multiple onchange={(e) => { onFileInputChange(e); submitAddFiles(); }} />
           </label>
           <button type="submit" form="discard-batch-form" class="rev-strip-action danger">
             <Trash size={15} /> {$t('confirm.discard')}
@@ -718,7 +719,7 @@
             <label style="display:flex;align-items:center;gap:8px;padding:10px;border-radius:8px;border:1.5px dashed var(--mep-border-strong);cursor:pointer;font-size:12px;color:var(--mep-fg-3);background:var(--mep-surface-2);">
               <Upload size={14} />
               {$t('confirm.addMoreTitle')}
-              <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple onchange={onFileInputChange} />
+              <input type="file" class="hidden" accept={UPLOAD_ACCEPT} multiple onchange={onFileInputChange} />
             </label>
             {#each addFiles as f, i}
               <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mep-fg);">
@@ -740,7 +741,7 @@
         {:else}
           <label class="rev-icon-btn" title={$t('confirm.addMoreTitle')} aria-label={$t('confirm.addMoreTitle')}>
             <Upload size={14} />
-            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple onchange={(e) => { onFileInputChange(e); submitAddFiles(); }} />
+            <input type="file" class="hidden" accept={UPLOAD_ACCEPT} multiple onchange={(e) => { onFileInputChange(e); submitAddFiles(); }} />
           </label>
           <form method="POST" action="?/discardBatch">
             <button type="submit" class="rev-icon-btn" title={$t('confirm.discard')} aria-label={$t('confirm.discard')}>

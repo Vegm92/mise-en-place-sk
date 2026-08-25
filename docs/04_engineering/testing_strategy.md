@@ -9,8 +9,9 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 |---|---|---|
 | Type checking | `pnpm check` (svelte-check) | strict TS across app + worker |
 | Static lint gates | `scripts/*.mjs` | no-sql-raw, tenant-scope, unscoped-query, i18n, no-comments |
-| Unit/integration | Vitest (`pnpm test`) | `tests/*.test.ts` — extraction, batch model, invoice save, alert engine, dedup, idempotency, billing, stripe webhook, whatsapp, products, qr, einvoice, tenant isolation, rate limiter, scheduler, status, budgets, working days, … (~70 files) |
-| DB-backed suites | Vitest + local Postgres | create/delete real rows; skip on non-local hosts (`DATABASE_TEST_URL`, `ALLOW_REMOTE_DB_TESTS` escape hatch) |
+| Unit/integration | Vitest (`pnpm test`) | `tests/*.test.ts` — extraction, batch model, invoice save, alert engine, dedup, idempotency, billing, stripe webhook, whatsapp, products, qr, einvoice, tenant isolation, rate limiter, scheduler, status, budgets, working days, … (~120 files) |
+| DB-backed suites | Vitest + local Postgres | create/delete real rows; skip on non-local hosts (`DATABASE_TEST_URL`, `ALLOW_REMOTE_DB_TESTS` escape hatch); the skipped files are named again at the end of the run |
+| Invariant sweeps | Vitest over source | one vocabulary per concept — entitlement policy per route, invoice status, supported upload types (see below) |
 | Migration sync | `pnpm db:check-sync` (`scripts/check-drizzle-sync.mjs`) | schema.ts vs committed migrations drift |
 | Build | `pnpm build` | app + worker bundles |
 | Coverage | v8 | ≥ 80% lines on 7 core modules (vite.config.ts) |
@@ -37,6 +38,36 @@ Job `ci` (postgres:17 service, `REQUIRE_DB_TESTS=1`):
 DB-backed tests need a local Postgres; `.claude/skills/verify/SKILL.md` provides
 a ready local stack.
 
+## Cross-cutting invariant suites
+
+Several suites assert over the *source* rather than over a hand-written list,
+so a new route, status or file type joins the table on its own. They exist
+because each of these concepts had drifted into two or three disagreeing copies
+(issue #520):
+
+| Suite | Invariant |
+|---|---|
+| `entitlement-routes.test.ts` | every server route is classified in `ROUTE_POLICY`; the gate is in the handle sequence; every upgrade slug has copy in both locales |
+| `entitlement-verbs.test.ts` | the gate refuses each gated route identically on every verb it exports, for every tier — a paywall must not be read-only |
+| `invoice-status-vocabulary.test.ts` | one `InvoiceStatus` union; every stored status has a badge class and an i18n key in es + en; the UI never offers a status the query layer cannot answer |
+| `supported-file-types.test.ts` | the picker's `accept`, `ALLOWED_EXTENSIONS`, `MAGIC_BYTES` and `classifyFile` admit the same set |
+| `skip-summary.test.ts` | the end-of-run summary names the files that did not run and why |
+
+`src/lib/upload-formats.ts` and `src/lib/status.ts` are the single sources those
+suites check against — extend the constant there, not the copy at the call site.
+
+## Skipped-test visibility
+
+`pnpm test` prints two notices. `tests/setup/global-setup.ts` warns *before* the
+run when the database gate is closed; `tests/setup/skip-summary-reporter.ts`
+repeats it *after*, naming every file that did not run, how many tests that was,
+and which guarantees (tenant isolation, database CRUD, invoice persistence,
+consent) are therefore unverified. A green "Test Files … passed" line above it
+is not a full run.
+
+CI is unaffected: it sets `REQUIRE_DB_TESTS=1`, where a closed gate is a hard
+failure rather than a skip, so the summary should never appear there.
+
 ## Known gaps (see final audit)
 
 - **Chat**: no dedicated test for `(app)/api/chat` (schema covered only).
@@ -61,6 +92,9 @@ a ready local stack.
 2. DB-backed: guard on local-host so the suite skips on non-local DBs.
 3. Name it after the subject (`alert-engine.test.ts`); keep one concern per file.
 4. Ensure it passes against a local Postgres (`DATABASE_TEST_URL`).
+5. For anything that exists in more than one place (a route policy, a status, a
+   file type), derive the test's table from the source instead of retyping it —
+   a hardcoded list in a test drifts with the code it was meant to pin.
 
 ## Conventions
 

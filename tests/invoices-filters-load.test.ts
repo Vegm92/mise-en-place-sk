@@ -51,7 +51,8 @@ vi.mock('$lib/server/db', async () => {
 
 vi.mock('$lib/server/events', () => ({ trackEvent: vi.fn() }));
 vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: vi.fn(async () => true) }));
-vi.mock('$lib/server/invoice-status', () => ({
+vi.mock('$lib/server/invoice-status', async (importOriginal) => ({
+	...(await importOriginal<typeof import('../src/lib/server/invoice-status')>()),
 	markInvoicePaid: vi.fn(),
 	markInvoiceUnpaid: vi.fn(),
 	markInvoicesPaidBulk: vi.fn(),
@@ -129,6 +130,15 @@ describe('/invoices load() — filters come from the search params', () => {
 		expect(listWhere.params).toContain(42);
 		expect(listWhere.params).toContain('2026-01-01');
 		expect(listWhere.params).toContain('2026-01-31');
+	});
+
+	it('resolves status=overdue to a due-date predicate, not a status nothing stores', async () => {
+		await runLoad('?status=overdue');
+		const listWhere = render(state.whereArgs[0]);
+
+		expect(listWhere.sql).toContain('"due_date"');
+		expect(listWhere.params).toContain('pending');
+		expect(listWhere.params).not.toContain('overdue');
 	});
 
 	it('filters by supplier category on both the page and row-count queries', async () => {

@@ -82,11 +82,13 @@ invoice" is the message the user can act on.
 - An unrecognised XML dialect throws rather than falling back to the LLM. This is
   intentional: silently vision-reading an XML file would produce plausible
   garbage. Adding a dialect means extending `einvoice-parser.ts`.
-- `.xml` is accepted by `extractInvoice` but **not** by `saveUploadedFiles`,
-  whose `ALLOWED_EXTENSIONS` is `.pdf/.jpg/.jpeg/.png`. The XML path is
-  therefore reachable only for files that entered storage by another route. If
-  XML upload is to be offered in the UI, that allowlist and its magic-byte table
-  are the place to change — not this ADR.
+- `.xml` was accepted by `extractInvoice` but **not** by `saveUploadedFiles`,
+  whose `ALLOWED_EXTENSIONS` was `.pdf/.jpg/.jpeg/.png`, so the XML path was
+  reachable only for files that entered storage by another route. That gap is
+  closed: the allowlist and its magic-byte table now admit `.xml`, and both
+  derive from `SUPPORTED_UPLOAD_EXTENSIONS` (`src/lib/upload-formats.ts`)
+  together with every file input's `accept` attribute. Changing the supported
+  set means changing that constant — still not this ADR.
 - The extraction prompt is a single Spanish-market-tuned constant
   (`EXTRACTION_PROMPT`), shared by every route so that a text PDF and a photo of
   the same invoice produce the same field set. Its category vocabulary is
