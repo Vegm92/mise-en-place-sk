@@ -5,7 +5,7 @@ import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { loadConversionPrompts } from '$lib/server/products';
-import { VALID_CATEGORIES } from '$lib/constants';
+import { VALID_CATEGORIES, periodToDate } from '$lib/constants';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 type ProductRow = {
@@ -28,6 +28,7 @@ type SuggestionRow = {
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const period = url.searchParams.get('period') ?? '30d';
+	const periodStart = periodToDate(period).toISOString().slice(0, 10);
 
 	return handleLoad('products', async () => {
 		const [products, suggestionRows, trendRows, conversionPrompts] = await Promise.all([
@@ -53,7 +54,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					COUNT(*) AS count
 				FROM products
 				WHERE restaurant_id = ${rid}
-				  AND created_at >= (NOW() - INTERVAL '6 months')::date
+				  AND created_at >= ${periodStart}
 				GROUP BY DATE_TRUNC('month', created_at)
 				ORDER BY DATE_TRUNC('month', created_at) ASC
 			`),
