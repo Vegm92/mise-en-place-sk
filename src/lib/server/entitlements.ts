@@ -68,6 +68,8 @@ export const ROUTE_POLICY = {
 	'/(app)/products/[id]':              'open',
 	'/(app)/reminders':                  'open',
 	'/(app)/reports':                    { feature: 'weeklyDigest', access: true },
+	'/(app)/reports/[type]':             { feature: 'weeklyDigest', access: true },
+	'/(app)/reports/[type]/csv':         { feature: 'weeklyDigest', access: true },
 	'/(app)/settings':                   'open',
 	'/(app)/settings/confirm-email':     'open',
 	'/(app)/suppliers':                  'open',
