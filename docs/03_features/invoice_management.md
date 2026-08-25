@@ -30,7 +30,11 @@ soft deletion.
   `pending|accepted ──markPaid──▶ paid`, `paid ──markUnpaid──▶ pending`.
   Bulk mark-paid supported. `overdue` is display-derivable (not a stored
   transition here).
-- **Edit** carries an optimistic-lock `version`; stale writes are rejected.
+- **Edit** carries an optimistic-lock `version`; stale writes are rejected. The
+  action delete-and-reinserts line items, so the edit form must post back every
+  column the save path reads — `line_supplier_skus` included, or the SKU is
+  nulled on every edit (issue #520). `tests/invoice-edit-enrichment.test.ts`
+  derives the column set from the schema and fails if one stops surviving.
 - **Soft delete**: invoices are soft-deleted (`deletedAt`); history survives in
   `invoice_audit_log` (no FK — rows survive deletes). Purged by the file
   retention cron after `DELETED_FILE_RETENTION_DAYS`.
