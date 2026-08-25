@@ -24,7 +24,7 @@
   const totalMonthInvoices = $derived(data.suppliers.reduce((s, x) => s + (x.month_invoice_count ?? 0), 0));
   const unassigned         = $derived(data.suppliers.filter(s => !s.category || s.category === 'Other').length);
   const firstUnassigned    = $derived(data.suppliers.find(s => !s.category || s.category === 'Other')?.name ?? '');
-  const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly));
+  const hasFilters         = $derived(Boolean(data.search || data.category || data.uncategorizedOnly || data.badge));
 
   const unassignedSub = $derived.by(() => {
     if (unassigned === 0) return $t('dsup.allAssigned');
@@ -32,13 +32,8 @@
     return $ti('dsup.nSuppliers', { n: unassigned });
   });
 
-  let view        = $state<'list' | 'chart'>('list');
-  let badgeFilter = $state('');
-  let showAdd     = $state(false);
-
-  const displaySuppliers = $derived(
-    badgeFilter ? data.suppliers.filter(s => s.badge === badgeFilter) : data.suppliers
-  );
+  let view    = $state<'list' | 'chart'>('list');
+  let showAdd = $state(false);
 
   function listUrl(patch: Record<string, string | null>) {
     const params = new URLSearchParams($page.url.searchParams);
@@ -174,7 +169,8 @@
         <select class="btn btn-secondary"
           style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
           aria-label={$t('dsup.activityAll')}
-          bind:value={badgeFilter}>
+          value={data.badge}
+          onchange={(e) => applyFilters({ badge: e.currentTarget.value || null })}>
           <option value="">{$t('dsup.activityAll')}</option>
           <option value="overdue">{$t('status.overdue')}</option>
           <option value="due_soon">{$t('status.due_soon')}</option>
@@ -192,9 +188,9 @@
     {/snippet}
 
     {#snippet table()}
-      {#if !displaySuppliers.length}
+      {#if !data.suppliers.length}
         <div style="text-align:center;padding:48px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;">
-          {#if hasFilters || badgeFilter}
+          {#if hasFilters}
             <p class="body" style="color:var(--mep-fg-3);">{$t('sup.noResults')}</p>
           {:else}
             <div style="font-size:28px;margin-bottom:4px;opacity:0.3;">🏪</div>
@@ -221,7 +217,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each displaySuppliers as s (s.id)}
+              {#each data.suppliers as s (s.id)}
                 <tr class="row" onclick={() => location.replace(`/suppliers/${s.id}`)} style="cursor:pointer;">
                   <td>
                     <div style="display:flex;align-items:center;gap:10px;">
