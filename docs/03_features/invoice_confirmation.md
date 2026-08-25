@@ -174,15 +174,32 @@ shapes, `low_confidence_ack` value.
 
 - If extraction is already running, new items fold straight into the queue.
 
+**`property retry`**
+
+- Branches on the item's state: a `failed` item re-queues directly, while a still-in-flight (stalled) one goes through `requeueStalled` first, because `markQueued` refuses `queued`/`extracting`. Without the branch the Retry button on the stall card would be inert — the worst possible outcome for a control offered precisely because nothing is happening (#540).
+
+**`function reapedItems`**
+
+- Reaps only when an item actually looks expired, so the common read stays a single SELECT and the hard timeout costs nothing on healthy batches. Re-reads after a reap so the same request already renders the failed state.
+
 **`const load`**
 
 - `getBatchItems()` keys off `batchId` alone, so ownership is checked here; a foreign batch id gets the same redirect as an empty one, keeping the two indistinguishable to callers.
+
+**`property stalled`**
+
+- Computed over the *open* items and reported as the single worst offender, since the panel shows one state at a time; the queue sidebar keeps per-item status. Null while everything is inside the warning window, so the template can branch on it directly.
 
 ### `src/routes/(app)/batch/[id]/+page.svelte`
 
 **`const timer`**
 
 - Queue polling is the single feedback mechanism: while anything is queued/extracting, poll the batch status endpoint and reload server data on any status change. No simulated progress; network errors keep polling.
+- It also reloads when the endpoint's `stalled` flag disagrees with the rendered one: crossing the stall threshold changes no status, so a status-only diff would leave the spinner up forever — the exact bug the stall states exist to kill (#540).
+
+**`markup`**
+
+- Three in-flight renderings, checked in order of what the user can act on: the failure card (Retry/Discard), then the stall card (same actions, softer wording, because the extraction may yet succeed), then the plain spinner. The stall card sits above the spinner branch so the page can never show "Extrayendo…" for an item it already knows is late.
 
 **`type LineItem`**
 
