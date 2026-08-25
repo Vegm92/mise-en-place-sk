@@ -133,6 +133,7 @@ export const categoryBudgets = pgTable('category_budgets', {
 export const systemNotifications = pgTable('system_notifications', {
 	id:               serial('id').primaryKey(),
 	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	userId:           uuid('user_id'),
 	invoiceId:        integer('invoice_id').references(() => invoices.id),
 	notificationType: text('notification_type').notNull(),
 	message:          text('message').notNull(),
@@ -141,6 +142,7 @@ export const systemNotifications = pgTable('system_notifications', {
 	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('idx_system_notifications_rid_status_created').on(t.restaurantId, t.status, t.createdAt),
+	index('idx_system_notifications_user_created').on(t.userId, t.createdAt),
 ]);
 
 export const users = pgTable('users', {

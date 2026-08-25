@@ -1,0 +1,2 @@
+ALTER TABLE "system_notifications" ADD COLUMN "user_id" uuid;--> statement-breakpoint
+CREATE INDEX "idx_system_notifications_user_created" ON "system_notifications" USING btree ("user_id","created_at");

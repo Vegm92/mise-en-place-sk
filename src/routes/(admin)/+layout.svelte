@@ -30,6 +30,7 @@
     { href: '/admin/access',  label: $t('admin.access.nav') },
     { href: '/admin/revenue', label: $t('admin.revenue') },
     { href: '/admin/events',  label: $t('admin.events') },
+    { href: '/admin/users',   label: $t('admin.users') },
     { href: '/admin/dead-letters', label: $t('admin.dlq.nav') },
     { href: '/admin/errors',  label: $t('admin.errors') },
     { href: '/admin/health',  label: $t('admin.health') },

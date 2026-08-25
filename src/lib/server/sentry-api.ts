@@ -71,6 +71,25 @@ export async function listUnresolvedIssues(limit = 20): Promise<SentryIssue[]> {
 	return raw.map(toIssue);
 }
 
+export async function listIssuesForUser(userId: string, limit = 25): Promise<SentryIssue[]> {
+	if (!isSentryConfigured()) return [];
+	const query = encodeURIComponent(`user.id:${userId}`);
+	const raw = await sentryFetch<RawSentryIssue[]>(
+		`/organizations/${SENTRY_ORG}/issues/?query=${query}&sort=date&statsPeriod=90d&limit=${limit}`,
+	);
+	return raw.map(toIssue);
+}
+
+export function sentryUserSearchUrl(userId: string): string | null {
+	if (!SENTRY_ORG) return null;
+	return `https://de.sentry.io/organizations/${SENTRY_ORG}/issues/?query=${encodeURIComponent(`user.id:${userId}`)}&statsPeriod=90d`;
+}
+
+export function sentryUserReplaysUrl(userId: string): string | null {
+	if (!SENTRY_ORG) return null;
+	return `https://de.sentry.io/organizations/${SENTRY_ORG}/replays/?query=${encodeURIComponent(`user.id:${userId}`)}&statsPeriod=90d`;
+}
+
 export async function getIssueSummary(): Promise<SentryIssueSummary | null> {
 	if (!isSentryConfigured()) return null;
 	const issues = await listUnresolvedIssues(100);

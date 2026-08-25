@@ -1,6 +1,7 @@
 import * as Sentry from '@sentry/sveltekit';
 import { db } from './db';
 import { systemNotifications } from './schema';
+import { currentUserId } from './request-context';
 
 export function trackEvent(
 	event: string,
@@ -11,6 +12,7 @@ export function trackEvent(
 	db.insert(systemNotifications)
 		.values({
 			restaurantId,
+			userId: currentUserId(),
 			notificationType: event,
 			message: event,
 			payload: payload ? JSON.stringify(payload) : null,

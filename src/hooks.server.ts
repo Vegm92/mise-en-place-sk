@@ -14,6 +14,7 @@ import { getEntitlements } from '$lib/server/billing';
 import { eq } from 'drizzle-orm';
 import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
+import { runWithRequestContext } from '$lib/server/request-context';
 import { withTimeout } from '$lib/server/with-timeout';
 import { assertProductionEnv } from '$lib/server/config';
 
@@ -190,7 +191,7 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	const authResponse = enforceAuth(path, event.locals.user);
 	if (authResponse) return authResponse;
 
-	const response = await resolve(event);
+	const response = await runWithRequestContext({ userId: user?.id ?? null }, () => resolve(event));
 
 	const isFramedByApp = path.startsWith('/api/upload/') || /^\/invoice\/[^/]+\/file$/.test(path);
 	response.headers.set('X-Frame-Options', isFramedByApp ? 'SAMEORIGIN' : 'DENY');

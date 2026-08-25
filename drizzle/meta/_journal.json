@@ -295,6 +295,13 @@
       "when": 1787494383985,
       "tag": "0041_long_union_jack",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1787675485734,
+      "tag": "0042_wealthy_blonde_phantom",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,8 @@ export const ROUTE_POLICY = {
 	'/(admin)/admin/errors':             'open',
 	'/(admin)/admin/events':             'open',
 	'/(admin)/admin/health':             'open',
+	'/(admin)/admin/users':              'open',
+	'/(admin)/admin/users/[id]':         'open',
 	'/(admin)/admin/revenue':            'open',
 	'/(app)':                            'open',
 	'/(app)/analytics':                  'open',
