@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { categoryColor } from '$lib/colors';
   import { enhance } from '$app/forms';
-  import { locale, t, tcat } from '$lib/i18n';
+  import { locale, t, ti, tcat } from '$lib/i18n';
   import { fmtEur, semColor, shiftMonth } from '$lib/formatters';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
@@ -13,6 +13,7 @@
   let customCategories = $state<string[]>([]);
   let newCatName = $state('');
   let showAddForm = $state(false);
+  let showAllCats = $state(false);
 
   const allCategories = $derived([...data.categories, ...customCategories]);
 
@@ -38,6 +39,9 @@
     const color = categoryColor(cat);
     return { cat, limit, spent, pct, remaining, projected, color };
   }));
+
+  const activeRows = $derived(rows.filter(r => r.limit > 0 || r.spent > 0 || customCategories.includes(r.cat)));
+  const inactiveRows = $derived(rows.filter(r => !(r.limit > 0 || r.spent > 0 || customCategories.includes(r.cat))));
 
   const totalLimit = $derived(rows.reduce((s, r) => s + r.limit, 0));
   const totalSpent = $derived(rows.reduce((s, r) => s + r.spent, 0));
@@ -273,17 +277,17 @@
         <div class="subtitle" style="font-size:14px;">{$t('bud.tableTitle')}</div>
       </div>
 
-      {#each rows as r}
+      {#snippet budgetCard(r: (typeof rows)[number])}
         {@const projOver = r.limit > 0 && r.projected > 100}
         <div class="card" style="padding:14px;">
 
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <span style="width:8px;height:28px;border-radius:2px;background:{r.color};flex-shrink:0;"></span>
-            <span style="flex:1;font-size:14px;font-weight:500;color:var(--mep-fg);
+            <span style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--mep-fg);
               overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{$tcat(r.cat)}</span>
             {#if r.limit > 0}
               <span class="num" style="
-                font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;flex-shrink:0;
+                font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;min-width:0;
                 background:{projOver ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)'};
                 color:{projOver ? 'var(--mep-neg)' : 'var(--mep-pos)'};
               ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}% {$t('bud.closeShort')}</span>
@@ -331,7 +335,27 @@
             {/if}
           </div>
         </div>
+      {/snippet}
+
+      {#each activeRows as r (r.cat)}
+        {@render budgetCard(r)}
       {/each}
+
+      {#if inactiveRows.length > 0}
+        <button type="button" class="card"
+          style="padding:12px 14px;display:flex;align-items:center;justify-content:center;
+            background:transparent;color:var(--mep-fg-3);font-size:13px;font-weight:500;
+            width:100%;cursor:pointer;font-family:inherit;"
+          onclick={() => showAllCats = !showAllCats}>
+          {showAllCats ? $t('bud.hideAllCategories') : $ti('bud.showAllCategories', { n: inactiveRows.length })}
+        </button>
+
+        <div style:display={showAllCats ? 'flex' : 'none'} style="flex-direction:column;gap:12px;">
+          {#each inactiveRows as r (r.cat)}
+            {@render budgetCard(r)}
+          {/each}
+        </div>
+      {/if}
 
       {#if !isPastMonth}
       {#if showAddForm}
