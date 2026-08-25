@@ -190,6 +190,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   let switchingLocation = $state(false);
   let locationError = $state<string | null>(null);
+
+  function locationColor(loc: { id: string; locked: boolean }): string {
+    if (loc.locked) return 'var(--mep-fg-4)';
+    return loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)';
+  }
   async function switchLocation(restaurantId: string) {
     if (!restaurantId || restaurantId === data.restaurantId || switchingLocation) return;
     switchingLocation = true;
@@ -326,7 +331,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
                     width:100%;text-align:left;cursor:{loc.locked ? 'not-allowed' : 'pointer'};
                     padding:7px 10px;border:none;border-radius:6px;font-size:12.5px;
                     background:{loc.id === data.restaurantId ? 'var(--mep-acc-soft)' : 'transparent'};
-                    color:{loc.locked ? 'var(--mep-fg-4)' : loc.id === data.restaurantId ? 'var(--mep-acc)' : 'var(--mep-fg)'};
+                    color:{locationColor(loc)};
                     font-weight:{loc.id === data.restaurantId ? 500 : 400};
                   "
                   onmouseenter={(e) => { if (!loc.locked && loc.id !== data.restaurantId) e.currentTarget.style.background = 'var(--mep-hover)'; }}
