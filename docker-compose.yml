@@ -11,7 +11,11 @@
 # down`. On platforms without a shared volume, set STORAGE_DRIVER=railway.
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
     env_file: .env
     environment:
       # Both services must agree on this path, and it must be the mount point
@@ -30,7 +34,11 @@ services:
     restart: unless-stopped
 
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_RELEASE: ${VITE_SENTRY_RELEASE:-}
     command: node build/worker.js
     env_file: .env
     environment:
