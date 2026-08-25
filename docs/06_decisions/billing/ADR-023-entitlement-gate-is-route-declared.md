@@ -78,6 +78,7 @@ export const ROUTE_POLICY = {
 
 export function resolveEntitlement(input): EntitlementDecision;
 export function refusalFor(decision, isApiPath): EntitlementRefusal | null;
+export const entitlementHandle: Handle;
 ```
 
 `'open'` is a written value, not an omission, so a route being ungated is a

@@ -120,6 +120,7 @@
             <input type="text" value={row.total_price != null ? row.total_price.toFixed(2) : ''} readonly tabindex="-1" class="input bg-surface-2 cursor-default li-a-total" />
             <input type="hidden" name="line_total_prices" value={row.total_price != null ? row.total_price.toFixed(2) : ''} />
             <input type="hidden" name="line_tax_rates" value={row.tax_rate ?? ''} />
+            <input type="hidden" name="line_supplier_skus" value={row.supplier_sku ?? ''} />
             <button type="button" class="bg-transparent border-none cursor-pointer text-neg text-[18px] px-1 pb-1 leading-none max-md:min-h-11 max-md:min-w-11 li-a-del"
               onclick={() => { items = removeRow(items, idx); }}>×</button>
           </div>

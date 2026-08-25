@@ -112,17 +112,15 @@ pnpm db:studio       # open Drizzle Studio browser UI
 
 ## HTTP API endpoints
 
-### `src/lib/server/env-dynamic-shim.ts`
-
-**`const env`**
-
-- Standalone replacement for SvelteKit's `$env/dynamic/private`, used only by the worker bundle (see vite.worker.config.ts). Mirrors what adapter-node does at runtime: dynamic private env is just process.env.
-
 ### `src/lib/server/env.ts`
 
 **`const UPLOADS_DIR`**
 
-- `process.env` is equivalent to `$env/dynamic/private` at runtime with adapter-node, and allows this module to be imported from the worker process without Vite. Defaults to `'uploads'`.
+- Server config reads `process.env` directly — no `$env/dynamic/private` anywhere in `src/`. With adapter-node the two are equivalent at runtime, and going straight to `process.env` is what lets every one of these modules be imported by the worker, which runs outside the Kit runtime (`vite.worker.config.ts` aliases only `$lib`). The standalone `env-dynamic-shim.ts` that used to bridge this is gone. Defaults to `'uploads'`.
+
+**`const EXTRACTION_STALL_WARN_MS`**
+
+- Stall thresholds and the heartbeat interval are env-tunable because the right values depend on the deployment's Gemini latency and replica count, not on the code (#540). Defaults are documented in `DEPLOYMENT.md` → Tuning.
 
 **`const STRIPE_PRICE_ID_STARTER`**
 

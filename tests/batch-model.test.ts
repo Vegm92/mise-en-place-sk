@@ -10,7 +10,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
 	testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { createBatchStore } from '../src/lib/server/batch';
+import { createBatchStore, stallLevel, STALL_ERROR } from '../src/lib/server/batch';
+import { EXTRACTION_STALL_TIMEOUT_MS } from '../src/lib/server/env';
 
 let rid = '';
 const store = hasDbEnv ? createBatchStore(testDb) : null!;
@@ -114,6 +115,20 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 		expect((await store.getItem(id))?.status).toBe('extracting');
 	});
 
+	it('markQueued stamps queued_at so the stall clock starts, and a retry restarts it', async () => {
+		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		expect((await store.getItem(id))?.queuedAt).toBeNull();
+
+		await store.markQueued(id);
+		const first = (await store.getItem(id))?.queuedAt;
+		expect(first).toBeInstanceOf(Date);
+
+		await store.markFailed(id, 'extract.err.generic');
+		await store.markQueued(id);
+		const second = (await store.getItem(id))?.queuedAt;
+		expect(new Date(second!).getTime()).toBeGreaterThanOrEqual(new Date(first!).getTime());
+	});
+
 	it('discard wins over a late worker claim', async () => {
 		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
 		await store.markQueued(id);
@@ -123,6 +138,68 @@ describe.skipIf(!hasDbEnv)('guarded status transitions', () => {
 		expect(await store.markExtracting(id)).toBe(false);
 		expect(await store.markDone(id, {}, [])).toBe(false);
 		expect((await store.getItem(id))?.status).toBe('discarded');
+	});
+});
+
+describe.skipIf(!hasDbEnv)('stall reaping (issue #540)', () => {
+	async function queuedLongAgo(msAgo: number): Promise<string> {
+		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		await store.markQueued(id);
+		const queuedAt = new Date(Date.now() - msAgo).toISOString();
+		await testSql`UPDATE batch_items SET queued_at = ${queuedAt}::timestamptz WHERE id = ${id}::uuid`;
+		return id;
+	}
+
+	it('fails an in-flight item that outlived the hard timeout, with a retryable error', async () => {
+		const id = await queuedLongAgo(EXTRACTION_STALL_TIMEOUT_MS + 60_000);
+
+		expect(await store.failStalledItems((await store.getItem(id))!.batchId)).toBe(1);
+		const item = await store.getItem(id);
+		expect(item?.status).toBe('failed');
+		expect(item?.extractError).toBe(STALL_ERROR);
+		expect(await store.markQueued(id)).toBe(true);
+	});
+
+	it('reaps an item the worker already claimed but never finished', async () => {
+		const id = await queuedLongAgo(EXTRACTION_STALL_TIMEOUT_MS + 60_000);
+		await store.markExtracting(id);
+
+		expect(await store.failStalledItems((await store.getItem(id))!.batchId)).toBe(1);
+		expect((await store.getItem(id))?.status).toBe('failed');
+	});
+
+	it('leaves an item that is merely slow alone', async () => {
+		const id = await queuedLongAgo(EXTRACTION_STALL_TIMEOUT_MS - 60_000);
+
+		expect(await store.failStalledItems((await store.getItem(id))!.batchId)).toBe(0);
+		expect((await store.getItem(id))?.status).toBe('queued');
+	});
+
+	it('never touches an item that already reached a terminal state', async () => {
+		const id = await queuedLongAgo(EXTRACTION_STALL_TIMEOUT_MS + 60_000);
+		const { batchId } = (await store.getItem(id))!;
+		await store.markDone(id, { total_amount: 42 }, []);
+
+		expect(await store.failStalledItems(batchId)).toBe(0);
+		const item = await store.getItem(id);
+		expect(item?.status).toBe('done');
+		expect(item?.extractedData).toEqual({ total_amount: 42 });
+	});
+
+	it('requeueStalled re-queues an in-flight item and restarts its clock', async () => {
+		const id = await queuedLongAgo(EXTRACTION_STALL_TIMEOUT_MS + 60_000);
+
+		expect(await store.requeueStalled(id)).toBe(true);
+		const item = await store.getItem(id);
+		expect(item?.status).toBe('queued');
+		expect(item?.extractError).toBeNull();
+		expect(stallLevel(item!)).toBe('none');
+	});
+
+	it('requeueStalled refuses an item that is not in flight', async () => {
+		const { itemIds: [id] } = await store.createBatch(rid, twoFiles().slice(0, 1));
+		expect(await store.requeueStalled(id)).toBe(false);
+		expect((await store.getItem(id))?.status).toBe('pending');
 	});
 });
 

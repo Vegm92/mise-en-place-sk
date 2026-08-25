@@ -2,7 +2,7 @@ import type { PgBoss } from 'pg-boss';
 import { and, eq, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant } from './db';
-import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, restaurants, subscriptions, userRestaurants } from './schema';
+import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
 import { users } from './schema';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
@@ -11,12 +11,18 @@ import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './product
 import { moneyToNumber, moneyToNullableNumber } from './money';
 import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
-import { TIERS, effectiveTier, type PlanTier } from './billing';
+import { TIERS, effectiveTier } from './billing';
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
 import { sweepIdempotencyKeys } from './idempotency';
 import { filterEnabledAlerts, isAlertEnabled } from './alert-preferences';
+import {
+	dispatchTenantJobs,
+	registerTenantFanout,
+	type DispatchResult,
+	type TenantJobData,
+} from './tenant-fanout';
 
 const LOW_STOCK_DAYS = 3;
 const UNIT_PRICE = 'unitPrice';
@@ -557,6 +563,12 @@ export const DEAD_LETTER_PURGE_QUEUE = 'scheduled-dead-letter-purge';
 export const ANALYTICS_REFRESH_QUEUE = 'scheduled-analytics-refresh';
 export const IDEMPOTENCY_SWEEP_QUEUE = 'scheduled-idempotency-sweep';
 
+export const DIGEST_TENANT_QUEUE = 'tenant-weekly-digest';
+export const REMINDERS_TENANT_QUEUE = 'tenant-overdue-reminder';
+export const TRIAL_TENANT_QUEUE = 'tenant-trial-notice';
+
+export const TENANT_FANOUT_QUEUES = [DIGEST_TENANT_QUEUE, REMINDERS_TENANT_QUEUE, TRIAL_TENANT_QUEUE];
+
 const DIGEST_CRON = '0 6 * * 1';
 const REMINDERS_CRON = '30 6 * * *';
 const TRIAL_CRON = '0 7 * * *';
@@ -593,115 +605,94 @@ async function ownerEmail(restaurantId: string): Promise<string | null> {
 	return row?.email ?? null;
 }
 
-async function allTenants(): Promise<Array<{
-	id: string;
-	name: string;
-	planTier: PlanTier;
-	status: string;
-	trialEndsAt: Date | null;
-}>> {
-	const rows = await db.select({
-		id: restaurants.id,
-		name: restaurants.name,
-		planTier: subscriptions.planTier,
-		status: subscriptions.status,
-		trialEndsAt: subscriptions.trialEndsAt,
-	})
-		.from(restaurants)
-		.leftJoin(subscriptions, eq(restaurants.id, subscriptions.restaurantId));
-
-	return rows.map(r => ({
-		id: r.id,
-		name: r.name,
-		planTier: (r.planTier ?? 'trial') as PlanTier,
-		status: r.status ?? 'trialing',
-		trialEndsAt: r.trialEndsAt ?? null,
-	}));
-}
-
 function today(): string {
 	return new Date().toISOString().slice(0, 10);
 }
 
-async function perTenant<T extends { id?: string }>(
-	label: string,
-	tenants: T[],
-	fn: (tenant: T) => Promise<boolean>,
-): Promise<{ considered: number; sent: number }> {
-	let sent = 0;
-	for (const tenant of tenants) {
-		try {
-			if (await fn(tenant)) sent++;
-		} catch (err) {
-			console.error(`[scheduler] ${label} failed for a tenant (continuing):`, err);
-			Sentry.captureException(err, { tags: { job: label } });
-			await recordDeadLetter({
-				queue: label,
-				error: err,
-				restaurantId: tenant.id ?? null,
-				sourceId: tenant.id ?? null,
-			});
-		}
-	}
-	return { considered: tenants.length, sent };
+export interface WeeklyDigestJobData extends TenantJobData {
+	week: string;
 }
 
-export async function runWeeklyDigestJob(): Promise<{ considered: number; sent: number }> {
+export interface OverdueReminderJobData extends TenantJobData {
+	day: string;
+}
+
+export interface TrialNoticeJobData extends TenantJobData {
+	milestone: number;
+	claim: string;
+}
+
+export async function runWeeklyDigestJob(boss: PgBoss): Promise<DispatchResult> {
 	const week = isoWeek(new Date());
-	const tenants = (await allTenants()).filter(t => TIERS[effectiveTier(t)].features.weeklyDigest);
 
-	return await perTenant('weekly-digest', tenants, async (tenant) => {
-		if (!(await isAlertEnabled(tenant.id, 'weekly_digest'))) return false;
-
-		const digest = await getOrGenerateWeeklyDigest(tenant.id, week);
-		if (!digest?.text) return false;
-
-		if (!(await claimOnce(tenant.id, 'weekly_digest_email_week', week))) return false;
-
-		const email = await ownerEmail(tenant.id);
-		if (!email) return false;
-
-		const html = digest.text
-			.split(/\n{2,}/)
-			.map(p => `<p>${p.trim()}</p>`)
-			.join('\n');
-		await sendEmail(weeklyDigestEmail(email, tenant.name, html));
-		return true;
+	return await dispatchTenantJobs<WeeklyDigestJobData>(boss, {
+		queue: DIGEST_TENANT_QUEUE,
+		label: 'weekly-digest',
+		jobFor: (tenant) => TIERS[effectiveTier(tenant)].features.weeklyDigest
+			? { data: { restaurantId: tenant.id, name: tenant.name, week }, singletonKey: `${tenant.id}:${week}` }
+			: null,
 	});
 }
 
-export async function runOverdueRemindersJob(): Promise<{ considered: number; sent: number }> {
-	const tenants = await allTenants();
+export async function sendWeeklyDigest(data: WeeklyDigestJobData): Promise<boolean> {
+	if (!(await isAlertEnabled(data.restaurantId, 'weekly_digest'))) return false;
+
+	const digest = await getOrGenerateWeeklyDigest(data.restaurantId, data.week);
+	if (!digest?.text) return false;
+
+	if (!(await claimOnce(data.restaurantId, 'weekly_digest_email_week', data.week))) return false;
+
+	const email = await ownerEmail(data.restaurantId);
+	if (!email) return false;
+
+	const html = digest.text
+		.split(/\n{2,}/)
+		.map(p => `<p>${p.trim()}</p>`)
+		.join('\n');
+	await sendEmail(weeklyDigestEmail(email, data.name, html));
+	return true;
+}
+
+export async function runOverdueRemindersJob(boss: PgBoss): Promise<DispatchResult> {
 	const day = today();
 
-	return await perTenant('overdue-reminders', tenants, async (tenant) => {
-		if (!(await isAlertEnabled(tenant.id, 'invoice_reminders'))) return false;
-
-		const tdb = forTenant(tenant.id);
-		const [row] = await db.select({
-			count: sql<number>`COUNT(*)::int`,
-			total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
-		})
-			.from(invoices)
-			.where(tdb.scope(invoices.restaurantId, and(
-				isNull(invoices.deletedAt),
-				ne(invoices.status, 'paid'),
-				isNotNull(invoices.dueDate),
-				sql`${invoices.dueDate} < ${day}`,
-			)));
-
-		const count = row?.count ?? 0;
-		if (count === 0) return false;
-
-		if (!(await claimOnce(tenant.id, 'overdue_reminder_sent_day', day))) return false;
-
-		const email = await ownerEmail(tenant.id);
-		if (!email) return false;
-
-		const total = `${(row?.total ?? 0).toFixed(2)} €`;
-		await sendEmail(overdueInvoiceEmail(email, tenant.name, count, total));
-		return true;
+	return await dispatchTenantJobs<OverdueReminderJobData>(boss, {
+		queue: REMINDERS_TENANT_QUEUE,
+		label: 'overdue-reminders',
+		jobFor: (tenant) => ({
+			data: { restaurantId: tenant.id, name: tenant.name, day },
+			singletonKey: `${tenant.id}:${day}`,
+		}),
 	});
+}
+
+export async function sendOverdueReminder(data: OverdueReminderJobData): Promise<boolean> {
+	if (!(await isAlertEnabled(data.restaurantId, 'invoice_reminders'))) return false;
+
+	const tdb = forTenant(data.restaurantId);
+	const [row] = await db.select({
+		count: sql<number>`COUNT(*)::int`,
+		total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
+	})
+		.from(invoices)
+		.where(tdb.scope(invoices.restaurantId, and(
+			isNull(invoices.deletedAt),
+			ne(invoices.status, 'paid'),
+			isNotNull(invoices.dueDate),
+			sql`${invoices.dueDate} < ${data.day}`,
+		)));
+
+	const count = Number(row?.count ?? 0);
+	if (count === 0) return false;
+
+	if (!(await claimOnce(data.restaurantId, 'overdue_reminder_sent_day', data.day))) return false;
+
+	const email = await ownerEmail(data.restaurantId);
+	if (!email) return false;
+
+	const total = `${Number(row?.total ?? 0).toFixed(2)} €`;
+	await sendEmail(overdueInvoiceEmail(email, data.name, count, total));
+	return true;
 }
 
 export function trialDaysLeft(trialEndsAt: Date, now: Date = new Date()): number {
@@ -715,25 +706,33 @@ export function trialMilestoneFor(daysLeft: number): number | null {
 	return 7;
 }
 
-export async function runTrialNoticesJob(): Promise<{ considered: number; sent: number }> {
-	const tenants = (await allTenants()).filter(t => t.status === 'trialing' && t.trialEndsAt);
-
-	return await perTenant('trial-notices', tenants, async (tenant) => {
-		const daysLeft = trialDaysLeft(tenant.trialEndsAt!);
-		const milestone = trialMilestoneFor(daysLeft);
-		if (milestone === null) return false;
-
-		const claim = `${tenant.trialEndsAt!.toISOString().slice(0, 10)}:${milestone}`;
-		if (!(await claimOnce(tenant.id, 'trial_notice_sent', claim))) return false;
-
-		const email = await ownerEmail(tenant.id);
-		if (!email) return false;
-
-		await sendEmail(milestone === 0
-			? trialExpiredEmail(email, tenant.name)
-			: trialExpiryEmail(email, tenant.name, milestone));
-		return true;
+export async function runTrialNoticesJob(boss: PgBoss): Promise<DispatchResult> {
+	return await dispatchTenantJobs<TrialNoticeJobData>(boss, {
+		queue: TRIAL_TENANT_QUEUE,
+		label: 'trial-notices',
+		jobFor: (tenant) => {
+			if (tenant.status !== 'trialing' || !tenant.trialEndsAt) return null;
+			const milestone = trialMilestoneFor(trialDaysLeft(tenant.trialEndsAt));
+			if (milestone === null) return null;
+			const claim = `${tenant.trialEndsAt.toISOString().slice(0, 10)}:${milestone}`;
+			return {
+				data: { restaurantId: tenant.id, name: tenant.name, milestone, claim },
+				singletonKey: `${tenant.id}:${claim}`,
+			};
+		},
 	});
+}
+
+export async function sendTrialNotice(data: TrialNoticeJobData): Promise<boolean> {
+	if (!(await claimOnce(data.restaurantId, 'trial_notice_sent', data.claim))) return false;
+
+	const email = await ownerEmail(data.restaurantId);
+	if (!email) return false;
+
+	await sendEmail(data.milestone === 0
+		? trialExpiredEmail(email, data.name)
+		: trialExpiryEmail(email, data.name, data.milestone));
+	return true;
 }
 
 export async function runFilePurgeJob(): Promise<{ purged: number; failed: number }> {
@@ -794,7 +793,7 @@ export async function runAnalyticsRefreshJob(): Promise<{ refreshed: boolean }> 
 interface ScheduledJob {
 	queue: string;
 	cron: string;
-	run: () => Promise<unknown>;
+	run: (boss: PgBoss) => Promise<unknown>;
 }
 
 const JOBS: ScheduledJob[] = [
@@ -809,13 +808,24 @@ const JOBS: ScheduledJob[] = [
 ];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
+	await registerTenantFanout<WeeklyDigestJobData>(boss, {
+		queue: DIGEST_TENANT_QUEUE, label: 'weekly-digest', run: sendWeeklyDigest,
+	});
+	await registerTenantFanout<OverdueReminderJobData>(boss, {
+		queue: REMINDERS_TENANT_QUEUE, label: 'overdue-reminders', run: sendOverdueReminder,
+	});
+	await registerTenantFanout<TrialNoticeJobData>(boss, {
+		queue: TRIAL_TENANT_QUEUE, label: 'trial-notices', run: sendTrialNotice,
+	});
+	console.info(`[scheduler] ${TENANT_FANOUT_QUEUES.length} per-tenant queues registered (${TENANT_FANOUT_QUEUES.join(', ')})`);
+
 	for (const job of JOBS) {
 		await boss.createQueue(job.queue);
 		await boss.schedule(job.queue, job.cron, {}, { tz: 'UTC' });
 		await boss.work(job.queue, { batchSize: 1 }, async () => {
 			const started = Date.now();
 			try {
-				const result = await job.run();
+				const result = await job.run(boss);
 				console.info(`[scheduler] ${job.queue} finished in ${Date.now() - started}ms`, result);
 			} catch (err) {
 				console.error(`[scheduler] ${job.queue} failed after ${Date.now() - started}ms — dead-lettered:`, err);
