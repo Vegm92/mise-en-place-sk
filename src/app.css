@@ -512,6 +512,8 @@
   .input::placeholder { color: var(--mep-fg-4); }
   .input:focus { border-color: var(--mep-acc); box-shadow: 0 0 0 3px var(--mep-acc-ring); }
   option { background: var(--mep-surface); color: var(--mep-fg); }
+  select.btn-secondary:hover { background: var(--mep-surface-2); }
+  select.rev-cell, select.rev-cell:hover { background: var(--mep-surface); }
 
   /* Table */
   .tbl {
