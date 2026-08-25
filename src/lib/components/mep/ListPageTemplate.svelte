@@ -71,7 +71,7 @@
 
   {#if topBar}
     {@render topBar()}
-  {:else}
+  {:else if searchPlaceholder || periodPills.length}
     <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <div class="search-field">
         <span class="search-icon"><Search size={14} /></span>

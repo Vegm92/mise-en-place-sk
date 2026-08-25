@@ -7,6 +7,7 @@
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
+  import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import MobileSuppliersList from '$lib/components/mobile/MobileSuppliersList.svelte';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
   import { PERIOD_PILLS } from '$lib/constants';
@@ -16,7 +17,10 @@
     SUPPLIER_SORT_LABEL_KEYS,
   } from '$lib/supplier-list';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import Plus from '@lucide/svelte/icons/plus';
+  import Search from '@lucide/svelte/icons/search';
+  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
   let { data }: { data: PageData } = $props();
 
@@ -34,6 +38,16 @@
 
   let view    = $state<'list' | 'chart'>('list');
   let showAdd = $state(false);
+
+  const activeFilterCount = $derived(
+    (data.search ? 1 : 0) + (data.category ? 1 : 0) + (data.uncategorizedOnly ? 1 : 0) + (data.badge ? 1 : 0)
+  );
+  let filtersOpen = $state(untrack(() => hasFilters));
+
+  function clearFilters() {
+    search = '';
+    applyFilters({ q: null, category: null, uncategorized: null, badge: null });
+  }
 
   function listUrl(patch: Record<string, string | null>) {
     const params = new URLSearchParams($page.url.searchParams);
@@ -110,11 +124,7 @@
 <div class="hidden md:block p-6">
   <ListPageTemplate
     dataCoach="suppliers-main"
-    bind:search
     bind:view
-    searchPlaceholder={$t('sup.searchPlaceholder')}
-    period={data.period}
-    {periodPills}
     viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
     kpis={[
       { key: 'count',     label: $t('dsup.activeSuppliers'), value: data.suppliers.length, sub: $t('dsup.inTotal') },
@@ -131,62 +141,101 @@
     trendEmptyLabel={$t('tpl.trend.empty')}
   >
     {#snippet filters()}
-      <div style="position:relative;">
-        <select class="btn btn-secondary"
-          style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
-          aria-label={$t('sup.filterAllCategories')}
-          value={data.category}
-          onchange={(e) => applyFilters({ category: e.currentTarget.value || null })}>
-          <option value="">{$t('sup.filterAllCategories')}</option>
-          {#each data.categories as cat}
-            <option value={cat}>{$tcat(cat)}</option>
-          {/each}
-        </select>
-        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
-      </div>
-
-      <div style="position:relative;">
-        <select class="btn btn-secondary"
-          style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
-          aria-label={$t('sup.sort.label')}
-          value={data.sort}
-          onchange={(e) => applyFilters({ sort: e.currentTarget.value })}>
-          {#each SUPPLIER_SORT_KEYS as key}
-            <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
-          {/each}
-        </select>
-        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
-      </div>
-
-      <button type="button" class="btn btn-secondary max-[1050px]:hidden"
-        aria-pressed={data.uncategorizedOnly}
-        style="font-size:12.5px;white-space:nowrap;flex-shrink:0;
-          border-color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-border)'};
-          color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};"
-        onclick={() => applyFilters({ uncategorized: data.uncategorizedOnly ? null : '1' })}>
-        {$t('sup.filterUncategorized')}
+      <button type="button" class="btn btn-ghost"
+        style="font-size:13px;gap:6px;"
+        aria-expanded={filtersOpen}
+        aria-controls="sup-filter-panel"
+        onclick={() => (filtersOpen = !filtersOpen)}>
+        <SlidersHorizontal size={13} />
+        {$t('tpl.filter.toggle')}
+        {#if activeFilterCount > 0}
+          <span class="badge bg-acc-soft text-acc border border-acc"
+            style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
+            {activeFilterCount}
+          </span>
+        {/if}
+        <span style="display:inline-flex;transition:transform 150ms;{filtersOpen ? 'transform:rotate(180deg);' : ''}">
+          <ChevronDown size={13} />
+        </span>
       </button>
 
-      <div class="max-[1050px]:hidden" style="position:relative;">
-        <select class="btn btn-secondary"
-          style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
-          aria-label={$t('dsup.activityAll')}
-          value={data.badge}
-          onchange={(e) => applyFilters({ badge: e.currentTarget.value || null })}>
-          <option value="">{$t('dsup.activityAll')}</option>
-          <option value="overdue">{$t('status.overdue')}</option>
-          <option value="due_soon">{$t('status.due_soon')}</option>
-          <option value="paid_up">{$t('status.paid')}</option>
-        </select>
-        <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
-      </div>
+      {#if activeFilterCount > 0}
+        <button type="button" class="btn btn-ghost" style="font-size:13px;" onclick={clearFilters}>
+          {$t('tpl.filter.clear')}
+        </button>
+      {/if}
 
       <div style="flex:1;"></div>
+      <PeriodPills active={data.period} pills={periodPills} />
       <button class="btn btn-secondary"
         style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
         onclick={() => showAdd = true}>
         <Plus size={13} /> {$t('dsup.addSupplier')}
       </button>
+
+      <div id="sup-filter-panel" style="width:100%;">
+        {#if filtersOpen}
+          <div class="flex flex-wrap items-center gap-3">
+            <div class="search-field">
+              <span class="search-icon"><Search size={13} /></span>
+              <input type="search" class="input"
+                style="padding-left:32px;min-width:220px;"
+                placeholder={$t('sup.searchPlaceholder')}
+                aria-label={$t('sup.searchPlaceholder')}
+                bind:value={search} />
+            </div>
+
+            <div style="position:relative;">
+              <select class="btn btn-secondary"
+                style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:130px;"
+                aria-label={$t('sup.filterAllCategories')}
+                value={data.category}
+                onchange={(e) => applyFilters({ category: e.currentTarget.value || null })}>
+                <option value="">{$t('sup.filterAllCategories')}</option>
+                {#each data.categories as cat}
+                  <option value={cat}>{$tcat(cat)}</option>
+                {/each}
+              </select>
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+            </div>
+
+            <div style="position:relative;">
+              <select class="btn btn-secondary"
+                style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:160px;"
+                aria-label={$t('dsup.activityAll')}
+                value={data.badge}
+                onchange={(e) => applyFilters({ badge: e.currentTarget.value || null })}>
+                <option value="">{$t('dsup.activityAll')}</option>
+                <option value="overdue">{$t('status.overdue')}</option>
+                <option value="due_soon">{$t('status.due_soon')}</option>
+                <option value="paid_up">{$t('status.paid')}</option>
+              </select>
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+            </div>
+            <div style="position:relative;">
+              <select class="btn btn-secondary"
+                style="appearance:none;padding:0 28px 0 10px;cursor:pointer;min-width:190px;"
+                aria-label={$t('sup.sort.label')}
+                value={data.sort}
+                onchange={(e) => applyFilters({ sort: e.currentTarget.value })}>
+                {#each SUPPLIER_SORT_KEYS as key}
+                  <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
+                {/each}
+              </select>
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
+            </div>
+
+            <button type="button" class="btn btn-secondary"
+              aria-pressed={data.uncategorizedOnly}
+              style="font-size:12.5px;white-space:nowrap;flex-shrink:0;
+                border-color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-border)'};
+                color:{data.uncategorizedOnly ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};"
+              onclick={() => applyFilters({ uncategorized: data.uncategorizedOnly ? null : '1' })}>
+              {$t('sup.filterUncategorized')}
+            </button>
+          </div>
+        {/if}
+      </div>
     {/snippet}
 
     {#snippet table()}
