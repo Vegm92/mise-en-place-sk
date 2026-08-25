@@ -135,7 +135,7 @@
       </div>
       {#if tab === 'catalog'}
         <button type="button" class="btn btn-ghost"
-          style="font-size:12.5px;gap:6px;"
+          style="font-size:13px;gap:6px;"
           aria-expanded={filtersOpen}
           aria-controls="prod-filter-panel"
           onclick={() => (filtersOpen = !filtersOpen)}>
@@ -153,7 +153,7 @@
         </button>
 
         {#if activeFilterCount > 0}
-          <button type="button" class="btn btn-ghost" style="font-size:12.5px;" onclick={clearFilters}>
+          <button type="button" class="btn btn-ghost" style="font-size:13px;" onclick={clearFilters}>
             {$t('tpl.filter.clear')}
           </button>
         {/if}
