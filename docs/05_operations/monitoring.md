@@ -18,7 +18,10 @@ tables are the ground truth for jobs.
 ## Operational surface — `/admin`
 
 Owner-email gated. Provides:
-- System health: worker status, job queues + dead-letter counts.
+- System health: worker status, job queues + dead-letter counts, and the
+  per-tenant scheduled-job fan-out — last dispatch per job
+  (`scanned / considered / dispatched`) plus a 24 h per-queue roll-up of
+  done / sent / pending / failed (#518).
 - `events`: `trackEvent` feed (chat, uploads, digests, billing lifecycle,
   notifications by type).
 - Revenue dashboard: MRR snapshots (from `mrr_snapshots`).
@@ -34,6 +37,7 @@ Owner-email gated. Provides:
 | LLM usage vs quota | `llm_usage_log` / `monthly_usage` (note: chat + digest call Gemini directly and are **not** metered — open gap; fix contract in `docs/04_engineering/llm_usage_metering.md`) |
 | Webhook throughput | `idempotency_keys` grouped by `scope` |
 | MV freshness | last `refresh_analytics_rollups` run (nightly cron) |
+| Scheduled emails actually sent | `pgboss.job` for `tenant-weekly-digest` / `tenant-overdue-reminder` / `tenant-trial-notice`: state counts and `output->>'sent'`; last dispatch in `app_flags` (`job_run:*`) |
 | Revenue | `mrr_snapshots` (15 2 * * * UTC) |
 
 ## Alerting / thresholds (as implemented)
@@ -41,7 +45,8 @@ Owner-email gated. Provides:
 - In-app alert types (price shock ≥15%, low stock <3 days, budget 80%/100%)
   are user-facing features, not ops alerts.
 - Ops alerts: Sentry errors, dead-letter growth, WhatsApp account events of
-  severity RED/YELLOW, worker down (cron misses).
+  severity RED/YELLOW, worker down (cron misses), failed per-tenant scheduled
+  jobs (`/admin/health` warns above 0, errors above 10 in 24 h).
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
 

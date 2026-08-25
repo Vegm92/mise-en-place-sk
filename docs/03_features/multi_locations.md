@@ -184,7 +184,8 @@ location-level trial/subscription transition.
 - Weekly digest cron, alerts, MRR snapshots — run per restaurant; digest/email
   per location is expected (each location is a real tenant). MRR is computed
   from parent `subscriptions` rows only.
-- `allTenants` admin jobs — unaffected; they enumerate `restaurants`.
+- Tenant fan-out dispatchers (`tenantPage`) — unaffected; they page over
+  `restaurants`, so each location is dispatched its own job.
 
 ## External dependencies
 

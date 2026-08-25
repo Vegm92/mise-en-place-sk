@@ -132,6 +132,7 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 |---|---|---|
 | `CHAT_RATE_LIMIT_RPM` | `20` | Chat requests/minute per user |
 | `MAX_CONCURRENT_EXTRACTIONS` | `3` | Parallel Gemini extraction cap, **per worker process** (in-process semaphore) |
+| `SCHEDULED_FANOUT_CONCURRENCY` | `5` | Tenants processed at once from the per-tenant scheduled-job queues (digest / reminders / trial notices), **per worker process**. Bounded by Gemini and Resend rate limits, not by throughput (ADR-025) |
 
 ---
 
