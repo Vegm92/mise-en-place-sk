@@ -166,7 +166,7 @@ Quota, access, classification, JSON shape, error classification.
 
 ## Code notes
 
-### `src/routes/batch/[batchId]/confirm/[id]/+page.server.ts`
+### `src/routes/(app)/confirm/[id]/+page.server.ts`
 
 **`const load`**
 
@@ -222,7 +222,7 @@ Quota, access, classification, JSON shape, error classification.
 
 - Auto-detects the XML format and delegates; null if not recognised.
 
-### `src/lib/server/batches/extract-batch.ts`
+### `src/lib/server/extract-batch.ts`
 
 **`interface BatchEnqueueDeps`**
 

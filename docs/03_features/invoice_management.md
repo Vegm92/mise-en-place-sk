@@ -111,7 +111,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - The list filter bar is collapsible (collapsed by default), badges the active
   filter count, applies instantly, debounces text input and keeps its whole
   state in the URL search params.
-- Tests: `tests/db-crud.test.ts`, `tests/invoice-status.test.ts` (status
+- Tests: `tests/db-crud.test.ts`, `tests/status.test.ts` (status
   transitions), `tests/xlsx-export.test.ts`, `tests/invoice-filters.test.ts`
   (parse / serialise / active count / default collapsed state),
   `tests/debounce.test.ts` (debounce timing),

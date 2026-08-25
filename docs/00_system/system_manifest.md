@@ -59,9 +59,9 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 ## Database
 
-- Canonical schema: `src/lib/server/schema/{core,extensions,auth}.ts`
-  (re-exported by `schema.ts`). ~42 tables + 5 materialized views.
-- Committed Drizzle migrations in `drizzle/` (latest `0030`) are canonical
+- Canonical schema: `src/lib/server/schema.ts`. 40 tables + 5 materialized
+  views.
+- Committed Drizzle migrations in `drizzle/` (latest `0042`) are canonical
   (ADR-003); `pnpm db:check-sync` fails CI on drift.
 - Every business table carries `restaurant_id`. Statuses are `text` — no enums.
 - Table inventory: `docs/01_architecture/data_schemas_and_relations.md`.
@@ -70,7 +70,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 - Auth.js (`@auth/sveltekit`) in `src/lib/server/auth.ts`; JWT sessions;
   `@auth/drizzle-adapter` persists users/accounts/sessions/verification tokens
-  over `schema/auth.ts`. Credentials (email/password via
+  over the auth tables in `schema.ts`. Credentials (email/password via
   `auth-credentials.ts#verifyCredentials`, self-signup through `/signup`) +
   Google OAuth (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, Google Cloud Console).
 - Admin seeding: `seedAdminUser()` in `src/lib/server/auth-seed.ts` creates the

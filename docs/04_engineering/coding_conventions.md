@@ -23,8 +23,7 @@ enforced by the lint scripts listed, which run in CI.
 
 - Server-only code lives in `src/lib/server/`; shared client code in
   `src/lib/`; UI in `src/lib/components/{mep,mobile,desktop,waitlist,ui,admin}`.
-- Database schema is split by area in
-  `src/lib/server/schema/{core,extensions,auth}.ts`, re-exported by `schema.ts`.
+- Database schema lives in one file, `src/lib/server/schema.ts`.
   Business tables carry `restaurant_id`.
 - Route groups: `(app)` authenticated shell, `(admin)` ops shell, top-level
   public pages. Server logic lives in `+page.server.ts`/`+server.ts`, not in
