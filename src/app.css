@@ -423,6 +423,36 @@
   .title-lg    { font-size: 24px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.02em; }
   .hero        { font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.025em; }
 
+  /* App shell header */
+  .shell-header {
+    height: 56px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 6px;
+    border-bottom: 1px solid var(--mep-divider);
+    background: var(--mep-bg);
+  }
+  .shell-title {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--mep-fg);
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @media (min-width: 768px) {
+    .shell-title { font-size: 20px; }
+  }
+  @media (min-width: 768px) {
+    .shell-header { padding: 0 16px; gap: 10px; }
+  }
+
   /* Buttons */
   .btn {
     font-family: inherit;

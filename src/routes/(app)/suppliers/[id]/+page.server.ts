@@ -111,6 +111,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const initialEditing = url.searchParams.get('edit') === '1';
 
 	return {
+		title: 'sup.detail.pageTitle',
 		supplier,
 		invoices: supplierInvoices.map(inv => ({ ...inv, totalAmount: moneyToNumber(inv.totalAmount) })),
 		metrics: supplierInvoices.length >= 3 ? metrics ?? null : null,
