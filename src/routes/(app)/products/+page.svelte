@@ -170,7 +170,7 @@
         {#if filteredProducts.length === 0}
           <p class="body text-center py-16">{$t('prod.empty')}</p>
         {:else}
-          <table class="tbl">
+          <table class="tbl tbl-stack">
             <thead>
               <tr>
                 <th>{$t('prod.col.name')}</th>
@@ -184,16 +184,16 @@
             <tbody>
               {#each filteredProducts as p (p.id)}
                 <tr class="row">
-                  <td>
+                  <td class="tbl-stack-lead">
                     <a href="/products/{p.id}" class="body-strong" style="text-decoration:none;color:inherit;">{p.canonicalName}</a>
                   </td>
                   <td>
                     <span class="badge" style="background:{categoryTint(p.category)};color:{categoryColor(p.category)};">{$tcat(p.category)}</span>
                   </td>
-                  <td class="body text-fg-3" style="font-size:12px;">{p.canonicalUnit ?? '—'}</td>
-                  <td class="num">{p.supplierCount}</td>
-                  <td class="num">{p.aliasCount}</td>
-                  <td>
+                  <td class="body text-fg-3" style="font-size:12px;" data-label={$t('prod.col.unit')}>{p.canonicalUnit ?? '—'}</td>
+                  <td class="num" data-label={$t('prod.col.suppliers')}>{p.supplierCount}</td>
+                  <td class="num" data-label={$t('prod.col.aliases')}>{p.aliasCount}</td>
+                  <td data-label={p.needsConversion ? $t('prod.badge.needsConversion') : null}>
                     {#if p.needsConversion}
                       <span class="body text-warn flex items-center gap-1" style="font-size:11px;" title={$t('prod.badge.needsConversion')}>
                         <AlertTriangle size={12} />

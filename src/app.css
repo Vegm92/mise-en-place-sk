@@ -1384,3 +1384,47 @@
     background: var(--mep-bg, #f5f4f0);
   }
 }
+
+/* ── Stacked list tables (issue #651) ─────────────────────────────────
+   Opt-in: a page adds .tbl-stack next to .tbl and below md the header row
+   disappears while each row reflows as a stacked block, so the clipping
+   card in ListPageTemplate has nothing left to clip. .tbl-stack-lead marks
+   the row's title cell (full width); data-label on a cell prints a caption
+   for values that lose their column header. Deliberately unlayered so it
+   outranks the frozen mobile .tbl rules; desktop and non-opted tables are
+   untouched. */
+@media (max-width: 767px) {
+  .tbl-stack thead { display: none; }
+  .tbl-stack, .tbl-stack tbody { display: block; width: 100%; }
+  .tbl-stack tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    row-gap: 4px;
+    column-gap: 14px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--mep-divider);
+  }
+  .tbl-stack tr:last-child { border-bottom: 0; }
+  .tbl-stack td {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 0;
+    padding: 0;
+    height: auto;
+    min-height: 0;
+  }
+  .tbl-stack td:empty { display: none; }
+  .tbl-stack td.tbl-stack-lead { flex: 1 1 100%; min-width: 0; }
+  .tbl-stack td[data-label]::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--mep-fg-3);
+  }
+  .tbl-stack tr.row:hover { background: var(--mep-hover); }
+  .tbl-stack tr.row:hover td { background: transparent; }
+}
