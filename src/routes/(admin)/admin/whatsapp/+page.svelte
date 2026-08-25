@@ -34,7 +34,7 @@
 
   {#if !data.configured}
     <SectionCard title={$t('admin.whatsapp.notConfigured')}>
-      <p style="font-size:12.5px;color:var(--mep-fg-2);margin:0;">
+      <p style="font-size:13px;color:var(--mep-fg-2);margin:0;">
         {$t('admin.whatsapp.notConfiguredBody')}
       </p>
     </SectionCard>
@@ -42,7 +42,7 @@
 
   <SectionCard title={$t('admin.whatsapp.killSwitch')}>
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-      <p style="font-size:12.5px;color:var(--mep-fg-2);margin:0;max-width:60ch;">
+      <p style="font-size:13px;color:var(--mep-fg-2);margin:0;max-width:60ch;">
         {$t('admin.whatsapp.killSwitchBody')}
       </p>
       <form method="POST" action="?/toggleBot">
@@ -56,14 +56,14 @@
 
   <SectionCard title={$t('admin.whatsapp.pairing')}>
     {#if data.qrSvg}
-      <p style="font-size:12.5px;color:var(--mep-fg-2);margin:0 0 12px;max-width:60ch;">
+      <p style="font-size:13px;color:var(--mep-fg-2);margin:0 0 12px;max-width:60ch;">
         {$t('admin.whatsapp.pairingBody')}
       </p>
       <div style="width:220px;background:#fff;padding:12px;border-radius:6px;">
         {@html data.qrSvg}
       </div>
     {:else}
-      <p style="font-size:12.5px;color:var(--mep-fg-2);margin:0;">
+      <p style="font-size:13px;color:var(--mep-fg-2);margin:0;">
         {$t('admin.whatsapp.noQr')}
       </p>
     {/if}
