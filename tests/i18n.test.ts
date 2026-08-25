@@ -37,25 +37,23 @@ describe('t (translation lookup)', () => {
   });
 });
 
-describe('weekly digest keys (added with the dedicated /reports page)', () => {
+describe('reports keys (the dedicated /reports page)', () => {
   const keys = [
     'nav.digest',
-    'digest.title',
-    'digest.week',
-    'digest.dismissed',
-    'digest.unavailable',
+    'rep.title',
+    'rep.summary',
   ];
 
   it('resolves in Spanish', () => {
     locale.set('es');
     for (const k of keys) expect(tr(k)).not.toBe(k);
-    expect(tr('digest.title')).toBe('Informes');
+    expect(tr('rep.title')).toBe('Informes');
   });
 
   it('resolves in English', () => {
     locale.set('en');
     for (const k of keys) expect(tr(k)).not.toBe(k);
-    expect(tr('digest.title')).toBe('Reports');
+    expect(tr('rep.title')).toBe('Reports');
   });
 });
 
@@ -71,20 +69,11 @@ describe('issue #581 — nav label and page title renamed to Informes/Reports', 
 
   it('the page title resolves to Informes/Reports, not the old digest wording', () => {
     locale.set('es');
-    expect(tr('digest.title')).toBe('Informes');
-    expect(tr('digest.title')).not.toBe('Resumen semanal');
+    expect(tr('rep.title')).toBe('Informes');
+    expect(tr('rep.title')).not.toBe('Resumen semanal');
     locale.set('en');
-    expect(tr('digest.title')).toBe('Reports');
-    expect(tr('digest.title')).not.toBe('Weekly Digest');
-  });
-
-  it('leaves the underlying digest-content strings alone (they describe the AI digest, not the page name)', () => {
-    locale.set('es');
-    expect(tr('digest.dismissed')).toBe('Resumen leído.');
-    expect(tr('digest.unavailable')).toBe('No hay resumen disponible para esta semana.');
-    locale.set('en');
-    expect(tr('digest.dismissed')).toBe('Digest acknowledged.');
-    expect(tr('digest.unavailable')).toBe('No digest available for this week.');
+    expect(tr('rep.title')).toBe('Reports');
+    expect(tr('rep.title')).not.toBe('Weekly Digest');
   });
 });
 
@@ -123,7 +112,7 @@ describe('locale key parity (es vs en)', () => {
   // touched in this window plus a wider sample of the catalog.
   const sampleKeys = [
     'nav.dashboard', 'nav.digest', 'action.logout',
-    'digest.title', 'digest.week', 'digest.dismissed', 'digest.unavailable',
+    'rep.title', 'rep.summary', 'rep.weekly.name', 'rep.col.category',
     'upload.cameraBtn', 'upload.imageTooLarge', 'upload.captureTip',
     'upload.previewUse', 'upload.previewRetake',
     'upload.offlineSaved', 'upload.offlineRetrying', 'upload.offlineLimit',
