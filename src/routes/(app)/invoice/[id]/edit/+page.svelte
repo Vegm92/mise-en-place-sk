@@ -101,21 +101,26 @@
         <span class="body-strong" style="font-size:14px;">{$t('edit.lineItems')}</span>
       </div>
       <div class="p-5">
-        <div class="grid gap-2 mb-2 items-end" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;">
+        <div class="li-grid li-head mb-2 items-end">
           {#each [$t('tbl.desc'), $t('tbl.qty'), $t('tbl.unit'), $t('tbl.unitPrice'), $t('tbl.total'), ''] as h}
             <span class="label">{h}</span>
           {/each}
         </div>
         {#each rowsWithTotals as row, idx (idx)}
-          <div class="grid gap-2 items-center mb-2" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;">
-            <input type="text" name="line_descriptions" value={row.description ?? ''} oninput={(e) => { items = updateRow(items, idx, { description: (e.target as HTMLInputElement).value }); }} class="input" />
-            <input type="text" name="line_quantities" value={row.quantity ?? ''} oninput={(e) => { items = updateRow(items, idx, { quantity: (e.target as HTMLInputElement).value }); }} class="input" />
-            <input type="text" name="line_units" value={row.unit ?? ''} oninput={(e) => { items = updateRow(items, idx, { unit: (e.target as HTMLInputElement).value }); }} class="input" />
-            <input type="text" name="line_unit_prices" value={row.unit_price ?? ''} oninput={(e) => { items = updateRow(items, idx, { unit_price: (e.target as HTMLInputElement).value }); }} class="input" />
-            <input type="text" value={row.total_price != null ? row.total_price.toFixed(2) : ''} readonly tabindex="-1" class="input bg-surface-2 cursor-default" />
+          <div class="li-grid li-row mb-2 items-center">
+            <span class="label li-flabel li-a-dlab">{$t('tbl.desc')}</span>
+            <input type="text" name="line_descriptions" value={row.description ?? ''} oninput={(e) => { items = updateRow(items, idx, { description: (e.target as HTMLInputElement).value }); }} class="input li-a-desc" />
+            <span class="label li-flabel li-a-qlab">{$t('tbl.qty')}</span>
+            <input type="text" name="line_quantities" value={row.quantity ?? ''} oninput={(e) => { items = updateRow(items, idx, { quantity: (e.target as HTMLInputElement).value }); }} class="input li-a-qty" />
+            <span class="label li-flabel li-a-ulab">{$t('tbl.unit')}</span>
+            <input type="text" name="line_units" value={row.unit ?? ''} oninput={(e) => { items = updateRow(items, idx, { unit: (e.target as HTMLInputElement).value }); }} class="input li-a-unit" />
+            <span class="label li-flabel li-a-plab">{$t('tbl.unitPrice')}</span>
+            <input type="text" name="line_unit_prices" value={row.unit_price ?? ''} oninput={(e) => { items = updateRow(items, idx, { unit_price: (e.target as HTMLInputElement).value }); }} class="input li-a-price" />
+            <span class="label li-flabel li-a-tlab">{$t('tbl.total')}</span>
+            <input type="text" value={row.total_price != null ? row.total_price.toFixed(2) : ''} readonly tabindex="-1" class="input bg-surface-2 cursor-default li-a-total" />
             <input type="hidden" name="line_total_prices" value={row.total_price != null ? row.total_price.toFixed(2) : ''} />
             <input type="hidden" name="line_tax_rates" value={row.tax_rate ?? ''} />
-            <button type="button" class="bg-transparent border-none cursor-pointer text-neg text-[18px] px-1 pb-1 leading-none max-md:min-h-11 max-md:min-w-11"
+            <button type="button" class="bg-transparent border-none cursor-pointer text-neg text-[18px] px-1 pb-1 leading-none max-md:min-h-11 max-md:min-w-11 li-a-del"
               onclick={() => { items = removeRow(items, idx); }}>×</button>
           </div>
         {/each}
@@ -134,3 +139,55 @@
   </form>
 </div>
 </div>
+
+<style>
+  .li-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+  }
+  .li-flabel {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    .li-head {
+      display: none;
+    }
+    .li-flabel {
+      display: block;
+    }
+    .li-row {
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-areas:
+        'dlab dlab dlab'
+        'desc desc desc'
+        'qlab ulab plab'
+        'qty unit price'
+        'tlab tlab tlab'
+        'tot tot del';
+      align-items: end;
+      border: 1px solid var(--mep-border-strong);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .li-row .input {
+      min-width: 0;
+      width: 100%;
+    }
+    .li-a-dlab { grid-area: dlab; }
+    .li-a-desc { grid-area: desc; }
+    .li-a-qlab { grid-area: qlab; }
+    .li-a-qty { grid-area: qty; }
+    .li-a-ulab { grid-area: ulab; }
+    .li-a-unit { grid-area: unit; }
+    .li-a-plab { grid-area: plab; }
+    .li-a-price { grid-area: price; }
+    .li-a-tlab { grid-area: tlab; }
+    .li-a-total { grid-area: tot; }
+    .li-a-del {
+      grid-area: del;
+      justify-self: end;
+    }
+  }
+</style>
