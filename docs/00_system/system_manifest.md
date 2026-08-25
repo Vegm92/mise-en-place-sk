@@ -101,6 +101,10 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
   weekly digest, overdue reminders, trial-expiry notices, file purge,
   MRR snapshot, dead-letter purge, analytics MV refresh.
 - Enqueue seams: `src/lib/server/queue.ts`, `extract-batch.ts`.
+- Liveness: the worker upserts `worker_heartbeats` every 30 s and after every
+  job batch (`worker-heartbeat.ts`). `/admin/health` and `/api/health` read it,
+  so "queue not draining" is distinguishable from "worker busy" without log
+  access (#540).
 
 ## External services
 
@@ -131,7 +135,8 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 `category_budgets`, `stock_levels`, `system_notifications`,
 `subscriptions`, `settings`, `chat_sessions`, `chat_messages`,
 `whatsapp_contacts`, `whatsapp_pairing_codes`, `dead_letter_queue`,
-`monthly_usage`, `llm_usage_log`, `mrr_snapshots`, `mv_*` materialized views.
+`worker_heartbeats`, `monthly_usage`, `llm_usage_log`, `mrr_snapshots`,
+`mv_*` materialized views.
 
 ## Important services (server lib)
 

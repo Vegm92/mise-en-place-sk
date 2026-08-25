@@ -135,10 +135,10 @@
       try {
         const resp = await fetch(`/api/batch-status/${data.batchId}`);
         if (!resp.ok) return;
-        const body = await resp.json() as { items: Array<{ id: string; status: string }> };
+        const body = await resp.json() as { items: Array<{ id: string; status: string }>; stalled: boolean };
         const current = new Map(data.queue.map(q => [q.id, q.status]));
         const changed = body.items.some(i => current.has(i.id) && current.get(i.id) !== i.status);
-        if (changed) await invalidateAll();
+        if (changed || body.stalled !== (data.stalled !== null)) await invalidateAll();
       } catch {
       }
     }, 2500);
@@ -1231,6 +1231,30 @@
           </form>
           <form method="POST" action="?/discardItem">
             <input type="hidden" name="itemId" value={data.failedItem.itemId} />
+            <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">{$t('extract.discard')}</button>
+          </form>
+        </div>
+      </div>
+
+    {:else if data.stalled}
+      <div class="rev-col rev-col-fill" style="display:flex;flex-direction:column;gap:12px;max-width:560px;overflow:visible;">
+        <div class="card p-4" style="background:var(--mep-warn-soft);border-color:var(--mep-warn);">
+          <strong class="body-strong" style="color:var(--mep-warn);display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <AlertTriangle size={14} /> {$t('batch.stalledTitle')}
+          </strong>
+          <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.5;">
+            {$ti('batch.stalledBody', { name: data.stalled.name })}
+          </p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <form method="POST" action="?/retry">
+            <input type="hidden" name="itemId" value={data.stalled.itemId} />
+            <button type="submit" class="btn btn-primary" style="height:34px;font-size:13px;gap:6px;">
+              <RefreshCw size={13} /> {$t('extract.retry')}
+            </button>
+          </form>
+          <form method="POST" action="?/discardItem">
+            <input type="hidden" name="itemId" value={data.stalled.itemId} />
             <button type="submit" class="btn btn-ghost" style="height:34px;font-size:13px;">{$t('extract.discard')}</button>
           </form>
         </div>

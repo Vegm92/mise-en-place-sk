@@ -24,7 +24,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 | Table | Purpose | Notable columns | Notes |
 |---|---|---|---|
 | `upload_batches` | One upload group | — | Created per upload action |
-| `batch_items` | One file in a batch | `status` `pending\|extracting\|done\|failed\|confirmed`, `fileKey`, `extracted_data` jsonb, `conversion_notes`, `extractError`, `position` | Guarded state machine in `batch-core.ts` |
+| `batch_items` | One file in a batch | `status` `pending\|queued\|extracting\|done\|failed\|confirmed\|discarded`, `fileKey`, `extracted_data` jsonb, `conversion_notes`, `extractError`, `position`, `queued_at` | Guarded state machine in `batch.ts`; `queued_at` is the stall clock (#540) |
 | `idempotency_keys` | Idempotency ledger, all callers | PK = (`scope`, `key`), `restaurantId` | Claim-once in `idempotency.ts`; scopes `form-submit` / `whatsapp` / `stripe-webhook` (#389) |
 
 ## Invoicing
@@ -100,6 +100,7 @@ directly at write time. Source of the trend/analytics pages.
 | `tenant_llm_quotas` | Per-tenant LLM caps | PK `restaurantId`, `monthlyExtractions`, `monthlyCostLimitUsd` |
 | `monthly_usage` | Extraction quota consumption | `(rid, month)` unique, `used`; CHECK on `month` format (#516) |
 | `dead_letter_queue` | Exhausted job audit | `queue`, `sourceId`, `jobId`, `errorClass`, `errorMessage`, `stack`, `payload` jsonb, `attempt`, `occurrences`, `status` `pending\|reviewed\|replayed\|discarded` | Dedupe index `(queue, source_id, error_class, status)` |
+| `worker_heartbeats` | Worker liveness (#540) | PK `id` (one row, `worker`), `startedAt`, `lastSeenAt`, `lastJobCompletedAt`, `jobsCompleted` | Written by `src/worker.ts` every 30 s and after each job batch; read by `/admin/health` and `/api/health`. Not tenant-scoped — it is a process-level signal |
 | `waitlist` | Landing email capture | `email` unique |
 
 ## Functions and extensions

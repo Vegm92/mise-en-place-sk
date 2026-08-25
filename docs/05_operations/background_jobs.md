@@ -12,8 +12,41 @@ scheduled jobs. Changing async behaviour must account for this process split.
 | `normalize-product` | `src/worker.ts` | `normalizeProductForSupplier` — canonical product upsert keyed by supplier+norm-key | Idempotent upsert |
 | `*:dead-letter` | `src/worker.ts` | Rows that failed; payload redacted (secrets/emails stripped) | Inspect via `/admin` or DB |
 
-State machine lives in `batch-core.ts` (pending → queued → extracting → done |
+State machine lives in `batch.ts` (pending → queued → extracting → done |
 failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
+
+## Worker liveness (#540)
+
+`src/worker.ts` upserts the single `worker_heartbeats` row on boot, every
+`WORKER_HEARTBEAT_INTERVAL_MS` (default 30 s), and after each completed job
+batch — the latter also bumps `last_job_completed_at` and `jobs_completed`.
+`workerLiveness()` calls the worker `stale` once the heartbeat is older than
+`WORKER_HEARTBEAT_STALE_MS` (default 120 s), and `unknown` when the worker has
+never run against this database. Surfaced as the `Worker heartbeat` check on
+`/admin/health` and under `worker` on `/api/health`.
+
+A queue that is not draining is only diagnosable with this: `pending > 0` plus
+a live heartbeat means the worker is busy, `pending > 0` plus a stale heartbeat
+means it is down or wedged.
+
+## Stalled extractions (#540)
+
+The web process, not the worker, owns the stall path — the worker being down is
+exactly the case that has to be caught. `markQueued` stamps `queued_at`; the
+`/batch/[id]` load and the `api/batch-status/[id]` poll then classify each
+in-flight item:
+
+| Age since `queued_at` | Level | Effect |
+|---|---|---|
+| < `EXTRACTION_STALL_WARN_MS` (2 min) | `none` | spinner, unchanged |
+| ≥ warn, < timeout | `slow` | "taking longer than expected" card with Retry / Discard |
+| ≥ `EXTRACTION_STALL_TIMEOUT_MS` (15 min) | `expired` | `failStalledItems` marks it `failed` / `extract.err.stalled`, inheriting the existing failure UI |
+
+The hard timeout sits well above the worst legitimate run (pg-boss `retryLimit`
+2 × `retryDelay` 30 s, each attempt bounded by `GEMINI_TIMEOUT_MS`), so a
+still-working extraction is not reaped. If it were, `markDone` finds the item no
+longer in `queued`/`extracting` and drops the result — the user retries rather
+than seeing a silent overwrite.
 
 ## Schedule (cron, registered in the worker — ADR-011)
 
@@ -48,6 +81,26 @@ failed → confirmed | discarded). Enqueueing is `enqueueBatchExtraction`.
   the affected feature spec + its `## Code notes` section).
 
 ## Code notes
+
+### `src/lib/server/worker-heartbeat.ts`
+
+**`const WORKER_ID`**
+
+- One fixed row, not one per process: several replicas share it, and the question the health page answers is "is *anything* consuming the queues", not "how many consumers are there".
+
+**`function recordWorkerHeartbeat`**
+
+- An idle beat must not clear `last_job_completed_at`, so the upsert re-selects the stored value instead of writing the parameter — otherwise every 30 s tick would erase the only evidence that work was ever done.
+- `jobs_completed` accumulates in SQL rather than in the process, so a restart does not reset the counter and two replicas cannot clobber each other's total.
+
+**`function workerLiveness`**
+
+- Three states, because "no row" and "old row" mean different things to an operator: never deployed / never started, versus started and then died.
+- Liveness is deliberately independent of job flow — an idle worker with no jobs to run is healthy, and reporting it as down would make the check cry wolf on every quiet night.
+
+**`function startWorkerHeartbeat`**
+
+- Beats immediately on boot so a freshly started worker is visible before the first interval elapses; the timer is `unref`'d so it never holds the process open during shutdown, and a failed write is logged rather than thrown (a heartbeat is diagnostics, not a reason to kill the worker).
 
 ### `src/lib/server/dead-letter.ts`
 
