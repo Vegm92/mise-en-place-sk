@@ -59,6 +59,8 @@
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileAnalyticsPrices
     items={data.items}
+    suppliers={data.suppliers}
+    selected_supplier={data.selected_supplier}
     totalUp={totalUp}
     totalDown={totalDown}
     totalFlat={totalFlat}
