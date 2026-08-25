@@ -7,6 +7,9 @@
  * injected via process.env so TIERS has a known mapping to assert.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { get } from 'svelte/store';
+import { locale, t } from '../src/lib/i18n';
 
 const originalEnv = { ...process.env };
 
@@ -342,4 +345,74 @@ describe('switchTier', () => {
 		await expect(switchTier('rest-1', 'pro')).rejects.toThrow(/No subscription to switch/);
 		expect(stripe!.subscriptions.update).not.toHaveBeenCalled();
 	});
+});
+
+describe('plan display names go through the i18n table (follow-up to #661)', () => {
+  const order: PlanTier[] = ['trial', 'starter', 'pro', 'business'];
+  const tr = (key: string) => get(t)(key);
+
+  afterEach(() => locale.set('es'));
+
+  it('gives every tier an i18n key for its display name', () => {
+    for (const tier of order) {
+      expect(TIERS[tier].nameKey, tier).toMatch(/^billing\.plan\./);
+    }
+  });
+
+  it('resolves every tier name key in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const tier of order) {
+        const key = TIERS[tier].nameKey;
+        if (tr(key) === key) missing.push(`${lc}:${key}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('translates the trial plan instead of showing Spanish to English readers', () => {
+    locale.set('es');
+    expect(tr(TIERS.trial.nameKey)).toBe('Prueba gratuita');
+    locale.set('en');
+    expect(tr(TIERS.trial.nameKey)).toBe('Free trial');
+  });
+
+  it('keeps Starter/Pro/Business identical in both locales — they are brand names', () => {
+    for (const tier of ['starter', 'pro', 'business'] as PlanTier[]) {
+      locale.set('es');
+      const es = tr(TIERS[tier].nameKey);
+      locale.set('en');
+      expect(tr(TIERS[tier].nameKey)).toBe(es);
+      expect(es).toBe(TIERS[tier].name);
+    }
+  });
+
+  it('leaves no Spanish prose in the tier config — name is a storage token', () => {
+    for (const tier of order) {
+      expect(TIERS[tier].name, tier).not.toMatch(/[áéíóúüñ¿¡ÁÉÍÓÚÜÑ]/);
+    }
+    expect(readFileSync(new URL('../src/lib/server/billing.ts', import.meta.url), 'utf-8'))
+      .not.toContain('Prueba gratuita');
+  });
+
+  it('still stores the language-neutral name, so plan_name stays stable', () => {
+    expect(TIERS.starter.name).toBe('Starter');
+    expect(TIERS.pro.name).toBe('Pro');
+    expect(TIERS.business.name).toBe('Business');
+  });
+
+  it('hands the client a key, never a rendered plan name', () => {
+    const loaders = [
+      '../src/routes/(app)/+layout.server.ts',
+      '../src/routes/(app)/billing/+page.server.ts',
+      '../src/routes/(app)/billing/confirm/+page.server.ts',
+    ];
+    for (const rel of loaders) {
+      const source = readFileSync(new URL(rel, import.meta.url), 'utf-8');
+      expect(source, rel).toMatch(/nameKey/);
+      expect(source, rel).not.toMatch(/\b(planName|currentTierName):/);
+      expect(source, rel).not.toMatch(/\bname: config\.name\b/);
+    }
+  });
 });

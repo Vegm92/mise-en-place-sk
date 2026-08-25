@@ -17,7 +17,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -56,10 +56,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		db.select({ value: settings.value })
 			.from(settings)
 			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota'))),
-
-		db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_name'))),
 
 		db.select({ value: settings.value })
 			.from(settings)
@@ -125,7 +121,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		reminderBadge:           Number(overdueBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
 		quotaLimit:              usable ? resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier) : TIERS.trial.monthlyInvoiceQuota ?? 0,
-		planName:                usable ? (planNameRow[0]?.value ?? tierConfig.name) : TIERS.trial.name,
+		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
 		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
 		locations: locationRows,
 		hasCompletedOnboarding,

@@ -67,7 +67,9 @@ expiry / inactive subscription) and the monthly quota before allowing work.
 Stripe webhooks. `subscription.updated/deleted/paused/resumed` are guarded by
 `lastEventAt <= event.created` to tolerate out-of-order delivery. `settings`
 mirrors `plan_name`/`plan_quota` (`applyTierSettings`) so the UI quota card
-reads one source.
+reads one source. The mirrored `plan_name` is a language-neutral token, not
+display copy — the plan name shown to a user comes from `TierConfig.nameKey`
+through the i18n table.
 
 ## Admin revenue view
 
