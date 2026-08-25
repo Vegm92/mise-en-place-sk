@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
+import { json, redirect, type Handle, type RequestEvent } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 import { handle as authHandle } from '$lib/server/auth';
 import { cleanupStaleBatches } from '$lib/server/batch';
