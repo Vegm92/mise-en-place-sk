@@ -2,9 +2,10 @@
   import { untrack } from 'svelte';
   import { categoryColor, categoryTint } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, ti } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
+  import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import {
     DEFAULT_SUPPLIER_SORT,
     SUPPLIER_SEARCH_DEBOUNCE_MS,
@@ -23,9 +24,12 @@
     price_trend?: number[];
   }
 
+  const INLINE_CATEGORY_CHIPS = 4;
+
   let {
     suppliers,
     categories = [],
+    categoryCounts = {},
     totalSpend = 0,
     totalMonthInvoices = 0,
     unassigned = 0,
@@ -38,6 +42,7 @@
   }: {
     suppliers: Supplier[];
     categories?: string[];
+    categoryCounts?: Record<string, number>;
     totalSpend?: number;
     totalMonthInvoices?: number;
     unassigned?: number;
@@ -50,6 +55,20 @@
   } = $props();
 
   let search = $state(untrack(() => appliedSearch));
+  let sheetOpen = $state(false);
+
+  const inlineCategories = $derived.by(() => {
+    const used = categories.filter(cat => (categoryCounts[cat] ?? 0) > 0);
+    const top = (used.length ? used : categories).slice(0, INLINE_CATEGORY_CHIPS);
+    if (category && !top.includes(category)) return [category, ...top.slice(0, INLINE_CATEGORY_CHIPS - 1)];
+    return top;
+  });
+  const hiddenCategories = $derived(categories.filter(cat => !inlineCategories.includes(cat)));
+
+  function pickCategory(cat: string | null) {
+    sheetOpen = false;
+    onApply?.({ category: cat });
+  }
 
   $effect(() => {
     const value = search.trim();
@@ -101,20 +120,54 @@
     </select>
   </div>
 
-  <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none;">
+  <ScrollStrip label={$t('sup.categoriesLabel')} extraStyle="flex-shrink:0;">
     <button class={chipClass(!category)} onclick={() => onApply?.({ category: null })}>{$t('sup.allChip')}</button>
     <button
       class={chipClass(uncategorizedOnly)}
       aria-pressed={uncategorizedOnly}
       onclick={() => onApply?.({ uncategorized: uncategorizedOnly ? null : '1' })}
     >{$t('sup.filterUncategorized')}</button>
-    {#each categories as cat}
+    {#each inlineCategories as cat}
       <button
         class={chipClass(category === cat)}
         onclick={() => onApply?.({ category: category === cat ? null : cat })}
       >{$tcat(cat)}</button>
     {/each}
-  </div>
+    {#if hiddenCategories.length > 0}
+      <button
+        data-scroll-strip-more
+        aria-haspopup="dialog"
+        onclick={() => sheetOpen = true}
+        class={chipClass(false)}
+      >{$ti('sup.categorySheet.open', { n: hiddenCategories.length })}</button>
+    {/if}
+  </ScrollStrip>
+
+  {#if sheetOpen}
+    <button
+      type="button"
+      class="filter-sheet-backdrop"
+      aria-label={$t('sup.categorySheet.close')}
+      onclick={() => sheetOpen = false}
+    ></button>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('sup.categorySheet.title')}>
+      <div class="filter-sheet-head">
+        <span class="body-strong">{$t('sup.categorySheet.title')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => sheetOpen = false}>{$t('sup.categorySheet.close')}</button>
+      </div>
+      <div class="filter-sheet-list">
+        <button type="button" class="filter-sheet-option" aria-pressed={!category} onclick={() => pickCategory(null)}>
+          <span>{$t('sup.allChip')}</span>
+        </button>
+        {#each categories as cat}
+          <button type="button" class="filter-sheet-option" aria-pressed={category === cat} onclick={() => pickCategory(category === cat ? null : cat)}>
+            <span>{$tcat(cat)}</span>
+            <span class="num filter-sheet-count">{categoryCounts[cat] ?? 0}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
     <div style="flex: 1; text-align: center;">

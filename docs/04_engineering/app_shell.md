@@ -200,6 +200,15 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`markup`**
 - Reusable client error boundary (issue #255). SvelteKit's handleError only covers load/navigation; a runtime error thrown during client render or in an effect after hydration (a chart choking on bad data, the batch polling loop) would otherwise tear down the component tree and leave a dead/white UI. This contains the failure to one panel, offers a retry, and still reports to Sentry.
 
+### `src/lib/components/mep/ScrollStrip.svelte`
+
+**`markup`**
+- The one horizontal chip strip in the app (issue #658). Four screens had rolled their own `overflow-x: auto` row with the scrollbar hidden, so a strip that ran past the viewport looked exactly like one that fitted: at 390px the `/suppliers` category filter measured 2718px with 17 of its 19 chips off-screen, `/invoices` hid "Por categoría" entirely, and the supplier-detail tabs cut "Conversiones" mid-word.
+- `.scroll-strip` in `app.css` owns the look: hidden scrollbar, a lead-in inset so the first chip never sits flush against the frame, and a mask that fades whichever edge still has content behind it. The fade is keyed off `data-more-start` / `data-more-end`, so a strip whose content fits shows no fade at all — the affordance appears only when it is telling the truth.
+- Layout stays with the caller through `--mep-strip-pad` / `--mep-strip-lead-in` / `--mep-strip-gap` custom properties rather than an inline `padding`, because an inline shorthand would beat the class's own `padding-left` and take the lead-in with it.
+- `measure()` re-runs on scroll, on resize, and on a `MutationObserver` for the children: the chip list is data-driven (categories, tab counts), so the strip can start fitting and stop fitting without the element ever changing size.
+- Callers: `MobileSuppliersList`, `MobileInvoiceList`, `MobileAnalyticsPrices`, `suppliers/[id]`. `scripts/scroll-strip-audit.mjs` measures every strip at 390px and `tests/scroll-strip-affordance.test.ts` holds the line, including a static guard against a new bare `overflow-x: auto` row.
+
 ### `src/lib/components/mep/FieldInput.svelte`
 
 **`type Props`**
