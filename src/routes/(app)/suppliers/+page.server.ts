@@ -4,7 +4,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
-import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES, periodToDate } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { parseSupplierListParams } from '$lib/supplier-list';
 import {
@@ -31,6 +31,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const tdb = forTenant(rid);
 	return handleLoad('suppliers', async () => {
 		const period = url.searchParams.get('period') ?? '30d';
+		const periodStart = periodToDate(period).toISOString().slice(0, 10);
 		const listParams = parseSupplierListParams(url.searchParams);
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -89,7 +90,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
-				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date
+				  AND i.invoice_date >= ${periodStart}
 				GROUP BY DATE_TRUNC('month', i.invoice_date), COALESCE(s.category, 'Other')
 				ORDER BY DATE_TRUNC('month', i.invoice_date) ASC
 			`),
