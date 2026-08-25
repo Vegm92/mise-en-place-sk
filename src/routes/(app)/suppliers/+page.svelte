@@ -62,10 +62,12 @@
     return { value: p.value, label: $t(p.labelKey), href: `/suppliers?${params.toString()}` };
   }));
 
-  let activeTrendKeys = $state<string[]>([]);
-  $effect(() => { if (activeTrendKeys.length === 0) activeTrendKeys = data.trendData.series.map(s => s.key); });
+  let trendSelection = $state<string[]>([]);
+  const activeTrendKeys = $derived(
+    trendSelection.length ? trendSelection : data.trendData.series.map(s => s.key)
+  );
   function toggleTrendBadge(key: string) {
-    activeTrendKeys = activeTrendKeys.includes(key)
+    trendSelection = activeTrendKeys.includes(key)
       ? activeTrendKeys.filter(k => k !== key)
       : [...activeTrendKeys, key];
   }
