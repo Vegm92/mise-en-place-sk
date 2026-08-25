@@ -43,6 +43,11 @@ for four hours before opening a PR is invisible for four hours.
 
 `CONTEXT.md` is local and gitignored — it cannot coordinate anything. GitHub can.
 
+Both templates carry a **Where / Surface** field for exactly this reason
+(`.github/ISSUE_TEMPLATE/`, `.github/PULL_REQUEST_TEMPLATE.md`). Issues that name
+disjoint surfaces are safe to run as parallel sessions; issues that name the same one
+are not. Fill it in — it is the cheapest collision check there is.
+
 ## 2. One surface, one session
 
 Two sessions may run concurrently only if they cannot touch the same files.
@@ -106,10 +111,12 @@ per worker buys nothing that the gates in `AGENTS.md` do not already enforce.
   hard". If a task genuinely cannot be done at Sonnet, that is a signal the task is
   under-specified or too large (see §5), not that it needs a bigger model.
 - **The coordinator** — the session that plans, splits the work, reviews the results
-  and merges — also runs Sonnet **by default**. It runs `claude-opus-5` or
-  `claude-fable-5` only when you say so explicitly, per session.
-- **Effort** does the tuning instead of model tier: `high` for the coordinator and for
-  planning, lower for mechanical workers.
+  and merges — is the one place a frontier model earns its cost, because a bad split
+  is what produced every collision in the table above. It runs **`claude-opus-5` by
+  default**, and **`claude-fable-5`** when you ask for it on a heavier planning or
+  orchestration session.
+- **Effort** does the tuning for workers instead of model tier: `high` for planning
+  and review, lower for mechanical work.
 
 Set it with `/model` in a session, or the `model:` field on a subagent definition.
 Model IDs are exact strings — no date suffixes.
