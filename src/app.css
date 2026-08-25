@@ -493,6 +493,7 @@
   .badge-pending   { background: var(--mep-warn-soft); color: var(--mep-warn); }
   .badge-exported  { background: var(--mep-info-soft); color: var(--mep-info); }
   .badge-overdue   { background: var(--mep-neg-soft);  color: var(--mep-neg); }
+  .badge-rejected  { background: var(--mep-neg-soft);  color: var(--mep-neg); }
   .badge-neutral   { background: var(--mep-hover);     color: var(--mep-fg-2); }
 
   /* Input */

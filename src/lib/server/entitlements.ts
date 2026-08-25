@@ -1,3 +1,4 @@
+import { json, redirect, type Handle } from '@sveltejs/kit';
 import type { RouteId } from '$app/types';
 import type { AccessState, TierConfig } from './billing';
 
@@ -162,3 +163,23 @@ export function refusalFor(
 
 	return { transport: 'page', status: 303, location: `/billing?upgrade=${slug}` };
 }
+
+export const entitlementHandle: Handle = async ({ event, resolve }) => {
+	const policy = policyFor(event.route.id);
+	if (!policy || policy === 'open') return resolve(event);
+
+	const entitlements = await event.locals.entitlements();
+
+	const decision = resolveEntitlement({
+		policy,
+		features: entitlements?.features ?? null,
+		access:   entitlements?.access   ?? null,
+	});
+
+	const refusal = refusalFor(decision, event.url.pathname.startsWith('/api/'));
+	if (!refusal) return resolve(event);
+
+	if (refusal.transport === 'api') return json(refusal.body, { status: refusal.status });
+
+	redirect(refusal.status, refusal.location);
+};

@@ -2,9 +2,10 @@ import path from 'path';
 import { randomBytes } from 'crypto';
 import { UPLOADS_DIR } from './env';
 import { getStorage } from './storage';
+import { MAX_UPLOAD_BYTES, SUPPORTED_UPLOAD_EXTENSIONS } from '$lib/upload-formats';
 
-const ALLOWED_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.xml']);
-const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const ALLOWED_EXTENSIONS: ReadonlySet<string> = new Set(SUPPORTED_UPLOAD_EXTENSIONS);
+const MAX_FILE_BYTES = MAX_UPLOAD_BYTES;
 
 const UTF8_BOM = [0xEF, 0xBB, 0xBF];
 const XML_LESS_THAN = 0x3C;
@@ -15,7 +16,7 @@ function looksLikeXml(b: Buffer): boolean {
 	return b[start] === XML_LESS_THAN;
 }
 
-const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
+export const MAGIC_BYTES: Record<string, (buf: Buffer) => boolean> = {
 	'.pdf':  (b) => b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46 && b[4] === 0x2D,
 	'.jpg':  (b) => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,
 	'.jpeg': (b) => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,

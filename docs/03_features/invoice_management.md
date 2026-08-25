@@ -247,6 +247,9 @@ Tenant scope on every read; version check on edit; status-transition guards.
 **`function markInvoicesPaidBulk`**
 - Bulk pending/accepted → paid; returns how many rows actually transitioned.
 
+**`function invoiceStatusFilter`**
+- Turns a status filter value from the URL into a predicate. `overdue` is not a stored status, so it compiles to `status='pending' AND due_date < CURRENT_DATE` rather than an equality that could never match (issue #520 — the list's overdue filter silently returned nothing). A value outside the vocabulary compiles to `false` instead of being passed through to SQL.
+
 ### `src/lib/server/working-days.ts`
 
 **`const FIXED_HOLIDAYS`**
