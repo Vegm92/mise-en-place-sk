@@ -7,19 +7,29 @@
     supplier_name: string;
     change_pct: number | null;
     latest_price: number;
+    latest_normalized_price: number | null;
+    base_unit: string | null;
     prev_price: number | null;
     unit: string | null;
     latest_date: string | null;
     prev_date: string | null;
   }
+  interface Supplier {
+    id: number;
+    name: string;
+  }
 
   let {
     items,
+    suppliers,
+    selected_supplier,
     totalUp,
     totalDown,
     totalFlat,
   }: {
     items: PriceItem[];
+    suppliers: Supplier[];
+    selected_supplier: number | null;
     totalUp: number;
     totalDown: number;
     totalFlat: number;
@@ -84,6 +94,20 @@
     />
   </div>
 
+  <form method="get" action="/analytics/prices" style="padding: 0 18px 10px;">
+    <select
+      name="supplier_id"
+      class="input"
+      style="width: 100%; height: 40px;"
+      onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.submit()}
+    >
+      <option value="">{$t('prices.allSuppliers')}</option>
+      {#each suppliers as s}
+        <option value={s.id} selected={selected_supplier === s.id}>{s.name}</option>
+      {/each}
+    </select>
+  </form>
+
   <ScrollStrip label={$t('anp.filterLabel')} extraStyle="flex-shrink:0;">
     {#each filterOptions as [val, label]}
       <button
@@ -97,16 +121,32 @@
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
+        <div class="label" style=" margin-bottom: 5px;">{$t('prices.tracked')}</div>
+        <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
+          {items.length}
+        </div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{$t('prices.inTotal')}</div>
+      </div>
+      <div class="card" style="padding: 12px;">
+        <div class="label" style=" margin-bottom: 5px;">{$t('prices.noChange')}</div>
+        <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1.1;">
+          {totalFlat}
+        </div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{$t('prices.stablePrices')}</div>
+      </div>
+      <div class="card" style="padding: 12px;">
         <div class="label" style=" margin-bottom: 5px;">{$t('prices.up')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalUp > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'};">
           {totalUp}
         </div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalUp > 0 ? $t('prices.upSub') : $t('prices.noUp')}</div>
       </div>
       <div class="card" style="padding: 12px;">
         <div class="label" style=" margin-bottom: 5px;">{$t('prices.down')}</div>
         <div class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.4px; line-height: 1.1; color: {totalDown > 0 ? 'var(--mep-pos)' : 'var(--mep-fg)'};">
           {totalDown}
         </div>
+        <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 4px;">{totalDown > 0 ? $t('prices.downSub') : $t('prices.noDown')}</div>
       </div>
     </div>
 
@@ -139,6 +179,11 @@
               </span>
               {#if item.unit}
                 <span style="font-size: 12px; color: var(--mep-fg-3);">/ {item.unit}</span>
+              {/if}
+              {#if item.latest_normalized_price !== null && item.base_unit}
+                <span class="num" title={$t('prices.perBaseHint')} style="font-size: 11px; color: var(--mep-fg-3); border: 1px solid var(--mep-divider); border-radius: 6px; padding: 1px 6px;">
+                  {fmtPrice(item.latest_normalized_price)}/{item.base_unit}
+                </span>
               {/if}
               {#if item.prev_price !== null && !flat}
                 <span class="num" style="margin-left: auto; font-size: 12.5px; color: var(--mep-fg-3); text-decoration: line-through;">

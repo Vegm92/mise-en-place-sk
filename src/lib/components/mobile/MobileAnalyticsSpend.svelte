@@ -107,9 +107,16 @@
       </div>
     </div>
 
-    {#if top_items?.length > 0}
-      <div class="card" style="padding: 14px;">
-        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.topProducts')}</div>
+    <div class="card" style="padding: 14px;">
+      <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.topProducts')}</div>
+      {#if !top_items?.length}
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 0; text-align: center;">
+          <div style="font-size: 24px; opacity: 0.25;">📊</div>
+          <p class="body-strong" style="color: var(--mep-fg-3);">{$t('spend.noDataYet')}</p>
+          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 240px;">{$t('spend.emptyHint')}</p>
+          <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; margin-top: 4px;">{$t('spend.uploadFirst')}</a>
+        </div>
+      {:else}
         <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
           <div style="position: relative; width: 156px; height: 156px;">
             <svg width="156" height="156" viewBox="0 0 156 156" style="overflow:visible;transform:rotate(-90deg);">
@@ -139,12 +146,17 @@
             {/each}
           </div>
         </div>
-      </div>
-    {/if}
+      {/if}
+    </div>
 
-    {#if category_spend?.length > 0}
-      <div class="card" style="padding: 14px 14px 6px;">
-        <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.byCategory')}</div>
+    <div class="card" style="padding: 14px 14px 6px;">
+      <div class="subtitle" style="font-size: 15px; margin-bottom: 12px;">{$t('spend.byCategory')}</div>
+      {#if !category_spend?.length}
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 0 20px; text-align: center;">
+          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 200px;">{$t('spend.assignCategories')}</p>
+          <a href="/suppliers" style="font-size: 13px; color: var(--mep-acc); text-decoration: none;">{$t('spend.viewSuppliers')}</a>
+        </div>
+      {:else}
         <div style="display: flex; flex-direction: column; gap: 10px;">
           {#each category_spend as cat}
             <div>
@@ -161,8 +173,8 @@
             </div>
           {/each}
         </div>
-      </div>
-    {/if}
+      {/if}
+    </div>
 
   </div>
 </div>
