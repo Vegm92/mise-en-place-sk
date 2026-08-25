@@ -78,6 +78,19 @@
     applyFilters();
   }
 
+  function patchFilters(patch: Partial<InvoiceFilters>) {
+    applySearch.cancel();
+    filterDraft = { ...filterDraft, ...patch };
+    applyFilters();
+  }
+
+  function loadMoreMobile() {
+    goto(invoiceFiltersHref(serverFilters, { period: data.period, page: pagination.page + 1 }), {
+      keepFocus: true,
+      noScroll: true,
+    });
+  }
+
   function setSearch(value: string) {
     filterDraft = { ...filterDraft, q: value };
     applySearch();
@@ -207,7 +220,16 @@
 {/if}
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceList invoices={invoices} q={filterDraft.q} onSearch={setSearch} />
+  <MobileInvoiceList
+    invoices={invoices}
+    q={filterDraft.q}
+    onSearch={setSearch}
+    filters={filterDraft}
+    suppliers={suppliers}
+    pagination={pagination}
+    onFilter={patchFilters}
+    onLoadMore={loadMoreMobile}
+  />
 </div>
 
 <div class="hidden md:block p-6">

@@ -16,6 +16,7 @@ export interface InvoiceFilters {
 	q: string;
 	status: string;
 	supplier_id: string;
+	category: string;
 	date_from: string;
 	date_to: string;
 	uploaded_from: string;
@@ -27,6 +28,7 @@ export const EMPTY_INVOICE_FILTERS: InvoiceFilters = {
 	q: '',
 	status: '',
 	supplier_id: '',
+	category: '',
 	date_from: '',
 	date_to: '',
 	uploaded_from: '',
@@ -52,6 +54,7 @@ export function parseInvoiceFilters(params: URLSearchParams): InvoiceFilters {
 		q:             text(params, 'q'),
 		status:        text(params, 'status'),
 		supplier_id:   text(params, 'supplier_id'),
+		category:      text(params, 'category'),
 		date_from:     isoDate(params, 'date_from'),
 		date_to:       isoDate(params, 'date_to'),
 		uploaded_from: isoDate(params, 'uploaded_from'),
@@ -62,7 +65,7 @@ export function parseInvoiceFilters(params: URLSearchParams): InvoiceFilters {
 
 export function countActiveInvoiceFilters(filters: InvoiceFilters): number {
 	const values = [
-		filters.q, filters.status, filters.supplier_id,
+		filters.q, filters.status, filters.supplier_id, filters.category,
 		filters.date_from, filters.date_to,
 		filters.uploaded_from, filters.uploaded_to,
 	];
@@ -87,6 +90,7 @@ export function invoiceFilterParams(
 	set('q', filters.q);
 	set('status', filters.status);
 	set('supplier_id', filters.supplier_id);
+	set('category', filters.category);
 	set('date_from', filters.date_from);
 	set('date_to', filters.date_to);
 	set('uploaded_from', filters.uploaded_from);
@@ -107,6 +111,16 @@ export function invoiceFiltersHref(
 
 export function defaultFiltersOpen(activeCount: number): boolean {
 	return activeCount > 0;
+}
+
+export function currentMonthRange(now: Date = new Date()): { from: string; to: string } {
+	const year = now.getUTCFullYear();
+	const month = now.getUTCMonth();
+	const iso = (d: Date) => d.toISOString().slice(0, 10);
+	return {
+		from: iso(new Date(Date.UTC(year, month, 1))),
+		to:   iso(new Date(Date.UTC(year, month + 1, 0))),
+	};
 }
 
 export function escapeLikePattern(value: string): string {

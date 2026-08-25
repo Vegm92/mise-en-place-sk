@@ -91,6 +91,7 @@ describe('/invoices load() — filters come from the search params', () => {
 			q: 'tomate',
 			status: 'pending',
 			supplier_id: '42',
+			category: '',
 			date_from: '2026-01-01',
 			date_to: '2026-01-31',
 			uploaded_from: '2026-02-01',
@@ -152,6 +153,16 @@ describe('/invoices load() — filters come from the search params', () => {
 		expect(countWhere.params).toContain('paid');
 		expect(countWhere.params).toContain(7);
 		expect(countWhere.params).toContain('%tomate%');
+	});
+
+	it('filters by supplier category on both the page and the count query', async () => {
+		await runLoad('?category=Carniceria');
+		const listWhere = render(state.whereArgs[0]);
+		const countWhere = render(state.whereArgs[state.whereArgs.length - 1]);
+		expect(listWhere.sql).toContain('"category"');
+		expect(listWhere.params).toContain('Carniceria');
+		expect(countWhere.sql).toContain('"category"');
+		expect(countWhere.params).toContain('Carniceria');
 	});
 
 	it('ignores a malformed date instead of pushing it into SQL', async () => {
