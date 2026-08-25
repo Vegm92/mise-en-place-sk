@@ -25,6 +25,19 @@
     status: string;
     invoice_date: string | null;
   }
+  interface TrendBucket {
+    label: string;
+    total: number;
+    pct: number;
+    is_current: boolean;
+    segments: { category: string | null; amount: number }[];
+  }
+  interface TrendData {
+    range: string;
+    granularity: string;
+    buckets: TrendBucket[];
+    categories: (string | null)[];
+  }
 
   let {
     monthSpend,
@@ -41,6 +54,8 @@
     alertText,
     suppliers,
     recentInvoices,
+    trend,
+    totalSpent,
   }: {
     monthSpend: number;
     monthDelta: number | null;
@@ -56,7 +71,40 @@
     alertText: string;
     suppliers: Supplier[];
     recentInvoices: RecentInvoice[];
+    trend: TrendData;
+    totalSpent: number;
   } = $props();
+
+  const RANGES = ['7d', '30d', '90d', '1y', 'all'] as const;
+  const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const;
+
+  // svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
+  let activeRange = $state(trend.range || '30d');
+  // svelte-ignore state_referenced_locally — intentional: seed once from prop defaults
+  let activeGranularity = $state(trend.granularity || 'weekly');
+  // svelte-ignore state_referenced_locally — intentional: seed once from props
+  let trendBuckets = $state<TrendBucket[]>(trend.buckets ?? []);
+
+  const trendTotal = $derived(
+    trendBuckets.length ? trendBuckets.reduce((s, b) => s + b.total, 0) : totalSpent
+  );
+  const sparkVals = $derived(trendBuckets.map(b => b.total));
+
+  async function fetchTrend(range: string, granularity: string) {
+    const resp = await fetch(`/api/trend?range=${range}&granularity=${granularity}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      trendBuckets = data.buckets ?? [];
+    }
+  }
+  function setRange(r: string) {
+    activeRange = r;
+    fetchTrend(activeRange, activeGranularity);
+  }
+  function setGranularity(g: string) {
+    activeGranularity = g;
+    fetchTrend(activeRange, activeGranularity);
+  }
 
   const greeting = $derived.by(() => {
     const h = new Date().getHours();
@@ -99,7 +147,7 @@
   <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 14px;">
 
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+      <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;">
         {$t(greeting)} · {dateStr}
       </div>
       <PeriodPicker compact={true} prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
@@ -145,8 +193,48 @@
               background: {budgetColor};
             "></div>
           </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 6px;">
+            <span class="label" style="font-size: 11px;">{budgetPct}% {$t('dash.budget.used')}</span>
+            <span class="num" style="font-size: 11px; color: var(--mep-fg-2);">
+              {fmtEurCompact(totalSpent)} / {fmtEurCompact(totalBudget)}
+            </span>
+          </div>
         </div>
       {/if}
+    </div>
+
+    <div class="card" style="padding: 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px;">
+        <div class="label">{$t('dash.chart')}</div>
+        <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg);">
+          {fmtEurCompact(trendTotal)}
+        </div>
+      </div>
+
+      {#if sparkVals.length >= 2}
+        <div style="height: 50px; margin-bottom: 12px;">
+          <Sparkline data={sparkVals} color="var(--mep-acc)" width={320} height={50} />
+        </div>
+      {/if}
+
+      <div class="period-track" role="group" style="margin-bottom: 8px;">
+        {#each GRANULARITIES as g}
+          <button
+            type="button"
+            class="period-pill {activeGranularity === g ? 'active' : ''}"
+            onclick={() => setGranularity(g)}
+          >{$t(`chart.gran.${g}`)}</button>
+        {/each}
+      </div>
+      <div class="period-track" role="group">
+        {#each RANGES as r}
+          <button
+            type="button"
+            class="period-pill {activeRange === r ? 'active' : ''}"
+            onclick={() => setRange(r)}
+          >{$t(`chart.range.${r}`)}</button>
+        {/each}
+      </div>
     </div>
 
     {#if highAlerts + medAlerts > 0}
@@ -172,11 +260,18 @@
           <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); line-height: 1.4;">
             {alertText}
           </div>
-          <div style="font-size: 12px; color: var(--mep-fg-2); margin-top: 3px;">
-            {$t('mdash.checkMargins')}
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px;">
+            <span style="font-size: 12px; color: var(--mep-fg-2);">{$t('mdash.checkMargins')}</span>
+            <span style="
+              display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+              font-size: 11px; font-weight: 500;
+              color: {highAlerts > 0 ? 'var(--mep-neg)' : 'var(--mep-warn)'};
+            ">
+              {$t('action.allAlerts')}
+              <ChevronRight size={14} />
+            </span>
           </div>
         </div>
-        <ChevronRight size={16} style="color: var(--mep-fg-3); flex-shrink: 0; margin-top: 2px;" />
       </a>
     {/if}
 
