@@ -1,357 +1,156 @@
-#!/usr/bin/env node
-/* eslint-disable no-console */
-/**
- * Mobile accessibility audit (issue #659).
- *
- * Drives the running app with Playwright at a phone viewport and measures, per
- * route, three things the MEP component classes historically got wrong:
- *
- *   smallTargets  — visible interactive elements whose smaller edge is under
- *                   44 CSS px (WCAG 2.5.5 / Apple HIG minimum tap target).
- *   tinyText      — visible text rendered under 11 px (the bottom of the MEP
- *                   type scale).
- *   smallInputs   — form fields with a font-size under 16 px, which makes iOS
- *                   Safari zoom the viewport on focus and never zoom back.
- *
- * Exclusions are deliberate and narrow, see SKIP_* below.
- *
- * Usage:
- *   node scripts/seed-demo-data.mjs                 # once, local DB only
- *   npx vite dev --port 5209 --host 127.0.0.1 &
- *   node scripts/mobile-audit.mjs                   # writes tests/fixtures/mobile-audit.json
- *
- * Flags:
- *   --base-url=<url>   default http://127.0.0.1:5209
- *   --width=<px>       default 390 (>= 768 drops the phone emulation)
- *   --height=<px>      default 844
- *   --out=<path>       default tests/fixtures/mobile-audit.json ('-' for stdout only)
- *   --routes=<a,b,c>   audit these paths instead of ROUTES (ad-hoc checks)
- *   --shots=<dir>      also write a full-page screenshot per route
- *   --quiet            suppress the per-route console table
- */
+import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:5173';
+const OUT = process.env.OUT || 'mobile-audit';
+const EMAIL = process.env.AUDIT_EMAIL || 'test@example.com';
+const PASSWORD = process.env.AUDIT_PASSWORD || 'Test1234!';
+const CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const PUBLIC_ONLY = process.env.PUBLIC_ONLY === '1';
 
-export const TARGET_MIN_PX = 44;
-export const TEXT_MIN_PX = 11;
-export const INPUT_MIN_PX = 16;
-
-export const ROUTES = [
-	'/',
-	'/dashboard',
-	'/invoices',
-	'/invoices/export',
-	'/suppliers',
-	'/products',
-	'/budgets',
-	'/reminders',
-	'/settings',
-	'/chat',
-	'/billing',
-	'/reports',
-	'/plantilla-lista',
-	'/analytics/spend',
-	'/analytics/prices',
-	'/analytics/extraction',
+const DEFAULT_ROUTES = [
+	'/dashboard', '/invoices', '/suppliers', '/products', '/budgets', '/reminders',
+	'/analytics/spend', '/analytics/prices', '/analytics/extraction',
+	'/reports', '/chat', '/billing', '/settings', '/invoices/export', '/',
 ];
+const ROUTES = (process.env.ROUTES || DEFAULT_ROUTES.join(',')).split(',').map(r => r.trim()).filter(Boolean);
 
-/**
- * Detail screens have no fixed URL, so their ids are read off the list screens
- * at run time. A list with no rows contributes no route rather than a 404.
- */
-export const DETAIL_ROUTES = [
-	{ list: '/suppliers', pattern: '^/suppliers/\\d+$', paths: (href) => [href] },
-	{ list: '/products', pattern: '^/products/\\d+$', paths: (href) => [href] },
-	{ list: '/invoices', pattern: '^/invoice/\\d+$', paths: (href) => [href, `${href}/edit`] },
-];
-
-const DEFAULTS = {
-	baseUrl: 'http://127.0.0.1:5209',
-	width: 390,
-	height: 844,
-	out: 'tests/fixtures/mobile-audit.json',
-	email: 'test@example.com',
-	password: 'Test1234!',
+const MOBILE = {
+	viewport: { width: 390, height: 844 },
+	deviceScaleFactor: 1,
+	isMobile: true,
+	hasTouch: true,
+	locale: 'es-ES',
+	userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
 };
+const DESKTOP = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, locale: 'es-ES' };
 
-function arg(name, fallback) {
-	const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
-	return hit ? hit.slice(name.length + 3) : fallback;
-}
+const UNLOCK_CSS =
+	'.mep{height:auto!important;overflow:visible!important}' +
+	'.mep>div{overflow:visible!important}' +
+	'main{overflow:visible!important;height:auto!important}';
 
-function chromiumPath() {
-	const explicit = process.env.PLAYWRIGHT_CHROMIUM_PATH;
-	if (explicit) return explicit;
-	const base = '/opt/pw-browsers';
-	if (!fs.existsSync(base)) return undefined;
-	const dir = fs
-		.readdirSync(base)
-		.filter((d) => /^chromium-\d+$/.test(d))
-		.sort()
-		.pop();
-	return dir ? path.join(base, dir, 'chrome-linux', 'chrome') : undefined;
-}
-
-/**
- * Runs inside the page. Kept as a single string-serialised function so the
- * whole measurement lives in one place.
- */
-function collect(limits) {
-	// `label` is in the query only so it can be excluded explicitly below; its
-	// size is measured as part of the control it names, never on its own.
-	const INTERACTIVE = [
-		'a[href]',
-		'button',
-		'input:not([type="hidden"])',
-		'select',
-		'textarea',
-		'summary',
-		'label[for]',
-		'[role="button"]',
-		'[role="link"]',
-		'[role="tab"]',
-		'[role="switch"]',
-		'[role="checkbox"]',
-		'[role="radio"]',
-		'[role="menuitem"]',
-		'[tabindex]:not([tabindex="-1"])',
-	].join(',');
-
-	// The sidebar is off-canvas at phone widths behind a hamburger and the issue
-	// measures the page without it; it is reported separately as `sidebar`.
+function measure() {
+	const vw = window.innerWidth;
 	const inSidebar = (el) => !!el.closest('aside');
-
-	const visible = (el) => {
-		if (typeof el.checkVisibility === 'function' && !el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
-		const r = el.getBoundingClientRect();
-		return r.width > 0 && r.height > 0;
-	};
-
-	const tag = (el) => {
-		const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter((c) => !c.startsWith('s-')).slice(0, 3).join('.') : '';
-		return `${el.tagName.toLowerCase()}${cls ? '.' + cls : ''}`;
-	};
-
-	const describe = (el) => {
-		const text = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
-		const href = el.getAttribute && el.getAttribute('href');
-		const chain = [];
-		for (let p = el.parentElement, i = 0; p && i < 3; p = p.parentElement, i++) chain.unshift(tag(p));
-		return `${chain.join('>')}>${tag(el)}${href ? `[${href}]` : ''}${text ? ` "${text}"` : ''}`;
-	};
-
-	// A tap anywhere on a control's label activates the control, so the real
-	// target is the union of the two. Labels are therefore never reported on
-	// their own — they are folded into the control they name.
-	const labelsFor = (el) => {
-		const found = [];
-		const wrapper = el.closest('label');
-		if (wrapper) found.push(wrapper);
-		if (el.id) {
-			for (const l of document.querySelectorAll(`label[for="${CSS.escape(el.id)}"]`)) found.push(l);
-		}
-		if (el.labels) for (const l of el.labels) if (!found.includes(l)) found.push(l);
-		return found;
-	};
-
-	const targetRect = (el) => {
-		let r = el.getBoundingClientRect();
-		let { top, left, right, bottom } = r;
-		if (/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) {
-			for (const l of labelsFor(el)) {
-				if (!visible(l)) continue;
-				const lr = l.getBoundingClientRect();
-				top = Math.min(top, lr.top);
-				left = Math.min(left, lr.left);
-				right = Math.max(right, lr.right);
-				bottom = Math.max(bottom, lr.bottom);
-			}
-		}
-		return { width: right - left, height: bottom - top };
-	};
-
-	// WCAG 2.5.8 exempts targets that sit inline inside a sentence: their size is
-	// determined by the line box, not by the control. Only a link whose computed
-	// display is `inline` and whose parent carries other prose qualifies.
-	const inlineInProse = (el) => {
-		if (el.tagName !== 'A') return false;
-		if (getComputedStyle(el).display !== 'inline') return false;
-		const parent = el.parentElement;
-		if (!parent) return false;
-		const own = (el.textContent || '').trim();
-		const around = (parent.textContent || '').trim();
-		return around.length > own.length + 3;
-	};
-
+	const root = document.querySelector('main') || document.body;
+	const clipped = [];
+	const scrollers = [];
 	const smallTargets = [];
-	const sidebarTargets = [];
-	const seen = new Set();
-	for (const el of document.querySelectorAll(INTERACTIVE)) {
-		if (seen.has(el)) continue;
-		seen.add(el);
-		if (el.tagName === 'LABEL') continue;
-		if (!visible(el)) continue;
-		const r = targetRect(el);
-		const min = Math.min(r.width, r.height);
-		if (min >= limits.target) continue;
-		const entry = {
-			selector: describe(el),
-			width: Math.round(r.width * 10) / 10,
-			height: Math.round(r.height * 10) / 10,
-		};
-		if (inSidebar(el)) sidebarTargets.push(entry);
-		else if (!inlineInProse(el)) smallTargets.push(entry);
-	}
+	const tinyFonts = new Set();
 
-	const tinyText = [];
-	const tinySeen = new Map();
-	for (const el of document.querySelectorAll('*')) {
+	for (const el of root.querySelectorAll('*')) {
 		if (inSidebar(el)) continue;
-		let own = '';
-		for (const node of el.childNodes) {
-			if (node.nodeType === 3) own += node.nodeValue;
-		}
-		if (!own.trim()) continue;
-		if (!visible(el)) continue;
-		const size = parseFloat(getComputedStyle(el).fontSize);
-		if (!(size < limits.text)) continue;
-		const key = `${describe(el)}|${size}`;
-		if (tinySeen.has(key)) {
-			tinySeen.get(key).count++;
-			continue;
-		}
-		const entry = { selector: describe(el), fontSize: size, count: 1 };
-		tinySeen.set(key, entry);
-		tinyText.push(entry);
-	}
-
-	const smallInputs = [];
-	for (const el of document.querySelectorAll('input:not([type="hidden"]), select, textarea')) {
-		if (inSidebar(el)) continue;
-		if (!visible(el)) continue;
+		const rect = el.getBoundingClientRect();
+		if (rect.width === 0 || rect.height === 0) continue;
 		const cs = getComputedStyle(el);
-		const size = parseFloat(cs.fontSize);
-		if (size >= limits.input) continue;
-		smallInputs.push({ selector: describe(el), fontSize: size, type: el.getAttribute('type') || el.tagName.toLowerCase() });
-	}
-
-	return { smallTargets, sidebarTargets, tinyText, smallInputs };
-}
-
-async function resolveDetailRoutes(page, baseUrl) {
-	const found = [];
-	for (const spec of DETAIL_ROUTES) {
-		await page.goto(`${baseUrl}${spec.list}`, { waitUntil: 'networkidle' });
-		const href = await page.evaluate((pattern) => {
-			const re = new RegExp(pattern);
-			for (const a of document.querySelectorAll('a[href]')) {
-				const path = new URL(a.href, location.origin).pathname;
-				if (re.test(path)) return path;
-			}
-			return null;
-		}, spec.pattern);
-		if (href) found.push(...spec.paths(href));
-	}
-	return found;
-}
-
-async function login(page, baseUrl, email, password) {
-	await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
-	const result = await page.evaluate(async ({ email, password }) => {
-		const res = await fetch('/login?/signIn', {
-			method: 'POST',
-			headers: { 'x-sveltekit-action': 'true', 'content-type': 'application/x-www-form-urlencoded' },
-			body: new URLSearchParams({ email, password }).toString(),
-		});
-		return res.json();
-	}, { email, password });
-	if (result?.type !== 'redirect') throw new Error(`login failed: ${JSON.stringify(result)}`);
-	await page.goto(`${baseUrl}${result.location}`, { waitUntil: 'domcontentloaded' });
-}
-
-export async function audit(options = {}) {
-	const cfg = { ...DEFAULTS, ...options };
-	const width = Number(cfg.width);
-	const height = Number(cfg.height);
-	const phone = width < 768;
-	const browser = await chromium.launch({ executablePath: chromiumPath() });
-	const context = await browser.newContext({
-		viewport: { width, height },
-		deviceScaleFactor: phone ? 2 : 1,
-		isMobile: phone,
-		hasTouch: phone,
-	});
-	const page = await context.newPage();
-	const routes = [];
-	try {
-		await login(page, cfg.baseUrl, cfg.email, cfg.password);
-		const targets = cfg.routes ?? [...ROUTES, ...(await resolveDetailRoutes(page, cfg.baseUrl))];
-		for (const route of targets) {
-			const response = await page.goto(`${cfg.baseUrl}${route}`, { waitUntil: 'networkidle' });
-			await page.waitForTimeout(400);
-			const found = await page.evaluate(collect, {
-				target: TARGET_MIN_PX,
-				text: TEXT_MIN_PX,
-				input: INPUT_MIN_PX,
-			});
-			routes.push({
-				route,
-				status: response?.status() ?? 0,
-				url: new URL(page.url()).pathname,
-				...found,
-			});
-			if (cfg.shots) {
-				fs.mkdirSync(cfg.shots, { recursive: true });
-				await page.screenshot({
-					path: path.join(cfg.shots, `${route.replace(/^\//, '').replace(/\//g, '-')}-${cfg.width}.png`),
-					fullPage: true,
-				});
-			}
+		if (cs.position === 'fixed') continue;
+		const label = (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+		if (rect.right > vw + 1) {
+			clipped.push({ tag: el.tagName.toLowerCase(), cls: (el.getAttribute('class') || '').slice(0, 60), width: Math.round(rect.width), right: Math.round(rect.right), text: label });
 		}
-	} finally {
-		await browser.close();
+		if (el.scrollWidth > el.clientWidth + 2 && el.clientWidth > 0) {
+			scrollers.push({ tag: el.tagName.toLowerCase(), cls: (el.getAttribute('class') || '').slice(0, 60), scrollWidth: el.scrollWidth, clientWidth: el.clientWidth, overflowX: cs.overflowX, text: label });
+		}
+		const ownText = [...el.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
+		if (ownText && parseFloat(cs.fontSize) < 12) tinyFonts.add(cs.fontSize + ' | ' + label);
+	}
+
+	for (const el of root.querySelectorAll('a, button, input, select, [role="button"]')) {
+		if (inSidebar(el)) continue;
+		const rect = el.getBoundingClientRect();
+		if (rect.width === 0 || rect.height === 0) continue;
+		if (rect.height < 40) {
+			smallTargets.push({ tag: el.tagName.toLowerCase(), height: Math.round(rect.height), width: Math.round(rect.width), text: (el.textContent || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 28) });
+		}
 	}
 
 	return {
-		generatedAt: new Date().toISOString(),
-		viewport: { width, height },
-		limits: { target: TARGET_MIN_PX, text: TEXT_MIN_PX, input: INPUT_MIN_PX },
-		routes,
-		totals: {
-			smallTargets: routes.reduce((n, r) => n + r.smallTargets.length, 0),
-			tinyText: routes.reduce((n, r) => n + r.tinyText.length, 0),
-			smallInputs: routes.reduce((n, r) => n + r.smallInputs.length, 0),
-		},
+		viewportWidth: vw,
+		clippedCount: clipped.length,
+		clipped: clipped.slice(0, 12),
+		scrollerCount: scrollers.length,
+		scrollers: scrollers.slice(0, 8),
+		smallTargetCount: smallTargets.length,
+		smallTargets: smallTargets.slice(0, 8),
+		tinyFonts: [...tinyFonts].slice(0, 8),
 	};
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-	const report = await audit({
-		baseUrl: arg('base-url', DEFAULTS.baseUrl),
-		width: arg('width', DEFAULTS.width),
-		height: arg('height', DEFAULTS.height),
-		routes: arg('routes', '') ? arg('routes', '').split(',') : undefined,
-		out: arg('out', DEFAULTS.out),
-		shots: arg('shots', undefined),
-	});
-	const out = arg('out', DEFAULTS.out);
-	if (out !== '-') {
-		const target = path.isAbsolute(out) ? out : path.join(ROOT, out);
-		fs.mkdirSync(path.dirname(target), { recursive: true });
-		fs.writeFileSync(target, JSON.stringify(report, null, '\t') + '\n');
-	}
-	if (!process.argv.includes('--quiet')) {
-		const pad = (s, n) => String(s).padEnd(n);
-		console.log(`${pad('route', 22)}${pad('targets<44', 12)}${pad('text<11', 10)}${pad('inputs<16', 10)}`);
-		for (const r of report.routes) {
-			console.log(`${pad(r.route, 22)}${pad(r.smallTargets.length, 12)}${pad(r.tinyText.length, 10)}${pad(r.smallInputs.length, 10)}`);
+function readVisibleText() {
+	const root = document.querySelector('main') || document.body;
+	const acc = [];
+	const walk = (el) => {
+		for (const node of el.childNodes) {
+			if (node.nodeType === 3) {
+				const t = node.textContent.trim();
+				if (t) acc.push(t);
+			} else if (node.nodeType === 1) {
+				const cs = getComputedStyle(node);
+				if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+				walk(node);
+			}
 		}
-		console.log(`${pad('TOTAL', 22)}${pad(report.totals.smallTargets, 12)}${pad(report.totals.tinyText, 10)}${pad(report.totals.smallInputs, 10)}`);
-	}
-	const failed = report.totals.smallTargets + report.totals.tinyText + report.totals.smallInputs;
-	process.exit(failed === 0 ? 0 : 1);
+	};
+	walk(root);
+	return acc.join(' ');
 }
+
+async function signIn(page) {
+	await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded' });
+	await page.fill('input[name="email"]', EMAIL);
+	await page.fill('input[name="password"]', PASSWORD);
+	await Promise.all([
+		page.waitForURL(u => !u.pathname.includes('/login'), { timeout: 20000 }).catch(() => {}),
+		page.click('button[type="submit"]'),
+	]);
+	await page.waitForTimeout(1000);
+}
+
+const tokenize = (text) => new Set(
+	text.replace(/\s+/g, ' ').trim().split(/\s+/).map(t => t.trim()).filter(t => t.length > 2)
+);
+
+fs.mkdirSync(OUT, { recursive: true });
+const browser = await chromium.launch({ executablePath: CHROME });
+const mobile = await (await browser.newContext(MOBILE)).newPage();
+const desktop = PUBLIC_ONLY ? null : await (await browser.newContext(DESKTOP)).newPage();
+if (!PUBLIC_ONLY) {
+	await signIn(mobile);
+	await signIn(desktop);
+}
+
+const report = [];
+for (const route of ROUTES) {
+	const name = route === '/' ? 'root' : route.replace(/^\//, '').replace(/\//g, '_');
+	try {
+		const response = await mobile.goto(BASE + route, { waitUntil: 'networkidle', timeout: 30000 });
+		await mobile.waitForTimeout(900);
+		const metrics = await mobile.evaluate(measure);
+		const mobileText = await mobile.evaluate(readVisibleText);
+
+		let desktopOnly = [];
+		if (desktop) {
+			await desktop.goto(BASE + route, { waitUntil: 'networkidle', timeout: 30000 });
+			await desktop.waitForTimeout(900);
+			const desktopText = await desktop.evaluate(readVisibleText);
+			const seen = tokenize(mobileText);
+			desktopOnly = [...tokenize(desktopText)].filter(t => !seen.has(t));
+		}
+
+		await mobile.addStyleTag({ content: UNLOCK_CSS });
+		await mobile.waitForTimeout(400);
+		await mobile.screenshot({ path: path.join(OUT, name + '.png'), fullPage: true });
+
+		report.push({ route, status: response?.status(), ...metrics, desktopOnlyCount: desktopOnly.length, desktopOnly: desktopOnly.slice(0, 40) });
+		console.log(`${route} | clipped=${metrics.clippedCount} scrollers=${metrics.scrollerCount} smallTargets=${metrics.smallTargetCount} tinyFonts=${metrics.tinyFonts.length} desktopOnly=${desktopOnly.length}`);
+	} catch (error) {
+		report.push({ route, error: String(error).slice(0, 200) });
+		console.log(`${route} | ERROR ${String(error).slice(0, 120)}`);
+	}
+}
+
+fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 2));
+console.log(`\nWrote ${report.length} entries to ${path.join(OUT, 'report.json')}`);
+await browser.close();

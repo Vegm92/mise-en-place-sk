@@ -2,7 +2,7 @@
 /* eslint-disable no-console */
 /**
  * Seeds a local database with one approved user and enough tenant data for the
- * app routes to render non-empty. Used by scripts/mobile-audit.mjs; never run
+ * app routes to render non-empty. Used by scripts/mobile-tap-target-audit.mjs; never run
  * against anything but a local Postgres.
  *
  * Usage: node scripts/seed-demo-data.mjs

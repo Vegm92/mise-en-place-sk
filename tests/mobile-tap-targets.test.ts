@@ -3,13 +3,13 @@
  *
  * Two layers:
  *
- *  1. The measured layer reads tests/fixtures/mobile-audit.json, the report
- *     scripts/mobile-audit.mjs writes after driving the real app at 390px with
+ *  1. The measured layer reads tests/fixtures/mobile-tap-targets.json, the report
+ *     scripts/mobile-tap-target-audit.mjs writes after driving the real app at 390px with
  *     Playwright. Regenerate it with:
  *
  *         node scripts/seed-demo-data.mjs
  *         npx vite dev --port 5209 --host 127.0.0.1 &
- *         node scripts/mobile-audit.mjs
+ *         node scripts/mobile-tap-target-audit.mjs
  *
  *  2. The static layer reads the .svelte sources directly, so the two rules
  *     that a media query cannot enforce — inline `height:32px` on a component
@@ -22,7 +22,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
-const REPORT = path.join(ROOT, 'tests/fixtures/mobile-audit.json');
+const REPORT = path.join(ROOT, 'tests/fixtures/mobile-tap-targets.json');
 
 const TARGET_MIN_PX = 44;
 const TEXT_MIN_PX = 11;
