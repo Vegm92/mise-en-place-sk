@@ -210,6 +210,14 @@ These comments were deliberately left in the code because a tool reads them.
 
 ### `src/lib/status.ts`
 
+**`const STORED_INVOICE_STATUSES` / `const DERIVED_INVOICE_STATUSES`**
+
+- The invoice status vocabulary, split by where a value comes from. `pending | accepted | rejected | paid` are what `invoices.status` holds; `overdue` is computed at read time and never written. `DISPLAY_INVOICE_STATUSES` is the union the UI can be asked to render, and `InvoiceStatus` (the stored union) is re-exported by `invoice-status.ts` rather than redeclared — three disagreeing copies of this union is what issue #520 found.
+
+**`function badgeClass` / `function statusKey`**
+
+- Total over `DISPLAY_INVOICE_STATUSES`; an unrecognised value gets a neutral badge and renders its raw text rather than being painted as confirmed. `tests/invoice-status-vocabulary.test.ts` asserts every member has a class in app.css and a key in both locales.
+
 **`function confColor`**
 
 - Confidence score → CSS colour variable.

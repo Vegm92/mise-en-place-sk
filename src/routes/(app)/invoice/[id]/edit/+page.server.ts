@@ -121,6 +121,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				unit_price:  invoiceLineItems.unitPrice,
 				total_price: invoiceLineItems.totalPrice,
 				tax_rate:    invoiceLineItems.taxRate,
+				supplier_sku: invoiceLineItems.supplierSku,
 			})
 				.from(invoiceLineItems)
 				.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))

@@ -230,6 +230,7 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 **`const ALLOWED_EXTENSIONS`**
 
+- Derived from `SUPPORTED_UPLOAD_EXTENSIONS` in `src/lib/upload-formats.ts`, which is also what every file input's `accept` attribute reads. Four gates decide whether a file type works — the picker, this allowlist, the `MAGIC_BYTES` table beside it, and `classifyFile` in extract.ts — and each used to carry its own copy; `.heic` was offered by the picker and refused here (issue #520). `tests/supported-file-types.test.ts` pins them to one set.
 - Upload file helpers — validation, storage-key generation, local-path resolution. Batch/queue state lives in batch.ts; the legacy JSON-blob session store is gone (the file keeps its name from that era).
 
 **`function uploadsDir`**
