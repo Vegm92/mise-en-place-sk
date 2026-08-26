@@ -47,6 +47,14 @@ Mismo sistema —tokens de `src/app.css`, Mona Sans, acento ámbar, radios
 Implementado. `/settings` y `/help` siguen estas láminas; lo que se apartó del
 diseño está anotado abajo.
 
+- **Las láminas están en ámbar; la app ya no.** ADR-026 mueve el acento a
+  `slate` y reserva el azul para la acción. El código no lo nota —todo va por
+  `--mep-acc`— pero los `.dc.html` siguen con `#8a530f` quemado. Hay que
+  volver a sembrarlos en slate antes de usarlos como referencia de color.
+- Las dos pastillas de icono que la lámina pintaba con `--mep-info` (el enlace
+  al centro de ayuda y el enlace a Ajustes) pasaron al tinte de acento: bajo
+  ADR-026 ese azul es el de la acción, y ahí no había ninguna.
+
 - La FAQ del centro de ayuda quedó como `<details>`/`<summary>` en vez del
   acordeón de una sola pregunta abierta: así se despliega sin JavaScript.
 - Las filas de local no llevan el contador de albaranes que dibujaba la lámina
