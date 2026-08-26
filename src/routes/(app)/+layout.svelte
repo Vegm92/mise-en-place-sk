@@ -54,6 +54,31 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   let locationRef: HTMLDivElement | undefined = $state();
   let mounted = $state(false);
   let upgradeModalOpen = $state(false);
+  let accountOpen = $state(false);
+  let accountRef: HTMLDivElement | undefined = $state();
+  let headerScrolled = $state(false);
+  let mainEl: HTMLElement | undefined = $state();
+
+  $effect(() => {
+    if (!browser || !mainEl) return;
+    const main = mainEl;
+    const onScroll = (e: Event) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement) || !main.contains(target)) return;
+      if (target.scrollHeight <= target.clientHeight) return;
+      if (target.clientHeight < main.clientHeight * 0.6) return;
+      const past = target.scrollTop > 12;
+      if (past !== headerScrolled) headerScrolled = past;
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => document.removeEventListener('scroll', onScroll, true);
+  });
+
+  $effect(() => {
+    void $page.url.pathname;
+    headerScrolled = false;
+    accountOpen = false;
+  });
 
   function handleNavClick(item: NavItem, e: MouseEvent) {
     if (item.proOnly && item.feature && !data.features[item.feature]) {
@@ -71,6 +96,20 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
+  });
+
+  $effect(() => {
+    if (!accountOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (accountRef && !accountRef.contains(e.target as Node)) accountOpen = false;
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') accountOpen = false; };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
   });
 
   const currentLocation = $derived(
@@ -303,6 +342,8 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       : 'Mise en Place'
   );
   const userName  = $derived(data?.user?.name ?? 'Usuario');
+  const headerPlace = $derived(currentLocation || data.restaurantName || '');
+  const canSwitchPlace = $derived((data.locations?.length ?? 0) > 1);
   const userInitials = $derived(
     userName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
   );
@@ -662,10 +703,10 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <header class="app-header shell-header">
+    <header class="app-header shell-header {headerScrolled ? 'is-condensed' : ''}">
 
       <button
-        class="md:hidden btn btn-ghost"
+        class="md:hidden btn btn-ghost btn-icon"
         style="width:34px;height:34px;padding:0;justify-content:center;"
         onclick={() => mobileOpen = !mobileOpen}
         aria-label={$t('a11y.openMenu')}
@@ -673,38 +714,106 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
       </button>
 
-      <h1 class="shell-title">
-        {pageTitle}
-      </h1>
+      <div class="shell-heading">
+        {#if headerPlace}
+          {#if canSwitchPlace}
+            <button
+              type="button"
+              class="shell-eyebrow"
+              onclick={() => mobileOpen = true}
+              title={$t('nav.location')}
+            >
+              <span>{headerPlace}</span>
+              <ChevronDown size={11} />
+            </button>
+          {:else}
+            <span class="shell-eyebrow"><span>{headerPlace}</span></span>
+          {/if}
+        {/if}
+        <h1 class="shell-title">
+          {pageTitle}
+        </h1>
+      </div>
 
       <span class="hidden md:inline-flex"><ChatFab /></span>
 
-      <button
-        class="hidden md:flex btn btn-ghost"
-        style="height:34px;padding:0 10px;font-size:13px;font-weight:600;letter-spacing:0.02em;font-variant-numeric:tabular-nums;min-width:44px;justify-content:center;"
-        onclick={toggleLocale}
-        title={$t('a11y.switchLanguage')}
-      >
-        {$locale === 'es' ? 'EN' : 'ES'}
-      </button>
-
-      <NotificationBell notifications={data.notifications ?? []} />
-
-      <button
-        class="hidden md:flex btn btn-ghost"
-        style="width:34px;height:34px;padding:0;justify-content:center;"
-        onclick={toggleTheme}
-        title={$t('a11y.switchTheme')}
-      >
-        {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
-      </button>
-
-      <a href="/" class="md:hidden btn btn-primary" style="height:34px;text-decoration:none;">
+      <a href="/" class="btn btn-primary shell-primary" style="height:34px;text-decoration:none;">
         <Upload size={14} />
+        <span class="shell-primary-label">{$t('upload.btn')}</span>
       </a>
+
+      <span class="shell-divider hidden md:block"></span>
+
+      <span class="shell-bell"><NotificationBell notifications={data.notifications ?? []} /></span>
+
+      <div class="hidden md:block" style="position:relative;" bind:this={accountRef}>
+        <button
+          type="button"
+          class="acct-trigger"
+          aria-haspopup="menu"
+          aria-expanded={accountOpen}
+          onclick={() => (accountOpen = !accountOpen)}
+          title={$t('a11y.account')}
+        >
+          <span class="acct-avatar">{userInitials}</span>
+          <ChevronDown size={13} />
+        </button>
+
+        {#if accountOpen}
+          <div class="acct-menu" role="menu">
+            <div class="acct-identity">
+              <span class="acct-avatar acct-avatar-lg">{userInitials}</span>
+              <div style="min-width:0;flex:1;">
+                <div class="acct-name">{userName}</div>
+                <div class="acct-sub">{data.restaurantName}</div>
+              </div>
+            </div>
+
+            <div class="acct-sep"></div>
+
+            <a href="/settings" class="acct-item" role="menuitem" onclick={() => (accountOpen = false)}>
+              <Settings size={15} />
+              <span>{$t('nav.settings')}</span>
+            </a>
+            <a href="/help" class="acct-item" role="menuitem" onclick={() => (accountOpen = false)}>
+              <CircleHelp size={15} />
+              <span>{$t('nav.help')}</span>
+            </a>
+
+            <div class="acct-sep"></div>
+
+            <button type="button" class="acct-item" role="menuitem" onclick={toggleTheme}>
+              {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
+              <span style="flex:1;">{$t('a11y.switchTheme')}</span>
+            </button>
+            <button type="button" class="acct-item" role="menuitem" onclick={toggleLocale}>
+              <Languages size={15} />
+              <span style="flex:1;">{$t('a11y.switchLanguage')}</span>
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--mep-fg-4);">
+                {$locale === 'es' ? 'EN' : 'ES'}
+              </span>
+            </button>
+
+            <div class="acct-sep"></div>
+
+            <form method="POST" action="/logout">
+              <button type="submit" class="acct-item" role="menuitem">
+                <ArrowLeftRight size={15} />
+                <span>{$t('action.switchAccount')}</span>
+              </button>
+            </form>
+            <form method="POST" action="/logout">
+              <button type="submit" class="acct-item" role="menuitem">
+                <LogOut size={15} />
+                <span>{$t('action.logout')}</span>
+              </button>
+            </form>
+          </div>
+        {/if}
+      </div>
     </header>
 
-    <main style="flex:1;overflow:auto;">
+    <main style="flex:1;overflow:auto;" bind:this={mainEl}>
       <ErrorBoundary {children} />
     </main>
 
