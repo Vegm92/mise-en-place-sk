@@ -400,7 +400,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     {#if !collapsed && data.locations && data.locations.length > 1}
       <div style="display:flex;align-items:center;gap:8px;padding:0 10px 14px;">
-        <label for="location-switch" style="flex-shrink:0;font-size:11px;color:var(--mep-fg-4);">
+        <label for="location-switch" style="flex-shrink:0;font-size:11px;color:var(--mep-fg-3);">
           {$t('nav.location')}
         </label>
         <div style="position:relative;flex:1;min-width:0;" bind:this={locationRef}>
@@ -504,9 +504,9 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
               aria-expanded={open}
               onclick={() => toggleSection(section.id)}
             >
-              <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{!open && sectionActive(section) ? 'var(--mep-acc)' : 'var(--mep-fg-4)'};">{section.label}</span>
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{!open && sectionActive(section) ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};">{section.label}</span>
               {#if locked}
-                <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-acc-soft);color:var(--mep-acc);border:1px solid var(--mep-acc-ring);">{$t('nav.badge.pro')}</span>
+                <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-hover);color:var(--mep-fg-2);border:1px solid var(--mep-border);">{$t('nav.badge.pro')}</span>
               {/if}
               <span style="flex:1;"></span>
               {#if rolledBadge}
@@ -515,14 +515,14 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
                   style="font-size:11px;font-weight:600;min-width:16px;height:16px;padding:0 5px;border-radius:var(--mep-r-pill);background:var(--mep-warn-soft);color:var(--mep-warn);display:inline-flex;align-items:center;justify-content:center;"
                 >{rolledBadge}</span>
               {/if}
-              <ChevronDown size={12} style="flex-shrink:0;color:var(--mep-fg-4);transition:transform 150ms ease-out;transform:rotate({open ? '0deg' : '-90deg'});" />
+              <ChevronDown size={12} style="flex-shrink:0;color:var(--mep-fg-3);transition:transform 150ms ease-out;transform:rotate({open ? '0deg' : '-90deg'});" />
             </button>
           {:else if section.label && collapsed && sectionIndex > 0}
             <div style="display:flex;align-items:center;justify-content:center;padding:0 0 8px;" aria-hidden="true">
               {#if section.pro}
-                <span style="height:1px;flex:1;background:var(--mep-acc-ring);margin-left:8px;"></span>
-                <Sparkles size={11} style="flex-shrink:0;margin:0 6px;color:var(--mep-acc);" />
-                <span style="height:1px;flex:1;background:var(--mep-acc-ring);margin-right:8px;"></span>
+                <span style="height:1px;flex:1;background:var(--mep-border);margin-left:8px;"></span>
+                <Sparkles size={11} style="flex-shrink:0;margin:0 6px;color:var(--mep-fg-3);" />
+                <span style="height:1px;flex:1;background:var(--mep-border);margin-right:8px;"></span>
               {:else}
                 <span style="height:1px;flex:1;background:var(--mep-divider);margin:0 8px;"></span>
               {/if}
@@ -546,18 +546,18 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
                 cursor:pointer;text-decoration:none;
                 justify-content:{collapsed ? 'center' : 'flex-start'};
                 background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
-                color:{parentActive ? 'var(--mep-acc)' : itemIsLocked ? 'var(--mep-fg-4)' : 'var(--mep-fg-2)'};
+                color:{parentActive ? 'var(--mep-acc)' : itemIsLocked ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
                 font-size:13.5px;font-weight:{parentActive ? 500 : 400};
               "
             >
               <item.icon size={16} style={itemIsLocked ? 'opacity:0.5;' : undefined} />
               {#if collapsed && itemIsLocked}
-                <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-acc);" aria-hidden="true"></span>
+                <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-fg-3);" aria-hidden="true"></span>
               {/if}
               {#if !collapsed}
                 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.label}</span>
                 {#if itemIsLocked}
-                  <Lock size={12} aria-label={$t('nav.locked')} style="flex-shrink:0;color:var(--mep-fg-4);" />
+                  <Lock size={12} aria-label={$t('nav.locked')} style="flex-shrink:0;color:var(--mep-fg-3);" />
                 {/if}
                 {#if item.badge}
                   <span
