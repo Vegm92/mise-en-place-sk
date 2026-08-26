@@ -1,0 +1,96 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Versión A · Barra compacta",
+      "print": "fixed",
+      "is_interactive": true
+    },
+    {
+      "file": "VersionB.dc.html",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Versión B · Bandejas",
+      "print": "fixed",
+      "is_interactive": true
+    },
+    {
+      "file": "Estados.dc.html",
+      "x": 0,
+      "y": 1140,
+      "w": 1180,
+      "h": 800,
+      "title": "Los tres estados",
+      "print": "fixed"
+    },
+    {
+      "file": "Opcion1.dc.html",
+      "x": 0,
+      "y": 2240,
+      "w": 540,
+      "h": 440,
+      "title": "Gráfica · Opción 1",
+      "print": "fixed",
+      "is_interactive": true
+    },
+    {
+      "file": "Opcion2.dc.html",
+      "x": 620,
+      "y": 2240,
+      "w": 540,
+      "h": 440,
+      "title": "Gráfica · Opción 2",
+      "print": "fixed"
+    },
+    {
+      "file": "Opcion3.dc.html",
+      "x": 1240,
+      "y": 2240,
+      "w": 540,
+      "h": 440,
+      "title": "Gráfica · Opción 3",
+      "print": "fixed"
+    },
+    {
+      "file": "Opcion4.dc.html",
+      "x": 1860,
+      "y": 2240,
+      "w": 540,
+      "h": 440,
+      "title": "Gráfica · Opción 4",
+      "print": "fixed"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nota-brief",
+      "x": -820,
+      "y": 0,
+      "w": 760,
+      "text": "Dos maneras de descongestionar los filtros de Albaranes, las dos con los tres estados nuevos (Por revisar · Confirmado · Incidencia) ya metidos.\n\nA · Barra compacta — la página sigue siendo la de ahora. Los ocho campos de filtro se meten en un panel flotante y quedan tres controles en una fila: bandejas, buscador y «Filtros». Los filtros puestos se ven como fichas debajo. Se marca desde un chip en la propia fila.\n\nB · Bandejas — la lista pasa a ser una bandeja de revisión, como un buzón. Las bandejas son pestañas, desaparece la rejilla de KPIs y cada fila lleva Confirmar e Incidencia siempre visibles: un clic y el albarán sale de la bandeja, con opción de deshacer.\n\nLas dos funcionan: pincha las bandejas, marca albaranes, abre el panel de filtros. Los datos son de ejemplo, no salen de la base de datos.\n\nA es el cambio de bajo riesgo, B es más rápido si el trabajo diario es dejar la bandeja a cero."
+    },
+    {
+      "id": "nota-estados",
+      "x": 1280,
+      "y": 1140,
+      "w": 440,
+      "text": "Lo que hay que decidir antes de tocar la interfaz: revisión y pago son dos ejes, y hoy comparten la columna invoices.status (pending · accepted · rejected · paid).\n\nLa matriz de abajo enseña las dos casillas que hoy no se pueden representar, que son justo las dos que cuestan dinero: pagado sin revisar, y pagado con una incidencia abierta.\n\nOjo con la palabra «confirmado»: en el pipeline de extracción ya significa otra cosa (batch_items → confirmed, que es «los datos extraídos están bien»). El estado nuevo dice «la entrega cuadra». Conviene que no se llamen igual de cara al usuario."
+    },
+    {
+      "id": "nota-grafica",
+      "x": -820,
+      "y": 2240,
+      "w": 760,
+      "text": "Cuatro cosas que podría enseñar la pestaña «Gráfica», cada una contesta a una pregunta distinta. No hay que quedarse con una sola: la opción 1 y la 4 conviven bien.\n\n1 Proceso · ¿voy al día revisando?   2 Dinero · ¿dónde se va?   3 Calidad · ¿quién falla?   4 Ninguna · las tres cifras del día.\n\nCada tarjeta lleva escrito a qué pregunta responde y qué te cuesta elegirla.\n\nLos colores de las gráficas no son exactamente los de los chips: los tres del badge (#654a00 · #14694a · #b03a3a) no se distinguen bien como manchas de color grandes — verde y rojo se juntan con daltonismo. Los pasos de gráfica (#0f7a52 · #bd8206 · #c73f31) mantienen el mismo tono pero pasan las comprobaciones."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
