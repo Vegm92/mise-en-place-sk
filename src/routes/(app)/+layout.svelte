@@ -27,6 +27,7 @@
   import X from '@lucide/svelte/icons/x';
 import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -170,6 +171,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   }
 
   interface NavSection {
+    id: string;
     label: string;
     pro?: boolean;
     items: NavItem[];
@@ -179,6 +181,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     revealAll
       ? [
           {
+            id: 'daily',
             label: $t('nav.section.daily'),
             items: [
               { href: '/dashboard', icon: LayoutDashboard, label: $t('nav.dashboard'), badge: 0 },
@@ -188,6 +191,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             ],
           },
           {
+            id: 'planning',
             label: $t('nav.section.planning'),
             items: [
               { href: '/budgets',   icon: Tag,  label: $t('nav.budgets'),   badge: 0 },
@@ -195,6 +199,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             ],
           },
           {
+            id: 'intel',
             label: $t('nav.section.intel'),
             pro: true,
             items: [
@@ -212,6 +217,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         ]
       : [
           {
+            id: 'daily',
             label: '',
             items: [
               { href: '/dashboard', icon: LayoutDashboard, label: $t('nav.dashboard'), badge: 0 },
@@ -226,6 +232,41 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   const sectionLocked = (section: NavSection) =>
     !!section.pro && section.items.some(itemLocked);
+
+  const itemActive = (item: NavItem) =>
+    is(item.href) || (item.sub?.some((sub) => is(sub.href)) ?? false);
+
+  const sectionActive = (section: NavSection) => section.items.some(itemActive);
+
+  const sectionBadge = (section: NavSection) =>
+    section.items.reduce((sum, item) => sum + (Number(item.badge) || 0), 0);
+
+  const SECTIONS_KEY = 'mep-nav-sections-collapsed';
+
+  function readCollapsedSections(): string[] {
+    if (typeof localStorage === 'undefined') return [];
+    try {
+      const raw: unknown = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? '[]');
+      return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  let collapsedSections = $state<string[]>(readCollapsedSections());
+
+  function toggleSection(id: string) {
+    collapsedSections = collapsedSections.includes(id)
+      ? collapsedSections.filter((s) => s !== id)
+      : [...collapsedSections, id];
+    try {
+      localStorage.setItem(SECTIONS_KEY, JSON.stringify(collapsedSections));
+    } catch {
+    }
+  }
+
+  const sectionOpen = (section: NavSection) =>
+    collapsed || !section.label || !collapsedSections.includes(section.id);
 
   let switchingLocation = $state(false);
   let locationError = $state<string | null>(null);
@@ -411,15 +452,30 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     <nav style="display:flex;flex-direction:column;">
       {#each navSections as section, sectionIndex}
         {@const locked = sectionLocked(section)}
+        {@const open = sectionOpen(section)}
+        {@const rolledBadge = open ? 0 : sectionBadge(section)}
         <div style="display:flex;flex-direction:column;gap:1px;{sectionIndex > 0 ? 'margin-top:16px;' : ''}">
 
           {#if section.label && !collapsed}
-            <div style="display:flex;align-items:center;gap:7px;padding:0 10px 7px;">
-              <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--mep-fg-4);">{section.label}</span>
+            <button
+              type="button"
+              class="nav-section-toggle"
+              aria-expanded={open}
+              onclick={() => toggleSection(section.id)}
+            >
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{!open && sectionActive(section) ? 'var(--mep-acc)' : 'var(--mep-fg-4)'};">{section.label}</span>
               {#if locked}
                 <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-acc-soft);color:var(--mep-acc);border:1px solid var(--mep-acc-ring);">{$t('nav.badge.pro')}</span>
               {/if}
-            </div>
+              <span style="flex:1;"></span>
+              {#if rolledBadge}
+                <span
+                  class="num"
+                  style="font-size:11px;font-weight:600;min-width:16px;height:16px;padding:0 5px;border-radius:var(--mep-r-pill);background:var(--mep-warn-soft);color:var(--mep-warn);display:inline-flex;align-items:center;justify-content:center;"
+                >{rolledBadge}</span>
+              {/if}
+              <ChevronDown size={12} style="flex-shrink:0;color:var(--mep-fg-4);transition:transform 150ms ease-out;transform:rotate({open ? '0deg' : '-90deg'});" />
+            </button>
           {:else if section.label && collapsed && sectionIndex > 0}
             <div style="display:flex;align-items:center;justify-content:center;padding:0 0 8px;" aria-hidden="true">
               {#if section.pro}
@@ -432,8 +488,8 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             </div>
           {/if}
 
-          {#each section.items as item}
-            {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
+          {#each open ? section.items : [] as item}
+            {@const parentActive = itemActive(item)}
             {@const itemIsLocked = itemLocked(item)}
             <a
               href={item.href}
