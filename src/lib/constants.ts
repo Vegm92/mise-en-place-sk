@@ -1,3 +1,5 @@
+export const BETA_SEATS = 50;
+
 export const UNCATEGORIZED_CATEGORY = 'Other';
 
 export const VALID_CATEGORIES: string[] = [
