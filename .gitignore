@@ -91,3 +91,7 @@ DEPLOYMENT.md
 /shots/*.png
 /shots/admin-mobile-audit-before.json
 /[0-9][0-9][0-9]-*.png
+
+# Design canvas scratch (/design skill): .dc.html sources plus a ~2MB seeded
+# canvas. The deliverable is the published artifact, not a repo file.
+/.design-upgrade-modal/
