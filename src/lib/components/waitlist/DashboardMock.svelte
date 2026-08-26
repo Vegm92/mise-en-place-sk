@@ -38,9 +38,9 @@
     const cx = padL + CCW * i + CCW / 2 - CBW / 2;
     let sy = CPT + CH;
     const segs = [
-      { v: w.a, fill: '#7a5b3a' },
-      { v: w.b, fill: '#4d5b7a' },
-      { v: w.c, fill: '#3d6b5a' },
+      { v: w.a, fill: 'var(--mep-cat-carnes-y-derivados)' },
+      { v: w.b, fill: 'var(--mep-cat-pescados-y-mariscos)' },
+      { v: w.c, fill: 'var(--mep-cat-frutas-y-verduras)' },
     ].map(s => {
       const h = (s.v / CMT) * CH;
       sy -= h;
@@ -77,7 +77,7 @@
       </div>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
-      {#each [{ k:copy.mockCatMeat, c:'#7a5b3a' }, { k:copy.mockCatFish, c:'#4d5b7a' }, { k:copy.mockCatVeg, c:'#3d6b5a' }] as cat}
+      {#each [{ k:copy.mockCatMeat, c:'var(--mep-cat-carnes-y-derivados)' }, { k:copy.mockCatFish, c:'var(--mep-cat-pescados-y-mariscos)' }, { k:copy.mockCatVeg, c:'var(--mep-cat-frutas-y-verduras)' }] as cat}
         <div style="display:flex;align-items:center;gap:4px;">
           <span style="width:8px;height:8px;border-radius:2px;background:{cat.c};flex-shrink:0;"></span>
           <span style="font-size:11px;color:var(--mep-fg-3);">{cat.k}</span>

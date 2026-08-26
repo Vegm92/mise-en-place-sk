@@ -1,6 +1,6 @@
 # ADR-026 — Severity is a warm traffic-light ramp; blue is reserved for actions
 
-**Status:** Active
+**Status:** Active, amended by [ADR-027](./ADR-027-amber-accent-removed-and-enforced.md)
 **Feature:** experience
 **Date:** 2026-08-26
 
@@ -71,7 +71,10 @@ carries `.badge-pending`, `AdminStatusBadge`, `AdminSystemBanner`,
 distinctive of the two, and slate is a safer, more generic blue. The trade is
 deliberate: one unambiguous action colour beats a prettier ambiguous one. The
 `amber` theme block stays in `app.css` and can be restored by flipping
-`data-accent` back on the route roots.
+`data-accent` back on the route roots. **Superseded by
+[ADR-027](./ADR-027-amber-accent-removed-and-enforced.md):** the block is
+deleted and a test forbids any warm accent, because the hatch reopened this
+collision in one line and the drift it hid went unnoticed in `email.ts`.
 
 **`--mep-info` survives but is no longer a severity.** It still colours
 informational notification dots (`notification-display.ts`) and a `TrendChart`

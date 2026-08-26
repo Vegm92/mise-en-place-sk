@@ -192,6 +192,17 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 - Transactional email via Resend; RESEND_API_KEY unset → no-ops (dev mode). Copy Spanish-first, matching the default locale (#202).
 
+**`const COLOR_*`**
+
+- The MEP light ramp copied by hand, because email clients do not resolve CSS
+  custom properties. `COLOR_ACCENT` is `--mep-acc` for `slate` (`#34507a`); it
+  sat on the retired amber `#8a530f` long after the app moved
+  ([ADR-027](../06_decisions/experience/ADR-027-amber-accent-removed-and-enforced.md)),
+  so every transactional email was branded a colour the product no longer used.
+  `tests/design-tokens-accent-discipline.test.ts` now asserts these constants
+  equal the `:root[data-theme="light"]` token values — this is the one place in
+  `src/` allowed to hard-code the ramp, and the only thing keeping the copy honest.
+
 **`interface EmailPayload`**
 
 - Coarse type for telemetry — tagged on Sentry, never the recipient (#257).

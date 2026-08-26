@@ -180,26 +180,16 @@
   --mep-cat-other:                        #8f8fa2;
 }
 
-/* Accent — amber (alternative, retired as the default in favour of slate) */
-.mep[data-accent="amber"] {
-  --mep-acc:      #8a530f;
-  --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(138, 83, 15, 0.10);
-  --mep-acc-hover:#7e4c0d;
-  --mep-acc-ring: rgba(138, 83, 15, 0.30);
-}
-:root[data-theme="dark"] .mep[data-accent="amber"] {
-  --mep-acc:      #d59854;
-  --mep-acc-fg:   #2a1a08;
-  --mep-acc-soft: rgba(213, 152, 84, 0.18);
-  --mep-acc-hover:#e0a665;
-  --mep-acc-ring: rgba(213, 152, 84, 0.30);
-}
-
 /* Accent — slate (default — every route sets data-accent="slate").
    Blue is reserved for actions: primary buttons, active nav, the actual-spend
    stroke. The severity ramp is warm (neg / warn / caution) so the two never
-   compete for the same meaning. */
+   compete for the same meaning.
+
+   The amber accent block lived here until it was removed: its --mep-acc was
+   #8a530f light / #d59854 dark, the same hue and lightness as --mep-warn
+   (#a85300 / #e8934a), so a primary button and an overdue invoice read as the
+   same colour. Warm belongs to severity only. Any new accent must sit outside
+   that band — tests/design-tokens-accent-discipline.test.ts enforces it. */
 .mep[data-accent="slate"] {
   --mep-acc:      #34507a;
   --mep-acc-fg:   #ffffff;
