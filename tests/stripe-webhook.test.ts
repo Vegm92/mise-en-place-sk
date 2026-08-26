@@ -317,7 +317,7 @@ describe.skipIf(!hasDbEnv)('Stripe — reconcile subscription from Stripe', () =
 		}
 	});
 
-	it('stays unresolved when no live subscription is tagged for this restaurant', async () => {
+	it('falls back to the single live subscription when none carry restaurantId metadata', async () => {
 		const r = await createTestRestaurant('stripe-reconcile-ambiguous');
 		await testDb.insert(subscriptions).values({
 			restaurantId: r.id, planTier: 'trial', status: 'canceled',
@@ -336,9 +336,9 @@ describe.skipIf(!hasDbEnv)('Stripe — reconcile subscription from Stripe', () =
 			await syncSubscriptionFromStripe(r.id);
 
 			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
-			expect(row?.stripeSubscriptionId).toBe('sub_stale_canceled');
-			expect(row?.planTier).toBe('trial');
-			expect(row?.status).toBe('canceled');
+			expect(row?.stripeSubscriptionId).toBe('sub_other_restaurant');
+			expect(row?.planTier).toBe('pro');
+			expect(row?.status).toBe('active');
 		} finally {
 			retrieveSpy.mockRestore();
 			listSpy.mockRestore();
