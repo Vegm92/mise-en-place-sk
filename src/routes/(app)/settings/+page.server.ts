@@ -113,35 +113,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 	});
 };
 
+const clampPercent = (value: number, fallback: number) =>
+	Math.max(1, Math.min(99, Number.isFinite(value) && value ? value : fallback));
+
+async function putSetting(restaurantId: string, key: string, value: string) {
+	await db.insert(settings)
+		.values({ restaurantId, key, value })
+		.onConflictDoUpdate({ target: [settings.restaurantId, settings.key], set: { value } });
+}
+
 export const actions: Actions = {
-	saveThreshold: async ({ request, locals }) => {
-		const rid = locals.restaurantId!;
-		const data = await request.formData();
-		const clamped = String(Math.max(1, Math.min(99, Number(data.get('value')) || 80)));
-
-		await db.insert(settings)
-			.values({ restaurantId: rid, key: THRESHOLD_KEY, value: clamped })
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: clamped },
-			});
-
-		redirect(303, '/settings');
-	},
-	savePriceThreshold: async ({ request, locals }) => {
-		const rid = locals.restaurantId!;
-		const data = await request.formData();
-		const stored = (Math.max(1, Math.min(99, Number(data.get('value')) || 15)) / 100).toFixed(2);
-
-		await db.insert(settings)
-			.values({ restaurantId: rid, key: PRICE_ALERT_KEY, value: stored })
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: stored },
-			});
-
-		redirect(303, '/settings');
-	},
 	saveAlertPreferences: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
 		const data = await request.formData();
@@ -151,16 +132,18 @@ export const actions: Actions = {
 
 		await persistAlertPreferences(rid, prefs);
 
+		if (data.has('threshold')) {
+			await putSetting(rid, THRESHOLD_KEY, String(clampPercent(Number(data.get('threshold')), 80)));
+		}
+		if (data.has('priceThreshold')) {
+			await putSetting(rid, PRICE_ALERT_KEY, (clampPercent(Number(data.get('priceThreshold')), 15) / 100).toFixed(2));
+		}
+
 		redirect(303, '/settings');
 	},
 	resetTutorial: async ({ locals }) => {
 		const rid = locals.restaurantId!;
-		await db.insert(settings)
-			.values({ restaurantId: rid, key: 'tutorial_step', value: '1' })
-			.onConflictDoUpdate({
-				target: [settings.restaurantId, settings.key],
-				set: { value: '1' },
-			});
+		await putSetting(rid, 'tutorial_step', '1');
 		redirect(303, '/');
 	},
 
