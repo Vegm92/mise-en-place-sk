@@ -740,7 +740,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
       <a href="/" class="btn btn-primary shell-primary" style="height:34px;text-decoration:none;">
         <Upload size={14} />
-        {$t('upload.btn')}
+        <span class="shell-primary-label">{$t('upload.btn')}</span>
       </a>
 
       <span class="shell-divider hidden md:block"></span>
