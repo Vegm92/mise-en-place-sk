@@ -659,7 +659,9 @@ function logIgnored(eventType: string, detail: string): void {
 
 function missingSubscriptionMetadata(eventType: string, subscriptionId: string | undefined, restaurantId: string | undefined): boolean {
 	if (restaurantId) return false;
-	logIgnored(eventType, `subscription has no restaurantId metadata — subscription=${subscriptionId}`);
+	const msg = `[billing] ${eventType} ignored: subscription has no restaurantId metadata — subscription=${subscriptionId}. Add restaurantId metadata in Stripe Dashboard → Subscriptions → [sub] → Edit metadata.`;
+	console.error(msg);
+	Sentry.captureMessage(msg, { level: 'error', tags: { area: 'billing', event: eventType, op: 'missing_metadata' } });
 	return true;
 }
 
@@ -729,7 +731,24 @@ async function sendSubscriptionConfirmation(restaurantId: string, email: string,
 
 async function handleSubscriptionChanged(event: Stripe.Event, eventCreatedAt: Date): Promise<void> {
 	const sub = event.data.object as Stripe.Subscription;
-	const restaurantId = sub.metadata?.restaurantId;
+	let restaurantId = sub.metadata?.restaurantId;
+
+	if (!restaurantId) {
+		const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id ?? null;
+		if (customerId) {
+			const [row] = await db.select({ restaurantId: subscriptions.restaurantId })
+				.from(subscriptions)
+				.where(eq(subscriptions.stripeCustomerId, customerId))
+				.limit(1);
+			if (row?.restaurantId) {
+				restaurantId = row.restaurantId;
+				const msg = `[billing] ${event.type}: resolved restaurant ${restaurantId} from stripeCustomerId ${customerId} (subscription ${sub.id} had no metadata)`;
+				console.warn(msg);
+				Sentry.captureMessage(msg, { level: 'warning', tags: { area: 'billing', event: event.type, op: 'metadata_fallback' } });
+			}
+		}
+	}
+
 	if (missingSubscriptionMetadata(event.type, sub.id, restaurantId)) return;
 
 	const { priceId, tier, periodEnd } = subscriptionFields(sub);
@@ -870,6 +889,22 @@ async function resolveLiveSubscription(
 		return null;
 	}
 	const candidate = matches[0];
-	if (!candidate) return null;
-	return { live: candidate, targetSubId: candidate.id };
+	if (candidate) return { live: candidate, targetSubId: candidate.id };
+
+	const liveSubs = liveList.data.filter((s) => isLiveSubscription(s));
+	if (liveSubs.length === 1) {
+		const sub = liveSubs[0];
+		const subId = sub.id;
+		const subMeta = JSON.stringify(sub.metadata ?? {});
+		const msg = `[billing] reconcile fallback: subscription ${subId} has no restaurantId metadata — customer=${customerId}, restaurant=${rootRid}, metadata=${subMeta}`;
+		console.warn(msg);
+		Sentry.captureMessage(msg, { level: 'warning', tags: { area: 'billing', op: 'reconcile_fallback' } });
+		return { live: sub, targetSubId: subId };
+	}
+	if (liveSubs.length > 1) {
+		const msg = `[billing] reconcile ambiguous: customer ${customerId} has ${liveSubs.length} live subscriptions without restaurantId metadata — cannot resolve for restaurant ${rootRid}`;
+		console.error(msg);
+		Sentry.captureMessage(msg, { tags: { area: 'billing', op: 'reconcile' } });
+	}
+	return null;
 }
