@@ -558,8 +558,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		const totalSpend = spendByCategory.get(category) ?? 0;
 		const pctFrac = totalSpend / monthlyBudget;
 		const level = budgetOverageLevel(pctFrac, thresholdFrac);
-		if (!level) continue;
-		if (alreadySent.has(`${category}:${level}`)) continue;
+		if (!level || alreadySent.has(`${category}:${level}`)) continue;
 		alreadySent.add(`${category}:${level}`);
 
 		const pctDisplay = Math.round(pctFrac * 100);
