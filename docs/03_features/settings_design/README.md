@@ -42,6 +42,19 @@ Mismo sistema —tokens de `src/app.css`, Mona Sans, acento ámbar, radios
     rejilla 2×2, el tour como apartado propio, los trucos en tres columnas y
     las preguntas como acordeón.
 
+## Estado
+
+Implementado. `/settings` y `/help` siguen estas láminas; lo que se apartó del
+diseño está anotado abajo.
+
+- La FAQ del centro de ayuda quedó como `<details>`/`<summary>` en vez del
+  acordeón de una sola pregunta abierta: así se despliega sin JavaScript.
+- Las filas de local no llevan el contador de albaranes que dibujaba la lámina
+  (`128 albaranes este mes`): el `load` de la página no trae ese dato y no
+  merece una consulta más.
+- La tarjeta de perfil que encabezaba la lista en móvil tampoco está, por lo
+  mismo: mostraba el plan, que esta página no carga.
+
 ## Dónde vive el código
 
 | Pieza | Fichero |
