@@ -22,6 +22,7 @@ either side; follow `docs/07_ai/specification_audit.md`.
 | [stock.md](../03_features/stock.md) | Stock levels, burn rate, low-stock forecast, unit conversions | `stock_levels`, `alerts.ts` (`runStockForecast`), `api/stock-levels` |
 | [budgets.md](../03_features/budgets.md) | Monthly category budgets, spend aggregation, overage alerts | `category_budgets`, `alerts.ts` (`runBudgetCheck`), `budgets` routes |
 | [analytics.md](../03_features/analytics.md) | Spend/prices/extraction analytics, trend buckets, materialized views | `trend.ts`, `mv_*`, `analytics/*` routes |
+| [dashboard.md](../03_features/dashboard.md) | Desktop worklist dashboard: euros at stake, month pace, category risk, cash out | `dashboard-turno.ts`, `dashboard` route, `desktop/turno/*`, `mep/Bullet`, `mep/PaceChart` |
 | [notifications.md](../03_features/notifications.md) | Notification lifecycle, bell, badge, reminders hub, i18n rendering | `system_notifications`, `notification-display.ts`, `reminders` routes |
 | [chat.md](../03_features/chat.md) | Chat assistant, context snapshot, actions, session persistence | `chat-context.ts`, `api/chat`, `chat` routes |
 | [digest.md](../03_features/digest.md) | Weekly digest generation, claiming, scheduling, email | `weekly-digest.ts`, `scheduler.ts`, `digest` routes |
