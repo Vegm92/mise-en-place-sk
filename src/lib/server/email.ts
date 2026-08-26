@@ -112,8 +112,8 @@ function renderEmailLayout(opts: LayoutOptions): string {
 
 	const footerLinksHtml = opts.footerLinks ? `
 	<div style="font-size:11px;margin:0 0 12px;">
-		<a href="${APP_BASE_URL}/settings" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(15,20,30,.14);padding-bottom:1px;margin-right:14px;">Preferencias de email</a>
-		<a href="${APP_BASE_URL}/privacy" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(15,20,30,.14);padding-bottom:1px;">Privacidad</a>
+		<a href="${APP_BASE_URL}/settings" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(20,20,24,.14);padding-bottom:1px;margin-right:14px;">Preferencias de email</a>
+		<a href="${APP_BASE_URL}/privacy" style="color:${COLOR_FG3};text-decoration:none;border-bottom:1px solid rgba(20,20,24,.14);padding-bottom:1px;">Privacidad</a>
 	</div>` : '';
 
 	const legalLines = [
