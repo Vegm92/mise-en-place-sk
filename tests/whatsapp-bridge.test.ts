@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const {
 	dbMock, sendMock, downloadMock, saveMock, rateLimitMock,
 	createBatchMock, enqueueBatchMock, enqueueExtractionMock,
+	claimMock, releaseMock,
 	selectQueue, insertQueue,
 } = vi.hoisted(() => {
 	const selectQueue: unknown[][] = [];
@@ -52,12 +53,19 @@ const {
 		createBatchMock: vi.fn(),
 		enqueueBatchMock: vi.fn().mockResolvedValue(undefined),
 		enqueueExtractionMock: vi.fn().mockResolvedValue(true),
+		claimMock: vi.fn().mockResolvedValue(true),
+		releaseMock: vi.fn().mockResolvedValue(undefined),
 		selectQueue,
 		insertQueue,
 	};
 });
 
 vi.mock('../src/lib/server/db', () => ({ db: dbMock }));
+vi.mock('../src/lib/server/idempotency', () => ({
+	WHATSAPP_SCOPE: 'whatsapp',
+	claimIdempotencyKey: claimMock,
+	releaseIdempotencyKey: releaseMock,
+}));
 vi.mock('../src/lib/server/whatsapp', () => ({
 	sendWhatsAppMessage: sendMock,
 	downloadWhatsAppMedia: downloadMock,
@@ -111,6 +119,8 @@ beforeEach(() => {
 	selectQueue.length = 0;
 	insertQueue.length = 0;
 	rateLimitMock.mockResolvedValue(true);
+	claimMock.mockResolvedValue(true);
+	releaseMock.mockResolvedValue(undefined);
 	createBatchMock.mockResolvedValue({ batchId: 'batch-1', itemIds: ['item-1'] });
 vi.mock('../src/lib/server/locations', () => ({ isLocationLocked: vi.fn().mockResolvedValue(false) }));
 });
@@ -149,7 +159,9 @@ describe('WhatsApp → batch bridge', () => {
 		downloadMock.mockRejectedValue(new Error('404 from Meta'));
 		queueRouting();
 
-		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+		await expect(
+			handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } }),
+		).rejects.toThrow('404 from Meta');
 
 		expect(createBatchMock).not.toHaveBeenCalled();
 		expect(repliesText()).toMatch(/No he podido descargar el archivo/i);
@@ -160,9 +172,86 @@ describe('WhatsApp → batch bridge', () => {
 		saveMock.mockRejectedValueOnce(new Error('disk full'));
 		queueRouting();
 
-		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+		await expect(
+			handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } }),
+		).rejects.toThrow('disk full');
 
 		expect(createBatchMock).not.toHaveBeenCalled();
 		expect(repliesText()).toMatch(/No he podido guardar el archivo/i);
+	});
+});
+
+/**
+ * Issue #483: the message id was claimed up front and never released, so any
+ * failure before the invoice actually entered the pipeline discarded it for
+ * good — a redelivery of the same id was skipped as a duplicate. The claim is
+ * now released on failure, but only up to the commit point (batch created and
+ * extraction enqueued); past that the invoice IS ingested and a release would
+ * let a redelivery create a second batch.
+ */
+describe('idempotency claim release before the commit point (issue #483)', () => {
+	const MEDIA = { from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } };
+
+	it('releases the claim when the media download fails, so a resend is processed', async () => {
+		downloadMock.mockRejectedValue(new Error('404 from Meta'));
+		queueRouting();
+
+		await expect(handleWhatsAppMessage({ ...MEDIA })).rejects.toThrow();
+		expect(releaseMock).toHaveBeenCalledWith('whatsapp', 'm1');
+
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		queueRouting();
+		await handleWhatsAppMessage({ ...MEDIA });
+		expect(createBatchMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('releases the claim when the storage write fails', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		saveMock.mockRejectedValueOnce(new Error('disk full'));
+		queueRouting();
+
+		await expect(handleWhatsAppMessage({ ...MEDIA })).rejects.toThrow();
+		expect(releaseMock).toHaveBeenCalledWith('whatsapp', 'm1');
+	});
+
+	it('releases the claim when the batch insert fails', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		createBatchMock.mockRejectedValueOnce(new Error('deadlock detected'));
+		queueRouting();
+
+		await expect(handleWhatsAppMessage({ ...MEDIA })).rejects.toThrow();
+		expect(releaseMock).toHaveBeenCalledWith('whatsapp', 'm1');
+	});
+
+	it('releases the claim when the extraction enqueue fails', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		enqueueBatchMock.mockRejectedValueOnce(new Error('boss is down'));
+		queueRouting();
+
+		await expect(handleWhatsAppMessage({ ...MEDIA })).rejects.toThrow();
+		expect(releaseMock).toHaveBeenCalledWith('whatsapp', 'm1');
+	});
+
+	it('keeps the claim when the confirmation reply fails after the enqueue', async () => {
+		// Past the commit point the invoice is ingested; releasing here would
+		// let a redelivery create a second batch for the same photo.
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		sendMock.mockRejectedValueOnce(new Error('Meta 500'));
+		queueRouting();
+
+		await expect(handleWhatsAppMessage({ ...MEDIA })).rejects.toThrow();
+		expect(enqueueBatchMock).toHaveBeenCalled();
+		expect(releaseMock).not.toHaveBeenCalled();
+	});
+
+	it('keeps the claim on a duplicate delivery and does no work', async () => {
+		claimMock.mockResolvedValue(false);
+		queueRouting();
+
+		await handleWhatsAppMessage({ ...MEDIA });
+
+		expect(downloadMock).not.toHaveBeenCalled();
+		expect(createBatchMock).not.toHaveBeenCalled();
+		expect(releaseMock).not.toHaveBeenCalled();
 	});
 });
