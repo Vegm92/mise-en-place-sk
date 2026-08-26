@@ -13,7 +13,8 @@ const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
 	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'subscription_consolidated'
-	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved';
+	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved'
+	| 'recipe_sheet';
 
 export interface EmailPayload {
 	to: string;
@@ -188,6 +189,58 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 		console.error('[email] send failed:', error);
 		Sentry.captureException(error, { tags: { emailKind: payload.kind ?? 'unknown' } });
 	}
+}
+
+function dataTable(header: string[], rows: string[][], numericFrom = 1): string {
+	const th = header.map((cell, i) => `<th style="text-align:${i >= numericFrom ? 'right' : 'left'};font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${COLOR_FG3};padding:0 8px 6px;border-bottom:1px solid ${COLOR_BORDER};">${escapeHtml(cell)}</th>`).join('');
+	const tr = rows.map((row) => {
+		const tds = row.map((cell, i) => `<td style="text-align:${i >= numericFrom ? 'right' : 'left'};font-size:12.5px;color:${i === 0 ? COLOR_FG : COLOR_FG2};padding:7px 8px;border-bottom:1px solid ${COLOR_DIVIDER};${i >= numericFrom ? `font-family:${MONO_STACK};` : ''}">${escapeHtml(cell)}</td>`).join('');
+		return `<tr>${tds}</tr>`;
+	}).join('');
+	return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:14px 0 4px;"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
+}
+
+interface RecipeSheetSummary {
+	id: number;
+	name: string;
+	subtitle: string;
+	kpis: { label: string; value: string }[];
+	lines: { name: string; qty: string; amount: string }[];
+	total: string;
+	allergens: string[];
+}
+
+export function recipeSheetEmail(
+	email: string,
+	restaurantName: string,
+	sheet: RecipeSheetSummary
+): EmailPayload {
+	const allergenLine = sheet.allergens.length > 0
+		? p(`Alérgenos declarados: ${strong(escapeHtml(sheet.allergens.join(', ')))}.`)
+		: '';
+
+	return {
+		to: email,
+		kind: 'recipe_sheet',
+		subject: `Escandallo — ${sheet.name}`,
+		html: renderEmailLayout({
+			preheader: `${sheet.name}: ${sheet.subtitle}.`,
+			tagChip: 'Escandallo',
+			eyebrow: 'Ficha técnica',
+			headline: sheet.name,
+			bodyHtml:
+				p(`Ficha técnica de ${strong(escapeHtml(restaurantName))} — ${escapeHtml(sheet.subtitle)}.`) +
+				dataTable(['Indicador', 'Valor'], sheet.kpis.map((k) => [k.label, k.value])) +
+				dataTable(
+					['Ingrediente', 'Cantidad', 'Importe'],
+					sheet.lines.map((l) => [l.name, l.qty, l.amount])
+				) +
+				callout('Coste total', escapeHtml(sheet.total)) +
+				allergenLine,
+			cta: { href: `${APP_BASE_URL}/recipes/${sheet.id}/sheet`, label: 'Abrir la ficha completa' },
+			footerLinks: true,
+		}),
+	};
 }
 
 export function welcomeEmail(email: string, restaurantName?: string): EmailPayload {

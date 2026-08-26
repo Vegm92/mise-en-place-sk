@@ -13,6 +13,7 @@
   import RecipeLineRow from '$lib/components/mep/RecipeLineRow.svelte';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Copy from '@lucide/svelte/icons/copy';
+  import FileText from '@lucide/svelte/icons/file-text';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
@@ -62,6 +63,9 @@
       <h1 class="title">{data.heading}</h1>
     </div>
     <div class="flex items-center gap-2">
+      <a href="/recipes/{recipe.id}/sheet" class="btn btn-secondary flex items-center gap-1" style="font-size:11px;">
+        <FileText size={13} />{$t('rec.sheet.open')}
+      </a>
       <form method="post" action="?/duplicate">
         <button type="submit" class="btn btn-secondary flex items-center gap-1" style="font-size:11px;">
           <Copy size={13} />{$t('rec.f.duplicate')}
