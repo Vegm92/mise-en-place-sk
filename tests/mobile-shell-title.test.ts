@@ -170,14 +170,58 @@ describe('issue #660 — the shell header has a mobile branch', () => {
 	});
 
 	it('keeps the locale and theme toggles out of the mobile header row', () => {
+		const menuAt = header.indexOf('class="acct-menu"');
+		expect(menuAt, 'the header must carry an account menu').toBeGreaterThan(-1);
 		for (const handler of ['toggleLocale', 'toggleTheme']) {
 			const at = header.indexOf(`onclick={${handler}}`);
-			expect(at, `${handler} button not found in the header`).toBeGreaterThan(-1);
-			const button = header.slice(header.lastIndexOf('<button', at), at);
+			expect(at, `${handler} control not found in the header`).toBeGreaterThan(-1);
 			expect(
-				button,
-				`the ${handler} button must be hidden below md so the title has room`,
-			).toMatch(/class="[^"]*\bhidden md:/);
+				at > menuAt,
+				`${handler} must sit inside the account menu, not loose in the header row`,
+			).toBe(true);
 		}
+		expect(
+			header.slice(0, menuAt),
+			'the account menu must hang off a trigger that is hidden below md',
+		).toMatch(/class="hidden md:block"/);
+	});
+
+	it('stacks the active location above the title below md', () => {
+		expect(header, 'the header must render the location eyebrow').toMatch(
+			/class="shell-eyebrow"/,
+		);
+		expect(header, 'the eyebrow and title must share one heading block').toMatch(
+			/class="shell-heading"/,
+		);
+		const eyebrow = css.match(/\.shell-eyebrow\s*\{[^}]*\}/);
+		expect(eyebrow, 'app.css must define .shell-eyebrow').not.toBeNull();
+		expect(eyebrow![0], 'the eyebrow sits at the bottom of the type scale').toMatch(
+			/font-size:\s*11px/,
+		);
+		const hiddenAt = css.indexOf('.shell-eyebrow { display: none; }');
+		expect(hiddenAt, 'the eyebrow must be switched off somewhere').toBeGreaterThan(-1);
+		expect(
+			css.slice(css.lastIndexOf('@media', hiddenAt), hiddenAt),
+			'the eyebrow is mobile-only — desktop already shows the location in the sidebar',
+		).toMatch(/@media\s*\(min-width:\s*768px\)/);
+	});
+
+	it('gives the primary action its label back', () => {
+		const upload = header.slice(header.indexOf('btn btn-primary'));
+		expect(
+			upload.slice(0, upload.indexOf('</a>')),
+			'the upload button must carry a label, not just an icon',
+		).toMatch(/\$t\('upload\.btn'\)/);
+		expect(
+			css,
+			'only icon-only header controls give their padding back to the title',
+		).toMatch(/\.app-header \.btn-icon\s*\{\s*padding-left:\s*0/);
+	});
+
+	it('condenses the header once the page scrolls', () => {
+		expect(header, 'the header takes a condensed modifier').toMatch(/is-condensed/);
+		const rule = css.match(/\.shell-header\.is-condensed\s*\{[^}]*\}/);
+		expect(rule, 'app.css must define the condensed height').not.toBeNull();
+		expect(rule![0]).toMatch(/height:\s*48px/);
 	});
 });
