@@ -178,8 +178,8 @@ function dueItems(input: TurnoInput): WorkItem[] {
 		.sort((a, b) => b.amount - a.amount);
 	const items: WorkItem[] = [];
 
-	if (overdue.length > 0) {
-		const oldest = overdue.reduce((a, b) => (a.days_delta <= b.days_delta ? a : b));
+	const oldest = [...overdue].sort((a, b) => a.days_delta - b.days_delta)[0];
+	if (oldest) {
 		items.push({
 			id: 'due-overdue',
 			kind: 'due',
