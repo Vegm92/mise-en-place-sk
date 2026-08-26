@@ -14,7 +14,7 @@
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { testDb, testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
-import { createBatchStore } from '../src/lib/server/batch-core';
+import { createBatchStore } from '../src/lib/server/batch';
 
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
@@ -44,7 +44,7 @@ describe.skipIf(!hasDbEnv)('#425 — /api/health counts batch_items, not upload_
 		const baseline = ((await (await GET()).json()) as { sessions: { active_count: number } })
 			.sessions.active_count;
 
-		const { itemIds: [a, b, c] } = await store.createBatch(rid, [
+		const { itemIds: [a, b] } = await store.createBatch(rid, [
 			{ key: 'ns/a.pdf', name: 'a.pdf' },
 			{ key: 'ns/b.pdf', name: 'b.pdf' },
 			{ key: 'ns/c.pdf', name: 'c.pdf' },
@@ -52,7 +52,7 @@ describe.skipIf(!hasDbEnv)('#425 — /api/health counts batch_items, not upload_
 		await store.markQueued(a);
 		await store.markQueued(b);
 		await store.markExtracting(b);
-		void c; // left pending — must not count
+		// the third item (ns/c.pdf) is left pending — it must not count
 
 		const after = ((await (await GET()).json()) as { sessions: { active_count: number } })
 			.sessions.active_count;

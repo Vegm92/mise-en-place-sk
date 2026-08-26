@@ -1,4 +1,3 @@
-import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers } from '$lib/server/schema';
@@ -24,12 +23,10 @@ interface SupplierRow {
 	name: string;
 }
 
-export const load: PageServerLoad = async ({ url, locals, parent }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	return handleLoad('analytics/prices', async () => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
-	const { features } = await parent();
-	if (!features.supplierScores) redirect(303, '/billing?upgrade=prices');
 	const supplierIdParam = url.searchParams.get('supplier_id');
 	const supplierId = supplierIdParam ? Number(supplierIdParam) : null;
 
@@ -53,7 +50,14 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		  ${supplierFilter}
 		ORDER BY ABS(COALESCE(change_pct, 0)) DESC
 	`);
-	const rows = rawRows as unknown as PriceRow[];
+	const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
+	const rows = (rawRows as unknown as Record<string, unknown>[]).map((r) => ({
+		...r,
+		latest_price: Number(r.latest_price),
+		latest_normalized_price: num(r.latest_normalized_price),
+		prev_price: num(r.prev_price),
+		change_pct: num(r.change_pct),
+	})) as unknown as PriceRow[];
 
 	const items = rows.sort((a, b) => {
 		const aAbs = a.change_pct !== null ? Math.abs(a.change_pct) : -1;

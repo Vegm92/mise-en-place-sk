@@ -30,7 +30,11 @@ soft deletion.
   `pending|accepted ──markPaid──▶ paid`, `paid ──markUnpaid──▶ pending`.
   Bulk mark-paid supported. `overdue` is display-derivable (not a stored
   transition here).
-- **Edit** carries an optimistic-lock `version`; stale writes are rejected.
+- **Edit** carries an optimistic-lock `version`; stale writes are rejected. The
+  action delete-and-reinserts line items, so the edit form must post back every
+  column the save path reads — `line_supplier_skus` included, or the SKU is
+  nulled on every edit (issue #520). `tests/invoice-edit-enrichment.test.ts`
+  derives the column set from the schema and fails if one stops surviving.
 - **Soft delete**: invoices are soft-deleted (`deletedAt`); history survives in
   `invoice_audit_log` (no FK — rows survive deletes). Purged by the file
   retention cron after `DELETED_FILE_RETENTION_DAYS`.
@@ -38,6 +42,13 @@ soft deletion.
   (styled header, banded rows, autofilter); marks exported where applicable.
 - **File preview**: `/invoice/[id]/file` serves via `getStorage()`, tenant-
   scoped; X-Frame-Options `SAMEORIGIN` carve-out applies.
+- **List filters** (issue #579): the `/invoices` filter bar is collapsible and
+  starts collapsed, with the number of active filters badged on the toggle.
+  There is no Apply button — every change re-fetches immediately by rewriting
+  the URL, and text input is debounced 300 ms. The URL search params are the
+  only filter state: `q`, `status`, `supplier_id`, `date_from`, `date_to`,
+  `uploaded_from`, `uploaded_to`, `sort` (plus `period` / `page`). `q` matches
+  invoice number or supplier name, case-insensitively.
 
 ## State transitions
 
@@ -101,8 +112,15 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 - Filtering, detail, edit-with-version, mark-paid/unpaid and export behave per
   the status map above and stay tenant-isolated.
-- Tests: `tests/db-crud.test.ts`, `tests/invoice-status.test.ts` (status
-  transitions), `tests/xlsx-export.test.ts`.
+- The list filter bar is collapsible (collapsed by default), badges the active
+  filter count, applies instantly, debounces text input and keeps its whole
+  state in the URL search params.
+- Tests: `tests/db-crud.test.ts`, `tests/status.test.ts` (status
+  transitions), `tests/xlsx-export.test.ts`, `tests/invoice-filters.test.ts`
+  (parse / serialise / active count / default collapsed state),
+  `tests/debounce.test.ts` (debounce timing),
+  `tests/invoices-filters-load.test.ts` (`load()` turns search params into SQL
+  predicates on both the page and the row-count query).
 
 ## Code notes
 
@@ -143,6 +161,10 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - `?saved=<id>` set by the batch save action after the last invoice of a batch lands (issue #235) — replaces the /save-confirmation interstitial.
 - Alerts raised while saving that invoice ride along on the toast.
 - Line items loaded only for the current page.
+- Filter state comes from `parseInvoiceFilters(url.searchParams)` (issue #579) — the same parser the page component uses to rebuild the URL, so client and server can never disagree about what a query string means. `activeFilterCount` is returned alongside so the collapsed toggle can badge it without re-deriving it.
+- The `q` text filter is `invoice_number ILIKE … OR suppliers.name ILIKE …`; `escapeLikePattern` neutralises `%`, `_` and `\` so a literal "100%" searches for that string instead of matching everything.
+- Because `q` reaches into `suppliers`, the row-count query carries the same `leftJoin` as the page query — otherwise the shared `conditions` array would reference a table that count query never joined.
+- `supplier_id` is only pushed as a predicate when it parses as a number; a junk value is dropped rather than sent to Postgres as `NaN`.
 
 **`property markPaid`**
 - Guarded transitions (issue #243): a stale tab gets a conflict banner instead of silently overwriting a change made elsewhere.
@@ -164,12 +186,22 @@ Tenant scope on every read; version check on edit; status-transition guards.
 **`const confirmPaidOpen`**
 - Confirm dialogs.
 
+**`const filterDraft`**
+- Client-side copy of the server's filter set (issue #579). The controls write to it and it is what gets serialised back into the URL, so a keystroke is reflected instantly instead of waiting for the round trip.
+- `lastRequested` holds the query string this component last asked for. The resync effect only overwrites `filterDraft` when the incoming `data.filters` differ from it — that is, when the navigation came from somewhere else (back/forward, a link). Resyncing on our own navigations would clobber characters typed while the fetch was in flight.
+- `filtersOpen` starts at `defaultFiltersOpen(activeCount)`: collapsed on a bare `/invoices`, expanded when the URL already carries filters so they are visible and clearable.
+
+**`function applyFilters`**
+- Instant apply: no Apply button, every change navigates. `keepFocus` keeps the caret in the search box across the re-fetch, `noScroll` keeps the list from jumping, and the debounced search path passes `replaceState` so typing one query does not push a history entry per pause.
+- Filters are never combined with `page`, so changing a filter resets pagination to page 1.
+
 **`function handleBulkPaid`**
 - Bulk actions.
 
 **`markup`**
 - Saved toast shared by both layouts (issue #235).
-- KPI strip; filter bar (`form method="get" action="/invoices"`); hidden bulk forms; bulk action bar; rows with checkbox, supplier+invoice no, due date, amount, status badge and expand chevron; expanded drawer with actions/line items/notes; pagination; confirm dialogs.
+- KPI strip; collapsible filter panel; hidden bulk forms; bulk action bar; rows with checkbox, supplier+invoice no, due date, amount, status badge and expand chevron; expanded drawer with actions/line items/notes; pagination; confirm dialogs.
+- The filter panel is a plain button + `#inv-filter-panel` region wired with `aria-expanded` / `aria-controls`; no accordion primitive is vendored in this repo (there is no `src/lib/components/ui`, and bits-ui is not a dependency), so adding one for a single disclosure was not worth a new dependency.
 
 ### `src/routes/(app)/invoices/export/download/+server.ts`
 
@@ -219,6 +251,9 @@ Tenant scope on every read; version check on edit; status-transition guards.
 **`function markInvoicesPaidBulk`**
 - Bulk pending/accepted → paid; returns how many rows actually transitioned.
 
+**`function invoiceStatusFilter`**
+- Turns a status filter value from the URL into a predicate. `overdue` is not a stored status, so it compiles to `status='pending' AND due_date < CURRENT_DATE` rather than an equality that could never match (issue #520 — the list's overdue filter silently returned nothing). A value outside the vocabulary compiles to `false` instead of being passed through to SQL.
+
 ### `src/lib/server/working-days.ts`
 
 **`const FIXED_HOLIDAYS`**
@@ -254,3 +289,36 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 **`markup`**
 - Search, filter chips, grouped invoice list.
+- The search box is a controlled input driven by the page's `q` filter (issue #579): it goes through the same debounced URL update as the desktop bar, so mobile search covers every invoice instead of only the 50 on the current page. The status chips stay client-side over the loaded page.
+- The filter chips ride the shared `ScrollStrip` (issue #658). The row measured 516px against a 390px viewport with the scrollbar hidden, so "Por categoría" sat entirely off-screen and nothing on the screen said the row scrolled.
+
+### `src/lib/invoice-filters.ts`
+
+**`const EMPTY_INVOICE_FILTERS`**
+- One definition of the `/invoices` filter set (issue #579), shared by the server `load`, the desktop filter bar and the mobile list. The keys are the URL parameter names (`supplier_id`, `date_from`, …) so the filter object and the query string are the same shape.
+
+**`function parseInvoiceFilters`**
+- The only place a query string becomes filters. Text is trimmed (a whitespace-only `q` is no filter at all), dates go through `toIsoDate` so a malformed one is dropped rather than handed to a `date` column, and an unknown `sort` falls back to `uploaded_desc` instead of reaching the sort map.
+
+**`function countActiveInvoiceFilters`**
+- The number badged on the collapsed toggle. `sort` counts only when it is not the default, and blank/whitespace values never count — otherwise a bare `/invoices` would advertise filters it is not applying.
+
+**`function invoiceFilterParams` / `invoiceFiltersHref`**
+- The inverse of `parseInvoiceFilters`: empty values and default `sort`/`period`/`page` are omitted, so an unfiltered list is `/invoices` and not a query string of empties. Round-tripping through both is what lets the client rebuild the URL without the server and the client disagreeing.
+
+**`function defaultFiltersOpen`**
+- Collapsed when nothing is filtered, expanded when the URL arrives with filters already applied.
+
+**`function escapeLikePattern`**
+- Escapes `\`, `%` and `_` before the `q` value is wrapped in `%…%`, so LIKE wildcards typed by the user are matched literally.
+
+### `src/lib/debounce.ts`
+
+**`function debounce`**
+- Trailing-edge debounce behind the 300 ms search delay. `cancel()` is used when a non-text filter changes (that navigation should not be followed by a stale search fetch) and `flush()` exists for an explicit "apply now".
+
+### `src/lib/dates.ts`
+
+**`function toIsoDate`**
+- Moved out of `src/lib/server/dates.ts` (which re-exports it) so the shared filter parser can validate dates on both sides of the wire — `$lib/server/*` cannot be imported from client code.
+

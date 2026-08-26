@@ -6,6 +6,7 @@ import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice } from
 import { enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, saveAlerts, type Alert } from './alerts';
+import { getTierFeatures } from './billing';
 import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
@@ -13,12 +14,15 @@ import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
 import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
-import type { BatchDb, BatchItem } from './batch-core';
+import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
+import { bandsFromInputs, taxableBaseMoney, type TaxBand } from '$lib/tax';
+import { isBlankOrIsoDate, toIsoDate } from './dates';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
+	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
 	| { type: 'replay' }
@@ -55,6 +59,25 @@ function normalizeNum(v: unknown): string {
 	return isNaN(n) ? '' : n.toString();
 }
 
+type CorrectionRow = typeof extractionCorrections.$inferInsert;
+type FieldComparison = { field: string; origRaw: unknown; submittedVal: string; numeric?: boolean };
+
+function correctionRows(
+	comparisons: FieldComparison[],
+	target: { invoiceId: number; supplierId: number; restaurantId: string },
+	lineItemIndex: number | null,
+): CorrectionRow[] {
+	const rows: CorrectionRow[] = [];
+	for (const { field, origRaw, submittedVal, numeric } of comparisons) {
+		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
+		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
+		if (orig !== sub) {
+			rows.push({ ...target, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex });
+		}
+	}
+	return rows;
+}
+
 async function logExtractionCorrections(
 	invoiceId: number,
 	supplierId: number,
@@ -65,10 +88,10 @@ async function logExtractionCorrections(
 ) {
 	if (!originalData) return;
 
-	type CorrectionRow = typeof extractionCorrections.$inferInsert;
+	const target = { invoiceId, supplierId, restaurantId };
 	const rows: CorrectionRow[] = [];
 
-	const headerComparisons: Array<{ field: string; origRaw: unknown; submittedVal: string; numeric?: boolean }> = [
+	const headerComparisons: FieldComparison[] = [
 		{ field: 'supplier_name',  origRaw: originalData.supplier_name,  submittedVal: submitted.supplierName },
 		{ field: 'invoice_number', origRaw: originalData.invoice_number, submittedVal: submitted.invoiceNumber },
 		{ field: 'invoice_date',   origRaw: originalData.invoice_date,   submittedVal: submitted.invoiceDate ?? '' },
@@ -76,13 +99,7 @@ async function logExtractionCorrections(
 		{ field: 'total_amount',   origRaw: originalData.total_amount,   submittedVal: String(submitted.totalAmount ?? ''), numeric: true },
 	];
 
-	for (const { field, origRaw, submittedVal, numeric } of headerComparisons) {
-		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
-		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
-		if (orig !== sub) {
-			rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex: null });
-		}
-	}
+	rows.push(...correctionRows(headerComparisons, target, null));
 
 	const originalLines = Array.isArray(originalData.line_items)
 		? (originalData.line_items as Array<Record<string, unknown>>)
@@ -93,20 +110,14 @@ async function logExtractionCorrections(
 
 	for (let i = 0; i < compareCount; i++) {
 		const orig = originalLines[i];
-		const lineFields: Array<{ field: string; origRaw: unknown; subVal: string; numeric?: boolean }> = [
-			{ field: 'line_item.description', origRaw: orig.description, subVal: lineDescriptions[i] ?? '' },
-			{ field: 'line_item.quantity',    origRaw: orig.quantity,    subVal: lineQuantities[i] ?? '',    numeric: true },
-			{ field: 'line_item.unit',        origRaw: orig.unit,        subVal: lineUnits[i] ?? '' },
-			{ field: 'line_item.unit_price',  origRaw: orig.unit_price,  subVal: lineUnitPrices[i] ?? '',   numeric: true },
-			{ field: 'line_item.total_price', origRaw: orig.total_price, subVal: lineTotalPrices[i] ?? '',  numeric: true },
+		const lineFields: FieldComparison[] = [
+			{ field: 'line_item.description', origRaw: orig.description, submittedVal: lineDescriptions[i] ?? '' },
+			{ field: 'line_item.quantity',    origRaw: orig.quantity,    submittedVal: lineQuantities[i] ?? '',    numeric: true },
+			{ field: 'line_item.unit',        origRaw: orig.unit,        submittedVal: lineUnits[i] ?? '' },
+			{ field: 'line_item.unit_price',  origRaw: orig.unit_price,  submittedVal: lineUnitPrices[i] ?? '',   numeric: true },
+			{ field: 'line_item.total_price', origRaw: orig.total_price, submittedVal: lineTotalPrices[i] ?? '',  numeric: true },
 		];
-		for (const { field, origRaw, subVal, numeric } of lineFields) {
-			const o = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
-			const s = numeric ? normalizeNum(subVal)  : normalizeStr(subVal);
-			if (o !== s) {
-				rows.push({ invoiceId, supplierId, restaurantId, fieldName: field, originalValue: o || null, correctedValue: s || null, lineItemIndex: i });
-			}
-		}
+		rows.push(...correctionRows(lineFields, target, i));
 	}
 
 	if (rows.length > 0) {
@@ -118,11 +129,228 @@ async function logExtractionCorrections(
 	}
 }
 
-async function linkProductsToInvoice(
+type TenantScope = ReturnType<typeof forTenant>;
+
+async function insertEnrichedLines(
+	tx: BatchDb,
+	target: { invoiceId: number; rid: string; supplierId: number; supplierName: string },
+	enrichedLines: EnrichedLine[],
+	savedItems: EnrichedLineItem[],
+	unitConversionAlerts: Alert[],
+): Promise<void> {
+	for (const line of enrichedLines) {
+		const li = line.input;
+
+		await tx.insert(invoiceLineItems).values({
+			invoiceId: target.invoiceId,
+			restaurantId: target.rid,
+			...line.columns,
+		});
+
+		savedItems.push(line.item);
+
+		if (line.requiresUnitConversion) {
+			unitConversionAlerts.push({
+				notificationType: 'unit_conversion_needed',
+				message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
+				payload: {
+					supplierId: target.supplierId, supplierName: target.supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
+					messageKey: 'notif.msg.unitConversion',
+					messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
+				},
+			});
+		}
+	}
+}
+
+async function invoiceNumberTaken(
+	tx: BatchDb,
+	tdb: TenantScope,
+	supplierId: number,
+	invoiceNumber: string,
+): Promise<boolean> {
+	const dup = await tx
+		.select({ id: invoices.id })
+		.from(invoices)
+		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber)))
+		.limit(1);
+	return dup.length > 0;
+}
+
+export type LineFormInput = {
+	desc: string;
+	qtyFloat: number | null;
+	unitPriceFloat: number | null;
+	unitVal: string | null;
+	totalPriceVal: number | null;
+	taxRateVal: number | null;
+	pack: PackInfo | null;
+	supplierSku: string | null;
+};
+
+export type EnrichedLine = {
+	input: LineFormInput;
+	columns: Omit<typeof invoiceLineItems.$inferInsert, 'invoiceId' | 'restaurantId'>;
+	item: EnrichedLineItem;
+	requiresUnitConversion: boolean;
+};
+
+export function computeFormContentHash(
+	header: {
+		supplierName: string;
+		invoiceNumber: string;
+		invoiceDate: string | null;
+		dueDate: string | null;
+		totalAmount: string | null;
+	},
+	formData: FormData,
+	taxBands: TaxBand[] | null = null,
+): string {
+	const descriptions = formData.getAll('line_descriptions').map(String);
+	const quantities   = formData.getAll('line_quantities').map(String);
+	const units        = formData.getAll('line_units').map(String);
+	const unitPrices   = formData.getAll('line_unit_prices').map(String);
+	const totalPrices  = formData.getAll('line_total_prices').map(String);
+	const taxRates     = formData.getAll('line_tax_rates').map(String);
+
+	const kept: number[] = [];
+	for (let i = 0; i < descriptions.length; i++) {
+		if (descriptions[i].trim()) kept.push(i);
+	}
+
+	return computeInvoiceContentHash({
+		...header,
+		lineDescriptions: kept.map(i => descriptions[i]),
+		lineQuantities:   kept.map(i => toFloat(quantities[i])),
+		lineUnits:        kept.map(i => units[i]?.trim() || null),
+		lineUnitPrices:   kept.map(i => toMoneyString(unitPrices[i])),
+		lineTotalPrices:  kept.map(i => toMoneyString(totalPrices[i])),
+		lineTaxRates:     kept.map(i => toFloat(taxRates[i])),
+		taxBands,
+	});
+}
+
+export function resolveTaxBreakdown(
+	formData: FormData,
+	extractedData: Record<string, unknown> | undefined,
+): { taxBase: string | null; taxBreakdown: string | null; bands: TaxBand[] | null } {
+	const raw = extractedData?.tax_breakdown;
+	const extractedBands = Array.isArray(raw) ? (raw as TaxBand[]) : null;
+	const extractedBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
+
+	if (formData.get('tax_bands_present') !== null) {
+		const rates   = formData.getAll('tax_rates').map(String);
+		const types   = formData.getAll('tax_types').map(String);
+		const bases   = formData.getAll('tax_bases').map(String);
+		const amounts = formData.getAll('tax_amounts').map(String);
+
+		const bands = bandsFromInputs(rates.map((rate, i) => ({
+			rate,
+			type: types[i] ?? '',
+			base: bases[i] ?? '',
+			amount: amounts[i] ?? '',
+		})));
+
+		if (bands.length) {
+			return { taxBase: taxableBaseMoney(bands), taxBreakdown: JSON.stringify(bands), bands };
+		}
+		return { taxBase: extractedBands ? null : extractedBase, taxBreakdown: null, bands: null };
+	}
+
+	return {
+		taxBase: extractedBase,
+		taxBreakdown: extractedBands ? JSON.stringify(extractedBands) : null,
+		bands: extractedBands,
+	};
+}
+
+export function parseLineInputs(formData: FormData): LineFormInput[] {
+	const descriptions = formData.getAll('line_descriptions').map(String);
+	const quantities   = formData.getAll('line_quantities').map(String);
+	const units        = formData.getAll('line_units').map(String);
+	const unitPrices   = formData.getAll('line_unit_prices').map(String);
+	const totalPrices  = formData.getAll('line_total_prices').map(String);
+	const taxRates     = formData.getAll('line_tax_rates').map(String);
+	const supplierSkus = formData.getAll('line_supplier_skus').map(String);
+
+	const out: LineFormInput[] = [];
+	for (let i = 0; i < descriptions.length; i++) {
+		const desc = descriptions[i].trim();
+		if (!desc) continue;
+		const unitVal = units[i]?.trim() || null;
+		out.push({
+			desc,
+			qtyFloat: toFloat(quantities[i]),
+			unitPriceFloat: toFloat(unitPrices[i]),
+			unitVal,
+			totalPriceVal: toFloat(totalPrices[i]),
+			taxRateVal: toFloat(taxRates[i]),
+			pack: parsePack(desc, unitVal),
+			supplierSku: supplierSkus[i]?.trim() || null,
+		});
+	}
+	return out;
+}
+
+export async function enrichLineItems(
+	rid: string,
+	supplierName: string,
+	lineInputs: LineFormInput[],
+): Promise<EnrichedLine[]> {
+	const unitRules = await Promise.all(
+		lineInputs.map(li =>
+			li.unitVal ? resolveUnit(supplierName, li.desc, li.unitVal, rid) : Promise.resolve(null)
+		)
+	);
+
+	return lineInputs.map((li, i) => {
+		const rule = unitRules[i];
+		const canonicalUnit = rule?.canonicalUnit ?? null;
+		const requiresConv = !rule && !!li.unitVal;
+		const factor = rule?.conversionFactor ?? 0;
+		const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
+		const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
+		const pack = li.pack;
+
+		return {
+			input: li,
+			columns: {
+				description: li.desc,
+				quantity: li.qtyFloat,
+				unit: li.unitVal,
+				unitPrice: toMoneyString(li.unitPriceFloat),
+				totalPrice: toMoneyString(li.totalPriceVal),
+				taxRate: li.taxRateVal,
+				requiresUnitConversion: requiresConv ? 1 : 0,
+				canonicalUnit,
+				unitsPerPack: pack?.unitsPerPack ?? null,
+				unitSize: pack?.unitSize ?? null,
+				sizeUnit: pack?.sizeUnit ?? null,
+				baseUnit: pack?.baseUnit ?? null,
+				normalizedUnitPrice: toMoneyString(normalizedUnitPrice(li.unitPriceFloat, pack)),
+				supplierSku: li.supplierSku,
+			},
+			item: {
+				description: li.desc,
+				quantity: li.qtyFloat,
+				unit: li.unitVal,
+				unitPrice: li.unitPriceFloat,
+				totalPrice: li.totalPriceVal,
+				canonicalUnit,
+				requiresUnitConversion: requiresConv,
+				convertedQuantity: convertedQty,
+				convertedUnitPrice: convertedPrice,
+			},
+			requiresUnitConversion: requiresConv,
+		};
+	});
+}
+
+export async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
-	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null }>,
+	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null; supplierSku: string | null }>,
 ): Promise<Map<string, number>> {
 	const productByKey = new Map<string, number>();
 	try {
@@ -141,6 +369,7 @@ async function linkProductsToInvoice(
 				category,
 				unitsPerPack: li.pack?.unitsPerPack ?? null,
 				baseUnit: li.pack?.baseUnit ?? null,
+				supplierSku: li.supplierSku,
 			})),
 		);
 
@@ -180,6 +409,114 @@ async function linkProductsToInvoice(
 	return productByKey;
 }
 
+const HEADER_CONFIDENCE_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
+
+function isLowConfidenceBlocked(item: BatchItem | null, formData: FormData): boolean {
+	if (formData.get('low_confidence_ack') === 'true') return false;
+	const extractedData = item?.extractedData ?? undefined;
+	const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
+	const hasLowConf = HEADER_CONFIDENCE_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
+	const overallConf = typeof extractedData?.confidence === 'number' ? extractedData.confidence : 1;
+	return hasLowConf || overallConf < 0.85;
+}
+
+function resolveSupplierInfo(extracted: ExtractedInvoice | undefined, supplierName: string): { proposedCategory: string; proposedContact: SupplierContactInfo } {
+	const sameSupplier = typeof extracted?.supplier_name === 'string' && isSameSupplierName(extracted.supplier_name, supplierName);
+	return {
+		proposedCategory: sameSupplier
+			? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
+			: UNCATEGORIZED_CATEGORY,
+		proposedContact: sameSupplier
+			? { cif: extracted?.supplier_nif ?? null, email: extracted?.supplier_email ?? null, phone: extracted?.supplier_phone ?? null, address: extracted?.supplier_address ?? null }
+			: {},
+	};
+}
+
+async function runPostSaveEffects(params: {
+	invoiceId: number;
+	supplierId: number;
+	rid: string;
+	supplierName: string;
+	invoiceNumber: string;
+	invoiceDate: string | null;
+	dueDate: string | null;
+	totalAmount: string | null;
+	documentType: 'factura' | 'albaran' | null;
+	confidenceRaw: number | null;
+	lineInputs: LineFormInput[];
+	savedItems: EnrichedLineItem[];
+	unitConversionAlerts: Alert[];
+	qrMismatches: ReturnType<typeof detectVerifactuMismatch>;
+	extractedData: Record<string, unknown> | undefined;
+	lineDescriptions: string[];
+	lineQuantities: string[];
+	lineUnits: string[];
+	lineUnitPrices: string[];
+	lineTotalPrices: string[];
+	proposedCategory: string;
+	tdb: ReturnType<typeof forTenant>;
+}): Promise<boolean> {
+	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, tdb } = params;
+	let isFirstInvoice = false;
+	try {
+		const productByKey = await linkProductsToInvoice(invoiceId, supplierId, rid, lineInputs);
+
+		const priceAlerts = await runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey);
+		const { stockTracking } = await getTierFeatures(rid);
+		const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
+		const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
+		const categoryAlerts = await runCategorizationNudge(invoiceId, supplierId, rid);
+		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
+		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
+			invoiceId, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
+		);
+		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
+			notificationType: 'verifactu_qr_mismatch',
+			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
+			payload: {
+				invoiceNumber, mismatches: qrMismatches,
+				messageKey: 'notif.msg.verifactuMismatch',
+				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
+			},
+		}] : [];
+		await saveAlerts(invoiceId, rid, [
+			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
+			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
+		]);
+
+		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+
+		void maybeSendQuotaWarning(rid);
+
+		await logExtractionCorrections(
+			invoiceId,
+			supplierId,
+			rid,
+			extractedData,
+			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+		);
+
+		const onboardingRows = await db
+			.select({ value: settings.value })
+			.from(settings)
+			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
+			.limit(1);
+		isFirstInvoice = onboardingRows[0]?.value !== 'true';
+		if (isFirstInvoice) {
+			await db.insert(settings)
+				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
+				.onConflictDoUpdate({
+					target: [settings.restaurantId, settings.key],
+					set: { value: 'true' },
+				});
+		}
+	} catch (err) {
+		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
+	}
+	return isFirstInvoice;
+}
+
 export async function saveReviewedInvoice(
 	item: BatchItem | null,
 	formData: FormData,
@@ -191,61 +528,38 @@ export async function saveReviewedInvoice(
 	const tdb = forTenant(rid);
 	const supplierName = (formData.get('supplier_name') as string) ?? '';
 	const invoiceNumber = (formData.get('invoice_number') as string) ?? '';
-	const invoiceDate = (formData.get('invoice_date') as string) || null;
-	const dueDate = (formData.get('due_date') as string) || null;
+	const invoiceDateRaw = formData.get('invoice_date');
+	const dueDateRaw = formData.get('due_date');
+	if (!isBlankOrIsoDate(invoiceDateRaw)) return { type: 'invalidDate', field: 'invoice_date' };
+	if (!isBlankOrIsoDate(dueDateRaw)) return { type: 'invalidDate', field: 'due_date' };
+	const invoiceDate = toIsoDate(invoiceDateRaw);
+	const dueDate = toIsoDate(dueDateRaw);
 	const totalAmount = toMoneyString(formData.get('total_amount') as string | null);
 	const confidenceRaw = toFloat(formData.get('confidence'));
 	const notesRaw = (formData.get('notes') as string) ?? '';
 	const notes = notesRaw.slice(0, 250) || null;
 
-	const lowConfAck = formData.get('low_confidence_ack') === 'true';
-	if (!lowConfAck) {
-		const extractedData = item?.extractedData ?? undefined;
-		const fieldConfs = (extractedData?.field_confidences as Record<string, number> | undefined) ?? {};
-		const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
-		const hasLowConf = HEADER_FIELDS.some(f => fieldConfs[f] != null && fieldConfs[f] < 0.85);
-		const overallConf = typeof extractedData?.confidence === 'number' ? extractedData.confidence : 1;
-		if (hasLowConf || overallConf < 0.85) {
-			return { type: 'lowConfidenceBlocked' };
-		}
-	}
+	if (isLowConfidenceBlocked(item, formData)) return { type: 'lowConfidenceBlocked' };
 
 	const extracted = item?.extractedData as ExtractedInvoice | undefined;
-	const sameSupplier =
-		typeof extracted?.supplier_name === 'string' &&
-		isSameSupplierName(extracted.supplier_name, supplierName);
-	const proposedCategory = sameSupplier
-		? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
-		: UNCATEGORIZED_CATEGORY;
-	const proposedContact: SupplierContactInfo = sameSupplier
-		? {
-			cif: extracted?.supplier_nif ?? null,
-			email: extracted?.supplier_email ?? null,
-			phone: extracted?.supplier_phone ?? null,
-			address: extracted?.supplier_address ?? null,
-		}
-		: {};
+	const { proposedCategory, proposedContact } = resolveSupplierInfo(extracted, supplierName);
 
 	const lineDescriptions = formData.getAll('line_descriptions') as string[];
 	const lineQuantities = formData.getAll('line_quantities') as string[];
 	const lineUnits = formData.getAll('line_units') as string[];
 	const lineUnitPrices = formData.getAll('line_unit_prices') as string[];
 	const lineTotalPrices = formData.getAll('line_total_prices') as string[];
-	const lineTaxRates = formData.getAll('line_tax_rates') as string[];
 
-	const nonEmptyDescs = lineDescriptions.filter(d => d.trim());
-	const contentHash = computeInvoiceContentHash({
-		supplierName,
-		invoiceNumber,
-		invoiceDate,
-		dueDate,
-		totalAmount,
-		lineDescriptions: nonEmptyDescs,
-		lineQuantities:   nonEmptyDescs.map((_, i) => toFloat(lineQuantities[i])),
-		lineUnits:        nonEmptyDescs.map((_, i) => lineUnits[i]?.trim() || null),
-		lineUnitPrices:   nonEmptyDescs.map((_, i) => toMoneyString(lineUnitPrices[i])),
-		lineTotalPrices:  nonEmptyDescs.map((_, i) => toMoneyString(lineTotalPrices[i])),
-	});
+	const { taxBase, taxBreakdown, bands: taxBands } = resolveTaxBreakdown(
+		formData,
+		item?.extractedData ?? undefined,
+	);
+
+	const contentHash = computeFormContentHash(
+		{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+		formData,
+		taxBands,
+	);
 
 	const hashMatch = await db
 		.select({ id: invoices.id })
@@ -258,9 +572,6 @@ export async function saveReviewedInvoice(
 	}
 
 	const extractedData = item?.extractedData ?? undefined;
-	const taxBase = toMoneyString(extractedData?.tax_base as string | number | null | undefined);
-	const taxBreakdownRaw = extractedData?.tax_breakdown;
-	const taxBreakdown = Array.isArray(taxBreakdownRaw) ? JSON.stringify(taxBreakdownRaw) : null;
 	const rawDocumentType = extractedData?.document_type;
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;
@@ -273,42 +584,15 @@ export async function saveReviewedInvoice(
 		total_amount: totalAmount == null ? null : moneyToNumber(totalAmount),
 	});
 
-	type LineInput = {
-		desc: string;
-		qtyFloat: number | null;
-		unitPriceFloat: number | null;
-		unitVal: string | null;
-		totalPriceVal: number | null;
-		taxRateVal: number | null;
-		pack: PackInfo | null;
-	};
-	const lineInputs: LineInput[] = [];
-	for (let i = 0; i < lineDescriptions.length; i++) {
-		const desc = lineDescriptions[i].trim();
-		if (!desc) continue;
-		const unitVal = lineUnits[i]?.trim() || null;
-		lineInputs.push({
-			desc,
-			qtyFloat: toFloat(lineQuantities[i]),
-			unitPriceFloat: toFloat(lineUnitPrices[i]),
-			unitVal,
-			totalPriceVal: toFloat(lineTotalPrices[i]),
-			taxRateVal: toFloat(lineTaxRates[i]),
-			pack: parsePack(desc, unitVal),
-		});
-	}
-	const unitRules = await Promise.all(
-		lineInputs.map(li =>
-			li.unitVal ? resolveUnit(supplierName, li.desc, li.unitVal, rid) : Promise.resolve(null)
-		)
-	);
+	const lineInputs = parseLineInputs(formData);
+	const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
 
 	let supplierId = 0;
 	let invoiceId: number | null = null;
 	let isDuplicate = false;
 	let isReplay = false;
 	const savedItems: EnrichedLineItem[] = [];
-	const unitConversionAlerts: Array<{ notificationType: string; message: string; payload: Record<string, unknown> }> = [];
+	const unitConversionAlerts: Alert[] = [];
 
 	await db.transaction(async (tx) => {
 		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
@@ -318,17 +602,15 @@ export async function saveReviewedInvoice(
 
 		supplierId = await getOrCreateSupplierId(rid, supplierName, tx, proposedCategory, proposedContact);
 
-		if (invoiceNumber.trim()) {
-			const dup = await tx
-				.select({ id: invoices.id })
-				.from(invoices)
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber.trim())))
-				.limit(1);
-			if (dup.length > 0) {
-				isDuplicate = true;
-				if (idemKey) await releaseRequest(idemKey, tx);
-				return;
-			}
+		const outstandingBalance = typeof extracted?.outstanding_balance === 'number' ? String(extracted.outstanding_balance) : null;
+		if (outstandingBalance !== null) {
+			await tx.update(suppliers).set({ outstandingBalance }).where(eq(suppliers.id, supplierId));
+		}
+
+		if (invoiceNumber.trim() && await invoiceNumberTaken(tx, tdb, supplierId, invoiceNumber.trim())) {
+			isDuplicate = true;
+			if (idemKey) await releaseRequest(idemKey, tx);
+			return;
 		}
 
 		const insertedInvoice = await tx
@@ -361,60 +643,7 @@ export async function saveReviewedInvoice(
 		}
 		invoiceId = insertedInvoice[0].id;
 
-		for (let i = 0; i < lineInputs.length; i++) {
-			const li = lineInputs[i];
-			const rule = unitRules[i];
-			const canonicalUnit = rule?.canonicalUnit ?? null;
-			const requiresConv = !rule && !!li.unitVal ? 1 : 0;
-			const factor = rule?.conversionFactor ?? 0;
-			const convertedQty = rule && factor > 0 && li.qtyFloat != null ? Math.round(li.qtyFloat * factor * 10000) / 10000 : null;
-			const convertedPrice = rule && factor > 0 && li.unitPriceFloat != null ? Math.round((li.unitPriceFloat / factor) * 10000) / 10000 : null;
-
-			const pack = li.pack;
-			const normPrice = normalizedUnitPrice(li.unitPriceFloat, pack);
-
-			await tx.insert(invoiceLineItems).values({
-				invoiceId: invoiceId!,
-				restaurantId: rid,
-				description: li.desc,
-				quantity: li.qtyFloat,
-				unit: li.unitVal,
-				unitPrice: toMoneyString(li.unitPriceFloat),
-				totalPrice: toMoneyString(li.totalPriceVal),
-				taxRate: li.taxRateVal,
-				requiresUnitConversion: requiresConv,
-				canonicalUnit,
-				unitsPerPack: pack?.unitsPerPack ?? null,
-				unitSize: pack?.unitSize ?? null,
-				sizeUnit: pack?.sizeUnit ?? null,
-				baseUnit: pack?.baseUnit ?? null,
-				normalizedUnitPrice: toMoneyString(normPrice),
-			});
-
-			savedItems.push({
-				description: li.desc,
-				quantity: li.qtyFloat,
-				unit: li.unitVal,
-				unitPrice: li.unitPriceFloat,
-				totalPrice: li.totalPriceVal,
-				canonicalUnit,
-				requiresUnitConversion: !!requiresConv,
-				convertedQuantity: convertedQty,
-				convertedUnitPrice: convertedPrice,
-			});
-
-			if (requiresConv) {
-				unitConversionAlerts.push({
-					notificationType: 'unit_conversion_needed',
-					message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
-					payload: {
-						supplierId, supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
-						messageKey: 'notif.msg.unitConversion',
-						messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
-					},
-				});
-			}
-		}
+		await insertEnrichedLines(tx, { invoiceId: invoiceId!, rid, supplierId, supplierName }, enrichedLines, savedItems, unitConversionAlerts);
 
 		if (onSaved) await onSaved(tx);
 	});
@@ -426,62 +655,12 @@ export async function saveReviewedInvoice(
 		return { type: 'numberDuplicate' };
 	}
 
-	let isFirstInvoice = false;
-	try {
-		const productByKey = await linkProductsToInvoice(invoiceId!, supplierId, rid, lineInputs);
-
-		const priceAlerts = await runPriceShock(invoiceId!, supplierName, savedItems, rid, productByKey);
-		const stockAlerts = await runStockForecast(savedItems, rid);
-		const budgetAlerts = await runBudgetCheck(invoiceId!, supplierId, rid);
-		const categoryAlerts = await runCategorizationNudge(invoiceId!, supplierId, rid);
-		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
-		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
-			invoiceId!, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
-		);
-		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
-			notificationType: 'verifactu_qr_mismatch',
-			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
-			payload: {
-				invoiceNumber, mismatches: qrMismatches,
-				messageKey: 'notif.msg.verifactuMismatch',
-				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
-			},
-		}] : [];
-		await saveAlerts(invoiceId!, rid, [
-			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
-		]);
-
-		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
-
-		void maybeSendQuotaWarning(rid);
-
-		await logExtractionCorrections(
-			invoiceId!,
-			supplierId,
-			rid,
-			extractedData,
-			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
-			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
-		);
-
-		const onboardingRows = await db
-			.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
-			.limit(1);
-		isFirstInvoice = onboardingRows[0]?.value !== 'true';
-		if (isFirstInvoice) {
-			await db.insert(settings)
-				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
-				.onConflictDoUpdate({
-					target: [settings.restaurantId, settings.key],
-					set: { value: 'true' },
-				});
-		}
-	} catch (err) {
-		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
-	}
+	const isFirstInvoice = await runPostSaveEffects({
+		invoiceId: invoiceId!, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate,
+		totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
+		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
+		lineTotalPrices, proposedCategory, tdb,
+	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };
 }

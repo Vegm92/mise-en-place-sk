@@ -22,15 +22,15 @@
   const borderStyle = $derived(
     hasWarn ? '1px solid var(--mep-warn)' : '1px solid transparent'
   );
-  const borderBottomStyle = $derived(
-    hasWarn ? '2px solid var(--mep-warn)' :
-    confidence != null && confidence < 0.85 ? '2px solid var(--mep-warn)' :
-    '1px solid var(--mep-divider)'
-  );
+  const borderBottomStyle = $derived.by(() => {
+    if (hasWarn) return '2px solid var(--mep-warn)';
+    if (confidence != null && confidence < 0.85) return '2px solid var(--mep-warn)';
+    return '1px solid var(--mep-divider)';
+  });
 </script>
 
 <div>
-  <div style="font-size:10.5px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
+  <div style="font-size:11px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.04em;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:5px;">
     {label}
     <ConfidenceDot {confidence} />
   </div>
@@ -47,7 +47,7 @@
       {value}
       {placeholder}
       class={num ? 'num' : ''}
-      style="width:100%;font-size:13.5px;font-weight:{hasWarn ? 600 : 500};color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{borderStyle};border-bottom:{borderBottomStyle};outline:none;font-family:var(--mep-font);"
+      style="width:100%;font-weight:{hasWarn ? 600 : 500};color:var(--mep-fg);padding:5px 8px;border-radius:5px;background:var(--mep-surface-2);border:{borderStyle};border-bottom:{borderBottomStyle};outline:none;font-family:var(--mep-font);"
     />
   {/if}
 

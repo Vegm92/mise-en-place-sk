@@ -7,6 +7,11 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 ### `src/routes/(admin)/+layout.svelte`
 **`markup`**
 - Admin banner at the top; scrollable page content area beneath it.
+- One `md` (768px) branch, per ADR-020 (issue #657): below it the header keeps its 52px rail but drops the labels that do not survive a phone — the "back to app" caption, the wordmark, the ADMIN badge and the admin email — leaving the chevron, the mark, the avatar and the theme toggle. The seven-item nav becomes the flexible child (`flex:1;min-width:0`) and scrolls horizontally inside the rail; the active-item underline is desktop-only because `overflow-x: auto` also clips vertically. Page containers and `AdminPageHead` pad 12px instead of 24px.
+
+### `src/lib/components/admin/AdminTableScroll.svelte`
+**`markup`**
+- The scroll wrapper every admin `<table>` sits in (issue #657). Admin cards are `overflow: hidden`, so a table wider than its card used to have its right-hand columns clipped with no way to reach them — at 390px that was 11 of the 17 admin tables, up to 828px unreachable on the dead-letter queue. The wrapper scrolls that overflow instead of hiding it, and tables narrow enough to fit still fit. `tests/admin-mobile-tables.test.ts` fails if a new admin table is added outside this component, and asserts the measurements in `shots/admin-mobile-audit.json` written by `scripts/admin-mobile-audit.mjs`.
 
 ### `src/routes/(admin)/admin/+page.server.ts`
 **`const load`**
@@ -38,6 +43,10 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 **`const STUCK_MINUTES`**
 - A dead worker leaves items stuck in queued/extracting; warn past this (15 min), error past the count threshold (issue #257).
 
+**`function checkWorkerHeartbeat`**
+- Stuck-item counts are a lagging, inferred signal; the heartbeat is the direct one (#540). `stale` is an *error*, not a warning: with nothing consuming `extract-invoice`, every upload in flight is heading for the stall timeout, which is a user-visible outage. Never having started is only a `warn` — that is the normal state of a fresh environment.
+- Runs alongside the other DB-backed checks and falls back to `unknown` on failure, so a heartbeat problem never takes the whole health page down.
+
 **`const load`**
 - DB connectivity, and (only if reachable) table record counts; pg_stat not available in all environments.
 - Worker liveness + queue depth — a worker that died Friday night otherwise shows a green page while invoices pile up in 'queued' (issue #257).
@@ -62,6 +71,7 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 ### `src/routes/api/health/+server.ts`
 **`function GET`**
 - DB reachability; worker / extraction queue depth (pg-boss) — a growing backlog is the canonical signal the worker is down or wedged; active upload sessions (24 h, analytics only); uploads directory check (local driver only, `fs.statfsSync`, Node ≥ 18.8).
+- Queue depth alone is ambiguous: a backlog looks identical whether the worker is dead or merely busy. `worker.liveness` / `last_seen_at` / `last_job_completed_at` (from `worker_heartbeats`) are what disambiguate it (#540); read defensively so a missing heartbeat row degrades to `unknown` instead of throwing.
 - Graceful degradation: `pgboss` schema not provisioned or a failed check leaves the flag false rather than throwing; responds 503 when degraded so load balancers / uptime monitors detect it.
 
 ### `src/routes/robots.txt/+server.ts`

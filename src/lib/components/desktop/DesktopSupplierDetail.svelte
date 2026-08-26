@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
-  import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+  import { VALID_CATEGORIES } from '$lib/constants';
+  import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -12,6 +13,13 @@
   import CreditCard from '@lucide/svelte/icons/credit-card';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import { locale, t, ti, tp, tcat } from '$lib/i18n';
+  import { getScoreColor } from '$lib/status';
+
+  function scoreLabelKey(score: number): string {
+    if (score >= 70) return 'sup.score.very';
+    if (score >= 40) return 'sup.score.ok';
+    return 'sup.score.poor';
+  }
 
   interface Supplier {
     name: string;
@@ -53,6 +61,7 @@
     unit: string | null;
     avgPrice: number | null;
     totalQty: number | null;
+    totalSpend: number | null;
     lastDate: string | null;
   }
 
@@ -65,7 +74,7 @@
     products,
     prefillIngredient = '',
     prefillPurchaseUnit = '',
-    tab       = $bindable<'resumen'|'facturas'|'productos'|'conversiones'>('resumen'),
+    tab       = $bindable<'resumen'|'albaranes'|'productos'|'conversiones'>('resumen'),
     editing   = $bindable(false),
     confirmDelete = $bindable(false),
   }: {
@@ -77,12 +86,13 @@
     products: Product[];
     prefillIngredient?: string;
     prefillPurchaseUnit?: string;
-    tab?: 'resumen'|'facturas'|'productos'|'conversiones';
+    tab?: 'resumen'|'albaranes'|'productos'|'conversiones';
     editing?: boolean;
     confirmDelete?: boolean;
   } = $props();
 
-  const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
+  const color = $derived(categoryColor(s.category));
+  const tint  = $derived(categoryTint(s.category));
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -98,7 +108,6 @@
     return nonZero.length ? nonZero.reduce((s, m) => s + m.value, 0) / nonZero.length : 0;
   })());
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   interface DonutSlice {
     label: string; spend: number; pct: number; color: string;
     unit: string | null; totalQty: number | null; avgPrice: number | null; lastDate: string | null;
@@ -106,7 +115,7 @@
   }
   const productDonut = $derived((() => {
     const ranked = [...products]
-      .map(p => ({ ...p, spend: (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
+      .map(p => ({ ...p, spend: p.totalSpend ?? (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
       .sort((a, b) => b.spend - a.spend);
     const total = ranked.reduce((a, p) => a + p.spend, 0);
     if (total <= 0) return { slices: [] as DonutSlice[], total: 0 };
@@ -116,11 +125,11 @@
     const restSpend = rest.reduce((a, p) => a + p.spend, 0);
 
     const entries = top.map((p, i) => ({
-      label: p.description ?? 'â€”', spend: p.spend, color: SERIES_COLORS[i],
+      label: p.description ?? 'â€”', spend: p.spend, color: seriesColor(i),
       unit: p.unit, totalQty: p.totalQty, avgPrice: p.avgPrice, lastDate: p.lastDate,
     }));
     if (restSpend > 0) {
-      entries.push({ label: $t('sup.products.other'), spend: restSpend, color: 'var(--mep-series-other)',
+      entries.push({ label: $t('sup.products.other'), spend: restSpend, color: SERIES_OTHER,
         unit: null, totalQty: null, avgPrice: null, lastDate: null });
     }
 
@@ -143,11 +152,6 @@
   const CB = 170;
   const VW = 700;
 
-  function scoreColor(score: number) {
-    if (score >= 70) return '#3A8C5C';
-    if (score >= 40) return '#C8843A';
-    return '#E05555';
-  }
   function invoiceStatus(inv: Invoice): string {
     if (inv.status === 'paid') return 'paid';
     if (inv.dueDate && inv.dueDate < today) return 'overdue';
@@ -171,7 +175,7 @@
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
         <div style="
           width:52px;height:52px;border-radius:26px;flex-shrink:0;
-          background:{color}24;color:{color};
+          background:{tint};color:{color};
           display:inline-flex;align-items:center;justify-content:center;
           font-size:16px;font-weight:700;
         ">{initials(s.name)}</div>
@@ -195,15 +199,15 @@
           <div style="display:flex;gap:8px;">
             {#if s.contactEmail}
               <a href="mailto:{s.contactEmail}" class="btn btn-secondary"
-                style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+                style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
                 <Mail size={13} /> {$t('sup.contact')}
               </a>
             {/if}
-            <button class="btn btn-secondary" style="height:32px;font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
+            <button class="btn btn-secondary" style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
               onclick={() => { editing = true; confirmDelete = false; }}>
               <Pencil size={13} /> {$t('action.edit')}
             </button>
-            <button class="btn" style="height:32px;font-size:12.5px;color:#E05555;border-color:#E05555;display:inline-flex;align-items:center;gap:6px;"
+            <button class="btn" style="font-size:12.5px;color:var(--mep-neg);border-color:var(--mep-neg);display:inline-flex;align-items:center;gap:6px;"
               onclick={() => { confirmDelete = !confirmDelete; }}>
               <Trash2 size={13} /> {$t('action.delete')}
             </button>
@@ -212,14 +216,14 @@
       </div>
 
       {#if confirmDelete}
-        <div class="card" style="padding:14px;border-left:3px solid #E05555;margin-bottom:14px;">
-          <p class="body-strong" style="color:#E05555;margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
+        <div class="card" style="padding:14px;border-left:3px solid var(--mep-neg);margin-bottom:14px;">
+          <p class="body-strong" style="color:var(--mep-neg);margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
           <p class="body" style="color:var(--mep-fg-3);font-size:12px;margin-bottom:12px;">
             {$tp('sup.confirmDelete.body', invoices.length)}
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
-              <button type="submit" class="btn" style="background:#E05555;color:#fff;border-color:#E05555;height:30px;font-size:12px;">
+              <button type="submit" class="btn" style="background:var(--mep-neg);color:var(--mep-neg-fg);border-color:var(--mep-neg);height:30px;font-size:12px;">
                 {$t('sup.confirmDelete.yes')}
               </button>
             </form>
@@ -276,8 +280,8 @@
               </div>
             </div>
             <div style="display:flex;gap:8px;margin-top:4px;">
-              <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">{$t('set.save')}</button>
-              <button type="button" class="btn" style="height:32px;font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
+              <button type="submit" class="btn btn-primary" style="font-size:12.5px;">{$t('set.save')}</button>
+              <button type="button" class="btn" style="font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
             </div>
           </form>
         </div>
@@ -286,7 +290,7 @@
       <div style="display:flex;gap:0;border-bottom:1px solid var(--mep-divider);">
         {#each [
           { id: 'resumen',      label: $t('sup.tab.resumen') },
-          { id: 'facturas',     label: $t('nav.invoices'),    count: invoices.length },
+          { id: 'albaranes',     label: $t('nav.invoices'),    count: invoices.length },
           { id: 'productos',    label: $t('sup.tab.productos') },
           { id: 'conversiones', label: $t('sup.tab.conversiones') },
         ] as tabItem}
@@ -397,19 +401,19 @@
                   <div style="flex:1;"></div>
                   <div style="
                     width:52px;height:52px;border-radius:50%;
-                    border:3px solid {scoreColor(m.score)};
+                    border:3px solid {getScoreColor(m.score)};
                     display:flex;align-items:center;justify-content:center;flex-direction:column;
                   ">
-                    <span style="font-size:15px;font-weight:700;color:{scoreColor(m.score)};line-height:1;">{m.score}</span>
-                    <span style="font-size:9px;color:var(--mep-fg-3);">/100</span>
+                    <span style="font-size:15px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
+                    <span style="font-size:11px;color:var(--mep-fg-3);">/100</span>
                   </div>
-                  <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{m.score >= 70 ? $t('sup.score.very') : m.score >= 40 ? $t('sup.score.ok') : $t('sup.score.poor')}</span>
+                  <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.prices')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.priceStabilityScore * 3)};">{m.priceStabilityScore}/33</span>
+                      <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.priceStabilityScore * 3)};">{m.priceStabilityScore}/33</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">
                       {#if m.priceStabilityCv !== null}CV: {m.priceStabilityCv.toFixed(1)}%{:else}{$t('sup.score.noData')}{/if}
@@ -418,14 +422,14 @@
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.regularity')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.frequencyScore * 3)};">{m.frequencyScore}/33</span>
+                      <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.frequencyScore * 3)};">{m.frequencyScore}/33</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.historical')}</p>
                   </div>
                   <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.punctuality')}</span>
-                      <span style="font-size:12px;font-weight:700;color:{scoreColor(m.timelinessScore * 2.9)};">{m.timelinessScore}/34</span>
+                      <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.timelinessScore * 2.9)};">{m.timelinessScore}/34</span>
                     </div>
                     <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.timeliness')}</p>
                   </div>
@@ -506,7 +510,7 @@
                 <div class="subtitle">{$t('dash.invoices')}</div>
                 {#if invoices.length > 5}
                   <button style="font-size:12.5px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
-                    onclick={() => tab = 'facturas'}>
+                    onclick={() => tab = 'albaranes'}>
                     {$ti('sup.viewAll', { n: invoices.length })}
                   </button>
                 {/if}
@@ -528,7 +532,7 @@
                     <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">
                       {fmtEur(inv.totalAmount ?? 0)}
                     </div>
-                    <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
+                    <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
                   </a>
                 {/each}
               {/if}
@@ -537,7 +541,7 @@
           </div>
         </div>
 
-      {:else if tab === 'facturas'}
+      {:else if tab === 'albaranes'}
         {#if !invoices.length}
           <div style="text-align:center;padding:48px 24px;">
             <p style="font-size:13px;color:var(--mep-fg-3);">{$t('sup.noInvoices')}</p>
@@ -600,10 +604,10 @@
                 <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
                   {#if hoveredSlice !== null && productDonut.slices[hoveredSlice]}
                     <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{(productDonut.slices[hoveredSlice].pct * 100).toFixed(0)}%</span>
-                    <span style="font-size:10px;color:var(--mep-fg-3);max-width:100px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{productDonut.slices[hoveredSlice].label}</span>
+                    <span style="font-size:11px;color:var(--mep-fg-3);max-width:100px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{productDonut.slices[hoveredSlice].label}</span>
                   {:else}
                     <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total)}</span>
-                    <span style="font-size:10px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
+                    <span style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
                   {/if}
                 </div>
               </div>
@@ -636,8 +640,9 @@
                 <tr>
                   <th>{$t('tbl.desc')}</th>
                   <th style="width:90px;">{$t('tbl.unit')}</th>
-                  <th class="num" style="width:130px;">{$t('sup.products.avgPrice')}</th>
-                  <th class="num" style="width:110px;">{$t('sup.products.totalQty')}</th>
+                  <th class="num" style="width:120px;">{$t('sup.products.avgPrice')}</th>
+                  <th class="num" style="width:130px;">{$t('sup.products.colSpend')}</th>
+                  <th class="num" style="width:150px;">{$t('sup.products.colUnits')}</th>
                   <th style="width:130px;">{$t('sup.products.lastDate')}</th>
                 </tr>
               </thead>
@@ -647,6 +652,7 @@
                     <td style="font-size:12.5px;">{p.description ?? 'â€”'}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.unit ?? 'â€”'}</td>
                     <td class="num" style="font-size:12.5px;">{p.avgPrice != null ? fmtEur(p.avgPrice) : 'â€”'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.totalSpend != null ? fmtEur(p.totalSpend) : 'â€”'}</td>
                     <td class="num" style="font-size:12.5px;">{p.totalQty != null ? p.totalQty.toFixed(2) : 'â€”'}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.lastDate ? fmtDateShort(p.lastDate, $locale) : 'â€”'}</td>
                   </tr>
@@ -682,7 +688,7 @@
                         <form method="post" action="?/deleteConversion" style="margin:0;">
                           <input type="hidden" name="conversion_id" value={conv.id} />
                           <button type="submit" class="btn"
-                            style="height:26px;font-size:11px;color:#E05555;border-color:#E05555;padding:0 8px;">
+                            style="height:26px;font-size:11px;color:var(--mep-neg);border-color:var(--mep-neg);padding:0 8px;">
                             {$t('sup.conv.delete')}
                           </button>
                         </form>

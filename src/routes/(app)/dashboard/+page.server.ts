@@ -2,14 +2,94 @@ import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, suppliers, categoryBudgets, settings, invoiceLineItems, systemNotifications } from '$lib/server/schema';
+import { invoices, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
 import { desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
-import { CATEGORY_COLORS, VALID_CATEGORIES } from '$lib/constants';
+import { VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
 import { getTrendDataByRange } from '$lib/server/trend';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { moneyToNumber } from '$lib/server/money';
+
+function relativeTime(iso: Date | string | null, today: Date): string {
+	if (!iso) return '';
+	const diff = today.getTime() - new Date(iso).getTime();
+	const h = Math.floor(diff / 3600000);
+	if (h < 1)  return 'hace un momento';
+	if (h < 24) return `hace ${h} h`;
+	const d = Math.floor(h / 24);
+	if (d === 1) return 'ayer';
+	return `hace ${d} d`;
+}
+
+function buildSparkData(
+	sparkRows: Array<{ day: unknown; total: unknown }>,
+	selectedMonth: string,
+	daysInMonth: number,
+): number[] {
+	const map: Record<string, number> = {};
+	for (const r of sparkRows) map[String(r.day)] = Number(r.total);
+	return Array.from({ length: daysInMonth }, (_, i) =>
+		map[`${selectedMonth}-${String(i + 1).padStart(2, '0')}`] ?? 0,
+	);
+}
+
+type _AlertRow = { id: number; message: string; payload: string | null; createdAt: Date | null };
+type _DashAlert = { id: string; sev: 'high' | 'med' | 'low'; kind: 'price' | 'budget' | 'due' | 'info'; text: string; detail: string; when: string; payload?: Record<string, unknown> | null; messageKey?: string; messageVars?: Record<string, string | number> };
+
+function buildDashboardAlerts(
+	priceShockRows: _AlertRow[],
+	budgetAlertRows: _AlertRow[],
+	today: Date,
+): _DashAlert[] {
+	const rank: Record<'high' | 'med' | 'low', number> = { high: 0, med: 1, low: 2 };
+	const priceAlerts = priceShockRows.map((a) => {
+		const p = a.payload ? JSON.parse(a.payload) as { ingredient?: string; supplier?: string; deviationPct?: number } : null;
+		const pct = p?.deviationPct != null ? Math.abs(p.deviationPct) : null;
+		const up = p?.deviationPct != null && p.deviationPct > 0;
+		const shockKey = up ? 'dash.alert.priceShockUp' : 'dash.alert.priceShockDown';
+		return {
+			id: `ps-${a.id}`, sev: 'high' as const, kind: 'price' as const,
+			text: a.message, detail: p?.supplier ?? '', when: relativeTime(a.createdAt, today),
+			payload: a.payload ? JSON.parse(a.payload) as Record<string, unknown> : null,
+			messageKey: p?.ingredient ? shockKey : undefined,
+			messageVars: p?.ingredient ? { ingredient: p.ingredient, pct: pct ?? 0 } : undefined,
+		};
+	});
+	const budgetAlerts = budgetAlertRows.map((a) => {
+		const p = a.payload ? JSON.parse(a.payload) as { category?: string; pct?: number; level?: string } : null;
+		return {
+			id: `ba-${a.id}`, sev: p?.level === 'exceeded' ? 'high' as const : 'med' as const, kind: 'budget' as const,
+			text: a.message, detail: '', when: relativeTime(a.createdAt, today), payload: p,
+			messageKey: p?.category ? 'dash.alert.budgetPct' : undefined,
+			messageVars: p?.category ? { category: p.category, pct: p.pct ?? 0 } : undefined,
+		};
+	});
+	return ([...priceAlerts, ...budgetAlerts] as _DashAlert[]).sort((a, b) => rank[a.sev] - rank[b.sev]).slice(0, 6);
+}
+
+function buildProjection(
+	p: { thisMonth: number; lastMonth: number; activeThis: number; activeLast: number },
+	today: Date,
+	selectedMonth: string,
+	currentMonth: string,
+	daysInMonth: number,
+) {
+	const avgPerSupplier = p.activeThis > 0 ? p.thisMonth / p.activeThis : null;
+	const avgPerSupplierLast = p.activeLast > 0 && p.lastMonth > 0 ? p.lastMonth / p.activeLast : null;
+	const avgPerSupplierDelta = avgPerSupplier && avgPerSupplierLast && avgPerSupplierLast > 0
+		? Math.round((avgPerSupplier - avgPerSupplierLast) / avgPerSupplierLast * 100)
+		: null;
+	const isCurrentMonth = selectedMonth === currentMonth;
+	const isPastMonth = selectedMonth < currentMonth;
+	const elapsedWhenNotCurrent = isPastMonth ? daysInMonth : 0;
+	const daysElapsed = isCurrentMonth ? today.getDate() : elapsedWhenNotCurrent;
+	const dailyRate = isCurrentMonth && daysElapsed > 0 ? p.thisMonth / daysElapsed : 0;
+	const projectedEom = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : p.thisMonth;
+	const elapsedPctWhenNotCurrent = isPastMonth ? 100 : 0;
+	const projectedElapsedPct = isCurrentMonth ? Math.round((daysElapsed / daysInMonth) * 100) : elapsedPctWhenNotCurrent;
+	return { avgPerSupplier, avgPerSupplierDelta, daysElapsed, dailyRate, projectedEom, projectedElapsedPct };
+}
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const firstInvoice = url.searchParams.get('first_invoice') === '1';
@@ -67,18 +147,18 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					tdb.scope(invoices.restaurantId),
 					eq(invoices.status, 'paid'),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date, 'YYYY-MM') = ${selectedMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM') = ${selectedMonth}`
 				)),
 
 			db.select({
-				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
-				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
 			})
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') >= ${prevMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') >= ${prevMonth}`
 				)),
 
 			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)` })
@@ -86,14 +166,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(and(
 					tdb.scope(invoices.restaurantId),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') = ${selectedMonth}`
 				))
 				.groupBy(sql`DATE(${invoices.invoiceDate})`)
 				.orderBy(sql`DATE(${invoices.invoiceDate}) ASC`),
 
 			db.select({
-				this_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${selectedMonth} THEN ${invoices.supplierId} END)`,
-				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM')=${prevMonth} THEN ${invoices.supplierId} END)`,
+				this_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN ${invoices.supplierId} END)`,
+				last_month: sql<number>`COUNT(DISTINCT CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN ${invoices.supplierId} END)`,
 			})
 				.from(invoices)
 				.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt))),
@@ -105,8 +185,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute(sql`
 				SELECT s.id, s.name,
 					COALESCE(s.category,'Other') AS category,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date::date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
 					COUNT(CASE WHEN i.status='pending' THEN 1 END) AS open_count,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ${todayIso} THEN 1 ELSE 0 END) AS has_overdue,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ${todayIso} AND ${weekEnd} THEN 1 ELSE 0 END) AS has_due_soon
@@ -123,7 +203,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN suppliers s ON i.supplier_id = s.id
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
-				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY COALESCE(s.category,'Other')
 				ORDER BY total DESC
 			`),
@@ -146,7 +226,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
-				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY i.id, s.name ORDER BY i.invoice_date DESC, i.created_at DESC LIMIT 6
 			`),
 
@@ -159,14 +239,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
 				WHERE i.restaurant_id = ${rid} AND i.status = 'pending'
 				  AND i.deleted_at IS NULL
-				  AND TO_CHAR(i.invoice_date::date,'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
 				GROUP BY i.id, s.name ORDER BY i.created_at DESC LIMIT 5
 			`),
 
 			db.select({
-				fresh: sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) <= 7 THEN 1 END)`,
-				mid:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) BETWEEN 8 AND 30 THEN 1 END)`,
-				old:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate}::date,${invoices.createdAt}::date) > 30 THEN 1 END)`,
+				fresh: sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) <= 7 THEN 1 END)`,
+				mid:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) BETWEEN 8 AND 30 THEN 1 END)`,
+				old:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) > 30 THEN 1 END)`,
 			})
 				.from(invoices)
 				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
@@ -177,7 +257,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					tdb.scope(invoices.restaurantId),
 					isNotNull(invoices.totalAmount),
 					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}::date,'YYYY-MM') = ${selectedMonth}`
+					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') = ${selectedMonth}`
 				)),
 
 			db.execute(sql`
@@ -229,31 +309,19 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const selYear = parseInt(selectedMonth.slice(0, 4), 10);
 		const selMonthNum = parseInt(selectedMonth.slice(5, 7), 10);
 		const daysInMonth = new Date(selYear, selMonthNum, 0).getDate();
-		const isCurrentMonth = selectedMonth === currentMonth;
-		const isPastMonth = selectedMonth < currentMonth;
 
-		const sparkMap: Record<string, number> = {};
-		for (const r of sparkRows) sparkMap[String(r.day)] = Number(r.total);
-		const sparkData: number[] = [];
-		for (let d = 1; d <= daysInMonth; d++) {
-			const key = `${selectedMonth}-${String(d).padStart(2, '0')}`;
-			sparkData.push(sparkMap[key] ?? 0);
-		}
+		const sparkData = buildSparkData(sparkRows, selectedMonth, daysInMonth);
 
 		const activeSuppRow0 = activeSuppRow[0] ?? { this_month: 0, last_month: 0 };
-		const avgPerSupplier = Number(activeSuppRow0.this_month) > 0
-			? Number(mom.this_month) / Number(activeSuppRow0.this_month)
-			: null;
-		const avgPerSupplierLast = Number(activeSuppRow0.last_month) > 0 && Number(mom.last_month) > 0
-			? Number(mom.last_month) / Number(activeSuppRow0.last_month)
-			: null;
-		const avgPerSupplierDelta = avgPerSupplier && avgPerSupplierLast && avgPerSupplierLast > 0
-			? Math.round((avgPerSupplier - avgPerSupplierLast) / avgPerSupplierLast * 100)
-			: null;
-		const daysElapsed = isCurrentMonth ? today.getDate() : (isPastMonth ? daysInMonth : 0);
-		const dailyRate = isCurrentMonth && daysElapsed > 0 ? Number(mom.this_month) / daysElapsed : 0;
-		const projectedEom = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : Number(mom.this_month);
-		const projectedElapsedPct = isCurrentMonth ? Math.round((daysElapsed / daysInMonth) * 100) : (isPastMonth ? 100 : 0);
+		const proj = buildProjection(
+			{
+				thisMonth: Number(mom.this_month),
+				lastMonth: Number(mom.last_month),
+				activeThis: Number(activeSuppRow0.this_month),
+				activeLast: Number(activeSuppRow0.last_month),
+			},
+			today, selectedMonth, currentMonth, daysInMonth,
+		);
 
 		const supplierCount = Number(supplierCountRow[0]?.cnt ?? 0);
 
@@ -262,12 +330,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			const delta = Number(r.prev_month_spend) > 0
 				? Math.round((Number(r.month_spend) - Number(r.prev_month_spend)) / Number(r.prev_month_spend) * 100 * 10) / 10
 				: null;
+			const dueBadge = Number(r.has_due_soon) ? 'due_soon' : 'paid_up';
 			return {
 				...r,
 				month_spend: Number(r.month_spend),
 				prev_month_spend: Number(r.prev_month_spend),
-				badge: Number(r.has_overdue) ? 'overdue' : Number(r.has_due_soon) ? 'due_soon' : 'paid_up',
-				color: CATEGORY_COLORS[r.category] ?? CATEGORY_COLORS['Other'],
+				badge: Number(r.has_overdue) ? 'overdue' : dueBadge,
 				delta,
 			};
 		});
@@ -278,7 +346,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			category: String(cat.category),
 			total: Number(cat.total),
 			pct: Math.round(Number(cat.total) / maxCat * 100),
-			color: CATEGORY_COLORS[cat.category] ?? CATEGORY_COLORS['Other'],
 		}));
 		const categorySpendMap: Record<string, number> = {};
 		for (const cat of categorySpend) categorySpendMap[cat.category] = cat.total;
@@ -292,17 +359,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const totalPctActual = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100 * 10) / 10 : 0;
 		const totalPctBar = Math.min(totalPctActual, 100);
 
-		function relativeTime(iso: Date | string | null): string {
-			if (!iso) return '';
-			const diff = today.getTime() - new Date(iso).getTime();
-			const h = Math.floor(diff / 3600000);
-			if (h < 1)  return 'hace un momento';
-			if (h < 24) return `hace ${h} h`;
-			const d = Math.floor(h / 24);
-			if (d === 1) return 'ayer';
-			return `hace ${d} d`;
-		}
-
 		type AlertRow = { id: number; message: string; payload: string | null; createdAt: Date | null };
 		type ParsedAlertRow = Omit<AlertRow, 'payload'> & { payload: Record<string, unknown> | null };
 		const priceShockAlerts: ParsedAlertRow[] = (priceShockRows as AlertRow[]).map((a) => ({
@@ -310,34 +366,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			payload: a.payload ? JSON.parse(a.payload) as Record<string, unknown> : null,
 		}));
 
-		type DashAlert = { id: string; sev: 'high' | 'med' | 'low'; kind: 'price' | 'budget' | 'due' | 'info'; text: string; detail: string; when: string; payload?: Record<string, unknown> | null; messageKey?: string; messageVars?: Record<string, string | number> };
-		const dashboardAlerts: DashAlert[] = ([
-			...priceShockAlerts.map((a) => {
-				const p = a.payload as { ingredient?: string; supplier?: string; oldPrice?: number; newPrice?: number; deviationPct?: number } | null;
-				const pct = p?.deviationPct != null ? Math.abs(p.deviationPct) : null;
-				const up = p?.deviationPct != null && p.deviationPct > 0;
-				return {
-					id: `ps-${a.id}`, sev: 'high' as const, kind: 'price' as const,
-					text: a.message, detail: p?.supplier ?? '', when: relativeTime(a.createdAt), payload: a.payload,
-					messageKey: p?.ingredient ? (up ? 'dash.alert.priceShockUp' : 'dash.alert.priceShockDown') : undefined,
-					messageVars: p?.ingredient ? { ingredient: p.ingredient, pct: pct ?? 0 } : undefined,
-				};
-			}),
-			...(budgetAlertRows as AlertRow[]).map((a) => {
-				const p = a.payload ? JSON.parse(a.payload) as { category?: string; pct?: number; level?: string } : null;
-				const isExceeded = p?.level === 'exceeded';
-				return {
-					id: `ba-${a.id}`, sev: isExceeded ? 'high' as const : 'med' as const, kind: 'budget' as const,
-					text: a.message, detail: '', when: relativeTime(a.createdAt), payload: p,
-					messageKey: p?.category ? 'dash.alert.budgetPct' : undefined,
-					messageVars: p?.category ? { category: p.category, pct: p.pct ?? 0 } : undefined,
-				};
-			}),
-		] as DashAlert[]).sort((a, b) => {
-				const rank: Record<'high' | 'med' | 'low', number> = { high: 0, med: 1, low: 2 };
-				return rank[a.sev] - rank[b.sev];
-			}).slice(0, 6);
-
+		const dashboardAlerts = buildDashboardAlerts(priceShockRows as AlertRow[], budgetAlertRows as AlertRow[], today);
 		const highCount = dashboardAlerts.filter(a => a.sev === 'high').length;
 		const medCount  = dashboardAlerts.filter(a => a.sev === 'med').length;
 
@@ -371,9 +400,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			mom: { this_month: Number(mom.this_month), last_month: Number(mom.last_month), pct_change: momPct },
 			aging: { fresh: Number(aging.fresh), mid: Number(aging.mid), old: Number(aging.old) },
 			avg_invoice: avgInvoice ? Number(avgInvoice) : null,
-			avg_per_supplier: avgPerSupplier, avg_per_supplier_delta: avgPerSupplierDelta,
+			avg_per_supplier: proj.avgPerSupplier, avg_per_supplier_delta: proj.avgPerSupplierDelta,
 			spark_data: sparkData,
-			projection: { daily_rate: dailyRate, projected_eom: projectedEom, elapsed_pct: projectedElapsedPct, days_elapsed: daysElapsed, days_in_month: daysInMonth },
+			projection: { daily_rate: proj.dailyRate, projected_eom: proj.projectedEom, elapsed_pct: proj.projectedElapsedPct, days_elapsed: proj.daysElapsed, days_in_month: daysInMonth },
 			trend,
 		};
 	});

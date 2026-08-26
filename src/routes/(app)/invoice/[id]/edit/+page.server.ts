@@ -2,11 +2,89 @@ import { redirect, fail } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
-import { asc, eq, and, ne, sql } from 'drizzle-orm';
+import { invoices, invoiceLineItems, invoiceAuditLog, suppliers } from '$lib/server/schema';
+import { asc, eq, and, ne, sql, isNull } from 'drizzle-orm';
 import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotency';
 import { getOrCreateSupplierId } from '$lib/server/supplier';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
+import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
+import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice } from '$lib/server/invoice-save';
+import type { TaxBand } from '$lib/tax';
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type TenantDb = ReturnType<typeof forTenant>;
+type EditConflict = 'duplicate' | 'stale' | null;
+
+async function storedTaxBands(tdb: TenantDb, id: number): Promise<TaxBand[] | null> {
+	const [row] = await db.select({ taxBreakdown: invoices.taxBreakdown }).from(invoices)
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id))).limit(1);
+	if (!row?.taxBreakdown) return null;
+	try {
+		const parsed = JSON.parse(row.taxBreakdown);
+		return Array.isArray(parsed) ? (parsed as TaxBand[]) : null;
+	} catch {
+		return null;
+	}
+}
+
+async function checkDuplicateInvoice(
+	tx: Tx, tdb: TenantDb, id: number,
+	supplierId: number | null, invoiceNumber: string | null, contentHash: string,
+): Promise<boolean> {
+	if (supplierId && invoiceNumber) {
+		const dup = await tx.select({ id: invoices.id }).from(invoices)
+			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.supplierId, supplierId), eq(invoices.invoiceNumber, invoiceNumber), ne(invoices.id, id)))
+			.limit(1);
+		if (dup.length > 0) return true;
+	}
+	const hashMatch = await tx.select({ id: invoices.id }).from(invoices)
+		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), ne(invoices.id, id), isNull(invoices.deletedAt)))
+		.limit(1);
+	return hashMatch.length > 0;
+}
+
+async function executeEditTransaction(
+	tx: Tx, tdb: TenantDb, id: number, rid: string, uid: string,
+	idemKey: string | null, supplierName: string, invoiceNumber: string | null,
+	invoiceDate: string | null, dueDate: string | null, totalAmount: string | null,
+	notes: string | null, contentHash: string, expectedVersion: number,
+	enrichedLines: Awaited<ReturnType<typeof enrichLineItems>>,
+): Promise<{ conflict: EditConflict; savedSupplierId: number | null }> {
+	if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
+		return { conflict: null, savedSupplierId: null };
+	}
+	const [preEditInvoice] = await tx.select().from(invoices)
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id))).limit(1);
+	const preEditLines = await tx.select().from(invoiceLineItems)
+		.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))
+		.orderBy(asc(invoiceLineItems.id));
+	let supplierId: number | null = null;
+	if (supplierName) supplierId = await getOrCreateSupplierId(rid, supplierName, tx);
+	if (await checkDuplicateInvoice(tx, tdb, id, supplierId, invoiceNumber, contentHash)) {
+		if (idemKey) await releaseRequest(idemKey, tx);
+		return { conflict: 'duplicate', savedSupplierId: null };
+	}
+	const updated = await tx.update(invoices)
+		.set({ supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash, version: sql`${invoices.version} + 1` })
+		.where(and(tdb.scope(invoices.restaurantId, eq(invoices.id, id)), Number.isFinite(expectedVersion) ? eq(invoices.version, expectedVersion) : undefined))
+		.returning({ id: invoices.id });
+	if (updated.length === 0) {
+		if (idemKey) await releaseRequest(idemKey, tx);
+		return { conflict: 'stale', savedSupplierId: null };
+	}
+	await tx.delete(invoiceLineItems)
+		.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)));
+	if (enrichedLines.length > 0) {
+		await tx.insert(invoiceLineItems).values(
+			enrichedLines.map((line) => ({ invoiceId: id, restaurantId: rid, ...line.columns }))
+		);
+	}
+	await tx.insert(invoiceAuditLog).values({
+		restaurantId: rid, invoiceId: id, action: 'edit', userId: uid,
+		snapshot: JSON.stringify({ invoice: preEditInvoice, lineItems: preEditLines }),
+	});
+	return { conflict: null, savedSupplierId: supplierId };
+}
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/edit', async () => {
@@ -42,6 +120,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				unit:        invoiceLineItems.unit,
 				unit_price:  invoiceLineItems.unitPrice,
 				total_price: invoiceLineItems.totalPrice,
+				tax_rate:    invoiceLineItems.taxRate,
+				supplier_sku: invoiceLineItems.supplierSku,
 			})
 				.from(invoiceLineItems)
 				.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))
@@ -63,23 +143,22 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	});
 };
 
-function toFloat(value: FormDataEntryValue | null): number | null {
-	if (!value) return null;
-	const n = parseFloat(String(value));
-	return isNaN(n) ? null : n;
-}
-
 export const actions: Actions = {
 	save: async ({ request, params, locals }) => {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
+		const uid = locals.user!.id;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
 
 		const supplierName  = String(data.get('supplier_name') ?? '').trim();
 		const invoiceNumber = String(data.get('invoice_number') ?? '').trim() || null;
-		const invoiceDate   = String(data.get('invoice_date') ?? '').trim() || null;
-		const dueDate       = String(data.get('due_date') ?? '').trim() || null;
+		const invoiceDateRaw = data.get('invoice_date');
+		const dueDateRaw     = data.get('due_date');
+		if (!isBlankOrIsoDate(invoiceDateRaw)) return fail(400, { errorKey: 'error.invalidInvoiceDate' });
+		if (!isBlankOrIsoDate(dueDateRaw))     return fail(400, { errorKey: 'error.invalidDueDate' });
+		const invoiceDate   = toIsoDate(invoiceDateRaw);
+		const dueDate       = toIsoDate(dueDateRaw);
 		const totalAmount   = toMoneyString(data.get('total_amount') as string | null);
 		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
 
@@ -88,74 +167,21 @@ export const actions: Actions = {
 		const idemKeyRaw = data.get('idempotency_key');
 		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
 
-		const lineDescriptions = data.getAll('line_descriptions').map(String);
-		const lineQuantities   = data.getAll('line_quantities').map(String);
-		const lineUnits        = data.getAll('line_units').map(String);
-		const lineUnitPrices   = data.getAll('line_unit_prices').map(String);
-		const lineTotalPrices  = data.getAll('line_total_prices').map(String);
+		const lineInputs = parseLineInputs(data);
+		const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
+		const contentHash = computeFormContentHash(
+			{ supplierName, invoiceNumber: invoiceNumber ?? '', invoiceDate, dueDate, totalAmount },
+			data,
+			await storedTaxBands(tdb, id),
+		);
 
-		const newItems = lineDescriptions
-			.map((desc, i) => ({
-				description: desc,
-				quantity:    toFloat(lineQuantities[i] ?? null),
-				unit:        lineUnits[i]?.trim() || null,
-				unitPrice:   toMoneyString(lineUnitPrices[i] ?? null),
-				totalPrice:  toMoneyString(lineTotalPrices[i] ?? null),
-			}))
-			.filter((item) => item.description.trim() !== '');
-
-		let conflict: 'duplicate' | 'stale' | null = null;
+		let conflict: EditConflict = null;
+		let savedSupplierId: number | null = null;
 		await db.transaction(async (tx) => {
-			if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
-				return;
-			}
-
-			let supplierId: number | null = null;
-			if (supplierName) {
-				supplierId = await getOrCreateSupplierId(rid, supplierName, tx);
-			}
-
-			if (supplierId && invoiceNumber) {
-				const duplicate = await tx
-					.select({ id: invoices.id })
-					.from(invoices)
-					.where(and(
-						tdb.scope(invoices.restaurantId),
-						eq(invoices.supplierId, supplierId),
-						eq(invoices.invoiceNumber, invoiceNumber),
-						ne(invoices.id, id),
-					))
-					.limit(1);
-				if (duplicate.length > 0) {
-					conflict = 'duplicate';
-					if (idemKey) await releaseRequest(idemKey, tx);
-					return;
-				}
-			}
-
-			const updated = await tx.update(invoices)
-				.set({
-					supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes,
-					version: sql`${invoices.version} + 1`,
-				})
-				.where(and(
-					tdb.scope(invoices.restaurantId, eq(invoices.id, id)),
-					Number.isFinite(expectedVersion) ? eq(invoices.version, expectedVersion) : undefined,
-				))
-				.returning({ id: invoices.id });
-			if (updated.length === 0) {
-				conflict = 'stale';
-				if (idemKey) await releaseRequest(idemKey, tx);
-				return;
-			}
-
-			await tx.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, id));
-
-			if (newItems.length > 0) {
-				await tx.insert(invoiceLineItems).values(
-					newItems.map((item) => ({ invoiceId: id, restaurantId: rid, ...item }))
-				);
-			}
+			({ conflict, savedSupplierId } = await executeEditTransaction(
+				tx, tdb, id, rid, uid, idemKey, supplierName, invoiceNumber,
+				invoiceDate, dueDate, totalAmount, notes, contentHash, expectedVersion, enrichedLines,
+			));
 		});
 
 		if (conflict === 'duplicate') {
@@ -163,6 +189,10 @@ export const actions: Actions = {
 		}
 		if (conflict === 'stale') {
 			return fail(409, { error: 'This invoice was changed elsewhere (another tab or user). Reload the page before saving.' });
+		}
+
+		if (savedSupplierId != null && enrichedLines.length > 0) {
+			await linkProductsToInvoice(id, savedSupplierId, rid, lineInputs);
 		}
 
 		redirect(303, '/invoices');

@@ -15,17 +15,12 @@ const { state } = vi.hoisted(() => ({
 	},
 }));
 
-vi.mock('$lib/server/db', () => ({
-	db: {
-		select: () => ({
-			from: () => ({
-				where: () => ({
-					limit: () => Promise.resolve(state.row ? [state.row] : []),
-				}),
-			}),
-		}),
-	},
-}));
+vi.mock('$lib/server/db', () => {
+	const limit = () => Promise.resolve(state.row ? [state.row] : []);
+	const where = () => ({ limit });
+	const from = () => ({ where });
+	return { db: { select: () => ({ from }) } };
+});
 
 import { checkTokenVersion } from '../src/lib/server/token-version';
 

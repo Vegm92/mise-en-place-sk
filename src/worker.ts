@@ -14,12 +14,18 @@ import { processNormalizeJob, type NormalizeJobData } from './lib/server/product
 import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
+import { recordWorkerHeartbeat, startWorkerHeartbeat } from './lib/server/worker-heartbeat.js';
+
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
+const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
+const SENTRY_RELEASE = process.env.SENTRY_RELEASE || undefined;
+const DATABASE_URL = process.env.DATABASE_URL ?? '';
 
 Sentry.init({
-	dsn: process.env.SENTRY_DSN ?? '',
-	release: process.env.SENTRY_RELEASE || undefined,
-	environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
-	tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+	dsn: SENTRY_DSN,
+	release: SENTRY_RELEASE,
+	environment: NODE_ENV === 'production' ? 'production' : 'development',
+	tracesSampleRate: NODE_ENV === 'production' ? 0.1 : 1.0,
 	sendDefaultPii: false,
 });
 
@@ -27,16 +33,13 @@ function fatal(kind: string): (err: unknown) => void {
 	return (err) => {
 		console.error(`[worker] ${kind}:`, err);
 		Sentry.captureException(err);
-		void Promise.resolve(Sentry.flush(2000)).then(
-			() => process.exit(1),
-			() => process.exit(1),
-		);
+		const exit = () => process.exit(1);
+		Promise.resolve(Sentry.flush(2000)).then(exit, exit);
 	};
 }
 process.on('unhandledRejection', fatal('unhandledRejection'));
 process.on('uncaughtException', fatal('uncaughtException'));
 
-const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
 	console.error('[worker] DATABASE_URL is required');
 	process.exit(1);
@@ -57,6 +60,9 @@ await boss.start();
 await createQueuesWithDeadLetters(boss);
 console.info('[worker] pg-boss started');
 
+const stopHeartbeat = startWorkerHeartbeat();
+console.info('[worker] Heartbeat registered — liveness visible on /admin/health');
+
 const EXTRACTION_BATCH_SIZE = Math.max(1, MAX_CONCURRENT_EXTRACTIONS);
 await boss.work(
 	EXTRACTION_QUEUE,
@@ -66,10 +72,14 @@ await boss.work(
 			jobs.map((job) =>
 				runWithDeadLetter(
 					deadLetterRefFromJob(EXTRACTION_QUEUE, job),
-					() => processExtractionJob(job.data),
+					() => processExtractionJob(job.data, undefined, {
+						retryCount: job.retryCount,
+						retryLimit: job.retryLimit,
+					}),
 				),
 			),
 		);
+		await recordWorkerHeartbeat(jobs.length);
 	},
 );
 console.info(
@@ -87,6 +97,7 @@ await boss.work(
 				() => processNormalizeJob(job.data),
 			);
 		}
+		await recordWorkerHeartbeat(jobs.length);
 	},
 );
 console.info(`[worker] Listening for "${NORMALIZE_QUEUE}" jobs`);
@@ -118,6 +129,7 @@ await registerScheduledJobs(boss);
 
 async function shutdown() {
 	console.info('[worker] Shutting down…');
+	stopHeartbeat();
 	await boss.stop();
 	process.exit(0);
 }

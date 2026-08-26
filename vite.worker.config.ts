@@ -12,9 +12,6 @@ import { fileURLToPath } from 'node:url';
 export default defineConfig({
 	resolve: {
 		alias: {
-			'$env/dynamic/private': fileURLToPath(
-				new URL('./src/lib/server/env-dynamic-shim.ts', import.meta.url),
-			),
 			$lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
 		},
 	},

@@ -1,5 +1,6 @@
 <script lang="ts">
   import TrendChart from '$lib/components/TrendChart.svelte';
+  import { categoryColor } from '$lib/colors';
   import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
@@ -21,8 +22,8 @@
   interface Projection { projected_eom: number; days_elapsed: number; elapsed_pct: number }
   interface PendingInvoice { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; item_count: number; display_amount: number | null }
   interface RecentInvoice { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; item_count: number; display_amount: number | null; status: string }
-  interface Supplier { name: string; color: string | null; month_spend: number; delta: number | null }
-  interface CategorySpend { category: string; color: string; total: number; pct: number }
+  interface Supplier { name: string; category: string | null; month_spend: number; delta: number | null }
+  interface CategorySpend { category: string; total: number; pct: number }
   interface Reminder { id: number; supplier_name: string | null; display_amount: number | null; overdue: boolean; days_delta: number }
   interface Aging { fresh: number; mid: number; old: number }
   interface MissingInvoice { supplier_name: string; days_late: number; frequency: string }
@@ -122,7 +123,14 @@
 
   function momVariant(pct: number | null) {
     if (pct === null) return 'default' as const;
-    return pct > 10 ? 'neg' as const : pct < -5 ? 'pos' as const : 'default' as const;
+    if (pct > 10) return 'neg' as const;
+    if (pct < -5) return 'pos' as const;
+    return 'default' as const;
+  }
+  function budgetVariant(pct: number, threshold: number) {
+    if (pct >= 100) return 'neg' as const;
+    if (pct >= threshold) return 'warn' as const;
+    return 'default' as const;
   }
   function budgetPct(spend: number, budget: number) {
     return Math.min(Math.round((spend / budget) * 100), 100);
@@ -132,6 +140,13 @@
     if (pct >= threshold) return 'var(--mep-warn)';
     return 'var(--mep-acc)';
   }
+  const momValue = $derived.by(() => {
+    const pct = data.mom.pct_change;
+    if (pct == null) return '—';
+    const sign = pct >= 0 ? '+' : '';
+    return sign + pct + '%';
+  });
+
   function fmtDate(iso: string | null) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
@@ -146,7 +161,7 @@
     const slices = ranked.map((c) => {
       const pct = c.total / total;
       const dash = pct * CAT_DONUT_CIRC;
-      const slice = { category: c.category, total: c.total, pct, color: c.color, dash, offset: cursor };
+      const slice = { category: c.category, total: c.total, pct, color: categoryColor(c.category), dash, offset: cursor };
       cursor += dash;
       return slice;
     });
@@ -211,7 +226,7 @@
       label={$t('ddash.budgetUsed')}
       value={data.total_budget > 0 ? (data.total_pct_actual + '%') : '—'}
       sub={data.total_budget > 0 ? $ti('ddash.ofBudget', { amount: fmtEurCompact(data.total_budget) }) : $t('ddash.noBudget')}
-      variant={data.total_pct_actual >= 100 ? 'neg' : data.total_pct_actual >= data.budget_threshold ? 'warn' : 'default'}
+      variant={budgetVariant(data.total_pct_actual, data.budget_threshold)}
       spark={data.total_budget > 0 ? [10, 22, 31, 39, 48, 56, 64, Number(data.total_pct_actual)] : undefined}
       invert
     />
@@ -263,7 +278,7 @@
       <div class="card overflow-hidden flex flex-col h-full">
         <div class="grid" style="grid-template-columns:repeat(3,1fr);">
           {#each [
-            { label: $t('dash.kpi.mom'),       value: data.mom.pct_change != null ? (data.mom.pct_change >= 0 ? '+' : '') + data.mom.pct_change + '%' : '—', sub: $t('dash.kpi.mom.sub'), variant: momVariant(data.mom.pct_change) },
+            { label: $t('dash.kpi.mom'),       value: momValue, sub: $t('dash.kpi.mom.sub'), variant: momVariant(data.mom.pct_change) },
             { label: $t('dash.kpi.avgInvoice'), value: data.avg_invoice != null ? fmtEurCompact(data.avg_invoice) : '—', sub: 'EUR', variant: 'default' as const },
             { label: $t('dash.kpi.suppliers'),  value: String(data.supplier_count), sub: $t('dash.kpi.active'), variant: 'default' as const, last: true },
           ] as kpi}
@@ -382,7 +397,7 @@
         {#each supplierRows as s (s.name)}
           <SupplierRow
             name={s.name}
-            color={s.color ?? 'var(--mep-fg-3)'}
+            color={categoryColor(s.category)}
             spend={s.month_spend}
             pct={s.pct}
             barWidth={s.barWidth}
@@ -532,9 +547,9 @@
                 <div style="flex:1;min-width:0;">
                   <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:12px;">{r.supplier_name ?? '—'}</div>
                   {#if r.overdue}
-                    <span class="badge badge-overdue" style="font-size:10px;">{Math.abs(r.days_delta)}{$t('misc.daysLate')}</span>
+                    <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('misc.daysLate')}</span>
                   {:else}
-                    <span class="badge badge-pending" style="font-size:10px;">{r.days_delta}{$t('misc.daysLeft')}</span>
+                    <span class="badge badge-pending">{r.days_delta}{$t('misc.daysLeft')}</span>
                   {/if}
                 </div>
                 <span class="num text-fg" style="font-size:12px;font-weight:500;flex-shrink:0;">{fmtEur(r.display_amount ?? 0)}</span>
@@ -552,11 +567,12 @@
         <SectionCard title={$t('dash.category')} sub={$t('dash.category.sub')}>
           <div class="flex flex-col gap-2.5">
             {#each data.category_spend as cat (cat.category)}
+              {@const catColor = categoryColor(cat.category)}
               <div class="flex items-center gap-3">
-                <span class="swatch" style="background:{cat.color};"></span>
+                <span class="swatch" style="background:{catColor};"></span>
                 <span class="body-strong overflow-hidden text-ellipsis whitespace-nowrap w-[90px] flex-shrink-0 text-xs" title={$tcat(cat.category)}>{$tcat(cat.category)}</span>
                 <div class="flex-1 h-1.5 bg-divider rounded-full overflow-hidden">
-                  <div class="h-full rounded-full" style="width:{cat.pct}%;background:{cat.color};"></div>
+                  <div class="h-full rounded-full" style="width:{cat.pct}%;background:{catColor};"></div>
                 </div>
                 <span class="num text-fg font-semibold w-[60px] text-right flex-shrink-0 text-xs">{fmtEurCompact(cat.total)}</span>
               </div>
@@ -597,7 +613,7 @@
         {@const numColor  = { default: 'text-fg', neg: 'text-neg', warn: 'text-warn', pos: 'text-pos' }[bucket.variant]}
         <div class="card text-center p-2.5 {tintClass}">
           <div class="num {numColor}" style="font-size:22px;font-weight:600;line-height:1;">{bucket.count}</div>
-          <div class="body" style="font-size:10px;margin-top:4px;">{bucket.label}</div>
+          <div class="body" style="font-size:11px;margin-top:4px;">{bucket.label}</div>
         </div>
       {/each}
     </div>
@@ -615,7 +631,7 @@
         {#each data.missing_invoices as m (m.supplier_name)}
           <div class="card p-3 bg-neg-soft border-neg">
             <p class="body-strong text-sm">{m.supplier_name}</p>
-            <p class="body" style="font-size:10.5px;margin-top:2px;">{m.days_late}d · {m.frequency}</p>
+            <p class="body" style="font-size:11px;margin-top:2px;">{m.days_late}d · {m.frequency}</p>
           </div>
         {/each}
       </div>

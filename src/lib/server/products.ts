@@ -1,12 +1,12 @@
 import { sql, and, eq, isNull, or } from 'drizzle-orm';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db, forTenant } from './db';
-import type { BatchDb } from './batch-core';
+import type { BatchDb } from './batch';
 import * as schema from './schema';
 import { unitConversions, systemNotifications } from './schema';
 import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { GEMINI_API_KEY } from './env';
-import { createLLMProvider, type LLMProvider } from './llm-provider';
+import { createGeminiProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
 import { NORMALIZE_QUEUE } from './queue';
@@ -46,7 +46,7 @@ function num(raw: string): number {
 
 function buildPackInfo(unitsPerPack: number, unitSize: number, token: string): PackInfo | null {
 	const base = SIZE_TO_BASE[token];
-	if (!base || !(unitsPerPack > 0) || !(unitSize > 0)) return null;
+	if (!base || unitsPerPack <= 0 || unitSize <= 0) return null;
 	return {
 		unitsPerPack,
 		unitSize,
@@ -56,39 +56,43 @@ function buildPackInfo(unitsPerPack: number, unitSize: number, token: string): P
 	};
 }
 
-const MULTIPACK = /(\d+)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/;
-const SINGLE = /(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/g;
+const MULTIPACK = /(?<!\d)(\d+)\s*[xX×*]\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/;
+const SINGLE = /(?<!\d)(\d+(?:[.,]\d+)?)\s*([a-zA-Zµ]+)\b/g;
 const COUNT = /(?:caja|cajas|pack|packs|paquete|paquetes|estuche|estuches|blister|bandeja|display|lote|caja de|pack de)\s*(?:de\s*)?(\d+)\b/;
+
+function packFromMultipack(s: string): PackInfo | null {
+	const multi = MULTIPACK.exec(s);
+	if (!multi) return null;
+	const token = sizeToken(multi[3]);
+	if (!token) return null;
+	return buildPackInfo(num(multi[1]), num(multi[2]), token);
+}
+
+function packFromSingle(s: string): PackInfo | null {
+	SINGLE.lastIndex = 0;
+	let m: RegExpExecArray | null;
+	while ((m = SINGLE.exec(s)) !== null) {
+		const token = sizeToken(m[2]);
+		if (token) {
+			const info = buildPackInfo(1, num(m[1]), token);
+			if (info) return info;
+		}
+	}
+	return null;
+}
+
+function packFromCount(s: string): PackInfo | null {
+	const count = COUNT.exec(s);
+	if (!count) return null;
+	return buildPackInfo(num(count[1]), 1, 'ud');
+}
 
 export function parsePack(description: string | null | undefined, unit?: string | null): PackInfo | null {
 	for (const source of [description ?? '', unit ?? '']) {
 		const s = source.trim();
 		if (!s) continue;
-
-		const multi = MULTIPACK.exec(s);
-		if (multi) {
-			const token = sizeToken(multi[3]);
-			if (token) {
-				const info = buildPackInfo(num(multi[1]), num(multi[2]), token);
-				if (info) return info;
-			}
-		}
-
-		SINGLE.lastIndex = 0;
-		let m: RegExpExecArray | null;
-		while ((m = SINGLE.exec(s)) !== null) {
-			const token = sizeToken(m[2]);
-			if (token) {
-				const info = buildPackInfo(1, num(m[1]), token);
-				if (info) return info;
-			}
-		}
-
-		const count = COUNT.exec(s);
-		if (count) {
-			const info = buildPackInfo(num(count[1]), 1, 'ud');
-			if (info) return info;
-		}
+		const info = packFromMultipack(s) ?? packFromSingle(s) ?? packFromCount(s);
+		if (info) return info;
 	}
 	return null;
 }
@@ -120,7 +124,7 @@ const ABBREVIATIONS: Record<string, string> = {
 };
 
 function expandToken(token: string): string {
-	const key = token.includes('/') ? token.toLowerCase() : token.replace(/\.+$/, '').toLowerCase();
+	const key = token.includes('/') ? token.toLowerCase() : token.replace(/(?<!\.)\.+$/, '').toLowerCase();
 	return ABBREVIATIONS[key] ?? token;
 }
 
@@ -154,6 +158,156 @@ export function resolveUnitFromMap(
 	return null;
 }
 
+export interface ConversionPrompt {
+	notificationId: number;
+	supplierId: number | null;
+	supplierName: string;
+	ingredient: string;
+	purchaseUnit: string;
+	quantity: number | null;
+}
+
+export interface UnitConversionInput {
+	supplierId: number | null;
+	supplierName: string;
+	ingredient: string;
+	purchaseUnit: string;
+	canonicalUnit: string;
+	conversionFactor: number;
+}
+
+export type UnitConversionResult =
+	| { ok: true; resolvedPrompts: number }
+	| { ok: false; reason: 'invalid' };
+
+function supplierConversionKey(supplierName: string, ingredient: string, purchaseUnit: string): string {
+	return `${normalizeProductKey(supplierName)}::${conversionKey(ingredient, purchaseUnit)}`;
+}
+
+function parseNotificationPayload(raw: string | null): Record<string, unknown> | null {
+	if (!raw) return null;
+	try {
+		const parsed = JSON.parse(raw);
+		return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+	} catch {
+		return null;
+	}
+}
+
+export async function loadConversionPrompts(
+	database: Database,
+	restaurantId: string,
+): Promise<ConversionPrompt[]> {
+	const [alertRows, ruleRows] = await Promise.all([
+		database.execute<{ id: number; payload: string | null }>(sql`
+			SELECT id, payload FROM system_notifications
+			WHERE restaurant_id = ${restaurantId}
+			  AND notification_type = 'unit_conversion_needed'
+			  AND status = 'pending'
+			ORDER BY created_at DESC, id DESC
+		`),
+		database.execute<{ supplier_name: string; ingredient: string; purchase_unit: string }>(sql`
+			SELECT supplier_name, ingredient, purchase_unit FROM unit_conversions
+			WHERE restaurant_id = ${restaurantId}
+		`),
+	]);
+
+	const alreadyDefined = new Set(
+		ruleRows.map((r) => supplierConversionKey(r.supplier_name, r.ingredient, r.purchase_unit)),
+	);
+
+	const prompts: ConversionPrompt[] = [];
+	const seen = new Set<string>();
+
+	for (const row of alertRows) {
+		const payload = parseNotificationPayload(row.payload);
+		if (!payload) continue;
+
+		const ingredient   = String(payload.ingredient ?? '').trim();
+		const purchaseUnit = String(payload.purchaseUnit ?? '').trim();
+		const supplierName = String(payload.supplierName ?? '').trim();
+		if (!ingredient || !purchaseUnit) continue;
+
+		const key = supplierConversionKey(supplierName, ingredient, purchaseUnit);
+		if (alreadyDefined.has(key) || seen.has(key)) continue;
+		seen.add(key);
+
+		const supplierId = typeof payload.supplierId === 'number' ? payload.supplierId : null;
+		const quantity   = typeof payload.quantity === 'number' ? payload.quantity : null;
+
+		prompts.push({ notificationId: row.id, supplierId, supplierName, ingredient, purchaseUnit, quantity });
+	}
+
+	return prompts;
+}
+
+export async function defineUnitConversion(
+	database: Database,
+	restaurantId: string,
+	input: UnitConversionInput,
+): Promise<UnitConversionResult> {
+	const supplierName  = (input.supplierName ?? '').trim();
+	const ingredient    = (input.ingredient ?? '').trim();
+	const purchaseUnit  = (input.purchaseUnit ?? '').trim();
+	const canonicalUnit = (input.canonicalUnit ?? '').trim();
+	const factor        = Number(input.conversionFactor);
+	const supplierId    = input.supplierId ?? null;
+
+	if (!supplierName || !ingredient || !purchaseUnit || !canonicalUnit) return { ok: false, reason: 'invalid' };
+	if (!Number.isFinite(factor) || factor <= 0) return { ok: false, reason: 'invalid' };
+
+	const ingredientKey   = normalizeProductKey(ingredient);
+	const purchaseUnitKey = normalizeProductKey(purchaseUnit);
+	const supplierKey     = normalizeProductKey(supplierName);
+
+	await database.insert(unitConversions)
+		.values({
+			restaurantId,
+			supplierId,
+			supplierName,
+			ingredient,
+			purchaseUnit,
+			canonicalUnit,
+			conversionFactor: factor,
+		})
+		.onConflictDoUpdate({
+			target: [unitConversions.restaurantId, unitConversions.supplierName, unitConversions.ingredient, unitConversions.purchaseUnit],
+			set: { canonicalUnit, conversionFactor: factor, supplierId },
+		});
+
+	await database.execute(sql`
+		UPDATE invoice_line_items
+		SET requires_unit_conversion = 0,
+		    canonical_unit = ${canonicalUnit}
+		WHERE restaurant_id = ${restaurantId}
+		  AND requires_unit_conversion = 1
+		  AND mep_norm_key(description) = ${ingredientKey}
+		  AND mep_norm_key(unit) = ${purchaseUnitKey}
+		  AND invoice_id IN (
+		      SELECT i.id FROM invoices i
+		      LEFT JOIN suppliers s ON s.id = i.supplier_id
+		      WHERE i.restaurant_id = ${restaurantId}
+		        AND CASE WHEN ${supplierId}::int IS NULL
+		                 THEN mep_norm_key(s.name) = ${supplierKey}
+		                 ELSE i.supplier_id = ${supplierId}::int
+		            END
+		  )
+	`);
+
+	const resolved = await database.execute<{ id: number }>(sql`
+		UPDATE system_notifications
+		SET status = 'sent'
+		WHERE restaurant_id = ${restaurantId}
+		  AND notification_type = 'unit_conversion_needed'
+		  AND status = 'pending'
+		  AND mep_norm_key(payload::json->>'ingredient') = ${ingredientKey}
+		  AND mep_norm_key(payload::json->>'purchaseUnit') = ${purchaseUnitKey}
+		RETURNING id
+	`);
+
+	return { ok: true, resolvedPrompts: resolved.length };
+}
+
 export interface LineItem {
 	description: string;
 	quantity: number | null;
@@ -174,18 +328,19 @@ export async function loadConversionMap(
 	supplierName: string,
 	restaurantId: string,
 	supplierId?: number | null,
+	database: Database = db,
 ): Promise<Map<string, { canonicalUnit: string; conversionFactor: number }>> {
 	const tdb = forTenant(restaurantId);
-	const normalizedSupplier = supplierName.trim().toLowerCase();
+	const supplierNameMatches = sql`mep_norm_key(${unitConversions.supplierName}) = ${normalizeProductKey(supplierName)}`;
 
 	const supplierFilter = supplierId != null
 		? or(
 			eq(unitConversions.supplierId, supplierId),
-			and(isNull(unitConversions.supplierId), eq(unitConversions.supplierName, normalizedSupplier))
+			and(isNull(unitConversions.supplierId), supplierNameMatches)
 		  )
-		: eq(unitConversions.supplierName, normalizedSupplier);
+		: supplierNameMatches;
 
-	const rows = await db
+	const rows = await database
 		.select()
 		.from(unitConversions)
 		.where(and(tdb.scope(unitConversions.restaurantId), supplierFilter));
@@ -206,8 +361,9 @@ export async function resolveUnit(
 	unit: string,
 	restaurantId: string,
 	supplierId?: number | null,
+	database: Database = db,
 ): Promise<{ canonicalUnit: string; conversionFactor: number } | null> {
-	const map = await loadConversionMap(supplierName, restaurantId, supplierId);
+	const map = await loadConversionMap(supplierName, restaurantId, supplierId, database);
 	return resolveUnitFromMap(map, description, unit);
 }
 
@@ -216,10 +372,11 @@ export async function annotateLineItems(
 	items: LineItem[],
 	restaurantId: string,
 	supplierId?: number | null,
+	database: Database = db,
 ): Promise<{ enriched: EnrichedLineItem[]; conversionNotes: string[] }> {
 	const conversionNotes: string[] = [];
 
-	const conversionMap = await loadConversionMap(supplierName, restaurantId, supplierId);
+	const conversionMap = await loadConversionMap(supplierName, restaurantId, supplierId, database);
 
 	const enriched: EnrichedLineItem[] = items.map((item) => {
 		const unit = (item.unit ?? '').trim();
@@ -265,6 +422,7 @@ interface LineInput {
 	category?: string | null;
 	unitsPerPack?: number | null;
 	baseUnit?: string | null;
+	supplierSku?: string | null;
 }
 
 export async function resolveLineProducts(
@@ -277,7 +435,7 @@ export async function resolveLineProducts(
 
 	const byKey = new Map<string, {
 		raw: string; key: string; unit: string | null; category: string | null;
-		unitsPerPack: number | null; baseUnit: string | null;
+		unitsPerPack: number | null; baseUnit: string | null; supplierSku: string | null;
 	}>();
 	for (const line of lines) {
 		const raw = (line.description ?? '').trim();
@@ -291,13 +449,14 @@ export async function resolveLineProducts(
 				category: line.category ?? null,
 				unitsPerPack: line.unitsPerPack ?? null,
 				baseUnit: line.baseUnit ?? null,
+				supplierSku: line.supplierSku ?? null,
 			});
 		}
 	}
 	if (byKey.size === 0) return out;
 
-	for (const { raw, key, unit, category, unitsPerPack, baseUnit } of byKey.values()) {
-		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category, unitsPerPack, baseUnit);
+	for (const { raw, key, unit, category, unitsPerPack, baseUnit, supplierSku } of byKey.values()) {
+		const resolved = await resolveOne(tx, restaurantId, supplierId, raw, key, unit, category, unitsPerPack, baseUnit, supplierSku);
 		for (const line of lines) {
 			if (normalizeProductKey((line.description ?? '').trim()) === key) {
 				out.set(line.description ?? '', resolved);
@@ -317,7 +476,19 @@ async function resolveOne(
 	category: string | null,
 	unitsPerPack: number | null,
 	baseUnit: string | null,
+	supplierSku: string | null = null,
 ): Promise<ResolvedLine> {
+	if (supplierSku && supplierId != null) {
+		const skuRows = await tx.execute<{ product_id: number }>(sql`
+			SELECT product_id FROM product_aliases
+			WHERE restaurant_id = ${restaurantId} AND supplier_id = ${supplierId} AND supplier_sku = ${supplierSku}
+			LIMIT 1
+		`);
+		if (skuRows.length > 0) {
+			return { productId: skuRows[0].product_id, status: 'exact' };
+		}
+	}
+
 	const aliasRows = await tx.execute<{ product_id: number }>(sql`
 		SELECT product_id FROM product_aliases
 		WHERE restaurant_id = ${restaurantId} AND raw_key = ${key}
@@ -340,7 +511,7 @@ async function resolveOne(
 	`);
 	if (fuzzyRows.length > 0) {
 		const candidate = fuzzyRows[0];
-		await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null);
+		await insertAlias(tx, restaurantId, candidate.id, supplierId, key, raw, 'fuzzy', null, supplierSku);
 		return {
 			productId: candidate.id,
 			status: 'fuzzy',
@@ -355,7 +526,7 @@ async function resolveOne(
 		RETURNING id
 	`);
 	const productId = productRows[0].id;
-	await insertAlias(tx, restaurantId, productId, supplierId, key, raw, 'exact', 'now()');
+	await insertAlias(tx, restaurantId, productId, supplierId, key, raw, 'exact', 'now()', supplierSku);
 	return { productId, status: 'created' };
 }
 
@@ -368,11 +539,12 @@ async function insertAlias(
 	rawText: string,
 	source: 'exact' | 'fuzzy',
 	confirmedAt: 'now()' | null,
+	supplierSku: string | null = null,
 ): Promise<void> {
 	const confirmedExpr = confirmedAt === 'now()' ? sql`now()` : sql`NULL`;
 	await tx.execute(sql`
-		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, source, confirmed_at)
-		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${rawKey}, ${rawText}, ${source}, ${confirmedExpr})
+		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, supplier_sku, source, confirmed_at)
+		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${rawKey}, ${rawText}, ${supplierSku}, ${source}, ${confirmedExpr})
 		ON CONFLICT (restaurant_id, raw_key) DO NOTHING
 	`);
 }
@@ -619,8 +791,9 @@ export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): 
 
 export function parseNormalizeResponse(text: string, validIds: Set<number>): NormalizeVerdict {
 	const trimmed = (text ?? '').trim();
+	const fenceEnd = trimmed.trimEnd().endsWith('```') ? -1 : undefined;
 	const body = trimmed.startsWith('```')
-		? trimmed.split('\n').slice(1, trimmed.trimEnd().endsWith('```') ? -1 : undefined).join('\n')
+		? trimmed.split('\n').slice(1, fenceEnd).join('\n')
 		: trimmed;
 	let parsed: unknown;
 	try {
@@ -638,7 +811,7 @@ export function parseNormalizeResponse(text: string, validIds: Set<number>): Nor
 }
 
 export interface NormalizeDeps {
-	provider?: LLMProvider;
+	provider?: ReturnType<typeof createGeminiProvider>;
 	recordUsage?: typeof recordLlmUsage;
 	recordFailure?: typeof recordDeadLetter;
 }
@@ -646,7 +819,7 @@ export interface NormalizeDeps {
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {
 	const { restaurantId, productId, rawText } = data;
 	try {
-		const provider = deps.provider ?? (GEMINI_API_KEY ? createLLMProvider() : null);
+		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
 		if (!provider) return;
 
 		const candRows = await db.execute<{ id: number; canonical_name: string }>(sql`

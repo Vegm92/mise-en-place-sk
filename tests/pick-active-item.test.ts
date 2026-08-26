@@ -2,14 +2,14 @@
  * pickActiveItem — which item the batch page's right panel shows.
  */
 import { describe, it, expect } from 'vitest';
-import { pickActiveItem, type BatchItem, type BatchItemStatus } from '../src/lib/server/batch-core';
+import { pickActiveItem, type BatchItem, type BatchItemStatus } from '../src/lib/server/batch';
 
 function item(id: string, position: number, status: BatchItemStatus): BatchItem {
 	return {
 		id, position, status,
 		batchId: 'b', restaurantId: 'r',
 		fileKey: `b/${id}.pdf`, displayName: `${id}.pdf`,
-		extractedData: null, conversionNotes: null, extractError: null,
+		extractedData: null, conversionNotes: null, extractError: null, queuedAt: null,
 	};
 }
 

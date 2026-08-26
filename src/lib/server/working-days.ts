@@ -1,3 +1,5 @@
+import { isoDate } from './dates';
+
 const FIXED_HOLIDAYS: ReadonlyArray<readonly [month: number, day: number]> = [
 	[1, 1],
 	[1, 6],
@@ -20,13 +22,6 @@ const GOOD_FRIDAY: Readonly<Record<number, string>> = {
 	2030: '2030-04-10',
 };
 
-function toIso(d: Date): string {
-	const yyyy = d.getFullYear();
-	const mm = String(d.getMonth() + 1).padStart(2, '0');
-	const dd = String(d.getDate()).padStart(2, '0');
-	return `${yyyy}-${mm}-${dd}`;
-}
-
 export function isSpanishNationalHoliday(date: Date): boolean {
 	const month = date.getMonth() + 1;
 	const day = date.getDate();
@@ -34,7 +29,7 @@ export function isSpanishNationalHoliday(date: Date): boolean {
 
 	if (FIXED_HOLIDAYS.some(([m, d]) => m === month && d === day)) return true;
 
-	const iso = toIso(date);
+	const iso = isoDate(date);
 	return GOOD_FRIDAY[year] === iso;
 }
 

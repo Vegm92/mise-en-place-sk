@@ -27,7 +27,7 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
-import type { BatchItem } from '../src/lib/server/batch-core';
+import type { BatchItem } from '../src/lib/server/batch';
 
 let rid = '';
 
@@ -43,6 +43,7 @@ function fakeItem(documentType: 'factura' | 'albaran' | null): BatchItem {
 		extractedData: { document_type: documentType, confidence: 1 },
 		conversionNotes: null,
 		extractError: null,
+		queuedAt: null,
 	};
 }
 

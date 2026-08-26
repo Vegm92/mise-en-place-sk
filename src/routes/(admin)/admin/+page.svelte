@@ -5,36 +5,48 @@
   import AdminKpiCard from '$lib/components/admin/AdminKpiCard.svelte';
   import AdminSystemBanner from '$lib/components/admin/AdminSystemBanner.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
 
+  type ChipStatus = 'ok' | 'warn' | 'error';
+
   function fmt(n: number) { return n.toLocaleString('en-US'); }
+
+  function countStatus(count: number, errorAbove: number): ChipStatus {
+    if (count > errorAbove) return 'error';
+    if (count > 0) return 'warn';
+    return 'ok';
+  }
+
+  function sentryStatus(sentry: PageData['sentry']): ChipStatus {
+    if (!sentry.configured) return 'warn';
+    if (sentry.critical > 0) return 'error';
+    if (sentry.unresolved > 0) return 'warn';
+    return 'ok';
+  }
 
   const chips = $derived([
     {
       label: $t('admin.chip.errors'),
       value: data.sentry.configured ? data.sentry.unresolved : '—',
-      status: (!data.sentry.configured
-        ? 'warn'
-        : data.sentry.critical > 0 ? 'error' : data.sentry.unresolved > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: sentryStatus(data.sentry),
       href: '/admin/errors',
     },
     {
       label: $t('admin.chip.dlq'),
       value: data.deadLetters.pending,
-      status: (data.deadLetters.pending > 25
-        ? 'error' : data.deadLetters.pending > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: countStatus(data.deadLetters.pending, 25),
       href: '/admin/dead-letters',
     },
     {
       label: $t('admin.chip.stuck'),
       value: data.queue.stuck,
-      status: (data.queue.stuck > 10
-        ? 'error' : data.queue.stuck > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: countStatus(data.queue.stuck, 10),
     },
     {
       label: $t('admin.chip.pendingNotifs'),
       value: data.pendingNotifs,
-      status: (data.pendingNotifs > 0 ? 'warn' : 'ok') as 'ok' | 'warn' | 'error',
+      status: (data.pendingNotifs > 0 ? 'warn' : 'ok') as ChipStatus,
       href: '/admin/events',
     },
   ]);
@@ -59,7 +71,7 @@
 
 <AdminPageHead route="/admin" title={$t('admin.overview')} subtitle={$t('admin.overviewSubtitle')} />
 
-<div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px;">
+<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:14px;">
 
   <AdminSystemBanner
     status={data.overall}
@@ -100,71 +112,75 @@
     </div>
   </div>
 
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px;align-items:start;">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:14px;align-items:start;">
 
     <SectionCard title={$t('admin.recentActivity')} noPad
       href="/admin/events" actionLabel={$t('admin.viewAll')}>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <tbody>
-          {#each data.recentActivity as ev (ev.id)}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;min-width:0;">
-                <div style="display:flex;align-items:center;gap:8px;">
-                  <span class="num" style="
-                    font-size:10px;padding:2px 6px;border-radius:4px;flex-shrink:0;
-                    background:var(--mep-acc-soft);color:var(--mep-acc);
-                    text-transform:uppercase;letter-spacing:0.04em;
-                  ">{ev.notification_type.replace(/_/g, ' ')}</span>
-                  {#if ev.restaurant_name}
-                    <span style="font-size:11.5px;color:var(--mep-fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                      {ev.restaurant_name}
-                    </span>
-                  {/if}
-                </div>
-                <div style="font-size:12px;color:var(--mep-fg-2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                  {ev.message}
-                </div>
-              </td>
-              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:11.5px;white-space:nowrap;vertical-align:top;">
-                {relative(ev.created_at)}
-              </td>
-            </tr>
-          {:else}
-            <tr>
-              <td colspan="2" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noActivity')}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+      <AdminTableScroll>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tbody>
+            {#each data.recentActivity as ev (ev.id)}
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <td style="padding:9px 16px;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="num" style="
+                      font-size:11px;padding:2px 6px;border-radius:4px;flex-shrink:0;
+                      background:var(--mep-acc-soft);color:var(--mep-acc);
+                      text-transform:uppercase;letter-spacing:0.04em;
+                    ">{ev.notification_type.replace(/_/g, ' ')}</span>
+                    {#if ev.restaurant_name}
+                      <span style="font-size:11.5px;color:var(--mep-fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {ev.restaurant_name}
+                      </span>
+                    {/if}
+                  </div>
+                  <div style="font-size:12px;color:var(--mep-fg-2);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                    {ev.message}
+                  </div>
+                </td>
+                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:11.5px;white-space:nowrap;vertical-align:top;">
+                  {relative(ev.created_at)}
+                </td>
+              </tr>
+            {:else}
+              <tr>
+                <td colspan="2" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noActivity')}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
     </SectionCard>
 
     <SectionCard title={$t('admin.recentRestaurants')} noPad>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colName')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.invoices')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.suppliers')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCreated')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each data.recentRestaurants as r}
+      <AdminTableScroll>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
             <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{r.name}</td>
-              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.invoice_count))}</td>
-              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.supplier_count))}</td>
-              <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;">
-                {new Date(r.created_at).toLocaleDateString('en-GB')}
-              </td>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colName')}</th>
+              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.invoices')}</th>
+              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.suppliers')}</th>
+              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCreated')}</th>
             </tr>
-          {:else}
-            <tr>
-              <td colspan="4" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noRestaurants')}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {#each data.recentRestaurants as r}
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{r.name}</td>
+                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.invoice_count))}</td>
+                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{fmt(Number(r.supplier_count))}</td>
+                <td style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;">
+                  {new Date(r.created_at).toLocaleDateString('en-GB')}
+                </td>
+              </tr>
+            {:else}
+              <tr>
+                <td colspan="4" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.noRestaurants')}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
     </SectionCard>
 
   </div>

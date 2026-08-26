@@ -3,6 +3,8 @@ export interface Row {
 	quantity: string | null;
 	unit: string | null;
 	unit_price: string | null;
+	tax_rate: string | null;
+	supplier_sku: string | null;
 }
 
 export interface RowWithTotal extends Row {
@@ -20,7 +22,7 @@ export function calcTotal(
 }
 
 export function makeEmptyRow(): Row {
-	return { description: '', quantity: '', unit: '', unit_price: '' };
+	return { description: '', quantity: '', unit: '', unit_price: '', tax_rate: '', supplier_sku: '' };
 }
 
 export function initRows(
@@ -29,6 +31,8 @@ export function initRows(
 		quantity: number | null;
 		unit: string | null;
 		unit_price: number | null;
+		tax_rate?: number | null;
+		supplier_sku?: string | null;
 	}>
 ): Row[] {
 	if (lineItems.length === 0) return [makeEmptyRow()];
@@ -37,6 +41,8 @@ export function initRows(
 		quantity: l.quantity != null ? String(l.quantity) : '',
 		unit: l.unit ?? '',
 		unit_price: l.unit_price != null ? l.unit_price.toFixed(2) : '',
+		tax_rate: l.tax_rate != null ? String(l.tax_rate) : '',
+		supplier_sku: l.supplier_sku ?? '',
 	}));
 }
 

@@ -20,11 +20,14 @@ price-shock history.
 
 - Supplier name (+ optional contact, category) from extraction or user.
 - Category selection via `(app)/api/supplier-category`.
+- Supplier-list view state from `/suppliers` search params: `sort`, `q`,
+  `category`, `uncategorized` (issue #580).
 
 ## Outputs
 
 - `suppliers` row (unique per `(rid, lower(name))`).
 - `supplier_metrics` reliability scores (computed + cached).
+- Supplier list rows carrying `total_spend` alongside `month_spend`.
 - Category nudges/suggestions notifications.
 
 ## Business rules
@@ -38,6 +41,27 @@ price-shock history.
   from extraction and edits.
 - **Name normalization** (`normalize.ts`): Spanish legal forms (SLU, SCP, SA…)
   stripped for same-supplier detection.
+- **Product aggregates** (issue #575): the detail "Productos" tab groups a
+  supplier's `invoice_line_items` by `(description, unit)` across its
+  non-deleted invoices and reports average unit price, **total spend**
+  (`SUM(total_price)`) and **units purchased** (`SUM(quantity)`), plus the last
+  purchase date. Total spend is `null` (rendered as `—`) when no line in the
+  group prints a total price; units are always summed.
+- **List sort/filter** (`supplier-list.ts`, `supplier-list-query.ts`, issue #580):
+  the `/suppliers` list is sorted and filtered in SQL, driven entirely by URL
+  search params so a view survives reload and can be shared.
+  - `sort` ∈ `spend_desc` (default), `spend_asc`, `name_asc`, `name_desc`,
+    `last_invoice_desc`, `last_invoice_asc`, `reliability_desc`,
+    `reliability_asc`. Anything else falls back to the default — an unvalidated
+    key never reaches SQL.
+  - `q` matches supplier name OR resolved category, case-insensitively; `%`,
+    `_` and `\` are escaped so a wildcard typed by the user stays literal.
+  - `category` must be one of `VALID_CATEGORIES`; anything else is ignored
+    (no filter) rather than returning an empty list.
+  - `uncategorized=1` keeps only suppliers with at least one line-item product
+    whose category is NULL or `'Other'`.
+  - Every predicate composes onto `forTenant().scope(suppliers.restaurantId, …)`,
+    including the `EXISTS` sub-select behind the uncategorized toggle.
 - **Reliability** (`supplier-reliability.ts`): score = price stability (CV of
   unit price, 180 d, top 5 items; <5% → 33, ≤15% → 20, else 0) + frequency
   (gap analysis → 33/15/0) + timeliness (% paid vs total with due dates;
@@ -59,8 +83,11 @@ n/a (row upsert + metric recompute).
 
 ## UI dependencies
 
-`MobileSuppliersList.svelte`, `DesktopSuppliersList.svelte`,
-`DesktopSupplierDetail.svelte`, `suppliers/[id]/+page.svelte`.
+`MobileSuppliersList.svelte` (mobile list), `suppliers/+page.svelte` (desktop
+list, built on `ListPageTemplate.svelte`), `DesktopSupplierDetail.svelte`,
+`suppliers/[id]/+page.svelte`. There is no `DesktopSuppliersList.svelte` — the
+desktop list lives inline in the route; both variants render and CSS picks one
+(ADR-020), so a list control has to be added to both.
 
 ## Background dependencies
 
@@ -72,7 +99,8 @@ None.
 
 ## Validation
 
-Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
+Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope. List search params
+validated by `parseSupplierListParams` before any of them reaches a query.
 
 ## Error states
 
@@ -104,8 +132,15 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
   ≥ 0.6) and contact data.
 - Editing category persists; suggestions mark their nudge `sent`.
 - Reliability scores compute from price/frequency/timeliness inputs.
+- The "Productos" tab shows a "Gasto total" column and a "Unidades compradas"
+  column, aggregated per product, in both the mobile and desktop variants, and
+  labelled in ES and EN (issue #575).
 - Tests: `tests/supplier-category.test.ts`, `tests/supplier-contact-save.test.ts`,
-  `tests/supplier-reliability-price-stability.test.ts`, `tests/db-crud.test.ts`.
+  `tests/supplier-reliability-price-stability.test.ts`, `tests/db-crud.test.ts`,
+  `tests/supplier-products-aggregates.test.ts`, `tests/supplier-list-query.test.ts`.
+- The supplier list offers 4+ sort options, a debounced text search, a category
+  dropdown and an uncategorized-products toggle; all four live in the URL and
+  are applied server-side (issue #580).
 
 ## Code notes
 
@@ -138,6 +173,7 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 
 **`const load`**
 - Builds 7-month spend history for the chart.
+- The `products` aggregate groups line items by `(description, unit)` over this supplier's non-deleted invoices; `totalSpend` sums `total_price` and `totalQty` sums `quantity` (issue #575). `SUM(numeric)` comes back as a string, so `totalSpend` goes through `moneyToNullableNumber` (null stays null — "no priced line" is not "€0"), and `totalQty` through `Number(...)`; neither is trusted as a JS number straight from the driver.
 
 **`property update`**
 - Backfill (issue #307): products from this supplier's invoices only ever get a category at creation time (usually the 'Other' default). Editing the supplier here is the one moment a user expresses a real category, so carry it onto still-uncategorized products instead of leaving them on 'Other' forever.
@@ -150,18 +186,58 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 **`const SERIES_COLORS`**
 - Product spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
 
+**`const productDonut`**
+- Slice spend now prefers the exact `totalSpend` aggregate and only falls back to `avgPrice × totalQty` when no line in the group printed a total price (issue #575) — otherwise the donut and the "Gasto total" column below it would disagree.
+
 **`markup`**
 - Mobile (edit form, KPI strip, tabs, info card, recent invoices, reliability, add form) and desktop supplier detail variants; `editing` toggles the edit form.
+- Each mobile product card carries a two-up "Gasto total" / "Unidades compradas" block — the mobile counterpart of the desktop table columns (ADR-020: both variants ship, CSS picks one).
 
 ### `src/routes/(app)/suppliers/+page.server.ts`
 
 **`const load`**
 - Refreshes stale reliability scores (>24h old) for suppliers with enough invoices.
+- `parseSupplierListParams(url.searchParams)` is the only door the list's view state comes through (issue #580); the parsed value — never the raw param — feeds `supplierListFilter` and `supplierListOrderBy`, so an unknown `sort` degrades to the default instead of reaching SQL.
+- The filter predicate is composed *inside* `tdb.scope(suppliers.restaurantId, …)` rather than beside it, so no future filter can be added without the tenant predicate travelling with it.
+- `supplier_metrics` is LEFT JOINed purely so reliability can be ordered in SQL. `supplier_metrics.supplier_id` is UNIQUE, so the join adds no rows and the invoice aggregates are unaffected. The ordering reads the *cached* score: right after a recompute the order can lag by one page load, which is why the score itself is still merged from `metricsRows` for display.
+- The parsed params are echoed back in the payload so both UI variants can rebuild the URL without re-parsing it.
+- `categories` is `VALID_CATEGORIES` ordered by how many of *this tenant's* suppliers sit in each, with `categoryCounts` alongside it (issue #658). The count query is scoped like every other, and it is deliberately separate from the list query: reading the counts off the filtered rows would shrink the filter UI the moment a filter was applied.
+
+### `src/lib/supplier-list.ts`
+
+**`const SUPPLIER_SORT_KEYS`**
+- The closed set of sort options, shared by the loader and both UI variants. It lives outside `src/lib/server/` because the Svelte components need it to render the dropdown; it deliberately holds no Drizzle/schema import so it stays client-safe.
+
+**`function parseSupplierListParams`**
+- Validates every list search param: unknown `sort` → `DEFAULT_SUPPLIER_SORT`, unknown `category` → no category filter (an empty list would read as "this tenant has no such suppliers", which is a different and wrong answer), `q` trimmed, `uncategorized` strictly `'1'`.
+
+**`const SUPPLIER_SEARCH_DEBOUNCE_MS`**
+- One debounce interval for both variants — the search box navigates rather than filtering locally, so each keystroke would otherwise be a round trip.
+
+### `src/lib/server/supplier-list-query.ts`
+
+**`function supplierListOrderBy`**
+- Every ORDER BY is a Drizzle `sql` expression over real columns; the sort key only ever selects *which* prebuilt expression is used, so no user-supplied text is ever interpolated into SQL. Each option tie-breaks on `LOWER(name)` so equal spends/dates come back in a stable order.
+
+**`function supplierReliabilityExpr`**
+- `CASE WHEN COUNT(invoices.id) >= 3` mirrors the display rule: a supplier with a cached score but fewer than three invoices shows `—`, so it must not sort among the scored ones either.
+
+**`function likeTerm`**
+- Escapes `\`, `%` and `_` before wrapping the term in `%…%`. The term is a bound parameter, so this is not an injection guard — it stops a user typing `%` from silently matching every supplier.
+
+**`function hasUncategorizedProducts`**
+- Products have no `supplier_id`; the link is invoice → line item → product, so the toggle is an `EXISTS` sub-select correlated on `invoices.supplier_id = suppliers.id`. Every table inside it is scoped with `forTenant().scope()` — a correlated sub-select is exactly where a missing tenant predicate would go unnoticed.
 
 ### `src/routes/(app)/suppliers/+page.svelte`
 
 **`markup`**
-- Mobile / desktop supplier lists (CSS-selected variants).
+- Mobile / desktop supplier lists (CSS-selected variants). The desktop filter bar carries the category dropdown, the sort dropdown and the uncategorized-products toggle; the table renders `data.suppliers` straight from the server, with no second filtering pass in the browser.
+
+**`function listUrl`**
+- Patches the current search params instead of rebuilding them, so changing a filter preserves `period` (and anything a later feature adds).
+
+**`const search` / `$effect`**
+- The search box keeps local state and navigates on a debounce; `untrack` seeds it once, because re-seeding from `data` mid-flight would yank characters out from under someone still typing. Search navigations use `replaceState` so typing does not fill the history stack, while the dropdowns push a normal entry.
 
 ## Public routes (marketing, auth, webhooks)
 
@@ -192,14 +268,12 @@ Category ∈ `VALID_CATEGORIES`; name non-empty; tenant scope.
 - SVG chart constants.
 
 **`markup`**
-- Sticky header (breadcrumb, supplier header, delete confirmation, edit form); tabs resumen / facturas / productos / conversiones. Resumen: monthly spend chart, KPI strip, reliability breakdown, info card, recent invoices. Productos: donut + legend with hover detail. Conversiones: add-conversion form.
-
-### `src/lib/components/desktop/DesktopSuppliersList.svelte`
-
-**`markup`**
-- Filter bar, summary strip, table.
+- Sticky header (breadcrumb, supplier header, delete confirmation, edit form); tabs resumen / facturas / productos / conversiones. Resumen: monthly spend chart, KPI strip, reliability breakdown, info card, recent invoices. Productos: donut + legend with hover detail, then the product table. Conversiones: add-conversion form.
+- Product table columns: description, unit, average price, "Gasto total" (`sup.products.colSpend`), "Unidades compradas" (`sup.products.colUnits`), last purchase (issue #575). `colUnits` replaced the old `sup.products.totalQty` / "Cant. total" header — same number, the name the issue asked for — so that key was dropped rather than left as a dead duplicate.
 
 ### `src/lib/components/mobile/MobileSuppliersList.svelte`
 
 **`markup`**
-- Search, category chips, summary strip, list.
+- Search, sort dropdown, category chips (plus an uncategorized-products chip), summary strip, list. Same URL-driven params as the desktop variant (ADR-020); the component owns no filtering, it only reports the patch through `onApply` and lets the loader answer.
+- The category chips are a `ScrollStrip` holding at most `INLINE_CATEGORY_CHIPS` (4) of the categories the tenant actually buys from, plus a "+n categorías" chip that opens the filter sheet with the full list and per-category counts. Listing all 17 inline made a 2718px strip at 390px — nearly 7x the viewport, with the useful categories past the fold (issue #658). The active category is always pinned into the inline set, so a filter arrived at from the sheet or from a URL still reads as selected without opening anything.
+- The sheet is the alternative entry point the strip's length rule requires: a strip may stay long only while there is another way to reach what it hides.

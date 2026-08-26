@@ -6,6 +6,7 @@
  * the invoice content-hash unique index (#237), and the user_restaurants
  * composite primary key (#241). Runs against the live test DB; skipped without.
  */
+import { randomUUID } from 'node:crypto';
 import { describe, it, expect, afterAll } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { getOrCreateSupplierId } from '../src/lib/server/supplier';
@@ -77,7 +78,7 @@ describe.skipIf(!hasDbEnv)('#237 content-hash dedup is a hard unique constraint'
 describe.skipIf(!hasDbEnv)('#241 user_restaurants has a composite primary key', () => {
 	it('rejects a duplicate (user_id, restaurant_id) membership', async () => {
 		const r = await createTestRestaurant('urest-pk');
-		const userId = `test-user-${Date.now()}`;
+		const userId = randomUUID();
 		try {
 			await testSql`INSERT INTO user_restaurants (user_id, restaurant_id, role) VALUES (${userId}, ${r.id}, 'owner')`;
 			await expect(

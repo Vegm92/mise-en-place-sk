@@ -93,6 +93,7 @@
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each overdue as r}
+              <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;display:contents;">
               <div class="card" style="padding: 12px 14px; background: var(--mep-neg-soft);">
                 <div style="display: flex; align-items: flex-start; gap: 12px;">
                   <div style="flex: 1; min-width: 0;">
@@ -105,7 +106,7 @@
                   </div>
                   <div style="text-align: right; flex-shrink: 0;">
                     <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                    <span class="badge badge-overdue" style="font-size: 9.5px;">{Math.abs(r.days_delta)}{$t('malert.dOverdue')}</span>
+                    <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('malert.dOverdue')}</span>
                   </div>
                 </div>
                 <form method="post" action="?/markPaid" style="margin-top: 10px;">
@@ -115,6 +116,7 @@
                   </button>
                 </form>
               </div>
+              </a>
             {/each}
           </div>
         </div>
@@ -127,6 +129,7 @@
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each due_soon as r}
+              <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;display:contents;">
               <div class="card" style="padding: 12px 14px;">
                 <div style="display: flex; align-items: flex-start; gap: 12px;">
                   <div style="flex: 1; min-width: 0;">
@@ -139,7 +142,7 @@
                   </div>
                   <div style="text-align: right; flex-shrink: 0;">
                     <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                    <span class="badge badge-pending" style="font-size: 9.5px;">{r.days_delta}{$t('malert.dLeft')}</span>
+                    <span class="badge badge-pending">{r.days_delta}{$t('malert.dLeft')}</span>
                   </div>
                 </div>
                 <form method="post" action="?/markPaid" style="margin-top: 10px;">
@@ -149,6 +152,7 @@
                   </button>
                 </form>
               </div>
+              </a>
             {/each}
           </div>
         </div>

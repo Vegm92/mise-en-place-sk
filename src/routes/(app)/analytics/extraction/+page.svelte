@@ -40,7 +40,7 @@
       <p style="font-size:13px;color:var(--mep-fg-4);max-width:320px;margin:0;line-height:1.5;">
         {$t('extract.acc.noDataHint')}
       </p>
-      <a href="/" style="font-size:13px;color:var(--mep-acc);text-decoration:none;margin-top:4px;">
+      <a href="/" style="font-size:13px;color:var(--mep-acc);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;">
         {$t('spend.uploadFirst')}
       </a>
     </div>
@@ -87,7 +87,7 @@
         {#if !data.field_corrections.length}
           <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:24px 0;">{$t('extract.acc.noCorrectionsRec')}</p>
         {:else}
-          <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+          <table class="tbl-stack" style="width:100%;border-collapse:collapse;font-size:12.5px;">
             <thead>
               <tr style="border-bottom:1px solid var(--mep-divider);">
                 <th style="text-align:left;padding:4px 8px 8px 0;font-weight:500;color:var(--mep-fg-3);">{$t('extract.acc.colField')}</th>
@@ -98,16 +98,16 @@
             <tbody>
               {#each data.field_corrections as row}
                 <tr style="border-bottom:1px solid var(--mep-divider);">
-                  <td style="padding:7px 8px 7px 0;color:var(--mep-fg);">
-                    <div style="display:flex;flex-direction:column;gap:4px;">
+                  <td class="tbl-stack-lead" style="padding:7px 8px 7px 0;color:var(--mep-fg);">
+                    <div style="width:100%;display:flex;flex-direction:column;gap:4px;">
                       <span>{row.field_name}</span>
                       <div style="height:4px;border-radius:2px;background:var(--mep-surface-2);overflow:hidden;">
                         <div style="width:{Math.round(row.corrections / maxCorrections * 100)}%;height:100%;background:var(--mep-warn);border-radius:2px;"></div>
                       </div>
                     </div>
                   </td>
-                  <td class="num" style="padding:7px 0;text-align:right;color:var(--mep-fg);font-weight:500;">{row.corrections}</td>
-                  <td class="num" style="padding:7px 0 7px 8px;text-align:right;color:var(--mep-fg-3);">{fmtPct(row.invoice_pct)}</td>
+                  <td class="num" data-label={$t('extract.acc.colCorrections')} style="padding:7px 0;text-align:right;color:var(--mep-fg);font-weight:500;">{row.corrections}</td>
+                  <td class="num" data-label={$t('extract.acc.colPctInvoices')} style="padding:7px 0 7px 8px;text-align:right;color:var(--mep-fg-3);">{fmtPct(row.invoice_pct)}</td>
                 </tr>
               {/each}
             </tbody>
@@ -154,7 +154,7 @@
       {#if !data.supplier_accuracy.length}
         <p style="font-size:13px;color:var(--mep-fg-4);text-align:center;padding:16px 0;">{$t('extract.acc.noSupplierData')}</p>
       {:else}
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+        <table class="tbl-stack" style="width:100%;border-collapse:collapse;font-size:12.5px;">
           <thead>
             <tr style="border-bottom:1px solid var(--mep-divider);">
               <th style="text-align:left;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);">{$t('extract.acc.colSupplier')}</th>
@@ -167,25 +167,25 @@
             {#each data.supplier_accuracy as row}
               {@const lowAccuracy = (row.auto_confirmed_rate ?? 100) < 50}
               <tr style="border-bottom:1px solid var(--mep-divider);">
-                <td style="padding:8px 0;">
+                <td class="tbl-stack-lead" style="padding:8px 0;">
                   <div style="display:flex;align-items:center;gap:6px;">
                     <span style="color:var(--mep-fg);font-weight:500;">{row.supplier_name}</span>
                     {#if lowAccuracy}
                       <span style="
-                        font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;
+                        font-size:11px;font-weight:600;padding:1px 6px;border-radius:10px;
                         background:var(--mep-warn-soft);color:var(--mep-warn);
                       ">{$t('extract.acc.review')}</span>
                     {/if}
                   </div>
                 </td>
-                <td class="num" style="padding:8px;text-align:right;color:var(--mep-fg-3);">{row.total_invoices}</td>
-                <td style="padding:8px;text-align:right;">
+                <td class="num" data-label={$t('extract.acc.colInvoices')} style="padding:8px;text-align:right;color:var(--mep-fg-3);">{row.total_invoices}</td>
+                <td data-label={$t('extract.acc.colAutoConfirmed')} style="padding:8px;text-align:right;">
                   <span class="num" style="
                     font-weight:600;
                     color:{lowAccuracy ? 'var(--mep-warn)' : 'var(--mep-acc)'};
                   ">{fmtPct(row.auto_confirmed_rate)}</span>
                 </td>
-                <td class="num" style="padding:8px 0;text-align:right;color:var(--mep-fg-3);">{fmtNum(row.avg_corrections)}</td>
+                <td class="num" data-label={$t('extract.acc.colAvgCorr')} style="padding:8px 0;text-align:right;color:var(--mep-fg-3);">{fmtNum(row.avg_corrections)}</td>
               </tr>
             {/each}
           </tbody>

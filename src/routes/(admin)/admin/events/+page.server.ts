@@ -1,32 +1,15 @@
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { systemNotifications, restaurants } from '$lib/server/schema';
-import { desc, sql } from 'drizzle-orm';
+import { systemNotifications } from '$lib/server/schema';
+import { sql } from 'drizzle-orm';
 
 const PAGE_SIZE = 50;
-
-const VALID_TYPES = [
-	'price_shock',
-	'budget_overage',
-	'invoice_saved',
-	'invoice_corrected',
-	'extraction_failed',
-	'extraction_discarded',
-	'supplier_missing',
-	'file_uploaded',
-	'budget_set',
-	'chat_message_sent',
-	'plan_upgraded',
-	'digest_viewed',
-	'duplicate_detected',
-] as const;
 
 export const load: PageServerLoad = async ({ url }) => {
 	const pageParam = parseInt(url.searchParams.get('page') ?? '1', 10);
 	const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
-	const typeParam = url.searchParams.get('type') ?? '';
-	const typeFilter = VALID_TYPES.includes(typeParam as typeof VALID_TYPES[number]) ? typeParam : '';
+	const typeFilter = (url.searchParams.get('type') ?? '').slice(0, 64);
 
 	return handleLoad('admin/events', async () => {
 		const offset = (page - 1) * PAGE_SIZE;

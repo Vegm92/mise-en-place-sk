@@ -7,13 +7,17 @@ export const AWS_S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME ?? '';
 export const AWS_DEFAULT_REGION = process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
 export const AWS_S3_URL_STYLE = (process.env.AWS_S3_URL_STYLE ?? 'path') as 'path' | 'virtual';
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
-export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.5-flash';
+export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 export const GEMINI_TIMEOUT_MS = parseInt(process.env.GEMINI_TIMEOUT_MS ?? '120000', 10);
 export const CHAT_RATE_LIMIT_RPM = parseInt(process.env.CHAT_RATE_LIMIT_RPM ?? '20', 10);
 export const MAX_CONCURRENT_EXTRACTIONS = parseInt(process.env.MAX_CONCURRENT_EXTRACTIONS ?? '3', 10);
+export const SCHEDULED_FANOUT_CONCURRENCY = Math.max(1, parseInt(process.env.SCHEDULED_FANOUT_CONCURRENCY ?? '5', 10) || 1);
+export const EXTRACTION_STALL_WARN_MS = parseInt(process.env.EXTRACTION_STALL_WARN_MS ?? '120000', 10);
+export const EXTRACTION_STALL_TIMEOUT_MS = parseInt(process.env.EXTRACTION_STALL_TIMEOUT_MS ?? '900000', 10);
+export const WORKER_HEARTBEAT_INTERVAL_MS = parseInt(process.env.WORKER_HEARTBEAT_INTERVAL_MS ?? '30000', 10);
+export const WORKER_HEARTBEAT_STALE_MS = parseInt(process.env.WORKER_HEARTBEAT_STALE_MS ?? '120000', 10);
 export const UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL ?? '';
 export const UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN ?? '';
-export const LLM_PROVIDER = (process.env.LLM_PROVIDER ?? 'gemini') as 'gemini';
 export const STRIPE_PRICE_ID_STARTER  = process.env.STRIPE_PRICE_ID_STARTER  ?? '';
 export const STRIPE_PRICE_ID_PRO      = process.env.STRIPE_PRICE_ID_PRO      ?? '';
 export const STRIPE_PRICE_ID_BUSINESS = process.env.STRIPE_PRICE_ID_BUSINESS ?? '';
@@ -29,6 +33,7 @@ export const SENTRY_AUTH_TOKEN        = process.env.SENTRY_AUTH_TOKEN       ?? '
 export const SENTRY_ORG               = process.env.SENTRY_ORG              ?? '';
 export const SENTRY_PROJECT           = process.env.SENTRY_PROJECT          ?? '';
 export const SENTRY_RELEASE           = process.env.SENTRY_RELEASE          ?? '';
+export const TURNSTILE_SECRET_KEY     = process.env.TURNSTILE_SECRET_KEY    ?? '';
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
 if (!APP_BASE_URL) {

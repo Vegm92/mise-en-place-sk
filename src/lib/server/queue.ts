@@ -1,6 +1,8 @@
 import { PgBoss } from 'pg-boss';
 import { pgSslConfig } from './db-ssl';
 
+const DATABASE_URL = process.env.DATABASE_URL ?? '';
+
 export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
 
@@ -27,7 +29,7 @@ async function getBoss(): Promise<PgBoss> {
 	if (boss) return boss;
 	if (!startPromise) {
 		startPromise = (async () => {
-			const connectionString = process.env.DATABASE_URL;
+			const connectionString = DATABASE_URL;
 			if (!connectionString) throw new Error('DATABASE_URL is required');
 			const b = new PgBoss({
 				connectionString,

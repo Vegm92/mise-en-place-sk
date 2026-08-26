@@ -11,13 +11,11 @@ import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
 import { and, isNull, sql } from 'drizzle-orm';
-import { getAccessState, getMonthlyQuota } from '$lib/server/billing';
 
-async function remainingMonthlyQuota(rid: string): Promise<number | null> {
+async function remainingMonthlyQuota(rid: string, limit: number | null): Promise<number | null> {
+	if (limit === null) return null;
 	try {
 		const tdb = forTenant(rid);
-		const limit = await getMonthlyQuota(rid);
-		if (limit === null) return null;
 
 		const [usedRow] = await db
 			.select({ cnt: sql<number>`COUNT(*)::int` })
@@ -32,6 +30,31 @@ async function remainingMonthlyQuota(rid: string): Promise<number | null> {
 		console.error('[upload] quota check failed (allowing upload):', err);
 		return null;
 	}
+}
+
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+function rejectInvalidFiles(files: File[]) {
+	if (files.length === 0) {
+		return fail(400, { error: 'upload.err.noValidFiles' });
+	}
+	const oversized = files.filter(f => f.size > MAX_UPLOAD_BYTES);
+	if (oversized.length > 0) {
+		return fail(400, {
+			error: 'upload.err.tooLarge',
+			errorVars: { names: oversized.map(f => f.name).join(', ') },
+		});
+	}
+	return null;
+}
+
+function rejectSavedNothing(errors: Awaited<ReturnType<typeof saveUploadedFiles>>['errors']) {
+	const first = errors[0];
+	if (!first) return fail(400, { error: 'upload.err.noValidFiles' });
+	return fail(400, {
+		error: `upload.reject.${first.reason}`,
+		errorVars: { name: first.name, ext: first.ext ?? '' },
+	});
 }
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -51,8 +74,9 @@ export const actions: Actions = {
 		const rid = locals.restaurantId;
 		if (!rid) return fail(403, { error: 'upload.err.noRestaurant' });
 
-		const access = await getAccessState(rid);
-		if (!access.allowed) {
+		const entitlements = await locals.entitlements();
+		const access = entitlements?.access;
+		if (access && !access.allowed) {
 			redirect(303, `/billing?upgrade=${access.trialExpired ? 'trial' : 'inactive'}`);
 		}
 
@@ -66,24 +90,14 @@ export const actions: Actions = {
 		const rawFiles = formData.getAll('files');
 		const files = rawFiles.filter((f): f is File => typeof f !== 'string' && (f as Blob).size > 0);
 
-		if (files.length === 0) {
-			return fail(400, { error: 'upload.err.noValidFiles' });
-		}
-
-		const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
-		const oversized = files.filter(f => f.size > MAX_UPLOAD_BYTES);
-		if (oversized.length > 0) {
-			return fail(400, {
-				error: 'upload.err.tooLarge',
-				errorVars: { names: oversized.map(f => f.name).join(', ') },
-			});
-		}
+		const invalidFiles = rejectInvalidFiles(files);
+		if (invalidFiles) return invalidFiles;
 
 		if (!(await checkRateLimit(`upload:${rid}`, 10))) {
 			return fail(429, { error: 'upload.err.rateLimited' });
 		}
 
-		const remaining = await remainingMonthlyQuota(rid);
+		const remaining = await remainingMonthlyQuota(rid, entitlements?.monthlyQuota ?? null);
 		if (remaining !== null && files.length > remaining) {
 			redirect(303, remaining === 0
 				? '/?error=upload.err.quotaExhausted&upgrade=1'
@@ -102,12 +116,7 @@ export const actions: Actions = {
 			return fail(500, { error: 'upload.err.saveFailed' });
 		}
 
-		if (saved.length === 0) {
-			const first = errors[0];
-			return first
-				? fail(400, { error: `upload.reject.${first.reason}`, errorVars: { name: first.name, ext: first.ext ?? '' } })
-				: fail(400, { error: 'upload.err.noValidFiles' });
-		}
+		if (saved.length === 0) return rejectSavedNothing(errors);
 
 		const { batchId, itemIds } = await createBatch(rid, saved.map((name, i) => ({ key: keys[i], name })));
 

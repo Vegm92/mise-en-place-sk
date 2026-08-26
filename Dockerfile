@@ -9,15 +9,25 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
+# Vite inlines VITE_* at build time, so these must exist in the build stage or
+# the shipped client bundle ships an empty Sentry DSN and reports nothing.
+ARG VITE_SENTRY_DSN
+ARG VITE_SENTRY_RELEASE
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
+ENV VITE_SENTRY_RELEASE=$VITE_SENTRY_RELEASE
 RUN pnpm build
 RUN pnpm prune --prod
 
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+RUN corepack enable
 COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
+# drizzle-kit (pre-deploy migration step) needs its config + migration files at runtime
+COPY --from=build /app/drizzle.config.ts ./
+COPY --from=build /app/drizzle ./drizzle
 
 # Mount point for the shared uploads volume (issue #285). Creating it here with
 # `node` ownership means Docker gives the named volume the same ownership when

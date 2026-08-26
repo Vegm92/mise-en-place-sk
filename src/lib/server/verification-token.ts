@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { and, eq, gt } from 'drizzle-orm';
 import { db } from './db';
-import { verificationTokens } from './schema/auth';
+import { verificationTokens } from './schema';
 
 const TOKEN_TTL_MS = 60 * 60 * 1000;
 
@@ -18,21 +18,14 @@ export async function createVerificationToken(identifier: string): Promise<strin
 }
 
 export async function consumeVerificationToken(identifier: string, token: string): Promise<boolean> {
-	const [row] = await db
-		.select()
-		.from(verificationTokens)
+	const deleted = await db
+		.delete(verificationTokens)
 		.where(and(
 			eq(verificationTokens.identifier, identifier),
 			eq(verificationTokens.token, token),
 			gt(verificationTokens.expires, new Date()),
 		))
-		.limit(1);
+		.returning();
 
-	if (!row) return false;
-
-	await db.delete(verificationTokens).where(and(
-		eq(verificationTokens.identifier, identifier),
-		eq(verificationTokens.token, token),
-	));
-	return true;
+	return deleted.length > 0;
 }

@@ -5,9 +5,8 @@ the schema file (ADR-003).
 
 ## Canonical sources
 
-- Drizzle schema split across `src/lib/server/schema/{core,extensions,auth}.ts`;
-  `schema.ts` is a re-export barrel — edit the per-area file.
-- Committed migrations in `drizzle/` (latest: `0032_*.sql`).
+- Drizzle schema in `src/lib/server/schema.ts` — one file, 40 tables.
+- Committed migrations in `drizzle/` (latest: `0042_*.sql`).
 - `drizzle.config.ts` drives generate/migrate/studio.
 
 ## Rules
@@ -24,6 +23,12 @@ the schema file (ADR-003).
   `(restaurant_id, status, created_at)`; dedup PKs; unique keys for upserts).
 - **Naming**: snake_case plural tables, singular columns; statuses default
   `pending`/`active`-style.
+- **Column type changes**: `db:generate` emits a bare
+  `ALTER COLUMN ... SET DATA TYPE x`. Postgres aborts that whenever no implicit
+  cast exists (e.g. `text` → `uuid`), so hand-add the `USING` clause to the
+  generated SQL. Keep the cast strict rather than filtering bad rows: it then
+  fails loudly and rolls the migration back instead of converting partially
+  (migration 0038).
 - **Existing-data migrations**: write them idempotently (guards + `WHERE` on
   current state); never hardcode generated ids. Data migrations run in the
   worker's migration step and via `pnpm db:migrate`.

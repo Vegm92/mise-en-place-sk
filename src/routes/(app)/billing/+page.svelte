@@ -4,16 +4,23 @@
 	import BillingStatusCard from '$lib/components/mep/BillingStatusCard.svelte';
 	import BillingPlanCard from '$lib/components/mep/BillingPlanCard.svelte';
 	import BillingFeatureMatrix from '$lib/components/mep/BillingFeatureMatrix.svelte';
+	import { PROVISIONAL_PRICE, type TierId } from '$lib/billing-plans';
 
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
-	const upgradeMessage = $derived(
-		data.upgradeFor === 'digest' ? $t('billing.upgrade.digest')
-			: data.upgradeFor === 'prices' ? $t('billing.upgrade.prices')
-			: data.upgradeFor === 'trial' ? $t('billing.upgrade.trial')
-			: data.upgradeFor === 'inactive' ? $t('billing.upgrade.inactive')
-			: null
+	const maxLocations = $derived(
+		data.currentTier === 'trial'
+			? data.trialTier.maxLocations
+			: (data.tiers.find(t => t.tier === data.currentTier)?.maxLocations ?? 1)
 	);
+	const upgrade = $derived(data.tiers.find(t => t.maxLocations > maxLocations) ?? null);
+
+	const upgradeMessage = $derived.by(() => {
+		if (!data.upgradeFor) return null;
+		const key = `billing.upgrade.${data.upgradeFor}`;
+		const text = $t(key);
+		return text === key ? null : text;
+	});
 </script>
 
 <svelte:head>
@@ -48,9 +55,19 @@
 
 	<BillingStatusCard
 		status={data.status}
+		planName={$t(data.currentTierNameKey)}
+		price={PROVISIONAL_PRICE[data.currentTier as TierId] ?? null}
+		quotaUsed={data.quotaUsed}
+		quotaLimit={data.quotaLimit}
+		locationsUsed={data.locationsUsed}
+		lockedLocations={data.lockedLocations}
+		{maxLocations}
+		upgradeName={upgrade ? $t(upgrade.nameKey) : null}
+		upgradeMaxLocations={upgrade?.maxLocations ?? 0}
 		trialEndsAt={data.trialEndsAt}
 		currentPeriodEnd={data.currentPeriodEnd}
 		cancelAtPeriodEnd={data.cancelAtPeriodEnd}
+		hasSubscription={data.hasSubscription}
 		stripeConfigured={data.stripeConfigured}
 	/>
 
@@ -66,7 +83,7 @@
 
 		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;margin-bottom:28px;">
 			{#each data.tiers as tier (tier.tier)}
-				<BillingPlanCard {tier} isRecommended={tier.tier === 'pro'} />
+				<BillingPlanCard {tier} available={tier.available} switchable={data.hasSubscription} isRecommended={tier.tier === 'pro'} />
 			{/each}
 		</div>
 

@@ -7,5 +7,5 @@ CREATE TABLE "app_flags" (
 ALTER TABLE "subscriptions" ADD COLUMN "founder" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "access_status" text DEFAULT 'pending' NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN "founder" boolean DEFAULT false NOT NULL;--> statement-breakpoint
-UPDATE "users" SET "access_status" = 'approved';--> statement-breakpoint
+UPDATE "users" SET "access_status" = 'approved' WHERE "access_status" = 'pending';--> statement-breakpoint
 INSERT INTO "app_flags" ("key", "value") VALUES ('access_open', 'false') ON CONFLICT ("key") DO NOTHING;

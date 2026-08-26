@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { systemNotifications, invoices, settings, restaurants, subscriptions, userRestaurants } from '$lib/server/schema';
+import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
 import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
-import { TIERS, resolveMonthlyQuota, type PlanTier } from '$lib/server/billing';
+import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -13,9 +13,11 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/onboarding');
 
+	if (url.pathname === '/billing') await syncSubscriptionFromStripe(rid);
+
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, quotaLimitRow, planNameRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, subRow, locationRows] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, entitlements] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -32,7 +34,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 				tdb.scope(invoices.restaurantId),
 				sql`${invoices.status} IN ('pending', 'accepted')`,
 				isNull(invoices.deletedAt),
-				sql`${invoices.dueDate} < CURRENT_DATE::text`
+				sql`${invoices.dueDate} < CURRENT_DATE`
 			)),
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
@@ -53,14 +55,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 		db.select({ value: settings.value })
 			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_quota'))),
-
-		db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'plan_name'))),
-
-		db.select({ value: settings.value })
-			.from(settings)
 			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'restaurant_name'))),
 
 		db.select({ value: settings.value })
@@ -75,16 +69,12 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.from(settings)
 			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'tutorial_step'))),
 
-		db.select({ planTier: subscriptions.planTier })
-			.from(subscriptions)
-			.where(tdb.scope(subscriptions.restaurantId))
-			.limit(1),
-
 		db.select({ id: restaurants.id, name: restaurants.name })
 			.from(userRestaurants)
 			.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 			.where(eq(userRestaurants.userId, locals.user.id))
 			.orderBy(asc(restaurants.name)),
+		locals.entitlements(),
 	]);
 
 	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
@@ -99,8 +89,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		return [{ ...n, payload }];
 	});
 
-	const planTier = (subRow?.[0]?.planTier ?? 'trial') as PlanTier;
+	const planTier: PlanTier = entitlements?.tier ?? 'trial';
 	const tierConfig = TIERS[planTier];
+	const usable = entitlements
+		? (entitlements.access.allowed || entitlements.access.status === 'past_due')
+		: true;
+
+	const subscription = entitlements?.subscription ?? null;
 
 	return {
 		user: {
@@ -113,13 +108,16 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
 		reminderBadge:           Number(overdueBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
-		quotaLimit:              resolveMonthlyQuota(quotaLimitRow[0]?.value, planTier),
-		planName:                planNameRow[0]?.value      ?? tierConfig.name,
+		quotaLimit:              usable ? entitlements?.monthlyQuota ?? null : TIERS.trial.monthlyInvoiceQuota ?? 0,
+		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
 		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
-		locations: locationRows,
+		locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 		hasCompletedOnboarding,
 		tutorialStep,
 		planTier,
 		features: tierConfig.features,
+		subscriptionStatus: subscription?.status ?? null,
+		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
+		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,
 	};
 };

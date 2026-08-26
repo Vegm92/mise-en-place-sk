@@ -3,7 +3,7 @@ import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
-import { createLLMProvider, type LLMProvider, type LLMUsage } from './llm-provider';
+import { createGeminiProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction specialist for Spanish restaurants. Extract all relevant information from this document and return it as a JSON object.
@@ -42,11 +42,12 @@ Return ONLY valid JSON with this exact structure:
   "currency": "3-letter code, almost always EUR for Spanish documents",
   "tax_base": total taxable amount before tax (sum of all line totals), or null if not present,
   "tax_breakdown": [
-    {"rate": 0.21, "base": 100.00, "tax_amount": 21.00}
-  ] or null if no tax info is present. One entry per tax rate found. rate is a decimal (0.04, 0.10, 0.21 for Spain; use whatever rate is on the document for other countries),
+    {"rate": 0.21, "base": 100.00, "tax_amount": 21.00, "type": "iva"}
+  ] or null if no tax info is present. One entry per tax rate AND type found. rate is a decimal (0.04, 0.10, 0.21 for Spain; use whatever rate is on the document for other countries). type is "iva" for standard VAT or "rec" for Recargo de Equivalencia (a Spanish surcharge printed as %REC on produce invoices) — omit type if neither label is visible,
   "line_items": [
     {
       "description": "string",
+      "product_code": "supplier's product code / SKU (CODI, referencia, código artículo) — or null if not printed",
       "quantity": number or null,
       "unit": "string or null",
       "unit_price": number or null,
@@ -54,6 +55,7 @@ Return ONLY valid JSON with this exact structure:
       "confidence": 0.0 to 1.0
     }
   ],
+  "outstanding_balance": number or null (the outstanding balance owed to the supplier — printed as Saldo, saldo pendiente, saldo anterior, etc. — or null if not present),
   "field_confidences": {
     "supplier_name": 0.0 to 1.0,
     "supplier_category": 0.0 to 1.0,
@@ -68,8 +70,9 @@ Return ONLY valid JSON with this exact structure:
 
 Rules:
 - total_amount must be the final amount INCLUDING all taxes (total a pagar), not the pre-tax base.
-- If tax is shown separately, sum tax_base + all tax_amount values to get total_amount.
-- tax_breakdown must reflect what is explicitly printed on the document — do not invent rates.
+- If tax is shown separately, sum tax_base + all tax_amount values to get total_amount (include both IVA and REC amounts).
+- tax_breakdown must reflect what is explicitly printed on the document — do not invent rates or types.
+- If a document shows both IVA and Recargo de Equivalencia (REC) columns, emit two separate entries in tax_breakdown: one with type "iva" and one with type "rec".
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
@@ -78,22 +81,35 @@ Rules:
   SUPPLIER issuing the invoice, never the restaurant/client receiving it — when in doubt, or when
   you cannot tell which party a detail belongs to, return null rather than guessing.
 
-supplier_category — what this supplier mainly sells, judged from its name and the line items.
+supplier_category — what this supplier mainly sells or provides, judged from its name, trade, and the line items.
 
 The ONLY permitted values are the ${VALID_CATEGORIES.length - 1} listed between the markers below, or null.
 <<<CATEGORY_VALUES>>>
-${VALID_CATEGORIES.filter(c => c !== UNCATEGORIZED_CATEGORY).join('\n')}
+Frutas y Verduras          — fresh or minimally processed fruit, vegetables, mushrooms, herbs
+Carnes y Derivados         — raw meat, poultry, game; offal; meat-based prepared foods
+Pescados y Mariscos        — fresh, smoked, or cured fish; shellfish; seafood products
+Lácteos                    — milk, cream, butter, cheese, yoghurt, eggs
+Aceites y Conservas        — cooking oils, vinegars, tinned/jarred foods, pickles, sauces
+Bebidas                    — water, soft drinks, juices, beer, spirits, non-wine alcohol
+Panadería y Bollería       — bread, pastries, cakes, flour-based bakery goods
+Especias y Condimentos     — spices, dried herbs, salt, pepper, mustards, seasonings
+Productos de Limpieza      — detergents, disinfectants, cleaning cloths, hygiene supplies
+Congelados                 — frozen food of any type (meat, fish, veg, pre-cooked meals)
+Embutidos y Charcutería    — cured meats, cold cuts, salami, chorizo, jamón, pâtés
+Vinos y Cavas              — still wine, sparkling wine, cava, champagne, vermouth
+Café y Bebidas Calientes   — coffee beans/pods/capsules, tea, hot chocolate, infusions
+Mantenimiento y Reparaciones — repair services, HVAC, plumbing, electrical work, technical servicing of equipment
+Material y Menaje          — tableware, crockery, glassware, cutlery, kitchen utensils, small appliances
+Embalaje y Packaging       — take-away containers, bags, cling film, napkins, food-grade packaging
 <<<END_CATEGORY_VALUES>>>
 
 Rules for supplier_category:
-- Copy one value EXACTLY as written above, including accents and capitalisation.
-- Return null if none of them clearly fits, if the supplier sells across several with no dominant
-  one, or if the line items are too sparse to tell. Null is the correct, expected answer in those
-  cases — it is not a failure.
+- Copy one value EXACTLY as written above (only the name before the dash), including accents and capitalisation.
+- If the supplier name alone unambiguously indicates a category (e.g. "Tecno-Frío Hostelería — Servicio Técnico" → Mantenimiento y Reparaciones, "Panadería …" → Panadería y Bollería), use it even if this one invoice has a few items from other categories.
+- Return null only when the supplier genuinely spans several categories with no dominant one, or when there is too little information to decide.
 - Never translate a value, never invent a new one, and never return "${UNCATEGORIZED_CATEGORY}".
-  Anything that is not an exact copy of a listed value is discarded.
-- Judge the supplier, not this one document: a general wholesaler that happens to have delivered only
-  cheese today is still a general wholesaler, so return null rather than "Lácteos".
+  Anything that is not an exact copy of a listed name is discarded.
+- Judge the supplier identity, not just this document: a general wholesaler that happens to have delivered only cheese today is still a general wholesaler, so return null rather than "Lácteos".
 
 Confidence scores (document-level and per-field):
 - 0.85+ : Clearly visible and readable
@@ -120,7 +136,7 @@ export interface ExtractedInvoice {
 	total_amount: number | null;
 	currency: string | null;
 	tax_base: number | null;
-	tax_breakdown: Array<{ rate: number; base: number; tax_amount: number }> | null;
+	tax_breakdown: Array<{ rate: number; base: number; tax_amount: number; type?: 'iva' | 'rec' }> | null;
 	confidence: number;
 	field_confidences?: {
 		supplier_name?: number;
@@ -133,12 +149,14 @@ export interface ExtractedInvoice {
 	};
 	line_items: Array<{
 		description: string;
+		product_code?: string | null;
 		quantity: number | null;
 		unit: string | null;
 		unit_price: number | null;
 		total_price: number | null;
 		confidence?: number;
 	}>;
+	outstanding_balance?: number | null;
 	qr_url?: string | null;
 	qr_mismatch?: boolean;
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
@@ -302,7 +320,7 @@ export async function extractInvoice(
 }
 
 async function callProvider(
-	provider: LLMProvider,
+	provider: ReturnType<typeof createGeminiProvider>,
 	classified: ClassifiedFile,
 	filePath: string,
 	signal?: AbortSignal,
@@ -345,7 +363,7 @@ async function callProvider(
 
 export async function extractWithProvider(
 	filePath: string,
-	provider?: LLMProvider,
+	provider?: ReturnType<typeof createGeminiProvider>,
 ): Promise<{ invoice: ExtractedInvoice; usage: LLMUsage }> {
 	const classified = await classifyFile(filePath);
 
@@ -356,7 +374,7 @@ export async function extractWithProvider(
 		return { invoice: result, usage: zeroUsage };
 	}
 
-	const resolvedProvider = provider ?? createLLMProvider();
+	const resolvedProvider = provider ?? createGeminiProvider();
 
 	const controller = new AbortController();
 	let timeoutHandle: ReturnType<typeof setTimeout>;

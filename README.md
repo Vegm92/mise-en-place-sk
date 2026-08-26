@@ -69,7 +69,6 @@ Why the app is shaped this way is recorded as ADRs in **[`docs/06_decisions/`](d
 3. `pnpm install`
 4. `pnpm db:migrate` (applies `drizzle/` migrations — the canonical schema, per ADR-003)
 5. `pnpm dev:all` — runs the web server **and** the extraction worker (both are required; `pnpm dev` alone leaves invoice extractions stuck in `queued`). First boot seeds the admin user from `AUTH_ADMIN_EMAIL` / `AUTH_ADMIN_PASSWORD`.
-6. Optional: `pnpm db:seed-demo` for demo data.
 
 ### Useful scripts
 
@@ -77,7 +76,6 @@ Why the app is shaped this way is recorded as ADRs in **[`docs/06_decisions/`](d
 |---|---|
 | `pnpm check` / `pnpm test` | typecheck / unit & integration tests (DB-backed suites need a **local** Postgres — see below) |
 | `pnpm db:generate` / `db:migrate` / `db:studio` | Drizzle workflow |
-| `pnpm synth:generate` | generate synthetic invoice PDF+GT fixtures for local testing (`synth/`, dev-only — not in the repo) |
 | `pnpm qa:sweep` | drive the running app in headless Chromium and write `qa-report.md` — route health, security headers, a11y, i18n key leakage, responsive, malformed route params. Needs `pnpm dev` up and, first time only, `npx playwright install chromium`. See [docs/04_engineering/browser_qa_sweep.md](docs/04_engineering/browser_qa_sweep.md) |
 
 ### Running the DB-backed tests

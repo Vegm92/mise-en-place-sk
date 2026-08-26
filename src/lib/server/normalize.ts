@@ -7,8 +7,27 @@ export function normalizeProductKey(raw: string): string {
 		.trim();
 }
 
-const SPANISH_LEGAL_FORM_RE =
-	/(?:^|[,.]\s*|\s+)(s\.?\s*l\.?\s*u\.?|s\.?\s*l\.?\s*n\.?\s*e\.?|s\.?\s*a\.?\s*u\.?|s\.?\s*c\.?\s*p\.?|s\.?\s*coop\.?|coop\.?|s\.?\s*l\.?|s\.?\s*a\.?|s\.?\s*c\.?|c\.?\s*b\.?)\s*$/i;
+const SPANISH_LEGAL_FORM_TOKENS: string[][] = [
+	['s', 'l', 'u'],
+	['s', 'l', 'n', 'e'],
+	['s', 'a', 'u'],
+	['s', 'c', 'p'],
+	['s', 'coop'],
+	['coop'],
+	['s', 'l'],
+	['s', 'a'],
+	['s', 'c'],
+	['c', 'b'],
+];
+
+const SPANISH_LEGAL_FORM_ALTERNATIVES = SPANISH_LEGAL_FORM_TOKENS.map((tokens) =>
+	tokens.map((token) => `${token}\\.?`).join('\\s*'),
+).join('|');
+
+const SPANISH_LEGAL_FORM_RE = new RegExp(
+	`(?:^|[,.]\\s*|\\s)(${SPANISH_LEGAL_FORM_ALTERNATIVES})\\s*$`,
+	'i',
+);
 
 export interface ParsedSupplierName {
 	base: string;
@@ -95,7 +114,7 @@ for (const [canonical, variants] of Object.entries(UNIT_GROUPS)) {
 
 export function canonicalizeUnit(raw: string | null | undefined): string | null {
 	if (!raw) return null;
-	const key = normalizeProductKey(String(raw)).replace(/\.+$/, '');
+	const key = normalizeProductKey(String(raw)).replace(/(?<!\.)\.+$/, '');
 	if (!key) return null;
 	return UNIT_SYNONYMS.get(key) ?? null;
 }

@@ -2,8 +2,8 @@ import type { PgBoss } from 'pg-boss';
 import { and, eq, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant } from './db';
-import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, restaurants, subscriptions, userRestaurants } from './schema';
-import { users } from './schema/auth';
+import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
+import { users } from './schema';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
@@ -11,13 +11,25 @@ import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './product
 import { moneyToNumber, moneyToNullableNumber } from './money';
 import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
-import { TIERS, type PlanTier } from './billing';
+import { TIERS, effectiveTier } from './billing';
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
 import { sweepIdempotencyKeys } from './idempotency';
+import { filterEnabledAlerts, isAlertEnabled } from './alert-preferences';
+import {
+	dispatchTenantJobs,
+	registerTenantFanout,
+	type DispatchResult,
+	type TenantJobData,
+} from './tenant-fanout';
 
 const LOW_STOCK_DAYS = 3;
+const UNIT_PRICE = 'unitPrice';
+const NORMALIZED_UNIT_PRICE = 'normalizedUnitPrice';
+const BASE_UNIT = 'baseUnit';
+const MESSAGE_KEY = 'messageKey';
+const MESSAGE_VARS = 'messageVars';
 
 export interface Alert {
 	notificationType: string;
@@ -32,6 +44,22 @@ function median(values: number[]): number {
 	return sorted[Math.floor((sorted.length - 1) / 2)];
 }
 
+function buildPriceHistory<K, R extends { unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(
+	rows: R[],
+	getKey: (row: R) => K,
+): Map<K, PricePoint> {
+	const history = new Map<K, PricePoint[]>();
+	for (const row of rows) {
+		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
+		const key = getKey(row);
+		const arr = history.get(key);
+		if (arr) arr.push(point); else history.set(key, [point]);
+	}
+	const map = new Map<K, PricePoint>();
+	for (const [key, points] of history) map.set(key, collapseHistory(points));
+	return map;
+}
+
 function collapseHistory(points: PricePoint[]): PricePoint {
 	if (points.length === 1) return points[0];
 	const unitPrice = median(points.map(p => p.unitPrice));
@@ -43,26 +71,12 @@ function collapseHistory(points: PricePoint[]): PricePoint {
 
 const PRICE_HISTORY_WINDOW = 3;
 
-export async function runPriceShock(
-	invoiceId: number,
-	supplierName: string,
-	lineItems: EnrichedLineItem[],
+async function loadKeyPriceHistory(
 	restaurantId: string,
-	productByKey?: Map<string, number>,
-): Promise<Alert[]> {
-	const tdb = forTenant(restaurantId);
-	const alerts: Alert[] = [];
-
-	const thresholdRows = await db
-		.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'price_alert_threshold')))
-		.limit(1);
-	const PRICE_SHOCK_THRESHOLD = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
-
-	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
-	if (itemKeys.length === 0) return [];
-
+	supplierName: string,
+	itemKeys: string[],
+	invoiceId: number,
+): Promise<Map<string, PricePoint>> {
 	const priceRows = await db.execute<{ itemKey: string; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
 		SELECT "itemKey", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
 			SELECT
@@ -87,84 +101,133 @@ export async function runPriceShock(
 		WHERE rn <= ${PRICE_HISTORY_WINDOW}
 	`);
 
-	const keyPriceHistory = new Map<string, PricePoint[]>();
-	for (const row of priceRows) {
-		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
-		const arr = keyPriceHistory.get(row.itemKey);
-		if (arr) arr.push(point); else keyPriceHistory.set(row.itemKey, [point]);
-	}
-	const keyPriceMap = new Map<string, PricePoint>();
-	for (const [key, points] of keyPriceHistory) keyPriceMap.set(key, collapseHistory(points));
+	return buildPriceHistory(priceRows, r => r.itemKey);
+}
 
-	const productPriceMap = new Map<number, PricePoint>();
+async function loadProductPriceHistory(
+	restaurantId: string,
+	supplierName: string,
+	productByKey: Map<string, number> | undefined,
+	invoiceId: number,
+): Promise<Map<number, PricePoint>> {
 	const productIds = productByKey ? [...new Set(productByKey.values())] : [];
-	if (productIds.length > 0) {
-		const productRows = await db.execute<{ productId: number; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
-			SELECT "productId", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
-				SELECT
-					ili.product_id AS "productId",
-					ili.unit_price AS "unitPrice",
-					ili.normalized_unit_price AS "normalizedUnitPrice",
-					ili.base_unit AS "baseUnit",
-					ROW_NUMBER() OVER (
-						PARTITION BY ili.product_id
-						ORDER BY i.invoice_date DESC, i.id DESC
-					) AS rn
-				FROM invoice_line_items ili
-				INNER JOIN invoices i ON ili.invoice_id = i.id
-				INNER JOIN suppliers s ON i.supplier_id = s.id
-				WHERE i.restaurant_id = ${restaurantId}
-					AND ili.product_id IN (${sql.join(productIds.map(p => sql`${p}`), sql`, `)})
-					AND s.name = ${supplierName}
-					AND ili.invoice_id != ${invoiceId}
-					AND ili.unit_price IS NOT NULL
-					AND i.deleted_at IS NULL
-			) ranked
-			WHERE rn <= ${PRICE_HISTORY_WINDOW}
-		`);
-		const productHistory = new Map<number, PricePoint[]>();
-		for (const row of productRows) {
-			const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
-			const arr = productHistory.get(row.productId);
-			if (arr) arr.push(point); else productHistory.set(row.productId, [point]);
-		}
-		for (const [productId, points] of productHistory) productPriceMap.set(productId, collapseHistory(points));
-	}
+	const map = new Map<number, PricePoint>();
+	if (productIds.length === 0) return map;
 
+	const productRows = await db.execute<{ productId: number; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
+		SELECT "productId", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
+			SELECT
+				ili.product_id AS "productId",
+				ili.unit_price AS "unitPrice",
+				ili.normalized_unit_price AS "normalizedUnitPrice",
+				ili.base_unit AS "baseUnit",
+				ROW_NUMBER() OVER (
+					PARTITION BY ili.product_id
+					ORDER BY i.invoice_date DESC, i.id DESC
+				) AS rn
+			FROM invoice_line_items ili
+			INNER JOIN invoices i ON ili.invoice_id = i.id
+			INNER JOIN suppliers s ON i.supplier_id = s.id
+			WHERE i.restaurant_id = ${restaurantId}
+				AND ili.product_id IN (${sql.join(productIds.map(p => sql`${p}`), sql`, `)})
+				AND s.name = ${supplierName}
+				AND ili.invoice_id != ${invoiceId}
+				AND ili.unit_price IS NOT NULL
+				AND i.deleted_at IS NULL
+		) ranked
+		WHERE rn <= ${PRICE_HISTORY_WINDOW}
+	`);
+
+	return buildPriceHistory(productRows, r => r.productId);
+}
+
+function determinePriceComparison(
+	newPrice: number,
+	newNorm: number | null,
+	baseline: PricePoint,
+	newPack: ReturnType<typeof parsePack>,
+): { useNorm: boolean; oldCmp: number; newCmp: number } {
+	const useNorm = newNorm != null && baseline.normalizedUnitPrice != null && baseline.normalizedUnitPrice > 0
+		&& newPack != null && baseline.baseUnit != null && newPack.baseUnit === baseline.baseUnit;
+
+	const oldCmp = useNorm ? baseline.normalizedUnitPrice! : baseline.unitPrice;
+	const newCmp = useNorm ? newNorm! : newPrice;
+
+	return { useNorm, oldCmp, newCmp };
+}
+
+function evaluatePriceShock(
+	item: EnrichedLineItem,
+	supplierName: string,
+	productByKey: Map<string, number> | undefined,
+	keyPriceMap: Map<string, PricePoint>,
+	productPriceMap: Map<number, PricePoint>,
+	threshold: number,
+): Alert | null {
+	const description = (item.description ?? '').trim();
+	const newPrice = item.unitPrice;
+	if (!description || newPrice == null) return null;
+
+	const key = normalizeProductKey(description);
+	const pid = productByKey?.get(key);
+	const prev = pid != null ? productPriceMap.get(pid) : undefined;
+	const baseline = prev ?? keyPriceMap.get(key);
+	if (!baseline) return null;
+
+	const newPack = parsePack(description, item.unit);
+	const newNorm = normalizedUnitPrice(newPrice, newPack);
+	const comparison = determinePriceComparison(newPrice, newNorm, baseline, newPack);
+
+	const { useNorm, oldCmp, newCmp } = comparison;
+	if (oldCmp === 0) return null;
+
+	const deviation = (newCmp - oldCmp) / oldCmp;
+	if (Math.abs(deviation) < threshold) return null;
+
+	const pct = Math.round(deviation * 1000) / 10;
+	const sign = pct > 0 ? '+' : '';
+	const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
+	const basis = useNorm
+		? { label: 'per_base_unit' as const, unit: newPack!.baseUnit }
+		: { label: 'per_unit' as const, unit: null };
+
+	return {
+		notificationType: 'price_shock',
+		message: `price_shock: ${description} ${sign}${pct}%`,
+		payload: {
+			ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: basis.label, baseUnit: basis.unit,
+			messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
+			messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
+		},
+	};
+}
+
+export async function runPriceShock(
+	invoiceId: number,
+	supplierName: string,
+	lineItems: EnrichedLineItem[],
+	restaurantId: string,
+	productByKey?: Map<string, number>,
+): Promise<Alert[]> {
+	const tdb = forTenant(restaurantId);
+
+	const thresholdRows = await db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'price_alert_threshold')))
+		.limit(1);
+	const threshold = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
+
+	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
+	if (itemKeys.length === 0) return [];
+
+	const keyPriceMap = await loadKeyPriceHistory(restaurantId, supplierName, itemKeys, invoiceId);
+	const productPriceMap = await loadProductPriceHistory(restaurantId, supplierName, productByKey, invoiceId);
+
+	const alerts: Alert[] = [];
 	for (const item of lineItems) {
-		const description = (item.description ?? '').trim();
-		const newPrice = item.unitPrice;
-		if (!description || newPrice == null) continue;
-
-		const key = normalizeProductKey(description);
-		const pid = productByKey?.get(key);
-		const prev = (pid != null ? productPriceMap.get(pid) : undefined) ?? keyPriceMap.get(key);
-		if (!prev) continue;
-
-		const newPack = parsePack(description, item.unit);
-		const newNorm = normalizedUnitPrice(newPrice, newPack);
-		const useNorm = newNorm != null && prev.normalizedUnitPrice != null && prev.normalizedUnitPrice > 0
-			&& newPack != null && prev.baseUnit != null && newPack.baseUnit === prev.baseUnit;
-
-		const oldCmp = useNorm ? prev.normalizedUnitPrice! : prev.unitPrice;
-		const newCmp = useNorm ? newNorm! : newPrice;
-		if (oldCmp === 0) continue;
-
-		const deviation = (newCmp - oldCmp) / oldCmp;
-		if (Math.abs(deviation) < PRICE_SHOCK_THRESHOLD) continue;
-
-		const pct = Math.round(deviation * 1000) / 10;
-		const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
-
-		alerts.push({
-			notificationType: 'price_shock',
-			message: `price_shock: ${description} ${pct > 0 ? '+' : ''}${pct}%`,
-			payload: {
-				ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null,
-				messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
-				messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
-			},
-		});
+		const alert = evaluatePriceShock(item, supplierName, productByKey, keyPriceMap, productPriceMap, threshold);
+		if (alert) alerts.push(alert);
 	}
 
 	return alerts;
@@ -177,6 +240,7 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
 
+	const itemKeyList = sql.join(itemKeys.map(k => sql`${k}`), sql`, `);
 	const stockRows = await db
 		.select({
 			ingredient: stockLevels.ingredient,
@@ -187,7 +251,7 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 		.from(stockLevels)
 		.where(and(
 			tdb.scope(stockLevels.restaurantId),
-			sql`mep_norm_key(${stockLevels.ingredient}) IN (${sql.join(itemKeys.map(k => sql`${k}`), sql`, `)})`,
+			sql`mep_norm_key(${stockLevels.ingredient}) IN (${itemKeyList})`,
 		));
 
 	const stockMap = new Map(stockRows.map(r => [normalizeProductKey(r.ingredient), r]));
@@ -258,7 +322,7 @@ export async function runCategorizationNudge(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { }
+		} catch (e) { console.error(e); }
 	}
 
 	return [{
@@ -301,7 +365,7 @@ export async function runCategorySuggestion(
 	for (const row of existing) {
 		try {
 			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch { }
+		} catch (e) { console.error(e); }
 	}
 
 	await db
@@ -327,6 +391,11 @@ export async function runCategorySuggestion(
 			messageVars: { supplier: supplier.name, category: proposedCategory },
 		},
 	}];
+}
+
+function budgetOverageLevel(pctFrac: number, thresholdFrac: number): 'exceeded' | 'warning' | null {
+	if (pctFrac >= 1.0) return 'exceeded';
+	return pctFrac >= thresholdFrac ? 'warning' : null;
 }
 
 export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
@@ -363,12 +432,12 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 			tdb.scope(invoices.restaurantId),
 			isNull(invoices.deletedAt),
 			sql`COALESCE(${suppliers.category}, 'Other') = ${category}`,
-			sql`TO_CHAR((${invoices.invoiceDate})::date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
+			sql`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
 		));
 	const totalSpend = moneyToNumber(spendRows[0]?.total ?? '0');
 	const pctFrac = totalSpend / monthlyBudget;
 
-	const level = pctFrac >= 1.0 ? 'exceeded' : pctFrac >= thresholdFrac ? 'warning' : null;
+	const level = budgetOverageLevel(pctFrac, thresholdFrac);
 	if (!level) return [];
 
 	const monthPrefix = new Date().toISOString().slice(0, 7);
@@ -384,7 +453,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		try {
 			const p = JSON.parse(row.payload ?? '{}');
 			return p.category === category && p.level === level;
-		} catch { return false; }
+		} catch (e) { console.error(e); return false; }
 	});
 	if (alreadySent) return [];
 
@@ -438,10 +507,10 @@ export async function runPossibleDuplicatePurchase(
 			isNull(invoices.deletedAt),
 			isNotNull(invoices.totalAmount),
 			isNotNull(invoices.invoiceDate),
-			sql`ABS((${invoices.invoiceDate})::date - ${invoiceDate}::date) <= ${DUPLICATE_DATE_WINDOW_DAYS}`,
+			sql`ABS(${invoices.invoiceDate} - ${invoiceDate}::date) <= ${DUPLICATE_DATE_WINDOW_DAYS}`,
 			sql`ABS(${invoices.totalAmount} - ${totalAmount}) <= GREATEST(${invoices.totalAmount}, ${totalAmount}) * ${DUPLICATE_AMOUNT_TOLERANCE}`,
 		))
-		.orderBy(sql`ABS((${invoices.invoiceDate})::date - ${invoiceDate}::date) ASC`)
+		.orderBy(sql`ABS(${invoices.invoiceDate} - ${invoiceDate}::date) ASC`)
 		.limit(1);
 
 	if (matches.length === 0) return [];
@@ -470,8 +539,10 @@ export async function runPossibleDuplicatePurchase(
 
 export async function saveAlerts(invoiceId: number, restaurantId: string, alerts: Alert[]): Promise<void> {
 	if (alerts.length === 0) return;
+	const enabled = await filterEnabledAlerts(restaurantId, alerts);
+	if (enabled.length === 0) return;
 	await db.transaction(async (tx) => {
-		for (const alert of alerts) {
+		for (const alert of enabled) {
 			await tx.insert(systemNotifications).values({
 				invoiceId,
 				restaurantId,
@@ -491,6 +562,12 @@ export const PURGE_QUEUE = 'scheduled-file-purge';
 export const DEAD_LETTER_PURGE_QUEUE = 'scheduled-dead-letter-purge';
 export const ANALYTICS_REFRESH_QUEUE = 'scheduled-analytics-refresh';
 export const IDEMPOTENCY_SWEEP_QUEUE = 'scheduled-idempotency-sweep';
+
+export const DIGEST_TENANT_QUEUE = 'tenant-weekly-digest';
+export const REMINDERS_TENANT_QUEUE = 'tenant-overdue-reminder';
+export const TRIAL_TENANT_QUEUE = 'tenant-trial-notice';
+
+export const TENANT_FANOUT_QUEUES = [DIGEST_TENANT_QUEUE, REMINDERS_TENANT_QUEUE, TRIAL_TENANT_QUEUE];
 
 const DIGEST_CRON = '0 6 * * 1';
 const REMINDERS_CRON = '30 6 * * *';
@@ -528,111 +605,94 @@ async function ownerEmail(restaurantId: string): Promise<string | null> {
 	return row?.email ?? null;
 }
 
-async function allTenants(): Promise<Array<{
-	id: string;
-	name: string;
-	planTier: PlanTier;
-	status: string;
-	trialEndsAt: Date | null;
-}>> {
-	const rows = await db.select({
-		id: restaurants.id,
-		name: restaurants.name,
-		planTier: subscriptions.planTier,
-		status: subscriptions.status,
-		trialEndsAt: subscriptions.trialEndsAt,
-	})
-		.from(restaurants)
-		.leftJoin(subscriptions, eq(restaurants.id, subscriptions.restaurantId));
-
-	return rows.map(r => ({
-		id: r.id,
-		name: r.name,
-		planTier: (r.planTier ?? 'trial') as PlanTier,
-		status: r.status ?? 'trialing',
-		trialEndsAt: r.trialEndsAt ?? null,
-	}));
-}
-
 function today(): string {
 	return new Date().toISOString().slice(0, 10);
 }
 
-async function perTenant<T extends { id?: string }>(
-	label: string,
-	tenants: T[],
-	fn: (tenant: T) => Promise<boolean>,
-): Promise<{ considered: number; sent: number }> {
-	let sent = 0;
-	for (const tenant of tenants) {
-		try {
-			if (await fn(tenant)) sent++;
-		} catch (err) {
-			console.error(`[scheduler] ${label} failed for a tenant (continuing):`, err);
-			Sentry.captureException(err, { tags: { job: label } });
-			await recordDeadLetter({
-				queue: label,
-				error: err,
-				restaurantId: tenant.id ?? null,
-				sourceId: tenant.id ?? null,
-			});
-		}
-	}
-	return { considered: tenants.length, sent };
+export interface WeeklyDigestJobData extends TenantJobData {
+	week: string;
 }
 
-export async function runWeeklyDigestJob(): Promise<{ considered: number; sent: number }> {
+export interface OverdueReminderJobData extends TenantJobData {
+	day: string;
+}
+
+export interface TrialNoticeJobData extends TenantJobData {
+	milestone: number;
+	claim: string;
+}
+
+export async function runWeeklyDigestJob(boss: PgBoss): Promise<DispatchResult> {
 	const week = isoWeek(new Date());
-	const tenants = (await allTenants()).filter(t => TIERS[t.planTier].features.weeklyDigest);
 
-	return await perTenant('weekly-digest', tenants, async (tenant) => {
-		const digest = await getOrGenerateWeeklyDigest(tenant.id, week);
-		if (!digest?.text) return false;
-
-		if (!(await claimOnce(tenant.id, 'weekly_digest_email_week', week))) return false;
-
-		const email = await ownerEmail(tenant.id);
-		if (!email) return false;
-
-		const html = digest.text
-			.split(/\n{2,}/)
-			.map(p => `<p>${p.trim()}</p>`)
-			.join('\n');
-		await sendEmail(weeklyDigestEmail(email, tenant.name, html));
-		return true;
+	return await dispatchTenantJobs<WeeklyDigestJobData>(boss, {
+		queue: DIGEST_TENANT_QUEUE,
+		label: 'weekly-digest',
+		jobFor: (tenant) => TIERS[effectiveTier(tenant)].features.weeklyDigest
+			? { data: { restaurantId: tenant.id, name: tenant.name, week }, singletonKey: `${tenant.id}:${week}` }
+			: null,
 	});
 }
 
-export async function runOverdueRemindersJob(): Promise<{ considered: number; sent: number }> {
-	const tenants = await allTenants();
+export async function sendWeeklyDigest(data: WeeklyDigestJobData): Promise<boolean> {
+	if (!(await isAlertEnabled(data.restaurantId, 'weekly_digest'))) return false;
+
+	const digest = await getOrGenerateWeeklyDigest(data.restaurantId, data.week);
+	if (!digest) return false;
+
+	if (!(await claimOnce(data.restaurantId, 'weekly_digest_email_week', data.week))) return false;
+
+	const email = await ownerEmail(data.restaurantId);
+	if (!email) return false;
+
+	const html = digest
+		.split(/\n{2,}/)
+		.map(p => `<p>${p.trim()}</p>`)
+		.join('\n');
+	await sendEmail(weeklyDigestEmail(email, data.name, html));
+	return true;
+}
+
+export async function runOverdueRemindersJob(boss: PgBoss): Promise<DispatchResult> {
 	const day = today();
 
-	return await perTenant('overdue-reminders', tenants, async (tenant) => {
-		const tdb = forTenant(tenant.id);
-		const [row] = await db.select({
-			count: sql<number>`COUNT(*)::int`,
-			total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
-		})
-			.from(invoices)
-			.where(tdb.scope(invoices.restaurantId, and(
-				isNull(invoices.deletedAt),
-				ne(invoices.status, 'paid'),
-				isNotNull(invoices.dueDate),
-				sql`${invoices.dueDate} < ${day}`,
-			)));
-
-		const count = row?.count ?? 0;
-		if (count === 0) return false;
-
-		if (!(await claimOnce(tenant.id, 'overdue_reminder_sent_day', day))) return false;
-
-		const email = await ownerEmail(tenant.id);
-		if (!email) return false;
-
-		const total = `${(row?.total ?? 0).toFixed(2)} €`;
-		await sendEmail(overdueInvoiceEmail(email, tenant.name, count, total));
-		return true;
+	return await dispatchTenantJobs<OverdueReminderJobData>(boss, {
+		queue: REMINDERS_TENANT_QUEUE,
+		label: 'overdue-reminders',
+		jobFor: (tenant) => ({
+			data: { restaurantId: tenant.id, name: tenant.name, day },
+			singletonKey: `${tenant.id}:${day}`,
+		}),
 	});
+}
+
+export async function sendOverdueReminder(data: OverdueReminderJobData): Promise<boolean> {
+	if (!(await isAlertEnabled(data.restaurantId, 'invoice_reminders'))) return false;
+
+	const tdb = forTenant(data.restaurantId);
+	const [row] = await db.select({
+		count: sql<number>`COUNT(*)::int`,
+		total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
+	})
+		.from(invoices)
+		.where(tdb.scope(invoices.restaurantId, and(
+			isNull(invoices.deletedAt),
+			ne(invoices.status, 'paid'),
+			isNotNull(invoices.dueDate),
+			sql`${invoices.dueDate} < ${data.day}`,
+		)));
+
+	const count = Number(row?.count ?? 0);
+	if (count === 0) return false;
+
+	if (!(await claimOnce(data.restaurantId, 'overdue_reminder_sent_day', data.day))) return false;
+
+	const email = await ownerEmail(data.restaurantId);
+	if (!email) return false;
+
+	const total = `${Number(row?.total ?? 0).toFixed(2)} €`;
+	await sendEmail(overdueInvoiceEmail(email, data.name, count, total));
+	return true;
 }
 
 export function trialDaysLeft(trialEndsAt: Date, now: Date = new Date()): number {
@@ -646,25 +706,33 @@ export function trialMilestoneFor(daysLeft: number): number | null {
 	return 7;
 }
 
-export async function runTrialNoticesJob(): Promise<{ considered: number; sent: number }> {
-	const tenants = (await allTenants()).filter(t => t.status === 'trialing' && t.trialEndsAt);
-
-	return await perTenant('trial-notices', tenants, async (tenant) => {
-		const daysLeft = trialDaysLeft(tenant.trialEndsAt!);
-		const milestone = trialMilestoneFor(daysLeft);
-		if (milestone === null) return false;
-
-		const claim = `${tenant.trialEndsAt!.toISOString().slice(0, 10)}:${milestone}`;
-		if (!(await claimOnce(tenant.id, 'trial_notice_sent', claim))) return false;
-
-		const email = await ownerEmail(tenant.id);
-		if (!email) return false;
-
-		await sendEmail(milestone === 0
-			? trialExpiredEmail(email, tenant.name)
-			: trialExpiryEmail(email, tenant.name, milestone));
-		return true;
+export async function runTrialNoticesJob(boss: PgBoss): Promise<DispatchResult> {
+	return await dispatchTenantJobs<TrialNoticeJobData>(boss, {
+		queue: TRIAL_TENANT_QUEUE,
+		label: 'trial-notices',
+		jobFor: (tenant) => {
+			if (tenant.status !== 'trialing' || !tenant.trialEndsAt) return null;
+			const milestone = trialMilestoneFor(trialDaysLeft(tenant.trialEndsAt));
+			if (milestone === null) return null;
+			const claim = `${tenant.trialEndsAt.toISOString().slice(0, 10)}:${milestone}`;
+			return {
+				data: { restaurantId: tenant.id, name: tenant.name, milestone, claim },
+				singletonKey: `${tenant.id}:${claim}`,
+			};
+		},
 	});
+}
+
+export async function sendTrialNotice(data: TrialNoticeJobData): Promise<boolean> {
+	if (!(await claimOnce(data.restaurantId, 'trial_notice_sent', data.claim))) return false;
+
+	const email = await ownerEmail(data.restaurantId);
+	if (!email) return false;
+
+	await sendEmail(data.milestone === 0
+		? trialExpiredEmail(email, data.name)
+		: trialExpiryEmail(email, data.name, data.milestone));
+	return true;
 }
 
 export async function runFilePurgeJob(): Promise<{ purged: number; failed: number }> {
@@ -725,7 +793,7 @@ export async function runAnalyticsRefreshJob(): Promise<{ refreshed: boolean }> 
 interface ScheduledJob {
 	queue: string;
 	cron: string;
-	run: () => Promise<unknown>;
+	run: (boss: PgBoss) => Promise<unknown>;
 }
 
 const JOBS: ScheduledJob[] = [
@@ -740,13 +808,24 @@ const JOBS: ScheduledJob[] = [
 ];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
+	await registerTenantFanout<WeeklyDigestJobData>(boss, {
+		queue: DIGEST_TENANT_QUEUE, label: 'weekly-digest', run: sendWeeklyDigest,
+	});
+	await registerTenantFanout<OverdueReminderJobData>(boss, {
+		queue: REMINDERS_TENANT_QUEUE, label: 'overdue-reminders', run: sendOverdueReminder,
+	});
+	await registerTenantFanout<TrialNoticeJobData>(boss, {
+		queue: TRIAL_TENANT_QUEUE, label: 'trial-notices', run: sendTrialNotice,
+	});
+	console.info(`[scheduler] ${TENANT_FANOUT_QUEUES.length} per-tenant queues registered (${TENANT_FANOUT_QUEUES.join(', ')})`);
+
 	for (const job of JOBS) {
 		await boss.createQueue(job.queue);
 		await boss.schedule(job.queue, job.cron, {}, { tz: 'UTC' });
 		await boss.work(job.queue, { batchSize: 1 }, async () => {
 			const started = Date.now();
 			try {
-				const result = await job.run();
+				const result = await job.run(boss);
 				console.info(`[scheduler] ${job.queue} finished in ${Date.now() - started}ms`, result);
 			} catch (err) {
 				console.error(`[scheduler] ${job.queue} failed after ${Date.now() - started}ms — dead-lettered:`, err);

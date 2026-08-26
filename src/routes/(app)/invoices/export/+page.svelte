@@ -20,9 +20,9 @@
         <div class="flex flex-col gap-1">
           <label class="label" for="date_from">{$t('export.dateRange')}</label>
           <div class="flex gap-2 items-center">
-            <input id="date_from" type="date" name="date_from" class="input flex-1" style="height:36px;font-size:13px;" />
+            <input id="date_from" type="date" name="date_from" class="input flex-1 min-w-0" style="height:36px;" />
             <span class="body text-fg-3">→</span>
-            <input type="date" name="date_to" class="input flex-1" style="height:36px;font-size:13px;" />
+            <input type="date" name="date_to" class="input flex-1 min-w-0" style="height:36px;" />
           </div>
           <p class="body text-fg-3" style="font-size:11.5px;">{$t('export.dateHint')}</p>
         </div>
@@ -30,7 +30,7 @@
         <div class="grid grid-cols-2 gap-4 max-[560px]:grid-cols-1">
           <div class="flex flex-col gap-1">
             <label class="label" for="supplier_id">{$t('inv.filter.supplier')}</label>
-            <select id="supplier_id" name="supplier_id" class="input" style="height:36px;font-size:13px;padding:0 8px;">
+            <select id="supplier_id" name="supplier_id" class="input" style="height:36px;padding:0 8px;">
               <option value="">{$t('inv.filter.all')}</option>
               {#each data.suppliers as s (s.id)}
                 <option value={s.id}>{s.name}</option>
@@ -40,7 +40,7 @@
 
           <div class="flex flex-col gap-1">
             <span class="label">{$t('export.status')}</span>
-            <div class="flex gap-4 items-center h-9">
+            <div class="flex gap-4 items-center flex-wrap">
               {#each [['', $t('export.allStatus')], ['paid', $t('export.paid')], ['pending', $t('export.pending')]] as [val, lbl]}
                 <label class="flex items-center gap-1.5 body cursor-pointer" style="font-size:13px;">
                   <input type="radio" name="status" value={val} checked={val === ''} class="accent-acc" />

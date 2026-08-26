@@ -168,7 +168,7 @@ Hipótesis clave: 30 % de altas vía gestorías en año 1 → 60 % en año 3; co
 
 | Riesgo | Mitigación |
 |---|---|
-| **Precisión de extracción** (un total mal leído destruye la confianza) | Revisión obligatoria de campos de baja confianza antes de guardar; benchmark sintético (`synth/`) como gate de calidad en CI; las correcciones de usuario realimentan la evaluación |
+| **Precisión de extracción** (un total mal leído destruye la confianza) | Revisión obligatoria de campos de baja confianza antes de guardar; las correcciones de usuario realimentan la evaluación |
 | **Distribución** (el hostelero es difícil de alcanzar en digital) | Canal gestorías + Kit Digital + índice de precios como imán orgánico; no dependemos de paid |
 | **Respuesta de Haddock / entrada de un genérico** | Velocidad + transparencia de precios + foco independiente; los genéricos carecen del dominio (unidades, escandallos, albaranes); Haddock está escalando hacia grupos y LatAm |
 | **Dependencia de Gemini** | Capa de abstracción del modelo ya implementada (`GenerateFn`); benchmark permite cambiar de proveedor con regresión controlada |

@@ -4,50 +4,61 @@ import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { trackEvent } from '$lib/server/events';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
+import { invoiceStatusFilter, markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
+import { periodToDate } from '$lib/constants';
+import {
+	countActiveInvoiceFilters,
+	escapeLikePattern,
+	parseInvoiceFilters,
+	type InvoiceSortKey,
+} from '$lib/invoice-filters';
 
 const PAGE_SIZE = 50;
 
-const SORT_OPTIONS = {
+const SORT_OPTIONS: Record<InvoiceSortKey, SQL> = {
 	uploaded_desc:     desc(invoices.createdAt),
 	uploaded_asc:      asc(invoices.createdAt),
 	invoice_date_desc: desc(invoices.invoiceDate),
 	invoice_date_asc:  asc(invoices.invoiceDate),
-} as const;
-type SortKey = keyof typeof SORT_OPTIONS;
-function isSortKey(v: string): v is SortKey {
-	return v in SORT_OPTIONS;
-}
+};
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
-		const status       = url.searchParams.get('status') ?? '';
-		const supplierId   = url.searchParams.get('supplier_id') ?? '';
-		const dateFrom     = url.searchParams.get('date_from') ?? '';
-		const dateTo       = url.searchParams.get('date_to') ?? '';
-		const uploadedFrom = url.searchParams.get('uploaded_from') ?? '';
-		const uploadedTo   = url.searchParams.get('uploaded_to') ?? '';
-		const sortParam    = url.searchParams.get('sort') ?? '';
-		const sort: SortKey = isSortKey(sortParam) ? sortParam : 'uploaded_desc';
+		const filters = parseInvoiceFilters(url.searchParams);
+		const {
+			q, status, supplier_id: supplierId, category,
+			date_from: dateFrom, date_to: dateTo,
+			uploaded_from: uploadedFrom, uploaded_to: uploadedTo,
+			sort,
+		} = filters;
+		const supplierIdNum = Number.parseInt(supplierId, 10);
+		const period = url.searchParams.get('period') ?? '30d';
+		const periodStartStr = periodToDate(period).toISOString().slice(0, 10);
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 		const offset     = (page - 1) * PAGE_SIZE;
 
 		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
-		if (status)       conditions.push(eq(invoices.status, status));
-		if (supplierId)   conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
+		const statusFilter = invoiceStatusFilter(status);
+		if (statusFilter) conditions.push(statusFilter);
+		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
+		if (category)     conditions.push(eq(suppliers.category, category));
 		if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));
 		if (dateTo)       conditions.push(lte(invoices.invoiceDate, dateTo));
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
 		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
+		if (q) {
+			const pattern = `%${escapeLikePattern(q)}%`;
+			conditions.push(or(ilike(invoices.invoiceNumber, pattern), ilike(suppliers.name, pattern))!);
+		}
 
-		const [invoiceRows, statsRow, supplierCountRow, supplierRows, countRow] = await Promise.all([
+		const [invoiceRows, statsRow, trendRows, supplierCountRow, supplierRows, countRow] = await Promise.all([
 			db.select({
 				id:             invoices.id,
 				supplier_name:  suppliers.name,
@@ -72,17 +83,31 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.select({
 				pending_amount: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status}='pending' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
 				pending_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`,
-				overdue_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} < CURRENT_DATE::text AND ${invoices.dueDate} IS NOT NULL THEN 1 END)`,
+				overdue_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} < CURRENT_DATE AND ${invoices.dueDate} IS NOT NULL THEN 1 END)`,
 				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(tdb.scope(invoices.restaurantId, isNull(invoices.deletedAt))),
+				.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.invoiceDate, periodStartStr)))),
+
+			db.execute<{ month: string; paid: string; pending: string; overdue: string }>(sql`
+				SELECT
+					TO_CHAR(DATE_TRUNC('month', invoice_date), 'YYYY-MM') AS month,
+					COALESCE(SUM(CASE WHEN status='paid' THEN total_amount::numeric ELSE 0 END),0) AS paid,
+					COALESCE(SUM(CASE WHEN status='pending' AND (due_date IS NULL OR due_date >= CURRENT_DATE) THEN total_amount::numeric ELSE 0 END),0) AS pending,
+					COALESCE(SUM(CASE WHEN status='pending' AND due_date IS NOT NULL AND due_date < CURRENT_DATE THEN total_amount::numeric ELSE 0 END),0) AS overdue
+				FROM invoices
+				WHERE restaurant_id = ${rid}
+				  AND deleted_at IS NULL
+				  AND invoice_date >= (NOW() - INTERVAL '6 months')::date
+				GROUP BY DATE_TRUNC('month', invoice_date)
+				ORDER BY DATE_TRUNC('month', invoice_date) ASC
+			`),
 
 			db.select({ cnt: sql<number>`COUNT(*)` })
 				.from(suppliers)
 				.where(tdb.scope(suppliers.restaurantId)),
 
-			db.select({ id: suppliers.id, name: suppliers.name })
+			db.select({ id: suppliers.id, name: suppliers.name, category: suppliers.category })
 				.from(suppliers)
 				.where(tdb.scope(suppliers.restaurantId))
 				.orderBy(asc(suppliers.name)),
@@ -90,6 +115,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			// tenant-scope-ok: conditions[0] is tdb.scope(invoices.restaurantId)
 			db.select({ cnt: count() })
 				.from(invoices)
+				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 				.where(and(...conditions)),
 		]);
 
@@ -139,15 +165,25 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
+		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+		const trendData = {
+			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1], 10) - 1)] ?? r.month),
+			series: [
+				{ key: 'paid',    labelKey: 'inv.kpi.paid',    values: trendRows.map(r => Number(r.paid))    },
+				{ key: 'pending', labelKey: 'inv.kpi.pending',  values: trendRows.map(r => Number(r.pending)) },
+				{ key: 'overdue', labelKey: 'inv.kpi.overdue',  values: trendRows.map(r => Number(r.overdue)) },
+			],
+		};
+
 		return {
 			title: 'inv.title',
 			invoices: invoiceList,
 			stats: { ...stats, supplier_count: supplierCountRow[0]?.cnt ?? 0 },
 			suppliers: supplierRows,
-			filters: {
-				status, supplier_id: supplierId, date_from: dateFrom, date_to: dateTo,
-				uploaded_from: uploadedFrom, uploaded_to: uploadedTo, sort,
-			},
+			period,
+			trendData,
+			filters,
+			activeFilterCount: countActiveInvoiceFilters(filters),
 			conflict: url.searchParams.get('conflict') === '1',
 			savedInvoiceId: Number.isFinite(savedId) ? savedId : null,
 			savedAlerts,

@@ -50,8 +50,9 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | ADR | Decision | Status |
 |---|---|---|
 | [010](./insights/ADR-010-alerts-computed-on-save.md) | Alerts computed at save time and persisted, not derived at read time | Active |
-| [011](./insights/ADR-011-scheduled-jobs-in-the-worker.md) | Cron jobs run on pg-boss in the worker; every send is claimed first | Active |
+| [011](./insights/ADR-011-scheduled-jobs-in-the-worker.md) | Cron jobs run on pg-boss in the worker; every send is claimed first | Active, amended by 025 |
 | [018](./insights/ADR-018-one-snapshot-for-chat-and-digest.md) | Chat and digest read one Markdown snapshot, never the database | Active |
+| [025](./insights/ADR-025-scheduled-jobs-fan-out-per-tenant.md) | Scheduled jobs dispatch one pg-boss job per tenant instead of looping | Active |
 
 ### [`analytics/`](./analytics) — spend, prices, extraction quality
 
@@ -64,6 +65,8 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | ADR | Decision | Status |
 |---|---|---|
 | [013](./billing/ADR-013-tiers-trial-and-quota.md) | Stripe owns money, Postgres owns entitlement | Active |
+| [023](./billing/ADR-023-entitlement-gate-is-route-declared.md) | Entitlement declared per route, enforced in one hook | Active |
+| [024](./billing/ADR-024-one-subscription-per-user.md) | One subscription per user; tier sets restaurant capacity | Active |
 
 ### [`identity/`](./identity) — auth and session
 
@@ -101,7 +104,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **023**.
+number: **025**.
 
 **Folders group; they do not scope.** A decision belongs in the folder of the
 feature it most affects. Decisions that touch several areas live with the primary
@@ -130,7 +133,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **023**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **025**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original

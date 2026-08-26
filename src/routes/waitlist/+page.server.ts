@@ -3,7 +3,7 @@ import { countWaitlistEmails, insertWaitlistEmail } from '$lib/server/waitlist-d
 import { publicFormAction } from '$lib/server/public-form-action';
 import type { Actions, PageServerLoad } from './$types';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@][^\s@.]*\.[^\s@]*[^\s@]$/;
 
 export const load: PageServerLoad = async ({ url }) => {
   const spotTaken = await countWaitlistEmails();
@@ -12,7 +12,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 export const actions: Actions = {
   join: publicFormAction(
-    { limits: ({ ip }) => [{ key: `waitlist:${ip}`, max: 5 }] },
+    { limits: ({ ip }) => [{ key: `waitlist:${ip}`, max: 5 }], turnstile: true },
     async ({ form }) => {
       const email = (form.get('email') as string ?? '').trim().toLowerCase();
 

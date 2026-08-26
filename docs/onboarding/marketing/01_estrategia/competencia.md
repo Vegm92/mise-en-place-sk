@@ -9,12 +9,19 @@ Quién está en el tablero y para qué nos sirve cada uno. Recuerda la regla: aq
 dentro, toda la franqueza; hacia fuera, **no se menciona a nadie por su nombre
 en negativo**.
 
+**Análisis a fondo con ficha por competidor, gaps y lo que implica para el
+producto:**
+[[docs/onboarding/marketing/01_estrategia/analisis_competencia_bcn|Análisis de
+competencia en Barcelona]] (agosto 2026). Lo de abajo es el resumen; ese
+documento es la fuente.
+
 ## El tablero
 
 | Competidor | Qué hace | Precio | Punto débil aprovechable |
 |---|---|---|---|
-| **Haddock** (Barcelona, YC) | Facturas + escandallos. El rival directo | No público, ~75 €/mes de referencia | Precio opaco, venta consultiva. Reseñas ~3,9 con quejas históricas de precisión |
-| **Gstock** | Inventario y escandallos, con OCR de albaranes | Bajo presupuesto | Producto pensado desde el inventario: pesado para un independiente |
+| **Haddock** (Barcelona, YC) | Facturas + escandallos, ampliándose a suite (RRHH, TPV, IA). El rival directo | **Público desde ago. 2026**: Growth 85 €/mes (200 docs), Premium 120 €/mes (400 docs) | Se ha vuelto suite: más superficie, menos foco. Trustpilot 4,2/5 (24 reseñas) — mejor que la nota antigua de ~3,9, no repetir ese dato |
+| **Kitchen Stocker** (España) | Inventario + food cost + OCR de facturas | 99 €/mes (público), prueba 14 días sin tarjeta | Autoservicio real, como nosotros — pero el foco es inventario/merma, no precio por ingrediente ni conversión de unidades |
+| **Gstock** | Inventario y escandallos, con OCR de albaranes | Sin publicar — calculadora de ROI en vez de tarifa | Promete «10 % de ahorro garantizado» sin matiz. Producto pensado desde el inventario: pesado para un independiente |
 | **Yurest** (Valencia) | Suite de operaciones, con una versión ligera | — | La inteligencia sobre facturas no es su núcleo |
 | **MarketMan** (global) | Inventario + escaneo | Desde 199 $/mes + 500 $ de alta | Reseñas duras sobre el escaneo, soporte lento, permanencia, y sin localización española |
 | **Supy** (Emiratos) | Multi-marca, compras | — | Va a grupos grandes, no a independientes. Sin presencia aquí |
@@ -48,13 +55,19 @@ carpeta de plástico:
 Esta página es un resumen del plan de negocio. Lo que la haría de verdad útil
 —y que nadie ha hecho— es esto:
 
-- [ ] **Vaciado de reseñas.** 20–30 reseñas públicas de Haddock y MarketMan,
-      agrupadas por queja. Es la mina más barata de mensajes que funcionan
-- [ ] **Ficha por competidor** con capturas de su web, su promesa principal y su
-      recorrido de alta. Cómo se venden importa tanto como qué venden
+- [ ] **Vaciado de reseñas.** Empezado: Trustpilot de Haddock leído (4,2/5,
+      24 reseñas), falta agrupar por queja concreta con cita textual. MarketMan
+      sigue pendiente
+- [x] **Ficha por competidor** con su promesa principal, recorrido de alta,
+      estructura de página y precio — hecho para Haddock, Kitchen Stocker y
+      Gstock en el
+      [[docs/onboarding/marketing/01_estrategia/analisis_competencia_bcn|análisis
+      a fondo]]. Faltan las capturas de pantalla reales (sin navegador
+      disponible esa sesión)
 - [ ] **Darse de alta en sus listas** y guardar la secuencia de emails completa
-- [ ] **Sus precios reales**, no los de referencia. Muchos no publican y hay que
-      pedir presupuesto
+- [x] **Sus precios reales**: Haddock y Kitchen Stocker ya publican tarifa
+      (ver tabla arriba). Gstock, MarketMan, Yurest y Apicbase siguen sin
+      precio público confirmado
 - [ ] **Qué buscan sus clientes**: las palabras exactas con las que la gente
       llega a ellos
 
@@ -71,6 +84,7 @@ inteligencia propia.
 
 ## Relacionado
 
+- [[docs/onboarding/marketing/01_estrategia/analisis_competencia_bcn|Análisis de competencia en Barcelona]] — el detalle detrás de esta página
 - [[docs/onboarding/marketing/01_estrategia/posicionamiento|Posicionamiento]]
 - [[docs/onboarding/marketing/02_audiencia/objeciones|Objeciones]]
 - `docs/02_product/plan_de_negocio.md`, sección 6 — la tabla original con sus fuentes

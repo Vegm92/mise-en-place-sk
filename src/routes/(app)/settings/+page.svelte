@@ -1,10 +1,11 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
   import { get } from 'svelte/store';
-  import { t, ti } from '$lib/i18n';
+  import { t, ti, tp } from '$lib/i18n';
   import { formatPhoneNumber } from '$lib/phone';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import Slider from '$lib/components/mep/Slider.svelte';
+  import Lock from '@lucide/svelte/icons/lock';
   import SettingsIcon from '@lucide/svelte/icons/settings';
   import Truck from '@lucide/svelte/icons/truck';
   import Bell from '@lucide/svelte/icons/bell';
@@ -14,10 +15,14 @@
   import Wallet from '@lucide/svelte/icons/wallet';
   import Mail from '@lucide/svelte/icons/mail';
   import Check from '@lucide/svelte/icons/check';
+  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
   const feedback = (section: string) => (form?.section === section ? form : null);
+  const lockedLocations = $derived(data.locations.filter((loc) => loc.locked));
+  const usableLocations = $derived(data.locations.filter((loc) => !loc.locked));
 
   let deleteConfirm = $state('');
   let deleting = $state(false);
@@ -72,6 +77,10 @@
   ]);
 
   let activeSection = $state('cuenta');
+  let openSection = $state<string | null>('cuenta');
+  const toggleSection = (id: string) => {
+    openSection = openSection === id ? null : id;
+  };
 
   // svelte-ignore state_referenced_locally — intentional: seed once from server-loaded data
   let threshold = $state(data.threshold);
@@ -79,32 +88,15 @@
   let priceThreshold = $state(data.priceThreshold);
 </script>
 
-<div style="flex:1;min-height:0;display:flex;overflow:hidden;">
-  <nav class="settings-rail">
-    <div class="label" style="padding:0 10px 10px;">{$t('nav.settings')}</div>
-    {#each sections as s}
-      <button
-        type="button"
-        class="settings-rail-item"
-        class:active={activeSection === s.id}
-        onclick={() => (activeSection = s.id)}
-      >
-        <s.icon size={15} /><span>{s.label}</span>
-      </button>
-    {/each}
-  </nav>
-
-  <div class="settings-content">
-    <div class="set-content">
-
-      {#if activeSection === 'cuenta'}
+{#snippet sectionBody(section: string, idp: string)}
+      {#if section === 'cuenta'}
         <SectionCard title={$t('set.profile.title')} sub={$t('set.profile.sub')} noPad>
           <form method="POST" action="?/saveName" class="set-row">
-            <label for="profile-name" class="body-strong" style="font-size:13px;">{$t('set.profile.name')}</label>
+            <label for="{idp}-profile-name" class="body-strong" style="font-size:13px;">{$t('set.profile.name')}</label>
             <div>
               <div class="flex items-center gap-3 flex-wrap">
-                <input id="profile-name" name="name" type="text" maxlength="80" required
-                  value={data.profile.name} class="input" style="height:34px;font-size:13px;width:100%;max-width:300px;" />
+                <input id="{idp}-profile-name" name="name" type="text" maxlength="80" required
+                  value={data.profile.name} class="input" style="height:34px;width:100%;max-width:300px;" />
                 <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
               </div>
               {#if feedback('name')?.error}
@@ -118,7 +110,7 @@
 
         <SectionCard title={$t('set.access.title')} sub={$t('set.access.sub')} noPad>
           <form method="POST" action="?/saveEmail" class="set-row">
-            <label for="profile-email" class="body-strong" style="font-size:13px;">{$t('set.profile.email')}</label>
+            <label for="{idp}-profile-email" class="body-strong" style="font-size:13px;">{$t('set.profile.email')}</label>
             <div>
               <div class="flex items-center gap-3 flex-wrap" style="margin-bottom:4px;">
                 <Mail size={14} style="color:var(--mep-fg-3);" />
@@ -128,8 +120,8 @@
                 {/if}
               </div>
               <div class="flex items-center gap-3 flex-wrap">
-                <input id="profile-email" name="email" type="email" required
-                  value={data.profile.email} class="input" style="height:34px;font-size:13px;width:100%;max-width:300px;" />
+                <input id="{idp}-profile-email" name="email" type="email" required
+                  value={data.profile.email} class="input" style="height:34px;width:100%;max-width:300px;" />
                 <button type="submit" class="btn btn-secondary" style="height:34px;">{$t('set.profile.emailBtn')}</button>
               </div>
               <p class="body text-fg-3" style="font-size:11.5px;margin:6px 0 0;">{$t('set.profile.emailDesc')}</p>
@@ -143,14 +135,14 @@
 
           {#if data.profile.hasPassword}
             <div class="set-row">
-              <label for="pw-current" class="body-strong" style="font-size:13px;">{$t('set.profile.password')}</label>
+              <label for="{idp}-pw-current" class="body-strong" style="font-size:13px;">{$t('set.profile.password')}</label>
               <form method="POST" action="?/changePassword" class="flex flex-col gap-2" style="max-width:300px;">
-                <input id="pw-current" name="current" type="password" required autocomplete="current-password"
-                  placeholder={$t('set.profile.currentPassword')} class="input" style="height:34px;font-size:13px;" />
-                <input name="password" type="password" required minlength="8" autocomplete="new-password"
-                  placeholder={$t('set.profile.newPassword')} class="input" style="height:34px;font-size:13px;" />
-                <input name="confirm" type="password" required minlength="8" autocomplete="new-password"
-                  placeholder={$t('set.profile.confirmPassword')} class="input" style="height:34px;font-size:13px;" />
+                <input id="{idp}-pw-current" name="current" type="password" required autocomplete="current-password"
+                  placeholder={$t('set.profile.currentPassword')} class="input" style="height:34px;" />
+                <input name="password" type="password" required minlength="12" autocomplete="new-password"
+                  placeholder={$t('set.profile.newPassword')} class="input" style="height:34px;" />
+                <input name="confirm" type="password" required minlength="12" autocomplete="new-password"
+                  placeholder={$t('set.profile.confirmPassword')} class="input" style="height:34px;" />
                 <div>
                   <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.profile.passwordBtn')}</button>
                 </div>
@@ -173,15 +165,15 @@
         </a>
       {/if}
 
-      {#if activeSection === 'negocio'}
+      {#if section === 'negocio'}
         <SectionCard title={$t('set.business.title')} sub={$t('set.business.sub')} noPad>
           <div class="set-row">
-            <label for="restaurant-name" class="body-strong" style="font-size:13px;">{$t('set.profile.restaurant')}</label>
+            <label for="{idp}-restaurant-name" class="body-strong" style="font-size:13px;">{$t('set.profile.restaurant')}</label>
             {#if data.canRenameRestaurant}
               <form method="POST" action="?/renameRestaurant">
                 <div class="flex items-center gap-3 flex-wrap">
-                  <input id="restaurant-name" name="name" type="text" maxlength="120" required
-                    value={data.restaurantName} class="input" style="height:34px;font-size:13px;width:100%;max-width:300px;" />
+                  <input id="{idp}-restaurant-name" name="name" type="text" maxlength="120" required
+                    value={data.restaurantName} class="input" style="height:34px;width:100%;max-width:300px;" />
                   <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
                 </div>
                 {#if feedback('restaurant')?.error}
@@ -209,34 +201,45 @@
           </div>
         </SectionCard>
 
-        {#if data.multiLocation}
+        {#if data.multiLocation || lockedLocations.length > 0}
           <SectionCard title={$t('set.locations.title')}>
             <div style="display:flex;flex-direction:column;gap:12px;">
               <p class="body text-fg-3" style="font-size:12px;margin:0;">
-                {$ti('set.locations.desc', { used: data.locations.length, max: data.maxLocations })}
+                {$tp('set.locations.planIncludes', data.maxLocations)} {$ti('set.locations.inUse', { used: usableLocations.length })}
               </p>
 
               <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px;">
                 {#each data.locations as loc}
-                  <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mep-fg-2);">
+                  <li style="display:flex;align-items:center;gap:8px;font-size:13px;color:{loc.locked ? 'var(--mep-fg-4)' : 'var(--mep-fg-2)'};">
                     <span>{loc.name}</span>
                     {#if loc.id === data.activeRestaurantId}
                       <span style="font-size:11px;color:var(--mep-acc);border:1px solid var(--mep-acc);border-radius:99px;padding:1px 7px;">
                         {$t('set.locations.current')}
                       </span>
                     {/if}
+                    {#if loc.locked}
+                      <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--mep-fg-3);border:1px solid var(--mep-divider);border-radius:999px;padding:1px 7px;">
+                        <Lock size={10} /> {$t('set.locations.locked')}
+                      </span>
+                    {/if}
                   </li>
                 {/each}
               </ul>
 
-              {#if data.locations.length < data.maxLocations}
+              {#if lockedLocations.length > 0}
+                <p class="body text-fg-3" style="font-size:11px;margin:0;">
+                  {$tp('set.locations.lockedCount', lockedLocations.length)} · {$t('set.locations.lockedHint')}
+                </p>
+              {/if}
+
+              {#if data.multiLocation && usableLocations.length < data.maxLocations}
                 <form method="POST" action="?/addLocation" class="flex items-center gap-3 flex-wrap">
                   <input name="name" type="text" maxlength="120" required
                     placeholder={$t('set.locations.newPlaceholder')}
-                    class="input" style="height:36px;font-size:13px;min-width:180px;flex:1;" />
+                    class="input" style="height:36px;min-width:180px;flex:1;" />
                   <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.locations.add')}</button>
                 </form>
-              {:else}
+              {:else if data.multiLocation}
                 <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.locations.err.limitReached')}</p>
               {/if}
 
@@ -248,7 +251,7 @@
         {/if}
       {/if}
 
-      {#if activeSection === 'alertas'}
+      {#if section === 'alertas'}
         <SectionCard title={$t('set.thresholdTitle')} sub={$t('set.thresholdDesc')} noPad>
           <form method="post" action="?/saveThreshold" class="set-row" style="align-items:start;">
             <span class="body-strong" style="font-size:13px;padding-top:6px;">{$t('set.nav.alerts')}</span>
@@ -256,7 +259,7 @@
               <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
                 <div style="flex:1 1 200px;max-width:240px;min-width:160px;">
                   <Slider bind:value={threshold} min={50} max={100} name="value" />
-                  <div class="num" style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mep-fg-4);margin-top:6px;">
+                  <div class="num" style="display:flex;justify-content:space-between;font-size:11px;color:var(--mep-fg-4);margin-top:6px;">
                     <span>50%</span><span>100%</span>
                   </div>
                 </div>
@@ -283,7 +286,7 @@
               <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
                 <div style="flex:1 1 200px;max-width:240px;min-width:160px;">
                   <Slider bind:value={priceThreshold} min={1} max={50} name="value" />
-                  <div class="num" style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mep-fg-4);margin-top:6px;">
+                  <div class="num" style="display:flex;justify-content:space-between;font-size:11px;color:var(--mep-fg-4);margin-top:6px;">
                     <span>1%</span><span>50%</span>
                   </div>
                 </div>
@@ -302,9 +305,40 @@
             </div>
           </form>
         </SectionCard>
+
+        <SectionCard title={$t('set.alertPrefs.title')} sub={$t('set.alertPrefs.sub')} noPad>
+          <form method="post" action="?/saveAlertPreferences">
+            {#each data.alertGroups as group}
+              <div class="set-row" style="align-items:start;">
+                <span class="body-strong" style="font-size:13px;padding-top:4px;">{$t(`set.alertPrefs.group.${group.id}`)}</span>
+                <div class="alert-toggle-list">
+                  {#each group.types as type}
+                    <label class="alert-toggle" for={`${idp}-alert-pref-${type}`}>
+                      <input
+                        id={`${idp}-alert-pref-${type}`}
+                        class="alert-toggle-input"
+                        type="checkbox"
+                        name={`alert_${type}`}
+                        checked={data.alertPreferences[type]}
+                      />
+                      <span class="alert-toggle-track"><span class="alert-toggle-thumb"></span></span>
+                      <span class="alert-toggle-copy">
+                        <span class="body-strong" style="font-size:13px;">{$t(`set.alertPrefs.type.${type}`)}</span>
+                        <span class="body text-fg-3" style="font-size:11.5px;">{$t(`set.alertPrefs.desc.${type}`)}</span>
+                      </span>
+                    </label>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+            <div class="alert-toggle-actions">
+              <button type="submit" class="btn btn-primary" style="height:34px;">{$t('set.save')}</button>
+            </div>
+          </form>
+        </SectionCard>
       {/if}
 
-      {#if activeSection === 'whatsapp' && data.whatsappEnabled}
+      {#if section === 'whatsapp' && data.whatsappEnabled}
         <SectionCard title={$t('set.whatsapp.title')}>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <p class="body text-fg-3" style="font-size:12px;margin:0;">{$t('set.whatsapp.desc')}</p>
@@ -317,7 +351,7 @@
                     href={data.whatsappBotNumber.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--mep-fg-1);"
+                    style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--mep-fg);"
                   >{data.whatsappBotNumber.display}</a>
                   <button
                     type="button"
@@ -382,8 +416,8 @@
                   <form method="POST" action="?/generateWhatsappPairingCode" class="flex items-center gap-3 flex-wrap">
                     <input name="name" type="text" maxlength="80"
                       placeholder={$t('set.whatsapp.namePlaceholder')}
-                      class="input" style="height:32px;font-size:13px;min-width:120px;flex:1;" />
-                    <button type="submit" class="btn btn-secondary" style="height:32px;font-size:12px;">
+                      class="input" style="min-width:120px;flex:1;" />
+                    <button type="submit" class="btn btn-secondary" style="font-size:12px;">
                       {$t('set.whatsapp.pairGenerate')}
                     </button>
                   </form>
@@ -393,10 +427,10 @@
               <form method="POST" action="?/addWhatsappContact" class="flex items-center gap-3 flex-wrap">
                 <input name="phone" type="tel" required
                   placeholder={$t('set.whatsapp.phonePlaceholder')}
-                  class="input" style="height:36px;font-size:13px;min-width:150px;flex:1;" />
+                  class="input" style="height:36px;min-width:150px;flex:1;" />
                 <input name="name" type="text" maxlength="80"
                   placeholder={$t('set.whatsapp.namePlaceholder')}
-                  class="input" style="height:36px;font-size:13px;min-width:120px;flex:1;" />
+                  class="input" style="height:36px;min-width:120px;flex:1;" />
                 <button type="submit" class="btn btn-primary" style="height:36px;">{$t('set.whatsapp.add')}</button>
               </form>
             {:else}
@@ -412,8 +446,8 @@
         </SectionCard>
       {/if}
 
-      {#if activeSection === 'ayuda'}
-        <div data-coach="settings-main">
+      {#if section === 'ayuda'}
+        <div>
           <SectionCard title={$t('set.tourTitle')}>
             <p class="body text-fg-2" style="font-size:13px;margin:0 0 12px;">
               {$t('set.tourDesc')}
@@ -424,10 +458,18 @@
               </button>
             </form>
           </SectionCard>
+
+          <a href="/help" class="card p-4" style="display:flex;align-items:center;justify-content:space-between;gap:12px;text-decoration:none;margin-top:12px;">
+            <div>
+              <div class="body-strong" style="font-size:13px;">{$t('set.helpLink')}</div>
+              <div class="body text-fg-3" style="font-size:11px;margin-top:2px;">{$t('set.helpLinkBody')}</div>
+            </div>
+            <span class="body text-fg-3" style="font-size:13px;">&rsaquo;</span>
+          </a>
         </div>
       {/if}
 
-      {#if activeSection === 'datos'}
+      {#if section === 'datos'}
         <SectionCard title={$t('set.privacyTitle')}>
           <div style="display:flex;flex-direction:column;gap:12px;">
             <div>
@@ -441,46 +483,92 @@
 
             <hr style="border:none;border-top:1px solid var(--mep-divider);margin:4px 0;" />
 
-            <div>
-              <p class="body text-fg-2" style="font-size:13px;margin:0 0 4px;">
-                {$t('set.deleteDesc')}
-              </p>
-              <p class="body text-fg-3" style="font-size:12px;margin:0 0 10px;">
-                {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
-              </p>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <input
-                  type="text"
-                  placeholder={$t('set.deleteConfirmWord')}
-                  bind:value={deleteConfirm}
-                  class="input"
-                  style="height:34px;font-size:13px;width:140px;"
-                />
-                <button
-                  type="button"
-                  onclick={handleDeleteAccount}
-                  disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
-                  class="btn"
-                  style="height:34px;font-size:13px;background:var(--mep-danger,#c0392b);color:#fff;border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
-                >
-                  {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
-                </button>
+            <div style="border:1px solid var(--mep-neg);background:var(--mep-neg-soft);border-radius:var(--mep-r-card);padding:14px;display:flex;gap:10px;align-items:flex-start;">
+              <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;margin-top:2px;" />
+              <div style="flex:1;min-width:0;">
+                <p class="body" style="font-size:13px;margin:0 0 4px;color:var(--mep-neg);font-weight:500;">
+                  {$t('set.deleteDesc')}
+                </p>
+                <p class="body text-fg-3" style="font-size:12px;margin:0 0 10px;">
+                  {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
+                </p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <input
+                    type="text"
+                    placeholder={$t('set.deleteConfirmWord')}
+                    bind:value={deleteConfirm}
+                    class="input"
+                    style="height:34px;width:140px;"
+                  />
+                  <button
+                    type="button"
+                    onclick={handleDeleteAccount}
+                    disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
+                    class="btn"
+                    style="height:34px;font-size:13px;background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
+                  >
+                    {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
+                  </button>
+                </div>
+                {#if deleteError}
+                  <p style="font-size:12px;color:var(--mep-neg);margin:6px 0 0;">{deleteError}</p>
+                {/if}
               </div>
-              {#if deleteError}
-                <p style="font-size:12px;color:var(--mep-danger,#c0392b);margin:6px 0 0;">{deleteError}</p>
-              {/if}
             </div>
 
             <div style="display:flex;gap:12px;margin-top:4px;">
-              <a href="/privacy" style="font-size:12px;color:var(--mep-fg-3);">{$t('set.privacyLink')}</a>
-              <a href="/terms"   style="font-size:12px;color:var(--mep-fg-3);">{$t('set.termsLink')}</a>
+              <a href="/privacy" class="set-legal-link" style="font-size:12px;color:var(--mep-fg-3);">{$t('set.privacyLink')}</a>
+              <a href="/terms" class="set-legal-link" style="font-size:12px;color:var(--mep-fg-3);">{$t('set.termsLink')}</a>
             </div>
           </div>
         </SectionCard>
       {/if}
+{/snippet}
 
+<div class="hidden md:flex" style="flex:1;min-height:0;overflow:hidden;">
+  <nav class="settings-rail">
+    <div class="label" style="padding:0 10px 10px;">{$t('nav.settings')}</div>
+    {#each sections as s}
+      <button
+        type="button"
+        class="settings-rail-item"
+        class:active={activeSection === s.id}
+        onclick={() => (activeSection = s.id)}
+      >
+        <s.icon size={15} /><span>{s.label}</span>
+      </button>
+    {/each}
+  </nav>
+
+  <div class="settings-content">
+    <div class="set-content" data-coach="settings-main">
+      {@render sectionBody(activeSection, 'd')}
     </div>
   </div>
+</div>
+
+<div class="md:hidden set-acc" data-coach="settings-main">
+  <div class="label" style="padding:0 2px 10px;">{$t('nav.settings')}</div>
+  {#each sections as s (s.id)}
+    <div class="set-acc-item">
+      <button
+        type="button"
+        class="set-acc-head"
+        aria-expanded={openSection === s.id}
+        aria-controls="set-acc-panel-{s.id}"
+        onclick={() => toggleSection(s.id)}
+      >
+        <s.icon size={16} />
+        <span class="set-acc-label">{s.label}</span>
+        <span class="set-acc-chevron" class:open={openSection === s.id}><ChevronDown size={16} /></span>
+      </button>
+      {#if openSection === s.id}
+        <div class="set-acc-body" id="set-acc-panel-{s.id}">
+          {@render sectionBody(s.id, 'm')}
+        </div>
+      {/if}
+    </div>
+  {/each}
 </div>
 
 <style>
@@ -545,6 +633,139 @@
     }
   }
 
+  .set-acc {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px 14px 40px;
+  }
+  .set-acc-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .set-acc-item + .set-acc-item {
+    margin-top: 10px;
+  }
+  .set-acc-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 48px;
+    padding: 0 14px;
+    background: var(--mep-surface);
+    border: 1px solid var(--mep-border);
+    border-radius: var(--mep-r-card);
+    box-shadow: var(--mep-shadow-card);
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mep-fg-2);
+  }
+  .set-acc-head[aria-expanded='true'] {
+    color: var(--mep-acc);
+    background: var(--mep-acc-soft);
+    border-color: var(--mep-acc);
+  }
+  .set-acc-label {
+    flex: 1;
+    min-width: 0;
+  }
+  .set-acc-chevron {
+    display: inline-flex;
+    color: var(--mep-fg-3);
+    transition: transform 0.15s ease;
+  }
+  .set-acc-head[aria-expanded='true'] .set-acc-chevron {
+    color: inherit;
+  }
+  .set-acc-chevron.open {
+    transform: rotate(180deg);
+  }
+  .set-acc-body {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .set-acc-body :global(.card) {
+    width: 100%;
+    max-width: 100%;
+  }
+  @media (max-width: 767px) {
+    .set-legal-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+    .set-acc-body :global(.mep-slider-input) {
+      height: 44px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+  }
+
+  .alert-toggle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .alert-toggle {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .alert-toggle-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .alert-toggle-track {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 20px;
+    margin-top: 1px;
+    border-radius: 999px;
+    background: var(--mep-border-strong);
+    transition: background 0.15s ease;
+  }
+  .alert-toggle-thumb {
+    display: block;
+    width: 16px;
+    height: 16px;
+    margin: 2px;
+    border-radius: 999px;
+    background: var(--mep-surface);
+    transition: transform 0.15s ease;
+  }
+  .alert-toggle-input:checked + .alert-toggle-track {
+    background: var(--mep-acc);
+  }
+  .alert-toggle-input:checked + .alert-toggle-track .alert-toggle-thumb {
+    transform: translateX(14px);
+  }
+  .alert-toggle-input:focus-visible + .alert-toggle-track {
+    outline: 2px solid var(--mep-acc);
+    outline-offset: 2px;
+  }
+  .alert-toggle-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .alert-toggle-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 15px 20px;
+  }
+
   .wa-number-block {
     display: flex;
     flex-direction: column;
@@ -569,7 +790,7 @@
     font-size: 26px;
     font-weight: 700;
     letter-spacing: 0.18em;
-    color: var(--mep-fg-1);
+    color: var(--mep-fg);
   }
 
   .wa-qr {

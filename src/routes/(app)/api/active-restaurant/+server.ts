@@ -1,9 +1,9 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db, forTenant } from '$lib/server/db';
-import { userRestaurants } from '$lib/server/schema';
-import { eq } from 'drizzle-orm';
+import { memberLocations } from '$lib/server/locations';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 
 export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const user = locals.user;
@@ -17,18 +17,16 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const restaurantId = typeof body?.restaurantId === 'string' ? body.restaurantId : '';
 	if (!restaurantId) throw error(400, 'restaurantId is required');
 
-	const target = forTenant(restaurantId);
-	const [membership] = await db.select({ restaurantId: userRestaurants.restaurantId })
-		.from(userRestaurants)
-		.where(target.scope(userRestaurants.restaurantId, eq(userRestaurants.userId, user.id)))
-		.limit(1);
-	if (!membership) throw error(403, 'Not a member of that restaurant');
+	const locations = await memberLocations(user.id);
+	const target = locations.find(l => l.restaurantId === restaurantId);
+	if (!target) throw error(403, 'Not a member of that restaurant');
+	if (target.locked) throw error(403, 'set.locations.err.lockedSwitch');
 
 	cookies.set('active_restaurant', restaurantId, {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: process.env.NODE_ENV === 'production',
+		secure: NODE_ENV === 'production',
 		maxAge: 60 * 60 * 24 * 365,
 	});
 

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { browser } from '$app/environment';
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
@@ -15,7 +16,7 @@
   const { form, data }: { form: ActionData; data: PageData } = $props();
 
   let theme = $state<'light' | 'dark'>(
-    browser ? ((document.documentElement.dataset.theme as 'light' | 'dark') || 'light') : 'light'
+    browser ? currentTheme() : 'light'
   );
 
   onMount(() => {
@@ -24,14 +25,12 @@
   });
 
   function toggleTheme() {
-    theme = theme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('mep-theme', theme);
-    document.documentElement.dataset.theme = theme;
+    theme = flipTheme();
   }
 
   const copy = {
     es: {
-      pageTitle:         'Mise en Place — Gestión de facturas para restaurantes',
+      pageTitle:         'Mise en Place — Gestión de albaranes para restaurantes',
       metaDescription:   'Digitaliza tus albaranes en segundos. Detecta subidas de precio, controla el gasto por categoría y defiende tu margen. Edición de fundadores — 50 cocinas, Barcelona.',
       ogTitle:           'Sabe en qué gasta tu cocina, antes que tú.',
       ogLocale:          'es_ES',
@@ -40,7 +39,7 @@
       createAccountLink: 'Crear cuenta',
       eyebrow:           'Control operativo para cocinas profesionales',
       headline:          'Sabe en qué gasta tu cocina, antes que tú.',
-      sub:               'Factura tras factura, Mise en Place lee, normaliza y vigila tus precios. Tu margen, defendido cada día.',
+      sub:               'Albarán tras albarán, Mise en Place lee, normaliza y vigila tus precios. Tu margen, defendido cada día.',
       placeholder:       'tu@email.com',
       submit:            'Quiero acceso anticipado',
       submitShort:       'Apuntarme',
@@ -50,15 +49,16 @@
       errRequired:       'Introduce tu email para continuar.',
       errInvalid:        'Ese email no parece válido.',
       errRateLimited:    'Demasiados intentos. Por favor, espera un momento.',
+      errBot:            'No hemos podido verificar que la petición sea humana. Recarga la página e inténtalo de nuevo.',
       privacy:           'Solo guardamos tu email. Sin spam. Sin compromisos.',
       spotTotal:         50,
       spotLabel:         'plazas prioritarias asignadas',
       painEyebrow:       'El problema',
       painHead:          'Cada semana se te escapan horas, datos y dinero.',
       pain: [
-        { stat: '4–6 h', label: 'a la semana',      title: 'Tu equipo transcribe facturas a mano.',          body: 'Cada albarán acaba en una hoja de cálculo —o en un cajón. Son entre cuatro y seis horas semanales que no cocinan, no entrenan, no atienden.' },
+        { stat: '4–6 h', label: 'a la semana',      title: 'Tu equipo transcribe albaranes a mano.',          body: 'Cada albarán acaba en una hoja de cálculo —o en un cajón. Son entre cuatro y seis horas semanales que no cocinan, no entrenan, no atienden.' },
         { stat: '¿0?',   label: 'visibilidad',       title: 'Nadie sabe en qué se gastó la semana.',         body: '¿Cuánto cárnico llevamos este mes? Sin sistema, esa respuesta tarda treinta minutos. Con Mise en Place, está en pantalla antes de que termines la pregunta.' },
-        { stat: '+8 %',  label: 'subidas invisibles', title: 'Los proveedores te suben el precio en silencio.', body: 'El aceite sube un ocho por ciento un martes cualquiera. Lo descubres tres meses después, revisando facturas. Mise en Place detecta el cambio y te avisa el mismo día.' },
+        { stat: '+8 %',  label: 'subidas invisibles', title: 'Los proveedores te suben el precio en silencio.', body: 'El aceite sube un ocho por ciento un martes cualquiera. Lo descubres tres meses después, revisando albaranes. Mise en Place detecta el cambio y te avisa el mismo día.' },
       ],
       howEyebrow:        'Cómo funciona',
       howHead:           'Tres movimientos. Cero hojas de cálculo.',
@@ -69,12 +69,12 @@
       ],
       testimonialsEyebrow: 'Lo que dicen los chefs',
       testimonials: [
-        { quote: 'Cada semana pierdo horas pasando facturas a mano. Si funciona como dices, lo firmo ahora mismo.', name: 'Jordi M.',  role: 'Jefe de Cocina · Restaurante de menú · Barcelona' },
+        { quote: 'Cada semana pierdo horas pasando albaranes a mano. Si funciona como dices, lo firmo ahora mismo.', name: 'Jordi M.',  role: 'Jefe de Cocina · Restaurante de menú · Barcelona' },
         { quote: 'Lo difícil no es gastar. Lo difícil es saber en qué gastas. Nunca tengo esa visión en tiempo real.', name: 'Ana R.', role: 'Responsable de Compras · Hotel boutique · Costa Brava' },
         { quote: 'Si me ahorras el viernes de papeleo, me ahorras una jornada entera del equipo de oficina.',          name: 'Iván C.', role: 'Gerente · Grupo de cuatro locales · Eixample' },
       ],
       founderEyebrow:    'Una nota del fundador',
-      founderBody:       'Pasé años en cocinas y en restaurantes como chef y ayudando con la administración. La factura es el documento más maltratado de la industria: nadie la quiere, todos la necesitan. Mise en Place existe para que esa hora del viernes deje de existir.',
+      founderBody:       'Pasé años en cocinas y en restaurantes como chef y ayudando con la administración. El albarán es el documento más maltratado de la industria: nadie lo quiere, todos lo necesitan. Mise en Place existe para que esa hora del viernes deje de existir.',
       founderName:       'Victor Granda Mancebo',
       founderRole:       'Fundador · Barcelona',
       pricingEyebrow:    'Precios',
@@ -84,28 +84,28 @@
       pricingPerMonth:   '/mes',
       pricingCta:        'Apuntarme',
       pricingRecommended:'Recomendado',
-      pricingFoot:       'Todos los planes incluyen digitalización de facturas, vista de gasto por proveedor y soporte en español.',
+      pricingFoot:       'Todos los planes incluyen digitalización de albaranes, vista de gasto por proveedor y soporte en español.',
       pricingTrialName:  'Prueba',
       pricingTrialPrice: 'Gratis',
-      pricingTrialLimit: '14 días o 20 facturas · sin tarjeta',
+      pricingTrialLimit: '14 días o 20 albaranes · sin tarjeta',
       pricingTrialTagline: 'Prueba el flujo completo de digitalización.',
       pricingTiers: [
         { name: 'Starter', price: 29, recommended: false, tagline: 'Digitaliza y controla el gasto de un restaurante.',
-          bullets: ['100 facturas al mes', 'Vista de gasto por categoría y proveedor', '1 restaurante'] },
+          bullets: ['100 albaranes al mes', 'Vista de gasto por categoría y proveedor', '1 restaurante'] },
         { name: 'Pro', price: 59, recommended: true, tagline: 'Todo lo de Starter, más la capa de inteligencia.',
-          bullets: ['300 facturas al mes', 'Resumen automático por email', 'Asistente IA sobre tus datos', 'Análisis de precios y control de stock'] },
+          bullets: ['300 albaranes al mes', 'Resumen automático por email', 'Asistente IA sobre tus datos', 'Análisis de precios y control de stock'] },
         { name: 'Business', price: 129, recommended: false, tagline: 'Las mismas funciones, para un grupo de restaurantes.',
-          bullets: ['Facturas ilimitadas', 'Hasta 5 restaurantes', 'Soporte prioritario'] },
+          bullets: ['Albaranes ilimitados', 'Hasta 5 restaurantes', 'Soporte prioritario'] },
       ],
       faqEyebrow:        'Dudas frecuentes',
       faq: [
-        { q: '¿Qué pasa con mis datos?', a: 'Tus facturas son tuyas. Las almacenamos cifradas en servidores en la UE y puedes exportarlas o eliminarlas en cualquier momento. Nunca las usaremos para entrenar modelos públicos.' },
+        { q: '¿Qué pasa con mis datos?', a: 'Tus albaranes son tuyos. Los almacenamos cifrados en servidores en la UE y puedes exportarlos o eliminarlos en cualquier momento. Nunca los usaremos para entrenar modelos públicos.' },
         { q: '¿Necesito cambiar mi software de TPV?', a: 'No. Mise en Place se conecta a Square y Revo desde el primer día, y exporta a Excel/CSV para el resto. Si usas otro TPV, escríbenos —probablemente lo integremos pronto.' },
         { q: '¿Y si el albarán está manchado o arrugado?', a: 'Esa es nuestra especialidad. El motor lee fotos de móvil hechas con prisas en una cocina caliente. Si algo no se entiende, te lo señala para que lo confirmes tú —no inventa.' },
         { q: '¿Cuánto cuesta?', a: 'Durante el acceso anticipado es gratis. Al lanzamiento: Starter 29 €, Pro 59 € y Business 129 € al mes por restaurante — precios provisionales, pueden ajustarse antes del lanzamiento público.' },
         { q: '¿Cuándo empieza el acceso?', a: 'Abrimos en tandas a partir de julio de 2026. Avisamos por email con al menos una semana de antelación.' },
       ],
-      closeHead:         'Empieza por la factura de esta semana.',
+      closeHead:         'Empieza por el albarán de esta semana.',
       closeSub:          'Deja tu email y te avisamos cuando abramos la siguiente tanda de cocinas.',
       footerNote:        'Mise en Place · Barcelona · 2026 — Hecho en una cocina, no en una sala de juntas.',
       mockWhatsappReply: 'Recibida ✓ · Procesando 14 líneas…',
@@ -123,7 +123,7 @@
       mockKpiPending:    'Pendiente',
       mockKpiBudget:     'Presupuesto',
       mockKpiOf:         'de',
-      mockKpiInvoicesShort: 'facturas',
+      mockKpiInvoicesShort: 'albaranes',
       mockChartTitle:    'Evolución del gasto',
     },
     en: {
@@ -146,6 +146,7 @@
       errRequired:       'Enter your email to continue.',
       errInvalid:        "That doesn't look like a valid email.",
       errRateLimited:    'Too many attempts. Please wait a moment.',
+      errBot:            'We could not verify the request as human. Reload the page and try again.',
       privacy:           'We only store your email. No spam. No commitment.',
       spotTotal:         50,
       spotLabel:         'priority spots claimed',
@@ -271,7 +272,7 @@
         creator: { '@type': 'Organization', name: 'Mise en Place', address: { '@type': 'PostalAddress', addressLocality: 'Barcelona', addressCountry: 'ES' } },
       },
     ],
-  })}</script>`}
+  }).replace(/</g, '\\u003c')}</script>`}
 </svelte:head>
 
 <div class="mep" data-accent="amber"
@@ -306,10 +307,10 @@
                                             color:var(--mep-fg-2);">{otherLang}</button>
     </div>
     <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
-      <a href="/login" class="btn btn-secondary" style="height:32px;padding:0 14px;font-size:13px;
+      <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;
                                                        font-weight:600;text-decoration:none;
                                                        white-space:nowrap;">{t.signInLink}</a>
-      <a href="/signup" class="btn btn-primary" style="height:32px;padding:0 14px;font-size:13px;
+      <a href="/signup" class="btn btn-primary" style="padding:0 14px;font-size:13px;
                                                       font-weight:600;text-decoration:none;
                                                       white-space:nowrap;">{t.createAccountLink}</a>
     </div>

@@ -20,7 +20,7 @@ import {
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
-import type { BatchItem } from '../src/lib/server/batch-core';
+import type { BatchItem } from '../src/lib/server/batch';
 
 let rid = '';
 
@@ -36,6 +36,7 @@ function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
 		extractedData,
 		conversionNotes: null,
 		extractError: null,
+		queuedAt: null,
 	};
 }
 

@@ -14,6 +14,7 @@
 	const rawError = $derived(form?.error ?? $page.url.searchParams.get('error'));
 	const error = $derived(rawError && !KNOWN_ERRORS.has(rawError) ? 'oauth' : rawError);
 	const resetDone = $derived($page.url.searchParams.get('reset') === '1');
+	const verified = $derived($page.url.searchParams.get('verified') === '1');
 </script>
 
 <svelte:head>
@@ -46,6 +47,13 @@
 				<div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);color:var(--mep-pos);
 				            border-radius:var(--mep-r-input);padding:10px 12px;font-size:13px;margin-bottom:16px;">
 					{$t('login.passwordReset')}
+				</div>
+			{/if}
+
+			{#if verified}
+				<div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);color:var(--mep-pos);
+				            border-radius:var(--mep-r-input);padding:10px 12px;font-size:13px;margin-bottom:16px;">
+					{$t('login.verified')}
 				</div>
 			{/if}
 

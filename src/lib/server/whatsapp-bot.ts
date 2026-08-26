@@ -2,10 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db } from './db';
 import { restaurants, whatsappContacts } from './schema';
-import { claimIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
+import { claimIdempotencyKey, releaseIdempotencyKey, WHATSAPP_SCOPE } from './idempotency';
 import { getStorage } from './storage';
 import { downloadWhatsAppMedia, sendWhatsAppMessage } from './whatsapp';
 import { checkRateLimit } from './rate-limiter';
+import { getAccessState } from './billing';
+import { isLocationLocked } from './locations';
 import { normalizeCode, redeemPairingCode } from './whatsapp-pairing';
 import { createBatch, getItem, getBatchItems, markQueued } from './batch';
 import { enqueueBatchExtraction } from './extract-batch';
@@ -24,6 +26,10 @@ export interface WhatsAppInboundMessage {
 	document?: { id: string; mime_type?: string; filename?: string };
 }
 
+interface CommitFlag {
+	value: boolean;
+}
+
 async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 	if (!messageId) return true;
 	try {
@@ -34,50 +40,93 @@ async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 	}
 }
 
-export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
-	if (!(await claimMessageId(msg.id))) {
-		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
-		return;
-	}
-
-	const from = msg.from;
-
+async function resolveRestaurantId(from: string): Promise<string | null> {
 	// tenant-scope-ok: this IS the tenant resolution step — the sender's number
 	// is globally unique across contacts and determines which restaurant they
 	// belong to. There is no tenant context to scope by until this query returns.
-	const contactRows = await db
+	const rows = await db
 		.select({ restaurantId: whatsappContacts.restaurantId })
 		.from(whatsappContacts)
 		.where(eq(whatsappContacts.phoneNumber, from))
 		.limit(1);
+	return rows[0]?.restaurantId ?? null;
+}
 
-	if (contactRows.length === 0) {
-		if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
-			await handlePairingAttempt(from, msg.text.body);
-			return;
-		}
-
-		if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
-			await sendWhatsAppMessage(
-				from,
-				'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
-			);
-		}
+async function handleUnknownSender(msg: WhatsAppInboundMessage, from: string): Promise<void> {
+	if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
+		await handlePairingAttempt(from, msg.text.body);
 		return;
 	}
+	if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
+		await sendWhatsAppMessage(
+			from,
+			'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
+		);
+	}
+}
 
-	const restaurantId = contactRows[0].restaurantId;
-
+async function dispatchMedia(
+	msg: WhatsAppInboundMessage,
+	from: string,
+	restaurantId: string,
+	committed: CommitFlag,
+): Promise<void> {
 	if (msg.type === 'image' && msg.image) {
-		await handleMediaUpload(from, restaurantId, msg.image.id);
+		await handleMediaUpload(from, restaurantId, msg.image.id, committed);
 	} else if (msg.type === 'document' && msg.document) {
-		await handleMediaUpload(from, restaurantId, msg.document.id);
+		await handleMediaUpload(from, restaurantId, msg.document.id, committed);
 	} else {
 		await sendWhatsAppMessage(
 			from,
 			'⚠️ Solo puedo procesar imágenes (JPG, PNG) o documentos PDF de facturas.',
 		);
 	}
+}
+
+export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
+	if (!(await claimMessageId(msg.id))) {
+		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
+		return;
+	}
+
+	const committed: CommitFlag = { value: false };
+	try {
+		await routeMessage(msg, committed);
+	} catch (err) {
+		if (!committed.value && msg.id) {
+			await releaseIdempotencyKey(WHATSAPP_SCOPE, msg.id)
+				.catch((e) => console.error('[whatsapp-bot] failed to release claim:', e));
+		}
+		throw err;
+	}
+}
+
+async function routeMessage(msg: WhatsAppInboundMessage, committed: CommitFlag): Promise<void> {
+	const restaurantId = await resolveRestaurantId(msg.from);
+	if (!restaurantId) {
+		await handleUnknownSender(msg, msg.from);
+		return;
+	}
+	if (msg.type === 'image' || msg.type === 'document') {
+		if (await isLocationLocked(restaurantId)) {
+			await sendWhatsAppMessage(
+				msg.from,
+				'❌ Este local está fuera de tu plan actual. Vuelve al plan Business para volver a procesar sus albaranes.',
+			);
+			return;
+		}
+		const access = await getAccessState(restaurantId);
+		if (!access.allowed) {
+			await sendWhatsAppMessage(
+				msg.from,
+				access.trialExpired
+					? '❌ Tu prueba gratuita ha terminado. Activa una suscripción para volver a procesar facturas.'
+					: '❌ Tu suscripción no está activa. Reactívala para volver a procesar facturas.',
+			);
+			return;
+		}
+	}
+	await dispatchMedia(msg, msg.from, restaurantId, committed);
 }
 
 async function handlePairingAttempt(from: string, body: string): Promise<void> {
@@ -89,9 +138,10 @@ async function handlePairingAttempt(from: string, body: string): Promise<void> {
 			.from(restaurants)
 			.where(eq(restaurants.id, result.restaurantId))
 			.limit(1);
+		const scopeSuffix = restaurant?.name ? ` para *${restaurant.name}*` : '';
 		await sendWhatsAppMessage(
 			from,
-			`✅ Número autorizado${restaurant?.name ? ` para *${restaurant.name}*` : ''}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
+			`✅ Número autorizado${scopeSuffix}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
 		);
 		return;
 	}
@@ -113,6 +163,7 @@ async function handleMediaUpload(
 	from: string,
 	restaurantId: string,
 	mediaId: string,
+	committed: CommitFlag,
 ): Promise<void> {
 	let buffer: Buffer;
 	let extension: string;
@@ -121,7 +172,7 @@ async function handleMediaUpload(
 	} catch (err) {
 		console.error('[whatsapp-bot] media download error:', err);
 		await sendWhatsAppMessage(from, '❌ No he podido descargar el archivo. Inténtalo de nuevo.');
-		return;
+		throw err;
 	}
 
 	const fileKey = `whatsapp/${restaurantId}/${randomUUID()}.${extension}`;
@@ -130,7 +181,7 @@ async function handleMediaUpload(
 	} catch (err) {
 		console.error('[whatsapp-bot] storage error:', err);
 		await sendWhatsAppMessage(from, '❌ No he podido guardar el archivo. Inténtalo de nuevo.');
-		return;
+		throw err;
 	}
 
 	const displayName = `WhatsApp_${new Date().toISOString().slice(0, 10)}.${extension}`;
@@ -142,6 +193,7 @@ async function handleMediaUpload(
 		markQueued,
 		enqueue: enqueueExtraction,
 	});
+	committed.value = true;
 
 	const link = APP_BASE_URL ? `${APP_BASE_URL}/batch/${batchId}` : `/batch/${batchId}`;
 	await sendWhatsAppMessage(

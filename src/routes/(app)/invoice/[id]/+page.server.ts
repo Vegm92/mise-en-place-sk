@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad, Actions } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
+import { invoices, invoiceLineItems, invoiceAuditLog, suppliers } from '$lib/server/schema';
 import { asc, eq, and, isNull } from 'drizzle-orm';
 import { moneyToNullableNumber } from '$lib/server/money';
 
@@ -49,7 +49,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		if (!row) redirect(303, '/invoices');
 
 		return {
-			title: `Invoice ${row.invoice_number ?? row.id}`,
+			title: 'inv.detail.pageTitle',
+			titleParams: { number: row.invoice_number ?? row.id },
 			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
 			lineItems: lineItems.map(li => ({
 				...li,

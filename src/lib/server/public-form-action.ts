@@ -1,6 +1,7 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAuthEvent, hashIp, type AuthEventKind } from '$lib/server/auth-events';
+import { verifyTurnstileToken } from '$lib/server/turnstile';
 
 export interface PublicFormContext {
 	event: RequestEvent;
@@ -19,6 +20,7 @@ export interface PublicFormOptions {
 	limits?: (ctx: PublicFormContext) => RateLimitRule[];
 	rateLimitEvent?: AuthEventKind;
 	failData?: (ctx: PublicFormContext) => Record<string, unknown>;
+	turnstile?: boolean;
 }
 
 export function publicFormAction<T>(
@@ -32,6 +34,13 @@ export function publicFormAction<T>(
 		const extra = () => options.failData?.(ctx) ?? {};
 
 		if (form.get('_hp')) return fail(422, { error: 'invalid', ...extra() });
+
+		if (options.turnstile) {
+			const token = String(form.get('cf-turnstile-response') ?? '');
+			if (!(await verifyTurnstileToken(token, ip))) {
+				return fail(422, { error: 'bot_suspected', ...extra() });
+			}
+		}
 
 		const rules = options.limits?.(ctx) ?? [];
 		const results = [] as boolean[];
