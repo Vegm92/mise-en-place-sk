@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #8a530f; text-decoration: none; }
+    a:hover { color: #7e4c0d; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; margin: 0; }
+    .body { font-size: 13px; color: #4a5562; margin: 0; }
+    .body-strong { font-size: 13px; color: #1a1f26; font-weight: 500; margin: 0; }
+    .subtitle { font-size: 16px; font-weight: 600; color: #1a1f26; letter-spacing: -0.01em; margin: 0; }
+    .title { font-size: 20px; font-weight: 600; color: #1a1f26; letter-spacing: -0.015em; margin: 0; }
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 0 12px;
+      height: 32px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;
+      cursor: pointer; white-space: nowrap; background: transparent; color: #4a5562;
+      transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .btn:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
+    .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
+    .btn-primary { background: #8a530f; color: #ffffff; }
+    .btn-primary:hover { background: #7e4c0d; }
+    .badge {
+      font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px;
+      display: inline-flex; align-items: center; gap: 4px; line-height: 16px;
+    }
+    .input {
+      font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
+      border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none; width: 100%;
+    }
+    .input::placeholder { color: #64707d; }
+    .period-track { display: inline-flex; align-items: center; gap: 2px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.06); border-radius: 999px; padding: 3px; flex-shrink: 0; }
+    .period-pill {
+      font-family: inherit; font-size: 12px; font-weight: 400; line-height: 1; padding: 6px 13px;
+      border: none; border-radius: 999px; cursor: pointer; color: #5f6b78; background: transparent; white-space: nowrap;
+      transition: background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+    }
+    .period-pill:hover { color: #4a5562; }
+    .period-pill.on { background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .row-card { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; background: #ffffff; position: relative; }
+    .row-card:hover { background: rgba(15, 20, 30, 0.02); }
+    .pop { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10); }
+    .token { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 4px 0 9px; border-radius: 999px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.10); font-size: 11.5px; color: #4a5562; }
+    .token button { border: none; background: transparent; cursor: pointer; color: #5f6b78; display: flex; padding: 3px; border-radius: 999px; }
+    .token button:hover { background: rgba(15, 20, 30, 0.07); color: #1a1f26; }
+    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+  </style>
+  <style>
+    .mx-cell { border: 1px solid rgba(15, 20, 30, 0.06); border-radius: 6px; padding: 9px 11px; display: flex; flex-direction: column; gap: 3px; min-height: 62px; justify-content: center; }
+  </style>
+</helmet>
+
+<div style="width: 1180px; height: 800px; background: #f5f4f0; padding: 24px 26px; display: flex; flex-direction: column; gap: 18px; color: #1a1f26;">
+
+  <div style="display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;">
+    <h1 class="title">Los tres estados, y el eje que ya existe</h1>
+    <p class="body" style="font-size: 12.5px;">Vale para las dos versiones. Lo de abajo es la decisión de fondo: revisión y pago no son la misma columna.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex-shrink: 0;">
+
+    <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(101, 74, 0, 0.14); color: #654a00;">Por revisar</span>
+      <p class="body" style="font-size: 12.5px;">Estado de entrada. Lo pone la app en cuanto se guarda el albarán extraído — nadie lo elige.</p>
+      <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Quién lo quita:</strong> quien revise la entrega.</span>
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Cuenta para:</strong> la bandeja y el aviso de atrasados.</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(20, 105, 74, 0.12); color: #14694a;">Confirmado</span>
+      <p class="body" style="font-size: 12.5px;">Lo que llegó cuadra con lo que pone el papel: cantidades, precios y total.</p>
+      <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Desbloquea:</strong> exportar a la gestoría sin repasar.</span>
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Reversible:</strong> sí, vuelve a «Por revisar».</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Incidencia</span>
+      <p class="body" style="font-size: 12.5px;">Algo no cuadra: falta género, el precio subió sin avisar, el albarán está repetido.</p>
+      <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Se cierra:</strong> confirmando o rechazando, nunca sola.</span>
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Pide:</strong> una nota — es la única que la necesita.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+    <div class="card-header" style="align-items: flex-start;">
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <span class="subtitle">Revisión y pago son dos ejes distintos</span>
+        <span class="body" style="font-size: 12.5px;">Hoy <code style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11.5px; background: rgba(15, 20, 30, 0.04); padding: 1px 5px; border-radius: 4px;">invoices.status</code> guarda <em>pending · accepted · rejected · paid</em> en una sola columna, y «vencida» se deduce de la fecha. Los tres estados nuevos no caben ahí sin pisar el pago.</span>
+      </div>
+    </div>
+
+    <div style="padding: 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0;">
+      <div style="display: grid; grid-template-columns: 150px repeat(3, 1fr); gap: 8px; align-items: center;">
+        <span></span>
+        <span class="label" style="text-align: center;">Pago · Pendiente</span>
+        <span class="label" style="text-align: center;">Pago · Pagada</span>
+        <span class="label" style="text-align: center;">Pago · Vencida</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 150px repeat(3, 1fr); gap: 8px; align-items: stretch;">
+        <span class="badge" style="align-self: center; justify-self: start; height: 22px; padding: 0 8px; background: rgba(101, 74, 0, 0.14); color: #654a00;">Por revisar</span>
+        <div class="mx-cell" style="background: #fafaf7;">
+          <span class="num body-strong">6 albaranes</span>
+          <span class="body" style="font-size: 11px;">el caso normal</span>
+        </div>
+        <div class="mx-cell" style="background: rgba(101, 74, 0, 0.14); border-color: #654a00;">
+          <span class="num body-strong" style="color: #654a00;">0 hoy — y es el peligro</span>
+          <span class="body" style="font-size: 11px; color: #654a00;">pagado sin que nadie mirara la entrega</span>
+        </div>
+        <div class="mx-cell" style="background: #fafaf7;">
+          <span class="num body-strong">0</span>
+          <span class="body" style="font-size: 11px;">vencido y sin revisar</span>
+        </div>
+
+        <span class="badge" style="align-self: center; justify-self: start; height: 22px; padding: 0 8px; background: rgba(20, 105, 74, 0.12); color: #14694a;">Confirmado</span>
+        <div class="mx-cell" style="background: #fafaf7;">
+          <span class="num body-strong">1 albarán</span>
+          <span class="body" style="font-size: 11px;">revisado, toca pagarlo</span>
+        </div>
+        <div class="mx-cell" style="background: #fafaf7;">
+          <span class="num body-strong">7 albaranes</span>
+          <span class="body" style="font-size: 11px;">cerrado por los dos lados</span>
+        </div>
+        <div class="mx-cell" style="background: #fafaf7;">
+          <span class="num body-strong">0</span>
+          <span class="body" style="font-size: 11px;">revisado, pago atrasado</span>
+        </div>
+
+        <span class="badge" style="align-self: center; justify-self: start; height: 22px; padding: 0 8px; background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Incidencia</span>
+        <div class="mx-cell" style="background: #fafaf7;">
+          <span class="num body-strong">1 albarán</span>
+          <span class="body" style="font-size: 11px;">a la espera del proveedor</span>
+        </div>
+        <div class="mx-cell" style="background: rgba(176, 58, 58, 0.12); border-color: #b03a3a;">
+          <span class="num body-strong" style="color: #b03a3a;">0 hoy — y es el peligro</span>
+          <span class="body" style="font-size: 11px; color: #b03a3a;">pagado con la incidencia abierta</span>
+        </div>
+        <div class="mx-cell" style="background: #fafaf7;">
+          <span class="num body-strong">1 albarán</span>
+          <span class="body" style="font-size: 11px;">retenido a propósito</span>
+        </div>
+      </div>
+
+      <p class="body" style="font-size: 12px; padding-top: 4px;">Las dos casillas marcadas no salen nunca si el estado de revisión y el de pago comparten columna: al marcar «Pagada» se borra el «Por revisar». Son las dos que más dinero cuestan, así que la columna se separa.</p>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 16px; flex-shrink: 0;">
+    <div style="display: flex; flex-direction: column; gap: 2px; width: 236px; flex-shrink: 0;">
+      <span class="body-strong">En el móvil</span>
+      <span class="body" style="font-size: 11.5px;">Las bandejas reutilizan la tira de chips que ya existe: 44 px de alto, desplazable.</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #8a530f; color: #ffffff;">Por revisar · 6</span>
+      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #ffffff; color: #4a5562; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);">Confirmados · 8</span>
+      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #ffffff; color: #4a5562; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);">Incidencias · 2</span>
+      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #ffffff; color: #4a5562; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);">Todos · 16</span>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script data-dc-script data-props='{"$preview": {"width": 1180, "height": 800}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>

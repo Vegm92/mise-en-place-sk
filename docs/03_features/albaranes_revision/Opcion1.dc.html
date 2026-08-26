@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #8a530f; text-decoration: none; }
+    a:hover { color: #7e4c0d; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; margin: 0; }
+    .body { font-size: 13px; color: #4a5562; margin: 0; }
+    .body-strong { font-size: 13px; color: #1a1f26; font-weight: 500; margin: 0; }
+    .subtitle { font-size: 16px; font-weight: 600; color: #1a1f26; letter-spacing: -0.01em; margin: 0; }
+    .title { font-size: 20px; font-weight: 600; color: #1a1f26; letter-spacing: -0.015em; margin: 0; }
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 0 12px;
+      height: 32px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;
+      cursor: pointer; white-space: nowrap; background: transparent; color: #4a5562;
+      transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .btn:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
+    .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
+    .btn-primary { background: #8a530f; color: #ffffff; }
+    .btn-primary:hover { background: #7e4c0d; }
+    .badge {
+      font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px;
+      display: inline-flex; align-items: center; gap: 4px; line-height: 16px;
+    }
+    .input {
+      font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
+      border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none; width: 100%;
+    }
+    .input::placeholder { color: #64707d; }
+    .period-track { display: inline-flex; align-items: center; gap: 2px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.06); border-radius: 999px; padding: 3px; flex-shrink: 0; }
+    .period-pill {
+      font-family: inherit; font-size: 12px; font-weight: 400; line-height: 1; padding: 6px 13px;
+      border: none; border-radius: 999px; cursor: pointer; color: #5f6b78; background: transparent; white-space: nowrap;
+      transition: background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+    }
+    .period-pill:hover { color: #4a5562; }
+    .period-pill.on { background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .row-card { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; background: #ffffff; position: relative; }
+    .row-card:hover { background: rgba(15, 20, 30, 0.02); }
+    .pop { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10); }
+    .token { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 4px 0 9px; border-radius: 999px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.10); font-size: 11.5px; color: #4a5562; }
+    .token button { border: none; background: transparent; cursor: pointer; color: #5f6b78; display: flex; padding: 3px; border-radius: 999px; }
+    .token button:hover { background: rgba(15, 20, 30, 0.07); color: #1a1f26; }
+    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+  </style>
+</helmet>
+
+<div style="width: 540px; height: 440px; background: #f5f4f0; padding: 18px; display: flex; flex-direction: column; gap: 12px; color: #1a1f26;">
+
+  <div class="card" style="flex: 1; min-height: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+
+    <div style="display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;">
+      <div style="display: flex; align-items: baseline; gap: 8px;">
+        <span class="label" style="color: #8a530f;">Opción 1</span>
+        <span class="subtitle" style="font-size: 15px;">Carga de revisión</span>
+      </div>
+      <p class="body" style="font-size: 12px;">Albaranes por semana, apilados por estado de revisión.</p>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+      <sc-for list="{{ leyenda }}" as="l" hint-placeholder-count="3">
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #4a5562;">
+          <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ l.color }};"></span>
+          {{ l.nombre }}
+        </span>
+      </sc-for>
+    </div>
+
+    <div style="position: relative; width: 472px; height: 198px; flex-shrink: 0;">
+
+      <sc-for list="{{ rejilla }}" as="g" hint-placeholder-count="3">
+        <div style="position: absolute; left: 30px; right: 0; top: {{ g.top }}; height: 1px; background: rgba(15, 20, 30, 0.06);"></div>
+        <div class="num" style="position: absolute; left: 0; width: 24px; top: {{ g.textoTop }}; text-align: right; font-size: 10px; color: #64707d;">{{ g.v }}</div>
+      </sc-for>
+
+      <div style="position: absolute; left: 30px; right: 0; top: 178px; height: 1px; background: rgba(15, 20, 30, 0.18);"></div>
+
+      <div style="position: absolute; left: 30px; right: 0; top: 10px; height: 168px; display: flex;">
+        <sc-for list="{{ columnas }}" as="c" hint-placeholder-count="6">
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; cursor: pointer;" onMouseEnter="{{ c.enter }}" onMouseLeave="{{ c.leave }}">
+            <sc-for list="{{ c.segmentos }}" as="s" hint-placeholder-count="3">
+              <div style="width: 42px; height: {{ s.alto }}; background: {{ s.color }}; border-radius: {{ s.radio }}; margin-bottom: {{ s.hueco }};"></div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="position: absolute; left: 30px; right: 0; top: 183px; display: flex;">
+        <sc-for list="{{ columnas }}" as="c" hint-placeholder-count="6">
+          <div class="num" style="flex: 1; text-align: center; font-size: 10.5px; color: {{ c.tinta }};">{{ c.etiqueta }}</div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ hayTooltip }}" hint-placeholder-val="{{ false }}">
+        <div class="pop" style="position: absolute; top: 0; left: {{ tipX }}; width: 172px; padding: 9px 11px; display: flex; flex-direction: column; gap: 5px; pointer-events: none; z-index: 10;">
+          <span class="body-strong" style="font-size: 12px;">{{ tipTitulo }}</span>
+          <sc-for list="{{ tipFilas }}" as="t" hint-placeholder-count="3">
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #4a5562;">
+              <span style="width: 8px; height: 8px; border-radius: 2px; background: {{ t.color }}; flex-shrink: 0;"></span>
+              <span style="flex: 1;">{{ t.nombre }}</span>
+              <span class="num" style="font-weight: 500; color: #1a1f26;">{{ t.v }}</span>
+            </span>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="flex: 1;"></div>
+
+    <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 11px; border-top: 1px solid rgba(15, 20, 30, 0.06); flex-shrink: 0;">
+      <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Responde:</strong> ¿voy al día revisando, o se me está acumulando?</span>
+      <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">El coste:</strong> habla de tu proceso, no de tu dinero. Al jefe no le dice nada.</span>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script data-dc-script data-props='{"$preview": {"width": 540, "height": 440}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { hover: null };
+  }
+
+  renderVals() {
+    const series = [
+      { key: 'confirmado', nombre: 'Confirmado',  color: '#0f7a52' },
+      { key: 'revisar',    nombre: 'Por revisar', color: '#bd8206' },
+      { key: 'incidencia', nombre: 'Incidencia',  color: '#c73f31' },
+    ];
+
+    const semanas = [
+      { etiqueta: 'sem 27', confirmado: 22, revisar: 0, incidencia: 1 },
+      { etiqueta: 'sem 28', confirmado: 25, revisar: 0, incidencia: 2 },
+      { etiqueta: 'sem 29', confirmado: 19, revisar: 1, incidencia: 0 },
+      { etiqueta: 'sem 30', confirmado: 24, revisar: 2, incidencia: 3 },
+      { etiqueta: 'sem 31', confirmado: 21, revisar: 3, incidencia: 1 },
+      { etiqueta: 'sem 32', confirmado: 18, revisar: 4, incidencia: 1 },
+    ];
+
+    const PLOT = 168, MAX = 30;
+    const alto = v => (PLOT * v) / MAX;
+
+    const columnas = semanas.map((s, i) => {
+      const deArribaAbajo = series.slice().reverse().filter(se => s[se.key] > 0);
+      return {
+        etiqueta: s.etiqueta,
+        tinta: this.state.hover === i ? '#1a1f26' : '#64707d',
+        enter: () => this.setState({ hover: i }),
+        leave: () => this.setState({ hover: null }),
+        segmentos: deArribaAbajo.map((se, j) => ({
+          alto: alto(s[se.key]).toFixed(1) + 'px',
+          color: se.color,
+          radio: j === 0 ? '4px 4px 0 0' : '0',
+          hueco: j === deArribaAbajo.length - 1 ? '0' : '2px',
+        })),
+      };
+    });
+
+    const rejilla = [10, 20, 30].map(v => ({
+      v,
+      top: (10 + PLOT - alto(v)).toFixed(1) + 'px',
+      textoTop: (10 + PLOT - alto(v) - 6).toFixed(1) + 'px',
+    }));
+
+    const h = this.state.hover;
+    const sel = h === null ? null : semanas[h];
+    const anchoCol = 442 / semanas.length;
+
+    return {
+      leyenda: series,
+      columnas,
+      rejilla,
+      hayTooltip: sel !== null,
+      tipTitulo: sel ? sel.etiqueta + ' · ' + (sel.confirmado + sel.revisar + sel.incidencia) + ' albaranes' : '',
+      tipX: sel ? Math.min(300, Math.max(0, 30 + h * anchoCol + anchoCol / 2 - 86)).toFixed(0) + 'px' : '0px',
+      tipFilas: sel ? series.map(se => ({ nombre: se.nombre, color: se.color, v: sel[se.key] })) : [],
+    };
+  }
+}
+</script>
+</body>
+</html>
