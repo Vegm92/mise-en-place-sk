@@ -1,7 +1,7 @@
 import { palettes } from './palettes.mjs';
 import { writeFileSync } from 'node:fs';
 
-const W = 1420, H = 944;
+const W = 1420, H = 972;
 
 const ic = (paths, size = 16, sw = 2) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">${paths}</svg>`;
@@ -90,11 +90,11 @@ const SHADOW_CARD = (t) => t.mode === 'dark'
   ? '0 1px 0 rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3)'
   : '0 1px 0 rgba(15,20,30,0.04), 0 1px 2px rgba(15,20,30,0.04)';
 
-const swatch = (color, name, ink) => `
+const swatch = (color, name, ink, chrome) => `
         <div style="display:flex;flex-direction:column;gap:5px;min-width:0;">
           <div style="height:34px;border-radius:6px;background:${color};border:1px solid ${ink.border};"></div>
-          <span style="font-size:10px;letter-spacing:0.02em;color:${ink.fg3};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
-          <span class="num" style="font-size:9.5px;color:${ink.fg4};">${color.startsWith('#') ? color.toUpperCase() : '—'}</span>
+          <span style="font-size:10px;letter-spacing:0.02em;color:${chrome.name};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
+          <span class="num" style="font-size:9.5px;color:${chrome.hex};">${color.startsWith('#') ? color.toUpperCase() : '—'}</span>
         </div>`;
 
 function artboard(p, mode) {
@@ -105,19 +105,21 @@ function artboard(p, mode) {
   const swatches = [
     [t.bg, 'fondo'], [t.surface, 'superficie'], [t.fg, 'texto'], [t.acc, 'acción'],
     [t.pos, 'positivo'], [t.neg, 'negativo'], [t.warn, 'aviso'], [t.caution, 'atención'], [t.info, 'info'],
-  ].map(([c, n]) => swatch(c, n, t)).join('');
+  ].map(([c, n]) => swatch(c, n, t, isLight
+    ? { name: '#5d5d62', hex: '#63636a' }
+    : { name: '#9d9da5', hex: '#8d8d94' })).join('');
 
   const cats = [
-    { name: 'Carnes y derivados', spent: '4.180 €', budget: '3.900 €', value: 4180, target: 3450, max: 4095, color: isLight ? '#8B3530' : '#d3756d', fc: '4.610 €', d: '+710 €', over: true },
-    { name: 'Pescados y mariscos', spent: '2.240 €', budget: '2.600 €', value: 2240, target: 2300, max: 2730, color: isLight ? '#2C5F8A' : '#6195c3', fc: '2.480 €', d: '−120 €', over: false },
-    { name: 'Frutas y verduras', spent: '1.905 €', budget: '2.100 €', value: 1905, target: 1858, max: 2205, color: isLight ? '#3B6B20' : '#619348', fc: '2.190 €', d: '+90 €', over: true },
+    { name: 'Carnes y derivados', spent: '4.180 €', budget: '3.900 €', value: 4180, target: 3271, max: 4095, color: isLight ? '#8B3530' : '#d3756d', fc: '4.980 €', d: '+1.080 €', over: true },
+    { name: 'Pescados y mariscos', spent: '2.040 €', budget: '2.600 €', value: 2040, target: 2181, max: 2730, color: isLight ? '#2C5F8A' : '#6195c3', fc: '2.430 €', d: '−170 €', over: false },
+    { name: 'Frutas y verduras', spent: '1.905 €', budget: '2.100 €', value: 1905, target: 1761, max: 2205, color: isLight ? '#3B6B20' : '#619348', fc: '2.270 €', d: '+170 €', over: true },
   ].map((c) => `
             <div>
               <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;gap:8px;">
                 <span class="body-strong" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.name}</span>
                 <span class="num" style="font-size:11px;color:${t.fg3};flex-shrink:0;">${c.spent} <span style="color:${t.fg4};">/ ${c.budget}</span></span>
               </div>
-              ${bullet(t, { value: c.value, target: c.target, max: c.max, color: c.color, width: 344, height: 11 })}
+              ${bullet(t, { value: c.value, target: c.target, max: c.max, color: c.color, width: 342, height: 11 })}
               <div class="num" style="font-size:11px;margin-top:4px;color:${c.over ? t.neg : t.fg3};">cierra en ${c.fc} · ${c.d}</div>
             </div>`).join('');
 
@@ -185,13 +187,13 @@ function artboard(p, mode) {
       <div style="min-width:0;">
         <div style="display:flex;align-items:baseline;gap:10px;">
           <span style="font-size:19px;font-weight:600;letter-spacing:-0.02em;color:${isLight ? '#1a1a1a' : '#e8e8ea'};">${p.name}</span>
-          <span style="font-size:12px;color:${isLight ? '#6b6b70' : '#8d8d94'};">${p.tag}</span>
+          <span style="font-size:12px;color:${isLight ? '#63636a' : '#8d8d94'};">${p.tag}</span>
         </div>
         <div style="font-size:12.5px;line-height:1.5;color:${isLight ? '#4d4d52' : '#a0a0a8'};max-width:78ch;margin-top:5px;text-wrap:pretty;">${p.why}</div>
-        <div style="font-size:12.5px;line-height:1.5;color:${isLight ? '#6b6b70' : '#83838a'};max-width:78ch;margin-top:2px;text-wrap:pretty;"><span style="font-weight:600;">A cambio · </span>${p.cost}</div>
+        <div style="font-size:12.5px;line-height:1.5;color:${isLight ? '#63636a' : '#83838a'};max-width:78ch;margin-top:2px;text-wrap:pretty;"><span style="font-weight:600;">A cambio · </span>${p.cost}</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;padding-top:6px;color:${isLight ? '#6b6b70' : '#8d8d94'};">
+    <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;padding-top:6px;color:${isLight ? '#63636a' : '#8d8d94'};">
       ${ic(isLight ? I.sun : I.moon, 14)}
       <span style="font-size:12px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;">${modeLabel}</span>
     </div>
@@ -260,14 +262,14 @@ function artboard(p, mode) {
         </div>
 
         <div class="card" style="padding:10px 18px;display:flex;align-items:center;gap:20px;flex-shrink:0;">
-          ${chip(t, { label: 'Ritmo del mes', value: '18.4K €', note: '+1.240 € vs. plan a día 26', tone: t.neg, wide: true, chart: bullet(t, { value: 18400, target: 17160, max: 21500, color: t.acc, width: 90, height: 11 }) })}
-          ${chip(t, { label: 'Cierre previsto', value: '22.1K €', note: '+620 € sobre el tope', tone: t.neg })}
-          ${chip(t, { label: 'Por revisar', value: '3.860 €', note: '4 albaranes sin confirmar', tone: t.caution })}
+          ${chip(t, { label: 'Ritmo del mes', value: '18.400 €', note: '+787 € vs. plan a día 26', tone: t.neg, wide: true, chart: bullet(t, { value: 18400, target: 17613, max: 21000, color: t.acc, width: 90, height: 11 }) })}
+          ${chip(t, { label: 'Cierre previsto', value: '21.940 €', note: '+940 € sobre el tope', tone: t.neg })}
+          ${chip(t, { label: 'Por revisar', value: '3.120 €', note: '4 albaranes sin confirmar', tone: t.caution })}
           ${chip(t, { label: 'Sale de caja · 7 d', value: '5.100 €', note: '2 pagos programados', tone: t.caution, last: true })}
           <div style="flex:1;min-width:12px;"></div>
           <div style="text-align:right;">
             <div class="label">Hoy hay en juego</div>
-            <div class="num title-lg" style="line-height:1.15;">9.740 €</div>
+            <div class="num title-lg" style="line-height:1.15;">8.840 €</div>
           </div>
         </div>
 
@@ -277,7 +279,7 @@ function artboard(p, mode) {
             <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 2px;">
               <div>
                 <span class="subtitle">Tu turno</span>
-                <span class="body" style="margin-left:8px;">5 cosas, ordenadas por euros en juego</span>
+                <span class="body" style="margin-left:8px;">3 cosas, ordenadas por euros en juego</span>
               </div>
               <div class="btn btn-ghost" style="height:26px;">Ordenar por urgencia ${ic(I.updown, 12)}</div>
             </div>
@@ -285,19 +287,19 @@ function artboard(p, mode) {
               icon: I.trend, kind: 'Precio', urgency: 'esta semana',
               title: 'El solomillo de Cárnicas Beltrán sube un 14 %',
               why: 'De 18,40 €/kg a 20,98 €/kg en tres albaranes seguidos.',
-              eur: '3.120 €', action: 'Ver precios', color: t.neg, soft: t.negSoft, primary: true,
+              eur: '3.860 €', action: 'Ver precios', color: t.neg, soft: t.negSoft, primary: true,
+            })}
+            ${workCard(t, {
+              icon: I.fileCheck, kind: 'Revisión', urgency: 'desde hace 3 días',
+              title: '4 albaranes esperan confirmación',
+              why: 'Dos con líneas por debajo del umbral de confianza.',
+              eur: '3.120 €', action: 'Revisar', color: t.caution, soft: t.cautionSoft, primary: false,
             })}
             ${workCard(t, {
               icon: I.clock, kind: 'Pago', urgency: 'vence en 2 días',
               title: 'Pescadería Ría de Arosa vence el 28 de agosto',
               why: 'Factura de julio, sin conciliar con el extracto.',
               eur: '1.860 €', action: 'Marcar pagada', color: t.warn, soft: t.warnSoft, primary: false,
-            })}
-            ${workCard(t, {
-              icon: I.fileCheck, kind: 'Revisión', urgency: 'desde hace 3 días',
-              title: '4 albaranes esperan confirmación',
-              why: 'Dos con líneas por debajo del umbral de confianza.',
-              eur: '3.860 €', action: 'Revisar', color: t.caution, soft: t.cautionSoft, primary: false,
             })}
           </div>
 
@@ -324,8 +326,13 @@ function artboard(p, mode) {
     </div>
   </div>
 
-  <div style="flex-shrink:0;display:grid;grid-template-columns:repeat(9, minmax(0, 1fr));gap:10px;padding:0 2px;">
-    ${swatches}
+  <div style="flex-shrink:0;display:flex;flex-direction:column;gap:10px;padding:0 2px;">
+    <div style="display:grid;grid-template-columns:repeat(9, minmax(0, 1fr));gap:10px;">
+      ${swatches}
+    </div>
+    <div style="font-size:11px;line-height:1.45;color:${isLight ? '#5d5d62' : '#9d9da5'};">
+      Los 17 colores de categoría (las barras de “Categorías en riesgo”) son una rampa aparte y no cambian entre direcciones — se re-tonarían después, sobre la elegida.
+    </div>
   </div>
 
 </div>
@@ -363,18 +370,18 @@ const canvas = {
   annotations: [
     {
       id: 'brief',
-      x: 0, y: -260, w: 620,
-      text: 'Cinco direcciones de color sobre la misma pantalla — el Resumen real, con la misma tipografía, densidad y componentes.\nSolo cambia el color: así se comparan.\n\nArriba claro, abajo oscuro. La columna es la dirección.',
+      x: 0, y: -300, w: 620,
+      text: 'Cinco direcciones de color sobre la misma pantalla — el Resumen real, con la misma tipografía, densidad y componentes.\nLo único que cambia entre columnas es el color: así se comparan.\n\nArriba claro, abajo oscuro. Cada columna es una dirección.',
     },
     {
       id: 'como-elegir',
-      x: 700, y: -260, w: 560,
+      x: 700, y: -300, w: 560,
       text: 'Qué mirar, por orden:\n1. ¿El botón primario se distingue de una alerta a un metro de distancia?\n2. ¿La barra de estados se lee de un vistazo o compite consigo misma?\n3. ¿Aguanta el modo oscuro sin volverse barro?\n\nDime la letra y lo llevo a los tokens de app.css.',
     },
     {
       id: 'contraste',
-      x: 1360, y: -260, w: 540,
-      text: 'Los diez pasan AA (4,5:1) en texto, acento sobre superficie y cada color semántico sobre superficie y superficie-2.\nEn C · Huerta el verde positivo se movió a un verde azulado para no chocar con el verde de acción.',
+      x: 1360, y: -300, w: 560,
+      text: 'Los diez pasan AA (4,5:1): texto, acento sobre superficie, y cada color semántico sobre superficie y superficie-2 — incluidas las etiquetas de esta lámina.\n\nDos ajustes que salieron por el camino: en C · Huerta el verde “positivo” se movió a un verde azulado para no chocar con el verde de acción, y el --mep-caution actual (#8a7300) se queda en 4,43:1 sobre superficie-2, así que en las cinco está en #7f6b00.',
     },
   ],
   launch: { view: 'canvas' },

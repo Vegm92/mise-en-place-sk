@@ -1,6 +1,6 @@
 # Variaciones de color de marca
 
-Cinco direcciones de paleta (A Pizarra, B Cocina, C Huerta, D Azafrán, E Bodega),
+Cinco direcciones de paleta (A Pizarra, B Cocina, C Huerta, D Tinta, E Bodega),
 cada una en claro y oscuro, montadas sobre la pantalla de Resumen para poder
 compararlas sobre UI real en lugar de sobre muestras sueltas.
 
