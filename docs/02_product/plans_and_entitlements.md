@@ -8,12 +8,12 @@ Full billing feature spec: `docs/03_features/billing.md`. Decision record:
 
 ## Tiers
 
-| Tier | Monthly invoice quota | Locations | `weeklyDigest` | `stockTracking` | `supplierScores` | `multiLocation` | `aiAssistant` | `prioritySupport` |
-|---|---|---|---|---|---|---|---|---|
-| `trial` | 20 | 1 | — | — | — | — | — | — |
-| `starter` | 100 | 1 | — | — | — | — | — | — |
-| `pro` | 300 | 1 | ✓ | ✓ | ✓ | — | ✓ | — |
-| `business` | unlimited (`null`) | 5 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Tier | Monthly invoice quota | Locations | Recipe sheets | `weeklyDigest` | `stockTracking` | `supplierScores` | `multiLocation` | `aiAssistant` | `prioritySupport` |
+|---|---|---|---|---|---|---|---|---|---|
+| `trial` | 20 | 1 | 3 | — | — | — | — | — | — |
+| `starter` | 100 | 1 | 3 | — | — | — | — | — | — |
+| `pro` | 300 | 1 | unlimited | ✓ | ✓ | ✓ | — | ✓ | — |
+| `business` | unlimited (`null`) | 5 | unlimited | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 - Trial: 30 days (`TRIAL_DAYS`), `subscriptions.status = 'trialing'`,
   `trialEndsAt = createdAt + 30d`; locked when the window passes unless the
@@ -55,6 +55,7 @@ Full billing feature spec: `docs/03_features/billing.md`. Decision record:
 | `aiAssistant` | `(app)/api/chat/+server.ts` → 402 |
 | `weeklyDigest` | `/digest` load → redirect `/billing?upgrade=digest`; also filters digest cron |
 | `stockTracking` | `(app)/api/stock-levels/+server.ts` → 403 |
+| `maxRecipes` | Not a feature flag — a count. `/recipes` is `'open'`; the `create` action returns 402 with an upgrade link once non-archived sheets reach the tier's limit. Mirrors `maxLocations`. |
 | `supplierScores` | `/analytics/prices` load → redirect `?upgrade=prices` |
 | `multiLocation` | `/settings` location creation |
 

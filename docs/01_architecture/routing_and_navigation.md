@@ -25,6 +25,8 @@ src/routes/
 │   ├── extract/[id]/                  # legacy redirect stub → /batch/[batchId]
 │   ├── suppliers/                     # list + detail [id] (spend, reliability)
 │   ├── products/                      # list + detail [id] (aliases, merge, conversions)
+│   ├── recipes/                       # escandallos: list, sheet editor, A4 sheet, CSV, email
+│   │   └── [id]/{,sheet/,csv/}        # editor · printable A4 sheet · CSV download
 │   ├── budgets/                       # limits + current-month spend (progress bars)
 │   ├── reminders/                     # overdue/due-soon + alerts hub (mark-paid, accept/reject)
 │   ├── analytics/
@@ -112,6 +114,7 @@ src/routes/
 | `invoices*`, `invoice/[id]*` | invoice management (see `invoice_confirmation.md`) | `invoices` + line items |
 | `suppliers*` | `suppliers` | `suppliers` + `mv_supplier_monthly_spend` |
 | `products*` | `products` | `products` + aliases + `mv_price_snapshots` |
+| `recipes` | `recipes` | `recipes` + `recipe_items`, costed against `invoice_line_items` / `mv_price_snapshots` |
 | `budgets` | `budgets` | `category_budgets` + live aggregation |
 | `reminders` | `notifications` | `system_notifications` + invoices |
 | `analytics/*` | `analytics` | `mv_*` views |
@@ -133,6 +136,13 @@ src/routes/
 - All routes inherit the auth hook; never re-implement auth inside a route.
 
 ## Route-level notes
+
+- **`recipes/`**: `/recipes` lists every sheet costed by one `recipeCosts(rid)`
+  pass; `/recipes/[id]` is the editor (one form per ingredient row);
+  `/recipes/[id]/sheet` is the print-first A4 page and `/recipes/[id]/csv` the
+  export. All three render one `RecipeSheetDoc` from
+  `src/lib/server/recipes-sheet.ts`, as does the `sendSheet` email. Routes are
+  `'open'`; the 3-sheet limit on trial/starter is a count checked in `create`.
 
 - **`budgets/+page.server.ts`**: loads both the budget limits (`categoryBudgets`)
   and the current-month category spend (aggregated from
