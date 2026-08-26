@@ -18,6 +18,7 @@ import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
 import { users } from './schema';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
+import { DAY_MS } from '$lib/constants';
 
 const secretKey = STRIPE_SECRET_KEY;
 export const stripe: Stripe | null = secretKey ? new Stripe(secretKey) : null;
@@ -464,7 +465,7 @@ export async function getOrCreateCustomer(restaurantId: string, email: string, r
 				restaurantId,
 				stripeCustomerId: customer.id,
 				status: 'trialing',
-				trialEndsAt: new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000),
+				trialEndsAt: new Date(Date.now() + trialDays * DAY_MS),
 			})
 			.onConflictDoUpdate({
 				target: subscriptions.restaurantId,
@@ -475,15 +476,18 @@ export async function getOrCreateCustomer(restaurantId: string, email: string, r
 	});
 }
 
-export async function createCheckoutSession(
-	restaurantId: string,
-	customerId: string,
-	tier: PlanTier,
-	successUrl: string,
-	cancelUrl: string,
-	idempotencyKey?: string,
-	userId?: string,
-): Promise<string> {
+export interface CreateCheckoutSessionOptions {
+	restaurantId: string;
+	customerId: string;
+	tier: PlanTier;
+	successUrl: string;
+	cancelUrl: string;
+	idempotencyKey?: string;
+	userId?: string;
+}
+
+export async function createCheckoutSession(opts: CreateCheckoutSessionOptions): Promise<string> {
+	const { restaurantId, customerId, tier, successUrl, cancelUrl, idempotencyKey, userId } = opts;
 	if (!stripe) throw new Error('Stripe not configured');
 	const priceId = TIERS[tier].stripePriceId;
 	if (!priceId) throw new Error(`STRIPE_PRICE_ID_${tier.toUpperCase()} not configured`);
@@ -723,7 +727,7 @@ async function sendSubscriptionConfirmation(restaurantId: string, email: string,
 	const [restaurant] = await db.select({ name: restaurants.name })
 		.from(restaurants)
 		.where(eq(restaurants.id, restaurantId));
-	sendEmail(subscriptionConfirmationEmail(
+	void sendEmail(subscriptionConfirmationEmail(
 		email,
 		restaurant?.name ?? 'tu restaurante',
 		TIERS[tier].name,
