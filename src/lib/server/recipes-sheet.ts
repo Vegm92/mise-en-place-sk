@@ -3,7 +3,7 @@ import { db, forTenant } from './db';
 import { recipes } from './schema';
 import { fmtEur } from '$lib/formatters';
 import { moneyPlain, generatedStamp } from './reports/shared';
-import { fromRate, type Allergen } from '$lib/recipes';
+import { convertQty, fromRate, unitFamily, type Allergen } from '$lib/recipes';
 import {
 	collectProductIds, computeRecipeCosts, loadProductFacts, loadRecipeGraph, resolveProductPrices,
 	type LineCost, type RecipeCost
@@ -17,9 +17,11 @@ export interface SheetKpi {
 export interface SheetLine {
 	name: string;
 	isPrep: boolean;
+	childRecipeId: number | null;
 	grossQty: string;
 	wastePct: string;
 	netQty: string;
+	netLabel: string;
 	unit: string;
 	unitCost: string;
 	amount: string;
@@ -55,6 +57,13 @@ export interface RecipeSheetDoc {
 	allergens: Allergen[];
 	nutrition: { kcal: string; protein: string; carbs: string; fat: string } | null;
 	coverage: { known: number; total: number };
+	summary: {
+		costPerPortion: string;
+		grossPrice: string;
+		netPrice: string;
+		foodCost: string;
+		marginPct: string;
+	};
 	warnings: string[];
 	csv: { filename: string; header: string[]; rows: (string | number | null)[][] };
 }
@@ -66,15 +75,34 @@ const qty = (n: number) => {
 
 const pct = (n: number) => `${n.toFixed(1).replace('.', ',')} %`;
 
+export function kitchenQty(netQty: number, unit: string | null): string {
+	const family = unitFamily(unit);
+	if (family === 'mass') {
+		const grams = convertQty(netQty, unit, 'g');
+		if (grams !== null) {
+			return grams < 1000 ? `${qty(grams)} g` : `${qty(grams / 1000)} kg`;
+		}
+	}
+	if (family === 'volume') {
+		const ml = convertQty(netQty, unit, 'ml');
+		if (ml !== null) {
+			return ml < 1000 ? `${qty(ml)} ml` : `${qty(ml / 1000)} L`;
+		}
+	}
+	return `${qty(netQty)} ${unit ?? ''}`.trim();
+}
+
 const eur = (cents: number | null) => (cents === null ? '—' : fmtEur(cents / 100));
 
 function sheetLine(line: LineCost): SheetLine {
 	return {
 		name: line.name,
 		isPrep: line.kind === 'recipe',
+		childRecipeId: line.childRecipeId,
 		grossQty: qty(line.grossQty),
 		wastePct: line.wastePct === 0 ? '—' : pct(line.wastePct),
 		netQty: qty(line.netQty),
+		netLabel: kitchenQty(line.netQty, line.unit),
 		unit: line.unit ?? '',
 		unitCost: line.unitRateUnits === null ? '—' : fromRate(line.unitRateUnits).replace('.', ','),
 		amount: eur(line.costCents),
@@ -186,6 +214,13 @@ export async function buildRecipeSheet(
 			}
 			: null,
 		coverage: cost.nutritionCoverage,
+		summary: {
+			costPerPortion: eur(cost.costPerPortionCents),
+			grossPrice: eur(cost.grossPriceCents),
+			netPrice: eur(cost.netPriceCents),
+			foodCost: cost.foodCostPct === null ? '—' : pct(cost.foodCostPct),
+			marginPct: cost.marginPct === null ? '—' : pct(cost.marginPct),
+		},
 		warnings: cost.warnings,
 		csv: csvOf(recipe.name, cost, lines, now),
 	};

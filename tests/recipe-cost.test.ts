@@ -7,6 +7,7 @@ import {
 	computeRecipeCosts, wouldCycle,
 	type ProductFacts, type RecipeNode, type ResolvedPrice
 } from '../src/lib/server/recipes';
+import { kitchenQty } from '../src/lib/server/recipes-sheet';
 
 type ItemInput = Partial<{
 	id: number; recipeId: number; kind: string; name: string; productId: number | null; childRecipeId: number | null;
@@ -366,5 +367,23 @@ describe('inheritance from the product catalog', () => {
 		const cost = computeRecipeCosts(graph, prices, facts).get(1)!;
 		expect(cost.allergens).toEqual([]);
 		expect(cost.nutritionTotal).toBeNull();
+	});
+});
+
+describe('kitchenQty — what the cook reads on the pass', () => {
+	it('drops sub-kilo masses to grams and sub-litre volumes to millilitres', () => {
+		expect(kitchenQty(0.8, 'kg')).toBe('800 g');
+		expect(kitchenQty(0.25, 'L')).toBe('250 ml');
+	});
+
+	it('keeps the larger unit once it reads better there', () => {
+		expect(kitchenQty(1.5, 'kg')).toBe('1,5 kg');
+		expect(kitchenQty(2000, 'g')).toBe('2 kg');
+		expect(kitchenQty(1000, 'ml')).toBe('1 L');
+	});
+
+	it('leaves counted units alone, since grams are unknowable', () => {
+		expect(kitchenQty(2, 'ud')).toBe('2 ud');
+		expect(kitchenQty(3, null)).toBe('3');
 	});
 });

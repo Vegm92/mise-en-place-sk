@@ -85,7 +85,7 @@
 </script>
 
 <tr class="row">
-  <td class="tbl-stack-lead">
+  <td class="tbl-stack-lead rl-cell">
     <form method="post" action={isNew ? '?/addItem' : '?/updateItem'} id={isNew ? 'rec-add' : `rec-line-${line!.id}`}>
       {#if !isNew}<input type="hidden" name="itemId" value={line!.id} />{/if}
       <input type="hidden" name="kind" value={kind} />
@@ -104,10 +104,9 @@
     </form>
 
     <div class="flex flex-col gap-1">
-      <div class="flex gap-1 flex-wrap">
+      <div class="rl-seg" role="group" aria-label={$t('rec.line.kind')}>
         {#each RECIPE_LINE_KINDS as k}
-          <button type="button" class="chip" aria-pressed={kind === k}
-            style={kind === k ? 'border-color:var(--mep-acc);color:var(--mep-acc);' : ''}
+          <button type="button" class="rl-seg-btn" class:rl-seg-on={kind === k} aria-pressed={kind === k}
             onclick={() => { kind = k; if (k !== 'product') productId = 0; if (k !== 'recipe') childRecipeId = 0; }}>
             {$t(`rec.line.kind.${k}`)}
           </button>
@@ -115,14 +114,14 @@
       </div>
 
       {#if kind === 'product'}
-        <select class="input" style="padding:0 8px;min-width:190px;" bind:value={productId}
+        <select class="input" style="padding:0 8px;min-width:170px;" bind:value={productId}
           aria-label={$t('rec.line.product')}
           onchange={() => { const p = catalog.find((c) => c.id === productId); if (p) { name = p.name; if (p.baseUnit && units.includes(p.baseUnit)) unit = p.baseUnit; } }}>
           <option value={0}>—</option>
           {#each catalog as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
         </select>
       {:else if kind === 'recipe'}
-        <select class="input" style="padding:0 8px;min-width:190px;" bind:value={childRecipeId}
+        <select class="input" style="padding:0 8px;min-width:170px;" bind:value={childRecipeId}
           aria-label={$t('rec.line.child')}
           onchange={() => { const r = linkableRecipes.find((c) => c.id === childRecipeId); if (r) { name = r.name; if (r.yieldUnit && units.includes(r.yieldUnit)) unit = r.yieldUnit; } }}>
           <option value={0}>—</option>
@@ -132,8 +131,23 @@
         </select>
       {/if}
 
-      <input class="input" style="padding:0 8px;min-width:190px;" bind:value={name} form={isNew ? 'rec-add' : `rec-line-${line!.id}`}
+      <input class="input" style="padding:0 8px;min-width:170px;" bind:value={name} form={isNew ? 'rec-add' : `rec-line-${line!.id}`}
         name="name" required placeholder={$t('rec.line.name')} aria-label={$t('rec.line.name')} />
+
+      {#if cost || picked.size > 0}
+        <span class="flex items-center gap-1 flex-wrap">
+          {#if cost}
+            <span class="body text-fg-3" style="font-size:11px;">
+              {[$t(`rec.src.${cost.priceSource}`), cost.priceAsOf, cost.supplierName].filter(Boolean).join(' · ')}
+            </span>
+          {/if}
+          {#if picked.size > 0}
+            <span class="badge badge-pending" title={[...picked].map((c) => $t(`rec.allergen.${c}`)).join(', ')}>
+              {$ti('rec.line.allergenCount', { n: picked.size })}
+            </span>
+          {/if}
+        </span>
+      {/if}
 
       {#each shownWarnings as w}
         <span class="body text-warn flex items-center gap-1" style="font-size:11px;">
@@ -143,59 +157,43 @@
     </div>
   </td>
 
-  <td class="num" data-label={$t('rec.line.gross')}>
-    <input class="input" type="number" step="0.0001" min="0" style="padding:0 6px;max-width:90px;text-align:right;"
+  <td class="num rl-cell" data-label={$t('rec.line.gross')}>
+    <input class="input" type="number" step="0.0001" min="0" style="padding:0 6px;max-width:76px;text-align:right;"
       value={gross} aria-label={$t('rec.line.gross')}
       oninput={(e) => setGross(Number((e.currentTarget as HTMLInputElement).value))} />
   </td>
 
-  <td class="num" data-label={$t('rec.line.waste')}>
-    <input class="input" type="number" step="0.01" min="0" max="99.99" style="padding:0 6px;max-width:78px;text-align:right;"
+  <td class="num rl-cell" data-label={$t('rec.line.waste')}>
+    <input class="input" type="number" step="0.01" min="0" max="99.99" style="padding:0 6px;max-width:62px;text-align:right;"
       bind:value={waste} aria-label={$t('rec.line.waste')} />
   </td>
 
-  <td class="num" data-label={$t('rec.line.net')}>
-    <input class="input" type="number" step="0.0001" min="0" style="padding:0 6px;max-width:90px;text-align:right;"
+  <td class="num rl-cell" data-label={$t('rec.line.net')}>
+    <input class="input" type="number" step="0.0001" min="0" style="padding:0 6px;max-width:76px;text-align:right;"
       bind:value={net} aria-label={$t('rec.line.net')} />
   </td>
 
-  <td data-label={$t('rec.line.unit')}>
-    <select class="input" style="padding:0 6px;max-width:78px;" bind:value={unit} aria-label={$t('rec.line.unit')}>
+  <td class="rl-cell" data-label={$t('rec.line.unit')}>
+    <select class="input" style="padding:0 6px;max-width:66px;" bind:value={unit} aria-label={$t('rec.line.unit')}>
       {#each units as u}<option value={u}>{u}</option>{/each}
     </select>
   </td>
 
-  <td class="num" data-label={$t('rec.line.unitCost')}>
-    <input class="input" type="text" inputmode="decimal" style="padding:0 6px;max-width:92px;text-align:right;"
+  <td class="num rl-cell" data-label={$t('rec.line.unitCost')}>
+    <input class="input" type="text" inputmode="decimal" style="padding:0 6px;max-width:80px;text-align:right;"
       bind:value={unitCost} aria-label={$t('rec.line.unitCost')}
       placeholder={kind === 'free' ? '' : (resolvedRate ?? '')} />
   </td>
 
-  <td class="num" data-label={$t('rec.line.amount')}>
+  <td class="num rl-cell" data-label={$t('rec.line.amount')}>
     {cost ? fmtEur(cost.costCents / 100) : '—'}
   </td>
 
-  <td data-label={$t('rec.line.source')}>
-    <span class="body text-fg-3" style="font-size:11px;">
-      {#if cost}
-        {#if cost.priceAsOf}
-          {$ti('rec.src.detail', { source: $t(`rec.src.${cost.priceSource}`), date: cost.priceAsOf })}
-        {:else}
-          {$t(`rec.src.${cost.priceSource}`)}
-        {/if}
-        {#if cost.supplierName}<br />{cost.supplierName}{/if}
-      {:else}
-        —
-      {/if}
-    </span>
-  </td>
-
-  <td>
+  <td class="rl-cell">
     <div class="flex items-center gap-1">
       <button type="button" class="btn btn-ghost" style="padding:0 6px;" onclick={() => (open = !open)}
         aria-expanded={open} aria-label={$t('rec.line.macros')} title={$t('rec.line.macros')}>
         <ChevronDown size={13} />
-        {#if picked.size > 0}<span class="chip" style="margin-left:4px;">{picked.size}</span>{/if}
       </button>
       <button type="submit" class="btn btn-primary" style="padding:0 8px;" form={isNew ? 'rec-add' : `rec-line-${line!.id}`}
         title={isNew ? $t('rec.line.add') : $t('rec.line.save')} aria-label={isNew ? $t('rec.line.add') : $t('rec.line.save')}>
@@ -218,15 +216,14 @@
 
 {#if open}
   <tr>
-    <td colspan="9">
+    <td colspan="8">
       <div class="flex flex-col gap-3 p-3" style="background:var(--mep-surface-2);">
         <div class="flex flex-col gap-2">
           <span class="label text-fg-3">{$t('rec.sec.allergens')}</span>
           <div class="flex flex-wrap gap-1">
             {#each EU_ALLERGENS as code}
-              <button type="button" class="chip" aria-pressed={picked.has(code)}
-                style={picked.has(code) ? 'border-color:var(--mep-acc);color:var(--mep-acc);' : ''}
-                onclick={() => toggleAllergen(code)}>
+              <button type="button" class="rl-seg-btn rl-allergen" class:rl-seg-on={picked.has(code)}
+                aria-pressed={picked.has(code)} onclick={() => toggleAllergen(code)}>
                 {$t(`rec.allergen.${code}`)}
               </button>
             {/each}
@@ -259,3 +256,42 @@
     </td>
   </tr>
 {/if}
+
+<style>
+  .rl-cell { padding-left: 8px; padding-right: 8px; }
+  .rl-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--mep-hover);
+    border-radius: var(--mep-r-input);
+    align-self: flex-start;
+  }
+  .rl-seg-btn {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    height: 22px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--mep-r-tag);
+    background: transparent;
+    color: var(--mep-fg-3);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .rl-seg-btn:hover { color: var(--mep-fg); }
+  .rl-seg-on {
+    background: var(--mep-surface);
+    color: var(--mep-acc);
+    box-shadow: var(--mep-shadow-card);
+  }
+  .rl-allergen {
+    border: 1px solid var(--mep-border);
+    background: var(--mep-surface);
+  }
+  .rl-allergen.rl-seg-on {
+    border-color: var(--mep-acc);
+    background: var(--mep-acc-soft);
+  }
+</style>
