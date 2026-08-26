@@ -791,15 +791,18 @@ export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): 
 	].join('\n');
 }
 
-export function parseNormalizeResponse(text: string, validIds: Set<number>): NormalizeVerdict {
+function stripJsonFence(text: string): string {
 	const trimmed = (text ?? '').trim();
-	const fenceEnd = trimmed.trimEnd().endsWith('```') ? -1 : undefined;
-	const body = trimmed.startsWith('```')
-		? trimmed.split('\n').slice(1, fenceEnd).join('\n')
-		: trimmed;
+	if (!trimmed.startsWith('```')) return trimmed;
+	const lines = trimmed.split('\n');
+	const end = trimmed.trimEnd().endsWith('```') ? lines.length - 1 : lines.length;
+	return lines.slice(1, end).join('\n');
+}
+
+export function parseNormalizeResponse(text: string, validIds: Set<number>): NormalizeVerdict {
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse(body);
+		parsed = JSON.parse(stripJsonFence(text));
 	} catch {
 		return { matchId: null, confidence: 0 };
 	}
@@ -914,14 +917,9 @@ export function buildCategorizePrompt(canonicalName: string): string {
 }
 
 export function parseCategorizeResponse(text: string): string | null {
-	const trimmed = (text ?? '').trim();
-	const fenceEnd = trimmed.trimEnd().endsWith('```') ? -1 : undefined;
-	const body = trimmed.startsWith('```')
-		? trimmed.split('\n').slice(1, fenceEnd).join('\n')
-		: trimmed;
 	let parsed: unknown;
 	try {
-		parsed = JSON.parse(body);
+		parsed = JSON.parse(stripJsonFence(text));
 	} catch {
 		return null;
 	}
