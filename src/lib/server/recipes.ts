@@ -126,7 +126,7 @@ export async function resolveProductPrices(
 		WHERE ili.restaurant_id = ${rid}
 			AND i.restaurant_id = ${rid}
 			AND i.deleted_at IS NULL
-			AND ili.product_id = ANY(${ids})
+			AND ili.product_id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
 			AND ili.normalized_unit_price IS NOT NULL
 			AND ili.base_unit IS NOT NULL
 		ORDER BY ili.product_id, i.invoice_date DESC NULLS LAST, i.id DESC
@@ -154,7 +154,8 @@ export async function resolveProductPrices(
 		FROM products p
 		JOIN mv_price_snapshots ps
 			ON ps.restaurant_id = ${rid} AND ps.item_key = mep_norm_key(p.canonical_name)
-		WHERE p.restaurant_id = ${rid} AND p.id = ANY(${missing})
+		WHERE p.restaurant_id = ${rid}
+			AND p.id IN (${sql.join(missing.map((id) => sql`${id}`), sql`, `)})
 		ORDER BY p.id, ps.latest_date DESC NULLS LAST
 	`);
 
