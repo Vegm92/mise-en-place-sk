@@ -1,96 +1,31 @@
 {
   "artboards": [
-    {
-      "file": "Main.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1440,
-      "h": 900,
-      "title": "Versión A · Barra compacta",
-      "print": "fixed",
-      "is_interactive": true
-    },
-    {
-      "file": "VersionB.dc.html",
-      "x": 1560,
-      "y": 0,
-      "w": 1440,
-      "h": 900,
-      "title": "Versión B · Bandejas",
-      "print": "fixed",
-      "is_interactive": true
-    },
-    {
-      "file": "Estados.dc.html",
-      "x": 0,
-      "y": 1140,
-      "w": 1180,
-      "h": 800,
-      "title": "Los tres estados",
-      "print": "fixed"
-    },
-    {
-      "file": "Opcion1.dc.html",
-      "x": 0,
-      "y": 2240,
-      "w": 540,
-      "h": 440,
-      "title": "Gráfica · Opción 1",
-      "print": "fixed",
-      "is_interactive": true
-    },
-    {
-      "file": "Opcion2.dc.html",
-      "x": 620,
-      "y": 2240,
-      "w": 540,
-      "h": 440,
-      "title": "Gráfica · Opción 2",
-      "print": "fixed"
-    },
-    {
-      "file": "Opcion3.dc.html",
-      "x": 1240,
-      "y": 2240,
-      "w": 540,
-      "h": 440,
-      "title": "Gráfica · Opción 3",
-      "print": "fixed"
-    },
-    {
-      "file": "Opcion4.dc.html",
-      "x": 1860,
-      "y": 2240,
-      "w": 540,
-      "h": 440,
-      "title": "Gráfica · Opción 4",
-      "print": "fixed"
-    }
+    { "file": "Main.dc.html",    "x": 0,    "y": 0,    "w": 1440, "h": 900, "title": "Albaranes · lista",   "print": "fixed", "is_interactive": true },
+    { "file": "Grafica.dc.html", "x": 1560, "y": 0,    "w": 1440, "h": 900, "title": "Albaranes · gráfica", "print": "fixed", "is_interactive": true },
+    { "file": "Estados.dc.html", "x": 0,    "y": 1140, "w": 1180, "h": 820, "title": "Estados y partidas",  "print": "fixed" }
   ],
   "annotations": [
     {
-      "id": "nota-brief",
+      "id": "nota-lista",
       "x": -820,
       "y": 0,
       "w": 760,
-      "text": "Dos maneras de descongestionar los filtros de Albaranes, las dos con los tres estados nuevos (Por revisar · Confirmado · Incidencia) ya metidos.\n\nA · Barra compacta — la página sigue siendo la de ahora. Los ocho campos de filtro se meten en un panel flotante y quedan tres controles en una fila: bandejas, buscador y «Filtros». Los filtros puestos se ven como fichas debajo. Se marca desde un chip en la propia fila.\n\nB · Bandejas — la lista pasa a ser una bandeja de revisión, como un buzón. Las bandejas son pestañas, desaparece la rejilla de KPIs y cada fila lleva Confirmar e Incidencia siempre visibles: un clic y el albarán sale de la bandeja, con opción de deshacer.\n\nLas dos funcionan: pincha las bandejas, marca albaranes, abre el panel de filtros. Los datos son de ejemplo, no salen de la base de datos.\n\nA es el cambio de bajo riesgo, B es más rápido si el trabajo diario es dejar la bandeja a cero."
+      "text": "La bandeja de revisión, ya sin nada de pagos.\n\nCada fila deja hacer las dos cosas de un vistazo y sin abrir el albarán: comprobar que cuadra (Confirmar / Incidencia) y decir a qué partida va. La partida es una pastilla con el color de la partida; las que aún no la tienen salen con el borde de puntos, y el botón «Sin partida» de la barra las filtra de golpe.\n\nEn lugar del estado de pago, la fila enseña ahora el número de líneas: es lo que te dice si un albarán son dos cajas o la compra de la semana.\n\nPruébalo: cambia de bandeja, selecciona varias filas y asígnales partida en lote, marca una y deshaz.\n\nDatos de ejemplo — 16 albaranes de una semana, cuadrados con la gráfica y con el tablero de estados."
+    },
+    {
+      "id": "nota-grafica",
+      "x": 3080,
+      "y": 0,
+      "w": 700,
+      "text": "La pestaña «Gráfica» de la misma página.\n\nLa columna sigue apilada por estado de revisión, pero ahora eliges qué mide: albaranes, líneas de producto, importe o coste medio por albarán. Pasa el ratón por una semana y el globo te da las cuatro cifras a la vez.\n\nArriba, las cuatro que resumen el periodo: albaranes, líneas (y cuántas por albarán), coste medio por albarán y gasto total.\n\nAbajo, lo que sale de categorizar por partida —a dónde va el dinero dentro de la cocina— y una tabla con el tamaño típico del albarán de cada proveedor: Distribuciones Ruiz te manda 23 líneas por albarán y Pescados Ría de Vigo 7,8. Eso cambia cuánto cuesta revisarlos.\n\nEl coste medio se dibuja como línea, no como columna: es una media y no se puede apilar por estado."
     },
     {
       "id": "nota-estados",
       "x": 1280,
       "y": 1140,
-      "w": 440,
-      "text": "Lo que hay que decidir antes de tocar la interfaz: revisión y pago son dos ejes, y hoy comparten la columna invoices.status (pending · accepted · rejected · paid).\n\nLa matriz de abajo enseña las dos casillas que hoy no se pueden representar, que son justo las dos que cuestan dinero: pagado sin revisar, y pagado con una incidencia abierta.\n\nOjo con la palabra «confirmado»: en el pipeline de extracción ya significa otra cosa (batch_items → confirmed, que es «los datos extraídos están bien»). El estado nuevo dice «la entrega cuadra». Conviene que no se llamen igual de cara al usuario."
-    },
-    {
-      "id": "nota-grafica",
-      "x": -820,
-      "y": 2240,
-      "w": 760,
-      "text": "Cuatro cosas que podría enseñar la pestaña «Gráfica», cada una contesta a una pregunta distinta. No hay que quedarse con una sola: la opción 1 y la 4 conviven bien.\n\n1 Proceso · ¿voy al día revisando?   2 Dinero · ¿dónde se va?   3 Calidad · ¿quién falla?   4 Ninguna · las tres cifras del día.\n\nCada tarjeta lleva escrito a qué pregunta responde y qué te cuesta elegirla.\n\nLos colores de las gráficas no son exactamente los de los chips: los tres del badge (#654a00 · #14694a · #b03a3a) no se distinguen bien como manchas de color grandes — verde y rojo se juntan con daltonismo. Los pasos de gráfica (#0f7a52 · #bd8206 · #c73f31) mantienen el mismo tono pero pasan las comprobaciones."
+      "w": 460,
+      "text": "Dos cosas que decidir antes de tocar código.\n\n1 · Sin pagos, los tres estados caben en la columna invoices.status que ya existe: sobran paid y todo lo que cuelga de due_date. Es bastante menos trabajo del que parecía.\n\n2 · La partida sí es columna nueva, y no vale reaprovechar category (la categoría de producto del proveedor). Un mismo proveedor sirve a dos partidas, así que la partida es del albarán.\n\nOjo con la palabra «confirmado»: en el pipeline de extracción ya significa otra cosa (batch_items → confirmed, «los datos extraídos están bien»). El estado nuevo dice «la entrega cuadra»."
     }
   ],
-  "launch": {
-    "view": "canvas"
-  }
+  "launch": { "view": "canvas" }
 }

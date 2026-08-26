@@ -15,7 +15,7 @@
     a:hover { color: #7e4c0d; }
     .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
     .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
-    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
     .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; margin: 0; }
     .body { font-size: 13px; color: #4a5562; margin: 0; }
     .body-strong { font-size: 13px; color: #1a1f26; font-weight: 500; margin: 0; }
@@ -32,10 +32,7 @@
     .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
     .btn-primary { background: #8a530f; color: #ffffff; }
     .btn-primary:hover { background: #7e4c0d; }
-    .badge {
-      font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px;
-      display: inline-flex; align-items: center; gap: 4px; line-height: 16px;
-    }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
     .input {
       font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
       border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none; width: 100%;
@@ -49,30 +46,38 @@
     }
     .period-pill:hover { color: #4a5562; }
     .period-pill.on { background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
-    .row-card { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; background: #ffffff; position: relative; }
-    .row-card:hover { background: rgba(15, 20, 30, 0.02); }
     .pop { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10); }
-    .token { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 4px 0 9px; border-radius: 999px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.10); font-size: 11.5px; color: #4a5562; }
-    .token button { border: none; background: transparent; cursor: pointer; color: #5f6b78; display: flex; padding: 3px; border-radius: 999px; }
-    .token button:hover { background: rgba(15, 20, 30, 0.07); color: #1a1f26; }
-    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+    .tab {
+      display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 3px;
+      border: none; border-bottom: 2px solid transparent; background: transparent; cursor: pointer;
+      font-family: inherit; font-size: 13.5px; color: #5f6b78; transition: color 140ms, border-color 140ms;
+    }
+    .tab:hover { color: #1a1f26; }
+    .tab-n { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 999px; line-height: 15px; }
+    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; color: #4a5562; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+    .mark-ok:hover  { background: rgba(20, 105, 74, 0.12); border-color: #14694a; color: #14694a; }
+    .mark-bad:hover { background: rgba(176, 58, 58, 0.12); border-color: #b03a3a; color: #b03a3a; }
+    .part-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #fafaf7; border-radius: 999px; height: 26px; padding: 0 8px 0 9px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; color: #4a5562; cursor: pointer; max-width: 100%; transition: background 120ms, border-color 120ms; }
+    .part-btn:hover { background: rgba(15, 20, 30, 0.06); border-color: rgba(15, 20, 30, 0.18); }
+    .part-btn.vacia { border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent; color: #5f6b78; }
+    .menu-item { display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 9px; border: none; background: transparent; border-radius: 6px; font-family: inherit; font-size: 12.5px; color: #1a1f26; cursor: pointer; text-align: left; }
+    .menu-item:hover { background: rgba(15, 20, 30, 0.04); }
+  </style>
+  <style>
+    .list-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 74px 104px 178px auto 20px; align-items: center; gap: 14px; padding: 0 16px; height: 60px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); position: relative; }
+    .list-row:hover { background: rgba(15, 20, 30, 0.02); }
+    .list-row:last-child { border-bottom: 0; }
   </style>
 </helmet>
 
-<div style="width: 1440px; height: 900px; background: #f5f4f0; padding: 22px 26px; display: flex; flex-direction: column; gap: 14px; color: #1a1f26;">
+<div style="width: 1440px; height: 900px; background: #f5f4f0; padding: 22px 26px; display: flex; flex-direction: column; gap: 12px; color: #1a1f26;">
 
   <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-shrink: 0;">
     <div style="display: flex; flex-direction: column; gap: 2px;">
       <h1 class="title">Albaranes</h1>
-      <p class="body" style="font-size: 12.5px;">Los filtros caben en una fila. El estado de revisión vive fuera del panel, siempre a la vista.</p>
+      <p class="body" style="font-size: 12.5px;">Una bandeja de revisión: comprobar que el albarán cuadra y decir a qué partida va.</p>
     </div>
     <div style="display: flex; align-items: center; gap: 10px;">
-      <div class="period-track">
-        <button type="button" class="period-pill on">7 días</button>
-        <button type="button" class="period-pill">30 días</button>
-        <button type="button" class="period-pill">3 meses</button>
-        <button type="button" class="period-pill">1 año</button>
-      </div>
       <button type="button" class="btn">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
         Exportar Excel
@@ -80,292 +85,343 @@
     </div>
   </div>
 
-  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; flex-shrink: 0;">
-    <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 5px; background: rgba(101, 74, 0, 0.14); border-color: #654a00;">
-      <span class="label" style="color: #654a00;">Por revisar</span>
-      <span class="num" style="font-size: 26px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1;">{{ kpiRevisar }}</span>
-      <span class="body" style="font-size: 11.5px;">el más antiguo, hace 4 días</span>
-    </div>
-    <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 5px; background: rgba(176, 58, 58, 0.12); border-color: #b03a3a;">
-      <span class="label" style="color: #b03a3a;">Incidencias</span>
-      <span class="num" style="font-size: 26px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1; color: #b03a3a;">{{ kpiIncidencia }}</span>
-      <span class="body" style="font-size: 11.5px;">sin resolver</span>
-    </div>
-    <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 5px;">
-      <span class="label">Pendiente de pago</span>
-      <span class="num" style="font-size: 26px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1;">7.205,00 €</span>
-      <span class="body" style="font-size: 11.5px;">9 albaranes · 1 vencido</span>
-    </div>
-    <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 5px;">
-      <span class="label">Proveedores</span>
-      <span class="num" style="font-size: 26px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1;">7</span>
-      <span class="body" style="font-size: 11.5px;">activos esta semana</span>
+  <div style="display: flex; align-items: center; gap: 22px; border-bottom: 1px solid rgba(15, 20, 30, 0.10); flex-shrink: 0;">
+    <sc-for list="{{ pestanas }}" as="p" hint-placeholder-count="4">
+      <button type="button" class="tab" style="{{ p.estilo }}" onClick="{{ p.pick }}">
+        {{ p.nombre }}
+        <span class="tab-n num" style="{{ p.estiloN }}">{{ p.n }}</span>
+      </button>
+    </sc-for>
+    <div style="flex: 1;"></div>
+    <div class="period-track" style="margin-bottom: 6px;">
+      <button type="button" class="period-pill on" style="padding: 7px 9px;" title="Lista">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></svg>
+      </button>
+      <button type="button" class="period-pill" style="padding: 7px 9px;" title="Gráfica">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      </button>
     </div>
   </div>
 
-  <div style="position: relative; flex-shrink: 0; display: flex; flex-direction: column; gap: 9px;">
-
-    <div style="display: flex; align-items: center; gap: 10px;">
-
-      <div class="period-track" style="padding: 3px;">
-        <button type="button" class="period-pill on" style="padding: 7px 9px;" title="Lista">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></svg>
-        </button>
-        <button type="button" class="period-pill" style="padding: 7px 9px;" title="Gráfica">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-        </button>
-      </div>
-
-      <div class="period-track">
-        <sc-for list="{{ segmentos }}" as="s" hint-placeholder-count="4">
-          <button type="button" class="period-pill" style="{{ s.estilo }}" onClick="{{ s.pick }}">
-            {{ s.nombre }} <span class="num" style="{{ s.estiloNum }}">{{ s.n }}</span>
-          </button>
-        </sc-for>
-      </div>
-
-      <div style="flex: 1;"></div>
-
-      <div style="position: relative; width: 236px;">
-        <span style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #5f6b78; display: flex; pointer-events: none;">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        </span>
-        <input class="input" style="padding-left: 32px;" placeholder="Buscar N.º, proveedor…" />
-      </div>
-
-      <button type="button" class="btn btn-secondary" style="{{ estiloFiltros }}" onClick="{{ toggleFiltros }}">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>
-        Filtros
-        <span class="badge num" style="background: rgba(138, 83, 15, 0.10); color: #8a530f; border: 1px solid #8a530f; min-width: 18px; height: 18px; padding: 0 5px; justify-content: center;">2</span>
-      </button>
-
-      <button type="button" class="btn btn-secondary">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
-        Recientes
-      </button>
+  <div style="display: flex; align-items: center; gap: 12px; flex-shrink: 0;">
+    <div style="display: flex; align-items: baseline; gap: 9px; min-width: 0;">
+      <span class="subtitle" style="{{ colorBandeja }}">{{ tituloBandeja }}</span>
+      <span class="body" style="font-size: 12.5px;">{{ resumenBandeja }}</span>
     </div>
-
-    <div style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap;">
-      <span class="label" style="font-size: 10.5px;">Filtrando por</span>
-      <span class="token">Proveedor · Frutas Gómez S.L.<button type="button" aria-label="Quitar filtro de proveedor"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
-      <span class="token">Fecha de albarán · agosto<button type="button" aria-label="Quitar filtro de fecha"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></span>
-      <button type="button" class="btn" style="height: 24px; font-size: 11.5px; padding: 0 8px; color: #8a530f;">Limpiar</button>
+    <div style="flex: 1;"></div>
+    <button type="button" class="btn btn-secondary" style="{{ estiloSinPartida }}" onClick="{{ alternarSinPartida }}">
+      <span style="width: 9px; height: 9px; border-radius: 999px; border: 1.5px dashed #64707d;"></span>
+      Sin partida
+      <span class="badge num" style="background: rgba(15, 20, 30, 0.06); color: #4a5562; min-width: 17px; height: 17px; padding: 0 5px; justify-content: center;">{{ nSinPartida }}</span>
+    </button>
+    <div style="position: relative; width: 236px;">
+      <span style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #5f6b78; display: flex; pointer-events: none;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </span>
+      <input class="input" style="padding-left: 32px;" placeholder="Buscar N.º, proveedor…" />
     </div>
-
-    <sc-if value="{{ panelAbierto }}" hint-placeholder-val="{{ true }}">
-      <div class="pop" style="position: absolute; top: 42px; right: 122px; width: 468px; padding: 16px; z-index: 30; display: flex; flex-direction: column; gap: 14px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-          <div style="display: flex; flex-direction: column; gap: 5px;">
-            <span class="label">Proveedor</span>
-            <select class="input" style="padding: 0 8px;"><option>Frutas Gómez S.L.</option><option>Todos los proveedores</option></select>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 5px;">
-            <span class="label">Categoría</span>
-            <select class="input" style="padding: 0 8px;"><option>Todas</option><option>Frutas y verduras</option></select>
-          </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 7px;">
-          <span class="label">Fecha de albarán</span>
-          <div class="period-track" style="align-self: flex-start;">
-            <button type="button" class="period-pill">Cualquiera</button>
-            <button type="button" class="period-pill on">Este mes</button>
-            <button type="button" class="period-pill">Mes pasado</button>
-            <button type="button" class="period-pill">Elegir…</button>
-          </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 7px;">
-          <span class="label">Fecha de subida</span>
-          <div class="period-track" style="align-self: flex-start;">
-            <button type="button" class="period-pill on">Cualquiera</button>
-            <button type="button" class="period-pill">Este mes</button>
-            <button type="button" class="period-pill">Mes pasado</button>
-            <button type="button" class="period-pill">Elegir…</button>
-          </div>
-        </div>
-
-        <div style="display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
-          <button type="button" class="btn" style="padding: 0 8px;">Limpiar todo</button>
-          <button type="button" class="btn btn-primary" onClick="{{ toggleFiltros }}">Aplicar</button>
-        </div>
-      </div>
-    </sc-if>
+    <button type="button" class="btn btn-secondary">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></svg>
+      Filtros y orden
+    </button>
+    <div class="period-track">
+      <button type="button" class="period-pill on">7 días</button>
+      <button type="button" class="period-pill">30 días</button>
+      <button type="button" class="period-pill">3 meses</button>
+      <button type="button" class="period-pill">1 año</button>
+    </div>
   </div>
 
   <div class="card" style="padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
 
-    <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); min-height: 42px; flex-shrink: 0;">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 40px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); flex-shrink: 0; background: #fafaf7;">
       <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #4a5562; cursor: pointer;">
         <input type="checkbox" checked="{{ todoMarcado }}" onChange="{{ alternarTodo }}" style="accent-color: #8a530f; cursor: pointer;" />
         Seleccionar todo
       </label>
-      <span class="body" style="font-size: 12px; color: #5f6b78;">{{ visibleLabel }}</span>
-
       <sc-if value="{{ haySeleccion }}" hint-placeholder-val="{{ true }}">
-        <div style="display: flex; align-items: center; gap: 8px; background: rgba(138, 83, 15, 0.10); border: 1px solid #8a530f; border-radius: 8px; padding: 3px 10px;">
-          <span class="body-strong" style="font-size: 12px; color: #8a530f;">{{ nSeleccion }} seleccionados</span>
-          <div style="width: 1px; height: 14px; background: rgba(15, 20, 30, 0.10);"></div>
-          <button type="button" class="btn" style="height: 24px; padding: 0 7px; font-size: 12px; color: #14694a;" onClick="{{ confirmarLote }}">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-            Confirmar
-          </button>
-          <button type="button" class="btn" style="height: 24px; padding: 0 7px; font-size: 12px; color: #b03a3a;" onClick="{{ incidenciaLote }}">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-            Incidencia
-          </button>
+        <div style="width: 1px; height: 16px; background: rgba(15, 20, 30, 0.10);"></div>
+        <span class="body-strong" style="font-size: 12px; color: #8a530f;">{{ nSeleccion }} seleccionados</span>
+        <button type="button" class="mark-btn mark-ok" style="height: 26px;" onClick="{{ confirmarLote }}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          Confirmar
+        </button>
+        <button type="button" class="mark-btn mark-bad" style="height: 26px;" onClick="{{ incidenciaLote }}">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          Incidencia
+        </button>
+        <button type="button" class="mark-btn" style="height: 26px;" onClick="{{ abrirLotePartida }}">
+          Asignar partida
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+      </sc-if>
+      <div style="flex: 1;"></div>
+      <span class="body" style="font-size: 11.5px; color: #5f6b78;">Ordenado por fecha de subida, recientes primero</span>
+    </div>
+
+    <div style="flex: 1; min-height: 0; overflow-y: auto; position: relative;">
+
+      <sc-if value="{{ lotePartidaAbierto }}" hint-placeholder-val="{{ false }}">
+        <div class="pop" style="position: absolute; top: 4px; left: 498px; width: 210px; padding: 5px; z-index: 60; display: flex; flex-direction: column; gap: 1px;">
+          <sc-for list="{{ opcionesLote }}" as="o" hint-placeholder-count="6">
+            <button type="button" class="menu-item" onClick="{{ o.pick }}">
+              <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ o.color }}; flex-shrink: 0;"></span>
+              {{ o.nombre }}
+            </button>
+          </sc-for>
         </div>
       </sc-if>
 
-      <div style="flex: 1;"></div>
-      <span class="body" style="font-size: 11.5px; color: #5f6b78;">Marca el estado desde la propia fila — no hace falta abrirla.</span>
-    </div>
+      <sc-for list="{{ filas }}" as="f" hint-placeholder-count="6">
+        <div class="list-row">
+          <input type="checkbox" checked="{{ f.marcado }}" onChange="{{ f.alternar }}" style="accent-color: #8a530f; cursor: pointer;" />
 
-    <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start;">
-      <sc-for list="{{ filas }}" as="f" hint-placeholder-count="16">
-        <div class="row-card">
-          <div style="display: grid; grid-template-columns: 24px minmax(0, 1fr) 96px {{ colChip }} 20px; align-items: center; gap: 10px; padding: 9px 12px;">
-
-            <input type="checkbox" checked="{{ f.marcado }}" onChange="{{ f.alternar }}" style="accent-color: #8a530f; cursor: pointer;" />
-
-            <div style="min-width: 0;">
-              <div class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.proveedor }}</div>
-              <div class="body" style="font-size: 11.5px; color: #5f6b78; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.meta }}</div>
-            </div>
-
-            <div class="num" style="text-align: right; font-size: 13px; font-weight: 600;">{{ f.importe }}</div>
-
-            <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-              <sc-if value="{{ mostrarPago }}" hint-placeholder-val="{{ true }}">
-                <span class="num" style="font-size: 11.5px; white-space: nowrap; {{ f.estiloPago }}">{{ f.pago }}</span>
-              </sc-if>
-              <button type="button" class="badge" style="border: 1px solid transparent; cursor: pointer; font-family: inherit; height: 22px; padding: 0 6px 0 8px; {{ f.estiloChip }}" onClick="{{ f.abrirMenu }}">
-                {{ f.chip }}
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.7;"><path d="m6 9 6 6 6-6"/></svg>
-              </button>
-            </div>
-
-            <span style="display: flex; justify-content: flex-end; color: #5f6b78;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </span>
+          <div style="min-width: 0;">
+            <div class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.proveedor }}</div>
+            <div class="body" style="font-size: 11.5px; color: #5f6b78; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.meta }}</div>
           </div>
 
-          <sc-if value="{{ f.menuAbierto }}" hint-placeholder-val="{{ false }}">
-            <div class="pop" style="position: absolute; top: 40px; right: 34px; width: 194px; padding: 5px; z-index: 40; display: flex; flex-direction: column; gap: 1px;">
-              <button type="button" class="btn" style="justify-content: flex-start; width: 100%; height: 32px; font-weight: 400;" onClick="{{ f.marcarRevisar }}">
-                <span style="width: 9px; height: 9px; border-radius: 999px; background: #654a00; flex-shrink: 0;"></span> Por revisar
+          <div style="text-align: right;">
+            <div class="num body-strong" style="font-size: 12.5px;">{{ f.lineas }}</div>
+            <div class="body" style="font-size: 10.5px; color: #64707d;">líneas</div>
+          </div>
+
+          <div class="num" style="text-align: right; font-size: 13.5px; font-weight: 600;">{{ f.importe }}</div>
+
+          <div style="min-width: 0;">
+            <button type="button" class="part-btn {{ f.claseParte }}" onClick="{{ f.abrirPartida }}">
+              <span style="width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; background: {{ f.colorPartida }};"></span>
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.partida }}</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <sc-if value="{{ f.esRevisar }}" hint-placeholder-val="{{ true }}">
+              <button type="button" class="mark-btn mark-ok" onClick="{{ f.confirmar }}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Confirmar
               </button>
-              <button type="button" class="btn" style="justify-content: flex-start; width: 100%; height: 32px; font-weight: 400;" onClick="{{ f.marcarConfirmado }}">
-                <span style="width: 9px; height: 9px; border-radius: 999px; background: #14694a; flex-shrink: 0;"></span> Confirmado
+              <button type="button" class="mark-btn mark-bad" onClick="{{ f.incidencia }}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                Incidencia
               </button>
-              <button type="button" class="btn" style="justify-content: flex-start; width: 100%; height: 32px; font-weight: 400;" onClick="{{ f.marcarIncidencia }}">
-                <span style="width: 9px; height: 9px; border-radius: 999px; background: #b03a3a; flex-shrink: 0;"></span> Incidencia
-              </button>
+            </sc-if>
+            <sc-if value="{{ f.esMarcado }}" hint-placeholder-val="{{ false }}">
+              <span class="badge" style="height: 22px; padding: 0 8px; {{ f.estiloChip }}">{{ f.chip }}</span>
+              <button type="button" class="btn" style="height: 26px; padding: 0 8px; font-size: 12px; font-weight: 400;" onClick="{{ f.devolver }}">Devolver a revisión</button>
+            </sc-if>
+          </div>
+
+          <span style="display: flex; justify-content: flex-end; color: #5f6b78;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </span>
+
+          <sc-if value="{{ f.partidaAbierta }}" hint-placeholder-val="{{ false }}">
+            <div class="pop" style="position: absolute; top: 46px; right: 245px; width: 210px; padding: 5px; z-index: 50; display: flex; flex-direction: column; gap: 1px;">
+              <sc-for list="{{ f.opciones }}" as="o" hint-placeholder-count="6">
+                <button type="button" class="menu-item" onClick="{{ o.pick }}">
+                  <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ o.color }}; flex-shrink: 0;"></span>
+                  {{ o.nombre }}
+                </button>
+              </sc-for>
             </div>
           </sc-if>
         </div>
       </sc-for>
+
+      <sc-if value="{{ vacia }}" hint-placeholder-val="{{ false }}">
+        <div style="height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px;">
+          <span style="width: 44px; height: 44px; border-radius: 999px; background: rgba(20, 105, 74, 0.12); color: #14694a; display: flex; align-items: center; justify-content: center;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </span>
+          <span class="subtitle">{{ textoVacio }}</span>
+          <span class="body" style="font-size: 12.5px;">{{ subtextoVacio }}</span>
+        </div>
+      </sc-if>
     </div>
+
+    <sc-if value="{{ hayDeshacer }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; align-items: center; gap: 10px; padding: 0 16px; height: 44px; border-top: 1px solid rgba(15, 20, 30, 0.06); background: #fafaf7; flex-shrink: 0;">
+        <span class="badge" style="height: 22px; padding: 0 8px; {{ estiloDeshacer }}">{{ chipDeshacer }}</span>
+        <span class="body" style="font-size: 12.5px;">{{ textoDeshacer }}</span>
+        <div style="flex: 1;"></div>
+        <button type="button" class="btn" style="color: #8a530f; font-weight: 500;" onClick="{{ deshacer }}">Deshacer</button>
+      </div>
+    </sc-if>
   </div>
 </div>
 
 </x-dc>
-<script data-dc-script data-props='{
-  "mostrarPago": {"editor": "boolean", "default": true, "section": "Fila"},
-  "$preview": {"width": 1440, "height": 900}
-}'>
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 900}}'>
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { bandeja: 'todos', panel: false, menu: null, marcas: {}, sel: {} };
+    this.state = { bandeja: 'revisar', marcas: {}, partidas: {}, ultima: null, sel: {}, menu: null, menuLote: false, soloSinPartida: false };
+  }
+
+  partidasDef() {
+    return [
+      { key: 'caliente',  nombre: 'Cocina caliente', color: '#2776d3' },
+      { key: 'fria',      nombre: 'Cocina fría',     color: '#008300' },
+      { key: 'pasteleria',nombre: 'Pastelería',      color: '#bb537c' },
+      { key: 'economato', nombre: 'Economato',       color: '#9e6b0d' },
+      { key: 'bar',       nombre: 'Bar',             color: '#12865c' },
+      { key: '',          nombre: 'Sin asignar',     color: '#6e7682' },
+    ];
   }
 
   datos() {
     return [
-      { id: 1,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24817 · 12 ago · Subida 12 ago',   importe: '342,80 €',   pago: 'Pendiente', rev: 'revisar' },
-      { id: 2,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3391 · 12 ago · Subida 12 ago',   importe: '1.284,50 €', pago: 'Pendiente', rev: 'revisar' },
-      { id: 11, proveedor: 'Panadería Sant Pau',       meta: 'SP-0442 · 12 ago · Subida 12 ago',   importe: '96,30 €',    pago: 'Pendiente', rev: 'revisar' },
-      { id: 3,  proveedor: 'Lácteos Valdemar',         meta: '2024/0912 · 11 ago · Subida 11 ago', importe: '198,40 €',   pago: 'Pagada',    rev: 'confirmado' },
-      { id: 4,  proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7742 · 11 ago · Subida 11 ago',   importe: '876,15 €',   pago: 'Vencida',   rev: 'incidencia' },
-      { id: 5,  proveedor: 'Bodegas Serrat',           meta: 'BS-1180 · 10 ago · Subida 10 ago',   importe: '2.140,00 €', pago: 'Pendiente', rev: 'confirmado' },
-      { id: 12, proveedor: 'Frutas Gómez S.L.',        meta: 'A-24805 · 10 ago · Subida 10 ago',   importe: '415,20 €',   pago: 'Pendiente', rev: 'revisar' },
-      { id: 13, proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3382 · 10 ago · Subida 10 ago',   importe: '738,60 €',   pago: 'Pagada',    rev: 'confirmado' },
-      { id: 6,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24796 · 9 ago · Subida 9 ago',     importe: '289,60 €',   pago: 'Pagada',    rev: 'confirmado' },
-      { id: 7,  proveedor: 'Distribuciones Norte',     meta: 'N-55210 · 9 ago · Subida 9 ago',     importe: '634,25 €',   pago: 'Pendiente', rev: 'revisar' },
-      { id: 14, proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7728 · 9 ago · Subida 9 ago',     importe: '1.204,75 €', pago: 'Pendiente', rev: 'incidencia' },
-      { id: 15, proveedor: 'Lácteos Valdemar',         meta: '2024/0905 · 9 ago · Subida 9 ago',   importe: '187,90 €',   pago: 'Pagada',    rev: 'confirmado' },
-      { id: 8,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3374 · 8 ago · Subida 8 ago',     importe: '1.052,90 €', pago: 'Pagada',    rev: 'confirmado' },
-      { id: 9,  proveedor: 'Lácteos Valdemar',         meta: '2024/0898 · 8 ago · Subida 8 ago',   importe: '211,05 €',   pago: 'Pendiente', rev: 'revisar' },
-      { id: 10, proveedor: 'Bodegas Serrat',           meta: 'BS-1166 · 7 ago · Subida 7 ago',     importe: '1.870,40 €', pago: 'Pagada',    rev: 'confirmado' },
-      { id: 16, proveedor: 'Distribuciones Norte',     meta: 'N-55198 · 7 ago · Subida 7 ago',     importe: '512,40 €',   pago: 'Pagada',    rev: 'confirmado' },
+      { id: 1,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24817 · 12 ago · Subida hace 2 h',     lineas: 14, importe: '342,80 €',   part: 'fria',       rev: 'revisar' },
+      { id: 2,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3391 · 12 ago · Subida hace 5 h',     lineas: 9,  importe: '1.284,50 €', part: 'caliente',   rev: 'revisar' },
+      { id: 11, proveedor: 'Panadería Sant Pau',       meta: 'SP-0442 · 12 ago · Subida hace 6 h',     lineas: 6,  importe: '96,30 €',    part: 'pasteleria', rev: 'revisar' },
+      { id: 12, proveedor: 'Frutas Gómez S.L.',        meta: 'A-24805 · 10 ago · Subida hace 2 días',  lineas: 17, importe: '415,20 €',   part: '',           rev: 'revisar' },
+      { id: 7,  proveedor: 'Distribuciones Norte',     meta: 'N-55210 · 9 ago · Subida hace 3 días',   lineas: 23, importe: '634,25 €',   part: '',           rev: 'revisar' },
+      { id: 9,  proveedor: 'Lácteos Valdemar',         meta: '2024/0898 · 8 ago · Subida hace 4 días', lineas: 8,  importe: '211,05 €',   part: 'fria',       rev: 'revisar' },
+      { id: 3,  proveedor: 'Lácteos Valdemar',         meta: '2024/0912 · 11 ago · Subida 11 ago',     lineas: 7,  importe: '198,40 €',   part: 'fria',       rev: 'confirmado' },
+      { id: 5,  proveedor: 'Bodegas Serrat',           meta: 'BS-1180 · 10 ago · Subida 10 ago',       lineas: 12, importe: '2.140,00 €', part: 'bar',        rev: 'confirmado' },
+      { id: 13, proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3382 · 10 ago · Subida 10 ago',       lineas: 6,  importe: '738,60 €',   part: 'caliente',   rev: 'confirmado' },
+      { id: 6,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24796 · 9 ago · Subida 9 ago',         lineas: 13, importe: '289,60 €',   part: 'fria',       rev: 'confirmado' },
+      { id: 15, proveedor: 'Lácteos Valdemar',         meta: '2024/0905 · 9 ago · Subida 9 ago',       lineas: 7,  importe: '187,90 €',   part: 'pasteleria', rev: 'confirmado' },
+      { id: 8,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3374 · 8 ago · Subida 8 ago',         lineas: 8,  importe: '1.052,90 €', part: 'caliente',   rev: 'confirmado' },
+      { id: 10, proveedor: 'Bodegas Serrat',           meta: 'BS-1166 · 7 ago · Subida 7 ago',         lineas: 11, importe: '1.870,40 €', part: 'bar',        rev: 'confirmado' },
+      { id: 16, proveedor: 'Distribuciones Norte',     meta: 'N-55198 · 7 ago · Subida 7 ago',         lineas: 19, importe: '512,40 €',   part: 'economato',  rev: 'confirmado' },
+      { id: 4,  proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7742 · 11 ago · Subida 11 ago',       lineas: 21, importe: '876,15 €',   part: 'economato',  rev: 'incidencia' },
+      { id: 14, proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7728 · 9 ago · Subida 9 ago',         lineas: 26, importe: '1.204,75 €', part: 'economato',  rev: 'incidencia' },
     ];
   }
 
   estilos() {
     return {
-      revisar:    { chip: 'Por revisar', css: 'background: rgba(101, 74, 0, 0.14); color: #654a00;' },
-      confirmado: { chip: 'Confirmado',  css: 'background: rgba(20, 105, 74, 0.12); color: #14694a;' },
-      incidencia: { chip: 'Incidencia',  css: 'background: rgba(176, 58, 58, 0.12); color: #b03a3a;' },
+      revisar:    { chip: 'Por revisar', css: 'background: rgba(101, 74, 0, 0.14); color: #654a00;',  color: '#654a00', fondo: 'rgba(101, 74, 0, 0.14)' },
+      confirmado: { chip: 'Confirmado',  css: 'background: rgba(20, 105, 74, 0.12); color: #14694a;', color: '#14694a', fondo: 'rgba(20, 105, 74, 0.12)' },
+      incidencia: { chip: 'Incidencia',  css: 'background: rgba(176, 58, 58, 0.12); color: #b03a3a;', color: '#b03a3a', fondo: 'rgba(176, 58, 58, 0.12)' },
     };
+  }
+
+  marcar(id, valor) {
+    const sel = { ...this.state.sel };
+    delete sel[id];
+    this.setState({ marcas: { ...this.state.marcas, [id]: valor }, ultima: { id, valor }, sel, menu: null });
+  }
+
+  marcarLote(ids, valor) {
+    const marcas = { ...this.state.marcas };
+    ids.forEach(id => { marcas[id] = valor; });
+    this.setState({ marcas, sel: {}, ultima: null, menu: null, menuLote: false });
+  }
+
+  asignar(ids, part) {
+    const partidas = { ...this.state.partidas };
+    ids.forEach(id => { partidas[id] = part; });
+    this.setState({ partidas, menu: null, menuLote: false, sel: ids.length > 1 ? {} : this.state.sel });
+  }
+
+  euros(n) {
+    const p = n.toFixed(2).split('.');
+    return p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1] + ' €';
   }
 
   renderVals() {
     const est = this.estilos();
-    const todo = this.datos().map(d => ({ ...d, rev: this.state.marcas[d.id] ?? d.rev }));
+    const defsPart = this.partidasDef();
+    const porClave = Object.fromEntries(defsPart.map(p => [p.key, p]));
+
+    const todo = this.datos().map(d => ({
+      ...d,
+      rev: this.state.marcas[d.id] ?? d.rev,
+      part: this.state.partidas[d.id] !== undefined ? this.state.partidas[d.id] : d.part,
+    }));
     const cuenta = k => todo.filter(d => d.rev === k).length;
 
-    const bandejas = [
-      { key: 'todos',      nombre: 'Todos',       n: todo.length },
-      { key: 'revisar',    nombre: 'Por revisar', n: cuenta('revisar') },
-      { key: 'confirmado', nombre: 'Confirmados', n: cuenta('confirmado') },
-      { key: 'incidencia', nombre: 'Incidencias', n: cuenta('incidencia') },
+    const defs = [
+      { key: 'revisar',    nombre: 'Por revisar', color: '#654a00', fondo: 'rgba(101, 74, 0, 0.14)' },
+      { key: 'confirmado', nombre: 'Confirmados', color: '#14694a', fondo: 'rgba(20, 105, 74, 0.12)' },
+      { key: 'incidencia', nombre: 'Incidencias', color: '#b03a3a', fondo: 'rgba(176, 58, 58, 0.12)' },
+      { key: 'todos',      nombre: 'Todos',       color: '#1a1f26', fondo: 'rgba(15, 20, 30, 0.06)' },
     ];
 
-    const segmentos = bandejas.map(b => {
-      const on = this.state.bandeja === b.key;
+    const pestanas = defs.map(d => {
+      const on = this.state.bandeja === d.key;
       return {
-        key: b.key,
-        nombre: b.nombre,
-        n: b.n,
-        estilo: on
-          ? 'background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);'
-          : '',
-        estiloNum: on
-          ? 'margin-left: 5px; color: #5f6b78; font-weight: 500;'
-          : 'margin-left: 5px; color: #64707d;',
-        pick: () => this.setState({ bandeja: b.key, menu: null, sel: {} }),
+        nombre: d.nombre,
+        n: d.key === 'todos' ? todo.length : cuenta(d.key),
+        estilo: on ? 'color: #1a1f26; font-weight: 500; border-bottom-color: #8a530f;' : '',
+        estiloN: 'background: ' + d.fondo + '; color: ' + d.color + ';',
+        pick: () => this.setState({ bandeja: d.key, ultima: null, sel: {}, menu: null, menuLote: false }),
       };
     });
 
-    const visibles = this.state.bandeja === 'todos' ? todo : todo.filter(d => d.rev === this.state.bandeja);
+    const actual = defs.find(d => d.key === this.state.bandeja);
+    const enBandeja = this.state.bandeja === 'todos' ? todo : todo.filter(d => d.rev === this.state.bandeja);
+    const visibles = this.state.soloSinPartida ? enBandeja.filter(d => !d.part) : enBandeja;
 
-    const filas = visibles.map(d => ({
-      ...d,
-      chip: est[d.rev].chip,
-      estiloChip: est[d.rev].css,
-      estiloPago: d.pago === 'Vencida' ? 'color: #b03a3a; font-weight: 500;' : 'color: #5f6b78;',
-      menuAbierto: this.state.menu === d.id,
-      marcado: Boolean(this.state.sel[d.id]),
-      alternar: () => {
-        const sel = { ...this.state.sel };
-        if (sel[d.id]) delete sel[d.id]; else sel[d.id] = true;
-        this.setState({ sel });
-      },
-      abrirMenu: () => this.setState({ menu: this.state.menu === d.id ? null : d.id }),
-      marcarRevisar:    () => this.setState({ marcas: { ...this.state.marcas, [d.id]: 'revisar' },    menu: null }),
-      marcarConfirmado: () => this.setState({ marcas: { ...this.state.marcas, [d.id]: 'confirmado' }, menu: null }),
-      marcarIncidencia: () => this.setState({ marcas: { ...this.state.marcas, [d.id]: 'incidencia' }, menu: null }),
+    const suma = visibles.reduce((a, d) => a + Number(d.importe.replace(/\./g, '').replace(',', '.').replace(' €', '')), 0);
+    const lineas = visibles.reduce((a, d) => a + d.lineas, 0);
+    const sinPartida = enBandeja.filter(d => !d.part).length;
+
+    const colas = {
+      revisar:    ' · el más antiguo, hace 4 días',
+      confirmado: ' · listos para exportar',
+      incidencia: ' · pendientes de hablar con el proveedor',
+      todos:      '',
+    };
+    const resumen = visibles.length + ' albaranes · ' + lineas + ' líneas · ' + this.euros(suma) +
+      (sinPartida > 0 && this.state.bandeja === 'revisar' ? ' · ' + sinPartida + ' sin partida' : colas[this.state.bandeja]);
+
+    const opcionesPara = ids => defsPart.map(p => ({
+      nombre: p.nombre,
+      color: p.color,
+      pick: () => this.asignar(ids, p.key),
     }));
 
-    const mostrarPago = this.props.mostrarPago ?? true;
+    const filas = visibles.map(d => {
+      const p = porClave[d.part] ?? porClave[''];
+      return {
+        ...d,
+        chip: est[d.rev].chip,
+        estiloChip: est[d.rev].css,
+        partida: d.part ? p.nombre : 'Asignar partida',
+        colorPartida: d.part ? p.color : 'transparent',
+        claseParte: d.part ? '' : 'vacia',
+        partidaAbierta: this.state.menu === d.id,
+        abrirPartida: () => this.setState({ menu: this.state.menu === d.id ? null : d.id, menuLote: false }),
+        opciones: opcionesPara([d.id]),
+        esRevisar: d.rev === 'revisar',
+        esMarcado: d.rev !== 'revisar',
+        marcado: Boolean(this.state.sel[d.id]),
+        alternar: () => {
+          const sel = { ...this.state.sel };
+          if (sel[d.id]) delete sel[d.id]; else sel[d.id] = true;
+          this.setState({ sel });
+        },
+        confirmar:  () => this.marcar(d.id, 'confirmado'),
+        incidencia: () => this.marcar(d.id, 'incidencia'),
+        devolver:   () => this.marcar(d.id, 'revisar'),
+      };
+    });
+
+    const ultima = this.state.ultima;
+    const marcado = ultima ? todo.find(d => d.id === ultima.id) : null;
     const idsSel = visibles.filter(d => this.state.sel[d.id]).map(d => d.id);
-    const marcarLote = valor => {
-      const marcas = { ...this.state.marcas };
-      idsSel.forEach(id => { marcas[id] = valor; });
-      this.setState({ marcas, sel: {}, menu: null });
-    };
 
     return {
+      pestanas,
+      filas,
+      vacia: visibles.length === 0,
+      textoVacio: this.state.soloSinPartida ? 'Todo tiene partida' : (this.state.bandeja === 'revisar' ? 'Bandeja vacía' : 'Nada por aquí'),
+      subtextoVacio: this.state.soloSinPartida
+        ? 'Ningún albarán de esta bandeja está sin asignar.'
+        : (this.state.bandeja === 'revisar'
+            ? 'Todos los albaranes de la semana están revisados.'
+            : 'Marca albaranes desde «Por revisar» y aparecerán aquí.'),
+      tituloBandeja: actual.nombre,
+      colorBandeja: 'color: ' + actual.color + ';',
+      resumenBandeja: resumen,
+      nSinPartida: sinPartida,
+      estiloSinPartida: this.state.soloSinPartida ? 'background: rgba(138, 83, 15, 0.10); border-color: #8a530f; color: #8a530f;' : '',
+      alternarSinPartida: () => this.setState({ soloSinPartida: !this.state.soloSinPartida, menu: null }),
       nSeleccion: idsSel.length,
       haySeleccion: idsSel.length > 0,
       todoMarcado: visibles.length > 0 && idsSel.length === visibles.length,
@@ -375,18 +431,20 @@ class Component extends DCLogic {
         visibles.forEach(d => { sel[d.id] = true; });
         this.setState({ sel });
       },
-      confirmarLote:  () => marcarLote('confirmado'),
-      incidenciaLote: () => marcarLote('incidencia'),
-      segmentos,
-      filas,
-      mostrarPago,
-      colChip: mostrarPago ? '196px' : '124px',
-      kpiRevisar: cuenta('revisar'),
-      kpiIncidencia: cuenta('incidencia'),
-      visibleLabel: visibles.length + ' de ' + todo.length + ' albaranes',
-      panelAbierto: this.state.panel,
-      estiloFiltros: this.state.panel ? 'background: rgba(15, 20, 30, 0.04); border-color: #8a530f;' : '',
-      toggleFiltros: () => this.setState({ panel: !this.state.panel, menu: null }),
+      confirmarLote:  () => this.marcarLote(idsSel, 'confirmado'),
+      incidenciaLote: () => this.marcarLote(idsSel, 'incidencia'),
+      abrirLotePartida: () => this.setState({ menuLote: !this.state.menuLote, menu: null }),
+      lotePartidaAbierto: this.state.menuLote && idsSel.length > 0,
+      opcionesLote: opcionesPara(idsSel),
+      hayDeshacer: Boolean(marcado),
+      chipDeshacer: marcado ? est[ultima.valor].chip : '',
+      estiloDeshacer: marcado ? est[ultima.valor].css : '',
+      textoDeshacer: marcado ? marcado.proveedor + ' · ' + marcado.importe : '',
+      deshacer: () => {
+        const resto = { ...this.state.marcas };
+        delete resto[ultima.id];
+        this.setState({ marcas: resto, ultima: null });
+      },
     };
   }
 }

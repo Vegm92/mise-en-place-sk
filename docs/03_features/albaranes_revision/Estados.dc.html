@@ -15,7 +15,7 @@
     a:hover { color: #7e4c0d; }
     .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
     .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
-    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
     .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; margin: 0; }
     .body { font-size: 13px; color: #4a5562; margin: 0; }
     .body-strong { font-size: 13px; color: #1a1f26; font-weight: 500; margin: 0; }
@@ -32,10 +32,7 @@
     .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
     .btn-primary { background: #8a530f; color: #ffffff; }
     .btn-primary:hover { background: #7e4c0d; }
-    .badge {
-      font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px;
-      display: inline-flex; align-items: center; gap: 4px; line-height: 16px;
-    }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
     .input {
       font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
       border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none; width: 100%;
@@ -49,136 +46,149 @@
     }
     .period-pill:hover { color: #4a5562; }
     .period-pill.on { background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
-    .row-card { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; background: #ffffff; position: relative; }
-    .row-card:hover { background: rgba(15, 20, 30, 0.02); }
     .pop { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10); }
-    .token { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 4px 0 9px; border-radius: 999px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.10); font-size: 11.5px; color: #4a5562; }
-    .token button { border: none; background: transparent; cursor: pointer; color: #5f6b78; display: flex; padding: 3px; border-radius: 999px; }
-    .token button:hover { background: rgba(15, 20, 30, 0.07); color: #1a1f26; }
-    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+    .tab {
+      display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 3px;
+      border: none; border-bottom: 2px solid transparent; background: transparent; cursor: pointer;
+      font-family: inherit; font-size: 13.5px; color: #5f6b78; transition: color 140ms, border-color 140ms;
+    }
+    .tab:hover { color: #1a1f26; }
+    .tab-n { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 999px; line-height: 15px; }
+    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; color: #4a5562; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+    .mark-ok:hover  { background: rgba(20, 105, 74, 0.12); border-color: #14694a; color: #14694a; }
+    .mark-bad:hover { background: rgba(176, 58, 58, 0.12); border-color: #b03a3a; color: #b03a3a; }
+    .part-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #fafaf7; border-radius: 999px; height: 26px; padding: 0 8px 0 9px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; color: #4a5562; cursor: pointer; max-width: 100%; transition: background 120ms, border-color 120ms; }
+    .part-btn:hover { background: rgba(15, 20, 30, 0.06); border-color: rgba(15, 20, 30, 0.18); }
+    .part-btn.vacia { border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent; color: #5f6b78; }
+    .menu-item { display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 9px; border: none; background: transparent; border-radius: 6px; font-family: inherit; font-size: 12.5px; color: #1a1f26; cursor: pointer; text-align: left; }
+    .menu-item:hover { background: rgba(15, 20, 30, 0.04); }
   </style>
   <style>
-    .mx-cell { border: 1px solid rgba(15, 20, 30, 0.06); border-radius: 6px; padding: 9px 11px; display: flex; flex-direction: column; gap: 3px; min-height: 62px; justify-content: center; }
+    .paso { display: flex; align-items: center; gap: 10px; }
+    .paso-caja { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; padding: 9px 13px; display: flex; flex-direction: column; gap: 2px; background: #ffffff; }
+    .part-card { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; padding: 11px 13px; display: flex; flex-direction: column; gap: 6px; }
+    .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 11.5px; background: rgba(15, 20, 30, 0.04); padding: 1px 5px; border-radius: 4px; }
   </style>
 </helmet>
 
-<div style="width: 1180px; height: 800px; background: #f5f4f0; padding: 24px 26px; display: flex; flex-direction: column; gap: 18px; color: #1a1f26;">
+<div style="width: 1180px; height: 820px; background: #f5f4f0; padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; color: #1a1f26;">
 
   <div style="display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;">
-    <h1 class="title">Los tres estados, y el eje que ya existe</h1>
-    <p class="body" style="font-size: 12.5px;">Vale para las dos versiones. Lo de abajo es la decisión de fondo: revisión y pago no son la misma columna.</p>
+    <h1 class="title">Tres estados y seis partidas</h1>
+    <p class="body" style="font-size: 12.5px;">Revisar es comprobar que el albarán cuadra y decir a qué partida va. No hay pagos de por medio.</p>
   </div>
 
   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex-shrink: 0;">
 
-    <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+    <div class="card" style="padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
       <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(101, 74, 0, 0.14); color: #654a00;">Por revisar</span>
-      <p class="body" style="font-size: 12.5px;">Estado de entrada. Lo pone la app en cuanto se guarda el albarán extraído — nadie lo elige.</p>
-      <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
-        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Quién lo quita:</strong> quien revise la entrega.</span>
+      <p class="body" style="font-size: 12.5px;">Estado de entrada. Lo pone la app al guardar el albarán extraído — nadie lo elige.</p>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Sale de aquí:</strong> cuando alguien lo comprueba.</span>
         <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Cuenta para:</strong> la bandeja y el aviso de atrasados.</span>
       </div>
     </div>
 
-    <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+    <div class="card" style="padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
       <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(20, 105, 74, 0.12); color: #14694a;">Confirmado</span>
-      <p class="body" style="font-size: 12.5px;">Lo que llegó cuadra con lo que pone el papel: cantidades, precios y total.</p>
-      <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
-        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Desbloquea:</strong> exportar a la gestoría sin repasar.</span>
+      <p class="body" style="font-size: 12.5px;">Lo que llegó cuadra con el papel —cantidades, precios y total— y ya tiene partida.</p>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Desbloquea:</strong> exportar y contar en la gráfica sin asteriscos.</span>
         <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Reversible:</strong> sí, vuelve a «Por revisar».</span>
       </div>
     </div>
 
-    <div class="card" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
+    <div class="card" style="padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
       <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Incidencia</span>
-      <p class="body" style="font-size: 12.5px;">Algo no cuadra: falta género, el precio subió sin avisar, el albarán está repetido.</p>
-      <div style="display: flex; flex-direction: column; gap: 5px; padding-top: 9px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
-        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Se cierra:</strong> confirmando o rechazando, nunca sola.</span>
+      <p class="body" style="font-size: 12.5px;">Algo no cuadra: falta género, el precio subió sin avisar, el albarán viene repetido.</p>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Se cierra:</strong> confirmando, nunca sola.</span>
         <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Pide:</strong> una nota — es la única que la necesita.</span>
       </div>
     </div>
   </div>
 
-  <div class="card" style="padding: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
-    <div class="card-header" style="align-items: flex-start;">
-      <div style="display: flex; flex-direction: column; gap: 3px;">
-        <span class="subtitle">Revisión y pago son dos ejes distintos</span>
-        <span class="body" style="font-size: 12.5px;">Hoy <code style="font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 11.5px; background: rgba(15, 20, 30, 0.04); padding: 1px 5px; border-radius: 4px;">invoices.status</code> guarda <em>pending · accepted · rejected · paid</em> en una sola columna, y «vencida» se deduce de la fecha. Los tres estados nuevos no caben ahí sin pisar el pago.</span>
-      </div>
+  <div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
+    <div style="width: 116px; flex-shrink: 0;">
+      <span class="body-strong">El recorrido</span>
     </div>
-
-    <div style="padding: 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0;">
-      <div style="display: grid; grid-template-columns: 150px repeat(3, 1fr); gap: 8px; align-items: center;">
-        <span></span>
-        <span class="label" style="text-align: center;">Pago · Pendiente</span>
-        <span class="label" style="text-align: center;">Pago · Pagada</span>
-        <span class="label" style="text-align: center;">Pago · Vencida</span>
+    <div class="paso" style="flex: 1;">
+      <div class="paso-caja" style="background: #fafaf7;">
+        <span class="body" style="font-size: 11px; color: #64707d;">La IA</span>
+        <span class="body-strong" style="font-size: 12.5px;">Extraído</span>
       </div>
-
-      <div style="display: grid; grid-template-columns: 150px repeat(3, 1fr); gap: 8px; align-items: stretch;">
-        <span class="badge" style="align-self: center; justify-self: start; height: 22px; padding: 0 8px; background: rgba(101, 74, 0, 0.14); color: #654a00;">Por revisar</span>
-        <div class="mx-cell" style="background: #fafaf7;">
-          <span class="num body-strong">6 albaranes</span>
-          <span class="body" style="font-size: 11px;">el caso normal</span>
+      <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="paso-caja" style="border-color: #654a00; background: rgba(101, 74, 0, 0.14);">
+        <span class="body" style="font-size: 11px; color: #654a00;">Automático</span>
+        <span class="body-strong" style="font-size: 12.5px; color: #654a00;">Por revisar</span>
+      </div>
+      <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="paso-caja" style="border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent;">
+        <span class="body" style="font-size: 11px; color: #64707d;">Una persona</span>
+        <span class="body-strong" style="font-size: 12.5px;">Asigna partida</span>
+      </div>
+      <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div class="paso-caja" style="border-color: #14694a; background: rgba(20, 105, 74, 0.12); padding: 5px 12px;">
+          <span class="body-strong" style="font-size: 12.5px; color: #14694a;">Confirmado</span>
         </div>
-        <div class="mx-cell" style="background: rgba(101, 74, 0, 0.14); border-color: #654a00;">
-          <span class="num body-strong" style="color: #654a00;">0 hoy — y es el peligro</span>
-          <span class="body" style="font-size: 11px; color: #654a00;">pagado sin que nadie mirara la entrega</span>
-        </div>
-        <div class="mx-cell" style="background: #fafaf7;">
-          <span class="num body-strong">0</span>
-          <span class="body" style="font-size: 11px;">vencido y sin revisar</span>
-        </div>
-
-        <span class="badge" style="align-self: center; justify-self: start; height: 22px; padding: 0 8px; background: rgba(20, 105, 74, 0.12); color: #14694a;">Confirmado</span>
-        <div class="mx-cell" style="background: #fafaf7;">
-          <span class="num body-strong">1 albarán</span>
-          <span class="body" style="font-size: 11px;">revisado, toca pagarlo</span>
-        </div>
-        <div class="mx-cell" style="background: #fafaf7;">
-          <span class="num body-strong">7 albaranes</span>
-          <span class="body" style="font-size: 11px;">cerrado por los dos lados</span>
-        </div>
-        <div class="mx-cell" style="background: #fafaf7;">
-          <span class="num body-strong">0</span>
-          <span class="body" style="font-size: 11px;">revisado, pago atrasado</span>
-        </div>
-
-        <span class="badge" style="align-self: center; justify-self: start; height: 22px; padding: 0 8px; background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Incidencia</span>
-        <div class="mx-cell" style="background: #fafaf7;">
-          <span class="num body-strong">1 albarán</span>
-          <span class="body" style="font-size: 11px;">a la espera del proveedor</span>
-        </div>
-        <div class="mx-cell" style="background: rgba(176, 58, 58, 0.12); border-color: #b03a3a;">
-          <span class="num body-strong" style="color: #b03a3a;">0 hoy — y es el peligro</span>
-          <span class="body" style="font-size: 11px; color: #b03a3a;">pagado con la incidencia abierta</span>
-        </div>
-        <div class="mx-cell" style="background: #fafaf7;">
-          <span class="num body-strong">1 albarán</span>
-          <span class="body" style="font-size: 11px;">retenido a propósito</span>
+        <div class="paso-caja" style="border-color: #b03a3a; background: rgba(176, 58, 58, 0.12); padding: 5px 12px;">
+          <span class="body-strong" style="font-size: 12.5px; color: #b03a3a;">Incidencia</span>
         </div>
       </div>
-
-      <p class="body" style="font-size: 12px; padding-top: 4px;">Las dos casillas marcadas no salen nunca si el estado de revisión y el de pago comparten columna: al marcar «Pagada» se borra el «Por revisar». Son las dos que más dinero cuestan, así que la columna se separa.</p>
+      <div style="flex: 1;"></div>
+      <span class="body" style="font-size: 11.5px; max-width: 250px;">La partida se puede poner antes o después de confirmar, pero un albarán confirmado sin partida no cuenta en la gráfica de reparto.</span>
     </div>
   </div>
 
-  <div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 16px; flex-shrink: 0;">
-    <div style="display: flex; flex-direction: column; gap: 2px; width: 236px; flex-shrink: 0;">
-      <span class="body-strong">En el móvil</span>
-      <span class="body" style="font-size: 11.5px;">Las bandejas reutilizan la tira de chips que ya existe: 44 px de alto, desplazable.</span>
+  <div class="card" style="padding: 0; flex-shrink: 0; display: flex; flex-direction: column;">
+    <div class="card-header">
+      <span class="subtitle" style="font-size: 15px;">Las seis partidas</span>
+      <span class="body" style="font-size: 11.5px;">Los colores salen de la paleta categórica que ya usa la app (<span class="mono">--mep-series-1…5</span>)</span>
     </div>
-    <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #8a530f; color: #ffffff;">Por revisar · 6</span>
-      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #ffffff; color: #4a5562; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);">Confirmados · 8</span>
-      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #ffffff; color: #4a5562; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);">Incidencias · 2</span>
-      <span style="display: inline-flex; align-items: center; height: 44px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 500; background: #ffffff; color: #4a5562; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);">Todos · 16</span>
+    <div style="padding: 14px 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+      <div class="part-card">
+        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #2776d3;"></span><span class="body-strong" style="font-size: 12.5px;">Cocina caliente</span></span>
+        <span class="body" style="font-size: 11.5px;">Pescado, carne y lo que entra directo al servicio del día.</span>
+      </div>
+      <div class="part-card">
+        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #008300;"></span><span class="body-strong" style="font-size: 12.5px;">Cocina fría</span></span>
+        <span class="body" style="font-size: 11.5px;">Verdura, lácteo y todo lo que se monta en frío.</span>
+      </div>
+      <div class="part-card">
+        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #bb537c;"></span><span class="body-strong" style="font-size: 12.5px;">Pastelería</span></span>
+        <span class="body" style="font-size: 11.5px;">Harinas, azúcares y los lácteos de repostería.</span>
+      </div>
+      <div class="part-card">
+        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #9e6b0d;"></span><span class="body-strong" style="font-size: 12.5px;">Economato</span></span>
+        <span class="body" style="font-size: 11.5px;">Seco, conservas, limpieza y menaje: lo que va a estantería.</span>
+      </div>
+      <div class="part-card">
+        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #12865c;"></span><span class="body-strong" style="font-size: 12.5px;">Bar</span></span>
+        <span class="body" style="font-size: 11.5px;">Vinos, cavas, refrescos y café.</span>
+      </div>
+      <div class="part-card" style="border-style: dashed; border-color: rgba(15, 20, 30, 0.28);">
+        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #6e7682;"></span><span class="body-strong" style="font-size: 12.5px;">Sin asignar</span></span>
+        <span class="body" style="font-size: 11.5px;">No es una partida: es trabajo pendiente. Tiene su propio filtro en la barra.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 15px 16px; flex: 1; min-height: 0; display: flex; gap: 20px;">
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 7px;">
+      <span class="subtitle" style="font-size: 15px;">Sin pagos, la columna de estado se simplifica</span>
+      <p class="body" style="font-size: 12.5px;">Hoy <span class="mono">invoices.status</span> guarda <em>pending · accepted · rejected · paid</em> y «vencida» se deduce de <span class="mono">due_date</span>. Si no pagáis, sobran <span class="mono">paid</span> y todo lo que cuelga del vencimiento: quedan exactamente tres valores y encajan en la columna que ya existe. No hace falta un eje nuevo.</p>
+    </div>
+    <div style="width: 1px; background: rgba(15, 20, 30, 0.06); flex-shrink: 0;"></div>
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 7px;">
+      <span class="subtitle" style="font-size: 15px;">La partida sí es columna nueva</span>
+      <p class="body" style="font-size: 12.5px;">Y no vale reaprovechar <span class="mono">category</span>: esa es la categoría de producto del proveedor (Lácteos, Pescados…) y es otra cosa. Lácteos Valdemar sirve a cocina fría <em>y</em> a pastelería, así que la partida es del albarán, no del proveedor — aunque la app puede proponerla mirando los albaranes anteriores de ese proveedor.</p>
     </div>
   </div>
 </div>
 
 </x-dc>
-<script data-dc-script data-props='{"$preview": {"width": 1180, "height": 800}}'>
+<script data-dc-script data-props='{"$preview": {"width": 1180, "height": 820}}'>
 class Component extends DCLogic {}
 </script>
 </body>
