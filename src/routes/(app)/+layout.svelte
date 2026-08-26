@@ -80,6 +80,12 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     accountOpen = false;
   });
 
+  const upgradeFeatures = [
+    { icon: TrendingUp,    key: 'sidebar.upgradeFeatAnalytics' },
+    { icon: Newspaper,     key: 'sidebar.upgradeFeatDigest' },
+    { icon: MessageCircle, key: 'sidebar.upgradeFeatAssistant' },
+  ];
+
   function handleNavClick(item: NavItem, e: MouseEvent) {
     if (item.proOnly && item.feature && !data.features[item.feature]) {
       e.preventDefault();
@@ -922,15 +928,15 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     {#if upgradeModalOpen}
       <div
-        style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
+        style="position:fixed;inset:0;z-index:110;background:var(--mep-scrim);display:flex;align-items:center;justify-content:center;padding:24px;"
         role="presentation"
         onclick={() => upgradeModalOpen = false}
       >
         <div
           style="
-            background:var(--mep-bg);border:1px solid var(--mep-border-strong);
-            border-radius:16px;padding:32px 28px;max-width:420px;width:100%;
-            box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
+            background:var(--mep-overlay);border:1px solid var(--mep-border-strong);
+            border-radius:var(--mep-r-card);padding:24px;max-width:380px;width:100%;
+            box-shadow:var(--mep-shadow-pop);
           "
           role="dialog"
           tabindex="-1"
@@ -940,23 +946,37 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
           onclick={(e) => e.stopPropagation()}
           onkeydown={(e) => { if (e.key === 'Escape') upgradeModalOpen = false; else e.stopPropagation(); }}
         >
-          <div style="font-size:32px;margin-bottom:16px;">✨</div>
-          <div id="upgrade-modal-title" style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
-            {$t('sidebar.upgradeToProTitle')}
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <Sparkles size={18} style="color:var(--mep-acc);flex-shrink:0;" />
+            <strong id="upgrade-modal-title" style="flex:1;font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">
+              {$t('sidebar.upgradeToProTitle')}
+            </strong>
+            <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-acc-soft);color:var(--mep-acc);border:1px solid var(--mep-acc-ring);">{$t('nav.badge.pro')}</span>
           </div>
-          <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
+          <p class="body" style="line-height:1.6;margin:0 0 16px;">
             {$t('sidebar.upgradeToProDesc')}
           </p>
-          <div style="display:flex;gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:20px;">
+            {#each upgradeFeatures as feature}
+              {@const Icon = feature.icon}
+              <div style="display:flex;align-items:center;gap:10px;height:var(--mep-row-h);padding:0 10px;border-radius:var(--mep-r-input);background:var(--mep-hover);">
+                <span style="width:28px;height:28px;flex-shrink:0;border-radius:var(--mep-r-input);background:var(--mep-acc-soft);color:var(--mep-acc);display:inline-flex;align-items:center;justify-content:center;">
+                  <Icon size={16} />
+                </span>
+                <span class="body-strong">{$t(feature.key)}</span>
+              </div>
+            {/each}
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button
               type="button"
-              class="btn btn-ghost"
-              style="flex:1;height:40px;justify-content:center;font-size:14px;"
+              class="btn btn-secondary"
+              style="height:36px;"
               onclick={() => upgradeModalOpen = false}
             >
               {$t('action.cancel')}
             </button>
-            <a href="/billing" class="btn btn-primary" style="flex:1;height:40px;justify-content:center;font-size:14px;text-decoration:none;" onclick={() => upgradeModalOpen = false}>
+            <a href="/billing" class="btn btn-primary" style="height:36px;text-decoration:none;" onclick={() => upgradeModalOpen = false}>
               {$t('sidebar.upgradeCta')}
             </a>
           </div>
