@@ -33,8 +33,8 @@ const COLOR_FG2 = '#4a5562';
 const COLOR_FG3 = '#5f6b78';
 const COLOR_BORDER = 'rgba(15,20,30,.10)';
 const COLOR_DIVIDER = 'rgba(15,20,30,.06)';
-const COLOR_ACCENT = '#8a530f';
-const COLOR_ACCENT_SOFT = 'rgba(138,83,15,.10)';
+const COLOR_ACCENT = '#34507a';
+const COLOR_ACCENT_SOFT = 'rgba(52,80,122,.10)';
 
 const FONT_STACK = "'Mona Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO_STACK = "'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace";

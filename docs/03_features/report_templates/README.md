@@ -82,13 +82,15 @@ campana y CTA de subida; los conmutadores de idioma y tema viven en el
 
 ## Tokens
 
-Todo sale de `src/app.css`, con el acento **amber** (`--mep-acc: #8a530f`,
-hover `#7e4c0d`, soft `rgba(138,83,15,.10)`), fondo `#f5f4f0` y Mona Sans.
+Todo sale de `src/app.css`, con el acento **slate** (`--mep-acc: #34507a`,
+hover `#2b4368`, soft `rgba(52,80,122,.10)`), fondo `#f5f4f0` y Mona Sans.
 
-Ojo con esto: el bloque teal aparece primero en `app.css` y va comentado como
-«Accent — teal (default)», pero **ninguna ruta lo usa**. Todas montan
-`<div class="mep" data-accent="amber">`, así que el acento real de la app es
-amber. El comentario induce a error.
+El acento fue amber hasta [ADR-026](../../06_decisions/experience/ADR-026-warm-severity-ramp-cool-actions.md),
+que lo movió a slate porque el ámbar y `--mep-warn` compartían tono, y
+[ADR-027](../../06_decisions/experience/ADR-027-amber-accent-removed-and-enforced.md),
+que borró el bloque amber de `app.css`. Las 13 raíces de ruta montan
+`<div class="mep" data-accent="slate">`. El bloque teal sigue declarado pero
+no lo usa ninguna ruta.
 
 `--mep-warn` es ámbar, pero no el ocre de antes: `#654a00` en claro y `#efc233`
 en oscuro. El ocre original quedaba a ΔE 4,7 del acento en claro y 4,7 en

@@ -27,6 +27,12 @@ export function fmtEurCompact(n: number): string {
 	return Math.round(n).toLocaleString('es-ES') + ' €';
 }
 
+export function fmtEurSigned(n: number): string {
+	const rounded = Math.round(n);
+	const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
+	return sign + fmtEurCompact(Math.abs(rounded));
+}
+
 const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
 

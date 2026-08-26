@@ -78,8 +78,18 @@ Leave both unset when the Node process is directly internet-facing.
 
 > **Keep the price IDs in sync with Stripe.** A subscription whose price ID
 > matches none of the three is recorded as `starter` (the safest quota) *and*
-> logged at error level to the console and Sentry. If you rotate a price in the
-> Stripe dashboard, update the env var in the same deploy.
+> logged at error level to the console and Sentry, with the price IDs that
+> *are* configured named in the alert. If you rotate a price in the Stripe
+> dashboard, update the env var in the same deploy.
+>
+> **Price IDs must come from the same Stripe account as `STRIPE_SECRET_KEY`.**
+> Stripe embeds the owning account in every object ID (`price_1` + 5 random
+> characters + a 10-character account fragment), so a live price and a
+> configured price that disagree on that fragment mean the key was rotated to a
+> different account and the price IDs were not. The alert says so explicitly and
+> is tagged `billingConfig:stripe_account_mismatch` in Sentry. Symptoms of the
+> same drift elsewhere: `No such price` on checkout and `No such customer` on
+> the billing page.
 
 ### Email (Resend)
 

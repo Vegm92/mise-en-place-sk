@@ -7,9 +7,14 @@
  *
  * The fix follows the /suppliers/[id] split: the rail+column layout becomes a
  * desktop-only branch (`hidden md:flex`), and below md (`md:hidden`) the
- * sections render as an accordion of full-width collapsible cards. Section
- * bodies are written once (a snippet) and rendered by both branches, so the
- * two can never drift.
+ * sections render full-width. Section bodies are written once (a snippet) and
+ * rendered by both branches, so the two can never drift.
+ *
+ * The later settings redesign replaced the mobile accordion with list + panel
+ * navigation — one section at a time, with a way back — because an accordion
+ * of dense forms buries the section you are in. What this file guards is the
+ * issue's requirement, not the accordion: no desktop rail below md, one
+ * source for the section bodies, touch-sized rows, and no scroll strip.
  *
  * The measured half of this issue is `scripts/mobile-audit.mjs` against a
  * running dev server; what is checkable without a browser is the structure.
@@ -44,19 +49,35 @@ describe('settings mobile layout (issue #650)', () => {
 		).toBeLessThan(railAt);
 	});
 
-	it('renders a mobile accordion branch (md:hidden) with per-section toggles', () => {
+	it('renders a mobile branch (md:hidden) that pushes one section at a time', () => {
 		expect(
 			/class="[^"]*\bmd:hidden\b[^"]*"/.test(src),
 			'a `md:hidden` mobile branch must exist',
 		).toBe(true);
 		expect(
-			src.includes('aria-expanded'),
-			'accordion section headers must expose aria-expanded',
+			src.includes('set-mob-item'),
+			'the mobile branch lists the sections as full-width rows',
 		).toBe(true);
 		expect(
-			src.includes('set-acc-head'),
-			'accordion header buttons carry the set-acc-head class',
+			src.includes('set-mob-back'),
+			'an opened mobile section must offer a way back to the list',
 		).toBe(true);
+	});
+
+	it('keeps the desktop rail out of the mobile branch', () => {
+		const mobileAt = src.search(/class="[^"]*\bmd:hidden\b[^"]*"/);
+		expect(mobileAt).toBeGreaterThan(-1);
+		const markup = src.slice(mobileAt, src.lastIndexOf('<style>'));
+		expect(
+			markup.includes('settings-rail'),
+			'the 186px section rail is what made /settings unusable at 390px',
+		).toBe(false);
+	});
+
+	it('gives every mobile row a touch-sized hit area', () => {
+		const row = /\.set-mob-item\s*\{[^}]*min-height:\s*(\d+)px/.exec(src);
+		expect(row, 'the mobile section rows must declare a min-height').not.toBeNull();
+		expect(Number(row![1])).toBeGreaterThanOrEqual(44);
 	});
 
 	it('writes each section body once and renders it in both branches', () => {

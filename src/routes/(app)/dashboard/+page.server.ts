@@ -2,14 +2,16 @@ import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { invoices, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
-import { desc, eq, isNotNull, isNull, sql, and } from 'drizzle-orm';
+import { invoices, invoiceLineItems, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
+import { desc, eq, inArray, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
 import { getTrendDataByRange } from '$lib/server/trend';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { moneyToNumber } from '$lib/server/money';
+import { CASH_OUT_HORIZON_DAYS } from '$lib/dashboard-turno';
+import type { PayableInput, PriceShockInput, UncategorizedInput } from '$lib/dashboard-turno';
 
 function relativeTime(iso: Date | string | null, today: Date): string {
 	if (!iso) return '';
@@ -101,6 +103,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		today.setHours(0, 0, 0, 0);
 		const todayIso = today.toISOString().split('T')[0]!;
 		const weekEnd = new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0]!;
+		const cashOutEnd = new Date(today.getTime() + CASH_OUT_HORIZON_DAYS * 86400000).toISOString().split('T')[0]!;
 		const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0]!;
 
 		const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -114,6 +117,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			budgetRows, thresholdRow,
 			recentRows, pendingInvoiceRows,
 			agingRow, avgInvoiceRow, reminderRows,
+			cashOutRows, uncategorizedRows,
 			priceShockRows, budgetAlertRows,
 			trend,
 		] = await Promise.all([
@@ -271,6 +275,28 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				ORDER BY i.due_date ASC
 			`),
 
+			db.execute(sql`
+				SELECT i.id, s.name AS supplier_name, i.invoice_number,
+				       i.due_date, COALESCE(i.total_amount,0) AS display_amount
+				FROM invoices i
+				LEFT JOIN suppliers s ON s.id = i.supplier_id
+				WHERE i.restaurant_id = ${rid}
+				  AND i.deleted_at IS NULL
+				  AND i.status IN ('pending','accepted')
+				  AND i.due_date IS NOT NULL AND i.due_date <= ${cashOutEnd}
+				ORDER BY i.due_date ASC
+			`),
+
+			db.select({ id: systemNotifications.id, payload: systemNotifications.payload })
+				.from(systemNotifications)
+				.where(and(
+					tdb.scope(systemNotifications.restaurantId),
+					eq(systemNotifications.notificationType, 'supplier_uncategorized'),
+					eq(systemNotifications.status, 'pending'),
+				))
+				.orderBy(desc(systemNotifications.createdAt))
+				.limit(5),
+
 			db.select({ id: systemNotifications.id, message: systemNotifications.message, payload: systemNotifications.payload, createdAt: systemNotifications.createdAt })
 				.from(systemNotifications)
 				.where(and(
@@ -379,6 +405,68 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			return { ...r, days_delta: daysDelta, overdue: daysDelta < 0 };
 		});
 
+		type CashOutRow = { id: number; supplier_name: string | null; invoice_number: string | null; due_date: string; display_amount: number };
+		const payables: PayableInput[] = (cashOutRows as unknown as CashOutRow[]).map((r) => ({
+			id: r.id,
+			supplier_name: r.supplier_name,
+			invoice_number: r.invoice_number,
+			due_date: r.due_date,
+			amount: Number(r.display_amount),
+			days_delta: Math.round((new Date(r.due_date).getTime() - today.getTime()) / 86400000),
+		}));
+
+		const uncategorized: UncategorizedInput[] = uncategorizedRows
+			.map((r) => {
+				const p = r.payload ? JSON.parse(r.payload) as { supplierId?: number; supplierName?: string } : null;
+				return p?.supplierId != null && p.supplierName
+					? { supplierId: p.supplierId, supplierName: p.supplierName }
+					: null;
+			})
+			.filter((r): r is UncategorizedInput => r !== null);
+
+		const shockDescriptions = [...new Set(
+			priceShockAlerts
+				.map((a) => String((a.payload as { ingredient?: string } | null)?.ingredient ?? '').trim())
+				.filter((d) => d.length > 0),
+		)];
+		const shockSpendRows = shockDescriptions.length > 0
+			? await db
+				.select({
+					description: invoiceLineItems.description,
+					spend: sql<number>`COALESCE(SUM(COALESCE(${invoiceLineItems.totalPrice},0)),0)`,
+				})
+				.from(invoiceLineItems)
+				.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+				.where(and(
+					tdb.scope(invoiceLineItems.restaurantId),
+					isNull(invoices.deletedAt),
+					inArray(invoiceLineItems.description, shockDescriptions),
+					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') = ${selectedMonth}`,
+				))
+				.groupBy(invoiceLineItems.description)
+			: [];
+		const shockSpendByDescription = new Map<string, number>();
+		for (const row of shockSpendRows) shockSpendByDescription.set(String(row.description), Number(row.spend));
+
+		const turnoPriceShocks: PriceShockInput[] = priceShockAlerts
+			.map((a) => {
+				const p = a.payload as { ingredient?: string; supplier?: string; oldPrice?: number; newPrice?: number; deviationPct?: number } | null;
+				if (!p?.ingredient || p.oldPrice == null || p.newPrice == null || p.deviationPct == null) return null;
+				return {
+					id: a.id,
+					ingredient: p.ingredient,
+					supplier: p.supplier ?? '',
+					oldPrice: Number(p.oldPrice),
+					newPrice: Number(p.newPrice),
+					deviationPct: Number(p.deviationPct),
+					monthSpend: shockSpendByDescription.get(p.ingredient.trim()) ?? 0,
+					daysAgo: a.createdAt
+						? Math.max(0, Math.round((today.getTime() - new Date(a.createdAt).getTime()) / 86400000))
+						: 0,
+				};
+			})
+			.filter((s): s is PriceShockInput => s !== null);
+
 		const missingInvoices = await detectMissingInvoices(rid, today);
 		const displayMonth = new Date(selectedMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -397,6 +485,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			missing_invoices: missingInvoices, price_shock_alerts: priceShockAlerts,
 			dashboard_alerts: dashboardAlerts, alert_counts: { high: highCount, med: medCount },
 			reminders,
+			payables, uncategorized_suppliers: uncategorized, turno_price_shocks: turnoPriceShocks,
+			is_current_month: selectedMonth === currentMonth,
 			mom: { this_month: Number(mom.this_month), last_month: Number(mom.last_month), pct_change: momPct },
 			aging: { fresh: Number(aging.fresh), mid: Number(aging.mid), old: Number(aging.old) },
 			avg_invoice: avgInvoice ? Number(avgInvoice) : null,
