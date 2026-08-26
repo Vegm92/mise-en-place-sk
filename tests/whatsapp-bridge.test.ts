@@ -66,7 +66,8 @@ vi.mock('../src/lib/server/idempotency', () => ({
 	claimIdempotencyKey: claimMock,
 	releaseIdempotencyKey: releaseMock,
 }));
-vi.mock('../src/lib/server/whatsapp', () => ({
+vi.mock('../src/lib/server/whatsapp', async (importActual) => ({
+	...(await importActual<typeof import('../src/lib/server/whatsapp')>()),
 	sendWhatsAppMessage: sendMock,
 	downloadWhatsAppMedia: downloadMock,
 }));
@@ -101,8 +102,13 @@ vi.mock('../src/lib/server/env', async (importActual) => ({
 }));
 
 import { handleWhatsAppMessage } from '../src/lib/server/whatsapp-bot';
+import { MediaTooLargeError } from '../src/lib/server/whatsapp';
+import { MAX_FILE_BYTES } from '../src/lib/server/file-validation';
 
 const CONTACT = [{ restaurantId: 'rest-1' }];
+
+/** A buffer that passes the JPEG magic-byte check (SOI + APP0 marker). */
+const JPEG = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
 
 function repliesText() {
 	return sendMock.mock.calls.map((c) => c[1] as string).join('\n');
@@ -126,8 +132,8 @@ vi.mock('../src/lib/server/locations', () => ({ isLocationLocked: vi.fn().mockRe
 });
 
 describe('WhatsApp → batch bridge', () => {
-	it('creates a batch/item, enqueues extraction, and replies with a /batch/[id] link', async () => {
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+	it('creates a batch/item tagged with its origin, enqueues extraction, and acknowledges', async () => {
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		queueRouting();
 
 		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
@@ -135,19 +141,22 @@ describe('WhatsApp → batch bridge', () => {
 		expect(createBatchMock).toHaveBeenCalledWith(
 			'rest-1',
 			[{ key: expect.stringMatching(/^whatsapp\/rest-1\//), name: expect.any(String) }],
+			{ source: 'whatsapp', sourceRef: '+34600', jobCode: expect.stringMatching(/^[A-Z0-9]{4}$/) },
 		);
 		expect(enqueueBatchMock).toHaveBeenCalledWith('item-1', 'rest-1', expect.objectContaining({
 			enqueue: enqueueExtractionMock,
 		}));
+		// The ack only says the invoice arrived — the summary with the extracted
+		// data comes back from the worker once extraction finishes.
 		expect(sendMock).toHaveBeenCalledTimes(1);
-		expect(repliesText()).toContain('https://app.example.com/batch/batch-1');
+		expect(repliesText()).toMatch(/Factura recibida/i);
 		// No inline extracted-data summary, no SÍ/NO prompt on this path.
 		expect(repliesText()).not.toMatch(/¿Confirmas esta factura\?/);
 	});
 
 	it('does not claim or run inline extraction on the batch path', async () => {
 		const { extractWithProvider } = await import('../src/lib/server/extract');
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		queueRouting();
 
 		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
@@ -168,7 +177,7 @@ describe('WhatsApp → batch bridge', () => {
 	});
 
 	it('replies with an error and does not create a batch when storage save fails', async () => {
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		saveMock.mockRejectedValueOnce(new Error('disk full'));
 		queueRouting();
 
@@ -199,14 +208,14 @@ describe('idempotency claim release before the commit point (issue #483)', () =>
 		await expect(handleWhatsAppMessage({ ...MEDIA })).rejects.toThrow();
 		expect(releaseMock).toHaveBeenCalledWith('whatsapp', 'm1');
 
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		queueRouting();
 		await handleWhatsAppMessage({ ...MEDIA });
 		expect(createBatchMock).toHaveBeenCalledTimes(1);
 	});
 
 	it('releases the claim when the storage write fails', async () => {
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		saveMock.mockRejectedValueOnce(new Error('disk full'));
 		queueRouting();
 
@@ -215,7 +224,7 @@ describe('idempotency claim release before the commit point (issue #483)', () =>
 	});
 
 	it('releases the claim when the batch insert fails', async () => {
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		createBatchMock.mockRejectedValueOnce(new Error('deadlock detected'));
 		queueRouting();
 
@@ -224,7 +233,7 @@ describe('idempotency claim release before the commit point (issue #483)', () =>
 	});
 
 	it('releases the claim when the extraction enqueue fails', async () => {
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		enqueueBatchMock.mockRejectedValueOnce(new Error('boss is down'));
 		queueRouting();
 
@@ -235,7 +244,7 @@ describe('idempotency claim release before the commit point (issue #483)', () =>
 	it('keeps the claim when the confirmation reply fails after the enqueue', async () => {
 		// Past the commit point the invoice is ingested; releasing here would
 		// let a redelivery create a second batch for the same photo.
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('img'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
 		sendMock.mockRejectedValueOnce(new Error('Meta 500'));
 		queueRouting();
 
@@ -253,5 +262,98 @@ describe('idempotency claim release before the commit point (issue #483)', () =>
 		expect(downloadMock).not.toHaveBeenCalled();
 		expect(createBatchMock).not.toHaveBeenCalled();
 		expect(releaseMock).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * Issue #483: the WhatsApp path buffered whatever Meta handed over, with no
+ * size cap and no content check — the two guards the web upload path has had
+ * since #217. Both share src/lib/server/file-validation.ts now.
+ */
+describe('media validation (issue #483)', () => {
+	const MEDIA = { from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } };
+
+	it('refuses an oversized file without creating a batch, and keeps the claim', async () => {
+		// Rejection is a handled outcome, not a failure: the message WAS
+		// processed correctly, so a redelivery of the same bad file is
+		// still a duplicate and must stay skipped.
+		downloadMock.mockRejectedValue(new MediaTooLargeError(MAX_FILE_BYTES + 1));
+		queueRouting();
+
+		await handleWhatsAppMessage({ ...MEDIA });
+
+		expect(saveMock).not.toHaveBeenCalled();
+		expect(createBatchMock).not.toHaveBeenCalled();
+		expect(releaseMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/demasiado grande/i);
+	});
+
+	it('refuses a file whose bytes do not match its extension', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('MZ not a jpeg'), extension: 'jpg' });
+		queueRouting();
+
+		await handleWhatsAppMessage({ ...MEDIA });
+
+		expect(saveMock).not.toHaveBeenCalled();
+		expect(createBatchMock).not.toHaveBeenCalled();
+		expect(releaseMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/dañado o no es lo que dice ser/i);
+	});
+
+	it('refuses an extension outside the allow-list', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('#!/bin/sh'), extension: 'sh' });
+		queueRouting();
+
+		await handleWhatsAppMessage({ ...MEDIA });
+
+		expect(createBatchMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/Ese tipo de archivo no me sirve/i);
+	});
+
+	it('accepts a PDF whose bytes match', async () => {
+		downloadMock.mockResolvedValue({
+			buffer: Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37]),
+			extension: 'pdf',
+		});
+		queueRouting();
+
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'document', document: { id: 'media-1' } });
+
+		expect(createBatchMock).toHaveBeenCalled();
+	});
+});
+
+/**
+ * Issue #483: only unknown numbers were throttled, so an authorised contact
+ * could pin the extraction queue and the LLM quota with a burst of photos.
+ */
+describe('per-sender rate limit (issue #483)', () => {
+	it('turns an authorised sender away past the hourly cap, before downloading', async () => {
+		rateLimitMock.mockResolvedValue(false);
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
+		queueRouting();
+
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+
+		expect(downloadMock).not.toHaveBeenCalled();
+		expect(createBatchMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/demasiadas facturas seguidas/i);
+	});
+
+	it('keys the limit on the sender, over an hour window', async () => {
+		downloadMock.mockResolvedValue({ buffer: JPEG, extension: 'jpg' });
+		queueRouting();
+
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'image', image: { id: 'media-1' } });
+
+		expect(rateLimitMock).toHaveBeenCalledWith('whatsapp:+34600', expect.any(Number), 3600);
+	});
+
+	it('does not throttle a plain text message', async () => {
+		queueRouting();
+
+		await handleWhatsAppMessage({ from: '+34600', id: 'm1', type: 'text', text: { body: 'hola' } });
+
+		expect(rateLimitMock).not.toHaveBeenCalled();
 	});
 });

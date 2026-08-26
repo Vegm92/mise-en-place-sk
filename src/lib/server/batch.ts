@@ -19,6 +19,16 @@ export type BatchDb =
 export type BatchItemStatus =
 	| 'pending' | 'queued' | 'extracting' | 'done' | 'failed' | 'confirmed' | 'discarded';
 
+export type BatchItemSource = 'web' | 'whatsapp';
+
+export type BatchItemReviewStatus = 'pending' | 'reviewed' | 'to_review';
+
+export interface BatchItemOrigin {
+	source?: BatchItemSource;
+	sourceRef?: string | null;
+	jobCode?: string | null;
+}
+
 export interface BatchItem {
 	id: string;
 	batchId: string;
@@ -31,6 +41,10 @@ export interface BatchItem {
 	conversionNotes: string[] | null;
 	extractError: string | null;
 	queuedAt: Date | null;
+	source: BatchItemSource;
+	sourceRef: string | null;
+	jobCode: string | null;
+	reviewStatus: BatchItemReviewStatus | null;
 }
 
 export const STALL_ERROR = 'extract.err.stalled';
@@ -51,6 +65,10 @@ const itemColumns = {
 	conversionNotes: batchItems.conversionNotes,
 	extractError: batchItems.extractError,
 	queuedAt: batchItems.queuedAt,
+	source: batchItems.source,
+	sourceRef: batchItems.sourceRef,
+	jobCode: batchItems.jobCode,
+	reviewStatus: batchItems.reviewStatus,
 };
 
 function asItem(row: Record<string, unknown>): BatchItem {
@@ -87,6 +105,7 @@ export function createBatchStore(db: BatchDb) {
 	async function createBatch(
 		restaurantId: string,
 		files: Array<{ key: string; name: string }>,
+		origin: BatchItemOrigin = {},
 	): Promise<{ batchId: string; itemIds: string[] }> {
 		const [batch] = await db.insert(uploadBatches).values({ restaurantId }).returning({ id: uploadBatches.id });
 		const rows = await db
@@ -97,6 +116,9 @@ export function createBatchStore(db: BatchDb) {
 				position: i + 1,
 				fileKey: f.key,
 				displayName: f.name,
+				source: origin.source ?? 'web',
+				sourceRef: origin.sourceRef ?? null,
+				jobCode: i === 0 ? origin.jobCode ?? null : null,
 			})))
 			.returning({ id: batchItems.id, position: batchItems.position });
 		rows.sort((a, b) => a.position - b.position);

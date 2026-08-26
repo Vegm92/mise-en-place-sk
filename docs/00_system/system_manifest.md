@@ -25,6 +25,8 @@ Spanish-first, bilingual (es/en). Product definition:
   Credentials + Google OAuth (migrated off Supabase Auth, #369/#372/#370)
 - Gemini (`@google/genai`, default `gemini-2.5-flash`) via provider seam
 - pg-boss background jobs in a separate worker process
+- Baileys (`@whiskeysockets/baileys`) — unofficial WhatsApp client, worker-side,
+  behind the transport seam in `src/lib/server/integrations/whatsapp/` (ADR-025)
 - Stripe, Resend, Meta WhatsApp Cloud API, Sentry, Upstash Redis (optional),
   Railway Buckets (S3-compatible, `t3.storageapi.dev`) — invoice storage via
   `STORAGE_DRIVER=railway`
@@ -92,9 +94,10 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 ## Background worker
 
-- `src/worker.ts`: pg-boss, `max:3`, queues `extract-invoice` and
-  `normalize-product` (each with a dead-letter sibling), all drained to the
-  `dead_letter_queue` audit table. Extraction runs up to
+- `src/worker.ts`: pg-boss, `max:3`, queues `extract-invoice`,
+  `normalize-product` and `whatsapp-notify` (each with a dead-letter sibling),
+  all drained to the `dead_letter_queue` audit table. The WhatsApp transport is
+  hosted here too when `WHATSAPP_BOT_ENABLED=true`, and stopped on shutdown. Extraction runs up to
   `MAX_CONCURRENT_EXTRACTIONS` (default 3) in parallel, capped globally by the
   `acquireExtractionSlot()` semaphore (`worker.ts` `batchSize` follows the cap).
 - Scheduled cron jobs (see `docs/05_operations/background_jobs.md`):

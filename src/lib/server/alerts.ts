@@ -537,7 +537,7 @@ export async function runPossibleDuplicatePurchase(
 	}];
 }
 
-export async function saveAlerts(invoiceId: number, restaurantId: string, alerts: Alert[]): Promise<void> {
+export async function saveAlerts(invoiceId: number | null, restaurantId: string, alerts: Alert[]): Promise<void> {
 	if (alerts.length === 0) return;
 	const enabled = await filterEnabledAlerts(restaurantId, alerts);
 	if (enabled.length === 0) return;

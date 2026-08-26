@@ -77,6 +77,12 @@ vi.mock('../src/lib/server/storage.js', () => ({
 	getStorage: () => ({ read: vi.fn() }),
 }));
 
+const queueMocks = vi.hoisted(() => ({
+	EXTRACTION_QUEUE: 'extract-invoice',
+	enqueueWhatsAppNotify: vi.fn().mockResolvedValue(true),
+}));
+vi.mock('../src/lib/server/queue.js', () => queueMocks);
+
 const { processExtractionJob } = await import('../src/lib/server/extraction-worker');
 
 const rateLimited = Object.assign(new Error('rate limited'), { status: 429 });
@@ -310,5 +316,75 @@ describe('processExtractionJob — entitlement refusals never reach the provider
 		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, 'extract.err.quotaExceeded');
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
 		expect(quotaMocks.releaseMonthlyExtraction).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * The worker is where extraction ends, and a WhatsApp sender has no other way
+ * to learn the outcome. The hand-back goes through a pg-boss queue rather than
+ * a direct call so this module never imports a WhatsApp client.
+ */
+describe('WhatsApp notification hand-off', () => {
+	const whatsappItem = { ...item, source: 'whatsapp', sourceRef: '34600111222' };
+
+	it('enqueues a notification once extraction succeeds', async () => {
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
+		});
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledWith(item.id, 'r1');
+	});
+
+	it('enqueues a notification once the failure is terminal', async () => {
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockRejectedValue(rateLimited);
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 2, retryLimit: 2 });
+
+		expect(queueMocks.enqueueWhatsAppNotify).toHaveBeenCalledTimes(1);
+	});
+
+	it('stays quiet while a transient failure still has retries left', async () => {
+		// Otherwise one bad minute at the Gemini API costs the sender three
+		// identical "no he podido leerla" messages.
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockRejectedValue(rateLimited);
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
+	});
+
+	it('does not notify for a web upload', async () => {
+		batchMocks.getItem.mockResolvedValue({ ...item, source: 'web', sourceRef: null });
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
+		});
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(queueMocks.enqueueWhatsAppNotify).not.toHaveBeenCalled();
+	});
+
+	it('does not fail the extraction when the enqueue itself fails', async () => {
+		// The invoice IS extracted; losing the courtesy message must not undo it.
+		batchMocks.getItem.mockResolvedValue(whatsappItem);
+		batchMocks.markExtracting.mockResolvedValue(true);
+		queueMocks.enqueueWhatsAppNotify.mockRejectedValueOnce(new Error('boss is down'));
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
+		});
+
+		await expect(
+			processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 }),
+		).resolves.toBeUndefined();
+		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
 	});
 });
