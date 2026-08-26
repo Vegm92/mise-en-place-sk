@@ -10,6 +10,7 @@ import { createGeminiProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
 import { NORMALIZE_QUEUE } from './queue';
+import { toAllergenList } from '$lib/recipes';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -814,6 +815,26 @@ export interface NormalizeDeps {
 	provider?: ReturnType<typeof createGeminiProvider>;
 	recordUsage?: typeof recordLlmUsage;
 	recordFailure?: typeof recordDeadLetter;
+}
+
+export async function applyExtractedAllergens(
+	rid: string,
+	productId: number,
+	codes: string[]
+): Promise<boolean> {
+	const allergens = toAllergenList(codes);
+	if (allergens.length === 0) return false;
+
+	const rows = await db.execute<{ id: number; canonical_name: string }>(sql`
+		UPDATE products
+		SET allergens = ${JSON.stringify(allergens)}::jsonb, allergens_source = 'extracted'
+		WHERE restaurant_id = ${rid}
+			AND id = ${productId}
+			AND allergens_source IS DISTINCT FROM 'manual'
+			AND jsonb_array_length(allergens) = 0
+		RETURNING id, canonical_name
+	`);
+	return rows.length > 0;
 }
 
 export async function processNormalizeJob(data: NormalizeJobData, deps: NormalizeDeps = {}): Promise<void> {

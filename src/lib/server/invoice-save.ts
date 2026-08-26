@@ -2,7 +2,7 @@ import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
+import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens } from './products';
 import { enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, saveAlerts, type Alert } from './alerts';
@@ -346,11 +346,24 @@ export async function enrichLineItems(
 	});
 }
 
+export function extractedAllergensByKey(
+	extracted: ExtractedInvoice | undefined
+): Map<string, string[]> {
+	const out = new Map<string, string[]>();
+	for (const line of extracted?.line_items ?? []) {
+		if (!Array.isArray(line.allergens) || line.allergens.length === 0) continue;
+		const key = normalizeProductKey(String(line.description ?? ''));
+		if (key) out.set(key, line.allergens.map(String));
+	}
+	return out;
+}
+
 export async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
 	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null; supplierSku: string | null }>,
+	allergensByKey: Map<string, string[]> = new Map(),
 ): Promise<Map<string, number>> {
 	const productByKey = new Map<string, number>();
 	try {
@@ -382,7 +395,30 @@ export async function linkProductsToInvoice(
 					eq(invoiceLineItems.invoiceId, invoiceId),
 					eq(invoiceLineItems.description, desc),
 				));
-			productByKey.set(normalizeProductKey(desc), r.productId);
+			const descKey = normalizeProductKey(desc);
+			productByKey.set(descKey, r.productId);
+
+			const codes = allergensByKey.get(descKey);
+			if (codes && codes.length > 0) {
+				const applied = await applyExtractedAllergens(rid, r.productId, codes)
+					.catch((e) => {
+						console.error('[invoice-save] allergen apply failed (non-fatal):', e);
+						return false;
+					});
+				if (applied) {
+					suggestions.push({
+						notificationType: 'product_allergens_suggested',
+						message: `product_allergens_suggested: ${desc}`,
+						payload: {
+							description: desc,
+							productId: r.productId,
+							allergens: codes,
+							messageKey: 'notif.msg.productAllergens',
+							messageVars: { description: desc },
+						},
+					});
+				}
+			}
 
 			if (r.status === 'fuzzy' && r.suggestion) {
 				suggestions.push({
@@ -459,7 +495,10 @@ async function runPostSaveEffects(params: {
 	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, tdb } = params;
 	let isFirstInvoice = false;
 	try {
-		const productByKey = await linkProductsToInvoice(invoiceId, supplierId, rid, lineInputs);
+		const productByKey = await linkProductsToInvoice(
+			invoiceId, supplierId, rid, lineInputs,
+			extractedAllergensByKey(extractedData as ExtractedInvoice | undefined),
+		);
 
 		const priceAlerts = await runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey);
 		const { stockTracking } = await getTierFeatures(rid);
