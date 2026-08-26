@@ -167,7 +167,7 @@ describe('the tour chrome is themed', () => {
 			'the .mep container closes before the tour chrome',
 		).toEqual([]);
 
-		expect(CSS).toMatch(/\.mep\[data-accent="amber"\]\s*\{[^}]*--mep-acc:/);
+		expect(CSS).toMatch(/\.mep\[data-accent="slate"\]\s*\{[^}]*--mep-acc:/);
 	});
 
 	it('takes its radii from the radius scale', () => {
