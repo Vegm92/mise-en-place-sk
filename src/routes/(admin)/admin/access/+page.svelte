@@ -101,6 +101,22 @@
   </SectionCard>
 
   <SectionCard title={$t('admin.access.waitlist')} noPad>
+    <div style="padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--mep-divider);">
+      <form method="POST" action="?/addEmail" use:enhance style="display:flex;gap:6px;flex:1;min-width:240px;">
+        <input type="email" name="email" required placeholder={$t('admin.access.addEmailPh')}
+          style="flex:1;min-width:180px;height:30px;padding:0 10px;font-size:12px;border:1px solid var(--mep-divider);border-radius:6px;background:var(--mep-bg);color:var(--mep-fg);" />
+        <button type="submit" class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:12px;">
+          {$t('admin.access.addEmail')}
+        </button>
+      </form>
+      {#if data.promoCode}
+        <form method="POST" action="?/sendPromoAll" use:enhance style="display:inline;">
+          <button type="submit" class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:12px;">
+            {$t('admin.access.sendPromoAll')}
+          </button>
+        </form>
+      {/if}
+    </div>
     <AdminTableScroll>
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
@@ -115,7 +131,15 @@
             <tr style="border-bottom:1px solid var(--mep-divider);">
               <td style="{TD}color:var(--mep-fg);font-weight:500;">{w.email}</td>
               <td style="{TD}font-size:12px;color:var(--mep-fg-3);">{day(w.created_at)}</td>
-              <td style="{TD}text-align:right;">
+              <td style="{TD}text-align:right;display:flex;gap:6px;justify-content:flex-end;">
+                {#if data.promoCode}
+                  <form method="POST" action="?/sendPromo" use:enhance style="display:inline;">
+                    <input type="hidden" name="email" value={w.email} />
+                    <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:12px;">
+                      {$t('admin.access.sendPromo')}
+                    </button>
+                  </form>
+                {/if}
                 <form method="POST" action="?/invite" use:enhance style="display:inline;">
                   <input type="hidden" name="email" value={w.email} />
                   <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:12px;">

@@ -13,7 +13,7 @@ const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 export type EmailKind =
 	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
 	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'subscription_consolidated'
-	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved';
+	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved' | 'promo_code_dispatch';
 
 export interface EmailPayload {
 	to: string;
@@ -259,6 +259,28 @@ ${couponCallout}`,
 			cta: { href: `${APP_BASE_URL}/login`, label: 'Entrar en la aplicación' },
 			signature: `Nos vemos en el pase,<br>${strong('El equipo de Mise en Place')}`,
 			footerNote: 'Recibes este correo porque tenías una cuenta pendiente de activación en Mise en Place.',
+		}),
+	};
+}
+
+export function promoCodeEmail(email: string, promoCode: string): EmailPayload {
+	const code = escapeHtml(promoCode);
+	return {
+		to: email,
+		kind: 'promo_code_dispatch',
+		subject: 'Tu código de descuento Mise en Place',
+		html: renderEmailLayout({
+			preheader: 'Tienes un código de descuento para usar al crear tu cuenta.',
+			tagChip: 'Promoción',
+			eyebrow: 'Código de descuento',
+			headline: 'Tu código de descuento.',
+			bodyHtml: `
+${p('Te compartimos un código de descuento para usar al crear tu cuenta en Mise en Place.')}
+${callout(`Código ${code}`, 'Úsalo al pagar y obtén un descuento especial.')}
+${p('Si todavía no tienes cuenta, regístrate y aplica el código durante el pago.')}`,
+			cta: { href: `${APP_BASE_URL}/signup`, label: 'Crear tu cuenta' },
+			signature: `Nos vemos en el pase,<br>${strong('El equipo de Mise en Place')}`,
+			footerNote: 'Recibes este correo porque estás en la lista de espera de Mise en Place.',
 		}),
 	};
 }

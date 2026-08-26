@@ -6,9 +6,10 @@ import { users, waitlist } from '$lib/server/schema';
 import { isAdminUser } from '$lib/server/admin';
 import { safe } from '$lib/server/load-guard';
 import { isAccessOpen, setAccessOpen } from '$lib/server/app-flags';
-import { sendEmail, accessApprovedEmail, waitlistInviteEmail } from '$lib/server/email';
+import { sendEmail, accessApprovedEmail, waitlistInviteEmail, promoCodeEmail } from '$lib/server/email';
 
 const STRIPE_FOUNDER_COUPON_ID = process.env.STRIPE_FOUNDER_COUPON_ID ?? '';
+const STRIPE_FOUNDER_PROMO_CODE = process.env.STRIPE_FOUNDER_PROMO_CODE ?? '';
 
 type AccountRow = {
 	id: string;
@@ -41,7 +42,7 @@ export const load: PageServerLoad = async () => {
 		`) as unknown as WaitlistRow[], []),
 	]);
 
-	return { accessOpen, accounts, pendingInvites, founderCoupon: STRIPE_FOUNDER_COUPON_ID ?? null };
+	return { accessOpen, accounts, pendingInvites, founderCoupon: STRIPE_FOUNDER_COUPON_ID ?? null, promoCode: STRIPE_FOUNDER_PROMO_CODE || null };
 };
 
 export const actions: Actions = {
@@ -72,7 +73,7 @@ export const actions: Actions = {
 
 		await sendEmail(accessApprovedEmail(
 			updated.email,
-			founder ? (STRIPE_FOUNDER_COUPON_ID ?? undefined) : undefined,
+			founder ? (STRIPE_FOUNDER_PROMO_CODE || STRIPE_FOUNDER_COUPON_ID || undefined) : undefined,
 		));
 
 		return { success: true };
@@ -96,7 +97,44 @@ export const actions: Actions = {
 		const email = (data.get('email') as string ?? '').trim().toLowerCase();
 		if (!email) return fail(422, { error: 'missing_email' });
 
-		await sendEmail(waitlistInviteEmail(email, STRIPE_FOUNDER_COUPON_ID ?? undefined));
+		await sendEmail(waitlistInviteEmail(email, STRIPE_FOUNDER_PROMO_CODE || STRIPE_FOUNDER_COUPON_ID || undefined));
+		return { success: true };
+	},
+
+	sendPromo: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+		if (!STRIPE_FOUNDER_PROMO_CODE) return fail(422, { error: 'no_promo_code' });
+
+		const data = await request.formData();
+		const email = (data.get('email') as string ?? '').trim().toLowerCase();
+		if (!email) return fail(422, { error: 'missing_email' });
+
+		await sendEmail(promoCodeEmail(email, STRIPE_FOUNDER_PROMO_CODE));
+		return { success: true };
+	},
+
+	sendPromoAll: async ({ locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+		if (!STRIPE_FOUNDER_PROMO_CODE) return fail(422, { error: 'no_promo_code' });
+
+		const rows = await db.execute<WaitlistRow>(sql`
+			SELECT w.email FROM ${waitlist} w
+			WHERE NOT EXISTS (SELECT 1 FROM ${users} u WHERE u.email = w.email)
+		`);
+		for (const row of rows) {
+			await sendEmail(promoCodeEmail(row.email, STRIPE_FOUNDER_PROMO_CODE));
+		}
+		return { success: true, sent: rows.length };
+	},
+
+	addEmail: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
+		const data = await request.formData();
+		const email = (data.get('email') as string ?? '').trim().toLowerCase();
+		if (!email) return fail(422, { error: 'missing_email' });
+
+		await db.insert(waitlist).values({ email }).onConflictDoNothing();
 		return { success: true };
 	},
 };
