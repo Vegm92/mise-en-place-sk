@@ -6,6 +6,7 @@ import * as schema from './schema';
 import { unitConversions, systemNotifications } from './schema';
 import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { categoryGuideBlock } from './category-guide';
+import { stripJsonFence } from './llm-json';
 import { UNCATEGORIZED_CATEGORY, resolveCategory } from '$lib/constants';
 import { GEMINI_API_KEY } from './env';
 import { createGeminiProvider } from './llm-provider';
@@ -789,14 +790,6 @@ export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): 
 		'Responde SOLO con JSON: {"match_id": <id o null>, "confidence": <0..1>}.',
 		'match_id null si no corresponde con claridad a ninguno.',
 	].join('\n');
-}
-
-function stripJsonFence(text: string): string {
-	const trimmed = (text ?? '').trim();
-	if (!trimmed.startsWith('```')) return trimmed;
-	const lines = trimmed.split('\n');
-	const end = trimmed.trimEnd().endsWith('```') ? lines.length - 1 : lines.length;
-	return lines.slice(1, end).join('\n');
 }
 
 export function parseNormalizeResponse(text: string, validIds: Set<number>): NormalizeVerdict {

@@ -4,6 +4,7 @@ import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { categoryGuideBlock } from './category-guide';
+import { stripJsonFence } from './llm-json';
 import { createGeminiProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
 
@@ -211,16 +212,6 @@ export function classifyFile(filePath: string): Promise<ClassifiedFile> | Classi
 	throw new Error(`Unsupported file type: .${ext}`);
 }
 
-function stripFences(raw: string): string {
-	const trimmed = raw.trim();
-	if (trimmed.startsWith('```')) {
-		const lines = trimmed.split('\n');
-		const inner = lines.slice(1, lines.at(-1)?.trim() === '```' ? -1 : undefined);
-		return inner.join('\n').trim();
-	}
-	return trimmed;
-}
-
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 	const MAX_RETRIES = 3;
 	let lastError: unknown;
@@ -265,7 +256,7 @@ async function callGemini(
 		], signal);
 	}
 
-	const raw = stripFences(rawText);
+	const raw = stripJsonFence(rawText);
 	try {
 		return JSON.parse(raw) as ExtractedInvoice;
 	} catch {
@@ -339,7 +330,7 @@ async function callProvider(
 		]);
 	}
 
-	const raw = stripFences(rawText);
+	const raw = stripJsonFence(rawText);
 	try {
 		return { invoice: JSON.parse(raw) as ExtractedInvoice, usage: lastUsage };
 	} catch {
