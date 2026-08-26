@@ -1,0 +1,121 @@
+{
+  "pages": [
+    {
+      "id": "ajustes",
+      "name": "Ajustes"
+    },
+    {
+      "id": "ayuda",
+      "name": "Ayuda"
+    },
+    {
+      "id": "elementos",
+      "name": "Elementos"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "page": "ajustes",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 980,
+      "title": "Ajustes · escritorio",
+      "print": "flow",
+      "is_interactive": true
+    },
+    {
+      "file": "Movil.dc.html",
+      "page": "ajustes",
+      "x": 1380,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Ajustes · móvil",
+      "print": "flow",
+      "is_interactive": true
+    },
+    {
+      "file": "Oscuro.dc.html",
+      "page": "ajustes",
+      "x": 1870,
+      "y": 0,
+      "w": 1280,
+      "h": 980,
+      "title": "Ajustes · modo oscuro",
+      "print": "flow",
+      "is_interactive": true
+    },
+    {
+      "file": "Ayuda.dc.html",
+      "page": "ayuda",
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 980,
+      "title": "Ayuda · escritorio",
+      "print": "flow",
+      "is_interactive": true
+    },
+    {
+      "file": "AyudaMovil.dc.html",
+      "page": "ayuda",
+      "x": 1380,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Ayuda · móvil",
+      "print": "flow",
+      "is_interactive": true
+    },
+    {
+      "file": "Elementos.dc.html",
+      "page": "elementos",
+      "x": 0,
+      "y": 0,
+      "w": 1180,
+      "h": 2240,
+      "title": "Hoja de elementos",
+      "print": "flow"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nota-ajustes",
+      "page": "ajustes",
+      "x": 0,
+      "y": -300,
+      "w": 700,
+      "text": "Ajustes, reestructurada dentro de MEP: mismos tokens, misma Mona Sans, mismo ámbar. Lo que cambia:\n\n1. Cabecera de sección dentro del contenido — hasta ahora solo el raíl decía dónde estabas.\n2. Buscador en el raíl sobre un índice de 25 ajustes. Pulsar un resultado salta a su sección.\n3. Fila nueva: la explicación sube bajo la etiqueta (232 px) y la columna de controles queda alineada.\n4. Una sola barra de guardado en lugar de seis botones «Guardar». Cuenta los cambios pendientes y trae «Descartar». Cambiar email, cambiar contraseña y eliminar cuenta conservan su botón: son flujos, no ajustes.\n5. La contraseña se pliega hasta que la abres; tres campos siempre visibles no aportaban nada.\n6. Tipos de alerta con cabecera de grupo y contador; toda la fila conmuta.\n7. WhatsApp a dos columnas: número y QR a la izquierda, autorizados y código a la derecha.\n8. Zona de riesgo plegada — el bloque rojo solo aparece cuando lo pides.\n\nEn móvil el acordeón pasa a lista + panel: una sección a la vez, con vuelta atrás, y cada fila resume su estado real. Todo lo pulsable llega a 44 px.\n\nDatos de ejemplo: Casa Nou, tres locales (uno bloqueado), 7 tipos de alerta con 5 activos. El QR es un dibujo de relleno, no un código válido.\n\nPruébalo: escribe en el buscador, mueve un deslizador o conmuta una alerta y mira aparecer la barra de guardado."
+    },
+    {
+      "id": "nota-oscuro",
+      "page": "ajustes",
+      "x": 1870,
+      "y": -300,
+      "w": 620,
+      "text": "La misma pantalla con la rampa oscura de app.css, para comprobar los elementos donde el tema oscuro suele romperse: la tinta sobre relleno sólido (acc-fg #2a1a08, no blanco), el pomo del interruptor sobre ámbar, el halo de foco y el rojo de la zona de riesgo.\n\nEl QR se queda oscuro sobre blanco a propósito: en oscuro deja de leerse."
+    },
+    {
+      "id": "nota-ayuda",
+      "page": "ayuda",
+      "x": 0,
+      "y": -260,
+      "w": 700,
+      "text": "El centro de ayuda deja de ser un scroll de cinco tarjetas y pasa a tener el mismo raíl que Ajustes: las dos pantallas se leen como una pareja.\n\n1. Buscador sobre los 19 contenidos reales (4 pasos, 9 trucos, 6 preguntas). Cada resultado dice a qué apartado pertenece.\n2. Primeros pasos en rejilla 2×2 con el número como ancla, en vez de una lista larga.\n3. El tour sale del cuerpo y tiene su propio apartado, con las nueve paradas numeradas para que se vea qué dura.\n4. Trucos en tres columnas — nueve tarjetas en una pantalla, sin scroll.\n5. Preguntas frecuentes como acordeón, con la primera abierta.\n6. El raíl termina con la salida real cuando nada de esto sirve: preguntar al asistente sobre tus propios albaranes.\n\nEl texto es el de i18n.ts, sin retocar. En móvil el raíl se convierte en una fila de pastillas desplazable."
+    },
+    {
+      "id": "nota-elementos",
+      "page": "elementos",
+      "x": 0,
+      "y": -230,
+      "w": 620,
+      "text": "Cada elemento de las dos pantallas con sus estados, para revisarlos sueltos antes de llevarlos al código.\n\nLos valores salen de src/app.css tal cual, sin redondear: alto de control 32 px (44 en móvil), radios 4/6/10/999, pista de fila a 11,5 px, interruptor 34×20 con pomo de 16.\n\nLo que hay que decidir aquí es sobre todo la fila de ajuste y la barra de guardado: son los dos cambios que tocan todas las secciones."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "ajustes"
+  }
+}
