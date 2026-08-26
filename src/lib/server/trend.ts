@@ -1,7 +1,8 @@
 import { db, forTenant } from '$lib/server/db';
-import { invoices, suppliers } from '$lib/server/schema';
+import { invoiceLineItems, invoices, products, suppliers } from '$lib/server/schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
 import { UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
 import { addDays, addMonths, monday, firstOfMonth, isoDate, monthKeyStr } from './dates';
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -119,20 +120,24 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 	let keyExpr = weekKey;
 	if (granularity === 'daily') keyExpr = dayKey;
 	else if (granularity === 'monthly') keyExpr = monthKey;
+	const categoryExpr = lineCategoryExpr();
 	const groupedRows = await db
 		.select({
 			key: keyExpr,
-			category: suppliers.category,
-			amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`,
+			category: categoryExpr,
+			amount: sql<number>`COALESCE(SUM(${lineAmountExpr()}), 0)`,
 		})
-		.from(invoices)
+		.from(invoiceLineItems)
+		.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
 		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.leftJoin(products, lineProductJoinOn())
 		.where(and(
 			tdb.scope(invoices.restaurantId),
 			isNull(invoices.deletedAt),
+			describedLine(),
 			sql`${invoices.invoiceDate} >= ${clampedStart}::date`,
 		))
-		.groupBy(keyExpr, suppliers.category)
+		.groupBy(keyExpr, categoryExpr)
 		.orderBy(keyExpr);
 
 	const rows = mergeTrendRows(groupedRows);

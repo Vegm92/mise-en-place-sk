@@ -5,11 +5,13 @@ import type { BatchDb } from './batch';
 import * as schema from './schema';
 import { unitConversions, systemNotifications } from './schema';
 import { normalizeProductKey, canonicalizeUnit } from './normalize';
+import { categoryGuideBlock } from './category-guide';
+import { UNCATEGORIZED_CATEGORY, resolveCategory } from '$lib/constants';
 import { GEMINI_API_KEY } from './env';
 import { createGeminiProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
-import { NORMALIZE_QUEUE } from './queue';
+import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './queue';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -878,6 +880,100 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 			restaurantId,
 			sourceId: `${restaurantId}:${productId}`,
 			payload: { restaurantId, productId, rawText },
+		});
+	}
+}
+
+export interface CategorizeJobData {
+	restaurantId: string;
+	productId: number;
+	canonicalName: string;
+}
+
+export function buildCategorizePrompt(canonicalName: string): string {
+	return [
+		'Eres un asistente de compras para restaurantes en España.',
+		'Clasifica este producto de albarán en UNA categoría de compra:',
+		`"${canonicalName}"`,
+		'',
+		'Las ÚNICAS categorías permitidas son las listadas entre los marcadores:',
+		'<<<CATEGORY_VALUES>>>',
+		categoryGuideBlock(),
+		'<<<END_CATEGORY_VALUES>>>',
+		'',
+		'Reglas:',
+		'- Copia el nombre EXACTAMENTE como aparece arriba (solo el nombre antes del guion), con acentos y mayúsculas.',
+		'- Juzga qué es el producto, no quién lo vende: un distribuidor generalista sirve de todo.',
+		'- Ten en cuenta abreviaturas y jerga del sector alimentario español',
+		'  (p.ej. "MERL." = merluza, "TERN." = ternera, "S/H" = sin hueso).',
+		'- Si la descripción es demasiado ambigua para decidir, responde category null.',
+		'- Nunca inventes una categoría nueva ni devuelvas una traducción.',
+		'',
+		'Responde SOLO con JSON: {"category": <nombre o null>, "confidence": <0..1>}.',
+	].join('\n');
+}
+
+export function parseCategorizeResponse(text: string): string | null {
+	const trimmed = (text ?? '').trim();
+	const fenceEnd = trimmed.trimEnd().endsWith('```') ? -1 : undefined;
+	const body = trimmed.startsWith('```')
+		? trimmed.split('\n').slice(1, fenceEnd).join('\n')
+		: trimmed;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(body);
+	} catch {
+		return null;
+	}
+	const obj = (parsed ?? {}) as { category?: unknown; confidence?: unknown };
+	const confidence = typeof obj.confidence === 'number' ? obj.confidence : undefined;
+	const resolved = resolveCategory(obj.category, confidence);
+	return resolved === UNCATEGORIZED_CATEGORY ? null : resolved;
+}
+
+export interface CategorizeDeps {
+	provider?: ReturnType<typeof createGeminiProvider>;
+	recordUsage?: typeof recordLlmUsage;
+	recordFailure?: typeof recordDeadLetter;
+	database?: Database;
+}
+
+export async function processCategorizeJob(
+	data: CategorizeJobData,
+	deps: CategorizeDeps = {},
+): Promise<void> {
+	const { restaurantId, productId, canonicalName } = data;
+	const database = deps.database ?? db;
+	try {
+		const pending = await database.execute<{ id: number }>(sql`
+			SELECT id FROM products
+			WHERE id = ${productId} AND restaurant_id = ${restaurantId} AND category IS NULL
+			LIMIT 1
+		`);
+		if (pending.length === 0) return;
+
+		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
+		if (!provider) return;
+
+		const resp = await provider.generate(buildCategorizePrompt(canonicalName));
+		const recordUsage = deps.recordUsage ?? recordLlmUsage;
+		await recordUsage(restaurantId, resp.usage, 'categorize');
+
+		const category = parseCategorizeResponse(resp.text);
+		if (!category) return;
+
+		await database.execute(sql`
+			UPDATE products SET category = ${category}
+			WHERE id = ${productId} AND restaurant_id = ${restaurantId} AND category IS NULL
+		`);
+	} catch (err) {
+		console.error('[categorize] product categorization job failed (non-fatal):', err);
+		await (deps.recordFailure ?? recordDeadLetter)({
+			queue: CATEGORIZE_QUEUE,
+			error: err,
+			restaurantId,
+			sourceId: `${restaurantId}:${productId}`,
+			payload: { restaurantId, productId, canonicalName },
 		});
 	}
 }

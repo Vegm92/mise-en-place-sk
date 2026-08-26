@@ -157,7 +157,7 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 ### `src/routes/(app)/api/supplier-category/+server.ts`
 
 **`const POST`**
-- Accept or decline a suggested supplier category (issue #315), posted from the bell. Accept writes the category; dismiss clears the suggestion without touching the supplier.
+- Accept or decline a suggested supplier category (issue #315), posted from the bell. Accept writes the category; dismiss clears the suggestion without touching the supplier. The suggestion comes from extraction when it has one, otherwise from the category carrying ≥50% of that supplier's line spend (`dominantSupplierLineCategory`, ADR-027) — the payload's `source` says which.
 - Category re-validated against `VALID_CATEGORIES` here — the endpoint can't write an arbitrary string into the column the budgets page groups on. Accepting only moves a supplier *out* of the uncategorised bucket, so a stale notification can't overwrite a newer manual choice.
 
 **`const updated`**
@@ -251,7 +251,7 @@ validated by `parseSupplierListParams` before any of them reaches a query.
 **`function getOrCreateSupplierId`**
 - Atomic supplier get-or-create (issue #238), replacing the select-then-insert pattern in invoice-save, the edit action and the WhatsApp bot. Backed by `uq_suppliers_rid_name` on `(restaurant_id, lower(name))`; the no-op DO UPDATE makes RETURNING yield the existing row on conflict (bare DO NOTHING returns nothing).
 - Case-insensitive, whitespace-trimmed name match; pass a transaction as `exec` to run inside an enclosing save.
-- Category only ever applied at creation; new suppliers default to the 'Other' bucket (issue #307) so products resolved against them don't inherit a null category (product-catalog.ts reads it at creation time). Callers may pass an extraction-proposed category (issue #315) already passed through `resolveSupplierCategory`. A conflict never overwrites an existing supplier's category — later invoices can't reclassify behind the user's back.
+- Category only ever applied at creation; new suppliers default to the 'Other' bucket (issue #307). Products no longer inherit it — since ADR-027 a product is born uncategorised and the `categorize-product` job gives it its own verdict — so the bucket is now only the fallback arm of `COALESCE(products.category, suppliers.category, 'Other')`. Callers may pass an extraction-proposed category (issue #315) already passed through `resolveCategory`. A conflict never overwrites an existing supplier's category — later invoices can't reclassify behind the user's back.
 
 **`interface SupplierContactInfo`**
 - Supplier-level contact fields lifted from an extracted invoice (CIF/NIF, address, email, phone); any may be null/undefined when the source document doesn't print them — never fabricated.

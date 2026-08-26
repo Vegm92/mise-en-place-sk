@@ -5,15 +5,18 @@ const DATABASE_URL = process.env.DATABASE_URL ?? '';
 
 export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
+export const CATEGORIZE_QUEUE = 'categorize-product';
 export const WHATSAPP_NOTIFY_QUEUE = 'whatsapp-notify';
 
 export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
 export const NORMALIZE_DEAD_LETTER_QUEUE = `${NORMALIZE_QUEUE}-dead-letter`;
+export const CATEGORIZE_DEAD_LETTER_QUEUE = `${CATEGORIZE_QUEUE}-dead-letter`;
 export const WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE = `${WHATSAPP_NOTIFY_QUEUE}-dead-letter`;
 
 export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> = [
 	{ source: EXTRACTION_QUEUE, deadLetter: EXTRACTION_DEAD_LETTER_QUEUE },
 	{ source: NORMALIZE_QUEUE, deadLetter: NORMALIZE_DEAD_LETTER_QUEUE },
+	{ source: CATEGORIZE_QUEUE, deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE },
 	{ source: WHATSAPP_NOTIFY_QUEUE, deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE },
 ];
 
@@ -76,6 +79,23 @@ export async function enqueueNormalize(
 		expireInSeconds: 900,
 		singletonKey: `${restaurantId}:${productId}`,
 		deadLetter: NORMALIZE_DEAD_LETTER_QUEUE,
+	});
+	return jobId !== null;
+}
+
+export async function enqueueCategorize(
+	restaurantId: string,
+	productId: number,
+	canonicalName: string,
+): Promise<boolean> {
+	const b = await getBoss();
+	const jobId = await b.send(CATEGORIZE_QUEUE, { restaurantId, productId, canonicalName }, {
+		priority: -10,
+		retryLimit: 1,
+		retryDelay: 60,
+		expireInSeconds: 900,
+		singletonKey: `${restaurantId}:${productId}`,
+		deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE,
 	});
 	return jobId !== null;
 }

@@ -4,7 +4,7 @@
  * Extraction may propose a category for a supplier nobody has classified yet.
  * The model is asked for one exact string from VALID_CATEGORIES, but a model
  * will happily return a translation, an invented category, or a lower-cased
- * unaccented variant. `resolveSupplierCategory` is the only door into
+ * unaccented variant. `resolveCategory` is the only door into
  * `suppliers.category` for machine-proposed values: it maps a recognisable
  * variant back onto its canonical string and turns everything else into the
  * uncategorised bucket, so a bad guess degrades into "Other" + the existing
@@ -18,11 +18,11 @@ import {
 	VALID_CATEGORIES,
 	UNCATEGORIZED_CATEGORY,
 	MIN_CATEGORY_CONFIDENCE,
-	resolveSupplierCategory,
+	resolveCategory,
 } from '../src/lib/constants';
 import { getOrCreateSupplierId } from '../src/lib/server/supplier';
 import { runCategorySuggestion } from '../src/lib/server/alert-engine';
-import { suppliers, systemNotifications } from '../src/lib/server/schema';
+import { invoiceLineItems, invoices, products, suppliers, systemNotifications } from '../src/lib/server/schema';
 import {
 	testDb,
 	createTestRestaurant,
@@ -35,79 +35,79 @@ afterAll(async () => {
 	if (hasDbEnv) await closeDb();
 });
 
-describe('resolveSupplierCategory', () => {
+describe('resolveCategory', () => {
 	it('accepts every canonical category unchanged', () => {
 		for (const cat of VALID_CATEGORIES) {
-			expect(resolveSupplierCategory(cat)).toBe(cat);
+			expect(resolveCategory(cat)).toBe(cat);
 		}
 	});
 
 	it('maps case and whitespace variants back onto the canonical string', () => {
-		expect(resolveSupplierCategory('  lácteos  ')).toBe('Lácteos');
-		expect(resolveSupplierCategory('BEBIDAS')).toBe('Bebidas');
-		expect(resolveSupplierCategory('vinos y cavas')).toBe('Vinos y Cavas');
+		expect(resolveCategory('  lácteos  ')).toBe('Lácteos');
+		expect(resolveCategory('BEBIDAS')).toBe('Bebidas');
+		expect(resolveCategory('vinos y cavas')).toBe('Vinos y Cavas');
 	});
 
 	it('maps unaccented variants back onto the canonical string', () => {
 		// Models routinely drop diacritics; that is a spelling slip, not a
 		// different category.
-		expect(resolveSupplierCategory('Lacteos')).toBe('Lácteos');
-		expect(resolveSupplierCategory('Panaderia y Bolleria')).toBe('Panadería y Bollería');
-		expect(resolveSupplierCategory('Especias y Condimentos')).toBe('Especias y Condimentos');
+		expect(resolveCategory('Lacteos')).toBe('Lácteos');
+		expect(resolveCategory('Panaderia y Bolleria')).toBe('Panadería y Bollería');
+		expect(resolveCategory('Especias y Condimentos')).toBe('Especias y Condimentos');
 	});
 
 	it('falls back to the uncategorised bucket for invented categories', () => {
-		expect(resolveSupplierCategory('Ferretería')).toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory('Material de Oficina')).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory('Ferretería')).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory('Material de Oficina')).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('falls back for translations of a real category', () => {
 		// "Dairy" is Lácteos, but accepting it would mean accepting arbitrary
 		// model output; the nudge is the safety net.
-		expect(resolveSupplierCategory('Dairy')).toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory('Beverages')).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory('Dairy')).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory('Beverages')).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('falls back for missing, empty and non-string input', () => {
-		expect(resolveSupplierCategory(null)).toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory(undefined)).toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory('')).toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory('   ')).toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory(42)).toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory({ category: 'Bebidas' })).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory(null)).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory(undefined)).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory('')).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory('   ')).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory(42)).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory({ category: 'Bebidas' })).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('never returns a value outside the canonical taxonomy', () => {
 		const canonical = new Set(VALID_CATEGORIES);
 		const inputs = ['Bebidas', 'Dairy', '', null, 'Lacteos', 'Ferretería', 999];
 		for (const raw of inputs) {
-			expect(canonical.has(resolveSupplierCategory(raw))).toBe(true);
+			expect(canonical.has(resolveCategory(raw))).toBe(true);
 		}
 	});
 
 	it('rejects a guess the model itself is unsure about', () => {
 		// Below the floor the model is telling us the document was barely
 		// legible; a coin-flip category is worse than an honest "Other".
-		expect(resolveSupplierCategory('Bebidas', MIN_CATEGORY_CONFIDENCE - 0.01))
+		expect(resolveCategory('Bebidas', MIN_CATEGORY_CONFIDENCE - 0.01))
 			.toBe(UNCATEGORIZED_CATEGORY);
-		expect(resolveSupplierCategory('Bebidas', 0)).toBe(UNCATEGORIZED_CATEGORY);
+		expect(resolveCategory('Bebidas', 0)).toBe(UNCATEGORIZED_CATEGORY);
 	});
 
 	it('accepts a guess at or above the confidence floor', () => {
-		expect(resolveSupplierCategory('Bebidas', MIN_CATEGORY_CONFIDENCE)).toBe('Bebidas');
-		expect(resolveSupplierCategory('Bebidas', 1)).toBe('Bebidas');
+		expect(resolveCategory('Bebidas', MIN_CATEGORY_CONFIDENCE)).toBe('Bebidas');
+		expect(resolveCategory('Bebidas', 1)).toBe('Bebidas');
 	});
 
 	it('accepts a guess when no confidence is reported', () => {
 		// An older prompt cache, or a model that dropped the field: fall back to
 		// trusting the taxonomy match rather than discarding a good category.
-		expect(resolveSupplierCategory('Bebidas', undefined)).toBe('Bebidas');
-		expect(resolveSupplierCategory('Bebidas', null)).toBe('Bebidas');
+		expect(resolveCategory('Bebidas', undefined)).toBe('Bebidas');
+		expect(resolveCategory('Bebidas', null)).toBe('Bebidas');
 	});
 
 	it('treats a non-numeric confidence as absent rather than as zero', () => {
-		expect(resolveSupplierCategory('Bebidas', 'high' as unknown as number)).toBe('Bebidas');
-		expect(resolveSupplierCategory('Bebidas', NaN)).toBe('Bebidas');
+		expect(resolveCategory('Bebidas', 'high' as unknown as number)).toBe('Bebidas');
+		expect(resolveCategory('Bebidas', NaN)).toBe('Bebidas');
 	});
 
 	it('uncategorised bucket is itself part of the taxonomy', () => {
@@ -115,16 +115,104 @@ describe('resolveSupplierCategory', () => {
 	});
 });
 
-describe('runCategorySuggestion — guards that need no DB', () => {
-	it('offers nothing when the resolver already collapsed the guess', async () => {
-		// These return before any query, so they hold without a database.
-		expect(await runCategorySuggestion(1, 'r', UNCATEGORIZED_CATEGORY)).toEqual([]);
-		expect(await runCategorySuggestion(1, 'r', '')).toEqual([]);
+describe.skipIf(!hasDbEnv)('runCategorySuggestion — proposals the resolver collapsed', () => {
+	// A collapsed guess no longer short-circuits: the supplier's own delivery
+	// notes get a say (Phase 3 — "el proveedor se caracteriza por sus
+	// albaranes"). With no lines to speak from, there is still nothing to offer.
+	it('offers nothing when neither extraction nor lines name a category', async () => {
+		const r = await createTestRestaurant('cat-suggest-collapsed');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Sin Señal', testDb);
+			expect(await runCategorySuggestion(id, r.id, UNCATEGORIZED_CATEGORY)).toEqual([]);
+			expect(await runCategorySuggestion(id, r.id, '')).toEqual([]);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
 	});
 
 	it('offers nothing for a category outside the taxonomy', async () => {
-		expect(await runCategorySuggestion(1, 'r', 'Ferretería')).toEqual([]);
-		expect(await runCategorySuggestion(1, 'r', 'Dairy')).toEqual([]);
+		const r = await createTestRestaurant('cat-suggest-offtax');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Ferretería Pepe', testDb);
+			expect(await runCategorySuggestion(id, r.id, 'Ferretería')).toEqual([]);
+			expect(await runCategorySuggestion(id, r.id, 'Dairy')).toEqual([]);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+});
+
+describe.skipIf(!hasDbEnv)('runCategorySuggestion — the tag proposed by the supplier\'s own lines', () => {
+	async function seedLines(
+		restaurantId: string,
+		supplierId: number,
+		lines: Array<[string, string | null, number]>,
+	) {
+		const [inv] = await testDb.insert(invoices)
+			.values({ restaurantId, supplierId, invoiceNumber: `L-${supplierId}`, invoiceDate: '2026-05-04', totalAmount: '0.00', status: 'pending' })
+			.returning({ id: invoices.id });
+		for (const [description, category, amount] of lines) {
+			let productId: number | null = null;
+			if (category !== null) {
+				const [p] = await testDb.insert(products)
+					.values({ restaurantId, canonicalName: description, nameKey: description.toLowerCase(), category })
+					.returning({ id: products.id });
+				productId = p.id;
+			}
+			await testDb.insert(invoiceLineItems).values({
+				restaurantId, invoiceId: inv.id, productId, description,
+				quantity: 1, unit: 'ud', unitPrice: amount.toFixed(2), totalPrice: amount.toFixed(2),
+			});
+		}
+	}
+
+	it('proposes the category that carries most of the supplier\'s line spend', async () => {
+		const r = await createTestRestaurant('cat-suggest-dominant');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Distribuciones Mixtas', testDb);
+			await seedLines(r.id, id, [
+				['Tomate pera', 'Frutas y Verduras', 800],
+				['Lejía', 'Productos de Limpieza', 100],
+			]);
+			const alerts = await runCategorySuggestion(id, r.id, UNCATEGORIZED_CATEGORY);
+			expect(alerts).toHaveLength(1);
+			expect(alerts[0].payload).toMatchObject({
+				suggestedCategory: 'Frutas y Verduras',
+				source: 'lines',
+			});
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('stays quiet when no category dominates', async () => {
+		const r = await createTestRestaurant('cat-suggest-nodominant');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Generalista SL', testDb);
+			await seedLines(r.id, id, [
+				['Tomate pera', 'Frutas y Verduras', 100],
+				['Lejía', 'Productos de Limpieza', 100],
+				['Merluza', 'Pescados y Mariscos', 100],
+			]);
+			expect(await runCategorySuggestion(id, r.id, UNCATEGORIZED_CATEGORY)).toEqual([]);
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('prefers the extraction\'s own guess over the lines', async () => {
+		const r = await createTestRestaurant('cat-suggest-extraction-wins');
+		try {
+			const id = await getOrCreateSupplierId(r.id, 'Bodega Central', testDb);
+			await seedLines(r.id, id, [['Tomate pera', 'Frutas y Verduras', 900]]);
+			const alerts = await runCategorySuggestion(id, r.id, 'Vinos y Cavas');
+			expect(alerts[0].payload).toMatchObject({
+				suggestedCategory: 'Vinos y Cavas',
+				source: 'extraction',
+			});
+		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
 	});
 });
 
@@ -279,7 +367,7 @@ describe.skipIf(!hasDbEnv)('#315 extraction-proposed category on supplier creati
 	});
 
 	it('stores the bucket rather than an off-taxonomy value', async () => {
-		// Defence in depth: even if a caller skips resolveSupplierCategory, a
+		// Defence in depth: even if a caller skips resolveCategory, a
 		// junk category must never reach the column the budgets page groups on.
 		const r = await createTestRestaurant('supplier-cat-junk');
 		try {

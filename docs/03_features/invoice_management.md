@@ -35,6 +35,13 @@ soft deletion.
   column the save path reads — `line_supplier_skus` included, or the SKU is
   nulled on every edit (issue #520). `tests/invoice-edit-enrichment.test.ts`
   derives the column set from the schema and fails if one stops surviving.
+- **Orphan lines are counted and repairable** (ADR-027): product linking is
+  stamped after the invoice transaction commits, an edit deletes and re-inserts
+  the lines, and `unlinkSupplier` nulls `product_id` on purpose — so a line can
+  end up with no product, and its spend then falls back to the supplier's
+  category instead of its own. The detail page counts those lines
+  (`unlinkedLineCount`) and offers a `relinkProducts` action that re-runs
+  `linkProductsToInvoice` over just them.
 - **Soft delete**: invoices are soft-deleted (`deletedAt`); history survives in
   `invoice_audit_log` (no FK — rows survive deletes). Purged by the file
   retention cron after `DELETED_FILE_RETENTION_DAYS`.
@@ -129,6 +136,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 **`markup`**
 - Mobile and desktop variants both rendered; CSS picks (`md:hidden` / `hidden md:block`, ADR-020).
 - Two-column layout: doc viewer (44%) with filename header, zoom controls and source-file preview; details card + actions, line items, activity timeline.
+- The line-items card leads with the orphan-line warning and its re-link button when `unlinkedLineCount > 0`; the mobile variant carries the same pair above its line list.
 
 ### `src/routes/(app)/invoice/[id]/edit/+page.server.ts`
 
