@@ -1,0 +1,485 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #8a530f; text-decoration: none; }
+    a:hover { color: #7e4c0d; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; }
+    .subtitle { font-size: 15px; font-weight: 600; color: #1a1f26; letter-spacing: -0.01em; }
+    .body { font-size: 13px; color: #4a5562; }
+    .hint { font-size: 11.5px; color: #5f6b78; line-height: 1.45; }
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 0 12px;
+      height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+      transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .btn-primary { background: #8a530f; color: #ffffff; }
+    .btn-primary:hover { background: #7e4c0d; }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
+    .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
+    .btn-ghost { background: transparent; color: #4a5562; }
+    .btn-ghost:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .input {
+      font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
+      border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none;
+    }
+    .input::placeholder { color: #64707d; }
+    .input:focus { border-color: #8a530f; box-shadow: 0 0 0 3px rgba(138, 83, 15, 0.30); }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
+    .row {
+      display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 20px;
+      padding: 13px 18px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); align-items: center;
+    }
+    .row:last-child { border-bottom: none; }
+    .row-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .row-name { font-size: 13px; font-weight: 500; color: #1a1f26; }
+    .rail-item {
+      display: flex; align-items: center; gap: 9px; padding: 0 10px; height: 34px; width: 100%;
+      border-radius: 6px; border: 0; cursor: pointer; text-align: left; font-family: inherit;
+      background: transparent; color: #4a5562; font-size: 13px; font-weight: 400;
+      transition: background 150ms ease-out, color 150ms ease-out;
+    }
+    .rail-item:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .sidenav {
+      display: flex; align-items: center; gap: 10px; padding: 0 10px; height: 32px; border-radius: 6px;
+      font-size: 13px; color: #5f6b78;
+    }
+    .tgl { border: 0; padding: 0; background: transparent; cursor: pointer; flex-shrink: 0; }
+    .tgl-track { display: block; width: 34px; height: 20px; border-radius: 999px; transition: background 150ms ease-out; }
+    .tgl-thumb { display: block; width: 16px; height: 16px; margin: 2px; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgba(15, 20, 30, 0.25); transition: transform 150ms ease-out; }
+    .rng { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; margin: 0; cursor: pointer; }
+    .rng::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+    .rng::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px; margin-top: 3px; border-radius: 999px;
+      background: #ffffff; border: 2px solid #8a530f; box-shadow: 0 1px 2px rgba(15, 20, 30, 0.2);
+    }
+    .rng::-moz-range-track { height: 20px; background: transparent; }
+    .rng::-moz-range-thumb { width: 14px; height: 14px; border-radius: 999px; background: #ffffff; border: 2px solid #8a530f; box-shadow: 0 1px 2px rgba(15, 20, 30, 0.2); }
+    .step { width: 26px; height: 26px; padding: 0; justify-content: center; font-size: 14px; }
+    .tglrow { display: flex; align-items: center; gap: 14px; padding: 9px 18px; border-top: 1px solid rgba(15, 20, 30, 0.06); cursor: pointer; }
+    .tglrow:hover { background: rgba(15, 20, 30, 0.02); }
+    .grouphdr { display: flex; align-items: center; gap: 8px; padding: 10px 18px 6px; background: #fafaf7; border-top: 1px solid rgba(15, 20, 30, 0.06); }
+    .srch { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 9px; border-radius: 6px; border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; }
+    .srch input { border: 0; outline: 0; font-family: inherit; font-size: 12.5px; color: #1a1f26; background: transparent; width: 100%; }
+    .srch input::placeholder { color: #64707d; }
+    .res { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 11px 18px; border: 0; border-bottom: 1px solid rgba(15, 20, 30, 0.06); background: transparent; font-family: inherit; text-align: left; cursor: pointer; }
+    .res:hover { background: rgba(15, 20, 30, 0.04); }
+    .lnkcard { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 18px; cursor: pointer; }
+    .lnkcard:hover { background: rgba(15, 20, 30, 0.02); }
+    .lnkcard:hover { background: rgba(15, 20, 30, 0.02); }
+    .spec { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); overflow: hidden; }
+    .spec-h { padding: 12px 18px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .spec-b { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+    .cap { font-size: 10.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #64707d; }
+    .demo { border: 1px dashed rgba(15, 20, 30, 0.14); border-radius: 8px; background: #fafaf7; }
+    .tok { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #4a5562; }
+    .tok-sw { width: 22px; height: 22px; border-radius: 5px; border: 1px solid rgba(15, 20, 30, 0.10); flex-shrink: 0; }
+    .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 11px; color: #5f6b78; }
+    .prosa { font-size: 12.5px; color: #4a5562; line-height: 1.55; margin: 0; text-wrap: pretty; }
+  </style>
+</helmet>
+
+<div style="width: 1180px; min-height: 2240px; background: #f5f4f0; padding: 32px 36px; color: #1a1f26;">
+
+  <div style="margin-bottom: 24px;">
+    <div class="label" style="margin-bottom: 5px;">Ajustes · Ayuda</div>
+    <h1 style="margin: 0 0 5px; font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Los elementos de la pantalla</h1>
+    <p class="body" style="margin: 0; max-width: 92ch; line-height: 1.55;">Todo lo que aparece en Ajustes y en el centro de ayuda, con sus estados. Los valores son los del sistema MEP —<span class="mono">src/app.css</span>— sin redondear a una rejilla de 4 u 8 px.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; align-items: start;">
+
+    <!-- COLUMNA A -->
+    <div style="display: flex; flex-direction: column; gap: 22px;">
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Fila de ajuste</div>
+          <p class="prosa" style="margin-top: 3px;">El cambio de fondo: la explicación sube bajo la etiqueta, no bajo el control. La columna de controles queda alineada de arriba abajo y la fila baja de 190 px a una rejilla de 232 px + resto.</p>
+        </div>
+        <div class="spec-b">
+          <div>
+            <div class="cap" style="margin-bottom: 6px;">Normal</div>
+            <div class="demo">
+              <div class="row" style="border-bottom: none;">
+                <div class="row-label">
+                  <span class="row-name">Nombre</span>
+                  <span class="hint">Cómo apareces en la app y en los recordatorios a proveedores.</span>
+                </div>
+                <div><input type="text" class="input" style="width: 230px;" defaultValue="Marta Ferrer" /></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="cap" style="margin-bottom: 6px;">Con error del servidor</div>
+            <div class="demo">
+              <div class="row" style="border-bottom: none;">
+                <div class="row-label">
+                  <span class="row-name">Nombre del restaurante</span>
+                  <span class="hint">Aparece en informes y exportaciones.</span>
+                </div>
+                <div>
+                  <input type="text" class="input" style="width: 230px; border-color: #b03a3a;" defaultValue="" />
+                  <p style="font-size: 12px; color: #b03a3a; margin: 6px 0 0;">El nombre del restaurante no puede estar vacío.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="cap" style="margin-bottom: 6px;">Solo lectura</div>
+            <div class="demo">
+              <div class="row" style="border-bottom: none;">
+                <div class="row-label">
+                  <span class="row-name">Moneda</span>
+                  <span class="hint">Fijada para toda la cuenta.</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; color: #4a5562; font-size: 13px; width: 230px;">
+                  Euro — EUR (€)
+                  <span style="flex: 1;"></span>
+                  <span class="badge" style="background: rgba(15, 20, 30, 0.04); color: #4a5562;">Fijada</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Campos</div>
+          <p class="prosa" style="margin-top: 3px;">Alto 32 px en escritorio, 44 px en móvil. Borde <span class="mono">border-strong</span>, radio 6 px, y un halo de 3 px al enfocar.</p>
+        </div>
+        <div class="spec-b">
+          <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span class="cap">Reposo</span>
+              <input type="text" class="input" style="width: 210px;" defaultValue="Casa Nou" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span class="cap">Foco</span>
+              <input type="text" class="input" style="width: 210px; border-color: #8a530f; box-shadow: 0 0 0 3px rgba(138, 83, 15, 0.30);" defaultValue="Casa Nou" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span class="cap">Error</span>
+              <input type="text" class="input" style="width: 210px; border-color: #b03a3a;" defaultValue="" placeholder="Escribe un nombre" />
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span class="cap">Deshabilitado</span>
+              <input type="text" class="input" style="width: 210px; background: #fafaf7; color: #787168; border-color: rgba(15, 20, 30, 0.10);" defaultValue="Solo el propietario" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Botones</div>
+          <p class="prosa" style="margin-top: 3px;">Un primario por pantalla, y vive en la barra de guardado. Los de fila son secundarios o fantasma.</p>
+        </div>
+        <div class="spec-b">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary">Guardar cambios</button>
+            <button type="button" class="btn btn-secondary">Cambiar email</button>
+            <button type="button" class="btn btn-ghost">Descartar</button>
+            <button type="button" class="btn btn-secondary" style="border-color: rgba(176, 58, 58, 0.40); color: #b03a3a;">Eliminar cuenta…</button>
+            <button type="button" class="btn" style="background: #b03a3a; color: #ffffff;">Eliminar cuenta</button>
+            <button type="button" class="btn" style="background: #b03a3a; color: #ffffff; opacity: 0.5;">Eliminar cuenta</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <span class="cap" style="width: 100%;">Alturas</span>
+            <button type="button" class="btn btn-secondary" style="height: 28px; font-size: 12.5px;">28 · dentro de una fila</button>
+            <button type="button" class="btn btn-secondary">32 · por defecto</button>
+            <button type="button" class="btn btn-secondary" style="height: 44px; font-size: 14px;">44 · móvil</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Insignias</div>
+          <p class="prosa" style="margin-top: 3px;">Texto de 11 px sobre un tinte del 12 % del mismo tono, salvo PRO y el plan, que van sólidas.</p>
+        </div>
+        <div class="spec-b">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span class="badge" style="background: rgba(20, 105, 74, 0.12); color: #14694a;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+              Verificado
+            </span>
+            <span class="badge" style="background: rgba(138, 83, 15, 0.10); color: #8a530f;">Actual</span>
+            <span class="badge" style="background: rgba(15, 20, 30, 0.04); color: #5f6b78;">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              Bloqueado
+            </span>
+            <span class="badge" style="background: rgba(15, 20, 30, 0.04); color: #4a5562;">Fijada</span>
+            <span class="badge" style="background: rgba(101, 74, 0, 0.14); color: #654a00;">Pendiente</span>
+            <span class="badge" style="background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Vencido</span>
+            <span class="badge" style="background: #8a530f; color: #ffffff; font-weight: 700; font-size: 10px;">PRO</span>
+            <span class="badge" style="background: rgba(138, 83, 15, 0.10); color: #8a530f;">BUSINESS</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Tipografía</div>
+          <p class="prosa" style="margin-top: 3px;">Mona Sans variable. Nada por debajo de 11 px, y la pista de fila sube de 11 a 11,5 px porque ahora carga la explicación.</p>
+        </div>
+        <div class="spec-b" style="gap: 10px;">
+          <div style="display: flex; align-items: baseline; gap: 14px;">
+            <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.015em; width: 260px;">Título de pantalla</span>
+            <span class="mono">20 / 600 / −0.015em</span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 14px;">
+            <span class="subtitle" style="width: 260px;">Cabecera de tarjeta</span>
+            <span class="mono">15 / 600 / −0.01em</span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 14px;">
+            <span class="row-name" style="width: 260px;">Etiqueta de ajuste</span>
+            <span class="mono">13 / 500</span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 14px;">
+            <span class="body" style="width: 260px;">Texto corrido</span>
+            <span class="mono">13 / 400 / fg-2</span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 14px;">
+            <span class="hint" style="width: 260px;">Pista bajo la etiqueta</span>
+            <span class="mono">11.5 / 400 / fg-3</span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 14px;">
+            <span class="label" style="width: 260px;">Grupo de alertas</span>
+            <span class="mono">11 / 500 / 0.02em / caja alta</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Tokens en uso</div>
+          <p class="prosa" style="margin-top: 3px;">Los del tema claro. El oscuro se ve en su propia lámina.</p>
+        </div>
+        <div class="spec-b">
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 18px;">
+            <div class="tok"><span class="tok-sw" style="background: #f5f4f0;"></span><span class="mono">bg</span> #f5f4f0</div>
+            <div class="tok"><span class="tok-sw" style="background: #ffffff;"></span><span class="mono">surface</span> #ffffff</div>
+            <div class="tok"><span class="tok-sw" style="background: #fafaf7;"></span><span class="mono">surface-2</span> #fafaf7</div>
+            <div class="tok"><span class="tok-sw" style="background: #1a1f26;"></span><span class="mono">fg</span> #1a1f26</div>
+            <div class="tok"><span class="tok-sw" style="background: #4a5562;"></span><span class="mono">fg-2</span> #4a5562</div>
+            <div class="tok"><span class="tok-sw" style="background: #5f6b78;"></span><span class="mono">fg-3</span> #5f6b78</div>
+            <div class="tok"><span class="tok-sw" style="background: #8a530f;"></span><span class="mono">acc</span> #8a530f</div>
+            <div class="tok"><span class="tok-sw" style="background: #14694a;"></span><span class="mono">pos</span> #14694a</div>
+            <div class="tok"><span class="tok-sw" style="background: #b03a3a;"></span><span class="mono">neg</span> #b03a3a</div>
+            <div class="tok"><span class="tok-sw" style="background: #654a00;"></span><span class="mono">warn</span> #654a00</div>
+            <div class="tok"><span class="tok-sw" style="background: #2a5fb5;"></span><span class="mono">info</span> #2a5fb5</div>
+            <div class="tok"><span class="tok-sw" style="background: #ffffff; border-color: rgba(15, 20, 30, 0.18);"></span><span class="mono">border-strong</span> 18 %</div>
+          </div>
+          <div style="display: flex; gap: 18px; flex-wrap: wrap; padding-top: 4px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+            <span class="tok"><span class="mono">r-tag</span> 4 px</span>
+            <span class="tok"><span class="mono">r-input</span> 6 px</span>
+            <span class="tok"><span class="mono">r-card</span> 10 px</span>
+            <span class="tok"><span class="mono">r-pill</span> 999 px</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- COLUMNA B -->
+    <div style="display: flex; flex-direction: column; gap: 22px;">
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Interruptor</div>
+          <p class="prosa" style="margin-top: 3px;">Pista de 34×20, pomo de 16. Toda la fila es zona de pulsación: 60 px de alto en móvil, 44 en escritorio.</p>
+        </div>
+        <div class="spec-b">
+          <div style="display: flex; align-items: center; gap: 26px;">
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
+              <span class="cap">Apagado</span>
+              <span class="tgl-track" style="background: rgba(15, 20, 30, 0.18);"><span class="tgl-thumb"></span></span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
+              <span class="cap">Encendido</span>
+              <span class="tgl-track" style="background: #8a530f;"><span class="tgl-thumb" style="transform: translateX(14px);"></span></span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; align-items: center;">
+              <span class="cap">Con foco</span>
+              <span class="tgl-track" style="background: #8a530f; outline: 2px solid #8a530f; outline-offset: 2px;"><span class="tgl-thumb" style="transform: translateX(14px);"></span></span>
+            </div>
+          </div>
+          <div>
+            <div class="cap" style="margin-bottom: 6px;">Fila completa</div>
+            <div class="demo">
+              <div class="tglrow" style="border-top: none;">
+                <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1;">
+                  <span class="row-name">Subidas de precio</span>
+                  <span class="hint">Avisa cuando el precio de un artículo se desvía del histórico del proveedor.</span>
+                </span>
+                <span class="tgl"><span class="tgl-track" style="background: #8a530f;"><span class="tgl-thumb" style="transform: translateX(14px);"></span></span></span>
+              </div>
+              <div class="tglrow">
+                <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1;">
+                  <span class="row-name">Proveedor sin categoría</span>
+                  <span class="hint">Avisa cuando un proveedor sigue sin categoría y propone una para clasificarlo.</span>
+                </span>
+                <span class="tgl"><span class="tgl-track" style="background: rgba(15, 20, 30, 0.18);"><span class="tgl-thumb"></span></span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Deslizador y contador</div>
+          <p class="prosa" style="margin-top: 3px;">El número deja de ser una caja suelta: se lee junto al deslizador y la frase de debajo dice qué significa el valor elegido.</p>
+        </div>
+        <div class="spec-b">
+          <div class="demo" style="padding: 14px;">
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="width: 230px;">
+                <input type="range" class="rng" min="50" max="100" defaultValue="80" style="background: linear-gradient(90deg, #8a530f 0 60%, rgba(15, 20, 30, 0.12) 60% 100%) no-repeat center / 100% 4px;" />
+                <div class="num" style="display: flex; justify-content: space-between; font-size: 11px; color: #64707d; margin-top: 4px;"><span>50 %</span><span>100 %</span></div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <button type="button" class="btn btn-secondary step">−</button>
+                <div class="num" style="min-width: 58px; height: 30px; border-radius: 6px; border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; display: flex; align-items: center; justify-content: center; gap: 1px; font-size: 13.5px; font-weight: 600;">80<span style="font-size: 11px; color: #5f6b78; font-weight: 400;">%</span></div>
+                <button type="button" class="btn btn-secondary step">+</button>
+              </div>
+            </div>
+            <p class="hint" style="margin: 8px 0 0;">Aviso activo a partir del 80 % del presupuesto mensual.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Navegación de sección</div>
+          <p class="prosa" style="margin-top: 3px;">El raíl gana un buscador. En móvil las mismas secciones son una lista que empuja a un panel, no un acordeón.</p>
+        </div>
+        <div class="spec-b">
+          <div style="display: flex; gap: 20px; align-items: flex-start;">
+            <div style="width: 216px;">
+              <div class="cap" style="margin-bottom: 6px;">Raíl · escritorio</div>
+              <div class="demo" style="padding: 10px;">
+                <div class="srch" style="margin-bottom: 8px;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                  <input type="text" placeholder="Buscar un ajuste" />
+                </div>
+                <div class="rail-item" style="background: rgba(138, 83, 15, 0.10); color: #8a530f; font-weight: 500;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                  <span>Cuenta</span>
+                </div>
+                <div class="rail-item" style="background: rgba(15, 20, 30, 0.04); color: #1a1f26;">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></svg>
+                  <span>Alertas</span>
+                </div>
+                <div class="rail-item">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                  <span>Privacidad</span>
+                </div>
+                <div class="hint" style="padding: 6px 10px 0;">Activo · pasado · reposo</div>
+              </div>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="cap" style="margin-bottom: 6px;">Lista · móvil</div>
+              <div class="demo" style="background: #ffffff; border-style: solid; overflow: hidden;">
+                <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06);">
+                  <span style="width: 32px; height: 32px; border-radius: 8px; background: rgba(15, 20, 30, 0.04); color: #4a5562; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></svg>
+                  </span>
+                  <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1;">
+                    <span style="font-size: 14px; font-weight: 500;">Alertas</span>
+                    <span class="hint">5 de 7 tipos activos · aviso al 80 %</span>
+                  </span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m9 18 6-6-6-6"></path></svg>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 0 16px;">
+                  <span style="width: 32px; height: 32px; border-radius: 8px; background: rgba(15, 20, 30, 0.04); color: #4a5562; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path></svg>
+                  </span>
+                  <span style="display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1;">
+                    <span style="font-size: 14px; font-weight: 500;">WhatsApp</span>
+                    <span class="hint">2 números autorizados</span>
+                  </span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m9 18 6-6-6-6"></path></svg>
+                </div>
+              </div>
+              <p class="hint" style="margin: 6px 0 0;">Cada fila resume su estado real, así se ve qué hay dentro sin entrar.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Barra de guardado</div>
+          <p class="prosa" style="margin-top: 3px;">Sustituye a los seis botones «Guardar» repartidos por la pantalla. Aparece al primer cambio y cuenta cuántos hay pendientes.</p>
+        </div>
+        <div class="spec-b">
+          <div class="demo" style="padding: 0; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 0 18px; height: 60px; background: #ffffff; border-top: 1px solid rgba(15, 20, 30, 0.10);">
+              <span style="width: 7px; height: 7px; border-radius: 999px; background: #8a530f; flex-shrink: 0;"></span>
+              <span style="font-size: 13px; font-weight: 500;">2 cambios sin guardar</span>
+              <span style="flex: 1;"></span>
+              <button type="button" class="btn btn-ghost">Descartar</button>
+              <button type="button" class="btn btn-primary">Guardar cambios</button>
+            </div>
+          </div>
+          <p class="prosa">Los cambios de flujo —cambiar el email, cambiar la contraseña, eliminar la cuenta— mantienen su propio botón: no son un ajuste que se guarde, son una acción con consecuencias.</p>
+        </div>
+      </div>
+
+      <div class="spec">
+        <div class="spec-h">
+          <div class="subtitle">Zona de riesgo</div>
+          <p class="prosa" style="margin-top: 3px;">El bloque rojo deja de gritar permanentemente: se pliega hasta que lo abres.</p>
+        </div>
+        <div class="spec-b">
+          <div class="demo" style="padding: 14px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+                <span class="row-name">Eliminar cuenta</span>
+                <span class="hint">Borra permanentemente tu cuenta, tus albaranes y todo tu histórico.</span>
+              </span>
+              <button type="button" class="btn btn-secondary" style="border-color: rgba(176, 58, 58, 0.40); color: #b03a3a;">Eliminar cuenta…</button>
+            </div>
+          </div>
+          <div class="demo" style="padding: 14px;">
+            <div style="display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid #b03a3a; background: rgba(176, 58, 58, 0.12); border-radius: 10px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b03a3a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 2px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+              <div style="flex: 1; min-width: 0;">
+                <p style="font-size: 13px; margin: 0 0 4px; color: #b03a3a; font-weight: 500;">Esta acción no se puede deshacer.</p>
+                <p class="hint" style="margin: 0 0 10px;">Escribe <strong style="color: #1a1f26;">ELIMINAR</strong> para confirmar.</p>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" class="input" style="width: 140px;" placeholder="ELIMINAR" />
+                  <button type="button" class="btn" style="background: #b03a3a; color: #ffffff; opacity: 0.5;">Eliminar cuenta</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{
+  "$preview": {"width": 1180, "height": 2240}
+}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>
