@@ -156,14 +156,14 @@
     <StatusChip
       label={$t('turno.ribbon.review')}
       value={fmtEurCompact(data.pending.amount)}
-      tone={data.pending.count > 0 ? 'warn' : 'pos'}
+      tone={data.pending.count > 0 ? 'caution' : 'pos'}
       note={$tp('turno.ribbon.reviewNote', data.pending.count)}
     />
 
     <StatusChip
       label={$ti('turno.ribbon.cashOut', { days: RIBBON_HORIZON_DAYS })}
       value={fmtEurCompact(cashOutSoonTotal)}
-      tone={cashOutSoon.length > 0 ? 'warn' : 'pos'}
+      tone={cashOutSoon.length > 0 ? 'caution' : 'pos'}
       note={$tp('turno.ribbon.cashOutNote', cashOutSoon.length)}
       last
     />
@@ -298,7 +298,7 @@
                 <span class="num body-strong" style="flex-shrink:0;">{fmtEurCompact(p.amount)}</span>
                 <span
                   class="badge"
-                  style="font-size:11px;flex-shrink:0;background:{p.days_delta < 0 ? 'var(--mep-neg-soft)' : p.days_delta <= 7 ? 'var(--mep-warn-soft)' : 'var(--mep-hover)'};color:{p.days_delta < 0 ? 'var(--mep-neg)' : p.days_delta <= 7 ? 'var(--mep-warn)' : 'var(--mep-fg-3)'};"
+                  style="font-size:11px;flex-shrink:0;background:{p.days_delta < 0 ? 'var(--mep-neg-soft)' : p.days_delta <= 7 ? 'var(--mep-caution-soft)' : 'var(--mep-hover)'};color:{p.days_delta < 0 ? 'var(--mep-neg)' : p.days_delta <= 7 ? 'var(--mep-caution)' : 'var(--mep-fg-3)'};"
                 >
                   {p.days_delta < 0 ? $t('turno.rail.overdue') : $ti('turno.rail.days', { n: p.days_delta })}
                 </span>

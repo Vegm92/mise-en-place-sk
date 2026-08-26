@@ -59,6 +59,14 @@ chooses).
 - **The worklist is always about today**, never about the browsed month; only
   the ribbon figures, the pace chart and the category rail follow `?month=`.
   Browsing a past month labels the list accordingly.
+- **Colour encodes severity, never the kind of work** (ADR-026). Every
+  `WorkItem` carries a `severity`: `high` for overdue payables, price rises and
+  a budget already blown; `med` for a category only forecast to overrun and for
+  a supplier that has gone quiet; `low` for invoices awaiting confirmation, a
+  payment not yet pressing and an uncategorised supplier. `WorkCard` maps that
+  to the warm ramp (`--mep-neg` / `--mep-warn` / `--mep-caution`); the icon
+  glyph, not its colour, says which kind it is. Amounts stay on `--mep-fg` and
+  the only blue on the screen is the action.
 - **No number stands alone.** The pace figure carries a bullet against
   plan-to-date and the month cap; the forecast carries its distance from the
   cap; every category bar carries a plan tick and a forecast close.
@@ -145,7 +153,8 @@ n/a (read-only).
   links to the page that resolves it.
 - The ribbon's cash-out figure counts only *upcoming* payments; overdue money
   is surfaced once, as the overdue work item.
-- Light and dark both render from `--mep-*` tokens only.
+- Light and dark both render from `--mep-*` tokens only, and no two work items
+  of the same severity carry different hues.
 - Strings are bilingual (`turno.*` in `src/lib/i18n.ts`).
 
 ## Code notes
@@ -161,6 +170,11 @@ n/a (read-only).
 **`function elapsedFraction`**
 - A closed month is fully elapsed, so the same forecast and plan helpers work
   for past months without a branch at every call site.
+
+**`const buildWorklist` severity**
+- A budget item is `high` only once the category has actually overspent; a
+  forecast overrun alone is `med`. The distinction is what stops a whole screen
+  of forecasts from reading as an emergency in the first week of a month.
 
 **`function buildWorklist`**
 - Money-carrying items always outrank money-less ones, so a €0 item can never

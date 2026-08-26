@@ -22,7 +22,7 @@
   const palettes = {
     high: { bg: 'var(--mep-neg-soft)', icon: 'var(--mep-neg)' },
     med:  { bg: 'var(--mep-warn-soft)', icon: 'var(--mep-warn)' },
-    low:  { bg: 'var(--mep-info-soft)', icon: 'var(--mep-info)' },
+    low:  { bg: 'var(--mep-caution-soft)', icon: 'var(--mep-caution)' },
   };
 
   const icons = { price: TrendingUp, budget: Tag, due: Clock, info: Info };

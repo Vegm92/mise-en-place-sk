@@ -2,9 +2,12 @@ export const WORK_KINDS = ['price', 'budget', 'due', 'review', 'missing', 'suppl
 
 export type WorkKind = (typeof WORK_KINDS)[number];
 
+export type Severity = 'high' | 'med' | 'low';
+
 export interface WorkItem {
 	id: string;
 	kind: WorkKind;
+	severity: Severity;
 	eur: number;
 	urgencyRank: number;
 	urgencyKey: string;
@@ -131,6 +134,7 @@ function priceItems(input: TurnoInput): WorkItem[] {
 		.map(({ s, eur }) => ({
 			id: `price-${s.id}`,
 			kind: 'price' as const,
+			severity: 'high' as const,
 			eur,
 			urgencyRank: 2 + s.daysAgo,
 			urgencyKey: s.daysAgo <= 0 ? 'turno.when.today' : 'turno.when.daysAgo',
@@ -153,6 +157,7 @@ function budgetItems(input: TurnoInput): WorkItem[] {
 		.map((c) => ({
 			id: `budget-${c.category}`,
 			kind: 'budget' as const,
+			severity: c.spent > c.budget ? 'high' as const : 'med' as const,
 			eur: c.overrun,
 			urgencyRank: 10,
 			urgencyKey: 'turno.when.thisWeek',
@@ -178,6 +183,7 @@ function dueItems(input: TurnoInput): WorkItem[] {
 		items.push({
 			id: 'due-overdue',
 			kind: 'due',
+			severity: 'high',
 			eur: overdue.reduce((s, p) => s + p.amount, 0),
 			urgencyRank: 0,
 			urgencyKey: 'turno.when.now',
@@ -196,6 +202,7 @@ function dueItems(input: TurnoInput): WorkItem[] {
 		items.push({
 			id: `due-${next.id}`,
 			kind: 'due',
+			severity: 'low',
 			eur: next.amount,
 			urgencyRank: 20 + next.days_delta,
 			urgencyKey: next.days_delta === 0 ? 'turno.when.today' : 'turno.when.inDays',
@@ -217,6 +224,7 @@ function reviewItems(input: TurnoInput): WorkItem[] {
 	return [{
 		id: 'review',
 		kind: 'review',
+		severity: 'low',
 		eur: input.review.amount,
 		urgencyRank: 1,
 		urgencyKey: 'turno.when.today',
@@ -236,6 +244,7 @@ function missingItems(input: TurnoInput): WorkItem[] {
 	return [{
 		id: `missing-${m.supplier_name}`,
 		kind: 'missing',
+		severity: 'med',
 		eur: 0,
 		urgencyRank: 90,
 		urgencyKey: 'turno.when.whenYouCan',
@@ -255,6 +264,7 @@ function supplierItems(input: TurnoInput): WorkItem[] {
 	return [{
 		id: `supplier-${s.supplierId}`,
 		kind: 'supplier',
+		severity: 'low',
 		eur: 0,
 		urgencyRank: 99,
 		urgencyKey: 'turno.when.whenYouCan',

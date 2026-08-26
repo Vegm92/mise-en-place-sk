@@ -182,7 +182,7 @@
   <title>{c.pageTitle}</title>
 </svelte:head>
 
-<div class="mep legal" data-accent="amber" data-density="default">
+<div class="mep legal" data-accent="slate" data-density="default">
   <article>
     <div class="topbar">
       <a class="back" href="/">{c.back}</a>
