@@ -4,11 +4,13 @@
     min = 0,
     max = 100,
     name,
+    form,
   }: {
     value?: number;
     min?: number;
     max?: number;
     name?: string;
+    form?: string;
   } = $props();
 
   const pct = $derived(((value - min) / (max - min)) * 100);
@@ -18,7 +20,7 @@
   <div class="mep-slider-track"></div>
   <div class="mep-slider-fill" style="width:{pct}%;"></div>
   <div class="mep-slider-thumb" style="left:calc({pct}% - 7px);"></div>
-  <input class="mep-slider-input" type="range" {name} {min} {max} bind:value />
+  <input class="mep-slider-input" type="range" {name} {form} {min} {max} bind:value />
 </div>
 
 <style>

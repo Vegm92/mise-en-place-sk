@@ -146,15 +146,25 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Copy the bot number (issue #319). Staff often read it off one phone and type it into another; copying removes the step that goes wrong.
 **`function copyBotNumber`**
 - Clipboard blocked (insecure context, denied permission) — the number is on screen and selectable, so there is nothing to recover from.
+**`const searchIndex` / `const results`**
+- The rail search. Six sections hide ~25 individual settings, so the rail alone answers "which section is X in?" only if you already know. The index is a list of i18n keys paired with their section; matching runs on the resolved label, so it searches in whatever locale is on screen. Picking a result clears the query and switches both branches at once — the desktop rail and the mobile panel share one `query`.
+**`const pendingOf` / `function discard` / `const savableForm`**
+- One save bar per section replaced the six scattered Save buttons. `pendingOf` counts fields that differ from the loaded `data`, which is what makes "2 unsaved changes" and Discard possible without tracking edits.
+- The bar's Save is a `<button form="…">` rather than a wrapping `<form>`: the Cuenta section already contains the email and password forms, and HTML forbids nesting. Each section's settings form is an empty `<form id>` at the top of the file and the fields point at it, so the bar can submit a form it does not contain.
+- Flow actions keep their own buttons — changing an email sends a confirmation link, changing a password revokes sessions, deleting is irreversible. Those are not settings that get saved, and folding them into a bulk Save would make them accidental.
 **`markup`**
-- Forms: display name, email, password, restaurant name.
-- Alertas pane: the two thresholds, then one switch per alert type (issue #577), grouped and labelled from `data.alertGroups`. One form, one Save — a per-toggle auto-save would need `use:enhance` on a page that is otherwise plain progressive-enhancement forms.
+- Row shape: label plus its explanation on the left, control on the right. The explanation used to hang under the control, which left the control column ragged and the label column empty.
+- Alertas pane: the two thresholds and one switch per alert type (issue #577), grouped and labelled from `data.alertGroups`, all in one form posting to `saveAlertPreferences`. The action persists the thresholds only when their fields are present, so the older toggles-only callers still work.
+- Password and the delete-account block are disclosures. Three password fields and a permanent red warning were both always on screen for something done once a year.
 - Where to send invoices (issue #319). Authorising a number is useless if the staff member never learns what to message. QR injected via `{@html}` (eslint-disable-next-line svelte/no-at-html-tags).
 - Self-service enrolment (issue #320). The number is captured from the message, so it cannot be mistyped the way the form below can.
-- Ayuda pane: the tour-reset form, then a card link to `/help` (issue #569). The pane is where users already come looking for guidance, so it points at the documentation rather than duplicating it.
+- Ayuda pane: the tour-reset form, a card link to `/help` (issue #569) and the FAQ questions as links into it. The pane is where users already come looking for guidance, so it points at the documentation rather than duplicating it.
+- Below `md` the sections are a list that pushes one panel at a time with a way back, not an accordion (issue #650 asked only that the desktop rail stay off small screens). Section bodies are still written once in `sectionBody` and rendered by both branches; the `idp` prefix keeps the two copies' element and form ids apart.
 - The `settings-main` tour anchor sits on the section container, not inside the Ayuda pane where it started. The last step of the tour lands on `/settings` with whatever section was last open — usually Cuenta — so an anchor inside one pane meant the tour ended by rendering nothing and never dismissing itself.
 **`style`**
 - `.alert-toggle*` (issue #577): a visually-hidden checkbox drives a CSS track/thumb, so the switch keeps native keyboard focus, form submission and label semantics without a component.
+- `.set-savebar` is `position: sticky`, not fixed or absolute: the app shell scrolls in `<main>`, so a page-local absolute bar pins to the bottom of the content rather than the window.
+- `.set-mob` sets `display` only below `md`. A scoped rule outranks Tailwind's `md:hidden`, so declaring `display: flex` unconditionally left the mobile branch rendering underneath the desktop one.
 - WhatsApp bot number + QR (issue #319).
 - Pairing code (issue #320) — read off a screen and typed into a phone, so set large, monospaced and widely tracked.
 - The QR is meant to be printed and taped up in the kitchen, so sized in absolute units — 45 mm on paper scans reliably from arm's length.
@@ -162,6 +172,9 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 ### `src/routes/(app)/help/+page.svelte`
 
+**`const searchIndex` / `const areas`**
+- The four areas are a rail like the one on `/settings`, so the two screens a user bounces between read as a pair. Search covers all nineteen entries — steps, tips and questions — and matches on body text as well as titles, because people search for the word in the answer.
+- The rail is client-side: without JavaScript only the opening area renders. The trade is deliberate — nine tips and six questions in one scroll was the thing being fixed — but it is why the FAQ stays `<details>` below.
 **`markup`**
 - The help centre (issue #569): getting-started guide, per-section tips, FAQ and a launcher for the guided tour. Static documentation — no server load beyond the page title, which is why the route has a `+page.ts` and no `+page.server.ts`.
 - Steps, tips and questions are rendered from the lists in `src/lib/help-content.ts` rather than written into the markup, so the copy stays entirely in the locale tables and adding an entry is a one-line change in two places (the list and both locales).
@@ -170,8 +183,9 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - FAQ entries are native `<details>`/`<summary>`: they open without JavaScript and keep the disclosure semantics a hand-rolled accordion would have to re-add.
 
 **`style`**
-- Scoped, and single-markup rather than the `mobile/*`/`desktop/*` split (ADR-020): the page is a one-column read at every width, with only the tips grid switching to two columns at `md`.
+- Scoped, and single-markup rather than the `mobile/*`/`desktop/*` split (ADR-020): one set of markup, with the rail becoming a row of pills and every grid collapsing to one column below `md`.
 - `.help-prose` caps line length at 72ch. Prose is the whole page here; full-width paragraphs on a 1280px screen are unreadable.
+- The steps grid is 2×2 at `md` with `nth-child` dividers rather than four cards: the four steps are one sequence, and gaps between cards read as four unrelated things.
 
 ### `src/lib/help-content.ts`
 
