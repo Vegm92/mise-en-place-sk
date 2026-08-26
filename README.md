@@ -77,6 +77,7 @@ Why the app is shaped this way is recorded as ADRs in **[`docs/06_decisions/`](d
 |---|---|
 | `pnpm check` / `pnpm test` | typecheck / unit & integration tests (DB-backed suites need a **local** Postgres — see below) |
 | `pnpm db:generate` / `db:migrate` / `db:studio` | Drizzle workflow |
+| `pnpm qa:sweep` | drive the running app in headless Chromium and write `qa-report.md` — route health, security headers, a11y, i18n key leakage, responsive, malformed route params. Needs `pnpm dev` up and, first time only, `npx playwright install chromium`. See [docs/04_engineering/browser_qa_sweep.md](docs/04_engineering/browser_qa_sweep.md) |
 
 ### Running the DB-backed tests
 
