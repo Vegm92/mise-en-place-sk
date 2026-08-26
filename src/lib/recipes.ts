@@ -107,6 +107,23 @@ export function parseQty(raw: MoneyInput): string | null {
 	return Number(value) > 0 ? value : null;
 }
 
+export function parseDecimal(raw: MoneyInput, scale = 2): string | null {
+	if (raw === null || raw === undefined) return null;
+	const text = String(raw).trim();
+	if (text === '') return null;
+	const m = QTY_INPUT.exec(text);
+	if (!m) return null;
+	const [, intPart, fracPart = ''] = m;
+	return `${intPart}.${(fracPart + '0'.repeat(scale)).slice(0, scale)}`;
+}
+
+export function parsePercent(raw: MoneyInput, max: number): string | null {
+	const parsed = parseDecimal(raw, 2);
+	if (parsed === null) return null;
+	const n = Number(parsed);
+	return n >= 0 && n <= max ? parsed : null;
+}
+
 export function qtyToNumber(raw: MoneyInput): number {
 	if (raw === null || raw === undefined) return 0;
 	const n = typeof raw === 'number' ? raw : Number(String(raw).trim().replace(',', '.'));
