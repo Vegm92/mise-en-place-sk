@@ -13,6 +13,7 @@
   import Truck from '@lucide/svelte/icons/truck';
   import Package from '@lucide/svelte/icons/package';
   import TrendingUp from '@lucide/svelte/icons/trending-up';
+  import ChefHat from '@lucide/svelte/icons/chef-hat';
   import Tag from '@lucide/svelte/icons/tag';
   import Bell from '@lucide/svelte/icons/bell';
   import Settings from '@lucide/svelte/icons/settings';
@@ -194,6 +195,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             id: 'planning',
             label: $t('nav.section.planning'),
             items: [
+              { href: '/recipes',   icon: ChefHat, label: $t('nav.recipes'), badge: 0 },
               { href: '/budgets',   icon: Tag,  label: $t('nav.budgets'),   badge: 0 },
               { href: '/reminders', icon: Bell, label: $t('nav.reminders'), badge: data.reminderBadge },
             ],

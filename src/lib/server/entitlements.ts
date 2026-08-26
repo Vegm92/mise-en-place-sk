@@ -69,6 +69,7 @@ export const ROUTE_POLICY = {
 	'/(app)/plantilla-lista':            'open',
 	'/(app)/products':                   'open',
 	'/(app)/products/[id]':              'open',
+	'/(app)/recipes':                    'open',
 	'/(app)/reminders':                  'open',
 	'/(app)/reports':                    { feature: 'weeklyDigest', access: true },
 	'/(app)/reports/[type]':             { feature: 'weeklyDigest', access: true },

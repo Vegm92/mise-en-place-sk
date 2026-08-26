@@ -54,6 +54,7 @@ export interface MatrixColumn {
 	name: string;
 	quota: number | null;
 	maxLocations: number;
+	maxRecipes: number | null;
 	features: MatrixFeatures;
 }
 
@@ -90,6 +91,7 @@ export const MATRIX_GROUPS: MatrixGroupDef[] = [
 		titleKey: 'billing.matrix.group.operations',
 		rows: [
 			{ labelKey: 'billing.matrix.row.stock', cell: (c) => c.features.stockTracking },
+			{ labelKey: 'billing.matrix.row.recipes', cell: (c) => c.maxRecipes === null ? true : { upTo: c.maxRecipes } },
 		],
 	},
 	{
