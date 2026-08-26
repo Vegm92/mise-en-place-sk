@@ -563,7 +563,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;{data.quotaLimit ? 'margin-bottom:7px;' : ''}"><span style="font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}</span><span style="color:var(--mep-fg-4);"> · </span><span class="num" style="color:var(--mep-fg-3);">{data.quotaUsed}{#if data.quotaLimit}/{data.quotaLimit}{/if}</span><span style="color:var(--mep-fg-3);"> {#if data.subscriptionStatus === 'canceled'}· {$t('billing.canceled')}{:else}{$t('shell.quota')}{/if}</span></div>
       {#if data.quotaLimit}
         <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-          <div style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
+          <div style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;height:100%;background:var(--mep-acc);border-radius:2px;{data.quotaUsed > 0 ? 'min-width:3px;' : ''}"></div>
         </div>
       {/if}
     </a>
