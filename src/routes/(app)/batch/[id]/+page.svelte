@@ -448,6 +448,8 @@
   const taxNeedsAttention = $derived(
     (taxBands.length > 0 && !taxBaseMatchesLines) || unbandedRates.length > 0
   );
+  const bandKinds = $derived(['iva', 'rec'].filter(k => taxBands.some(b => b.type === k)));
+  const showBandKinds = $derived(bandKinds.includes('rec'));
   const supplierName = $derived(str(review?.data?.supplier_name) || '—');
   const invoiceNumber = $derived(str(review?.data?.invoice_number) || '—');
 
@@ -1198,6 +1200,14 @@
                 aria-expanded={taxPanelOpen}
                 title={taxPanelOpen ? $t('review.hideTaxes') : $t('review.showTaxes')}>
                 {$t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
+                {#if showBandKinds}
+                  {#each bandKinds as kind}
+                    <span class="badge {kind === 'rec' ? 'badge-pending' : 'badge-exported'}"
+                      title={kind === 'rec' ? $t('review.taxRecFull') : $t('review.taxIva')}>
+                      {kind === 'rec' ? $t('review.taxRec') : $t('review.taxIva')}
+                    </span>
+                  {/each}
+                {/if}
                 {#if taxBands.length > 1}<span class="badge badge-neutral">{taxBands.length}</span>{/if}
                 {#if taxNeedsAttention}<AlertTriangle size={10} />{/if}
                 <span class="rev-tax-caret" class:open={taxPanelOpen}><ChevronsRight size={11} /></span>
