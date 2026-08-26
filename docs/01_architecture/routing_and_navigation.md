@@ -26,7 +26,7 @@ src/routes/
 │   ├── suppliers/                     # list + detail [id] (spend, reliability)
 │   ├── products/                      # list + detail [id] (aliases, merge, conversions)
 │   ├── recipes/                       # escandallos: list, sheet editor, A4 sheet, CSV, email
-│   │   └── [id]/{,sheet/,csv/}        # editor · printable A4 sheet · CSV download
+│   │   └── [id]/{,sheet/,cocina/,csv/} # editor · A4 costing sheet · kitchen sheet · CSV
 │   ├── budgets/                       # limits + current-month spend (progress bars)
 │   ├── reminders/                     # overdue/due-soon + alerts hub (mark-paid, accept/reject)
 │   ├── analytics/
@@ -143,6 +143,8 @@ src/routes/
   export. All three render one `RecipeSheetDoc` from
   `src/lib/server/recipes-sheet.ts`, as does the `sendSheet` email. Routes are
   `'open'`; the 3-sheet limit on trial/starter is a count checked in `create`.
+  `/recipes/[id]/cocina` renders the same document for the pass — net weights,
+  large steps, allergens up top — while `/sheet` keeps the money.
 
 - **`budgets/+page.server.ts`**: loads both the budget limits (`categoryBudgets`)
   and the current-month category spend (aggregated from

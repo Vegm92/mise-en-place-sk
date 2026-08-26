@@ -6,6 +6,7 @@
   import Printer from '@lucide/svelte/icons/printer';
   import Download from '@lucide/svelte/icons/download';
   import Mail from '@lucide/svelte/icons/mail';
+  import ChefHat from '@lucide/svelte/icons/chef-hat';
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
@@ -37,6 +38,9 @@
     <ArrowLeft size={13} />{$t('rec.back')}
   </a>
   <div class="flex items-center gap-2 flex-wrap">
+    <a href="/recipes/{data.recipeId}/cocina" class="btn btn-secondary flex items-center gap-1" style="font-size:11px;">
+      <ChefHat size={13} />{$t('rec.cocina.open')}
+    </a>
     <a href="/recipes/{data.recipeId}/csv" data-sveltekit-reload
       class="btn btn-secondary flex items-center gap-1" style="font-size:11px;">
       <Download size={13} />{$t('rec.sheet.csv')}

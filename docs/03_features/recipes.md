@@ -79,8 +79,18 @@ None — everything is page loads and form actions.
 
 `recipes/+page.svelte` (on `ListPageTemplate`, single responsive component like
 Products), `recipes/[id]/+page.svelte`, `RecipeLineRow.svelte`,
-`recipes/[id]/sheet/+page.svelte`, `products/[id]/+page.svelte` (the allergen
+`FoodCostGauge.svelte`, `recipes/[id]/sheet/+page.svelte`,
+`recipes/[id]/cocina/+page.svelte`, `products/[id]/+page.svelte` (the allergen
 and nutrition block), and the Planificación nav group.
+
+The editor is a two-column grid: the ingredient table on the left and a sticky
+`aside.rec-rail` on the right carrying the gauge, the money rows and the target
+slider, so a line edit and the food cost it moves are visible together. Below
+the single `md` breakpoint the grid collapses to one column and the rail sits
+directly under the header form, keeping the numbers near the top on a phone.
+`/recipes/[id]/cocina` is the pass-facing rendering of the same document:
+net quantities in the unit a cook reads (`800 g`, not `0,8 kg`), large method
+steps, allergens across the top and cost relegated to the footer.
 
 ## Background dependencies
 
@@ -147,6 +157,13 @@ guarded by the unique `(restaurant_id, name_key)`.
 - Tests: `tests/recipe-cost.test.ts`, `tests/recipe-graph-db.test.ts`,
   `tests/recipe-allergen-cascade.test.ts`.
 
+## Known limitation — layout
+
+The sticky rail costs the table 320px. Below roughly a 1400px window the row
+actions run past the card and the table scrolls inside its `<ScrollStrip>`;
+collapsing the sidebar recovers the width. This is the accepted tradeoff of the
+rail, not a defect to fix by shrinking the rail.
+
 ## Known limitation
 
 Costing is always computed at today's prices. A sheet printed in March re-costs
@@ -190,9 +207,15 @@ write path. Racy under concurrent POSTs, which is why the read guard exists too.
 
 ### `src/lib/server/recipes-sheet.ts`
 
-**`buildRecipeSheet`** — the one document the printable page, the CSV and the
-email all render, so the three cannot drift. Sub-recipes come back as a flat
-appendix; nested tables break badly across printed pages.
+**`buildRecipeSheet`** — the one document the printable costing sheet, the
+kitchen sheet, the CSV and the email all render, so the four cannot drift.
+Sub-recipes come back as a flat appendix; nested tables break badly across
+printed pages.
+
+**`kitchenQty`** — the quantity a cook reads. Mass under a kilo drops to grams
+and volume under a litre to millilitres; counted units are left alone. Only the
+kitchen sheet uses it — the costing sheet keeps the stored unit so it
+reconciles against the albarán.
 
 ### `src/routes/(app)/recipes/[id]/+page.server.ts`
 
@@ -202,11 +225,21 @@ Postgres, where it would arrive as NaN and 500.
 **`readItemFields`** — all line validation in one place, returning either the
 fields or an i18n error key.
 
+### `src/lib/components/mep/FoodCostGauge.svelte`
+
+The arc is an SVG semicircle; the reading is HTML absolutely positioned in its
+hollow rather than an SVG `<text>`, because SVG text scales with the viewBox and
+drifts out of the type ramp. The tick is the target, so over-target is visible
+without reading the number. Colour steps pos → warn → neg at target and
+target + 5.
+
 ### `src/lib/components/mep/RecipeLineRow.svelte`
 
 One `<form>` per row with the visible inputs bound by `form=`, so there is no
 client-held draft to lose. Local state is seeded from props through `untrack`:
-these are editable copies, not mirrors.
+these are editable copies, not mirrors. The line kind is a 22px segmented
+control rather than `.chip` (44px), and the price source and allergen count sit
+under the name — both to keep the row inside the width the sticky rail leaves.
 
 ### `src/lib/server/products.ts`
 
