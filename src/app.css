@@ -46,6 +46,9 @@
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
+  /* Ink for the letters on a solid badge fill — same role as --mep-acc-fg.
+     Both badge fills are mid-dark in either theme, so this does not flip. */
+  --mep-badge-fg:    #ffffff;
 }
 
 /* Light */
@@ -81,8 +84,6 @@
   --mep-series-5: #12865c;
   --mep-series-other: #6e7682;
 
-  --mep-badge-pdf:   #c14a4a;
-  --mep-badge-other: #6a8a6a;
 
   /* Spend categories. Light values are the originals; the dark ramp below is
      the same 17 hues lifted in OKLCH until each clears 4.5:1 on --mep-surface,
@@ -105,6 +106,9 @@
   --mep-cat-material-y-menaje:            #7A6B55;
   --mep-cat-embalaje-y-packaging:         #6B7A5C;
   --mep-cat-other:                        #555566;
+
+  --mep-badge-pdf:   #c14a4a;
+  --mep-badge-other: #6a8a6a;
 }
 
 /* Dark */
@@ -156,8 +160,6 @@
   --mep-caution-fg: #2a1a08;
   --mep-info-fg: #0d1828;
 
-  --mep-badge-pdf:   #c14a4a;
-  --mep-badge-other: #6a8a6a;
 
   /* Spend categories — hue preserved, lightness lifted for the dark ground.
      Every value clears 4.5:1 on --mep-surface and 4.15:1 on --mep-surface-2. */
@@ -178,6 +180,9 @@
   --mep-cat-material-y-menaje:            #93846d;
   --mep-cat-embalaje-y-packaging:         #7b8b6c;
   --mep-cat-other:                        #8f8fa2;
+
+  --mep-badge-pdf:   #c14a4a;
+  --mep-badge-other: #6a8a6a;
 }
 
 /* Accent — tinta (DEFAULT — every route sets data-accent="tinta").

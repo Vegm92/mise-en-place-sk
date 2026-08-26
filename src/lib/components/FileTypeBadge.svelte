@@ -21,7 +21,7 @@
 </script>
 
 <div
-  style="width:{dims.width}px;height:{dims.height}px;border-radius:4px;flex-shrink:0;background:{kind === 'pdf' ? 'var(--mep-badge-pdf)' : 'var(--mep-badge-other)'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:{dims.fontSize}px;font-weight:700;letter-spacing:{dims.letterSpacing};opacity:{opacity};"
+  style="width:{dims.width}px;height:{dims.height}px;border-radius:4px;flex-shrink:0;background:{kind === 'pdf' ? 'var(--mep-badge-pdf)' : 'var(--mep-badge-other)'};color:var(--mep-badge-fg);display:flex;align-items:center;justify-content:center;font-size:{dims.fontSize}px;font-weight:700;letter-spacing:{dims.letterSpacing};opacity:{opacity};"
 >
   {label}
 </div>
