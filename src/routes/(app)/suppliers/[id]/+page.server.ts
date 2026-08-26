@@ -156,18 +156,6 @@ export const actions: Actions = {
 			.set({ name, category: cat, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
-		if (cat) {
-			await db.execute(sql`
-				UPDATE products SET category = ${cat}
-				WHERE restaurant_id = ${rid}
-				  AND (category IS NULL OR category = 'Other')
-				  AND id IN (
-				    SELECT DISTINCT product_id FROM product_aliases
-				    WHERE restaurant_id = ${rid} AND supplier_id = ${id}
-				  )
-			`);
-		}
-
 		redirect(303, `/suppliers/${id}`);
 	},
 

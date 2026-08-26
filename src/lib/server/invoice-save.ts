@@ -3,7 +3,7 @@ import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice } from './products';
-import { enqueueNormalize } from './queue';
+import { enqueueCategorize, enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, saveAlerts, type Alert } from './alerts';
 import { getTierFeatures } from './billing';
@@ -11,7 +11,7 @@ import { maybeSendQuotaWarning } from './quota-warning';
 import { trackEvent } from './events';
 import { claimRequest, releaseRequest, isValidKey } from './idempotency';
 import { getOrCreateSupplierId, type SupplierContactInfo } from './supplier';
-import { resolveSupplierCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { resolveCategory, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch';
@@ -354,19 +354,12 @@ export async function linkProductsToInvoice(
 ): Promise<Map<string, number>> {
 	const productByKey = new Map<string, number>();
 	try {
-		const [supplier] = await db
-			.select({ category: suppliers.category })
-			.from(suppliers)
-			.where(forTenant(rid).scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
-			.limit(1);
-		const category = supplier?.category ?? null;
-
 		const resolved = await resolveLineProducts(
 			db, rid, supplierId,
 			lineInputs.map(li => ({
 				description: li.desc,
 				unit: li.unitVal,
-				category,
+				category: null,
 				unitsPerPack: li.pack?.unitsPerPack ?? null,
 				baseUnit: li.pack?.baseUnit ?? null,
 				supplierSku: li.supplierSku,
@@ -400,6 +393,8 @@ export async function linkProductsToInvoice(
 			} else if (r.status === 'created') {
 				await enqueueNormalize(rid, r.productId, desc).catch((e) =>
 					console.error('[invoice-save] normalize enqueue failed (non-fatal):', e));
+				await enqueueCategorize(rid, r.productId, desc).catch((e) =>
+					console.error('[invoice-save] categorize enqueue failed (non-fatal):', e));
 			}
 		}
 		if (suggestions.length > 0) await saveAlerts(invoiceId, rid, suggestions);
@@ -424,7 +419,7 @@ function resolveSupplierInfo(extracted: ExtractedInvoice | undefined, supplierNa
 	const sameSupplier = typeof extracted?.supplier_name === 'string' && isSameSupplierName(extracted.supplier_name, supplierName);
 	return {
 		proposedCategory: sameSupplier
-			? resolveSupplierCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
+			? resolveCategory(extracted?.supplier_category, extracted?.field_confidences?.supplier_category)
 			: UNCATEGORIZED_CATEGORY,
 		proposedContact: sameSupplier
 			? { cif: extracted?.supplier_nif ?? null, email: extracted?.supplier_email ?? null, phone: extracted?.supplier_phone ?? null, address: extracted?.supplier_address ?? null }

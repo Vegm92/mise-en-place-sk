@@ -59,6 +59,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | ADR | Decision | Status |
 |---|---|---|
 | [012](./analytics/ADR-012-materialised-view-rollups.md) | Analytics reads pre-aggregated materialized views | Active — **refresh mechanism unresolved** |
+| [027](./analytics/ADR-027-spend-category-comes-from-the-line.md) | Spend is attributed by the line's product; the supplier's category is a label | Active |
 
 ### [`billing/`](./billing) — plans, trial, quota
 
@@ -136,7 +137,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **025**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **028**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original

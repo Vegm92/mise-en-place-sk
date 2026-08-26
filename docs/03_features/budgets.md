@@ -18,7 +18,7 @@ the threshold or the ceiling.
 
 - `(app)/budgets` form: category, amount (blank = delete row), month (current
   month only).
-- New invoice totals + supplier category at save.
+- The categories of a saved invoice's line items (`COALESCE(products.category, suppliers.category, 'Other')`, ADR-027).
 
 ## Outputs
 
@@ -30,10 +30,17 @@ the threshold or the ceiling.
 - **Storage**: `category_budgets(restaurant_id, category, month, monthly_budget)`;
   month format `YYYY-MM` (`toMonthStr`).
 - **Spend aggregation** (`budgets/+page.server.ts`): `SUM(COALESCE(total_price,
-  unit_price*quantity, 0))` over line items joined to invoices+suppliers for the
-  selected month. Note: this is live aggregation, not the materialized views.
-- **Overage** (`alerts.ts:330`): spend ≥ `budget_warning_threshold` (80%) →
-  `warning`; ≥ 100% → `exceeded`; else none. Threshold settable.
+  unit_price*quantity, 0))` over line items joined to invoices+suppliers, LEFT
+  JOINed to products, grouped by `COALESCE(products.category,
+  suppliers.category, 'Other')` for the selected month (ADR-027; the criterion
+  itself lives in `category-spend.ts`). Excludes soft-deleted invoices and
+  lines with no description. Note: this is live aggregation, not the
+  materialized views.
+- **Overage** (`runBudgetCheck`): one check per budgeted category the saved
+  invoice's lines actually touched — an invoice carrying produce and cleaning
+  products can trip two budgets. Spend ≥ `budget_warning_threshold` (80%) →
+  `warning`; ≥ 100% → `exceeded`; else none. Threshold settable. An invoice
+  with no described lines falls back to its supplier's category.
 - **Dedup** (`alerts.ts:381`): one alert per `category` + `level` per month
   (scans existing month notifications).
 - Only the current month is editable (older months `fail(403)`).
@@ -71,7 +78,7 @@ Category ∈ `VALID_CATEGORIES`; amount numeric ≥ 0; month = current.
 ## Error states
 
 - Saving a past month → 403.
-- Supplier uncategorized → spend goes to `'Other'` (nudge raised separately).
+- Line with no product **and** an uncategorised supplier → spend goes to `'Other'` (nudge raised separately). A line with no product alone falls back to the supplier's tag, never disappears.
 
 ## Edge cases
 

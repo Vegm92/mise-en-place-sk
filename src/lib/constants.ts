@@ -40,7 +40,7 @@ export function categorySlug(value: string): string {
 	return categoryKey(value).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-export function resolveSupplierCategory(raw: unknown, confidence?: number | null): string {
+export function resolveCategory(raw: unknown, confidence?: number | null): string {
 	if (typeof raw !== 'string') return UNCATEGORIZED_CATEGORY;
 	if (typeof confidence === 'number' && !Number.isNaN(confidence) && confidence < MIN_CATEGORY_CONFIDENCE) {
 		return UNCATEGORIZED_CATEGORY;

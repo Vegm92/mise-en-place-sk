@@ -18,6 +18,8 @@
   const { data, form }: { data: PageData; form: ActionData } = $props();
   const { products, suggestions, conversionPrompts, categories } = $derived(data);
 
+  const UNCATEGORIZED_FILTER = '__uncategorized__';
+
   let tab            = $state<'catalog' | 'suggestions'>('catalog');
   let search         = $state('');
   let catFilter      = $state('');
@@ -31,7 +33,8 @@
     products.filter(p => {
       const q = search.trim().toLowerCase();
       const matchSearch = !q || p.canonicalName.toLowerCase().includes(q);
-      const matchCat = !catFilter || p.category === catFilter;
+      const matchCat = !catFilter
+        || (catFilter === UNCATEGORIZED_FILTER ? p.category == null : p.category === catFilter);
       return matchSearch && matchCat;
     })
   );
@@ -46,6 +49,7 @@
   const needsConversionCount = $derived(products.filter(p => p.needsConversion).length);
   const pendingCount         = $derived(suggestions.length + conversionPrompts.length);
   const categoryCount        = $derived(new Set(products.map(p => p.category).filter(Boolean)).size);
+  const uncategorizedCount   = $derived(products.filter(p => p.category == null).length);
 
   const periodPills = $derived(PERIOD_PILLS.map(p => {
     const params = new URLSearchParams($page.url.searchParams);
@@ -111,6 +115,7 @@
       { key: 'conversion',  label: $t('prod.kpi.needsConversion'), value: needsConversionCount, variant: needsConversionCount > 0 ? 'warn' : 'default' },
       { key: 'suggestions', label: $t('prod.kpi.suggestions'),    value: suggestions.length,    variant: suggestions.length > 0 ? 'warn' : 'pos' },
       { key: 'categories',  label: $t('prod.kpi.categories'),     value: categoryCount },
+      { key: 'uncategorized', label: $t('prod.kpi.uncategorized'), value: uncategorizedCount, variant: uncategorizedCount > 0 ? 'warn' : 'pos' },
     ]}
     trendTitle={$t('prod.trend.title')}
     trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.label), color: seriesColor(i), active: true }))}
@@ -181,6 +186,7 @@
                   aria-label={$t('prod.new.category')}
                   bind:value={catFilter}>
                   <option value="">—</option>
+                  <option value={UNCATEGORIZED_FILTER}>{$t('prod.filter.uncategorized')}</option>
                   {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
                 </select>
                 <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--mep-fg-3);font-size:11px;">▾</span>
@@ -241,7 +247,11 @@
                     <a href="/products/{p.id}" class="body-strong" style="text-decoration:none;color:inherit;">{p.canonicalName}</a>
                   </td>
                   <td>
-                    <span class="badge" style="background:{categoryTint(p.category)};color:{categoryColor(p.category)};">{$tcat(p.category)}</span>
+                    {#if p.category}
+                      <span class="badge" style="background:{categoryTint(p.category)};color:{categoryColor(p.category)};">{$tcat(p.category)}</span>
+                    {:else}
+                      <span class="badge" style="background:color-mix(in oklab, var(--mep-warn) 14%, transparent);color:var(--mep-warn);">{$t('prod.uncategorized')}</span>
+                    {/if}
                   </td>
                   <td class="body text-fg-3" style="font-size:12px;" data-label={$t('prod.col.unit')}>{p.canonicalUnit ?? '—'}</td>
                   <td class="num" data-label={$t('prod.col.suppliers')}>{p.supplierCount}</td>

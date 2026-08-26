@@ -61,7 +61,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 |---|---|
 | `mv_supplier_monthly_spend` | Spend per supplier per month |
 | `mv_item_monthly_spend` | Spend per line item per month |
-| `mv_category_monthly_spend` | Spend per category per month |
+| `mv_category_monthly_spend` | Spend per category per month — category from the line's product, `COALESCE(products.category, suppliers.category, 'Other')` (ADR-027) |
 | `mv_price_snapshots` | Latest unit + normalized €/base-unit price per supplier-item with previous price (LEAD) |
 | `mv_extraction_stats` | Extraction quality aggregates |
 

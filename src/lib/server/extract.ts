@@ -3,6 +3,7 @@ import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
+import { categoryGuideBlock } from './category-guide';
 import { createGeminiProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
 
@@ -85,22 +86,7 @@ supplier_category — what this supplier mainly sells or provides, judged from i
 
 The ONLY permitted values are the ${VALID_CATEGORIES.length - 1} listed between the markers below, or null.
 <<<CATEGORY_VALUES>>>
-Frutas y Verduras          — fresh or minimally processed fruit, vegetables, mushrooms, herbs
-Carnes y Derivados         — raw meat, poultry, game; offal; meat-based prepared foods
-Pescados y Mariscos        — fresh, smoked, or cured fish; shellfish; seafood products
-Lácteos                    — milk, cream, butter, cheese, yoghurt, eggs
-Aceites y Conservas        — cooking oils, vinegars, tinned/jarred foods, pickles, sauces
-Bebidas                    — water, soft drinks, juices, beer, spirits, non-wine alcohol
-Panadería y Bollería       — bread, pastries, cakes, flour-based bakery goods
-Especias y Condimentos     — spices, dried herbs, salt, pepper, mustards, seasonings
-Productos de Limpieza      — detergents, disinfectants, cleaning cloths, hygiene supplies
-Congelados                 — frozen food of any type (meat, fish, veg, pre-cooked meals)
-Embutidos y Charcutería    — cured meats, cold cuts, salami, chorizo, jamón, pâtés
-Vinos y Cavas              — still wine, sparkling wine, cava, champagne, vermouth
-Café y Bebidas Calientes   — coffee beans/pods/capsules, tea, hot chocolate, infusions
-Mantenimiento y Reparaciones — repair services, HVAC, plumbing, electrical work, technical servicing of equipment
-Material y Menaje          — tableware, crockery, glassware, cutlery, kitchen utensils, small appliances
-Embalaje y Packaging       — take-away containers, bags, cling film, napkins, food-grade packaging
+${categoryGuideBlock()}
 <<<END_CATEGORY_VALUES>>>
 
 Rules for supplier_category:

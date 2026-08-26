@@ -1,10 +1,13 @@
-import { redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad, Actions } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers } from '$lib/server/schema';
 import { asc, eq, and, isNull } from 'drizzle-orm';
 import { moneyToNullableNumber } from '$lib/server/money';
+import { linkProductsToInvoice } from '$lib/server/invoice-save';
+import { parsePack } from '$lib/server/products';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/detail', async () => {
@@ -39,6 +42,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				unit:        invoiceLineItems.unit,
 				unit_price:  invoiceLineItems.unitPrice,
 				total_price: invoiceLineItems.totalPrice,
+				product_id:  invoiceLineItems.productId,
 			})
 				.from(invoiceLineItems)
 				.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))
@@ -52,6 +56,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			title: 'inv.detail.pageTitle',
 			titleParams: { number: row.invoice_number ?? row.id },
 			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
+			unlinkedLineCount: lineItems.filter(li => li.product_id == null && (li.description ?? '').trim() !== '').length,
 			lineItems: lineItems.map(li => ({
 				...li,
 				unit_price: moneyToNullableNumber(li.unit_price),
@@ -62,6 +67,47 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 };
 
 export const actions: Actions = {
+	relinkProducts: async ({ params, locals }) => {
+		const id  = Number(params.id);
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
+
+		if (!(await checkRateLimit(`invoice-relink:${rid}`, 20))) {
+			return fail(429, { error: 'Too many requests' });
+		}
+
+		const [inv] = await db.select({ supplierId: invoices.supplierId })
+			.from(invoices)
+			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, id), isNull(invoices.deletedAt)))
+			.limit(1);
+		if (!inv?.supplierId) redirect(303, '/invoices');
+
+		const lines = await db.select({
+			description:  invoiceLineItems.description,
+			unit:         invoiceLineItems.unit,
+			supplierSku:  invoiceLineItems.supplierSku,
+		})
+			.from(invoiceLineItems)
+			.where(and(
+				tdb.scope(invoiceLineItems.restaurantId),
+				eq(invoiceLineItems.invoiceId, id),
+				isNull(invoiceLineItems.productId),
+			));
+
+		const lineInputs = lines
+			.filter(li => (li.description ?? '').trim() !== '')
+			.map(li => ({
+				desc: li.description!,
+				unitVal: li.unit,
+				pack: parsePack(li.description, li.unit),
+				supplierSku: li.supplierSku,
+			}));
+		if (lineInputs.length === 0) redirect(303, `/invoice/${id}`);
+
+		await linkProductsToInvoice(id, inv.supplierId, rid, lineInputs);
+		redirect(303, `/invoice/${id}`);
+	},
+
 	delete: async ({ params, locals }) => {
 		const id  = Number(params.id);
 		const rid = locals.restaurantId!;
