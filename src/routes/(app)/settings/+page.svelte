@@ -555,7 +555,7 @@
         </SectionCard>
 
         <a href="/help" class="card set-link">
-          <span class="set-link-icon set-link-icon-info"><CircleHelp size={16} /></span>
+          <span class="set-link-icon"><CircleHelp size={16} /></span>
           <span class="set-lbl">
             <span class="set-lbl-name">{$t('set.helpLink')}</span>
             <span class="set-lbl-hint">{$t('set.helpLinkBody')}</span>
@@ -885,7 +885,6 @@
     justify-content: center;
     flex-shrink: 0;
   }
-  .set-link-icon-info { background: var(--mep-info-soft); color: var(--mep-info); }
 
   .set-loc {
     display: flex;

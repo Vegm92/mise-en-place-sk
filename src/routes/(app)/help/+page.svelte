@@ -220,7 +220,7 @@
         </div>
 
         <a href="/settings" class="card help-teaser">
-          <span class="help-icon help-icon-info"><Settings size={17} /></span>
+          <span class="help-icon"><Settings size={17} /></span>
           <span class="help-teaser-copy">
             <span class="body-strong">{$t('help.more.title')}</span>
             <span class="help-hint">{$t('help.more.body')}</span>
@@ -367,7 +367,6 @@
     flex-shrink: 0;
   }
   .help-icon-lg { width: 44px; height: 44px; border-radius: 12px; }
-  .help-icon-info { background: var(--mep-info-soft); color: var(--mep-info); }
 
   .help-teaser {
     display: flex;
