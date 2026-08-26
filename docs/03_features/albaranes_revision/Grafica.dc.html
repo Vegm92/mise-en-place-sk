@@ -1,0 +1,462 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #8a530f; text-decoration: none; }
+    a:hover { color: #7e4c0d; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; margin: 0; }
+    .body { font-size: 13px; color: #4a5562; margin: 0; }
+    .body-strong { font-size: 13px; color: #1a1f26; font-weight: 500; margin: 0; }
+    .subtitle { font-size: 16px; font-weight: 600; color: #1a1f26; letter-spacing: -0.01em; margin: 0; }
+    .title { font-size: 20px; font-weight: 600; color: #1a1f26; letter-spacing: -0.015em; margin: 0; }
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 0 12px;
+      height: 32px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;
+      cursor: pointer; white-space: nowrap; background: transparent; color: #4a5562;
+      transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .btn:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
+    .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
+    .btn-primary { background: #8a530f; color: #ffffff; }
+    .btn-primary:hover { background: #7e4c0d; }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
+    .input {
+      font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
+      border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none; width: 100%;
+    }
+    .input::placeholder { color: #64707d; }
+    .period-track { display: inline-flex; align-items: center; gap: 2px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.06); border-radius: 999px; padding: 3px; flex-shrink: 0; }
+    .period-pill {
+      font-family: inherit; font-size: 12px; font-weight: 400; line-height: 1; padding: 6px 13px;
+      border: none; border-radius: 999px; cursor: pointer; color: #5f6b78; background: transparent; white-space: nowrap;
+      transition: background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+    }
+    .period-pill:hover { color: #4a5562; }
+    .period-pill.on { background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .pop { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10); }
+    .tab {
+      display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 3px;
+      border: none; border-bottom: 2px solid transparent; background: transparent; cursor: pointer;
+      font-family: inherit; font-size: 13.5px; color: #5f6b78; transition: color 140ms, border-color 140ms;
+    }
+    .tab:hover { color: #1a1f26; }
+    .tab-n { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 999px; line-height: 15px; }
+    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; color: #4a5562; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+    .mark-ok:hover  { background: rgba(20, 105, 74, 0.12); border-color: #14694a; color: #14694a; }
+    .mark-bad:hover { background: rgba(176, 58, 58, 0.12); border-color: #b03a3a; color: #b03a3a; }
+    .part-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #fafaf7; border-radius: 999px; height: 26px; padding: 0 8px 0 9px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; color: #4a5562; cursor: pointer; max-width: 100%; transition: background 120ms, border-color 120ms; }
+    .part-btn:hover { background: rgba(15, 20, 30, 0.06); border-color: rgba(15, 20, 30, 0.18); }
+    .part-btn.vacia { border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent; color: #5f6b78; }
+    .menu-item { display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 9px; border: none; background: transparent; border-radius: 6px; font-family: inherit; font-size: 12.5px; color: #1a1f26; cursor: pointer; text-align: left; }
+    .menu-item:hover { background: rgba(15, 20, 30, 0.04); }
+  </style>
+  <style>
+    .bar-row { display: grid; grid-template-columns: 132px minmax(0, 1fr) 96px 78px; align-items: center; gap: 10px; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; }
+    .bar-row:hover { background: rgba(15, 20, 30, 0.04); }
+    .bar-track { height: 16px; background: rgba(15, 20, 30, 0.04); border-radius: 2px; }
+    .bar-fill { height: 16px; border-radius: 2px 4px 4px 2px; }
+    .tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12.5px; color: #1a1f26; }
+    .tbl th { font-size: 10px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; text-align: left; padding: 0 8px 6px; white-space: nowrap; }
+    .tbl td { padding: 0 8px; height: 26px; border-top: 1px solid rgba(15, 20, 30, 0.06); }
+    .tbl td.n, .tbl th.n { text-align: right; font-variant-numeric: tabular-nums; }
+    .tbl tr:hover td { background: rgba(15, 20, 30, 0.03); }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; background: #f5f4f0; padding: 22px 26px; display: flex; flex-direction: column; gap: 12px; color: #1a1f26;">
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-shrink: 0;">
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <h1 class="title">Albaranes</h1>
+      <p class="body" style="font-size: 12.5px;">La misma página, pestaña «Gráfica». Lo que mide la columna se elige arriba a la derecha.</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button type="button" class="btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+        Exportar Excel
+      </button>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 22px; border-bottom: 1px solid rgba(15, 20, 30, 0.10); flex-shrink: 0;">
+    <button type="button" class="tab">Por revisar <span class="tab-n num" style="background: rgba(101, 74, 0, 0.14); color: #654a00;">6</span></button>
+    <button type="button" class="tab">Confirmados <span class="tab-n num" style="background: rgba(20, 105, 74, 0.12); color: #14694a;">8</span></button>
+    <button type="button" class="tab">Incidencias <span class="tab-n num" style="background: rgba(176, 58, 58, 0.12); color: #b03a3a;">2</span></button>
+    <button type="button" class="tab" style="color: #1a1f26; font-weight: 500; border-bottom-color: #8a530f;">Todos <span class="tab-n num" style="background: rgba(15, 20, 30, 0.06); color: #1a1f26;">232</span></button>
+    <div style="flex: 1;"></div>
+    <div class="period-track" style="margin-bottom: 6px;">
+      <button type="button" class="period-pill" style="padding: 7px 9px;" title="Lista">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><path d="M14 4h7"/><path d="M14 9h7"/><path d="M14 15h7"/><path d="M14 20h7"/></svg>
+      </button>
+      <button type="button" class="period-pill on" style="padding: 7px 9px;" title="Gráfica">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: block;"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; flex-shrink: 0;">
+    <div class="card" style="padding: 13px 16px; display: flex; flex-direction: column; gap: 4px;">
+      <span class="label">Albaranes</span>
+      <span class="num" style="font-size: 25px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1;">{{ kpiAlbaranes }}</span>
+      <span class="body" style="font-size: 11.5px;">{{ kpiPorSemana }} de media por semana</span>
+    </div>
+    <div class="card" style="padding: 13px 16px; display: flex; flex-direction: column; gap: 4px;">
+      <span class="label">Líneas de producto</span>
+      <span class="num" style="font-size: 25px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1;">{{ kpiLineas }}</span>
+      <span class="body" style="font-size: 11.5px;">{{ kpiLineasPorAlb }} por albarán</span>
+    </div>
+    <div class="card" style="padding: 13px 16px; display: flex; flex-direction: column; gap: 4px;">
+      <span class="label">Coste medio por albarán</span>
+      <span class="num" style="font-size: 25px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1;">{{ kpiMedio }}</span>
+      <span class="body" style="font-size: 11.5px;">{{ kpiPorLinea }} de media por línea</span>
+    </div>
+    <div class="card" style="padding: 13px 16px; display: flex; flex-direction: column; gap: 4px;">
+      <span class="label">Gasto del periodo</span>
+      <span class="num" style="font-size: 25px; font-weight: 600; letter-spacing: -0.6px; line-height: 1.1;">{{ kpiGasto }}</span>
+      <span class="body" style="font-size: 11.5px;">10 semanas · 7 proveedores</span>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 15px 16px; flex-shrink: 0; display: flex; flex-direction: column; gap: 12px;">
+
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <span class="subtitle">{{ tituloMetrica }}</span>
+      <span class="body" style="font-size: 12px;">{{ subtituloMetrica }}</span>
+      <div style="flex: 1;"></div>
+      <div class="period-track">
+        <button type="button" class="period-pill">7 días</button>
+        <button type="button" class="period-pill">30 días</button>
+        <button type="button" class="period-pill on">3 meses</button>
+        <button type="button" class="period-pill">1 año</button>
+      </div>
+      <div style="width: 1px; height: 18px; background: rgba(15, 20, 30, 0.10);"></div>
+      <div class="period-track">
+        <sc-for list="{{ metricas }}" as="m" hint-placeholder-count="4">
+          <button type="button" class="period-pill" style="{{ m.estilo }}" onClick="{{ m.pick }}">{{ m.nombre }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <sc-if value="{{ linea }}" hint-placeholder-val="{{ false }}">
+      <div style="height: 17px; display: flex; align-items: center;">
+        <span class="body" style="font-size: 11.5px; color: #64707d;">Una sola serie: el estado de revisión no se puede apilar sobre una media.</span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ apilada }}" hint-placeholder-val="{{ true }}">
+      <div style="height: 17px; display: flex; align-items: center; gap: 14px;">
+        <sc-for list="{{ leyenda }}" as="l" hint-placeholder-count="3">
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: #4a5562;">
+            <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ l.color }};"></span>
+            {{ l.nombre }}
+          </span>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <div style="position: relative; width: 1324px; height: 224px;">
+
+      <sc-for list="{{ rejilla }}" as="g" hint-placeholder-count="4">
+        <div style="position: absolute; left: 56px; right: 0; top: {{ g.top }}; height: 1px; background: rgba(15, 20, 30, 0.06);"></div>
+        <div class="num" style="position: absolute; left: 0; width: 48px; top: {{ g.textoTop }}; text-align: right; font-size: 10px; color: #64707d;">{{ g.v }}</div>
+      </sc-for>
+
+      <div style="position: absolute; left: 56px; right: 0; top: 200px; height: 1px; background: rgba(15, 20, 30, 0.18);"></div>
+
+      <sc-if value="{{ apilada }}" hint-placeholder-val="{{ true }}">
+        <div style="position: absolute; left: 56px; right: 0; top: 10px; height: 190px; display: flex;">
+          <sc-for list="{{ columnas }}" as="c" hint-placeholder-count="10">
+            <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; cursor: pointer;" onMouseEnter="{{ c.enter }}" onMouseLeave="{{ c.leave }}">
+              <sc-for list="{{ c.segmentos }}" as="s" hint-placeholder-count="3">
+                <div style="width: 72px; height: {{ s.alto }}; background: {{ s.color }}; border-radius: {{ s.radio }}; margin-bottom: {{ s.hueco }};"></div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ linea }}" hint-placeholder-val="{{ false }}">
+        <svg width="1324" height="224" viewBox="0 0 1324 224" style="position: absolute; left: 0; top: 0; display: block; overflow: visible;">
+          <polyline points="{{ puntos }}" fill="none" stroke="#8a530f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <sc-for list="{{ marcas }}" as="m" hint-placeholder-count="10">
+          <div style="position: absolute; left: {{ m.left }}; top: {{ m.top }}; width: 9px; height: 9px; border-radius: 999px; background: #8a530f; border: 2px solid #ffffff; box-sizing: content-box;"></div>
+          <div class="num" style="position: absolute; left: {{ m.etiquetaLeft }}; top: {{ m.etiquetaTop }}; width: 78px; text-align: center; font-size: 10.5px; font-weight: 500; color: {{ m.tinta }};">{{ m.etiqueta }}</div>
+        </sc-for>
+      </sc-if>
+
+      <div style="position: absolute; left: 56px; right: 0; top: 205px; display: flex;">
+        <sc-for list="{{ columnas }}" as="c" hint-placeholder-count="10">
+          <div class="num" style="flex: 1; text-align: center; font-size: 10.5px; color: {{ c.tinta }};">{{ c.etiqueta }}</div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ hayTooltip }}" hint-placeholder-val="{{ false }}">
+        <div class="pop" style="position: absolute; top: 0; left: {{ tipX }}; width: 210px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 10;">
+          <span class="body-strong" style="font-size: 12px;">{{ tipTitulo }}</span>
+          <sc-for list="{{ tipFilas }}" as="t" hint-placeholder-count="3">
+            <span style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #4a5562;">
+              <span style="width: 8px; height: 8px; border-radius: 2px; background: {{ t.color }}; flex-shrink: 0;"></span>
+              <span style="flex: 1;">{{ t.nombre }}</span>
+              <span class="num" style="font-weight: 500; color: #1a1f26;">{{ t.v }}</span>
+            </span>
+          </sc-for>
+          <span class="body" style="font-size: 11px; padding-top: 5px; border-top: 1px solid rgba(15, 20, 30, 0.06);">{{ tipPie }}</span>
+        </div>
+      </sc-if>
+    </div>
+
+    <span class="body" style="font-size: 11px; color: #64707d;">{{ notaPie }}</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; min-height: 0;">
+
+    <div class="card" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="card-header">
+        <span class="subtitle" style="font-size: 15px;">Reparto por partida</span>
+        <span class="body" style="font-size: 11.5px;">Importe · albaranes · líneas</span>
+      </div>
+      <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 2px;">
+        <sc-for list="{{ partidas }}" as="p" hint-placeholder-count="6">
+          <div class="bar-row">
+            <span class="body" style="font-size: 12px; color: #1a1f26; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ p.nombre }}</span>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: {{ p.ancho }}; background: {{ p.color }};"></div>
+            </div>
+            <span class="num" style="font-size: 12px; font-weight: 500; text-align: right;">{{ p.importe }}</span>
+            <span class="num" style="font-size: 11px; color: #5f6b78; text-align: right;">{{ p.detalle }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="card-header">
+        <span class="subtitle" style="font-size: 15px;">El tamaño de tus albaranes</span>
+        <span class="body" style="font-size: 11.5px;">Por proveedor</span>
+      </div>
+      <div style="padding: 12px 12px; overflow: hidden;">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Proveedor</th>
+              <th class="n">Albaranes</th>
+              <th class="n">Líneas / alb.</th>
+              <th class="n">Coste medio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ proveedores }}" as="p" hint-placeholder-count="7">
+              <tr>
+                <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 168px;">{{ p.nombre }}</td>
+                <td class="n">{{ p.albaranes }}</td>
+                <td class="n">{{ p.porAlbaran }}</td>
+                <td class="n" style="font-weight: 500;">{{ p.medio }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script data-dc-script data-props='{"$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { metrica: 'albaranes', hover: null };
+  }
+
+  semanas() {
+    return [
+      { sem: 'sem 23', conf: { a: 20, l: 243, i: 14120.40 }, rev: { a: 0,  l: 0,  i: 0 },       inc: { a: 1, l: 19, i: 712.30 } },
+      { sem: 'sem 24', conf: { a: 23, l: 281, i: 16440.90 }, rev: { a: 0,  l: 0,  i: 0 },       inc: { a: 2, l: 34, i: 1318.60 } },
+      { sem: 'sem 25', conf: { a: 18, l: 214, i: 12905.70 }, rev: { a: 1,  l: 13, i: 402.80 },  inc: { a: 0, l: 0,  i: 0 } },
+      { sem: 'sem 26', conf: { a: 26, l: 318, i: 18740.20 }, rev: { a: 0,  l: 0,  i: 0 },       inc: { a: 1, l: 22, i: 845.10 } },
+      { sem: 'sem 27', conf: { a: 22, l: 268, i: 15840.20 }, rev: { a: 0,  l: 0,  i: 0 },       inc: { a: 1, l: 14, i: 402.50 } },
+      { sem: 'sem 28', conf: { a: 25, l: 301, i: 18115.60 }, rev: { a: 0,  l: 0,  i: 0 },       inc: { a: 2, l: 31, i: 1204.90 } },
+      { sem: 'sem 29', conf: { a: 19, l: 224, i: 13470.80 }, rev: { a: 1,  l: 12, i: 388.40 },  inc: { a: 0, l: 0,  i: 0 } },
+      { sem: 'sem 30', conf: { a: 24, l: 289, i: 17220.40 }, rev: { a: 2,  l: 27, i: 946.10 },  inc: { a: 3, l: 41, i: 1618.70 } },
+      { sem: 'sem 31', conf: { a: 21, l: 248, i: 15033.90 }, rev: { a: 3,  l: 38, i: 1201.55 }, inc: { a: 1, l: 18, i: 640.20 } },
+      { sem: 'sem 32', conf: { a: 8,  l: 83,  i: 6990.20 },  rev: { a: 6,  l: 77, i: 2984.10 }, inc: { a: 2, l: 47, i: 2080.90 } },
+    ];
+  }
+
+  miles(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+
+  euros(n) {
+    const p = n.toFixed(2).split('.');
+    return p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + p[1] + ' €';
+  }
+
+  dec(n, d) { return n.toFixed(d).replace('.', ','); }
+
+  renderVals() {
+    const series = [
+      { key: 'conf', nombre: 'Confirmado',  color: '#0f7a52' },
+      { key: 'rev',  nombre: 'Por revisar', color: '#bd8206' },
+      { key: 'inc',  nombre: 'Incidencia',  color: '#c73f31' },
+    ];
+
+    const defsMetrica = {
+      albaranes: { campo: 'a', nombre: 'Albaranes',     titulo: 'Albaranes por semana',            sub: 'apilados por estado de revisión', max: 30,    ticks: [10, 20, 30],            fmt: v => String(v) },
+      lineas:    { campo: 'l', nombre: 'Líneas',        titulo: 'Líneas de producto por semana',   sub: 'cuántos productos distintos entran', max: 400, ticks: [100, 200, 300, 400],   fmt: v => this.miles(v) },
+      importe:   { campo: 'i', nombre: 'Importe',       titulo: 'Importe por semana',              sub: 'lo que suman los albaranes',      max: 20000, ticks: [5000, 10000, 15000, 20000], fmt: v => this.miles(v) + ' €' },
+      medio:     { campo: null, nombre: 'Coste medio',  titulo: 'Coste medio por albarán',         sub: 'importe de la semana ÷ albaranes de la semana', min: 600, max: 800, ticks: [600, 700, 800], fmt: v => this.miles(v) + ' €' },
+    };
+
+    const m = defsMetrica[this.state.metrica];
+    const esLinea = this.state.metrica === 'medio';
+    const semanas = this.semanas();
+
+    const PLOT = 190, TOP = 10, BASE = 200, ANCHO = 1268, IZQ = 56;
+    const paso = ANCHO / semanas.length;
+    const minY = esLinea ? m.min : 0;
+    const alturaY = v => (PLOT * (v - minY)) / (m.max - minY);
+
+    const totales = semanas.map(s => ({
+      sem: s.sem,
+      a: s.conf.a + s.rev.a + s.inc.a,
+      l: s.conf.l + s.rev.l + s.inc.l,
+      i: s.conf.i + s.rev.i + s.inc.i,
+    }));
+    totales.forEach(t => { t.medio = t.i / t.a; });
+
+    const columnas = semanas.map((s, idx) => {
+      const arriba = series.slice().reverse().filter(se => s[se.key][m.campo] > 0);
+      let acumulado = 0;
+      const segmentos = esLinea ? [] : arriba.map((se, j) => {
+        const alto = alturaY(s[se.key][m.campo]);
+        acumulado += alto;
+        return {
+          alto: alto.toFixed(1) + 'px',
+          color: se.color,
+          radio: j === 0 ? '4px 4px 0 0' : '0',
+          hueco: j === arriba.length - 1 ? '0' : '2px',
+        };
+      });
+      return {
+        etiqueta: s.sem,
+        tinta: this.state.hover === idx ? '#1a1f26' : '#64707d',
+        enter: () => this.setState({ hover: idx }),
+        leave: () => this.setState({ hover: null }),
+        segmentos,
+      };
+    });
+
+    const rejilla = m.ticks.map(v => ({
+      v: m.fmt(v),
+      top: (TOP + PLOT - alturaY(v)).toFixed(1) + 'px',
+      textoTop: (TOP + PLOT - alturaY(v) - 6).toFixed(1) + 'px',
+    }));
+
+    const puntoX = i => IZQ + i * paso + paso / 2;
+    const puntoY = v => TOP + PLOT - alturaY(v);
+
+    const puntos = totales.map((t, i) => puntoX(i).toFixed(1) + ',' + puntoY(t.medio).toFixed(1)).join(' ');
+    const marcas = totales.map((t, i) => ({
+      left: (puntoX(i) - 4.5).toFixed(1) + 'px',
+      top: (puntoY(t.medio) - 4.5).toFixed(1) + 'px',
+      etiquetaLeft: (puntoX(i) - 39).toFixed(1) + 'px',
+      etiquetaTop: (puntoY(t.medio) - 24).toFixed(1) + 'px',
+      etiqueta: this.euros(t.medio),
+      tinta: this.state.hover === i ? '#1a1f26' : '#5f6b78',
+    }));
+
+    const gran = totales.reduce((x, t) => ({ a: x.a + t.a, l: x.l + t.l, i: x.i + t.i }), { a: 0, l: 0, i: 0 });
+
+    const h = this.state.hover;
+    const sel = h === null ? null : semanas[h];
+    const tot = h === null ? null : totales[h];
+
+    const valorTip = se => {
+      if (m.campo === 'i') return this.euros(sel[se.key].i);
+      return String(sel[se.key][m.campo]);
+    };
+
+    const datosPartida = [
+      { nombre: 'Bar',             color: '#12865c', i: 62140.80, a: 34, l: 402 },
+      { nombre: 'Cocina caliente', color: '#2776d3', i: 41208.35, a: 48, l: 388 },
+      { nombre: 'Economato',       color: '#9e6b0d', i: 31960.50, a: 44, l: 928 },
+      { nombre: 'Cocina fría',     color: '#008300', i: 17420.15, a: 62, l: 744 },
+      { nombre: 'Pastelería',      color: '#bb537c', i: 6844.20,  a: 28, l: 260 },
+      { nombre: 'Sin asignar',     color: '#6e7682', i: 4050.45,  a: 16, l: 140 },
+    ];
+    const maxPartida = Math.max(...datosPartida.map(p => p.i));
+
+    const datosProv = [
+      { nombre: 'Bodegas Serrat',           a: 34, i: 62140.80, l: 402 },
+      { nombre: 'Pescados Ría de Vigo',     a: 41, i: 33815.20, l: 318 },
+      { nombre: 'Distribuciones Ruiz S.L.', a: 26, i: 24980.60, l: 598 },
+      { nombre: 'Frutas Gómez S.L.',        a: 44, i: 15204.35, l: 620 },
+      { nombre: 'Distribuciones Norte',     a: 24, i: 13740.90, l: 486 },
+      { nombre: 'Lácteos Valdemar',         a: 41, i: 8198.40,  l: 298 },
+      { nombre: 'Panadería Sant Pau',       a: 22, i: 5544.20,  l: 140 },
+    ];
+
+    return {
+      metricas: Object.keys(defsMetrica).map(k => ({
+        nombre: defsMetrica[k].nombre,
+        estilo: this.state.metrica === k
+          ? 'background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);'
+          : '',
+        pick: () => this.setState({ metrica: k, hover: null }),
+      })),
+      tituloMetrica: m.titulo,
+      subtituloMetrica: m.sub,
+      apilada: !esLinea,
+      linea: esLinea,
+      leyenda: series,
+      columnas,
+      rejilla,
+      puntos,
+      marcas,
+      notaPie: esLinea
+        ? 'El eje empieza en 600 € para que se vea la variación; es una media, así que no se puede apilar por estado. La semana 32 está en curso.'
+        : 'La semana 32 está en curso, por eso la última columna es más corta.',
+      hayTooltip: sel !== null,
+      tipTitulo: sel ? sel.sem : '',
+      tipFilas: sel && !esLinea ? series.map(se => ({ nombre: se.nombre, color: se.color, v: valorTip(se) })) : [],
+      tipPie: tot ? tot.a + ' albaranes · ' + tot.l + ' líneas · ' + this.euros(tot.i) + ' · ' + this.euros(tot.medio) + ' de media' : '',
+      tipX: sel ? Math.min(1090, Math.max(0, IZQ + h * paso + paso / 2 - 105)).toFixed(0) + 'px' : '0px',
+      kpiAlbaranes: gran.a,
+      kpiPorSemana: this.dec(gran.a / semanas.length, 1),
+      kpiLineas: this.miles(gran.l),
+      kpiLineasPorAlb: this.dec(gran.l / gran.a, 1),
+      kpiMedio: this.euros(gran.i / gran.a),
+      kpiPorLinea: this.euros(gran.i / gran.l),
+      kpiGasto: this.euros(gran.i),
+      partidas: datosPartida.map(p => ({
+        nombre: p.nombre,
+        color: p.color,
+        ancho: ((p.i / maxPartida) * 100).toFixed(1) + '%',
+        importe: this.miles(p.i) + ' €',
+        detalle: p.a + ' alb · ' + this.miles(p.l) + ' l',
+      })),
+      proveedores: datosProv.map(p => ({
+        nombre: p.nombre,
+        albaranes: p.a,
+        porAlbaran: this.dec(p.l / p.a, 1),
+        medio: this.euros(p.i / p.a),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>
