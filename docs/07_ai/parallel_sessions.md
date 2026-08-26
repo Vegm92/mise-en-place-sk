@@ -95,11 +95,13 @@ Generated output, migrations, and doc dumps are exempt; hand-written source is n
 
 The standing example is #644: a one-function WhatsApp idempotency fix for a
 **permanent invoice-loss bug** (issue #483), welded to 57 files and +7,469 lines from
-the session it grew inside. It has been open, unmergeable, and unshipped since
-2026-08-24 while cosmetic work merged around it.
+the session it grew inside. It stayed open, unmergeable and unshipped from 2026-08-24
+while cosmetic work merged around it. Split out, the same fix was 2 files and shipped
+the same day (#694).
 
 When a session's branch outgrows the cap, cherry-pick the fix that must ship onto a
-fresh branch off `main` and land that first.
+fresh branch off `main` and land that first. The merge order that keeps that split
+intact is §9.
 
 ## 6. Models
 
@@ -132,6 +134,26 @@ difference between a duplicate and a lost afternoon.
 One language per repository: **English**, matching the majority of the history and
 every PR title. Spanish belongs in user-facing strings (`src/lib/i18n.ts`, Spanish
 first per ADR-021), not in commit subjects.
+
+## 9. Splitting a PR: the merge order
+
+Splitting an oversized PR (§5) leaves two branches: the urgent change on its own
+branch off `main`, and the remainder on the original branch, retargeted to that
+branch as its base. Merge them in one order only:
+
+1. Merge the **fix** PR into `main` first.
+2. Then merge the stacked PR. GitHub retargets it to `main` on its own once the
+   base branch is gone.
+
+Merging the stacked PR while the fix is still unmerged lands the large change
+**into the fix branch** instead of `main`. The two are welded together again and
+neither has shipped — the split is undone. That is what happened on 2026-08-25:
+#644 was retargeted onto `fix/whatsapp-claim-release` and merged, putting
++11,700 lines onto the branch that existed to carry 123.
+
+If it happens: cherry-pick the urgent commit onto a fresh branch off current
+`main` and open that PR. The stacked branch keeps the same change and git drops
+it as already applied once the fix lands.
 
 ## Checklist
 
