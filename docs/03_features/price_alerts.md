@@ -37,6 +37,9 @@ notify the restaurant (in-app), before the change is "discovered" months later.
 - **Direction**: both increases and decreases fire (|deviation| ≥ threshold).
 - Persisted at save time (`alerts.ts` insert, ~line 411), never derived at read
   time (ADR-010).
+- **Opt-out** (#577): `saveAlerts` drops `price_shock` rows for tenants whose
+  `alert_pref_price_shock` setting is `false`; detection still runs, only
+  delivery is suppressed. See `docs/03_features/notifications.md`.
 
 ## State transitions
 

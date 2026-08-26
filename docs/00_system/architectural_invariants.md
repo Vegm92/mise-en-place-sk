@@ -67,12 +67,26 @@ plan and explicit human approval — it is never a silent convenience.
 - Plan/feature access (`getTierFeatures`) and quotas (`resolveMonthlyQuota`)
   must stay consistent with the local `subscriptions` row — never trust a price
   id or client claim to grant features.
+- Entitlement is declared per route in `ROUTE_POLICY` (`lib/server/entitlements.ts`)
+  and enforced by `entitlementHandle`, which lives beside the policy in that same
+  module and is registered in the `hooks.server.ts` handle sequence. It keys off
+  `event.route.id`, so it sees every verb of a route;
+  `tests/entitlement-verbs.test.ts` drives it over every gated route × verb ×
+  tier to keep that true. Do not hand-write a tier check in a handler that a route policy can
+  express — that is how ADR-023 got written. Every route id must appear in the
+  map, as `'open'` or with a policy; the map `satisfies Record<RouteId, …>`, so
+  omitting one fails `pnpm check`.
+- Per-action gates are the documented exception (`settings` `addLocation`, the
+  `(app)` `upload` action) because route policies are route-granular. Keep their
+  `fail(403, {section, error})` shape so the error renders on the right field.
+- Anything reached off a request path — the invoice-save alert fan-out, worker
+  jobs, cron — must check entitlement itself; the hook cannot see it.
 
 ## DATABASE
 
 - Committed Drizzle migrations in `drizzle/` are canonical (ADR-003).
   `pnpm db:push` is dev-only. `pnpm db:check-sync` fails CI on drift.
-- Schema changes: edit `src/lib/server/schema/{core,extensions,auth}.ts`, then
+- Schema changes: edit `src/lib/server/schema.ts`, then
   `pnpm db:generate`, then commit the migration. Follow
   `docs/04_engineering/database_changes.md`.
 - All business tables carry `restaurant_id` (with `user_restaurants` and

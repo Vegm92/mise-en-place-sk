@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { enqueueBatchExtraction, type BatchEnqueueDeps } from '../src/lib/server/extract-batch';
-import type { BatchItem, BatchItemStatus } from '../src/lib/server/batch-core';
+import type { BatchItem, BatchItemStatus } from '../src/lib/server/batch';
 
 function makeItem(id: string, position: number, status: BatchItemStatus): BatchItem {
 	return {
@@ -19,6 +19,7 @@ function makeItem(id: string, position: number, status: BatchItemStatus): BatchI
 		extractedData: null,
 		conversionNotes: null,
 		extractError: null,
+		queuedAt: null,
 	};
 }
 

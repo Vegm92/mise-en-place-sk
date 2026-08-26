@@ -4,13 +4,16 @@ import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
-import { users } from '$lib/server/schema/auth';
+import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
-import { applyTierSettings, billingRestaurantId, getPlanTier, getTierFeatures, TIERS } from '$lib/server/billing';
+import { applyTierSettings, TIERS } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
+
+const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { verifyCredentials } from '$lib/server/auth-credentials';
+import { passwordPolicyError } from '$lib/server/password-policy';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
@@ -19,12 +22,16 @@ import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_I
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
 import { renderQrSvg } from '$lib/server/qr-svg';
 import { activePairingCode, generatePairingCode, revokePairingCodes } from '$lib/server/whatsapp-pairing';
+import {
+	ALERT_PREFERENCE_GROUPS,
+	ALERT_PREFERENCE_TYPES,
+	loadAlertPreferences,
+	saveAlertPreferences as persistAlertPreferences,
+} from '$lib/server/alert-preferences';
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
 const RESTAURANT_NAME_KEY = 'restaurant_name';
-
-const MIN_PASSWORD_LENGTH = 8;
 
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
 
@@ -47,7 +54,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, features, whatsappContactRows, pairingCode, userRow] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -66,21 +73,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 				.where(eq(userRestaurants.userId, locals.user!.id))
 				.orderBy(asc(restaurants.name)),
-			getTierFeatures(rid),
+			locals.entitlements(),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
 			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
 			db.select({ name: users.name, passwordHash: users.passwordHash, emailVerified: users.emailVerified })
 				.from(users)
 				.where(eq(users.id, locals.user!.id))
 				.limit(1),
+			loadAlertPreferences(rid),
 		]);
 
-		const maxLocations = TIERS[await getPlanTier(rid)].maxLocations;
+		const features     = entitlements?.features     ?? TIERS.trial.features;
+		const maxLocations = entitlements?.maxLocations ?? TIERS.trial.maxLocations;
 
 		return {
 			title: 'nav.settings',
 			threshold:      row[0]      ? parseInt(row[0].value, 10)          : 80,
 			priceThreshold: priceRow[0] ? Math.round(parseFloat(priceRow[0].value) * 100) : 15,
+			alertPreferences,
+			alertGroups: ALERT_PREFERENCE_GROUPS.map(group => ({ id: group.id, types: [...group.types] })),
 			profile: {
 				name:  userRow[0]?.name ?? '',
 				email: locals.user!.email,
@@ -89,7 +100,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			},
 			restaurantName: restaurantRow[0]?.name ?? '',
 			canRenameRestaurant: membership[0]?.role === 'owner',
-			locations: locationRows,
+			locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 			multiLocation: features.multiLocation,
 			maxLocations,
 			activeRestaurantId: rid,
@@ -128,6 +139,17 @@ export const actions: Actions = {
 				target: [settings.restaurantId, settings.key],
 				set: { value: stored },
 			});
+
+		redirect(303, '/settings');
+	},
+	saveAlertPreferences: async ({ request, locals }) => {
+		const rid = locals.restaurantId!;
+		const data = await request.formData();
+		const prefs = Object.fromEntries(
+			ALERT_PREFERENCE_TYPES.map(type => [type, data.has(`alert_${type}`)]),
+		) as Record<(typeof ALERT_PREFERENCE_TYPES)[number], boolean>;
+
+		await persistAlertPreferences(rid, prefs);
 
 		redirect(303, '/settings');
 	},
@@ -178,7 +200,9 @@ export const actions: Actions = {
 		const email = locals.user!.email;
 
 		if (!current || !next) return fail(422, { section: 'password', error: 'set.profile.err.passwordRequired' });
-		if (next.length < MIN_PASSWORD_LENGTH) return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
+		const policyError = passwordPolicyError(next);
+		if (policyError === 'tooShort') return fail(422, { section: 'password', error: 'set.profile.err.passwordShort' });
+		if (policyError === 'tooLong') return fail(422, { section: 'password', error: 'set.profile.err.passwordLong' });
 		if (next !== confirm) return fail(422, { section: 'password', error: 'set.profile.err.passwordMismatch' });
 
 		if (!(await checkRateLimit(`password-change:${locals.user!.id}`, 5))) {
@@ -211,16 +235,17 @@ export const actions: Actions = {
 		if (!name) return fail(422, { section: 'location', error: 'set.locations.err.nameRequired' });
 		if (name.length > 120) return fail(422, { section: 'location', error: 'set.profile.err.restaurantTooLong' });
 
-		const billingRid = await billingRestaurantId(rid);
-		const tier = await getPlanTier(rid);
-		if (!TIERS[tier].features.multiLocation) {
+		const entitlements = await locals.entitlements();
+		const { billingRestaurantId: billingRid, tier, features, maxLocations } = entitlements
+			?? { billingRestaurantId: rid, tier: 'trial' as const, features: TIERS.trial.features, maxLocations: TIERS.trial.maxLocations };
+		if (!features.multiLocation) {
 			return fail(403, { section: 'location', error: 'set.locations.err.notAvailable' });
 		}
 
 		const existing = await db.select({ id: userRestaurants.restaurantId })
 			.from(userRestaurants)
 			.where(eq(userRestaurants.userId, userId));
-		if (existing.length >= TIERS[tier].maxLocations) {
+		if (existing.length >= maxLocations) {
 			return fail(403, { section: 'location', error: 'set.locations.err.limitReached' });
 		}
 
@@ -241,7 +266,7 @@ export const actions: Actions = {
 			path: '/',
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: process.env.NODE_ENV === 'production',
+			secure: NODE_ENV === 'production',
 			maxAge: 60 * 60 * 24 * 365,
 		});
 		redirect(303, '/');

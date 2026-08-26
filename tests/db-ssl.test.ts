@@ -34,8 +34,35 @@ describe('pgSslConfig', () => {
 			.toEqual({ rejectUnauthorized: true, ca: PEM });
 	});
 
-	it('ignores DATABASE_CA_CERT outside verify-full mode', () => {
-		expect(pgSslConfig({ DATABASE_CA_CERT: PEM })).toEqual({ rejectUnauthorized: false });
+	it('rejects a DATABASE_CA_CERT that is neither a PEM nor a readable file', () => {
+		const missing = path.join(mkdtempSync(path.join(tmpdir(), 'mep-ca-')), 'absent.crt');
+		expect(() => pgSslConfig({ DATABASE_SSL_MODE: 'verify-full', DATABASE_CA_CERT: missing }))
+			.toThrow(/DATABASE_CA_CERT/);
+	});
+
+	it('points at the swapped-variable mistake when DATABASE_CA_CERT holds a mode name', () => {
+		expect(() => pgSslConfig({ DATABASE_CA_CERT: 'verify-full' }))
+			.toThrow(/did you mean DATABASE_SSL_MODE=verify-full/);
+	});
+
+	it('keeps a connection string out of the DATABASE_CA_CERT error message', () => {
+		const url = 'postgres://user:hunter2@db.example.com:5432/app';
+		expect(() => pgSslConfig({ DATABASE_CA_CERT: url })).toThrow(/<redacted>/);
+		expect(() => pgSslConfig({ DATABASE_CA_CERT: url })).not.toThrow(/hunter2/);
+	});
+
+	it('tolerates surrounding whitespace on the mode and on a CA file path', () => {
+		const file = path.join(mkdtempSync(path.join(tmpdir(), 'mep-ca-')), 'padded-ca.crt');
+		writeFileSync(file, PEM);
+		expect(pgSslConfig({ DATABASE_SSL_MODE: ' Verify-Full\n', DATABASE_CA_CERT: `  ${file}\n` }))
+			.toEqual({ rejectUnauthorized: true, ca: PEM });
+	});
+
+	it('verifies the chain without hostname check when require mode pins a CA', () => {
+		const config = pgSslConfig({ DATABASE_CA_CERT: PEM });
+		expect(config).toMatchObject({ rejectUnauthorized: true, ca: PEM });
+		expect(config && config.checkServerIdentity?.()).toBeUndefined();
+		expect(typeof (config && config.checkServerIdentity)).toBe('function');
 	});
 
 	it('warns and falls back to require on an unknown mode', () => {
@@ -53,6 +80,12 @@ describe('pgSslConfig', () => {
 	it('stays quiet in production when verification is on', () => {
 		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 		pgSslConfig({ NODE_ENV: 'production', DATABASE_SSL_MODE: 'verify-full' });
+		expect(warn).not.toHaveBeenCalled();
+	});
+
+	it('stays quiet in production when require mode pins a CA', () => {
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		pgSslConfig({ NODE_ENV: 'production', DATABASE_CA_CERT: PEM });
 		expect(warn).not.toHaveBeenCalled();
 	});
 });

@@ -4,6 +4,7 @@ import { invoices, suppliers } from '$lib/server/schema';
 import { and, desc, eq, gte, isNull, lte, type SQL } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { moneyToNullableNumber } from '$lib/server/money';
+import { toIsoDate } from '$lib/server/dates';
 
 const STATUS_LABELS: Record<string, string> = {
 	pending:  'Pendiente',
@@ -24,8 +25,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const tdb        = forTenant(rid);
 	const status     = url.searchParams.get('status') ?? '';
 	const supplierId = url.searchParams.get('supplier_id') ?? '';
-	const dateFrom   = url.searchParams.get('date_from') ?? '';
-	const dateTo     = url.searchParams.get('date_to') ?? '';
+	const dateFrom   = toIsoDate(url.searchParams.get('date_from'));
+	const dateTo     = toIsoDate(url.searchParams.get('date_to'));
 
 	const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 	if (status)     conditions.push(eq(invoices.status, status));
@@ -54,12 +55,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	workbook.creator = 'Mise en Place';
 	workbook.created = new Date();
 
-	const sheet = workbook.addWorksheet('Facturas', { views: [{ state: 'frozen', ySplit: 1 }] });
+	const sheet = workbook.addWorksheet('Albaranes', { views: [{ state: 'frozen', ySplit: 1 }] });
 
 	sheet.columns = [
 		{ header: 'ID',            key: 'id',             width: 8  },
 		{ header: 'Proveedor',     key: 'supplier',       width: 32 },
-		{ header: 'Nº factura',    key: 'invoice_number', width: 16 },
+		{ header: 'Nº albarán',    key: 'invoice_number', width: 16 },
 		{ header: 'Fecha',         key: 'invoice_date',   width: 13 },
 		{ header: 'Vencimiento',   key: 'due_date',        width: 13 },
 		{ header: 'Importe (€)',   key: 'total_amount',   width: 14 },

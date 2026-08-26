@@ -2,13 +2,12 @@ import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql, type SQL } from 'drizzle-orm';
-import { CATEGORY_COLORS } from '$lib/constants';
 import { moneyToNumber } from '$lib/server/money';
 
 const PERIOD_DATE_SQL: Record<string, SQL> = {
-	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::text`,
-	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date::text`,
-	half:    sql`AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date::text`,
+	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::date`,
+	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date`,
+	half:    sql`AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date`,
 	all:     sql``,
 };
 
@@ -113,7 +112,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			total: moneyToNumber(cat.total),
 			invoice_count: Number(cat.invoice_count),
 			pct: Math.round((moneyToNumber(cat.total) || 0) / maxCat * 100),
-			color: CATEGORY_COLORS[cat.category] ?? CATEGORY_COLORS['Other'],
 		}));
 
 		const kpisRow0 = kpisRows[0];

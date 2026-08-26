@@ -11,10 +11,16 @@
 
   const isPos = $derived(invert ? value < 0 : value > 0);
   const isNeg = $derived(invert ? value > 0 : value < 0);
-  const color = $derived(
-    isPos ? 'var(--mep-pos)' : isNeg ? 'var(--mep-neg)' : 'var(--mep-fg-3)'
-  );
-  const arrow = $derived(value > 0 ? '↑' : value < 0 ? '↓' : '→');
+  const color = $derived.by(() => {
+    if (isPos) return 'var(--mep-pos)';
+    if (isNeg) return 'var(--mep-neg)';
+    return 'var(--mep-fg-3)';
+  });
+  const arrow = $derived.by(() => {
+    if (value > 0) return '↑';
+    if (value < 0) return '↓';
+    return '→';
+  });
   const absVal = $derived(Math.abs(value));
 </script>
 

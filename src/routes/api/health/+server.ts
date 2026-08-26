@@ -6,6 +6,7 @@ import { STORAGE_DRIVER, UPLOADS_DIR } from '$lib/server/env';
 import fs from 'node:fs';
 import path from 'node:path';
 import { version } from '$app/environment';
+import { readWorkerHeartbeat, workerLiveness } from '$lib/server/worker-heartbeat';
 
 const START_TIME = Date.now();
 
@@ -30,6 +31,11 @@ export async function GET() {
 		);
 		const pending = (rows as unknown as Array<{ pending: number }>)[0]?.pending ?? 0;
 		queue = { reachable: true, pending: Number(pending) };
+	} catch { }
+
+	let liveness = workerLiveness(null);
+	try {
+		liveness = workerLiveness(await readWorkerHeartbeat());
 	} catch { }
 
 	let activeCount = 0;
@@ -69,7 +75,14 @@ export async function GET() {
 		{
 			status: degraded ? 'degraded' : 'ok',
 			db: { reachable: dbReachable, size_mb: dbSizeMb },
-			worker: queue,
+			worker: {
+				...queue,
+				liveness: liveness.state,
+				last_seen_at: liveness.lastSeenAt,
+				last_job_completed_at: liveness.lastJobCompletedAt,
+				jobs_completed: liveness.jobsCompleted,
+				stale_after_seconds: liveness.staleAfterSeconds,
+			},
 			uploads_dir: uploadsDir,
 			sessions: { active_count: activeCount },
 			uptime_seconds: Math.floor((Date.now() - START_TIME) / 1000),

@@ -45,7 +45,7 @@ Spanish-first, bilingual (es/en). Product definition:
   `edit`, `batch/[id]`, `confirm/[id]` (legacy redirect stub), `extract/[id]`
   (legacy redirect stub), `suppliers[/id]`, `products[/id]`, `budgets`,
   `reminders`, `analytics/{spend,prices,extraction}`, `digest`, `chat`,
-  `billing`, `settings`, plus `(app)/api/*` endpoints.
+  `billing`, `settings`, `help`, plus `(app)/api/*` endpoints.
 - `(admin)` — `/admin` dashboard, `events`, `errors`, `health`, `revenue`,
   `dead-letters` (gated by `AUTH_ADMIN_EMAIL`).
 - Public — `login`, `signup`, `logout`, `forgot-password`, `reset-password`,
@@ -59,9 +59,9 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 ## Database
 
-- Canonical schema: `src/lib/server/schema/{core,extensions,auth}.ts`
-  (re-exported by `schema.ts`). ~42 tables + 5 materialized views.
-- Committed Drizzle migrations in `drizzle/` (latest `0030`) are canonical
+- Canonical schema: `src/lib/server/schema.ts`. 40 tables + 5 materialized
+  views.
+- Committed Drizzle migrations in `drizzle/` (latest `0042`) are canonical
   (ADR-003); `pnpm db:check-sync` fails CI on drift.
 - Every business table carries `restaurant_id`. Statuses are `text` — no enums.
 - Table inventory: `docs/01_architecture/data_schemas_and_relations.md`.
@@ -70,7 +70,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 - Auth.js (`@auth/sveltekit`) in `src/lib/server/auth.ts`; JWT sessions;
   `@auth/drizzle-adapter` persists users/accounts/sessions/verification tokens
-  over `schema/auth.ts`. Credentials (email/password via
+  over the auth tables in `schema.ts`. Credentials (email/password via
   `auth-credentials.ts#verifyCredentials`, self-signup through `/signup`) +
   Google OAuth (`AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET`, Google Cloud Console).
 - Admin seeding: `seedAdminUser()` in `src/lib/server/auth-seed.ts` creates the
@@ -100,7 +100,16 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 - Scheduled cron jobs (see `docs/05_operations/background_jobs.md`):
   weekly digest, overdue reminders, trial-expiry notices, file purge,
   MRR snapshot, dead-letter purge, analytics MV refresh.
-- Enqueue seams: `src/lib/server/queue.ts`, `extract-batch.ts`.
+- The first three are dispatchers only: they keyset-page `restaurants` and queue
+  one job per tenant onto `tenant-weekly-digest` / `tenant-overdue-reminder` /
+  `tenant-trial-notice`, consumed `SCHEDULED_FANOUT_CONCURRENCY` at a time with
+  per-job settlement (`src/lib/server/tenant-fanout.ts`, ADR-025).
+- Enqueue seams: `src/lib/server/queue.ts`, `extract-batch.ts`,
+  `tenant-fanout.ts`.
+- Liveness: the worker upserts `worker_heartbeats` every 30 s and after every
+  job batch (`worker-heartbeat.ts`). `/admin/health` and `/api/health` read it,
+  so "queue not draining" is distinguishable from "worker busy" without log
+  access (#540).
 
 ## External services
 
@@ -131,7 +140,8 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 `category_budgets`, `stock_levels`, `system_notifications`,
 `subscriptions`, `settings`, `chat_sessions`, `chat_messages`,
 `whatsapp_contacts`, `whatsapp_pairing_codes`, `dead_letter_queue`,
-`monthly_usage`, `llm_usage_log`, `mrr_snapshots`, `mv_*` materialized views.
+`worker_heartbeats`, `monthly_usage`, `llm_usage_log`, `mrr_snapshots`,
+`mv_*` materialized views.
 
 ## Important services (server lib)
 
@@ -140,6 +150,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 - `extract.ts` / `extraction-worker.ts` — classification + Gemini extraction
 - `einvoice-parser.ts` — Facturae/UBL parsing without AI
 - `alerts.ts` (alias `alert-engine.ts`) — alert rules, fired on save
+- `alert-preferences.ts` — per-tenant, per-type alert toggles (#577)
 - `billing.ts` — tiers, quotas, Stripe checkout + webhooks (ADR-013)
 - `billing-plans.ts` — `PROVISIONAL_PRICE`, `TIER_COPY` (client-facing)
 - `products.ts` — product identity in three tiers (ADR-009)
@@ -155,7 +166,6 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 - `tests/*.test.ts` (Vitest). DB-backed suites require a local Postgres
   (`DATABASE_TEST_URL`); they skip on non-local hosts.
-- Synthetic fixture generation (dev-only, not in the repo): `synth/` JS generator, `pnpm synth:generate`.
 - Coverage gate: v8 ≥80% lines on 7 core modules (vite.config.ts).
 - Location map: `docs/04_engineering/testing_strategy.md`.
 

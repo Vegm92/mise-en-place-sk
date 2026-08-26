@@ -61,6 +61,11 @@ billing peer; there is no per-location subscription, customer, or quota.
 
 ### 2. One subscription per group
 
+Nested under the one-subscription-per-user rule (ADR-024): a user may hold at
+most one live subscription, and that subscription's tier (`maxLocations`)
+decides how many restaurants it covers — the group here is the unit the
+subscription pays for, not a licence to buy a second one.
+
 - The `subscriptions` row exists **only on the parent**. Locations have no
   subscription row.
 - `getAccessState`, `getTierFeatures`, `getMonthlyQuota` already resolve via
@@ -179,7 +184,8 @@ location-level trial/subscription transition.
 - Weekly digest cron, alerts, MRR snapshots — run per restaurant; digest/email
   per location is expected (each location is a real tenant). MRR is computed
   from parent `subscriptions` rows only.
-- `allTenants` admin jobs — unaffected; they enumerate `restaurants`.
+- Tenant fan-out dispatchers (`tenantPage`) — unaffected; they page over
+  `restaurants`, so each location is dispatched its own job.
 
 ## External dependencies
 

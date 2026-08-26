@@ -1,13 +1,22 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+  import { categoryColor, categoryTint } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, ti } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
+  import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
+  import {
+    DEFAULT_SUPPLIER_SORT,
+    SUPPLIER_SEARCH_DEBOUNCE_MS,
+    SUPPLIER_SORT_KEYS,
+    SUPPLIER_SORT_LABEL_KEYS,
+    type SupplierSortKey,
+  } from '$lib/supplier-list';
 
   interface Supplier {
     id: number;
     name: string;
-    color: string | null;
     category: string | null;
     month_spend: number | null;
     delta_pct: number | null;
@@ -15,33 +24,58 @@
     price_trend?: number[];
   }
 
+  const INLINE_CATEGORY_CHIPS = 4;
+
   let {
     suppliers,
     categories = [],
+    categoryCounts = {},
     totalSpend = 0,
     totalMonthInvoices = 0,
     unassigned = 0,
     firstUnassigned = '',
+    search: appliedSearch = '',
+    category = '',
+    sort = DEFAULT_SUPPLIER_SORT,
+    uncategorizedOnly = false,
+    onApply,
   }: {
     suppliers: Supplier[];
     categories?: string[];
+    categoryCounts?: Record<string, number>;
     totalSpend?: number;
     totalMonthInvoices?: number;
     unassigned?: number;
     firstUnassigned?: string;
+    search?: string;
+    category?: string;
+    sort?: SupplierSortKey;
+    uncategorizedOnly?: boolean;
+    onApply?: (patch: Record<string, string | null>, replace?: boolean) => void;
   } = $props();
 
-  let search = $state('');
-  let catFilter = $state('');
+  let search = $state(untrack(() => appliedSearch));
+  let sheetOpen = $state(false);
 
-  const filtered = $derived(
-    suppliers.filter(s => {
-      const q = search.trim().toLowerCase();
-      const matchSearch = !q || s.name.toLowerCase().includes(q) || (s.category ?? '').toLowerCase().includes(q);
-      const matchCat = !catFilter || s.category === catFilter;
-      return matchSearch && matchCat;
-    })
-  );
+  const inlineCategories = $derived.by(() => {
+    const used = categories.filter(cat => (categoryCounts[cat] ?? 0) > 0);
+    const top = (used.length ? used : categories).slice(0, INLINE_CATEGORY_CHIPS);
+    if (category && !top.includes(category)) return [category, ...top.slice(0, INLINE_CATEGORY_CHIPS - 1)];
+    return top;
+  });
+  const hiddenCategories = $derived(categories.filter(cat => !inlineCategories.includes(cat)));
+
+  function pickCategory(cat: string | null) {
+    sheetOpen = false;
+    onApply?.({ category: cat });
+  }
+
+  $effect(() => {
+    const value = search.trim();
+    if (value === appliedSearch) return;
+    const timer = setTimeout(() => onApply?.({ q: value || null }, true), SUPPLIER_SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  });
 
   function initials(name: string) {
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -49,6 +83,10 @@
 
   function deltaColor(v: number) {
     return v > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)';
+  }
+
+  function chipClass(active: boolean) {
+    return active ? 'chip active' : 'chip';
   }
 </script>
 
@@ -62,61 +100,99 @@
     </span>
     <input
       class="input"
-      style="width: 100%; height: 40px; padding-left: 36px; font-size: 14px; box-sizing: border-box;"
+      style="width: 100%; height: 40px; padding-left: 36px; box-sizing: border-box;"
       placeholder={$t('sup.searchPlaceholder')}
       bind:value={search}
     />
   </div>
 
-  <div style="display: flex; gap: 6px; padding: 0 18px 12px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none;">
+  <div style="padding: 0 18px 10px;">
+    <select
+      class="input"
+      style="width: 100%; height: 36px; box-sizing: border-box;"
+      aria-label={$t('sup.sort.label')}
+      value={sort}
+      onchange={(e) => onApply?.({ sort: e.currentTarget.value })}
+    >
+      {#each SUPPLIER_SORT_KEYS as key}
+        <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
+      {/each}
+    </select>
+  </div>
+
+  <ScrollStrip label={$t('sup.categoriesLabel')} extraStyle="flex-shrink:0;">
+    <button class={chipClass(!category)} onclick={() => onApply?.({ category: null })}>{$t('sup.allChip')}</button>
     <button
-      onclick={() => catFilter = ''}
-      style="
-        border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
-        background: {!catFilter ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-        color: {!catFilter ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-        font-size: 12px; font-weight: 500; font-family: inherit;
-        box-shadow: {!catFilter ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-      "
-    >{$t('sup.allChip')}</button>
-    {#each categories as cat}
+      class={chipClass(uncategorizedOnly)}
+      aria-pressed={uncategorizedOnly}
+      onclick={() => onApply?.({ uncategorized: uncategorizedOnly ? null : '1' })}
+    >{$t('sup.filterUncategorized')}</button>
+    {#each inlineCategories as cat}
       <button
-        onclick={() => catFilter = catFilter === cat ? '' : cat}
-        style="
-          border: 0; height: 30px; padding: 0 12px; border-radius: 15px; white-space: nowrap; cursor: pointer;
-          background: {catFilter === cat ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-          color: {catFilter === cat ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-          font-size: 12px; font-weight: 500; font-family: inherit;
-          box-shadow: {catFilter === cat ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-        "
+        class={chipClass(category === cat)}
+        onclick={() => onApply?.({ category: category === cat ? null : cat })}
       >{$tcat(cat)}</button>
     {/each}
-  </div>
+    {#if hiddenCategories.length > 0}
+      <button
+        data-scroll-strip-more
+        aria-haspopup="dialog"
+        onclick={() => sheetOpen = true}
+        class={chipClass(false)}
+      >{$ti('sup.categorySheet.open', { n: hiddenCategories.length })}</button>
+    {/if}
+  </ScrollStrip>
+
+  {#if sheetOpen}
+    <button
+      type="button"
+      class="filter-sheet-backdrop"
+      aria-label={$t('sup.categorySheet.close')}
+      onclick={() => sheetOpen = false}
+    ></button>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('sup.categorySheet.title')}>
+      <div class="filter-sheet-head">
+        <span class="body-strong">{$t('sup.categorySheet.title')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => sheetOpen = false}>{$t('sup.categorySheet.close')}</button>
+      </div>
+      <div class="filter-sheet-list">
+        <button type="button" class="filter-sheet-option" aria-pressed={!category} onclick={() => pickCategory(null)}>
+          <span>{$t('sup.allChip')}</span>
+        </button>
+        {#each categories as cat}
+          <button type="button" class="filter-sheet-option" aria-pressed={category === cat} onclick={() => pickCategory(category === cat ? null : cat)}>
+            <span>{$tcat(cat)}</span>
+            <span class="num filter-sheet-count">{categoryCounts[cat] ?? 0}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <div class="card" style="margin: 0 18px 12px; padding: 10px 14px; flex-shrink: 0; display: flex; align-items: center; gap: 0;">
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{suppliers.length}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.suppliersChip')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.suppliersChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend)}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
       <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{totalMonthInvoices}</div>
-      <div style="font-size: 10px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.invoicesList')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.invoicesList')}</div>
     </div>
   </div>
 
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 8px;">
-    {#if filtered.length === 0}
+    {#if suppliers.length === 0}
       <div style="padding: 40px 0; text-align: center; color: var(--mep-fg-3); font-size: 13px;">
-        {$t('sup.noSuppliers')}
+        {appliedSearch || category || uncategorizedOnly ? $t('sup.noResults') : $t('sup.noSuppliers')}
       </div>
     {:else}
-      {#each filtered as s}
+      {#each suppliers as s}
         <a href="/suppliers/{s.id}" style="
           display: flex; align-items: center; gap: 12px;
           padding: 12px; border-radius: 10px;
@@ -126,7 +202,7 @@
         ">
           <div style="
             width: 40px; height: 40px; border-radius: 20px; flex-shrink: 0;
-            background: {s.color ?? 'var(--mep-acc)'}24; color: {s.color ?? 'var(--mep-acc)'};
+            background: {categoryTint(s.category)}; color: {categoryColor(s.category)};
             display: flex; align-items: center; justify-content: center;
             font-size: 12px; font-weight: 600;
           ">

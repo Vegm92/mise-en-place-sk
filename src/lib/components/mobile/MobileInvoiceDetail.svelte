@@ -6,7 +6,6 @@
   import Edit from '@lucide/svelte/icons/edit';
   import Download from '@lucide/svelte/icons/download';
   import Truck from '@lucide/svelte/icons/truck';
-  import Check from '@lucide/svelte/icons/check';
   import { locale, t, ti } from '$lib/i18n';
 
   interface LineItem {
@@ -63,7 +62,7 @@
     display: flex; align-items: center; gap: 8px;
   ">
     <a href="/invoices" style="
-      width: 36px; height: 36px; border-radius: 18px; border: 0;
+      width: 44px; height: 44px; border-radius: 999px; border: 0;
       background: transparent; color: var(--mep-fg); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       text-decoration: none; flex-shrink: 0;
@@ -77,7 +76,7 @@
         </div>
         {#if invoice.document_type === 'factura' || invoice.document_type === 'albaran'}
           <span style="
-            flex-shrink: 0; font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 10px;
+            flex-shrink: 0; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 10px;
             background: var(--mep-surface-2); color: var(--mep-fg-3);
           ">
             {$t(`field.documentType.${invoice.document_type}`)}
@@ -89,7 +88,7 @@
       </div>
     </div>
     <button style="
-      width: 36px; height: 36px; border-radius: 18px; border: 0;
+      width: 44px; height: 44px; border-radius: 999px; border: 0;
       background: transparent; color: var(--mep-fg); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
     " aria-label={$t('mid.moreOptions')}>

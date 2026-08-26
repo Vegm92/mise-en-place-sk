@@ -1,9 +1,21 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { fmt, fmtDateShort } from '$lib/formatters';
+  import { seriesColor } from '$lib/colors';
+  import { untrack } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { fmt, fmtDateShort, fmtEur } from '$lib/formatters';
   import { t, ti, tp, locale } from '$lib/i18n';
-  import KpiCard from '$lib/components/mep/KpiCard.svelte';
-  import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import { debounce } from '$lib/debounce';
+  import {
+    EMPTY_INVOICE_FILTERS,
+    countActiveInvoiceFilters,
+    defaultFiltersOpen,
+    invoiceFilterParams,
+    invoiceFiltersHref,
+    type InvoiceFilters,
+    type InvoiceSortKey,
+  } from '$lib/invoice-filters';
+  import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
   import MobileInvoiceList from '$lib/components/mobile/MobileInvoiceList.svelte';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
@@ -16,9 +28,11 @@
   import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Eye from '@lucide/svelte/icons/eye';
+  import Search from '@lucide/svelte/icons/search';
+  import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal';
 
   const { data }: { data: PageData } = $props();
-  const { invoices, stats, suppliers, filters, pagination } = $derived(data);
+  const { invoices, stats, suppliers, filters: serverFilters, pagination } = $derived(data);
 
   let toastDismissed = $state(false);
   const showSavedToast = $derived(data.savedInvoiceId !== null && !toastDismissed);
@@ -30,22 +44,72 @@
   });
 
   function pageUrl(p: number): string {
-    const params = new URLSearchParams();
-    if (filters.status)        params.set('status', filters.status);
-    if (filters.supplier_id)   params.set('supplier_id', filters.supplier_id);
-    if (filters.date_from)     params.set('date_from', filters.date_from);
-    if (filters.date_to)       params.set('date_to', filters.date_to);
-    if (filters.uploaded_from) params.set('uploaded_from', filters.uploaded_from);
-    if (filters.uploaded_to)   params.set('uploaded_to', filters.uploaded_to);
-    if (filters.sort && filters.sort !== 'uploaded_desc') params.set('sort', filters.sort);
-    if (p > 1)                 params.set('page', String(p));
-    const qs = params.toString();
-    return '/invoices' + (qs ? '?' + qs : '');
+    return invoiceFiltersHref(serverFilters, { period: data.period, page: p });
   }
-  const hasFilters = $derived(!!(
-    filters.status || filters.supplier_id || filters.date_from || filters.date_to ||
-    filters.uploaded_from || filters.uploaded_to || (filters.sort && filters.sort !== 'uploaded_desc')
-  ));
+
+  const SEARCH_DEBOUNCE_MS = 300;
+
+  let filterDraft = $state<InvoiceFilters>(untrack(() => ({ ...data.filters })));
+  let filtersOpen = $state(untrack(() => defaultFiltersOpen(countActiveInvoiceFilters(data.filters))));
+  let lastRequested = untrack(() => invoiceFilterParams(data.filters).toString());
+  const activeCount = $derived(countActiveInvoiceFilters(filterDraft));
+
+  $effect(() => {
+    const incoming = invoiceFilterParams(data.filters).toString();
+    if (incoming === lastRequested) return;
+    lastRequested = incoming;
+    filterDraft = { ...data.filters };
+  });
+
+  function applyFilters(replace = false) {
+    lastRequested = invoiceFilterParams(filterDraft, { period: data.period }).toString();
+    goto(invoiceFiltersHref(filterDraft, { period: data.period }), {
+      keepFocus: true,
+      noScroll: true,
+      replaceState: replace,
+    });
+  }
+
+  const applySearch = debounce(() => applyFilters(true), SEARCH_DEBOUNCE_MS);
+
+  function patchFilters(patch: Partial<InvoiceFilters>) {
+    applySearch.cancel();
+    filterDraft = { ...filterDraft, ...patch };
+    applyFilters();
+  }
+
+  function setFilter<K extends keyof InvoiceFilters>(key: K, value: InvoiceFilters[K]) {
+    patchFilters({ [key]: value });
+  }
+
+  function loadMoreMobile() {
+    goto(pageUrl(pagination.page + 1), { keepFocus: true, noScroll: true });
+  }
+
+  function setSearch(value: string) {
+    filterDraft = { ...filterDraft, q: value };
+    applySearch();
+  }
+
+  function clearFilters() {
+    applySearch.cancel();
+    filterDraft = { ...EMPTY_INVOICE_FILTERS };
+    applyFilters();
+  }
+
+  let view = $state<'list' | 'chart'>('list');
+
+  let activeTrendKeys = $state(['paid', 'pending', 'overdue']);
+  function toggleTrendBadge(key: string) {
+    activeTrendKeys = activeTrendKeys.includes(key)
+      ? activeTrendKeys.filter(k => k !== key)
+      : [...activeTrendKeys, key];
+  }
+  const trendSeries = $derived(
+    data.trendData.series
+      .filter(s => activeTrendKeys.includes(s.key))
+      .map((s, i) => ({ key: s.key, label: $t(s.labelKey), color: seriesColor(i), values: s.values }))
+  );
 
   let checkedIds = $state<Set<number>>(new Set());
   const allChecked  = $derived(invoices.length > 0 && checkedIds.size === invoices.length);
@@ -117,7 +181,6 @@
     (document.getElementById(`delete-form-${deleteInvoiceId}`) as HTMLFormElement).submit();
     deleteInvoiceId = null;
   }
-
 </script>
 
 {#if showSavedToast}
@@ -152,320 +215,360 @@
 {/if}
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceList invoices={invoices} />
+  <MobileInvoiceList
+    invoices={invoices}
+    q={filterDraft.q}
+    onSearch={setSearch}
+    filters={serverFilters}
+    suppliers={suppliers}
+    pagination={pagination}
+    onFilter={patchFilters}
+    onLoadMore={loadMoreMobile}
+  />
 </div>
 
-<div class="hidden md:flex flex-col gap-4 p-6">
-
+<div class="hidden md:block p-6">
   {#if data.conflict}
-    <div class="card p-3 text-neg" role="alert" style="font-size:13px;">{$t('inv.conflict')}</div>
+    <div class="card p-3 text-neg" role="alert" style="font-size:13px;margin-bottom:16px;">{$t('inv.conflict')}</div>
   {/if}
 
-  <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2 max-[560px]:grid-cols-3" data-coach="invoices-main">
-    <KpiCard
-      label={$t('inv.kpi.pending')}
-      value={Math.round(stats.pending_amount) + ' €'}
-      sub={$tp('misc.invoice', stats.pending_count)}
-      variant={stats.pending_count > 0 ? 'warn' : 'default'}
-    />
-    <KpiCard
-      label={$t('inv.kpi.overdue')}
-      value={stats.overdue_count}
-      sub={$t('dash.kpi.overdue.sub')}
-      variant={stats.overdue_count > 0 ? 'neg' : 'default'}
-    />
-    <KpiCard
-      label={$t('inv.kpi.paid')}
-      value={stats.paid_count}
-      sub={$t('misc.invoices')}
-      variant="pos"
-    />
-    <KpiCard
-      label={$t('inv.kpi.suppliers')}
-      value={stats.supplier_count}
-      sub={$t('dash.kpi.active')}
-    />
-  </div>
+  <ListPageTemplate
+    dataCoach="invoices-main"
+    bind:view
+    viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
+    kpis={[
+      { key: 'pending',   label: $t('inv.kpi.pending'),   value: Math.round(stats.pending_amount) + ' €', sub: $tp('misc.invoice', stats.pending_count), variant: stats.pending_count > 0 ? 'warn' : 'default' },
+      { key: 'overdue',   label: $t('inv.kpi.overdue'),   value: stats.overdue_count, sub: $t('dash.kpi.overdue.sub'), variant: stats.overdue_count > 0 ? 'neg' : 'default' },
+      { key: 'paid',      label: $t('inv.kpi.paid'),      value: stats.paid_count, sub: $t('misc.invoices'), variant: 'pos' },
+      { key: 'suppliers', label: $t('inv.kpi.suppliers'), value: stats.supplier_count, sub: $t('dash.kpi.active') },
+    ]}
+    trendTitle={$t('inv.trend.title')}
+    trendBadges={data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.labelKey), color: seriesColor(i), active: activeTrendKeys.includes(s.key) }))}
+    onToggleTrendBadge={toggleTrendBadge}
+    trendXLabels={data.trendData.xLabels}
+    {trendSeries}
+    trendValueFormatter={fmtEur}
+    trendEmptyLabel={$t('tpl.trend.empty')}
+  >
+    {#snippet filters()}
+      <button type="button" class="btn btn-ghost"
+        style="font-size:12.5px;gap:6px;"
+        aria-expanded={filtersOpen}
+        aria-controls="inv-filter-panel"
+        onclick={() => (filtersOpen = !filtersOpen)}>
+        <SlidersHorizontal size={13} />
+        {$t('inv.filter.toggle')}
+        {#if activeCount > 0}
+          <span class="badge bg-acc-soft text-acc border border-acc"
+            aria-label={$ti('inv.filter.activeCount', { n: activeCount })}
+            style="min-width:18px;height:18px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;">
+            {activeCount}
+          </span>
+        {/if}
+        <span style="display:inline-flex;transition:transform 150ms;{filtersOpen ? 'transform:rotate(180deg);' : ''}">
+          <ChevronDown size={13} />
+        </span>
+      </button>
 
-  <SectionCard title={$t('inv.title')} noPad>
-    {#snippet headerRight()}
-      <a href="/invoices/export" class="btn btn-ghost" style="height:30px;font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
+      {#if activeCount > 0}
+        <button type="button" class="btn btn-ghost" style="font-size:12.5px;" onclick={clearFilters}>
+          {$t('inv.filter.clear')}
+        </button>
+      {/if}
+      <div style="flex:1;"></div>
+      <a href="/invoices/export" class="btn btn-ghost" style="font-size:12px;gap:5px;text-decoration:none;flex-shrink:0;">
         <FileDown size={13} />
         {$t('inv.export')}
       </a>
-    {/snippet}
 
-    <form method="get" action="/invoices"
-      class="flex flex-wrap items-end gap-2 px-4 py-3 border-b border-divider max-[700px]:flex-col max-[700px]:items-stretch">
+      <div id="inv-filter-panel" style="width:100%;">
+          {#if filtersOpen}
+            <div class="flex flex-wrap items-end gap-3">
 
-      <div class="flex flex-col gap-1 min-w-[140px]">
-        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-supplier">{$t('inv.filter.supplier')}</label>
-        <select id="inv-supplier" name="supplier_id" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
-          <option value="">{$t('inv.filter.all')}</option>
-          {#each suppliers as s}
-            <option value={s.id} selected={filters.supplier_id === String(s.id)}>{s.name}</option>
-          {/each}
-        </select>
-      </div>
-
-      <div class="flex flex-col gap-1 min-w-[110px]">
-        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-status">{$t('inv.filter.status')}</label>
-        <select id="inv-status" name="status" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
-          <option value="" selected={!filters.status}>{$t('inv.filter.allStatus')}</option>
-          <option value="pending"  selected={filters.status === 'pending'}>{$t('status.pending')}</option>
-          <option value="paid"     selected={filters.status === 'paid'}>{$t('status.paid')}</option>
-          <option value="overdue"  selected={filters.status === 'overdue'}>{$t('status.overdue')}</option>
-        </select>
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-from">{$t('inv.filter.from')}</label>
-        <input id="inv-from" type="date" name="date_from" value={filters.date_from}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-to">{$t('inv.filter.to')}</label>
-        <input id="inv-to" type="date" name="date_to" value={filters.date_to}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
-        <input id="inv-uploaded-from" type="date" name="uploaded_from" value={filters.uploaded_from}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
-      </div>
-
-      <div class="flex flex-col gap-1">
-        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
-        <input id="inv-uploaded-to" type="date" name="uploaded_to" value={filters.uploaded_to}
-          class="input" style="height:32px;font-size:12.5px;padding:0 8px;" />
-      </div>
-
-      <div class="flex flex-col gap-1 min-w-[170px]">
-        <label class="label text-fg-3" style="font-size:10.5px;" for="inv-sort">{$t('inv.filter.sort')}</label>
-        <select id="inv-sort" name="sort" class="input" style="height:32px;font-size:12.5px;padding:0 8px;">
-          <option value="uploaded_desc"     selected={filters.sort === 'uploaded_desc'}>{$t('inv.filter.sort.uploadedDesc')}</option>
-          <option value="uploaded_asc"      selected={filters.sort === 'uploaded_asc'}>{$t('inv.filter.sort.uploadedAsc')}</option>
-          <option value="invoice_date_desc" selected={filters.sort === 'invoice_date_desc'}>{$t('inv.filter.sort.invoiceDateDesc')}</option>
-          <option value="invoice_date_asc"  selected={filters.sort === 'invoice_date_asc'}>{$t('inv.filter.sort.invoiceDateAsc')}</option>
-        </select>
-      </div>
-
-      <div class="flex items-end gap-2">
-        <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">
-          {$t('inv.filter.apply')}
-        </button>
-        {#if hasFilters}
-          <a href="/invoices" class="btn btn-ghost" style="height:32px;font-size:12.5px;text-decoration:none;">
-            {$t('inv.filter.clear')}
-          </a>
-        {/if}
-      </div>
-    </form>
-
-    {#if invoices.length === 0}
-      <p class="body text-center py-16">{$t('inv.noInvoices')}</p>
-    {:else}
-      <form id="bulk-paid-form" method="post" action="?/bulkPaid" class="hidden">
-        {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
-      </form>
-      <form id="bulk-delete-form" method="post" action="?/bulkDelete" class="hidden">
-        {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
-      </form>
-
-      <div class="flex items-center gap-3 px-4 py-2 border-b border-divider min-h-[40px]">
-        <label class="flex items-center gap-2 body text-fg-2 cursor-pointer select-none" style="font-size:12.5px;">
-          <input type="checkbox" checked={allChecked} indeterminate={someChecked}
-            class="cursor-pointer accent-acc shrink-0"
-            onchange={(e) => toggleAll((e.target as HTMLInputElement).checked)} />
-          {$t('inv.selectAll')}
-        </label>
-
-        {#if bulkVisible}
-          <div class="flex items-center gap-2 bg-acc-soft border border-acc rounded-lg px-3 py-1.5 transition-all">
-            <span class="body-strong text-acc" style="font-size:12px;">{checkedIds.size} {$t('inv.selected')}</span>
-            <div class="w-px h-4 bg-divider"></div>
-            <button type="button" onclick={handleBulkPaid}
-              class="btn btn-ghost text-pos" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
-              <Check size={12} />
-              {$t('inv.markPaid')}
-            </button>
-            <button type="button" onclick={handleBulkDelete}
-              class="btn btn-ghost text-neg" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
-              <Trash2 size={12} />
-              {$t('inv.delete')}
-            </button>
-          </div>
-        {/if}
-      </div>
-
-      <div class="grid gap-3 p-4 xl:grid-cols-2">
-      {#each invoices as inv (inv.id)}
-        {@const noteVal = getNoteText(inv.id, inv.notes)}
-        {@const expanded = openIds.has(inv.id)}
-
-        <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'xl:col-span-2' : ''}">
-          <button type="button"
-            class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
-                   grid-cols-[auto_minmax(0,1fr)_95px_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
-            style="width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
-            onclick={() => toggleDrawer(inv.id)}>
-
-            <input type="checkbox"
-              class="cursor-pointer accent-acc shrink-0"
-              checked={checkedIds.has(inv.id)}
-              onclick={(e) => e.stopPropagation()}
-              onkeydown={(e) => e.stopPropagation()}
-              onchange={(e) => toggleCheck(inv.id, (e.target as HTMLInputElement).checked)} />
-
-            <div class="min-w-0">
-              <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{inv.supplier_name ?? '—'}</div>
-              <div class="body text-fg-3 overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:11.5px;">
-                {inv.invoice_number ?? '—'} · {inv.invoice_date ?? '—'}
-                <span class="text-fg-4">· {$t('inv.uploadedOn')} {inv.created_at ? fmtDateShort(inv.created_at.toISOString(), $locale) : '—'}</span>
-              </div>
-            </div>
-
-            <div class="body text-fg-3 max-[800px]:hidden" style="font-size:12px;">
-              {inv.due_date ?? '—'}
-            </div>
-
-            <div class="num text-right font-semibold" style="font-size:13px;">
-              {fmt(inv.total_amount)} <span class="text-fg-3" style="font-weight:400;font-size:11px;">EUR</span>
-            </div>
-
-            <div class="max-[800px]:hidden">
-              <StatusBadge status={inv.status ?? 'pending'} />
-            </div>
-
-            <div class="flex justify-end text-fg-3 transition-transform {expanded ? 'rotate-90' : ''}">
-              <ChevronRight size={15} />
-            </div>
-          </button>
-
-          {#if expanded}
-            <div class="bg-surface-2 border-t border-divider px-4 py-4 flex flex-col gap-4"
-              role="presentation" onclick={(e) => e.stopPropagation()}>
-
-              <div class="flex items-center gap-2 flex-wrap">
-                <a href="/invoice/{inv.id}" class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
-                  <Eye size={12} />
-                  {$t('inv.viewDetail')}
-                </a>
-                {#if inv.source_file}
-                  <a href="/invoice/{inv.id}/file" target="_blank" rel="noopener noreferrer"
-                    class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
-                    <ExternalLink size={12} />
-                    {$t('inv.detail.original')}
-                  </a>
-                {/if}
-                {#if inv.status === 'pending'}
-                  <form method="post" action="?/markPaid">
-                    <input type="hidden" name="id" value={inv.id} />
-                    <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:5px;">
-                      <Check size={12} />
-                      {$t('inv.markPaid')}
-                    </button>
-                  </form>
-                {:else}
-                  <form method="post" action="?/markUnpaid">
-                    <input type="hidden" name="id" value={inv.id} />
-                    <button type="submit" class="btn btn-ghost text-fg-2" style="height:28px;font-size:12px;gap:5px;">
-                      <RotateCcw size={12} />
-                      {$t('inv.markUnpaid')}
-                    </button>
-                  </form>
-                {/if}
-                <a href="/invoice/{inv.id}/edit" class="btn btn-ghost" style="height:28px;font-size:12px;text-decoration:none;">
-                  {$t('action.edit')}
-                </a>
-                <form id="delete-form-{inv.id}" method="post" action="?/deleteInvoice">
-                  <input type="hidden" name="id" value={inv.id} />
-                  <button type="button" class="btn btn-ghost text-neg" style="height:28px;font-size:12px;gap:5px;"
-                    onclick={() => requestDeleteInvoice(inv.id)}>
-                    <Trash2 size={12} />
-                    {$t('inv.delete')}
-                  </button>
-                </form>
-              </div>
-
-              {#if inv.line_items.length > 0}
-                <table class="tbl">
-                  <thead>
-                    <tr>
-                      <th>{$t('tbl.desc')}</th>
-                      <th class="num">{$t('tbl.qty')}</th>
-                      <th>{$t('tbl.unit')}</th>
-                      <th class="num">{$t('tbl.unitPrice')}</th>
-                      <th class="num">{$t('tbl.total')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {#each inv.line_items as item}
-                      <tr class="row">
-                        <td>{item.description ?? '—'}</td>
-                        <td class="num">{item.quantity ?? '—'}</td>
-                        <td>{item.unit ?? '—'}</td>
-                        <td class="num">{item.unit_price != null ? fmt(item.unit_price) : '—'}</td>
-                        <td class="num font-semibold">{item.total_price != null ? fmt(item.total_price) : '—'}</td>
-                      </tr>
-                    {/each}
-                  </tbody>
-                </table>
-              {:else}
-                <p class="body">{$t('inv.detail.noLines')}</p>
-              {/if}
-
-              <div class="flex flex-col gap-1.5">
-                <span class="label">{$t('inv.detail.notes')}</span>
-                <textarea
-                  maxlength={250}
-                  placeholder={$t('inv.detail.addNote')}
-                  value={noteVal}
-                  class="input resize-y"
-                  style="min-height:52px;max-height:120px;padding:8px 10px;font-size:12.5px;"
-                  oninput={(e: Event) => setNoteText(inv.id, (e.target as HTMLTextAreaElement).value)}
-                  onblur={() => saveNote(inv.id)}
-                ></textarea>
-                <div class="flex justify-between items-center">
-                  <span class="body text-pos transition-opacity duration-300 {noteSavedFlash[inv.id] ? 'opacity-100' : 'opacity-0'}"
-                    style="font-size:11px;">{$t('inv.detail.saved')}</span>
-                  <span class="body text-fg-3" style="font-size:11px;">{noteVal.length}/250</span>
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-q">{$t('inv.filter.search')}</label>
+                <div class="search-field">
+                  <span class="search-icon"><Search size={13} /></span>
+                  <input id="inv-q" type="search" class="input"
+                    style="padding-left:32px;min-width:200px;"
+                    placeholder={$t('inv.searchPlaceholder')}
+                    value={filterDraft.q}
+                    oninput={(e) => setSearch((e.target as HTMLInputElement).value)} />
                 </div>
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-supplier">{$t('inv.filter.supplier')}</label>
+                <select id="inv-supplier" class="input" style="padding:0 8px;min-width:160px;"
+                  value={filterDraft.supplier_id}
+                  onchange={(e) => setFilter('supplier_id', (e.target as HTMLSelectElement).value)}>
+                  <option value="">{$t('inv.filter.all')}</option>
+                  {#each suppliers as s}
+                    <option value={String(s.id)}>{s.name}</option>
+                  {/each}
+                </select>
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-status">{$t('inv.filter.status')}</label>
+                <select id="inv-status" class="input" style="padding:0 8px;"
+                  value={filterDraft.status}
+                  onchange={(e) => setFilter('status', (e.target as HTMLSelectElement).value)}>
+                  <option value="">{$t('inv.filter.allStatus')}</option>
+                  <option value="pending">{$t('status.pending')}</option>
+                  <option value="paid">{$t('status.paid')}</option>
+                  <option value="overdue">{$t('status.overdue')}</option>
+                </select>
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-from">{$t('inv.filter.from')}</label>
+                <input id="inv-from" type="date" class="input" style="padding:0 8px;"
+                  value={filterDraft.date_from}
+                  onchange={(e) => setFilter('date_from', (e.target as HTMLInputElement).value)} />
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-to">{$t('inv.filter.to')}</label>
+                <input id="inv-to" type="date" class="input" style="padding:0 8px;"
+                  value={filterDraft.date_to}
+                  onchange={(e) => setFilter('date_to', (e.target as HTMLInputElement).value)} />
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-from">{$t('inv.filter.uploadedFrom')}</label>
+                <input id="inv-uploaded-from" type="date" class="input" style="padding:0 8px;"
+                  value={filterDraft.uploaded_from}
+                  onchange={(e) => setFilter('uploaded_from', (e.target as HTMLInputElement).value)} />
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-uploaded-to">{$t('inv.filter.uploadedTo')}</label>
+                <input id="inv-uploaded-to" type="date" class="input" style="padding:0 8px;"
+                  value={filterDraft.uploaded_to}
+                  onchange={(e) => setFilter('uploaded_to', (e.target as HTMLInputElement).value)} />
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="label" style="text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-3);" for="inv-sort">{$t('inv.filter.sort')}</label>
+                <select id="inv-sort" class="input" style="padding:0 8px;min-width:185px;"
+                  value={filterDraft.sort}
+                  onchange={(e) => setFilter('sort', (e.target as HTMLSelectElement).value as InvoiceSortKey)}>
+                  <option value="uploaded_desc">{$t('inv.filter.sort.uploadedDesc')}</option>
+                  <option value="uploaded_asc">{$t('inv.filter.sort.uploadedAsc')}</option>
+                  <option value="invoice_date_desc">{$t('inv.filter.sort.invoiceDateDesc')}</option>
+                  <option value="invoice_date_asc">{$t('inv.filter.sort.invoiceDateAsc')}</option>
+                </select>
               </div>
 
             </div>
           {/if}
-        </div>
-      {/each}
       </div>
-    {/if}
+    {/snippet}
 
-    {#if pagination.totalPages > 1}
-      <div class="flex items-center justify-between px-4 py-3 border-t border-divider">
-        <span class="body text-fg-3" style="font-size:12px;">
-          {(pagination.page - 1) * pagination.pageSize + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} / {pagination.total}
-        </span>
-        <div class="flex items-center gap-1">
-          <a href={pageUrl(pagination.page - 1)}
-            class="btn btn-ghost {pagination.page <= 1 ? 'opacity-30 pointer-events-none' : ''}"
-            style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
-            aria-disabled={pagination.page <= 1}>
-            <ChevronLeft size={14} />
-          </a>
-          <span class="body" style="font-size:12px;padding:0 8px;">{pagination.page} / {pagination.totalPages}</span>
-          <a href={pageUrl(pagination.page + 1)}
-            class="btn btn-ghost {pagination.page >= pagination.totalPages ? 'opacity-30 pointer-events-none' : ''}"
-            style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
-            aria-disabled={pagination.page >= pagination.totalPages}>
-            <ChevronRight size={14} />
-          </a>
+    {#snippet table()}
+      {#if invoices.length === 0}
+        <p class="body text-center py-16">{$t('inv.noInvoices')}</p>
+      {:else}
+        <form id="bulk-paid-form" method="post" action="?/bulkPaid" class="hidden">
+          {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
+        </form>
+        <form id="bulk-delete-form" method="post" action="?/bulkDelete" class="hidden">
+          {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
+        </form>
+
+        <div class="flex items-center gap-3 px-4 py-2 border-b border-divider min-h-[40px]">
+          <label class="flex items-center gap-2 body text-fg-2 cursor-pointer select-none" style="font-size:12.5px;">
+            <input type="checkbox" checked={allChecked} indeterminate={someChecked}
+              class="cursor-pointer accent-acc shrink-0"
+              onchange={(e) => toggleAll((e.target as HTMLInputElement).checked)} />
+            {$t('inv.selectAll')}
+          </label>
+
+          {#if bulkVisible}
+            <div class="flex items-center gap-2 bg-acc-soft border border-acc rounded-lg px-3 py-1.5 transition-all">
+              <span class="body-strong text-acc" style="font-size:12px;">{checkedIds.size} {$t('inv.selected')}</span>
+              <div class="w-px h-4 bg-divider"></div>
+              <button type="button" onclick={handleBulkPaid}
+                class="btn btn-ghost text-pos" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
+                <Check size={12} />
+                {$t('inv.markPaid')}
+              </button>
+              <button type="button" onclick={handleBulkDelete}
+                class="btn btn-ghost text-neg" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
+                <Trash2 size={12} />
+                {$t('inv.delete')}
+              </button>
+            </div>
+          {/if}
         </div>
-      </div>
-    {/if}
-  </SectionCard>
 
+        <div class="grid gap-3 p-4 xl:grid-cols-2">
+        {#each invoices as inv (inv.id)}
+          {@const noteVal = getNoteText(inv.id, inv.notes)}
+          {@const expanded = openIds.has(inv.id)}
+
+          <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'xl:col-span-2' : ''}">
+            <button type="button"
+              class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
+                     grid-cols-[auto_minmax(0,1fr)_95px_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
+              style="width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
+              onclick={() => toggleDrawer(inv.id)}>
+
+              <input type="checkbox"
+                class="cursor-pointer accent-acc shrink-0"
+                checked={checkedIds.has(inv.id)}
+                onclick={(e) => e.stopPropagation()}
+                onkeydown={(e) => e.stopPropagation()}
+                onchange={(e) => toggleCheck(inv.id, (e.target as HTMLInputElement).checked)} />
+
+              <div class="min-w-0">
+                <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{inv.supplier_name ?? '—'}</div>
+                <div class="body text-fg-3 overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:11.5px;">
+                  {inv.invoice_number ?? '—'} · {inv.invoice_date ?? '—'}
+                  <span class="text-fg-4">· {$t('inv.uploadedOn')} {inv.created_at ? fmtDateShort(inv.created_at.toISOString(), $locale) : '—'}</span>
+                </div>
+              </div>
+
+              <div class="body text-fg-3 max-[800px]:hidden" style="font-size:12px;">
+                {inv.due_date ?? '—'}
+              </div>
+
+              <div class="num text-right font-semibold" style="font-size:13px;">
+                {fmt(inv.total_amount)} <span class="text-fg-3" style="font-weight:400;font-size:11px;">EUR</span>
+              </div>
+
+              <div class="max-[800px]:hidden">
+                <StatusBadge status={inv.status ?? 'pending'} />
+              </div>
+
+              <div class="flex justify-end text-fg-3 transition-transform {expanded ? 'rotate-90' : ''}">
+                <ChevronRight size={15} />
+              </div>
+            </button>
+
+            {#if expanded}
+              <div class="bg-surface-2 border-t border-divider px-4 py-4 flex flex-col gap-4"
+                role="presentation" onclick={(e) => e.stopPropagation()}>
+
+                <div class="flex items-center gap-2 flex-wrap">
+                  <a href="/invoice/{inv.id}" class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
+                    <Eye size={12} />
+                    {$t('inv.viewDetail')}
+                  </a>
+                  {#if inv.source_file}
+                    <a href="/invoice/{inv.id}/file" target="_blank" rel="noopener noreferrer"
+                      class="btn btn-ghost" style="height:28px;font-size:12px;gap:5px;text-decoration:none;">
+                      <ExternalLink size={12} />
+                      {$t('inv.detail.original')}
+                    </a>
+                  {/if}
+                  {#if inv.status === 'pending'}
+                    <form method="post" action="?/markPaid">
+                      <input type="hidden" name="id" value={inv.id} />
+                      <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:5px;">
+                        <Check size={12} />
+                        {$t('inv.markPaid')}
+                      </button>
+                    </form>
+                  {:else}
+                    <form method="post" action="?/markUnpaid">
+                      <input type="hidden" name="id" value={inv.id} />
+                      <button type="submit" class="btn btn-ghost text-fg-2" style="height:28px;font-size:12px;gap:5px;">
+                        <RotateCcw size={12} />
+                        {$t('inv.markUnpaid')}
+                      </button>
+                    </form>
+                  {/if}
+                  <a href="/invoice/{inv.id}/edit" class="btn btn-ghost" style="height:28px;font-size:12px;text-decoration:none;">
+                    {$t('action.edit')}
+                  </a>
+                  <form id="delete-form-{inv.id}" method="post" action="?/deleteInvoice">
+                    <input type="hidden" name="id" value={inv.id} />
+                    <button type="button" class="btn btn-ghost text-neg" style="height:28px;font-size:12px;gap:5px;"
+                      onclick={() => requestDeleteInvoice(inv.id)}>
+                      <Trash2 size={12} />
+                      {$t('inv.delete')}
+                    </button>
+                  </form>
+                </div>
+
+                {#if inv.line_items.length > 0}
+                  <table class="tbl">
+                    <thead>
+                      <tr>
+                        <th>{$t('tbl.desc')}</th>
+                        <th class="num">{$t('tbl.qty')}</th>
+                        <th>{$t('tbl.unit')}</th>
+                        <th class="num">{$t('tbl.unitPrice')}</th>
+                        <th class="num">{$t('tbl.total')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each inv.line_items as item}
+                        <tr class="row">
+                          <td>{item.description ?? '—'}</td>
+                          <td class="num">{item.quantity ?? '—'}</td>
+                          <td>{item.unit ?? '—'}</td>
+                          <td class="num">{item.unit_price != null ? fmt(item.unit_price) : '—'}</td>
+                          <td class="num font-semibold">{item.total_price != null ? fmt(item.total_price) : '—'}</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                {:else}
+                  <p class="body">{$t('inv.detail.noLines')}</p>
+                {/if}
+
+                <div class="flex flex-col gap-1.5">
+                  <span class="label">{$t('inv.detail.notes')}</span>
+                  <textarea
+                    maxlength={250}
+                    placeholder={$t('inv.detail.addNote')}
+                    value={noteVal}
+                    class="input resize-y"
+                    style="min-height:52px;max-height:120px;padding:8px 10px;"
+                    oninput={(e: Event) => setNoteText(inv.id, (e.target as HTMLTextAreaElement).value)}
+                    onblur={() => saveNote(inv.id)}
+                  ></textarea>
+                  <div class="flex justify-between items-center">
+                    <span class="body text-pos transition-opacity duration-300 {noteSavedFlash[inv.id] ? 'opacity-100' : 'opacity-0'}"
+                      style="font-size:11px;">{$t('inv.detail.saved')}</span>
+                    <span class="body text-fg-3" style="font-size:11px;">{noteVal.length}/250</span>
+                  </div>
+                </div>
+
+              </div>
+            {/if}
+          </div>
+        {/each}
+        </div>
+      {/if}
+
+      {#if pagination.totalPages > 1}
+        <div class="flex items-center justify-between px-4 py-3 border-t border-divider">
+          <span class="body text-fg-3" style="font-size:12px;">
+            {(pagination.page - 1) * pagination.pageSize + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} / {pagination.total}
+          </span>
+          <div class="flex items-center gap-1">
+            <a href={pageUrl(pagination.page - 1)}
+              class="btn btn-ghost {pagination.page <= 1 ? 'opacity-30 pointer-events-none' : ''}"
+              style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
+              aria-disabled={pagination.page <= 1}>
+              <ChevronLeft size={14} />
+            </a>
+            <span class="body" style="font-size:12px;padding:0 8px;">{pagination.page} / {pagination.totalPages}</span>
+            <a href={pageUrl(pagination.page + 1)}
+              class="btn btn-ghost {pagination.page >= pagination.totalPages ? 'opacity-30 pointer-events-none' : ''}"
+              style="height:30px;width:30px;padding:0;display:flex;align-items:center;justify-content:center;"
+              aria-disabled={pagination.page >= pagination.totalPages}>
+              <ChevronRight size={14} />
+            </a>
+          </div>
+        </div>
+      {/if}
+    {/snippet}
+  </ListPageTemplate>
 </div>
 
 <ConfirmDialog

@@ -19,23 +19,24 @@ import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 const WEBHOOK_SECRET = 'whsec_test_dummy';
 const PRICE_PRO = 'price_pro_test';
 
+const originalEnv = { ...process.env };
+
 // Stripe config for the module under test (constructEvent / generateTestHeaderString
 // run locally; no network). A dummy secret key is enough to instantiate Stripe.
 // NB: factory is hoisted above the const declarations — inline the literals.
-vi.mock('$env/dynamic/private', () => ({
-	env: {
-		STRIPE_SECRET_KEY: 'sk_test_dummy_for_local_signature_verification',
-		STRIPE_WEBHOOK_SECRET: 'whsec_test_dummy',
-		STRIPE_PRICE_ID_STARTER: 'price_starter_test',
-		STRIPE_PRICE_ID_PRO: 'price_pro_test',
-		STRIPE_PRICE_ID_BUSINESS: 'price_business_test',
-	},
-}));
+vi.hoisted(() => {
+	process.env.STRIPE_SECRET_KEY = 'sk_test_dummy_for_local_signature_verification';
+	process.env.STRIPE_WEBHOOK_SECRET = 'whsec_test_dummy';
+	process.env.STRIPE_PRICE_ID_STARTER = 'price_starter_test';
+	process.env.STRIPE_PRICE_ID_PRO = 'price_pro_test';
+	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business_test';
+});
 
 // Don't send real emails from the confirmation path.
 vi.mock('../src/lib/server/email', () => ({
 	sendEmail: vi.fn().mockResolvedValue(undefined),
 	subscriptionConfirmationEmail: vi.fn(() => ({ to: '', subject: '', html: '' })),
+	subscriptionConsolidatedEmail: vi.fn((to: string) => ({ to, subject: '', html: '' })),
 }));
 
 // Give billing.ts a real, locality-aware DB client. Mirrors db.ts but avoids
@@ -55,10 +56,12 @@ vi.mock('../src/lib/server/db', async () => {
 });
 
 import { and, eq } from 'drizzle-orm';
-import { handleWebhookEvent, stripe, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
-import { subscriptions, settings, idempotencyKeys } from '../src/lib/server/schema';
+import { handleWebhookEvent, stripe, syncSubscriptionFromStripe, cancelDuplicateSubscriptionsForUser, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
+import { subscriptions, settings, idempotencyKeys, userRestaurants } from '../src/lib/server/schema';
+import { users } from '../src/lib/server/schema';
 import { testDb, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
 import { STRIPE_WEBHOOK_SCOPE } from '../src/lib/server/idempotency';
+import { sendEmail } from '../src/lib/server/email';
 
 let rid = '';
 
@@ -101,6 +104,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+	process.env = { ...originalEnv };
 	if (!hasDbEnv) return;
 	await cleanupTestRestaurant(rid);
 	await closeDb();
@@ -213,6 +217,206 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — subscription lifecycle branches',
 /** Sign a body with the module's webhook secret. */
 const sign = (body: string) =>
 	stripe!.webhooks.generateTestHeaderString({ payload: body, secret: MODULE_SECRET });
+
+/**
+ * Reconcile-on-load backstop: `/billing` pulls the live subscription from
+ * Stripe so a missed webhook can't permanently drift local entitlement.
+ */
+describe.skipIf(!hasDbEnv)('Stripe — reconcile subscription from Stripe', () => {
+	const liveSub = {
+		id: 'sub_reconcile_1',
+		status: 'active',
+		cancel_at_period_end: false,
+		trial_end: null,
+		items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] },
+	} as never;
+
+	it('applies the live Stripe state over a stale local row', async () => {
+		const r = await createTestRestaurant('stripe-reconcile');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'starter', status: 'trialing',
+			stripeSubscriptionId: 'sub_reconcile_1', cancelAtPeriodEnd: true,
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue(liveSub);
+		try {
+			await syncSubscriptionFromStripe(r.id);
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.planTier).toBe('pro');
+			expect(row?.status).toBe('active');
+			expect(row?.stripePriceId).toBe(PRICE_PRO);
+			expect(row?.cancelAtPeriodEnd).toBe(false);
+			expect(row?.lastEventAt).toBeInstanceOf(Date);
+
+			const settingsRows = await testDb.select().from(settings).where(eq(settings.restaurantId, r.id));
+			expect(Object.fromEntries(settingsRows.map((s) => [s.key, s.value])).plan_name).toBe('Pro');
+		} finally {
+			retrieveSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('is a no-op without a stripe subscription id', async () => {
+		const r = await createTestRestaurant('stripe-reconcile-none');
+		await testDb.insert(subscriptions).values({ restaurantId: r.id, planTier: 'starter', status: 'trialing' });
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve');
+		try {
+			await syncSubscriptionFromStripe(r.id);
+			expect(retrieveSpy).not.toHaveBeenCalled();
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.planTier).toBe('starter');
+		} finally {
+			retrieveSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('swallows a Stripe failure so the billing page still renders', async () => {
+		const r = await createTestRestaurant('stripe-reconcile-fail');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'starter', status: 'trialing',
+			stripeSubscriptionId: 'sub_reconcile_1',
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockRejectedValue(new Error('stripe 503'));
+		try {
+			await expect(syncSubscriptionFromStripe(r.id)).resolves.toBeUndefined();
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.planTier).toBe('starter');
+		} finally {
+			retrieveSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('adopts the live subscription when the stored one is canceled, if metadata confirms ownership', async () => {
+		const r = await createTestRestaurant('stripe-reconcile-adopt');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'trial', status: 'canceled',
+			stripeSubscriptionId: 'sub_stale_canceled', stripeCustomerId: 'cus_reconcile',
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_stale_canceled', status: 'canceled', cancel_at_period_end: false, trial_end: null,
+			items: { data: [{ price: { id: 'price_starter_test' }, current_period_end: null }] },
+		} as never);
+		const listSpy = vi.spyOn(stripe!.subscriptions, 'list').mockResolvedValue({
+			data: [{ id: 'sub_live_pro', status: 'active', cancel_at_period_end: false, trial_end: null,
+				metadata: { restaurantId: r.id }, created: Math.floor(Date.now() / 1000),
+				items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } }],
+		} as never);
+		try {
+			await syncSubscriptionFromStripe(r.id);
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.stripeSubscriptionId).toBe('sub_live_pro');
+			expect(row?.planTier).toBe('pro');
+			expect(row?.status).toBe('active');
+		} finally {
+			retrieveSpy.mockRestore();
+			listSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('falls back to the single live subscription when none carry restaurantId metadata', async () => {
+		const r = await createTestRestaurant('stripe-reconcile-ambiguous');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'trial', status: 'canceled',
+			stripeSubscriptionId: 'sub_stale_canceled', stripeCustomerId: 'cus_reconcile',
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_stale_canceled', status: 'canceled', cancel_at_period_end: false, trial_end: null,
+			items: { data: [{ price: { id: 'price_starter_test' }, current_period_end: null }] },
+		} as never);
+		const listSpy = vi.spyOn(stripe!.subscriptions, 'list').mockResolvedValue({
+			data: [{ id: 'sub_other_restaurant', status: 'active', cancel_at_period_end: false, trial_end: null,
+				metadata: {}, created: Math.floor(Date.now() / 1000),
+				items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } }],
+		} as never);
+		try {
+			await syncSubscriptionFromStripe(r.id);
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.stripeSubscriptionId).toBe('sub_other_restaurant');
+			expect(row?.planTier).toBe('pro');
+			expect(row?.status).toBe('active');
+		} finally {
+			retrieveSpy.mockRestore();
+			listSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('stays unresolved when the customer has multiple live subscriptions tagged for this restaurant', async () => {
+		const r = await createTestRestaurant('stripe-reconcile-multi');
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'trial', status: 'canceled',
+			stripeSubscriptionId: 'sub_stale_canceled', stripeCustomerId: 'cus_reconcile',
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_stale_canceled', status: 'canceled', cancel_at_period_end: false, trial_end: null,
+			items: { data: [{ price: { id: 'price_starter_test' }, current_period_end: null }] },
+		} as never);
+		const listSpy = vi.spyOn(stripe!.subscriptions, 'list').mockResolvedValue({
+			data: [
+				{ id: 'sub_dup_1', status: 'active', cancel_at_period_end: false, trial_end: null,
+					metadata: { restaurantId: r.id }, created: Math.floor(Date.now() / 1000),
+					items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } },
+				{ id: 'sub_dup_2', status: 'active', cancel_at_period_end: false, trial_end: null,
+					metadata: { restaurantId: r.id }, created: Math.floor(Date.now() / 1000) - 100,
+					items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] } },
+			],
+		} as never);
+		try {
+			await syncSubscriptionFromStripe(r.id);
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.stripeSubscriptionId).toBe('sub_stale_canceled');
+			expect(row?.status).toBe('canceled');
+		} finally {
+			retrieveSpy.mockRestore();
+			listSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+});
+
+describe.skipIf(!hasDbEnv)('cancelDuplicateSubscriptionsForUser — notifies the owner of the canceled restaurant', () => {
+	it('emails the owner of the canceled restaurant, not the kept one', async () => {
+		const ts = Date.now();
+		const cusKeep = `cus_keep_${ts}`;
+		const cusDropId = `cus_drop_${ts}`;
+		const subKeep = `sub_keep_${ts}`;
+		const subDropId = `sub_drop_${ts}`;
+		const keep = await createTestRestaurant('dup-keep');
+		const drop = await createTestRestaurant('dup-drop');
+		try {
+			const [user] = await testDb.insert(users)
+				.values({ email: `dup-owner-${Date.now()}@example.com` })
+				.returning({ id: users.id });
+			await testDb.insert(userRestaurants).values([
+				{ userId: user.id, restaurantId: keep.id, role: 'owner' },
+				{ userId: user.id, restaurantId: drop.id, role: 'owner' },
+			]);
+			await testDb.insert(subscriptions).values([
+				{ restaurantId: keep.id, planTier: 'pro', status: 'active', stripeSubscriptionId: subKeep, stripeCustomerId: cusKeep },
+				{ restaurantId: drop.id, planTier: 'pro', status: 'active', stripeSubscriptionId: subDropId, stripeCustomerId: cusDropId },
+			]);
+			const cancelSpy = vi.spyOn(stripe!.subscriptions, 'cancel').mockResolvedValue({} as never);
+			try {
+				await cancelDuplicateSubscriptionsForUser(user.id, keep.id);
+
+				expect(cancelSpy).toHaveBeenCalledWith(subDropId);
+				expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: expect.stringContaining('dup-owner-') }));
+			} finally {
+				cancelSpy.mockRestore();
+				await testDb.delete(users).where(eq(users.id, user.id));
+			}
+		} finally {
+			await cleanupTestRestaurant(keep.id);
+			await cleanupTestRestaurant(drop.id);
+		}
+	});
+});
 
 /**
  * #240 — Stripe retries deliveries for up to 3 days and does not guarantee

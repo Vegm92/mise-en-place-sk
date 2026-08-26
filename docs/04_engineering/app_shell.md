@@ -34,10 +34,20 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`function switchLocation`**
 - fall through — the select resets on the next render.
 **`markup`**
-- Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links, legal footer, user chip).
-- Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle, notification bell, theme toggle, upload CTA (mobile only).
+- Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links — Ajustes and Ayuda (#569) — legal footer, user chip). The util links carry the language and theme toggles below `md` only (#660): the off-canvas drawer is the mobile overflow menu, so the header row keeps just the hamburger, the title, the bell and the upload CTA.
+- Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle (desktop only, #660), notification bell, theme toggle (desktop only, #660), upload CTA (mobile only).
+**`const pageTitle`**
+- `$page.data.title` is an i18n key, not copy — a route that returns none falls back to the app name, which is what #660 fixed across `/billing`, `/products/[id]`, `/plantilla-lista`, `/suppliers/[id]` and the two confirmation pages. `titleParams` is the escape hatch for a title that names a record (`/invoice/[id]` → `inv.detail.pageTitle` = `Albarán {number}`); it resolves through `ti` so the string stays translated.
+- The header is `.shell-header` / `.shell-title` in `app.css` rather than inline styles, because the title needs a media query: 16px below `md`, 20px from `md` up. At 390px the title box is 240px, which fits the longest title in either locale (#660).
 - Page content — a `<main>` landmark contains a post-hydration client render/effect error (e.g. the /batch/[id] polling loop, the chat page) to this region so the shell survives; +error.svelte still covers load errors.
 - Tutorial coach marks: completion overlay and the app-wide tour nudge (small dismissible corner card, persists across dashboard visits) — both carry svelte-ignore a11y_no_static_element_interactions.
+- All of it renders *inside* the `.mep` container (issue #569). It sat outside as a sibling, which costs nothing visible until you look for the accent: `--mep-acc` is scoped to `.mep[data-accent=…]`, so the primary buttons and the spotlight ring resolved to nothing in both themes.
+**`const tourPages`**
+- The tour is `TOUR_PAGES` minus what this plan cannot reach, resolved once (issue #569). Numbering the dots off the full list told a trial account "step 6 of 9" and then finished at 7; the filtered list is also what `advanceTour` steps through, so there is one definition of "the next step".
+**`function advanceTour`**
+- Awaits the step write before `goto`. See `src/lib/stores/tutorial.ts`.
+**`const showTourStep`**
+- No accessibility check here any more — `tourPages` has already dropped the gated pages. The `$effect` below still recovers a *stored* step that has since become inaccessible (a plan downgrade mid-tour), which is the one case the filter cannot express.
 
 ### `src/routes/(app)/+page.server.ts`
 
@@ -95,6 +105,12 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - …and where to send those invoices (issue #319).
 **`property whatsappPairingCode`**
 - Self-service enrolment (issue #320).
+**`property alertPreferences`**
+- Per-type alert toggles (issue #577), loaded alongside the two thresholds so the Alertas pane renders in one round trip.
+**`property alertGroups`**
+- The grouping the pane iterates. Shipped from the server rather than duplicated in the component, so the registry in `alert-preferences.ts` stays the only list of alert types.
+**`property saveAlertPreferences`**
+- Writes every toggle in one go (issue #577). An unchecked checkbox is simply absent from the form body, so the action iterates the registry and treats "missing" as off — reading only the present keys would make a type impossible to disable.
 **`property saveName`**
 - Profile (issue #293). Display name — stored on the `users` table (Auth.js's own adapter table), read by the layout.
 **`property saveEmail`**
@@ -132,13 +148,35 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Clipboard blocked (insecure context, denied permission) — the number is on screen and selectable, so there is nothing to recover from.
 **`markup`**
 - Forms: display name, email, password, restaurant name.
+- Alertas pane: the two thresholds, then one switch per alert type (issue #577), grouped and labelled from `data.alertGroups`. One form, one Save — a per-toggle auto-save would need `use:enhance` on a page that is otherwise plain progressive-enhancement forms.
 - Where to send invoices (issue #319). Authorising a number is useless if the staff member never learns what to message. QR injected via `{@html}` (eslint-disable-next-line svelte/no-at-html-tags).
 - Self-service enrolment (issue #320). The number is captured from the message, so it cannot be mistyped the way the form below can.
+- Ayuda pane: the tour-reset form, then a card link to `/help` (issue #569). The pane is where users already come looking for guidance, so it points at the documentation rather than duplicating it.
+- The `settings-main` tour anchor sits on the section container, not inside the Ayuda pane where it started. The last step of the tour lands on `/settings` with whatever section was last open — usually Cuenta — so an anchor inside one pane meant the tour ended by rendering nothing and never dismissing itself.
 **`style`**
+- `.alert-toggle*` (issue #577): a visually-hidden checkbox drives a CSS track/thumb, so the switch keeps native keyboard focus, form submission and label semantics without a component.
 - WhatsApp bot number + QR (issue #319).
 - Pairing code (issue #320) — read off a screen and typed into a phone, so set large, monospaced and widely tracked.
 - The QR is meant to be printed and taped up in the kitchen, so sized in absolute units — 45 mm on paper scans reliably from arm's length.
 - Explicit white backing: a dark-theme card behind a transparent QR inverts the modules and scanners reject it.
+
+### `src/routes/(app)/help/+page.svelte`
+
+**`markup`**
+- The help centre (issue #569): getting-started guide, per-section tips, FAQ and a launcher for the guided tour. Static documentation — no server load beyond the page title, which is why the route has a `+page.ts` and no `+page.server.ts`.
+- Steps, tips and questions are rendered from the lists in `src/lib/help-content.ts` rather than written into the markup, so the copy stays entirely in the locale tables and adding an entry is a one-line change in two places (the list and both locales).
+- The tour launcher goes through `setTutorialStep('3')` (`src/lib/stores/tutorial.ts` → `POST /api/tutorial`) and then navigates to `/dashboard`, the same entry point as the dashboard nudge in `(app)/+layout.svelte`. Step `3` is the first of `TOUR_PAGES`; steps `1`/`2` only render their coach mark on `/batch/[id]`, so starting there would look like nothing happened.
+- `HELP_TIPS` is also the tour's script: every `TOUR_PAGES` entry names one by `tip`, and the coach marks render `help.tip.*` directly. The walkthrough and the documentation are the same words, so neither can go stale on its own; `tests/guided-tour.test.ts` holds the two lists to the same order.
+- FAQ entries are native `<details>`/`<summary>`: they open without JavaScript and keep the disclosure semantics a hand-rolled accordion would have to re-add.
+
+**`style`**
+- Scoped, and single-markup rather than the `mobile/*`/`desktop/*` split (ADR-020): the page is a one-column read at every width, with only the tips grid switching to two columns at `md`.
+- `.help-prose` caps line length at 72ch. Prose is the whole page here; full-width paragraphs on a 1280px screen are unreadable.
+
+### `src/lib/help-content.ts`
+
+**`function helpContentKeys`**
+- The page resolves its keys at runtime (`` $t(`help.faq.${item}.q`) ``), which `lint:i18n` cannot follow. This derives the same key list from the same source so `tests/help-page.test.ts` fails on missing copy instead of the UI rendering a raw key — the convention documented in `coding_conventions.md`.
 
 ### `src/routes/waitlist/+page.server.ts`
 
@@ -173,14 +211,13 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 ### `src/lib/components/mep/CoachMark.svelte`
 
-**`const spotTop`**
-- Small delay so the page renders first (measure after 80 ms).
-**`const tipLeft`**
-- Place tooltip below spotlight; flip above if too close to bottom.
-**`const tipTop`**
-- approximate card height.
+**`function measure`**
+- Walks every element carrying the anchor and takes the first with a non-zero box. Split pages render the same `data-coach` twice — once in the `md:` markup, once in the mobile markup (ADR-020) — and the hidden one measures 0×0, so taking `querySelector`'s first hit put the spotlight in the top-left corner as a dot. A zero box also means "not laid out yet", which is what the poll is waiting for either way.
+**`function pollUntilReady`**
+- The anchor belongs to the page, which mounts on its own schedule; 20 × 100 ms covers the gap without pinning a frame loop to a component that is usually ready on the first try.
 **`markup`**
-- Full-screen backdrop (click outside = skip); spotlight ring (box-shadow punches the dark overlay); tooltip card; step counter; content; CTA. svelte-ignore a11y_no_static_element_interactions.
+- Full-screen backdrop (click outside = skip); spotlight ring (box-shadow punches the scrim out around the anchor); tooltip card; step dots; content; CTA. svelte-ignore a11y_no_static_element_interactions.
+- Every colour is a token (issue #569): `--mep-scrim` for the punch-out, `--mep-overlay` + `--mep-shadow-pop` for the card, `--mep-acc` for the ring and the active dot. This only resolves because the shell renders the tour chrome inside its `.mep` container — `--mep-acc` is declared on `.mep[data-accent=…]`, not on `:root`, so the same markup as a sibling of the shell silently loses its accent in both themes.
 
 ### `src/lib/components/mep/ConfirmDialog.svelte`
 
@@ -191,6 +228,15 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 **`markup`**
 - Reusable client error boundary (issue #255). SvelteKit's handleError only covers load/navigation; a runtime error thrown during client render or in an effect after hydration (a chart choking on bad data, the batch polling loop) would otherwise tear down the component tree and leave a dead/white UI. This contains the failure to one panel, offers a retry, and still reports to Sentry.
+
+### `src/lib/components/mep/ScrollStrip.svelte`
+
+**`markup`**
+- The one horizontal chip strip in the app (issue #658). Four screens had rolled their own `overflow-x: auto` row with the scrollbar hidden, so a strip that ran past the viewport looked exactly like one that fitted: at 390px the `/suppliers` category filter measured 2718px with 17 of its 19 chips off-screen, `/invoices` hid "Por categoría" entirely, and the supplier-detail tabs cut "Conversiones" mid-word.
+- `.scroll-strip` in `app.css` owns the look: hidden scrollbar, a lead-in inset so the first chip never sits flush against the frame, and a mask that fades whichever edge still has content behind it. The fade is keyed off `data-more-start` / `data-more-end`, so a strip whose content fits shows no fade at all — the affordance appears only when it is telling the truth.
+- Layout stays with the caller through `--mep-strip-pad` / `--mep-strip-lead-in` / `--mep-strip-gap` custom properties rather than an inline `padding`, because an inline shorthand would beat the class's own `padding-left` and take the lead-in with it.
+- `measure()` re-runs on scroll, on resize, and on a `MutationObserver` for the children: the chip list is data-driven (categories, tab counts), so the strip can start fitting and stop fitting without the element ever changing size.
+- Callers: `MobileSuppliersList`, `MobileInvoiceList`, `MobileAnalyticsPrices`, `suppliers/[id]`. `scripts/scroll-strip-audit.mjs` measures every strip at 390px and `tests/scroll-strip-affordance.test.ts` holds the line, including a static guard against a new bare `overflow-x: auto` row.
 
 ### `src/lib/components/mep/FieldInput.svelte`
 
@@ -210,11 +256,6 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Period picker (self-contained — reads URL, generates prev/next links).
 **`markup`**
 - Mobile-only wrapper, full height, scroll with bottom clearance; greeting + period picker; hero spend card; alert tile (only when there are high/med alerts); 2-col KPI row; top suppliers; recent invoices.
-
-### `src/lib/components/mobile/MobileTabBar.svelte`
-
-**`markup`**
-- Raised upload button.
 
 ### `src/lib/components/PriceTrendSparkline.svelte`
 
@@ -241,9 +282,35 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 ### `src/lib/stores/tutorial.ts`
 
 **`function setTutorialStep`**
-- fire-and-forget — UI already updated.
+- Awaitable, and it records the step it is writing in `pending`. The UI is already updated optimistically; callers that navigate afterwards await it so the next page's layout load cannot read the step the user just left.
+**`function seedTutorialStep`**
+- The layout re-seeds the store from server data on every load. Without the `pending` guard that load could answer with the previous step mid-write and roll the store backwards, stranding the tour on a page whose step no longer matched — no coach mark, no way forward, at a different step each time (issue #569).
 
 ## Shared library
+
+### `src/lib/colors.ts`
+
+**_module level_**
+- Chart and category colours, resolved in the browser. They used to be 17 fixed hexes in `constants.ts`, stamped onto rows by the page loads and shipped in the payload — light-only by construction, because the server has no idea which theme the browser is in (the choice lives in `localStorage` and is applied to `documentElement` by `static/theme-init.js`). The same values therefore rendered on both grounds, and eleven of the seventeen fell under 3:1 against the dark surface.
+- Every category now maps to a `--mep-cat-*` custom property with a light and a dark value in `app.css`, and the load functions send only `category`: the colour is picked by the cascade at paint time and re-picks itself when the theme toggles, with no re-render and nothing to keep in sync.
+- Keep this module free of hex codes — `app.css` owns the values.
+
+**`const CATEGORY_COLORS`**
+- Canonical category → the custom property holding its colour.
+
+**`function categoryColor`**
+- The colour for a category, safe for `background`, `color`, `border-color` and SVG `fill`/`stroke` alike. Unknown or missing categories fall back to the "Other" hue rather than to a literal, so the result is always theme-aware.
+
+**`function categoryTint`**
+- A translucent wash of the category colour, for the soft backgrounds that pair with `categoryColor()` as text — supplier avatars, product badges.
+- Replaces the old `background:{color}24` trick, which built an 8-digit hex by string concatenation. That only ever worked because the value was guaranteed to be a 6-digit hex; against a custom property it produces `var(--mep-cat-bebidas)24`, which is not a colour at all.
+
+**`const SERIES_COLORS`**
+- The categorical series ramp, for charts whose slices are ranked rather than named — top products, invoice status splits. Fixed order, never cycled: past the fifth entry use `SERIES_OTHER` rather than wrapping around, so two slices never share a hue.
+- Four components each kept their own copy of this array; it lives here now so a change to the ramp reaches all of them.
+
+**`function seriesColor`**
+- The nth series colour, falling back to the neutral "other" hue (`SERIES_OTHER`).
 
 ### `src/lib/formatters.ts`
 
@@ -281,6 +348,25 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - vite-plugin-pwa only emits sw.js during production builds (dev returns early).
 - When a new SW version is waiting, send SKIP_WAITING so it activates immediately — generateSW includes a SKIP_WAITING listener when `registerType:'autoUpdate'`.
 - Non-fatal — app works normally without a SW.
+
+### `src/lib/theme.ts`
+
+**_module level_**
+- The one place the active theme is written. Three layouts each had their own `toggleTheme()` doing the same two steps; there is now a third step — keeping the PWA `theme-color` in sync so the browser and OS chrome around the page match the theme — and a fourth copy of that is exactly how the first two drifted apart.
+- `static/theme-init.js` does the same work inline before first paint and cannot import this module, so the two must agree. That is why the chrome colours are named here rather than repeated at each call site.
+
+**`const CHROME`**
+- Browser/OS chrome colour per theme. Must match `--mep-bg` in `src/app.css` for each theme.
+
+**`function currentTheme`**
+- Read the theme currently applied to the document.
+
+**`function applyTheme`**
+- Apply a theme: stamp the attribute every `--mep-*` override keys off, tint the browser chrome to match, and remember the choice.
+- The `localStorage.setItem` sits in a swallowing `try/catch`: in private mode, or with storage disabled, the write throws. The theme still applies for this page; it just will not survive a reload.
+
+**`function toggleTheme`**
+- Flip to the other theme and apply it. Returns the theme now in effect.
 
 ### `src/lib/utils.ts`
 

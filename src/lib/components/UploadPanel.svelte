@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
+  import { UPLOAD_ACCEPT } from '$lib/upload-formats';
   import { goto } from '$app/navigation';
   import Upload from '@lucide/svelte/icons/upload';
   import Sparkle from '@lucide/svelte/icons/sparkle';
@@ -9,6 +10,7 @@
   import WifiOff from '@lucide/svelte/icons/wifi-off';
   import { t, ti, tp } from '$lib/i18n';
   import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
+  import FileTypeBadge from '$lib/components/FileTypeBadge.svelte';
 
   type ErrorVars = Record<string, string | number>;
 
@@ -332,7 +334,7 @@
             {/if}
           </div>
           {#if upgradeUrl}
-            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
+            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;font-size:12.5px;text-decoration:none;">
               {$t('upload.upgradeCta')}
             </a>
           {/if}
@@ -346,8 +348,8 @@
       <div style="
         display:flex;align-items:center;gap:10px;
         padding:10px 12px;border-radius:10px;
-        background:#fff8e6;border:1px solid #f5a623;
-        font-size:12.5px;color:#7a5200;
+        background:var(--mep-warn-soft);border:1px solid var(--mep-warn);
+        font-size:12.5px;color:var(--mep-warn);
       ">
         {#if offlineBanner === 'retrying'}
           <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
@@ -422,7 +424,7 @@
           bind:this={fileInputEl}
           type="file"
           class="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,.heic"
+          accept={UPLOAD_ACCEPT}
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
@@ -446,9 +448,7 @@
           {#each files as f, i}
             {@const kind = fileKind(f.name)}
             <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
-              <div style="width:28px;height:36px;border-radius:4px;flex-shrink:0;background:{kind==='pdf'?'#c14a4a':'#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;letter-spacing:0.04em;">
-                {kind==='pdf'?'PDF':'IMG'}
-              </div>
+              <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : 'IMG'} size="sm" />
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
@@ -526,7 +526,7 @@
             {/if}
           </div>
           {#if upgradeUrl}
-            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;height:32px;font-size:12.5px;text-decoration:none;">
+            <a href={upgradeUrl} class="btn btn-primary" style="align-self:flex-start;font-size:12.5px;text-decoration:none;">
               {$t('upload.upgradeCta')}
             </a>
           {/if}
@@ -576,7 +576,7 @@
           bind:this={fileInputEl}
           type="file"
           class="hidden"
-          accept=".pdf,.jpg,.jpeg,.png,.heic"
+          accept={UPLOAD_ACCEPT}
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
@@ -609,9 +609,7 @@
           {#each files as f, i}
             {@const kind = fileKind(f.name)}
             <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
-              <div style="width:32px;height:40px;border-radius:4px;flex-shrink:0;background:{kind === 'pdf' ? '#c14a4a' : '#6a8a6a'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;letter-spacing:0.04em;">
-                {kind === 'pdf' ? 'PDF' : 'IMG'}
-              </div>
+              <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : 'IMG'} size="lg" />
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>

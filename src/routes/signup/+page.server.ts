@@ -5,9 +5,10 @@ import type { Actions, PageServerLoad } from './$types';
 import { recordConsent } from '$lib/server/consent';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { publicFormAction } from '$lib/server/public-form-action';
+import { passwordPolicyError } from '$lib/server/password-policy';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
-import { users } from '$lib/server/schema/auth';
+import { users } from '$lib/server/schema';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { sendEmail, verifyEmailAddress } from '$lib/server/email';
 import { signIn } from '$lib/server/auth';
@@ -28,6 +29,7 @@ export const actions: Actions = {
 		{
 			rateLimitEvent: 'signup_rate_limited',
 			limits: ({ ip }) => [{ key: `signup:ip:${ip}`, max: 5 }],
+			turnstile: true,
 		},
 		async ({ form, ipHash, event }) => {
 			const email    = (form.get('email')    as string)?.trim().toLowerCase();
@@ -35,7 +37,10 @@ export const actions: Actions = {
 			const terms    = form.get('terms');
 
 			if (!email || !password) return fail(422, { error: 'missing' });
-			if (password.length < 8) return fail(422, { error: 'password_too_short' });
+			const policyError = passwordPolicyError(password);
+			if (policyError) {
+				return fail(422, { error: policyError === 'tooShort' ? 'password_too_short' : 'password_too_long' });
+			}
 			if (terms !== 'on') return fail(422, { error: 'terms_required' });
 
 			const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);

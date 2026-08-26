@@ -2,9 +2,9 @@ import { fail, redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
-import { categoryBudgets, invoices, invoiceLineItems, suppliers } from '$lib/server/schema';
+import { categoryBudgets } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
-import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { VALID_CATEGORIES } from '$lib/constants';
 import { trackEvent } from '$lib/server/events';
 import { toMonthStr, parseMonthParam } from '$lib/formatters';
 import { toMoneyString, moneyToNumber } from '$lib/server/money';
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN invoices i ON i.id = ili.invoice_id
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
-				  AND TO_CHAR(i.invoice_date::date, 'YYYY-MM') = ${selectedMonth}
+				  AND TO_CHAR(i.invoice_date, 'YYYY-MM') = ${selectedMonth}
 				GROUP BY COALESCE(s.category, 'Other')
 			`),
 		]);
@@ -50,7 +50,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			categories,
 			budgets,
 			category_spend,
-			colors: CATEGORY_COLORS,
 			selectedMonth,
 			currentMonth,
 		};

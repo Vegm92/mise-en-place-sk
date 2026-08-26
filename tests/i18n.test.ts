@@ -37,25 +37,43 @@ describe('t (translation lookup)', () => {
   });
 });
 
-describe('weekly digest keys (added with the dedicated /digest page)', () => {
+describe('reports keys (the dedicated /reports page)', () => {
   const keys = [
     'nav.digest',
-    'digest.title',
-    'digest.week',
-    'digest.dismissed',
-    'digest.unavailable',
+    'rep.title',
+    'rep.summary',
   ];
 
   it('resolves in Spanish', () => {
     locale.set('es');
     for (const k of keys) expect(tr(k)).not.toBe(k);
-    expect(tr('digest.title')).toBe('Resumen semanal');
+    expect(tr('rep.title')).toBe('Informes');
   });
 
   it('resolves in English', () => {
     locale.set('en');
     for (const k of keys) expect(tr(k)).not.toBe(k);
-    expect(tr('digest.title')).toBe('Weekly Digest');
+    expect(tr('rep.title')).toBe('Reports');
+  });
+});
+
+describe('issue #581 — nav label and page title renamed to Informes/Reports', () => {
+  it('the sidebar nav label resolves to Informes/Reports, not the old digest wording', () => {
+    locale.set('es');
+    expect(tr('nav.digest')).toBe('Informes');
+    expect(tr('nav.digest')).not.toBe('Resumen semanal');
+    locale.set('en');
+    expect(tr('nav.digest')).toBe('Reports');
+    expect(tr('nav.digest')).not.toBe('Weekly Digest');
+  });
+
+  it('the page title resolves to Informes/Reports, not the old digest wording', () => {
+    locale.set('es');
+    expect(tr('rep.title')).toBe('Informes');
+    expect(tr('rep.title')).not.toBe('Resumen semanal');
+    locale.set('en');
+    expect(tr('rep.title')).toBe('Reports');
+    expect(tr('rep.title')).not.toBe('Weekly Digest');
   });
 });
 
@@ -94,7 +112,7 @@ describe('locale key parity (es vs en)', () => {
   // touched in this window plus a wider sample of the catalog.
   const sampleKeys = [
     'nav.dashboard', 'nav.digest', 'action.logout',
-    'digest.title', 'digest.week', 'digest.dismissed', 'digest.unavailable',
+    'rep.title', 'rep.summary', 'rep.weekly.name', 'rep.col.category',
     'upload.cameraBtn', 'upload.imageTooLarge', 'upload.captureTip',
     'upload.previewUse', 'upload.previewRetake',
     'upload.offlineSaved', 'upload.offlineRetrying', 'upload.offlineLimit',
@@ -133,9 +151,11 @@ describe('locale key parity (es vs en)', () => {
     'sup.insufficient', 'sup.insufficient.desc',
     'sup.products.title', 'sup.products.desc',
     'sup.conversions.title', 'sup.conversions.desc',
-    'tour.step1.title', 'tour.step1.body',
-    'tour.step2.title', 'tour.step2.body', 'tour.step2.next',
+    // The tour renders the help-centre copy (issue #569); only its own chrome
+    // keys are its own.
+    'tour.next.review', 'tour.next.finish',
     'tour.complete.title', 'tour.complete.body', 'tour.complete.btn',
+    'tour.nudge.title', 'tour.nudge.body', 'tour.nudge.accept', 'tour.nudge.dismiss',
   ];
 
   it('resolves every sampled key in both locales (no missing translations)', () => {
@@ -223,21 +243,21 @@ describe('tp (pluralizing translator)', () => {
     locale.set('en');
     expect(trp('misc.invoice', 1)).toBe('1 invoice');
     locale.set('es');
-    expect(trp('misc.invoice', 1)).toBe('1 factura');
+    expect(trp('misc.invoice', 1)).toBe('1 albarán');
   });
 
   it('selects the .other form and interpolates the count', () => {
     locale.set('en');
     expect(trp('misc.invoice', 3)).toBe('3 invoices');
     locale.set('es');
-    expect(trp('misc.invoice', 3)).toBe('3 facturas');
+    expect(trp('misc.invoice', 3)).toBe('3 albaranes');
   });
 
   it('uses the .zero form when defined for a count of 0', () => {
     locale.set('en');
     expect(trp('misc.invoice', 0)).toBe('No invoices');
     locale.set('es');
-    expect(trp('misc.invoice', 0)).toBe('Sin facturas');
+    expect(trp('misc.invoice', 0)).toBe('Sin albaranes');
   });
 
   it('falls back to the .other form at 0 when no .zero form exists', () => {
@@ -523,5 +543,36 @@ describe('revenue console keys (admin SaaS metrics)', () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+});
+
+describe('issue #661 — invoice export status filter label', () => {
+  const keys = [
+    'export.title',
+    'export.dateRange',
+    'export.dateHint',
+    'export.status',
+    'export.allStatus',
+    'export.paid',
+    'export.pending',
+    'export.download',
+    'export.cancel',
+    'export.backLabel',
+  ];
+
+  it('resolves every key the export page uses in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const k of keys) if (tr(k) === k) missing.push(`${lc}:${k}`);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('labels the status filter Estado in Spanish and Status in English', () => {
+    locale.set('es');
+    expect(tr('export.status')).toBe('Estado');
+    locale.set('en');
+    expect(tr('export.status')).toBe('Status');
   });
 });

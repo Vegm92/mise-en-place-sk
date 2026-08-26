@@ -1,6 +1,8 @@
 import { createHash } from 'crypto';
 import fs from 'fs';
-import { moneyToNumber } from './money';
+import { moneyToNumber, toMoneyString } from './money';
+import type { TaxBand } from '$lib/tax';
+import { isoDateOffset } from './dates';
 
 export const SIMILAR_INVOICE_DATE_WINDOW_DAYS = 21;
 const SIMILAR_INVOICE_AMOUNT_ABS_TOLERANCE = 0.5;
@@ -14,11 +16,7 @@ export function amountsAreSimilar(a: number, b: number): boolean {
 	return Math.abs(a - b) <= tolerance;
 }
 
-export function isoDateOffset(dateStr: string, days: number): string {
-	const d = new Date(`${dateStr}T00:00:00Z`);
-	d.setUTCDate(d.getUTCDate() + days);
-	return d.toISOString().slice(0, 10);
-}
+export { isoDateOffset };
 
 export function findSimilarInvoice<T extends { totalAmount: string | null }>(
 	candidates: T[],
@@ -32,6 +30,21 @@ export function computeFileHash(filePath: string): string {
 	return createHash('sha256').update(buf).digest('hex');
 }
 
+export function canonicalTaxBands(bands: TaxBand[] | null | undefined) {
+	if (!bands || bands.length === 0) return null;
+	return bands
+		.map(b => ({
+			type: b.type ?? null,
+			rate: Math.round((b.rate ?? 0) * 1e6) / 1e6,
+			base: toMoneyString(b.base) ?? null,
+			amount: toMoneyString(b.tax_amount) ?? null,
+		}))
+		.sort((a, b) =>
+			(a.type ?? '').localeCompare(b.type ?? '')
+			|| a.rate - b.rate
+			|| (a.base ?? '').localeCompare(b.base ?? ''));
+}
+
 export function computeInvoiceContentHash(fields: {
 	supplierName: string;
 	invoiceNumber: string;
@@ -43,6 +56,8 @@ export function computeInvoiceContentHash(fields: {
 	lineUnits: (string | null)[];
 	lineUnitPrices: (string | null)[];
 	lineTotalPrices: (string | null)[];
+	lineTaxRates?: (number | null)[];
+	taxBands?: TaxBand[] | null;
 }): string {
 	const canonical = {
 		supplier:   fields.supplierName.toLowerCase().trim(),
@@ -56,7 +71,9 @@ export function computeInvoiceContentHash(fields: {
 			unit:  (fields.lineUnits[i] ?? '').toLowerCase().trim() || null,
 			up:    fields.lineUnitPrices[i]  ?? null,
 			tp:    fields.lineTotalPrices[i] ?? null,
+			rate:  fields.lineTaxRates?.[i] ?? null,
 		})),
+		tax:        canonicalTaxBands(fields.taxBands),
 	};
 	return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
 }

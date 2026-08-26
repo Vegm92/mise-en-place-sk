@@ -5,12 +5,12 @@
 
 	const { trialTier, tiers }: {
 		trialTier: { monthlyInvoiceQuota: number | null; maxLocations: number; features: MatrixFeatures };
-		tiers: { tier: string; name: string; monthlyInvoiceQuota: number | null; maxLocations: number; features: MatrixFeatures }[];
+		tiers: { tier: string; nameKey: string; monthlyInvoiceQuota: number | null; maxLocations: number; features: MatrixFeatures }[];
 	} = $props();
 
 	const matrixCols = $derived<MatrixColumn[]>([
 		{ id: 'trial', name: $t('billing.tier.trial.name'), quota: trialTier.monthlyInvoiceQuota, maxLocations: trialTier.maxLocations, features: trialTier.features },
-		...tiers.map(tr => ({ id: tr.tier, name: tr.name, quota: tr.monthlyInvoiceQuota, maxLocations: tr.maxLocations, features: tr.features })),
+		...tiers.map(tr => ({ id: tr.tier, name: $t(tr.nameKey), quota: tr.monthlyInvoiceQuota, maxLocations: tr.maxLocations, features: tr.features })),
 	]);
 </script>
 

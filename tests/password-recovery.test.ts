@@ -40,23 +40,18 @@ vi.mock('$lib/server/email', () => ({
 	resetPasswordEmail: (email: string, url: string) => ({ to: email, subject: 's', html: url }),
 }));
 vi.mock('$lib/server/db', () => {
-	const select = () => ({
-		from: () => ({
-			where: () => ({
-				limit: () => Promise.resolve(state.userExists ? [{ id: 'u1' }] : []),
-			}),
-		}),
-	});
-	const update = () => ({
-		set: (values: Record<string, unknown>) => {
-			updatedRows.push(values);
-			return {
-				where: () => ({
-					returning: () => Promise.resolve(state.userExists ? [{ id: 'u1', ...values }] : []),
-				}),
-			};
-		},
-	});
+	const selectLimit = () => Promise.resolve(state.userExists ? [{ id: 'u1' }] : []);
+	const selectFrom = () => ({ where: () => ({ limit: selectLimit }) });
+	const select = () => ({ from: selectFrom });
+
+	const updateReturning = (values: Record<string, unknown>) =>
+		Promise.resolve(state.userExists ? [{ id: 'u1', ...values }] : []);
+	const updateSet = (values: Record<string, unknown>) => {
+		updatedRows.push(values);
+		return { where: () => ({ returning: () => updateReturning(values) }) };
+	};
+	const update = () => ({ set: updateSet });
+
 	return { db: { select, update } };
 });
 
@@ -128,7 +123,7 @@ describe('/reset-password', () => {
 	});
 
 	it('refuses without email/token', async () => {
-		const result = await resetActions.default(formEvent({ password: 'longenough1', confirm: 'longenough1' }));
+		const result = await resetActions.default(formEvent({ password: 'longenough123', confirm: 'longenough123' }));
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
 	});
 
@@ -141,7 +136,7 @@ describe('/reset-password', () => {
 
 	it('rejects a mismatched confirmation', async () => {
 		const result = await resetActions.default(
-			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough1', confirm: 'longenough2' }),
+			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough456' }),
 		);
 		expect(result).toMatchObject({ status: 422, data: { error: 'mismatch' } });
 	});
@@ -149,7 +144,7 @@ describe('/reset-password', () => {
 	it('rejects an invalid or expired token', async () => {
 		consumeVerificationTokenMock.mockResolvedValue(false);
 		const result = await resetActions.default(
-			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough1', confirm: 'longenough1' }),
+			formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough123' }),
 		);
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
 	});
@@ -157,7 +152,7 @@ describe('/reset-password', () => {
 	it('updates the password, clears the session cookie, and sends the user back to sign in', async () => {
 		const thrown = await Promise.resolve(
 			resetActions.default(
-				formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough1', confirm: 'longenough1' }),
+				formEvent({ email: 'chef@example.com', token: 'abc', password: 'longenough123', confirm: 'longenough123' }),
 			),
 		).catch((e: unknown) => e);
 

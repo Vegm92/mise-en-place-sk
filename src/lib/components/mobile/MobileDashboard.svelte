@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
+  import { categoryColor } from '$lib/colors';
   import Sparkline from '$lib/components/mep/Sparkline.svelte';
   import Delta from '$lib/components/mep/Delta.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
@@ -9,9 +10,25 @@
   import { locale, t, ti, tp, tcat } from '$lib/i18n';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
+  interface TrendSegment {
+    category: string | null;
+    amount: number;
+  }
+  interface TrendBucket {
+    label: string;
+    total: number;
+    pct: number;
+    is_current: boolean;
+    segments: TrendSegment[];
+  }
+  interface TrendData {
+    range: string;
+    granularity: string;
+    buckets: TrendBucket[];
+    categories: (string | null)[];
+  }
   interface Supplier {
     name: string;
-    color: string | null;
     month_spend: number;
     delta: number | null;
     invoices?: number;
@@ -41,6 +58,8 @@
     alertText,
     suppliers,
     recentInvoices,
+    totalSpent,
+    trend,
   }: {
     monthSpend: number;
     monthDelta: number | null;
@@ -56,7 +75,46 @@
     alertText: string;
     suppliers: Supplier[];
     recentInvoices: RecentInvoice[];
+    totalSpent: number;
+    trend: TrendData;
   } = $props();
+
+  // svelte-ignore state_referenced_locally
+  let activeRange = $state(trend.range);
+  // svelte-ignore state_referenced_locally
+  let activeGranularity = $state(trend.granularity);
+  // svelte-ignore state_referenced_locally
+  let trendBuckets = $state<TrendBucket[]>(trend.buckets);
+  let trendLoading = $state(false);
+
+  const RANGES = ['7d', '30d', '90d', '1y', 'all'] as const;
+  const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const;
+
+  async function fetchTrend(range: string, granularity: string) {
+    trendLoading = true;
+    const resp = await fetch(`/api/trend?range=${range}&granularity=${granularity}`);
+    if (resp.ok) {
+      const payload = await resp.json();
+      trendBuckets = payload.buckets ?? [];
+    } else {
+      trendBuckets = [];
+    }
+    trendLoading = false;
+  }
+
+  async function setRange(range: string) {
+    activeRange = range;
+    await fetchTrend(activeRange, activeGranularity);
+  }
+
+  async function setGranularity(granularity: string) {
+    activeGranularity = granularity;
+    await fetchTrend(activeRange, activeGranularity);
+  }
+
+  const trendTotal = $derived(trendBuckets.reduce((a, b) => a + b.total, 0));
+  const trendSpark = $derived(trendBuckets.map((b) => b.total));
+  const trendLabel = $derived($ti(`chart.gran.${activeGranularity}.sub`, { n: trendBuckets.length }));
 
   const greeting = $derived.by(() => {
     const h = new Date().getHours();
@@ -71,6 +129,12 @@
   const topSuppliers = $derived(
     [...suppliers].sort((a, b) => b.month_spend - a.month_spend).slice(0, 4)
   );
+
+  const budgetColor = $derived.by(() => {
+    if (budgetPct >= 90) return 'var(--mep-neg)';
+    if (budgetPct >= 70) return 'var(--mep-warn)';
+    return 'var(--mep-acc)';
+  });
 
   const currentMonthStr = $derived(toMonthStr(new Date()));
   const selectedMonth = $derived(
@@ -93,7 +157,7 @@
   <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 14px;">
 
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-      <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+      <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;">
         {$t(greeting)} · {dateStr}
       </div>
       <PeriodPicker compact={true} prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
@@ -127,7 +191,7 @@
           <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 6px;">
             <span style="color: var(--mep-fg-3);">{$t('mdash.monthBudget')}</span>
             <span class="num" style="color: var(--mep-fg); font-weight: 500;">
-              <span style="color: {budgetPct >= 90 ? 'var(--mep-neg)' : budgetPct >= 70 ? 'var(--mep-warn)' : 'var(--mep-acc)'};">
+              <span style="color: {budgetColor};">
                 {budgetPct}%
               </span>
               {$ti('ddash.ofBudget', { amount: fmtEurCompact(totalBudget) })}
@@ -136,11 +200,56 @@
           <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
             <div style="
               width: {Math.min(budgetPct, 100)}%; height: 100%;
-              background: {budgetPct >= 90 ? 'var(--mep-neg)' : budgetPct >= 70 ? 'var(--mep-warn)' : 'var(--mep-acc)'};
+              background: {budgetColor};
             "></div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
+            <span class="num" style="color: var(--mep-fg-2); font-weight: 500; margin-right: 3px;">{fmtEurCompact(totalSpent)}</span>
+            {$t('dash.budget.used')}
           </div>
         </div>
       {/if}
+    </div>
+
+    <div class="card" style="padding: 14px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
+        <div class="subtitle">{$t('dash.chart')}</div>
+        <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1;">
+          {trendLoading ? '…' : trendTotal > 0 ? fmtEurCompact(trendTotal) : '—'}
+        </div>
+      </div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{trendLabel}</div>
+      <div style="margin-top: 10px; height: 44px; display: flex; align-items: center;">
+        {#if trendLoading}
+          <span class="label">{$t('chart.loading')}</span>
+        {:else if trendSpark.length >= 2 && trendTotal > 0}
+          <Sparkline data={trendSpark} color="var(--mep-acc)" width={320} height={44} />
+        {:else}
+          <span class="label">{$t('chart.noSpendData')}</span>
+        {/if}
+      </div>
+      <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+        <div class="period-track" role="group">
+          {#each GRANULARITIES as g (g)}
+            <button
+              type="button"
+              class="period-pill {activeGranularity === g ? 'active' : ''}"
+              aria-pressed={activeGranularity === g}
+              onclick={() => setGranularity(g)}
+            >{$t(`chart.gran.${g}`)}</button>
+          {/each}
+        </div>
+        <div class="period-track" role="group">
+          {#each RANGES as r (r)}
+            <button
+              type="button"
+              class="period-pill {activeRange === r ? 'active' : ''}"
+              aria-pressed={activeRange === r}
+              onclick={() => setRange(r)}
+            >{$t(`chart.range.${r}`)}</button>
+          {/each}
+        </div>
+      </div>
     </div>
 
     {#if highAlerts + medAlerts > 0}
@@ -170,13 +279,16 @@
             {$t('mdash.checkMargins')}
           </div>
         </div>
-        <ChevronRight size={16} style="color: var(--mep-fg-3); flex-shrink: 0; margin-top: 2px;" />
+        <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--mep-acc);">
+          {$t('mdash.viewAll')}
+          <ChevronRight size={14} />
+        </div>
       </a>
     {/if}
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
         <div class="num" style="
           font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
           color: {pendingAmount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
@@ -188,7 +300,7 @@
         </div>
       </div>
       <div class="card" style="padding: 12px;">
-        <div class="label" style="font-size: 10.5px; margin-bottom: 5px;">{$t('status.pending')}</div>
+        <div class="label" style=" margin-bottom: 5px;">{$t('status.pending')}</div>
         <div class="num" style="
           font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
           color: {pendingCount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
@@ -205,7 +317,7 @@
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
           <div class="subtitle" style="font-size: 15px;">{$t('dash.suppliers')}</div>
-          <a href="/suppliers" style="color: var(--mep-fg-3); text-decoration: none; display: flex;">
+          <a href="/suppliers" style="color: var(--mep-fg-3); text-decoration: none; display: flex; align-items: center; justify-content: flex-end; min-width: 44px; min-height: 44px;">
             <ChevronRight size={14} />
           </a>
         </div>
@@ -216,7 +328,7 @@
             padding: 8px 0;
             border-bottom: {i < topSuppliers.length - 1 ? '1px solid var(--mep-divider)' : 'none'};
           ">
-            <span style="background: {s.color ?? 'var(--mep-fg-3)'}; width: 8px; height: 26px; border-radius: 2px; flex-shrink: 0;"></span>
+            <span style="background: {categoryColor(s.cat)}; width: 8px; height: 26px; border-radius: 2px; flex-shrink: 0;"></span>
             <div style="flex: 1; min-width: 0;">
               <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 {s.name}
@@ -242,7 +354,7 @@
       <div class="card" style="padding: 14px 14px 6px;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
           <div class="subtitle" style="font-size: 15px;">{$t('mdash.recent')}</div>
-          <a href="/invoices" style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none;">{$t('action.viewAll')}</a>
+          <a href="/invoices" style="font-size: 13px; color: var(--mep-acc); font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('action.viewAll')}</a>
         </div>
         {#each recentInvoices.slice(0, 3) as inv, i}
           <a href="/invoice/{inv.id}" style="
@@ -273,7 +385,7 @@
               <div class="num" style="font-size: 13.5px; font-weight: 600; color: var(--mep-fg);">
                 {inv.display_amount != null ? fmtEur(inv.display_amount) : '—'}
               </div>
-              <StatusBadge status={inv.status ?? 'pending'} style="font-size: 9.5px; padding: 1px 5px;" />
+              <StatusBadge status={inv.status ?? 'pending'} style="font-size: 11px; padding: 1px 5px;" />
             </div>
           </a>
         {/each}

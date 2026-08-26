@@ -15,7 +15,7 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 | `DATABASE_URL` | Yes | Railway Postgres connection string — used by drizzle-kit migrations and pg-boss. Railway exposes it on the Postgres service as `DATABASE_URL` (internal, `*.railway.internal`) and `DATABASE_PUBLIC_URL` (external, for migrations run from your machine or CI). SSL is enforced by the client. |
 | `DATABASE_POOL_URL` | No | Separate pooled connection string for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. |
 | `DATABASE_SSL_MODE` | No | `require` (default — encrypted, certificate **not** verified) or `verify-full` (certificate chain verified). Applies to both the web pool and the worker's pg-boss connection. Production logs a warning while it is `require`. |
-| `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
+| `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file — **not** a mode name; setting it to `verify-full` is the swap that takes both services down at startup. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
 
 ### Auth (Auth.js / SvelteKitAuth)
 
@@ -132,6 +132,11 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 |---|---|---|
 | `CHAT_RATE_LIMIT_RPM` | `20` | Chat requests/minute per user |
 | `MAX_CONCURRENT_EXTRACTIONS` | `3` | Parallel Gemini extraction cap, **per worker process** (in-process semaphore) |
+| `SCHEDULED_FANOUT_CONCURRENCY` | `5` | Tenants processed at once from the per-tenant scheduled-job queues (digest / reminders / trial notices), **per worker process**. Bounded by Gemini and Resend rate limits, not by throughput (ADR-025) |
+| `EXTRACTION_STALL_WARN_MS` | `120000` | How long a queued item may sit before `/batch/[id]` swaps the spinner for a "taking longer than expected" card with a Retry action |
+| `EXTRACTION_STALL_TIMEOUT_MS` | `900000` | Hard timeout: the **web** process marks an item still queued/extracting past this as `failed` / `extract.err.stalled`. Keep it above the worst legitimate run (pg-boss retries × `GEMINI_TIMEOUT_MS`) or a working extraction gets reaped |
+| `WORKER_HEARTBEAT_INTERVAL_MS` | `30000` | How often the worker upserts `worker_heartbeats` |
+| `WORKER_HEARTBEAT_STALE_MS` | `120000` | Heartbeat age after which `/admin/health` and `/api/health` call the worker down. Must stay comfortably above the interval |
 
 ---
 

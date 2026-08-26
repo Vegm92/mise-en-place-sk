@@ -1,23 +1,25 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import type { PageData } from './$types';
-  import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+  import { VALID_CATEGORIES } from '$lib/constants';
+  import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
   import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
+  import { getScoreColor } from '$lib/status';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Pencil from '@lucide/svelte/icons/pencil';
-  import Trash2 from '@lucide/svelte/icons/trash-2';
   import Mail from '@lucide/svelte/icons/mail';
   import Phone from '@lucide/svelte/icons/phone';
   import Truck from '@lucide/svelte/icons/truck';
   import CreditCard from '@lucide/svelte/icons/credit-card';
   import MapPin from '@lucide/svelte/icons/map-pin';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import DesktopSupplierDetail from '$lib/components/desktop/DesktopSupplierDetail.svelte';
 
   let { data }: { data: PageData } = $props();
 
-  let tab = $state<'resumen' | 'facturas' | 'productos' | 'conversiones'>(untrack(() => data.initialTab));
+  let tab = $state<'resumen' | 'albaranes' | 'productos' | 'conversiones'>(untrack(() => data.initialTab));
   let editing       = $state(untrack(() => data.initialEditing));
   let confirmDelete = $state(false);
 
@@ -30,12 +32,12 @@
   const avgInvoice  = $derived(data.invoices.length ? totalSpend / data.invoices.length : 0);
   const pendingAmt  = $derived(data.invoices.filter(i => i.status === 'pending').reduce((a, i) => a + (i.totalAmount ?? 0), 0));
 
-  const color = $derived(CATEGORY_COLORS[s.category ?? 'Other'] ?? CATEGORY_COLORS['Other']);
+  const color = $derived(categoryColor(s.category));
+  const tint  = $derived(categoryTint(s.category));
 
-  const SERIES_COLORS = ['var(--mep-series-1)', 'var(--mep-series-2)', 'var(--mep-series-3)', 'var(--mep-series-4)', 'var(--mep-series-5)'];
   const productDonut = $derived((() => {
     const ranked = [...data.products]
-      .map(p => ({ ...p, spend: (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
+      .map(p => ({ ...p, spend: p.totalSpend ?? (p.avgPrice ?? 0) * (p.totalQty ?? 0) }))
       .sort((a, b) => b.spend - a.spend);
     const total = ranked.reduce((a, p) => a + p.spend, 0);
     if (total <= 0) return { slices: [], total: 0 };
@@ -44,8 +46,8 @@
     const rest = ranked.slice(5);
     const restSpend = rest.reduce((a, p) => a + p.spend, 0);
 
-    const entries = top.map((p, i) => ({ label: p.description ?? 'â€”', spend: p.spend, color: SERIES_COLORS[i] }));
-    if (restSpend > 0) entries.push({ label: $t('sup.products.other'), spend: restSpend, color: 'var(--mep-series-other)' });
+    const entries = top.map((p, i) => ({ label: p.description ?? 'â€”', spend: p.spend, color: seriesColor(i) }));
+    if (restSpend > 0) entries.push({ label: $t('sup.products.other'), spend: restSpend, color: SERIES_OTHER });
 
     let cursor = 0;
     const CIRC = 2 * Math.PI * 60;
@@ -61,12 +63,6 @@
 
   const today   = new Date().toISOString().slice(0, 10);
   const weekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-
-  function scoreColor(score: number) {
-    if (score >= 70) return '#3A8C5C';
-    if (score >= 40) return '#C8843A';
-    return '#E05555';
-  }
 
   function scoreLabelKey(score: number) {
     if (score >= 70) return 'sup.score.very';
@@ -85,13 +81,13 @@
 <div class="flex md:hidden" style="height:100%;flex-direction:column;overflow:hidden;">
 
   <div style="padding:14px 18px 0;flex-shrink:0;">
-    <a href="/suppliers" style="display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--mep-fg-3);text-decoration:none;margin-bottom:12px;">
+    <a href="/suppliers" style="display:inline-flex;align-items:center;min-height:44px;gap:4px;font-size:13px;color:var(--mep-fg-3);text-decoration:none;">
       <ArrowLeft size={14} /> {$t('sup.back')}
     </a>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
       <div style="
         width:44px;height:44px;border-radius:22px;flex-shrink:0;
-        background:{color}24;color:{color};
+        background:{tint};color:{color};
         display:flex;align-items:center;justify-content:center;
         font-size:14px;font-weight:700;
       ">{initials(s.name)}</div>
@@ -105,7 +101,7 @@
           {/if}
         </div>
       </div>
-      <button class="btn btn-secondary" style="height:32px;font-size:12px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;"
+      <button class="btn btn-secondary" style="font-size:12px;padding:0 10px;display:inline-flex;align-items:center;gap:5px;"
         onclick={() => { editing = !editing; confirmDelete = false; }}>
         <Pencil size={12} /> {$t('action.edit')}
       </button>
@@ -145,8 +141,8 @@
             <input id="m-edit-phone" class="input" name="contact_phone" type="tel" value={s.contactPhone ?? ''} style="width:100%;" />
           </div>
           <div style="display:flex;gap:8px;margin-top:4px;">
-            <button type="submit" class="btn btn-primary" style="height:32px;font-size:12.5px;">{$t('set.save')}</button>
-            <button type="button" class="btn" style="height:32px;font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
+            <button type="submit" class="btn btn-primary" style="font-size:12.5px;">{$t('set.save')}</button>
+            <button type="button" class="btn" style="font-size:12.5px;" onclick={() => editing = false}>{$t('edit.cancel')}</button>
           </div>
         </form>
       </div>
@@ -155,44 +151,38 @@
     <div class="card" style="margin-bottom:12px;padding:10px 14px;display:flex;align-items:center;">
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend)}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.totalSpend')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.totalSpend')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{data.invoices.length}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.kpiInvoices')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.kpiInvoices')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
         <div class="num" style="font-size:15px;font-weight:600;color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.3px;">{fmtEur(pendingAmt)}</div>
-        <div style="font-size:10px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.pending')}</div>
+        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.pending')}</div>
       </div>
     </div>
 
-    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;">
+    <ScrollStrip label={$t('sup.tabsLabel')} padding="0 0 12px" leadIn="2px">
       {#each [
         { id: 'resumen',      label: $t('sup.tab.resumen') },
-        { id: 'facturas',     label: $t('nav.invoices'), count: data.invoices.length },
+        { id: 'albaranes',     label: $t('nav.invoices'), count: data.invoices.length },
         { id: 'productos',    label: $t('sup.tab.productos') },
         { id: 'conversiones', label: $t('sup.tab.conversiones'), count: data.conversions.length || undefined },
       ] as tabItem}
         <button
           onclick={() => tab = tabItem.id as typeof tab}
-          style="
-            border:0;height:30px;padding:0 12px;border-radius:15px;white-space:nowrap;cursor:pointer;font-family:inherit;
-            background:{tab === tabItem.id ? 'var(--mep-acc)' : 'var(--mep-surface)'};
-            color:{tab === tabItem.id ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};
-            font-size:12px;font-weight:500;
-            box-shadow:{tab === tabItem.id ? 'none' : '0 1px 2px rgba(0,0,0,0.04)'};
-            display:inline-flex;align-items:center;gap:5px;
-          ">
+          class="chip {tab === tabItem.id ? 'active' : ''}"
+          style="gap:5px;">
           {tabItem.label}
           {#if tabItem.count !== undefined}
-            <span class="num" style="font-size:10px;font-weight:600;">{tabItem.count}</span>
+            <span class="num" style="font-size:11px;font-weight:600;">{tabItem.count}</span>
           {/if}
         </button>
       {/each}
-    </div>
+    </ScrollStrip>
   </div>
 
   <div style="flex:1;overflow:auto;padding:0 18px 24px;display:flex;flex-direction:column;gap:10px;">
@@ -208,13 +198,13 @@
             {#if s.contactEmail}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <Mail size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <a href="mailto:{s.contactEmail}" style="color:var(--mep-fg-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.contactEmail}</a>
+                <a href="mailto:{s.contactEmail}" style="color:var(--mep-fg-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex;align-items:center;min-height:44px;">{s.contactEmail}</a>
               </div>
             {/if}
             {#if s.contactPhone}
               <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
                 <Phone size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                <a href="tel:{s.contactPhone}" style="color:var(--mep-fg-2);text-decoration:none;">{s.contactPhone}</a>
+                <a href="tel:{s.contactPhone}" style="color:var(--mep-fg-2);text-decoration:none;display:inline-flex;align-items:center;min-height:44px;">{s.contactPhone}</a>
               </div>
             {/if}
             {#if s.cif}
@@ -254,7 +244,7 @@
             <div class="subtitle">{$t('sup.recentInvoices')}</div>
             {#if data.invoices.length > 4}
               <button style="font-size:12px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
-                onclick={() => tab = 'facturas'}>{$ti('sup.viewAll', { n: data.invoices.length })}</button>
+                onclick={() => tab = 'albaranes'}>{$ti('sup.viewAll', { n: data.invoices.length })}</button>
             {/if}
           </div>
           {#each data.invoices.slice(0, 4) as inv (inv.id)}
@@ -264,7 +254,7 @@
                 <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
               </div>
               <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
-              <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
+              <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
             </a>
           {/each}
         </div>
@@ -276,13 +266,13 @@
             <div class="subtitle" style="flex:1;">{$t('sup.reliabilityShort')}</div>
             <div style="
               width:42px;height:42px;border-radius:50%;
-              border:3px solid {scoreColor(m.score)};
+              border:3px solid {getScoreColor(m.score)};
               display:flex;align-items:center;justify-content:center;flex-direction:column;
             ">
-              <span style="font-size:13px;font-weight:700;color:{scoreColor(m.score)};line-height:1;">{m.score}</span>
-              <span style="font-size:8px;color:var(--mep-fg-3);">/100</span>
+              <span style="font-size:13px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
+              <span style="font-size:11px;color:var(--mep-fg-3);">/100</span>
             </div>
-            <span style="font-size:12px;font-weight:600;color:{scoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
+            <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
             {#each [
@@ -291,15 +281,15 @@
               { label: $t('sup.score.punctuality'), score: m.timelinessScore, max: 34 },
             ] as kpi}
               <div style="padding:8px;background:var(--mep-surface-2);border-radius:8px;text-align:center;">
-                <div style="font-size:14px;font-weight:700;color:{scoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
-                <div class="label" style="font-size:10px;margin-top:2px;">{kpi.label}</div>
+                <div style="font-size:14px;font-weight:700;color:{getScoreColor(kpi.score * 3)};" class="num">{kpi.score}/{kpi.max}</div>
+                <div class="label" style="margin-top:2px;">{kpi.label}</div>
               </div>
             {/each}
           </div>
         </div>
       {/if}
 
-    {:else if tab === 'facturas'}
+    {:else if tab === 'albaranes'}
 
       {#if !data.invoices.length}
         <div style="padding:40px 24px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;">
@@ -318,7 +308,7 @@
               <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · ${$t('sup.dueShort')} ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
             </div>
             <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
-            <StatusBadge status={invoiceStatus(inv)} style="font-size:10px;padding:1px 5px;" />
+            <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
           </a>
         {/each}
       {/if}
@@ -347,7 +337,7 @@
               </svg>
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
                 <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total)}</span>
-                <span style="font-size:9.5px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
+                <span style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:7px;width:100%;">
@@ -371,6 +361,16 @@
               {#if prod.unit}<span>{prod.unit}</span>{/if}
               {#if prod.avgPrice != null}<span>· {fmtEur(prod.avgPrice)}</span>{/if}
               {#if prod.lastDate}<span>· {fmtDateShort(prod.lastDate, $locale)}</span>{/if}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;">
+              <div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colSpend')}</div>
+                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalSpend != null ? fmtEur(prod.totalSpend) : '—'}</div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colUnits')}</div>
+                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalQty != null ? prod.totalQty.toFixed(2) : '—'}</div>
+              </div>
             </div>
           </div>
         {/each}

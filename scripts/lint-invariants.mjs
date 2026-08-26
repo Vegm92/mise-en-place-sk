@@ -38,8 +38,12 @@ const NON_TENANT_TABLES = new Set(['userRestaurants', 'subscriptions']);
 function tenantScopedTables() {
 	const found = new Map();
 	const schemaDir = path.join(ROOT, 'src/lib/server/schema');
-	if (!fs.existsSync(schemaDir)) return found;
-	for (const file of walk(schemaDir, ['.ts'])) {
+	const schemaFile = path.join(ROOT, 'src/lib/server/schema.ts');
+	let schemaFiles = [];
+	if (fs.existsSync(schemaDir)) schemaFiles = walk(schemaDir, ['.ts']);
+	else if (fs.existsSync(schemaFile)) schemaFiles = [schemaFile];
+	if (schemaFiles.length === 0) return found;
+	for (const file of schemaFiles) {
 		const src = fs.readFileSync(file, 'utf8');
 		const decl = /export const (\w+)\s*=\s*pgTable\(\s*['"](\w+)['"]/g;
 		const starts = [];
@@ -80,30 +84,49 @@ function tenantScopedTables() {
  *
  * Boundaries are `;` and `,` at depth 0, or the opening bracket we are nested in.
  */
-function statementBounds(src, index) {
+function scanBoundary(src, index, dir) {
+	const deepen = dir < 0 ? ')]}' : '([{';
+	const narrow = dir < 0 ? '([{' : ')]}';
 	let depth = 0;
-	let start = index;
-	while (start > 0) {
-		const ch = src[start - 1];
-		if (ch === ')' || ch === ']' || ch === '}') depth++;
-		else if (ch === '(' || ch === '[' || ch === '{') {
+	let pos = index;
+	while (pos > 0 && pos < src.length) {
+		const ch = dir < 0 ? src[pos - 1] : src[pos];
+		if (deepen.includes(ch)) depth++;
+		else if (narrow.includes(ch)) {
 			if (depth === 0) break;
 			depth--;
 		} else if ((ch === ';' || ch === ',') && depth === 0) break;
-		start--;
+		pos += dir;
 	}
-	depth = 0;
-	let end = index;
-	while (end < src.length) {
-		const ch = src[end];
-		if (ch === '(' || ch === '[' || ch === '{') depth++;
-		else if (ch === ')' || ch === ']' || ch === '}') {
-			if (depth === 0) break;
-			depth--;
-		} else if ((ch === ';' || ch === ',') && depth === 0) break;
-		end++;
+	return pos;
+}
+
+function statementBounds(src, index) {
+	return [scanBoundary(src, index, -1), scanBoundary(src, index, 1)];
+}
+
+function matchViolation(src, m, tableName, file) {
+	const [start, end] = statementBounds(src, m.index);
+	const statement = src.slice(start, end);
+	const whereAt = statement.indexOf('.where(');
+	const filter = whereAt === -1 ? '' : statement.slice(whereAt);
+	if (/scope\(/.test(filter) || /\.restaurantId\b/.test(filter)) return null;
+	const lineNo = src.slice(0, m.index).split('\n').length;
+	const above = src.slice(0, start).split('\n').slice(-3).join('\n');
+	if (SCOPE_OK.test(statement) || SCOPE_OK.test(above)) return null;
+	return `${path.relative(ROOT, file)}:${lineNo}: .from(${tableName}) with no tenant predicate`;
+}
+
+function scanFile(file, tables, violations) {
+	const src = fs.readFileSync(file, 'utf8');
+	const re = /\.from\(\s*(\w+)/g;
+	let m;
+	while ((m = re.exec(src))) {
+		if (tables.has(m[1])) {
+			const v = matchViolation(src, m, m[1], file);
+			if (v) violations.push(v);
+		}
 	}
-	return [start, end];
 }
 
 function runUnscopedQueryGate() {
@@ -119,25 +142,7 @@ function runUnscopedQueryGate() {
 		for (const file of walk(absRoot, ['.ts'])) {
 			// Admin tooling is cross-tenant by definition, same carve-out as tenant-scope.
 			if (file.includes(`${path.sep}admin${path.sep}`)) continue;
-			const src = fs.readFileSync(file, 'utf8');
-			const re = /\.from\(\s*(\w+)/g;
-			let m;
-			while ((m = re.exec(src))) {
-				if (!tables.has(m[1])) continue;
-				const [start, end] = statementBounds(src, m.index);
-				const statement = src.slice(start, end);
-				// Only a restaurantId in the *filter* counts. Selecting the column
-				// (`.select({ restaurantId: x.restaurantId })`) proves nothing about
-				// which rows come back.
-				const whereAt = statement.indexOf('.where(');
-				const filter = whereAt === -1 ? '' : statement.slice(whereAt);
-				if (/scope\(/.test(filter) || /\.restaurantId\b/.test(filter)) continue;
-				const lineNo = src.slice(0, m.index).split('\n').length;
-				// The annotation may sit inside the statement or on a line above it.
-				const above = src.slice(0, start).split('\n').slice(-3).join('\n');
-				if (SCOPE_OK.test(statement) || SCOPE_OK.test(above)) continue;
-				violations.push(`${path.relative(ROOT, file)}:${lineNo}: .from(${m[1]}) with no tenant predicate`);
-			}
+			scanFile(file, tables, violations);
 		}
 	}
 	if (violations.length > 0) {

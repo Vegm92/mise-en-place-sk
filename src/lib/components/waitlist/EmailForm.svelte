@@ -1,5 +1,6 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import Turnstile from '$lib/components/Turnstile.svelte';
 
   type JoinFormResult = { success?: boolean; error?: string; alreadyRegistered?: boolean } | null | undefined;
 
@@ -20,12 +21,13 @@
       errRequired: string;
       errInvalid: string;
       errRateLimited: string;
+      errBot: string;
       privacy: string;
     };
   } = $props();
 
   let emailError = $state('');
-  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const EMAIL_RE = /^[^\s@]+@[^\s@](?=[^\s@]*\.[^\s@])[^\s@]*$/;
 
   function validateEmail(value: string): string {
     if (!value.trim()) return copy.errRequired;
@@ -39,6 +41,7 @@
     if (err === 'required') return copy.errRequired;
     if (err === 'invalid') return copy.errInvalid;
     if (err === 'rate_limited') return copy.errRateLimited;
+    if (err === 'bot_suspected') return copy.errBot;
     return '';
   }
 </script>
@@ -47,7 +50,7 @@
   <div style="background:var(--mep-pos-soft);border:1px solid var(--mep-pos);border-radius:10px;
               padding:{big ? '18px 20px' : '14px 16px'};display:flex;align-items:flex-start;gap:12px;">
     <div style="width:26px;height:26px;border-radius:13px;flex-shrink:0;background:var(--mep-pos);
-                color:#fff;display:flex;align-items:center;justify-content:center;">
+                color:var(--mep-pos-fg);display:flex;align-items:center;justify-content:center;">
       <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
     </div>
     <div>
@@ -85,6 +88,7 @@
         {big ? copy.submit : copy.submitShort}
       </button>
     </div>
+    <Turnstile />
     {#if emailError || serverError()}
       <div style="font-size:12.5px;color:var(--mep-neg);padding-left:4px;">{emailError || serverError()}</div>
     {/if}

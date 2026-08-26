@@ -1,0 +1,764 @@
+{
+	"generatedAt": "2026-08-24T16:07:40.893Z",
+	"viewport": {
+		"width": 390,
+		"height": 844
+	},
+	"limits": {
+		"target": 44,
+		"text": 11,
+		"input": 16
+	},
+	"routes": [
+		{
+			"route": "/",
+			"status": 200,
+			"url": "/",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/dashboard",
+			"status": 200,
+			"url": "/dashboard",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/invoices",
+			"status": 200,
+			"url": "/invoices",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/invoices/export",
+			"status": 200,
+			"url": "/invoices/export",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/suppliers",
+			"status": 200,
+			"url": "/suppliers",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/products",
+			"status": 200,
+			"url": "/products",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/budgets",
+			"status": 200,
+			"url": "/budgets",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/reminders",
+			"status": 200,
+			"url": "/reminders",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/settings",
+			"status": 200,
+			"url": "/settings",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/chat",
+			"status": 200,
+			"url": "/chat",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/billing",
+			"status": 200,
+			"url": "/billing",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/reports",
+			"status": 200,
+			"url": "/reports",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/plantilla-lista",
+			"status": 200,
+			"url": "/plantilla-lista",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/analytics/spend",
+			"status": 200,
+			"url": "/analytics/spend",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/spend] \"Gasto\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/prices] \"Precios\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/extraction] \"Extracción\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/analytics/prices",
+			"status": 200,
+			"url": "/analytics/prices",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/spend] \"Gasto\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/prices] \"Precios\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/extraction] \"Extracción\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/analytics/extraction",
+			"status": 200,
+			"url": "/analytics/extraction",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/spend] \"Gasto\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/prices] \"Precios\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/extraction] \"Extracción\"",
+					"width": 164,
+					"height": 28.8
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/suppliers/6",
+			"status": 200,
+			"url": "/suppliers/6",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/products/1",
+			"status": 200,
+			"url": "/products/1",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/invoice/30",
+			"status": 200,
+			"url": "/invoice/30",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		},
+		{
+			"route": "/invoice/30/edit",
+			"status": 200,
+			"url": "/invoice/30/edit",
+			"smallTargets": [],
+			"sidebarTargets": [
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
+					"width": 57.1,
+					"height": 16.5
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/terms] \"Términos\"",
+					"width": 49.2,
+					"height": 16.5
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				},
+				{
+					"selector": "aside.fixed.left-0.top-0>div>form>button",
+					"width": 17,
+					"height": 17
+				}
+			],
+			"tinyText": [],
+			"smallInputs": []
+		}
+	],
+	"totals": {
+		"smallTargets": 0,
+		"tinyText": 0,
+		"smallInputs": 0
+	}
+}

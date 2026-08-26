@@ -23,8 +23,7 @@ enforced by the lint scripts listed, which run in CI.
 
 - Server-only code lives in `src/lib/server/`; shared client code in
   `src/lib/`; UI in `src/lib/components/{mep,mobile,desktop,waitlist,ui,admin}`.
-- Database schema is split by area in
-  `src/lib/server/schema/{core,extensions,auth}.ts`, re-exported by `schema.ts`.
+- Database schema lives in one file, `src/lib/server/schema.ts`.
   Business tables carry `restaurant_id`.
 - Route groups: `(app)` authenticated shell, `(admin)` ops shell, top-level
   public pages. Server logic lives in `+page.server.ts`/`+server.ts`, not in
@@ -53,6 +52,12 @@ enforced by the lint scripts listed, which run in CI.
 - User-facing strings go through `src/lib/i18n.ts` (es-first, es/en). Components
   use `$t(key)`, `$ti(key, vars)`, `$tiv(...)`, `$tp(...)`. Hardcoded strings
   fail CI (`lint:i18n`).
+- Going through the table is not enough — the key has to be *in* it, or the UI
+  renders the raw key. `lint:i18n` resolves every literal key passed to
+  `$t`/`$ti`/`$tiv`/`$tp` against both locale tables and fails on a missing one
+  (issue #661). Keys assembled at runtime (`$t(row.labelKey)`, ``$t(`a.${b}`)``)
+  cannot be resolved statically and are skipped; cover those with a test that
+  derives the key list from its source, as `tests/i18n.test.ts` does.
 
 ## Comments and directives in source
 
@@ -152,9 +157,13 @@ These comments were deliberately left in the code because a tool reads them.
 
 ### `src/lib/constants.ts`
 
+**_module level_**
+
+- Category colours deliberately do not live here. They are in `$lib/colors`, backed by the `--mep-cat-*` custom properties in `app.css`, so they follow the active theme. They were moved out of this module because it is imported by load functions, and a colour map here is what let styling leak server-side.
+
 **`const UNCATEGORIZED_CATEGORY`**
 
-- Canonical category taxonomy — single source of truth for the whole app. Suppliers (`suppliers.category`) and budgets (`category_budgets.category`) MUST store one of these exact strings; the synth seed generators and a guard test (tests/category-taxonomy.test.ts) enforce this — do not diverge.
+- Canonical category taxonomy — single source of truth for the whole app. Suppliers (`suppliers.category`) and budgets (`category_budgets.category`) MUST store one of these exact strings; a guard test (tests/category-taxonomy.test.ts) enforces this — do not diverge.
 - Bucket for suppliers nobody has categorised (issue #301). Stored, not fabricated per query: `getOrCreateSupplierId` writes it on creation, the budget check and analytics coalesce legacy NULLs into it, and the UI renders it as "Sin categoría" / "Uncategorised" rather than as a literal category.
 
 **`const MIN_CATEGORY_CONFIDENCE`**
@@ -200,6 +209,14 @@ These comments were deliberately left in the code because a tool reads them.
 - Pluralizing translator: picks the right plural form for `count` and interpolates the count as `{n}`. The optional `.zero` form lets a language phrase the empty case naturally ("No invoices" / "Sin facturas"); when absent, count 0 falls back to the `.other` form.
 
 ### `src/lib/status.ts`
+
+**`const STORED_INVOICE_STATUSES` / `const DERIVED_INVOICE_STATUSES`**
+
+- The invoice status vocabulary, split by where a value comes from. `pending | accepted | rejected | paid` are what `invoices.status` holds; `overdue` is computed at read time and never written. `DISPLAY_INVOICE_STATUSES` is the union the UI can be asked to render, and `InvoiceStatus` (the stored union) is re-exported by `invoice-status.ts` rather than redeclared — three disagreeing copies of this union is what issue #520 found.
+
+**`function badgeClass` / `function statusKey`**
+
+- Total over `DISPLAY_INVOICE_STATUSES`; an unrecognised value gets a neutral badge and renders its raw text rather than being painted as confirmed. `tests/invoice-status-vocabulary.test.ts` asserts every member has a class in app.css and a key in both locales.
 
 **`function confColor`**
 

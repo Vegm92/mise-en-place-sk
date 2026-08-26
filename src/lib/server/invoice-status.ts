@@ -1,8 +1,23 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { invoices } from './schema';
+import { isStoredInvoiceStatus, type InvoiceStatus } from '$lib/status';
 
-export type InvoiceStatus = 'pending' | 'accepted' | 'rejected' | 'paid';
+export type { InvoiceStatus };
+
+export function invoiceStatusFilter(status: string): SQL | undefined {
+	if (!status) return undefined;
+
+	if (status === 'overdue') {
+		return and(
+			eq(invoices.status, 'pending'),
+			isNotNull(invoices.dueDate),
+			lt(invoices.dueDate, sql`CURRENT_DATE`),
+		);
+	}
+
+	return isStoredInvoiceStatus(status) ? eq(invoices.status, status) : sql`false`;
+}
 
 async function transition(
 	id: number,

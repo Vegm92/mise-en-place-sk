@@ -3,10 +3,12 @@ import { db, forTenant } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
 import { eq, desc } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
+import { requireFeature } from '$lib/server/billing';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/onboarding');
+	await requireFeature('aiAssistant', locals);
 	const tdb = forTenant(rid);
 	const sessionIdParam = url.searchParams.get('session');
 

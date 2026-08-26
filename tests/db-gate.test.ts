@@ -75,7 +75,7 @@ describe('resolveDbGate', () => {
 	});
 
 	it('prefers DATABASE_TEST_URL over DATABASE_URL', () => {
-		const gate = resolveDbGate({ DATABASE_URL: HOSTED, DATABASE_TEST_URL: LOCAL });
+		const gate = resolveDbGate({ DATABASE_URL: LOCAL_IP, DATABASE_TEST_URL: LOCAL });
 		expect(gate.url).toBe(LOCAL);
 		expect(gate.enabled).toBe(true);
 	});
@@ -84,6 +84,32 @@ describe('resolveDbGate', () => {
 		const gate = resolveDbGate({ DATABASE_URL: LOCAL, DATABASE_TEST_URL: HOSTED });
 		expect(gate.url).toBe(HOSTED);
 		expect(gate.enabled).toBe(false);
+	});
+
+	it('refuses a local DATABASE_TEST_URL beside a hosted DATABASE_URL', () => {
+		const gate = resolveDbGate({ DATABASE_URL: HOSTED, DATABASE_TEST_URL: LOCAL });
+		expect(gate.enabled).toBe(false);
+		expect(gate.skipReason).toContain('DATABASE_URL');
+		expect(gate.skipReason).toContain('db.abcdefgh.hosted-pg.example.com');
+	});
+
+	it('also refuses a hosted pooler URL as the application connection', () => {
+		expect(resolveDbGate({ DATABASE_URL: POOLER, DATABASE_TEST_URL: LOCAL }).enabled).toBe(false);
+	});
+
+	it('allows the mismatch only with an explicit opt-in', () => {
+		const gate = resolveDbGate({
+			DATABASE_URL: HOSTED,
+			DATABASE_TEST_URL: LOCAL,
+			ALLOW_REMOTE_DB_TESTS: '1'
+		});
+		expect(gate.enabled).toBe(true);
+	});
+
+	it('enables tests when both connection strings are local', () => {
+		const gate = resolveDbGate({ DATABASE_URL: LOCAL, DATABASE_TEST_URL: LOCAL });
+		expect(gate.enabled).toBe(true);
+		expect(gate.skipReason).toBe('');
 	});
 
 	it('disables tests when nothing is configured', () => {
@@ -101,5 +127,11 @@ describe('skipNotice', () => {
 		expect(notice).toContain('db.abcdefgh.hosted-pg.example.com');
 		expect(notice).toContain('DATABASE_TEST_URL');
 		expect(notice).toContain('ALLOW_REMOTE_DB_TESTS=1');
+	});
+
+	it('tells the reader to point DATABASE_URL locally too', () => {
+		const notice = skipNotice(resolveDbGate({ DATABASE_URL: HOSTED, DATABASE_TEST_URL: LOCAL }));
+		expect(notice).toContain('DATABASE_URL');
+		expect(notice).toContain('application code under test');
 	});
 });

@@ -6,11 +6,12 @@ import path from 'path';
 import { localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/sessions';
 import {
 	getItem, getBatchItems, addItems, removeItem, deleteBatch, isBatchSettled,
-	markQueued, markDiscarded, pickActiveItem,
+	markQueued, markDiscarded, pickActiveItem, pickStalledItem, requeueStalled,
+	failStalledItems, stallLevel,
 } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
-import { createBatchStore } from '$lib/server/batch-core';
+import { createBatchStore } from '$lib/server/batch';
 import { saveReviewedInvoice } from '$lib/server/invoice-save';
 import { trackEvent } from '$lib/server/events';
 import { getStorage } from '$lib/server/storage';
@@ -103,9 +104,15 @@ async function requireOwnedBatch(batchId: string, locals: App.Locals) {
 	return items;
 }
 
+async function reapedItems(batchId: string, locals: App.Locals) {
+	const items = await requireOwnedBatch(batchId, locals);
+	if (!items.some(i => stallLevel(i) === 'expired')) return items;
+	return (await failStalledItems(batchId)) > 0 ? getBatchItems(batchId) : items;
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('batch', async () => {
-		const items = await requireOwnedBatch(params.id, locals);
+		const items = await reapedItems(params.id, locals);
 
 		const open = items.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
 		if (!open.length) redirect(303, '/');
@@ -124,6 +131,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const active = pickActiveItem(items);
 		const anyInFlight = open.some(i => i.status === 'queued' || i.status === 'extracting');
 		const allPending = open.every(i => i.status === 'pending');
+		const stalledItem = pickStalledItem(open);
 
 		let review = null;
 		if (active && active.status === 'done') {
@@ -135,11 +143,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				supplierNameStr,
 				String(extractedData.invoice_number ?? ''),
 			);
+			const invoiceDateStr = typeof extractedData.invoice_date === 'string' ? extractedData.invoice_date : null;
+			const totalAmountNum = typeof extractedData.total_amount === 'number' ? extractedData.total_amount : null;
 			const similarInvoiceId = duplicateOfId ? null : await findSimilarInvoiceId(
 				locals.restaurantId!,
 				supplierNameStr,
-				typeof extractedData.invoice_date === 'string' ? extractedData.invoice_date : null,
-				typeof extractedData.total_amount === 'number' ? extractedData.total_amount : null,
+				invoiceDateStr,
+				totalAmountNum,
 			);
 			review = {
 				itemId: active.id,
@@ -162,6 +172,9 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				? { itemId: active.id, name: active.displayName, error: active.extractError ?? 'extract.err.generic' }
 				: null,
 			anyInFlight,
+			stalled: stalledItem
+				? { itemId: stalledItem.id, name: stalledItem.displayName }
+				: null,
 			allPending,
 			openCount: open.length,
 			reviewedCount: items.filter(i => i.status === 'confirmed').length,
@@ -195,7 +208,10 @@ export const actions: Actions = {
 		const items = await requireOwnedBatch(params.id, locals);
 		const item = items.find(i => i.id === itemId);
 		if (item) {
-			if (await markQueued(item.id)) await enqueueExtraction(item.id, item.restaurantId);
+			const requeued = item.status === 'queued' || item.status === 'extracting'
+				? await requeueStalled(item.id)
+				: await markQueued(item.id);
+			if (requeued) await enqueueExtraction(item.id, item.restaurantId);
 		}
 		redirect(303, `/batch/${params.id}`);
 	},
@@ -217,6 +233,7 @@ export const actions: Actions = {
 
 		if (outcome.type === 'replay') redirect(303, `/batch/${params.id}`);
 
+		if (outcome.type === 'invalidDate') return fail(400, { errorKey: 'error.invalidDate', errorField: outcome.field });
 		if (outcome.type === 'lowConfidenceBlocked') return fail(422, { lowConfidenceBlocked: true });
 		if (outcome.type === 'contentDuplicate') return fail(422, { contentDuplicate: true, duplicateId: outcome.duplicateId });
 
@@ -253,7 +270,7 @@ export const actions: Actions = {
 		for (const i of items) {
 			if (i.status !== 'confirmed') await deleteUploadFile(i.fileKey);
 		}
-		await deleteBatch(params.id);
+		await deleteBatch(params.id, rid);
 		redirect(303, '/');
 	},
 
@@ -281,16 +298,17 @@ export const actions: Actions = {
 	remove: async ({ params, request, locals }) => {
 		const formData = await request.formData();
 		const itemId = (formData.get('itemId') as string) ?? '';
+		const rid = locals.restaurantId!;
 		const items = await requireOwnedBatch(params.id, locals);
 		const item = items.find(i => i.id === itemId);
 		if (item) {
-			const removed = await removeItem(item.id);
+			const removed = await removeItem(item.id, rid);
 			if (removed) await deleteUploadFile(removed.fileKey);
 		}
 		const left = (await getBatchItems(params.id))
 			.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
 		if (!left.length) {
-			await deleteBatch(params.id);
+			await deleteBatch(params.id, rid);
 			redirect(303, '/');
 		}
 		redirect(303, `/batch/${params.id}`);

@@ -65,10 +65,19 @@ parsed here and re-checked at save.
 `queued → extracting → done | failed`. `markExtracting` is a guarded claim — a
 lost race releases the quota slot.
 
+`markQueued` stamps `queued_at`, which is the clock the stall states are read
+off (#540): past `EXTRACTION_STALL_WARN_MS` (2 min) an in-flight item is `slow`
+and the UI offers Retry; past `EXTRACTION_STALL_TIMEOUT_MS` (15 min)
+`failStalledItems` transitions it `queued|extracting → failed` with
+`extract.err.stalled`. Retrying a `slow` item goes through `requeueStalled`
+(`queued|extracting → failed → queued`), which restarts the clock — plain
+`markQueued` only accepts `pending`/`failed`.
+
 ## Data dependencies
 
-`batch_items`, `monthly_usage`, `llm_usage_log`, `products` (enrichment),
-`settings` (quota overrides), `subscriptions` (access).
+`batch_items` (incl. `queued_at`), `monthly_usage`, `llm_usage_log`, `products`
+(enrichment), `settings` (quota overrides), `subscriptions` (access),
+`worker_heartbeats` (liveness, read by the health surfaces only).
 
 ## API dependencies
 
@@ -76,7 +85,11 @@ lost race releases the quota slot.
 
 ## UI dependencies
 
-`batch/[id]/+page.svelte` (status + review), no extraction UI itself.
+`batch/[id]/+page.svelte` (status + review), no extraction UI itself. Three
+in-flight renderings: spinner, the `slow` card (`batch.stalledTitle` /
+`batch.stalledBody` + Retry / Discard), and the existing failure card once the
+hard timeout fires. The poll invalidates on a status change **or** on a flip of
+the `stalled` flag, since crossing the warning threshold changes no status.
 
 ## Background dependencies
 
@@ -102,10 +115,16 @@ Quota, access, classification, JSON shape, error classification.
 - `rateLimited` / `unavailable` / `timeout` (retryable, not dead-lettered).
 - `notInvoice` (invalid JSON), `generic`, `corrupt.invalidJson`,
   `corrupt.unknownEinvoiceFormat` (dead-lettered).
+- `stalled` — written by the web process, not the worker: the item sat in
+  `queued`/`extracting` past the hard timeout, so no extraction ever ran.
 - Corrupt job payload (missing `itemId`/`itemNotFound`) → dead-letter directly.
 
 ## Edge cases
 
+- Worker down, crash-looping, or wedged (#501): nothing consumes the queue, so
+  the item never leaves `queued`. Caught by the stall clock, not by the worker.
+- Rows queued before the `queued_at` migration have a NULL clock and are never
+  reaped; migration 0042 backfills the in-flight ones from `updated_at`.
 - Scanned PDF with no text layer (vision path).
 - Multi-page PDFs; huge files (20 MB cap upstream).
 - XML e-invoice with unknown namespace → `unknownEinvoiceFormat`.
@@ -125,7 +144,10 @@ Quota, access, classification, JSON shape, error classification.
 
 - Extraction failure classes are countable from `dead_letter_queue` +
   `/admin/dead-letters`; `llm_usage_log` tracks cost.
-- Synthetic fixtures for regression testing: `pnpm synth:generate` (local, dev-only).
+- Worker liveness: the `Worker heartbeat` check on `/admin/health` and the
+  `worker` block on `/api/health` (`liveness`, `last_seen_at`,
+  `last_job_completed_at`, `jobs_completed`) — see
+  `docs/05_operations/background_jobs.md`.
 
 ## Acceptance criteria
 
@@ -133,13 +155,18 @@ Quota, access, classification, JSON shape, error classification.
   data via the correct route.
 - 429/503 retries succeed within backoff; a 4th failure marks `failed`.
 - Quota exhaustion marks `quotaExceeded` without extracting.
+- With no worker consuming the queue, an item shows the spinner, then the
+  actionable "taking longer" state, then the failed state with Retry/Discard —
+  it never spins forever (#540).
 - Tests: `tests/extract.test.ts`, `tests/extract-batch.test.ts`,
-  `tests/einvoice-parser.test.ts`, `tests/llm-provider.test.ts`,
-  `tests/pdf-text-layer.test.ts`, `tests/dead-letter*.test.ts`.
+  `tests/batch-stall.test.ts`, `tests/batch-model.test.ts`,
+  `tests/worker-heartbeat.test.ts`, `tests/einvoice-parser.test.ts`,
+  `tests/llm-provider.test.ts`, `tests/pdf-text-layer.test.ts`,
+  `tests/dead-letter*.test.ts`.
 
 ## Code notes
 
-### `src/routes/batch/[batchId]/confirm/[id]/+page.server.ts`
+### `src/routes/(app)/confirm/[id]/+page.server.ts`
 
 **`const load`**
 
@@ -195,7 +222,7 @@ Quota, access, classification, JSON shape, error classification.
 
 - Auto-detects the XML format and delegates; null if not recognised.
 
-### `src/lib/server/batches/extract-batch.ts`
+### `src/lib/server/extract-batch.ts`
 
 **`interface BatchEnqueueDeps`**
 

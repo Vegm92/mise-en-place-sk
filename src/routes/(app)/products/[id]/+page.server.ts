@@ -2,7 +2,7 @@ import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { products, invoiceLineItems, invoices, suppliers, productAliases } from '$lib/server/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import {
@@ -30,6 +30,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		db.select({
 			id:          productAliases.id,
 			rawText:     productAliases.rawText,
+			supplierSku: productAliases.supplierSku,
 			source:      productAliases.source,
 			confirmedAt: productAliases.confirmedAt,
 			createdAt:   productAliases.createdAt,
@@ -57,6 +58,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	]);
 
 	return {
+		title: 'prod.detail.pageTitle',
 		product,
 		linkedSuppliers,
 		aliases,

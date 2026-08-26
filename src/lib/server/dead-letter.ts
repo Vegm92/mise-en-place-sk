@@ -21,7 +21,7 @@ const MAX_DEPTH = 4;
 const REDACTED = '[redacted]';
 
 const SENSITIVE_KEY = /pass|secret|token|api[-_]?key|auth|cookie|credential|signature|session|dsn/i;
-const EMAIL_RE = /[^\s@"']+@[^\s@"']+\.[^\s@"']+/g;
+const EMAIL_RE = /(?<![^\s@"'])[^\s@"']+@[^\s@"'][^\s@"'.]*\.[^\s@"']+/g;
 
 const CORRUPTION_PATTERNS: Array<[RegExp, string]> = [
 	[/invalid json|is not valid json|unexpected token|json at position/i, 'corrupt.invalidJson'],
@@ -36,7 +36,17 @@ export function redactString(value: string, max = MAX_STRING_CHARS): string {
 	return `${masked.slice(0, max)}[+${masked.length - max} chars]`;
 }
 
+const NOT_SCALAR = Symbol('redact-not-scalar');
+
 export function redactPayload(value: unknown, depth = 0): unknown {
+	const scalar = redactScalar(value);
+	if (scalar !== NOT_SCALAR) return scalar;
+	if (depth >= MAX_DEPTH) return '[depth-limit]';
+	if (Array.isArray(value)) return redactArray(value, depth);
+	return redactObject(value as Record<string, unknown>, depth);
+}
+
+function redactScalar(value: unknown): unknown {
 	if (value === null || value === undefined) return null;
 	if (typeof value === 'string') return redactString(value);
 	if (typeof value === 'number') return Number.isFinite(value) ? value : String(value);
@@ -45,18 +55,20 @@ export function redactPayload(value: unknown, depth = 0): unknown {
 	if (typeof value === 'function' || typeof value === 'symbol') return `[${typeof value}]`;
 	if (value instanceof Date) return value.toISOString();
 	if (value instanceof Error) return { name: value.name, message: redactString(value.message) };
-	if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
-		return `[binary ${value.byteLength} bytes]`;
-	}
-	if (depth >= MAX_DEPTH) return '[depth-limit]';
-	if (Array.isArray(value)) {
-		const head: unknown[] = value.slice(0, MAX_ARRAY_ITEMS).map((v) => redactPayload(v, depth + 1));
-		if (value.length > MAX_ARRAY_ITEMS) head.push(`[+${value.length - MAX_ARRAY_ITEMS} more]`);
-		return head;
-	}
+	if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) return `[binary ${value.byteLength} bytes]`;
+	return NOT_SCALAR;
+}
+
+function redactArray(value: unknown[], depth: number): unknown[] {
+	const head = value.slice(0, MAX_ARRAY_ITEMS).map((v) => redactPayload(v, depth + 1));
+	if (value.length > MAX_ARRAY_ITEMS) head.push(`[+${value.length - MAX_ARRAY_ITEMS} more]`);
+	return head;
+}
+
+function redactObject(value: Record<string, unknown>, depth: number): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
 	let seen = 0;
-	for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+	for (const [key, val] of Object.entries(value)) {
 		if (seen >= MAX_OBJECT_KEYS) {
 			out['[truncated]'] = true;
 			break;
@@ -97,8 +109,13 @@ export function describeError(err: unknown): { message: string; stack: string | 
 	}
 }
 
+function rawErrorMessage(err: unknown): string {
+	if (err instanceof Error) return err.message;
+	return typeof err === 'string' ? err : '';
+}
+
 export function classifyDeadLetterError(err: unknown): string {
-	const message = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+	const message = rawErrorMessage(err);
 	for (const [pattern, errorClass] of CORRUPTION_PATTERNS) {
 		if (pattern.test(message)) return errorClass;
 	}

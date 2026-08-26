@@ -5,9 +5,9 @@ import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems
 import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
-import { toCents, moneyToNumber } from '$lib/server/money';
+import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 
-const VALID_TABS = ['resumen', 'facturas', 'productos', 'conversiones'] as const;
+const VALID_TABS = ['resumen', 'albaranes', 'productos', 'conversiones'] as const;
 type Tab = typeof VALID_TABS[number];
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
@@ -64,7 +64,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			description: invoiceLineItems.description,
 			unit:        invoiceLineItems.unit,
 			avgPrice:    sql<string | null>`AVG(${invoiceLineItems.unitPrice})`,
-			totalQty:    sql<number>`SUM(${invoiceLineItems.quantity})`,
+			totalQty:    sql<number | null>`SUM(${invoiceLineItems.quantity})`,
+			totalSpend:  sql<string | null>`SUM(${invoiceLineItems.totalPrice})`,
 			lastDate:    sql<string>`MAX(${invoices.invoiceDate})`,
 		})
 			.from(invoiceLineItems)
@@ -110,13 +111,19 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	const initialEditing = url.searchParams.get('edit') === '1';
 
 	return {
+		title: 'sup.detail.pageTitle',
 		supplier,
 		invoices: supplierInvoices.map(inv => ({ ...inv, totalAmount: moneyToNumber(inv.totalAmount) })),
 		metrics: supplierInvoices.length >= 3 ? metrics ?? null : null,
 		monthly,
 		categories: VALID_CATEGORIES,
 		conversions,
-		products: products.map(p => ({ ...p, avgPrice: p.avgPrice == null ? null : moneyToNumber(p.avgPrice) })),
+		products: products.map(p => ({
+			...p,
+			avgPrice:   p.avgPrice == null ? null : moneyToNumber(p.avgPrice),
+			totalQty:   p.totalQty == null ? null : Number(p.totalQty),
+			totalSpend: moneyToNullableNumber(p.totalSpend),
+		})),
 		initialTab,
 		initialEditing,
 		initialIngredient,

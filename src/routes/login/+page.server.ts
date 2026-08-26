@@ -1,11 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { safeRedirect } from '$lib/server/safe-redirect';
 import { publicFormAction } from '$lib/server/public-form-action';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { signIn } from '$lib/server/auth';
+import { safeRedirect } from '$lib/server/safe-redirect';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));

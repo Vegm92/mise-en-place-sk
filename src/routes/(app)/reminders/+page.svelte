@@ -133,7 +133,7 @@
           {#each [...data.overdue, ...data.due_soon] as r (r.id)}
             <input type="hidden" name="invoice_ids" value={r.id} />
           {/each}
-          <button type="submit" class="btn btn-ghost text-pos" style="height:32px;font-size:12px;gap:4px;">
+          <button type="submit" class="btn btn-ghost text-pos" style="font-size:12px;gap:4px;">
             <Check size={12} />{$t('rem.markAllPaid')}
           </button>
         </form>
@@ -145,13 +145,15 @@
         {#each data.overdue as r (r.id)}
           <div class="grid items-center gap-3 px-4 py-3 border-b border-divider last:border-0 hover:bg-hover transition-colors"
             style="grid-template-columns:1fr 120px 100px auto auto;">
-            <div class="min-w-0">
+            <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;min-w-0;display:contents;">
+              <div class="min-w-0">
               <p class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{r.supplier_name ?? '—'}</p>
               <p class="body text-fg-3" style="font-size:12px;margin-top:2px;">{r.invoice_number ?? '—'}</p>
             </div>
             <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>
             <p class="body text-fg-3 text-right" style="font-size:12px;">{r.due_date}</p>
             <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('rem.daysOverdue')}</span>
+            </a>
             <form method="post" action="?/markPaid">
               <input type="hidden" name="invoiceId" value={r.id} />
               <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:4px;">
@@ -168,13 +170,15 @@
         {#each data.due_soon as r (r.id)}
           <div class="grid items-center gap-3 px-4 py-3 border-b border-divider last:border-0 hover:bg-hover transition-colors"
             style="grid-template-columns:1fr 120px 100px auto auto;">
-            <div class="min-w-0">
+            <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;min-w-0;display:contents;">
+              <div class="min-w-0">
               <p class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{r.supplier_name ?? '—'}</p>
               <p class="body text-fg-3" style="font-size:12px;margin-top:2px;">{r.invoice_number ?? '—'}</p>
             </div>
             <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>
             <p class="body text-fg-3 text-right" style="font-size:12px;">{r.due_date}</p>
             <span class="badge badge-pending">{r.days_delta}{$t('misc.daysLeft')}</span>
+            </a>
             <form method="post" action="?/markPaid">
               <input type="hidden" name="invoiceId" value={r.id} />
               <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:4px;">

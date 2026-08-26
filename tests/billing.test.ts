@@ -4,18 +4,21 @@
  * The pure decision logic is what gates paid features and trial access, so it is
  * tested in isolation: db is mocked away (the module imports the db singleton,
  * which would otherwise throw without DATABASE_URL) and the Stripe price IDs are
- * injected via a mocked $env so tierFromPriceId has a known mapping to assert.
+ * injected via process.env so TIERS has a known mapping to assert.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { get } from 'svelte/store';
+import { locale, t } from '../src/lib/i18n';
 
-vi.mock('$env/dynamic/private', () => ({
-	env: {
-		STRIPE_PRICE_ID_STARTER: 'price_starter',
-		STRIPE_PRICE_ID_PRO: 'price_pro',
-		STRIPE_PRICE_ID_BUSINESS: 'price_business',
-		// no STRIPE_SECRET_KEY → stripe stays null, module is a safe no-op
-	},
-}));
+const originalEnv = { ...process.env };
+
+vi.hoisted(() => {
+	process.env.STRIPE_SECRET_KEY = 'sk_test_dummy';
+	process.env.STRIPE_PRICE_ID_STARTER = 'price_starter';
+	process.env.STRIPE_PRICE_ID_PRO = 'price_pro';
+	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business';
+});
 
 // db singleton throws at import without a connection string — stub it out.
 // `subscriptionRow` is what getAccessState reads; set it per test.
@@ -23,12 +26,19 @@ const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null a
 vi.mock('../src/lib/server/db', () => {
 	const chain = () => {
 		const p: Record<string, unknown> = {};
-		for (const m of ['from', 'where', 'limit']) p[m] = () => p;
+		for (const m of ['from', 'leftJoin', 'where', 'limit', 'update', 'set', 'insert', 'values', 'onConflictDoUpdate', 'returning']) p[m] = () => p;
 		p.then = (res: (v: unknown) => unknown) =>
 			Promise.resolve(subscriptionRow.value ? [subscriptionRow.value] : []).then(res);
 		return p;
 	};
-	return { db: { select: chain }, forTenant: () => ({ scope: () => ({}) }) };
+	return { db: { select: chain, update: chain, insert: chain }, forTenant: () => ({ scope: () => ({}) }) };
+});
+
+// Mock the Stripe client so switchTier can be exercised without the network:
+// retrieve returns the subscription item id, update records the price swap.
+vi.mock('stripe', () => {
+	const subscriptions = { retrieve: vi.fn(), update: vi.fn() };
+	return { default: class { subscriptions = subscriptions; } };
 });
 
 import {
@@ -37,8 +47,11 @@ import {
 	tierFromPriceId,
 	isAccessAllowed,
 	isTierAvailable,
+	effectiveTier,
 	planMonthlyPriceCents,
 	resolveMonthlyQuota,
+	switchTier,
+	stripe,
 	UNLIMITED_QUOTA_SETTING,
 	type PlanTier,
 } from '../src/lib/server/billing';
@@ -167,6 +180,32 @@ describe('isAccessAllowed', () => {
 	});
 });
 
+describe('effectiveTier', () => {
+	const future = new Date(Date.now() + 86_400_000);
+	const past = new Date(Date.now() - 86_400_000);
+
+	it('keeps the paid tier while the subscription is live', () => {
+		expect(effectiveTier({ planTier: 'pro', status: 'active', trialEndsAt: null })).toBe('pro');
+		expect(effectiveTier({ planTier: 'business', status: 'past_due', trialEndsAt: null })).toBe('business');
+	});
+
+	it('drops to trial when the subscription is no longer paying', () => {
+		for (const status of ['canceled', 'paused', 'incomplete']) {
+			expect(effectiveTier({ planTier: 'pro', status, trialEndsAt: null })).toBe('trial');
+		}
+	});
+
+	it('drops to trial once the trial has expired', () => {
+		expect(effectiveTier({ planTier: 'pro', status: 'trialing', trialEndsAt: past })).toBe('trial');
+		expect(effectiveTier({ planTier: 'pro', status: 'trialing', trialEndsAt: future })).toBe('pro');
+	});
+
+	it('treats a missing subscription as trial', () => {
+		expect(effectiveTier(undefined)).toBe('trial');
+		expect(effectiveTier({ planTier: null, status: 'active', trialEndsAt: null })).toBe('trial');
+	});
+});
+
 describe('TIERS configuration', () => {
 	const order: PlanTier[] = ['trial', 'starter', 'pro', 'business'];
 
@@ -259,4 +298,121 @@ describe('getAccessState', () => {
 		subscriptionRow.value = null;
 		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
 	});
+});
+
+afterEach(() => {
+	process.env = { ...originalEnv };
+	vi.mocked(stripe!.subscriptions.retrieve).mockReset();
+	vi.mocked(stripe!.subscriptions.update).mockReset();
+});
+
+// In-app plan change: one subscription, price swapped on it (any tier ↔ any
+// paid tier), upgrades pro-rate in Stripe, downgrades apply immediately.
+describe('switchTier', () => {
+	it('swaps the price on the existing subscription and clears a pending cancel', async () => {
+		vi.mocked(stripe!.subscriptions.retrieve).mockResolvedValue({ items: { data: [{ id: 'item_1' }] } } as never);
+		vi.mocked(stripe!.subscriptions.update).mockResolvedValue({} as never);
+
+		subscriptionRow.value = { stripeSubscriptionId: 'sub_1', planTier: 'starter' };
+		await switchTier('rest-1', 'pro');
+
+		expect(stripe!.subscriptions.retrieve).toHaveBeenCalledWith('sub_1');
+		expect(stripe!.subscriptions.update).toHaveBeenCalledWith('sub_1', {
+			items: [{ id: 'item_1', price: TIERS.pro.stripePriceId }],
+			cancel_at_period_end: false,
+		});
+	});
+
+	it('supports downgrades and business moves on the same subscription', async () => {
+		vi.mocked(stripe!.subscriptions.retrieve).mockResolvedValue({ items: { data: [{ id: 'item_1' }] } } as never);
+
+		subscriptionRow.value = { stripeSubscriptionId: 'sub_2', planTier: 'business' };
+		await switchTier('rest-1', 'starter');
+		expect(stripe!.subscriptions.update).toHaveBeenCalledWith('sub_2', {
+			items: [{ id: 'item_1', price: TIERS.starter.stripePriceId }],
+			cancel_at_period_end: false,
+		});
+	});
+
+	it('refuses to switch to a tier with no configured price id', async () => {
+		subscriptionRow.value = { stripeSubscriptionId: 'sub_1' };
+		await expect(switchTier('rest-1', 'trial')).rejects.toThrow(/not configured/);
+		expect(stripe!.subscriptions.update).not.toHaveBeenCalled();
+	});
+
+	it('refuses to switch when no subscription exists', async () => {
+		subscriptionRow.value = null;
+		await expect(switchTier('rest-1', 'pro')).rejects.toThrow(/No subscription to switch/);
+		expect(stripe!.subscriptions.update).not.toHaveBeenCalled();
+	});
+});
+
+describe('plan display names go through the i18n table (follow-up to #661)', () => {
+  const order: PlanTier[] = ['trial', 'starter', 'pro', 'business'];
+  const tr = (key: string) => get(t)(key);
+
+  afterEach(() => locale.set('es'));
+
+  it('gives every tier an i18n key for its display name', () => {
+    for (const tier of order) {
+      expect(TIERS[tier].nameKey, tier).toMatch(/^billing\.plan\./);
+    }
+  });
+
+  it('resolves every tier name key in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const tier of order) {
+        const key = TIERS[tier].nameKey;
+        if (tr(key) === key) missing.push(`${lc}:${key}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('translates the trial plan instead of showing Spanish to English readers', () => {
+    locale.set('es');
+    expect(tr(TIERS.trial.nameKey)).toBe('Prueba gratuita');
+    locale.set('en');
+    expect(tr(TIERS.trial.nameKey)).toBe('Free trial');
+  });
+
+  it('keeps Starter/Pro/Business identical in both locales — they are brand names', () => {
+    for (const tier of ['starter', 'pro', 'business'] as PlanTier[]) {
+      locale.set('es');
+      const es = tr(TIERS[tier].nameKey);
+      locale.set('en');
+      expect(tr(TIERS[tier].nameKey)).toBe(es);
+      expect(es).toBe(TIERS[tier].name);
+    }
+  });
+
+  it('leaves no Spanish prose in the tier config — name is a storage token', () => {
+    for (const tier of order) {
+      expect(TIERS[tier].name, tier).not.toMatch(/[áéíóúüñ¿¡ÁÉÍÓÚÜÑ]/);
+    }
+    expect(readFileSync(new URL('../src/lib/server/billing.ts', import.meta.url), 'utf-8'))
+      .not.toContain('Prueba gratuita');
+  });
+
+  it('still stores the language-neutral name, so plan_name stays stable', () => {
+    expect(TIERS.starter.name).toBe('Starter');
+    expect(TIERS.pro.name).toBe('Pro');
+    expect(TIERS.business.name).toBe('Business');
+  });
+
+  it('hands the client a key, never a rendered plan name', () => {
+    const loaders = [
+      '../src/routes/(app)/+layout.server.ts',
+      '../src/routes/(app)/billing/+page.server.ts',
+      '../src/routes/(app)/billing/confirm/+page.server.ts',
+    ];
+    for (const rel of loaders) {
+      const source = readFileSync(new URL(rel, import.meta.url), 'utf-8');
+      expect(source, rel).toMatch(/nameKey/);
+      expect(source, rel).not.toMatch(/\b(planName|currentTierName):/);
+      expect(source, rel).not.toMatch(/\bname: config\.name\b/);
+    }
+  });
 });

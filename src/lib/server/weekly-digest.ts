@@ -50,25 +50,15 @@ async function callGeminiText(prompt: string): Promise<string> {
 	return response.text ?? '';
 }
 
-export async function getOrGenerateWeeklyDigest(restaurantId: string, currentWeek: string): Promise<{
-	text: string;
-	dismissed: boolean;
-} | null> {
+export async function getOrGenerateWeeklyDigest(restaurantId: string, currentWeek: string): Promise<string | null> {
 	try {
 		const storedWeek = await getSetting(restaurantId, 'weekly_digest_week');
 		const storedText = await getSetting(restaurantId, 'weekly_digest_text');
-		const storedDismissed = await getSetting(restaurantId, 'weekly_digest_dismissed');
 
-		if (storedWeek === currentWeek && storedText) {
-			return {
-				text: storedText,
-				dismissed: storedDismissed === 'true',
-			};
-		}
+		if (storedWeek === currentWeek && storedText) return storedText;
 
 		if (!(await claimDigestWeek(restaurantId, currentWeek))) {
-			const text = await getSetting(restaurantId, 'weekly_digest_text');
-			return text ? { text, dismissed: storedDismissed === 'true' } : null;
+			return await getSetting(restaurantId, 'weekly_digest_text');
 		}
 
 		const context = await buildChatContext(restaurantId);
@@ -94,15 +84,10 @@ ${context}`;
 		}
 
 		await upsertSetting(restaurantId, 'weekly_digest_text', text);
-		await upsertSetting(restaurantId, 'weekly_digest_dismissed', 'false');
 
-		return { text, dismissed: false };
+		return text;
 	} catch (err) {
 		console.error('[weekly-digest] generation failed', err);
 		return null;
 	}
-}
-
-export async function dismissWeeklyDigest(restaurantId: string): Promise<void> {
-	await upsertSetting(restaurantId, 'weekly_digest_dismissed', 'true');
 }

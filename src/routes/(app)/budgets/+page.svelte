@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { PageData } from './$types';
+  import { categoryColor } from '$lib/colors';
   import { enhance } from '$app/forms';
-  import { locale, t, tcat } from '$lib/i18n';
+  import { locale, t, tcat, ti } from '$lib/i18n';
   import { fmtEur, semColor, shiftMonth } from '$lib/formatters';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
 
@@ -34,9 +35,13 @@
     const pct   = limit > 0 ? (spent / limit) * 100 : 0;
     const remaining  = limit - spent;
     const projected  = today > 0 ? pct * 31 / today : 0;
-    const color = data.colors[cat] ?? '#888';
+    const color = categoryColor(cat);
     return { cat, limit, spent, pct, remaining, projected, color };
   }));
+
+  let showAllCats = $state(false);
+  const activeRows = $derived(rows.filter(r => r.limit > 0 || r.spent > 0 || customCategories.includes(r.cat)));
+  const inactiveRows = $derived(rows.filter(r => !(r.limit > 0 || r.spent > 0 || customCategories.includes(r.cat))));
 
   const totalLimit = $derived(rows.reduce((s, r) => s + r.limit, 0));
   const totalSpent = $derived(rows.reduce((s, r) => s + r.spent, 0));
@@ -124,7 +129,7 @@
                         value={r.limit > 0 ? r.limit : ''}
                         placeholder={$t('bud.noLimit')}
                         class="input"
-                        style="height:30px;font-size:12.5px;width:130px;text-align:right;" />
+                        style="height:30px;width:130px;text-align:right;" />
                     {/if}
                   </td>
                   <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent)}</td>
@@ -173,7 +178,7 @@
                           bind:value={newCatName}
                           placeholder={$t('bud.namePlaceholder')}
                           class="input"
-                          style="height:30px;font-size:12.5px;width:220px;"
+                          style="height:30px;width:220px;"
                           onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
                         />
                         <button type="button" class="btn btn-primary" style="height:30px;font-size:12.5px;"
@@ -248,7 +253,7 @@
         </div>
         {#if totalLimit > 0}
           <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;margin-bottom:10px;">
-            {#each rows as r}
+            {#each activeRows as r}
               {#if r.limit > 0}
                 <span style="width:{(r.spent / totalLimit) * 100}%;height:100%;background:{r.color};border-right:1px solid var(--mep-bg);flex-shrink:0;"></span>
               {/if}
@@ -272,17 +277,17 @@
         <div class="subtitle" style="font-size:14px;">{$t('bud.tableTitle')}</div>
       </div>
 
-      {#each rows as r}
+      {#snippet budgetCard(r: (typeof rows)[number])}
         {@const projOver = r.limit > 0 && r.projected > 100}
         <div class="card" style="padding:14px;">
 
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
             <span style="width:8px;height:28px;border-radius:2px;background:{r.color};flex-shrink:0;"></span>
-            <span style="flex:1;font-size:14px;font-weight:500;color:var(--mep-fg);
+            <span style="flex:1;min-width:0;font-size:14px;font-weight:500;color:var(--mep-fg);
               overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{$tcat(r.cat)}</span>
             {#if r.limit > 0}
               <span class="num" style="
-                font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;flex-shrink:0;
+                font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;min-width:0;
                 background:{projOver ? 'var(--mep-neg-soft)' : 'var(--mep-pos-soft)'};
                 color:{projOver ? 'var(--mep-neg)' : 'var(--mep-pos)'};
               ">{projOver ? '↑' : '✓'} {Math.round(r.projected)}% {$t('bud.closeShort')}</span>
@@ -326,11 +331,36 @@
                 value={r.limit > 0 ? r.limit : ''}
                 placeholder={$t('bud.noLimit')}
                 class="input"
-                style="flex:1;height:34px;font-size:13px;text-align:right;" />
+                style="flex:1;height:34px;text-align:right;" />
             {/if}
           </div>
         </div>
+      {/snippet}
+
+      {#each activeRows as r (r.cat)}
+        {@render budgetCard(r)}
       {/each}
+
+      {#if inactiveRows.length > 0}
+        <button type="button" class="card"
+          style="padding:14px;display:flex;align-items:center;justify-content:center;gap:8px;
+            background:transparent;border:1px solid var(--mep-divider);
+            color:var(--mep-fg-3);font-size:13px;font-weight:500;
+            width:100%;cursor:pointer;font-family:inherit;"
+          aria-expanded={showAllCats}
+          onclick={() => showAllCats = !showAllCats}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"
+            style="transform:rotate({showAllCats ? 180 : 0}deg);transition:transform 0.15s;">
+            <path d="M2 4.5 L6 8.5 L10 4.5" />
+          </svg>
+          {showAllCats ? $t('bud.hideAllCategories') : $ti('bud.showAllCategories', { n: inactiveRows.length })}
+        </button>
+        <div style:display={showAllCats ? 'flex' : 'none'} style="flex-direction:column;gap:12px;">
+          {#each inactiveRows as r (r.cat)}
+            {@render budgetCard(r)}
+          {/each}
+        </div>
+      {/if}
 
       {#if !isPastMonth}
       {#if showAddForm}
@@ -341,7 +371,7 @@
             bind:value={newCatName}
             placeholder={$t('bud.namePlaceholder')}
             class="input"
-            style="height:40px;font-size:14px;"
+            style="height:40px;"
             onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCategory(); } }}
           />
           <div style="display:flex;gap:8px;">

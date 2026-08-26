@@ -4,6 +4,7 @@
   import { t } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
+  import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -15,7 +16,7 @@
 
 <AdminPageHead route="/admin/access" title={$t('admin.access.title')} subtitle={$t('admin.access.subtitle')} />
 
-<div style="padding:0 24px 24px;display:flex;flex-direction:column;gap:14px;">
+<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:14px;">
 
   <div class="card" style="padding:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
     <div style="flex:1;min-width:220px;">
@@ -48,87 +49,91 @@
   {/if}
 
   <SectionCard title={$t('admin.access.accounts')} noPad>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--mep-divider);">
-          <th style={TH}>{$t('admin.access.colEmail')}</th>
-          <th style={TH}>{$t('admin.access.colStatus')}</th>
-          <th style={TH}>{$t('admin.access.colCreated')}</th>
-          <th style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each data.accounts as a}
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="{TD}color:var(--mep-fg);font-weight:500;">
-              {a.email}
-              {#if a.founder}
-                <span style="margin-left:6px;font-size:10.5px;font-weight:600;letter-spacing:0.08em;
-                             text-transform:uppercase;color:var(--mep-acc);">{$t('admin.access.founder')}</span>
-              {/if}
-              {#if !a.email_verified}
-                <span style="margin-left:6px;font-size:10.5px;color:var(--mep-fg-4);">{$t('admin.access.unverified')}</span>
-              {/if}
-            </td>
-            <td style={TD}>
-              <span style="color:{a.access_status === 'approved' ? 'var(--mep-pos)' : 'var(--mep-fg-3)'};">
-                {a.access_status === 'approved' ? $t('admin.access.approved') : $t('admin.access.pending')}
-              </span>
-            </td>
-            <td style="{TD}font-size:12px;color:var(--mep-fg-3);">{day(a.created_at)}</td>
-            <td style="{TD}text-align:right;">
-              <form method="POST" action={a.access_status === 'approved' ? '?/revoke' : '?/approve'} use:enhance
-                style="display:inline;">
-                <input type="hidden" name="userId" value={a.id} />
-                <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:12px;">
-                  {a.access_status === 'approved' ? $t('admin.access.revoke') : $t('admin.access.approve')}
-                </button>
-              </form>
-            </td>
+            <th style={TH}>{$t('admin.access.colEmail')}</th>
+            <th style={TH}>{$t('admin.access.colStatus')}</th>
+            <th style={TH}>{$t('admin.access.colCreated')}</th>
+            <th style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
           </tr>
-        {:else}
-          <tr>
-            <td colspan="4" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">
-              {$t('admin.access.noAccounts')}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each data.accounts as a}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="{TD}color:var(--mep-fg);font-weight:500;">
+                {a.email}
+                {#if a.founder}
+                  <span style="margin-left:6px;font-size:11px;font-weight:600;letter-spacing:0.08em;
+                               text-transform:uppercase;color:var(--mep-acc);">{$t('admin.access.founder')}</span>
+                {/if}
+                {#if !a.email_verified}
+                  <span style="margin-left:6px;font-size:11px;color:var(--mep-fg-4);">{$t('admin.access.unverified')}</span>
+                {/if}
+              </td>
+              <td style={TD}>
+                <span style="color:{a.access_status === 'approved' ? 'var(--mep-pos)' : 'var(--mep-fg-3)'};">
+                  {a.access_status === 'approved' ? $t('admin.access.approved') : $t('admin.access.pending')}
+                </span>
+              </td>
+              <td style="{TD}font-size:12px;color:var(--mep-fg-3);">{day(a.created_at)}</td>
+              <td style="{TD}text-align:right;">
+                <form method="POST" action={a.access_status === 'approved' ? '?/revoke' : '?/approve'} use:enhance
+                  style="display:inline;">
+                  <input type="hidden" name="userId" value={a.id} />
+                  <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:12px;">
+                    {a.access_status === 'approved' ? $t('admin.access.revoke') : $t('admin.access.approve')}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="4" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">
+                {$t('admin.access.noAccounts')}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
   <SectionCard title={$t('admin.access.waitlist')} noPad>
-    <table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--mep-divider);">
-          <th style={TH}>{$t('admin.access.colEmail')}</th>
-          <th style={TH}>{$t('admin.access.colJoined')}</th>
-          <th style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each data.pendingInvites as w}
+    <AdminTableScroll>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <td style="{TD}color:var(--mep-fg);font-weight:500;">{w.email}</td>
-            <td style="{TD}font-size:12px;color:var(--mep-fg-3);">{day(w.created_at)}</td>
-            <td style="{TD}text-align:right;">
-              <form method="POST" action="?/invite" use:enhance style="display:inline;">
-                <input type="hidden" name="email" value={w.email} />
-                <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:12px;">
-                  {$t('admin.access.invite')}
-                </button>
-              </form>
-            </td>
+            <th style={TH}>{$t('admin.access.colEmail')}</th>
+            <th style={TH}>{$t('admin.access.colJoined')}</th>
+            <th style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
           </tr>
-        {:else}
-          <tr>
-            <td colspan="3" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">
-              {$t('admin.access.noWaitlist')}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {#each data.pendingInvites as w}
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <td style="{TD}color:var(--mep-fg);font-weight:500;">{w.email}</td>
+              <td style="{TD}font-size:12px;color:var(--mep-fg-3);">{day(w.created_at)}</td>
+              <td style="{TD}text-align:right;">
+                <form method="POST" action="?/invite" use:enhance style="display:inline;">
+                  <input type="hidden" name="email" value={w.email} />
+                  <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:12px;">
+                    {$t('admin.access.invite')}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {:else}
+            <tr>
+              <td colspan="3" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">
+                {$t('admin.access.noWaitlist')}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </AdminTableScroll>
   </SectionCard>
 
 </div>

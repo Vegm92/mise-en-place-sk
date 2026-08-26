@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { invoices, restaurants, settings, userRestaurants } from './schema';
-import { users } from './schema/auth';
+import { users } from './schema';
 import { sendEmail, quotaWarningEmail } from './email';
 import { getMonthlyQuota } from './billing';
 

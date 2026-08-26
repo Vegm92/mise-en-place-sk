@@ -4,7 +4,8 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
-import { VALID_CATEGORIES, CATEGORY_COLORS } from '$lib/constants';
+import { loadConversionPrompts } from '$lib/server/products';
+import { VALID_CATEGORIES, periodToDate } from '$lib/constants';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 type ProductRow = {
@@ -24,11 +25,13 @@ type SuggestionRow = {
 	payload: string | null;
 };
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
+	const period = url.searchParams.get('period') ?? '30d';
+	const periodStart = periodToDate(period).toISOString().slice(0, 10);
 
 	return handleLoad('products', async () => {
-		const [products, suggestionRows] = await Promise.all([
+		const [products, suggestionRows, trendRows, conversionPrompts] = await Promise.all([
 			db.execute<ProductRow>(sql`
 				SELECT p.id, p.canonical_name, p.category, p.canonical_unit, p.units_per_pack, p.base_unit,
 				       (SELECT count(DISTINCT a.supplier_id) FROM product_aliases a
@@ -44,6 +47,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 				WHERE restaurant_id = ${rid} AND notification_type = 'product_suggestion' AND status = 'pending'
 				ORDER BY created_at DESC
 			`),
+
+			db.execute<{ month: string; count: string }>(sql`
+				SELECT
+					TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month,
+					COUNT(*) AS count
+				FROM products
+				WHERE restaurant_id = ${rid}
+				  AND created_at >= ${periodStart}
+				GROUP BY DATE_TRUNC('month', created_at)
+				ORDER BY DATE_TRUNC('month', created_at) ASC
+			`),
+
+			loadConversionPrompts(db, rid),
 		]);
 
 		const suggestions = suggestionRows.map((row) => {
@@ -57,8 +73,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 			};
 		});
 
+		const MONTH_LABELS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+		const trendData = {
+			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1], 10) - 1)] ?? r.month),
+			series: [{
+				key: 'new',
+				label: 'prod.trend.title',
+				values: trendRows.map(r => Number(r.count)),
+			}],
+		};
+
 		return {
 			title: 'nav.products',
+			period,
+			trendData,
 			products: products.map((p) => ({
 				id:            p.id,
 				canonicalName: p.canonical_name,
@@ -71,8 +99,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 				needsConversion: p.canonical_unit != null && p.units_per_pack == null,
 			})),
 			suggestions,
+			conversionPrompts,
 			categories: VALID_CATEGORIES,
-			colors: CATEGORY_COLORS,
 		};
 	});
 };

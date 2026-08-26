@@ -151,7 +151,7 @@
         {/if}
       </div>
 
-      <p class="text-fg-4 text-center px-3 pt-1.5 pb-0 leading-tight" style="font-size:10px;">{$t('chat.privacy')}</p>
+      <p class="text-fg-4 text-center px-3 pt-1.5 pb-0 leading-tight" style="font-size:11px;">{$t('chat.privacy')}</p>
 
       <div class="flex items-center gap-2 p-3 border-t border-divider">
         <input
