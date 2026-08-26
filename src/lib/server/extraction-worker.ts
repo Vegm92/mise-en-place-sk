@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import * as Sentry from '@sentry/sveltekit';
 import { uploadsDir } from './sessions.js';
-import { getItem, markExtracting, markDone, markFailed } from './batch.js';
+import { getItem, markExtracting, markDone, markFailed, type BatchItem } from './batch.js';
 import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
 import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
@@ -12,7 +12,7 @@ import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction,
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
 import { recordDeadLetter } from './dead-letter.js';
-import { EXTRACTION_QUEUE } from './queue.js';
+import { EXTRACTION_QUEUE, enqueueWhatsAppNotify } from './queue.js';
 import { acquireExtractionSlot } from './rate-limiter.js';
 
 export interface ExtractionJobData {
@@ -26,6 +26,12 @@ const DEGRADATION_ERRORS = new Set([
 	'extract.err.unavailable',
 	'extract.err.timeout',
 ]);
+
+async function notifyWhatsAppIfSource(item: BatchItem, restaurantId: string): Promise<void> {
+	if (item.source !== 'whatsapp') return;
+	await enqueueWhatsAppNotify(item.id, restaurantId)
+		.catch((e) => console.error('[worker] whatsapp notify enqueue failed:', e));
+}
 
 function classifyExtractionError(err: unknown): string {
 	const status = (err as { status?: number }).status;
@@ -86,7 +92,7 @@ async function reportExtractionFailure(
 	restaurantId: string,
 	payload: unknown,
 	attempt: { isFinalAttempt: boolean; claimedMonthlySlot: boolean },
-): Promise<void> {
+): Promise<boolean> {
 	const extractError = classifyExtractionError(err);
 	const willRetry = DEGRADATION_ERRORS.has(extractError) && !attempt.isFinalAttempt;
 	console.error(`[worker] Extraction failed for item ${itemId}${willRetry ? ' (will retry)' : ''}:`, err);
@@ -111,6 +117,7 @@ async function reportExtractionFailure(
 	}
 	if (!willRetry) await markFailed(itemId, extractError);
 	if (attempt.claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
+	return !willRetry;
 }
 
 function removeTmpFile(tmpPath: string): void {
@@ -160,7 +167,10 @@ export async function processExtractionJob(
 	let claimedMonthlySlot = false;
 	if (!generateOverride) {
 		const allowed = await claimExtractionAllowance(itemId, restaurantId);
-		if (!allowed) return;
+		if (!allowed) {
+			await notifyWhatsAppIfSource(item, restaurantId);
+			return;
+		}
 		claimedMonthlySlot = true;
 	}
 
@@ -222,14 +232,16 @@ export async function processExtractionJob(
 
 		await markDone(itemId, extractedData, conversionNotes);
 		console.info(`[worker] Extraction done for item ${itemId}`);
+		await notifyWhatsAppIfSource(item, restaurantId);
 	} catch (err) {
-		await reportExtractionFailure(
+		const failedForGood = await reportExtractionFailure(
 			err,
 			itemId,
 			restaurantId,
 			{ ...jobData, fileKey: item.fileKey, displayName: item.displayName },
 			{ isFinalAttempt, claimedMonthlySlot },
 		);
+		if (failedForGood) await notifyWhatsAppIfSource(item, restaurantId);
 	} finally {
 		cleanupTmp?.();
 	}

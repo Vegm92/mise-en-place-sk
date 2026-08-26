@@ -5,13 +5,16 @@ const DATABASE_URL = process.env.DATABASE_URL ?? '';
 
 export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
+export const WHATSAPP_NOTIFY_QUEUE = 'whatsapp-notify';
 
 export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
 export const NORMALIZE_DEAD_LETTER_QUEUE = `${NORMALIZE_QUEUE}-dead-letter`;
+export const WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE = `${WHATSAPP_NOTIFY_QUEUE}-dead-letter`;
 
 export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> = [
 	{ source: EXTRACTION_QUEUE, deadLetter: EXTRACTION_DEAD_LETTER_QUEUE },
 	{ source: NORMALIZE_QUEUE, deadLetter: NORMALIZE_DEAD_LETTER_QUEUE },
+	{ source: WHATSAPP_NOTIFY_QUEUE, deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE },
 ];
 
 export async function createQueuesWithDeadLetters(b: PgBoss): Promise<void> {
@@ -73,6 +76,21 @@ export async function enqueueNormalize(
 		expireInSeconds: 900,
 		singletonKey: `${restaurantId}:${productId}`,
 		deadLetter: NORMALIZE_DEAD_LETTER_QUEUE,
+	});
+	return jobId !== null;
+}
+
+export async function enqueueWhatsAppNotify(
+	itemId: string,
+	restaurantId: string,
+): Promise<boolean> {
+	const b = await getBoss();
+	const jobId = await b.send(WHATSAPP_NOTIFY_QUEUE, { itemId, restaurantId }, {
+		retryLimit: 3,
+		retryDelay: 60,
+		expireInSeconds: 300,
+		singletonKey: itemId,
+		deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
 	});
 	return jobId !== null;
 }

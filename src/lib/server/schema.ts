@@ -373,13 +373,26 @@ export const batchItems = pgTable('batch_items', {
 	conversionNotes: jsonb('conversion_notes'),
 	extractError:    text('extract_error'),
 	queuedAt:        timestamp('queued_at', { withTimezone: true }),
+	source:          text('source').notNull().default('web'),
+	sourceRef:       text('source_ref'),
+	jobCode:         text('job_code'),
+	reviewStatus:    text('review_status'),
 	createdAt:       timestamp('created_at', { withTimezone: true }).defaultNow(),
 	updatedAt:       timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('batch_items_batch_id_idx').on(t.batchId),
 	index('batch_items_updated_at_idx').on(t.updatedAt),
 	index('batch_items_queued_at_idx').on(t.queuedAt),
+	uniqueIndex('batch_items_job_code_unique').on(t.jobCode)
+		.where(sql`${t.reviewStatus} is null or ${t.reviewStatus} = 'pending'`),
+	index('batch_items_source_ref_idx').on(t.sourceRef),
 ]);
+
+export const whatsappSession = pgTable('whatsapp_session', {
+	id:        text('id').primaryKey(),
+	data:      jsonb('data').notNull(),
+	updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const whatsappContacts = pgTable('whatsapp_contacts', {
 	id:           serial('id').primaryKey(),

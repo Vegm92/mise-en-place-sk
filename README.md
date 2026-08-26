@@ -27,6 +27,7 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 - **Auth.js** (`@auth/sveltekit`) — email/password (Credentials + bcrypt) + Google OAuth, JWT sessions — replaced Supabase Auth in #369–#372
 - **Drizzle ORM** (postgres-js, SSL required); committed migrations in `drizzle/` are the canonical schema source (ADR-003)
 - **Gemini** (`@google/genai`, default `gemini-2.5-flash`) for extraction, digest, and chat
+- **Baileys** (`@whiskeysockets/baileys`) — unofficial WhatsApp client for the invoice bot, in the worker process. MVP stopgap until the business is registered and Meta Cloud API credentials are obtainable (ADR-025)
 - **Sentry** (`@sentry/sveltekit`) for client + server error tracking (no-ops when DSN empty)
 - **Vitest** unit/integration tests; GitHub Actions CI (typecheck, tests, build)
 
@@ -76,6 +77,7 @@ Why the app is shaped this way is recorded as ADRs in **[`docs/06_decisions/`](d
 |---|---|
 | `pnpm check` / `pnpm test` | typecheck / unit & integration tests (DB-backed suites need a **local** Postgres — see below) |
 | `pnpm db:generate` / `db:migrate` / `db:studio` | Drizzle workflow |
+| `pnpm qa:sweep` | drive the running app in headless Chromium and write `qa-report.md` — route health, security headers, a11y, i18n key leakage, responsive, malformed route params. Needs `pnpm dev` up and, first time only, `npx playwright install chromium`. See [docs/04_engineering/browser_qa_sweep.md](docs/04_engineering/browser_qa_sweep.md) |
 
 ### Running the DB-backed tests
 

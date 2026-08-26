@@ -83,6 +83,10 @@ function fakeItem(): BatchItem {
 		conversionNotes: null,
 		extractError: null,
 		queuedAt: null,
+		source: 'web',
+		sourceRef: null,
+		jobCode: null,
+		reviewStatus: null,
 	};
 }
 

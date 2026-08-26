@@ -37,7 +37,9 @@ const SKIP_FILES = [
 	'src/lib/components/waitlist/AppDashboardMock.svelte',
 	'src/lib/components/waitlist/CaptureMock.svelte',
 	'src/lib/components/waitlist/DashboardMock.svelte',
-	'src/lib/components/waitlist/ExtractMock.svelte'
+	'src/lib/components/waitlist/ExtractMock.svelte',
+	// Same fixture-like invoice illustration, reused as the proof panel on /login.
+	'src/lib/components/auth/TicketMock.svelte'
 ];
 
 const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt']);

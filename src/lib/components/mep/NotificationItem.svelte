@@ -73,6 +73,18 @@
         </div>
       {/if}
     {/if}
+    {#if notification.notificationType === 'whatsapp_pending_save' || notification.notificationType === 'whatsapp_needs_review'}
+      {@const batchId = (notification.payload as { batchId?: string } | null)?.batchId}
+      {#if batchId}
+        <div style="margin-top:6px;">
+          <a
+            href="/batch/{batchId}"
+            class="btn btn-primary"
+            style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
+          >{$t('notif.openBatch')}</a>
+        </div>
+      {/if}
+    {/if}
     {#if notification.notificationType === 'product_suggestion'}
       <div style="display:flex;gap:6px;margin-top:6px;">
         <button
