@@ -274,20 +274,27 @@
       {#if section === 'negocio'}
         <SectionCard title={$t('set.business.title')} sub={$t('set.business.sub')} noPad>
           <div class="set-row">
-            <label for="{idp}-restaurant-name" class="set-lbl">
-              <span class="set-lbl-name">{$t('set.profile.restaurant')}</span>
-              <span class="set-lbl-hint">{$t('set.business.nameHint')}</span>
-            </label>
-            <div>
-              {#if data.canRenameRestaurant}
+            {#if data.canRenameRestaurant}
+              <label for="{idp}-restaurant-name" class="set-lbl">
+                <span class="set-lbl-name">{$t('set.profile.restaurant')}</span>
+                <span class="set-lbl-hint">{$t('set.business.nameHint')}</span>
+              </label>
+              <div>
                 <input id="{idp}-restaurant-name" name="name" type="text" maxlength="120" required
                   form="{idp}-form-negocio" bind:value={restaurantName} class="input set-input" />
-              {:else}
+                {@render feedbackLine('restaurant')}
+              </div>
+            {:else}
+              <span class="set-lbl">
+                <span class="set-lbl-name">{$t('set.profile.restaurant')}</span>
+                <span class="set-lbl-hint">{$t('set.business.nameHint')}</span>
+              </span>
+              <div>
                 <span class="set-value">{data.restaurantName}</span>
                 <p class="set-lbl-hint set-msg">{$t('set.business.nameReadonlyHint')}</p>
-              {/if}
-              {@render feedbackLine('restaurant')}
-            </div>
+                {@render feedbackLine('restaurant')}
+              </div>
+            {/if}
           </div>
 
           <div class="set-row">
