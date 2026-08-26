@@ -54,7 +54,7 @@ albaranes. Queda en el historial de git por si hace falta para esa pantalla.
 
 Los chips de estado reutilizan los tokens que ya existen (`--mep-warn`,
 `--mep-pos`, `--mep-neg`), y los de categoría los `--mep-cat-*` de siempre. Las gráficas **no** usan esos mismos valores: los tres
-del badge (`#654a00 · #14694a · #b03a3a`) no se distinguen como manchas grandes
+del badge (`#a85300 · #14694a · #b03a3a`) no se distinguen como manchas grandes
 —verde y rojo se confunden con daltonismo protán, ΔE 4,8—. Los pasos de gráfica
 (`#0f7a52 · #bd8206 · #c73f31`, en ese orden de apilado) mantienen el tono y
 pasan las comprobaciones de contraste y de visión del color.
