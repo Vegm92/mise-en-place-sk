@@ -7,25 +7,13 @@ import { recipeItems, recipes } from '$lib/server/schema';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import {
-	computeRecipeCosts, linkableProducts, loadRecipeGraph, recipeParents, resolveProductPrices,
-	wouldCycle, type RecipeNode
+	collectProductIds, computeRecipeCosts, linkableProducts, loadProductFacts, loadRecipeGraph,
+	recipeParents, resolveProductPrices, wouldCycle
 } from '$lib/server/recipes';
 import {
 	EU_ALLERGENS, RECIPE_SECTIONS, RECIPE_STATUSES, RECIPE_UNITS, isRecipeKind, isRecipeLineKind,
 	isRecipeSection, isRecipeStatus, parseDecimal, parsePercent, parseQty, toAllergenList
 } from '$lib/recipes';
-
-function productIdsOf(graph: Map<number, RecipeNode>): number[] {
-	const ids: number[] = [];
-	for (const node of graph.values()) {
-		for (const item of node.items) {
-			if (item.kind === 'product' && item.productId !== null && item.unitCost === null) {
-				ids.push(item.productId);
-			}
-		}
-	}
-	return ids;
-}
 
 async function requireRecipe(rid: string, id: number) {
 	if (!Number.isInteger(id)) error(404, 'Not found');
@@ -43,8 +31,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('recipe-detail', async () => {
 		const recipe = await requireRecipe(rid, id);
 		const graph = await loadRecipeGraph(rid);
-		const prices = await resolveProductPrices(rid, productIdsOf(graph));
-		const costs = computeRecipeCosts(graph, prices);
+		const [prices, facts] = await Promise.all([
+			resolveProductPrices(rid, collectProductIds(graph, true)),
+			loadProductFacts(rid, collectProductIds(graph, false)),
+		]);
+		const costs = computeRecipeCosts(graph, prices, facts);
 
 		const [catalog, usedIn] = await Promise.all([
 			linkableProducts(rid),

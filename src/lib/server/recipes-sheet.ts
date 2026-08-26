@@ -5,8 +5,8 @@ import { fmtEur } from '$lib/formatters';
 import { moneyPlain, generatedStamp } from './reports/shared';
 import { fromRate, type Allergen } from '$lib/recipes';
 import {
-	computeRecipeCosts, loadRecipeGraph, resolveProductPrices,
-	type LineCost, type RecipeCost, type RecipeNode
+	collectProductIds, computeRecipeCosts, loadProductFacts, loadRecipeGraph, resolveProductPrices,
+	type LineCost, type RecipeCost
 } from './recipes';
 
 export interface SheetKpi {
@@ -114,18 +114,6 @@ function csvOf(name: string, cost: RecipeCost, lines: SheetLine[], now: Date) {
 	};
 }
 
-function productIdsOf(graph: Map<number, RecipeNode>): number[] {
-	const ids: number[] = [];
-	for (const node of graph.values()) {
-		for (const item of node.items) {
-			if (item.kind === 'product' && item.productId !== null && item.unitCost === null) {
-				ids.push(item.productId);
-			}
-		}
-	}
-	return ids;
-}
-
 export async function buildRecipeSheet(
 	rid: string,
 	id: number,
@@ -137,7 +125,11 @@ export async function buildRecipeSheet(
 	if (!recipe) return null;
 
 	const graph = await loadRecipeGraph(rid);
-	const costs = computeRecipeCosts(graph, await resolveProductPrices(rid, productIdsOf(graph)));
+	const [prices, facts] = await Promise.all([
+		resolveProductPrices(rid, collectProductIds(graph, true)),
+		loadProductFacts(rid, collectProductIds(graph, false)),
+	]);
+	const costs = computeRecipeCosts(graph, prices, facts);
 	const cost = costs.get(id);
 	if (!cost) return null;
 

@@ -116,8 +116,17 @@ export const products = pgTable('products', {
 	unitsPerPack:  real('units_per_pack'),
 	baseUnit:      text('base_unit'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+	allergens:       jsonb('allergens').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+	allergensSource: text('allergens_source'),
+	kcal100:         numeric('kcal_100', { precision: 8, scale: 2 }),
+	protein100:      numeric('protein_100', { precision: 8, scale: 2 }),
+	carbs100:        numeric('carbs_100', { precision: 8, scale: 2 }),
+	fat100:          numeric('fat_100', { precision: 8, scale: 2 }),
+	nutritionSource: text('nutrition_source'),
 }, (t) => [
 	uniqueIndex('products_restaurant_name_key_unique').on(t.restaurantId, t.nameKey),
+	check('products_allergens_source_valid', sql`${t.allergensSource} IS NULL OR ${t.allergensSource} IN ('manual','extracted')`),
+	check('products_nutrition_source_valid', sql`${t.nutritionSource} IS NULL OR ${t.nutritionSource} IN ('manual','extracted')`),
 ]);
 
 export const categoryBudgets = pgTable('category_budgets', {
