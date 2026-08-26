@@ -13,7 +13,7 @@
     label: string;
     value: string;
     note: string;
-    tone?: 'neg' | 'warn' | 'info' | 'acc' | 'pos' | 'fg3';
+    tone?: 'neg' | 'warn' | 'caution' | 'info' | 'acc' | 'pos' | 'fg3';
     chart?: Snippet;
     wide?: boolean;
     last?: boolean;
@@ -22,6 +22,7 @@
   const TONE: Record<string, string> = {
     neg:  'var(--mep-neg)',
     warn: 'var(--mep-warn)',
+    caution: 'var(--mep-caution)',
     info: 'var(--mep-info)',
     acc:  'var(--mep-acc)',
     pos:  'var(--mep-pos)',

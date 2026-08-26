@@ -41,7 +41,7 @@
   );
 </script>
 
-<div class="mep" data-accent="amber" data-density="default"
+<div class="mep" data-accent="slate" data-density="default"
   style="width:100%;min-height:100vh;display:flex;flex-direction:column;background:var(--mep-bg);border-top:4px solid var(--mep-acc);">
 
   <header class="px-3 gap-3 md:px-6 md:gap-5" style="

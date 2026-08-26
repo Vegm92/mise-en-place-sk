@@ -111,6 +111,24 @@ describe('worklist', () => {
 		expect(items.map(i => i.eur > 0)).toEqual([true, true, true, true, true, false]);
 	});
 
+	it('takes its colour cue from severity, not from the kind of work', () => {
+		const bySeverity = Object.fromEntries(buildWorklist(busy).map(i => [i.id, i.severity]));
+		expect(bySeverity['due-overdue']).toBe('high');
+		expect(bySeverity['price-1']).toBe('high');
+		expect(bySeverity['budget-Pescado']).toBe('med');
+		expect(bySeverity['due-11']).toBe('low');
+		expect(bySeverity['review']).toBe('low');
+		expect(bySeverity['missing-Panadería Ruiz']).toBe('med');
+	});
+
+	it('raises a budget item to high severity once the category is actually over', () => {
+		const blown = input({
+			budgets: { Pescado: 4000 },
+			categorySpend: { Pescado: 4300 },
+		});
+		expect(buildWorklist(blown)[0]!.severity).toBe('high');
+	});
+
 	it('never lists more than the screen holds', () => {
 		expect(buildWorklist(busy).length).toBeLessThanOrEqual(MAX_WORK_ITEMS);
 	});

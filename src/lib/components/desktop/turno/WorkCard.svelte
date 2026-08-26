@@ -5,7 +5,7 @@
   import FileCheck from '@lucide/svelte/icons/file-check';
   import CalendarOff from '@lucide/svelte/icons/calendar-off';
   import Truck from '@lucide/svelte/icons/truck';
-  import type { WorkItem, WorkKind } from '$lib/dashboard-turno';
+  import type { Severity, WorkItem } from '$lib/dashboard-turno';
   import { locale, t, ti, tiv } from '$lib/i18n';
   import { fmtEurCompact } from '$lib/formatters';
 
@@ -20,13 +20,10 @@
     supplier: Truck,
   };
 
-  const TONE: Record<WorkKind, [string, string]> = {
-    price:    ['var(--mep-neg)',  'var(--mep-neg-soft)'],
-    budget:   ['var(--mep-warn)', 'var(--mep-warn-soft)'],
-    due:      ['var(--mep-info)', 'var(--mep-info-soft)'],
-    review:   ['var(--mep-acc)',  'var(--mep-acc-soft)'],
-    missing:  ['var(--mep-warn)', 'var(--mep-warn-soft)'],
-    supplier: ['var(--mep-fg-3)', 'var(--mep-hover)'],
+  const TONE: Record<Severity, [string, string]> = {
+    high: ['var(--mep-neg)',     'var(--mep-neg-soft)'],
+    med:  ['var(--mep-warn)',    'var(--mep-warn-soft)'],
+    low:  ['var(--mep-caution)', 'var(--mep-caution-soft)'],
   };
 
   function localiseDates(vars: Record<string, string | number>, loc: string): Record<string, string | number> {
@@ -39,8 +36,8 @@
   const titleVars = $derived(localiseDates(item.titleVars, $locale));
   const whyVars = $derived(localiseDates(item.whyVars, $locale));
   const Icon = $derived(ICON[item.kind]);
-  const color = $derived(TONE[item.kind][0]);
-  const soft = $derived(TONE[item.kind][1]);
+  const color = $derived(TONE[item.severity][0]);
+  const soft = $derived(TONE[item.severity][1]);
 </script>
 
 <div
@@ -58,7 +55,7 @@
 
   <div style="min-width:0;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
-      <span class="label" style="color:{color};">{$t(`turno.kind.${item.kind}`)}</span>
+      <span class="label">{$t(`turno.kind.${item.kind}`)}</span>
       <span style="font-size:11px;color:var(--mep-fg-4);">·</span>
       <span style="font-size:11px;color:var(--mep-fg-3);">{$ti(item.urgencyKey, item.urgencyVars)}</span>
     </div>
@@ -73,7 +70,7 @@
   <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end;gap:6px;flex-shrink:0;min-height:66px;">
     {#if item.eur > 0}
       <div style="text-align:right;">
-        <div class="num" style="font-size:20px;font-weight:600;color:{color};letter-spacing:-0.02em;line-height:1.1;">
+        <div class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;line-height:1.1;">
           {fmtEurCompact(item.eur)}
         </div>
         <div class="label">{$t('turno.atStakeUnit')}</div>
