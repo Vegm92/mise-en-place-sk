@@ -1,5 +1,5 @@
 {
-	"generatedAt": "2026-08-24T16:07:40.893Z",
+	"generatedAt": "2026-08-26T02:54:37.885Z",
 	"viewport": {
 		"width": 390,
 		"height": 844
@@ -18,6 +18,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -57,6 +72,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -88,6 +118,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -127,6 +172,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -158,6 +218,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -197,6 +272,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -228,6 +318,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -267,6 +372,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -298,6 +418,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -337,6 +472,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -368,6 +518,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -407,6 +572,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -442,6 +622,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -472,22 +667,37 @@
 			"smallTargets": [],
 			"sidebarTargets": [
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/spend] \"Gasto\"",
+					"selector": "nav>div>div>a[/analytics/spend] \"Gasto\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/prices] \"Precios\"",
+					"selector": "nav>div>div>a[/analytics/prices] \"Precios\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/extraction] \"Extracción\"",
+					"selector": "nav>div>div>a[/analytics/extraction] \"Extracción\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -522,22 +732,37 @@
 			"smallTargets": [],
 			"sidebarTargets": [
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/spend] \"Gasto\"",
+					"selector": "nav>div>div>a[/analytics/spend] \"Gasto\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/prices] \"Precios\"",
+					"selector": "nav>div>div>a[/analytics/prices] \"Precios\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/extraction] \"Extracción\"",
+					"selector": "nav>div>div>a[/analytics/extraction] \"Extracción\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -572,22 +797,37 @@
 			"smallTargets": [],
 			"sidebarTargets": [
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/spend] \"Gasto\"",
+					"selector": "nav>div>div>a[/analytics/spend] \"Gasto\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/prices] \"Precios\"",
+					"selector": "nav>div>div>a[/analytics/prices] \"Precios\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
-					"selector": "aside.fixed.left-0.top-0>nav>div>a[/analytics/extraction] \"Extracción\"",
+					"selector": "nav>div>div>a[/analytics/extraction] \"Extracción\"",
 					"width": 164,
 					"height": 28.8
 				},
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -627,6 +867,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -658,6 +913,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
@@ -697,6 +967,21 @@
 					"height": 30
 				},
 				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
+					"width": 207,
+					"height": 30
+				},
+				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/privacy] \"Privacidad\"",
 					"width": 57.1,
 					"height": 16.5
@@ -728,6 +1013,21 @@
 			"sidebarTargets": [
 				{
 					"selector": "div>aside.fixed.left-0.top-0>div>a[/settings] \"Ajustes\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>a[/help] \"Ayuda\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar idioma\"",
+					"width": 207,
+					"height": 30
+				},
+				{
+					"selector": "div>aside.fixed.left-0.top-0>div>button.md:hidden.flex \"Cambiar tema\"",
 					"width": 207,
 					"height": 30
 				},
