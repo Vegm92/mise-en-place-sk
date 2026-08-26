@@ -256,6 +256,8 @@ guard; quota arithmetic.
 **`const TIERS`**
 
 - Prices are managed in Stripe; quotas + features define each tier. Starter €49/mo (~50–80 invoices), Pro €99/mo, Business €199/mo (custom for chains); trial has no price id.
+- Price ids are read from `process.env` once, at module import, and **trimmed**: they are pasted out of the Stripe dashboard into a deploy console, where a trailing space or newline survives, is invisible in the dashboard, and turns every exact-match lookup in `tierFromPriceId` into a silent miss.
+- Starter falls back to the legacy single-price `STRIPE_PRICE_ID` with `||`, not `??`. `process.env.X ?? ''` is never nullish, so the documented `??` fallback was dead code and starter silently resolved to `''` — matching no subscription at all.
 - Quota convention (issue #295): `settings.plan_quota` = `'unlimited'` | positive n | missing → tier's configured quota. Legacy rows stored the magic `99999` instead of the sentinel (`LEGACY_UNLIMITED_QUOTA`); `null` means unlimited at every call site. `resolveMonthlyQuota`/`getMonthlyQuota` apply the convention; `applyTierSettings` mirrors `plan_name`/`plan_quota` into settings so the layout serves the quota without a subscriptions join for the common case. The layout no longer reads the `plan_name` mirror — a stored string cannot follow the reader's locale — and derives the displayed name from the tier's `nameKey` instead; the mirror stays as the record of the applied tier.
 
 **`function getEntitlements`**
@@ -269,6 +271,13 @@ guard; quota arithmetic.
 **`function tierFromPriceId`**
 
 - Falls back to `starter` for unknown/legacy price ids — but never silently (issue #286): an unmatched price would quota a €199/mo Business customer at 100 invoices, so it logs at error level and reports to Sentry.
+- The alert names the price ids that *are* configured. They are public (they ship in the checkout session), and without them a Sentry issue cannot distinguish a rotated price from a stale env from an empty one.
+- It also diagnoses a **Stripe account mismatch**, the cause of the August 2026 incident. Stripe embeds the owning account in every object id — `price_1` + 5 random characters + a 10-character account fragment shared by every object on that account, live and test — so a live price whose fragment matches no configured price means `STRIPE_SECRET_KEY` was rotated to a different account and the `STRIPE_PRICE_ID_*` values were not. That case says so explicitly and is tagged `billingConfig:stripe_account_mismatch` in Sentry; the same drift shows up elsewhere as `No such price` on checkout and `No such customer` on the billing page. `stripeAccountFragment` matches the prefix as `[a-z]+` rather than `[a-z_]+` so the class cannot overlap the `_` separator that follows it.
+- The alert reaches Sentry once per price id per process (`reportedUnknownPriceIds`). It fires on every `/billing` load for as long as the config is wrong, which burned quota on one repeating issue; the `console.error` line still marks every occurrence.
+
+**`function stripeAccountFragment`**
+
+- Parses the account fragment out of a Stripe object id for the mismatch diagnosis above. Returns `null` for anything that is not shaped like a Stripe id, which is what makes the check fail closed: no fragment on either side → no mismatch claimed.
 
 **`function billingRestaurantId`**
 
