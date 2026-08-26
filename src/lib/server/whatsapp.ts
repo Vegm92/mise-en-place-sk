@@ -1,4 +1,5 @@
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_API_VERSION, WHATSAPP_PHONE_NUMBER_ID } from './env';
+import { MAX_FILE_BYTES, MediaTooLargeError } from './file-validation';
 
 const GRAPH_API_BASE = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
 
@@ -9,6 +10,8 @@ const MIME_TO_EXT: Record<string, string> = {
 	'application/xml': 'xml',
 	'text/xml':        'xml',
 };
+
+export { MediaTooLargeError };
 
 function maskPhone(to: string): string {
 	return `***${to.slice(-4)}`;
@@ -47,12 +50,17 @@ export async function downloadWhatsAppMedia(
 		headers: { Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}` },
 	});
 	if (!metaRes.ok) throw new Error(`WhatsApp media metadata failed (${metaRes.status})`);
-	const meta = (await metaRes.json()) as { url: string; mime_type: string };
+	const meta = (await metaRes.json()) as { url: string; mime_type: string; file_size?: number };
+
+	if (meta.file_size && meta.file_size > MAX_FILE_BYTES) throw new MediaTooLargeError(meta.file_size);
 
 	const fileRes = await fetch(meta.url, {
 		headers: { Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}` },
 	});
 	if (!fileRes.ok) throw new Error(`WhatsApp media download failed (${fileRes.status})`);
+
+	const declaredLength = Number(fileRes.headers.get('content-length') ?? 0);
+	if (declaredLength > MAX_FILE_BYTES) throw new MediaTooLargeError(declaredLength);
 
 	const buffer = Buffer.from(await fileRes.arrayBuffer());
 	const mimeType = meta.mime_type;

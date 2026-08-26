@@ -1,11 +1,19 @@
 import { redirect } from '@sveltejs/kit';
-import { sql } from 'drizzle-orm';
+import { and, count, eq, lte } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { safe } from '$lib/server/load-guard';
+import { BETA_SEATS } from '$lib/constants';
 
-type PositionRow = { position: string };
+type Queue = {
+	position:   number | null;
+	total:      number | null;
+	seatsTaken: number | null;
+	createdAt:  string | null;
+};
+
+const EMPTY_QUEUE: Queue = { position: null, total: null, seatsTaken: null, createdAt: null };
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) redirect(303, '/login');
@@ -13,17 +21,44 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const userId = locals.user.id;
 
-	const queuePosition = await safe<number | null>('pending/position', async () => {
-		const rows = await db.execute(sql`
-			SELECT COUNT(*) AS position
-			FROM ${users}
-			WHERE ${users.createdAt} <= (
-				SELECT ${users.createdAt} FROM ${users} WHERE ${users.id} = ${userId}
-			)
-		`) as unknown as PositionRow[];
-		const raw = rows[0]?.position;
-		return raw ? Number(raw) : null;
-	}, null);
+	const queue = await safe<Queue>('pending/queue', async () => {
+		const [me] = await db
+			.select({ createdAt: users.createdAt })
+			.from(users)
+			.where(eq(users.id, userId))
+			.limit(1);
 
-	return { email: locals.user.email, queuePosition };
+		const [waiting] = await db
+			.select({ n: count() })
+			.from(users)
+			.where(eq(users.accessStatus, 'pending'));
+
+		const [approved] = await db
+			.select({ n: count() })
+			.from(users)
+			.where(eq(users.accessStatus, 'approved'));
+
+		const [ahead] = me?.createdAt
+			? await db
+					.select({ n: count() })
+					.from(users)
+					.where(and(eq(users.accessStatus, 'pending'), lte(users.createdAt, me.createdAt)))
+			: [undefined];
+
+		return {
+			position:   ahead ? Number(ahead.n) : null,
+			total:      waiting ? Number(waiting.n) : null,
+			seatsTaken: approved ? Number(approved.n) : null,
+			createdAt:  me?.createdAt ? me.createdAt.toISOString() : null,
+		};
+	}, EMPTY_QUEUE);
+
+	return {
+		email:         locals.user.email,
+		queuePosition: queue.position,
+		queueTotal:    queue.total,
+		seatsTaken:    queue.seatsTaken,
+		seatsTotal:    BETA_SEATS,
+		createdAt:     queue.createdAt,
+	};
 };

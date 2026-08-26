@@ -2,19 +2,39 @@
 
 ## Purpose
 
-Let restaurant staff send supplier invoices to a WhatsApp number and have them
-flow into the normal batch pipeline, with a review link sent back.
+Let restaurant staff send supplier invoices to a WhatsApp number, have them flow
+into the normal batch pipeline, and get the extracted data back in the same
+chat to confirm with `OK` or reject with `NO`.
+
+## Transports
+
+There are two, behind one interface (`integrations/whatsapp/transport.ts`,
+ADR-025). Everything below the interface — routing, pairing, media, job codes,
+review replies — is shared; only the two driver files differ.
+
+| | Meta Cloud API | Baileys |
+|---|---|---|
+| Entry | `api/whatsapp/webhook` → `whatsapp-bot.ts` | worker socket → `driver-baileys.ts` |
+| Credentials | verified business required | QR pairing, no business |
+| Status | built, cannot be provisioned yet | what the MVP runs on |
+
+`message-handler.ts` takes a `WhatsAppMessageContext` (`sendText` +
+`downloadMedia`) and never learns which one it is on, which is also how the
+tests drive the round trip without a network.
 
 ## Actors
 
 - WhatsApp staff numbers (authorized via pairing codes).
-- Meta (webhook delivery).
+- Meta (webhook delivery) or the Baileys socket in the worker.
 - Owner (generates pairing codes in `/settings`).
+- Admin (`/admin/whatsapp`: QR pairing, kill switch, connection status).
 
 ## Preconditions
 
-- `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`
-  set; `WHATSAPP_APP_SECRET` in production.
+- Meta path: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`,
+  `WHATSAPP_VERIFY_TOKEN` set; `WHATSAPP_APP_SECRET` in production.
+- Baileys path: `WHATSAPP_BOT_ENABLED=true` on the worker, the number paired by
+  QR, and `app_flags.whatsapp_bot_enabled` not `'false'`.
 - Sender's phone already paired (`whatsapp_contacts`).
 
 ## Inputs
@@ -27,7 +47,10 @@ flow into the normal batch pipeline, with a review link sent back.
 - `upload_batches` + `batch_items` for media → same extraction pipeline
   (ADR-004 convergence).
 - `idempotency_keys` dedup rows in the `whatsapp` scope.
-- Replies: `/batch/{batchId}` link; guidance for text-only; pairing outcomes.
+- Replies: receipt acknowledgement; the extracted-data summary with a job code;
+  review outcomes; guidance for unusable text; pairing outcomes.
+- `whatsapp-notify` pg-boss jobs (worker → sender).
+- `system_notifications` rows: `whatsapp_pending_save` / `whatsapp_needs_review`.
 - `whatsapp_pairing_codes` (generated/redeemed); `whatsapp_account_events`.
 
 ## Business rules
@@ -45,9 +68,34 @@ flow into the normal batch pipeline, with a review link sent back.
   `UPDATE ... WHERE code=? AND redeemedAt IS NULL AND expiresAt>now() RETURNING`,
   rollback of `redeemedAt` on failure; unknown senders get a 6-h cooldown reply
   unless the text normalizes to a valid code.
-- **Media**: authorized senders with image/document → download (`MIME_TO_EXT`
-  mapping, default jpg), save to `whatsapp/{rid}/{uuid}.{ext}`, `createBatch` +
-  `enqueueBatchExtraction`. Text-only → "solo imágenes/PDF" guidance.
+- **Media**: authorized senders with image/document → size check against the
+  declared length, download (`MIME_TO_EXT` mapping, default jpg), validate
+  against `file-validation.ts` (20 MB cap, extension allow-list, magic bytes —
+  the same rules the web upload path uses), save to
+  `whatsapp/{rid}/{uuid}.{ext}`, `createBatch` with
+  `{ source: 'whatsapp', sourceRef, jobCode }` + `enqueueBatchExtraction`.
+- **Throttle**: media from an authorized sender passes `checkRateLimit` keyed
+  `whatsapp:{from}`, `WHATSAPP_SENDER_HOURLY_LIMIT` (30) per hour, before the
+  download. Review replies are not throttled — they cost nothing.
+- **Claim release** (issue #483): the message-id claim is released on any
+  failure up to the commit point (batch created and extraction enqueued), and
+  never after it. Past the commit point the invoice IS ingested and releasing
+  would let a redelivery create a second batch. A validation rejection is a
+  handled outcome, not a failure — the claim stays held.
+- **Round trip**: extraction end enqueues `whatsapp-notify`; the handler sends
+  the summary (supplier, number, date, base, IVA, total, job code) and sets
+  `review_status='pending'`. A failed extraction points at `/batch/{id}` and
+  sets `to_review`.
+- **Review replies**: `OK`/`vale`/`sí`/`correcto` → `reviewed`;
+  `NO`/`mal`/`incorrecto` → `to_review`. At most three words, decision first,
+  so ordinary chat is not mistaken for an answer. The job is found by the code
+  in the reply, or by being the sender's only pending job; several pending and
+  no code gets the list of codes back rather than a guess. The transition is a
+  guarded UPDATE, so a repeated `OK` changes nothing and raises no second
+  reminder. An `OK` never writes an invoice (ADR-008) — it raises a reminder.
+- **Kill switch**: `WHATSAPP_BOT_ENABLED` gates the Baileys transport at boot;
+  `app_flags.whatsapp_bot_enabled` can stop it without a redeploy and is
+  re-read before every inbound message.
 - **Health**: `parseAccountEvent` → severity (RED/YELLOW/ban/restriction) into
   `whatsapp_account_events` + Sentry message for non-info; `getNumberHealth` =
   worst severity in 30 days.
@@ -60,7 +108,9 @@ n/a for contacts; batches follow `invoice_ingestion.md`; pairing codes
 ## Data dependencies
 
 `whatsapp_contacts`, `whatsapp_pairing_codes`, `whatsapp_account_events`,
-`idempotency_keys` (`whatsapp` scope), `upload_batches`, `batch_items`, storage.
+`whatsapp_session` (Baileys credentials), `idempotency_keys` (`whatsapp` scope),
+`upload_batches`, `batch_items` (`source`, `source_ref`, `job_code`,
+`review_status`), `system_notifications`, `app_flags`, storage.
 
 ## API dependencies
 
@@ -73,11 +123,14 @@ n/a for contacts; batches follow `invoice_ingestion.md`; pairing codes
 ## Background dependencies
 
 Media handling is synchronous in the webhook; extraction runs via pg-boss as
-usual. Batch-status polling works for WhatsApp batches too.
+usual. Batch-status polling works for WhatsApp batches too. The hand-back is a
+`whatsapp-notify` job (dead-letter sibling, 3 retries, 60 s apart), registered
+in `src/worker.ts` only when a transport is running.
 
 ## External dependencies
 
-Meta WhatsApp Cloud API (v25.0 default), storage driver.
+Meta WhatsApp Cloud API (v25.0 default) or `@whiskeysockets/baileys` (ADR-025),
+storage driver.
 
 ## Validation
 
@@ -88,7 +141,12 @@ normalization; rate limits.
 
 - Missing credentials → warn-and-skip (no throw) for outbound.
 - Unauthorized sender → cooldown reply.
-- Media download failure → no batch created; logged.
+- Media download failure → no batch created; claim released so a resend works.
+- Oversized / spoofed / unsupported file → refusal reply, claim retained.
+- Baileys logged out → status flag `logged_out`, no auto-reconnect, QR needed.
+- Baileys cannot reach WhatsApp → the connection hangs with no error of its own,
+  so a 60 s watchdog logs it, sets status `unreachable` and retries. `/admin/whatsapp`
+  shows it in red; check outbound `wss` to web.whatsapp.com first.
 
 ## Edge cases
 
@@ -116,15 +174,62 @@ normalization; rate limits.
 
 ## Acceptance criteria
 
-- GET challenge verifies; POST with an invoice image creates a batch + replies
-  with the review link; a duplicate message is skipped; pairing codes redeem
-  once and expire.
+- GET challenge verifies; an invoice image creates a batch and is acknowledged;
+  the summary comes back with a job code; `OK <code>` marks it reviewed and
+  raises a reminder; a duplicate message is skipped; a failure before the commit
+  point releases the claim so a resend works; pairing codes redeem once and
+  expire.
 - Tests: `tests/whatsapp-webhook.test.ts`, `tests/whatsapp-bot.test.ts`,
   `tests/whatsapp-pairing.test.ts`, `tests/whatsapp-contacts.test.ts`,
   `tests/whatsapp-bridge.test.ts`, `tests/whatsapp-health.test.ts`,
-  `tests/whatsapp-api.test.ts`.
+  `tests/whatsapp-api.test.ts`, `tests/whatsapp-jobs.test.ts`,
+  `tests/whatsapp-notify.test.ts`, `tests/whatsapp-review-reply.test.ts`.
 
 ## Code notes
+
+`src/` carries no explanatory comments (`pnpm lint:no-comments`), so the
+rationale for the integration modules lives here.
+
+### `src/lib/server/integrations/whatsapp/`
+
+**`transport.ts`** — types only, no imports. It exists so the handler can be
+exercised without a network and so the Meta driver can replace the Baileys one
+in a single file once the business is registered (ADR-025).
+
+**`message-handler.ts`** — the claim/release wrapper and the routing. The
+`committed` flag is passed down rather than returned because the commit point is
+inside the media handler, several frames below the try/catch that owns the
+release (issue #483).
+
+**`media-handler.ts`** — the job code is generated here rather than in
+`createBatch` so `createBatch` stays origin-agnostic for the web path. The code
+lands on the first item only; a WhatsApp batch never has a second one.
+
+**`jobs.ts`** — codes are unique among OPEN jobs, not globally: the unique index
+in migration 0042 is partial on `review_status IS NULL OR = 'pending'`. Without
+that, 4 characters over a 30-character alphabet would start colliding at a few
+thousand invoices. `parseReview` caps at three words on purpose — a looser
+parser turns "pues no lo sé" into a rejection.
+
+**`notify.ts`** — reached only through pg-boss, so it holds no reference to a
+transport and takes the context as an argument. It re-checks `status` because
+pg-boss can deliver before `markDone` commits.
+
+**`auth-state.ts`** — Baileys' auth state is pluggable, which is the whole
+reason it was chosen over `whatsapp-web.js`: web and worker are separate Railway
+services and do not share a disk, so a file-backed session would need a volume
+the worker cannot have. `BufferJSON` is Baileys' own codec for the binary key
+material; the round trip through `JSON.parse(JSON.stringify(...))` is what
+applies it over the `jsonb` column.
+
+**`driver-baileys.ts`** — the only file importing the client. Every internal
+promise carries a `.catch()` because `src/worker.ts` exits the process on any
+unhandled rejection, and a socket library that let one escape would take
+extraction down with it. The connect watchdog exists because Baileys reports a
+socket it cannot establish as `connecting` and then stays silent forever: the
+`unreachable` state is the driver's own, not the library's, and it is sticky
+across retries so the panel does not flicker back to `connecting` every minute. The JID is normalised with `normalizePhoneNumber`
+before the handler sees it, because contacts are stored as digits (ADR-019).
 
 ### `src/routes/api/whatsapp/webhook/+server.ts`
 

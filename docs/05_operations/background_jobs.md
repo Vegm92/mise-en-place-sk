@@ -13,6 +13,7 @@ scheduled jobs. Changing async behaviour must account for this process split.
 | `tenant-weekly-digest` | `src/lib/server/tenant-fanout.ts` | One tenant's weekly digest — generate + email (`sendWeeklyDigest`) | Fanned out by the cron dispatcher, one job per tenant; `batchSize` = `SCHEDULED_FANOUT_CONCURRENCY` (default 5) with `perJobResults`, 2 retries 120 s apart, then dead-letter (ADR-025) |
 | `tenant-overdue-reminder` | `src/lib/server/tenant-fanout.ts` | One tenant's overdue-invoice email (`sendOverdueReminder`) | Same fan-out contract |
 | `tenant-trial-notice` | `src/lib/server/tenant-fanout.ts` | One tenant's trial notice at T-7 / T-1 / lapsed (`sendTrialNotice`) | Same fan-out contract |
+| `whatsapp-notify` | `src/worker.ts` | `notifyWhatsAppSender` — sends the extracted-data summary (or the failure notice) back to the number that sent the invoice, and opens it for review | Registered only when a WhatsApp transport is running; `batchSize` 1; 3 retries 60 s apart, `expireInSeconds` 300, `singletonKey` = itemId; failure → `dead-letter` sibling queue |
 | `*:dead-letter` | `src/worker.ts`, `tenant-fanout.ts` | Rows that failed; payload redacted (secrets/emails stripped) | Inspect via `/admin` or DB |
 
 State machine lives in `batch.ts` (pending → queued → extracting → done |
@@ -50,6 +51,10 @@ The hard timeout sits well above the worst legitimate run (pg-boss `retryLimit`
 still-working extraction is not reaped. If it were, `markDone` finds the item no
 longer in `queued`/`extracting` and drops the result — the user retries rather
 than seeing a silent overwrite.
+
+WhatsApp items carry a second, independent axis in `batch_items.review_status`
+(null → pending → reviewed | to_review), which records what the sender answered
+rather than where extraction got to. Web uploads leave it null.
 
 ## Schedule (cron, registered in the worker — ADR-011)
 
@@ -107,6 +112,14 @@ the silent failure mode before #518.
   queue; payloads are redacted before landing there.
 - **Startup order**: the worker runs `db:migrate` before registering jobs
   (see `DEPLOYMENT.md`); it must not run with a drifted schema.
+- **No transport imports in job code**: `extraction-worker.ts` enqueues
+  `whatsapp-notify` and never imports a WhatsApp client (ADR-025). The enqueue
+  is best-effort — the invoice is already extracted, and losing the courtesy
+  message must not undo that.
+- **The worker hosts the WhatsApp socket** when `WHATSAPP_BOT_ENABLED=true`.
+  It is long-lived, single-replica and DB-connected, which is what a persistent
+  socket needs; `shutdown()` stops it before the process exits. The Railway
+  worker service must therefore have `sleepApplication` disabled.
 
 ## Operations pointers
 
