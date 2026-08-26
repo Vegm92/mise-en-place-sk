@@ -10,6 +10,7 @@ import {
 	deleteProduct, resolveUnitConversionAlerts,
 } from '$lib/server/products';
 import { moneyToNullableNumber } from '$lib/server/money';
+import { EU_ALLERGENS, parseDecimal, toAllergenList } from '$lib/recipes';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = Number(params.id);
@@ -68,10 +69,41 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			normalizedUnitPrice: moneyToNullableNumber(p.normalizedUnitPrice),
 		})),
 		categories: VALID_CATEGORIES,
+		allergens: EU_ALLERGENS,
 	};
 };
 
 export const actions: Actions = {
+	saveFacts: async ({ params, request, locals }) => {
+		const id = Number(params.id);
+		if (!Number.isInteger(id)) return fail(422, { error: 'prod.facts.err' });
+		const rid = locals.restaurantId!;
+		const tdb = forTenant(rid);
+		const data = await request.formData();
+
+		const macro = (key: string) => {
+			const raw = String(data.get(key) ?? '').trim();
+			return raw === '' ? null : parseDecimal(raw, 2);
+		};
+		const kcal100 = macro('kcal100');
+		const protein100 = macro('protein100');
+		const carbs100 = macro('carbs100');
+		const fat100 = macro('fat100');
+		const hasNutrition = [kcal100, protein100, carbs100, fat100].some((v) => v !== null);
+
+		await db.update(products).set({
+			allergens: toAllergenList(data.getAll('allergens').map(String)),
+			allergensSource: 'manual',
+			kcal100,
+			protein100,
+			carbs100,
+			fat100,
+			nutritionSource: hasNutrition ? 'manual' : null,
+		}).where(tdb.scope(products.restaurantId, eq(products.id, id)));
+
+		redirect(303, `/products/${id}`);
+	},
+
 	update: async ({ params, request, locals }) => {
 		const id = Number(params.id);
 		const rid = locals.restaurantId!;

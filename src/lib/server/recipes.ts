@@ -66,6 +66,14 @@ export interface RecipeCost extends RecipeTotals {
 	warnings: RecipeWarning[];
 }
 
+export interface ProductFacts {
+	allergens: Allergen[];
+	kcal100: number | null;
+	protein100: number | null;
+	carbs100: number | null;
+	fat100: number | null;
+}
+
 export interface RecipeNode {
 	recipe: RecipeRow;
 	items: RecipeItemRow[];
@@ -187,6 +195,36 @@ export async function resolveProductPrices(
 	return out;
 }
 
+export async function loadProductFacts(
+	rid: string,
+	productIds: number[]
+): Promise<Map<number, ProductFacts>> {
+	const out = new Map<number, ProductFacts>();
+	const ids = [...new Set(productIds)].filter((id) => Number.isInteger(id) && id > 0);
+	if (ids.length === 0) return out;
+
+	const tdb = forTenant(rid);
+	const rows = await db.select({
+		id: products.id,
+		allergens: products.allergens,
+		kcal100: products.kcal100,
+		protein100: products.protein100,
+		carbs100: products.carbs100,
+		fat100: products.fat100,
+	}).from(products).where(tdb.scope(products.restaurantId, inArray(products.id, ids)));
+
+	for (const row of rows) {
+		out.set(row.id, {
+			allergens: toAllergenList(row.allergens),
+			kcal100: nullableNumber(row.kcal100),
+			protein100: nullableNumber(row.protein100),
+			carbs100: nullableNumber(row.carbs100),
+			fat100: nullableNumber(row.fat100),
+		});
+	}
+	return out;
+}
+
 function nullableNumber(value: string | null): number | null {
 	if (value === null || value === undefined) return null;
 	const n = Number(value);
@@ -195,7 +233,8 @@ function nullableNumber(value: string | null): number | null {
 
 export function computeRecipeCosts(
 	graph: Map<number, RecipeNode>,
-	prices: Map<number, ResolvedPrice>
+	prices: Map<number, ResolvedPrice>,
+	facts: Map<number, ProductFacts> = new Map()
 ): Map<number, RecipeCost> {
 	const costs = new Map<number, RecipeCost>();
 	const color = new Map<number, number>();
@@ -223,7 +262,11 @@ export function computeRecipeCosts(
 			const netQty = qtyToNumber(item.netQuantity);
 			const wastePct = qtyToNumber(item.wastePct);
 			const grossQty = netQty / wasteFactor(wastePct);
-			const lineAllergens = toAllergenList(item.allergens);
+			const inherited = item.productId === null ? undefined : facts.get(item.productId);
+			const ownAllergens = toAllergenList(item.allergens);
+			const lineAllergens = ownAllergens.length > 0
+				? ownAllergens
+				: (inherited?.allergens ?? []);
 
 			let unitRateUnits: number | null = null;
 			let priceSource: PriceSource = 'none';
@@ -299,11 +342,18 @@ export function computeRecipeCosts(
 			totalCostCents += costCents;
 
 			if (kind !== 'recipe') {
-				nutrition = lineNutrition(netQty, item.unit, {
+				const own = {
 					kcal100: nullableNumber(item.kcal100),
 					protein100: nullableNumber(item.protein100),
 					carbs100: nullableNumber(item.carbs100),
 					fat100: nullableNumber(item.fat100),
+				};
+				const hasOwn = Object.values(own).some((v) => v !== null);
+				nutrition = lineNutrition(netQty, item.unit, hasOwn ? own : {
+					kcal100: inherited?.kcal100 ?? null,
+					protein100: inherited?.protein100 ?? null,
+					carbs100: inherited?.carbs100 ?? null,
+					fat100: inherited?.fat100 ?? null,
 				});
 			}
 
@@ -386,13 +436,13 @@ export function computeRecipeCosts(
 	return costs;
 }
 
-function collectProductIds(graph: Map<number, RecipeNode>): number[] {
+export function collectProductIds(graph: Map<number, RecipeNode>, pricedOnly: boolean): number[] {
 	const ids: number[] = [];
 	for (const node of graph.values()) {
 		for (const item of node.items) {
-			if (item.kind === 'product' && item.productId !== null && item.unitCost === null) {
-				ids.push(item.productId);
-			}
+			if (item.kind !== 'product' || item.productId === null) continue;
+			if (pricedOnly && item.unitCost !== null) continue;
+			ids.push(item.productId);
 		}
 	}
 	return ids;
@@ -400,8 +450,11 @@ function collectProductIds(graph: Map<number, RecipeNode>): number[] {
 
 export async function recipeCosts(rid: string): Promise<Map<number, RecipeCost>> {
 	const graph = await loadRecipeGraph(rid);
-	const prices = await resolveProductPrices(rid, collectProductIds(graph));
-	return computeRecipeCosts(graph, prices);
+	const [prices, facts] = await Promise.all([
+		resolveProductPrices(rid, collectProductIds(graph, true)),
+		loadProductFacts(rid, collectProductIds(graph, false)),
+	]);
+	return computeRecipeCosts(graph, prices, facts);
 }
 
 export async function recipeCost(rid: string, recipeId: number): Promise<RecipeCost | null> {

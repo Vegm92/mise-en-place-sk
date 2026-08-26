@@ -5,7 +5,7 @@ import {
 } from '../src/lib/recipes';
 import {
 	computeRecipeCosts, wouldCycle,
-	type RecipeNode, type ResolvedPrice
+	type ProductFacts, type RecipeNode, type ResolvedPrice
 } from '../src/lib/server/recipes';
 
 type ItemInput = Partial<{
@@ -329,5 +329,42 @@ describe('allergens and nutrition', () => {
 		const cost = computeRecipeCosts(graph, new Map()).get(1)!;
 		expect(cost.nutritionTotal).toBeNull();
 		expect(cost.lines[0].warnings).toContain('nutrition-skipped');
+	});
+});
+
+describe('inheritance from the product catalog', () => {
+	const facts = new Map<number, ProductFacts>([[7, {
+		allergens: ['lacteos'], kcal100: 717, protein100: 0.9, carbs100: 0.1, fat100: 81,
+	}]]);
+	const prices = new Map<number, ResolvedPrice>([[7, {
+		rateUnits: toRate('8.00')!, baseUnit: 'kg', source: 'invoice', asOf: null, supplierName: null,
+	}]]);
+
+	it('takes allergens and macros from the linked product when the line declares none', () => {
+		const graph = graphOf(node({ id: 1 }, [
+			{ kind: 'product', name: 'Mantequilla', productId: 7, netQuantity: '0.1000', unit: 'kg' },
+		]));
+		const cost = computeRecipeCosts(graph, prices, facts).get(1)!;
+		expect(cost.allergens).toEqual(['lacteos']);
+		expect(cost.nutritionTotal!.kcal).toBeCloseTo(717, 6);
+	});
+
+	it('lets the line override what the product declares', () => {
+		const graph = graphOf(node({ id: 1 }, [
+			{ kind: 'product', name: 'Mantequilla', productId: 7, netQuantity: '0.1000', unit: 'kg',
+			  allergens: ['soja'], kcal100: '600.00' },
+		]));
+		const cost = computeRecipeCosts(graph, prices, facts).get(1)!;
+		expect(cost.allergens).toEqual(['soja']);
+		expect(cost.nutritionTotal!.kcal).toBeCloseTo(600, 6);
+	});
+
+	it('does not inherit for a free-text line that names no product', () => {
+		const graph = graphOf(node({ id: 1 }, [
+			{ name: 'Mantequilla', netQuantity: '0.1000', unit: 'kg', unitCost: '8.0000' },
+		]));
+		const cost = computeRecipeCosts(graph, prices, facts).get(1)!;
+		expect(cost.allergens).toEqual([]);
+		expect(cost.nutritionTotal).toBeNull();
 	});
 });
