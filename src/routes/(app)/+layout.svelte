@@ -559,14 +559,13 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     {#if !collapsed && revealAll}
     <a href="/billing" onclick={() => mobileOpen = false}
-      style="display:block;margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}{#if data.subscriptionStatus === 'canceled'}<span style="color:var(--mep-fg-3);"> · {$t('billing.canceled')}</span>{/if}</span>
-      </div>
-      <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-        <div style="width:{data.quotaLimit ? Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100)) : 0}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
-      </div>
-      <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;"><span class="num">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span> {$t('shell.quota')}</div>
+      style="display:block;margin:0 4px 14px;padding:10px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
+      <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;{data.quotaLimit ? 'margin-bottom:7px;' : ''}"><span style="font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}</span><span style="color:var(--mep-fg-4);"> · </span><span class="num" style="color:var(--mep-fg-3);">{data.quotaUsed}{#if data.quotaLimit}/{data.quotaLimit}{/if}</span><span style="color:var(--mep-fg-3);"> {#if data.subscriptionStatus === 'canceled'}· {$t('billing.canceled')}{:else}{$t('shell.quota')}{/if}</span></div>
+      {#if data.quotaLimit}
+        <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
+          <div style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
+        </div>
+      {/if}
     </a>
     {/if}
 
