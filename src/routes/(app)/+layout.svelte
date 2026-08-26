@@ -399,11 +399,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     </div>
 
     {#if !collapsed && data.locations && data.locations.length > 1}
-      <div style="padding:0 10px 14px;">
-        <label for="location-switch" style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
+      <div style="display:flex;align-items:center;gap:8px;padding:0 10px 14px;">
+        <label for="location-switch" style="flex-shrink:0;font-size:11px;color:var(--mep-fg-4);">
           {$t('nav.location')}
         </label>
-        <div style="position:relative;" bind:this={locationRef}>
+        <div style="position:relative;flex:1;min-width:0;" bind:this={locationRef}>
           <button
             type="button"
             id="location-switch"
@@ -430,7 +430,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             <div
               role="listbox"
               style="
-                position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;
+                position:absolute;top:calc(100% + 4px);right:0;min-width:186px;z-index:120;
                 background:var(--mep-surface);border:1px solid var(--mep-border-strong);
                 border-radius:var(--mep-r-input);box-shadow:0 6px 20px rgba(0,0,0,0.15);
                 padding:4px;max-height:220px;overflow-y:auto;
