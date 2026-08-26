@@ -1,5 +1,6 @@
 import { palettes } from './palettes.mjs';
 import { writeFileSync } from 'node:fs';
+import { mobileFrameFactory } from './mobile.mjs';
 
 const W = 1420, H = 972;
 
@@ -26,6 +27,8 @@ const I = {
   logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path>',
   sun: '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.9 4.9 1.4 1.4"></path><path d="m17.7 17.7 1.4 1.4"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.3 17.7-1.4 1.4"></path><path d="m19.1 4.9-1.4 1.4"></path>',
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>',
+  menu: '<path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path>',
+  alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>',
   help: '<circle cx="12" cy="12" r="10"></circle><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path>',
 };
 
@@ -53,6 +56,15 @@ const bullet = (t, { value, target, max, color, width = 90, height = 11 }) => {
       ${over ? `<rect x="${w(target)}" y="${height * 0.25}" width="${w(value) - w(target)}" height="${height * 0.5}" fill="${t.neg}"></rect>` : ''}
       <line x1="${w(target)}" x2="${w(target)}" y1="-1" y2="${height + 1}" stroke="${t.fg}" stroke-width="2"></line>
     </svg>`;
+};
+
+const periodNav = (t, compact) => {
+  const h = compact ? 28 : 34, bw = compact ? 24 : 28, isz = compact ? 11 : 13, fz = compact ? '11.5px' : '12px';
+  return `<div style="display:flex;align-items:center;background:${t.surface2};border:1px solid ${t.borderStrong};border-radius:6px;overflow:hidden;height:${h}px;flex-shrink:0;">
+      <span style="display:flex;align-items:center;justify-content:center;width:${bw}px;height:100%;color:${t.fg3};border-right:1px solid ${t.borderStrong};">${ic(I.chevL, isz)}</span>
+      <span style="font-size:${fz};font-weight:500;color:${t.fg2};padding:0 ${compact ? 8 : 10}px;white-space:nowrap;">Agosto 2026</span>
+      <span style="display:flex;align-items:center;justify-content:center;width:${bw}px;height:100%;color:${t.fg4};border-left:1px solid ${t.borderStrong};">${ic(I.chevR, isz)}</span>
+    </div>`;
 };
 
 const chip = (t, { label, value, note, tone, wide = false, last = false, chart = '' }) => `
@@ -97,18 +109,64 @@ const swatch = (color, name, ink, chrome) => `
           <span class="num" style="font-size:9.5px;color:${chrome.hex};">${color.startsWith('#') ? color.toUpperCase() : '—'}</span>
         </div>`;
 
-function artboard(p, mode) {
-  const t = { ...p[mode], mode };
-  const isLight = mode === 'light';
-  const modeLabel = isLight ? 'Claro' : 'Oscuro';
+function tokens(p, mode) {
+  return { ...p[mode], mode };
+}
 
-  const swatches = [
-    [t.bg, 'fondo'], [t.surface, 'superficie'], [t.fg, 'texto'], [t.acc, 'acción'],
-    [t.pos, 'positivo'], [t.neg, 'negativo'], [t.warn, 'aviso'], [t.caution, 'atención'], [t.info, 'info'],
-  ].map(([c, n]) => swatch(c, n, t, isLight
-    ? { name: '#5d5d62', hex: '#63636a' }
-    : { name: '#9d9da5', hex: '#8d8d94' })).join('');
+function styleBlock(t, isLight) {
+  return `
+    body { margin: 0; }
+    a { color: ${t.acc}; text-decoration: none; }
+    a:hover { color: ${t.acc}; }
+    .mep-root {
+      font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      box-sizing: border-box;
+      background: ${isLight ? '#eceae6' : '#0e0d10'};
+      color: ${t.fg};
+      display: flex; flex-direction: column;
+    }
+    .mep-root .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: ${t.surface}; border: 1px solid ${t.border}; border-radius: 10px; box-shadow: ${SHADOW_CARD(t)}; }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: ${t.fg3}; }
+    .body { font-size: 13px; color: ${t.fg2}; }
+    .body-strong { font-size: 13px; color: ${t.fg}; font-weight: 500; }
+    .subtitle { font-size: 16px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.01em; }
+    .title { font-size: 20px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.015em; }
+    .title-lg { font-size: 24px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.02em; }
+    .btn { font-size: 13px; font-weight: 500; border-radius: 6px; padding: 7px 12px; height: 32px; box-sizing: border-box;
+           display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; white-space: nowrap; }
+    .btn-primary { background: ${t.acc}; color: ${t.accFg}; }
+    .btn-secondary { background: ${t.surface}; color: ${t.fg}; border-color: ${t.borderStrong}; }
+    .btn-ghost { background: transparent; color: ${t.fg2}; }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
+    .period-track { display: inline-flex; align-items: center; gap: 2px; background: ${t.surface2}; border: 1px solid ${t.divider}; border-radius: 999px; padding: 3px; }
+    .period-pill { font-size: 12px; line-height: 1; padding: 6px 13px; border-radius: 999px; color: ${t.fg3}; }
+    .period-pill.active { background: ${t.surface}; color: ${t.fg}; font-weight: 500; box-shadow: ${SHADOW_CARD(t)}; }
+  `;
+}
 
+const HEAD = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>`;
+
+const TAIL = (w, h) => `</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":${w},"height":${h}}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>
+`;
+
+const FONT_LINKS = `  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap">`;
+
+function desktopFrame(t, isLight) {
   const cats = [
     { name: 'Carnes y derivados', spent: '4.180 €', budget: '3.900 €', value: 4180, target: 3271, max: 4095, color: isLight ? '#8B3530' : '#d3756d', fc: '4.980 €', d: '+1.080 €', over: true },
     { name: 'Pescados y mariscos', spent: '2.040 €', budget: '2.600 €', value: 2040, target: 2181, max: 2730, color: isLight ? '#2C5F8A' : '#6195c3', fc: '2.430 €', d: '−170 €', over: false },
@@ -134,72 +192,7 @@ function artboard(p, mode) {
                 <span class="num body-strong" style="flex-shrink:0;">${a}</span>
                 <span class="badge" style="background:${soft};color:${col};flex-shrink:0;">${dd}</span>
               </div>`).join('');
-
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <script src="./support.js"></script>
-</head>
-<body>
-<x-dc>
-<helmet>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap">
-  <style>
-    body { margin: 0; }
-    a { color: ${t.acc}; text-decoration: none; }
-    a:hover { color: ${t.acc}; }
-    .mep-root {
-      font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-      -webkit-font-smoothing: antialiased;
-      width: ${W}px; height: ${H}px; box-sizing: border-box;
-      background: ${isLight ? '#eceae6' : '#0e0d10'};
-      color: ${t.fg};
-      padding: 26px 28px 24px;
-      display: flex; flex-direction: column; gap: 16px;
-    }
-    .mep-root .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
-    .card { background: ${t.surface}; border: 1px solid ${t.border}; border-radius: 10px; box-shadow: ${SHADOW_CARD(t)}; }
-    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: ${t.fg3}; }
-    .body { font-size: 13px; color: ${t.fg2}; }
-    .body-strong { font-size: 13px; color: ${t.fg}; font-weight: 500; }
-    .subtitle { font-size: 16px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.01em; }
-    .title { font-size: 20px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.015em; }
-    .title-lg { font-size: 24px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.02em; }
-    .btn { font-size: 13px; font-weight: 500; border-radius: 6px; padding: 7px 12px; height: 32px; box-sizing: border-box;
-           display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; white-space: nowrap; }
-    .btn-primary { background: ${t.acc}; color: ${t.accFg}; }
-    .btn-secondary { background: ${t.surface}; color: ${t.fg}; border-color: ${t.borderStrong}; }
-    .btn-ghost { background: transparent; color: ${t.fg2}; }
-    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
-    .period-track { display: inline-flex; align-items: center; gap: 2px; background: ${t.surface2}; border: 1px solid ${t.divider}; border-radius: 999px; padding: 3px; }
-    .period-pill { font-size: 12px; line-height: 1; padding: 6px 13px; border-radius: 999px; color: ${t.fg3}; }
-    .period-pill.active { background: ${t.surface}; color: ${t.fg}; font-weight: 500; box-shadow: ${SHADOW_CARD(t)}; }
-  </style>
-</helmet>
-
-<div class="mep-root">
-
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-shrink:0;">
-    <div style="display:flex;align-items:flex-start;gap:14px;min-width:0;">
-      <div style="width:34px;height:34px;border-radius:8px;background:${t.acc};color:${t.accFg};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;letter-spacing:-0.02em;flex-shrink:0;">${p.letter}</div>
-      <div style="min-width:0;">
-        <div style="display:flex;align-items:baseline;gap:10px;">
-          <span style="font-size:19px;font-weight:600;letter-spacing:-0.02em;color:${isLight ? '#1a1a1a' : '#e8e8ea'};">${p.name}</span>
-          <span style="font-size:12px;color:${isLight ? '#63636a' : '#8d8d94'};">${p.tag}</span>
-        </div>
-        <div style="font-size:12.5px;line-height:1.5;color:${isLight ? '#4d4d52' : '#a0a0a8'};max-width:78ch;margin-top:5px;text-wrap:pretty;">${p.why}</div>
-        <div style="font-size:12.5px;line-height:1.5;color:${isLight ? '#63636a' : '#83838a'};max-width:78ch;margin-top:2px;text-wrap:pretty;"><span style="font-weight:600;">A cambio · </span>${p.cost}</div>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;padding-top:6px;color:${isLight ? '#63636a' : '#8d8d94'};">
-      ${ic(isLight ? I.sun : I.moon, 14)}
-      <span style="font-size:12px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;">${modeLabel}</span>
-    </div>
-  </div>
-
-  <div style="height:640px;flex-shrink:0;border-radius:12px;border:1px solid ${isLight ? 'rgba(15,20,30,0.14)' : 'rgba(255,255,255,0.10)'};overflow:hidden;display:flex;background:${t.bg};">
+  return `  <div style="height:640px;flex-shrink:0;border-radius:12px;border:1px solid ${isLight ? 'rgba(15,20,30,0.14)' : 'rgba(255,255,255,0.10)'};overflow:hidden;display:flex;background:${t.bg};">
 
     <div style="width:232px;flex-shrink:0;background:${t.surface};border-right:1px solid ${t.divider};display:flex;flex-direction:column;padding:18px 10px 14px;">
       <div style="display:flex;align-items:center;gap:10px;padding:0 10px 18px;">
@@ -254,11 +247,7 @@ function artboard(p, mode) {
       <div style="flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;padding:14px 16px 16px;overflow:hidden;">
 
         <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-          <div class="period-track">
-            <span class="period-pill" style="display:inline-flex;align-items:center;">${ic(I.chevL, 13)}</span>
-            <span class="period-pill active">Agosto 2026</span>
-            <span class="period-pill" style="display:inline-flex;align-items:center;opacity:0.45;">${ic(I.chevR, 13)}</span>
-          </div>
+          ${periodNav(t, false)}
         </div>
 
         <div class="card" style="padding:10px 18px;display:flex;align-items:center;gap:20px;flex-shrink:0;">
@@ -324,7 +313,87 @@ function artboard(p, mode) {
         </div>
       </div>
     </div>
+  </div>`;
+}
+
+function artboard(p, mode) {
+  const t = tokens(p, mode);
+  const isLight = mode === 'light';
+  const modeLabel = isLight ? 'Claro' : 'Oscuro';
+
+  const swatches = [
+    [t.bg, 'fondo'], [t.surface, 'superficie'], [t.fg, 'texto'], [t.acc, 'acción'],
+    [t.pos, 'positivo'], [t.neg, 'negativo'], [t.warn, 'aviso'], [t.caution, 'atención'], [t.info, 'info'],
+  ].map(([c, n]) => swatch(c, n, t, isLight
+    ? { name: '#5d5d62', hex: '#63636a' }
+    : { name: '#9d9da5', hex: '#8d8d94' })).join('');
+
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mona+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: ${t.acc}; text-decoration: none; }
+    a:hover { color: ${t.acc}; }
+    .mep-root {
+      font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      width: ${W}px; height: ${H}px; box-sizing: border-box;
+      background: ${isLight ? '#eceae6' : '#0e0d10'};
+      color: ${t.fg};
+      padding: 26px 28px 24px;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .mep-root .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: ${t.surface}; border: 1px solid ${t.border}; border-radius: 10px; box-shadow: ${SHADOW_CARD(t)}; }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: ${t.fg3}; }
+    .body { font-size: 13px; color: ${t.fg2}; }
+    .body-strong { font-size: 13px; color: ${t.fg}; font-weight: 500; }
+    .subtitle { font-size: 16px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.01em; }
+    .title { font-size: 20px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.015em; }
+    .title-lg { font-size: 24px; font-weight: 600; color: ${t.fg}; letter-spacing: -0.02em; }
+    .btn { font-size: 13px; font-weight: 500; border-radius: 6px; padding: 7px 12px; height: 32px; box-sizing: border-box;
+           display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; white-space: nowrap; }
+    .btn-primary { background: ${t.acc}; color: ${t.accFg}; }
+    .btn-secondary { background: ${t.surface}; color: ${t.fg}; border-color: ${t.borderStrong}; }
+    .btn-ghost { background: transparent; color: ${t.fg2}; }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
+    .period-track { display: inline-flex; align-items: center; gap: 2px; background: ${t.surface2}; border: 1px solid ${t.divider}; border-radius: 999px; padding: 3px; }
+    .period-pill { font-size: 12px; line-height: 1; padding: 6px 13px; border-radius: 999px; color: ${t.fg3}; }
+    .period-pill.active { background: ${t.surface}; color: ${t.fg}; font-weight: 500; box-shadow: ${SHADOW_CARD(t)}; }
+  </style>
+</helmet>
+
+<div class="mep-root">
+
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-shrink:0;">
+    <div style="display:flex;align-items:flex-start;gap:14px;min-width:0;">
+      <div style="width:34px;height:34px;border-radius:8px;background:${t.acc};color:${t.accFg};display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;letter-spacing:-0.02em;flex-shrink:0;">${p.letter}</div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;">
+          <span style="font-size:19px;font-weight:600;letter-spacing:-0.02em;color:${isLight ? '#1a1a1a' : '#e8e8ea'};">${p.name}</span>
+          <span style="font-size:12px;color:${isLight ? '#63636a' : '#8d8d94'};">${p.tag}</span>
+        </div>
+        <div style="font-size:12.5px;line-height:1.5;color:${isLight ? '#4d4d52' : '#a0a0a8'};max-width:78ch;margin-top:5px;text-wrap:pretty;">${p.why}</div>
+        <div style="font-size:12.5px;line-height:1.5;color:${isLight ? '#63636a' : '#83838a'};max-width:78ch;margin-top:2px;text-wrap:pretty;"><span style="font-weight:600;">A cambio · </span>${p.cost}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;padding-top:6px;color:${isLight ? '#63636a' : '#8d8d94'};">
+      ${ic(isLight ? I.sun : I.moon, 14)}
+      <span style="font-size:12px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;">${modeLabel}</span>
+    </div>
   </div>
+
+  ${desktopFrame(t, isLight)}
 
   <div style="flex-shrink:0;display:flex;flex-direction:column;gap:10px;padding:0 2px;">
     <div style="display:grid;grid-template-columns:repeat(9, minmax(0, 1fr));gap:10px;">
@@ -345,46 +414,160 @@ class Component extends DCLogic {}
 `;
 }
 
-const files = [];
-const GAP_X = 96, GAP_Y = 136;
+const mobileFrame = mobileFrameFactory({ ic, I, periodNav, SHADOW_CARD });
+
+const TINTA = palettes.find((p) => p.key === 'Tinta');
+
+const SPEC = {
+  light: [
+    ['acento', '#17171A'], ['acento · texto', '#FFFFFF'], ['fondo', '#F1F0EE'],
+    ['superficie', '#FFFFFF'], ['superficie-2', '#F8F7F5'], ['texto', '#17171A'],
+    ['texto-2', '#46464A'], ['texto-3', '#5B5B60'], ['texto-4', '#6B6B70'],
+  ],
+  dark: [
+    ['acento', '#EDECEA'], ['acento · texto', '#17171A'], ['fondo', '#131314'],
+    ['superficie', '#1B1B1D'], ['superficie-2', '#222224'], ['texto', '#EDECEA'],
+    ['texto-2', '#A5A5AA'], ['texto-3', '#8D8D93'], ['texto-4', '#78787E'],
+  ],
+};
+
+const SEMANTIC = {
+  light: [['positivo', '#14694A'], ['negativo', '#B03A3A'], ['aviso', '#A85300'], ['atención', '#7F6B00'], ['info', '#2A5FB5']],
+  dark:  [['positivo', '#4CAE7D'], ['negativo', '#E16B6B'], ['aviso', '#E8934A'], ['atención', '#EFC233'], ['info', '#5F8EE0']],
+};
+
+function deliverable(mode, viewport) {
+  const t = tokens(TINTA, mode);
+  const isLight = mode === 'light';
+  const isDesktop = viewport === 'desktop';
+  const W = isDesktop ? 1420 : 500;
+  const H = isDesktop ? 890 : 1210;
+  const chrome = isLight ? { name: '#5d5d62', hex: '#63636a', fg: '#1a1a1a', sub: '#4d4d52' }
+                         : { name: '#9d9da5', hex: '#8d8d94', fg: '#e8e8ea', sub: '#a0a0a8' };
+
+  const ramp = [...SPEC[mode], ...SEMANTIC[mode]];
+  const cols = isDesktop ? 14 : 5;
+  const swatches = ramp.slice(0, isDesktop ? 14 : 10).map(([n, c]) => `
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:0;">
+          <div style="height:${isDesktop ? 34 : 30}px;border-radius:6px;background:${c};border:1px solid ${t.borderStrong};"></div>
+          <span style="font-size:10px;letter-spacing:0.02em;color:${chrome.name};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${n}</span>
+          <span class="num" style="font-size:9.5px;color:${chrome.hex};">${c}</span>
+        </div>`).join('');
+
+  return `${HEAD}
+<helmet>
+${FONT_LINKS}
+  <style>${styleBlock(t, isLight)}
+    .mep-root { width: ${W}px; height: ${H}px; padding: 26px 28px 24px; gap: 16px; }
+  </style>
+</helmet>
+
+<div class="mep-root">
+
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-shrink:0;">
+    <div style="display:flex;align-items:flex-start;gap:14px;min-width:0;">
+      <div style="width:34px;height:34px;border-radius:8px;background:${t.acc};color:${t.accFg};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="19" height="19" viewBox="0 0 24 24">
+          <rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"></rect>
+          <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"></rect>
+          <rect x="18.5" y="3.5" width="3" height="9" rx="1.5" fill="currentColor"></rect>
+        </svg>
+      </div>
+      <div style="min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:19px;font-weight:600;letter-spacing:-0.02em;color:${chrome.fg};">Tinta</span>
+          <span style="font-size:12px;color:${chrome.name};">${isDesktop ? 'Escritorio · 1440' : 'Móvil · 390'}</span>
+        </div>
+        <div style="font-size:12.5px;line-height:1.5;color:${chrome.sub};max-width:${isDesktop ? '90ch' : '44ch'};margin-top:5px;text-wrap:pretty;">
+          El acento es la tinta. Ningún tono es de marca, así que todo lo que tiene color en pantalla significa algo.
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;padding-top:6px;color:${chrome.name};">
+      ${ic(isLight ? I.sun : I.moon, 14)}
+      <span style="font-size:12px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;">${isLight ? 'Claro' : 'Oscuro'}</span>
+    </div>
+  </div>
+
+  ${isDesktop ? desktopFrame(t, isLight) : `
+  <div style="flex:1;min-height:0;display:flex;align-items:flex-start;justify-content:center;">
+    <div style="border-radius:12px;border:1px solid ${isLight ? 'rgba(15,20,30,0.14)' : 'rgba(255,255,255,0.10)'};overflow:hidden;display:flex;">
+      ${mobileFrame(t, isLight)}
+    </div>
+  </div>`}
+
+  <div style="flex-shrink:0;display:flex;flex-direction:column;gap:10px;padding:0 2px;">
+    <div style="display:grid;grid-template-columns:repeat(${cols}, minmax(0, 1fr));gap:${isDesktop ? 10 : 8}px;">
+      ${swatches}
+    </div>
+    <div style="font-size:11px;line-height:1.45;color:${chrome.name};">
+      ${isDesktop
+        ? 'Los 17 colores de categoría y las 6 series de gráfico son rampas aparte, sin cambios. ADR-027.'
+        : 'La pantalla continúa por debajo del recorte. ADR-027.'}
+    </div>
+  </div>
+
+</div>
+${TAIL(W, H)}`;
+}
+
+// --- emit -------------------------------------------------------------------
+const GAP_X = 96, GAP_Y = 130;
+
+const deliverables = [
+  { file: 'Main.dc.html', title: 'Tinta · Escritorio · Claro', mode: 'light', viewport: 'desktop', x: 0, y: 0, w: 1420, h: 890 },
+  { file: 'MovilClaro.dc.html', title: 'Tinta · Móvil · Claro', mode: 'light', viewport: 'mobile', x: 1420 + GAP_X, y: 0, w: 500, h: 1210 },
+  { file: 'EscritorioOscuro.dc.html', title: 'Tinta · Escritorio · Oscuro', mode: 'dark', viewport: 'desktop', x: 0, y: 1210 + GAP_Y, w: 1420, h: 890 },
+  { file: 'MovilOscuro.dc.html', title: 'Tinta · Móvil · Oscuro', mode: 'dark', viewport: 'mobile', x: 1420 + GAP_X, y: 1210 + GAP_Y, w: 500, h: 1210 },
+];
+
 const artboards = [];
-palettes.forEach((p, i) => {
+for (const d of deliverables) {
+  writeFileSync(new URL(d.file, import.meta.url), deliverable(d.mode, d.viewport));
+  artboards.push({ file: d.file, title: d.title, x: d.x, y: d.y, w: d.w, h: d.h, page: 'page-1' });
+}
+
+// the four directions that were not chosen, kept as the record of the decision
+const REJECTED = palettes.filter((p) => p.key !== 'Tinta');
+REJECTED.forEach((p, i) => {
   ['light', 'dark'].forEach((mode, row) => {
-    const isMain = i === 0 && mode === 'light';
-    const name = isMain ? 'Main' : `${p.key}${mode === 'light' ? 'Claro' : 'Oscuro'}`;
-    const file = `${name}.dc.html`;
+    const file = `${p.key}${mode === 'light' ? 'Claro' : 'Oscuro'}.dc.html`;
     writeFileSync(new URL(file, import.meta.url), artboard(p, mode));
-    files.push(file);
     artboards.push({
       file,
       title: `${p.letter} · ${p.name} · ${mode === 'light' ? 'Claro' : 'Oscuro'}`,
       x: i * (W + GAP_X),
       y: row * (H + GAP_Y),
       w: W, h: H,
+      page: 'page-2',
     });
   });
 });
 
 const canvas = {
   artboards,
+  pages: [
+    { id: 'page-1', name: 'Tinta' },
+    { id: 'page-2', name: 'Direcciones descartadas' },
+  ],
   annotations: [
     {
-      id: 'brief',
-      x: 0, y: -300, w: 620,
-      text: 'Cinco direcciones de color sobre la misma pantalla — el Resumen real, con la misma tipografía, densidad y componentes.\nLo único que cambia entre columnas es el color: así se comparan.\n\nArriba claro, abajo oscuro. Cada columna es una dirección.',
+      id: 'tinta-decision',
+      page: 'page-1', x: 0, y: -300, w: 700,
+      text: 'Tinta es la dirección elegida y ya está en el código: tokens de src/app.css, data-accent="tinta" en todas las rutas, chrome del PWA y plantillas de correo.\n\nEl acento es la tinta — negro sobre papel, blanco sobre tinta. Ningún tono lleva la marca, así que el color en pantalla siempre significa algo: severidad, categoría o serie.',
     },
     {
-      id: 'como-elegir',
-      x: 700, y: -300, w: 560,
-      text: 'Qué mirar, por orden:\n1. ¿El botón primario se distingue de una alerta a un metro de distancia?\n2. ¿La barra de estados se lee de un vistazo o compite consigo misma?\n3. ¿Aguanta el modo oscuro sin volverse barro?\n\nDime la letra y lo llevo a los tokens de app.css.',
+      id: 'tinta-coste',
+      page: 'page-1', x: 760, y: -300, w: 620,
+      text: 'Lo que cuesta, escrito en ADR-027:\n\n· El sistema pierde la salida de emergencia. Ya no hay un “ponlo del color de marca” para destacar algo sin significado; el énfasis tiene que salir del peso, el tamaño o la posición.\n· La app no tiene personalidad de color. La lleva Mona Sans, la densidad y el espaciado.\n· En oscuro el botón primario es un rectángulo blanco: es lo más brillante de la pantalla. Conviene tener pocos primarios por vista.',
     },
     {
-      id: 'contraste',
-      x: 1360, y: -300, w: 560,
-      text: 'Los diez pasan AA (4,5:1): texto, acento sobre superficie, y cada color semántico sobre superficie y superficie-2 — incluidas las etiquetas de esta lámina.\n\nDos ajustes que salieron por el camino: en C · Huerta el verde “positivo” se movió a un verde azulado para no chocar con el verde de acción, y el --mep-caution actual (#8a7300) se queda en 4,43:1 sobre superficie-2, así que en las cinco está en #7f6b00.',
+      id: 'descartadas',
+      page: 'page-2', x: 0, y: -300, w: 900,
+      text: 'Las cuatro direcciones que no se eligieron, con el motivo y el coste que se les escribió en su momento. Se conservan como registro de la decisión — el argumento completo está en docs/06_decisions/experience/ADR-027-ink-is-the-accent.md.\n\nD · Azafrán no aparece: se retiró antes de la elección porque su fondo cálido y su acento marrón la hacían un segundo ajuste de B · Cocina, no una alternativa real.',
     },
   ],
-  launch: { view: 'canvas' },
+  launch: { view: 'canvas', page: 'page-1' },
 };
 writeFileSync(new URL('canvas.json', import.meta.url), JSON.stringify(canvas, null, 2));
-console.log('wrote', files.length, 'artboards');
+console.log('wrote', artboards.length, 'artboards');

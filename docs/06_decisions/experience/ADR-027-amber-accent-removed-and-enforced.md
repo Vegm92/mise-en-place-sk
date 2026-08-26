@@ -1,6 +1,7 @@
 # ADR-027 — The amber accent is deleted, not parked, and a test holds the line
 
-**Status:** Active
+**Status:** Active, amended by [ADR-028](./ADR-028-ink-is-the-accent.md) — the
+enforcement test now checks the `tinta` accent where it checked `slate`
 **Feature:** experience
 **Date:** 2026-08-26
 **Amends:** [ADR-026](./ADR-026-warm-severity-ramp-cool-actions.md)
