@@ -29,6 +29,10 @@ function item(id: string, status: BatchItemStatus, queuedMsAgo: number | null, b
 		conversionNotes: null,
 		extractError: null,
 		queuedAt: queuedMsAgo === null ? null : new Date(base - queuedMsAgo),
+		source: 'web',
+		sourceRef: null,
+		jobCode: null,
+		reviewStatus: null,
 	};
 }
 
