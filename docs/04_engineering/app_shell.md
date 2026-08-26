@@ -48,6 +48,9 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Awaits the step write before `goto`. See `src/lib/stores/tutorial.ts`.
 **`const showTourStep`**
 - No accessibility check here any more — `tourPages` has already dropped the gated pages. The `$effect` below still recovers a *stored* step that has since become inaccessible (a plan downgrade mid-tour), which is the one case the filter cannot express.
+**`const upgradeFeatures`**
+- The upgrade dialog lists what a PRO plan buys as three rows instead of one sentence, so `sidebar.upgradeToProDesc` is now just the lead and each feature is its own key (`sidebar.upgradeFeat*`) with its own nav icon. Icons are the same ones the sidebar uses for those routes, so the row and the nav item a blocked click came from look like the same thing.
+- The dialog takes ConfirmDialog's anatomy — icon + title on one row, copy left, actions right at 36px — rather than the centred, 50/50-button shape it had. Every value is a token: `--mep-overlay` for the surface (not `--mep-bg`, which is the page behind it), `--mep-scrim`, `--mep-shadow-pop`, `--mep-r-card`, `--mep-row-h` for the rows. It renders inside the `.mep` container for the same reason the tour chrome does — `--mep-acc` and `--mep-row-h` are scoped there, not to `:root`.
 
 ### `src/routes/(app)/+page.server.ts`
 
