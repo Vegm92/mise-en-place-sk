@@ -1,6 +1,8 @@
 # ADR-026 — Severity is a warm traffic-light ramp; blue is reserved for actions
 
 **Status:** Active, amended by [ADR-027](./ADR-027-amber-accent-removed-and-enforced.md)
+and by [ADR-028](./ADR-028-ink-is-the-accent.md) — the severity ramp stands;
+the accent is no longer `slate` but the ink itself
 **Feature:** experience
 **Date:** 2026-08-26
 
@@ -92,6 +94,8 @@ state, not kind) and by the contrast ratios recorded in the table above.
 
 ## Related
 
+- [ADR-027](./ADR-027-ink-is-the-accent.md) — supersedes the `Acción` row above
+  and moves `--mep-caution` to `#7f6b00` for contrast; the ramp itself stands
 - [ADR-020](./ADR-020-both-viewports-rendered-css-chooses.md) — mobile and
   desktop both render, so a token change lands on both at once
 - [dashboard.md](../../03_features/dashboard.md) — the surface this was decided on

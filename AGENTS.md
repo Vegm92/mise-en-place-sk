@@ -117,6 +117,21 @@ Non-negotiable, verified against the implementation:
   must not be bypassed for convenience.
 - **Localization**: user-facing strings go through `src/lib/i18n.ts`; CI bans
   hardcoded strings.
+- **Brand colour**: the accent is the ink (`data-accent="tinta"`), and no hue
+  carries the brand — colour on screen always means something (ADR-027). Do not
+  reintroduce a hued accent as part of unrelated work.
+
+## Settled decisions must be named before they are reversed
+
+Some choices in this repo were made deliberately, argued through, and written
+down. If a task would undo one of them, **say so before doing it** — name the
+decision, name the ADR, and let the human confirm. Do not reverse a settled
+decision as a side effect of implementing something else, and do not treat a
+task that merely touches the area as licence to revisit it.
+
+This applies to anything with an Active ADR in `docs/06_decisions/`. It applies
+with particular force to the design system: the token values in `src/app.css`
+are the decision, not a starting point.
 
 ## Source of truth hierarchy
 
