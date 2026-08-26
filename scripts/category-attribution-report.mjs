@@ -41,7 +41,8 @@ const isLocal = ['localhost', '127.0.0.1', '::1', 'host.docker.internal'].includ
 const sql = postgres(url, { ssl: isLocal ? false : 'require', max: 1 });
 
 const LINE_AMOUNT = sql`COALESCE(ili.total_price, (ili.unit_price * ili.quantity)::numeric, 0)::numeric`;
-const SINCE = sql`(CURRENT_DATE - ${`${months} months`}::interval)::date`;
+const interval = `${months} months`;
+const SINCE = sql`(CURRENT_DATE - ${interval}::interval)::date`;
 
 /** A — weight of the lines with no product: what can never be split finely. */
 async function queryA() {

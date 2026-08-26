@@ -52,6 +52,8 @@ const DAY = '2026-03-12';
 
 type Spend = Record<string, number>;
 
+const byName = (a: string, b: string) => a.localeCompare(b);
+
 /** The criterion under test, read straight off the shared fragments. */
 async function spendByLineCategory(rid: string, month: string): Promise<Spend> {
 	const rows = await testDb.execute<{ category: string; total: string }>(sql`
@@ -175,7 +177,7 @@ describeDb('category attribution — the generalist wholesaler', () => {
 
 		expect(sum(byLine)).toBe(sum(bySupplier));
 		expect(bySupplier).toEqual({ [UNCATEGORIZED_CATEGORY]: 175 });
-		expect(Object.keys(byLine).sort()).toEqual(['Bebidas', 'Frutas y Verduras', UNCATEGORIZED_CATEGORY].sort());
+		expect(Object.keys(byLine).sort(byName)).toEqual(['Bebidas', 'Frutas y Verduras', UNCATEGORIZED_CATEGORY].sort(byName));
 	});
 
 	it('the materialised view carries the same split as the live query', async () => {
@@ -327,7 +329,7 @@ describeDb('runBudgetCheck — one budget per category on the delivery note', ()
 			alerts.map((a) => [(a.payload as { category: string }).category, a.payload as Record<string, unknown>]),
 		);
 
-		expect(Object.keys(byCategory).sort()).toEqual(['Bebidas', 'Frutas y Verduras']);
+		expect(Object.keys(byCategory).sort(byName)).toEqual(['Bebidas', 'Frutas y Verduras']);
 		expect(byCategory['Frutas y Verduras']).toMatchObject({ spent: 120, budget: 100, level: 'exceeded' });
 		expect(byCategory['Bebidas']).toMatchObject({ spent: 50, budget: 40, level: 'exceeded' });
 	});

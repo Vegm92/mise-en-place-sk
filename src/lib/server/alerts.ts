@@ -501,6 +501,26 @@ async function monthlyCategorySpend(
 	return out;
 }
 
+async function sentOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise<Set<string>> {
+	const monthPrefix = new Date().toISOString().slice(0, 7);
+	const rows = await db
+		.select({ payload: systemNotifications.payload })
+		.from(systemNotifications)
+		.where(and(
+			tdb.scope(systemNotifications.restaurantId),
+			eq(systemNotifications.notificationType, 'budget_overage'),
+			sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`
+		));
+	const sent = new Set<string>();
+	for (const row of rows) {
+		try {
+			const p = JSON.parse(row.payload ?? '{}');
+			if (p.category && p.level) sent.add(`${p.category}:${p.level}`);
+		} catch (e) { console.error(e); }
+	}
+	return sent;
+}
+
 export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 	const categories = await invoiceLineCategories(tdb, invoiceId, supplierId);
@@ -531,22 +551,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 
 	const spendByCategory = await monthlyCategorySpend(tdb, [...budgets.keys()]);
 
-	const monthPrefix = new Date().toISOString().slice(0, 7);
-	const existingRows = await db
-		.select({ payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(and(
-			tdb.scope(systemNotifications.restaurantId),
-			eq(systemNotifications.notificationType, 'budget_overage'),
-			sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`
-		));
-	const alreadySent = new Set<string>();
-	for (const row of existingRows) {
-		try {
-			const p = JSON.parse(row.payload ?? '{}');
-			if (p.category && p.level) alreadySent.add(`${p.category}:${p.level}`);
-		} catch (e) { console.error(e); }
-	}
+	const alreadySent = await sentOveragesThisMonth(tdb);
 
 	const alerts: Alert[] = [];
 	for (const [category, monthlyBudget] of budgets) {
