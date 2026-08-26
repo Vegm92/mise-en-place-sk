@@ -64,7 +64,7 @@
     .menu-item:hover { background: rgba(15, 20, 30, 0.04); }
   </style>
   <style>
-    .bar-row { display: grid; grid-template-columns: 132px minmax(0, 1fr) 96px 78px; align-items: center; gap: 10px; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; }
+    .bar-row { display: grid; grid-template-columns: 168px minmax(0, 1fr) 92px 92px; align-items: center; gap: 10px; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; }
     .bar-row:hover { background: rgba(15, 20, 30, 0.04); }
     .bar-track { height: 16px; background: rgba(15, 20, 30, 0.04); border-radius: 2px; }
     .bar-fill { height: 16px; border-radius: 2px 4px 4px 2px; }
@@ -226,18 +226,21 @@
 
     <div class="card" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
       <div class="card-header">
-        <span class="subtitle" style="font-size: 15px;">Reparto por partida</span>
+        <span class="subtitle" style="font-size: 15px;">Reparto por categoría</span>
         <span class="body" style="font-size: 11.5px;">Importe · albaranes · líneas</span>
       </div>
       <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 2px;">
-        <sc-for list="{{ partidas }}" as="p" hint-placeholder-count="6">
+        <sc-for list="{{ categorias }}" as="p" hint-placeholder-count="6">
           <div class="bar-row">
-            <span class="body" style="font-size: 12px; color: #1a1f26; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ p.nombre }}</span>
+            <span style="display: flex; align-items: center; gap: 7px; min-width: 0;">
+              <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ p.punto }}; flex-shrink: 0;"></span>
+              <span class="body" style="font-size: 12px; color: #1a1f26; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ p.nombre }}</span>
+            </span>
             <div class="bar-track">
               <div class="bar-fill" style="width: {{ p.ancho }}; background: {{ p.color }};"></div>
             </div>
             <span class="num" style="font-size: 12px; font-weight: 500; text-align: right;">{{ p.importe }}</span>
-            <span class="num" style="font-size: 11px; color: #5f6b78; text-align: right;">{{ p.detalle }}</span>
+            <span class="num" style="font-size: 11px; color: #5f6b78; text-align: right; white-space: nowrap;">{{ p.detalle }}</span>
           </div>
         </sc-for>
       </div>
@@ -389,15 +392,15 @@ class Component extends DCLogic {
       return String(sel[se.key][m.campo]);
     };
 
-    const datosPartida = [
-      { nombre: 'Bar',             color: '#12865c', i: 62140.80, a: 34, l: 402 },
-      { nombre: 'Cocina caliente', color: '#2776d3', i: 41208.35, a: 48, l: 388 },
-      { nombre: 'Economato',       color: '#9e6b0d', i: 31960.50, a: 44, l: 928 },
-      { nombre: 'Cocina fría',     color: '#008300', i: 17420.15, a: 62, l: 744 },
-      { nombre: 'Pastelería',      color: '#bb537c', i: 6844.20,  a: 28, l: 260 },
-      { nombre: 'Sin asignar',     color: '#6e7682', i: 4050.45,  a: 16, l: 140 },
+    const datosCategoria = [
+      { nombre: 'Vinos y Cavas',        punto: '#6B4423', i: 62140.80, a: 34, l: 402 },
+      { nombre: 'Sin categoría',        punto: '#555566', i: 38721.50, a: 50, l: 1084, suelta: true },
+      { nombre: 'Pescados y Mariscos',  punto: '#2C5F8A', i: 33815.20, a: 41, l: 318 },
+      { nombre: 'Frutas y Verduras',    punto: '#3B6B20', i: 15204.35, a: 44, l: 620 },
+      { nombre: 'Lácteos',              punto: '#C9A227', i: 8198.40,  a: 41, l: 298 },
+      { nombre: 'Panadería y Bollería', punto: '#A8642B', i: 5544.20,  a: 22, l: 140 },
     ];
-    const maxPartida = Math.max(...datosPartida.map(p => p.i));
+    const maxCategoria = Math.max(...datosCategoria.map(p => p.i));
 
     const datosProv = [
       { nombre: 'Bodegas Serrat',           a: 34, i: 62140.80, l: 402 },
@@ -441,10 +444,11 @@ class Component extends DCLogic {
       kpiMedio: this.euros(gran.i / gran.a),
       kpiPorLinea: this.euros(gran.i / gran.l),
       kpiGasto: this.euros(gran.i),
-      partidas: datosPartida.map(p => ({
+      categorias: datosCategoria.map(p => ({
         nombre: p.nombre,
-        color: p.color,
-        ancho: ((p.i / maxPartida) * 100).toFixed(1) + '%',
+        punto: p.punto,
+        color: p.suelta ? '#6e7682' : '#8a530f',
+        ancho: ((p.i / maxCategoria) * 100).toFixed(1) + '%',
         importe: this.miles(p.i) + ' €',
         detalle: p.a + ' alb · ' + this.miles(p.l) + ' l',
       })),

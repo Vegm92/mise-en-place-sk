@@ -66,16 +66,16 @@
   <style>
     .paso { display: flex; align-items: center; gap: 10px; }
     .paso-caja { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; padding: 9px 13px; display: flex; flex-direction: column; gap: 2px; background: #ffffff; }
-    .part-card { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; padding: 11px 13px; display: flex; flex-direction: column; gap: 6px; }
+    .cat-chip { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid rgba(15, 20, 30, 0.10); background: #fafaf7; font-size: 12px; color: #4a5562; }
     .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 11.5px; background: rgba(15, 20, 30, 0.04); padding: 1px 5px; border-radius: 4px; }
   </style>
 </helmet>
 
-<div style="width: 1180px; height: 820px; background: #f5f4f0; padding: 24px 26px; display: flex; flex-direction: column; gap: 16px; color: #1a1f26;">
+<div style="width: 1180px; height: 820px; background: #f5f4f0; padding: 24px 26px; display: flex; flex-direction: column; gap: 15px; color: #1a1f26;">
 
   <div style="display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;">
-    <h1 class="title">Tres estados y seis partidas</h1>
-    <p class="body" style="font-size: 12.5px;">Revisar es comprobar que el albarán cuadra y decir a qué partida va. No hay pagos de por medio.</p>
+    <h1 class="title">Tres estados, y las categorías de siempre</h1>
+    <p class="body" style="font-size: 12.5px;">Revisar es comprobar que el albarán cuadra y que su proveedor está bien clasificado. Ni pagos ni partidas: las partidas se quedan para los escandallos.</p>
   </div>
 
   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex-shrink: 0;">
@@ -91,7 +91,7 @@
 
     <div class="card" style="padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
       <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(20, 105, 74, 0.12); color: #14694a;">Confirmado</span>
-      <p class="body" style="font-size: 12.5px;">Lo que llegó cuadra con el papel —cantidades, precios y total— y ya tiene partida.</p>
+      <p class="body" style="font-size: 12.5px;">Lo que llegó cuadra con el papel: cantidades, precios y total.</p>
       <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
         <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Desbloquea:</strong> exportar y contar en la gráfica sin asteriscos.</span>
         <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Reversible:</strong> sí, vuelve a «Por revisar».</span>
@@ -109,7 +109,7 @@
   </div>
 
   <div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
-    <div style="width: 116px; flex-shrink: 0;">
+    <div style="width: 104px; flex-shrink: 0;">
       <span class="body-strong">El recorrido</span>
     </div>
     <div class="paso" style="flex: 1;">
@@ -125,7 +125,7 @@
       <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       <div class="paso-caja" style="border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent;">
         <span class="body" style="font-size: 11px; color: #64707d;">Una persona</span>
-        <span class="body-strong" style="font-size: 12.5px;">Asigna partida</span>
+        <span class="body-strong" style="font-size: 12.5px;">Corrige la categoría</span>
       </div>
       <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       <div style="display: flex; flex-direction: column; gap: 5px;">
@@ -137,52 +137,45 @@
         </div>
       </div>
       <div style="flex: 1;"></div>
-      <span class="body" style="font-size: 11.5px; max-width: 250px;">La partida se puede poner antes o después de confirmar, pero un albarán confirmado sin partida no cuenta en la gráfica de reparto.</span>
+      <span class="body" style="font-size: 11.5px; max-width: 246px;">Corregir la categoría es opcional: casi siempre la IA acierta. El paso solo aparece cuando el proveedor se quedó en «Sin categoría».</span>
     </div>
   </div>
 
   <div class="card" style="padding: 0; flex-shrink: 0; display: flex; flex-direction: column;">
     <div class="card-header">
-      <span class="subtitle" style="font-size: 15px;">Las seis partidas</span>
-      <span class="body" style="font-size: 11.5px;">Los colores salen de la paleta categórica que ya usa la app (<span class="mono">--mep-series-1…5</span>)</span>
+      <span class="subtitle" style="font-size: 15px;">Las categorías que ya usa la app</span>
+      <span class="body" style="font-size: 11.5px;">Las mismas 16 de <span class="mono">VALID_CATEGORIES</span>, con los colores de <span class="mono">--mep-cat-*</span></span>
     </div>
-    <div style="padding: 14px 16px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-      <div class="part-card">
-        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #2776d3;"></span><span class="body-strong" style="font-size: 12.5px;">Cocina caliente</span></span>
-        <span class="body" style="font-size: 11.5px;">Pescado, carne y lo que entra directo al servicio del día.</span>
-      </div>
-      <div class="part-card">
-        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #008300;"></span><span class="body-strong" style="font-size: 12.5px;">Cocina fría</span></span>
-        <span class="body" style="font-size: 11.5px;">Verdura, lácteo y todo lo que se monta en frío.</span>
-      </div>
-      <div class="part-card">
-        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #bb537c;"></span><span class="body-strong" style="font-size: 12.5px;">Pastelería</span></span>
-        <span class="body" style="font-size: 11.5px;">Harinas, azúcares y los lácteos de repostería.</span>
-      </div>
-      <div class="part-card">
-        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #9e6b0d;"></span><span class="body-strong" style="font-size: 12.5px;">Economato</span></span>
-        <span class="body" style="font-size: 11.5px;">Seco, conservas, limpieza y menaje: lo que va a estantería.</span>
-      </div>
-      <div class="part-card">
-        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #12865c;"></span><span class="body-strong" style="font-size: 12.5px;">Bar</span></span>
-        <span class="body" style="font-size: 11.5px;">Vinos, cavas, refrescos y café.</span>
-      </div>
-      <div class="part-card" style="border-style: dashed; border-color: rgba(15, 20, 30, 0.28);">
-        <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #6e7682;"></span><span class="body-strong" style="font-size: 12.5px;">Sin asignar</span></span>
-        <span class="body" style="font-size: 11.5px;">No es una partida: es trabajo pendiente. Tiene su propio filtro en la barra.</span>
-      </div>
+    <div style="padding: 13px 16px; display: flex; flex-wrap: wrap; gap: 7px;">
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #3B6B20;"></span>Frutas y Verduras</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #8B3530;"></span>Carnes y Derivados</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #2C5F8A;"></span>Pescados y Mariscos</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #C9A227;"></span>Lácteos</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #9A7B1E;"></span>Aceites y Conservas</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #1B5E5E;"></span>Bebidas</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #A8642B;"></span>Panadería y Bollería</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #7A3B6B;"></span>Especias y Condimentos</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #4A6B7A;"></span>Productos de Limpieza</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #3A6E8B;"></span>Congelados</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #7A2E2A;"></span>Embutidos y Charcutería</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #6B4423;"></span>Vinos y Cavas</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #4A3324;"></span>Café y Bebidas Calientes</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #5C5C5C;"></span>Mantenimiento y Reparaciones</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #7A6B55;"></span>Material y Menaje</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #6B7A5C;"></span>Embalaje y Packaging</span>
+      <span class="cat-chip" style="border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent;"><span style="width: 9px; height: 9px; border-radius: 2px; background: #555566;"></span>Sin categoría <span class="body" style="font-size: 11px; color: #64707d;">— el <span class="mono">Other</span> de hoy</span></span>
     </div>
   </div>
 
   <div class="card" style="padding: 15px 16px; flex: 1; min-height: 0; display: flex; gap: 20px;">
     <div style="flex: 1; display: flex; flex-direction: column; gap: 7px;">
-      <span class="subtitle" style="font-size: 15px;">Sin pagos, la columna de estado se simplifica</span>
-      <p class="body" style="font-size: 12.5px;">Hoy <span class="mono">invoices.status</span> guarda <em>pending · accepted · rejected · paid</em> y «vencida» se deduce de <span class="mono">due_date</span>. Si no pagáis, sobran <span class="mono">paid</span> y todo lo que cuelga del vencimiento: quedan exactamente tres valores y encajan en la columna que ya existe. No hace falta un eje nuevo.</p>
+      <span class="subtitle" style="font-size: 15px;">No hay ninguna columna nueva</span>
+      <p class="body" style="font-size: 12.5px;">Sin pagos sobran <span class="mono">paid</span> y todo lo que cuelga de <span class="mono">due_date</span>: quedan tres valores y caben en el <span class="mono">invoices.status</span> de hoy. Y la categoría ya existe en <span class="mono">suppliers.category</span>, con su filtro en la lista y su endpoint en <span class="mono">/api/supplier-category</span>. Esto es renombrar y quitar, no migrar.</p>
     </div>
     <div style="width: 1px; background: rgba(15, 20, 30, 0.06); flex-shrink: 0;"></div>
     <div style="flex: 1; display: flex; flex-direction: column; gap: 7px;">
-      <span class="subtitle" style="font-size: 15px;">La partida sí es columna nueva</span>
-      <p class="body" style="font-size: 12.5px;">Y no vale reaprovechar <span class="mono">category</span>: esa es la categoría de producto del proveedor (Lácteos, Pescados…) y es otra cosa. Lácteos Valdemar sirve a cocina fría <em>y</em> a pastelería, así que la partida es del albarán, no del proveedor — aunque la app puede proponerla mirando los albaranes anteriores de ese proveedor.</p>
+      <span class="subtitle" style="font-size: 15px;">Pero la categoría es del proveedor, no del albarán</span>
+      <p class="body" style="font-size: 12.5px;">Cambiarla desde una fila cambia todos los albaranes de ese proveedor — el menú lo avisa. Donde se rompe es con los que te venden de todo: Distribuciones Norte y Ruiz se quedan en «Sin categoría» y son <strong style="color: #1a1f26; font-weight: 500;">38.721 €</strong>, casi una cuarta parte del gasto. Si eso molesta, la salida es clasificar por línea (el producto ya tiene su categoría), no por albarán.</p>
     </div>
   </div>
 </div>

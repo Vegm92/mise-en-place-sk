@@ -1,20 +1,20 @@
 # Albaranes · revisión
 
 Fuentes de diseño de la pantalla `/invoices` rehecha como **bandeja de revisión**:
-tres estados (**Por revisar · Confirmado · Incidencia**) y una **partida de cocina**
-por albarán. Cada `.dc.html` es una lámina (artboard) y `canvas.json` las coloca
-en el lienzo.
+tres estados (**Por revisar · Confirmado · Incidencia**) sobre las **categorías de
+proveedor que la app ya usa**. Cada `.dc.html` es una lámina (artboard) y
+`canvas.json` las coloca en el lienzo.
 
 ## Qué hay
 
 | Fichero | Qué es |
 |---|---|
-| `Main.dc.html` | La lista: pestañas por bandeja, marcar y asignar partida desde la propia fila, selección múltiple y deshacer (1440×900) |
-| `Grafica.dc.html` | La misma página en la pestaña «Gráfica»: columnas por semana con métrica intercambiable, reparto por partida y tamaño del albarán por proveedor (1440×900) |
-| `Estados.dc.html` | Los tres estados, el recorrido, las seis partidas y lo que implica en la base de datos |
+| `Main.dc.html` | La lista: pestañas por bandeja, marcar y corregir la categoría desde la propia fila, selección múltiple y deshacer (1440×900) |
+| `Grafica.dc.html` | La misma página en la pestaña «Gráfica»: columnas por semana con métrica intercambiable, reparto por categoría y tamaño del albarán por proveedor (1440×900) |
+| `Estados.dc.html` | Los tres estados, el recorrido, las categorías de siempre y lo que implica en la base de datos |
 
 Las dos primeras son interactivas: cambiar de bandeja, seleccionar filas, marcar,
-asignar partida en lote, deshacer, y cambiar qué mide la columna de la gráfica.
+corregir categorías, deshacer, y cambiar qué mide la columna de la gráfica.
 Los datos son de ejemplo —16 albaranes de una semana dentro de un periodo de 10
 semanas— y cuadran entre las tres láminas.
 
@@ -28,34 +28,43 @@ compra de la semana.
 
 ## Lo que hay que decidir antes de tocar código
 
-1. **La columna de estado.** Hoy `invoices.status` guarda
-   `pending · accepted · rejected · paid` y `overdue` se deduce de `due_date`.
-   Sin pagos sobran `paid` y todo lo que cuelga del vencimiento: quedan tres
-   valores y caben en la columna que ya existe. No hace falta un eje nuevo.
-2. **La partida sí es columna nueva** en `invoices`, y no vale reaprovechar
-   `category`: esa es la categoría de producto del proveedor
-   (`src/lib/constants.ts`) y es otra cosa. Un proveedor sirve a varias
-   partidas, así que la partida es del albarán — la app puede proponerla
-   mirando los albaranes anteriores de ese proveedor.
+1. **No hay ninguna columna nueva.** Sin pagos sobran `paid` y todo lo que cuelga
+   de `due_date`: quedan tres valores y caben en el `invoices.status` de hoy. Y la
+   categoría ya existe en `suppliers.category`, con su filtro en la lista
+   (`src/lib/invoice-filters.ts`) y su endpoint en
+   `src/routes/(app)/api/supplier-category/+server.ts`. Esto es renombrar y
+   quitar, no migrar.
+2. **La categoría es del proveedor, no del albarán.** Corregirla desde una fila
+   afecta a todos los albaranes de ese proveedor — el menú lo avisa y en la
+   lámina se ve en marcha. Donde se rompe es con los proveedores que venden de
+   todo: se quedan en «Sin categoría» y en los datos de ejemplo son casi una
+   cuarta parte del gasto. Si eso molesta, la salida es clasificar por línea —el
+   producto ya tiene categoría propia— y no por albarán.
 3. **El nombre «confirmado»** ya significa otra cosa en el pipeline de
    extracción (`batch_items → confirmed`, «los datos extraídos están bien»).
    El estado nuevo dice «la entrega cuadra».
 
-## Las seis partidas
+## Las partidas de cocina se descartaron
 
-`Cocina caliente · Cocina fría · Pastelería · Economato · Bar` más
-`Sin asignar`, que no es una partida sino trabajo pendiente y tiene su propio
-filtro en la barra. Los colores salen de la paleta categórica que ya usa la app
-(`--mep-series-1…5` y `--mep-series-other`).
+Se dibujaron en una versión anterior (cocina caliente, fría, pastelería,
+economato, bar) y se quitaron: ese eje pertenece a los escandallos, no a los
+albaranes. Queda en el historial de git por si hace falta para esa pantalla.
 
 ## Colores
 
 Los chips de estado reutilizan los tokens que ya existen (`--mep-warn`,
-`--mep-pos`, `--mep-neg`). Las gráficas **no** usan esos mismos valores: los tres
+`--mep-pos`, `--mep-neg`), y los de categoría los `--mep-cat-*` de siempre. Las gráficas **no** usan esos mismos valores: los tres
 del badge (`#654a00 · #14694a · #b03a3a`) no se distinguen como manchas grandes
 —verde y rojo se confunden con daltonismo protán, ΔE 4,8—. Los pasos de gráfica
 (`#0f7a52 · #bd8206 · #c73f31`, en ese orden de apilado) mantienen el tono y
 pasan las comprobaciones de contraste y de visión del color.
+
+Lo mismo con las categorías, y por eso el reparto por categoría son barras de un
+solo tono con el color de la categoría como punto al lado del nombre: los 17
+`--mep-cat-*` están hechos para ser texto sobre su propio tinte y como manchas
+grandes no se separan —Pescados y Mariscos contra «Sin categoría» quedan a
+ΔE 7,1 incluso con visión normal—. Como punto junto a una etiqueta funcionan;
+como relleno de barra, no.
 
 ## Dónde vive el código de hoy
 
@@ -64,6 +73,7 @@ pasan las comprobaciones de contraste y de visión del color.
 | Pantalla de listado | `src/routes/(app)/invoices/+page.svelte` |
 | Filtros (parseo, URL, contador) | `src/lib/invoice-filters.ts` |
 | Estados y clases de badge | `src/lib/status.ts` |
-| Categorías de producto (≠ partidas) | `src/lib/constants.ts` |
+| Categorías (`VALID_CATEGORIES`) | `src/lib/constants.ts` |
 | Plantilla común de listado | `src/lib/components/mep/ListPageTemplate.svelte` |
+| Categoría del proveedor | `src/routes/(app)/api/supplier-category/+server.ts` |
 | Listado en móvil | `src/lib/components/mobile/MobileInvoiceList.svelte` |

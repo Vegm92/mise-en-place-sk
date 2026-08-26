@@ -64,9 +64,12 @@
     .menu-item:hover { background: rgba(15, 20, 30, 0.04); }
   </style>
   <style>
-    .list-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 74px 104px 178px auto 20px; align-items: center; gap: 14px; padding: 0 16px; height: 60px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); position: relative; }
+    .list-row { display: grid; grid-template-columns: 24px minmax(0, 1fr) 74px 104px 194px auto 20px; align-items: center; gap: 14px; padding: 0 16px; height: 60px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); position: relative; }
     .list-row:hover { background: rgba(15, 20, 30, 0.02); }
     .list-row:last-child { border-bottom: 0; }
+    .cat-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #fafaf7; border-radius: 999px; height: 26px; padding: 0 8px 0 9px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; color: #4a5562; cursor: pointer; max-width: 100%; transition: background 120ms, border-color 120ms; }
+    .cat-btn:hover { background: rgba(15, 20, 30, 0.06); border-color: rgba(15, 20, 30, 0.18); }
+    .cat-btn.vacia { border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent; color: #5f6b78; }
   </style>
 </helmet>
 
@@ -75,14 +78,12 @@
   <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-shrink: 0;">
     <div style="display: flex; flex-direction: column; gap: 2px;">
       <h1 class="title">Albaranes</h1>
-      <p class="body" style="font-size: 12.5px;">Una bandeja de revisión: comprobar que el albarán cuadra y decir a qué partida va.</p>
+      <p class="body" style="font-size: 12.5px;">Una bandeja de revisión: comprobar que el albarán cuadra y que la categoría del proveedor es la buena.</p>
     </div>
-    <div style="display: flex; align-items: center; gap: 10px;">
-      <button type="button" class="btn">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
-        Exportar Excel
-      </button>
-    </div>
+    <button type="button" class="btn">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
+      Exportar Excel
+    </button>
   </div>
 
   <div style="display: flex; align-items: center; gap: 22px; border-bottom: 1px solid rgba(15, 20, 30, 0.10); flex-shrink: 0;">
@@ -109,10 +110,10 @@
       <span class="body" style="font-size: 12.5px;">{{ resumenBandeja }}</span>
     </div>
     <div style="flex: 1;"></div>
-    <button type="button" class="btn btn-secondary" style="{{ estiloSinPartida }}" onClick="{{ alternarSinPartida }}">
-      <span style="width: 9px; height: 9px; border-radius: 999px; border: 1.5px dashed #64707d;"></span>
-      Sin partida
-      <span class="badge num" style="background: rgba(15, 20, 30, 0.06); color: #4a5562; min-width: 17px; height: 17px; padding: 0 5px; justify-content: center;">{{ nSinPartida }}</span>
+    <button type="button" class="btn btn-secondary" style="{{ estiloSinCat }}" onClick="{{ alternarSinCat }}">
+      <span style="width: 9px; height: 9px; border-radius: 2px; border: 1.5px dashed #64707d;"></span>
+      Sin categoría
+      <span class="badge num" style="background: rgba(15, 20, 30, 0.06); color: #4a5562; min-width: 17px; height: 17px; padding: 0 5px; justify-content: center;">{{ nSinCat }}</span>
     </button>
     <div style="position: relative; width: 236px;">
       <span style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #5f6b78; display: flex; pointer-events: none;">
@@ -150,28 +151,12 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
           Incidencia
         </button>
-        <button type="button" class="mark-btn" style="height: 26px;" onClick="{{ abrirLotePartida }}">
-          Asignar partida
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </button>
       </sc-if>
       <div style="flex: 1;"></div>
       <span class="body" style="font-size: 11.5px; color: #5f6b78;">Ordenado por fecha de subida, recientes primero</span>
     </div>
 
     <div style="flex: 1; min-height: 0; overflow-y: auto; position: relative;">
-
-      <sc-if value="{{ lotePartidaAbierto }}" hint-placeholder-val="{{ false }}">
-        <div class="pop" style="position: absolute; top: 4px; left: 498px; width: 210px; padding: 5px; z-index: 60; display: flex; flex-direction: column; gap: 1px;">
-          <sc-for list="{{ opcionesLote }}" as="o" hint-placeholder-count="6">
-            <button type="button" class="menu-item" onClick="{{ o.pick }}">
-              <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ o.color }}; flex-shrink: 0;"></span>
-              {{ o.nombre }}
-            </button>
-          </sc-for>
-        </div>
-      </sc-if>
-
       <sc-for list="{{ filas }}" as="f" hint-placeholder-count="6">
         <div class="list-row">
           <input type="checkbox" checked="{{ f.marcado }}" onChange="{{ f.alternar }}" style="accent-color: #8a530f; cursor: pointer;" />
@@ -189,9 +174,9 @@
           <div class="num" style="text-align: right; font-size: 13.5px; font-weight: 600;">{{ f.importe }}</div>
 
           <div style="min-width: 0;">
-            <button type="button" class="part-btn {{ f.claseParte }}" onClick="{{ f.abrirPartida }}">
-              <span style="width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; background: {{ f.colorPartida }};"></span>
-              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.partida }}</span>
+            <button type="button" class="cat-btn {{ f.claseCat }}" onClick="{{ f.abrirCat }}">
+              <span style="width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; background: {{ f.colorCat }};"></span>
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.categoria }}</span>
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65; flex-shrink: 0;"><path d="m6 9 6 6 6-6"/></svg>
             </button>
           </div>
@@ -217,14 +202,20 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </span>
 
-          <sc-if value="{{ f.partidaAbierta }}" hint-placeholder-val="{{ false }}">
-            <div class="pop" style="position: absolute; top: 46px; right: 245px; width: 210px; padding: 5px; z-index: 50; display: flex; flex-direction: column; gap: 1px;">
-              <sc-for list="{{ f.opciones }}" as="o" hint-placeholder-count="6">
-                <button type="button" class="menu-item" onClick="{{ o.pick }}">
-                  <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ o.color }}; flex-shrink: 0;"></span>
-                  {{ o.nombre }}
-                </button>
-              </sc-for>
+          <sc-if value="{{ f.catAbierta }}" hint-placeholder-val="{{ false }}">
+            <div class="pop" style="position: absolute; top: 46px; right: 229px; width: 264px; z-index: 50; display: flex; flex-direction: column; overflow: hidden;">
+              <div style="padding: 9px 11px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); background: #fafaf7;">
+                <div class="body-strong" style="font-size: 12px;">Categoría de {{ f.proveedor }}</div>
+                <div class="body" style="font-size: 11px; color: #5f6b78;">{{ f.avisoCat }}</div>
+              </div>
+              <div style="padding: 5px; max-height: 232px; overflow-y: auto; display: flex; flex-direction: column; gap: 1px;">
+                <sc-for list="{{ f.opciones }}" as="o" hint-placeholder-count="8">
+                  <button type="button" class="menu-item" style="{{ o.estilo }}" onClick="{{ o.pick }}">
+                    <span style="width: 9px; height: 9px; border-radius: 2px; background: {{ o.color }}; flex-shrink: 0;"></span>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ o.nombre }}</span>
+                  </button>
+                </sc-for>
+              </div>
             </div>
           </sc-if>
         </div>
@@ -257,46 +248,68 @@
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { bandeja: 'revisar', marcas: {}, partidas: {}, ultima: null, sel: {}, menu: null, menuLote: false, soloSinPartida: false };
+    this.state = { bandeja: 'revisar', marcas: {}, cats: {}, ultima: null, sel: {}, menu: null, soloSinCat: false };
   }
 
-  partidasDef() {
+  categoriasDef() {
     return [
-      { key: 'caliente',  nombre: 'Cocina caliente', color: '#2776d3' },
-      { key: 'fria',      nombre: 'Cocina fría',     color: '#008300' },
-      { key: 'pasteleria',nombre: 'Pastelería',      color: '#bb537c' },
-      { key: 'economato', nombre: 'Economato',       color: '#9e6b0d' },
-      { key: 'bar',       nombre: 'Bar',             color: '#12865c' },
-      { key: '',          nombre: 'Sin asignar',     color: '#6e7682' },
+      { nombre: 'Frutas y Verduras',            color: '#3B6B20' },
+      { nombre: 'Carnes y Derivados',           color: '#8B3530' },
+      { nombre: 'Pescados y Mariscos',          color: '#2C5F8A' },
+      { nombre: 'Lácteos',                      color: '#C9A227' },
+      { nombre: 'Aceites y Conservas',          color: '#9A7B1E' },
+      { nombre: 'Bebidas',                      color: '#1B5E5E' },
+      { nombre: 'Panadería y Bollería',         color: '#A8642B' },
+      { nombre: 'Especias y Condimentos',       color: '#7A3B6B' },
+      { nombre: 'Productos de Limpieza',        color: '#4A6B7A' },
+      { nombre: 'Congelados',                   color: '#3A6E8B' },
+      { nombre: 'Embutidos y Charcutería',      color: '#7A2E2A' },
+      { nombre: 'Vinos y Cavas',                color: '#6B4423' },
+      { nombre: 'Café y Bebidas Calientes',     color: '#4A3324' },
+      { nombre: 'Mantenimiento y Reparaciones', color: '#5C5C5C' },
+      { nombre: 'Material y Menaje',            color: '#7A6B55' },
+      { nombre: 'Embalaje y Packaging',         color: '#6B7A5C' },
     ];
+  }
+
+  categoriaBase() {
+    return {
+      'Frutas Gómez S.L.':        'Frutas y Verduras',
+      'Pescados Ría de Vigo':     'Pescados y Mariscos',
+      'Lácteos Valdemar':         'Lácteos',
+      'Bodegas Serrat':           'Vinos y Cavas',
+      'Panadería Sant Pau':       'Panadería y Bollería',
+      'Distribuciones Ruiz S.L.': '',
+      'Distribuciones Norte':     '',
+    };
   }
 
   datos() {
     return [
-      { id: 1,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24817 · 12 ago · Subida hace 2 h',     lineas: 14, importe: '342,80 €',   part: 'fria',       rev: 'revisar' },
-      { id: 2,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3391 · 12 ago · Subida hace 5 h',     lineas: 9,  importe: '1.284,50 €', part: 'caliente',   rev: 'revisar' },
-      { id: 11, proveedor: 'Panadería Sant Pau',       meta: 'SP-0442 · 12 ago · Subida hace 6 h',     lineas: 6,  importe: '96,30 €',    part: 'pasteleria', rev: 'revisar' },
-      { id: 12, proveedor: 'Frutas Gómez S.L.',        meta: 'A-24805 · 10 ago · Subida hace 2 días',  lineas: 17, importe: '415,20 €',   part: '',           rev: 'revisar' },
-      { id: 7,  proveedor: 'Distribuciones Norte',     meta: 'N-55210 · 9 ago · Subida hace 3 días',   lineas: 23, importe: '634,25 €',   part: '',           rev: 'revisar' },
-      { id: 9,  proveedor: 'Lácteos Valdemar',         meta: '2024/0898 · 8 ago · Subida hace 4 días', lineas: 8,  importe: '211,05 €',   part: 'fria',       rev: 'revisar' },
-      { id: 3,  proveedor: 'Lácteos Valdemar',         meta: '2024/0912 · 11 ago · Subida 11 ago',     lineas: 7,  importe: '198,40 €',   part: 'fria',       rev: 'confirmado' },
-      { id: 5,  proveedor: 'Bodegas Serrat',           meta: 'BS-1180 · 10 ago · Subida 10 ago',       lineas: 12, importe: '2.140,00 €', part: 'bar',        rev: 'confirmado' },
-      { id: 13, proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3382 · 10 ago · Subida 10 ago',       lineas: 6,  importe: '738,60 €',   part: 'caliente',   rev: 'confirmado' },
-      { id: 6,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24796 · 9 ago · Subida 9 ago',         lineas: 13, importe: '289,60 €',   part: 'fria',       rev: 'confirmado' },
-      { id: 15, proveedor: 'Lácteos Valdemar',         meta: '2024/0905 · 9 ago · Subida 9 ago',       lineas: 7,  importe: '187,90 €',   part: 'pasteleria', rev: 'confirmado' },
-      { id: 8,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3374 · 8 ago · Subida 8 ago',         lineas: 8,  importe: '1.052,90 €', part: 'caliente',   rev: 'confirmado' },
-      { id: 10, proveedor: 'Bodegas Serrat',           meta: 'BS-1166 · 7 ago · Subida 7 ago',         lineas: 11, importe: '1.870,40 €', part: 'bar',        rev: 'confirmado' },
-      { id: 16, proveedor: 'Distribuciones Norte',     meta: 'N-55198 · 7 ago · Subida 7 ago',         lineas: 19, importe: '512,40 €',   part: 'economato',  rev: 'confirmado' },
-      { id: 4,  proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7742 · 11 ago · Subida 11 ago',       lineas: 21, importe: '876,15 €',   part: 'economato',  rev: 'incidencia' },
-      { id: 14, proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7728 · 9 ago · Subida 9 ago',         lineas: 26, importe: '1.204,75 €', part: 'economato',  rev: 'incidencia' },
+      { id: 1,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24817 · 12 ago · Subida hace 2 h',     lineas: 14, importe: '342,80 €',   rev: 'revisar' },
+      { id: 2,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3391 · 12 ago · Subida hace 5 h',     lineas: 9,  importe: '1.284,50 €', rev: 'revisar' },
+      { id: 11, proveedor: 'Panadería Sant Pau',       meta: 'SP-0442 · 12 ago · Subida hace 6 h',     lineas: 6,  importe: '96,30 €',    rev: 'revisar' },
+      { id: 12, proveedor: 'Frutas Gómez S.L.',        meta: 'A-24805 · 10 ago · Subida hace 2 días',  lineas: 17, importe: '415,20 €',   rev: 'revisar' },
+      { id: 7,  proveedor: 'Distribuciones Norte',     meta: 'N-55210 · 9 ago · Subida hace 3 días',   lineas: 23, importe: '634,25 €',   rev: 'revisar' },
+      { id: 9,  proveedor: 'Lácteos Valdemar',         meta: '2024/0898 · 8 ago · Subida hace 4 días', lineas: 8,  importe: '211,05 €',   rev: 'revisar' },
+      { id: 3,  proveedor: 'Lácteos Valdemar',         meta: '2024/0912 · 11 ago · Subida 11 ago',     lineas: 7,  importe: '198,40 €',   rev: 'confirmado' },
+      { id: 5,  proveedor: 'Bodegas Serrat',           meta: 'BS-1180 · 10 ago · Subida 10 ago',       lineas: 12, importe: '2.140,00 €', rev: 'confirmado' },
+      { id: 13, proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3382 · 10 ago · Subida 10 ago',       lineas: 6,  importe: '738,60 €',   rev: 'confirmado' },
+      { id: 6,  proveedor: 'Frutas Gómez S.L.',        meta: 'A-24796 · 9 ago · Subida 9 ago',         lineas: 13, importe: '289,60 €',   rev: 'confirmado' },
+      { id: 15, proveedor: 'Lácteos Valdemar',         meta: '2024/0905 · 9 ago · Subida 9 ago',       lineas: 7,  importe: '187,90 €',   rev: 'confirmado' },
+      { id: 8,  proveedor: 'Pescados Ría de Vigo',     meta: 'FV-3374 · 8 ago · Subida 8 ago',         lineas: 8,  importe: '1.052,90 €', rev: 'confirmado' },
+      { id: 10, proveedor: 'Bodegas Serrat',           meta: 'BS-1166 · 7 ago · Subida 7 ago',         lineas: 11, importe: '1.870,40 €', rev: 'confirmado' },
+      { id: 16, proveedor: 'Distribuciones Norte',     meta: 'N-55198 · 7 ago · Subida 7 ago',         lineas: 19, importe: '512,40 €',   rev: 'confirmado' },
+      { id: 4,  proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7742 · 11 ago · Subida 11 ago',       lineas: 21, importe: '876,15 €',   rev: 'incidencia' },
+      { id: 14, proveedor: 'Distribuciones Ruiz S.L.', meta: 'DR-7728 · 9 ago · Subida 9 ago',         lineas: 26, importe: '1.204,75 €', rev: 'incidencia' },
     ];
   }
 
   estilos() {
     return {
-      revisar:    { chip: 'Por revisar', css: 'background: rgba(101, 74, 0, 0.14); color: #654a00;',  color: '#654a00', fondo: 'rgba(101, 74, 0, 0.14)' },
-      confirmado: { chip: 'Confirmado',  css: 'background: rgba(20, 105, 74, 0.12); color: #14694a;', color: '#14694a', fondo: 'rgba(20, 105, 74, 0.12)' },
-      incidencia: { chip: 'Incidencia',  css: 'background: rgba(176, 58, 58, 0.12); color: #b03a3a;', color: '#b03a3a', fondo: 'rgba(176, 58, 58, 0.12)' },
+      revisar:    { chip: 'Por revisar', css: 'background: rgba(101, 74, 0, 0.14); color: #654a00;' },
+      confirmado: { chip: 'Confirmado',  css: 'background: rgba(20, 105, 74, 0.12); color: #14694a;' },
+      incidencia: { chip: 'Incidencia',  css: 'background: rgba(176, 58, 58, 0.12); color: #b03a3a;' },
     };
   }
 
@@ -309,13 +322,7 @@ class Component extends DCLogic {
   marcarLote(ids, valor) {
     const marcas = { ...this.state.marcas };
     ids.forEach(id => { marcas[id] = valor; });
-    this.setState({ marcas, sel: {}, ultima: null, menu: null, menuLote: false });
-  }
-
-  asignar(ids, part) {
-    const partidas = { ...this.state.partidas };
-    ids.forEach(id => { partidas[id] = part; });
-    this.setState({ partidas, menu: null, menuLote: false, sel: ids.length > 1 ? {} : this.state.sel });
+    this.setState({ marcas, sel: {}, ultima: null, menu: null });
   }
 
   euros(n) {
@@ -325,13 +332,16 @@ class Component extends DCLogic {
 
   renderVals() {
     const est = this.estilos();
-    const defsPart = this.partidasDef();
-    const porClave = Object.fromEntries(defsPart.map(p => [p.key, p]));
+    const cats = this.categoriasDef();
+    const porNombre = Object.fromEntries(cats.map(c => [c.nombre, c]));
+    const base = this.categoriaBase();
+
+    const catDe = prov => (this.state.cats[prov] !== undefined ? this.state.cats[prov] : base[prov]);
 
     const todo = this.datos().map(d => ({
       ...d,
       rev: this.state.marcas[d.id] ?? d.rev,
-      part: this.state.partidas[d.id] !== undefined ? this.state.partidas[d.id] : d.part,
+      cat: catDe(d.proveedor),
     }));
     const cuenta = k => todo.filter(d => d.rev === k).length;
 
@@ -349,17 +359,17 @@ class Component extends DCLogic {
         n: d.key === 'todos' ? todo.length : cuenta(d.key),
         estilo: on ? 'color: #1a1f26; font-weight: 500; border-bottom-color: #8a530f;' : '',
         estiloN: 'background: ' + d.fondo + '; color: ' + d.color + ';',
-        pick: () => this.setState({ bandeja: d.key, ultima: null, sel: {}, menu: null, menuLote: false }),
+        pick: () => this.setState({ bandeja: d.key, ultima: null, sel: {}, menu: null }),
       };
     });
 
     const actual = defs.find(d => d.key === this.state.bandeja);
     const enBandeja = this.state.bandeja === 'todos' ? todo : todo.filter(d => d.rev === this.state.bandeja);
-    const visibles = this.state.soloSinPartida ? enBandeja.filter(d => !d.part) : enBandeja;
+    const visibles = this.state.soloSinCat ? enBandeja.filter(d => !d.cat) : enBandeja;
 
     const suma = visibles.reduce((a, d) => a + Number(d.importe.replace(/\./g, '').replace(',', '.').replace(' €', '')), 0);
     const lineas = visibles.reduce((a, d) => a + d.lineas, 0);
-    const sinPartida = enBandeja.filter(d => !d.part).length;
+    const sinCat = enBandeja.filter(d => !d.cat).length;
 
     const colas = {
       revisar:    ' · el más antiguo, hace 4 días',
@@ -368,26 +378,27 @@ class Component extends DCLogic {
       todos:      '',
     };
     const resumen = visibles.length + ' albaranes · ' + lineas + ' líneas · ' + this.euros(suma) +
-      (sinPartida > 0 && this.state.bandeja === 'revisar' ? ' · ' + sinPartida + ' sin partida' : colas[this.state.bandeja]);
-
-    const opcionesPara = ids => defsPart.map(p => ({
-      nombre: p.nombre,
-      color: p.color,
-      pick: () => this.asignar(ids, p.key),
-    }));
+      (sinCat > 0 ? ' · ' + sinCat + ' sin categoría' : colas[this.state.bandeja]);
 
     const filas = visibles.map(d => {
-      const p = porClave[d.part] ?? porClave[''];
+      const c = d.cat ? porNombre[d.cat] : null;
+      const hermanos = todo.filter(x => x.proveedor === d.proveedor).length;
       return {
         ...d,
         chip: est[d.rev].chip,
         estiloChip: est[d.rev].css,
-        partida: d.part ? p.nombre : 'Asignar partida',
-        colorPartida: d.part ? p.color : 'transparent',
-        claseParte: d.part ? '' : 'vacia',
-        partidaAbierta: this.state.menu === d.id,
-        abrirPartida: () => this.setState({ menu: this.state.menu === d.id ? null : d.id, menuLote: false }),
-        opciones: opcionesPara([d.id]),
+        categoria: d.cat ? d.cat : 'Sin categoría',
+        colorCat: c ? c.color : 'transparent',
+        claseCat: d.cat ? '' : 'vacia',
+        catAbierta: this.state.menu === d.id,
+        avisoCat: 'Se guarda en el proveedor: afecta a sus ' + hermanos + ' albaranes de esta semana.',
+        abrirCat: () => this.setState({ menu: this.state.menu === d.id ? null : d.id }),
+        opciones: cats.map(o => ({
+          nombre: o.nombre,
+          color: o.color,
+          estilo: o.nombre === d.cat ? 'background: rgba(138, 83, 15, 0.10); color: #8a530f; font-weight: 500;' : '',
+          pick: () => this.setState({ cats: { ...this.state.cats, [d.proveedor]: o.nombre }, menu: null }),
+        })),
         esRevisar: d.rev === 'revisar',
         esMarcado: d.rev !== 'revisar',
         marcado: Boolean(this.state.sel[d.id]),
@@ -410,18 +421,18 @@ class Component extends DCLogic {
       pestanas,
       filas,
       vacia: visibles.length === 0,
-      textoVacio: this.state.soloSinPartida ? 'Todo tiene partida' : (this.state.bandeja === 'revisar' ? 'Bandeja vacía' : 'Nada por aquí'),
-      subtextoVacio: this.state.soloSinPartida
-        ? 'Ningún albarán de esta bandeja está sin asignar.'
+      textoVacio: this.state.soloSinCat ? 'Todo tiene categoría' : (this.state.bandeja === 'revisar' ? 'Bandeja vacía' : 'Nada por aquí'),
+      subtextoVacio: this.state.soloSinCat
+        ? 'Ningún albarán de esta bandeja se ha quedado sin clasificar.'
         : (this.state.bandeja === 'revisar'
             ? 'Todos los albaranes de la semana están revisados.'
             : 'Marca albaranes desde «Por revisar» y aparecerán aquí.'),
       tituloBandeja: actual.nombre,
       colorBandeja: 'color: ' + actual.color + ';',
       resumenBandeja: resumen,
-      nSinPartida: sinPartida,
-      estiloSinPartida: this.state.soloSinPartida ? 'background: rgba(138, 83, 15, 0.10); border-color: #8a530f; color: #8a530f;' : '',
-      alternarSinPartida: () => this.setState({ soloSinPartida: !this.state.soloSinPartida, menu: null }),
+      nSinCat: sinCat,
+      estiloSinCat: this.state.soloSinCat ? 'background: rgba(138, 83, 15, 0.10); border-color: #8a530f; color: #8a530f;' : '',
+      alternarSinCat: () => this.setState({ soloSinCat: !this.state.soloSinCat, menu: null }),
       nSeleccion: idsSel.length,
       haySeleccion: idsSel.length > 0,
       todoMarcado: visibles.length > 0 && idsSel.length === visibles.length,
@@ -433,9 +444,6 @@ class Component extends DCLogic {
       },
       confirmarLote:  () => this.marcarLote(idsSel, 'confirmado'),
       incidenciaLote: () => this.marcarLote(idsSel, 'incidencia'),
-      abrirLotePartida: () => this.setState({ menuLote: !this.state.menuLote, menu: null }),
-      lotePartidaAbierto: this.state.menuLote && idsSel.length > 0,
-      opcionesLote: opcionesPara(idsSel),
       hayDeshacer: Boolean(marcado),
       chipDeshacer: marcado ? est[ultima.valor].chip : '',
       estiloDeshacer: marcado ? est[ultima.valor].css : '',
