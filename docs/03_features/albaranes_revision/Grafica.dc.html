@@ -11,8 +11,8 @@
     @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
     body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
     * { box-sizing: border-box; }
-    a { color: #8a530f; text-decoration: none; }
-    a:hover { color: #7e4c0d; }
+    a { color: #34507a; text-decoration: none; }
+    a:hover { color: #2b4368; }
     .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
     .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
     .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
@@ -30,8 +30,8 @@
     .btn:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
     .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
     .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
-    .btn-primary { background: #8a530f; color: #ffffff; }
-    .btn-primary:hover { background: #7e4c0d; }
+    .btn-primary { background: #34507a; color: #ffffff; }
+    .btn-primary:hover { background: #2b4368; }
     .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
     .input {
       font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
@@ -92,10 +92,10 @@
   </div>
 
   <div style="display: flex; align-items: center; gap: 22px; border-bottom: 1px solid rgba(15, 20, 30, 0.10); flex-shrink: 0;">
-    <button type="button" class="tab">Por revisar <span class="tab-n num" style="background: rgba(101, 74, 0, 0.14); color: #654a00;">6</span></button>
+    <button type="button" class="tab">Por revisar <span class="tab-n num" style="background: rgba(168, 83, 0, 0.12); color: #a85300;">6</span></button>
     <button type="button" class="tab">Confirmados <span class="tab-n num" style="background: rgba(20, 105, 74, 0.12); color: #14694a;">8</span></button>
     <button type="button" class="tab">Incidencias <span class="tab-n num" style="background: rgba(176, 58, 58, 0.12); color: #b03a3a;">2</span></button>
-    <button type="button" class="tab" style="color: #1a1f26; font-weight: 500; border-bottom-color: #8a530f;">Todos <span class="tab-n num" style="background: rgba(15, 20, 30, 0.06); color: #1a1f26;">232</span></button>
+    <button type="button" class="tab" style="color: #1a1f26; font-weight: 500; border-bottom-color: #34507a;">Todos <span class="tab-n num" style="background: rgba(15, 20, 30, 0.06); color: #1a1f26;">232</span></button>
     <div style="flex: 1;"></div>
     <div class="period-track" style="margin-bottom: 6px;">
       <button type="button" class="period-pill" style="padding: 7px 9px;" title="Lista">
@@ -190,10 +190,10 @@
 
       <sc-if value="{{ linea }}" hint-placeholder-val="{{ false }}">
         <svg width="1324" height="224" viewBox="0 0 1324 224" style="position: absolute; left: 0; top: 0; display: block; overflow: visible;">
-          <polyline points="{{ puntos }}" fill="none" stroke="#8a530f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          <polyline points="{{ puntos }}" fill="none" stroke="#34507a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         <sc-for list="{{ marcas }}" as="m" hint-placeholder-count="10">
-          <div style="position: absolute; left: {{ m.left }}; top: {{ m.top }}; width: 9px; height: 9px; border-radius: 999px; background: #8a530f; border: 2px solid #ffffff; box-sizing: content-box;"></div>
+          <div style="position: absolute; left: {{ m.left }}; top: {{ m.top }}; width: 9px; height: 9px; border-radius: 999px; background: #34507a; border: 2px solid #ffffff; box-sizing: content-box;"></div>
           <div class="num" style="position: absolute; left: {{ m.etiquetaLeft }}; top: {{ m.etiquetaTop }}; width: 78px; text-align: center; font-size: 10.5px; font-weight: 500; color: {{ m.tinta }};">{{ m.etiqueta }}</div>
         </sc-for>
       </sc-if>
@@ -447,7 +447,7 @@ class Component extends DCLogic {
       categorias: datosCategoria.map(p => ({
         nombre: p.nombre,
         punto: p.punto,
-        color: p.suelta ? '#6e7682' : '#8a530f',
+        color: p.suelta ? '#8b9199' : '#34507a',
         ancho: ((p.i / maxCategoria) * 100).toFixed(1) + '%',
         importe: this.miles(p.i) + ' €',
         detalle: p.a + ' alb · ' + this.miles(p.l) + ' l',

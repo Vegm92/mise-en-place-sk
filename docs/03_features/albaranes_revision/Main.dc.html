@@ -11,8 +11,8 @@
     @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
     body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
     * { box-sizing: border-box; }
-    a { color: #8a530f; text-decoration: none; }
-    a:hover { color: #7e4c0d; }
+    a { color: #34507a; text-decoration: none; }
+    a:hover { color: #2b4368; }
     .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
     .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
     .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
@@ -30,8 +30,8 @@
     .btn:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
     .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
     .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
-    .btn-primary { background: #8a530f; color: #ffffff; }
-    .btn-primary:hover { background: #7e4c0d; }
+    .btn-primary { background: #34507a; color: #ffffff; }
+    .btn-primary:hover { background: #2b4368; }
     .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
     .input {
       font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
@@ -137,12 +137,12 @@
 
     <div style="display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 40px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); flex-shrink: 0; background: #fafaf7;">
       <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #4a5562; cursor: pointer;">
-        <input type="checkbox" checked="{{ todoMarcado }}" onChange="{{ alternarTodo }}" style="accent-color: #8a530f; cursor: pointer;" />
+        <input type="checkbox" checked="{{ todoMarcado }}" onChange="{{ alternarTodo }}" style="accent-color: #34507a; cursor: pointer;" />
         Seleccionar todo
       </label>
       <sc-if value="{{ haySeleccion }}" hint-placeholder-val="{{ true }}">
         <div style="width: 1px; height: 16px; background: rgba(15, 20, 30, 0.10);"></div>
-        <span class="body-strong" style="font-size: 12px; color: #8a530f;">{{ nSeleccion }} seleccionados</span>
+        <span class="body-strong" style="font-size: 12px; color: #34507a;">{{ nSeleccion }} seleccionados</span>
         <button type="button" class="mark-btn mark-ok" style="height: 26px;" onClick="{{ confirmarLote }}">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           Confirmar
@@ -159,7 +159,7 @@
     <div style="flex: 1; min-height: 0; overflow-y: auto; position: relative;">
       <sc-for list="{{ filas }}" as="f" hint-placeholder-count="6">
         <div class="list-row">
-          <input type="checkbox" checked="{{ f.marcado }}" onChange="{{ f.alternar }}" style="accent-color: #8a530f; cursor: pointer;" />
+          <input type="checkbox" checked="{{ f.marcado }}" onChange="{{ f.alternar }}" style="accent-color: #34507a; cursor: pointer;" />
 
           <div style="min-width: 0;">
             <div class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ f.proveedor }}</div>
@@ -237,7 +237,7 @@
         <span class="badge" style="height: 22px; padding: 0 8px; {{ estiloDeshacer }}">{{ chipDeshacer }}</span>
         <span class="body" style="font-size: 12.5px;">{{ textoDeshacer }}</span>
         <div style="flex: 1;"></div>
-        <button type="button" class="btn" style="color: #8a530f; font-weight: 500;" onClick="{{ deshacer }}">Deshacer</button>
+        <button type="button" class="btn" style="color: #34507a; font-weight: 500;" onClick="{{ deshacer }}">Deshacer</button>
       </div>
     </sc-if>
   </div>
@@ -307,7 +307,7 @@ class Component extends DCLogic {
 
   estilos() {
     return {
-      revisar:    { chip: 'Por revisar', css: 'background: rgba(101, 74, 0, 0.14); color: #654a00;' },
+      revisar:    { chip: 'Por revisar', css: 'background: rgba(168, 83, 0, 0.12); color: #a85300;' },
       confirmado: { chip: 'Confirmado',  css: 'background: rgba(20, 105, 74, 0.12); color: #14694a;' },
       incidencia: { chip: 'Incidencia',  css: 'background: rgba(176, 58, 58, 0.12); color: #b03a3a;' },
     };
@@ -346,7 +346,7 @@ class Component extends DCLogic {
     const cuenta = k => todo.filter(d => d.rev === k).length;
 
     const defs = [
-      { key: 'revisar',    nombre: 'Por revisar', color: '#654a00', fondo: 'rgba(101, 74, 0, 0.14)' },
+      { key: 'revisar',    nombre: 'Por revisar', color: '#a85300', fondo: 'rgba(168, 83, 0, 0.12)' },
       { key: 'confirmado', nombre: 'Confirmados', color: '#14694a', fondo: 'rgba(20, 105, 74, 0.12)' },
       { key: 'incidencia', nombre: 'Incidencias', color: '#b03a3a', fondo: 'rgba(176, 58, 58, 0.12)' },
       { key: 'todos',      nombre: 'Todos',       color: '#1a1f26', fondo: 'rgba(15, 20, 30, 0.06)' },
@@ -357,7 +357,7 @@ class Component extends DCLogic {
       return {
         nombre: d.nombre,
         n: d.key === 'todos' ? todo.length : cuenta(d.key),
-        estilo: on ? 'color: #1a1f26; font-weight: 500; border-bottom-color: #8a530f;' : '',
+        estilo: on ? 'color: #1a1f26; font-weight: 500; border-bottom-color: #34507a;' : '',
         estiloN: 'background: ' + d.fondo + '; color: ' + d.color + ';',
         pick: () => this.setState({ bandeja: d.key, ultima: null, sel: {}, menu: null }),
       };
@@ -396,7 +396,7 @@ class Component extends DCLogic {
         opciones: cats.map(o => ({
           nombre: o.nombre,
           color: o.color,
-          estilo: o.nombre === d.cat ? 'background: rgba(138, 83, 15, 0.10); color: #8a530f; font-weight: 500;' : '',
+          estilo: o.nombre === d.cat ? 'background: rgba(52, 80, 122, 0.10); color: #34507a; font-weight: 500;' : '',
           pick: () => this.setState({ cats: { ...this.state.cats, [d.proveedor]: o.nombre }, menu: null }),
         })),
         esRevisar: d.rev === 'revisar',
@@ -431,7 +431,7 @@ class Component extends DCLogic {
       colorBandeja: 'color: ' + actual.color + ';',
       resumenBandeja: resumen,
       nSinCat: sinCat,
-      estiloSinCat: this.state.soloSinCat ? 'background: rgba(138, 83, 15, 0.10); border-color: #8a530f; color: #8a530f;' : '',
+      estiloSinCat: this.state.soloSinCat ? 'background: rgba(52, 80, 122, 0.10); border-color: #34507a; color: #34507a;' : '',
       alternarSinCat: () => this.setState({ soloSinCat: !this.state.soloSinCat, menu: null }),
       nSeleccion: idsSel.length,
       haySeleccion: idsSel.length > 0,
