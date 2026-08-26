@@ -20,6 +20,11 @@ vi.hoisted(() => {
 	process.env.STRIPE_PRICE_ID_BUSINESS = 'price_business';
 });
 
+// Sentry is mocked so the unknown-price alert can be counted: it fires on every
+// /billing load while the config is wrong, and must reach Sentry only once per price id.
+const sentryMocks = vi.hoisted(() => ({ captureException: vi.fn(), captureMessage: vi.fn() }));
+vi.mock('@sentry/sveltekit', () => sentryMocks);
+
 // db singleton throws at import without a connection string — stub it out.
 // `subscriptionRow` is what getAccessState reads; set it per test.
 const { subscriptionRow } = vi.hoisted(() => ({ subscriptionRow: { value: null as unknown } }));
@@ -107,6 +112,31 @@ describe('tierFromPriceId', () => {
 		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 		tierFromPriceId('price_pro');
 		expect(spy).not.toHaveBeenCalled();
+		spy.mockRestore();
+	});
+
+	// The old message only said "check STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS", which
+	// leaves the operator staring at a Sentry issue with no way to tell whether the env
+	// is stale, empty, or pointed somewhere else. Price ids are public (they ship in the
+	// checkout session), so naming what is configured is the whole diagnosis.
+	it('names the configured price ids so the mismatch is diagnosable from the alert', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		tierFromPriceId('price_unconfigured_a');
+		const message = String(spy.mock.calls[0][0]);
+		expect(message).toContain('starter=price_starter');
+		expect(message).toContain('pro=price_pro');
+		expect(message).toContain('business=price_business');
+		spy.mockRestore();
+	});
+
+	it('raises the alert to Sentry once per price id, not once per page load', () => {
+		const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		sentryMocks.captureException.mockClear();
+		tierFromPriceId('price_repeated_unknown');
+		tierFromPriceId('price_repeated_unknown');
+		tierFromPriceId('price_repeated_unknown');
+		expect(sentryMocks.captureException).toHaveBeenCalledOnce();
+		expect(spy).toHaveBeenCalledTimes(3);
 		spy.mockRestore();
 	});
 });

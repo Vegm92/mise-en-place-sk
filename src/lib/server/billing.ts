@@ -7,10 +7,10 @@ const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? '';
 const STRIPE_FOUNDER_COUPON_ID = process.env.STRIPE_FOUNDER_COUPON_ID ?? '';
-const STRIPE_PRICE_ID_STARTER = process.env.STRIPE_PRICE_ID_STARTER ?? '';
-const STRIPE_PRICE_ID_PRO = process.env.STRIPE_PRICE_ID_PRO ?? '';
-const STRIPE_PRICE_ID_BUSINESS = process.env.STRIPE_PRICE_ID_BUSINESS ?? '';
-const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID ?? '';
+const STRIPE_PRICE_ID_STARTER = (process.env.STRIPE_PRICE_ID_STARTER ?? '').trim();
+const STRIPE_PRICE_ID_PRO = (process.env.STRIPE_PRICE_ID_PRO ?? '').trim();
+const STRIPE_PRICE_ID_BUSINESS = (process.env.STRIPE_PRICE_ID_BUSINESS ?? '').trim();
+const STRIPE_PRICE_ID = (process.env.STRIPE_PRICE_ID ?? '').trim();
 import { db, forTenant } from './db';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
@@ -81,7 +81,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		name: 'Starter',
 		nameKey: 'billing.plan.starter',
 		monthlyInvoiceQuota: 100,
-		stripePriceId: STRIPE_PRICE_ID_STARTER ?? STRIPE_PRICE_ID ?? '',
+		stripePriceId: STRIPE_PRICE_ID_STARTER || STRIPE_PRICE_ID,
 		maxLocations: 1,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
 	},
@@ -89,7 +89,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		name: 'Pro',
 		nameKey: 'billing.plan.pro',
 		monthlyInvoiceQuota: 300,
-		stripePriceId: STRIPE_PRICE_ID_PRO ?? '',
+		stripePriceId: STRIPE_PRICE_ID_PRO,
 		maxLocations: 1,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false, aiAssistant: true },
 	},
@@ -97,7 +97,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		name: 'Business',
 		nameKey: 'billing.plan.business',
 		monthlyInvoiceQuota: null,
-		stripePriceId: STRIPE_PRICE_ID_BUSINESS ?? '',
+		stripePriceId: STRIPE_PRICE_ID_BUSINESS,
 		maxLocations: 5,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true, aiAssistant: true },
 	},
@@ -115,14 +115,45 @@ export function planMonthlyPriceCents(tier: PlanTier): number {
 	return Math.round(eur * 100);
 }
 
+function stripeAccountFragment(id: string): string | null {
+	return /^[a-z]+_1[A-Za-z0-9]{5}([A-Za-z0-9]{10})/.exec(id)?.[1] ?? null;
+}
+
+function configuredPriceIds(): [PlanTier, string][] {
+	return (Object.entries(TIERS) as [PlanTier, TierConfig][])
+		.filter(([, config]) => config.stripePriceId)
+		.map(([tier, config]) => [tier, config.stripePriceId]);
+}
+
+const reportedUnknownPriceIds = new Set<string>();
+
 export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
 	if (!priceId) return 'trial';
 	for (const [tier, config] of Object.entries(TIERS) as [PlanTier, TierConfig][]) {
 		if (config.stripePriceId && config.stripePriceId === priceId) return tier;
 	}
-	const message = `[billing] Stripe price ID ${priceId} matches no configured tier — check STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS. Falling back to 'starter'.`;
+
+	const configured = configuredPriceIds();
+	const summary = configured.length
+		? configured.map(([tier, id]) => `${tier}=${id}`).join(', ')
+		: 'none — set STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS';
+	const liveAccount = stripeAccountFragment(priceId);
+	const configuredAccounts = new Set(
+		configured.map(([, id]) => stripeAccountFragment(id)).filter((a): a is string => a !== null),
+	);
+	const wrongAccount = liveAccount !== null && configuredAccounts.size > 0 && !configuredAccounts.has(liveAccount);
+	const hint = wrongAccount
+		? ` The live price belongs to Stripe account …${liveAccount} but every configured price belongs to ${[...configuredAccounts].map(a => `…${a}`).join('/')} — STRIPE_SECRET_KEY and the price IDs are from different Stripe accounts.`
+		: '';
+
+	const message = `[billing] Stripe price ID ${priceId} matches no configured tier (configured: ${summary}).${hint} Falling back to 'starter'.`;
 	console.error(message);
-	Sentry.captureException(new Error(message), { tags: { area: 'billing', priceId } });
+	if (!reportedUnknownPriceIds.has(priceId)) {
+		reportedUnknownPriceIds.add(priceId);
+		Sentry.captureException(new Error(message), {
+			tags: { area: 'billing', priceId, billingConfig: wrongAccount ? 'stripe_account_mismatch' : 'price_id_unknown' },
+		});
+	}
 	return 'starter';
 }
 
