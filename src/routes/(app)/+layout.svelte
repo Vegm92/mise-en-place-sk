@@ -29,6 +29,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Newspaper from '@lucide/svelte/icons/newspaper';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { locale, t, initLocale, ti } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
@@ -168,25 +169,63 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     sub?: { href: string; label: string }[];
   }
 
-  const navItems = $derived<NavItem[]>([
-    { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
-    { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: data.invoiceBadge },
-    ...(revealAll ? [
-    { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
-    { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
-    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0, proOnly: true, feature: 'stockTracking',
-      sub: [
-        { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
-        { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
-        { href: '/analytics/extraction', label: $t('nav.analytics.extraction') },
-      ]
-    },
-    { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
-    { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
-    { href: '/reports',         icon: Newspaper,       label: $t('nav.digest'),     badge: 0, proOnly: true, feature: 'weeklyDigest' },
-    { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0, proOnly: true, feature: 'aiAssistant' },
-    ] satisfies NavItem[] : []),
-  ]);
+  interface NavSection {
+    label: string;
+    pro?: boolean;
+    items: NavItem[];
+  }
+
+  const navSections = $derived<NavSection[]>(
+    revealAll
+      ? [
+          {
+            label: $t('nav.section.daily'),
+            items: [
+              { href: '/dashboard', icon: LayoutDashboard, label: $t('nav.dashboard'), badge: 0 },
+              { href: '/invoices',  icon: FileText,        label: $t('nav.invoices'),  badge: data.invoiceBadge },
+              { href: '/suppliers', icon: Truck,           label: $t('nav.suppliers'), badge: 0 },
+              { href: '/products',  icon: Package,         label: $t('nav.products'),  badge: 0 },
+            ],
+          },
+          {
+            label: $t('nav.section.planning'),
+            items: [
+              { href: '/budgets',   icon: Tag,  label: $t('nav.budgets'),   badge: 0 },
+              { href: '/reminders', icon: Bell, label: $t('nav.reminders'), badge: data.reminderBadge },
+            ],
+          },
+          {
+            label: $t('nav.section.intel'),
+            pro: true,
+            items: [
+              { href: '/analytics/spend', icon: TrendingUp, label: $t('nav.analytics'), badge: 0, proOnly: true, feature: 'stockTracking',
+                sub: [
+                  { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
+                  { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
+                  { href: '/analytics/extraction', label: $t('nav.analytics.extraction') },
+                ]
+              },
+              { href: '/reports', icon: Newspaper,     label: $t('nav.digest'), badge: 0, proOnly: true, feature: 'weeklyDigest' },
+              { href: '/chat',    icon: MessageCircle, label: $t('nav.chat'),   badge: 0, proOnly: true, feature: 'aiAssistant' },
+            ],
+          },
+        ]
+      : [
+          {
+            label: '',
+            items: [
+              { href: '/dashboard', icon: LayoutDashboard, label: $t('nav.dashboard'), badge: 0 },
+              { href: '/invoices',  icon: FileText,        label: $t('nav.invoices'),  badge: data.invoiceBadge },
+            ],
+          },
+        ]
+  );
+
+  const itemLocked = (item: NavItem) =>
+    !!item.proOnly && !!item.feature && !data.features[item.feature];
+
+  const sectionLocked = (section: NavSection) =>
+    !!section.pro && section.items.some(itemLocked);
 
   let switchingLocation = $state(false);
   let locationError = $state<string | null>(null);
@@ -369,65 +408,94 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       {#if !collapsed}<span>{$t('action.upload')}</span>{/if}
     </a>
 
-    <nav style="display:flex;flex-direction:column;gap:1px;">
-      {#each navItems as item}
-        {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
-        <a
-          href={item.href}
-          class="sidenav-item"
-          onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
-          data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
-          title={collapsed ? item.label : undefined}
-          style="
-            position:relative;
-            display:flex;align-items:center;gap:10px;
-            padding:{collapsed ? '7px' : '7px 10px'};
-            border-radius:6px;
-            cursor:pointer;text-decoration:none;
-            justify-content:{collapsed ? 'center' : 'flex-start'};
-            background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
-            color:{parentActive ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};
-            font-size:13.5px;font-weight:{parentActive ? 500 : 400};
-          "
-        >
-          <item.icon size={16} />
-          {#if collapsed && item.proOnly && item.feature && !data.features[item.feature]}
-            <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-acc);" aria-hidden="true"></span>
-          {/if}
-          {#if !collapsed}
-            <span style="flex:1;display:flex;align-items:center;gap:6px;">{item.label}{#if item.proOnly && item.feature && !data.features[item.feature]}<span style="font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--mep-acc);color:var(--mep-acc-fg);">{$t('nav.badge.pro')}</span>{/if}</span>
-            {#if item.badge}
-              <span
-                class="num"
-                style="
-                  font-size:11px;font-weight:600;min-width:16px;height:16px;
-                  padding:0 5px;border-radius:8px;
-                  background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
-                  color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
-                  display:inline-flex;align-items:center;justify-content:center;
-                "
-              >{item.badge}</span>
-            {/if}
-          {/if}
-        </a>
+    <nav style="display:flex;flex-direction:column;">
+      {#each navSections as section, sectionIndex}
+        {@const locked = sectionLocked(section)}
+        <div style="display:flex;flex-direction:column;gap:1px;{sectionIndex > 0 ? 'margin-top:16px;' : ''}">
 
-        {#if !collapsed && item.sub && (is(item.href) || (item.sub?.some(s => is(s.href)) ?? false))}
-          <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
-            {#each item.sub as sub}
-              <a
-                href={sub.href}
-                onclick={() => mobileOpen = false}
-                style="
-                  padding:5px 10px;border-radius:5px;text-decoration:none;
-                  font-size:12.5px;
-                  color:{is(sub.href) ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
-                  font-weight:{is(sub.href) ? 500 : 400};
-                  background:{is(sub.href) ? 'var(--mep-hover)' : 'transparent'};
-                "
-              >{sub.label}</a>
-            {/each}
-          </div>
-        {/if}
+          {#if section.label && !collapsed}
+            <div style="display:flex;align-items:center;gap:7px;padding:0 10px 7px;">
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--mep-fg-4);">{section.label}</span>
+              {#if locked}
+                <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-acc-soft);color:var(--mep-acc);border:1px solid var(--mep-acc-ring);">{$t('nav.badge.pro')}</span>
+              {/if}
+            </div>
+          {:else if section.label && collapsed && sectionIndex > 0}
+            <div style="display:flex;align-items:center;justify-content:center;padding:0 0 8px;" aria-hidden="true">
+              {#if section.pro}
+                <span style="height:1px;flex:1;background:var(--mep-acc-ring);margin-left:8px;"></span>
+                <Sparkles size={11} style="flex-shrink:0;margin:0 6px;color:var(--mep-acc);" />
+                <span style="height:1px;flex:1;background:var(--mep-acc-ring);margin-right:8px;"></span>
+              {:else}
+                <span style="height:1px;flex:1;background:var(--mep-divider);margin:0 8px;"></span>
+              {/if}
+            </div>
+          {/if}
+
+          {#each section.items as item}
+            {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
+            {@const itemIsLocked = itemLocked(item)}
+            <a
+              href={item.href}
+              class="sidenav-item"
+              onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
+              data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
+              title={collapsed ? item.label : undefined}
+              style="
+                position:relative;
+                display:flex;align-items:center;gap:10px;
+                padding:{collapsed ? '7px' : '7px 10px'};
+                border-radius:6px;
+                cursor:pointer;text-decoration:none;
+                justify-content:{collapsed ? 'center' : 'flex-start'};
+                background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
+                color:{parentActive ? 'var(--mep-acc)' : itemIsLocked ? 'var(--mep-fg-4)' : 'var(--mep-fg-2)'};
+                font-size:13.5px;font-weight:{parentActive ? 500 : 400};
+              "
+            >
+              <item.icon size={16} style={itemIsLocked ? 'opacity:0.5;' : undefined} />
+              {#if collapsed && itemIsLocked}
+                <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-acc);" aria-hidden="true"></span>
+              {/if}
+              {#if !collapsed}
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.label}</span>
+                {#if itemIsLocked}
+                  <Lock size={12} aria-label={$t('nav.locked')} style="flex-shrink:0;color:var(--mep-fg-4);" />
+                {/if}
+                {#if item.badge}
+                  <span
+                    class="num"
+                    style="
+                      font-size:11px;font-weight:600;min-width:16px;height:16px;
+                      padding:0 5px;border-radius:8px;
+                      background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
+                      color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
+                      display:inline-flex;align-items:center;justify-content:center;
+                    "
+                  >{item.badge}</span>
+                {/if}
+              {/if}
+            </a>
+
+            {#if !collapsed && item.sub && parentActive}
+              <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
+                {#each item.sub as sub}
+                  <a
+                    href={sub.href}
+                    onclick={() => mobileOpen = false}
+                    style="
+                      padding:5px 10px;border-radius:5px;text-decoration:none;
+                      font-size:12.5px;
+                      color:{is(sub.href) ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
+                      font-weight:{is(sub.href) ? 500 : 400};
+                      background:{is(sub.href) ? 'var(--mep-hover)' : 'transparent'};
+                    "
+                  >{sub.label}</a>
+                {/each}
+              </div>
+            {/if}
+          {/each}
+        </div>
       {/each}
     </nav>
 
