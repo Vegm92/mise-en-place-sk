@@ -95,8 +95,9 @@ Generated output, migrations, and doc dumps are exempt; hand-written source is n
 
 The standing example is #644: a one-function WhatsApp idempotency fix for a
 **permanent invoice-loss bug** (issue #483), welded to 57 files and +7,469 lines from
-the session it grew inside. It has been open, unmergeable, and unshipped since
-2026-08-24 while cosmetic work merged around it.
+the session it grew inside. It stayed open, unmergeable and unshipped from 2026-08-24
+while cosmetic work merged around it. Split out, the same fix was 2 files and shipped
+the same day (#694).
 
 When a session's branch outgrows the cap, cherry-pick the fix that must ship onto a
 fresh branch off `main` and land that first. The merge order that keeps that split
