@@ -54,6 +54,12 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | [018](./insights/ADR-018-one-snapshot-for-chat-and-digest.md) | Chat and digest read one Markdown snapshot, never the database | Active |
 | [025](./insights/ADR-025-scheduled-jobs-fan-out-per-tenant.md) | Scheduled jobs dispatch one pg-boss job per tenant instead of looping | Active |
 
+### [`costing/`](./costing) — recipe costing (escandallos)
+
+| ADR | Decision | Status |
+|---|---|---|
+| [026](./costing/ADR-026-recipe-costing-model.md) | Recipe costing resolves the tenant's whole graph in TypeScript, from net quantities, against the taxable base | Active |
+
 ### [`analytics/`](./analytics) — spend, prices, extraction quality
 
 | ADR | Decision | Status |
@@ -104,7 +110,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **025**.
+number: **027**.
 
 **Folders group; they do not scope.** A decision belongs in the folder of the
 feature it most affects. Decisions that touch several areas live with the primary
@@ -133,7 +139,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **025**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **027**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original
