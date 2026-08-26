@@ -27,8 +27,10 @@
   import X from '@lucide/svelte/icons/x';
 import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
+  import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Newspaper from '@lucide/svelte/icons/newspaper';
+  import Sparkles from '@lucide/svelte/icons/sparkles';
   import { locale, t, initLocale, ti } from '$lib/i18n';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
@@ -52,6 +54,37 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   let locationRef: HTMLDivElement | undefined = $state();
   let mounted = $state(false);
   let upgradeModalOpen = $state(false);
+  let accountOpen = $state(false);
+  let accountRef: HTMLDivElement | undefined = $state();
+  let headerScrolled = $state(false);
+  let mainEl: HTMLElement | undefined = $state();
+
+  $effect(() => {
+    if (!browser || !mainEl) return;
+    const main = mainEl;
+    const onScroll = (e: Event) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement) || !main.contains(target)) return;
+      if (target.scrollHeight <= target.clientHeight) return;
+      if (target.clientHeight < main.clientHeight * 0.6) return;
+      const past = target.scrollTop > 12;
+      if (past !== headerScrolled) headerScrolled = past;
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => document.removeEventListener('scroll', onScroll, true);
+  });
+
+  $effect(() => {
+    void $page.url.pathname;
+    headerScrolled = false;
+    accountOpen = false;
+  });
+
+  const upgradeFeatures = [
+    { icon: TrendingUp,    key: 'sidebar.upgradeFeatAnalytics' },
+    { icon: Newspaper,     key: 'sidebar.upgradeFeatDigest' },
+    { icon: MessageCircle, key: 'sidebar.upgradeFeatAssistant' },
+  ];
 
   function handleNavClick(item: NavItem, e: MouseEvent) {
     if (item.proOnly && item.feature && !data.features[item.feature]) {
@@ -69,6 +102,20 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     };
     document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
+  });
+
+  $effect(() => {
+    if (!accountOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (accountRef && !accountRef.contains(e.target as Node)) accountOpen = false;
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') accountOpen = false; };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
   });
 
   const currentLocation = $derived(
@@ -168,25 +215,103 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     sub?: { href: string; label: string }[];
   }
 
-  const navItems = $derived<NavItem[]>([
-    { href: '/dashboard',       icon: LayoutDashboard, label: $t('nav.dashboard'),  badge: 0 },
-    { href: '/invoices',        icon: FileText,        label: $t('nav.invoices'),   badge: data.invoiceBadge },
-    ...(revealAll ? [
-    { href: '/suppliers',       icon: Truck,           label: $t('nav.suppliers'),  badge: 0 },
-    { href: '/products',        icon: Package,         label: $t('nav.products'),   badge: 0 },
-    { href: '/analytics/spend', icon: TrendingUp,      label: $t('nav.analytics'),  badge: 0, proOnly: true, feature: 'stockTracking',
-      sub: [
-        { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
-        { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
-        { href: '/analytics/extraction', label: $t('nav.analytics.extraction') },
-      ]
-    },
-    { href: '/budgets',         icon: Tag,             label: $t('nav.budgets'),    badge: 0 },
-    { href: '/reminders',       icon: Bell,            label: $t('nav.reminders'),  badge: data.reminderBadge },
-    { href: '/reports',         icon: Newspaper,       label: $t('nav.digest'),     badge: 0, proOnly: true, feature: 'weeklyDigest' },
-    { href: '/chat',            icon: MessageCircle,   label: $t('nav.chat'),       badge: 0, proOnly: true, feature: 'aiAssistant' },
-    ] satisfies NavItem[] : []),
-  ]);
+  interface NavSection {
+    id: string;
+    label: string;
+    pro?: boolean;
+    items: NavItem[];
+  }
+
+  const navSections = $derived<NavSection[]>(
+    revealAll
+      ? [
+          {
+            id: 'daily',
+            label: $t('nav.section.daily'),
+            items: [
+              { href: '/dashboard', icon: LayoutDashboard, label: $t('nav.dashboard'), badge: 0 },
+              { href: '/invoices',  icon: FileText,        label: $t('nav.invoices'),  badge: data.invoiceBadge },
+              { href: '/suppliers', icon: Truck,           label: $t('nav.suppliers'), badge: 0 },
+              { href: '/products',  icon: Package,         label: $t('nav.products'),  badge: 0 },
+            ],
+          },
+          {
+            id: 'planning',
+            label: $t('nav.section.planning'),
+            items: [
+              { href: '/budgets',   icon: Tag,  label: $t('nav.budgets'),   badge: 0 },
+              { href: '/reminders', icon: Bell, label: $t('nav.reminders'), badge: data.reminderBadge },
+            ],
+          },
+          {
+            id: 'intel',
+            label: $t('nav.section.intel'),
+            pro: true,
+            items: [
+              { href: '/analytics/spend', icon: TrendingUp, label: $t('nav.analytics'), badge: 0, proOnly: true, feature: 'stockTracking',
+                sub: [
+                  { href: '/analytics/spend',      label: $t('nav.analytics.spend') },
+                  { href: '/analytics/prices',     label: $t('nav.analytics.prices') },
+                  { href: '/analytics/extraction', label: $t('nav.analytics.extraction') },
+                ]
+              },
+              { href: '/reports', icon: Newspaper,     label: $t('nav.digest'), badge: 0, proOnly: true, feature: 'weeklyDigest' },
+              { href: '/chat',    icon: MessageCircle, label: $t('nav.chat'),   badge: 0, proOnly: true, feature: 'aiAssistant' },
+            ],
+          },
+        ]
+      : [
+          {
+            id: 'daily',
+            label: '',
+            items: [
+              { href: '/dashboard', icon: LayoutDashboard, label: $t('nav.dashboard'), badge: 0 },
+              { href: '/invoices',  icon: FileText,        label: $t('nav.invoices'),  badge: data.invoiceBadge },
+            ],
+          },
+        ]
+  );
+
+  const itemLocked = (item: NavItem) =>
+    !!item.proOnly && !!item.feature && !data.features[item.feature];
+
+  const sectionLocked = (section: NavSection) =>
+    !!section.pro && section.items.some(itemLocked);
+
+  const itemActive = (item: NavItem) =>
+    is(item.href) || (item.sub?.some((sub) => is(sub.href)) ?? false);
+
+  const sectionActive = (section: NavSection) => section.items.some(itemActive);
+
+  const sectionBadge = (section: NavSection) =>
+    section.items.reduce((sum, item) => sum + (Number(item.badge) || 0), 0);
+
+  const SECTIONS_KEY = 'mep-nav-sections-collapsed';
+
+  function readCollapsedSections(): string[] {
+    if (typeof localStorage === 'undefined') return [];
+    try {
+      const raw: unknown = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? '[]');
+      return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  let collapsedSections = $state<string[]>(readCollapsedSections());
+
+  function toggleSection(id: string) {
+    collapsedSections = collapsedSections.includes(id)
+      ? collapsedSections.filter((s) => s !== id)
+      : [...collapsedSections, id];
+    try {
+      localStorage.setItem(SECTIONS_KEY, JSON.stringify(collapsedSections));
+    } catch {
+    }
+  }
+
+  const sectionOpen = (section: NavSection) =>
+    collapsed || !section.label || !collapsedSections.includes(section.id);
 
   let switchingLocation = $state(false);
   let locationError = $state<string | null>(null);
@@ -223,6 +348,8 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       : 'Mise en Place'
   );
   const userName  = $derived(data?.user?.name ?? 'Usuario');
+  const headerPlace = $derived(currentLocation || data.restaurantName || '');
+  const canSwitchPlace = $derived((data.locations?.length ?? 0) > 1);
   const userInitials = $derived(
     userName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
   );
@@ -233,7 +360,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   <meta name="description" content={$t('app.metaDesc')} />
 </svelte:head>
 
-<div class="mep" data-accent="amber" data-density="default"
+<div class="mep" data-accent="slate" data-density="default"
   style="width:100%;height:100vh;height:100dvh;display:flex;overflow:hidden;">
 
   {#if mobileOpen}
@@ -278,11 +405,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     </div>
 
     {#if !collapsed && data.locations && data.locations.length > 1}
-      <div style="padding:0 10px 14px;">
-        <label for="location-switch" style="display:block;font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--mep-fg-4);margin-bottom:5px;">
+      <div style="display:flex;align-items:center;gap:8px;padding:0 10px 14px;">
+        <label for="location-switch" style="flex-shrink:0;font-size:11px;color:var(--mep-fg-3);">
           {$t('nav.location')}
         </label>
-        <div style="position:relative;" bind:this={locationRef}>
+        <div style="position:relative;flex:1;min-width:0;" bind:this={locationRef}>
           <button
             type="button"
             id="location-switch"
@@ -309,7 +436,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
             <div
               role="listbox"
               style="
-                position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;
+                position:absolute;top:calc(100% + 4px);right:0;min-width:186px;z-index:120;
                 background:var(--mep-surface);border:1px solid var(--mep-border-strong);
                 border-radius:var(--mep-r-input);box-shadow:0 6px 20px rgba(0,0,0,0.15);
                 padding:4px;max-height:220px;overflow-y:auto;
@@ -369,65 +496,109 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
       {#if !collapsed}<span>{$t('action.upload')}</span>{/if}
     </a>
 
-    <nav style="display:flex;flex-direction:column;gap:1px;">
-      {#each navItems as item}
-        {@const parentActive = is(item.href) || (item.sub?.some(s => is(s.href)) ?? false)}
-        <a
-          href={item.href}
-          class="sidenav-item"
-          onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
-          data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
-          title={collapsed ? item.label : undefined}
-          style="
-            position:relative;
-            display:flex;align-items:center;gap:10px;
-            padding:{collapsed ? '7px' : '7px 10px'};
-            border-radius:6px;
-            cursor:pointer;text-decoration:none;
-            justify-content:{collapsed ? 'center' : 'flex-start'};
-            background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
-            color:{parentActive ? 'var(--mep-acc)' : 'var(--mep-fg-2)'};
-            font-size:13.5px;font-weight:{parentActive ? 500 : 400};
-          "
-        >
-          <item.icon size={16} />
-          {#if collapsed && item.proOnly && item.feature && !data.features[item.feature]}
-            <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-acc);" aria-hidden="true"></span>
-          {/if}
-          {#if !collapsed}
-            <span style="flex:1;display:flex;align-items:center;gap:6px;">{item.label}{#if item.proOnly && item.feature && !data.features[item.feature]}<span style="font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--mep-acc);color:var(--mep-acc-fg);">{$t('nav.badge.pro')}</span>{/if}</span>
-            {#if item.badge}
-              <span
-                class="num"
-                style="
-                  font-size:11px;font-weight:600;min-width:16px;height:16px;
-                  padding:0 5px;border-radius:8px;
-                  background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
-                  color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
-                  display:inline-flex;align-items:center;justify-content:center;
-                "
-              >{item.badge}</span>
-            {/if}
-          {/if}
-        </a>
+    <nav style="display:flex;flex-direction:column;">
+      {#each navSections as section, sectionIndex}
+        {@const locked = sectionLocked(section)}
+        {@const open = sectionOpen(section)}
+        {@const rolledBadge = open ? 0 : sectionBadge(section)}
+        <div style="display:flex;flex-direction:column;gap:1px;{sectionIndex > 0 ? 'margin-top:16px;' : ''}">
 
-        {#if !collapsed && item.sub && (is(item.href) || (item.sub?.some(s => is(s.href)) ?? false))}
-          <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
-            {#each item.sub as sub}
-              <a
-                href={sub.href}
-                onclick={() => mobileOpen = false}
-                style="
-                  padding:5px 10px;border-radius:5px;text-decoration:none;
-                  font-size:12.5px;
-                  color:{is(sub.href) ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
-                  font-weight:{is(sub.href) ? 500 : 400};
-                  background:{is(sub.href) ? 'var(--mep-hover)' : 'transparent'};
-                "
-              >{sub.label}</a>
-            {/each}
-          </div>
-        {/if}
+          {#if section.label && !collapsed}
+            <button
+              type="button"
+              class="nav-section-toggle"
+              aria-expanded={open}
+              onclick={() => toggleSection(section.id)}
+            >
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:{!open && sectionActive(section) ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};">{section.label}</span>
+              {#if locked}
+                <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-hover);color:var(--mep-fg-2);border:1px solid var(--mep-border);">{$t('nav.badge.pro')}</span>
+              {/if}
+              <span style="flex:1;"></span>
+              {#if rolledBadge}
+                <span
+                  class="num"
+                  style="font-size:11px;font-weight:600;min-width:16px;height:16px;padding:0 5px;border-radius:var(--mep-r-pill);background:var(--mep-warn-soft);color:var(--mep-warn);display:inline-flex;align-items:center;justify-content:center;"
+                >{rolledBadge}</span>
+              {/if}
+              <ChevronDown size={12} style="flex-shrink:0;color:var(--mep-fg-3);transition:transform 150ms ease-out;transform:rotate({open ? '0deg' : '-90deg'});" />
+            </button>
+          {:else if section.label && collapsed && sectionIndex > 0}
+            <div style="display:flex;align-items:center;justify-content:center;padding:0 0 8px;" aria-hidden="true">
+              {#if section.pro}
+                <span style="height:1px;flex:1;background:var(--mep-border);margin-left:8px;"></span>
+                <Sparkles size={11} style="flex-shrink:0;margin:0 6px;color:var(--mep-fg-3);" />
+                <span style="height:1px;flex:1;background:var(--mep-border);margin-right:8px;"></span>
+              {:else}
+                <span style="height:1px;flex:1;background:var(--mep-divider);margin:0 8px;"></span>
+              {/if}
+            </div>
+          {/if}
+
+          {#each open ? section.items : [] as item}
+            {@const parentActive = itemActive(item)}
+            {@const itemIsLocked = itemLocked(item)}
+            <a
+              href={item.href}
+              class="sidenav-item"
+              onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
+              data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
+              title={collapsed ? item.label : undefined}
+              style="
+                position:relative;
+                display:flex;align-items:center;gap:10px;
+                padding:{collapsed ? '7px' : '7px 10px'};
+                border-radius:6px;
+                cursor:pointer;text-decoration:none;
+                justify-content:{collapsed ? 'center' : 'flex-start'};
+                background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
+                color:{parentActive ? 'var(--mep-acc)' : itemIsLocked ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
+                font-size:13.5px;font-weight:{parentActive ? 500 : 400};
+              "
+            >
+              <item.icon size={16} style={itemIsLocked ? 'opacity:0.5;' : undefined} />
+              {#if collapsed && itemIsLocked}
+                <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-fg-3);" aria-hidden="true"></span>
+              {/if}
+              {#if !collapsed}
+                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.label}</span>
+                {#if itemIsLocked}
+                  <Lock size={12} aria-label={$t('nav.locked')} style="flex-shrink:0;color:var(--mep-fg-3);" />
+                {/if}
+                {#if item.badge}
+                  <span
+                    class="num"
+                    style="
+                      font-size:11px;font-weight:600;min-width:16px;height:16px;
+                      padding:0 5px;border-radius:8px;
+                      background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
+                      color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
+                      display:inline-flex;align-items:center;justify-content:center;
+                    "
+                  >{item.badge}</span>
+                {/if}
+              {/if}
+            </a>
+
+            {#if !collapsed && item.sub && parentActive}
+              <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
+                {#each item.sub as sub}
+                  <a
+                    href={sub.href}
+                    onclick={() => mobileOpen = false}
+                    style="
+                      padding:5px 10px;border-radius:5px;text-decoration:none;
+                      font-size:12.5px;
+                      color:{is(sub.href) ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};
+                      font-weight:{is(sub.href) ? 500 : 400};
+                      background:{is(sub.href) ? 'var(--mep-hover)' : 'transparent'};
+                    "
+                  >{sub.label}</a>
+                {/each}
+              </div>
+            {/if}
+          {/each}
+        </div>
       {/each}
     </nav>
 
@@ -435,14 +606,13 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     {#if !collapsed && revealAll}
     <a href="/billing" onclick={() => mobileOpen = false}
-      style="display:block;margin:0 4px 14px;padding:12px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:11px;font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}{#if data.subscriptionStatus === 'canceled'}<span style="color:var(--mep-fg-3);"> · {$t('billing.canceled')}</span>{/if}</span>
-      </div>
-      <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-        <div style="width:{data.quotaLimit ? Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100)) : 0}%;height:100%;background:var(--mep-acc);border-radius:2px;"></div>
-      </div>
-      <div style="font-size:11px;color:var(--mep-fg-3);margin-top:6px;"><span class="num">{data.quotaUsed}/{data.quotaLimit ?? '∞'}</span> {$t('shell.quota')}</div>
+      style="display:block;margin:0 4px 14px;padding:10px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
+      <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;{data.quotaLimit ? 'margin-bottom:7px;' : ''}"><span style="font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}</span><span style="color:var(--mep-fg-3);">&nbsp;·&nbsp;</span><span class="num" style="color:var(--mep-fg-3);">{data.quotaUsed}{#if data.quotaLimit}/{data.quotaLimit}{/if}</span><span style="color:var(--mep-fg-3);">&nbsp;{#if data.subscriptionStatus === 'canceled'}· {$t('billing.canceled')}{:else}{$t('shell.quota')}{/if}</span></div>
+      {#if data.quotaLimit}
+        <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
+          <div style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;height:100%;background:var(--mep-acc);border-radius:2px;{data.quotaUsed > 0 ? 'min-width:3px;' : ''}"></div>
+        </div>
+      {/if}
     </a>
     {/if}
 
@@ -539,10 +709,10 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
   <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--mep-bg);">
 
-    <header class="app-header shell-header">
+    <header class="app-header shell-header {headerScrolled ? 'is-condensed' : ''}">
 
       <button
-        class="md:hidden btn btn-ghost"
+        class="md:hidden btn btn-ghost btn-icon"
         style="width:34px;height:34px;padding:0;justify-content:center;"
         onclick={() => mobileOpen = !mobileOpen}
         aria-label={$t('a11y.openMenu')}
@@ -550,38 +720,106 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         {#if mobileOpen}<X size={18} />{:else}<Menu size={18} />{/if}
       </button>
 
-      <h1 class="shell-title">
-        {pageTitle}
-      </h1>
+      <div class="shell-heading">
+        {#if headerPlace}
+          {#if canSwitchPlace}
+            <button
+              type="button"
+              class="shell-eyebrow"
+              onclick={() => mobileOpen = true}
+              title={$t('nav.location')}
+            >
+              <span>{headerPlace}</span>
+              <ChevronDown size={11} />
+            </button>
+          {:else}
+            <span class="shell-eyebrow"><span>{headerPlace}</span></span>
+          {/if}
+        {/if}
+        <h1 class="shell-title">
+          {pageTitle}
+        </h1>
+      </div>
 
       <span class="hidden md:inline-flex"><ChatFab /></span>
 
-      <button
-        class="hidden md:flex btn btn-ghost"
-        style="height:34px;padding:0 10px;font-size:13px;font-weight:600;letter-spacing:0.02em;font-variant-numeric:tabular-nums;min-width:44px;justify-content:center;"
-        onclick={toggleLocale}
-        title={$t('a11y.switchLanguage')}
-      >
-        {$locale === 'es' ? 'EN' : 'ES'}
-      </button>
-
-      <NotificationBell notifications={data.notifications ?? []} />
-
-      <button
-        class="hidden md:flex btn btn-ghost"
-        style="width:34px;height:34px;padding:0;justify-content:center;"
-        onclick={toggleTheme}
-        title={$t('a11y.switchTheme')}
-      >
-        {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
-      </button>
-
-      <a href="/" class="md:hidden btn btn-primary" style="height:34px;text-decoration:none;">
+      <a href="/" class="btn btn-primary shell-primary" style="height:34px;text-decoration:none;">
         <Upload size={14} />
+        <span class="shell-primary-label">{$t('upload.btn')}</span>
       </a>
+
+      <span class="shell-divider hidden md:block"></span>
+
+      <span class="shell-bell"><NotificationBell notifications={data.notifications ?? []} /></span>
+
+      <div class="hidden md:block" style="position:relative;" bind:this={accountRef}>
+        <button
+          type="button"
+          class="acct-trigger"
+          aria-haspopup="menu"
+          aria-expanded={accountOpen}
+          onclick={() => (accountOpen = !accountOpen)}
+          title={$t('a11y.account')}
+        >
+          <span class="acct-avatar">{userInitials}</span>
+          <ChevronDown size={13} />
+        </button>
+
+        {#if accountOpen}
+          <div class="acct-menu" role="menu">
+            <div class="acct-identity">
+              <span class="acct-avatar acct-avatar-lg">{userInitials}</span>
+              <div style="min-width:0;flex:1;">
+                <div class="acct-name">{userName}</div>
+                <div class="acct-sub">{data.restaurantName}</div>
+              </div>
+            </div>
+
+            <div class="acct-sep"></div>
+
+            <a href="/settings" class="acct-item" role="menuitem" onclick={() => (accountOpen = false)}>
+              <Settings size={15} />
+              <span>{$t('nav.settings')}</span>
+            </a>
+            <a href="/help" class="acct-item" role="menuitem" onclick={() => (accountOpen = false)}>
+              <CircleHelp size={15} />
+              <span>{$t('nav.help')}</span>
+            </a>
+
+            <div class="acct-sep"></div>
+
+            <button type="button" class="acct-item" role="menuitem" onclick={toggleTheme}>
+              {#if theme === 'dark'}<Sun size={15} />{:else}<Moon size={15} />{/if}
+              <span style="flex:1;">{$t('a11y.switchTheme')}</span>
+            </button>
+            <button type="button" class="acct-item" role="menuitem" onclick={toggleLocale}>
+              <Languages size={15} />
+              <span style="flex:1;">{$t('a11y.switchLanguage')}</span>
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--mep-fg-4);">
+                {$locale === 'es' ? 'EN' : 'ES'}
+              </span>
+            </button>
+
+            <div class="acct-sep"></div>
+
+            <form method="POST" action="/logout">
+              <button type="submit" class="acct-item" role="menuitem">
+                <ArrowLeftRight size={15} />
+                <span>{$t('action.switchAccount')}</span>
+              </button>
+            </form>
+            <form method="POST" action="/logout">
+              <button type="submit" class="acct-item" role="menuitem">
+                <LogOut size={15} />
+                <span>{$t('action.logout')}</span>
+              </button>
+            </form>
+          </div>
+        {/if}
+      </div>
     </header>
 
-    <main style="flex:1;overflow:auto;">
+    <main style="flex:1;overflow:auto;" bind:this={mainEl}>
       <ErrorBoundary {children} />
     </main>
 
@@ -690,15 +928,15 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     {#if upgradeModalOpen}
       <div
-        style="position:fixed;inset:0;z-index:110;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px;"
+        style="position:fixed;inset:0;z-index:110;background:var(--mep-scrim);display:flex;align-items:center;justify-content:center;padding:24px;"
         role="presentation"
         onclick={() => upgradeModalOpen = false}
       >
         <div
           style="
-            background:var(--mep-bg);border:1px solid var(--mep-border-strong);
-            border-radius:16px;padding:32px 28px;max-width:420px;width:100%;
-            box-shadow:0 16px 48px rgba(0,0,0,0.22);text-align:center;
+            background:var(--mep-overlay);border:1px solid var(--mep-border-strong);
+            border-radius:var(--mep-r-card);padding:24px;max-width:380px;width:100%;
+            box-shadow:var(--mep-shadow-pop);
           "
           role="dialog"
           tabindex="-1"
@@ -708,23 +946,37 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
           onclick={(e) => e.stopPropagation()}
           onkeydown={(e) => { if (e.key === 'Escape') upgradeModalOpen = false; else e.stopPropagation(); }}
         >
-          <div style="font-size:32px;margin-bottom:16px;">✨</div>
-          <div id="upgrade-modal-title" style="font-size:18px;font-weight:700;color:var(--mep-fg);margin-bottom:8px;letter-spacing:-0.3px;">
-            {$t('sidebar.upgradeToProTitle')}
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <Sparkles size={18} style="color:var(--mep-acc);flex-shrink:0;" />
+            <strong id="upgrade-modal-title" style="flex:1;font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">
+              {$t('sidebar.upgradeToProTitle')}
+            </strong>
+            <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-acc-soft);color:var(--mep-acc);border:1px solid var(--mep-acc-ring);">{$t('nav.badge.pro')}</span>
           </div>
-          <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 24px;">
+          <p class="body" style="line-height:1.6;margin:0 0 16px;">
             {$t('sidebar.upgradeToProDesc')}
           </p>
-          <div style="display:flex;gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:20px;">
+            {#each upgradeFeatures as feature}
+              {@const Icon = feature.icon}
+              <div style="display:flex;align-items:center;gap:10px;height:var(--mep-row-h);padding:0 10px;border-radius:var(--mep-r-input);background:var(--mep-hover);">
+                <span style="width:28px;height:28px;flex-shrink:0;border-radius:var(--mep-r-input);background:var(--mep-acc-soft);color:var(--mep-acc);display:inline-flex;align-items:center;justify-content:center;">
+                  <Icon size={16} />
+                </span>
+                <span class="body-strong">{$t(feature.key)}</span>
+              </div>
+            {/each}
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button
               type="button"
-              class="btn btn-ghost"
-              style="flex:1;height:40px;justify-content:center;font-size:14px;"
+              class="btn btn-secondary"
+              style="height:36px;"
               onclick={() => upgradeModalOpen = false}
             >
               {$t('action.cancel')}
             </button>
-            <a href="/billing" class="btn btn-primary" style="flex:1;height:40px;justify-content:center;font-size:14px;text-decoration:none;" onclick={() => upgradeModalOpen = false}>
+            <a href="/billing" class="btn btn-primary" style="height:36px;text-decoration:none;" onclick={() => upgradeModalOpen = false}>
               {$t('sidebar.upgradeCta')}
             </a>
           </div>

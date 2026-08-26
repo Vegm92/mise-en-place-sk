@@ -29,11 +29,17 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Dashboard nudge offering the app-wide walkthrough — persists until accepted/dismissed.
 **`const revealAll`**
 - Progressive disclosure (issue #231): before the first saved invoice, every section below Invoices is an empty state — eight of them, plus a quota meter for a quota nobody has touched. They reveal after the first save, when they start having something to show.
+**`const navSections`**
+- Nav is three labelled sections rather than a flat list (#706). The subscription-gated pages sit together under Inteligencia with one PRO chip on the group heading, instead of a pill on each of the three rows they used to be scattered across.
+- Each heading is a disclosure button; collapse all three and the rail is the upload CTA, three headings and the footer. The collapsed set persists under `mep-nav-sections-collapsed`, keyed by stable section ids and not by the translated label, so a language switch does not reset it. A collapsed section rolls its pending counts up onto the heading and tints that heading with the accent when the current route is inside it — hiding a section must not hide either the count or where you are.
+- Colour follows ADR-026: `--mep-acc` is left on the active row and the you-are-here heading tint, both of which the ADR lists under "active nav". The PRO chip, the collapsed rail's lock dots and its sparkles divider are neutral, because they mark entitlement state and blue would read as a button. The count badge stays on `--mep-warn` (4.55:1 light / 5.04:1 dark); the `--mep-caution` rung would fail AA on light at 3.89:1.
+
 **`const switchingLocation`**
 - Switching writes the active_restaurant cookie server-side, then a full reload so every layout query re-runs against the new tenant (issue #290).
 **`function switchLocation`**
 - fall through — the select resets on the next render.
 **`markup`**
+- The location switcher labels itself Restaurante / Restaurant, on the same row as the select. At 232px of rail an uppercase RESTAURANTE left 93px for the control and truncated the tenant's own name, so the label is sentence case; the dropdown is right-aligned with a 186px minimum instead of matching its trigger's width.
 - Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links — Ajustes and Ayuda (#569) — legal footer, user chip). The util links carry the language and theme toggles below `md` only (#660): the off-canvas drawer is the mobile overflow menu, so the header row keeps just the hamburger, the title, the bell and the upload CTA.
 - Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle (desktop only, #660), notification bell, theme toggle (desktop only, #660), upload CTA (mobile only).
 **`const pageTitle`**
@@ -48,6 +54,9 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Awaits the step write before `goto`. See `src/lib/stores/tutorial.ts`.
 **`const showTourStep`**
 - No accessibility check here any more — `tourPages` has already dropped the gated pages. The `$effect` below still recovers a *stored* step that has since become inaccessible (a plan downgrade mid-tour), which is the one case the filter cannot express.
+**`const upgradeFeatures`**
+- The upgrade dialog lists what a PRO plan buys as three rows instead of one sentence, so `sidebar.upgradeToProDesc` is now just the lead and each feature is its own key (`sidebar.upgradeFeat*`) with its own nav icon. Icons are the same ones the sidebar uses for those routes, so the row and the nav item a blocked click came from look like the same thing.
+- The dialog takes ConfirmDialog's anatomy — icon + title on one row, copy left, actions right at 36px — rather than the centred, 50/50-button shape it had. Every value is a token: `--mep-overlay` for the surface (not `--mep-bg`, which is the page behind it), `--mep-scrim`, `--mep-shadow-pop`, `--mep-r-card`, `--mep-row-h` for the rows. It renders inside the `.mep` container for the same reason the tour chrome does — `--mep-acc` and `--mep-row-h` are scoped there, not to `:root`.
 
 ### `src/routes/(app)/+page.server.ts`
 
@@ -146,15 +155,25 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Copy the bot number (issue #319). Staff often read it off one phone and type it into another; copying removes the step that goes wrong.
 **`function copyBotNumber`**
 - Clipboard blocked (insecure context, denied permission) — the number is on screen and selectable, so there is nothing to recover from.
+**`const searchIndex` / `const results`**
+- The rail search. Six sections hide ~25 individual settings, so the rail alone answers "which section is X in?" only if you already know. The index is a list of i18n keys paired with their section; matching runs on the resolved label, so it searches in whatever locale is on screen. Picking a result clears the query and switches both branches at once — the desktop rail and the mobile panel share one `query`.
+**`const pendingOf` / `function discard` / `const savableForm`**
+- One save bar per section replaced the six scattered Save buttons. `pendingOf` counts fields that differ from the loaded `data`, which is what makes "2 unsaved changes" and Discard possible without tracking edits.
+- The bar's Save is a `<button form="…">` rather than a wrapping `<form>`: the Cuenta section already contains the email and password forms, and HTML forbids nesting. Each section's settings form is an empty `<form id>` at the top of the file and the fields point at it, so the bar can submit a form it does not contain.
+- Flow actions keep their own buttons — changing an email sends a confirmation link, changing a password revokes sessions, deleting is irreversible. Those are not settings that get saved, and folding them into a bulk Save would make them accidental.
 **`markup`**
-- Forms: display name, email, password, restaurant name.
-- Alertas pane: the two thresholds, then one switch per alert type (issue #577), grouped and labelled from `data.alertGroups`. One form, one Save — a per-toggle auto-save would need `use:enhance` on a page that is otherwise plain progressive-enhancement forms.
+- Row shape: label plus its explanation on the left, control on the right. The explanation used to hang under the control, which left the control column ragged and the label column empty.
+- Alertas pane: the two thresholds and one switch per alert type (issue #577), grouped and labelled from `data.alertGroups`, all in one form posting to `saveAlertPreferences`. The action persists the thresholds only when their fields are present, so the older toggles-only callers still work.
+- Password and the delete-account block are disclosures. Three password fields and a permanent red warning were both always on screen for something done once a year.
 - Where to send invoices (issue #319). Authorising a number is useless if the staff member never learns what to message. QR injected via `{@html}` (eslint-disable-next-line svelte/no-at-html-tags).
 - Self-service enrolment (issue #320). The number is captured from the message, so it cannot be mistyped the way the form below can.
-- Ayuda pane: the tour-reset form, then a card link to `/help` (issue #569). The pane is where users already come looking for guidance, so it points at the documentation rather than duplicating it.
+- Ayuda pane: the tour-reset form, a card link to `/help` (issue #569) and the FAQ questions as links into it. The pane is where users already come looking for guidance, so it points at the documentation rather than duplicating it.
+- Below `md` the sections are a list that pushes one panel at a time with a way back, not an accordion (issue #650 asked only that the desktop rail stay off small screens). Section bodies are still written once in `sectionBody` and rendered by both branches; the `idp` prefix keeps the two copies' element and form ids apart.
 - The `settings-main` tour anchor sits on the section container, not inside the Ayuda pane where it started. The last step of the tour lands on `/settings` with whatever section was last open — usually Cuenta — so an anchor inside one pane meant the tour ended by rendering nothing and never dismissing itself.
 **`style`**
 - `.alert-toggle*` (issue #577): a visually-hidden checkbox drives a CSS track/thumb, so the switch keeps native keyboard focus, form submission and label semantics without a component.
+- `.set-savebar` is `position: sticky`, not fixed or absolute: the app shell scrolls in `<main>`, so a page-local absolute bar pins to the bottom of the content rather than the window.
+- `.set-mob` sets `display` only below `md`. A scoped rule outranks Tailwind's `md:hidden`, so declaring `display: flex` unconditionally left the mobile branch rendering underneath the desktop one.
 - WhatsApp bot number + QR (issue #319).
 - Pairing code (issue #320) — read off a screen and typed into a phone, so set large, monospaced and widely tracked.
 - The QR is meant to be printed and taped up in the kitchen, so sized in absolute units — 45 mm on paper scans reliably from arm's length.
@@ -162,6 +181,9 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 ### `src/routes/(app)/help/+page.svelte`
 
+**`const searchIndex` / `const areas`**
+- The four areas are a rail like the one on `/settings`, so the two screens a user bounces between read as a pair. Search covers all nineteen entries — steps, tips and questions — and matches on body text as well as titles, because people search for the word in the answer.
+- The rail is client-side: without JavaScript only the opening area renders. The trade is deliberate — nine tips and six questions in one scroll was the thing being fixed — but it is why the FAQ stays `<details>` below.
 **`markup`**
 - The help centre (issue #569): getting-started guide, per-section tips, FAQ and a launcher for the guided tour. Static documentation — no server load beyond the page title, which is why the route has a `+page.ts` and no `+page.server.ts`.
 - Steps, tips and questions are rendered from the lists in `src/lib/help-content.ts` rather than written into the markup, so the copy stays entirely in the locale tables and adding an entry is a one-line change in two places (the list and both locales).
@@ -170,8 +192,9 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - FAQ entries are native `<details>`/`<summary>`: they open without JavaScript and keep the disclosure semantics a hand-rolled accordion would have to re-add.
 
 **`style`**
-- Scoped, and single-markup rather than the `mobile/*`/`desktop/*` split (ADR-020): the page is a one-column read at every width, with only the tips grid switching to two columns at `md`.
+- Scoped, and single-markup rather than the `mobile/*`/`desktop/*` split (ADR-020): one set of markup, with the rail becoming a row of pills and every grid collapsing to one column below `md`.
 - `.help-prose` caps line length at 72ch. Prose is the whole page here; full-width paragraphs on a 1280px screen are unreadable.
+- The steps grid is 2×2 at `md` with `nth-child` dividers rather than four cards: the four steps are one sequence, and gaps between cards read as four unrelated things.
 
 ### `src/lib/help-content.ts`
 

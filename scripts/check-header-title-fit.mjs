@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 /**
- * Issue #660 — the shell header page title must not truncate on a 390px phone.
+ * Issue #660 — the shell header page title must not truncate.
  *
- * Logs into a running dev server, visits every `(app)` route at 390×844, and
- * compares the header `h1`'s scrollWidth against its clientWidth. A title whose
- * content is wider than its box is being cut off by the ellipsis.
+ * Logs into a running dev server, visits every `(app)` route at each viewport
+ * below, and compares the header `h1`'s scrollWidth against its clientWidth. A
+ * title whose content is wider than its box is being cut off by the ellipsis.
+ *
+ * Three viewports, because the header has three regimes and the tight cases sit
+ * at the edges: 360 is the common narrow Android; 390 is the baseline phone;
+ * 768 is where the sidebar takes 232px and the title grows to 20px, which is
+ * tighter than any phone despite the wider screen.
  *
  * Usage:
  *   node scripts/check-header-title-fit.mjs
@@ -49,8 +54,14 @@ const ROUTES = [
 	'/invoice/1/edit',
 ];
 
+const VIEWPORTS = [
+	{ width: 360, height: 800 },
+	{ width: 390, height: 844 },
+	{ width: 768, height: 1024 },
+];
+
 const browser = await chromium.launch({ headless: true, executablePath: EXECUTABLE });
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const ctx = await browser.newContext({ viewport: VIEWPORTS[1] });
 const page = await ctx.newPage();
 
 await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
@@ -74,46 +85,54 @@ await page.goto(`${BASE}${redirect.location}`, { waitUntil: 'domcontentloaded' }
 console.log(`logged in as ${EMAIL}\n`);
 
 const rows = [];
-for (const route of ROUTES) {
-	await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
-	await page.waitForSelector('header h1', { timeout: 15_000 });
-	await page.waitForTimeout(400);
-	const m = await page.$eval('header h1', (el) => ({
-		text: el.textContent.trim(),
-		scrollWidth: el.scrollWidth,
-		clientWidth: el.clientWidth,
-		fontSize: getComputedStyle(el).fontSize,
-	}));
-	const truncated = m.scrollWidth > m.clientWidth;
-	const fallback = m.text === 'Mise en Place' && route !== '/mise-en-place';
-	rows.push({ route, ...m, truncated, fallback });
-	if (SHOTS) {
-		const name = route === '/' ? 'root' : route.replace(/^\//, '').replaceAll('/', '_');
-		await page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
+for (const viewport of VIEWPORTS) {
+	await page.setViewportSize(viewport);
+	for (const route of ROUTES) {
+		await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
+		await page.waitForSelector('header h1', { timeout: 15_000 });
+		await page.waitForTimeout(400);
+		const m = await page.$eval('header h1', (el) => ({
+			text: el.textContent.trim(),
+			scrollWidth: el.scrollWidth,
+			clientWidth: el.clientWidth,
+			fontSize: getComputedStyle(el).fontSize,
+		}));
+		const truncated = m.scrollWidth > m.clientWidth;
+		const fallback = m.text === 'Mise en Place' && route !== '/mise-en-place';
+		rows.push({ route, width: viewport.width, ...m, truncated, fallback });
+		if (SHOTS) {
+			const name = route === '/' ? 'root' : route.replace(/^\//, '').replaceAll('/', '_');
+			await page.screenshot({ path: path.join(SHOTS, `${viewport.width}-${name}.png`) });
+		}
 	}
 }
 await browser.close();
 
 const pad = (s, n) => String(s).padEnd(n);
-console.log(
-	`${pad('route', 24)}${pad('title', 26)}${pad('font', 7)}${pad('scroll', 8)}${pad('client', 8)}status`,
-);
 let bad = 0;
-for (const r of rows) {
-	const problems = [];
-	if (r.truncated) problems.push('TRUNCATED');
-	if (r.fallback) problems.push('FALLBACK TITLE');
-	if (problems.length) bad++;
+for (const viewport of VIEWPORTS) {
+	const group = rows.filter((r) => r.width === viewport.width);
+	console.log(`\n${viewport.width}px`);
 	console.log(
-		pad(r.route, 24) +
-			pad(r.text, 26) +
-			pad(r.fontSize, 7) +
-			pad(r.scrollWidth, 8) +
-			pad(r.clientWidth, 8) +
-			(problems.length ? `✗ ${problems.join(' + ')}` : '✓'),
+		`${pad('route', 24)}${pad('title', 26)}${pad('font', 7)}${pad('scroll', 8)}${pad('client', 8)}status`,
 	);
+	for (const r of group) {
+		const problems = [];
+		if (r.truncated) problems.push('TRUNCATED');
+		if (r.fallback) problems.push('FALLBACK TITLE');
+		if (problems.length) bad++;
+		console.log(
+			pad(r.route, 24) +
+				pad(r.text, 26) +
+				pad(r.fontSize, 7) +
+				pad(r.scrollWidth, 8) +
+				pad(r.clientWidth, 8) +
+				(problems.length ? `✗ ${problems.join(' + ')}` : '✓'),
+		);
+	}
 }
 
-console.log(`\n${rows.length - bad}/${rows.length} routes fit at 390px.`);
+const widths = VIEWPORTS.map((v) => `${v.width}px`).join(', ');
+console.log(`\n${rows.length - bad}/${rows.length} route×viewport combinations fit (${widths}).`);
 if (SHOTS) console.log(`screenshots: ${path.resolve(SHOTS)}`);
 process.exit(bad > 0 ? 1 : 0);

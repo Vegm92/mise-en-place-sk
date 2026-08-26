@@ -24,9 +24,9 @@
   const miniDonutR = 26;
   const miniDonutCirc = 2 * Math.PI * miniDonutR;
   const miniDonutRaw = [
-    { label: 'Carnes y Derivados', color: '#8B3530', pct: 0.42 },
-    { label: 'Pescados y Mariscos', color: '#2C5F8A', pct: 0.30 },
-    { label: 'Lácteos', color: '#C9A227', pct: 0.28 },
+    { label: 'Carnes y Derivados', color: 'var(--mep-cat-carnes-y-derivados)', pct: 0.42 },
+    { label: 'Pescados y Mariscos', color: 'var(--mep-cat-pescados-y-mariscos)', pct: 0.30 },
+    { label: 'Lácteos', color: 'var(--mep-cat-lacteos)', pct: 0.28 },
   ];
   const miniDonut = (() => {
     let cursor = 0;
@@ -38,9 +38,9 @@
     });
   })();
   const miniSuppliers = [
-    { name: 'Cárnicas Aranda', color: '#8B3530', pct: 82, amount: '1.612 €' },
-    { name: 'Pescados Turró', color: '#2C5F8A', pct: 58, amount: '1.140 €' },
-    { name: 'Lácteos Vega', color: '#C9A227', pct: 34, amount: '660 €' },
+    { name: 'Cárnicas Aranda', color: 'var(--mep-cat-carnes-y-derivados)', pct: 82, amount: '1.612 €' },
+    { name: 'Pescados Turró', color: 'var(--mep-cat-pescados-y-mariscos)', pct: 58, amount: '1.140 €' },
+    { name: 'Lácteos Vega', color: 'var(--mep-cat-lacteos)', pct: 34, amount: '660 €' },
   ];
 </script>
 

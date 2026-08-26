@@ -1,0 +1,392 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #8a530f; text-decoration: none; }
+    a:hover { color: #7e4c0d; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; }
+    .subtitle { font-size: 15px; font-weight: 600; color: #1a1f26; letter-spacing: -0.01em; }
+    .body { font-size: 13px; color: #4a5562; }
+    .hint { font-size: 11.5px; color: #5f6b78; line-height: 1.45; }
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 0 12px;
+      height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border: 1px solid transparent; cursor: pointer; white-space: nowrap;
+      transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .btn-primary { background: #8a530f; color: #ffffff; }
+    .btn-primary:hover { background: #7e4c0d; }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
+    .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
+    .btn-ghost { background: transparent; color: #4a5562; }
+    .btn-ghost:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .input {
+      font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
+      border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none;
+    }
+    .input::placeholder { color: #64707d; }
+    .input:focus { border-color: #8a530f; box-shadow: 0 0 0 3px rgba(138, 83, 15, 0.30); }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
+    .row {
+      display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 20px;
+      padding: 13px 18px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); align-items: center;
+    }
+    .row:last-child { border-bottom: none; }
+    .row-label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .row-name { font-size: 13px; font-weight: 500; color: #1a1f26; }
+    .rail-item {
+      display: flex; align-items: center; gap: 9px; padding: 0 10px; height: 34px; width: 100%;
+      border-radius: 6px; border: 0; cursor: pointer; text-align: left; font-family: inherit;
+      background: transparent; color: #4a5562; font-size: 13px; font-weight: 400;
+      transition: background 150ms ease-out, color 150ms ease-out;
+    }
+    .rail-item:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .sidenav {
+      display: flex; align-items: center; gap: 10px; padding: 0 10px; height: 32px; border-radius: 6px;
+      font-size: 13px; color: #5f6b78;
+    }
+    .tgl { border: 0; padding: 0; background: transparent; cursor: pointer; flex-shrink: 0; }
+    .tgl-track { display: block; width: 34px; height: 20px; border-radius: 999px; transition: background 150ms ease-out; }
+    .tgl-thumb { display: block; width: 16px; height: 16px; margin: 2px; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 2px rgba(15, 20, 30, 0.25); transition: transform 150ms ease-out; }
+    .rng { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; margin: 0; cursor: pointer; }
+    .rng::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+    .rng::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px; margin-top: 3px; border-radius: 999px;
+      background: #ffffff; border: 2px solid #8a530f; box-shadow: 0 1px 2px rgba(15, 20, 30, 0.2);
+    }
+    .rng::-moz-range-track { height: 20px; background: transparent; }
+    .rng::-moz-range-thumb { width: 14px; height: 14px; border-radius: 999px; background: #ffffff; border: 2px solid #8a530f; box-shadow: 0 1px 2px rgba(15, 20, 30, 0.2); }
+    .step { width: 26px; height: 26px; padding: 0; justify-content: center; font-size: 14px; }
+    .tglrow { display: flex; align-items: center; gap: 14px; padding: 9px 18px; border-top: 1px solid rgba(15, 20, 30, 0.06); cursor: pointer; }
+    .tglrow:hover { background: rgba(15, 20, 30, 0.02); }
+    .grouphdr { display: flex; align-items: center; gap: 8px; padding: 10px 18px 6px; background: #fafaf7; border-top: 1px solid rgba(15, 20, 30, 0.06); }
+    .srch { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 9px; border-radius: 6px; border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; }
+    .srch input { border: 0; outline: 0; font-family: inherit; font-size: 12.5px; color: #1a1f26; background: transparent; width: 100%; }
+    .srch input::placeholder { color: #64707d; }
+    .res { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 11px 18px; border: 0; border-bottom: 1px solid rgba(15, 20, 30, 0.06); background: transparent; font-family: inherit; text-align: left; cursor: pointer; }
+    .res:hover { background: rgba(15, 20, 30, 0.04); }
+    .lnkcard { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 18px; cursor: pointer; }
+    .lnkcard:hover { background: rgba(15, 20, 30, 0.02); }
+    .lnkcard:hover { background: rgba(15, 20, 30, 0.02); }
+    .prosa { font-size: 13px; color: #4a5562; line-height: 1.6; margin: 0; text-wrap: pretty; }
+    .pill {
+      display: inline-flex; align-items: center; height: 40px; padding: 0 15px; border-radius: 999px;
+      font-family: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
+      border: 1px solid rgba(15, 20, 30, 0.10); transition: background 150ms ease-out, color 150ms ease-out;
+    }
+    .accion { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: #8a530f; min-height: 44px; cursor: pointer; }
+    .faqq {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px; width: 100%;
+      min-height: 52px; padding: 12px 16px; border: 0; background: transparent; font-family: inherit;
+      text-align: left; cursor: pointer; color: #1a1f26; font-size: 13.5px; font-weight: 500;
+    }
+    .pasonum {
+      flex-shrink: 0; width: 26px; height: 26px; border-radius: 999px; background: rgba(138, 83, 15, 0.10);
+      color: #8a530f; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #f5f4f0; display: flex; flex-direction: column; color: #1a1f26; overflow: hidden;">
+
+  <header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 6px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); background: #f5f4f0;">
+    <button type="button" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; background: transparent; color: #4a5562; cursor: pointer;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"></path><path d="M4 12h16"></path><path d="M4 18h16"></path></svg>
+    </button>
+    <h1 style="margin: 0; flex: 1; font-size: 16px; font-weight: 600; letter-spacing: -0.015em;">Ayuda</h1>
+    <div style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: #5f6b78;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"></path><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></svg>
+    </div>
+  </header>
+
+  <div style="flex-shrink: 0; padding: 12px 14px 0;">
+    <div class="srch" style="height: 44px; margin-bottom: 12px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <input type="text" style="font-size: 14px;" placeholder="Buscar en la ayuda" value="{{ busqueda }}" onChange="{{ escribirBusqueda }}" />
+      <sc-if value="{{ hayBusqueda }}" hint-placeholder-val="{{ false }}">
+        <button type="button" onClick="{{ limpiarBusqueda }}" style="border: 0; background: transparent; padding: 0 4px; cursor: pointer; display: flex; color: #5f6b78;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+        </button>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ sinBusqueda }}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px;">
+        <sc-for list="{{ apartados }}" as="a" hint-placeholder-count="4">
+          <button type="button" class="pill" style="{{ a.estilo }}" onClick="{{ a.pick }}">{{ a.nombre }}</button>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 2px 14px 28px;">
+
+    <sc-if value="{{ hayBusqueda }}" hint-placeholder-val="{{ false }}">
+      <div class="card" style="overflow: hidden;">
+        <div class="card-header"><span class="subtitle">{{ resumenBusqueda }}</span></div>
+        <sc-for list="{{ resultados }}" as="r" hint-placeholder-count="3">
+          <button type="button" class="res" style="min-height: 60px;" onClick="{{ r.ir }}">
+            <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+              <span class="row-name">{{ r.nombre }}</span>
+              <span class="hint">{{ r.apartado }}</span>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="m9 18 6-6-6-6"></path></svg>
+          </button>
+        </sc-for>
+        <sc-if value="{{ sinResultados }}" hint-placeholder-val="{{ false }}">
+          <div style="padding: 22px 16px; text-align: center;"><p class="body" style="margin: 0;">Nada coincide con esa búsqueda.</p></div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- PASOS -->
+    <sc-if value="{{ mostrarPasos }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <p class="prosa" style="margin-bottom: 14px;">De la foto del albarán a los datos de gasto, en cuatro pasos.</p>
+        <div class="card" style="overflow: hidden;">
+          <sc-for list="{{ pasos }}" as="p" hint-placeholder-count="4">
+            <div style="{{ p.estilo }}">
+              <div style="display: flex; gap: 12px; align-items: flex-start;">
+                <span class="pasonum">{{ p.n }}</span>
+                <div style="display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+                  <span style="font-size: 14px; font-weight: 500;">{{ p.titulo }}</span>
+                  <p class="prosa">{{ p.cuerpo }}</p>
+                  <sc-if value="{{ p.tieneAccion }}" hint-placeholder-val="{{ true }}">
+                    <span class="accion">
+                      {{ p.accion }}
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+                    </span>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- TOUR -->
+    <sc-if value="{{ mostrarTour }}" hint-placeholder-val="{{ false }}">
+      <div class="card" style="overflow: hidden;">
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="width: 36px; height: 36px; border-radius: 9px; background: rgba(138, 83, 15, 0.10); color: #8a530f; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16.24 7.76-1.804 5.411a2 2 0 0 1-1.265 1.265L7.76 16.24l1.804-5.411a2 2 0 0 1 1.265-1.265z"></path><circle cx="12" cy="12" r="10"></circle></svg>
+            </span>
+            <span class="subtitle">Tour guiado</span>
+          </div>
+          <p class="prosa">Un recorrido guiado por el resto de la app con la misma explicación que encuentras aquí, sobre la pantalla real. Las secciones que tu plan no incluye se saltan.</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;">
+            <sc-for list="{{ paradas }}" as="p" hint-placeholder-count="9">
+              <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #4a5562;">
+                <span class="num" style="width: 18px; height: 18px; border-radius: 999px; background: rgba(15, 20, 30, 0.04); color: #5f6b78; font-size: 10.5px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">{{ p.n }}</span>
+                {{ p.nombre }}
+              </div>
+            </sc-for>
+          </div>
+          <button type="button" class="btn btn-primary" style="height: 44px; width: 100%; font-size: 14px;">Empezar el tour</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- TRUCOS -->
+    <sc-if value="{{ mostrarTrucos }}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <sc-for list="{{ trucos }}" as="t" hint-placeholder-count="9">
+          <div class="card" style="padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a530f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;">
+                <path d="{{ t.d1 }}"></path><path d="{{ t.d2 }}"></path><path d="{{ t.d3 }}"></path>
+              </svg>
+              <span style="font-size: 14px; font-weight: 500;">{{ t.nombre }}</span>
+              <sc-if value="{{ t.pro }}" hint-placeholder-val="{{ false }}">
+                <span class="badge" style="background: #8a530f; color: #ffffff; font-weight: 700; font-size: 10px;">PRO</span>
+              </sc-if>
+            </div>
+            <p class="prosa">{{ t.cuerpo }}</p>
+            <span class="accion">
+              {{ t.accion }}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+            </span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- FAQ -->
+    <sc-if value="{{ mostrarFaq }}" hint-placeholder-val="{{ false }}">
+      <div class="card" style="overflow: hidden;">
+        <sc-for list="{{ faq }}" as="f" hint-placeholder-count="6">
+          <div style="{{ f.estilo }}">
+            <button type="button" class="faqq" onClick="{{ f.alternar }}">
+              <span>{{ f.q }}</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; {{ f.giro }}"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+            <sc-if value="{{ f.abierta }}" hint-placeholder-val="{{ true }}">
+              <p class="prosa" style="padding: 0 16px 14px;">{{ f.a }}</p>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{
+  "apartadoInicial": {"editor": "enum", "options": ["pasos", "tour", "trucos", "faq"], "default": "pasos", "section": "Estado inicial"},
+  "planPro": {"editor": "boolean", "default": true, "section": "Plan y permisos"},
+  "$preview": {"width": 390, "height": 844}
+}'>
+class Component extends DCLogic {
+
+  renderVals() {
+    const ACC = '#8a530f';
+    const DIV = 'rgba(15, 20, 30, 0.06)';
+
+const APARTADOS = [
+      { id: 'pasos',  nombre: 'Primeros pasos', titulo: 'Primeros pasos', sub: 'De la foto del albarán a los datos de gasto, en cuatro pasos.',
+        d: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20', 'm10 8 6 4-6 4V8z', ''] },
+      { id: 'tour',   nombre: 'Tour guiado', titulo: 'Tour guiado', sub: 'El mismo recorrido, pero encima de la app y con tus propios datos delante.',
+        d: ['M16.24 7.76 14.44 13.17a2 2 0 0 1-1.27 1.27L7.76 16.24l1.8-5.41a2 2 0 0 1 1.27-1.27z', 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20', ''] },
+      { id: 'trucos', nombre: 'Trucos por sección', titulo: 'Trucos por sección', sub: 'Lo que conviene saber de cada parte de la app.',
+        d: ['M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5', 'M9 18h6', 'M10 22h4'] },
+      { id: 'faq',    nombre: 'Preguntas frecuentes', titulo: 'Preguntas frecuentes', sub: 'Las dudas que más se repiten sobre formatos, precisión y datos.',
+        d: ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20', 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3', 'M12 17h.01'] },
+    ];
+
+    const PASOS = [
+      { titulo: 'Sube el albarán', accion: 'Subir un albarán',
+        cuerpo: 'Arrastra un PDF, haz una foto con el móvil o suelta un XML (Facturae o UBL). Se admiten PDF, JPG, PNG, HEIC y XML, hasta 20 MB por archivo.' },
+      { titulo: 'Revisa la extracción',
+        cuerpo: 'La IA rellena proveedor, fechas, importes y líneas, y marca cada campo con su nivel de confianza. Empieza por los campos con confianza baja: son los que más se equivocan.' },
+      { titulo: 'Confirma y guarda',
+        cuerpo: 'Corrige lo que haga falta y confirma. Hasta ese momento no se guarda nada. Al confirmar, el albarán pasa a tu historial y sus líneas alimentan precios, productos y proveedores.' },
+      { titulo: 'Consulta tus datos', accion: 'Ir al resumen',
+        cuerpo: 'Desde el primer albarán ya ves gasto del mes, vencimientos y alertas de precio en el resumen. Cuantos más albaranes acumules, más fiables son las tendencias.' },
+    ];
+
+    const TRUCOS = [
+      { nombre: 'Resumen', accion: 'Ver el resumen', d: ['M3 3h7v9H3z', 'M14 3h7v5h-7z', 'M14 12h7v9h-7zM3 16h7v5H3z'],
+        cuerpo: 'El punto de partida: gasto del mes, tendencia por categoría, próximos vencimientos y las alertas de precio que merecen un vistazo. Cambia el periodo para comparar meses.' },
+      { nombre: 'Albaranes', accion: 'Ver albaranes', d: ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z', 'M14 2v4a2 2 0 0 0 2 2h4', 'M8 13h8M8 17h5'],
+        cuerpo: 'Todo lo que has subido, con su estado de pago. Filtra por proveedor, fecha o estado, y exporta el resultado a Excel cuando lo necesite la gestoría.' },
+      { nombre: 'Proveedores', accion: 'Ver proveedores', d: ['M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2', 'M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14', 'M9 18h6'],
+        cuerpo: 'Cada ficha reúne albaranes, histórico de precios y variaciones del proveedor. Asigna bien la categoría: es lo que hace que el gasto y los presupuestos cuadren.' },
+      { nombre: 'Análisis', accion: 'Ver análisis', d: ['M16 7h6v6', 'm22 7-8.5 8.5-5-5L2 17', ''],
+        cuerpo: 'Compara el gasto por categoría y proveedor, y cambia el periodo para distinguir una subida puntual de una tendencia. La pestaña de Precios señala los productos que más se han encarecido.' },
+      { nombre: 'Presupuestos', accion: 'Ver presupuestos', d: ['M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z', 'M7.5 7.5h.01', ''],
+        cuerpo: 'Fija un límite mensual por categoría partiendo de lo que ya gastas. El resumen avisa cuando te acercas al límite, no cuando ya lo has pasado.' },
+      { nombre: 'Recordatorios', accion: 'Ver recordatorios', d: ['M10.268 21a2 2 0 0 0 3.464 0', 'M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326', ''],
+        cuerpo: 'Los albaranes con vencimiento aparecen aquí ordenados por urgencia. Marca los pagados para que dejen de contar en el pendiente; puedes hacerlo en lote.' },
+      { nombre: 'Informes', accion: 'Ver informes', pro: true, d: ['M15 18h-5', 'M18 14h-8', 'M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2'],
+        cuerpo: 'Un resumen periódico de la actividad del restaurante —gasto, variaciones y proveedores— listo para leer o compartir con el equipo.' },
+      { nombre: 'Asistente', accion: 'Abrir el asistente', d: ['M7.9 20A9 9 0 1 0 4 16.1L2 22Z', '', ''],
+        cuerpo: 'Pregunta en lenguaje natural sobre tus propios datos: cuánto gastaste en pescado el mes pasado, o qué proveedor te ha subido más los precios.' },
+      { nombre: 'Ajustes', accion: 'Ver ajustes', d: ['M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z', 'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0', ''],
+        cuerpo: 'Umbrales de alerta, datos del restaurante y el canal de WhatsApp. También es donde repites este recorrido o exportas tus datos.' },
+    ];
+
+    const FAQ = [
+      { id: 'formats', q: '¿Qué archivos puedo subir?',
+        a: 'PDF, JPG, PNG, HEIC y XML (Facturae y UBL), hasta 20 MB por archivo. Los XML se leen directamente, sin IA, así que llegan con los datos exactos.' },
+      { id: 'accuracy', q: '¿Y si la IA se equivoca en un dato?',
+        a: 'Corrígelo en la pantalla de revisión antes de confirmar: nada se guarda hasta que confirmas. Cada campo lleva un indicador de confianza para que sepas dónde mirar primero, y un albarán ya guardado se puede editar después.' },
+      { id: 'duplicates', q: '¿Qué pasa si subo dos veces el mismo albarán?',
+        a: 'No se duplica. Cada archivo se identifica por su contenido, así que un reenvío o un reintento se reconoce como el mismo albarán en lugar de crear otro.' },
+      { id: 'channels', q: '¿Puedo enviar albaranes desde el móvil?',
+        a: 'Sí. Haz la foto desde la propia app o, si tu restaurante tiene WhatsApp activado, envíala al número conectado: entra en la misma cola de revisión. El número se da de alta en Ajustes.' },
+      { id: 'export', q: '¿Puedo llevarme los datos a mi gestoría?',
+        a: 'Sí. Desde Albaranes exportas el periodo que necesites en Excel, con cabeceras y líneas. En Ajustes tienes además la exportación completa de tu cuenta.' },
+      { id: 'data', q: '¿Quién ve mis datos?',
+        a: 'Solo tu restaurante. Todo lo que se guarda queda ligado a tu cuenta y no se comparte con otros clientes. Puedes exportar o borrar la cuenta cuando quieras desde Ajustes.' },
+    ];
+
+    const PARADAS = ['Resumen', 'Albaranes', 'Proveedores', 'Análisis', 'Presupuestos', 'Recordatorios', 'Informes', 'Asistente', 'Ajustes'];
+
+    const apartado = this.state.apartado ?? this.props.apartadoInicial ?? 'pasos';
+    const busqueda = this.state.busqueda ?? '';
+    const abierta  = this.state.abierta !== undefined ? this.state.abierta : 'formats';
+    const planPro  = this.props.planPro !== false;
+
+    const q = busqueda.trim().toLowerCase();
+    const hayBusqueda = q.length > 0;
+
+    const pillOff = 'background: #ffffff; color: #4a5562;';
+    const pillOn  = 'background: ' + ACC + '; color: #ffffff; border-color: ' + ACC + ';';
+
+    const INDICE = []
+      .concat(PASOS.map((p) => ({ nombre: p.titulo, pista: p.cuerpo, ap: 'pasos' })))
+      .concat(TRUCOS.map((t) => ({ nombre: t.nombre, pista: t.cuerpo, ap: 'trucos' })))
+      .concat(FAQ.map((f) => ({ nombre: f.q, pista: f.a, ap: 'faq' })));
+
+    const nombreAp = (id) => (APARTADOS.filter((a) => a.id === id)[0] || {}).nombre;
+
+    const resultados = hayBusqueda
+      ? INDICE.filter((i) => (i.nombre + ' ' + i.pista).toLowerCase().indexOf(q) >= 0)
+      : [];
+
+    return {
+      busqueda: busqueda,
+      hayBusqueda: hayBusqueda,
+      sinBusqueda: !hayBusqueda,
+      sinResultados: hayBusqueda && resultados.length === 0,
+      resumenBusqueda: resultados.length === 1 ? '1 resultado' : resultados.length + ' resultados',
+      escribirBusqueda: (e) => this.setState({ busqueda: e.target.value }),
+      limpiarBusqueda: () => this.setState({ busqueda: '' }),
+
+      mostrarPasos:  !hayBusqueda && apartado === 'pasos',
+      mostrarTour:   !hayBusqueda && apartado === 'tour',
+      mostrarTrucos: !hayBusqueda && apartado === 'trucos',
+      mostrarFaq:    !hayBusqueda && apartado === 'faq',
+
+      apartados: APARTADOS.map((a) => ({
+        nombre: a.nombre,
+        estilo: a.id === apartado ? pillOn : pillOff,
+        pick: () => this.setState({ apartado: a.id }),
+      })),
+
+      resultados: resultados.map((r) => ({
+        nombre: r.nombre, apartado: nombreAp(r.ap),
+        ir: () => this.setState({ apartado: r.ap, busqueda: '' }),
+      })),
+
+      pasos: PASOS.map((p, i) => ({
+        n: i + 1, titulo: p.titulo, cuerpo: p.cuerpo,
+        accion: p.accion || '', tieneAccion: Boolean(p.accion),
+        estilo: 'padding: 14px 16px;' + (i < PASOS.length - 1 ? ' border-bottom: 1px solid ' + DIV + ';' : ''),
+      })),
+
+      paradas: PARADAS.map((nombre, i) => ({ n: i + 1, nombre: nombre })),
+
+      trucos: TRUCOS.map((t) => ({
+        nombre: t.nombre, cuerpo: t.cuerpo, accion: t.accion,
+        pro: t.pro === true && planPro,
+        d1: t.d[0], d2: t.d[1], d3: t.d[2],
+      })),
+
+      faq: FAQ.map((f, i) => ({
+        q: f.q, a: f.a,
+        abierta: abierta === f.id,
+        giro: abierta === f.id ? 'transform: rotate(180deg);' : '',
+        estilo: i < FAQ.length - 1 ? 'border-bottom: 1px solid ' + DIV + ';' : '',
+        alternar: () => this.setState({ abierta: abierta === f.id ? null : f.id }),
+      })),
+    };
+  }
+}
+</script>
+</body>
+</html>

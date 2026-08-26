@@ -28,8 +28,10 @@
   --mep-pos-soft: rgba(20, 105, 74, 0.12);
   --mep-neg:      #b03a3a;
   --mep-neg-soft: rgba(176, 58, 58, 0.12);
-  --mep-warn:     #654a00;
-  --mep-warn-soft:rgba(101, 74, 0, 0.14);
+  --mep-warn:     #a85300;
+  --mep-warn-soft:rgba(168, 83, 0, 0.12);
+  --mep-caution:     #8a7300;
+  --mep-caution-soft:rgba(138, 115, 0, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
 
@@ -39,6 +41,7 @@
   --mep-pos-fg:  #ffffff;
   --mep-neg-fg:  #ffffff;
   --mep-warn-fg: #ffffff;
+  --mep-caution-fg: #ffffff;
   --mep-info-fg: #ffffff;
 
   --mep-badge-pdf:   #c14a4a;
@@ -140,14 +143,17 @@
   --mep-pos-soft:  rgba(76, 174, 125, 0.18);
   --mep-neg:       #e16b6b;
   --mep-neg-soft:  rgba(225, 107, 107, 0.18);
-  --mep-warn:      #efc233;
-  --mep-warn-soft: rgba(239, 194, 51, 0.18);
+  --mep-warn:      #e8934a;
+  --mep-warn-soft: rgba(232, 147, 74, 0.18);
+  --mep-caution:      #efc233;
+  --mep-caution-soft: rgba(239, 194, 51, 0.18);
   --mep-info:      #5f8ee0;
   --mep-info-soft: rgba(95, 142, 224, 0.18);
 
   --mep-pos-fg:  #08211a;
   --mep-neg-fg:  #2a0d0d;
   --mep-warn-fg: #2a1a08;
+  --mep-caution-fg: #2a1a08;
   --mep-info-fg: #0d1828;
 
   --mep-badge-pdf:   #c14a4a;
@@ -174,23 +180,16 @@
   --mep-cat-other:                        #8f8fa2;
 }
 
-/* Accent — amber (default — every route sets data-accent="amber") */
-.mep[data-accent="amber"] {
-  --mep-acc:      #8a530f;
-  --mep-acc-fg:   #ffffff;
-  --mep-acc-soft: rgba(138, 83, 15, 0.10);
-  --mep-acc-hover:#7e4c0d;
-  --mep-acc-ring: rgba(138, 83, 15, 0.30);
-}
-:root[data-theme="dark"] .mep[data-accent="amber"] {
-  --mep-acc:      #d59854;
-  --mep-acc-fg:   #2a1a08;
-  --mep-acc-soft: rgba(213, 152, 84, 0.18);
-  --mep-acc-hover:#e0a665;
-  --mep-acc-ring: rgba(213, 152, 84, 0.30);
-}
+/* Accent — slate (default — every route sets data-accent="slate").
+   Blue is reserved for actions: primary buttons, active nav, the actual-spend
+   stroke. The severity ramp is warm (neg / warn / caution) so the two never
+   compete for the same meaning.
 
-/* Accent — slate */
+   The amber accent block lived here until it was removed: its --mep-acc was
+   #8a530f light / #d59854 dark, the same hue and lightness as --mep-warn
+   (#a85300 / #e8934a), so a primary button and an overdue invoice read as the
+   same colour. Warm belongs to severity only. Any new accent must sit outside
+   that band — tests/design-tokens-accent-discipline.test.ts enforces it. */
 .mep[data-accent="slate"] {
   --mep-acc:      #34507a;
   --mep-acc-fg:   #ffffff;
@@ -271,6 +270,9 @@
   --color-warn:          var(--mep-warn);
   --color-warn-soft:     var(--mep-warn-soft);
   --color-warn-fg:       var(--mep-warn-fg);
+  --color-caution:       var(--mep-caution);
+  --color-caution-soft:  var(--mep-caution-soft);
+  --color-caution-fg:    var(--mep-caution-fg);
   --color-info:          var(--mep-info);
   --color-info-soft:     var(--mep-info-soft);
   --color-info-fg:       var(--mep-info-fg);
@@ -437,6 +439,42 @@
     gap: 6px;
     border-bottom: 1px solid var(--mep-divider);
     background: var(--mep-bg);
+    transition: height 160ms ease-out;
+  }
+
+  /* Eyebrow + title share the row the title used to hold alone: the location
+     is the one piece of context the mobile shell never showed, and stacking it
+     costs no height because the 56px row was only ever half full. */
+  .shell-heading {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .shell-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--mep-fg-4);
+    overflow: hidden;
+  }
+  button.shell-eyebrow { cursor: pointer; }
+  button.shell-eyebrow:hover { color: var(--mep-fg-3); }
+  .shell-eyebrow > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .shell-title {
     margin: 0;
@@ -450,12 +488,126 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .shell-divider {
+    width: 1px;
+    height: 20px;
+    flex-shrink: 0;
+    background: var(--mep-border);
+  }
   @media (min-width: 768px) {
     .shell-title { font-size: 20px; }
   }
   @media (min-width: 768px) {
     .shell-header { padding: 0 16px; gap: 10px; }
+    .shell-eyebrow { display: none; }
   }
+
+  /* Two bands cannot hold the label and the longest page title at once: phones
+     under 380px, and 768–840px, where the sidebar has already taken 232px and
+     the title has grown to 20px. Measured against "Seguimiento de precios", the
+     widest title in the app — see scripts/check-header-title-fit.mjs. */
+  @media (max-width: 389px), (min-width: 768px) and (max-width: 840px) {
+    .shell-primary-label { display: none; }
+    .shell-primary {
+      gap: 0;
+      min-width: 44px;
+      padding-left: 0;
+      padding-right: 0;
+      justify-content: center;
+    }
+  }
+
+  /* Account menu. The header row used to spend a button each on language and
+     theme; both now live here with the identity and the account actions, which
+     is also where a desktop user looks for them. */
+  .acct-trigger {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 34px;
+    padding: 0 4px 0 3px;
+    border: 1px solid transparent;
+    border-radius: var(--mep-r-input);
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--mep-fg-3);
+    transition: background 150ms ease-out;
+  }
+  .acct-trigger:hover,
+  .acct-trigger[aria-expanded='true'] { background: var(--mep-hover); }
+  .acct-avatar {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: var(--mep-r-pill);
+    background: var(--mep-acc);
+    color: var(--mep-acc-fg);
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .acct-avatar-lg {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+  .acct-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 200;
+    width: 252px;
+    padding: 6px;
+    background: var(--mep-overlay);
+    border: 1px solid var(--mep-border-strong);
+    border-radius: var(--mep-r-card);
+    box-shadow: var(--mep-shadow-pop);
+  }
+  .acct-identity {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    padding: 8px 10px 10px;
+  }
+  .acct-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--mep-fg);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .acct-sub {
+    font-size: 11px;
+    color: var(--mep-fg-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .acct-sep { height: 1px; margin: 4px; background: var(--mep-divider); }
+  .acct-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--mep-r-input);
+    background: transparent;
+    color: var(--mep-fg-2);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .acct-item:hover { background: var(--mep-hover); color: var(--mep-fg); }
 
   /* Buttons */
   .btn {
@@ -493,7 +645,8 @@
   }
   .badge-confirmed { background: var(--mep-pos-soft);  color: var(--mep-pos); }
   .badge-pending   { background: var(--mep-warn-soft); color: var(--mep-warn); }
-  .badge-exported  { background: var(--mep-info-soft); color: var(--mep-info); }
+  .badge-caution   { background: var(--mep-caution-soft); color: var(--mep-caution); }
+  .badge-exported  { background: var(--mep-hover);     color: var(--mep-fg-2); }
   .badge-overdue   { background: var(--mep-neg-soft);  color: var(--mep-neg); }
   .badge-rejected  { background: var(--mep-neg-soft);  color: var(--mep-neg); }
   .badge-neutral   { background: var(--mep-hover);     color: var(--mep-fg-2); }
@@ -613,6 +766,26 @@
   /* Sidebar row — nav link, location switcher. One height keeps the rail
      reading as a single column. */
   .sidenav-item { height: 32px; }
+
+  /* Sidebar section eyebrow. It is a disclosure button, so it needs the
+     hover affordance the plain nav rows get from their own inline styles. */
+  .nav-section-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    height: 24px;
+    padding: 0 10px;
+    margin-bottom: 3px;
+    border: 0;
+    border-radius: var(--mep-r-input);
+    background: transparent;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 150ms ease-out;
+  }
+  .nav-section-toggle:hover { background: var(--mep-hover); }
 
   /* Filter chip — the horizontal quick-filter scroller on the phone list
      screens. Touch-sized by definition; it has no desktop variant. */
@@ -1372,9 +1545,22 @@
     }
     .period-nav { min-height: 44px; }
     .period-nav-btn { min-width: 44px; min-height: 44px; }
-    .settings-rail-item, .sidenav-item { min-height: 44px; }
-    .app-header { padding: 0 8px; gap: 4px; }
-    .app-header .btn { padding-left: 0; padding-right: 0; }
+    .settings-rail-item, .sidenav-item, .nav-section-toggle { min-height: 44px; }
+    /* 390px is the tight case: menu, two-line heading, a labelled primary and
+       the bell all want the same row. Icon controls centre their glyph inside a
+       44px hit area, so they carry their own optical inset — the row gives its
+       outer padding and most of its gap to the title instead. */
+    .app-header { padding: 0 4px; gap: 3px; }
+    .app-header .btn-icon { padding-left: 0; padding-right: 0; }
+    /* Desktop reads left-to-right into the account menu, so the primary sits
+       before the divider there. On a phone the trailing edge is the reachable
+       one, so the primary takes it and the bell moves inboard. */
+    .shell-bell { order: 1; }
+    .shell-primary { order: 2; padding-left: 8px; padding-right: 8px; gap: 5px; }
+    /* Scrolled state: the eyebrow has done its job by the time the page is
+       moving, so the row drops to a single line and hands 8px back. */
+    .shell-header.is-condensed { height: 48px; }
+    .shell-header.is-condensed .shell-eyebrow { display: none; }
   }
 }
 

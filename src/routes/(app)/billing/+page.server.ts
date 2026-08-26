@@ -112,16 +112,27 @@ async function createCheckoutUrl(args: {
 	let customerId = await getOrCreateCustomer(args.rid, args.email, args.restaurantName);
 	trackEvent('checkout_started', args.rid, { tier: args.tier });
 	try {
-		return await createCheckoutSession(
-			args.rid, customerId, args.tier, successUrl, cancelUrl, args.idemKey ?? undefined, args.userId,
-		);
+		return await createCheckoutSession({
+			restaurantId: args.rid,
+			customerId,
+			tier: args.tier,
+			successUrl,
+			cancelUrl,
+			idempotencyKey: args.idemKey ?? undefined,
+			userId: args.userId,
+		});
 	} catch (err) {
 		if (!(err instanceof StaleCustomerError)) throw err;
 		await clearStaleCustomer(args.rid);
 		customerId = await getOrCreateCustomer(args.rid, args.email, args.restaurantName);
-		return createCheckoutSession(
-			args.rid, customerId, args.tier, successUrl, cancelUrl, undefined, args.userId,
-		);
+		return createCheckoutSession({
+			restaurantId: args.rid,
+			customerId,
+			tier: args.tier,
+			successUrl,
+			cancelUrl,
+			userId: args.userId,
+		});
 	}
 }
 
@@ -184,28 +195,27 @@ export const actions: Actions = {
 			let customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid);
 			trackEvent('checkout_started', rid, { tier });
 			try {
-				checkoutUrl = await createCheckoutSession(
-					rid,
+				checkoutUrl = await createCheckoutSession({
+					restaurantId: rid,
 					customerId,
 					tier,
-					`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-					`${url.origin}/billing`,
-					idemKey ?? undefined,
-					locals.user.id,
-				);
+					successUrl: `${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
+					cancelUrl: `${url.origin}/billing`,
+					idempotencyKey: idemKey ?? undefined,
+					userId: locals.user.id,
+				});
 			} catch (err) {
 				if (!(err instanceof StaleCustomerError)) throw err;
 				await db.update(subscriptions).set({ stripeCustomerId: null }).where(tdb.scope(subscriptions.restaurantId));
 				customerId = await getOrCreateCustomer(rid, email, restaurant?.name ?? rid, true);
-				checkoutUrl = await createCheckoutSession(
-					rid,
+				checkoutUrl = await createCheckoutSession({
+					restaurantId: rid,
 					customerId,
 					tier,
-					`${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
-					`${url.origin}/billing`,
-					undefined,
-					locals.user.id,
-				);
+					successUrl: `${url.origin}/billing/confirm?session_id={CHECKOUT_SESSION_ID}`,
+					cancelUrl: `${url.origin}/billing`,
+					userId: locals.user.id,
+				});
 			}
 		} catch (err) {
 			if (idemKey) await releaseRequest(idemKey);

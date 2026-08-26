@@ -4,6 +4,11 @@ import { readFileSync } from 'node:fs';
 // Regression test for issue #578: the account-deletion section of the
 // settings page must carry visible danger styling (red border + red-tinted
 // background) plus a warning icon, on top of the existing type-to-confirm flow.
+//
+// The settings redesign folded the section into a collapsed "danger zone"
+// disclosure, so the block is now located from the `{#if dangerOpen}` gate
+// rather than from the `<hr>` that used to precede it. Every requirement the
+// issue asked for is still asserted against the expanded state.
 const SOURCE_PATH = 'src/routes/(app)/settings/+page.svelte';
 const source = readFileSync(SOURCE_PATH, 'utf8');
 
@@ -11,10 +16,10 @@ function extractDeleteAccountBlock(src: string): string {
   const descIndex = src.indexOf("$t('set.deleteDesc')");
   expect(descIndex, `expected to find set.deleteDesc in ${SOURCE_PATH}`).toBeGreaterThan(-1);
 
-  const divider = src.lastIndexOf('<hr', descIndex);
-  expect(divider, 'expected the <hr> divider preceding the delete-account section').toBeGreaterThan(-1);
-  const wrapperStart = src.indexOf('<div', divider);
-  expect(wrapperStart, 'expected the delete-account wrapper <div> after the divider').toBeGreaterThan(-1);
+  const gate = src.lastIndexOf('{#if dangerOpen}', descIndex);
+  expect(gate, 'expected the dangerOpen disclosure guarding the delete-account section').toBeGreaterThan(-1);
+  const wrapperStart = src.indexOf('<div', gate);
+  expect(wrapperStart, 'expected the delete-account wrapper <div> inside the disclosure').toBeGreaterThan(-1);
 
   const errorMarker = "$t('set.deleteBtn')";
   const btnIndex = src.indexOf(errorMarker, descIndex);
