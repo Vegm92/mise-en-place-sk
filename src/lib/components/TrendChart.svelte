@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t, ti, tcat } from '$lib/i18n';
+	import { seriesColor } from '$lib/colors';
 
 	type Segment = { category: string | null; amount: number };
 	type Bucket  = { label: string; total: number; pct: number; is_current: boolean; segments: Segment[] };
@@ -25,17 +26,8 @@
 	const RANGES       = ['7d', '30d', '90d', '1y', 'all'] as const;
 	const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const;
 
-	const CAT_COLORS = [
-		'var(--mep-acc)',
-		'var(--mep-pos)',
-		'var(--mep-info)',
-		'var(--mep-neg)',
-		'var(--mep-warn)',
-		'var(--mep-fg-3)',
-	];
-
 	function catColor(index: number) {
-		return CAT_COLORS[index % CAT_COLORS.length];
+		return seriesColor(index);
 	}
 
 	async function fetchData(range: string, granularity: string) {
