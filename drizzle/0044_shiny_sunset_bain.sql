@@ -1,2 +1,0 @@
-DROP INDEX "batch_items_job_code_unique";--> statement-breakpoint
-CREATE UNIQUE INDEX "batch_items_job_code_unique" ON "batch_items" USING btree ("job_code") WHERE "batch_items"."review_status" is null or "batch_items"."review_status" = 'pending';

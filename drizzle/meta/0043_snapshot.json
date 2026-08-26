@@ -1,5 +1,5 @@
 {
-  "id": "a4061a59-4ac5-449d-aa59-c5d5e7716629",
+  "id": "c38e8bb8-a8e2-4281-9bdc-4321de91ddd0",
   "prevId": "8d73a4d3-dc50-4918-97e4-1ac7e4a58517",
   "version": "7",
   "dialect": "postgresql",
@@ -383,6 +383,7 @@
             }
           ],
           "isUnique": true,
+          "where": "\"batch_items\".\"review_status\" is null or \"batch_items\".\"review_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}
