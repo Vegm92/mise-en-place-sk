@@ -57,6 +57,7 @@ export interface TierConfig {
 	monthlyInvoiceQuota: number | null;
 	stripePriceId: string;
 	maxLocations: number;
+	maxRecipes: number | null;
 	features: {
 		weeklyDigest:      boolean;
 		stockTracking:     boolean;
@@ -74,6 +75,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		monthlyInvoiceQuota: 20,
 		stripePriceId: '',
 		maxLocations: 1,
+		maxRecipes: 3,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
 	},
 	starter: {
@@ -82,6 +84,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		monthlyInvoiceQuota: 100,
 		stripePriceId: STRIPE_PRICE_ID_STARTER ?? STRIPE_PRICE_ID ?? '',
 		maxLocations: 1,
+		maxRecipes: 3,
 		features: { weeklyDigest: false, stockTracking: false, supplierScores: false, multiLocation: false, prioritySupport: false, aiAssistant: false },
 	},
 	pro: {
@@ -90,6 +93,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		monthlyInvoiceQuota: 300,
 		stripePriceId: STRIPE_PRICE_ID_PRO ?? '',
 		maxLocations: 1,
+		maxRecipes: null,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: false, prioritySupport: false, aiAssistant: true },
 	},
 	business: {
@@ -98,6 +102,7 @@ export const TIERS: Record<PlanTier, TierConfig> = {
 		monthlyInvoiceQuota: null,
 		stripePriceId: STRIPE_PRICE_ID_BUSINESS ?? '',
 		maxLocations: 5,
+		maxRecipes: null,
 		features: { weeklyDigest: true, stockTracking: true, supplierScores: true, multiLocation: true, prioritySupport: true, aiAssistant: true },
 	},
 };
@@ -341,6 +346,7 @@ export interface Entitlements {
 	features:     TierConfig['features'];
 	access:       AccessState;
 	maxLocations: number;
+	maxRecipes:   number | null;
 	monthlyQuota: number | null;
 	subscription: SubscriptionSummary | null;
 }
@@ -395,6 +401,7 @@ function entitlementsFromRow(row: Partial<EntitlementsRow> | undefined, restaura
 		features:     config.features,
 		access:       access,
 		maxLocations: config.maxLocations,
+		maxRecipes:   config.maxRecipes,
 		monthlyQuota: resolveMonthlyQuota(row?.quotaValue, tier),
 		subscription: sub
 			? {

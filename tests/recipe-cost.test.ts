@@ -9,7 +9,7 @@ import {
 } from '../src/lib/server/recipes';
 
 type ItemInput = Partial<{
-	id: number; kind: string; name: string; productId: number | null; childRecipeId: number | null;
+	id: number; recipeId: number; kind: string; name: string; productId: number | null; childRecipeId: number | null;
 	netQuantity: string; unit: string | null; unitCost: string | null; wastePct: string;
 	allergens: string[]; kcal100: string | null; protein100: string | null;
 	carbs100: string | null; fat100: string | null; note: string | null; sortOrder: number;

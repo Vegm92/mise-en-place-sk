@@ -54,6 +54,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 		trialTier: {
 			monthlyInvoiceQuota: TIERS.trial.monthlyInvoiceQuota,
 			maxLocations: TIERS.trial.maxLocations,
+			maxRecipes: TIERS.trial.maxRecipes,
 			features: TIERS.trial.features,
 		},
 		tiers: Object.entries(TIERS)
@@ -63,6 +64,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 				nameKey: config.nameKey,
 				monthlyInvoiceQuota: config.monthlyInvoiceQuota,
 				maxLocations: config.maxLocations,
+				maxRecipes: config.maxRecipes,
 				features: config.features,
 				isCurrent: tier === currentTier,
 				available: isTierAvailable(tier as PlanTier),
