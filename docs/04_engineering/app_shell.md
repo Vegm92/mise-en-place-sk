@@ -29,11 +29,17 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - Dashboard nudge offering the app-wide walkthrough — persists until accepted/dismissed.
 **`const revealAll`**
 - Progressive disclosure (issue #231): before the first saved invoice, every section below Invoices is an empty state — eight of them, plus a quota meter for a quota nobody has touched. They reveal after the first save, when they start having something to show.
+**`const navSections`**
+- Nav is three labelled sections rather than a flat list (#706). The subscription-gated pages sit together under Inteligencia with one PRO chip on the group heading, instead of a pill on each of the three rows they used to be scattered across.
+- Each heading is a disclosure button; collapse all three and the rail is the upload CTA, three headings and the footer. The collapsed set persists under `mep-nav-sections-collapsed`, keyed by stable section ids and not by the translated label, so a language switch does not reset it. A collapsed section rolls its pending counts up onto the heading and tints that heading with the accent when the current route is inside it — hiding a section must not hide either the count or where you are.
+- Colour follows ADR-026: `--mep-acc` is left on the active row and the you-are-here heading tint, both of which the ADR lists under "active nav". The PRO chip, the collapsed rail's lock dots and its sparkles divider are neutral, because they mark entitlement state and blue would read as a button. The count badge stays on `--mep-warn` (4.55:1 light / 5.04:1 dark); the `--mep-caution` rung would fail AA on light at 3.89:1.
+
 **`const switchingLocation`**
 - Switching writes the active_restaurant cookie server-side, then a full reload so every layout query re-runs against the new tenant (issue #290).
 **`function switchLocation`**
 - fall through — the select resets on the next render.
 **`markup`**
+- The location switcher labels itself Restaurante / Restaurant, on the same row as the select. At 232px of rail an uppercase RESTAURANTE left 93px for the control and truncated the tenant's own name, so the label is sentence case; the dropdown is right-aligned with a 186px minimum instead of matching its trigger's width.
 - Mobile overlay; sidebar (brand, location switcher — only when there is somewhere to switch to, #290 — upload CTA, primary nav, quota widget — hidden until the first invoice is saved, #231 — quotaLimit null → unlimited, nothing to fill up, #295 — util links — Ajustes and Ayuda (#569) — legal footer, user chip). The util links carry the language and theme toggles below `md` only (#660): the off-canvas drawer is the mobile overflow menu, so the header row keeps just the hamburger, the title, the bell and the upload CTA.
 - Main area: TopBar (universal header, mobile + desktop), mobile hamburger (kept for fallback pages not yet mobilised), title, chat (desktop only — sidebar nav handles mobile), language toggle (desktop only, #660), notification bell, theme toggle (desktop only, #660), upload CTA (mobile only).
 **`const pageTitle`**
