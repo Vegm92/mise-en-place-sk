@@ -1,16 +1,38 @@
 import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { sql, gt, and, inArray } from 'drizzle-orm';
 import { batchItems } from '$lib/server/schema';
-import { STORAGE_DRIVER, UPLOADS_DIR } from '$lib/server/env';
+import { STORAGE_DRIVER, UPLOADS_DIR, HEALTH_CHECK_TOKEN, HEALTH_RATE_LIMIT_RPM } from '$lib/server/env';
 import fs from 'node:fs';
 import path from 'node:path';
+import { timingSafeEqual } from 'node:crypto';
 import { version } from '$app/environment';
 import { readWorkerHeartbeat, workerLiveness } from '$lib/server/worker-heartbeat';
+import { isAdminUser } from '$lib/server/admin';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 const START_TIME = Date.now();
+const HEALTH_TOKEN_HEADER = 'x-health-token';
 
-export async function GET() {
+async function isDbReachable(): Promise<boolean> {
+	try {
+		await db.execute(sql`SELECT 1`);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function hasValidHealthToken(request: Request): boolean {
+	if (!HEALTH_CHECK_TOKEN) return false;
+	const provided = request.headers.get(HEALTH_TOKEN_HEADER) ?? '';
+	const expected = Buffer.from(HEALTH_CHECK_TOKEN);
+	const actual = Buffer.from(provided);
+	return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+async function computeHealthDetail() {
 	let dbReachable = false;
 	let dbSizeMb = 0;
 	try {
@@ -71,23 +93,40 @@ export async function GET() {
 
 	const degraded = !dbReachable || uploadsDir?.writable === false;
 
-	return json(
-		{
-			status: degraded ? 'degraded' : 'ok',
-			db: { reachable: dbReachable, size_mb: dbSizeMb },
-			worker: {
-				...queue,
-				liveness: liveness.state,
-				last_seen_at: liveness.lastSeenAt,
-				last_job_completed_at: liveness.lastJobCompletedAt,
-				jobs_completed: liveness.jobsCompleted,
-				stale_after_seconds: liveness.staleAfterSeconds,
-			},
-			uploads_dir: uploadsDir,
-			sessions: { active_count: activeCount },
-			uptime_seconds: Math.floor((Date.now() - START_TIME) / 1000),
-			version,
+	return {
+		status: degraded ? 'degraded' as const : 'ok' as const,
+		db: { reachable: dbReachable, size_mb: dbSizeMb },
+		worker: {
+			...queue,
+			liveness: liveness.state,
+			last_seen_at: liveness.lastSeenAt,
+			last_job_completed_at: liveness.lastJobCompletedAt,
+			jobs_completed: liveness.jobsCompleted,
+			stale_after_seconds: liveness.staleAfterSeconds,
 		},
-		{ status: degraded ? 503 : 200 }
-	);
+		uploads_dir: uploadsDir,
+		sessions: { active_count: activeCount },
+		uptime_seconds: Math.floor((Date.now() - START_TIME) / 1000),
+		version,
+	};
 }
+
+export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
+	const ip = getClientAddress();
+	if (!(await checkRateLimit(`health:${ip}`, HEALTH_RATE_LIMIT_RPM))) {
+		return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
+	}
+
+	const wantsDetail = isAdminUser(locals.user) || hasValidHealthToken(request);
+
+	if (!wantsDetail) {
+		const dbReachable = await isDbReachable();
+		return json(
+			{ status: dbReachable ? 'ok' as const : 'degraded' as const },
+			{ status: dbReachable ? 200 : 503 },
+		);
+	}
+
+	const detail = await computeHealthDetail();
+	return json(detail, { status: detail.status === 'ok' ? 200 : 503 });
+};
