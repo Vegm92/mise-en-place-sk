@@ -41,6 +41,8 @@ Data model: `batch_items.review_status` exists unused; map *revisado* on confirm
 
 7. **Save-success toast dumps raw event identifiers.** After saving an invoice, the `/invoices` toast shows chips reading literally `invoice_saved`, `invoice_corrected`, `supplier_uncategorized: <name>`. The loader (`src/routes/(app)/invoices/+page.server.ts:122`) selects every `system_notifications.message` for the saved invoice — including internal audit events — and `message` stores the raw type string. Fix: filter to user-facing alert types and map `notification_type` through i18n.
 
+8. **Trial expiry is invisible until an upload silently bounces.** With `trial_ends_at` past, every page loads normally and the sidebar still says "Prueba gratuita" — the only enforcement is inside the upload action (`(app)/+page.server.ts:80`), which redirects to `/billing?upgrade=trial` mid-action, losing the user's selected files. Fix: expired-state chip + banner in the layout, gate the upload page itself.
+
 ## Low / polish
 
 - CSV export: client-side `SvelteKitError: Not found: /invoices/export/download` in console (add `data-sveltekit-reload`); delivered file is `.xlsx` — align copy.
@@ -62,6 +64,13 @@ Data model: `batch_items.review_status` exists unused; map *revisado* on confirm
 - Graceful degradation: dead Gemini key → chat "Algo salió mal" and stays usable; Sentry unconfigured → plain admin notice; worker down → WARN heartbeat, 2-min "slow" notice, 15-min hard fail with retry/discard.
 - i18n & layout: full ES/EN coverage (two leaks noted above), zero horizontal overflow on 17 routes × 2 viewports, complete dark theme.
 - Trial/billing: quota chip, trial countdown, per-feature upsells, admin access queue approve flow.
+
+## Verified in third pass (abuse & privacy)
+
+- Login rate limiting works: 5 tries/email → localized `rate_limited` (429), 10/IP.
+- `/api/user/export` returns the user's full data as JSON.
+- Account deletion: type-`ELIMINAR` confirm → user removed, redirected to login.
+- In-app password-change form enforces 12-char minimum with localized errors.
 
 ## Verified in second pass (worker running, no Gemini key)
 
