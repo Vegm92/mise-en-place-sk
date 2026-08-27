@@ -125,6 +125,18 @@ the silent failure mode before #518.
   service points its `railwayConfigFile` at **`railway.worker.json`**, which is
   the same config with `sleepApplication: false`. Flipping it in the Railway
   dashboard does not hold — the next deploy re-applies the file.
+- **That config-as-code mechanism is deprecated and expires 2026-12-01.**
+  Railway replaced `railway.json` / `railway.toml` with Infrastructure as Code
+  (`.railway/railway.ts`), and stops reading the old files at the cutoff. The
+  two are mutually exclusive per service, so this is a migration, not an
+  addition: `railway config migrate --apply` writes the TypeScript file and
+  clears the service's config-file setting, then `railway config plan` and
+  `railway config apply` land it. Do it before the cutoff — when `railway.json`
+  stops being read, the worker silently falls back to its dashboard settings
+  and App Sleep comes back with it. IaC also removes the root cause rather
+  than working around it: one project-level file describes *both* services, so
+  the web app and the worker stop sharing a `deploy` block that can only hold
+  one value of `sleepApplication`.
 - **The worker hosts the WhatsApp socket** when `WHATSAPP_BOT_ENABLED=true`.
   It is long-lived, single-replica and DB-connected, which is what a persistent
   socket needs; `shutdown()` stops it before the process exits — a second reason
