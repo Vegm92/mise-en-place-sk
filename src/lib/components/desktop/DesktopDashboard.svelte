@@ -19,10 +19,10 @@
     TurnoInput, SortMode, PayableInput, PriceShockInput, UncategorizedInput, MissingInput,
   } from '$lib/dashboard-turno';
 
-  interface Mom { this_month: number; last_month: number; pct_change: number | null }
-  interface Projection { projected_eom: number; days_elapsed: number; days_in_month: number; elapsed_pct: number }
+  export interface Mom { this_month: number; last_month: number; pct_change: number | null }
+  export interface Projection { projected_eom: number; days_elapsed: number; days_in_month: number; elapsed_pct: number }
 
-  interface DashboardData {
+  export interface DashboardData {
     firstInvoice: boolean | null;
     mom: Mom;
     pending: { count: number; amount: number };
