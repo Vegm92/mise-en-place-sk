@@ -82,6 +82,9 @@ vi.mock('../src/lib/server/billing', () => ({
 	getAccessState: vi.fn().mockResolvedValue({
 		allowed: true, status: 'active', trialEndsAt: null, trialExpired: false,
 	}),
+	ORPHAN_SUBSCRIPTIONS_QUEUE: 'scheduled-orphan-subscriptions',
+	ORPHAN_SUBSCRIPTIONS_CRON: '50 3 * * *',
+	runOrphanSubscriptionsJob: vi.fn(),
 }));
 vi.mock('../src/lib/server/whatsapp-pairing', async (importActual) => ({
 	...(await importActual<typeof import('../src/lib/server/whatsapp-pairing')>()),

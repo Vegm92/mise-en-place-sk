@@ -70,7 +70,12 @@ vi.mock('../src/lib/server/whatsapp', () => ({
 }));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: vi.fn() }) }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
-vi.mock('../src/lib/server/billing', () => ({ getAccessState: accessMock }));
+vi.mock('../src/lib/server/billing', () => ({
+	getAccessState: accessMock,
+	ORPHAN_SUBSCRIPTIONS_QUEUE: 'scheduled-orphan-subscriptions',
+	ORPHAN_SUBSCRIPTIONS_CRON: '50 3 * * *',
+	runOrphanSubscriptionsJob: vi.fn(),
+}));
 vi.mock('../src/lib/server/locations', () => ({ isLocationLocked: lockedMock }));
 // Keep the real normalizeCode: whether a message *looks* like a code is the
 // routing decision under test here, so stubbing it would test nothing.
