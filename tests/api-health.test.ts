@@ -5,8 +5,9 @@
  *
  * These pin the new contract: the public response is `{ status }` and
  * nothing else, a DB outage flips it to 503 `degraded`, the full detail
- * (db/worker/uploads_dir/sessions/uptime_seconds/version) requires an admin
- * session or a valid `X-Health-Token`, and the endpoint is rate-limited.
+ * (db/worker/uploads_dir/sessions/extraction_semaphore/uptime_seconds/version)
+ * requires an admin session or a valid `X-Health-Token`, and the endpoint is
+ * rate-limited.
  *
  * db, the rate limiter, admin check and worker heartbeat are mocked — this
  * suite never touches Postgres.
@@ -27,7 +28,10 @@ const { dbExecuteMock, dbSelectMock, rateLimitMock, isAdminUserMock } = vi.hoist
 vi.mock('$lib/server/db', () => ({
 	db: { execute: dbExecuteMock, select: dbSelectMock },
 }));
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
+vi.mock('$lib/server/rate-limiter', () => ({
+	checkRateLimit: rateLimitMock,
+	getExtractionSemaphoreStatus: vi.fn().mockReturnValue({ active: 1, waiting: 0 }),
+}));
 vi.mock('$lib/server/admin', () => ({ isAdminUser: isAdminUserMock }));
 vi.mock('$lib/server/worker-heartbeat', () => ({
 	readWorkerHeartbeat: vi.fn().mockResolvedValue(null),
@@ -63,7 +67,16 @@ function healthEvent(opts: HealthEventOpts = {}) {
 	} as unknown as Parameters<typeof GET>[0];
 }
 
-const DETAIL_KEYS = ['db', 'sessions', 'status', 'uploads_dir', 'uptime_seconds', 'version', 'worker'].sort();
+const DETAIL_KEYS = [
+	'db',
+	'extraction_semaphore',
+	'sessions',
+	'status',
+	'uploads_dir',
+	'uptime_seconds',
+	'version',
+	'worker',
+].sort();
 
 beforeEach(() => {
 	dbExecuteMock.mockReset().mockResolvedValue([{ size: 1048576, pending: 2 }]);
@@ -118,6 +131,7 @@ describe('#491 — detailed health requires admin auth or a token', () => {
 		expect(Object.keys(body).sort()).toEqual(DETAIL_KEYS);
 		expect(body.db).toEqual({ reachable: true, size_mb: 1 });
 		expect(body.sessions).toEqual({ active_count: 3 });
+		expect(body.extraction_semaphore).toEqual({ active: 1, waiting: 0 });
 		expect(body.worker.pending).toBe(2);
 		expect(body.uploads_dir).toBeNull();
 		expect(typeof body.uptime_seconds).toBe('number');
