@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Mona+Sans:ital,wght@0,200..900;1,200..900&display=swap');
+    body { margin: 0; font-family: 'Mona Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; }
+    * { box-sizing: border-box; }
+    a { color: #34507a; text-decoration: none; }
+    a:hover { color: #2b4368; }
+    .num { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+    .card { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid rgba(15, 20, 30, 0.06); }
+    .label { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; text-transform: uppercase; color: #5f6b78; margin: 0; }
+    .body { font-size: 13px; color: #4a5562; margin: 0; }
+    .body-strong { font-size: 13px; color: #1a1f26; font-weight: 500; margin: 0; }
+    .subtitle { font-size: 16px; font-weight: 600; color: #1a1f26; letter-spacing: -0.01em; margin: 0; }
+    .title { font-size: 20px; font-weight: 600; color: #1a1f26; letter-spacing: -0.015em; margin: 0; }
+    .btn {
+      font-family: inherit; font-size: 13px; font-weight: 500; border-radius: 6px; padding: 0 12px;
+      height: 32px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent;
+      cursor: pointer; white-space: nowrap; background: transparent; color: #4a5562;
+      transition: background 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out;
+    }
+    .btn:hover { background: rgba(15, 20, 30, 0.04); color: #1a1f26; }
+    .btn-secondary { background: #ffffff; color: #1a1f26; border-color: rgba(15, 20, 30, 0.18); }
+    .btn-secondary:hover { background: rgba(15, 20, 30, 0.04); }
+    .btn-primary { background: #34507a; color: #ffffff; }
+    .btn-primary:hover { background: #2b4368; }
+    .badge { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; line-height: 16px; }
+    .input {
+      font-family: inherit; font-size: 13px; height: 32px; padding: 0 10px; border-radius: 6px;
+      border: 1px solid rgba(15, 20, 30, 0.18); background: #ffffff; color: #1a1f26; outline: none; width: 100%;
+    }
+    .input::placeholder { color: #64707d; }
+    .period-track { display: inline-flex; align-items: center; gap: 2px; background: #fafaf7; border: 1px solid rgba(15, 20, 30, 0.06); border-radius: 999px; padding: 3px; flex-shrink: 0; }
+    .period-pill {
+      font-family: inherit; font-size: 12px; font-weight: 400; line-height: 1; padding: 6px 13px;
+      border: none; border-radius: 999px; cursor: pointer; color: #5f6b78; background: transparent; white-space: nowrap;
+      transition: background 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out;
+    }
+    .period-pill:hover { color: #4a5562; }
+    .period-pill.on { background: #ffffff; color: #1a1f26; font-weight: 500; box-shadow: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04); }
+    .pop { background: #ffffff; border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 10px; box-shadow: 0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10); }
+    .tab {
+      display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 3px;
+      border: none; border-bottom: 2px solid transparent; background: transparent; cursor: pointer;
+      font-family: inherit; font-size: 13.5px; color: #5f6b78; transition: color 140ms, border-color 140ms;
+    }
+    .tab:hover { color: #1a1f26; }
+    .tab-n { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 999px; line-height: 15px; }
+    .mark-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #ffffff; border-radius: 6px; height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 12px; font-weight: 500; color: #4a5562; cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms; }
+    .mark-ok:hover  { background: rgba(20, 105, 74, 0.12); border-color: #14694a; color: #14694a; }
+    .mark-bad:hover { background: rgba(176, 58, 58, 0.12); border-color: #b03a3a; color: #b03a3a; }
+    .part-btn { border: 1px solid rgba(15, 20, 30, 0.10); background: #fafaf7; border-radius: 999px; height: 26px; padding: 0 8px 0 9px; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 12px; color: #4a5562; cursor: pointer; max-width: 100%; transition: background 120ms, border-color 120ms; }
+    .part-btn:hover { background: rgba(15, 20, 30, 0.06); border-color: rgba(15, 20, 30, 0.18); }
+    .part-btn.vacia { border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent; color: #5f6b78; }
+    .menu-item { display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 9px; border: none; background: transparent; border-radius: 6px; font-family: inherit; font-size: 12.5px; color: #1a1f26; cursor: pointer; text-align: left; }
+    .menu-item:hover { background: rgba(15, 20, 30, 0.04); }
+  </style>
+  <style>
+    .paso { display: flex; align-items: center; gap: 10px; }
+    .paso-caja { border: 1px solid rgba(15, 20, 30, 0.10); border-radius: 8px; padding: 9px 13px; display: flex; flex-direction: column; gap: 2px; background: #ffffff; }
+    .cat-chip { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid rgba(15, 20, 30, 0.10); background: #fafaf7; font-size: 12px; color: #4a5562; }
+    .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 11.5px; background: rgba(15, 20, 30, 0.04); padding: 1px 5px; border-radius: 4px; }
+  </style>
+</helmet>
+
+<div style="width: 1180px; height: 820px; background: #f5f4f0; padding: 24px 26px; display: flex; flex-direction: column; gap: 15px; color: #1a1f26;">
+
+  <div style="display: flex; flex-direction: column; gap: 3px; flex-shrink: 0;">
+    <h1 class="title">Tres estados, y las categorías de siempre</h1>
+    <p class="body" style="font-size: 12.5px;">Revisar es comprobar que el albarán cuadra y que su proveedor está bien clasificado. Ni pagos ni partidas: las partidas se quedan para los escandallos.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex-shrink: 0;">
+
+    <div class="card" style="padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
+      <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(168, 83, 0, 0.12); color: #a85300;">Por revisar</span>
+      <p class="body" style="font-size: 12.5px;">Estado de entrada. Lo pone la app al guardar el albarán extraído — nadie lo elige.</p>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Sale de aquí:</strong> cuando alguien lo comprueba.</span>
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Cuenta para:</strong> la bandeja y el aviso de atrasados.</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
+      <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(20, 105, 74, 0.12); color: #14694a;">Confirmado</span>
+      <p class="body" style="font-size: 12.5px;">Lo que llegó cuadra con el papel: cantidades, precios y total.</p>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Desbloquea:</strong> exportar y contar en la gráfica sin asteriscos.</span>
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Reversible:</strong> sí, vuelve a «Por revisar».</span>
+      </div>
+    </div>
+
+    <div class="card" style="padding: 15px 16px; display: flex; flex-direction: column; gap: 9px;">
+      <span class="badge" style="align-self: flex-start; height: 24px; padding: 0 10px; font-size: 12px; background: rgba(176, 58, 58, 0.12); color: #b03a3a;">Incidencia</span>
+      <p class="body" style="font-size: 12.5px;">Algo no cuadra: falta género, el precio subió sin avisar, el albarán viene repetido.</p>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid rgba(15, 20, 30, 0.06);">
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Se cierra:</strong> confirmando, nunca sola.</span>
+        <span class="body" style="font-size: 11.5px;"><strong style="color: #1a1f26; font-weight: 500;">Pide:</strong> una nota — es la única que la necesita.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 14px 16px; display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
+    <div style="width: 104px; flex-shrink: 0;">
+      <span class="body-strong">El recorrido</span>
+    </div>
+    <div class="paso" style="flex: 1;">
+      <div class="paso-caja" style="background: #fafaf7;">
+        <span class="body" style="font-size: 11px; color: #64707d;">La IA</span>
+        <span class="body-strong" style="font-size: 12.5px;">Extraído</span>
+      </div>
+      <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="paso-caja" style="border-color: #a85300; background: rgba(168, 83, 0, 0.12);">
+        <span class="body" style="font-size: 11px; color: #a85300;">Automático</span>
+        <span class="body-strong" style="font-size: 12.5px; color: #a85300;">Por revisar</span>
+      </div>
+      <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="paso-caja" style="border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent;">
+        <span class="body" style="font-size: 11px; color: #64707d;">Una persona</span>
+        <span class="body-strong" style="font-size: 12.5px;">Corrige la categoría</span>
+      </div>
+      <svg width="18" height="14" viewBox="0 0 24 24" fill="none" stroke="#5f6b78" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <div class="paso-caja" style="border-color: #14694a; background: rgba(20, 105, 74, 0.12); padding: 5px 12px;">
+          <span class="body-strong" style="font-size: 12.5px; color: #14694a;">Confirmado</span>
+        </div>
+        <div class="paso-caja" style="border-color: #b03a3a; background: rgba(176, 58, 58, 0.12); padding: 5px 12px;">
+          <span class="body-strong" style="font-size: 12.5px; color: #b03a3a;">Incidencia</span>
+        </div>
+      </div>
+      <div style="flex: 1;"></div>
+      <span class="body" style="font-size: 11.5px; max-width: 246px;">Corregir la categoría es opcional: casi siempre la IA acierta. El paso solo aparece cuando el proveedor se quedó en «Sin categoría».</span>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 0; flex-shrink: 0; display: flex; flex-direction: column;">
+    <div class="card-header">
+      <span class="subtitle" style="font-size: 15px;">Las categorías que ya usa la app</span>
+      <span class="body" style="font-size: 11.5px;">Las mismas 16 de <span class="mono">VALID_CATEGORIES</span>, con los colores de <span class="mono">--mep-cat-*</span></span>
+    </div>
+    <div style="padding: 13px 16px; display: flex; flex-wrap: wrap; gap: 7px;">
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #3B6B20;"></span>Frutas y Verduras</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #8B3530;"></span>Carnes y Derivados</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #2C5F8A;"></span>Pescados y Mariscos</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #C9A227;"></span>Lácteos</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #9A7B1E;"></span>Aceites y Conservas</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #1B5E5E;"></span>Bebidas</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #A8642B;"></span>Panadería y Bollería</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #7A3B6B;"></span>Especias y Condimentos</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #4A6B7A;"></span>Productos de Limpieza</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #3A6E8B;"></span>Congelados</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #7A2E2A;"></span>Embutidos y Charcutería</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #6B4423;"></span>Vinos y Cavas</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #4A3324;"></span>Café y Bebidas Calientes</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #5C5C5C;"></span>Mantenimiento y Reparaciones</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #7A6B55;"></span>Material y Menaje</span>
+      <span class="cat-chip"><span style="width: 9px; height: 9px; border-radius: 2px; background: #6B7A5C;"></span>Embalaje y Packaging</span>
+      <span class="cat-chip" style="border-style: dashed; border-color: rgba(15, 20, 30, 0.28); background: transparent;"><span style="width: 9px; height: 9px; border-radius: 2px; background: #555566;"></span>Sin categoría <span class="body" style="font-size: 11px; color: #64707d;">— el <span class="mono">Other</span> de hoy</span></span>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 15px 16px; flex: 1; min-height: 0; display: flex; gap: 20px;">
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 7px;">
+      <span class="subtitle" style="font-size: 15px;">No hay ninguna columna nueva</span>
+      <p class="body" style="font-size: 12.5px;">Sin pagos sobran <span class="mono">paid</span> y todo lo que cuelga de <span class="mono">due_date</span>: quedan tres valores y caben en el <span class="mono">invoices.status</span> de hoy. Y la categoría ya existe en <span class="mono">suppliers.category</span>, con su filtro en la lista y su endpoint en <span class="mono">/api/supplier-category</span>. Esto es renombrar y quitar, no migrar.</p>
+    </div>
+    <div style="width: 1px; background: rgba(15, 20, 30, 0.06); flex-shrink: 0;"></div>
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 7px;">
+      <span class="subtitle" style="font-size: 15px;">Pero la categoría es del proveedor, no del albarán</span>
+      <p class="body" style="font-size: 12.5px;">Cambiarla desde una fila cambia todos los albaranes de ese proveedor — el menú lo avisa. Donde se rompe es con los que te venden de todo: Distribuciones Norte y Ruiz se quedan en «Sin categoría» y son <strong style="color: #1a1f26; font-weight: 500;">38.721 €</strong>, casi una cuarta parte del gasto. Si eso molesta, la salida es clasificar por línea (el producto ya tiene su categoría), no por albarán.</p>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script data-dc-script data-props='{"$preview": {"width": 1180, "height": 820}}'>
+class Component extends DCLogic {}
+</script>
+</body>
+</html>
