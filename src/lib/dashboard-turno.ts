@@ -1,4 +1,4 @@
-export const WORK_KINDS = ['price', 'budget', 'due', 'review', 'missing', 'supplier'] as const;
+export const WORK_KINDS = ['price', 'budget', 'review', 'missing', 'supplier'] as const;
 
 export type WorkKind = (typeof WORK_KINDS)[number];
 
@@ -31,15 +31,6 @@ export interface PriceShockInput {
 	daysAgo: number;
 }
 
-export interface PayableInput {
-	id: number;
-	supplier_name: string | null;
-	invoice_number: string | null;
-	due_date: string;
-	amount: number;
-	days_delta: number;
-}
-
 export interface MissingInput {
 	supplier_name: string;
 	days_late: number;
@@ -61,14 +52,11 @@ export interface TurnoInput {
 	budgets: Record<string, number>;
 	categorySpend: Record<string, number>;
 	priceShocks: PriceShockInput[];
-	payables: PayableInput[];
-	review: { count: number; amount: number };
+	review: { count: number; amount: number; incidencias: number };
 	missing: MissingInput[];
 	uncategorized: UncategorizedInput[];
 }
 
-export const CASH_OUT_HORIZON_DAYS = 21;
-export const RIBBON_HORIZON_DAYS = 14;
 export const MAX_WORK_ITEMS = 6;
 
 const MISSING_FREQUENCIES: string[] = ['weekly', 'biweekly', 'monthly', 'periodic'];
@@ -171,70 +159,23 @@ function budgetItems(input: TurnoInput): WorkItem[] {
 		}));
 }
 
-function dueItems(input: TurnoInput): WorkItem[] {
-	const overdue = input.payables.filter((p) => p.days_delta < 0);
-	const upcoming = input.payables
-		.filter((p) => p.days_delta >= 0 && p.days_delta <= RIBBON_HORIZON_DAYS)
-		.sort((a, b) => b.amount - a.amount);
-	const items: WorkItem[] = [];
-
-	const oldest = [...overdue].sort((a, b) => a.days_delta - b.days_delta)[0];
-	if (oldest) {
-		items.push({
-			id: 'due-overdue',
-			kind: 'due',
-			severity: 'high',
-			eur: overdue.reduce((s, p) => s + p.amount, 0),
-			urgencyRank: 0,
-			urgencyKey: 'turno.when.now',
-			urgencyVars: {},
-			titleKey: overdue.length === 1 ? 'turno.due.overdueTitle.one' : 'turno.due.overdueTitle.other',
-			titleVars: { n: overdue.length },
-			whyKey: 'turno.due.overdueWhy',
-			whyVars: { supplier: oldest.supplier_name ?? '—', days: Math.abs(oldest.days_delta) },
-			actionKey: 'turno.due.action',
-			href: '/reminders',
-		});
-	}
-
-	const next = upcoming[0];
-	if (next) {
-		items.push({
-			id: `due-${next.id}`,
-			kind: 'due',
-			severity: 'low',
-			eur: next.amount,
-			urgencyRank: 20 + next.days_delta,
-			urgencyKey: next.days_delta === 0 ? 'turno.when.today' : 'turno.when.inDays',
-			urgencyVars: { n: next.days_delta },
-			titleKey: 'turno.due.nextTitle',
-			titleVars: { number: next.invoice_number ?? String(next.id) },
-			whyKey: 'turno.due.nextWhy',
-			whyVars: { supplier: next.supplier_name ?? '—', date: next.due_date },
-			actionKey: 'turno.due.nextAction',
-			href: `/invoice/${next.id}`,
-		});
-	}
-
-	return items;
-}
-
 function reviewItems(input: TurnoInput): WorkItem[] {
 	if (input.review.count <= 0) return [];
+	const incidencias = input.review.incidencias;
 	return [{
 		id: 'review',
 		kind: 'review',
-		severity: 'low',
+		severity: incidencias > 0 ? 'med' : 'low',
 		eur: input.review.amount,
 		urgencyRank: 1,
 		urgencyKey: 'turno.when.today',
 		urgencyVars: { n: 0 },
 		titleKey: input.review.count === 1 ? 'turno.review.title.one' : 'turno.review.title.other',
 		titleVars: { n: input.review.count },
-		whyKey: 'turno.review.why',
-		whyVars: {},
+		whyKey: incidencias > 0 ? 'turno.review.whyIssues' : 'turno.review.why',
+		whyVars: { n: incidencias },
 		actionKey: 'turno.review.action',
-		href: '/invoices?status=pending',
+		href: incidencias > 0 ? '/invoices?status=incidencia' : '/invoices?status=por_revisar',
 	}];
 }
 
@@ -282,7 +223,6 @@ export function buildWorklist(input: TurnoInput): WorkItem[] {
 	const items = [
 		...priceItems(input),
 		...budgetItems(input),
-		...dueItems(input),
 		...reviewItems(input),
 		...missingItems(input),
 		...supplierItems(input),
