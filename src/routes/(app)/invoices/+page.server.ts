@@ -28,58 +28,106 @@ function isSortKey(v: string): v is SortKey {
 	return v in SORT_OPTIONS;
 }
 
+function parseInvoiceListParams(url: URL) {
+	const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
+	const q            = url.searchParams.get('q') ?? '';
+	const status       = url.searchParams.get('status') ?? '';
+	const supplierId   = url.searchParams.get('supplier_id') ?? '';
+	const dateFrom     = toIsoDate(url.searchParams.get('date_from')) ?? '';
+	const dateTo       = toIsoDate(url.searchParams.get('date_to')) ?? '';
+	const uploadedFrom = url.searchParams.get('uploaded_from') ?? '';
+	const uploadedTo   = url.searchParams.get('uploaded_to') ?? '';
+	const sortParam    = url.searchParams.get('sort') ?? '';
+	const sort: SortKey = isSortKey(sortParam) ? sortParam : 'uploaded_desc';
+	const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
+	const offset     = (page - 1) * PAGE_SIZE;
+
+	const periodParam = url.searchParams.get('period') ?? '';
+	const period: PeriodKey = isPeriodKey(periodParam) ? periodParam : 'month';
+	const { from: periodFrom, prevFrom, prevTo } = periodRange(period);
+
+	return { savedId, q, status, supplierId, dateFrom, dateTo, uploadedFrom, uploadedTo, sort, page, offset, period, periodFrom, prevFrom, prevTo };
+}
+
+function buildInvoiceConditions(tdb: ReturnType<typeof forTenant>, params: ReturnType<typeof parseInvoiceListParams>) {
+	const { q, status, supplierId, dateFrom, dateTo, uploadedFrom, uploadedTo, period, periodFrom, prevFrom, prevTo } = params;
+
+	const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
+	if (status)       conditions.push(eq(invoices.status, status));
+	if (supplierId)   conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
+	if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));
+	if (dateTo)       conditions.push(lte(invoices.invoiceDate, dateTo));
+	if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
+	if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
+	if (q) {
+		const likeQ = `%${q}%`;
+		const matchingSupplierIds = db.select({ id: suppliers.id }).from(suppliers)
+			.where(and(tdb.scope(suppliers.restaurantId), ilike(suppliers.name, likeQ)));
+		conditions.push(or(
+			ilike(invoices.invoiceNumber, likeQ),
+			inArray(invoices.supplierId, matchingSupplierIds),
+		) as SQL);
+	}
+
+	const periodScope = periodFrom ? gte(invoices.createdAt, periodFrom) : undefined;
+	// The Día/Mes/Año/Total pills scope the KPI cards and chart above the
+	// table -- they must also scope the table itself, or picking "Mes" and
+	// seeing the list unchanged reads as a broken filter, not a no-op.
+	if (periodScope) conditions.push(periodScope);
+	const prevPeriodScope = prevFrom && prevTo
+		? and(gte(invoices.createdAt, prevFrom), lt(invoices.createdAt, prevTo))
+		: undefined;
+
+	// 'year'/'all' bucket by month, everything else by day -- same rule as
+	// every other trend chart in the app.
+	const trendBucketExpr = (period === 'year' || period === 'all')
+		? sql<string>`TO_CHAR(${invoices.createdAt}, 'YYYY-MM')`
+		: sql<string>`TO_CHAR(${invoices.createdAt}, 'YYYY-MM-DD')`;
+
+	return { conditions, periodScope, prevPeriodScope, trendBucketExpr };
+}
+
+function buildInvoiceStats(
+	statsRow: { total_count: number; total_amount: string; commented_count: number }[],
+	prevStatsRow: { total_count: number; total_amount: string }[] | null,
+	needsReviewRow: { cnt: number }[],
+	seriesRows: { createdAt: Date | null; amount: string | null }[],
+	periodParams: Pick<ReturnType<typeof parseInvoiceListParams>, 'period' | 'periodFrom' | 'prevFrom' | 'prevTo'>,
+) {
+	const { period, periodFrom, prevFrom, prevTo } = periodParams;
+	const currentCount = statsRow[0]?.total_count ?? 0;
+	const currentAmount = moneyToNumber(statsRow[0]?.total_amount ?? '0');
+	const prevCount = prevStatsRow ? (prevStatsRow[0]?.total_count ?? 0) : null;
+	const prevAmount = prevStatsRow ? moneyToNumber(prevStatsRow[0]?.total_amount ?? '0') : null;
+
+	const seriesInput = seriesRows
+		.filter((r): r is { createdAt: Date; amount: string | null } => r.createdAt != null)
+		.map(r => ({ createdAt: r.createdAt, amount: moneyToNumber(r.amount ?? '0') }));
+	const countSeriesInput = seriesInput.map(r => ({ createdAt: r.createdAt, amount: 1 }));
+	const amountSeries = bucketSeries(seriesInput, period, periodFrom, prevFrom, prevTo);
+	const countSeries = bucketSeries(countSeriesInput, period, periodFrom, prevFrom, prevTo);
+
+	return {
+		total_count: currentCount,
+		total_amount: currentAmount,
+		commented_count: statsRow[0]?.commented_count ?? 0,
+		needs_review_count: needsReviewRow[0]?.cnt ?? 0,
+		count_delta_pct: prevCount !== null ? deltaPct(currentCount, prevCount) : null,
+		amount_delta_pct: prevAmount !== null ? deltaPct(currentAmount, prevAmount) : null,
+		count_spark: countSeries?.current ?? null,
+		count_spark_prev: countSeries?.previous ?? null,
+		amount_spark: amountSeries?.current ?? null,
+		amount_spark_prev: amountSeries?.previous ?? null,
+	};
+}
+
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
-		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
-		const q            = url.searchParams.get('q') ?? '';
-		const status       = url.searchParams.get('status') ?? '';
-		const supplierId   = url.searchParams.get('supplier_id') ?? '';
-		const dateFrom     = toIsoDate(url.searchParams.get('date_from')) ?? '';
-		const dateTo       = toIsoDate(url.searchParams.get('date_to')) ?? '';
-		const uploadedFrom = url.searchParams.get('uploaded_from') ?? '';
-		const uploadedTo   = url.searchParams.get('uploaded_to') ?? '';
-		const sortParam    = url.searchParams.get('sort') ?? '';
-		const sort: SortKey = isSortKey(sortParam) ? sortParam : 'uploaded_desc';
-		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
-		const offset     = (page - 1) * PAGE_SIZE;
-
-		const periodParam = url.searchParams.get('period') ?? '';
-		const period: PeriodKey = isPeriodKey(periodParam) ? periodParam : 'month';
-		const { from: periodFrom, prevFrom, prevTo } = periodRange(period);
-
-		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
-		if (status)       conditions.push(eq(invoices.status, status));
-		if (supplierId)   conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
-		if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));
-		if (dateTo)       conditions.push(lte(invoices.invoiceDate, dateTo));
-		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
-		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
-		if (q) {
-			const likeQ = `%${q}%`;
-			const matchingSupplierIds = db.select({ id: suppliers.id }).from(suppliers)
-				.where(and(tdb.scope(suppliers.restaurantId), ilike(suppliers.name, likeQ)));
-			conditions.push(or(
-				ilike(invoices.invoiceNumber, likeQ),
-				inArray(invoices.supplierId, matchingSupplierIds),
-			) as SQL);
-		}
-
-		const periodScope = periodFrom ? gte(invoices.createdAt, periodFrom) : undefined;
-		// The Día/Mes/Año/Total pills scope the KPI cards and chart above the
-		// table -- they must also scope the table itself, or picking "Mes" and
-		// seeing the list unchanged reads as a broken filter, not a no-op.
-		if (periodScope) conditions.push(periodScope);
-		const prevPeriodScope = prevFrom && prevTo
-			? and(gte(invoices.createdAt, prevFrom), lt(invoices.createdAt, prevTo))
-			: undefined;
-
-		// 'year'/'all' bucket by month, everything else by day -- same rule as
-		// every other trend chart in the app.
-		const trendBucketExpr = (period === 'year' || period === 'all')
-			? sql<string>`TO_CHAR(${invoices.createdAt}, 'YYYY-MM')`
-			: sql<string>`TO_CHAR(${invoices.createdAt}, 'YYYY-MM-DD')`;
+		const params = parseInvoiceListParams(url);
+		const { savedId, q, status, supplierId, dateFrom, dateTo, uploadedFrom, uploadedTo, sort, page, offset, period, periodFrom, prevFrom, prevTo } = params;
+		const { conditions, periodScope, prevPeriodScope, trendBucketExpr } = buildInvoiceConditions(tdb, params);
 
 		const [invoiceRows, statsRow, prevStatsRow, needsReviewRow, supplierRows, countRow, seriesRows, trendRows] = await Promise.all([
 			db.select({
@@ -200,30 +248,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			})),
 		}));
 
-		const currentCount = statsRow[0]?.total_count ?? 0;
-		const currentAmount = moneyToNumber(statsRow[0]?.total_amount ?? '0');
-		const prevCount = prevStatsRow ? (prevStatsRow[0]?.total_count ?? 0) : null;
-		const prevAmount = prevStatsRow ? moneyToNumber(prevStatsRow[0]?.total_amount ?? '0') : null;
-
-		const seriesInput = seriesRows
-			.filter((r): r is { createdAt: Date; amount: string | null } => r.createdAt != null)
-			.map(r => ({ createdAt: r.createdAt, amount: moneyToNumber(r.amount ?? '0') }));
-		const countSeriesInput = seriesInput.map(r => ({ createdAt: r.createdAt, amount: 1 }));
-		const amountSeries = bucketSeries(seriesInput, period, periodFrom, prevFrom, prevTo);
-		const countSeries = bucketSeries(countSeriesInput, period, periodFrom, prevFrom, prevTo);
-
-		const stats = {
-			total_count: currentCount,
-			total_amount: currentAmount,
-			commented_count: statsRow[0]?.commented_count ?? 0,
-			needs_review_count: needsReviewRow[0]?.cnt ?? 0,
-			count_delta_pct: prevCount !== null ? deltaPct(currentCount, prevCount) : null,
-			amount_delta_pct: prevAmount !== null ? deltaPct(currentAmount, prevAmount) : null,
-			count_spark: countSeries?.current ?? null,
-			count_spark_prev: countSeries?.previous ?? null,
-			amount_spark: amountSeries?.current ?? null,
-			amount_spark_prev: amountSeries?.previous ?? null,
-		};
+		const stats = buildInvoiceStats(statsRow, prevStatsRow, needsReviewRow, seriesRows, params);
 		const total = Number(countRow[0]?.cnt ?? 0);
 
 		const trend = trendRows.map(r => ({

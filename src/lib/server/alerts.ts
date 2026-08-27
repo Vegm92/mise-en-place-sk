@@ -43,26 +43,22 @@ function collapseHistory(points: PricePoint[]): PricePoint {
 
 const PRICE_HISTORY_WINDOW = 3;
 
-export async function runPriceShock(
-	invoiceId: number,
-	supplierName: string,
-	lineItems: EnrichedLineItem[],
-	restaurantId: string,
-	productByKey?: Map<string, number>,
-): Promise<Alert[]> {
+async function fetchPriceShockThreshold(restaurantId: string): Promise<number> {
 	const tdb = forTenant(restaurantId);
-	const alerts: Alert[] = [];
-
 	const thresholdRows = await db
 		.select({ value: settings.value })
 		.from(settings)
 		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'price_alert_threshold')))
 		.limit(1);
-	const PRICE_SHOCK_THRESHOLD = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
+	return thresholdRows[0] ? Number.parseFloat(thresholdRows[0].value) : 0.15;
+}
 
-	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
-	if (itemKeys.length === 0) return [];
-
+async function fetchKeyPriceMap(
+	itemKeys: string[],
+	restaurantId: string,
+	supplierName: string,
+	invoiceId: number,
+): Promise<Map<string, PricePoint>> {
 	const priceRows = await db.execute<{ itemKey: string; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
 		SELECT "itemKey", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
 			SELECT
@@ -95,79 +91,127 @@ export async function runPriceShock(
 	}
 	const keyPriceMap = new Map<string, PricePoint>();
 	for (const [key, points] of keyPriceHistory) keyPriceMap.set(key, collapseHistory(points));
+	return keyPriceMap;
+}
 
+async function fetchProductPriceMap(
+	productByKey: Map<string, number> | undefined,
+	restaurantId: string,
+	supplierName: string,
+	invoiceId: number,
+): Promise<Map<number, PricePoint>> {
 	const productPriceMap = new Map<number, PricePoint>();
 	const productIds = productByKey ? [...new Set(productByKey.values())] : [];
-	if (productIds.length > 0) {
-		const productRows = await db.execute<{ productId: number; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
-			SELECT "productId", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
-				SELECT
-					ili.product_id AS "productId",
-					ili.unit_price AS "unitPrice",
-					ili.normalized_unit_price AS "normalizedUnitPrice",
-					ili.base_unit AS "baseUnit",
-					ROW_NUMBER() OVER (
-						PARTITION BY ili.product_id
-						ORDER BY i.invoice_date DESC, i.id DESC
-					) AS rn
-				FROM invoice_line_items ili
-				INNER JOIN invoices i ON ili.invoice_id = i.id
-				INNER JOIN suppliers s ON i.supplier_id = s.id
-				WHERE i.restaurant_id = ${restaurantId}
-					AND ili.product_id IN (${sql.join(productIds.map(p => sql`${p}`), sql`, `)})
-					AND s.name = ${supplierName}
-					AND ili.invoice_id != ${invoiceId}
-					AND ili.unit_price IS NOT NULL
-					AND i.deleted_at IS NULL
-			) ranked
-			WHERE rn <= ${PRICE_HISTORY_WINDOW}
-		`);
-		const productHistory = new Map<number, PricePoint[]>();
-		for (const row of productRows) {
-			const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
-			const arr = productHistory.get(row.productId);
-			if (arr) arr.push(point); else productHistory.set(row.productId, [point]);
-		}
-		for (const [productId, points] of productHistory) productPriceMap.set(productId, collapseHistory(points));
-	}
+	if (productIds.length === 0) return productPriceMap;
 
+	const productRows = await db.execute<{ productId: number; unitPrice: string; normalizedUnitPrice: string | null; baseUnit: string | null }>(sql`
+		SELECT "productId", "unitPrice", "normalizedUnitPrice", "baseUnit" FROM (
+			SELECT
+				ili.product_id AS "productId",
+				ili.unit_price AS "unitPrice",
+				ili.normalized_unit_price AS "normalizedUnitPrice",
+				ili.base_unit AS "baseUnit",
+				ROW_NUMBER() OVER (
+					PARTITION BY ili.product_id
+					ORDER BY i.invoice_date DESC, i.id DESC
+				) AS rn
+			FROM invoice_line_items ili
+			INNER JOIN invoices i ON ili.invoice_id = i.id
+			INNER JOIN suppliers s ON i.supplier_id = s.id
+			WHERE i.restaurant_id = ${restaurantId}
+				AND ili.product_id IN (${sql.join(productIds.map(p => sql`${p}`), sql`, `)})
+				AND s.name = ${supplierName}
+				AND ili.invoice_id != ${invoiceId}
+				AND ili.unit_price IS NOT NULL
+				AND i.deleted_at IS NULL
+		) ranked
+		WHERE rn <= ${PRICE_HISTORY_WINDOW}
+	`);
+	const productHistory = new Map<number, PricePoint[]>();
+	for (const row of productRows) {
+		const point = { unitPrice: moneyToNumber(row.unitPrice), normalizedUnitPrice: moneyToNullableNumber(row.normalizedUnitPrice), baseUnit: row.baseUnit };
+		const arr = productHistory.get(row.productId);
+		if (arr) arr.push(point); else productHistory.set(row.productId, [point]);
+	}
+	for (const [productId, points] of productHistory) productPriceMap.set(productId, collapseHistory(points));
+	return productPriceMap;
+}
+
+function computePriceShockAlert(
+	item: EnrichedLineItem,
+	productByKey: Map<string, number> | undefined,
+	keyPriceMap: Map<string, PricePoint>,
+	productPriceMap: Map<number, PricePoint>,
+	threshold: number,
+	supplierName: string,
+): Alert | null {
+	const description = (item.description ?? '').trim();
+	const newPrice = item.unitPrice;
+	if (!description || newPrice == null) return null;
+
+	const key = normalizeProductKey(description);
+	const pid = productByKey?.get(key);
+	const prev = (pid != null ? productPriceMap.get(pid) : undefined) ?? keyPriceMap.get(key);
+	if (!prev) return null;
+
+	const newPack = parsePack(description, item.unit);
+	const newNorm = normalizedUnitPrice(newPrice, newPack);
+	const useNorm = newNorm != null && prev.normalizedUnitPrice != null && prev.normalizedUnitPrice > 0
+		&& newPack != null && prev.baseUnit != null && newPack.baseUnit === prev.baseUnit;
+
+	const oldCmp = useNorm ? prev.normalizedUnitPrice! : prev.unitPrice;
+	const newCmp = useNorm ? newNorm! : newPrice;
+	if (oldCmp === 0) return null;
+
+	const deviation = (newCmp - oldCmp) / oldCmp;
+	if (Math.abs(deviation) < threshold) return null;
+
+	const pct = Math.round(deviation * 1000) / 10;
+	const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
+
+	return {
+		notificationType: 'price_shock',
+		message: `price_shock: ${description} ${pct > 0 ? '+' : ''}${pct}%`,
+		payload: {
+			ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null,
+			messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
+			messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
+		},
+	};
+}
+
+function detectPriceShocks(
+	lineItems: EnrichedLineItem[],
+	productByKey: Map<string, number> | undefined,
+	keyPriceMap: Map<string, PricePoint>,
+	productPriceMap: Map<number, PricePoint>,
+	threshold: number,
+	supplierName: string,
+): Alert[] {
+	const alerts: Alert[] = [];
 	for (const item of lineItems) {
-		const description = (item.description ?? '').trim();
-		const newPrice = item.unitPrice;
-		if (!description || newPrice == null) continue;
-
-		const key = normalizeProductKey(description);
-		const pid = productByKey?.get(key);
-		const prev = (pid != null ? productPriceMap.get(pid) : undefined) ?? keyPriceMap.get(key);
-		if (!prev) continue;
-
-		const newPack = parsePack(description, item.unit);
-		const newNorm = normalizedUnitPrice(newPrice, newPack);
-		const useNorm = newNorm != null && prev.normalizedUnitPrice != null && prev.normalizedUnitPrice > 0
-			&& newPack != null && prev.baseUnit != null && newPack.baseUnit === prev.baseUnit;
-
-		const oldCmp = useNorm ? prev.normalizedUnitPrice! : prev.unitPrice;
-		const newCmp = useNorm ? newNorm! : newPrice;
-		if (oldCmp === 0) continue;
-
-		const deviation = (newCmp - oldCmp) / oldCmp;
-		if (Math.abs(deviation) < PRICE_SHOCK_THRESHOLD) continue;
-
-		const pct = Math.round(deviation * 1000) / 10;
-		const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
-
-		alerts.push({
-			notificationType: 'price_shock',
-			message: `price_shock: ${description} ${pct > 0 ? '+' : ''}${pct}%`,
-			payload: {
-				ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: useNorm ? 'per_base_unit' : 'per_unit', baseUnit: useNorm ? newPack!.baseUnit : null,
-				messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
-				messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
-			},
-		});
+		const alert = computePriceShockAlert(item, productByKey, keyPriceMap, productPriceMap, threshold, supplierName);
+		if (alert) alerts.push(alert);
 	}
-
 	return alerts;
+}
+
+export async function runPriceShock(
+	invoiceId: number,
+	supplierName: string,
+	lineItems: EnrichedLineItem[],
+	restaurantId: string,
+	productByKey?: Map<string, number>,
+): Promise<Alert[]> {
+	const threshold = await fetchPriceShockThreshold(restaurantId);
+
+	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
+	if (itemKeys.length === 0) return [];
+
+	const keyPriceMap = await fetchKeyPriceMap(itemKeys, restaurantId, supplierName, invoiceId);
+	const productPriceMap = await fetchProductPriceMap(productByKey, restaurantId, supplierName, invoiceId);
+
+	return detectPriceShocks(lineItems, productByKey, keyPriceMap, productPriceMap, threshold, supplierName);
 }
 
 export async function runStockForecast(lineItems: EnrichedLineItem[], restaurantId: string): Promise<Alert[]> {

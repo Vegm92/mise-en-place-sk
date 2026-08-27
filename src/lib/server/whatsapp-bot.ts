@@ -35,6 +35,34 @@ async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 	}
 }
 
+async function handleUnknownContact(from: string, msg: WhatsAppInboundMessage): Promise<void> {
+	if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
+		await handlePairingAttempt(from, msg.text.body);
+		return;
+	}
+
+	if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
+		await sendWhatsAppMessage(
+			from,
+			'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
+		);
+	}
+}
+
+/** Returns true (and replies to the user) when a media message must be blocked for lack of access. */
+async function rejectIfMediaAccessDenied(from: string, restaurantId: string, msgType: string): Promise<boolean> {
+	if (msgType !== 'image' && msgType !== 'document') return false;
+	const access = await getAccessState(restaurantId);
+	if (access.allowed) return false;
+	await sendWhatsAppMessage(
+		from,
+		access.trialExpired
+			? 'Tu prueba gratuita ha expirado. Actualiza tu plan en el panel web para seguir enviando facturas.'
+			: 'Tu suscripción no está activa. Actualiza tu plan en el panel web.',
+	);
+	return true;
+}
+
 export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promise<void> {
 	if (!(await claimMessageId(msg.id))) {
 		console.info(`[whatsapp-bot] duplicate message ${msg.id} — skipping`);
@@ -53,34 +81,13 @@ export async function handleWhatsAppMessage(msg: WhatsAppInboundMessage): Promis
 		.limit(1);
 
 	if (contactRows.length === 0) {
-		if (msg.type === 'text' && msg.text && normalizeCode(msg.text.body)) {
-			await handlePairingAttempt(from, msg.text.body);
-			return;
-		}
-
-		if (await checkRateLimit(`whatsapp-unauth:${from}`, 1, UNAUTHORIZED_REPLY_COOLDOWN_S)) {
-			await sendWhatsAppMessage(
-				from,
-				'❌ Este número no está autorizado. Contacta con el administrador para registrarte.',
-			);
-		}
+		await handleUnknownContact(from, msg);
 		return;
 	}
 
 	const restaurantId = contactRows[0].restaurantId;
 
-	if (msg.type === 'image' || msg.type === 'document') {
-		const access = await getAccessState(restaurantId);
-		if (!access.allowed) {
-			await sendWhatsAppMessage(
-				from,
-				access.trialExpired
-					? 'Tu prueba gratuita ha expirado. Actualiza tu plan en el panel web para seguir enviando facturas.'
-					: 'Tu suscripción no está activa. Actualiza tu plan en el panel web.',
-			);
-			return;
-		}
-	}
+	if (await rejectIfMediaAccessDenied(from, restaurantId, msg.type)) return;
 
 	if (msg.type === 'image' && msg.image) {
 		await handleMediaUpload(from, restaurantId, msg.image.id);
