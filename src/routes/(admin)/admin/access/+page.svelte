@@ -104,7 +104,7 @@
     <div style="padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--mep-divider);">
       <form method="POST" action="?/addEmail" use:enhance style="display:flex;gap:6px;flex:1;min-width:240px;">
         <input type="email" name="email" required placeholder={$t('admin.access.addEmailPh')}
-          style="flex:1;min-width:180px;height:30px;padding:0 10px;font-size:12px;border:1px solid var(--mep-divider);border-radius:6px;background:var(--mep-bg);color:var(--mep-fg);" />
+          class="input" style="flex:1;min-width:180px;height:30px;" />
         <button type="submit" class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:12px;">
           {$t('admin.access.addEmail')}
         </button>
