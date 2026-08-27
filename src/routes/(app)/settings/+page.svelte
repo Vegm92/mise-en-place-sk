@@ -34,6 +34,7 @@
   const showLocations = $derived(data.multiLocation || lockedLocations.length > 0);
 
   let deleteConfirm = $state('');
+  let deletePassword = $state('');
   let deleting = $state(false);
   let deleteError = $state('');
 
@@ -60,7 +61,11 @@
       const res = await fetch('/api/user/delete', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ confirm: 'DELETE_MY_ACCOUNT' }),
+        body: JSON.stringify(
+          data.profile.hasPassword
+            ? { password: deletePassword }
+            : { confirm: 'DELETE_MY_ACCOUNT' },
+        ),
       });
       if (res.ok) {
         window.location.href = '/login';
@@ -621,27 +626,50 @@
                 <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;margin-top:2px;" />
                 <div class="set-grow">
                   <p class="set-danger-lead">{$t('set.deleteDesc')}</p>
-                  <p class="set-lbl-hint set-danger-hint">
-                    {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
-                  </p>
-                  <div class="set-inline">
-                    <input
-                      type="text"
-                      placeholder={$t('set.deleteConfirmWord')}
-                      bind:value={deleteConfirm}
-                      class="input set-danger-input"
-                    />
-                    <button
-                      type="button"
-                      onclick={handleDeleteAccount}
-                      disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
-                      class="btn"
-                      style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
-                    >
-                      {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
-                    </button>
-                    <button type="button" class="btn btn-ghost" onclick={() => (dangerOpen = false)}>{$t('set.cancel')}</button>
-                  </div>
+                  {#if !data.profile.hasPassword}
+                    <p class="set-lbl-hint set-danger-hint">
+                      {$t('set.deleteType')} <strong>{$t('set.deleteConfirmWord')}</strong> {$t('set.deleteHint')}
+                    </p>
+                    <div class="set-inline">
+                      <input
+                        type="text"
+                        placeholder={$t('set.deleteConfirmWord')}
+                        bind:value={deleteConfirm}
+                        class="input set-danger-input"
+                      />
+                      <button
+                        type="button"
+                        onclick={handleDeleteAccount}
+                        disabled={deleteConfirm !== $t('set.deleteConfirmWord') || deleting}
+                        class="btn"
+                        style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deleteConfirm !== $t('set.deleteConfirmWord') || deleting ? 0.5 : 1};"
+                      >
+                        {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
+                      </button>
+                      <button type="button" class="btn btn-ghost" onclick={() => (dangerOpen = false)}>{$t('set.cancel')}</button>
+                    </div>
+                  {:else}
+                    <p class="set-lbl-hint set-danger-hint">{$t('set.deletePasswordHint')}</p>
+                    <div class="set-inline">
+                      <input
+                        type="password"
+                        autocomplete="current-password"
+                        placeholder={$t('set.profile.currentPassword')}
+                        bind:value={deletePassword}
+                        class="input set-danger-input"
+                      />
+                      <button
+                        type="button"
+                        onclick={handleDeleteAccount}
+                        disabled={deletePassword.length === 0 || deleting}
+                        class="btn"
+                        style="background:var(--mep-neg);color:var(--mep-neg-fg);border:none;opacity:{deletePassword.length === 0 || deleting ? 0.5 : 1};"
+                      >
+                        {deleting ? $t('set.deletingBtn') : $t('set.deleteBtn')}
+                      </button>
+                      <button type="button" class="btn btn-ghost" onclick={() => (dangerOpen = false)}>{$t('set.cancel')}</button>
+                    </div>
+                  {/if}
                   {#if deleteError}
                     <p class="set-msg set-msg-err">{deleteError}</p>
                   {/if}
