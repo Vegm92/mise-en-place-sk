@@ -2,6 +2,23 @@
 
 Hands-on QA pass over the full running app (local Postgres, seeded data, Playwright at 390×844 and 1280×800, es-ES). Every public, authenticated, Pro and admin surface was driven in a real browser; 157 screenshots captured. Verdict: **go for private beta after the two High fixes below.**
 
+## Product alignment (founder direction, 27 Aug): drop the payment model
+
+The app tracks albaranes, productos y proveedores — not payments. States must be **revisado · por revisar · con incidencias**, but a payment lifecycle (`invoices.status = 'pending'|'paid'` + `due_date`) is woven through the UI:
+
+- `/invoices` KPI tiles "PENDIENTE € / VENCIDAS / PAGADAS" (`inv.kpi.*`) → Revisados / Por revisar / Con incidencias.
+- The "Por revisar" status chip everywhere is driven by `status='pending'` (= unpaid) — the double meaning behind the dashboard-ribbon confusion below.
+- Mark-paid actions: `?/markPaid` (`invoices/+page.server.ts:196`, `reminders/+page.server.ts:86`), bulk "Marcar todas pagadas", mobile alerts "Marcar como pagada" → replace with review/incidence actions.
+- Dashboard "SALE DE CAJA · 14 D", "POR REVISAR €", turno "{n} albaranes vencidos sin pagar" (`turno.due.*`) → review-state tiles; keep the spend-pace tiles.
+- `/reminders` is a payment-due page → refocus on incidencias (duplicados, descuadres, sin clasificar, extracciones fallidas).
+- Alert pref + worker email "albaranes vencidos sin pagar" (`invoice_reminders`) → retire or make an incidencias digest.
+- Excel export "Estado" column exports payment status (`export/download/+server.ts:67`) → review state.
+- Smaller echoes: chat chip "¿Qué albaranes están vencidos?", supplier "Pendiente €" stat, report "lo que vence", `help.tip.reminders.body`.
+
+Data model: `batch_items.review_status` exists unused; map *revisado* on confirm, *incidencia* when a save carries duplicate/total-mismatch/low-confidence/conversion warnings (already in `system_notifications`), *por revisar* otherwise. Keep `due_date` as data, stop building UX on it.
+
+**"Factura" leaks in ES copy** (should say albarán): `login.aside.title` ("Tus facturas ya están leídas"), WhatsApp notifs (`notif.msg.whatsapp*`, `notif.openBatch` "Abrir factura"), `set.alertPrefs.type.invoice_reminders` ("Recordatorios de facturas"), `inv.trend.title` ("Evolución de facturas"), `turno.missing.*` ("no factura desde hace…" → "no trae albaranes desde…"). The document-type badge (`field.documentType.factura`) is semantically correct — founder call. Suggest extending `lint:i18n` to flag "factura" in new ES strings.
+
 ## High — fix before the first tester
 
 1. **Camera photo preview is blocked by the app's own CSP.**
