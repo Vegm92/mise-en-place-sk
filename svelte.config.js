@@ -21,7 +21,7 @@ const config = {
 				'script-src':   ['self', 'https://challenges.cloudflare.com'],
 				'style-src':    ['self', 'unsafe-inline'],
 				'font-src':     ['self'],
-				'img-src':      ['self', 'data:'],
+				'img-src':      ['self', 'data:', 'blob:'],
 				'connect-src':  ['self', 'https://*.sentry.io'],
 				// 'blob:' — Sentry's replayIntegration compresses events in a worker
 				// it spawns from a blob URL; without it Replay silently degrades.
