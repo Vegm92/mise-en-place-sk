@@ -35,7 +35,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 490 | P2 | DONE | 1 | Verified (commit 39228ec): hooks-level tenant gate via route.id — 409 JSON for (app)/api/*, 303 /onboarding for pages; route-tree-walking tests. 2266/2266. | locals.restaurantId! opaque 500 on API routes |
 | 489 | P2 | PENDING | 0 | | layout runs 13 queries per navigation |
 | 501 | P2 | PENDING | 0 | | extraction semaphore no timeout |
-| 497 | P2 | PENDING | 0 | | system_notifications.payload text ::json |
+| 497 | P2 | DONE | 1 | Verified (commit d927fa8): payload → jsonb (migration 0046, USING cast), all casts/parses removed, partial index for layout level filter. 2274/2274. | system_notifications.payload text ::json |
 | 466 | P2 | PENDING | 0 | | move EXTRACTION_PROMPT to systemInstruction |
 | 465 | P2 | PENDING | 0 | | bump @sveltejs/kit ReDoS + overrides + puppeteer |
 | 426 | P2 | PENDING | 0 | | chat/digest bypass LLM provider seam |
