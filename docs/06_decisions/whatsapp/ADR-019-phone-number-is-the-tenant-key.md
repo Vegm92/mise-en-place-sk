@@ -111,6 +111,45 @@ at Meta's per-message price.
 - `whatsapp_bot_sessions` is gone (migration `0026`), per ADR-004's completed
   cutover. Nothing here reintroduces a channel-specific state machine.
 
+## Update — binding requires pairing (issue #498)
+
+The global unique index stayed exactly right for routing; what was wrong was
+*who could write a row*. Settings' manual "type a phone number" form called
+`addContact` directly, so any owner — of any restaurant — could type in a
+number they did not control. Best case that misrouted staff; worst case it
+was a standing way to squat a competitor's number, since there was no proof
+of control and no visible unbind path.
+
+**Manual entry no longer binds. It invites.** `addWhatsappContact` now calls
+`generatePairingCode` with the typed number as a target
+(`whatsapp_pairing_codes.phone_number`, migration `0045`), the same function
+the existing "generate a code" flow already used untargeted. `whatsapp_contacts`
+— the table `resolveRestaurantId` actually routes on — is now written in
+exactly one place: `redeemPairingCode`. A targeted invite additionally checks
+the redeeming sender's number against the invite before calling `addContact`;
+a mismatch is released and answered identically to an unknown/expired code
+(reason `'invalid'`), so a wrong number teaches an attacker nothing. An
+untargeted code (`phone_number IS NULL`) keeps its original behaviour: the
+first phone to send it wins it.
+
+**"Taken" no longer discloses.** The old settings error
+(`set.whatsapp.err.taken`, "ya está autorizado en otro local") is gone —
+`addWhatsappContact` never checks whether the invited number is already
+bound, so inviting an available number and inviting a squatted one look
+identical from Settings; the real availability check still happens, but only
+at redemption, from the phone that would have to prove control anyway. The
+bot's redemption-time reply for that case (`message-handler.ts`) is reworded
+to a neutral "no se ha podido vincular este número" that no longer names
+"otro local".
+
+**Release is a real path, audited.** `removeContact` (owner, via Settings)
+and the new `releaseContactByPhone` (support, via `/admin/whatsapp` — the
+only place that may look a number up without tenant scope, gated by
+`isAdminUser`) both delete the `whatsapp_contacts` row and write a
+`trackEvent('whatsapp_contact_released', ...)` row (`system_notifications`),
+so a release has an audit trail and the number is immediately free for
+another tenant's pairing invite to claim.
+
 ## Related
 
 - [ADR-004](./ADR-004-whatsapp-converges-on-batch-pipeline.md) — the ingestion convergence
