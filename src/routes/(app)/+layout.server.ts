@@ -116,6 +116,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		tutorialStep,
 		planTier,
 		features: tierConfig.features,
+		trialExpired:       entitlements?.access.trialExpired ?? false,
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
 		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,
