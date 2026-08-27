@@ -63,7 +63,7 @@
 		"@google/genai": "^1.52.0",
 		"@lucide/svelte": "^1.23.0",
 		"@sentry/sveltekit": "^10.64.0",
-		"@sveltejs/kit": "^2.69.2",
+		"@sveltejs/kit": "^2.70.3",
 		"@upstash/ratelimit": "^2.0.8",
 		"@upstash/redis": "^1.38.0",
 		"@whiskeysockets/baileys": "7.0.0-rc14",
@@ -86,10 +86,11 @@
 			"cookie@0.6.0": "^0.7.2",
 			"uuid@8.3.2": "^11.1.1",
 			"postcss@<8.5.18": "^8.5.18",
-			"brace-expansion@<5.0.8": "^5.0.8",
+			"brace-expansion@<5.0.9": "^5.0.9",
 			"esbuild@<0.25.0": "^0.25.0",
-			"fast-uri@<3.1.4": "^3.1.4",
-			"shell-quote@<1.9.0": "^1.9.0"
+			"fast-uri@<3.1.5": "^3.1.5",
+			"shell-quote@<1.9.0": "^1.9.0",
+			"nanoid@<3.3.18": "^3.3.18"
 		}
 	}
 }
