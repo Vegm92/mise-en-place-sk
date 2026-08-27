@@ -1,3 +1,4 @@
+import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
@@ -5,6 +6,10 @@ import { and, desc, eq, gte, isNull, lte, type SQL } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
+import { checkRateLimit } from '$lib/server/rate-limiter';
+import { EXPORT_ROW_CAP } from '$lib/server/env';
+
+const POSITIVE_INT = /^[1-9]\d*$/;
 
 const STATUS_LABELS: Record<string, string> = {
 	pending:  'Pendiente',
@@ -21,12 +26,24 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
 };
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	const rid        = locals.restaurantId!;
-	const tdb        = forTenant(rid);
-	const status     = url.searchParams.get('status') ?? '';
-	const supplierId = url.searchParams.get('supplier_id') ?? '';
-	const dateFrom   = toIsoDate(url.searchParams.get('date_from'));
-	const dateTo     = toIsoDate(url.searchParams.get('date_to'));
+	const rid = locals.restaurantId!;
+
+	if (!(await checkRateLimit(`export:${rid}`, 5))) {
+		throw error(429, 'Too many requests — please wait a moment before trying again');
+	}
+
+	const tdb          = forTenant(rid);
+	const status       = url.searchParams.get('status') ?? '';
+	const supplierId   = url.searchParams.get('supplier_id') ?? '';
+	const dateFromParam = url.searchParams.get('date_from') ?? '';
+	const dateToParam   = url.searchParams.get('date_to') ?? '';
+
+	if (supplierId && !POSITIVE_INT.test(supplierId)) throw error(400, 'Invalid supplier_id');
+
+	const dateFrom = toIsoDate(dateFromParam);
+	const dateTo   = toIsoDate(dateToParam);
+	if (dateFromParam && !dateFrom) throw error(400, 'Invalid date_from');
+	if (dateToParam && !dateTo) throw error(400, 'Invalid date_to');
 
 	const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 	if (status)     conditions.push(eq(invoices.status, status));
@@ -34,7 +51,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	if (dateFrom)   conditions.push(gte(invoices.invoiceDate, dateFrom));
 	if (dateTo)     conditions.push(lte(invoices.invoiceDate, dateTo));
 
-	const rows = await db
+	const fetched = await db
 		.select({
 			id:             invoices.id,
 			supplier:       suppliers.name,
@@ -49,7 +66,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
 		// tenant-scope-ok: conditions[0] is tdb.scope(invoices.restaurantId)
 		.where(and(...conditions))
-		.orderBy(desc(invoices.invoiceDate));
+		.orderBy(desc(invoices.invoiceDate))
+		.limit(EXPORT_ROW_CAP + 1);
+
+	const truncated = fetched.length > EXPORT_ROW_CAP;
+	const rows      = truncated ? fetched.slice(0, EXPORT_ROW_CAP) : fetched;
 
 	const workbook = new ExcelJS.Workbook();
 	workbook.creator = 'Mise en Place';
@@ -99,6 +120,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	});
 
 	sheet.autoFilter = { from: 'A1', to: `H${rows.length + 1}` };
+
+	if (truncated) {
+		const notice = sheet.addRow({
+			id: `Exportación truncada a ${EXPORT_ROW_CAP.toLocaleString('es-ES')} filas — acota el rango de fechas o el proveedor para exportar el resto.`,
+		});
+		sheet.mergeCells(`A${notice.number}:H${notice.number}`);
+		notice.getCell('id').font = { italic: true, bold: true, color: { argb: 'FFB00020' } };
+		notice.getCell('id').alignment = { vertical: 'middle' };
+	}
 
 	const buffer = await workbook.xlsx.writeBuffer();
 

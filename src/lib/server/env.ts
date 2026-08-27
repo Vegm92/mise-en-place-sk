@@ -11,6 +11,7 @@ export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 export const GEMINI_TIMEOUT_MS = parseInt(process.env.GEMINI_TIMEOUT_MS ?? '120000', 10);
 export const CHAT_RATE_LIMIT_RPM = parseInt(process.env.CHAT_RATE_LIMIT_RPM ?? '20', 10);
 export const MAX_CONCURRENT_EXTRACTIONS = parseInt(process.env.MAX_CONCURRENT_EXTRACTIONS ?? '3', 10);
+export const EXPORT_ROW_CAP = parseInt(process.env.EXPORT_ROW_CAP ?? '10000', 10);
 export const SCHEDULED_FANOUT_CONCURRENCY = Math.max(1, parseInt(process.env.SCHEDULED_FANOUT_CONCURRENCY ?? '5', 10) || 1);
 export const EXTRACTION_STALL_WARN_MS = parseInt(process.env.EXTRACTION_STALL_WARN_MS ?? '120000', 10);
 export const EXTRACTION_STALL_TIMEOUT_MS = parseInt(process.env.EXTRACTION_STALL_TIMEOUT_MS ?? '900000', 10);
