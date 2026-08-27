@@ -30,8 +30,8 @@
   --mep-neg-soft: rgba(176, 58, 58, 0.12);
   --mep-warn:     #a85300;
   --mep-warn-soft:rgba(168, 83, 0, 0.12);
-  --mep-caution:     #8a7300;
-  --mep-caution-soft:rgba(138, 115, 0, 0.14);
+  --mep-caution:     #7f6b00;
+  --mep-caution-soft:rgba(127, 107, 0, 0.14);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
 
@@ -46,30 +46,33 @@
 
   --mep-badge-pdf:   #c14a4a;
   --mep-badge-other: #6a8a6a;
+  /* Ink for the letters on a solid badge fill — same role as --mep-acc-fg.
+     Both badge fills are mid-dark in either theme, so this does not flip. */
+  --mep-badge-fg:    #ffffff;
 }
 
 /* Light */
 :root[data-theme="light"] {
   color-scheme: light;
-  --mep-bg:       #f5f4f0;
+  --mep-bg:       #f1f0ee;
   --mep-surface:  #ffffff;
-  --mep-surface-2:#fafaf7;
+  --mep-surface-2:#f8f7f5;
   --mep-overlay:  #ffffff;
-  --mep-hover:    rgba(15, 20, 30, 0.04);
-  --mep-pressed:  rgba(15, 20, 30, 0.07);
+  --mep-hover:    rgba(20, 20, 24, 0.04);
+  --mep-pressed:  rgba(20, 20, 24, 0.07);
 
-  --mep-fg:   #1a1f26;
-  --mep-fg-2: #4a5562;
-  --mep-fg-3: #5f6b78;
-  --mep-fg-4: #64707d;
+  --mep-fg:   #17171a;
+  --mep-fg-2: #46464a;
+  --mep-fg-3: #5b5b60;
+  --mep-fg-4: #6b6b70;
 
-  --mep-border:       rgba(15, 20, 30, 0.10);
-  --mep-border-strong:rgba(15, 20, 30, 0.18);
-  --mep-divider:      rgba(15, 20, 30, 0.06);
+  --mep-border:       rgba(20, 20, 24, 0.13);
+  --mep-border-strong:rgba(20, 20, 24, 0.22);
+  --mep-divider:      rgba(20, 20, 24, 0.07);
 
-  --mep-scrim:       rgba(15, 20, 30, 0.45);
-  --mep-shadow-card: 0 1px 0 rgba(15, 20, 30, 0.04), 0 1px 2px rgba(15, 20, 30, 0.04);
-  --mep-shadow-pop:  0 4px 12px rgba(15, 20, 30, 0.08), 0 12px 32px rgba(15, 20, 30, 0.10);
+  --mep-scrim:       rgba(20, 20, 24, 0.45);
+  --mep-shadow-card: 0 1px 0 rgba(20, 20, 24, 0.04), 0 1px 2px rgba(20, 20, 24, 0.04);
+  --mep-shadow-pop:  0 4px 12px rgba(20, 20, 24, 0.08), 0 12px 32px rgba(20, 20, 24, 0.10);
 
   /* Categorical series (fixed order, never cycled — see dataviz color formula).
      ListPageTemplate colours its trend-badge *text* with these over a 12% tint
@@ -81,8 +84,6 @@
   --mep-series-5: #12865c;
   --mep-series-other: #6e7682;
 
-  --mep-badge-pdf:   #c14a4a;
-  --mep-badge-other: #6a8a6a;
 
   /* Spend categories. Light values are the originals; the dark ramp below is
      the same 17 hues lifted in OKLCH until each clears 4.5:1 on --mep-surface,
@@ -105,26 +106,29 @@
   --mep-cat-material-y-menaje:            #7A6B55;
   --mep-cat-embalaje-y-packaging:         #6B7A5C;
   --mep-cat-other:                        #555566;
+
+  --mep-badge-pdf:   #c14a4a;
+  --mep-badge-other: #6a8a6a;
 }
 
 /* Dark */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --mep-bg:       #16151a;
-  --mep-surface:  #1e1d23;
-  --mep-surface-2:#25242b;
-  --mep-overlay:  #2b2a32;
+  --mep-bg:       #131314;
+  --mep-surface:  #1b1b1d;
+  --mep-surface-2:#222224;
+  --mep-overlay:  #2a2a2d;
   --mep-hover:    rgba(255, 255, 255, 0.05);
   --mep-pressed:  rgba(255, 255, 255, 0.08);
 
-  --mep-fg:   #ece9e2;
-  --mep-fg-2: #a8a39a;
-  --mep-fg-3: #918b82;
-  --mep-fg-4: #787168;
+  --mep-fg:   #edecea;
+  --mep-fg-2: #a5a5aa;
+  --mep-fg-3: #8d8d93;
+  --mep-fg-4: #78787e;
 
-  --mep-border:       rgba(255, 255, 255, 0.08);
-  --mep-border-strong:rgba(255, 255, 255, 0.14);
-  --mep-divider:      rgba(255, 255, 255, 0.05);
+  --mep-border:       rgba(255, 255, 255, 0.09);
+  --mep-border-strong:rgba(255, 255, 255, 0.16);
+  --mep-divider:      rgba(255, 255, 255, 0.06);
 
   --mep-scrim:       rgba(0, 0, 0, 0.62);
   --mep-shadow-card: 0 1px 0 rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -156,8 +160,6 @@
   --mep-caution-fg: #2a1a08;
   --mep-info-fg: #0d1828;
 
-  --mep-badge-pdf:   #c14a4a;
-  --mep-badge-other: #6a8a6a;
 
   /* Spend categories — hue preserved, lightness lifted for the dark ground.
      Every value clears 4.5:1 on --mep-surface and 4.15:1 on --mep-surface-2. */
@@ -178,18 +180,57 @@
   --mep-cat-material-y-menaje:            #93846d;
   --mep-cat-embalaje-y-packaging:         #7b8b6c;
   --mep-cat-other:                        #8f8fa2;
+
+  --mep-badge-pdf:   #c14a4a;
+  --mep-badge-other: #6a8a6a;
 }
 
-/* Accent — slate (default — every route sets data-accent="slate").
-   Blue is reserved for actions: primary buttons, active nav, the actual-spend
-   stroke. The severity ramp is warm (neg / warn / caution) so the two never
-   compete for the same meaning.
+/* Accent — tinta (DEFAULT — every route sets data-accent="tinta").
+   The accent is the ink itself: the primary button is near-black on paper and
+   near-white on ink. Nothing on screen carries a brand hue, so colour is only
+   ever signal — if something is coloured, it means something (pos / neg /
+   warn / caution / info, category ramp, chart series). Changing this back to a
+   hued accent reverses a deliberate decision; see
+   docs/06_decisions/experience/ADR-028-ink-is-the-accent.md.
 
    The amber accent block lived here until it was removed: its --mep-acc was
    #8a530f light / #d59854 dark, the same hue and lightness as --mep-warn
    (#a85300 / #e8934a), so a primary button and an overdue invoice read as the
    same colour. Warm belongs to severity only. Any new accent must sit outside
    that band — tests/design-tokens-accent-discipline.test.ts enforces it. */
+.mep[data-accent="tinta"] {
+  --mep-acc:      #17171a;
+  --mep-acc-fg:   #ffffff;
+  --mep-acc-soft: rgba(23, 23, 26, 0.07);
+  --mep-acc-hover:#2f2f34;
+  --mep-acc-ring: rgba(23, 23, 26, 0.22);
+}
+:root[data-theme="dark"] .mep[data-accent="tinta"] {
+  --mep-acc:      #edecea;
+  --mep-acc-fg:   #17171a;
+  --mep-acc-soft: rgba(237, 236, 234, 0.12);
+  --mep-acc-hover:#dcdbd9;
+  --mep-acc-ring: rgba(237, 236, 234, 0.25);
+}
+
+/* Every .mep root should set data-accent explicitly; this keeps an element
+   that forgets to from rendering with no accent at all. */
+.mep:not([data-accent]) {
+  --mep-acc:      #17171a;
+  --mep-acc-fg:   #ffffff;
+  --mep-acc-soft: rgba(23, 23, 26, 0.07);
+  --mep-acc-hover:#2f2f34;
+  --mep-acc-ring: rgba(23, 23, 26, 0.22);
+}
+:root[data-theme="dark"] .mep:not([data-accent]) {
+  --mep-acc:      #edecea;
+  --mep-acc-fg:   #17171a;
+  --mep-acc-soft: rgba(237, 236, 234, 0.12);
+  --mep-acc-hover:#dcdbd9;
+  --mep-acc-ring: rgba(237, 236, 234, 0.25);
+}
+
+/* Accent — slate (alternative, retired as the default in favour of tinta) */
 .mep[data-accent="slate"] {
   --mep-acc:      #34507a;
   --mep-acc-fg:   #ffffff;
