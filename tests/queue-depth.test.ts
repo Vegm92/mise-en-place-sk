@@ -22,8 +22,18 @@ vi.mock('$lib/server/db', async () => {
 	return { db: testDb, getDb: () => testDb, forTenant };
 });
 
+vi.mock('$lib/server/admin', () => ({ isAdminUser: () => true }));
+
 let rid = '';
 const store = hasDbEnv ? createBatchStore(testDb) : null!;
+
+function adminHealthEvent() {
+	return {
+		request: new Request('http://localhost/api/health'),
+		locals: { user: { id: 'admin', email: 'admin@example.com', name: null, image: null } },
+		getClientAddress: () => '203.0.113.9',
+	} as never;
+}
 
 beforeAll(async () => {
 	if (!hasDbEnv) return;
@@ -41,7 +51,7 @@ describe.skipIf(!hasDbEnv)('#425 — /api/health counts batch_items, not upload_
 	it('active_count rises by exactly the queued/extracting items just created', async () => {
 		const { GET } = await import('../src/routes/api/health/+server');
 
-		const baseline = ((await (await GET()).json()) as { sessions: { active_count: number } })
+		const baseline = ((await (await GET(adminHealthEvent())).json()) as { sessions: { active_count: number } })
 			.sessions.active_count;
 
 		const { itemIds: [a, b] } = await store.createBatch(rid, [
@@ -54,14 +64,14 @@ describe.skipIf(!hasDbEnv)('#425 — /api/health counts batch_items, not upload_
 		await store.markExtracting(b);
 		// the third item (ns/c.pdf) is left pending — it must not count
 
-		const after = ((await (await GET()).json()) as { sessions: { active_count: number } })
+		const after = ((await (await GET(adminHealthEvent())).json()) as { sessions: { active_count: number } })
 			.sessions.active_count;
 		expect(after).toBe(baseline + 2);
 	});
 
 	it('a stale upload_sessions row does not move the count (the old bug)', async () => {
 		const { GET } = await import('../src/routes/api/health/+server');
-		const baseline = ((await (await GET()).json()) as { sessions: { active_count: number } })
+		const baseline = ((await (await GET(adminHealthEvent())).json()) as { sessions: { active_count: number } })
 			.sessions.active_count;
 
 		// Under the old query this row alone would have made active_count ≥ 1
@@ -71,7 +81,7 @@ describe.skipIf(!hasDbEnv)('#425 — /api/health counts batch_items, not upload_
 			VALUES (${'legacy-session-425'}, ${JSON.stringify({ extractionStatus: 'queued' })})
 		`;
 
-		const after = ((await (await GET()).json()) as { sessions: { active_count: number } })
+		const after = ((await (await GET(adminHealthEvent())).json()) as { sessions: { active_count: number } })
 			.sessions.active_count;
 		expect(after).toBe(baseline);
 	});
