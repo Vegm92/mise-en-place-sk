@@ -10,18 +10,18 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | # | Pri | Status | Att | Last result / notes | Title (short) |
 |---|-----|--------|-----|---------------------|---------------|
 | 463 | P0 | BLOCKED | 0 | Requires human: rotate PAT on owner's local Windows machine (~/.claude/settings.json). Not reachable from CI/cloud. | rotate GitHub PAT in plaintext |
-| 486 | P1 | PENDING | 0 | | getAccessState fails open w/o subscription row |
-| 743 | P1 | PENDING | 0 | | unverified email shows wrong login error |
-| 742 | P1 | PENDING | 0 | | CSP img-src missing blob: blocks camera preview |
+| 486 | P1 | IN_PROGRESS | 1 | Worker dispatched 2026-08-27 | getAccessState fails open w/o subscription row |
+| 743 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 (another session) | unverified email shows wrong login error |
+| 742 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | CSP img-src missing blob: blocks camera preview |
 | 484 | P1 | PENDING | 0 | | .heic accepted by picker, rejected by server |
 | 464 | P1 | PENDING | 0 | Infra-heavy (Postgres roles); needs care | split Postgres superuser into runtime+migration roles |
 | 649 | P1 | PENDING | 0 | Large tracker issue; treat as umbrella | mobile 390px audit tracker |
 | 729 | P1 | DEFERRED | 0 | Escandallo code only on PR #723 branch | recipe name unescaped in emailed escandallo |
 | 728 | P1 | DEFERRED | 0 | PR #723 branch | sub-recipe nutrition scales on gross not net |
 | 727 | P1 | DEFERRED | 0 | PR #723 branch | MAX_RECIPE_DEPTH understates cost, poisons memo |
-| 745 | P2 | PENDING | 0 | | trial expiry invisible, upload loses files |
-| 744 | P2 | PENDING | 0 | | /pending queue position 0 (ms vs µs truncation) |
-| 746 | P2 | PENDING | 0 | Product decision embedded; read carefully | replace payment lifecycle with review states |
+| 745 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | trial expiry invisible, upload loses files |
+| 744 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | /pending queue position 0 (ms vs µs truncation) |
+| 746 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | replace payment lifecycle with review states |
 | 502 | P2 | PENDING | 0 | | checkout.session.completed out-of-order guard |
 | 495 | P2 | PENDING | 0 | | optimistic locking bypass via non-numeric version |
 | 499 | P2 | PENDING | 0 | | addLocation TOCTOU + owner check |
@@ -44,7 +44,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 537 | P2 | PENDING | 0 | | a11y: 33/36 batch review fields unnamed |
 | 533 | P2 | PENDING | 0 | | missing $t() keys render raw |
 | 532 | P2 | PENDING | 0 | | nav renders literal "0" badge |
-| 511 | P2 | PENDING | 0 | | three conflicting InvoiceStatus vocabularies |
+| 511 | P2 | DEFERRED | 0 | Likely moot under #746 review-state reframe (PR #748); recheck after merge | three conflicting InvoiceStatus vocabularies |
 | 520 | P2 | PENDING | 0 | | tenant-isolation tests cover load() only; silent skips |
 | 518 | P2 | PENDING | 0 | | scheduled jobs iterate all tenants sequentially |
 | 517 | P2 | PENDING | 0 | | tenant-scoping lint for form actions |
@@ -55,7 +55,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 732 | P2 | DEFERRED | 0 | PR #723 branch | add-a-line row keeps submitted values |
 | 731 | P2 | DEFERRED | 0 | PR #723 branch | printed escandallo repeats prep block |
 | 730 | P2 | DEFERRED | 0 | Verify: may be main's products module | no-allergens save blocks extraction |
-| 747 | P3 | PENDING | 0 | Bundle of 10 small findings | beta-review polish bundle |
+| 747 | P3 | PENDING | 0 | Bundle of 10 small findings; overlaps PR #748 surfaces — wait for its merge | beta-review polish bundle |
 | 720 | P3 | PENDING | 0 | | active nav rows below AA in dark |
 | 719 | P3 | PENDING | 0 | | locale hint below AA in dark |
 | 718 | P3 | PENDING | 0 | | one neutral PRO chip (ADR-026) |
@@ -73,7 +73,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 534 | P3 | PENDING | 0 | | language switch misses period labels |
 | 515 | P3 | PENDING | 0 | | restaurant name two sources of truth |
 | 514 | P3 | PENDING | 0 | | dead code + schema hygiene |
-| 512 | P3 | PENDING | 0 | | "Vencidas" filter always empty |
+| 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
 | 510 | P3 | PENDING | 0 | | rate-limit buckets consumed after failure |
 | 509 | P3 | PENDING | 0 | | auth-seed prod guard swallowed |
 | 508 | P3 | PENDING | 0 | | toFloat accepts "12abc"/"1e999" |
@@ -93,7 +93,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 524 | P3 | PENDING | 0 | | sql template numeric return types |
 | 523 | P3 | PENDING | 0 | Infra/env change | DATABASE_SSL_MODE verify-full |
 | 740 | P3 | PENDING | 0 | Deadline 2026-12-01; infra | Railway config-as-code → IaC |
-| 565 | P3 | PENDING | 0 | Product question (INC-003) | pagada/no pagada as desvío |
+| 565 | P3 | DEFERRED | 0 | #746 says it resolves this question; recheck after PR #748 merges | pagada/no pagada as desvío |
 | 564 | P3 | PENDING | 0 | Product question (INC-002) | stock forecast has no data basis |
 | 563 | P3 | PENDING | 0 | Legal/date question (INC-001) | B2B e-invoice date unconfirmed |
 | 441 | P3 | PENDING | 0 | | retire legacy redirect stubs |
