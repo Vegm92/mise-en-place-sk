@@ -36,7 +36,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 489 | P2 | DONE | 1 | Verified (commit 1ea714f): 11→6 queries, sargable month filter (EXPLAIN: idx bitmap scan, ~25x), merged settings/badges, explicit columns. 2282/2282. | layout runs 13 queries per navigation |
 | 501 | P2 | DONE | 1 | Verified (commit 05fdd46): in-memory waiters share SLOT_MAX_WAIT_MS, timed-out release is a no-op (no leak/double-grant), semaphore counts in health detail. 2285/2285. | extraction semaphore no timeout |
 | 497 | P2 | DONE | 1 | Verified (commit d927fa8): payload → jsonb (migration 0046, USING cast), all casts/parses removed, partial index for layout level filter. 2274/2274. | system_notifications.payload text ::json |
-| 466 | P2 | PENDING | 0 | | move EXTRACTION_PROMPT to systemInstruction |
+| 466 | P2 | DONE | 1 | Verified (commit eb020bd): systemInstruction on all 3 extraction paths + XML/Gemini sanitation seam (length caps, control-char/newline normalization). 2298/2298. | move EXTRACTION_PROMPT to systemInstruction |
 | 465 | P2 | PENDING | 0 | | bump @sveltejs/kit ReDoS + overrides + puppeteer |
 | 426 | P2 | PENDING | 0 | | chat/digest bypass LLM provider seam |
 | 540 | P2 | PENDING | 0 | | extraction spinner runs forever when worker down |
