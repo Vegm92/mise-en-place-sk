@@ -18,7 +18,7 @@ first, bilingual (es/en). WhatsApp is a second ingestion channel; XML e-invoices
 ## Tech stack (verify in `package.json` before assuming)
 
 - SvelteKit 2 + Svelte 5 (runes) + TypeScript, `@sveltejs/adapter-node`
-- Tailwind CSS 4 + shadcn-svelte/bits-ui
+- Tailwind CSS 4
 - Drizzle ORM + `postgres` (postgres.js) over Railway Postgres; no RLS
 - Auth.js (`@auth/sveltekit`, JWT sessions) — Credentials + Google OAuth
 - Gemini (`@google/genai`) via a provider seam; pg-boss background jobs in a

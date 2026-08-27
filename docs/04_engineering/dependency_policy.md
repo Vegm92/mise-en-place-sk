@@ -17,8 +17,7 @@ ones. Verify against `package.json` before assuming (dependencies evolve).
 - `zod` is **not** in use — validation is hand-rolled (see
   `docs/04_engineering/security_rules.md`)
 - `xlsx`, `pdfjs-dist`, `sharp`, `qr-svg`, `mini-svg-data-uri`,
-  `cookie`, `nanoid`, `uuid`, `lucide-svelte`, `clsx`, `tailwind-merge`,
-  bits-ui/shadcn-svelte, tailwindcss
+  `cookie`, `nanoid`, `uuid`, `lucide-svelte`, tailwindcss
 
 **Dev**
 - `drizzle-kit`, `typescript`, `vitest`, `@vitest/coverage-v8`,
