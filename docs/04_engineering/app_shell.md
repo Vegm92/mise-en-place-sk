@@ -391,11 +391,6 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`function toggleTheme`**
 - Flip to the other theme and apply it. Returns the theme now in effect.
 
-### `src/lib/utils.ts`
-
-**`type WithElementRef`**
-- Re-exported for shadcn-svelte components (bits-ui internal types).
-
 ## App shell, hooks, workers
 
 ### `src/app.d.ts`

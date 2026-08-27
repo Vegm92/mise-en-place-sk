@@ -117,10 +117,40 @@ the silent failure mode before #518.
   `whatsapp-notify` and never imports a WhatsApp client (ADR-025). The enqueue
   is best-effort — the invoice is already extracted, and losing the courtesy
   message must not undo that.
+- **The worker must never sleep.** It serves no HTTP, so Railway's App Sleep
+  stops the container ~10 minutes after each deploy and *nothing can wake it* —
+  a queue consumer has no inbound request to trigger on. While it is stopped no
+  job is consumed and no cron fires. This is config-as-code, not a dashboard
+  setting: `railway.json` (web) keeps `sleepApplication: true`, and the worker
+  service points its `railwayConfigFile` at **`railway.worker.json`**, which is
+  the same config with `sleepApplication: false`. Flipping it in the Railway
+  dashboard does not hold — the next deploy re-applies the file.
+- **That config-as-code mechanism is deprecated and expires 2026-12-01.**
+  Railway replaced `railway.json` / `railway.toml` with Infrastructure as Code
+  (`.railway/railway.ts`), and stops reading the old files at the cutoff. The
+  two are mutually exclusive per service, so this is a migration, not an
+  addition: `railway config migrate --apply` writes the TypeScript file and
+  clears the service's config-file setting, then `railway config plan` and
+  `railway config apply` land it. Do it before the cutoff — when `railway.json`
+  stops being read, the worker silently falls back to its dashboard settings
+  and App Sleep comes back with it. IaC also removes the root cause rather
+  than working around it: one project-level file describes *both* services, so
+  the web app and the worker stop sharing a `deploy` block that can only hold
+  one value of `sleepApplication`.
 - **The worker hosts the WhatsApp socket** when `WHATSAPP_BOT_ENABLED=true`.
   It is long-lived, single-replica and DB-connected, which is what a persistent
-  socket needs; `shutdown()` stops it before the process exits. The Railway
-  worker service must therefore have `sleepApplication` disabled.
+  socket needs; `shutdown()` stops it before the process exits — a second reason
+  the service cannot sleep, on top of the unconditional one above.
+
+## What is lost while the worker is down
+
+Not symmetrical, and worth knowing before deciding how urgent a restart is:
+
+| Queue / job | Survives a stopped worker? |
+|---|---|
+| `extract-invoice` | The pg-boss job survives (14-day `retentionSeconds`), but `failStalledItems` marks the batch item `failed` with `extract.err.stalled` once it has waited `EXTRACTION_STALL_TIMEOUT_MS` (15 min). That reaper runs on the **web** request path — the batch page load and `/api/batch-status/[id]` — so the user sees a stalled upload and retries. Nothing is silently lost, and a late job cannot double-process: `markExtracting` only transitions from `queued`/`extracting`, so it no-ops against a `failed` row. |
+| `normalize-product`, `categorize-product` | Fully. They sit in `created` and run when the worker returns. |
+| The 8 `scheduled-*` crons | **No.** pg-boss cron has no catch-up: a schedule that does not fire while the process is down is skipped, not deferred. A missed weekly digest, overdue reminder or trial notice is simply never sent — `claimOnce` keys on the occurrence, so the next run does not backfill it. The sweeps (file purge, dead-letter purge, idempotency, MRR snapshot) are idempotent and catch up on their next run. `scheduled-analytics-refresh` skipping means every materialized view stays stale until the next 03:10, so `/analytics/spend` serves old numbers while every live-computed surface stays correct. |
 
 ## Operations pointers
 

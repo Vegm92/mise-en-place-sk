@@ -45,7 +45,6 @@
 		"concurrently": "^10.0.4",
 		"jsqr": "^1.4.0",
 		"playwright": "^1.61.1",
-		"shadcn-svelte": "^1.4.0",
 		"svelte": "^5.56.4",
 		"svelte-check": "^4.7.2",
 		"tailwindcss": "^4.3.2",
@@ -69,7 +68,6 @@
 		"@upstash/redis": "^1.38.0",
 		"@whiskeysockets/baileys": "7.0.0-rc14",
 		"bcryptjs": "^3.0.3",
-		"clsx": "^2.1.1",
 		"dotenv": "^17.4.2",
 		"drizzle-kit": "^0.31.10",
 		"drizzle-orm": "^0.45.2",
@@ -81,7 +79,6 @@
 		"qrcode-terminal": "0.12.0",
 		"resend": "^6.17.2",
 		"stripe": "^22.3.0",
-		"tailwind-merge": "^3.6.0",
 		"unpdf": "^1.8.0"
 	},
 	"pnpm": {
