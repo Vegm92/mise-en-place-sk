@@ -21,12 +21,15 @@ services:
       # Both services must agree on this path, and it must be the mount point
       # of the shared volume — not the relative `uploads` default.
       UPLOADS_DIR: /app/uploads
-      # adapter-node reads the client IP from this header when it sits behind a
-      # TLS-terminating proxy (issue #223). Without it every request appears to
-      # come from the proxy and all IP-keyed rate limits share one bucket.
-      # XFF_DEPTH is the number of trusted proxies in front of this container.
-      ADDRESS_HEADER: x-forwarded-for
-      XFF_DEPTH: '1'
+      # Do NOT set ADDRESS_HEADER/XFF_DEPTH here (issue #500). This compose
+      # file publishes port 3000 straight to the host with no reverse proxy in
+      # front of it, so there is nothing to overwrite an inbound
+      # X-Forwarded-For header — trusting it would let any client spoof its
+      # own IP and bypass the login/signup/waitlist rate limits (issue #223).
+      # Left unset, getClientAddress() correctly uses the direct socket peer.
+      # Only set these two vars when a real reverse proxy (nginx/Caddy, or a
+      # platform like Railway) sits in front and rewrites the header itself —
+      # see DEPLOYMENT.md's "Reverse proxy / client IP" section.
     volumes:
       - uploads:/app/uploads
     ports:
