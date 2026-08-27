@@ -24,7 +24,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 746 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | replace payment lifecycle with review states |
 | 502 | P2 | DONE | 1 | Verified (commit 2a81ceb): setWhere ordering predicate + side effects gated on returning(); stale-event test proven failing pre-fix. Full DB-backed suite 2179/2179 (worker stood up local Postgres — now available for later cycles). | checkout.session.completed out-of-order guard |
 | 495 | P2 | DONE | 1 | Verified (commit 912cf2f): positive-int validation + unconditional predicate; bypass proven pre-fix. 2183/2183. | optimistic locking bypass via non-numeric version |
-| 499 | P2 | PENDING | 0 | | addLocation TOCTOU + owner check |
+| 499 | P2 | DONE | 1 | Verified (commit fd0d9ad): requireOwner + advisory-lock txn + BILLING_PARENT-scoped count; parallel-at-limit test. 2188/2188. | addLocation TOCTOU + owner check |
 | 496 | P2 | PENDING | 0 | | unrate-limited mail primitives + user enumeration |
 | 498 | P2 | PENDING | 0 | | WhatsApp numbers globally unique across tenants |
 | 500 | P2 | PENDING | 0 | | X-Forwarded-For trust + published :3000 |
