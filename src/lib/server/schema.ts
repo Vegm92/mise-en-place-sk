@@ -136,11 +136,14 @@ export const systemNotifications = pgTable('system_notifications', {
 	invoiceId:        integer('invoice_id').references(() => invoices.id),
 	notificationType: text('notification_type').notNull(),
 	message:          text('message').notNull(),
-	payload:          text('payload'),
+	payload:          jsonb('payload').$type<Record<string, unknown>>(),
 	status:           text('status').default('pending'),
 	createdAt:        timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	index('idx_system_notifications_rid_status_created').on(t.restaurantId, t.status, t.createdAt),
+	index('idx_system_notifications_budget_overage_exceeded')
+		.on(t.restaurantId)
+		.where(sql`${t.status} = 'pending' AND ${t.notificationType} = 'budget_overage' AND (${t.payload}->>'level') = 'exceeded'`),
 ]);
 
 export const users = pgTable('users', {

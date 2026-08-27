@@ -223,7 +223,7 @@ describe.skipIf(!hasDbEnv)('#315 suggesting a category for a supplier left in th
 			restaurantId,
 			notificationType: type,
 			message: 'test',
-			payload: JSON.stringify(payload),
+			payload,
 			status: 'pending',
 		});
 	}

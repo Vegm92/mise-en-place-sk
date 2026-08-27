@@ -42,7 +42,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.where(tdb.scope(systemNotifications.restaurantId, and(
 				eq(systemNotifications.status, 'pending'),
 				eq(systemNotifications.notificationType, 'budget_overage'),
-				sql`${systemNotifications.payload}::json->>'level' = 'exceeded'`
+				sql`${systemNotifications.payload}->>'level' = 'exceeded'`
 			))),
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
@@ -81,13 +81,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	const rawTutorialStep = tutorialStepRow[0]?.value;
 	const tutorialStep = (rawTutorialStep ?? (hasCompletedOnboarding ? 'done' : '1')) as string;
 
-	const notifications = rawNotifs.flatMap((n) => {
-		let payload: unknown = null;
-		if (n.payload) {
-			try { payload = JSON.parse(n.payload); } catch { return []; }
-		}
-		return [{ ...n, payload }];
-	});
+	const notifications = rawNotifs;
 
 	const planTier: PlanTier = entitlements?.tier ?? 'trial';
 	const tierConfig = TIERS[planTier];

@@ -16,12 +16,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 		.from(systemNotifications)
 		.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, status)));
 
-	const items = rows.map((row) => ({
-		...row,
-		payload: row.payload ? JSON.parse(row.payload) : null,
-	}));
-
-	return json({ notifications: items });
+	return json({ notifications: rows });
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
