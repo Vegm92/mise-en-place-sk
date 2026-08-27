@@ -20,7 +20,9 @@ Hands-on QA pass over the full running app (local Postgres, seeded data, Playwri
 
 5. **`/pending` queue position shows 0.** Postgres stores `created_at` with microseconds; Drizzle returns ms-truncated `Date`, so `lte(users.createdAt, me.createdAt)` misses the user's own row (`src/routes/pending/+page.server.ts`). First waiting users see "0 EN LA COLA · de 1 en espera". Fix: count `lt(...)` and add 1.
 
-6. **Dashboard mislabels unpaid invoices as "sin confirmar".** The "POR REVISAR" ribbon counts `status='pending'` (unpaid) invoices but labels them `turno.ribbon.reviewNote` ("N albaranes sin confirmar") — right after the user confirmed them in review. Fix: payment wording ("pendientes de pago") or count actual unreviewed items.
+6a. **Dashboard mislabels unpaid invoices as "sin confirmar".** The "POR REVISAR" ribbon counts `status='pending'` (unpaid) invoices but labels them `turno.ribbon.reviewNote` ("N albaranes sin confirmar") — right after the user confirmed them in review. Fix: payment wording ("pendientes de pago") or count actual unreviewed items.
+
+7. **Save-success toast dumps raw event identifiers.** After saving an invoice, the `/invoices` toast shows chips reading literally `invoice_saved`, `invoice_corrected`, `supplier_uncategorized: <name>`. The loader (`src/routes/(app)/invoices/+page.server.ts:122`) selects every `system_notifications.message` for the saved invoice — including internal audit events — and `message` stores the raw type string. Fix: filter to user-facing alert types and map `notification_type` through i18n.
 
 ## Low / polish
 
@@ -32,6 +34,9 @@ Hands-on QA pass over the full running app (local Postgres, seeded data, Playwri
 - Budgets sum net line totals (525,17 €) while the dashboard ribbon sums gross (609,90 €) — unlabeled basis mismatch; add "(sin IVA)"/"(con IVA)".
 - Reminders page with nothing due shows only classification nudges — add an empty state for the payments section.
 - `verification_tokens.token` stores the raw secret (1 h TTL) — store a sha256 hash and compare on consume.
+- Desktop invoice list rows render `123.40 EUR` and ISO dates (`2026-09-24`) where mobile and the KPI tiles show `123,40 €` / `24 sept`; supplier names truncate to "Verdu…" despite ample width.
+- "Descargar PDF" on an XML e-invoice downloads the original `.xml` — label it "Descargar original" or derive from file type.
+- Invoice preview pane titles the document with its raw storage hash and shows an empty box for XML — show the display name and a "sin vista previa" note.
 
 ## Verified working
 
@@ -41,6 +46,13 @@ Hands-on QA pass over the full running app (local Postgres, seeded data, Playwri
 - i18n & layout: full ES/EN coverage (two leaks noted above), zero horizontal overflow on 17 routes × 2 viewports, complete dark theme.
 - Trial/billing: quota chip, trial countdown, per-feature upsells, admin access queue approve flow.
 
-## Not covered (needs real credentials/worker/history)
+## Verified in second pass (worker running, no Gemini key)
 
-Real Gemini extraction & digest, Google OAuth, Stripe checkout, WhatsApp bot, email delivery, PWA offline queue, price-shock alerts over history, duplicate-detection UI, multi-restaurant, rate limits under load. Recommend a staging smoke pass with live keys before invites.
+- Facturae 3.2.2 XML e-invoice: upload → pg-boss queue → worker parse (no AI) → review (totals reconcile) → saved invoice, end to end.
+- Forced Gemini failure on a PNG: item lands in "Extracción fallida" with retry/discard, dead-letter recorded.
+- Duplicate detection: re-uploaded supplier+number shows "Podría ser un duplicado" with a link to the existing invoice.
+- Bulk mark-paid / per-row mark-paid exist on the invoices list (row expansion + bulk bar).
+
+## Not covered (needs real credentials/history)
+
+Real Gemini extraction & digest, Google OAuth, Stripe checkout, WhatsApp bot, email delivery, PWA offline queue, price-shock alerts over history, multi-restaurant, rate limits under load. Recommend a staging smoke pass with live keys before invites.
