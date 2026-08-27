@@ -150,6 +150,97 @@ describe('acquireExtractionSlot — bounded async semaphore (in-memory fallback)
 	});
 });
 
+describe('acquireExtractionSlot — in-memory waiter timeout (issue #501)', () => {
+	it('resolves a queued acquire after the deadline when the slot holder never releases, and warns', async () => {
+		vi.useFakeTimers();
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+		try {
+			const held = await acquireExtractionSlot(1);
+
+			let resolved = false;
+			const waiterPromise = acquireExtractionSlot(1).then((slot) => {
+				resolved = true;
+				return slot;
+			});
+
+			await vi.advanceTimersByTimeAsync(5 * 60_000 - 1);
+			expect(resolved).toBe(false);
+
+			await vi.advanceTimersByTimeAsync(1);
+			const waiterSlot = await waiterPromise;
+			expect(resolved).toBe(true);
+			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Timed out waiting'));
+
+			await waiterSlot.release();
+			await held.release();
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('normal handoff still works: release hands the slot to a waiter and the counter stays correct', async () => {
+		vi.useFakeTimers();
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+		try {
+			const first = await acquireExtractionSlot(1);
+
+			let secondResolved = false;
+			const secondPromise = acquireExtractionSlot(1).then((slot) => {
+				secondResolved = true;
+				return slot;
+			});
+
+			await Promise.resolve();
+			await Promise.resolve();
+			expect(secondResolved).toBe(false);
+			expect(tryAcquireExtraction(1)).toBe(false);
+
+			await first.release();
+			const second = await secondPromise;
+			expect(secondResolved).toBe(true);
+			expect(tryAcquireExtraction(1)).toBe(false);
+
+			await second.release();
+			expect(tryAcquireExtraction(1)).toBe(true);
+			releaseExtraction();
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+
+	it('a timed-out waiter later reached by a handoff does not double-grant or leak a slot', async () => {
+		vi.useFakeTimers();
+		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+		try {
+			const held = await acquireExtractionSlot(1);
+
+			let waiterResolved = false;
+			const waiterPromise = acquireExtractionSlot(1).then((slot) => {
+				waiterResolved = true;
+				return slot;
+			});
+
+			await vi.advanceTimersByTimeAsync(5 * 60_000);
+			const timedOutSlot = await waiterPromise;
+			expect(waiterResolved).toBe(true);
+
+			await held.release();
+
+			const next = await acquireExtractionSlot(1);
+			expect(tryAcquireExtraction(1)).toBe(false);
+
+			await timedOutSlot.release();
+			expect(tryAcquireExtraction(1)).toBe(false);
+
+			await next.release();
+			expect(tryAcquireExtraction(1)).toBe(true);
+			releaseExtraction();
+		} finally {
+			warnSpy.mockRestore();
+		}
+	});
+});
+
 describe('extraction parallelism (issue #454 goal: 3 invoices in parallel)', () => {
 	it('runs exactly 3 jobs concurrently and never exceeds the cap', async () => {
 		const CAP = 3;

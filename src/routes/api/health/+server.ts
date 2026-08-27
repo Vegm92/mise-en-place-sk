@@ -10,7 +10,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { version } from '$app/environment';
 import { readWorkerHeartbeat, workerLiveness } from '$lib/server/worker-heartbeat';
 import { isAdminUser } from '$lib/server/admin';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { checkRateLimit, getExtractionSemaphoreStatus } from '$lib/server/rate-limiter';
 
 const START_TIME = Date.now();
 const HEALTH_TOKEN_HEADER = 'x-health-token';
@@ -106,6 +106,7 @@ async function computeHealthDetail() {
 		},
 		uploads_dir: uploadsDir,
 		sessions: { active_count: activeCount },
+		extraction_semaphore: getExtractionSemaphoreStatus(),
 		uptime_seconds: Math.floor((Date.now() - START_TIME) / 1000),
 		version,
 	};
