@@ -215,6 +215,13 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 **`const GET`**
 - Styled header row; borders + banded rows for the data.
+- Rate-limited (`export:<restaurantId>`, 5/min); `supplier_id` must be a
+  positive integer and `date_from`/`date_to` must be ISO `yyyy-mm-dd` — any of
+  the three reject 400 rather than being silently coerced away (issue #493).
+- Rows are fetched with `LIMIT EXPORT_ROW_CAP + 1` (`EXPORT_ROW_CAP`,
+  `src/lib/server/env.ts`, default 10 000) to detect truncation without an
+  unbounded scan; a truncated export gets one appended, merged marker row
+  instead of silently dropping the rest (issue #493).
 
 ### `src/routes/(app)/reminders/+page.server.ts`
 
