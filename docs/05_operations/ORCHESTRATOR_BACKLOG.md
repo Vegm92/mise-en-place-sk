@@ -13,7 +13,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 486 | P1 | DONE | 1 | Verified: fail-closed + auth-seed trial row + nightly orphan reconciliation (commit 6265af2); 1860 tests pass, svelte-check clean. Known edge: repair path grants non-founder trial length. | getAccessState fails open w/o subscription row |
 | 743 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 (another session) | unverified email shows wrong login error |
 | 742 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | CSP img-src missing blob: blocks camera preview |
-| 484 | P1 | IN_PROGRESS | 1 | Worker dispatched 2026-08-27 (option B: honest rejection) | .heic accepted by picker, rejected by server |
+| 484 | P1 | DONE | 1 | Verified (commit 29498ff): client pre-upload HEIC rejection w/ iOS guidance, WhatsApp heic/heif no longer saved as .jpg (both drivers); allowlist parity test pre-existed via #520. 1872 tests pass. | .heic accepted by picker, rejected by server |
 | 464 | P1 | PENDING | 0 | Infra-heavy (Postgres roles); needs care | split Postgres superuser into runtime+migration roles |
 | 649 | P1 | PENDING | 0 | Large tracker issue; treat as umbrella | mobile 390px audit tracker |
 | 729 | P1 | DEFERRED | 0 | Escandallo code only on PR #723 branch | recipe name unescaped in emailed escandallo |
