@@ -36,7 +36,7 @@ describe('trackEvent', () => {
 				restaurantId: 'rid-123',
 				notificationType: 'invoice_saved',
 				invoiceId: 42,
-				payload: JSON.stringify({ confidence: 0.9, line_count: 3 }),
+				payload: { confidence: 0.9, line_count: 3 },
 			}),
 		);
 	});
@@ -57,10 +57,10 @@ describe('trackEvent', () => {
 		);
 	});
 
-	it('serialises payload as JSON', () => {
+	it('passes the payload through as an object, unserialised', () => {
 		mockInsert.mockResolvedValue([]);
 		trackEvent('duplicate_detected', 'rid-789', { supplier: 'Acme', amount: 100 });
-		const call = mockInsert.mock.calls[0][0] as { payload: string };
-		expect(JSON.parse(call.payload)).toEqual({ supplier: 'Acme', amount: 100 });
+		const call = mockInsert.mock.calls[0][0] as { payload: Record<string, unknown> };
+		expect(call.payload).toEqual({ supplier: 'Acme', amount: 100 });
 	});
 });

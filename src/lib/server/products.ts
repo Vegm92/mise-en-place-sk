@@ -187,14 +187,8 @@ function supplierConversionKey(supplierName: string, ingredient: string, purchas
 	return `${normalizeProductKey(supplierName)}::${conversionKey(ingredient, purchaseUnit)}`;
 }
 
-function parseNotificationPayload(raw: string | null): Record<string, unknown> | null {
-	if (!raw) return null;
-	try {
-		const parsed = JSON.parse(raw);
-		return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
-	} catch {
-		return null;
-	}
+function parseNotificationPayload(raw: unknown): Record<string, unknown> | null {
+	return raw && typeof raw === 'object' ? raw as Record<string, unknown> : null;
 }
 
 export async function loadConversionPrompts(
@@ -202,7 +196,7 @@ export async function loadConversionPrompts(
 	restaurantId: string,
 ): Promise<ConversionPrompt[]> {
 	const [alertRows, ruleRows] = await Promise.all([
-		database.execute<{ id: number; payload: string | null }>(sql`
+		database.execute<{ id: number; payload: unknown }>(sql`
 			SELECT id, payload FROM system_notifications
 			WHERE restaurant_id = ${restaurantId}
 			  AND notification_type = 'unit_conversion_needed'
@@ -303,8 +297,8 @@ export async function defineUnitConversion(
 		WHERE restaurant_id = ${restaurantId}
 		  AND notification_type = 'unit_conversion_needed'
 		  AND status = 'pending'
-		  AND mep_norm_key(payload::json->>'ingredient') = ${ingredientKey}
-		  AND mep_norm_key(payload::json->>'purchaseUnit') = ${purchaseUnitKey}
+		  AND mep_norm_key(payload->>'ingredient') = ${ingredientKey}
+		  AND mep_norm_key(payload->>'purchaseUnit') = ${purchaseUnitKey}
 		RETURNING id
 	`);
 
@@ -643,7 +637,7 @@ export async function resolveUnitConversionAlerts(
 		WHERE restaurant_id = ${restaurantId}
 		  AND notification_type = 'unit_conversion_needed'
 		  AND status = 'pending'
-		  AND mep_norm_key(payload::json->>'ingredient') IN (
+		  AND mep_norm_key(payload->>'ingredient') IN (
 		    SELECT raw_key FROM product_aliases WHERE restaurant_id = ${restaurantId} AND product_id = ${productId}
 		    UNION
 		    SELECT name_key FROM products WHERE id = ${productId} AND restaurant_id = ${restaurantId}
@@ -847,7 +841,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 			WHERE restaurant_id = ${restaurantId}
 			  AND notification_type = 'product_suggestion'
 			  AND status = 'pending'
-			  AND mep_norm_key(payload::json->>'description') = ${rawKey}
+			  AND mep_norm_key(payload->>'description') = ${rawKey}
 			LIMIT 1
 		`);
 		if (existing.length > 0) return;
@@ -856,7 +850,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 			restaurantId,
 			notificationType: 'product_suggestion',
 			message: `product_suggestion: ${rawText} ~ ${candidate.name} (llm)`,
-			payload: JSON.stringify({
+			payload: {
 				description: rawText,
 				productId,
 				candidateName: candidate.name,
@@ -865,7 +859,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 				source: 'llm',
 				messageKey: 'notif.msg.productSuggestionAi',
 				messageVars: { description: rawText, candidateName: candidate.name },
-			}),
+			},
 			status: 'pending',
 		});
 	} catch (err) {

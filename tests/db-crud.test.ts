@@ -230,7 +230,7 @@ describe.skipIf(!hasDbEnv)('system_notifications — scoping', () => {
 			restaurantId:     rid1,
 			notificationType: 'price_shock',
 			message:          'Test price shock alert',
-			payload:          JSON.stringify({ ingredient: 'ternera', pct: 18 }),
+			payload:          { ingredient: 'ternera', pct: 18 },
 			status:           'pending',
 		});
 		const rows = await testDb.select().from(systemNotifications)
@@ -239,7 +239,7 @@ describe.skipIf(!hasDbEnv)('system_notifications — scoping', () => {
 				eq(systemNotifications.notificationType, 'price_shock'),
 			));
 		expect(rows).toHaveLength(1);
-		expect(JSON.parse(rows[0].payload!).pct).toBe(18);
+		expect((rows[0].payload as { pct: number }).pct).toBe(18);
 	});
 
 	it('rid2 cannot see rid1 notifications', async () => {

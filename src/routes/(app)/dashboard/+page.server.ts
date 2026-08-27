@@ -37,7 +37,7 @@ function buildSparkData(
 	);
 }
 
-type _AlertRow = { id: number; message: string; payload: string | null; createdAt: Date | null };
+type _AlertRow = { id: number; message: string; payload: Record<string, unknown> | null; createdAt: Date | null };
 type _DashAlert = { id: string; sev: 'high' | 'med' | 'low'; kind: 'price' | 'budget' | 'due' | 'info'; text: string; detail: string; when: string; payload?: Record<string, unknown> | null; messageKey?: string; messageVars?: Record<string, string | number> };
 
 function buildDashboardAlerts(
@@ -47,20 +47,20 @@ function buildDashboardAlerts(
 ): _DashAlert[] {
 	const rank: Record<'high' | 'med' | 'low', number> = { high: 0, med: 1, low: 2 };
 	const priceAlerts = priceShockRows.map((a) => {
-		const p = a.payload ? JSON.parse(a.payload) as { ingredient?: string; supplier?: string; deviationPct?: number } : null;
+		const p = a.payload as { ingredient?: string; supplier?: string; deviationPct?: number } | null;
 		const pct = p?.deviationPct != null ? Math.abs(p.deviationPct) : null;
 		const up = p?.deviationPct != null && p.deviationPct > 0;
 		const shockKey = up ? 'dash.alert.priceShockUp' : 'dash.alert.priceShockDown';
 		return {
 			id: `ps-${a.id}`, sev: 'high' as const, kind: 'price' as const,
 			text: a.message, detail: p?.supplier ?? '', when: relativeTime(a.createdAt, today),
-			payload: a.payload ? JSON.parse(a.payload) as Record<string, unknown> : null,
+			payload: a.payload,
 			messageKey: p?.ingredient ? shockKey : undefined,
 			messageVars: p?.ingredient ? { ingredient: p.ingredient, pct: pct ?? 0 } : undefined,
 		};
 	});
 	const budgetAlerts = budgetAlertRows.map((a) => {
-		const p = a.payload ? JSON.parse(a.payload) as { category?: string; pct?: number; level?: string } : null;
+		const p = a.payload as { category?: string; pct?: number; level?: string } | null;
 		return {
 			id: `ba-${a.id}`, sev: p?.level === 'exceeded' ? 'high' as const : 'med' as const, kind: 'budget' as const,
 			text: a.message, detail: '', when: relativeTime(a.createdAt, today), payload: p,
@@ -389,12 +389,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const totalPctActual = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100 * 10) / 10 : 0;
 		const totalPctBar = Math.min(totalPctActual, 100);
 
-		type AlertRow = { id: number; message: string; payload: string | null; createdAt: Date | null };
-		type ParsedAlertRow = Omit<AlertRow, 'payload'> & { payload: Record<string, unknown> | null };
-		const priceShockAlerts: ParsedAlertRow[] = (priceShockRows as AlertRow[]).map((a) => ({
-			...a,
-			payload: a.payload ? JSON.parse(a.payload) as Record<string, unknown> : null,
-		}));
+		type AlertRow = { id: number; message: string; payload: Record<string, unknown> | null; createdAt: Date | null };
+		const priceShockAlerts: AlertRow[] = priceShockRows as AlertRow[];
 
 		const dashboardAlerts = buildDashboardAlerts(priceShockRows as AlertRow[], budgetAlertRows as AlertRow[], today);
 		const highCount = dashboardAlerts.filter(a => a.sev === 'high').length;
@@ -421,7 +417,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		const uncategorized: UncategorizedInput[] = uncategorizedRows
 			.map((r) => {
-				const p = r.payload ? JSON.parse(r.payload) as { supplierId?: number; supplierName?: string } : null;
+				const p = r.payload as { supplierId?: number; supplierName?: string } | null;
 				return p?.supplierId != null && p.supplierName
 					? { supplierId: p.supplierId, supplierName: p.supplierName }
 					: null;
