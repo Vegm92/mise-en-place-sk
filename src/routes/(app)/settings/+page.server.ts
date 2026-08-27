@@ -165,6 +165,13 @@ export const actions: Actions = {
 			return fail(422, { section: 'email', error: 'set.profile.err.emailUnchanged' });
 		}
 
+		if (!(await checkRateLimit(`email-change:user:${locals.user!.id}`, 5))) {
+			return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
+		}
+		if (!(await checkRateLimit(`email-change:address:${email}`, 5))) {
+			return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
+		}
+
 		const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
 		if (taken) return fail(400, { section: 'email', error: 'set.profile.err.emailFailed' });
 
