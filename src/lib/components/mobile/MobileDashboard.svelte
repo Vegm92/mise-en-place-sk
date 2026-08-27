@@ -1,120 +1,36 @@
 <script lang="ts">
-  import { page } from '$app/stores';
-  import { categoryColor } from '$lib/colors';
-  import Sparkline from '$lib/components/mep/Sparkline.svelte';
-  import Delta from '$lib/components/mep/Delta.svelte';
-  import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
-  import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-  import { fmtEur, fmtEurCompact, fmtDate, toMonthStr, shiftMonth } from '$lib/formatters';
-  import { locale, t, ti, tp, tcat } from '$lib/i18n';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
-
-  interface TrendSegment {
-    category: string | null;
-    amount: number;
-  }
-  interface TrendBucket {
-    label: string;
-    total: number;
-    pct: number;
-    is_current: boolean;
-    segments: TrendSegment[];
-  }
-  interface TrendData {
-    range: string;
-    granularity: string;
-    buckets: TrendBucket[];
-    categories: (string | null)[];
-  }
-  interface Supplier {
-    name: string;
-    month_spend: number;
-    delta: number | null;
-    invoices?: number;
-    cat?: string;
-  }
-  interface RecentInvoice {
-    id: number;
-    invoice_number: string | null;
-    supplier_name: string | null;
-    display_amount: number | null;
-    status: string;
-    invoice_date: string | null;
-  }
+  import Bullet from '$lib/components/mep/Bullet.svelte';
+  import PaceChart from '$lib/components/mep/PaceChart.svelte';
+  import RailBlock from '$lib/components/desktop/turno/RailBlock.svelte';
+  import WorkCardMobile from '$lib/components/mobile/turno/WorkCardMobile.svelte';
+  import { categoryColor } from '$lib/colors';
+  import { locale, t, ti, tp, tcat } from '$lib/i18n';
+  import { fmtEur, fmtEurCompact, fmtEurSigned } from '$lib/formatters';
+  import {
+    buildWorklist, buildCategoryRisk, buildPaceCurve, planToDate, atStake, sortWorklist,
+    RIBBON_HORIZON_DAYS, CASH_OUT_HORIZON_DAYS,
+  } from '$lib/dashboard-turno';
+  import type { TurnoInput, SortMode } from '$lib/dashboard-turno';
+  import type { DashboardData } from '$lib/components/desktop/DesktopDashboard.svelte';
 
   let {
-    monthSpend,
-    monthDelta,
-    totalInvoices,
-    sparkData,
-    pendingAmount,
-    pendingCount,
-    budgetPct,
-    totalBudget,
-    projectedEom,
-    highAlerts,
-    medAlerts,
-    alertText,
-    suppliers,
-    recentInvoices,
-    totalSpent,
-    trend,
+    data,
+    prevMonthUrl,
+    nextMonthUrl,
+    canGoForward,
+    currentPeriod,
   }: {
-    monthSpend: number;
-    monthDelta: number | null;
-    totalInvoices: number;
-    sparkData: number[] | null;
-    pendingAmount: number;
-    pendingCount: number;
-    budgetPct: number;
-    totalBudget: number;
-    projectedEom: number | null;
-    highAlerts: number;
-    medAlerts: number;
-    alertText: string;
-    suppliers: Supplier[];
-    recentInvoices: RecentInvoice[];
-    totalSpent: number;
-    trend: TrendData;
+    data: DashboardData;
+    prevMonthUrl: string;
+    nextMonthUrl: string;
+    canGoForward: boolean;
+    currentPeriod: string;
   } = $props();
 
-  // svelte-ignore state_referenced_locally
-  let activeRange = $state(trend.range);
-  // svelte-ignore state_referenced_locally
-  let activeGranularity = $state(trend.granularity);
-  // svelte-ignore state_referenced_locally
-  let trendBuckets = $state<TrendBucket[]>(trend.buckets);
-  let trendLoading = $state(false);
-
-  const RANGES = ['7d', '30d', '90d', '1y', 'all'] as const;
-  const GRANULARITIES = ['daily', 'weekly', 'monthly'] as const;
-
-  async function fetchTrend(range: string, granularity: string) {
-    trendLoading = true;
-    const resp = await fetch(`/api/trend?range=${range}&granularity=${granularity}`);
-    if (resp.ok) {
-      const payload = await resp.json();
-      trendBuckets = payload.buckets ?? [];
-    } else {
-      trendBuckets = [];
-    }
-    trendLoading = false;
-  }
-
-  async function setRange(range: string) {
-    activeRange = range;
-    await fetchTrend(activeRange, activeGranularity);
-  }
-
-  async function setGranularity(granularity: string) {
-    activeGranularity = granularity;
-    await fetchTrend(activeRange, activeGranularity);
-  }
-
-  const trendTotal = $derived(trendBuckets.reduce((a, b) => a + b.total, 0));
-  const trendSpark = $derived(trendBuckets.map((b) => b.total));
-  const trendLabel = $derived($ti(`chart.gran.${activeGranularity}.sub`, { n: trendBuckets.length }));
+  let sortMode = $state<SortMode>('money');
 
   const greeting = $derived.by(() => {
     const h = new Date().getHours();
@@ -126,35 +42,56 @@
     new Date().toLocaleDateString($locale, { weekday: 'long', day: 'numeric', month: 'long' })
   );
 
-  const topSuppliers = $derived(
-    [...suppliers].sort((a, b) => b.month_spend - a.month_spend).slice(0, 4)
-  );
+  const daysInMonth = $derived(data.projection?.days_in_month ?? 30);
+  const daysElapsed = $derived(data.projection?.days_elapsed ?? daysInMonth);
 
-  const budgetColor = $derived.by(() => {
-    if (budgetPct >= 90) return 'var(--mep-neg)';
-    if (budgetPct >= 70) return 'var(--mep-warn)';
-    return 'var(--mep-acc)';
+  const turnoInput = $derived<TurnoInput>({
+    isCurrentMonth: data.is_current_month,
+    daysElapsed,
+    daysInMonth,
+    monthSpend: data.mom.this_month,
+    projectedEom: data.projection?.projected_eom ?? data.mom.this_month,
+    totalBudget: data.total_budget,
+    budgets: data.budgets,
+    categorySpend: data.category_spend_map,
+    priceShocks: data.turno_price_shocks,
+    payables: data.payables,
+    review: { count: data.pending.count, amount: data.pending.amount },
+    missing: data.missing_invoices,
+    uncategorized: data.uncategorized_suppliers,
   });
 
-  const currentMonthStr = $derived(toMonthStr(new Date()));
-  const selectedMonth = $derived(
-    ($page.data as { selectedMonth?: string }).selectedMonth
-    ?? $page.url.searchParams.get('month')
-    ?? currentMonthStr
-  );
-  const currentPeriod = $derived.by(() => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const d = new Date(y!, m! - 1, 2);
-    const s = new Intl.DateTimeFormat($locale, { month: 'long', year: 'numeric' }).format(d);
-    return s.charAt(0).toUpperCase() + s.slice(1);
+  const worklist = $derived(buildWorklist(turnoInput));
+  const sortedWorklist = $derived(sortWorklist(worklist, sortMode));
+  const stake = $derived(atStake(worklist));
+  const urgentCount = $derived(worklist.filter((i) => i.severity === 'high').length);
+
+  const hasBudget = $derived(data.total_budget > 0);
+  const planMtd = $derived(planToDate(data.total_budget, turnoInput));
+  const paceDelta = $derived(data.mom.this_month - planMtd);
+  const projectedEom = $derived(data.projection?.projected_eom ?? data.mom.this_month);
+  const overrun = $derived(projectedEom - data.total_budget);
+
+  const cashOutSoon = $derived(data.payables.filter((p) => p.days_delta >= 0 && p.days_delta <= RIBBON_HORIZON_DAYS));
+  const cashOutSoonTotal = $derived(cashOutSoon.reduce((s, p) => s + p.amount, 0));
+
+  const categoryRisk = $derived(buildCategoryRisk(turnoInput).slice(0, 3));
+  const paceCurve = $derived(buildPaceCurve(data.spark_data ?? [], turnoInput));
+  const hasPaceData = $derived(data.mom.this_month > 0 || hasBudget);
+
+  const momNote = $derived.by(() => {
+    const pct = data.mom.pct_change;
+    if (pct == null) return $t('turno.ribbon.paceNoData');
+    return $ti('turno.ribbon.paceNoBudget', { delta: (pct >= 0 ? '+' : '') + pct + '%' });
   });
-  const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);
-  const nextMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, 1)}`);
-  const canGoForward = $derived(selectedMonth < currentMonthStr);
+
+  function fmtDueDate(iso: string) {
+    return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
+  }
 </script>
 
 <div style="height: 100%; overflow: auto; padding-bottom: 24px;">
-  <div style="padding: 0 18px 18px; display: flex; flex-direction: column; gap: 14px;">
+  <div style="padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
       <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;">
@@ -164,233 +101,184 @@
     </div>
 
     <div class="card" style="padding: 16px;">
-      <div class="label" style="margin-bottom: 6px;">{$t('ddash.monthSpend')}</div>
-      <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
-        <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.8px; line-height: 1;">
-          {monthSpend > 0 ? fmtEurCompact(monthSpend) : '—'}
-        </div>
-        {#if monthDelta != null}
-          <Delta value={monthDelta} />
-        {/if}
+      <div class="label" style="margin-bottom: 6px;">{$t('turno.atStake')}</div>
+      <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.025em; line-height: 1;">
+        {stake > 0 ? fmtEur(stake) : '—'}
       </div>
-      <div style="font-size: 11.5px; color: var(--mep-fg-3);">
-        {$tp('misc.invoice', totalInvoices)}
-        {#if projectedEom != null}
-          · {$t('mdash.projectionClose')} <span class="num" style="color: var(--mep-fg-2); font-weight: 500;">{fmtEurCompact(projectedEom)}</span>
-        {/if}
+      <div class="body" style="margin-top: 6px;">
+        {worklist.length > 0 ? $ti('mdash.turno.stakeSub', { n: worklist.length, urgent: urgentCount }) : $t('turno.worklist.subMoney.zero')}
       </div>
+    </div>
 
-      {#if sparkData && sparkData.length >= 2}
-        <div style="margin-top: 14px; height: 50px;">
-          <Sparkline data={sparkData} color="var(--mep-acc)" width={350} height={50} />
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+        <span class="label">{$t('turno.ribbon.pace')}</span>
+        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
+          {fmtEurCompact(data.mom.this_month)}
+        </span>
+        {#if hasBudget}
+          <Bullet
+            value={data.mom.this_month}
+            target={planMtd}
+            max={data.total_budget}
+            width={140}
+            height={10}
+            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month), plan: fmtEurCompact(planMtd), budget: fmtEurCompact(data.total_budget) })}
+          />
+        {/if}
+        <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && paceDelta > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
+          {hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta), day: daysElapsed }) : momNote}
+        </span>
+      </div>
+      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+        <span class="label">{$t('turno.ribbon.forecast')}</span>
+        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
+          {fmtEurCompact(projectedEom)}
+        </span>
+        <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
+          {hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun) }) : $t('turno.ribbon.forecastNoBudget')}
+        </span>
+      </div>
+      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+        <span class="label">{$t('turno.ribbon.review')}</span>
+        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
+          {fmtEurCompact(data.pending.amount)}
+        </span>
+        <span class="num" style="font-size: 11px; font-weight: 500; color: {data.pending.count > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
+          {$tp('turno.ribbon.reviewNote', data.pending.count)}
+        </span>
+      </div>
+      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+        <span class="label">{$ti('turno.ribbon.cashOut', { days: RIBBON_HORIZON_DAYS })}</span>
+        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
+          {fmtEurCompact(cashOutSoonTotal)}
+        </span>
+        <span class="num" style="font-size: 11px; font-weight: 500; color: {cashOutSoon.length > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
+          {$tp('turno.ribbon.cashOutNote', cashOutSoon.length)}
+        </span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 2px;">
+      <div style="min-width: 0;">
+        <div class="subtitle">{$t('turno.worklist.title')}</div>
+        <div class="body" style="margin-top: 1px;">
+          {$tp(sortMode === 'money' ? 'turno.worklist.subMoney' : 'turno.worklist.subUrgency', worklist.length)}
+        </div>
+      </div>
+      {#if worklist.length > 1}
+        <button
+          type="button"
+          style="display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; font-size: 13px; font-weight: 500; color: var(--mep-acc); min-height: 44px; flex-shrink: 0;"
+          onclick={() => sortMode = sortMode === 'money' ? 'urgency' : 'money'}
+        >
+          {$t(sortMode === 'money' ? 'turno.sort.toUrgency' : 'turno.sort.toMoney')}
+          <ArrowUpDown size={14} />
+        </button>
+      {/if}
+    </div>
+
+    {#if sortedWorklist.length === 0}
+      <div class="card" style="padding: 24px 18px; text-align: center;">
+        <div class="subtitle" style="margin-bottom: 6px;">{$t('turno.empty.title')}</div>
+        <div class="body" style="margin: 0 0 14px;">{$t('turno.empty.body')}</div>
+        <a href="/extract" class="btn btn-primary" style="text-decoration: none;">{$t('turno.empty.action')}</a>
+      </div>
+    {:else}
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        {#each sortedWorklist as item, i (item.id)}
+          <WorkCardMobile {item} primary={i === 0} />
+        {/each}
+      </div>
+    {/if}
+
+    <RailBlock title={$t('turno.rail.pace')}>
+      {#snippet headerRight()}
+        {#if hasBudget}
+          <span class="num" style="font-size: 11px; font-weight: 500; color: {overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
+            {fmtEurSigned(overrun)}
+          </span>
+        {/if}
+      {/snippet}
+      {#if !hasPaceData}
+        <div class="body">{$t('turno.rail.paceEmpty')}</div>
+      {:else}
+        <PaceChart
+          points={paceCurve}
+          budget={data.total_budget}
+          todayDay={data.is_current_month ? Math.min(daysElapsed, daysInMonth) : daysInMonth}
+          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget) })}
+          forecastLabel={$t('turno.rail.forecastLabel')}
+          forecastValueLabel={fmtEurCompact(projectedEom)}
+          ariaLabel={$t('turno.rail.paceAriaChart')}
+          width={326}
+          height={130}
+        />
+      {/if}
+    </RailBlock>
+
+    <RailBlock title={$t('turno.rail.cats')}>
+      {#snippet headerRight()}
+        <a href="/budgets" style="font-size: 13px; font-weight: 500; color: var(--mep-acc); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">
+          {$t('turno.rail.catsAll')}
+        </a>
+      {/snippet}
+      {#if categoryRisk.length === 0}
+        <div class="body">{$t('turno.rail.catsEmpty')}</div>
+      {:else}
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          {#each categoryRisk as cat (cat.category)}
+            <div>
+              <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px;">
+                <span class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{$tcat(cat.category)}</span>
+                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">
+                  {fmtEurCompact(cat.spent)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget)}</span>
+                </span>
+              </div>
+              <Bullet
+                value={cat.spent}
+                target={cat.planToDate}
+                max={cat.budget * 1.05}
+                color={categoryColor(cat.category)}
+                width={326}
+                height={10}
+                label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent), budget: fmtEurCompact(cat.budget) })}
+              />
+              <div class="num" style="font-size: 11px; margin-top: 5px; color: {cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
+                {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast), delta: fmtEurSigned(cat.overrun) })}
+              </div>
+            </div>
+          {/each}
         </div>
       {/if}
+    </RailBlock>
 
-      {#if totalBudget > 0}
-        <div style="margin-top: 14px;">
-          <div style="display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 6px;">
-            <span style="color: var(--mep-fg-3);">{$t('mdash.monthBudget')}</span>
-            <span class="num" style="color: var(--mep-fg); font-weight: 500;">
-              <span style="color: {budgetColor};">
-                {budgetPct}%
+    <RailBlock title={$t('turno.rail.cashOut')}>
+      {#snippet headerRight()}
+        <a href="/reminders" style="display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 500; color: var(--mep-acc); text-decoration: none; min-height: 44px;">
+          {$t('turno.rail.cashOutAll')} <ChevronRight size={14} />
+        </a>
+      {/snippet}
+      {#if data.payables.length === 0}
+        <div class="body">{$ti('turno.rail.cashOutEmpty', { n: CASH_OUT_HORIZON_DAYS })}</div>
+      {:else}
+        <div style="display: flex; flex-direction: column;">
+          {#each data.payables.slice(0, 4) as p, i (p.id)}
+            <div style="display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: {i < Math.min(data.payables.length, 4) - 1 ? '1px solid var(--mep-divider)' : 'none'};">
+              <span class="num" style="width: 46px; font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{fmtDueDate(p.due_date)}</span>
+              <span class="body" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{p.supplier_name ?? '—'}</span>
+              <span class="num body-strong" style="flex-shrink: 0;">{fmtEur(p.amount)}</span>
+              <span
+                class="badge"
+                style="font-size: 11px; flex-shrink: 0; background: {p.days_delta < 0 ? 'var(--mep-neg-soft)' : p.days_delta <= 7 ? 'var(--mep-caution-soft)' : 'var(--mep-hover)'}; color: {p.days_delta < 0 ? 'var(--mep-neg)' : p.days_delta <= 7 ? 'var(--mep-caution)' : 'var(--mep-fg-3)'};"
+              >
+                {p.days_delta < 0 ? $t('turno.rail.overdue') : $ti('turno.rail.days', { n: p.days_delta })}
               </span>
-              {$ti('ddash.ofBudget', { amount: fmtEurCompact(totalBudget) })}
-            </span>
-          </div>
-          <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-            <div style="
-              width: {Math.min(budgetPct, 100)}%; height: 100%;
-              background: {budgetColor};
-            "></div>
-          </div>
-          <div style="display: flex; justify-content: flex-end; margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-            <span class="num" style="color: var(--mep-fg-2); font-weight: 500; margin-right: 3px;">{fmtEurCompact(totalSpent)}</span>
-            {$t('dash.budget.used')}
-          </div>
+            </div>
+          {/each}
         </div>
       {/if}
-    </div>
-
-    <div class="card" style="padding: 14px;">
-      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px;">
-        <div class="subtitle">{$t('dash.chart')}</div>
-        <div class="num" style="font-size: 20px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.4px; line-height: 1;">
-          {trendLoading ? '…' : trendTotal > 0 ? fmtEurCompact(trendTotal) : '—'}
-        </div>
-      </div>
-      <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">{trendLabel}</div>
-      <div style="margin-top: 10px; height: 44px; display: flex; align-items: center;">
-        {#if trendLoading}
-          <span class="label">{$t('chart.loading')}</span>
-        {:else if trendSpark.length >= 2 && trendTotal > 0}
-          <Sparkline data={trendSpark} color="var(--mep-acc)" width={320} height={44} />
-        {:else}
-          <span class="label">{$t('chart.noSpendData')}</span>
-        {/if}
-      </div>
-      <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
-        <div class="period-track" role="group">
-          {#each GRANULARITIES as g (g)}
-            <button
-              type="button"
-              class="period-pill {activeGranularity === g ? 'active' : ''}"
-              aria-pressed={activeGranularity === g}
-              onclick={() => setGranularity(g)}
-            >{$t(`chart.gran.${g}`)}</button>
-          {/each}
-        </div>
-        <div class="period-track" role="group">
-          {#each RANGES as r (r)}
-            <button
-              type="button"
-              class="period-pill {activeRange === r ? 'active' : ''}"
-              aria-pressed={activeRange === r}
-              onclick={() => setRange(r)}
-            >{$t(`chart.range.${r}`)}</button>
-          {/each}
-        </div>
-      </div>
-    </div>
-
-    {#if highAlerts + medAlerts > 0}
-      <a href="/reminders" style="
-        display: block; text-decoration: none;
-        padding: 12px 14px; border-radius: 10px;
-        background: {highAlerts > 0 ? 'var(--mep-neg-soft)' : 'var(--mep-warn-soft)'};
-        display: flex; align-items: flex-start; gap: 12px;
-      ">
-        <div style="color: {highAlerts > 0 ? 'var(--mep-neg)' : 'var(--mep-warn)'}; margin-top: 2px; flex-shrink: 0;">
-          <AlertTriangle size={18} />
-        </div>
-        <div style="flex: 1; min-width: 0;">
-          <div style="
-            font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: {highAlerts > 0 ? 'var(--mep-neg)' : 'var(--mep-warn)'};
-            margin-bottom: 2px;
-          ">
-            {highAlerts + medAlerts} {highAlerts + medAlerts > 1 ? $t('mdash.alerts') : $t('mdash.alert')}
-            {highAlerts > 0 ? ' ' + $t('mdash.severe') : ''}
-          </div>
-          <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); line-height: 1.4;">
-            {alertText}
-          </div>
-          <div style="font-size: 12px; color: var(--mep-fg-2); margin-top: 3px;">
-            {$t('mdash.checkMargins')}
-          </div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--mep-acc);">
-          {$t('mdash.viewAll')}
-          <ChevronRight size={14} />
-        </div>
-      </a>
-    {/if}
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-      <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('mdash.pendingPayment')}</div>
-        <div class="num" style="
-          font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
-          color: {pendingAmount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
-        ">
-          {pendingAmount > 0 ? fmtEurCompact(pendingAmount) : '—'}
-        </div>
-        <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-          {pendingCount} {$t('sup.invoicesSuffix')}
-        </div>
-      </div>
-      <div class="card" style="padding: 12px;">
-        <div class="label" style=" margin-bottom: 5px;">{$t('status.pending')}</div>
-        <div class="num" style="
-          font-size: 19px; font-weight: 600; letter-spacing: -0.3px; line-height: 1;
-          color: {pendingCount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};
-        ">
-          {pendingCount}
-        </div>
-        <div style="margin-top: 6px; font-size: 11px; color: var(--mep-fg-3);">
-          {$t('mdash.extractedInvoices')}
-        </div>
-      </div>
-    </div>
-
-    {#if topSuppliers.length > 0}
-      <div class="card" style="padding: 14px 14px 6px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-          <div class="subtitle" style="font-size: 15px;">{$t('dash.suppliers')}</div>
-          <a href="/suppliers" style="color: var(--mep-fg-3); text-decoration: none; display: flex; align-items: center; justify-content: flex-end; min-width: 44px; min-height: 44px;">
-            <ChevronRight size={14} />
-          </a>
-        </div>
-        {#each topSuppliers as s, i}
-          {@const sub = [s.cat ? $tcat(s.cat) : null, s.invoices ? `${s.invoices} ${$t('sup.invoicesSuffix')}` : null].filter(Boolean).join(' · ')}
-          <div style="
-            display: flex; align-items: center; gap: 12px;
-            padding: 8px 0;
-            border-bottom: {i < topSuppliers.length - 1 ? '1px solid var(--mep-divider)' : 'none'};
-          ">
-            <span style="background: {categoryColor(s.cat)}; width: 8px; height: 26px; border-radius: 2px; flex-shrink: 0;"></span>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                {s.name}
-              </div>
-              {#if sub}
-                <div style="font-size: 11px; color: var(--mep-fg-3);">{sub}</div>
-              {/if}
-            </div>
-            <div style="text-align: right; flex-shrink: 0;">
-              <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">
-                {fmtEur(s.month_spend)}
-              </div>
-              {#if s.delta != null}
-                <Delta value={s.delta} />
-              {/if}
-            </div>
-          </div>
-        {/each}
-      </div>
-    {/if}
-
-    {#if recentInvoices.length > 0}
-      <div class="card" style="padding: 14px 14px 6px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-          <div class="subtitle" style="font-size: 15px;">{$t('mdash.recent')}</div>
-          <a href="/invoices" style="font-size: 13px; color: var(--mep-acc); font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('action.viewAll')}</a>
-        </div>
-        {#each recentInvoices.slice(0, 3) as inv, i}
-          <a href="/invoice/{inv.id}" style="
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 0;
-            border-bottom: {i < Math.min(recentInvoices.length, 3) - 1 ? '1px solid var(--mep-divider)' : 'none'};
-            text-decoration: none;
-          ">
-            <div style="
-              width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
-              background: var(--mep-surface-2); color: var(--mep-fg-2);
-              display: flex; align-items: center; justify-content: center;
-            ">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-              </svg>
-            </div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-size: 13px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                {inv.supplier_name ?? '—'}
-              </div>
-              <div class="num" style="font-size: 11.5px; color: var(--mep-fg-3);">
-                {inv.invoice_number ?? '—'} · {fmtDate(inv.invoice_date, $locale)}
-              </div>
-            </div>
-            <div style="text-align: right; flex-shrink: 0;">
-              <div class="num" style="font-size: 13.5px; font-weight: 600; color: var(--mep-fg);">
-                {inv.display_amount != null ? fmtEur(inv.display_amount) : '—'}
-              </div>
-              <StatusBadge status={inv.status ?? 'pending'} style="font-size: 11px; padding: 1px 5px;" />
-            </div>
-          </a>
-        {/each}
-      </div>
-    {/if}
+    </RailBlock>
 
   </div>
 </div>
