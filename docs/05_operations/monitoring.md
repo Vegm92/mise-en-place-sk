@@ -48,9 +48,19 @@ Owner-email gated. Provides:
 - In-app alert types (price shock ≥15%, low stock <3 days, budget 80%/100%)
   are user-facing features, not ops alerts.
 - Ops alerts: Sentry errors, dead-letter growth, WhatsApp account events of
-  severity RED/YELLOW, worker down (stale `worker_heartbeats` row; cron misses),
-  failed per-tenant scheduled jobs (`/admin/health` warns above 0, errors above
-  10 in 24 h).
+  severity RED/YELLOW, failed per-tenant scheduled jobs (`/admin/health` warns
+  above 0, errors above 10 in 24 h).
+- **Worker down is surfaced, not alerted — open gap.** The heartbeat exists
+  (`worker_heartbeats`, stale after `WORKER_HEARTBEAT_STALE_MS`, default 2 min)
+  and `workerLiveness()` renders it on `/admin/health` and `/api/health`, but
+  nothing pushes when it goes stale: someone has to look. A stopped worker is
+  therefore invisible until a symptom shows up (uploads stalling, a digest that
+  never arrived, stale materialized views).
+  The alarm **cannot** live in the worker — a dead process cannot report its own
+  death, and every notification path in this app (`saveAlerts`, Resend email,
+  the scheduled fan-out) runs *inside* the worker. Closing this needs something
+  outside it: a Railway alert on the service, or an external uptime check
+  polling `/api/health` for `worker.state !== "alive"`.
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
 
