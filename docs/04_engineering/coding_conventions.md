@@ -174,9 +174,9 @@ These comments were deliberately left in the code because a tool reads them.
 
 - Case- and accent-insensitive lookup key, so 'lacteos' finds 'Lácteos'.
 
-**`function resolveSupplierCategory`**
+**`function resolveCategory`**
 
-- The only door into `suppliers.category` for a machine-proposed value (issue #315). Extraction asks Gemini for one exact string from VALID_CATEGORIES, but a model will also return a translation, an invented category, or an unaccented lower-cased variant; this maps a recognisable spelling back onto its canonical string and turns everything else — including a low-confidence guess — into the uncategorised bucket, so a bad guess degrades into "Other" instead of poisoning the taxonomy budgets group on. Always returns a member of VALID_CATEGORIES; never null, never a new string. Absent/non-numeric confidence (older prompt cache, dropped field) falls back to trusting the taxonomy match.
+- The only door into `suppliers.category` **and `products.category`** for a machine-proposed value (issue #315; renamed from `resolveSupplierCategory` in ADR-027 — it only validates against the taxonomy and was never supplier-specific). Extraction asks Gemini for one exact string from VALID_CATEGORIES, but a model will also return a translation, an invented category, or an unaccented lower-cased variant; this maps a recognisable spelling back onto its canonical string and turns everything else — including a low-confidence guess — into the uncategorised bucket, so a bad guess degrades into "Other" instead of poisoning the taxonomy budgets group on. Always returns a member of VALID_CATEGORIES; never null, never a new string. Absent/non-numeric confidence (older prompt cache, dropped field) falls back to trusting the taxonomy match.
 
 **`function categorySlug`**
 

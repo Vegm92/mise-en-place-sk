@@ -1,11 +1,11 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { locale, t } from '$lib/i18n';
+  import { locale, t, ti } from '$lib/i18n';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
 
   let { data }: { data: PageData } = $props();
-  const { invoice, lineItems } = $derived(data);
+  const { invoice, lineItems, unlinkedLineCount } = $derived(data);
 
   let confirmDelete = $state(false);
 
@@ -29,7 +29,7 @@
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceDetail {invoice} {lineItems} />
+  <MobileInvoiceDetail {invoice} {lineItems} {unlinkedLineCount} />
 </div>
 
 <div class="hidden md:block">
@@ -172,6 +172,18 @@
           <span class="subtitle">{$t('extract.lineItems')}</span>
         </div>
       </div>
+      {#if unlinkedLineCount > 0}
+        <div class="p-4 flex flex-wrap items-center gap-3 border-b border-divider">
+          <span class="body text-warn">
+            {$ti('inv.detail.unlinkedLines', { n: unlinkedLineCount })}
+          </span>
+          <form method="post" action="?/relinkProducts">
+            <button type="submit" class="btn btn-secondary">
+              {$t('inv.detail.relink')}
+            </button>
+          </form>
+        </div>
+      {/if}
       <table class="tbl">
         <thead>
           <tr>

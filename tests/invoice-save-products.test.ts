@@ -97,6 +97,60 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 		expect(plainProduct.base_unit).toBeNull();
 	});
 
+	it('creates the product without a category — the supplier no longer decides', async () => {
+		// Products used to be born carrying the supplier's tag, which is exactly
+		// why attributing spend by the line would have been a no-op: the product
+		// only echoed the supplier. A new product now starts uncategorised and
+		// the categorize-product job gives it a verdict of its own.
+		await testSql`
+			INSERT INTO suppliers (restaurant_id, name, category)
+			VALUES (${rid}, '__inv_prod_tagged__', 'Bebidas')`;
+
+		const out = await saveReviewedInvoice(null, form('__inv_prod_tagged__', [
+			{ desc: 'Tomate rama IV', unit: 'kg', price: '2.20' },
+		]), rid);
+		expect(out.type).toBe('saved');
+		if (out.type !== 'saved') return;
+
+		const [item] = await testSql`
+			SELECT product_id FROM invoice_line_items WHERE invoice_id = ${out.invoiceId}`;
+		const [product] = await testSql`SELECT category FROM products WHERE id = ${item.product_id}`;
+		expect(product.category).toBeNull();
+	});
+
+	it('re-links the lines an interrupted save left with a NULL product_id', async () => {
+		// Linking is stamped after the invoice transaction commits, inside a
+		// try/catch that swallows the error — so a failure part-way leaves the
+		// rest of the lines NULL and still reports success. The invoice page's
+		// re-link action runs the same engine again over just those lines.
+		const out = await saveReviewedInvoice(null, form('__inv_prod_relink__', [
+			{ desc: 'Pimiento verde', unit: 'kg', price: '1.90' },
+			{ desc: 'Calabacín', unit: 'kg', price: '1.40' },
+		]), rid);
+		expect(out.type).toBe('saved');
+		if (out.type !== 'saved') return;
+
+		await testSql`
+			UPDATE invoice_line_items SET product_id = NULL WHERE invoice_id = ${out.invoiceId}`;
+
+		const { actions } = await import('../src/routes/(app)/invoice/[id]/+page.server');
+		let redirected: unknown;
+		try {
+			await actions.relinkProducts({
+				params: { id: String(out.invoiceId) },
+				locals: { restaurantId: rid },
+			} as never);
+		} catch (e) {
+			redirected = e;
+		}
+		expect((redirected as { status?: number } | undefined)?.status).toBe(303);
+
+		const items = await testSql`
+			SELECT product_id FROM invoice_line_items WHERE invoice_id = ${out.invoiceId}`;
+		expect(items).toHaveLength(2);
+		for (const it of items) expect(it.product_id).not.toBeNull();
+	});
+
 	it('raises a product_suggestion notification for a fuzzy near-duplicate', async () => {
 		// First invoice establishes "Tomate pera"; second uses a near-duplicate.
 		await saveReviewedInvoice(null, form('__inv_prod_sup2__', [

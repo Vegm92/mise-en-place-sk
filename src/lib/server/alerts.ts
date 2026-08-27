@@ -1,14 +1,15 @@
 import type { PgBoss } from 'pg-boss';
-import { and, eq, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant } from './db';
-import { invoices, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
+import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
 import { users } from './schema';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
 import { moneyToNumber, moneyToNullableNumber } from './money';
+import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
 import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, effectiveTier } from './billing';
@@ -337,14 +338,49 @@ export async function runCategorizationNudge(
 	}];
 }
 
+export const DOMINANT_CATEGORY_SHARE = 0.5;
+
+export async function dominantSupplierLineCategory(
+	supplierId: number,
+	restaurantId: string,
+): Promise<string | null> {
+	const tdb = forTenant(restaurantId);
+	const categoryExpr = lineCategoryExpr();
+	const rows = await db
+		.select({
+			category: categoryExpr,
+			total: sql<string>`COALESCE(SUM(${lineAmountExpr()}), 0)`,
+		})
+		.from(invoiceLineItems)
+		.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.leftJoin(products, lineProductJoinOn())
+		.where(and(
+			tdb.scope(invoices.restaurantId),
+			eq(invoices.supplierId, supplierId),
+			isNull(invoices.deletedAt),
+			describedLine(),
+		))
+		.groupBy(categoryExpr);
+
+	let total = 0;
+	let best: { category: string; amount: number } | null = null;
+	for (const row of rows) {
+		const amount = moneyToNumber(row.total);
+		total += amount;
+		if (!best || amount > best.amount) best = { category: String(row.category), amount };
+	}
+	if (!best || total <= 0) return null;
+	if (best.category === UNCATEGORIZED_CATEGORY) return null;
+	if (!VALID_CATEGORIES.includes(best.category)) return null;
+	return best.amount / total >= DOMINANT_CATEGORY_SHARE ? best.category : null;
+}
+
 export async function runCategorySuggestion(
 	supplierId: number,
 	restaurantId: string,
 	proposedCategory: string,
 ): Promise<Alert[]> {
-	if (!proposedCategory || proposedCategory === UNCATEGORIZED_CATEGORY) return [];
-	if (!VALID_CATEGORIES.includes(proposedCategory)) return [];
-
 	const tdb = forTenant(restaurantId);
 
 	const [supplier] = await db
@@ -354,6 +390,14 @@ export async function runCategorySuggestion(
 		.limit(1);
 	if (!supplier) return [];
 	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
+
+	const fromExtraction = Boolean(proposedCategory)
+		&& proposedCategory !== UNCATEGORIZED_CATEGORY
+		&& VALID_CATEGORIES.includes(proposedCategory);
+	const category = fromExtraction
+		? proposedCategory
+		: await dominantSupplierLineCategory(supplierId, restaurantId);
+	if (!category) return [];
 
 	const existing = await db
 		.select({ payload: systemNotifications.payload })
@@ -382,13 +426,14 @@ export async function runCategorySuggestion(
 
 	return [{
 		notificationType: 'supplier_category_suggested',
-		message: `supplier_category_suggested: ${supplier.name} -> ${proposedCategory}`,
+		message: `supplier_category_suggested: ${supplier.name} -> ${category}`,
 		payload: {
 			supplierId,
 			supplierName: supplier.name,
-			suggestedCategory: proposedCategory,
+			suggestedCategory: category,
+			source: fromExtraction ? 'extraction' : 'lines',
 			messageKey: 'notif.msg.catSuggested',
-			messageVars: { supplier: supplier.name, category: proposedCategory },
+			messageVars: { supplier: supplier.name, category },
 		},
 	}];
 }
@@ -398,14 +443,103 @@ function budgetOverageLevel(pctFrac: number, thresholdFrac: number): 'exceeded' 
 	return pctFrac >= thresholdFrac ? 'warning' : null;
 }
 
-export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
-	const tdb = forTenant(restaurantId);
+async function invoiceLineCategories(
+	tdb: ReturnType<typeof forTenant>,
+	invoiceId: number,
+	supplierId: number,
+): Promise<string[]> {
+	const categoryExpr = lineCategoryExpr();
+	const rows = await db
+		.select({ category: categoryExpr })
+		.from(invoiceLineItems)
+		.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.leftJoin(products, lineProductJoinOn())
+		.where(and(
+			tdb.scope(invoiceLineItems.restaurantId),
+			eq(invoiceLineItems.invoiceId, invoiceId),
+			describedLine(),
+		))
+		.groupBy(categoryExpr);
+	if (rows.length > 0) return rows.map((r) => String(r.category));
+
 	const supplierRows = await db
 		.select({ category: suppliers.category })
 		.from(suppliers)
 		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
 		.limit(1);
-	const category = supplierRows[0]?.category ?? UNCATEGORIZED_CATEGORY;
+	return [supplierRows[0]?.category ?? UNCATEGORIZED_CATEGORY];
+}
+
+async function monthlyCategorySpend(
+	tdb: ReturnType<typeof forTenant>,
+	categories: string[],
+): Promise<Map<string, number>> {
+	const categoryExpr = lineCategoryExpr();
+	const rows = await db
+		.select({
+			category: categoryExpr,
+			total: sql<string>`COALESCE(SUM(${lineAmountExpr()}), 0)`,
+		})
+		.from(invoiceLineItems)
+		.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
+		.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
+		.leftJoin(products, lineProductJoinOn())
+		.where(and(
+			tdb.scope(invoices.restaurantId),
+			isNull(invoices.deletedAt),
+			describedLine(),
+			sql`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`,
+		))
+		.groupBy(categoryExpr);
+	const wanted = new Set(categories);
+	const out = new Map<string, number>();
+	for (const row of rows) {
+		const category = String(row.category);
+		if (wanted.has(category)) out.set(category, moneyToNumber(row.total));
+	}
+	return out;
+}
+
+async function sentOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise<Set<string>> {
+	const monthPrefix = new Date().toISOString().slice(0, 7);
+	const rows = await db
+		.select({ payload: systemNotifications.payload })
+		.from(systemNotifications)
+		.where(and(
+			tdb.scope(systemNotifications.restaurantId),
+			eq(systemNotifications.notificationType, 'budget_overage'),
+			sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`
+		));
+	const sent = new Set<string>();
+	for (const row of rows) {
+		try {
+			const p = JSON.parse(row.payload ?? '{}');
+			if (p.category && p.level) sent.add(`${p.category}:${p.level}`);
+		} catch (e) { console.error(e); }
+	}
+	return sent;
+}
+
+export async function runBudgetCheck(invoiceId: number, supplierId: number, restaurantId: string): Promise<Alert[]> {
+	const tdb = forTenant(restaurantId);
+	const categories = await invoiceLineCategories(tdb, invoiceId, supplierId);
+	if (categories.length === 0) return [];
+
+	const currentMonth = toMonthStr(new Date());
+	const budgetRows = await db
+		.select({ category: categoryBudgets.category, monthlyBudget: categoryBudgets.monthlyBudget })
+		.from(categoryBudgets)
+		.where(tdb.scope(categoryBudgets.restaurantId, and(
+			inArray(categoryBudgets.category, categories),
+			eq(categoryBudgets.month, currentMonth),
+		)));
+	const budgets = new Map<string, number>(
+		budgetRows
+			.map((r): [string, number] => [r.category, moneyToNumber(r.monthlyBudget)])
+			.filter(([, amount]) => amount > 0),
+	);
+	if (budgets.size === 0) return [];
 
 	const thresholdRows = await db
 		.select({ value: settings.value })
@@ -415,64 +549,35 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
 	const thresholdFrac = thresholdPct / 100;
 
-	const currentMonth = toMonthStr(new Date());
-	const budgetRows = await db
-		.select({ monthlyBudget: categoryBudgets.monthlyBudget })
-		.from(categoryBudgets)
-		.where(tdb.scope(categoryBudgets.restaurantId, and(eq(categoryBudgets.category, category), eq(categoryBudgets.month, currentMonth))))
-		.limit(1);
-	const monthlyBudget = moneyToNumber(budgetRows[0]?.monthlyBudget ?? null);
-	if (!monthlyBudget || monthlyBudget <= 0) return [];
+	const spendByCategory = await monthlyCategorySpend(tdb, [...budgets.keys()]);
 
-	const spendRows = await db
-		.select({ total: sql<string>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)` })
-		.from(invoices)
-		.innerJoin(suppliers, eq(invoices.supplierId, suppliers.id))
-		.where(and(
-			tdb.scope(invoices.restaurantId),
-			isNull(invoices.deletedAt),
-			sql`COALESCE(${suppliers.category}, 'Other') = ${category}`,
-			sql`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')`
-		));
-	const totalSpend = moneyToNumber(spendRows[0]?.total ?? '0');
-	const pctFrac = totalSpend / monthlyBudget;
+	const alreadySent = await sentOveragesThisMonth(tdb);
 
-	const level = budgetOverageLevel(pctFrac, thresholdFrac);
-	if (!level) return [];
+	const alerts: Alert[] = [];
+	for (const [category, monthlyBudget] of budgets) {
+		const totalSpend = spendByCategory.get(category) ?? 0;
+		const pctFrac = totalSpend / monthlyBudget;
+		const level = budgetOverageLevel(pctFrac, thresholdFrac);
+		if (!level || alreadySent.has(`${category}:${level}`)) continue;
+		alreadySent.add(`${category}:${level}`);
 
-	const monthPrefix = new Date().toISOString().slice(0, 7);
-	const existingRows = await db
-		.select({ payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(and(
-			tdb.scope(systemNotifications.restaurantId),
-			eq(systemNotifications.notificationType, 'budget_overage'),
-			sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`
-		));
-	const alreadySent = existingRows.some(row => {
-		try {
-			const p = JSON.parse(row.payload ?? '{}');
-			return p.category === category && p.level === level;
-		} catch (e) { console.error(e); return false; }
-	});
-	if (alreadySent) return [];
-
-	const pctDisplay = Math.round(pctFrac * 100);
-
-	return [{
-		notificationType: 'budget_overage',
-		message: `budget_overage: ${category} ${pctDisplay}% (${level})`,
-		payload: {
-			category,
-			spent: totalSpend,
-			budget: monthlyBudget,
-			pct: pctDisplay,
-			threshold: thresholdPct,
-			level,
-			messageKey: level === 'exceeded' ? 'notif.msg.budgetExceeded' : 'notif.msg.budgetWarning',
-			messageVars: { category, spent: totalSpend.toFixed(2), budget: monthlyBudget.toFixed(2), pct: pctDisplay, threshold: thresholdPct },
-		},
-	}];
+		const pctDisplay = Math.round(pctFrac * 100);
+		alerts.push({
+			notificationType: 'budget_overage',
+			message: `budget_overage: ${category} ${pctDisplay}% (${level})`,
+			payload: {
+				category,
+				spent: totalSpend,
+				budget: monthlyBudget,
+				pct: pctDisplay,
+				threshold: thresholdPct,
+				level,
+				messageKey: level === 'exceeded' ? 'notif.msg.budgetExceeded' : 'notif.msg.budgetWarning',
+				messageVars: { category, spent: totalSpend.toFixed(2), budget: monthlyBudget.toFixed(2), pct: pctDisplay, threshold: thresholdPct },
+			},
+		});
+	}
+	return alerts;
 }
 
 const DUPLICATE_DATE_WINDOW_DAYS = 21;

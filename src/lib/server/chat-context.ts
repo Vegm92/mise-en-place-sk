@@ -1,6 +1,7 @@
 import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, suppliers, categoryBudgets, stockLevels, systemNotifications } from './schema';
 import { sql } from 'drizzle-orm';
+import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from './category-spend';
 
 const TOKEN_LIMIT = 20_000;
 
@@ -76,15 +77,25 @@ async function suppliersSection(restaurantId: string): Promise<string> {
 
 async function budgetsSection(restaurantId: string): Promise<string> {
 	const budgets = await db.execute<BudgetRow>(sql`
+		WITH month_spend AS (
+			SELECT ${lineCategoryExpr()} AS category,
+			       SUM(${lineAmountExpr()}) AS spend
+			FROM invoice_line_items
+			JOIN invoices i ON i.id = invoice_line_items.invoice_id
+			JOIN suppliers ON suppliers.id = i.supplier_id
+			${lineProductJoin()}
+			WHERE i.restaurant_id = ${restaurantId}
+			  AND i.deleted_at IS NULL
+			  AND ${describedLine()}
+			  AND TO_CHAR(i.invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
+			GROUP BY ${lineCategoryExpr()}
+		)
 		SELECT cb.category, cb.monthly_budget,
-			COALESCE(SUM(i.total_amount), 0) AS actual_this_month
+			COALESCE(ms.spend, 0) AS actual_this_month
 		FROM ${categoryBudgets} cb
-		LEFT JOIN ${suppliers} s ON s.category = cb.category AND s.restaurant_id = ${restaurantId}
-		LEFT JOIN ${invoices} i ON i.supplier_id = s.id
-			AND TO_CHAR(i.invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
+		LEFT JOIN month_spend ms ON ms.category = cb.category
 		WHERE cb.restaurant_id = ${restaurantId}
 		  AND cb.month = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
-		GROUP BY cb.category, cb.monthly_budget
 	`);
 
 	if (!budgets.length) return '';

@@ -3,6 +3,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
+import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { desc, eq, inArray, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
@@ -201,14 +202,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			`),
 
 			db.execute(sql`
-				SELECT COALESCE(s.category,'Other') AS category,
-				       COALESCE(SUM(COALESCE(i.total_amount,0)),0) AS total
-				FROM invoices i
-				JOIN suppliers s ON i.supplier_id = s.id
+				SELECT ${lineCategoryExpr()} AS category,
+				       COALESCE(SUM(${lineAmountExpr()}),0) AS total
+				FROM invoice_line_items
+				JOIN invoices i ON i.id = invoice_line_items.invoice_id
+				JOIN suppliers ON suppliers.id = i.supplier_id
+				${lineProductJoin()}
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
+				  AND ${describedLine()}
 				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
-				GROUP BY COALESCE(s.category,'Other')
+				GROUP BY ${lineCategoryExpr()}
 				ORDER BY total DESC
 			`),
 
