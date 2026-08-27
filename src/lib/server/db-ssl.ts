@@ -8,8 +8,13 @@ export interface PgSslConfig {
 
 const SSL_MODES = ['require', 'verify-full'];
 
+const CREDENTIAL_URI = /\/\/[^/\s]{0,200}:[^/\s]{0,200}@/;
+const MAX_CA_PREVIEW_CHARS = 120;
+
 function describeCaSource(value: string): string {
-	return /:\/\/|@/.test(value) ? '<redacted>' : JSON.stringify(value);
+	if (CREDENTIAL_URI.test(value)) return '<redacted>';
+	const shown = value.split('\n')[0].slice(0, MAX_CA_PREVIEW_CHARS);
+	return JSON.stringify(shown === value ? shown : `${shown}…`);
 }
 
 function readCa(value: string): string {
