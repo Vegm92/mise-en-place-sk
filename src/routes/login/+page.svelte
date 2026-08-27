@@ -19,9 +19,6 @@
 	const resetDone = $derived($page.url.searchParams.get('reset') === '1');
 	const verified = $derived($page.url.searchParams.get('verified') === '1');
 
-	// The unverified-email panel stays up across a resend submit (which
-	// returns {email, resent} rather than {error: 'unverified'}), so the
-	// button and its feedback don't disappear after clicking it.
 	const showUnverified = $derived(error === 'unverified' || form?.resent !== undefined);
 	const unverifiedEmail = $derived(form?.email ?? '');
 </script>

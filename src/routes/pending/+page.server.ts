@@ -38,11 +38,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from(users)
 			.where(eq(users.accessStatus, 'approved'));
 
-		// Postgres stores created_at with microsecond precision, but Drizzle returns a JS
-		// Date truncated to milliseconds. Comparing with lte() against the truncated value
-		// can miss the user's own row (e.g. .374295 <= .374 is false), undercounting the
-		// position by one. Counting strictly-earlier rows and adding one is immune to that
-		// truncation.
 		const [ahead] = me?.createdAt
 			? await db
 					.select({ n: count() })
