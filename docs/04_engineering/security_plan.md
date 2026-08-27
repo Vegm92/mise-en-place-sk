@@ -201,9 +201,25 @@ bruta en minutos; una conexión sin TLS verificado permite MITM.
 **Implementación:**
 
 ```bash
-# 1. Pinnear la CA (una vez): descargar la root CA del servicio Postgres
-#    de Railway y guardarla como variable multiline en el variable store:
+# 1. Extraer la root CA. Railway no publica ninguna: la imagen postgres-ssl
+#    genera su propia CA dentro del volumen en el primer arranque, distinta
+#    por instancia. Vive en el PGDATA del servicio Postgres:
+railway ssh --service Postgres
+#    ...y dentro de la sesión:
+cat /var/lib/postgresql/data/certs/root.crt
+#    Copiar la salida a railway-root-ca.crt. NO redirigir `railway ssh ... >
+#    fichero`: el CLI escribe en stdout su banner de registro de clave, que
+#    acaba en el fichero en lugar del certificado.
+
+# 1b. Verificar ANTES de fijar la variable — si esto no imprime la cabecera,
+#     el fichero no es un certificado y ambos servicios caerán al arrancar:
+head -1 railway-root-ca.crt   # → -----BEGIN CERTIFICATE-----
+
+# 1c. Pinnear en los dos servicios (web y worker), como variable multiline:
 railway variables --service web --set "DATABASE_CA_CERT=$(cat railway-root-ca.crt)"
+
+#    DATABASE_SSL_MODE se queda en 'require'. Ponerlo en 'verify-full' no
+#    puede funcionar: el SAN del cert es solo DNS:localhost.
 
 # 2. Confirmar que el servicio Postgres NO tiene TCP Proxy público activo
 #    (Railway → Postgres → Settings → Networking: solo Private Networking).

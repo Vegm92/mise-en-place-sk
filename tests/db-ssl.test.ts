@@ -51,6 +51,12 @@ describe('pgSslConfig', () => {
 		expect(() => pgSslConfig({ DATABASE_CA_CERT: url })).not.toThrow(/hunter2/);
 	});
 
+	it('shows the offending value when it merely contains an @', () => {
+		const banner = 'No SSH keys registered with Railway.\nKey: someone@their-host (SHA256:abc)\n';
+		expect(() => pgSslConfig({ DATABASE_CA_CERT: banner }))
+			.toThrow(/No SSH keys registered with Railway/);
+	});
+
 	it('tolerates surrounding whitespace on the mode and on a CA file path', () => {
 		const file = path.join(mkdtempSync(path.join(tmpdir(), 'mep-ca-')), 'padded-ca.crt');
 		writeFileSync(file, PEM);
