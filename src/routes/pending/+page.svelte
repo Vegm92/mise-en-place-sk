@@ -46,7 +46,7 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
-<div class="mep auth-frame" data-accent="slate" data-density="default">
+<div class="mep auth-frame" data-accent="tinta" data-density="default">
 
 	<aside class="auth-aside">
 		<div class="auth-lockup">

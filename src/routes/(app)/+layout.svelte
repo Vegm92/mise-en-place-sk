@@ -360,7 +360,7 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   <meta name="description" content={$t('app.metaDesc')} />
 </svelte:head>
 
-<div class="mep" data-accent="slate" data-density="default"
+<div class="mep" data-accent="tinta" data-density="default"
   style="width:100%;height:100vh;height:100dvh;display:flex;overflow:hidden;">
 
   {#if mobileOpen}

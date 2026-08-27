@@ -21,7 +21,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 const APP_CSS = path.join(SRC, 'app.css');
 const css = readFileSync(APP_CSS, 'utf8');
-/** Declarations only. The slate block's comment quotes the amber values it
+/** Declarations only. The tinta block's comment quotes the amber values it
  *  replaced, and prose explaining a banned colour is not the banned colour. */
 const cssCode = css.replace(/\/\*[\s\S]*?\*\//g, '');
 
@@ -39,12 +39,14 @@ const sources = walk(SRC).map(file => ({
 	text: readFileSync(file, 'utf8'),
 }));
 
-/** Hue in degrees, 0–360. Reds sit near 0/360, ambers 25–55, blues 200–230. */
-function hue(hex: string): number {
+function rgb(hex: string): [number, number, number] {
 	const n = parseInt(hex.slice(1), 16);
-	const r = ((n >> 16) & 255) / 255;
-	const g = ((n >> 8) & 255) / 255;
-	const b = (n & 255) / 255;
+	return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+/** Hue in degrees, 0–360. Reds sit near 0/360, ambers 25–55, blues 200–230.
+ *  Meaningless on a near-neutral colour — see ACHROMATIC below. */
+function hue([r, g, b]: [number, number, number]): number {
 	const max = Math.max(r, g, b);
 	const delta = max - Math.min(r, g, b);
 	if (delta === 0) return 0;
@@ -53,8 +55,22 @@ function hue(hex: string): number {
 	return (h * 60 + 360) % 360;
 }
 
+/** HSV saturation, 0–1. A near-black or near-white ink accent (tinta) has
+ *  almost none — its "hue" is an artifact of 8-bit rounding, not a colour
+ *  competing with the severity ramp. Real ramp colours (warn/neg/caution) sit
+ *  at 0.6+; this threshold sits an order of magnitude below that. */
+function saturation([r, g, b]: [number, number, number]): number {
+	const max = Math.max(r, g, b);
+	return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+}
+
+const ACHROMATIC = 0.15;
+
 /** Where the severity ramp lives: neg ≈ 0°, warn ≈ 30°, caution ≈ 50°. */
-const SEVERITY_BAND = (h: number) => h < 70 || h > 340;
+const SEVERITY_BAND = (hex: string) => {
+	const c = rgb(hex);
+	return saturation(c) >= ACHROMATIC && (hue(c) < 70 || hue(c) > 340);
+};
 
 /** Every `.mep[data-accent="x"] { … --mep-acc: #hex … }`, tagged by theme. */
 const accentBlocks = [
@@ -76,8 +92,8 @@ describe('accent discipline — blue acts, warm warns', () => {
 
 	it('keeps every accent out of the severity hue band', () => {
 		const warm = accentBlocks
-			.filter(b => SEVERITY_BAND(hue(b.acc)))
-			.map(b => `data-accent="${b.name}" → --mep-acc: ${b.acc} (${Math.round(hue(b.acc))}°)`);
+			.filter(b => SEVERITY_BAND(b.acc))
+			.map(b => `data-accent="${b.name}" → --mep-acc: ${b.acc} (${Math.round(hue(rgb(b.acc)))}°)`);
 		expect(warm).toEqual([]);
 	});
 
@@ -102,9 +118,9 @@ describe('accent discipline — blue acts, warm warns', () => {
 		// Email clients do not resolve custom properties, so email.ts copies the
 		// light ramp by hand. A copy that nobody checks is a copy that drifts.
 		const email = readFileSync(path.join(SRC, 'lib/server/email.ts'), 'utf8');
-		const slateLight = accentBlocks.find(b => b.name === 'slate' && b.theme === 'light');
-		expect(slateLight, 'app.css declares a light slate accent').toBeDefined();
-		expect(email).toContain(`const COLOR_ACCENT = '${slateLight!.acc}';`);
+		const tintaLight = accentBlocks.find(b => b.name === 'tinta' && b.theme === 'light');
+		expect(tintaLight, 'app.css declares a light tinta accent').toBeDefined();
+		expect(email).toContain(`const COLOR_ACCENT = '${tintaLight!.acc}';`);
 
 		const lightVars = cssCode.match(/:root\[data-theme="light"\]\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
 		const token = (name: string) => lightVars.match(new RegExp(`--mep-${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1];
