@@ -8,7 +8,7 @@ export interface PgSslConfig {
 
 const SSL_MODES = ['require', 'verify-full'];
 
-const CREDENTIAL_URI = /\/\/[^/\s]*:[^/\s]*@/;
+const CREDENTIAL_URI = /\/\/[^/\s]{0,200}:[^/\s]{0,200}@/;
 const MAX_CA_PREVIEW_CHARS = 120;
 
 function describeCaSource(value: string): string {
