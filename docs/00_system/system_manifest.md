@@ -18,7 +18,7 @@ Spanish-first, bilingual (es/en). Product definition:
 ## Technology stack
 
 - SvelteKit 2 + Svelte 5 (runes) + TypeScript, `@sveltejs/adapter-node`
-- Tailwind CSS 4 + shadcn-svelte / bits-ui (`components.json`)
+- Tailwind CSS 4
 - Drizzle ORM + `postgres` (postgres.js), Railway Postgres, no RLS (migrated
   off Supabase Postgres, #366)
 - Auth.js (`@auth/sveltekit` + `@auth/drizzle-adapter`), JWT sessions,
