@@ -6,7 +6,7 @@ import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
-import { applyTierSettings, TIERS } from '$lib/server/billing';
+import { applyTierSettings, BILLING_PARENT, TIERS } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
@@ -218,6 +218,10 @@ export const actions: Actions = {
 		if (!name) return fail(422, { section: 'location', error: 'set.locations.err.nameRequired' });
 		if (name.length > 120) return fail(422, { section: 'location', error: 'set.profile.err.restaurantTooLong' });
 
+		if (!(await requireOwner(rid, userId))) {
+			return fail(403, { section: 'location', error: 'set.locations.err.notOwner' });
+		}
+
 		const entitlements = await locals.entitlements();
 		const { billingRestaurantId: billingRid, tier, features, maxLocations } = entitlements
 			?? { billingRestaurantId: rid, tier: 'trial' as const, features: TIERS.trial.features, maxLocations: TIERS.trial.maxLocations };
@@ -225,23 +229,31 @@ export const actions: Actions = {
 			return fail(403, { section: 'location', error: 'set.locations.err.notAvailable' });
 		}
 
-		const existing = await db.select({ id: userRestaurants.restaurantId })
-			.from(userRestaurants)
-			.where(eq(userRestaurants.userId, userId));
-		if (existing.length >= maxLocations) {
-			return fail(403, { section: 'location', error: 'set.locations.err.limitReached' });
-		}
-
 		const slug = `${name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 			.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'local'}-${randomBytes(3).toString('hex')}`;
 
-		const newId = await db.transaction(async (tx) => {
-			const [created] = await tx.insert(restaurants)
-				.values({ name, slug, parentId: billingRid })
-				.returning({ id: restaurants.id });
-			await tx.insert(userRestaurants).values({ userId, restaurantId: created.id, role: 'owner' });
-			return created.id;
-		});
+		let newId: string;
+		try {
+			newId = await db.transaction(async (tx) => {
+				await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'loc:' + billingRid}))`);
+
+				const [{ cnt }] = await tx.select({ cnt: sql<number>`count(*)::int` })
+					.from(restaurants)
+					.where(eq(BILLING_PARENT, billingRid));
+				if (Number(cnt) >= maxLocations) throw new LocationLimitReachedError();
+
+				const [created] = await tx.insert(restaurants)
+					.values({ name, slug, parentId: billingRid })
+					.returning({ id: restaurants.id });
+				await tx.insert(userRestaurants).values({ userId, restaurantId: created.id, role: 'owner' });
+				return created.id;
+			});
+		} catch (err) {
+			if (err instanceof LocationLimitReachedError) {
+				return fail(403, { section: 'location', error: 'set.locations.err.limitReached' });
+			}
+			throw err;
+		}
 
 		await applyTierSettings(newId, tier);
 
@@ -358,6 +370,8 @@ export const actions: Actions = {
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.pairRevoked' };
 	},
 };
+
+class LocationLimitReachedError extends Error {}
 
 async function requireOwner(restaurantId: string, userId: string): Promise<boolean> {
 	const [membership] = await db.select({ role: userRestaurants.role })
