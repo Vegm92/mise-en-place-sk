@@ -1,0 +1,59 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Albaranes · lista",
+      "print": "fixed",
+      "is_interactive": true
+    },
+    {
+      "file": "Grafica.dc.html",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Albaranes · gráfica",
+      "print": "fixed",
+      "is_interactive": true
+    },
+    {
+      "file": "Estados.dc.html",
+      "x": 0,
+      "y": 1140,
+      "w": 1180,
+      "h": 820,
+      "title": "Estados y categorías",
+      "print": "fixed"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "nota-lista",
+      "x": -820,
+      "y": 0,
+      "w": 760,
+      "text": "La bandeja de revisión, sin pagos y sin partidas.\n\nCada fila deja hacer las dos cosas de un vistazo y sin abrir el albarán: comprobar que cuadra (Confirmar / Incidencia) y ver con qué categoría está clasificado su proveedor. Las categorías son las que ya usa la app, con sus colores de siempre; las que se quedaron en «Sin categoría» salen con el borde de puntos, y el botón de la barra las filtra de golpe.\n\nOjo al pinchar una categoría: se guarda en el proveedor, así que cambia todos sus albaranes a la vez. El menú lo avisa y se puede ver en marcha — cambia la de una fila de Frutas Gómez y mira la otra.\n\nEn el hueco que ocupaba el estado de pago va ahora el número de líneas: es lo que te dice si un albarán son dos cajas o la compra de la semana.\n\nDatos de ejemplo — 16 albaranes de una semana, cuadrados con la gráfica y con el tablero de estados."
+    },
+    {
+      "id": "nota-grafica",
+      "x": 3080,
+      "y": 0,
+      "w": 700,
+      "text": "La pestaña «Gráfica» de la misma página.\n\nLa columna sigue apilada por estado de revisión, pero ahora eliges qué mide: albaranes, líneas de producto, importe o coste medio por albarán. Pasa el ratón por una semana y el globo te da las cuatro cifras a la vez.\n\nArriba, las cuatro que resumen el periodo: albaranes, líneas (y cuántas por albarán), coste medio por albarán y gasto total.\n\nAbajo, el reparto por categoría y una tabla con el tamaño típico del albarán de cada proveedor: Distribuciones Ruiz te manda 23 líneas por albarán y Pescados Ría de Vigo 7,8. Eso cambia cuánto cuesta revisarlos.\n\nDos detalles del dibujo: el coste medio va como línea porque es una media y no se puede apilar; y las barras de categoría van a un solo tono con el color de la categoría como punto al lado del nombre — los 17 colores de categoría de la app están hechos para ser texto sobre su propio tinte, y como manchas grandes no se distinguen entre sí (Pescados y «Sin categoría» quedan a ΔE 7,1 incluso con visión normal)."
+    },
+    {
+      "id": "nota-estados",
+      "x": 1280,
+      "y": 1140,
+      "w": 460,
+      "text": "Dos cosas que decidir antes de tocar código.\n\n1 · No hay columna nueva. Sin pagos sobran paid y todo lo que cuelga de due_date, y quedan tres valores que caben en invoices.status. La categoría ya existe en suppliers.category, con filtro y endpoint. Es renombrar y quitar.\n\n2 · La categoría es del proveedor, no del albarán. Corregirla desde una fila afecta a todos sus albaranes. Con los proveedores que venden de todo (Distribuciones Norte, Ruiz) ninguna categoría es correcta: son 38.721 €, casi un cuarto del gasto, en «Sin categoría». Si eso molesta, la salida es clasificar por línea —el producto ya tiene categoría propia—, no por albarán.\n\nOjo con la palabra «confirmado»: en el pipeline de extracción ya significa otra cosa (batch_items → confirmed, «los datos extraídos están bien»). El estado nuevo dice «la entrega cuadra»."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}
