@@ -30,7 +30,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 500 | P2 | DONE | 1 | Verified (commit d612085): option B — compose no longer sets ADDRESS_HEADER/XFF_DEPTH, docs updated, tested boot warning for set-without-known-proxy. 2218/2218. | X-Forwarded-For trust + published :3000 |
 | 494 | P2 | DONE | 1 | Core bug already fixed by 1187278; acceptance tests added (commit 827a998), bug re-proven by revert. 2223/2223. Operational note: run pnpm db:backfill-content-hash in prod if not done when 1187278 shipped. | contentHash misaligned line arrays |
 | 493 | P2 | DONE | 1 | Verified (commit b3412ca): 5/min rate limit, EXPORT_ROW_CAP(10k)+1 truncation marker, 400 on bad supplier_id/dates. 2234/2234. | Excel export unbounded |
-| 492 | P2 | PENDING | 0 | | account deletion non-atomic |
+| 492 | P2 | DONE | 1 | Verified (commit db92e3d): re-auth (password/typed fallback), single txn incl. users row, post-commit account-cleanup pg-boss job w/ dead-letter. 2248/2248. Residual: enqueue-failure only logged+Sentry. | account deletion non-atomic |
 | 491 | P2 | PENDING | 0 | | /api/health public + leaks detail |
 | 490 | P2 | PENDING | 0 | | locals.restaurantId! opaque 500 on API routes |
 | 489 | P2 | PENDING | 0 | | layout runs 13 queries per navigation |
