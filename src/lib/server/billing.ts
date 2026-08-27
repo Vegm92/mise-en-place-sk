@@ -751,7 +751,7 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 	const userId = typeof session.metadata?.userId === 'string' ? session.metadata.userId : null;
 	const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? '';
 
-	await db.insert(subscriptions)
+	const applied = await db.insert(subscriptions)
 		.values({
 			restaurantId,
 			stripeCustomerId,
@@ -775,7 +775,11 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 				lastEventAt: eventCreatedAt,
 				updatedAt: new Date(),
 			},
-		});
+			setWhere: or(isNull(subscriptions.lastEventAt), lte(subscriptions.lastEventAt, eventCreatedAt)),
+		})
+		.returning({ id: subscriptions.id });
+	if (applied.length === 0) return;
+
 	await applyTierSettings(restaurantId, tier);
 	trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
 	console.info(`[billing] checkout.session.completed applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${subscriptionId}`);

@@ -56,7 +56,7 @@ vi.mock('../src/lib/server/db', async () => {
 });
 
 import { and, eq } from 'drizzle-orm';
-import { handleWebhookEvent, stripe, syncSubscriptionFromStripe, cancelDuplicateSubscriptionsForUser, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
+import { handleWebhookEvent, stripe, syncSubscriptionFromStripe, cancelDuplicateSubscriptionsForUser, applyTierSettings, WEBHOOK_SECRET as MODULE_SECRET } from '../src/lib/server/billing';
 import { subscriptions, settings, idempotencyKeys, userRestaurants } from '../src/lib/server/schema';
 import { users } from '../src/lib/server/schema';
 import { testDb, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
@@ -511,6 +511,90 @@ describe.skipIf(!hasDbEnv)('Stripe webhook — dedup + out-of-order protection',
 			expect((await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id)))[0]?.status)
 				.toBe('past_due');
 		} finally {
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	/** #502 — checkout.session.completed lacked the ordering guard the other branch has. */
+	it('ignores a checkout.session.completed older than the last applied event, and skips its side effects', async () => {
+		const r = await createTestRestaurant('stripe-checkout-order');
+		const t2 = Math.floor(Date.now() / 1000);
+		const t1 = t2 - 3600;
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'pro', status: 'active',
+			stripePriceId: PRICE_PRO, stripeSubscriptionId: 'sub_order_1', stripeCustomerId: 'cus_order_1',
+			lastEventAt: new Date(t2 * 1000),
+		});
+		await applyTierSettings(r.id, 'pro');
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_order_1', status: 'active', cancel_at_period_end: false,
+			items: { data: [{ price: { id: 'price_starter_test' }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] },
+		} as never);
+		const emailCallsBefore = vi.mocked(sendEmail).mock.calls.length;
+		try {
+			// A checkout for the Starter plan, delivered late (created before the
+			// subscription.updated that already brought the tenant to Pro/active).
+			const body = JSON.stringify({
+				id: `evt_checkout_stale_${Math.random().toString(36).slice(2)}`, object: 'event',
+				type: 'checkout.session.completed', created: t1,
+				data: { object: {
+					id: 'cs_stale', object: 'checkout.session',
+					metadata: { restaurantId: r.id }, subscription: 'sub_order_1',
+					customer: 'cus_order_1', customer_details: { email: 'owner@example.com' },
+				} },
+			});
+			await handleWebhookEvent(body, sign(body));
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.planTier).toBe('pro'); // not reverted to starter
+			expect(row?.status).toBe('active');
+			expect(row?.stripePriceId).toBe(PRICE_PRO);
+			expect(row?.lastEventAt?.getTime()).toBe(t2 * 1000); // untouched
+
+			const settingsRows = await testDb.select().from(settings).where(eq(settings.restaurantId, r.id));
+			expect(Object.fromEntries(settingsRows.map((s) => [s.key, s.value])).plan_name).toBe('Pro'); // applyTierSettings did not rerun for starter
+			expect(vi.mocked(sendEmail).mock.calls.length).toBe(emailCallsBefore); // confirmation email skipped
+		} finally {
+			retrieveSpy.mockRestore();
+			await cleanupTestRestaurant(r.id);
+		}
+	});
+
+	it('still applies an in-order checkout.session.completed, side effects included', async () => {
+		const r = await createTestRestaurant('stripe-checkout-inorder');
+		const t1 = Math.floor(Date.now() / 1000) - 3600;
+		const t2 = Math.floor(Date.now() / 1000);
+		await testDb.insert(subscriptions).values({
+			restaurantId: r.id, planTier: 'starter', status: 'trialing',
+			stripePriceId: 'price_starter_test', lastEventAt: new Date(t1 * 1000),
+		});
+		const retrieveSpy = vi.spyOn(stripe!.subscriptions, 'retrieve').mockResolvedValue({
+			id: 'sub_inorder_1', status: 'active', cancel_at_period_end: false,
+			items: { data: [{ price: { id: PRICE_PRO }, current_period_end: Math.floor(Date.now() / 1000) + 30 * 86_400 }] },
+		} as never);
+		const emailCallsBefore = vi.mocked(sendEmail).mock.calls.length;
+		try {
+			const body = JSON.stringify({
+				id: `evt_checkout_inorder_${Math.random().toString(36).slice(2)}`, object: 'event',
+				type: 'checkout.session.completed', created: t2,
+				data: { object: {
+					id: 'cs_inorder', object: 'checkout.session',
+					metadata: { restaurantId: r.id }, subscription: 'sub_inorder_1',
+					customer: 'cus_inorder_1', customer_details: { email: 'owner@example.com' },
+				} },
+			});
+			await handleWebhookEvent(body, sign(body));
+
+			const [row] = await testDb.select().from(subscriptions).where(eq(subscriptions.restaurantId, r.id));
+			expect(row?.planTier).toBe('pro');
+			expect(row?.status).toBe('active');
+			expect(row?.lastEventAt?.getTime()).toBe(t2 * 1000);
+
+			const settingsRows = await testDb.select().from(settings).where(eq(settings.restaurantId, r.id));
+			expect(Object.fromEntries(settingsRows.map((s) => [s.key, s.value])).plan_name).toBe('Pro');
+			expect(vi.mocked(sendEmail).mock.calls.length).toBe(emailCallsBefore + 1); // confirmation email sent
+		} finally {
+			retrieveSpy.mockRestore();
 			await cleanupTestRestaurant(r.id);
 		}
 	});
