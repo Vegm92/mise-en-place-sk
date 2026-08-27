@@ -75,6 +75,14 @@ chooses).
   straight line is the honest prorate.
 - **Forecast is a run rate**: `spend / elapsedFraction`, month and category
   alike. A closed month forecasts to itself.
+- **The category rail is split by the line, not by the supplier** (ADR-027):
+  the month's category spend groups by `COALESCE(products.category,
+  suppliers.category, 'Other')` over line items, so a generalist wholesaler's
+  delivery note lands in the categories it actually delivered. It sums line
+  amounts rather than `invoices.total_amount`, because an invoice total is
+  atomic and cannot be divided — an invoice saved with no described line items
+  therefore does not appear in the rail (the ribbon figures still use invoice
+  totals).
 - Numbers from SQL aggregates are wrapped in `Number(...)` (postgres.js returns
   strings for numeric types).
 

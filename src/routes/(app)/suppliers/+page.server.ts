@@ -6,6 +6,7 @@ import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES, periodToDate } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
+import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { parseSupplierListParams } from '$lib/supplier-list';
 import {
 	supplierCategoryExpr,
@@ -84,14 +85,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute<SpendTrendRow>(sql`
 				SELECT
 					TO_CHAR(DATE_TRUNC('month', i.invoice_date), 'YYYY-MM') AS month,
-					COALESCE(s.category, 'Other') AS category,
-					COALESCE(SUM(i.total_amount::numeric), 0) AS spend
-				FROM invoices i
-				JOIN suppliers s ON s.id = i.supplier_id
+					${lineCategoryExpr()} AS category,
+					COALESCE(SUM(${lineAmountExpr()}), 0) AS spend
+				FROM invoice_line_items
+				JOIN invoices i ON i.id = invoice_line_items.invoice_id
+				JOIN suppliers ON suppliers.id = i.supplier_id
+				${lineProductJoin()}
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
+				  AND ${describedLine()}
 				  AND i.invoice_date >= ${periodStart}
-				GROUP BY DATE_TRUNC('month', i.invoice_date), COALESCE(s.category, 'Other')
+				GROUP BY DATE_TRUNC('month', i.invoice_date), ${lineCategoryExpr()}
 				ORDER BY DATE_TRUNC('month', i.invoice_date) ASC
 			`),
 

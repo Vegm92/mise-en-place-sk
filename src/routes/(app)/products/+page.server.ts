@@ -90,7 +90,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			products: products.map((p) => ({
 				id:            p.id,
 				canonicalName: p.canonical_name,
-				category:      p.category ?? 'Other',
+				category:      p.category,
 				canonicalUnit: p.canonical_unit,
 				unitsPerPack:  p.units_per_pack,
 				baseUnit:      p.base_unit,

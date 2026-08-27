@@ -2,6 +2,7 @@ import { and, eq, exists, ilike, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, products, supplierMetrics, suppliers } from './schema';
 import { UNCATEGORIZED_CATEGORY } from '../constants';
+import { describedLine, lineProductJoinOn } from './category-spend';
 import type { SupplierListParams, SupplierSortKey } from '../supplier-list';
 
 type TenantScope = ReturnType<typeof forTenant>;
@@ -59,14 +60,19 @@ function hasUncategorizedProducts(tdb: TenantScope): SQL {
 			.select({ present: sql`1` })
 			.from(invoiceLineItems)
 			.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
-			.innerJoin(products, eq(products.id, invoiceLineItems.productId))
+			.leftJoin(products, lineProductJoinOn())
 			.where(
 				and(
 					eq(invoices.supplierId, suppliers.id),
 					tdb.scope(invoiceLineItems.restaurantId),
 					tdb.scope(invoices.restaurantId),
-					tdb.scope(products.restaurantId),
-					or(isNull(products.category), eq(products.category, UNCATEGORIZED_CATEGORY)),
+					isNull(invoices.deletedAt),
+					describedLine(),
+					or(
+						isNull(invoiceLineItems.productId),
+						isNull(products.category),
+						eq(products.category, UNCATEGORIZED_CATEGORY),
+					),
 				),
 			),
 	);

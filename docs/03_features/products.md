@@ -54,6 +54,15 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
 - **User actions** (`products.ts:404-458`): confirm/reject alias (reject splits
   product), merge (deletes orphan), unlink supplier, delete (refuses while
   linked to line items).
+- **Category** (ADR-027): a product's category is its own, not the supplier's.
+  A product is created with `category = NULL` and the async
+  `categorize-product` job (`processCategorizeJob`) proposes one value from
+  `VALID_CATEGORIES` through `resolveCategory`'s 0.6 floor. A rejected verdict
+  leaves NULL — "not judged yet", shown as *Sin categorizar* on `/products` —
+  which is deliberately distinct from an explicit `'Other'`. The job only ever
+  fills a NULL, so a category a human set is never overwritten. This is what
+  the money is split by: `COALESCE(products.category, suppliers.category,
+  'Other')`.
 
 ## State transitions
 
@@ -79,7 +88,9 @@ variants (ADR-020).
 
 ## Background dependencies
 
-`normalize-product` queue (pg-boss) → `processNormalizeJob`.
+`normalize-product` queue (pg-boss) → `processNormalizeJob`;
+`categorize-product` queue (pg-boss) → `processCategorizeJob`. Both have a
+dead-letter queue and record LLM usage.
 
 ## External dependencies
 
@@ -101,7 +112,13 @@ candidates (never arbitrary ids).
 - Pack variant ("3 x 1 kg") vs loose "1 kg" — distinct keys or normalized unit
   price comparison handles it.
 - Backfill of legacy rows without `base_unit`/`product_id` (`backfill.ts`,
-  `scripts/db:backfill-products`).
+  `pnpm db:backfill-products`); it creates products with no category, which the
+  categorisation backfill then picks up.
+- Backfill of the existing catalogue's categories: `pnpm
+  db:backfill-product-categories` queues one `categorize-product` job per
+  uncategorised product (`--include-other` also resets products stamped
+  `'Other'` by the pre-ADR-027 supplier inheritance). The worker does the work;
+  it costs one LLM call per product.
 
 ## Security rules
 
@@ -128,8 +145,9 @@ candidates (never arbitrary ids).
 - Tests: `tests/product-catalog.test.ts`, `tests/product-crud.test.ts`,
   `tests/product-conversion-suggestions.test.ts`,
   `tests/product-dictionary.test.ts`, `tests/product-normalizer.test.ts`,
-  `tests/norm-key-parity.test.ts`, `tests/pack-parser.test.ts`,
-  `tests/unit-bridge.test.ts`, `tests/backfill.test.ts`.
+  `tests/product-categorizer.test.ts`, `tests/norm-key-parity.test.ts`,
+  `tests/pack-parser.test.ts`, `tests/unit-bridge.test.ts`,
+  `tests/backfill.test.ts`, `tests/category-attribution.test.ts`.
 
 ## Code notes
 

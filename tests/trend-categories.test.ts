@@ -15,7 +15,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
 	testDb, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { invoices, suppliers } from '../src/lib/server/schema';
+import { invoiceLineItems, invoices, suppliers } from '../src/lib/server/schema';
 import { getTrendDataByRange } from '../src/lib/server/trend';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
 
@@ -39,10 +39,20 @@ describeDb('spend trend — category buckets', () => {
 			.values({ restaurantId, name: 'Frutas Gómez', category: 'Frutas y Verduras' })
 			.returning({ id: suppliers.id });
 
-		await testDb.insert(invoices).values([
+		// Spend is attributed line by line, so each invoice needs a line to carry it.
+		// None of these lines is linked to a product, which is also the fallback case:
+		// COALESCE(products.category, suppliers.category, 'Other') lands on the tag.
+		const inserted = await testDb.insert(invoices).values([
 			{ restaurantId, supplierId: uncategorized.id, invoiceNumber: 'T-NULL', invoiceDate: today, totalAmount: '400.00', status: 'pending' },
 			{ restaurantId, supplierId: explicitOther.id, invoiceNumber: 'T-OTHER', invoiceDate: today, totalAmount: '150.00', status: 'pending' },
 			{ restaurantId, supplierId: produce.id, invoiceNumber: 'T-FRUIT', invoiceDate: today, totalAmount: '90.00', status: 'pending' },
+		]).returning({ id: invoices.id, invoiceNumber: invoices.invoiceNumber });
+
+		const idOf = (number: string) => inserted.find((i) => i.invoiceNumber === number)!.id;
+		await testDb.insert(invoiceLineItems).values([
+			{ restaurantId, invoiceId: idOf('T-NULL'), description: 'Género varios', quantity: 1, unit: 'ud', unitPrice: '400.00', totalPrice: '400.00' },
+			{ restaurantId, invoiceId: idOf('T-OTHER'), description: 'Suministros', quantity: 1, unit: 'ud', unitPrice: '150.00', totalPrice: '150.00' },
+			{ restaurantId, invoiceId: idOf('T-FRUIT'), description: 'Tomate pera', quantity: 1, unit: 'kg', unitPrice: '90.00', totalPrice: '90.00' },
 		]);
 	});
 

@@ -6,12 +6,18 @@ import {
 	DEAD_LETTER_QUEUES,
 	EXTRACTION_QUEUE,
 	NORMALIZE_QUEUE,
+	CATEGORIZE_QUEUE,
 	WHATSAPP_NOTIFY_QUEUE,
 	createQueuesWithDeadLetters,
 } from './lib/server/queue.js';
 import { pgSslConfig } from './lib/server/db-ssl.js';
 import { processExtractionJob, type ExtractionJobData } from './lib/server/extraction-worker.js';
-import { processNormalizeJob, type NormalizeJobData } from './lib/server/products.js';
+import {
+	processCategorizeJob,
+	processNormalizeJob,
+	type CategorizeJobData,
+	type NormalizeJobData,
+} from './lib/server/products.js';
 import { registerScheduledJobs } from './lib/server/alerts.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './lib/server/dead-letter.js';
 import { MAX_CONCURRENT_EXTRACTIONS } from './lib/server/env.js';
@@ -106,6 +112,21 @@ await boss.work(
 	},
 );
 console.info(`[worker] Listening for "${NORMALIZE_QUEUE}" jobs`);
+
+await boss.work(
+	CATEGORIZE_QUEUE,
+	{ batchSize: 1, includeMetadata: true },
+	async (jobs: JobWithMetadata<CategorizeJobData>[]) => {
+		for (const job of jobs) {
+			await runWithDeadLetter(
+				deadLetterRefFromJob(CATEGORIZE_QUEUE, job),
+				() => processCategorizeJob(job.data),
+			);
+		}
+		await recordWorkerHeartbeat(jobs.length);
+	},
+);
+console.info(`[worker] Listening for "${CATEGORIZE_QUEUE}" jobs`);
 
 const whatsapp: WhatsAppTransport | null = await startWhatsAppTransport();
 if (whatsapp) {

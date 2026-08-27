@@ -34,9 +34,11 @@
   let {
     invoice,
     lineItems,
+    unlinkedLineCount = 0,
   }: {
     invoice: Invoice;
     lineItems: LineItem[];
+    unlinkedLineCount?: number;
   } = $props();
 
   function fmt(n: number | null | undefined) {
@@ -153,6 +155,19 @@
             <span style="font-size: 11px; color: var(--mep-fg-3);">{$t('mid.preview')}</span>
           </div>
         </div>
+      </div>
+    {/if}
+
+    {#if unlinkedLineCount > 0}
+      <div class="card" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
+        <span class="body text-warn">
+          {$ti('inv.detail.unlinkedLines', { n: unlinkedLineCount })}
+        </span>
+        <form method="post" action="/invoice/{invoice.id}?/relinkProducts">
+          <button type="submit" class="btn btn-secondary" style="width: 100%;">
+            {$t('inv.detail.relink')}
+          </button>
+        </form>
       </div>
     {/if}
 

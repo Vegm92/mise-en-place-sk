@@ -339,7 +339,7 @@ shapes, `low_confidence_ack` value.
 **`function linkProductsToInvoice`**
 
 - Resolves each saved line to a catalog product and stamps `product_id` (issue #298); fuzzy auto-links raise a `product_suggestion` the review UI can confirm/reject. Fully self-contained and error-swallowing — enrichment, never a reason to fail a save. When nothing deterministic matched, asks the LLM asynchronously (issue #300).
-- Category for a supplier we may be about to create comes from the stored extraction, never the form (issue #315): it's a machine guess about the supplier, dropped when the confirmed name no longer matches the classified one; `resolveSupplierCategory` buckets anything unrecognised.
+- Category for a supplier we may be about to create comes from the stored extraction, never the form (issue #315): it's a machine guess about the supplier, dropped when the confirmed name no longer matches the classified one; `resolveCategory` buckets anything unrecognised.
 
 **`function saveReviewedInvoice`**
 

@@ -239,7 +239,7 @@ Quota, access, classification, JSON shape, error classification.
 
 **`interface ExtractedInvoice`**
 
-- Category the model proposes (#315) — raw output, never trusted; run through `resolveSupplierCategory` before `suppliers.category`. e-invoicing extensions (optional): `supplier_nif`, `qr_url` (AEAT/TicketBAI verification URL), `qr_mismatch` (QR vs AI conflict), `e_invoice_format` ('facturae_322' | 'ubl_21').
+- Category the model proposes (#315) — raw output, never trusted; run through `resolveCategory` before `suppliers.category`. e-invoicing extensions (optional): `supplier_nif`, `qr_url` (AEAT/TicketBAI verification URL), `qr_mismatch` (QR vs AI conflict), `e_invoice_format` ('facturae_322' | 'ubl_21').
 
 **`type GenerateFn`**
 

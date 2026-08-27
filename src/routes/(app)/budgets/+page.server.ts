@@ -8,6 +8,7 @@ import { VALID_CATEGORIES } from '$lib/constants';
 import { trackEvent } from '$lib/server/events';
 import { toMonthStr, parseMonthParam } from '$lib/formatters';
 import { toMoneyString, moneyToNumber } from '$lib/server/money';
+import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
@@ -21,14 +22,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(tdb.scope(categoryBudgets.restaurantId, eq(categoryBudgets.month, selectedMonth))),
 
 			db.execute<{ category: string; total: string }>(sql`
-				SELECT COALESCE(s.category, 'Other') AS category,
-				       SUM(COALESCE(ili.total_price, ili.unit_price * ili.quantity, 0)) AS total
-				FROM invoice_line_items ili
-				JOIN invoices i ON i.id = ili.invoice_id
-				JOIN suppliers s ON s.id = i.supplier_id
+				SELECT ${lineCategoryExpr()} AS category,
+				       SUM(${lineAmountExpr()}) AS total
+				FROM invoice_line_items
+				JOIN invoices i ON i.id = invoice_line_items.invoice_id
+				JOIN suppliers ON suppliers.id = i.supplier_id
+				${lineProductJoin()}
 				WHERE i.restaurant_id = ${rid}
+				  AND i.deleted_at IS NULL
+				  AND ${describedLine()}
 				  AND TO_CHAR(i.invoice_date, 'YYYY-MM') = ${selectedMonth}
-				GROUP BY COALESCE(s.category, 'Other')
+				GROUP BY ${lineCategoryExpr()}
 			`),
 		]);
 
