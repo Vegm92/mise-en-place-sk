@@ -66,7 +66,7 @@ async function executeEditTransaction(
 	}
 	const updated = await tx.update(invoices)
 		.set({ supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash, version: sql`${invoices.version} + 1` })
-		.where(and(tdb.scope(invoices.restaurantId, eq(invoices.id, id)), Number.isFinite(expectedVersion) ? eq(invoices.version, expectedVersion) : undefined))
+		.where(and(tdb.scope(invoices.restaurantId, eq(invoices.id, id)), eq(invoices.version, expectedVersion)))
 		.returning({ id: invoices.id });
 	if (updated.length === 0) {
 		if (idemKey) await releaseRequest(idemKey, tx);
@@ -163,6 +163,9 @@ export const actions: Actions = {
 		const notes         = String(data.get('notes') ?? '').slice(0, 250) || null;
 
 		const expectedVersion = Number(data.get('version'));
+		if (!Number.isInteger(expectedVersion) || expectedVersion < 1) {
+			return fail(400, { errorKey: 'error.invalidVersion' });
+		}
 
 		const idemKeyRaw = data.get('idempotency_key');
 		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
