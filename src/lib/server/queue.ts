@@ -7,17 +7,20 @@ export const EXTRACTION_QUEUE = 'extract-invoice';
 export const NORMALIZE_QUEUE = 'normalize-product';
 export const CATEGORIZE_QUEUE = 'categorize-product';
 export const WHATSAPP_NOTIFY_QUEUE = 'whatsapp-notify';
+export const ACCOUNT_CLEANUP_QUEUE = 'account-cleanup';
 
 export const EXTRACTION_DEAD_LETTER_QUEUE = `${EXTRACTION_QUEUE}-dead-letter`;
 export const NORMALIZE_DEAD_LETTER_QUEUE = `${NORMALIZE_QUEUE}-dead-letter`;
 export const CATEGORIZE_DEAD_LETTER_QUEUE = `${CATEGORIZE_QUEUE}-dead-letter`;
 export const WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE = `${WHATSAPP_NOTIFY_QUEUE}-dead-letter`;
+export const ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE = `${ACCOUNT_CLEANUP_QUEUE}-dead-letter`;
 
 export const DEAD_LETTER_QUEUES: Array<{ source: string; deadLetter: string }> = [
 	{ source: EXTRACTION_QUEUE, deadLetter: EXTRACTION_DEAD_LETTER_QUEUE },
 	{ source: NORMALIZE_QUEUE, deadLetter: NORMALIZE_DEAD_LETTER_QUEUE },
 	{ source: CATEGORIZE_QUEUE, deadLetter: CATEGORIZE_DEAD_LETTER_QUEUE },
 	{ source: WHATSAPP_NOTIFY_QUEUE, deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE },
+	{ source: ACCOUNT_CLEANUP_QUEUE, deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE },
 ];
 
 export async function createQueuesWithDeadLetters(b: PgBoss): Promise<void> {
@@ -112,5 +115,26 @@ export async function enqueueWhatsAppNotify(
 		singletonKey: itemId,
 		deadLetter: WHATSAPP_NOTIFY_DEAD_LETTER_QUEUE,
 	});
+	return jobId !== null;
+}
+
+export async function enqueueAccountCleanup(
+	userId: string,
+	restaurantId: string | null,
+	stripeSubscriptionIds: string[],
+	storageKeys: string[],
+): Promise<boolean> {
+	const b = await getBoss();
+	const jobId = await b.send(
+		ACCOUNT_CLEANUP_QUEUE,
+		{ itemId: userId, restaurantId, stripeSubscriptionIds, storageKeys },
+		{
+			retryLimit: 5,
+			retryDelay: 60,
+			expireInSeconds: 3600,
+			singletonKey: userId,
+			deadLetter: ACCOUNT_CLEANUP_DEAD_LETTER_QUEUE,
+		},
+	);
 	return jobId !== null;
 }
