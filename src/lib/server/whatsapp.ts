@@ -9,6 +9,8 @@ const MIME_TO_EXT: Record<string, string> = {
 	'application/pdf': 'pdf',
 	'application/xml': 'xml',
 	'text/xml':        'xml',
+	'image/heic':      'heic',
+	'image/heif':      'heif',
 };
 
 export { MediaTooLargeError };
