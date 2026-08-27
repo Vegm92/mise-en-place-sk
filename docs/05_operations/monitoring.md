@@ -60,7 +60,7 @@ Owner-email gated. Provides:
   death, and every notification path in this app (`saveAlerts`, Resend email,
   the scheduled fan-out) runs *inside* the worker. Closing this needs something
   outside it: a Railway alert on the service, or an external uptime check
-  polling `/api/health` for `worker.state !== "alive"`.
+  polling `/api/health` for `worker.liveness !== "alive"`.
 - Upstash Redis optional — when absent, in-memory rate limiting is used with a
   single-instance warning (multi-instance deploy must configure Upstash).
 
