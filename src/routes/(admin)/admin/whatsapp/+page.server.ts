@@ -8,6 +8,7 @@ import {
 	WHATSAPP_BOT_FLAG, WHATSAPP_QR_FLAG, WHATSAPP_STATUS_FLAG,
 } from '$lib/server/integrations/whatsapp/runtime';
 import { WHATSAPP_BOT_ENABLED } from '$lib/server/env';
+import { releaseContactByPhone } from '$lib/server/whatsapp-contacts';
 
 export const load: PageServerLoad = async () => {
 	const [killSwitch, qr, status] = await Promise.all([
@@ -31,5 +32,17 @@ export const actions: Actions = {
 		const data = await request.formData();
 		await setFlag(WHATSAPP_BOT_FLAG, data.get('enabled') === 'true' ? 'true' : 'false');
 		return { success: true };
+	},
+
+	releaseContact: async ({ request, locals }) => {
+		if (!isAdminUser(locals.user)) return fail(403, { error: 'forbidden' });
+
+		const data = await request.formData();
+		const phone = ((data.get('phone') as string) ?? '').trim();
+
+		const result = await releaseContactByPhone(phone, locals.user!.email ?? locals.user!.id);
+		if (!result.ok) return fail(result.reason === 'notFound' ? 404 : 422, { error: result.reason });
+
+		return { success: true, released: true };
 	},
 };

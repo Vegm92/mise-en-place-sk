@@ -68,6 +68,18 @@ tests drive the round trip without a network.
   `UPDATE ... WHERE code=? AND redeemedAt IS NULL AND expiresAt>now() RETURNING`,
   rollback of `redeemedAt` on failure; unknown senders get a 6-h cooldown reply
   unless the text normalizes to a valid code.
+- **Binding requires pairing** (ADR-019 update, issue #498): `whatsapp_contacts`
+  is written in exactly one place, `redeemPairingCode`. Settings' manual "type a
+  phone number" form (`addWhatsappContact`) no longer calls `addContact`
+  directly — it calls `generatePairingCode` with the typed number as a target
+  (`whatsapp_pairing_codes.phone_number`), so it only pre-authorises; the
+  binding exists only once that phone redeems the code. A targeted invite
+  redeemed from a different number is released and answered exactly like an
+  unknown/expired code (`'invalid'`) — no disclosure either way. An untargeted
+  code (`phone_number IS NULL`, the pre-existing "generate a code" flow) keeps
+  first-phone-wins. `addWhatsappContact` never checks availability up front,
+  so inviting an available number and inviting one already bound elsewhere are
+  indistinguishable from Settings.
 - **Media**: authorized senders with image/document → size check against the
   declared length, download (`MIME_TO_EXT` mapping, default jpg), validate
   against `file-validation.ts` (20 MB cap, extension allow-list, magic bytes —
@@ -107,18 +119,23 @@ n/a for contacts; batches follow `invoice_ingestion.md`; pairing codes
 
 ## Data dependencies
 
-`whatsapp_contacts`, `whatsapp_pairing_codes`, `whatsapp_account_events`,
+`whatsapp_contacts`, `whatsapp_pairing_codes` (`phone_number` optionally
+targets an invite to one number, migration `0045`), `whatsapp_account_events`,
 `whatsapp_session` (Baileys credentials), `idempotency_keys` (`whatsapp` scope),
 `upload_batches`, `batch_items` (`source`, `source_ref`, `job_code`,
-`review_status`), `system_notifications`, `app_flags`, storage.
+`review_status`), `system_notifications` (also carries
+`whatsapp_contact_released` audit rows via `trackEvent`), `app_flags`, storage.
 
 ## API dependencies
 
-`api/whatsapp/webhook`; settings WhatsApp section (owner-only pairing UI).
+`api/whatsapp/webhook`; settings WhatsApp section (owner-only pairing UI);
+`/admin/whatsapp` `releaseContact` action (support force-release by phone).
 
 ## UI dependencies
 
-`/settings` (pairing + display number + wa.me link + printable QR via `qr-svg.ts`).
+`/settings` (pairing + display number + wa.me link + printable QR via
+`qr-svg.ts`); `/admin/whatsapp` (bot connection, QR, kill switch, and a
+force-release-by-phone form for support, issue #498).
 
 ## Background dependencies
 
@@ -161,6 +178,15 @@ normalization; rate limits.
 - Webhook HMAC verification is the gate (ADR-019 tenant binding).
 - Always return 200 after handling so Meta doesn't retry unhandled edges.
 - Pairing is owner-initiated, rate-limited, short-TTL, single-redeem.
+- Binding requires proof of control: only `redeemPairingCode` writes
+  `whatsapp_contacts`; the manual Settings form pre-authorises, it never binds
+  (issue #498).
+- "Taken" is never disclosed: Settings' invite path doesn't check availability
+  up front, and the bot's redemption-time reply for a genuinely bound number is
+  generic (no "otro local" / "another location").
+- Release is owner self-service (`removeWhatsappContact`) or admin
+  force-release by phone (`releaseContactByPhone`, `/admin/whatsapp`,
+  `isAdminUser`-gated); both write a `whatsapp_contact_released` audit row.
 
 ## Idempotency rules
 
@@ -369,11 +395,15 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 
 **`function addContact`**
 
-- `whatsapp_contacts_phone_unique` is global, not per-tenant: one phone maps to one restaurant because the bot resolves the tenant *from* the number. A number claimed by another tenant fails as 'taken' rather than silently rebinding; same-tenant conflict is an idempotent success.
+- `whatsapp_contacts_phone_unique` is global, not per-tenant: one phone maps to one restaurant because the bot resolves the tenant *from* the number. A number claimed by another tenant fails as 'taken' rather than silently rebinding; same-tenant conflict is an idempotent success. Since #498 this is called from exactly one place, `redeemPairingCode` — nothing else may write `whatsapp_contacts`.
 
 **`function removeContact`**
 
-- De-authorise; tenant-scoped so one restaurant cannot remove another's.
+- De-authorise; tenant-scoped so one restaurant cannot remove another's. Since #498 also writes a `whatsapp_contact_released` `trackEvent` row (phone, contact id, releasing user) so a release has an audit trail, and returns the deleted phone number for that purpose — the number itself is immediately free for another tenant's pairing invite.
+
+**`function releaseContactByPhone`** (#498)
+
+- Support's force-release: deletes by phone number alone, so it works without knowing which restaurant holds the number — the whole point of a support path. Deliberately cross-tenant (`tenant-scope-ok`), gated by `isAdminUser` in the calling `/admin/whatsapp` route rather than by tenant scoping here. Same audit event as `removeContact`, tagged `method: 'support'`.
 
 ### `src/lib/server/whatsapp-pairing.ts`
 
@@ -401,6 +431,7 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`function generatePairingCode`**
 
 - Mint, replacing any outstanding code: Settings shows "the" code, so a silent supersession would be worse than visible reissue, and one guessable code per tenant is kept. Global unique index → a collision with another tenant's live code is retried (effectively never runs at 7.3e8 values).
+- `targetPhone` (#498) is what the manual Settings "add a number" form now produces instead of a direct `addContact` call: the invite carries the typed number, and `normalizePhoneNumber` validation runs before the rate limit is spent, same as a malformed code costs nothing. No availability check runs here — checking now would just move the disclosure the fix removes from `redeemPairingCode` to here instead.
 
 **`function activePairingCode`**
 
@@ -417,6 +448,7 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`function redeemPairingCode`**
 
 - Guarded UPDATE (`redeemed_at IS NULL AND expires_at > now()`, RETURNING) — two deliveries or two racers on one code can't both win; only the winner writes the contact row. Unknown/expired/redeemed look identical outside — an attacker must not learn a code exists. If the phone is another restaurant's (global unique), release the code rather than burn the owner's.
+- A targeted invite (#498, `phoneNumber` on the claimed row) is checked against the redeeming sender before `addContact` runs: a mismatch releases the claim and answers `'invalid'` — the same outcome as an unknown code, so a wrong number can't be used to probe whether an invite exists or what number it names.
 
 ### `src/lib/server/whatsapp.ts`
 

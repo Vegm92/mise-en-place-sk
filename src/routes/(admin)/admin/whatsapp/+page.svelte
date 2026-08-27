@@ -1,10 +1,16 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { ActionData, PageData } from './$types';
+  import { enhance } from '$app/forms';
   import { t } from '$lib/i18n';
   import AdminPageHead from '$lib/components/admin/AdminPageHead.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  const RELEASE_ERRORS: Record<string, string> = {
+    invalid:  'admin.whatsapp.releaseErr.invalid',
+    notFound: 'admin.whatsapp.releaseErr.notFound',
+  };
 
   const STATUS_COLOR: Record<string, string> = {
     ready:        'var(--mep-pos)',
@@ -66,6 +72,22 @@
       <p style="font-size:13px;color:var(--mep-fg-2);margin:0;">
         {$t('admin.whatsapp.noQr')}
       </p>
+    {/if}
+  </SectionCard>
+
+  <SectionCard title={$t('admin.whatsapp.release')}>
+    <p style="font-size:13px;color:var(--mep-fg-2);margin:0 0 12px;max-width:60ch;">
+      {$t('admin.whatsapp.releaseBody')}
+    </p>
+    <form method="POST" action="?/releaseContact" use:enhance style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input name="phone" type="tel" required
+        placeholder={$t('admin.whatsapp.releasePlaceholder')} class="input" style="flex:1;min-width:200px;" />
+      <button type="submit" class="btn btn-secondary">{$t('admin.whatsapp.releaseButton')}</button>
+    </form>
+    {#if form?.released}
+      <p style="font-size:13px;color:var(--mep-pos);margin:8px 0 0;">{$t('admin.whatsapp.releaseOk')}</p>
+    {:else if form?.error && RELEASE_ERRORS[form.error]}
+      <p style="font-size:13px;color:var(--mep-neg);margin:8px 0 0;">{$t(RELEASE_ERRORS[form.error])}</p>
     {/if}
   </SectionCard>
 

@@ -17,7 +17,7 @@ import { passwordPolicyError } from '$lib/server/password-policy';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
-import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
+import { listContacts, removeContact } from '$lib/server/whatsapp-contacts';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
 import { renderQrSvg } from '$lib/server/qr-svg';
@@ -307,20 +307,22 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const phone = ((data.get('phone') as string) ?? '').trim();
 		const name  = ((data.get('name')  as string) ?? '').trim();
+		if (!phone) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.invalid' });
 		if (name.length > 80) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.nameTooLong' });
 
-		const result = await addContact(rid, phone, name);
+		const result = await generatePairingCode(rid, locals.user!.id, name, phone);
 		if (!result.ok) {
 			const errors = {
-				invalid:  'set.whatsapp.err.invalid',
-				tooShort: 'set.whatsapp.err.tooShort',
-				tooLong:  'set.whatsapp.err.tooLong',
-				taken:    'set.whatsapp.err.taken',
+				invalid:     'set.whatsapp.err.invalid',
+				tooShort:    'set.whatsapp.err.tooShort',
+				tooLong:     'set.whatsapp.err.tooLong',
+				rateLimited: 'set.whatsapp.err.pairRateLimited',
+				error:       'set.whatsapp.err.pairFailed',
 			} as const;
-			return fail(422, { section: 'whatsapp', error: errors[result.reason] });
+			return fail(result.reason === 'rateLimited' ? 429 : 422, { section: 'whatsapp', error: errors[result.reason] });
 		}
 
-		return { section: 'whatsapp', ok: 'set.whatsapp.ok.added' };
+		return { section: 'whatsapp', ok: 'set.whatsapp.ok.invited' };
 	},
 
 	removeWhatsappContact: async ({ request, locals }) => {
@@ -336,7 +338,7 @@ export const actions: Actions = {
 		const id = Number(data.get('id'));
 		if (!Number.isInteger(id)) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.invalid' });
 
-		await removeContact(rid, id);
+		await removeContact(rid, id, locals.user!.id);
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.removed' };
 	},
 

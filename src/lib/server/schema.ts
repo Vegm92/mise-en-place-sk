@@ -424,6 +424,7 @@ export const whatsappPairingCodes = pgTable('whatsapp_pairing_codes', {
 	id:           serial('id').primaryKey(),
 	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
 	code:         text('code').notNull(),
+	phoneNumber:  text('phone_number'),
 	displayName:  text('display_name'),
 	createdBy:    text('created_by'),
 	expiresAt:    timestamp('expires_at', { withTimezone: true }).notNull(),
