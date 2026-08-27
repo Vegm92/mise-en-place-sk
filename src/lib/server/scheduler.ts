@@ -46,3 +46,10 @@ export {
 	runMrrSnapshotJob,
 	captureMrrSnapshot,
 } from './revenue-metrics';
+
+export {
+	ORPHAN_SUBSCRIPTIONS_QUEUE,
+	ORPHAN_SUBSCRIPTIONS_CRON,
+	runOrphanSubscriptionsJob,
+	reconcileOrphanSubscriptions,
+} from './billing';

@@ -24,6 +24,7 @@ const { state, sendEmailMock, storageDeleteMock, executeMock } = vi.hoisted(() =
 		claimCalls: [] as Array<{ key: string; value: string }>,
 		flags: [] as Array<{ key: string; value: string }>,
 		updates: [] as Array<Record<string, unknown>>,
+		subscriptionInserts: [] as Array<Record<string, unknown>>,
 	},
 	sendEmailMock: vi.fn().mockResolvedValue(undefined),
 	storageDeleteMock: vi.fn().mockResolvedValue(undefined),
@@ -62,13 +63,17 @@ vi.mock('$lib/server/db', () => {
 		const granted = state.claims.shift() ?? true;
 		return Promise.resolve(granted ? [{ value: values.value }] : []);
 	};
-	const insertValues = (table: string, values: { key: string; value: string }) => ({
+	const insertValues = (table: string, values: Record<string, unknown>) => ({
 		onConflictDoUpdate: () => {
 			if (table === 'app_flags') {
-				state.flags.push({ key: values.key, value: values.value });
+				state.flags.push(values as { key: string; value: string });
 				return Promise.resolve([]);
 			}
-			return { returning: () => claimReturning(values) };
+			if (table === 'subscriptions') {
+				state.subscriptionInserts.push(values);
+				return Promise.resolve([]);
+			}
+			return { returning: () => claimReturning(values as { key: string; value: string }) };
 		},
 	});
 
@@ -76,7 +81,7 @@ vi.mock('$lib/server/db', () => {
 		select: () => chain(() => []),
 		execute: executeMock,
 		insert: (table: never) => ({
-			values: (values: { key: string; value: string }) => insertValues(getTableName(table), values),
+			values: (values: Record<string, unknown>) => insertValues(getTableName(table), values),
 		}),
 		update: () => ({
 			set: (values: Record<string, unknown>) => ({
@@ -111,6 +116,8 @@ import {
 	sendWeeklyDigest,
 	runFilePurgeJob,
 	runAnalyticsRefreshJob,
+	runOrphanSubscriptionsJob,
+	reconcileOrphanSubscriptions,
 	DIGEST_TENANT_QUEUE,
 	REMINDERS_TENANT_QUEUE,
 	TRIAL_TENANT_QUEUE,
@@ -163,6 +170,7 @@ beforeEach(() => {
 	state.claimCalls = [];
 	state.flags = [];
 	state.updates = [];
+	state.subscriptionInserts = [];
 	sendEmailMock.mockClear();
 	storageDeleteMock.mockClear().mockResolvedValue(undefined);
 	executeMock.mockClear().mockResolvedValue([]);
@@ -400,5 +408,39 @@ describe('runAnalyticsRefreshJob', () => {
 		expect(executeMock).toHaveBeenCalledOnce();
 		const query = executeMock.mock.calls[0][0];
 		expect(String(query.queryChunks[0].value[0])).toContain('refresh_analytics_rollups()');
+	});
+});
+
+// Issue #486: a restaurant with no subscriptions row used to fail OPEN
+// (getAccessState granted unlimited access). This nightly reconciliation is
+// the repair half of the fix — it heals the gap so a legitimate orphan does
+// not stay locked out forever once resolveAccessState fails closed.
+describe('reconcileOrphanSubscriptions', () => {
+	it('provisions a dated trial for every root restaurant with no subscription row', async () => {
+		state.rows.restaurants = [{ id: 'rest-orphan-1' }, { id: 'rest-orphan-2' }];
+
+		const result = await reconcileOrphanSubscriptions();
+
+		expect(result).toEqual({ repaired: 2 });
+		expect(state.subscriptionInserts).toHaveLength(2);
+		for (const sub of state.subscriptionInserts) {
+			expect(sub.status).toBe('trialing');
+			expect(sub.trialEndsAt).toBeInstanceOf(Date);
+			expect((sub.trialEndsAt as Date).getTime()).toBeGreaterThan(Date.now());
+		}
+		expect(state.subscriptionInserts.map(s => s.restaurantId)).toEqual(['rest-orphan-1', 'rest-orphan-2']);
+	});
+
+	it('does nothing when every restaurant already has a subscription row', async () => {
+		state.rows.restaurants = [];
+
+		expect(await reconcileOrphanSubscriptions()).toEqual({ repaired: 0 });
+		expect(state.subscriptionInserts).toEqual([]);
+	});
+
+	it('is what the scheduled job runs', async () => {
+		state.rows.restaurants = [{ id: 'rest-orphan-1' }];
+
+		expect(await runOrphanSubscriptionsJob()).toEqual({ repaired: 1 });
 	});
 });
