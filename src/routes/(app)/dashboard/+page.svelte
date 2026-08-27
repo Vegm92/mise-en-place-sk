@@ -24,34 +24,15 @@
   const prevMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, -1)}`);
   const nextMonthUrl = $derived(`/dashboard?month=${shiftMonth(selectedMonth, 1)}`);
   const canGoForward = $derived(selectedMonth < currentMonthStr);
-
-  const mobileAlertText = $derived.by(() => {
-    const shocks = (data.price_shock_alerts as Array<{ payload: { ingredient?: string; deviationPct?: number } | null }>)
-      .filter(a => a.payload?.ingredient)
-      .slice(0, 2)
-      .map(a => `${a.payload!.ingredient} ${(a.payload!.deviationPct ?? 0) > 0 ? '+' : ''}${Math.round(a.payload!.deviationPct ?? 0)}%`);
-    return shocks.length ? shocks.join(' · ') : $t('dash.checkPriceAlerts');
-  });
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileDashboard
-    monthSpend={data.mom.this_month}
-    monthDelta={data.mom.pct_change}
-    totalInvoices={data.pending.count + data.paid_month.count}
-    sparkData={data.spark_data}
-    pendingAmount={data.pending.amount}
-    pendingCount={data.pending.count}
-    budgetPct={data.total_pct_actual}
-    totalBudget={data.total_budget}
-    projectedEom={data.projection?.projected_eom ?? null}
-    highAlerts={data.alert_counts.high}
-    medAlerts={data.alert_counts.med}
-    alertText={mobileAlertText}
-    suppliers={data.suppliers}
-    recentInvoices={data.recent_invoices}
-    totalSpent={data.total_spent}
-    trend={data.trend}
+    {data}
+    prevMonthUrl={prevMonthUrl}
+    nextMonthUrl={nextMonthUrl}
+    canGoForward={canGoForward}
+    currentPeriod={currentPeriod}
   />
 </div>
 
