@@ -540,7 +540,7 @@ export async function createCheckoutSession(opts: CreateCheckoutSessionOptions):
 			success_url: successUrl,
 			cancel_url: cancelUrl,
 			...(useCoupon
-				? { discounts: [{ coupon: FOUNDER_COUPON_ID }] }
+				? { discounts: [{ promotion_code: FOUNDER_COUPON_ID }] }
 				: { allow_promotion_codes: true }),
 		}, idempotencyKey ? { idempotencyKey } : undefined);
 	} catch (err) {
