@@ -60,10 +60,27 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ADDRESS_HEADER` | unset | Header carrying the real client IP (`x-forwarded-for`) when a proxy terminates TLS. **Required behind nginx/Caddy/a load balancer** — without it `getClientAddress()` returns the proxy's IP and every visitor shares one rate-limit bucket, so the 6th signup and 11th login *per minute across all users* is rejected (issue #223). Boot logs a warning if unset in production. |
+| `ADDRESS_HEADER` | unset | Header carrying the real client IP (`x-forwarded-for`). **Only safe to set where a trusted proxy terminates TLS and overwrites this header on every request** — Railway's edge does this, as does a reverse proxy you run yourself (nginx/Caddy). Boot logs a warning if unset in production (issue #223) *and* if set without a known proxy platform in front (issue #500). |
 | `XFF_DEPTH` | `1` | Number of trusted proxies in front of the app; adapter-node reads the IP that many hops from the right of `x-forwarded-for`. Set it wrong and the value is client-spoofable. |
 
-Leave both unset when the Node process is directly internet-facing.
+Get this wrong in either direction and IP-keyed rate limits (login, signup,
+recover, resend, waitlist) break:
+
+- **Unset behind a real proxy** — `getClientAddress()` returns the proxy's IP,
+  so every visitor shares one rate-limit bucket; the 6th signup and 11th login
+  *per minute across all users* is rejected (issue #223).
+- **Set with nothing in front to rewrite the header** — `getClientAddress()`
+  trusts whatever the client sends, so any client can put an arbitrary IP in
+  `X-Forwarded-For` and dodge the limit entirely (issue #500). This is why the
+  included `docker-compose.yml` does **not** set either variable: it publishes
+  port 3000 straight to the host with no proxy in front, so the socket peer
+  address it falls back to is the correct, untamperable value there.
+
+Set both **only** when deploying behind a trusted proxy: on Railway (its edge
+proxy rewrites `X-Forwarded-For` for every request), or behind your own
+nginx/Caddy in front of the compose services. Leave both unset for the stock
+`docker compose up` topology and for any deployment where the Node process is
+directly internet-facing.
 
 ### Billing (Stripe)
 
@@ -168,8 +185,8 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
 4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
    - `node build` (web) and `node build/worker.js` (worker)
-   - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=railway`; see [File storage](#file-storage).
-   - On a VPS: `docker compose up -d` uses the included `Dockerfile` + `docker-compose.yml` (one image, web + worker services, shared `uploads` volume at `/app/uploads`).
+   - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=railway`; see [File storage](#file-storage). Set `ADDRESS_HEADER=x-forwarded-for` / `XFF_DEPTH=1` on the web service on Railway, whose edge proxy rewrites the header (see [Reverse proxy / client IP](#reverse-proxy--client-ip)).
+   - On a VPS: `docker compose up -d` uses the included `Dockerfile` + `docker-compose.yml` (one image, web + worker services, shared `uploads` volume at `/app/uploads`). This topology has no reverse proxy, so `ADDRESS_HEADER`/`XFF_DEPTH` are intentionally unset — do not add them without also putting a real proxy in front.
 5. Point your platform's health check at `GET /api/health` — returns `200` healthy / `503` degraded and reports DB reachability, pg-boss queue depth, uploads-dir writability, and active sessions. The worker has no HTTP port; rely on the platform's process supervision/restart policy.
 
 ## First startup
@@ -182,7 +199,7 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 
 - **One web + one worker, unless Upstash is configured.** The rate limiter falls back to an in-memory bucket per process and the extraction semaphore is in-process, so extra replicas multiply both limits. Set `UPSTASH_REDIS_REST_*` before scaling the web tier out. Upload sessions live in Postgres and are replica-safe.
 - **Persistent, shared storage** for uploads (see [File storage](#file-storage)) + a backup policy for both the volume and the database.
-- **Behind a proxy, set `ADDRESS_HEADER`** (see [Reverse proxy / client IP](#reverse-proxy--client-ip)) or all IP-keyed limits collapse into one bucket.
+- **`ADDRESS_HEADER` only where a proxy actually rewrites the header** (see [Reverse proxy / client IP](#reverse-proxy--client-ip)): behind a real proxy and unset, all IP-keyed limits collapse into one shared bucket; with nothing in front to rewrite it and set anyway, those same limits become spoofable.
 - Scheduled work (weekly digest generation + email, overdue-invoice reminders, trial-expiry notices) runs as pg-boss cron jobs inside the **worker** process (`src/lib/server/scheduler.ts`). If the worker is not running, none of it fires.
 - Security headers are set by the app: HSTS, X-Frame-Options, nosniff, Referrer-Policy and Permissions-Policy in `src/hooks.server.ts`; CSP (hash mode) in `svelte.config.js`. **Do not add a second CSP at the proxy** — two policies intersect and will break the app. The proxy only needs the PWA cache headers below.
 - Rotate any keys/admin passwords that may have lived in the repo's git history (#60) before going live.
