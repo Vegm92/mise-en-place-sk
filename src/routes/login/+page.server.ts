@@ -55,8 +55,6 @@ export const actions: Actions = {
 			}
 
 			if (result.status === 'unverified') {
-				// Password was correct — only here is it safe to reveal that the
-				// account exists and just needs email confirmation.
 				logAuthEvent('login_failed', { ipHash, scope: 'unverified' });
 				return fail(403, { error: 'unverified', email: result.email });
 			}
