@@ -25,7 +25,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 502 | P2 | DONE | 1 | Verified (commit 2a81ceb): setWhere ordering predicate + side effects gated on returning(); stale-event test proven failing pre-fix. Full DB-backed suite 2179/2179 (worker stood up local Postgres — now available for later cycles). | checkout.session.completed out-of-order guard |
 | 495 | P2 | DONE | 1 | Verified (commit 912cf2f): positive-int validation + unconditional predicate; bypass proven pre-fix. 2183/2183. | optimistic locking bypass via non-numeric version |
 | 499 | P2 | DONE | 1 | Verified (commit fd0d9ad): requireOwner + advisory-lock txn + BILLING_PARENT-scoped count; parallel-at-limit test. 2188/2188. | addLocation TOCTOU + owner check |
-| 496 | P2 | PENDING | 0 | | unrate-limited mail primitives + user enumeration |
+| 496 | P2 | DONE | 1 | Verified (commit fb0f33c): saveEmail rate-limited (user+address), resend gated on existing unverified account, neutral signup response + unverified reclaim. 2199/2199. Residual: timing side-channel (pre-existing pattern), per-address cap on signUp not added. | unrate-limited mail primitives + user enumeration |
 | 498 | P2 | PENDING | 0 | | WhatsApp numbers globally unique across tenants |
 | 500 | P2 | PENDING | 0 | | X-Forwarded-For trust + published :3000 |
 | 494 | P2 | PENDING | 0 | | contentHash misaligned line arrays |
