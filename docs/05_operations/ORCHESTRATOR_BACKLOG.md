@@ -29,7 +29,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 498 | P2 | DONE | 1 | Verified (commit d85b253): binding only via redeemPairingCode (targeted invites, migration 0045), generic taken responses, audited owner/admin release, ADR-019 updated. 2214/2214. | WhatsApp numbers globally unique across tenants |
 | 500 | P2 | DONE | 1 | Verified (commit d612085): option B — compose no longer sets ADDRESS_HEADER/XFF_DEPTH, docs updated, tested boot warning for set-without-known-proxy. 2218/2218. | X-Forwarded-For trust + published :3000 |
 | 494 | P2 | DONE | 1 | Core bug already fixed by 1187278; acceptance tests added (commit 827a998), bug re-proven by revert. 2223/2223. Operational note: run pnpm db:backfill-content-hash in prod if not done when 1187278 shipped. | contentHash misaligned line arrays |
-| 493 | P2 | PENDING | 0 | | Excel export unbounded |
+| 493 | P2 | DONE | 1 | Verified (commit b3412ca): 5/min rate limit, EXPORT_ROW_CAP(10k)+1 truncation marker, 400 on bad supplier_id/dates. 2234/2234. | Excel export unbounded |
 | 492 | P2 | PENDING | 0 | | account deletion non-atomic |
 | 491 | P2 | PENDING | 0 | | /api/health public + leaks detail |
 | 490 | P2 | PENDING | 0 | | locals.restaurantId! opaque 500 on API routes |
