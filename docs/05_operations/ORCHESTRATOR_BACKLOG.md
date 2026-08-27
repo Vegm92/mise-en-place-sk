@@ -28,7 +28,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 496 | P2 | DONE | 1 | Verified (commit fb0f33c): saveEmail rate-limited (user+address), resend gated on existing unverified account, neutral signup response + unverified reclaim. 2199/2199. Residual: timing side-channel (pre-existing pattern), per-address cap on signUp not added. | unrate-limited mail primitives + user enumeration |
 | 498 | P2 | DONE | 1 | Verified (commit d85b253): binding only via redeemPairingCode (targeted invites, migration 0045), generic taken responses, audited owner/admin release, ADR-019 updated. 2214/2214. | WhatsApp numbers globally unique across tenants |
 | 500 | P2 | DONE | 1 | Verified (commit d612085): option B — compose no longer sets ADDRESS_HEADER/XFF_DEPTH, docs updated, tested boot warning for set-without-known-proxy. 2218/2218. | X-Forwarded-For trust + published :3000 |
-| 494 | P2 | PENDING | 0 | | contentHash misaligned line arrays |
+| 494 | P2 | DONE | 1 | Core bug already fixed by 1187278; acceptance tests added (commit 827a998), bug re-proven by revert. 2223/2223. Operational note: run pnpm db:backfill-content-hash in prod if not done when 1187278 shipped. | contentHash misaligned line arrays |
 | 493 | P2 | PENDING | 0 | | Excel export unbounded |
 | 492 | P2 | PENDING | 0 | | account deletion non-atomic |
 | 491 | P2 | PENDING | 0 | | /api/health public + leaks detail |
@@ -76,7 +76,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
 | 510 | P3 | PENDING | 0 | | rate-limit buckets consumed after failure |
 | 509 | P3 | PENDING | 0 | | auth-seed prod guard swallowed |
-| 508 | P3 | PENDING | 0 | | toFloat accepts "12abc"/"1e999" |
+| 508 | P3 | PENDING | 0 | Also cover: computeFormContentHash uses toMoneyString(raw) vs inserted toMoneyString(toFloat(raw)) — diverges on comma-decimal input (found during #494) | toFloat accepts "12abc"/"1e999" |
 | 507 | P3 | PENDING | 0 | | IndexedDB keeps invoice files indefinitely |
 | 506 | P3 | PENDING | 0 | | Sentry API URL hardcoded EU |
 | 505 | P3 | PENDING | 0 | | WhatsApp token host allowlist |
