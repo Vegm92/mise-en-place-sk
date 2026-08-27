@@ -22,7 +22,7 @@ Spanish-first, bilingual (es/en). Built for independent restaurants and small gr
 
 ## Tech stack
 
-- **SvelteKit 2 + Svelte 5 (runes)**, Tailwind CSS 4, shadcn-svelte/bits-ui, `@sveltejs/adapter-node`
+- **SvelteKit 2 + Svelte 5 (runes)**, Tailwind CSS 4, `@sveltejs/adapter-node`
 - **Railway Postgres** (data) — migrated off Supabase in #366/#367
 - **Auth.js** (`@auth/sveltekit`) — email/password (Credentials + bcrypt) + Google OAuth, JWT sessions — replaced Supabase Auth in #369–#372
 - **Drizzle ORM** (postgres-js, SSL required); committed migrations in `drizzle/` are the canonical schema source (ADR-003)
@@ -48,7 +48,7 @@ src/
 │   │   ├── rate-limiter.ts  # Upstash Redis token bucket, in-memory fallback (single instance!)
 │   │   ├── scheduler.ts     # pg-boss cron: weekly digest, overdue + trial-expiry email
 │   │   └── auth-seed.ts     # admin seeding; refuses default password in production
-│   ├── components/          # mep/* design system, mobile/* + desktop/* page variants, ui/* shadcn
+│   ├── components/          # mep/* design system, mobile/* + desktop/* page variants
 │   └── i18n.ts              # es/en string store
 └── routes/
     ├── (app)/               # authenticated app (upload, invoices, suppliers, analytics, …)
