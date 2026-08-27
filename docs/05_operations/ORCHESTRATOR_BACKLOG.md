@@ -32,7 +32,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 493 | P2 | DONE | 1 | Verified (commit b3412ca): 5/min rate limit, EXPORT_ROW_CAP(10k)+1 truncation marker, 400 on bad supplier_id/dates. 2234/2234. | Excel export unbounded |
 | 492 | P2 | DONE | 1 | Verified (commit db92e3d): re-auth (password/typed fallback), single txn incl. users row, post-commit account-cleanup pg-boss job w/ dead-letter. 2248/2248. Residual: enqueue-failure only logged+Sentry. | account deletion non-atomic |
 | 491 | P2 | DONE | 1 | Verified (commit 08deaf2): public status-only 200/503 + per-IP rate limit; detail behind isAdminUser or X-Health-Token. 2258/2258. Note: external monitors parsing old JSON need HEALTH_CHECK_TOKEN. | /api/health public + leaks detail |
-| 490 | P2 | PENDING | 0 | | locals.restaurantId! opaque 500 on API routes |
+| 490 | P2 | DONE | 1 | Verified (commit 39228ec): hooks-level tenant gate via route.id — 409 JSON for (app)/api/*, 303 /onboarding for pages; route-tree-walking tests. 2266/2266. | locals.restaurantId! opaque 500 on API routes |
 | 489 | P2 | PENDING | 0 | | layout runs 13 queries per navigation |
 | 501 | P2 | PENDING | 0 | | extraction semaphore no timeout |
 | 497 | P2 | PENDING | 0 | | system_notifications.payload text ::json |
