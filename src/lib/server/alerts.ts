@@ -534,9 +534,9 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 			inArray(categoryBudgets.category, categories),
 			eq(categoryBudgets.month, currentMonth),
 		)));
-	const budgets = new Map(
+	const budgets = new Map<string, number>(
 		budgetRows
-			.map((r) => [r.category, moneyToNumber(r.monthlyBudget)] as const)
+			.map((r): [string, number] => [r.category, moneyToNumber(r.monthlyBudget)])
 			.filter(([, amount]) => amount > 0),
 	);
 	if (budgets.size === 0) return [];

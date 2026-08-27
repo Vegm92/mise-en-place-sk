@@ -39,7 +39,7 @@ JOIN invoices i ON i.id = ili.invoice_id
 JOIN suppliers s ON s.id = i.supplier_id
 LEFT JOIN products p ON p.id = ili.product_id AND p.restaurant_id = i.restaurant_id
 WHERE ili.description IS NOT NULL
-  AND ili.description != ''
+  AND ili.description IS DISTINCT FROM ''
   AND i.deleted_at IS NULL
   AND i.invoice_date IS NOT NULL
 GROUP BY
