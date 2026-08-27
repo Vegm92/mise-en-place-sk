@@ -105,13 +105,13 @@
       <form method="POST" action="?/addEmail" use:enhance style="display:flex;gap:6px;flex:1;min-width:240px;">
         <input type="email" name="email" required placeholder={$t('admin.access.addEmailPh')}
           class="input" style="flex:1;min-width:180px;height:30px;" />
-        <button type="submit" class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:12px;">
+        <button type="submit" class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:13px;">
           {$t('admin.access.addEmail')}
         </button>
       </form>
       {#if data.promoCode}
         <form method="POST" action="?/sendPromoAll" use:enhance style="display:inline;">
-          <button type="submit" class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:12px;">
+          <button type="submit" class="btn btn-secondary" style="height:30px;padding:0 12px;font-size:13px;">
             {$t('admin.access.sendPromoAll')}
           </button>
         </form>
@@ -135,7 +135,7 @@
                 {#if data.promoCode}
                   <form method="POST" action="?/sendPromo" use:enhance style="display:inline;">
                     <input type="hidden" name="email" value={w.email} />
-                    <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:12px;">
+                    <button type="submit" class="btn btn-secondary" style="height:28px;padding:0 12px;font-size:13px;">
                       {$t('admin.access.sendPromo')}
                     </button>
                   </form>
