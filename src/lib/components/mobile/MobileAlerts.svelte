@@ -66,22 +66,23 @@
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             {#each incidencias as r (r.id)}
-              <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;display:contents;">
               <div class="card" style="padding: 12px 14px; background: var(--mep-neg-soft);">
-                <div style="display: flex; align-items: flex-start; gap: 12px;">
-                  <div style="flex: 1; min-width: 0;">
-                    <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                      {r.supplier_name ?? '—'}
+                <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;display:block;">
+                  <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-size: 13.5px; font-weight: 500; color: var(--mep-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {r.supplier_name ?? '—'}
+                      </div>
+                      <div class="num" style="font-size: 11.5px; color: var(--mep-fg-3); margin-top: 2px;">
+                        {r.invoice_number ?? '—'}
+                      </div>
                     </div>
-                    <div class="num" style="font-size: 11.5px; color: var(--mep-fg-3); margin-top: 2px;">
-                      {r.invoice_number ?? '—'}
+                    <div style="text-align: right; flex-shrink: 0;">
+                      <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
+                      <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
                     </div>
                   </div>
-                  <div style="text-align: right; flex-shrink: 0;">
-                    <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtAmount(r.display_amount)}</div>
-                    <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
-                  </div>
-                </div>
+                </a>
                 <form method="post" action="?/markReviewed" style="margin-top: 10px;">
                   <input type="hidden" name="invoiceId" value={r.id} />
                   <button type="submit" class="btn btn-ghost" style="height: 30px; font-size: 12px; gap: 4px; width: 100%; justify-content: center; color: var(--mep-pos);">
@@ -89,7 +90,6 @@
                   </button>
                 </form>
               </div>
-              </a>
             {/each}
           </div>
         </div>
