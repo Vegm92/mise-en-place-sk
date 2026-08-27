@@ -17,8 +17,9 @@ import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber } from './money';
-import { bandsFromInputs, taxableBaseMoney, type TaxBand } from '$lib/tax';
+import { bandsFromInputs, sumTaxCents, taxableBaseMoney, type TaxBand } from '$lib/tax';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
+import type { ReviewState } from '$lib/status';
 
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
@@ -404,6 +405,29 @@ export async function linkProductsToInvoice(
 	return productByKey;
 }
 
+export function detectTotalMismatch(
+	lineInputs: LineFormInput[],
+	taxBands: TaxBand[] | null,
+	totalAmount: string | null,
+): boolean {
+	if (totalAmount == null) return false;
+	const totalCents = Math.round(moneyToNumber(totalAmount) * 100);
+	if (totalCents <= 0) return false;
+	const lineCents = Math.round(lineInputs.reduce((s, li) => s + (li.totalPriceVal ?? 0), 0) * 100);
+	const calcCents = lineCents + (taxBands ? sumTaxCents(taxBands) : 0);
+	return Math.abs(calcCents - totalCents) > 1;
+}
+
+export function resolveReviewState(signals: {
+	lowConfidenceAcked: boolean;
+	totalMismatch: boolean;
+	conversionNeeded: boolean;
+	qrMismatch: boolean;
+}): ReviewState {
+	const flagged = signals.lowConfidenceAcked || signals.totalMismatch || signals.conversionNeeded || signals.qrMismatch;
+	return flagged ? 'incidencia' : 'revisado';
+}
+
 const HEADER_CONFIDENCE_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'];
 
 function isLowConfidenceBlocked(item: BatchItem | null, formData: FormData): boolean {
@@ -449,9 +473,10 @@ async function runPostSaveEffects(params: {
 	lineUnitPrices: string[];
 	lineTotalPrices: string[];
 	proposedCategory: string;
+	reviewState: ReviewState;
 	tdb: ReturnType<typeof forTenant>;
 }): Promise<boolean> {
-	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, tdb } = params;
+	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb } = params;
 	let isFirstInvoice = false;
 	try {
 		const productByKey = await linkProductsToInvoice(invoiceId, supplierId, rid, lineInputs);
@@ -478,6 +503,12 @@ async function runPostSaveEffects(params: {
 			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
 			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
 		]);
+
+		if (reviewState !== 'incidencia' && duplicatePurchaseAlerts.length > 0) {
+			await db.update(invoices)
+				.set({ reviewState: 'incidencia' })
+				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)));
+		}
 
 		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
@@ -582,6 +613,13 @@ export async function saveReviewedInvoice(
 	const lineInputs = parseLineInputs(formData);
 	const enrichedLines = await enrichLineItems(rid, supplierName, lineInputs);
 
+	const reviewState = resolveReviewState({
+		lowConfidenceAcked: formData.get('low_confidence_ack') === 'true',
+		totalMismatch: detectTotalMismatch(lineInputs, taxBands, totalAmount),
+		conversionNeeded: enrichedLines.some((l) => l.requiresUnitConversion),
+		qrMismatch: qrMismatches.length > 0,
+	});
+
 	let supplierId = 0;
 	let invoiceId: number | null = null;
 	let isDuplicate = false;
@@ -621,6 +659,7 @@ export async function saveReviewedInvoice(
 				taxBase,
 				taxBreakdown,
 				status: 'pending',
+				reviewState,
 				sourceFile: primaryFile,
 				confidence: confidenceRaw,
 				contentHash,
@@ -654,7 +693,7 @@ export async function saveReviewedInvoice(
 		invoiceId: invoiceId!, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate,
 		totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts,
 		qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices,
-		lineTotalPrices, proposedCategory, tdb,
+		lineTotalPrices, proposedCategory, reviewState, tdb,
 	});
 
 	return { type: 'saved', invoiceId: invoiceId!, isFirstInvoice };
