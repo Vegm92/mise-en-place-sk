@@ -33,7 +33,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		]);
 
 		return {
-			title: 'Admin · Dead letters',
+			title: 'admin.dlq.title',
 			entries: entries.map(e => ({
 				id: e.id,
 				queue: e.queue,

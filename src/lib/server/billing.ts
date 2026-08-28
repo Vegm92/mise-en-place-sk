@@ -18,6 +18,7 @@ import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
 import { users } from './schema';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
+import { renderTemplate } from '$lib/i18n';
 import { DAY_MS } from '$lib/constants';
 
 const secretKey = STRIPE_SECRET_KEY;
@@ -291,13 +292,14 @@ export async function notifyLocationsLocked(billingRestaurantId: string, tier: P
 		.limit(1);
 	if (pending) return;
 
+	const locationsLockedVars = { plan: TIERS[tier].name, max, n: locked };
 	await db.insert(systemNotifications).values({
 		restaurantId: billingRestaurantId,
 		notificationType: LOCATIONS_LOCKED_NOTIFICATION,
-		message: `${locked} location(s) locked by the ${TIERS[tier].name} plan`,
+		message: renderTemplate('es', 'notif.msg.locationsLocked', locationsLockedVars),
 		payload: {
 			messageKey: 'notif.msg.locationsLocked',
-			messageVars: { plan: TIERS[tier].name, max, n: locked },
+			messageVars: locationsLockedVars,
 		},
 	});
 }

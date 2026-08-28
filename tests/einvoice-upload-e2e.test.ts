@@ -78,7 +78,7 @@ describe('saveUploadedFiles — accepts .xml e-invoices', () => {
 	});
 
 	it('rejects a file with an .xml extension whose content is not XML', async () => {
-		const file = new File([Buffer.from('not xml at all')], 'fake.xml');
+		const file = new File([Buffer.from('not xml at all'.repeat(100))], 'fake.xml');
 		const { saved, errors } = await saveUploadedFiles([file], 'ns');
 		expect(saved).toEqual([]);
 		expect(errors[0]).toMatchObject({ name: 'fake.xml', reason: 'contentMismatch' });

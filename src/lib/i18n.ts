@@ -712,6 +712,7 @@ export const translations = {
     'upload.err.quotaRemaining': 'Solo te quedan {n} albaranes en tu plan este mes. Mejora tu plan para subir más.',
     'upload.reject.unsupportedType':  '«{name}»: tipo de archivo no admitido ({ext}). Usa PDF, JPG o PNG.',
     'upload.reject.tooLarge':         '«{name}»: supera el límite de 20 MB.',
+    'upload.reject.tooSmall':         '«{name}»: es demasiado pequeño para ser un albarán real (mín. 1 KB).',
     'upload.reject.contentMismatch':  '«{name}»: el contenido del archivo no coincide con su extensión.',
     'upload.reject.heic':             '«{name}»: las fotos HEIC no son compatibles. En tu iPhone: Ajustes → Cámara → Formatos → Más compatible, así las fotos se guardan en JPG. O sube un PDF, JPG o PNG.',
     'extract.err.quotaExceeded':     'Has alcanzado el límite de albaranes de tu plan este mes. Mejora tu plan para seguir procesando albaranes.',
@@ -1053,6 +1054,7 @@ export const translations = {
     'billing.upgrade.digest':       'El resumen semanal con IA es una función de pago. Suscríbete para desbloquearlo.',
     'billing.upgrade.prices':       'Las alertas de subidas de precio y puntuación de proveedores son una función de pago. Suscríbete para desbloquearlas.',
     'billing.upgrade.stock':        'El control de stock es una función de pago. Suscríbete para desbloquearlo.',
+    'billing.upgrade.assistant':    'El asistente con IA no está disponible en tu plan actual. Mejora tu plan para activarlo.',
     'billing.upgrade.trial':        'Tu prueba gratuita ha terminado. Activa una suscripción para volver a subir albaranes — tus datos siguen intactos.',
     'billing.upgrade.inactive':     'Tu suscripción no está activa, así que las subidas están pausadas. Reactívala para continuar — tus datos siguen intactos.',
     'billing.activated':            '¡Suscripción activada! Gracias.',
@@ -2694,6 +2696,7 @@ export const translations = {
     'upload.err.quotaRemaining': 'Only {n} invoices left on your plan this month. Upgrade to upload more.',
     'upload.reject.unsupportedType':  '"{name}": unsupported file type ({ext}). Use PDF, JPG or PNG.',
     'upload.reject.tooLarge':         '"{name}": exceeds the 20 MB limit.',
+    'upload.reject.tooSmall':         '"{name}": too small to be a real invoice (min. 1 KB).',
     'upload.reject.contentMismatch':  '"{name}": the file contents do not match its extension.',
     'upload.reject.heic':             '"{name}": HEIC photos are not supported. On iPhone: Settings → Camera → Formats → Most Compatible, so photos save as JPG. Or upload a PDF, JPG or PNG.',
     'extract.err.quotaExceeded':     "You've reached your plan's invoice limit for this month. Upgrade to keep processing invoices.",
@@ -3035,6 +3038,7 @@ export const translations = {
     'billing.upgrade.digest':       'The weekly AI digest is a paid feature. Subscribe to unlock it.',
     'billing.upgrade.prices':       'Price shock & supplier score alerts are a paid feature. Subscribe to unlock them.',
     'billing.upgrade.stock':        'Stock tracking is a paid feature. Subscribe to unlock it.',
+    'billing.upgrade.assistant':    "The AI assistant isn't available on your current plan. Upgrade your plan to turn it on.",
     'billing.upgrade.trial':        'Your free trial has ended. Subscribe to upload invoices again — your data is untouched.',
     'billing.upgrade.inactive':     'Your subscription is not active, so uploads are paused. Reactivate to continue — your data is untouched.',
     'billing.activated':            'Subscription activated! Thank you.',
@@ -3968,6 +3972,11 @@ export const translations = {
     'help.tourTeaserBody':           'The guided tour repeats this explanation on top of the app, section by section.',
   },
 } satisfies Record<Locale, Record<string, string>>;
+
+export function renderTemplate(loc: Locale, key: string, vars: Record<string, string | number> = {}): string {
+  const template = (translations[loc] as Record<string, string>)[key] ?? key;
+  return Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, String(v)), template);
+}
 
 export const locale = writable<Locale>('es');
 

@@ -53,10 +53,10 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style={TH}>{$t('admin.access.colEmail')}</th>
-            <th style={TH}>{$t('admin.access.colStatus')}</th>
-            <th style={TH}>{$t('admin.access.colCreated')}</th>
-            <th style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
+            <th scope="col" style={TH}>{$t('admin.access.colEmail')}</th>
+            <th scope="col" style={TH}>{$t('admin.access.colStatus')}</th>
+            <th scope="col" style={TH}>{$t('admin.access.colCreated')}</th>
+            <th scope="col" style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
           </tr>
         </thead>
         <tbody>
@@ -121,9 +121,9 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style={TH}>{$t('admin.access.colEmail')}</th>
-            <th style={TH}>{$t('admin.access.colJoined')}</th>
-            <th style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
+            <th scope="col" style={TH}>{$t('admin.access.colEmail')}</th>
+            <th scope="col" style={TH}>{$t('admin.access.colJoined')}</th>
+            <th scope="col" style="{TH}text-align:right;">{$t('admin.access.colAction')}</th>
           </tr>
         </thead>
         <tbody>

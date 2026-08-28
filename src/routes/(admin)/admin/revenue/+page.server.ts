@@ -20,7 +20,7 @@ const MAX_NOTE_LENGTH = 200;
 
 export const load: PageServerLoad = async () => {
 	return handleLoad('admin/revenue', async () => ({
-		title: 'Admin · Revenue',
+		title: 'admin.rev.title',
 		overview: await revenueOverview(),
 		categories: COST_CATEGORIES,
 	}));

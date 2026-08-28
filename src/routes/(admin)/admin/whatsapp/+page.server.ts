@@ -18,6 +18,7 @@ export const load: PageServerLoad = async () => {
 	]);
 
 	return {
+		title: 'admin.whatsapp.title',
 		configured: WHATSAPP_BOT_ENABLED === 'true',
 		enabled: killSwitch !== 'false',
 		status: status ?? 'unknown',

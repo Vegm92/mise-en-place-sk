@@ -186,10 +186,10 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.mrr')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCustomers')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSource')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.mrr')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCustomers')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSource')}</th>
           </tr>
         </thead>
         <tbody>
@@ -215,11 +215,11 @@
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
             <tr style="border-bottom:1px solid var(--mep-divider);">
-              <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCohort')}</th>
-              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSize')}</th>
-              <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colStartMrr')}</th>
+              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCohort')}</th>
+              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colSize')}</th>
+              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colStartMrr')}</th>
               {#each COHORT_OFFSETS as offset}
-                <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$ti('admin.rev.colMonthOffset', { n: offset })}</th>
+                <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$ti('admin.rev.colMonthOffset', { n: offset })}</th>
               {/each}
             </tr>
           </thead>
@@ -278,9 +278,9 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colLeak')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCount')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colImpact')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colLeak')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCount')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colImpact')}</th>
           </tr>
         </thead>
         <tbody>
@@ -335,11 +335,11 @@
       <table style="width:100%;border-collapse:collapse;font-size:13px;">
         <thead>
           <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCategory')}</th>
-            <th style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colAmount')}</th>
-            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colNote')}</th>
-            <th style="padding:10px 16px;"></th>
+            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colMonth')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colCategory')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colAmount')}</th>
+            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;">{$t('admin.rev.colNote')}</th>
+            <th scope="col" style="padding:10px 16px;"></th>
           </tr>
         </thead>
         <tbody>

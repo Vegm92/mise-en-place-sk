@@ -177,7 +177,7 @@ Type ∈ known set; payload shape per type; tenant scope.
 
 **`property message`**
 
-- The bell renders `messageKey` through i18n; `message` is the language-neutral fallback for non-UI consumers (chat, admin).
+- The bell renders `messageKey` through i18n; `message` is the Spanish-rendered fallback for non-UI consumers (chat context, the saved-invoice toast on legacy rows) and for any row whose payload predates the `messageKey` scheme (#536). It is never the raw `notificationType: value` machine string.
 
 **`function runCategorySuggestion`**
 

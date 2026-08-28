@@ -4,7 +4,8 @@
   import { untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import { fmt, fmtDateShort, fmtEur } from '$lib/formatters';
-  import { t, ti, tp, locale } from '$lib/i18n';
+  import { t, ti, tiv, tp, locale } from '$lib/i18n';
+  import { notificationMessage } from '$lib/notification-display';
   import { debounce } from '$lib/debounce';
   import {
     EMPTY_INVOICE_FILTERS,
@@ -206,8 +207,8 @@
           <ChevronDown size={13} />
         </button>
       </div>
-      {#each data.savedAlerts as alert}
-        <div class="card p-2 bg-warn-soft border-warn text-warn" style="font-size:12.5px;">{alert}</div>
+      {#each data.savedAlerts as alert (alert.id)}
+        <div class="card p-2 bg-warn-soft border-warn text-warn" style="font-size:12.5px;">{notificationMessage(alert, $tiv)}</div>
       {/each}
     </div>
   </div>

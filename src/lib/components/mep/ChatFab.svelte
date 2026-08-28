@@ -2,11 +2,14 @@
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import X from '@lucide/svelte/icons/x';
   import Send from '@lucide/svelte/icons/send';
+  import Lock from '@lucide/svelte/icons/lock';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import { goto } from '$app/navigation';
   import { t } from '$lib/i18n';
 
   type ChatAction = { label: string; href: string; variant: 'primary' | 'secondary' };
+
+  const { locked = false }: { locked?: boolean } = $props();
 
   let chatOpen  = $state(false);
   let chatInput = $state('');
@@ -25,7 +28,7 @@
 
   async function sendMessage(text?: string) {
     const msg = (text ?? chatInput).trim();
-    if (!msg || chatLoading) return;
+    if (!msg || chatLoading || locked) return;
     chatInput = '';
     messages = [...messages, { role: 'user', text: msg }];
     chatLoading = true;
@@ -72,11 +75,14 @@
   <button
     onclick={() => chatOpen = !chatOpen}
     class="btn btn-ghost"
-    style="width:34px;height:34px;padding:0;justify-content:center;{chatOpen ? 'background:var(--mep-acc-soft);color:var(--mep-acc);' : ''}"
+    style="position:relative;width:34px;height:34px;padding:0;justify-content:center;{chatOpen ? 'background:var(--mep-acc-soft);color:var(--mep-acc);' : ''}"
     aria-label={$t('chat.title')}
-    title={$t('chat.title')}
+    title={locked ? $t('nav.locked') : $t('chat.title')}
   >
     {#if chatOpen}<X size={16} />{:else}<MessageCircle size={16} />{/if}
+    {#if locked && !chatOpen}
+      <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:var(--mep-r-pill);background:var(--mep-fg-3);" aria-hidden="true"></span>
+    {/if}
   </button>
 
   {#if chatOpen}
@@ -108,16 +114,26 @@
 
       <div bind:this={messagesEl} class="flex-1 overflow-y-auto p-3.5 flex flex-col gap-2.5 min-h-[180px]">
         {#if messages.length === 0}
-          <p class="body text-center text-sm" style="color:var(--mep-fg-3);margin-bottom:8px;">{$t('chat.empty')}</p>
-          <div class="flex flex-wrap gap-1.5 justify-center">
-            {#each STARTER_CHIPS as key}
-              <button
-                onclick={() => sendMessage($t(key))}
-                class="btn btn-secondary"
-                style="font-size:11px;height:28px;padding:0 10px;border-radius:99px;"
-              >{$t(key)}</button>
-            {/each}
-          </div>
+          <p class="body text-center text-sm" style="color:var(--mep-fg-3);margin-bottom:8px;">
+            {locked ? $t('chat.err.upgradeRequired') : $t('chat.empty')}
+          </p>
+          {#if locked}
+            <div class="flex justify-center">
+              <a href="/billing?upgrade=assistant" class="btn btn-primary" style="font-size:11px;height:28px;padding:0 12px;text-decoration:none;" onclick={() => chatOpen = false}>
+                {$t('sidebar.upgradeCta')}
+              </a>
+            </div>
+          {:else}
+            <div class="flex flex-wrap gap-1.5 justify-center">
+              {#each STARTER_CHIPS as key}
+                <button
+                  onclick={() => sendMessage($t(key))}
+                  class="btn btn-secondary"
+                  style="font-size:11px;height:28px;padding:0 10px;border-radius:99px;"
+                >{$t(key)}</button>
+              {/each}
+            </div>
+          {/if}
         {/if}
         {#each messages as msg (msg)}
           <div class="flex flex-col {msg.role === 'user' ? 'items-end' : 'items-start'} gap-1">
@@ -151,7 +167,14 @@
         {/if}
       </div>
 
-      <p class="text-fg-4 text-center px-3 pt-1.5 pb-0 leading-tight" style="font-size:11px;">{$t('chat.privacy')}</p>
+      {#if locked}
+        <div style="display:flex;align-items:center;gap:6px;padding:0 12px 6px;font-size:11px;color:var(--mep-acc);">
+          <Lock size={11} style="flex-shrink:0;" />
+          <span>{$t('nav.locked')}</span>
+        </div>
+      {:else}
+        <p class="text-fg-4 text-center px-3 pt-1.5 pb-0 leading-tight" style="font-size:11px;">{$t('chat.privacy')}</p>
+      {/if}
 
       <div class="flex items-center gap-2 p-3 border-t border-divider">
         <input
@@ -159,13 +182,14 @@
           bind:value={chatInput}
           onkeydown={onKeydown}
           placeholder={$t('chat.placeholder')}
-          disabled={chatLoading}
+          disabled={chatLoading || locked}
+          aria-disabled={locked}
           class="input flex-1"
           style="height:34px;"
         />
         <button
           onclick={() => sendMessage()}
-          disabled={!chatInput.trim() || chatLoading}
+          disabled={!chatInput.trim() || chatLoading || locked}
           aria-label={$t('chat.send')}
           class="btn btn-primary flex-shrink-0"
           style="width:34px;height:34px;padding:0;justify-content:center;"

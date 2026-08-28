@@ -8,7 +8,7 @@ export const load: PageServerLoad = async () => {
 	]);
 
 	return {
-		title: 'Admin · Health',
+		title: 'admin.systemHealth',
 		overallStatus: health.overall,
 		checks: health.checks,
 		whatsapp: health.whatsapp,

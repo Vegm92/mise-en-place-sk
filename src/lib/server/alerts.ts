@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
 import { users } from './schema';
+import { renderTemplate } from '$lib/i18n';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';
@@ -186,19 +187,20 @@ function evaluatePriceShock(
 	if (Math.abs(deviation) < threshold) return null;
 
 	const pct = Math.round(deviation * 1000) / 10;
-	const sign = pct > 0 ? '+' : '';
 	const unitSuffix = useNorm ? ` €/${newPack!.baseUnit}` : '';
 	const basis = useNorm
 		? { label: 'per_base_unit' as const, unit: newPack!.baseUnit }
 		: { label: 'per_unit' as const, unit: null };
+	const messageKey = deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown';
+	const messageVars = { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix };
 
 	return {
 		notificationType: 'price_shock',
-		message: `price_shock: ${description} ${sign}${pct}%`,
+		message: renderTemplate('es', messageKey, messageVars),
 		payload: {
 			ingredient: description, supplier: supplierName, oldPrice: oldCmp, newPrice: newCmp, deviationPct: pct, basis: basis.label, baseUnit: basis.unit,
-			messageKey: deviation > 0 ? 'notif.msg.priceShockUp' : 'notif.msg.priceShockDown',
-			messageVars: { ingredient: description, pct: Math.abs(pct), oldPrice: oldCmp.toFixed(2), newPrice: newCmp.toFixed(2), unitSuffix },
+			messageKey,
+			messageVars,
 		},
 	};
 }
@@ -270,9 +272,10 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 
 		if (daysRemaining >= LOW_STOCK_DAYS) continue;
 
+		const lowStockVars = { ingredient: description, days: daysRemaining.toFixed(1) };
 		alerts.push({
 			notificationType: 'low_stock_forecast',
-			message: `low_stock_forecast: ${description} ${daysRemaining.toFixed(1)}d`,
+			message: renderTemplate('es', 'notif.msg.lowStock', lowStockVars),
 			payload: {
 				ingredient: description,
 				projectedDays: Math.round(daysRemaining * 10) / 10,
@@ -281,7 +284,7 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 				dailyBurnRate: row.dailyBurnRate,
 				unit: row.canonicalUnit,
 				messageKey: 'notif.msg.lowStock',
-				messageVars: { ingredient: description, days: daysRemaining.toFixed(1) },
+				messageVars: lowStockVars,
 			},
 		});
 	}
@@ -324,14 +327,15 @@ export async function runCategorizationNudge(
 		if ((row.payload as { supplierId?: number } | null)?.supplierId === supplierId) return [];
 	}
 
+	const uncategorizedVars = { supplier: supplier.name };
 	return [{
 		notificationType: 'supplier_uncategorized',
-		message: `supplier_uncategorized: ${supplier.name}`,
+		message: renderTemplate('es', 'notif.msg.uncategorized', uncategorizedVars),
 		payload: {
 			supplierId,
 			supplierName: supplier.name,
 			messageKey: 'notif.msg.uncategorized',
-			messageVars: { supplier: supplier.name },
+			messageVars: uncategorizedVars,
 		},
 	}];
 }
@@ -420,16 +424,17 @@ export async function runCategorySuggestion(
 			),
 		));
 
+	const catSuggestedVars = { supplier: supplier.name, category };
 	return [{
 		notificationType: 'supplier_category_suggested',
-		message: `supplier_category_suggested: ${supplier.name} -> ${category}`,
+		message: renderTemplate('es', 'notif.msg.catSuggested', catSuggestedVars),
 		payload: {
 			supplierId,
 			supplierName: supplier.name,
 			suggestedCategory: category,
 			source: fromExtraction ? 'extraction' : 'lines',
 			messageKey: 'notif.msg.catSuggested',
-			messageVars: { supplier: supplier.name, category },
+			messageVars: catSuggestedVars,
 		},
 	}];
 }
@@ -556,9 +561,11 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 		alreadySent.add(`${category}:${level}`);
 
 		const pctDisplay = Math.round(pctFrac * 100);
+		const budgetMessageKey = level === 'exceeded' ? 'notif.msg.budgetExceeded' : 'notif.msg.budgetWarning';
+		const budgetVars = { category, spent: totalSpend.toFixed(2), budget: monthlyBudget.toFixed(2), pct: pctDisplay, threshold: thresholdPct };
 		alerts.push({
 			notificationType: 'budget_overage',
-			message: `budget_overage: ${category} ${pctDisplay}% (${level})`,
+			message: renderTemplate('es', budgetMessageKey, budgetVars),
 			payload: {
 				category,
 				spent: totalSpend,
@@ -566,8 +573,8 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 				pct: pctDisplay,
 				threshold: thresholdPct,
 				level,
-				messageKey: level === 'exceeded' ? 'notif.msg.budgetExceeded' : 'notif.msg.budgetWarning',
-				messageVars: { category, spent: totalSpend.toFixed(2), budget: monthlyBudget.toFixed(2), pct: pctDisplay, threshold: thresholdPct },
+				messageKey: budgetMessageKey,
+				messageVars: budgetVars,
 			},
 		});
 	}
@@ -615,9 +622,15 @@ export async function runPossibleDuplicatePurchase(
 	if (matches.length === 0) return [];
 	const match = matches[0];
 
+	const duplicateVars = {
+		supplier: supplierName,
+		amount: totalAmount,
+		otherType: otherType === 'factura' ? 'factura' : 'albarán',
+		matchedNumber: match.invoiceNumber ?? `#${match.id}`,
+	};
 	return [{
 		notificationType: 'possible_duplicate_purchase',
-		message: `possible_duplicate_purchase: ${supplierName} ~${totalAmount} vs invoice #${match.id}`,
+		message: renderTemplate('es', 'notif.msg.possibleDuplicate', duplicateVars),
 		payload: {
 			supplierId, supplierName, documentType, otherDocumentType: otherType,
 			matchedInvoiceId: match.id,
@@ -626,12 +639,7 @@ export async function runPossibleDuplicatePurchase(
 			matchedTotalAmount: match.totalAmount,
 			totalAmount,
 			messageKey: 'notif.msg.possibleDuplicate',
-			messageVars: {
-				supplier: supplierName,
-				amount: totalAmount,
-				otherType: otherType === 'factura' ? 'factura' : 'albarán',
-				matchedNumber: match.invoiceNumber ?? `#${match.id}`,
-			},
+			messageVars: duplicateVars,
 		},
 	}];
 }

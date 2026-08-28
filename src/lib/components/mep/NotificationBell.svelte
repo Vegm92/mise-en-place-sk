@@ -2,7 +2,7 @@
   import Bell from '@lucide/svelte/icons/bell';
   import X from '@lucide/svelte/icons/x';
   import { t, tiv } from '$lib/i18n';
-  import { notificationIcon, notificationColor, type Notif } from '$lib/notification-display';
+  import { notificationIcon, notificationColor, notificationMessage, type Notif } from '$lib/notification-display';
 
   let { notifications: initial }: { notifications: Notif[] } = $props();
 
@@ -93,7 +93,6 @@
       {:else}
         {#each preview as n (n.id)}
           {@const Ic = notificationIcon(n.notificationType)}
-          {@const msg = n.payload as { messageKey?: string; messageVars?: Record<string, string | number> } | null}
           <div
             style="
               display:flex;align-items:flex-start;gap:10px;
@@ -104,7 +103,7 @@
               <Ic size={14} />
             </div>
             <div style="flex:1;min-width:0;font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
-              {msg?.messageKey ? $tiv(msg.messageKey, msg.messageVars ?? {}) : n.message}
+              {notificationMessage(n, $tiv)}
             </div>
             <button
               style="flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--mep-fg-3);padding:2px;margin-top:-1px;"

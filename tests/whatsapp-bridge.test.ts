@@ -110,8 +110,13 @@ import { MAX_FILE_BYTES } from '../src/lib/server/file-validation';
 
 const CONTACT = [{ restaurantId: 'rest-1' }];
 
+/** Pads well-formed leading bytes past the 1 KB minimum-size floor (#541) with trailing zeros. */
+function padToMinSize(bytes: Buffer, min = 1100): Buffer {
+	return bytes.length >= min ? bytes : Buffer.concat([bytes, Buffer.alloc(min - bytes.length)]);
+}
+
 /** A buffer that passes the JPEG magic-byte check (SOI + APP0 marker). */
-const JPEG = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]);
+const JPEG = padToMinSize(Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46]));
 
 function repliesText() {
 	return sendMock.mock.calls.map((c) => c[1] as string).join('\n');
@@ -292,7 +297,7 @@ describe('media validation (issue #483)', () => {
 	});
 
 	it('refuses a file whose bytes do not match its extension', async () => {
-		downloadMock.mockResolvedValue({ buffer: Buffer.from('MZ not a jpeg'), extension: 'jpg' });
+		downloadMock.mockResolvedValue({ buffer: padToMinSize(Buffer.from('MZ not a jpeg')), extension: 'jpg' });
 		queueRouting();
 
 		await handleWhatsAppMessage({ ...MEDIA });
@@ -329,7 +334,7 @@ describe('media validation (issue #483)', () => {
 
 	it('accepts a PDF whose bytes match', async () => {
 		downloadMock.mockResolvedValue({
-			buffer: Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37]),
+			buffer: padToMinSize(Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x37])),
 			extension: 'pdf',
 		});
 		queueRouting();

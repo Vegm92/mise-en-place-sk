@@ -34,7 +34,13 @@ the front door of the pipeline (web and WhatsApp converge here).
 
 - Extension whitelist + **magic-byte** validation (PDF `%PDF-`, JPEG `FF D8 FF`,
   PNG signature); mismatch → `contentMismatch` rejection (`sessions.ts:9-58`).
-- 20 MB cap (`MAX_FILE_BYTES`).
+- 20 MB cap (`MAX_FILE_BYTES`), 1 KB floor (`MIN_FILE_BYTES`) — below it a file
+  cannot plausibly be a real invoice; rejects as `tooSmall` before extraction
+  ever sees it (issue #541, e.g. a bare `%PDF-1.4` stub with no real content).
+- The same three checks (extension, size, magic bytes) also run client-side in
+  `UploadPanel.svelte` before a file is queued, off the identical
+  `MAGIC_BYTES`/`MAX_UPLOAD_BYTES`/`MIN_UPLOAD_BYTES` constants in
+  `upload-formats.ts` — a rejection is never silent (issue #541).
 - File keys `{namespace}/{stem}_{3-hex-suffix}{ext}`; namespace is random hex.
 - `enqueueBatchExtraction` walks items: `pending|failed → markQueued + enqueue`;
   `queued → enqueue` only (idempotent). Per-file rejects do not fail the batch.
@@ -230,7 +236,7 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 **`const ALLOWED_EXTENSIONS`**
 
-- Derived from `SUPPORTED_UPLOAD_EXTENSIONS` in `src/lib/upload-formats.ts`, which is also what every file input's `accept` attribute reads. Four gates decide whether a file type works — the picker, this allowlist, the `MAGIC_BYTES` table beside it, and `classifyFile` in extract.ts — and each used to carry its own copy; `.heic` was offered by the picker and refused here (issue #520). `tests/supported-file-types.test.ts` pins them to one set.
+- Derived from `SUPPORTED_UPLOAD_EXTENSIONS` in `src/lib/upload-formats.ts`, which is also what every file input's `accept` attribute reads. Four gates decide whether a file type works — the picker, this allowlist, the `MAGIC_BYTES` table, and `classifyFile` in extract.ts — and each used to carry its own copy; `.heic` was offered by the picker and refused here (issue #520). `tests/supported-file-types.test.ts` pins them to one set. `MAGIC_BYTES` itself now lives in `upload-formats.ts` (re-exported here via `file-validation.ts`), not beside this allowlist — it needed to be client-safe so `UploadPanel.svelte` can sniff with the exact same table before a file is even queued (issue #541); `tests/upload-client-validation.test.ts` asserts client and server import the same object, not a copy.
 - Upload file helpers — validation, storage-key generation, local-path resolution. Batch/queue state lives in batch.ts; the legacy JSON-blob session store is gone (the file keeps its name from that era).
 
 **`function uploadsDir`**
@@ -239,7 +245,7 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 **`interface RejectedUpload`**
 
-- Save via the configured storage driver; returns saved (display names + uniqueness suffix), keys (`namespace/filename`), errors. Rejection reason is an i18n key the page translates (#294), not prose: unsupportedType | tooLarge | contentMismatch.
+- Save via the configured storage driver; returns saved (display names + uniqueness suffix), keys (`namespace/filename`), errors. Rejection reason is an i18n key the page translates (#294), not prose: unsupportedType | tooLarge | tooSmall | contentMismatch.
 
 **`function localFilePath`**
 
@@ -256,6 +262,10 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 **`const localError`**
 
 - Client-side problems (oversized file, offline queue full, failed upload) used to go through native alert() — modal, unstyled, wrong locale, invisible to the page. Now feed the same banner as server errors (#233); transient ones clear themselves.
+
+**`function addFiles`**
+
+- Async (issue #541): a picked/dropped file that isn't HEIC still has to clear `validateUploadFile` (`upload-formats.ts`) — extension, the 20 MB/1 KB size band, then a `File.slice` magic-byte read — before it's added to the queue. Previously only HEIC and oversize were caught client-side; anything else (a `.txt`, a spoofed extension, a byte-thin fake PDF) was silently queued and only failed after a full round trip to the server, or — worse, in a mixed batch — was dropped with no message at all. A rejection now always shows `upload.reject.<reason>`, naming the file.
 
 **`const serverError`**
 

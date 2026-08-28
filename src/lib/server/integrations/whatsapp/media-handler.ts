@@ -5,6 +5,7 @@ import { enqueueExtraction } from '../../queue';
 import { getStorage } from '../../storage';
 import {
 	MAX_FILE_BYTES,
+	MIN_FILE_BYTES,
 	MediaTooLargeError,
 	validateBuffer,
 	type RejectReason,
@@ -19,6 +20,7 @@ export interface CommitFlag {
 const REJECT_REPLY: Record<RejectReason, string> = {
 	unsupportedType: '❌ Ese tipo de archivo no me sirve. Envíame una foto (JPG, PNG) o un PDF de la factura.',
 	tooLarge: `❌ El archivo es demasiado grande (máx. ${MAX_FILE_BYTES / (1024 * 1024)} MB).`,
+	tooSmall: `❌ El archivo es demasiado pequeño para ser una factura real (mín. ${MIN_FILE_BYTES} bytes).`,
 	contentMismatch: '❌ El archivo parece dañado o no es lo que dice ser. Vuelve a enviarlo.',
 };
 
