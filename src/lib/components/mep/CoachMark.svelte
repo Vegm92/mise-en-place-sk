@@ -85,9 +85,8 @@
 
 {#if ready}
   <div
-    style="position:fixed;inset:0;z-index:110;background:transparent;"
-    role="presentation"
-    onclick={onSkip}
+    style="position:fixed;inset:0;z-index:110;background:transparent;pointer-events:none;"
+    aria-hidden="true"
   ></div>
 
   <div
