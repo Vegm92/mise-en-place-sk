@@ -705,7 +705,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           <button
             type="submit"
             title={$t('action.switchAccount')}
-            style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;padding:2px;border-radius:4px;"
+            aria-label={$t('action.switchAccount')}
+            style="width:40px;height:40px;background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;border-radius:6px;"
           >
             <ArrowLeftRight size={13} />
           </button>
@@ -714,7 +715,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           <button
             type="submit"
             title={$t('action.logout')}
-            style="background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;padding:2px;border-radius:4px;"
+            aria-label={$t('action.logout')}
+            style="width:40px;height:40px;background:transparent;border:none;cursor:pointer;color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;border-radius:6px;"
           >
             <LogOut size={13} />
           </button>

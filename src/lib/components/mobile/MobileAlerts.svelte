@@ -94,6 +94,10 @@
             {/each}
           </div>
         </div>
+      {:else}
+        <div style="font-size: 13px; color: var(--mep-fg-3); padding: 4px 0;">
+          {$t('rem.noIncidencias')}
+        </div>
       {/if}
 
       {#each notifGroupList as group (group.key)}
