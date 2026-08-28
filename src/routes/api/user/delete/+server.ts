@@ -5,7 +5,7 @@ import { db } from '$lib/server/db';
 import { userRestaurants, restaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { enqueueAccountCleanup } from '$lib/server/queue';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
 
-	if (!(await checkRateLimit(`account-delete:${user.id}`, 3))) {
+	if (!(await rateLimitScoped({ scope: 'user', name: 'account-delete', max: 3 }, { userId: user.id }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 

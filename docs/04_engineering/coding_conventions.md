@@ -123,9 +123,15 @@ These comments were deliberately left in the code because a tool reads them.
 
 ## Rate limiting
 
-- Public/user/tenant-sensitive actions call `checkRateLimit(key, rpm, ttl?)`
-  from `src/lib/server/rate-limiter.ts`; choose the key scope deliberately
-  (user vs tenant vs IP) and document it (see open item #440).
+- Authenticated actions call `rateLimitScoped({ scope: 'tenant' | 'user', name, max, windowSeconds? }, { userId?, restaurantId? })`
+  from `src/lib/server/rate-limit-scope.ts` — `tenant` for paid/metered
+  capacity and shared tenant resources, `user` for per-person safety limits
+  and personal dashboards; see ADR-029 for the rule and the full site audit.
+  Public/unauthenticated flows use `checkRateLimit(key, rpm, ttl?)`
+  (`src/lib/server/rate-limiter.ts`) directly via `publicFormAction` or an
+  IP key — `rateLimitScoped()` is for the authenticated case only.
+  `tests/rate-limit-scope-enforcement.test.ts` fails the build on a new
+  direct `checkRateLimit()` call site that isn't a documented exception.
 
 ## Error handling
 

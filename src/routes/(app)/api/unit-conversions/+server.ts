@@ -2,11 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '$lib/server/db';
 import { defineUnitConversion } from '$lib/server/products';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!await checkRateLimit(`unit-conversions:${locals.user!.id}`, 30)) throw error(429, 'Too many requests');
 	const rid = locals.restaurantId!;
+	if (!await rateLimitScoped({ scope: 'tenant', name: 'unit-conversions', max: 30 }, { restaurantId: rid })) {
+		throw error(429, 'Too many requests');
+	}
 	const body = await request.json().catch(() => null);
 	if (!body) return json({ error: 'Invalid JSON' }, { status: 422 });
 

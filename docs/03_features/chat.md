@@ -26,8 +26,11 @@ live SQL.
 
 ## Business rules
 
-- **Rate limit**: `chat:{userId}` RPM (`CHAT_RATE_LIMIT_RPM`, default 20) —
-  user-keyed (open item #440 notes the split with restaurant-keyed limits).
+- **Rate limit**: `chat:{restaurantId}` RPM (`CHAT_RATE_LIMIT_RPM`, default
+  20) — tenant-keyed (ADR-029, #440): Gemini is paid, metered capacity the
+  restaurant buys once, so the whole restaurant shares one budget regardless
+  of which staff member is asking. A five-seat tenant does not get 5×
+  `CHAT_RATE_LIMIT_RPM`.
 - **Context** (`chat-context.ts`): one fixed snapshot (`buildChatContext(rid)`)
   — invoice summary, top-5 YTD suppliers, budget-vs-actual, 10 recent invoices,
   10 pending notifications, stock levels with days-left, 90-day price
@@ -115,7 +118,7 @@ Message length; tenant scope; session ownership; entitlement.
 **`const POST`**
 
 - AI chat is paid capacity: an expired trial keeps its data but stops spending (issue #287); 402 so the client can show upgrade copy rather than a generic failure.
-- Rate limit keyed by authenticated user, not client IP (`chat:${locals.user!.id}`, `CHAT_RATE_LIMIT_RPM`) — behind a proxy every user shares one IP, and IP-keying would let one tenant exhaust the global chat budget.
+- Rate limit is tenant-keyed via `rateLimitScoped({ scope: 'tenant', name: 'chat', max: CHAT_RATE_LIMIT_RPM }, { restaurantId: rid })` (ADR-029, #440), not IP or per-user: IP-keying would collapse behind a proxy where every user shares one IP, and user-keying would let a multi-staff tenant multiply its paid Gemini budget by headcount.
 - Session is resolved or created; an existing id must belong to this tenant.
 - System instruction is entirely server-controlled. Restaurant data sits in `<restaurant_data>` tags so the model treats it as data, not instructions, even if supplier names or invoice text contain adversarial strings.
 

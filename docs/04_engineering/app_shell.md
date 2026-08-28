@@ -67,7 +67,7 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`property upload`**
 - A lapsed trial (or a cancelled/past-due subscription) may keep reading its data, but must not start new paid work (issue #287). First thing in the action: an expired tenant gets sent to /billing without uploading a 20 MB file first, and never reaches the rate limiter or quota gate.
 - Use typeof check instead of instanceof — SvelteKit's internal File class may differ from globalThis.File across Node.js versions, causing instanceof to silently drop files.
-- Each upload consumes a paid Gemini extraction — cap batch submissions per tenant regardless of plan quota: `checkRateLimit('upload:${rid}', 10)`.
+- Each upload consumes a paid Gemini extraction — cap batch submissions per tenant regardless of plan quota: `rateLimitScoped({ scope: 'tenant', name: 'upload', max: 10 }, { restaurantId: rid })` (ADR-029).
 - Plan quota gate — block before consuming any Gemini extraction and redirect (not fail) to /billing to upgrade, so the message + upgrade CTA render reliably for both the XHR and no-JS submit paths via the page's error banner. Skipped when no quota is configured.
 - Random storage namespace — generated before the batch exists so files can be saved first; it does not need to match the batch id.
 - Every file rejected by validation — report the first reason with the offending filename (issue #294); reasons are i18n keys.

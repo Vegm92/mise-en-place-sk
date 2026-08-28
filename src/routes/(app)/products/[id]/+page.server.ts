@@ -4,7 +4,7 @@ import { db, forTenant } from '$lib/server/db';
 import { products, invoiceLineItems, invoices, suppliers, productAliases } from '$lib/server/schema';
 import { eq, desc } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import {
 	getLinkedSuppliers, unlinkSupplier as unlinkSupplierFromProduct,
 	deleteProduct, resolveUnitConversionAlerts,
@@ -111,7 +111,9 @@ export const actions: Actions = {
 		const supplierId = Number(data.get('supplierId'));
 		if (!supplierId || isNaN(supplierId)) return fail(422, { error: 'Invalid supplier' });
 
-		if (!(await checkRateLimit(`product-unlink:${rid}`, 30))) return fail(429, { error: 'Too many requests' });
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'product-unlink', max: 30 }, { restaurantId: rid }))) {
+			return fail(429, { error: 'Too many requests' });
+		}
 
 		await unlinkSupplierFromProduct(db, rid, id, supplierId);
 
@@ -121,7 +123,9 @@ export const actions: Actions = {
 	delete: async ({ params, locals }) => {
 		const id = requirePositiveIntId(params.id, 'product');
 		const rid = locals.restaurantId!;
-		if (!(await checkRateLimit(`product-delete:${rid}`, 20))) return fail(429, { error: 'Too many requests' });
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'product-delete', max: 20 }, { restaurantId: rid }))) {
+			return fail(429, { error: 'Too many requests' });
+		}
 
 		const result = await deleteProduct(db, rid, id);
 		if (!result.ok) {
