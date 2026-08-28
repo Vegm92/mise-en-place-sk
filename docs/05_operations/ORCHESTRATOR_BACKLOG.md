@@ -90,7 +90,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 468 | P3 | DONE | 1 | Verified (commit 2da6b2e): resolve+startsWith guard matching read/delete (sep-edge safe), traversal tests. 2458/2458. | LocalDriver.save path containment |
 | 467 | P3 | DONE | 1 | Verified (commit 64cf841): single-source CHAT_ACTION_ROUTES feeds prompt + validator; origin-pinned URL parse blocks external/js/backslash hijacks; label/variant hardening. 2465/2465. | chat ACTIONS href allowlist |
 | 574 | P3 | DONE | 1 | Verified (commit 612a6fa): all 3 entry points carry ?highlight=category, pulsing ring w/ reduced-motion guard, fades on interaction/4s, mobile+desktop. 2843/2843. | highlight Category field on Clasificar |
-| 571 | P3 | PENDING | 0 | | unify logo usage |
+| 571 | P3 | DONE | 1 | Verified (commit 0507d72): shared theme-aware <Logo> replaces 10 inline copies; favicon/PWA icons recolored to manifest ink/parchment (closes ADR-028's deferred note); email copy sanctioned exception. 2850/2850. | unify logo usage |
 | 569 | P3 | PENDING | 0 | | help page docs/tips |
 | 568 | P3 | PENDING | 0 | | supplier products hover |
 | 524 | P3 | DONE | 1 | Verified (commit 49476a1): 18 dishonest sites across 6 files → ::float8 or string+moneyToNumber; regression-proven guard test. 2786/2786. | sql template numeric return types |
