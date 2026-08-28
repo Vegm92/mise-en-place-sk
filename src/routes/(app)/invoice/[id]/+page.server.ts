@@ -8,10 +8,11 @@ import { moneyToNullableNumber } from '$lib/server/money';
 import { linkProductsToInvoice } from '$lib/server/invoice-save';
 import { parsePack } from '$lib/server/products';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/detail', async () => {
-		const id  = Number(params.id);
+		const id  = requirePositiveIntId(params.id, 'invoice');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 
@@ -68,7 +69,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	relinkProducts: async ({ params, locals }) => {
-		const id  = Number(params.id);
+		const id  = requirePositiveIntId(params.id, 'invoice');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 
@@ -109,7 +110,7 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ params, locals }) => {
-		const id  = Number(params.id);
+		const id  = requirePositiveIntId(params.id, 'invoice');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 		const uid = locals.user!.id;

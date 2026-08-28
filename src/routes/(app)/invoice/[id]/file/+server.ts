@@ -6,6 +6,7 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { contentDispositionHeader } from '$lib/server/content-disposition';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 const MIME: Record<string, string> = {
 	pdf:  'application/pdf',
@@ -19,8 +20,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) error(401, 'Unauthorized');
 
-	const id = parseInt(params.id, 10);
-	if (isNaN(id)) error(400, 'Invalid invoice id');
+	const id = requirePositiveIntId(params.id, 'invoice');
 
 	const tdb = forTenant(rid);
 	const rows = await db.select({ sourceFile: invoices.sourceFile })
