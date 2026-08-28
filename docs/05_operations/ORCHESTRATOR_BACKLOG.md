@@ -16,6 +16,8 @@ BASE MERGE (2026-08-28): main @ 3470c27 (PR #748 + beta fixes #742–#746: revie
 
 STACK MERGED (2026-08-28): all six waves are merged — #750 (11:32Z), #751 (11:32Z), #752 (11:33Z), #753 (11:58Z), #754 (11:58Z), #755 (15:55Z). Post-split fixes that landed on the way: wave-4 and wave-6 SonarCloud quality gates driven to green (final blocker: the mistyped-bitwise-AND reliability rule, cleared by detecting const declarations via the leading keyword token, c33fca4), and the waitlist i18n-migration proof made hermetic for CI's shallow clone (pinned blob checked in as tests/fixtures/waitlist-page-pre-i18n-881aee69.txt). All thirteen wave-6 issues verified auto-closed on merge (#535 #534 #464 #515 #514 #524 #440 #439 #390 #407 #574 #571 #568); waves 1–5's issues were verified closed earlier. 43 issues remain open, all held/deferred/owner-gated: escandallo cluster #727–#738 waits on PR #723; #565/#747 re-triaged post-#748; the rest are the recorded ON HOLD and owner-gated sets. New-issue dispatching remains ON HOLD until the owner says otherwise.
 
+SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrator to continue eliminating the backlog — new-issue dispatching is ON again. Recovery check: branch claude/mise-en-place-backlog-qa-8tl082 == main @ c97b172, working tree clean, no interrupted work. PR #723 still open → escandallo cluster (#727–#738) stays DEFERRED; #730 verified: no allergen code exists on main (grep of src/), so it is #723-branch-only — DEFERRED confirmed. #532 verified fixed on main (::int casts in (app)/+layout.server.ts) and closed with evidence. #747 unblocked by #755's merge → dispatched.
+
 ## Queue (work top-down within each tier)
 
 | # | Pri | Status | Att | Last result / notes | Title (short) |
@@ -54,7 +56,7 @@ STACK MERGED (2026-08-28): all six waves are merged — #750 (11:32Z), #751 (11:
 | 539 | P2 | DONE | 1 | Verified (commit e3723c7): spend+dashboard get out-of-range states w/ count + widen action; /analytics/extraction verified already correct (unwindowed MV). 2315/2315. | analytics says "no data" to users with invoices |
 | 537 | P2 | DONE | 1 | Verified (commit f4878ff): labels/aria on all batch fields, th scope, sr-only h2s; live Playwright audit clean both viewports; AST regression test. 2322/2322. Global icon buttons were already labeled (#460). | a11y: 33/36 batch review fields unnamed |
 | 533 | P2 | DONE | 1 | Already satisfied on main (e6c10d0 + a735941): keys present, lint:i18n key-resolution pass with deliberate-miss proof. GitHub issue closed with explanation. | missing $t() keys render raw |
-| 532 | P2 | DONE | 1 | Fixed incidentally by #489's layout rewrite (1ea714f): all COUNTs ::int + Number(), strict-equality DB tests pin the type. Close GitHub issue when branch merges. | nav renders literal "0" badge |
+| 532 | P2 | DONE | 1 | Fixed incidentally by #489's layout rewrite (1ea714f): all COUNTs ::int + Number(), strict-equality DB tests pin the type. Verified on main @ c97b172; GitHub issue closed with evidence 2026-08-28. | nav renders literal "0" badge |
 | 511 | P2 | OBSOLETE | 0 | Verified resolved on main by #746/#748: single exhaustive status union in status.ts, rejected badge negative, i18n keys present, export uses localized REVIEW_STATE_LABELS. Closed 2026-08-28 with evidence comment. | three conflicting InvoiceStatus vocabularies |
 | 520 | P2 | DONE | 1 | Verified (commit 42dfafc): 6/7 acceptance items already covered by intervening work (evidence per item); dead extraction retry policy fixed via perJobResults wiring. 2327/2327. | tenant-isolation tests cover load() only; silent skips |
 | 518 | P2 | DONE | 1 | Already solved on main (542ebc6 + ADR-025, full dispatcher); added missing concurrency-proof test (4c5b269). GitHub issue closed. 2328/2328. | scheduled jobs iterate all tenants sequentially |
@@ -65,8 +67,8 @@ STACK MERGED (2026-08-28): all six waves are merged — #750 (11:32Z), #751 (11:
 | 733 | P2 | DEFERRED | 0 | PR #723 branch | updateRecipe drops unparseable fields; rename race |
 | 732 | P2 | DEFERRED | 0 | PR #723 branch | add-a-line row keeps submitted values |
 | 731 | P2 | DEFERRED | 0 | PR #723 branch | printed escandallo repeats prep block |
-| 730 | P2 | DEFERRED | 0 | Verify: may be main's products module | no-allergens save blocks extraction |
-| 747 | P3 | PENDING | 0 | Re-checked 2026-08-28 post-#748: item 7 (reminders empty state) superseded by #746; item 9 formatters overlap #535 (in PR #755); the rest remain valid. Actionable after #755 merges, dispatch on hold. | beta-review polish bundle |
+| 730 | P2 | DEFERRED | 0 | Verified 2026-08-28: no allergen code on main — #723-branch-only | no-allergens save blocks extraction |
+| 747 | P3 | IN_PROGRESS | 1 | Dispatched to Sonnet worker 2026-08-28 (backlog-qa session): items 1-6,8,10 implement; 7 verify-obsolete (#746 merged); 9 verify-first (#535 merged). | beta-review polish bundle |
 | 720 | P3 | DONE | 1 | Verified (commit 32aec64): slate acc-soft alpha 0.16→0.10, 4.18→4.58:1; ADR-026 amended w/ on-tint table; contrast test harness added. Note: slate accent is inert (all routes use tinta/ADR-028). 2344/2344. | active nav rows below AA in dark |
 | 749 | P3 | DONE | 1 | Verified (commit 57b2d3e): neg-soft dark 0.18→0.12 (4.57:1), caution-soft light 0.14→0.11 (4.53:1); full usage sweep, assertions upgraded, ADR amended. 2349/2349. Close GitHub issue when branch merges. | severity tokens below AA on own tints |
 | 719 | P3 | DONE | 1 | Verified (commit 18152ac): fg-4→fg-3 (3.92→5.21:1 dark), pinning tests. 2347/2347. Noted: location-switcher locked items still fg-4 (separate component). | locale hint below AA in dark |
