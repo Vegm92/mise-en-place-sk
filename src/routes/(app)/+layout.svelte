@@ -606,12 +606,16 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
 
     {#if !collapsed && revealAll}
     <a href="/billing" onclick={() => mobileOpen = false}
-      style="display:block;margin:0 4px 14px;padding:10px;border-radius:8px;background:var(--mep-surface-2);border:1px solid var(--mep-divider);text-decoration:none;">
-      <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;{data.quotaLimit ? 'margin-bottom:7px;' : ''}"><span style="font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}</span><span style="color:var(--mep-fg-3);">&nbsp;·&nbsp;</span><span class="num" style="color:var(--mep-fg-3);">{data.quotaUsed}{#if data.quotaLimit}/{data.quotaLimit}{/if}</span><span style="color:var(--mep-fg-3);">&nbsp;{#if data.subscriptionStatus === 'canceled'}· {$t('billing.canceled')}{:else}{$t('shell.quota')}{/if}</span></div>
-      {#if data.quotaLimit}
-        <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
-          <div style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;height:100%;background:var(--mep-acc);border-radius:2px;{data.quotaUsed > 0 ? 'min-width:3px;' : ''}"></div>
-        </div>
+      style="display:block;margin:0 4px 14px;padding:10px;border-radius:8px;background:{data.trialExpired ? 'var(--mep-neg-soft)' : 'var(--mep-surface-2)'};border:1px solid {data.trialExpired ? 'var(--mep-neg)' : 'var(--mep-divider)'};text-decoration:none;">
+      {#if data.trialExpired}
+        <div style="font-size:11px;font-weight:500;color:var(--mep-neg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{$t('sidebar.trialExpiredChip')}</div>
+      {:else}
+        <div style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;{data.quotaLimit ? 'margin-bottom:7px;' : ''}"><span style="font-weight:500;color:var(--mep-fg-2);">{$t(data.planNameKey)}</span><span style="color:var(--mep-fg-3);">&nbsp;·&nbsp;</span><span class="num" style="color:var(--mep-fg-3);">{data.quotaUsed}{#if data.quotaLimit}/{data.quotaLimit}{/if}</span><span style="color:var(--mep-fg-3);">&nbsp;{#if data.subscriptionStatus === 'canceled'}· {$t('billing.canceled')}{:else}{$t('shell.quota')}{/if}</span></div>
+        {#if data.quotaLimit}
+          <div style="height:4px;border-radius:2px;background:var(--mep-divider);overflow:hidden;">
+            <div style="width:{Math.min(100, Math.round(data.quotaUsed / data.quotaLimit * 100))}%;height:100%;background:var(--mep-acc);border-radius:2px;{data.quotaUsed > 0 ? 'min-width:3px;' : ''}"></div>
+          </div>
+        {/if}
       {/if}
     </a>
     {/if}
@@ -818,6 +822,15 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
         {/if}
       </div>
     </header>
+
+    {#if data.trialExpired && !is('/billing')}
+      <div style="flex-shrink:0;padding:10px 20px;background:var(--mep-neg-soft);border-bottom:1px solid var(--mep-neg);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="flex:1;min-width:200px;font-size:13px;color:var(--mep-neg);">{$t('billing.trialExpiredMsg')}</span>
+        <a href="/billing?upgrade=trial" class="btn btn-primary" style="height:34px;padding:0 14px;text-decoration:none;flex-shrink:0;">
+          {$t('billing.subscribeNow')}
+        </a>
+      </div>
+    {/if}
 
     <main style="flex:1;overflow:auto;" bind:this={mainEl}>
       <ErrorBoundary {children} />
