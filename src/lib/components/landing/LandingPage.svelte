@@ -120,6 +120,12 @@
     { quote: $t('waitlist.testimonials.2.quote'), name: $t('waitlist.testimonials.2.name'), role: $t('waitlist.testimonials.2.role') },
   ]);
 
+  const foundingItems = $derived([
+    { title: $t('waitlist.founding.0.title'), body: $t('waitlist.founding.0.body') },
+    { title: $t('waitlist.founding.1.title'), body: $t('waitlist.founding.1.body') },
+    { title: $t('waitlist.founding.2.title'), body: $t('waitlist.founding.2.body') },
+  ]);
+
   const faqItems = $derived([
     { q: $t('waitlist.faq.0.q'), a: $t('waitlist.faq.0.a') },
     { q: $t('waitlist.faq.1.q'), a: $t('waitlist.faq.1.a') },
@@ -520,6 +526,29 @@
       </div>
 
       <p style="margin:32px 0 0;font-size:13.5px;color:var(--mep-fg-3);line-height:1.6;max-width:780px;text-wrap:pretty;">{$t('waitlist.pricingFoot')}</p>
+    </div>
+  </section>
+
+  <section class="mep-section" style="padding:76px 72px;">
+    <div style="max-width:1000px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.foundingEyebrow')}</div>
+      <h2 style="margin:0;max-width:640px;font-size:32px;font-weight:600;
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.foundingHead')}</h2>
+      <p style="margin:14px 0 0;max-width:640px;font-size:16px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{$t('waitlist.foundingSub')}</p>
+
+      <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+        {#each foundingItems as item, i}
+          <div style="border-radius:var(--mep-r-card);border:1px solid var(--mep-border);
+                      background:var(--mep-surface);padding:24px;">
+            <div style="width:30px;height:30px;border-radius:999px;background:var(--mep-acc-soft);
+                        color:var(--mep-acc);display:flex;align-items:center;justify-content:center;
+                        font-size:13px;font-weight:700;font-family:var(--mep-fs-mono);margin-bottom:16px;">0{i + 1}</div>
+            <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;margin-bottom:8px;">{item.title}</div>
+            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;">{item.body}</div>
+          </div>
+        {/each}
+      </div>
     </div>
   </section>
 
