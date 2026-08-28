@@ -68,7 +68,7 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 732 | P2 | DEFERRED | 0 | PR #723 branch | add-a-line row keeps submitted values |
 | 731 | P2 | DEFERRED | 0 | PR #723 branch | printed escandallo repeats prep block |
 | 730 | P2 | DEFERRED | 0 | Verified 2026-08-28: no allergen code on main — #723-branch-only | no-allergens save blocks extraction |
-| 747 | P3 | IN_PROGRESS | 1 | Dispatched to Sonnet worker 2026-08-28 (backlog-qa session): items 1-6,8,10 implement; 7 verify-obsolete (#746 merged); 9 verify-first (#535 merged). | beta-review polish bundle |
+| 747 | P3 | DONE | 1 | Verified (commit 214e53b): items 1-4,6-10 fixed w/ 28 tests (2878/2878, svelte-check 0/0, 6 lint gates + i18n clean, build green — all re-run by orchestrator); item 5 proven browser/OS-controlled (no app fix); item 7 was NOT obsolete post-#746, fixed. Live-verified via local PG + Chromium. Risks: xl two-col invoice list hides due-date col; pre-deploy raw tokens fail once (1h TTL). Close GitHub issue when branch merges. | beta-review polish bundle |
 | 720 | P3 | DONE | 1 | Verified (commit 32aec64): slate acc-soft alpha 0.16→0.10, 4.18→4.58:1; ADR-026 amended w/ on-tint table; contrast test harness added. Note: slate accent is inert (all routes use tinta/ADR-028). 2344/2344. | active nav rows below AA in dark |
 | 749 | P3 | DONE | 1 | Verified (commit 57b2d3e): neg-soft dark 0.18→0.12 (4.57:1), caution-soft light 0.14→0.11 (4.53:1); full usage sweep, assertions upgraded, ADR amended. 2349/2349. Close GitHub issue when branch merges. | severity tokens below AA on own tints |
 | 719 | P3 | DONE | 1 | Verified (commit 18152ac): fg-4→fg-3 (3.92→5.21:1 dark), pinning tests. 2347/2347. Noted: location-switcher locked items still fg-4 (separate component). | locale hint below AA in dark |
@@ -127,7 +127,7 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 329 | P3 | PENDING | 0 | | digest share affordance |
 | 328 | P3 | PENDING | 0 | | onboarding captures only name |
 | 327 | P3 | PENDING | 0 | | landing copy hardcoded |
-| 326 | P3 | PENDING | 0 | | no attribution capture |
+| 326 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: attribution spine (schema + parseAttribution + cookie + funnel_events); blocks #327/#402-405 measurability. | no attribution capture |
 | 325 | P3 | PENDING | 0 | Tracking umbrella | relevance media flywheel |
 | 236 | P3 | PENDING | 0 | Feature, sizeable | email-in invoice ingest |
 | 224 | P3 | PENDING | 0 | Infra config | edge DDoS + Upstash config |
