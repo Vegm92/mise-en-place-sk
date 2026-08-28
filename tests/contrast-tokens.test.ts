@@ -13,10 +13,12 @@
  * numbers, which can drift from the tokens) and pins the composited ratio so
  * the alpha can't creep back up unnoticed.
  *
- * It also documents (without asserting AA on) two on-tint pairs discovered
- * by the same method that #720 did not fix: `--mep-neg` text on its own tint
- * in dark, and `--mep-caution` text on its own tint in light. Both are the
- * severity ramp, a different blast radius than the accent fix — see the
+ * It also asserts the on-tint AA floor for the rest of the severity ramp
+ * (`--mep-neg`, `--mep-warn`, `--mep-caution`), added by issue #749: the same
+ * method applied to `#720`'s untouched pairs found `--mep-neg` text on its
+ * own tint failing in dark (4.16:1) and `--mep-caution` text on its own tint
+ * failing in light (4.35:1). Fixed by lowering `--mep-neg-soft`'s dark alpha
+ * to `0.12` and `--mep-caution-soft`'s light alpha to `0.11` — see the
  * amendment in ADR-026.
  */
 import { describe, it, expect } from 'vitest';
@@ -143,18 +145,67 @@ describe('on-tint contrast — text painted in a semantic colour on its own -sof
 		expect(visibility).toBeGreaterThan(1.05);
 	});
 
-	it('documents the on-tint pairs #720 found but did not fix (severity ramp, out of scope)', () => {
-		const negDark = token(darkBlock, 'mep-neg');
+	it('every severity rung clears AA as text on its own -soft tint, in both themes (#749)', () => {
+		const rungs: Array<{ name: string; light: number; dark: number }> = [];
+
+		for (const name of ['mep-neg', 'mep-warn', 'mep-caution']) {
+			const light = onTintRatio(
+				token(rootBlock, name),
+				alphaOf(token(rootBlock, `${name}-soft`)),
+				surfaceLight,
+			);
+			const dark = onTintRatio(
+				token(darkBlock, name),
+				alphaOf(token(darkBlock, `${name}-soft`)),
+				surfaceDark,
+			);
+			rungs.push({ name, light, dark });
+			expect(light, `${name} on-tint, light`).toBeGreaterThanOrEqual(4.5);
+			expect(dark, `${name} on-tint, dark`).toBeGreaterThanOrEqual(4.5);
+		}
+
+		const neg = rungs.find((r) => r.name === 'mep-neg')!;
+		const warn = rungs.find((r) => r.name === 'mep-warn')!;
+		const caution = rungs.find((r) => r.name === 'mep-caution')!;
+
+		expect(neg.light).toBeCloseTo(4.99, 1);
+		expect(neg.dark).toBeCloseTo(4.57, 1);
+		expect(warn.light).toBeCloseTo(4.55, 1);
+		expect(warn.dark).toBeCloseTo(5.19, 1);
+		expect(caution.light).toBeCloseTo(4.53, 1);
+		expect(caution.dark).toBeCloseTo(6.78, 1);
+	});
+
+	it('pins the fixed neg-dark and caution-light alphas so they cannot creep back toward the failing values', () => {
 		const negSoftDark = token(darkBlock, 'mep-neg-soft');
-		const negOnTintDark = onTintRatio(negDark, alphaOf(negSoftDark), surfaceDark);
-		expect(negOnTintDark).toBeCloseTo(4.16, 1);
-		expect(negOnTintDark).toBeLessThan(4.5);
+		expect(alphaOf(negSoftDark)).toBeLessThanOrEqual(0.13);
+		const negDark = token(darkBlock, 'mep-neg');
+		const failingNegDark = onTintRatio(negDark, 0.18, surfaceDark);
+		expect(failingNegDark).toBeLessThan(4.5);
+
+		const cautionSoftLight = token(rootBlock, 'mep-caution-soft');
+		expect(alphaOf(cautionSoftLight)).toBeLessThanOrEqual(0.12);
+		const cautionLight = token(rootBlock, 'mep-caution');
+		const failingCautionLight = onTintRatio(cautionLight, 0.14, surfaceLight);
+		expect(failingCautionLight).toBeLessThan(4.5);
+	});
+
+	it('keeps the fixed severity tints perceptible, not just AA-legal', () => {
+		const negDark = token(darkBlock, 'mep-neg');
+		const negAlphaDark = alphaOf(token(darkBlock, 'mep-neg-soft'));
+		const negVisibilityDark = contrastRatio(
+			compositeOver(hexToRgb(negDark), negAlphaDark, hexToRgb(surfaceDark)),
+			hexToRgb(surfaceDark),
+		);
+		expect(negVisibilityDark).toBeGreaterThan(1.14);
 
 		const cautionLight = token(rootBlock, 'mep-caution');
-		const cautionSoftLight = token(rootBlock, 'mep-caution-soft');
-		const cautionOnTintLight = onTintRatio(cautionLight, alphaOf(cautionSoftLight), surfaceLight);
-		expect(cautionOnTintLight).toBeCloseTo(4.35, 1);
-		expect(cautionOnTintLight).toBeLessThan(4.5);
+		const cautionAlphaLight = alphaOf(token(rootBlock, 'mep-caution-soft'));
+		const cautionVisibilityLight = contrastRatio(
+			compositeOver(hexToRgb(cautionLight), cautionAlphaLight, hexToRgb(surfaceLight)),
+			hexToRgb(surfaceLight),
+		);
+		expect(cautionVisibilityLight).toBeGreaterThan(1.14);
 	});
 
 	it('reproduces ADR-026 published fill ratios against the surface values in force when it was written', () => {
