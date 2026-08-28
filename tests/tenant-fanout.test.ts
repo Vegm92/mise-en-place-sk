@@ -318,4 +318,35 @@ describe('registerTenantFanout', () => {
 		]);
 		spy.mockRestore();
 	});
+
+	it('runs a batch concurrently, so one slow tenant does not serialize the rest', async () => {
+		const { boss, workers } = recordingBoss();
+		const finishOrder: string[] = [];
+		let inFlight = 0;
+		let maxInFlight = 0;
+
+		await registerTenantFanout(boss, {
+			queue: 'tenant-test',
+			label: 'test-job',
+			run: async (data: TenantJobData) => {
+				inFlight++;
+				maxInFlight = Math.max(maxInFlight, inFlight);
+				if (data.restaurantId === 'rest-slow') {
+					await new Promise((resolve) => setTimeout(resolve, 30));
+				}
+				inFlight--;
+				finishOrder.push(data.restaurantId);
+				return true;
+			},
+		});
+
+		await workers['tenant-test'].handler([
+			job('job-1', 'rest-slow'),
+			job('job-2', 'rest-fast-1'),
+			job('job-3', 'rest-fast-2'),
+		]);
+
+		expect(maxInFlight).toBeGreaterThan(1);
+		expect(finishOrder.indexOf('rest-slow')).toBe(finishOrder.length - 1);
+	});
 });
