@@ -9,6 +9,9 @@
   import Moon from '@lucide/svelte/icons/moon';
   import Check from '@lucide/svelte/icons/check';
   import X from '@lucide/svelte/icons/x';
+  import Clock from '@lucide/svelte/icons/clock';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
   import { t as baseT, ti as baseTi, locale, initLocale } from '$lib/i18n';
   import { overrideFor, interpolate, type LandingOverrides } from '$lib/landing-copy';
@@ -124,6 +127,12 @@
     { title: $t('waitlist.founding.0.title'), body: $t('waitlist.founding.0.body') },
     { title: $t('waitlist.founding.1.title'), body: $t('waitlist.founding.1.body') },
     { title: $t('waitlist.founding.2.title'), body: $t('waitlist.founding.2.body') },
+  ]);
+
+  const trustBarItems = $derived([
+    { label: $t('waitlist.trustBar.cadence.label'), body: $t('waitlist.trustBar.cadence.body') },
+    { label: $t('waitlist.trustBar.support.label'), body: $t('waitlist.trustBar.support.body') },
+    { label: $t('waitlist.trustBar.privacy.label'), body: $t('waitlist.trustBar.privacy.body') },
   ]);
 
   const faqItems = $derived([
@@ -587,6 +596,33 @@
     </div>
   </section>
 
+  <section class="mep-section" style="padding:0 72px 56px;">
+    <div class="mep-trust-bar" role="list" aria-label={$t('waitlist.trustBarLabel')}
+      style="max-width:940px;margin:0 auto;display:flex;border:1px solid var(--mep-divider);
+             border-radius:var(--mep-r-card);background:var(--mep-surface);overflow:hidden;">
+      {#each trustBarItems as item, i}
+        <div class="mep-trust-bar-item" role="listitem"
+          style="flex:1;display:flex;gap:12px;align-items:flex-start;padding:20px 22px;">
+          <div style="width:30px;height:30px;border-radius:999px;flex-shrink:0;
+                      background:var(--mep-acc-soft);color:var(--mep-acc);
+                      display:flex;align-items:center;justify-content:center;">
+            {#if i === 0}
+              <Clock size={15} />
+            {:else if i === 1}
+              <MessageCircle size={15} />
+            {:else}
+              <ShieldCheck size={15} />
+            {/if}
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.005em;margin-bottom:3px;">{item.label}</div>
+            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;">{item.body}</div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </section>
+
   <section class="mep-section" style="padding:96px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);">
     <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
                 gap:64px;align-items:center;">
@@ -613,6 +649,10 @@
 </div>
 
 <style>
+  .mep-trust-bar-item:not(:first-child) {
+    border-left: 1px solid var(--mep-divider);
+  }
+
   @media (max-width: 960px) {
     .mep-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
     .mep-hero-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
@@ -625,6 +665,11 @@
     .mep-section { padding-left: 20px !important; padding-right: 20px !important; }
     .mep-hero { padding-top: 56px !important; }
     .mep-grid-3, .mep-grid-4, .mep-compare-grid { grid-template-columns: 1fr !important; }
+    .mep-trust-bar { flex-direction: column !important; }
+    .mep-trust-bar-item:not(:first-child) {
+      border-left: none !important;
+      border-top: 1px solid var(--mep-divider);
+    }
     .mep-how-row { grid-template-columns: 1fr !important; gap: 24px !important; }
     .mep-founder-card { flex-direction: column !important; }
     .mep-close-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
