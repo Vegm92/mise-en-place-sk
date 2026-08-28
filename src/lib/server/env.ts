@@ -36,6 +36,7 @@ export const SENTRY_AUTH_TOKEN        = process.env.SENTRY_AUTH_TOKEN       ?? '
 export const SENTRY_ORG               = process.env.SENTRY_ORG              ?? '';
 export const SENTRY_PROJECT           = process.env.SENTRY_PROJECT          ?? '';
 export const SENTRY_RELEASE           = process.env.SENTRY_RELEASE          ?? '';
+export const SENTRY_API_BASE_URL      = (process.env.SENTRY_API_BASE_URL    || 'https://de.sentry.io/api/0').replace(/\/+$/, '');
 export const TURNSTILE_SECRET_KEY     = process.env.TURNSTILE_SECRET_KEY    ?? '';
 export const HEALTH_CHECK_TOKEN       = process.env.HEALTH_CHECK_TOKEN      ?? '';
 export const HEALTH_RATE_LIMIT_RPM    = parseInt(process.env.HEALTH_RATE_LIMIT_RPM ?? '60', 10);
