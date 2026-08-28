@@ -11,7 +11,7 @@ const COMPANY_NIF = process.env.COMPANY_NIF ?? '';
 const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 
 export type EmailKind =
-	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'overdue_invoice'
+	| 'welcome' | 'waitlist_invite' | 'weekly_digest' | 'incidencia_digest'
 	| 'trial_expiry' | 'trial_expired' | 'subscription_confirmation' | 'subscription_consolidated'
 	| 'quota_warning' | 'verify_email' | 'password_reset' | 'access_approved' | 'promo_code_dispatch';
 
@@ -305,22 +305,22 @@ ${styledDigest}`,
 	};
 }
 
-export function overdueInvoiceEmail(email: string, restaurantName: string, overdueCount: number, totalOwed: string): EmailPayload {
-	const invoicesWord = overdueCount === 1 ? 'factura vencida' : 'facturas vencidas';
-	const invoicesLabel = `${overdueCount} ${invoicesWord}`;
+export function incidenciaDigestEmail(email: string, restaurantName: string, issueCount: number, totalAmount: string): EmailPayload {
+	const invoicesWord = issueCount === 1 ? 'albarán con incidencias' : 'albaranes con incidencias';
+	const invoicesLabel = `${issueCount} ${invoicesWord}`;
 	const name = escapeHtml(restaurantName);
-	const total = escapeHtml(totalOwed);
+	const total = escapeHtml(totalAmount);
 	return {
 		to: email,
-		kind: 'overdue_invoice',
+		kind: 'incidencia_digest',
 		subject: `${invoicesLabel} — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `${invoicesLabel} por un total de ${totalOwed} en ${name}.`,
-			tagChip: 'Recordatorio',
-			eyebrow: 'Facturas vencidas',
+			preheader: `${invoicesLabel} por un total de ${totalAmount} en ${name}.`,
+			tagChip: 'Incidencias',
+			eyebrow: 'Albaranes con incidencias',
 			headline: invoicesLabel,
 			bodyHtml: p(`Tienes ${strong(invoicesLabel)} por un total de ${strong(total)} en ${name}.`),
-			cta: { href: `${APP_BASE_URL}/reminders`, label: 'Revisar y marcar como pagadas' },
+			cta: { href: `${APP_BASE_URL}/reminders`, label: 'Revisar incidencias' },
 			footerLinks: true,
 		}),
 	};

@@ -298,18 +298,18 @@ describe('runOverdueRemindersJob', () => {
 describe('sendOverdueReminder', () => {
 	const job = { restaurantId: 'rest-1', name: 'Casa Lua', day: '2026-08-20' };
 
-	it('emails the overdue count and total once per day', async () => {
+	it('emails the incidencia count and total once per day', async () => {
 		state.rows.invoices = [{ count: 3, total: 1250.5 }];
 
 		expect(await sendOverdueReminder(job)).toBe(true);
-		expect(state.claimCalls[0]).toEqual({ key: 'overdue_reminder_sent_day', value: '2026-08-20' });
+		expect(state.claimCalls[0]).toEqual({ key: 'incidencia_digest_sent_day', value: '2026-08-20' });
 		const payload = sendEmailMock.mock.calls[0][0];
-		expect(payload.kind).toBe('overdue_invoice');
+		expect(payload.kind).toBe('incidencia_digest');
 		expect(payload.subject).toContain('3');
 		expect(payload.html).toContain('1250.50 €');
 	});
 
-	it('sends nothing when nothing is overdue', async () => {
+	it('sends nothing when no delivery note has issues', async () => {
 		state.rows.invoices = [{ count: 0, total: 0 }];
 
 		expect(await sendOverdueReminder(job)).toBe(false);

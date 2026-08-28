@@ -17,7 +17,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, overdueBadgeRow, budgetExceededBadgeRow, quotaUsedRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, entitlements] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRow, incidenciaBadgeRow, budgetExceededBadgeRow, quotaUsedRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, entitlements] = await Promise.all([
 		db.select()
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
@@ -26,15 +26,14 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
 			.from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
+			.where(and(tdb.scope(invoices.restaurantId), sql`${invoices.reviewState} <> 'revisado'`, isNull(invoices.deletedAt))),
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
 			.from(invoices)
 			.where(and(
 				tdb.scope(invoices.restaurantId),
-				sql`${invoices.status} IN ('pending', 'accepted')`,
-				isNull(invoices.deletedAt),
-				sql`${invoices.dueDate} < CURRENT_DATE`
+				eq(invoices.reviewState, 'incidencia'),
+				isNull(invoices.deletedAt)
 			)),
 
 		db.select({ cnt: sql<number>`COUNT(*)` })
@@ -106,7 +105,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		restaurantId: rid,
 		notifications,
 		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
-		reminderBadge:           Number(overdueBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
+		reminderBadge:           Number(incidenciaBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
 		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
 		quotaLimit:              usable ? entitlements?.monthlyQuota ?? null : TIERS.trial.monthlyInvoiceQuota ?? 0,
 		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
@@ -116,6 +115,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		tutorialStep,
 		planTier,
 		features: tierConfig.features,
+		trialExpired:       entitlements?.access.trialExpired ?? false,
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
 		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,

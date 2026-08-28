@@ -1,6 +1,5 @@
 <script lang="ts">
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
-  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
   import Bullet from '$lib/components/mep/Bullet.svelte';
   import PaceChart from '$lib/components/mep/PaceChart.svelte';
@@ -11,7 +10,6 @@
   import { fmtEur, fmtEurCompact, fmtEurSigned } from '$lib/formatters';
   import {
     buildWorklist, buildCategoryRisk, buildPaceCurve, planToDate, atStake, sortWorklist,
-    RIBBON_HORIZON_DAYS, CASH_OUT_HORIZON_DAYS,
   } from '$lib/dashboard-turno';
   import type { TurnoInput, SortMode } from '$lib/dashboard-turno';
   import type { DashboardData } from '$lib/components/desktop/DesktopDashboard.svelte';
@@ -55,8 +53,7 @@
     budgets: data.budgets,
     categorySpend: data.category_spend_map,
     priceShocks: data.turno_price_shocks,
-    payables: data.payables,
-    review: { count: data.pending.count, amount: data.pending.amount },
+    review: data.review,
     missing: data.missing_invoices,
     uncategorized: data.uncategorized_suppliers,
   });
@@ -72,9 +69,6 @@
   const projectedEom = $derived(data.projection?.projected_eom ?? data.mom.this_month);
   const overrun = $derived(projectedEom - data.total_budget);
 
-  const cashOutSoon = $derived(data.payables.filter((p) => p.days_delta >= 0 && p.days_delta <= RIBBON_HORIZON_DAYS));
-  const cashOutSoonTotal = $derived(cashOutSoon.reduce((s, p) => s + p.amount, 0));
-
   const categoryRisk = $derived(buildCategoryRisk(turnoInput).slice(0, 3));
   const paceCurve = $derived(buildPaceCurve(data.spark_data ?? [], turnoInput));
   const hasPaceData = $derived(data.mom.this_month > 0 || hasBudget);
@@ -85,9 +79,6 @@
     return $ti('turno.ribbon.paceNoBudget', { delta: (pct >= 0 ? '+' : '') + pct + '%' });
   });
 
-  function fmtDueDate(iso: string) {
-    return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
-  }
 </script>
 
 <div style="height: 100%; overflow: auto; padding-bottom: 24px;">
@@ -139,22 +130,15 @@
           {hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun) }) : $t('turno.ribbon.forecastNoBudget')}
         </span>
       </div>
-      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
+      <div class="card" style="grid-column: 1 / -1; padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$t('turno.ribbon.review')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(data.pending.amount)}
+          {fmtEurCompact(data.review.amount)}
         </span>
-        <span class="num" style="font-size: 11px; font-weight: 500; color: {data.pending.count > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
-          {$tp('turno.ribbon.reviewNote', data.pending.count)}
-        </span>
-      </div>
-      <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
-        <span class="label">{$ti('turno.ribbon.cashOut', { days: RIBBON_HORIZON_DAYS })}</span>
-        <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(cashOutSoonTotal)}
-        </span>
-        <span class="num" style="font-size: 11px; font-weight: 500; color: {cashOutSoon.length > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
-          {$tp('turno.ribbon.cashOutNote', cashOutSoon.length)}
+        <span class="num" style="font-size: 11px; font-weight: 500; color: {data.review.incidencias > 0 ? 'var(--mep-neg)' : data.review.count > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
+          {data.review.incidencias > 0
+            ? $tp('turno.ribbon.issuesNote', data.review.incidencias)
+            : $tp('turno.ribbon.reviewNote', data.review.count)}
         </span>
       </div>
     </div>
@@ -247,33 +231,6 @@
               <div class="num" style="font-size: 11px; margin-top: 5px; color: {cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
                 {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast), delta: fmtEurSigned(cat.overrun) })}
               </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </RailBlock>
-
-    <RailBlock title={$t('turno.rail.cashOut')}>
-      {#snippet headerRight()}
-        <a href="/reminders" style="display: inline-flex; align-items: center; gap: 2px; font-size: 13px; font-weight: 500; color: var(--mep-acc); text-decoration: none; min-height: 44px;">
-          {$t('turno.rail.cashOutAll')} <ChevronRight size={14} />
-        </a>
-      {/snippet}
-      {#if data.payables.length === 0}
-        <div class="body">{$ti('turno.rail.cashOutEmpty', { n: CASH_OUT_HORIZON_DAYS })}</div>
-      {:else}
-        <div style="display: flex; flex-direction: column;">
-          {#each data.payables.slice(0, 4) as p, i (p.id)}
-            <div style="display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: {i < Math.min(data.payables.length, 4) - 1 ? '1px solid var(--mep-divider)' : 'none'};">
-              <span class="num" style="width: 46px; font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{fmtDueDate(p.due_date)}</span>
-              <span class="body" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{p.supplier_name ?? '—'}</span>
-              <span class="num body-strong" style="flex-shrink: 0;">{fmtEur(p.amount)}</span>
-              <span
-                class="badge"
-                style="font-size: 11px; flex-shrink: 0; background: {p.days_delta < 0 ? 'var(--mep-neg-soft)' : p.days_delta <= 7 ? 'var(--mep-caution-soft)' : 'var(--mep-hover)'}; color: {p.days_delta < 0 ? 'var(--mep-neg)' : p.days_delta <= 7 ? 'var(--mep-caution)' : 'var(--mep-fg-3)'};"
-              >
-                {p.days_delta < 0 ? $t('turno.rail.overdue') : $ti('turno.rail.days', { n: p.days_delta })}
-              </span>
             </div>
           {/each}
         </div>
