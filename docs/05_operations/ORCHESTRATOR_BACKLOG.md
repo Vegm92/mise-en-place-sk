@@ -5,6 +5,8 @@ Baseline (main @ 71034ef): 1854 tests pass, 305 skipped. Open PRs: #723 (escanda
 
 DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re-check when the blocker clears.
 
+MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; this branch adds 0045_whatsapp_pairing_invite_phone.sql + 0046_system_notifications_payload_jsonb.sql. Whichever merges second must renumber its migrations and reconcile drizzle/meta/_journal.json before merging.
+
 ## Queue (work top-down within each tier)
 
 | # | Pri | Status | Att | Last result / notes | Title (short) |
