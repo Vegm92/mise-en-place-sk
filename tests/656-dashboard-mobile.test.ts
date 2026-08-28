@@ -74,20 +74,15 @@ describe('mobile work card', () => {
 });
 
 describe('mobile dashboard rail (supersedes the #656 alerts entry)', () => {
-	it('renders the pace, category-risk and cash-out rail blocks', () => {
-		for (const key of ['turno.rail.pace', 'turno.rail.cats', 'turno.rail.cashOut']) {
+	it('renders the pace and category-risk rail blocks', () => {
+		for (const key of ['turno.rail.pace', 'turno.rail.cats']) {
 			expect(MOBILE_DASH, `should render a RailBlock titled ${key}`).toContain(key);
 		}
 	});
 
-	it('labels the cash-out block route into the full reminders list', () => {
-		const strip = MOBILE_DASH.slice(MOBILE_DASH.indexOf('href="/reminders"'));
-		expect(strip.length).toBeGreaterThan(0);
-		const anchorEnd = strip.indexOf('</a>');
-		expect(anchorEnd).toBeGreaterThan(0);
-		expect(strip.slice(0, anchorEnd), 'cash-out block should carry a visible label').toContain(
-			'turno.rail.cashOutAll',
-		);
+	it('carries no payment cash-out block (issue #746)', () => {
+		expect(MOBILE_DASH).not.toContain('turno.rail.cashOut');
+		expect(MOBILE_DASH).not.toContain('turno.ribbon.cashOut');
 	});
 });
 
@@ -128,7 +123,6 @@ describe('i18n keys the mobile branch relies on', () => {
 			'turno.ribbon.pace',
 			'turno.ribbon.forecast',
 			'turno.ribbon.review',
-			'turno.ribbon.cashOut',
 			'turno.worklist.title',
 			'turno.worklist.subMoney.zero',
 			'turno.sort.toUrgency',
@@ -143,11 +137,8 @@ describe('i18n keys the mobile branch relies on', () => {
 			'turno.rail.cats',
 			'turno.rail.catsAll',
 			'turno.rail.catsEmpty',
-			'turno.rail.cashOut',
-			'turno.rail.cashOutAll',
-			'turno.rail.cashOutEmpty',
-			'turno.rail.overdue',
-			'turno.rail.days',
+			'turno.ribbon.reviewNote.other',
+			'turno.ribbon.issuesNote.other',
 		];
 		const es = translations.es as Record<string, string>;
 		const en = translations.en as Record<string, string>;

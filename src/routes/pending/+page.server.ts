@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { and, count, eq, lte } from 'drizzle-orm';
+import { and, count, eq, lt } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
@@ -42,11 +42,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			? await db
 					.select({ n: count() })
 					.from(users)
-					.where(and(eq(users.accessStatus, 'pending'), lte(users.createdAt, me.createdAt)))
+					.where(and(eq(users.accessStatus, 'pending'), lt(users.createdAt, me.createdAt)))
 			: [undefined];
 
 		return {
-			position:   ahead ? Number(ahead.n) : null,
+			position:   ahead ? Number(ahead.n) + 1 : null,
 			total:      waiting ? Number(waiting.n) : null,
 			seatsTaken: approved ? Number(approved.n) : null,
 			createdAt:  me?.createdAt ? me.createdAt.toISOString() : null,

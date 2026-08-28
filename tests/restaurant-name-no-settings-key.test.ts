@@ -32,7 +32,7 @@ describe('restaurant name settings key — removed for good (issue #515)', () =>
 
 	it('the migration file itself still carries the literal (sanity check the scan works)', () => {
 		const output = execFileSync(
-			'grep', ['-rnE', "['\"]restaurant_name['\"]", 'drizzle/0048_restaurant_name_backfill.sql'],
+			'grep', ['-rnE', "['\"]restaurant_name['\"]", 'drizzle/0049_restaurant_name_backfill.sql'],
 			{ encoding: 'utf8' },
 		);
 		expect(output.length).toBeGreaterThan(0);
