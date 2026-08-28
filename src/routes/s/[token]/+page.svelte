@@ -77,7 +77,7 @@
 			</p>
 
 			{#if data.empty}
-				<p style="font-size:14px;color:var(--mep-fg-2);">{$t('pshare.empty')}</p>
+				<p style="font-size:13px;color:var(--mep-fg-2);">{$t('pshare.empty')}</p>
 			{:else}
 				<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:20px;">
 					<span class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.02em;
@@ -85,13 +85,13 @@
 						{fmtPct(data.spendChangePct)}
 					</span>
 				</div>
-				<p style="font-size:14px;color:var(--mep-fg-2);line-height:1.5;margin:0 0 22px;">
+				<p style="font-size:13px;color:var(--mep-fg-2);line-height:1.5;margin:0 0 22px;">
 					{$ti(spendKey, { pct: fmtPct(data.spendChangePct) })}
 				</p>
 
 				{#if data.categoryMovers.length}
 					<div style="border-top:1px solid var(--mep-border);padding-top:16px;">
-						<h2 style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.02em;
+						<h2 style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.02em;
 						           color:var(--mep-fg-3);margin:0 0 10px;">
 							{$t('pshare.categoriesTitle')}
 						</h2>

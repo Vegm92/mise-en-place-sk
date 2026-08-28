@@ -123,7 +123,7 @@
         value={shareUrl}
         aria-label={$t('dshare.linkLabel')}
         class="input"
-        style="flex:1;min-width:200px;height:30px;font-size:12px;"
+        style="flex:1;min-width:200px;"
         onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
       />
       <button type="button" class="rep-action" onclick={copyShareLink}>
@@ -139,7 +139,7 @@
     </div>
   {/if}
   {#if shareError}
-    <p style="font-size:12px;color:var(--mep-neg);margin:0;">{$t('dshare.error')}</p>
+    <p style="font-size:11px;color:var(--mep-neg);margin:0;">{$t('dshare.error')}</p>
   {/if}
 
   <div class="report-toolbar" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
