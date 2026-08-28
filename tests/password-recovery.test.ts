@@ -73,7 +73,7 @@ function formEvent(fields: Record<string, string>, extra: Record<string, unknown
 }
 
 beforeEach(() => {
-	rateLimitMock.mockClear().mockResolvedValue(true);
+	rateLimitMock.mockReset().mockResolvedValue(true);
 	logAuthEventMock.mockClear();
 	createVerificationTokenMock.mockClear().mockResolvedValue('tok123');
 	consumeVerificationTokenMock.mockReset().mockResolvedValue(true);
@@ -103,8 +103,17 @@ describe('/forgot-password', () => {
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
 
-	it('rate limits per IP and per email', async () => {
+	it('rate limits per IP, short-circuiting before the email bucket is touched', async () => {
 		rateLimitMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+		const result = await forgotActions.default(formEvent({ email: 'chef@example.com' }));
+		expect(result).toMatchObject({ status: 429, data: { error: 'rate_limited' } });
+		expect(sendEmailMock).not.toHaveBeenCalled();
+		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual(['recover:ip:203.0.113.7']);
+		expect(rateLimitMock).not.toHaveBeenCalledWith('recover:email:chef@example.com', expect.anything());
+	});
+
+	it('rate limits per email once the IP bucket has room', async () => {
+		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 		const result = await forgotActions.default(formEvent({ email: 'chef@example.com' }));
 		expect(result).toMatchObject({ status: 429, data: { error: 'rate_limited' } });
 		expect(sendEmailMock).not.toHaveBeenCalled();
