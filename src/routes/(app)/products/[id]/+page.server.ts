@@ -10,10 +10,10 @@ import {
 	deleteProduct, resolveUnitConversionAlerts,
 } from '$lib/server/products';
 import { moneyToNullableNumber } from '$lib/server/money';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-	const id = Number(params.id);
-	if (!id || isNaN(id)) error(404, 'Product not found');
+	const id = requirePositiveIntId(params.id, 'product');
 
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
@@ -73,7 +73,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	update: async ({ params, request, locals }) => {
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'product');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
@@ -105,7 +105,7 @@ export const actions: Actions = {
 	},
 
 	unlinkSupplier: async ({ params, request, locals }) => {
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'product');
 		const rid = locals.restaurantId!;
 		const data = await request.formData();
 		const supplierId = Number(data.get('supplierId'));
@@ -119,7 +119,7 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ params, locals }) => {
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'product');
 		const rid = locals.restaurantId!;
 		if (!(await checkRateLimit(`product-delete:${rid}`, 20))) return fail(429, { error: 'Too many requests' });
 

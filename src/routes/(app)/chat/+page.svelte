@@ -6,10 +6,13 @@
   import Plus from '@lucide/svelte/icons/plus';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import History from '@lucide/svelte/icons/history';
+  import Lock from '@lucide/svelte/icons/lock';
   import { t } from '$lib/i18n';
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
 
   const { data } = $props();
+
+  const locked = $derived(!!data.locked);
 
   type ChatAction = { label: string; href: string; variant: 'primary' | 'secondary' };
   type Msg = { role: string; text: string; actions?: ChatAction[] };
@@ -47,7 +50,7 @@
 
   async function sendMessage(text?: string) {
     const msg = (text ?? chatInput).trim();
-    if (!msg || chatLoading) return;
+    if (!msg || chatLoading || locked) return;
     chatInput = '';
     messages = [...messages, { role: 'user', text: msg }];
     chatLoading = true;
@@ -222,19 +225,30 @@
             width:48px;height:48px;border-radius:50%;background:var(--mep-acc-soft);
             display:flex;align-items:center;justify-content:center;margin:0 auto 16px;
           ">
-            <MessageCircle size={22} style="color:var(--mep-acc);" />
+            {#if locked}
+              <Lock size={20} style="color:var(--mep-acc);" />
+            {:else}
+              <MessageCircle size={22} style="color:var(--mep-acc);" />
+            {/if}
           </div>
           <h2 style="font-size:18px;font-weight:600;margin:0 0 8px;">{$t('chat.title')}</h2>
-          <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('chat.empty')}</p>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
-            {#each STARTER_CHIPS as key}
-              <button
-                onclick={() => sendMessage($t(key))}
-                class="btn btn-secondary"
-                style="font-size:12px;padding:0 14px;border-radius:99px;"
-              >{$t(key)}</button>
-            {/each}
-          </div>
+          {#if locked}
+            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('chat.err.upgradeRequired')}</p>
+            <a href="/billing?upgrade=assistant" class="btn btn-primary" style="text-decoration:none;">
+              {$t('sidebar.upgradeCta')}
+            </a>
+          {:else}
+            <p style="font-size:13px;color:var(--mep-fg-3);margin:0 0 20px;">{$t('chat.empty')}</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+              {#each STARTER_CHIPS as key}
+                <button
+                  onclick={() => sendMessage($t(key))}
+                  class="btn btn-secondary"
+                  style="font-size:12px;padding:0 14px;border-radius:99px;"
+                >{$t(key)}</button>
+              {/each}
+            </div>
+          {/if}
         </div>
       {/if}
 
@@ -291,20 +305,35 @@
 
     <div style="border-top:1px solid var(--mep-divider);background:var(--mep-bg);padding:12px 24px 16px;" data-coach="chat-main">
       <div style="max-width:800px;margin:0 auto;">
-        <p style="font-size:11px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{$t('chat.privacy')}</p>
+        {#if locked}
+          <div style="
+            display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;
+            background:var(--mep-acc-soft);border:1px solid var(--mep-acc);color:var(--mep-acc);
+            border-radius:var(--mep-r-input);padding:8px 14px;font-size:13px;margin:0 0 10px;
+          ">
+            <Lock size={13} style="flex-shrink:0;" />
+            <span>{$t('chat.err.upgradeRequired')}</span>
+            <a href="/billing?upgrade=assistant" class="btn btn-primary" style="height:28px;font-size:13px;padding:0 10px;text-decoration:none;">
+              {$t('sidebar.upgradeCta')}
+            </a>
+          </div>
+        {:else}
+          <p style="font-size:11px;color:var(--mep-fg-4);text-align:center;margin:0 0 8px;">{$t('chat.privacy')}</p>
+        {/if}
         <div style="display:flex;gap:10px;align-items:center;">
           <input
             type="text"
             bind:value={chatInput}
             onkeydown={onKeydown}
             placeholder={$t('chat.placeholder')}
-            disabled={chatLoading}
+            disabled={chatLoading || locked}
+            aria-disabled={locked}
             class="input flex-1"
             style="height:42px;"
           />
           <button
             onclick={() => sendMessage()}
-            disabled={!chatInput.trim() || chatLoading}
+            disabled={!chatInput.trim() || chatLoading || locked}
             aria-label={$t('chat.send')}
             class="btn btn-primary flex-shrink-0"
             style="width:42px;height:42px;padding:0;justify-content:center;"

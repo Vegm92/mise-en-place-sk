@@ -53,7 +53,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		const totalPages = Math.ceil(total / PAGE_SIZE);
 
 		return {
-			title: 'Admin · Events',
+			title: 'admin.events',
 			events: rows as unknown as Array<{
 				id: number;
 				notification_type: string;

@@ -337,6 +337,13 @@
       "when": 1787916310917,
       "tag": "0047_system_notifications_payload_jsonb",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1787916370917,
+      "tag": "0048_notification_message_backfill",
+      "breakpoints": true
     }
   ]
 }

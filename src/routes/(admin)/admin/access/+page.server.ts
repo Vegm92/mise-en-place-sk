@@ -42,7 +42,12 @@ export const load: PageServerLoad = async () => {
 		`) as unknown as WaitlistRow[], []),
 	]);
 
-	return { accessOpen, accounts, pendingInvites, founderCoupon: STRIPE_FOUNDER_COUPON_ID ?? null, promoCode: STRIPE_FOUNDER_PROMO_CODE || null };
+	return {
+		title: 'admin.access.title',
+		accessOpen, accounts, pendingInvites,
+		founderCoupon: STRIPE_FOUNDER_COUPON_ID ?? null,
+		promoCode: STRIPE_FOUNDER_PROMO_CODE || null,
+	};
 };
 
 export const actions: Actions = {

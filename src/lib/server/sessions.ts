@@ -2,7 +2,7 @@ import path from 'path';
 import { randomBytes } from 'crypto';
 import { UPLOADS_DIR } from './env';
 import { getStorage } from './storage';
-import { ALLOWED_EXTENSIONS, MAGIC_BYTES, MAX_FILE_BYTES, type RejectReason } from './file-validation';
+import { ALLOWED_EXTENSIONS, MAGIC_BYTES, MAX_FILE_BYTES, MIN_FILE_BYTES, type RejectReason } from './file-validation';
 
 export { ALLOWED_EXTENSIONS, MAGIC_BYTES };
 
@@ -38,6 +38,10 @@ export async function saveUploadedFiles(
 		}
 		if (file.size > MAX_FILE_BYTES) {
 			errors.push({ name: file.name, reason: 'tooLarge' });
+			continue;
+		}
+		if (file.size < MIN_FILE_BYTES) {
+			errors.push({ name: file.name, reason: 'tooSmall' });
 			continue;
 		}
 

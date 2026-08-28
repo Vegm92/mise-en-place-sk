@@ -3,12 +3,30 @@ import { db, forTenant } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
 import { eq, desc } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
-import { requireFeature } from '$lib/server/billing';
+import { ROUTE_POLICY, resolveEntitlement } from '$lib/server/entitlements';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) redirect(303, '/onboarding');
-	await requireFeature('aiAssistant', locals);
+
+	const entitlements = await locals.entitlements();
+	const decision = resolveEntitlement({
+		policy:   ROUTE_POLICY['/(app)/api/chat'],
+		features: entitlements?.features ?? null,
+		access:   entitlements?.access ?? null,
+	});
+	const locked = decision.kind !== 'allow';
+
+	if (locked) {
+		return {
+			title: 'nav.chat',
+			locked: true,
+			sessions: [],
+			activeSessionId: null,
+			messages: [],
+		};
+	}
+
 	const tdb = forTenant(rid);
 	const sessionIdParam = url.searchParams.get('session');
 
@@ -31,6 +49,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	return {
 		title: 'nav.chat',
+		locked: false,
 		sessions,
 		activeSessionId: activeId,
 		messages: messages.map((m) => ({

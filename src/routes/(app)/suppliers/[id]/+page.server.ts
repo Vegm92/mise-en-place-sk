@@ -6,13 +6,13 @@ import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
+import { requirePositiveIntId } from '$lib/server/route-params';
 
 const VALID_TABS = ['resumen', 'albaranes', 'productos', 'conversiones'] as const;
 type Tab = typeof VALID_TABS[number];
 
 export const load: PageServerLoad = async ({ params, locals, url }) => {
-	const id = Number(params.id);
-	if (!id || isNaN(id)) error(404, 'Supplier not found');
+	const id = requirePositiveIntId(params.id, 'supplier');
 
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
@@ -133,7 +133,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 export const actions: Actions = {
 	update: async ({ params, request, locals }) => {
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'supplier');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
@@ -160,7 +160,7 @@ export const actions: Actions = {
 	},
 
 	addConversion: async ({ params, request, locals }) => {
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'supplier');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
@@ -197,7 +197,7 @@ export const actions: Actions = {
 	},
 
 	deleteConversion: async ({ params, request, locals }) => {
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'supplier');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 		const data = await request.formData();
@@ -214,7 +214,7 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ params, locals }) => {
-		const id = Number(params.id);
+		const id = requirePositiveIntId(params.id, 'supplier');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 

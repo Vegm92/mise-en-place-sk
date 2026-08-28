@@ -37,12 +37,34 @@
   let lowConfAck = $state(false);
   let showLowConfModal = $state(false);
   let showContentDuplicateModal = $state(false);
+  let lowConfTriggerEl: HTMLElement | null = null;
+  let dupTriggerEl: HTMLElement | null = null;
 
   $effect(() => {
     const f = form as Record<string, unknown> | null;
-    if (f?.lowConfidenceBlocked) showLowConfModal = true;
-    if (f?.contentDuplicate) showContentDuplicateModal = true;
+    if (f?.lowConfidenceBlocked) {
+      lowConfTriggerEl = document.activeElement as HTMLElement | null;
+      showLowConfModal = true;
+    }
+    if (f?.contentDuplicate) {
+      dupTriggerEl = document.activeElement as HTMLElement | null;
+      showContentDuplicateModal = true;
+    }
   });
+
+  function closeLowConfModal() {
+    showLowConfModal = false;
+    lowConfTriggerEl?.focus();
+    lowConfTriggerEl = null;
+  }
+  function closeContentDuplicateModal() {
+    showContentDuplicateModal = false;
+    dupTriggerEl?.focus();
+    dupTriggerEl = null;
+  }
+  function focusModalPanel(node: HTMLElement) {
+    node.focus();
+  }
 
   const formErrorKey = $derived.by(() => {
     const f = form as Record<string, unknown> | null;
@@ -313,6 +335,14 @@
   function onWindowKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && previewFull) {
       closeDocViewer();
+      return;
+    }
+    if (e.key === 'Escape' && showLowConfModal) {
+      closeLowConfModal();
+      return;
+    }
+    if (e.key === 'Escape' && showContentDuplicateModal) {
+      closeContentDuplicateModal();
       return;
     }
     if (e.key === 'F2') {
@@ -1380,30 +1410,32 @@
   <div
     style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
     role="presentation"
-    onclick={() => showContentDuplicateModal = false}
+    onclick={closeContentDuplicateModal}
   >
     <div
       style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
       role="dialog"
       tabindex="-1"
       aria-modal="true"
+      aria-labelledby="dup-modal-title"
+      use:focusModalPanel
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') closeContentDuplicateModal(); else e.stopPropagation(); }}
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         <AlertTriangle size={18} style="color:var(--mep-neg);flex-shrink:0;" />
-        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.dupTitle')}</strong>
+        <strong id="dup-modal-title" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.dupTitle')}</strong>
       </div>
       <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">
         {$t('batch.dupBody')}
       </p>
       <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
         <button type="button" class="btn btn-secondary" style="height:36px;font-size:13px;"
-          onclick={() => showContentDuplicateModal = false}>
+          onclick={closeContentDuplicateModal}>
           {$t('batch.backToReview')}
         </button>
         <button type="submit" form="discard-item-form" class="btn btn-primary" style="height:36px;font-size:13px;"
-          onclick={() => showContentDuplicateModal = false}>
+          onclick={closeContentDuplicateModal}>
           {$t('extract.discard')}
         </button>
       </div>
@@ -1415,19 +1447,21 @@
   <div
     style="position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:24px;"
     role="presentation"
-    onclick={() => showLowConfModal = false}
+    onclick={closeLowConfModal}
   >
     <div
       style="background:var(--mep-bg);border:1px solid var(--mep-border-strong);border-radius:14px;padding:28px 24px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,0.2);"
       role="dialog"
       tabindex="-1"
       aria-modal="true"
+      aria-labelledby="lowconf-modal-title"
+      use:focusModalPanel
       onclick={(e) => e.stopPropagation()}
-      onkeydown={(e) => e.stopPropagation()}
+      onkeydown={(e) => { if (e.key === 'Escape') closeLowConfModal(); else e.stopPropagation(); }}
     >
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
         <AlertTriangle size={18} style="color:var(--mep-warn);flex-shrink:0;" />
-        <strong style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.lowConfTitle')}</strong>
+        <strong id="lowconf-modal-title" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{$t('batch.lowConfTitle')}</strong>
       </div>
       <p style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 16px;">
         {$t('batch.lowConfPre')} <strong>{uncertainCount}</strong> {$tp('batch.field', uncertainCount)} {$t('batch.lowConfPost')}
@@ -1444,7 +1478,7 @@
           type="button"
           class="btn btn-secondary"
           style="height:36px;font-size:13px;"
-          onclick={() => showLowConfModal = false}
+          onclick={closeLowConfModal}
         >
           {$t('batch.backToReview')}
         </button>
@@ -1454,7 +1488,7 @@
           style="height:36px;font-size:13px;"
           onclick={async () => {
             lowConfAck = true;
-            showLowConfModal = false;
+            closeLowConfModal();
             await tick();
             (document.getElementById('save-form') as HTMLFormElement)?.requestSubmit();
           }}
