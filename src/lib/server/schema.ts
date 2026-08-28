@@ -562,3 +562,16 @@ export const workerHeartbeats = pgTable('worker_heartbeats', {
 	lastJobCompletedAt: timestamp('last_job_completed_at', { withTimezone: true }),
 	jobsCompleted:      integer('jobs_completed').notNull().default(0),
 });
+
+export const digestShares = pgTable('digest_shares', {
+	id:           serial('id').primaryKey(),
+	token:        text('token').notNull(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	week:         text('week').notNull(),
+	createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+	revokedAt:    timestamp('revoked_at', { withTimezone: true }),
+}, (t) => [
+	uniqueIndex('digest_shares_token_unique').on(t.token),
+	index('digest_shares_restaurant_week_idx').on(t.restaurantId, t.week),
+	check('digest_shares_week_format', sql`${t.week} ~ '^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$'`),
+]);
