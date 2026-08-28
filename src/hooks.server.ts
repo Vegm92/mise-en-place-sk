@@ -234,6 +234,7 @@ function isPublicPath(path: string): boolean {
 		path === '/api/health'                  ||
 		path.startsWith('/auth/')               ||
 		path.startsWith('/waitlist')            ||
+		path.startsWith('/l/')                  ||
 		path === '/api/stripe-webhook'          ||
 		path === '/api/whatsapp/webhook'
 	);

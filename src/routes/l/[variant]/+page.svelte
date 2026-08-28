@@ -5,4 +5,4 @@
   const { form, data }: { form: ActionData; data: PageData } = $props();
 </script>
 
-<LandingPage {form} data={{ canonicalUrl: data.canonicalUrl, spotTaken: data.spotTaken }} />
+<LandingPage {form} data={{ canonicalUrl: data.canonicalUrl, spotTaken: data.spotTaken }} overrides={data.overrides} />
