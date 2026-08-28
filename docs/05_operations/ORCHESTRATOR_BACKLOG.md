@@ -10,6 +10,8 @@ MERGE HAZARD — RESOLVED (2026-08-28): PR #748 merged into main first, so this 
 PR SPLIT (2026-08-28, per owner): the branch is delivered as six stacked PRs, merge in order —
 #750 wave 1 billing/auth security (base main) → #751 reliability/perf → #752 UX/a11y/testing → #753 design+P3 security → #754 P3 UX/robustness → #755 tech debt/i18n. New-issue dispatching is ON HOLD until the owner says otherwise.
 
+WAVE 6 GATE (2026-08-28 13:35Z): PR #755 green — CI passed and the SonarCloud quality gate passed on c33fca4 after three rounds (D→C→A reliability: bitwise-AND disambiguation, complexity split, localeCompare, PATH-free root, toHaveLength sweep, then const-by-keyword-token; plus the shallow-clone waitlist proof moved to a checked-in fixture). Remaining Sonar findings are the three documented create-runtime-role.sql duplicated-literal maintainability smells. Waves 1–5 (#750–#754) merged by the owner; #755 awaits owner merge, closing the thirteen wave-6 issues.
+
 BASE MERGE (2026-08-28): main @ 3470c27 (PR #748 + beta fixes #742–#746: review-state model, trial gating, login resend) was merged into every stacked branch in order and into this branch; all suites green at every step (2850/2850 here). Review-state semantics adopted where main rewrote files this branch had touched (layout badges, dashboard, invoices/reminders actions), with this branch's deltas re-applied on top (::float8 casts #524, rateLimitScoped #440, locale-aware formatters #535, sidebar pref #567). SonarCloud quality-gate findings on PR #753 (wave 4) fixed per owner: https insecure-protocol and super-linear-regex security findings, cognitive-complexity split in sentry-scrub, plus the flagged maintainability/test smells.
 
 ## Queue (work top-down within each tier)
