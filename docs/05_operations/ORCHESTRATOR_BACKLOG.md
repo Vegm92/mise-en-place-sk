@@ -73,7 +73,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 538 | P3 | DONE | 1 | Verified (commit 9ec76f0): backdrop pointer-events:none (Skip/Escape dismiss), batch modals get aria-labelledby + focus in/restore + Escape, layout-pattern mirror. 2667/2667. | coach mark swallows first click; modal roles |
 | 536 | P3 | DONE | 1 | Verified (commit 52b042b): 12 writer sites render es message via renderTemplate, shared notificationMessage resolver, invoices toast fixed, backfill migration 0047 (adds to PR #748 migration-number hazard). 2718/2718. | notification shows raw enum |
 | 535 | P3 | DONE | 1 | Verified (commit 5647b66): 16 sites migrated to locale-param formatters (currency style, $locale at call sites, server-safe), waitlist mock follows its toggle. 2738/2738. Residual fmtPrice comma-hardcode in analytics/prices → folded into #534's scope. | number formatting hardcoded es-ES |
-| 534 | P3 | PENDING | 0 | | language switch misses period labels |
+| 534 | P3 | DONE | 1 | Verified (commit f7bf14c): 4 stale consts → $derived, 30d/90d/6m keyed, AST-based detector + repo-wide zero-violation test; fmtPrice routed through fmtEur (#535 residual). 2748/2748. | language switch misses period labels |
 | 515 | P3 | PENDING | 0 | | restaurant name two sources of truth |
 | 514 | P3 | PENDING | 0 | | dead code + schema hygiene |
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
