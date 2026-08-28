@@ -11,7 +11,7 @@ import { annotateLineItems } from './products.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
-import { recordDeadLetter } from './dead-letter.js';
+import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
 import { EXTRACTION_QUEUE, enqueueWhatsAppNotify } from './queue.js';
 import { acquireExtractionSlot } from './rate-limiter.js';
 
@@ -124,11 +124,13 @@ function removeTmpFile(tmpPath: string): void {
 	try { fs.unlinkSync(tmpPath); } catch { }
 }
 
+export type ExtractionOutcome = 'completed' | 'failed';
+
 export async function processExtractionJob(
 	jobData: ExtractionJobData,
 	generateOverride?: GenerateFn,
 	retryInfo?: { retryCount: number; retryLimit: number },
-): Promise<void> {
+): Promise<ExtractionOutcome> {
 	const itemId = jobData.itemId ?? jobData.sessionId;
 	const { restaurantId } = jobData;
 	const isFinalAttempt = !retryInfo || retryInfo.retryCount >= retryInfo.retryLimit;
@@ -141,7 +143,7 @@ export async function processExtractionJob(
 			restaurantId: restaurantId || null,
 			payload: jobData,
 		});
-		return;
+		return 'completed';
 	}
 
 	const item = await getItem(itemId);
@@ -155,13 +157,13 @@ export async function processExtractionJob(
 			sourceId: itemId,
 			payload: jobData,
 		});
-		return;
+		return 'completed';
 	}
 
 	const claimed = await markExtracting(itemId);
 	if (!claimed) {
 		console.warn(`[worker] Item ${itemId} not in queued/extracting state — skipping`);
-		return;
+		return 'completed';
 	}
 
 	let claimedMonthlySlot = false;
@@ -169,7 +171,7 @@ export async function processExtractionJob(
 		const allowed = await claimExtractionAllowance(itemId, restaurantId);
 		if (!allowed) {
 			await notifyWhatsAppIfSource(item, restaurantId);
-			return;
+			return 'completed';
 		}
 		claimedMonthlySlot = true;
 	}
@@ -233,6 +235,7 @@ export async function processExtractionJob(
 		await markDone(itemId, extractedData, conversionNotes);
 		console.info(`[worker] Extraction done for item ${itemId}`);
 		await notifyWhatsAppIfSource(item, restaurantId);
+		return 'completed';
 	} catch (err) {
 		const failedForGood = await reportExtractionFailure(
 			err,
@@ -242,7 +245,28 @@ export async function processExtractionJob(
 			{ isFinalAttempt, claimedMonthlySlot },
 		);
 		if (failedForGood) await notifyWhatsAppIfSource(item, restaurantId);
+		return failedForGood ? 'completed' : 'failed';
 	} finally {
 		cleanupTmp?.();
+	}
+}
+
+export async function runExtractionJobForBoss(job: {
+	id: string;
+	data: ExtractionJobData;
+	retryCount?: number | null;
+	retryLimit?: number | null;
+}): Promise<{ id: string; status: 'completed' | 'failed' | 'deadletter' }> {
+	const ref = deadLetterRefFromJob(EXTRACTION_QUEUE, job);
+	try {
+		const status = await runWithDeadLetter(ref, () =>
+			processExtractionJob(job.data, undefined, {
+				retryCount: job.retryCount ?? 0,
+				retryLimit: job.retryLimit ?? 0,
+			}),
+		);
+		return { id: job.id, status };
+	} catch {
+		return { id: job.id, status: (ref.retriesLeft ?? 0) > 0 ? 'failed' : 'deadletter' };
 	}
 }

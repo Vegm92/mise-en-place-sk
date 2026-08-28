@@ -100,6 +100,12 @@ the `stalled` flag, since crossing the warning threshold changes no status.
 Gemini regardless of how many worker processes run. So 3 uploaded invoices
 extract in parallel rather than one at a time.
 
+`worker.ts` runs this queue with `perJobResults: true`, so `runExtractionJobForBoss`
+(`extraction-worker.ts`) reports each job's own `completed` / `failed` /
+`deadletter` disposition rather than the batch settling as one unit — a
+rate-limited job in a batch of 3 redelivers on its own; the other two still
+settle `completed` (#520).
+
 ## External dependencies
 
 Gemini (`@google/genai` via `llm-provider.ts`); storage driver.
@@ -162,7 +168,7 @@ Quota, access, classification, JSON shape, error classification.
   `tests/batch-stall.test.ts`, `tests/batch-model.test.ts`,
   `tests/worker-heartbeat.test.ts`, `tests/einvoice-parser.test.ts`,
   `tests/llm-provider.test.ts`, `tests/pdf-text-layer.test.ts`,
-  `tests/dead-letter*.test.ts`.
+  `tests/dead-letter*.test.ts`, `tests/extraction-worker.test.ts`.
 
 ## Code notes
 
@@ -268,6 +274,16 @@ Quota, access, classification, JSON shape, error classification.
 **`interface ExtractedInvoice`**
 
 - The `supplier_*` fields all describe the *supplier*, never the buyer/restaurant; each optional because a document may simply not print it — leave null rather than fabricate.
+
+### `src/lib/server/extraction-worker.ts`
+
+**`function processExtractionJob`**
+
+- Returns `'completed' | 'failed'` instead of `void` (#520): `'failed'` only for the one case the DEGRADATION_ERRORS classification (#482) marks retryable with retries left. Every other outcome — success, a corrupt job already dead-lettered, a permanent classification, the final attempt of a transient one — reports `'completed'`, matching what silently not-throwing meant before this return value existed. Never throws for its own classified outcomes; a genuinely unexpected exception (a bug, not a classified extraction failure) still propagates.
+
+**`function runExtractionJobForBoss`**
+
+- The `perJobResults: true` adapter `worker.ts` hands to `boss.work` for `extract-invoice`. Without `perJobResults`, `boss.work` settles an entire fetched batch by whether the handler's one returned promise threw, so on `batchSize > 1` (`MAX_CONCURRENT_EXTRACTIONS`, several invoices at once) throwing to redeliver one transient failure would redeliver every sibling job too, including ones that already completed — and `processExtractionJob` never threw for its own classification anyway, so the queue's configured `retryLimit: 2` (`queue.ts`) was unreachable: a rate-limited extraction just sat marked `extracting` until the separate stall clock caught it, minutes later. `perJobResults` gives each job its own disposition, so `runExtractionJobForBoss` reports `failed` only for the job that classified as retryable — pg-boss redelivers per its own retryCount/retryLimit — and `completed` for everything else. A genuinely unexpected exception still routes through `runWithDeadLetter`'s existing retriesLeft-based policy, same as every other queue in `worker.ts`.
 
 ### `src/lib/server/normalize.ts`
 
