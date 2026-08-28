@@ -131,7 +131,7 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 325 | P3 | PENDING | 0 | Tracking umbrella | relevance media flywheel |
 | 236 | P3 | BLOCKED | 0 | Standing decision on issue (2026-07-25): not buildable repo-side until owner picks inbound provider + MX for inbox.miseenplace.es + webhook secret — code without infra recreates the silent-drop failure mode. When unblocked: ADR-004 shape (createBatch handoff, no own extraction), flag + bake period. | email-in invoice ingest |
 | 224 | P3 | PENDING | 0 | Infra config | edge DDoS + Upstash config |
-| 222 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: fresh RLS policies vs current_setting('app.restaurant_id'), builds on #464's runtime-role split (safe rollout: enforcement activates only under the non-owner role, prod inert until owner's #464 step). Design-first brief incl. per-request context mechanism + pg-boss jobs. | RLS tenant isolation |
+| 222 | P3 | IN_PROGRESS | 2 | Round 1 (35bc1c7) verified: 28-table ENABLE-only policies clean, AsyncLocalStorage+reserved-conn context, admin call-site audit, ADR-030, runtime-role live walk + psql backstop proof, owner behavior unchanged (3152/3152). Corrective round sent: anonymous /s/[token] route (#329) gets no context → public shares 404 under runtime role; needs runAsSystem at the token-checked call site + regression test + anonymous-route sweep. | RLS tenant isolation |
 | 332 | P4 | DEFERRED | 0 | labeled `future` | waitlist referral loop |
 | 331 | P4 | DEFERRED | 0 | labeled `future` | WhatsApp outbound digest |
 | 330 | P4 | DEFERRED | 0 | labeled `future` | public price index |
