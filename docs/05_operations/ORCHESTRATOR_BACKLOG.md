@@ -77,7 +77,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 515 | P3 | PENDING | 0 | | restaurant name two sources of truth |
 | 514 | P3 | PENDING | 0 | | dead code + schema hygiene |
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
-| 510 | P3 | PENDING | 0 | | rate-limit buckets consumed after failure |
+| 510 | P3 | DONE | 1 | Verified (commit 1c19fc2): IP-first sort + short-circuit, accurate scope attribution. 2354/2354. | rate-limit buckets consumed after failure |
 | 509 | P3 | PENDING | 0 | | auth-seed prod guard swallowed |
 | 508 | P3 | PENDING | 0 | Also cover: computeFormContentHash uses toMoneyString(raw) vs inserted toMoneyString(toFloat(raw)) — diverges on comma-decimal input (found during #494) | toFloat accepts "12abc"/"1e999" |
 | 507 | P3 | PENDING | 0 | | IndexedDB keeps invoice files indefinitely |
