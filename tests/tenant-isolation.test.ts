@@ -8,14 +8,17 @@
  * DB env vars are absent (same pattern as the other DB suites).
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { isRedirect } from '@sveltejs/kit';
 import {
 	testDb, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { suppliers } from '../src/lib/server/schema';
 import { forTenant } from '../src/lib/server/tenant';
+import { createBatchStore } from '../src/lib/server/batch';
 
 let rid1 = '', rid2 = '';
+let ownedItemId = '', ownedBatchId = '';
 
 beforeAll(async () => {
 	if (!hasDbEnv) return;
@@ -24,6 +27,11 @@ beforeAll(async () => {
 	rid1 = r1.id;
 	rid2 = r2.id;
 	await testDb.insert(suppliers).values({ restaurantId: rid1, name: '__iso_supplier_a__' });
+
+	const store = createBatchStore(testDb);
+	const { batchId, itemIds } = await store.createBatch(rid1, [{ key: 'ns/a.pdf', name: 'a.pdf' }]);
+	ownedBatchId = batchId;
+	ownedItemId = itemIds[0];
 });
 
 afterAll(async () => {
@@ -67,5 +75,67 @@ describe.skipIf(!hasDbEnv)('forTenant() — cross-tenant isolation', () => {
 
 	it('throws when called with an empty restaurantId', () => {
 		expect(() => forTenant('')).toThrow('restaurantId is required');
+	});
+});
+
+describe.skipIf(!hasDbEnv)('/confirm/[id] and /extract/[id] loaders — tenant-scoped (issue #469)', () => {
+	it('confirm/[id] redirects the owning tenant to the item\'s batch', async () => {
+		const { load } = await import('../src/routes/(app)/confirm/[id]/+page.server');
+
+		const outcome = await Promise.resolve(load({
+			params: { id: ownedItemId },
+			locals: { restaurantId: rid1 },
+		} as never)).catch((e: unknown) => e);
+
+		expect(outcome).toSatisfy(isRedirect);
+		expect((outcome as { location: string }).location).toBe(`/batch/${ownedBatchId}`);
+	});
+
+	it('confirm/[id] redirects a different tenant to \'/\', not the batch', async () => {
+		const { load } = await import('../src/routes/(app)/confirm/[id]/+page.server');
+
+		const outcome = await Promise.resolve(load({
+			params: { id: ownedItemId },
+			locals: { restaurantId: rid2 },
+		} as never)).catch((e: unknown) => e);
+
+		expect(outcome).toSatisfy(isRedirect);
+		expect((outcome as { location: string }).location).toBe('/');
+	});
+
+	it('extract/[id] redirects the owning tenant to the item\'s batch', async () => {
+		const { load } = await import('../src/routes/(app)/extract/[id]/+page.server');
+
+		const outcome = await Promise.resolve(load({
+			params: { id: ownedItemId },
+			locals: { restaurantId: rid1 },
+		} as never)).catch((e: unknown) => e);
+
+		expect(outcome).toSatisfy(isRedirect);
+		expect((outcome as { location: string }).location).toBe(`/batch/${ownedBatchId}`);
+	});
+
+	it('extract/[id] redirects a different tenant to \'/\', not the batch', async () => {
+		const { load } = await import('../src/routes/(app)/extract/[id]/+page.server');
+
+		const outcome = await Promise.resolve(load({
+			params: { id: ownedItemId },
+			locals: { restaurantId: rid2 },
+		} as never)).catch((e: unknown) => e);
+
+		expect(outcome).toSatisfy(isRedirect);
+		expect((outcome as { location: string }).location).toBe('/');
+	});
+
+	it('confirm/[id] redirects to \'/\' for a nonexistent item, same as a foreign one', async () => {
+		const { load } = await import('../src/routes/(app)/confirm/[id]/+page.server');
+
+		const outcome = await Promise.resolve(load({
+			params: { id: '00000000-0000-0000-0000-000000000000' },
+			locals: { restaurantId: rid1 },
+		} as never)).catch((e: unknown) => e);
+
+		expect(outcome).toSatisfy(isRedirect);
+		expect((outcome as { location: string }).location).toBe('/');
 	});
 });
