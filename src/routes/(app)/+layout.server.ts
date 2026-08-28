@@ -5,7 +5,7 @@ import { systemNotifications, invoices, settings, restaurants, userRestaurants }
 import { asc, eq, desc, and, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 
-const LAYOUT_SETTINGS_KEYS = ['restaurant_name', 'has_completed_onboarding', 'tutorial_step'] as const;
+const LAYOUT_SETTINGS_KEYS = ['restaurant_name', 'has_completed_onboarding', 'tutorial_step', 'sidebar_collapsed'] as const;
 
 type InvoiceBadgeCounts = {
 	invoice_badge: number;
@@ -105,6 +105,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 		hasCompletedOnboarding,
 		tutorialStep,
+		sidebarCollapsed: settingsMap.get('sidebar_collapsed') === 'true',
 		planTier,
 		features: tierConfig.features,
 		subscriptionStatus: subscription?.status ?? null,
