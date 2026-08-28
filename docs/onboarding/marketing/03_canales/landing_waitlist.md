@@ -39,7 +39,7 @@ Detalles que conviene saber:
 | **Precios duplicados** | Los 29/59/129 están escritos aquí a mano e independientes de los de la app. Cambiar uno no cambia el otro (tarea #439) |
 | **TPV no construido** | Las dudas frecuentes prometen conexión con Square y Revo «desde el primer día». No existe todavía |
 | **Testimonios sin origen claro** | Hay que confirmar si son reales, de entrevistas o ilustrativos, y marcarlos si es lo tercero |
-| **Fecha de apertura** | Dice «a partir de julio de 2026». Comprobar que sigue siendo cierta |
+| **Fecha de apertura** | Resuelto (issue #333): ya no promete un mes/año concreto — dice «abrimos en tandas según vamos incorporando restaurantes». Cuando haya una fecha real, es un cambio de una sola clave en `src/lib/i18n.ts` (`waitlist.faq.4.a`) |
 | **Medición** | Se desconoce qué analítica hay instalada. Sin eso, no se puede optimizar nada |
 
 ## Qué mide el éxito aquí
