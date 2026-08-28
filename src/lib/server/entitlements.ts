@@ -79,8 +79,6 @@ export const ROUTE_POLICY = {
 	'/(app)/suppliers':                  'open',
 	'/(app)/suppliers/[id]':             'open',
 	'/api':                              'open',
-	'/api/auth':                         'open',
-	'/api/auth/[...all]':                'open',
 	'/api/batch-status':                 'open',
 	'/api/batch-status/[id]':            'open',
 	'/api/health':                       'open',

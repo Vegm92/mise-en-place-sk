@@ -344,6 +344,13 @@
       "when": 1787999999826,
       "tag": "0048_restaurant_name_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1788000000826,
+      "tag": "0049_drop_upload_sessions_bool_columns",
+      "breakpoints": true
     }
   ]
 }
