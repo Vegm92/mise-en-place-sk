@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, tp } from '$lib/i18n';
 
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
   interface Kpis {
@@ -28,11 +28,15 @@
     kpis,
     top_items,
     category_spend,
+    has_invoices,
+    invoices_outside_range,
   }: {
     period: string;
     kpis: Kpis;
     top_items: TopItem[];
     category_spend: CategorySpend[];
+    has_invoices: boolean;
+    invoices_outside_range: number;
   } = $props();
 
   const periods: Array<[string, string]> = [
@@ -110,7 +114,14 @@
     <div class="card" style="padding: 14px;">
       <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{$t('spend.topProducts')}</div>
       <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 12px;">{$t('spend.topItemsSub')}</div>
-      {#if !top_items?.length}
+      {#if !top_items?.length && has_invoices && invoices_outside_range > 0}
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 0; text-align: center;">
+          <div style="font-size: 24px; opacity: 0.25;">📅</div>
+          <p class="body-strong" style="color: var(--mep-fg-3); margin: 0;">{$t('spend.noneInRange')}</p>
+          <p class="body" style="color: var(--mep-fg-4); font-size: 13px; max-width: 240px; margin: 0;">{$tp('spend.noneInRangeHint', invoices_outside_range)}</p>
+          <a href="?period=all" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.widenRange')}</a>
+        </div>
+      {:else if !top_items?.length}
         <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 0; text-align: center;">
           <div style="font-size: 24px; opacity: 0.25;">📊</div>
           <p class="body-strong" style="color: var(--mep-fg-3); margin: 0;">{$t('spend.noDataYet')}</p>

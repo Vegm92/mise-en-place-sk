@@ -62,7 +62,8 @@ beforeAll(async () => {
 		INSERT INTO settings (restaurant_id, key, value) VALUES
 			(${rid}, 'restaurant_name', 'Layout Custom Name'),
 			(${rid}, 'has_completed_onboarding', 'true'),
-			(${rid}, 'tutorial_step', 'done')
+			(${rid}, 'tutorial_step', 'done'),
+			(${rid}, 'sidebar_collapsed', 'true')
 	`;
 
 	await testSql`
@@ -123,6 +124,22 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		expect(data.restaurantName).toBe('Layout Custom Name');
 		expect(data.hasCompletedOnboarding).toBe(true);
 		expect(data.tutorialStep).toBe('done');
+	});
+
+	it('exposes the collapsed sidebar preference from the same merged settings lookup (issue #567)', async () => {
+		const data = await runLoad();
+		expect(data.sidebarCollapsed).toBe(true);
+	});
+
+	it('defaults the sidebar preference to expanded when no setting is stored', async () => {
+		await testSql`DELETE FROM settings WHERE restaurant_id = ${rid} AND key = 'sidebar_collapsed'`;
+		try {
+			const data = await runLoad();
+			expect(data.sidebarCollapsed).toBe(false);
+		} finally {
+			await testSql`
+				INSERT INTO settings (restaurant_id, key, value) VALUES (${rid}, 'sidebar_collapsed', 'true')`;
+		}
 	});
 
 	it('falls back to the restaurant record name when no restaurant_name setting is stored', async () => {

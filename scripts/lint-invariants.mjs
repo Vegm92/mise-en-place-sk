@@ -156,6 +156,145 @@ function runUnscopedQueryGate() {
 	return true;
 }
 
+/**
+ * Guards known to establish, before a mutation, that the acting user owns the
+ * resource an action's params/form-data resolved (a batch id, a restaurant id,
+ * ...). Add a name here the moment a new one is introduced — the gate below
+ * only recognizes calls by name, so an unlisted guard reads as no guard at all.
+ */
+const KNOWN_AUTHZ_GUARDS = ['requireOwnedBatch', 'requireOwner'];
+
+const AUTHZ_CHECK_OK = new RegExp(`(?:${PROJECT_DIRECTIVES.join('|')}):`);
+
+/**
+ * Finds the balanced `{ ... }` starting at `openIdx` (which must point at a
+ * `{`). Same trick as `scanBoundary` above, specialized to braces only — good
+ * enough for extracting an object literal or arrow-function body without a
+ * full parser, which is the level of rigor the rest of this file works at.
+ */
+function extractBalanced(src, openIdx) {
+	let depth = 0;
+	for (let i = openIdx; i < src.length; i++) {
+		if (src[i] === '{') depth++;
+		else if (src[i] === '}') {
+			depth--;
+			if (depth === 0) return src.slice(openIdx, i + 1);
+		}
+	}
+	return src.slice(openIdx);
+}
+
+/**
+ * Splits the `actions: Actions = { ... }` object into one entry per exported
+ * action, each as `{ name, start, body }` — `start` is the absolute offset of
+ * the action's key (for line numbers and for reading the comment lines above
+ * it), `body` is the balanced text of its arrow-function body.
+ *
+ * Deliberately shallow: an action is read as written, not as everything it
+ * transitively calls. A mutation buried in an imported helper (or a same-file
+ * helper the action merely calls by name) is invisible here, same tradeoff
+ * `tenant-scope`/`unscoped-tenant-query` make by working on source text
+ * rather than a call graph. That is why `KNOWN_AUTHZ_GUARDS` and the
+ * forTenant-anywhere-in-body check below are checked by simple presence, not
+ * by proving they run before every mutation line — precision beyond that
+ * needs a real parser, which this project's lints intentionally don't carry.
+ */
+function findActions(src) {
+	const declMatch = /export const actions(?:\s*:\s*[^={]+)?\s*=\s*\{/.exec(src);
+	if (!declMatch) return [];
+	const objOpen = declMatch.index + declMatch[0].length - 1;
+	const objBody = extractBalanced(src, objOpen);
+
+	const entries = [];
+	const keyRe = /(^|\n)\t([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?\(/g;
+	let m;
+	while ((m = keyRe.exec(objBody))) {
+		const name = m[2];
+		const arrowOpen = objBody.indexOf('=> {', m.index);
+		if (arrowOpen === -1) continue;
+		const bodyOpen = arrowOpen + 3;
+		const body = extractBalanced(objBody, bodyOpen);
+		entries.push({ name, start: objOpen + m.index + m[1].length, body });
+	}
+	return entries;
+}
+
+/** Tenant-table mutation call sites: `db.insert(products)`, `tx.delete(invoices)`, ... */
+const BUILDER_MUTATION_RE = /\b(?:db|tx)\.(?:insert|update|delete)\(\s*([A-Za-z_$][\w$]*)/g;
+
+/** Raw-SQL mutation call sites: `db.execute(sql\`INSERT INTO products ...\`)`. */
+const EXECUTE_CALL_RE = /\b(?:db|tx)\.execute(?:<[^>]*>)?\(/g;
+const RAW_MUTATION_TABLE_RE = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+"?([a-z_]+)"?/gi;
+
+function bodyMutatesTenantTable(body, tableIdents, tableNames) {
+	BUILDER_MUTATION_RE.lastIndex = 0;
+	let m;
+	while ((m = BUILDER_MUTATION_RE.exec(body))) {
+		if (tableIdents.has(m[1])) return true;
+	}
+	EXECUTE_CALL_RE.lastIndex = 0;
+	if (EXECUTE_CALL_RE.test(body)) {
+		RAW_MUTATION_TABLE_RE.lastIndex = 0;
+		let rm;
+		while ((rm = RAW_MUTATION_TABLE_RE.exec(body))) {
+			if (tableNames.has(rm[1].toLowerCase())) return true;
+		}
+	}
+	return false;
+}
+
+function actionAuthzViolation(src, file, action) {
+	const { name, start, body } = action;
+	if (!bodyMutatesTenantTable(body, actionAuthzViolation.tableIdents, actionAuthzViolation.tableNames)) return null;
+
+	const hasGuard = KNOWN_AUTHZ_GUARDS.some((g) => new RegExp(`\\b${g}\\s*\\(`).test(body));
+	if (hasGuard) return null;
+
+	const isTenantScoped = /\bforTenant\s*\(/.test(body) || /\.scope\(/.test(body);
+	if (isTenantScoped) return null;
+
+	const above = src.slice(0, start).split('\n').slice(-3).join('\n');
+	if (AUTHZ_CHECK_OK.test(body) || AUTHZ_CHECK_OK.test(above)) return null;
+
+	const lineNo = src.slice(0, start).split('\n').length;
+	return `${path.relative(ROOT, file)}:${lineNo}: action '${name}' mutates a tenant table with no known guard ` +
+		`(${KNOWN_AUTHZ_GUARDS.join(', ')}), no forTenant()/.scope() in the action body, and no ` +
+		`\`// tenant-check-ok: <reason>\` escape comment`;
+}
+
+function runActionAuthzGate() {
+	const tables = tenantScopedTables();
+	if (tables.size === 0) {
+		console.error('Error: could not derive tenant tables from schema — gate cannot run');
+		return false;
+	}
+	actionAuthzViolation.tableIdents = new Set(tables.keys());
+	actionAuthzViolation.tableNames = new Set([...tables.values()].map((n) => n.toLowerCase()));
+
+	const root = path.join(ROOT, 'src/routes/(app)');
+	if (!fs.existsSync(root)) return true;
+
+	const violations = [];
+	for (const file of walk(root, ['.ts'])) {
+		if (path.basename(file) !== '+page.server.ts') continue;
+		const src = fs.readFileSync(file, 'utf8');
+		for (const action of findActions(src)) {
+			const v = actionAuthzViolation(src, file, action);
+			if (v) violations.push(v);
+		}
+	}
+	if (violations.length > 0) {
+		console.error(
+			'Error: a form action mutates a tenant table without an authorization check — call a known guard\n' +
+				'before the mutation, scope every mutation with forTenant()/.scope(), or annotate with\n' +
+				'`// tenant-check-ok: <reason>` (ADR-001 / issue #517)'
+		);
+		for (const v of violations) console.error(`  ${v}`);
+		return false;
+	}
+	return true;
+}
+
 function walk(dir, extensions) {
 	const entries = fs.readdirSync(dir, { withFileTypes: true });
 	const files = [];
@@ -194,12 +333,16 @@ function runGate(name, gate) {
 }
 
 const requested = process.argv[2];
-const names = requested ? [requested] : [...Object.keys(GATES), 'unscoped-tenant-query'];
+const names = requested ? [requested] : [...Object.keys(GATES), 'unscoped-tenant-query', 'action-authz'];
 
 let ok = true;
 for (const name of names) {
 	if (name === 'unscoped-tenant-query') {
 		if (!runUnscopedQueryGate()) ok = false;
+		continue;
+	}
+	if (name === 'action-authz') {
+		if (!runActionAuthzGate()) ok = false;
 		continue;
 	}
 	const gate = GATES[name];

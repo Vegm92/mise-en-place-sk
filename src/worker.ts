@@ -12,7 +12,7 @@ import {
 	createQueuesWithDeadLetters,
 } from './lib/server/queue.js';
 import { pgSslConfig } from './lib/server/db-ssl.js';
-import { processExtractionJob, type ExtractionJobData } from './lib/server/extraction-worker.js';
+import { runExtractionJobForBoss, type ExtractionJobData } from './lib/server/extraction-worker.js';
 import {
 	processCategorizeJob,
 	processNormalizeJob,
@@ -79,20 +79,11 @@ console.info('[worker] Heartbeat registered — liveness visible on /admin/healt
 const EXTRACTION_BATCH_SIZE = Math.max(1, MAX_CONCURRENT_EXTRACTIONS);
 await boss.work(
 	EXTRACTION_QUEUE,
-	{ batchSize: EXTRACTION_BATCH_SIZE, includeMetadata: true },
+	{ batchSize: EXTRACTION_BATCH_SIZE, includeMetadata: true, perJobResults: true },
 	async (jobs: JobWithMetadata<ExtractionJobData>[]) => {
-		await Promise.all(
-			jobs.map((job) =>
-				runWithDeadLetter(
-					deadLetterRefFromJob(EXTRACTION_QUEUE, job),
-					() => processExtractionJob(job.data, undefined, {
-						retryCount: job.retryCount,
-						retryLimit: job.retryLimit,
-					}),
-				),
-			),
-		);
+		const results = await Promise.all(jobs.map((job) => runExtractionJobForBoss(job)));
 		await recordWorkerHeartbeat(jobs.length);
+		return results;
 	},
 );
 console.info(

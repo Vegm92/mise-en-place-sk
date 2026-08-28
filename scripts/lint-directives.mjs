@@ -10,4 +10,4 @@
  * statement, the comment check only at the start of a comment body — so this
  * exports the names, not the patterns.
  */
-export const PROJECT_DIRECTIVES = ['tenant-scope-ok'];
+export const PROJECT_DIRECTIVES = ['tenant-scope-ok', 'tenant-check-ok'];

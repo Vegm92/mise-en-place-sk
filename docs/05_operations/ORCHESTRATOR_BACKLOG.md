@@ -5,6 +5,8 @@ Baseline (main @ 71034ef): 1854 tests pass, 305 skipped. Open PRs: #723 (escanda
 
 DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re-check when the blocker clears.
 
+MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; this branch adds 0045_whatsapp_pairing_invite_phone.sql + 0046_system_notifications_payload_jsonb.sql. Whichever merges second must renumber its migrations and reconcile drizzle/meta/_journal.json before merging.
+
 ## Queue (work top-down within each tier)
 
 | # | Pri | Status | Att | Last result / notes | Title (short) |
@@ -39,17 +41,17 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 466 | P2 | DONE | 1 | Verified (commit eb020bd): systemInstruction on all 3 extraction paths + XML/Gemini sanitation seam (length caps, control-char/newline normalization). 2298/2298. | move EXTRACTION_PROMPT to systemInstruction |
 | 465 | P2 | DONE | 1 | Verified (commit 759b8d2): kit ^2.70.3, overrides fixed (fast-uri/brace-expansion) + nanoid added; puppeteer already gone (64fbe26). pnpm audit: 0 findings. 2298/2298. | bump @sveltejs/kit ReDoS + overrides + puppeteer |
 | 426 | P2 | DONE | 1 | Verified (commit c6d7f7a): both via createGeminiProvider + recordLlmUsage ('chat'/'weekly-digest'), logging only, ADR-007/018 updated. 2306/2306. | chat/digest bypass LLM provider seam |
-| 540 | P2 | PENDING | 0 | | extraction spinner runs forever when worker down |
-| 539 | P2 | PENDING | 0 | | analytics says "no data" to users with invoices |
-| 537 | P2 | PENDING | 0 | | a11y: 33/36 batch review fields unnamed |
-| 533 | P2 | PENDING | 0 | | missing $t() keys render raw |
-| 532 | P2 | PENDING | 0 | | nav renders literal "0" badge |
+| 540 | P2 | DONE | 1 | Already fixed on main (ea1c329, pre-dates this session); verified against acceptance criteria + tests; GitHub issue closed with explanation. | extraction spinner runs forever when worker down |
+| 539 | P2 | DONE | 1 | Verified (commit e3723c7): spend+dashboard get out-of-range states w/ count + widen action; /analytics/extraction verified already correct (unwindowed MV). 2315/2315. | analytics says "no data" to users with invoices |
+| 537 | P2 | DONE | 1 | Verified (commit f4878ff): labels/aria on all batch fields, th scope, sr-only h2s; live Playwright audit clean both viewports; AST regression test. 2322/2322. Global icon buttons were already labeled (#460). | a11y: 33/36 batch review fields unnamed |
+| 533 | P2 | DONE | 1 | Already satisfied on main (e6c10d0 + a735941): keys present, lint:i18n key-resolution pass with deliberate-miss proof. GitHub issue closed with explanation. | missing $t() keys render raw |
+| 532 | P2 | DONE | 1 | Fixed incidentally by #489's layout rewrite (1ea714f): all COUNTs ::int + Number(), strict-equality DB tests pin the type. Close GitHub issue when branch merges. | nav renders literal "0" badge |
 | 511 | P2 | DEFERRED | 0 | Likely moot under #746 review-state reframe (PR #748); recheck after merge | three conflicting InvoiceStatus vocabularies |
-| 520 | P2 | PENDING | 0 | | tenant-isolation tests cover load() only; silent skips |
-| 518 | P2 | PENDING | 0 | | scheduled jobs iterate all tenants sequentially |
-| 517 | P2 | PENDING | 0 | | tenant-scoping lint for form actions |
-| 570 | P2 | PENDING | 0 | | verify auto-classifier status |
-| 567 | P2 | PENDING | 0 | Feature, sizeable | collapsible sidebar |
+| 520 | P2 | DONE | 1 | Verified (commit 42dfafc): 6/7 acceptance items already covered by intervening work (evidence per item); dead extraction retry policy fixed via perJobResults wiring. 2327/2327. | tenant-isolation tests cover load() only; silent skips |
+| 518 | P2 | DONE | 1 | Already solved on main (542ebc6 + ADR-025, full dispatcher); added missing concurrency-proof test (4c5b269). GitHub issue closed. 2328/2328. | scheduled jobs iterate all tenants sequentially |
+| 517 | P2 | DONE | 1 | Verified (commit c1e9b7c): action-authz lint gate (49 actions audited, 2 honest escape comments, CI-wired), ADR-001 amended. 2327/2327. | tenant-scoping lint for form actions |
+| 570 | P2 | DONE | 1 | Verified working (supplier inline via extraction; product via pg-boss categorize job); trigger-chain test added (99a172c); GitHub issue closed with architecture answers. 2331/2331. | verify auto-classifier status |
+| 567 | P2 | DONE | 1 | Verified (commit 8111b97): shell pre-existed (#572); added settings persistence (merged query + /api/sidebar), collapsed badges, collapsed footer, spec'd icons+aria. 2338/2338. | collapsible sidebar |
 | 736 | P2 | DEFERRED | 0 | PR #723 branch | escandallo reads load tenant graph too often |
 | 733 | P2 | DEFERRED | 0 | PR #723 branch | updateRecipe drops unparseable fields; rename race |
 | 732 | P2 | DEFERRED | 0 | PR #723 branch | add-a-line row keeps submitted values |

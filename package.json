@@ -29,6 +29,7 @@
 		"lint:no-sql-raw": "node scripts/lint-invariants.mjs no-sql-raw",
 		"lint:tenant-scope": "node scripts/lint-invariants.mjs tenant-scope",
 		"lint:unscoped-query": "node scripts/lint-invariants.mjs unscoped-tenant-query",
+		"lint:action-authz": "node scripts/lint-invariants.mjs action-authz",
 		"lint:no-comments": "node scripts/check-no-comments.mjs",
 		"lint:i18n": "node scripts/check-i18n-strings.mjs",
 		"qa:sweep": "node scripts/qa-browser-sweep.mjs",
