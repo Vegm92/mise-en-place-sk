@@ -104,6 +104,45 @@ describe.skipIf(!hasDbEnv)('getOrGenerateWeeklyDigest — #426 provider seam + u
 		expect(secondRecordUsage).not.toHaveBeenCalled();
 	});
 
+	it('injects a segment sentence into the prompt when the restaurant carries venueType + topCategory (issue #328)', async () => {
+		await testSql`UPDATE restaurants SET venue_type = 'menu_del_dia', top_category = 'Bebidas' WHERE id = ${rid}`;
+		try {
+			let capturedPrompt = '';
+			const deps: WeeklyDigestDeps = {
+				provider: {
+					model: 'x',
+					generate: async (prompt: string) => {
+						capturedPrompt = prompt;
+						return { text: 'Segmented digest.', usage: { inputTokens: 1, outputTokens: 1, model: 'x' } };
+					},
+				},
+				recordUsage: vi.fn(async () => {}),
+			};
+			await getOrGenerateWeeklyDigest(rid, '2026-W39', deps);
+			expect(capturedPrompt).toContain('This is for a fixed-price menú del día restaurant whose largest spend category is Bebidas.');
+		} finally {
+			await testSql`UPDATE restaurants SET venue_type = NULL, top_category = NULL WHERE id = ${rid}`;
+		}
+	});
+
+	it('falls back to today\'s exact wording when venueType/topCategory are both null (issue #328)', async () => {
+		let capturedPrompt = '';
+		const deps: WeeklyDigestDeps = {
+			provider: {
+				model: 'x',
+				generate: async (prompt: string) => {
+					capturedPrompt = prompt;
+					return { text: 'Plain digest.', usage: { inputTokens: 1, outputTokens: 1, model: 'x' } };
+				},
+			},
+			recordUsage: vi.fn(async () => {}),
+		};
+		await getOrGenerateWeeklyDigest(rid, '2026-W40', deps);
+		expect(capturedPrompt.startsWith(
+			"You are a procurement assistant for a restaurant. Based on this week's data, write a brief weekly spend digest",
+		)).toBe(true);
+	});
+
 	it('a provider failure rolls back the claimed week and records no usage', async () => {
 		const failingDeps: WeeklyDigestDeps = {
 			provider: { model: 'x', generate: async () => { throw new Error('gemini down'); } },
