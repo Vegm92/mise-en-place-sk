@@ -24,6 +24,10 @@
     theme = flipTheme();
   }
 
+  const pageTitle = $derived(
+    $page.data.title ? $t($page.data.title) : $t('admin.banner')
+  );
+
   const p = $derived($page.url.pathname);
   const navItems = $derived([
     { href: '/admin',         label: $t('admin.overview') },
@@ -41,6 +45,10 @@
     (data.adminEmail || '').split('@')[0]?.slice(0, 2).toUpperCase() || '··'
   );
 </script>
+
+<svelte:head>
+  <title>{pageTitle}</title>
+</svelte:head>
 
 <div class="mep" data-accent="tinta" data-density="default"
   style="width:100%;min-height:100vh;display:flex;flex-direction:column;background:var(--mep-bg);border-top:4px solid var(--mep-acc);">

@@ -33,7 +33,7 @@ describe('#491 — /admin/health load keeps the full detail set', () => {
 	it('passes through status, checks, whatsapp, checkedAt and table counts', async () => {
 		const data = await load({} as never);
 		expect(data).toEqual({
-			title: 'Admin · Health',
+			title: 'admin.systemHealth',
 			overallStatus: 'ok',
 			checks: [{ name: 'Database', status: 'ok', detail: 'Connection healthy' }],
 			whatsapp: null,

@@ -91,7 +91,7 @@ export const load: PageServerLoad = async () => {
 	]);
 
 	return {
-		title: 'Admin Overview',
+		title: 'admin.overview',
 		degraded:    health === null,
 		overall:     health?.overall ?? 'error',
 		checkedAt:   health?.checkedAt ?? new Date().toISOString(),
