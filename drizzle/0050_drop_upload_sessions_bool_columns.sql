@@ -1,4 +1,4 @@
--- Migration 0049: drop upload_sessions, int-as-boolean cleanup (issue #514)
+-- Migration 0050: drop upload_sessions, int-as-boolean cleanup (issue #514)
 --
 -- upload_sessions was retired by ADR-015 (upload_batches/batch_items replace
 -- it) and #425 repointed its last two readers (/api/health, admin overview)
@@ -12,7 +12,7 @@
 -- must be dropped before the type change and re-added after — Postgres
 -- cannot auto-cast an integer default across a type change — and USING
 -- col::int::boolean maps the existing 0/1 values across exactly, per
--- migration 0046's precedent for a lossless type change.
+-- migration 0047's precedent for a lossless type change.
 DROP TABLE IF EXISTS "upload_sessions";--> statement-breakpoint
 ALTER TABLE "invoices" ALTER COLUMN "qr_mismatch" DROP DEFAULT;--> statement-breakpoint
 ALTER TABLE "invoices" ALTER COLUMN "qr_mismatch" SET DATA TYPE boolean USING "qr_mismatch"::int::boolean;--> statement-breakpoint

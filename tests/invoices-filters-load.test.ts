@@ -53,9 +53,8 @@ vi.mock('$lib/server/events', () => ({ trackEvent: vi.fn() }));
 vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: vi.fn(async () => true) }));
 vi.mock('$lib/server/invoice-status', async (importOriginal) => ({
 	...(await importOriginal<typeof import('../src/lib/server/invoice-status')>()),
-	markInvoicePaid: vi.fn(),
-	markInvoiceUnpaid: vi.fn(),
-	markInvoicesPaidBulk: vi.fn(),
+	markInvoiceReviewed: vi.fn(),
+	markInvoicesReviewedBulk: vi.fn(),
 }));
 
 const RID = '11111111-1111-1111-1111-111111111111';
@@ -84,13 +83,13 @@ beforeEach(() => {
 describe('/invoices load() — filters come from the search params', () => {
 	it('returns the parsed filter set and its active count', async () => {
 		const result = await runLoad(
-			'?q=tomate&status=pending&supplier_id=42&date_from=2026-01-01&date_to=2026-01-31' +
+			'?q=tomate&status=por_revisar&supplier_id=42&date_from=2026-01-01&date_to=2026-01-31' +
 			'&uploaded_from=2026-02-01&uploaded_to=2026-02-28&sort=invoice_date_asc'
 		);
 
 		expect(result.filters).toEqual({
 			q: 'tomate',
-			status: 'pending',
+			status: 'por_revisar',
 			supplier_id: '42',
 			category: '',
 			date_from: '2026-01-01',
@@ -111,7 +110,7 @@ describe('/invoices load() — filters come from the search params', () => {
 
 	it('turns each search param into a predicate on the page query', async () => {
 		await runLoad(
-			'?q=tomate&status=pending&supplier_id=42&date_from=2026-01-01&date_to=2026-01-31' +
+			'?q=tomate&status=por_revisar&supplier_id=42&date_from=2026-01-01&date_to=2026-01-31' +
 			'&uploaded_from=2026-02-01&uploaded_to=2026-02-28'
 		);
 
@@ -119,26 +118,25 @@ describe('/invoices load() — filters come from the search params', () => {
 		const listWhere = render(state.whereArgs[0]);
 		expect(listWhere.sql).toContain('"restaurant_id"');
 		expect(listWhere.sql).toContain('"deleted_at" is null');
-		expect(listWhere.sql).toContain('"status" =');
+		expect(listWhere.sql).toContain('"review_state" =');
 		expect(listWhere.sql).toContain('"supplier_id" =');
 		expect(listWhere.sql).toContain('"invoice_date" >=');
 		expect(listWhere.sql).toContain('"invoice_date" <=');
 		expect(listWhere.sql).toContain('"created_at" >=');
 		expect(listWhere.sql).toContain('"created_at" <=');
 		expect(listWhere.params).toContain(RID);
-		expect(listWhere.params).toContain('pending');
+		expect(listWhere.params).toContain('por_revisar');
 		expect(listWhere.params).toContain(42);
 		expect(listWhere.params).toContain('2026-01-01');
 		expect(listWhere.params).toContain('2026-01-31');
 	});
 
-	it('resolves status=overdue to a due-date predicate, not a status nothing stores', async () => {
-		await runLoad('?status=overdue');
+	it('refuses a status outside the review vocabulary instead of querying for it', async () => {
+		await runLoad('?status=paid');
 		const listWhere = render(state.whereArgs[0]);
 
-		expect(listWhere.sql).toContain('"due_date"');
-		expect(listWhere.params).toContain('pending');
-		expect(listWhere.params).not.toContain('overdue');
+		expect(listWhere.sql).toContain('false');
+		expect(listWhere.params).not.toContain('paid');
 	});
 
 	it('filters by supplier category on both the page and row-count queries', async () => {
@@ -166,10 +164,10 @@ describe('/invoices load() — filters come from the search params', () => {
 	});
 
 	it('applies the same filters to the row-count query as to the page query', async () => {
-		await runLoad('?q=tomate&status=paid&supplier_id=7');
+		await runLoad('?q=tomate&status=revisado&supplier_id=7');
 		const countWhere = render(state.whereArgs[state.whereArgs.length - 1]);
 		expect(countWhere.params).toContain(RID);
-		expect(countWhere.params).toContain('paid');
+		expect(countWhere.params).toContain('revisado');
 		expect(countWhere.params).toContain(7);
 		expect(countWhere.params).toContain('%tomate%');
 	});
@@ -189,7 +187,7 @@ describe('/invoices load() — filters come from the search params', () => {
 	});
 
 	it('pages through the filtered set from the page param', async () => {
-		const result = await runLoad('?status=paid&page=3');
+		const result = await runLoad('?status=revisado&page=3');
 		expect(result.pagination.page).toBe(3);
 		expect(state.limit).toBe(result.pagination.pageSize);
 		expect(state.offset).toBe(result.pagination.pageSize * 2);

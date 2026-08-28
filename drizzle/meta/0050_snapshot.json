@@ -1,6 +1,6 @@
 {
-  "id": "4cf1986c-509e-4c4f-93f2-ca184dbc5b55",
-  "prevId": "516e8911-dabe-456b-b973-8b085d1180bf",
+  "id": "c53231c2-166f-40ed-9854-58b8c4696c65",
+  "prevId": "c7427928-78d0-4ff3-a0d3-63144a0182e0",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1266,10 +1266,10 @@
         },
         "requires_unit_conversion": {
           "name": "requires_unit_conversion",
-          "type": "integer",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
-          "default": 0
+          "default": false
         },
         "canonical_unit": {
           "name": "canonical_unit",
@@ -1556,10 +1556,10 @@
         },
         "qr_mismatch": {
           "name": "qr_mismatch",
-          "type": "integer",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": false,
-          "default": 0
+          "default": false
         },
         "accepted_at": {
           "name": "accepted_at",
@@ -3096,7 +3096,7 @@
         },
         "payload": {
           "name": "payload",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -3139,6 +3139,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_system_notifications_budget_overage_exceeded": {
+          "name": "idx_system_notifications_budget_overage_exceeded",
+          "columns": [
+            {
+              "expression": "restaurant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"system_notifications\".\"status\" = 'pending' AND \"system_notifications\".\"notification_type\" = 'budget_overage' AND (\"system_notifications\".\"payload\"->>'level') = 'exceeded'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -3434,61 +3450,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.upload_sessions": {
-      "name": "upload_sessions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "data": {
-          "name": "data",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "upload_sessions_updated_at_idx": {
-          "name": "upload_sessions_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

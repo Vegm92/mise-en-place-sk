@@ -116,6 +116,7 @@ Sites left on `checkRateLimit()` directly, deliberately outside this rule:
 |---|---|---|
 | `publicFormAction` internals (#510) | rule-supplied | Unauthenticated public forms; ip/email-scoped by design |
 | `signup` resend action | `signup:resend:${ip}` | Unauthenticated, inside a `publicFormAction` handler |
+| `login` resend-verification action | `login:resend:${ip}` (#743) | Unauthenticated: the caller failed login, so there is no session identity to scope by |
 | `GET /api/health` | `health:${ip}` (#491) | No session; IP is the only identity available |
 | `hooks.server.ts` global `/api/*` gate | `api-global:${user ? 'u:'+id : 'ip:'+ip}` | A blanket gateway guard that intentionally falls back between identities — not one tenant/user business action |
 | WhatsApp `message-handler.ts` (unauth reply cooldown, sender hourly limit) | `whatsapp-unauth:${phone}`, `whatsapp:${phone}` | Phone number is a channel identity; no Auth.js session exists |

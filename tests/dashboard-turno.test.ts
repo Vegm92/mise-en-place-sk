@@ -26,8 +26,7 @@ function input(over: Partial<TurnoInput> = {}): TurnoInput {
 		budgets: {},
 		categorySpend: {},
 		priceShocks: [],
-		payables: [],
-		review: { count: 0, amount: 0 },
+		review: { count: 0, amount: 0, incidencias: 0 },
 		missing: [],
 		uncategorized: [],
 		...over,
@@ -96,27 +95,21 @@ describe('worklist', () => {
 			{ id: 1, ingredient: 'Merluza', supplier: 'Atlántico', oldPrice: 16, newPrice: 20, deviationPct: 25, monthSpend: 500, daysAgo: 0 },
 			{ id: 2, ingredient: 'Tomate', supplier: 'Mercavera', oldPrice: 2.4, newPrice: 2.1, deviationPct: -12.5, monthSpend: 400, daysAgo: 1 },
 		],
-		payables: [
-			{ id: 10, supplier_name: 'Atlántico', invoice_number: 'PA-1', due_date: '2026-05-01', amount: 300, days_delta: -4 },
-			{ id: 11, supplier_name: 'Ibérico', invoice_number: 'CI-9', due_date: '2026-05-26', amount: 620, days_delta: 7 },
-		],
-		review: { count: 2, amount: 1090 },
+		review: { count: 2, amount: 1090, incidencias: 0 },
 		missing: [{ supplier_name: 'Panadería Ruiz', days_late: 9, frequency: 'weekly' }],
 		uncategorized: [{ supplierId: 5, supplierName: 'Distribuciones Olé' }],
 	});
 
 	it('ranks by euros at stake and puts money-less items last', () => {
 		const items = buildWorklist(busy);
-		expect(items.map(i => i.kind)).toEqual(['budget', 'review', 'due', 'due', 'price', 'missing']);
-		expect(items.map(i => i.eur > 0)).toEqual([true, true, true, true, true, false]);
+		expect(items.map(i => i.kind)).toEqual(['budget', 'review', 'price', 'missing', 'supplier']);
+		expect(items.map(i => i.eur > 0)).toEqual([true, true, true, false, false]);
 	});
 
 	it('takes its colour cue from severity, not from the kind of work', () => {
 		const bySeverity = Object.fromEntries(buildWorklist(busy).map(i => [i.id, i.severity]));
-		expect(bySeverity['due-overdue']).toBe('high');
 		expect(bySeverity['price-1']).toBe('high');
 		expect(bySeverity['budget-Pescado']).toBe('med');
-		expect(bySeverity['due-11']).toBe('low');
 		expect(bySeverity['review']).toBe('low');
 		expect(bySeverity['missing-Panadería Ruiz']).toBe('med');
 	});
@@ -137,20 +130,30 @@ describe('worklist', () => {
 		expect(buildWorklist(busy).some(i => i.id === 'price-2')).toBe(false);
 	});
 
-	it('groups overdue payables into one item carrying the total', () => {
-		const overdue = buildWorklist(busy).find(i => i.id === 'due-overdue');
-		expect(overdue?.eur).toBe(300);
-		expect(overdue?.titleKey).toBe('turno.due.overdueTitle.one');
+	it('points the review item at the open review queue when nothing is flagged', () => {
+		const review = buildWorklist(busy).find(i => i.id === 'review');
+		expect(review?.titleKey).toBe('turno.review.title.other');
+		expect(review?.whyKey).toBe('turno.review.why');
+		expect(review?.href).toBe('/invoices?status=por_revisar');
+	});
+
+	it('escalates the review item to the incidencia queue when saves carried issues', () => {
+		const flagged = input({ review: { count: 3, amount: 500, incidencias: 2 } });
+		const review = buildWorklist(flagged).find(i => i.id === 'review');
+		expect(review?.severity).toBe('med');
+		expect(review?.whyKey).toBe('turno.review.whyIssues');
+		expect(review?.whyVars).toEqual({ n: 2 });
+		expect(review?.href).toBe('/invoices?status=incidencia');
 	});
 
 	it('sums the euros on the table', () => {
-		expect(atStake(buildWorklist(busy))).toBeCloseTo(1200 + 1090 + 620 + 300 + 100, 6);
+		expect(atStake(buildWorklist(busy))).toBeCloseTo(1200 + 1090 + 100, 6);
 	});
 
 	it('resorts by urgency without changing the set', () => {
 		const items = buildWorklist(busy);
 		const urgent = sortWorklist(items, 'urgency');
-		expect(urgent[0]!.id).toBe('due-overdue');
+		expect(urgent[0]!.id).toBe('review');
 		expect(urgent.map(i => i.id).sort()).toEqual(items.map(i => i.id).sort());
 	});
 

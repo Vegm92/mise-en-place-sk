@@ -26,8 +26,31 @@ function scrubUrlsInText(text: string): string {
 }
 
 function isSensitiveKey(key: string): boolean {
-	const lower = key.toLowerCase();
-	return SENSITIVE_KEYS.some(k => lower === k);
+	return SENSITIVE_KEYS.includes(key.toLowerCase());
+}
+
+function scrubArrayInPlace(items: unknown[], seen: WeakSet<object>, depth: number): void {
+	for (let i = 0; i < items.length; i++) {
+		const item: unknown = items[i];
+		if (typeof item === 'string') {
+			items[i] = scrubUrlsInText(item);
+		} else {
+			scrubValueInPlace(item, seen, depth + 1);
+		}
+	}
+}
+
+function scrubEntryInPlace(record: Record<string, unknown>, key: string, seen: WeakSet<object>, depth: number): void {
+	const entry = record[key];
+	if (isSensitiveKey(key)) {
+		if (entry !== undefined) record[key] = REDACTED;
+		return;
+	}
+	if (typeof entry === 'string') {
+		record[key] = key.toLowerCase() === 'url' ? scrubUrl(entry) : scrubUrlsInText(entry);
+		return;
+	}
+	scrubValueInPlace(entry, seen, depth + 1);
 }
 
 function scrubValueInPlace(value: unknown, seen: WeakSet<object>, depth: number): void {
@@ -36,33 +59,13 @@ function scrubValueInPlace(value: unknown, seen: WeakSet<object>, depth: number)
 	seen.add(value);
 
 	if (Array.isArray(value)) {
-		for (let i = 0; i < value.length; i++) {
-			const item: unknown = value[i];
-			if (typeof item === 'string') {
-				value[i] = scrubUrlsInText(item);
-			} else {
-				scrubValueInPlace(item, seen, depth + 1);
-			}
-		}
+		scrubArrayInPlace(value, seen, depth);
 		return;
 	}
 
 	const record = value as Record<string, unknown>;
 	for (const key of Object.keys(record)) {
-		const entry = record[key];
-		if (isSensitiveKey(key)) {
-			record[key] = entry === undefined ? entry : REDACTED;
-			continue;
-		}
-		if (key.toLowerCase() === 'url' && typeof entry === 'string') {
-			record[key] = scrubUrl(entry);
-			continue;
-		}
-		if (typeof entry === 'string') {
-			record[key] = scrubUrlsInText(entry);
-			continue;
-		}
-		scrubValueInPlace(entry, seen, depth + 1);
+		scrubEntryInPlace(record, key, seen, depth);
 	}
 }
 

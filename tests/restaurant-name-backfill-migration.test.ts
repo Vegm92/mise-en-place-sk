@@ -1,5 +1,5 @@
 /**
- * Issue #515 — drizzle/0048_restaurant_name_backfill.sql collapses the two
+ * Issue #515 — drizzle/0049_restaurant_name_backfill.sql collapses the two
  * sources of truth for a restaurant's name (restaurants.name, and a settings
  * row keyed 'restaurant_name') into one.
  *
@@ -16,7 +16,7 @@ import { describe, it, expect, afterAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { testSql, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
 
-const MIGRATION_SQL = readFileSync('drizzle/0048_restaurant_name_backfill.sql', 'utf8');
+const MIGRATION_SQL = readFileSync('drizzle/0049_restaurant_name_backfill.sql', 'utf8');
 
 afterAll(async () => {
 	if (hasDbEnv) await closeDb();
@@ -31,7 +31,7 @@ async function restaurantNameSettingsRows(id: string) {
 	return testSql`SELECT value FROM settings WHERE restaurant_id = ${id} AND key = 'restaurant_name'`;
 }
 
-describe.skipIf(!hasDbEnv)('0048_restaurant_name_backfill — single source of truth (issue #515)', () => {
+describe.skipIf(!hasDbEnv)('0049_restaurant_name_backfill — single source of truth (issue #515)', () => {
 	it('copies the settings value into restaurants.name when they differ, then deletes the settings row', async () => {
 		const r = await createTestRestaurant('namebk-differ');
 		try {
