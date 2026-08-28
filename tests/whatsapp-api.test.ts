@@ -164,39 +164,19 @@ describe('downloadWhatsAppMedia', () => {
 	// point at one of Meta's own media hosts — a redirect or a compromised/
 	// unexpected `url` field should never see the Authorization header.
 	describe('media URL host allowlisting', () => {
-		it('rejects an off-host media URL and never fetches it with the token', async () => {
+		it.each([
+			['an off-host media URL', 'https://evil.example.com/steal'],
+			['a lookalike host that merely contains an allowed domain', 'https://fbcdn.net.evil.example.com/x'],
+			['a non-https media URL even on an allowed host', 'http://lookaside.fbsbx.com/abc'],
+		])('rejects %s and never fetches it with the token', async (_label, url) => {
 			fetchMock.mockResolvedValueOnce({
 				ok: true,
-				json: async () => ({ url: 'https://evil.example.com/steal', mime_type: 'application/pdf' }),
+				json: async () => ({ url, mime_type: 'application/pdf' }),
 			});
 
 			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
 
-			await expect(downloadWhatsAppMedia('media-evil')).rejects.toThrow(/host not allowed/i);
-			expect(fetchMock).toHaveBeenCalledTimes(1);
-		});
-
-		it('rejects a lookalike host that merely contains an allowed domain', async () => {
-			fetchMock.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ url: 'https://fbcdn.net.evil.example.com/x', mime_type: 'application/pdf' }),
-			});
-
-			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
-
-			await expect(downloadWhatsAppMedia('media-lookalike')).rejects.toThrow(/host not allowed/i);
-			expect(fetchMock).toHaveBeenCalledTimes(1);
-		});
-
-		it('rejects a non-https media URL even on an allowed host', async () => {
-			fetchMock.mockResolvedValueOnce({
-				ok: true,
-				json: async () => ({ url: 'http://lookaside.fbsbx.com/abc', mime_type: 'application/pdf' }),
-			});
-
-			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
-
-			await expect(downloadWhatsAppMedia('media-http')).rejects.toThrow(/host not allowed/i);
+			await expect(downloadWhatsAppMedia('media-disallowed')).rejects.toThrow(/host not allowed/i);
 			expect(fetchMock).toHaveBeenCalledTimes(1);
 		});
 

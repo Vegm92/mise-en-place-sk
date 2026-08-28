@@ -32,7 +32,7 @@ describe('PRO chip stays neutral (ADR-026)', () => {
 	it('finds the PRO chip in both the sidebar heading and the upgrade dialog', () => {
 		// Guards the test itself against a markup rewrite silently dropping a
 		// chip out of the pattern above and leaving this suite vacuously green.
-		expect(chipSpans.length).toBe(2);
+		expect(chipSpans).toHaveLength(2);
 	});
 
 	it('never spells a PRO chip with --mep-acc', () => {

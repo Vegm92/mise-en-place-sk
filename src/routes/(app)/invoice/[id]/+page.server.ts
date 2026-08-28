@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				invoice_date:   invoices.invoiceDate,
 				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
-				status:         invoices.status,
+				review_state:   invoices.reviewState,
 				source_file:    invoices.sourceFile,
 				notes:          invoices.notes,
 				created_at:     invoices.createdAt,

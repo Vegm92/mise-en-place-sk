@@ -14,11 +14,14 @@
 		initLocale();
 	});
 
-	const KNOWN_ERRORS = new Set(['missing', 'invalid', 'rate_limited', 'oauth']);
+	const KNOWN_ERRORS = new Set(['missing', 'invalid', 'rate_limited', 'oauth', 'unverified']);
 	const rawError = $derived(form?.error ?? $page.url.searchParams.get('error'));
 	const error = $derived(rawError && !KNOWN_ERRORS.has(rawError) ? 'oauth' : rawError);
 	const resetDone = $derived($page.url.searchParams.get('reset') === '1');
 	const verified = $derived($page.url.searchParams.get('verified') === '1');
+
+	const showUnverified = $derived(error === 'unverified' || form?.resent !== undefined);
+	const unverifiedEmail = $derived(form?.email ?? '');
 </script>
 
 <svelte:head>
@@ -72,7 +75,23 @@
 				<div class="auth-note auth-note-pos">{$t('login.verified')}</div>
 			{/if}
 
-			{#if error}
+			{#if showUnverified}
+				<div class="auth-note auth-note-neg" role="alert">
+					<span class="auth-note-icon"><TriangleAlert size={14} /></span>
+					<span>{$t('login.err.unverified')}</span>
+				</div>
+				<form method="POST" action="?/resend">
+					<input type="hidden" name="email" value={unverifiedEmail} />
+					<button type="submit" class="auth-ghost auth-ghost-block">
+						{$t('login.resendVerification')}
+					</button>
+				</form>
+				{#if form?.resent === true}
+					<div class="auth-note auth-note-pos">{$t('signup.resent')}</div>
+				{:else if form?.resent === false}
+					<div class="auth-note auth-note-neg">{$t('signup.resendWait')}</div>
+				{/if}
+			{:else if error}
 				<div class="auth-note auth-note-neg" role="alert">
 					<span class="auth-note-icon"><TriangleAlert size={14} /></span>
 					<span>{$t(`login.err.${error}`)}</span>
