@@ -5,7 +5,11 @@
 
 <div class="error-page">
 	<h1>{$page.status}</h1>
-	<p>{$page.error?.message ?? $t('error.generic')}</p>
+	<p>
+		{$page.status === 404 && $page.error?.message === 'Not Found'
+			? $t('error.notFound')
+			: ($page.error?.message ?? $t('error.generic'))}
+	</p>
 	<a href="/">{$t('error.backToPanel')}</a>
 </div>
 

@@ -13,8 +13,13 @@
  * DB-backed suites (tests/helpers/db-gate.ts).
  */
 import { describe, it, expect, afterEach, afterAll } from 'vitest';
+import { createHash } from 'node:crypto';
 import { hasDbEnv, testSql, closeDb } from './helpers/test-db';
 import { createVerificationToken, consumeVerificationToken } from '../src/lib/server/verification-token';
+
+function sha256(value: string): string {
+	return createHash('sha256').update(value).digest('hex');
+}
 
 const describeDb = hasDbEnv ? describe : describe.skip;
 
@@ -63,13 +68,13 @@ describeDb('consumeVerificationToken', () => {
 		const token = 'expired-token';
 		await testSql`
 			INSERT INTO verification_tokens (identifier, token, expires)
-			VALUES (${identifier}, ${token}, now() - interval '1 hour')
+			VALUES (${identifier}, ${sha256(token)}, now() - interval '1 hour')
 		`;
 
 		expect(await consumeVerificationToken(identifier, token)).toBe(false);
 
 		const rows = await testSql`
-			SELECT 1 FROM verification_tokens WHERE identifier = ${identifier} AND token = ${token}
+			SELECT 1 FROM verification_tokens WHERE identifier = ${identifier} AND token = ${sha256(token)}
 		`;
 		expect(rows).toHaveLength(1);
 	});
@@ -91,5 +96,20 @@ describeDb('createVerificationToken', () => {
 
 		expect(await consumeVerificationToken(identifier, first)).toBe(false);
 		expect(await consumeVerificationToken(identifier, second)).toBe(true);
+	});
+
+	it('stores only a sha256 hash of the token, never the raw secret (issue #747)', async () => {
+		const identifier = uniqueIdentifier('hashed-at-rest');
+		const token = await createVerificationToken(identifier);
+
+		const rows = await testSql`
+			SELECT token FROM verification_tokens WHERE identifier = ${identifier}
+		`;
+		expect(rows).toHaveLength(1);
+		expect(rows[0].token).not.toBe(token);
+		expect(rows[0].token).toBe(sha256(token));
+		expect(rows[0].token).toMatch(/^[0-9a-f]{64}$/);
+
+		expect(await consumeVerificationToken(identifier, token)).toBe(true);
 	});
 });

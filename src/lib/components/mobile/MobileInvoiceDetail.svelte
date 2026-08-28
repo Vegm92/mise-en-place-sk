@@ -8,6 +8,9 @@
   import Truck from '@lucide/svelte/icons/truck';
   import { locale, t, ti } from '$lib/i18n';
   import { fmtEur } from '$lib/formatters';
+  import { uploadExtname } from '$lib/upload-formats';
+
+  const PREVIEWABLE_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 
   interface LineItem {
     id: number;
@@ -54,6 +57,12 @@
 
   const shown = $derived(lineItems.slice(0, 5));
   const remaining = $derived(Math.max(0, lineItems.length - 5));
+
+  const sourceExt = $derived(invoice.source_file ? uploadExtname(invoice.source_file) : '');
+  const isPreviewable = $derived(PREVIEWABLE_EXTENSIONS.has(sourceExt));
+  const documentDisplayName = $derived(
+    invoice.source_file ? `${invoice.invoice_number ?? `#${invoice.id}`}${sourceExt}` : ''
+  );
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--mep-bg);">
@@ -139,7 +148,7 @@
         ">
           <FileText size={13} style="color: var(--mep-fg-2); flex-shrink: 0;" />
           <div style="flex: 1; font-size: 12px; color: var(--mep-fg-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            {invoice.source_file}
+            {documentDisplayName}
           </div>
           <a href="/invoice/{invoice.id}/file" target="_blank"
             style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none; flex-shrink: 0;">
@@ -153,7 +162,9 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
           ">
             <FileText size={32} style="color: var(--mep-fg-3);" />
-            <span style="font-size: 11px; color: var(--mep-fg-3);">{$t('mid.preview')}</span>
+            <span style="font-size: 11px; color: var(--mep-fg-3);text-align:center;padding:0 8px;">
+              {isPreviewable ? $t('mid.preview') : $t('inv.detail.noPreview')}
+            </span>
           </div>
         </div>
       </div>
@@ -210,7 +221,7 @@
     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
       {#each [
         { icon: Edit, label: $t('mid.actionEdit'), href: `/invoice/${invoice.id}/edit` },
-        { icon: Download, label: 'PDF', href: invoice.source_file ? `/invoice/${invoice.id}/file` : '#' },
+        { icon: Download, label: $t('mid.actionDownload'), href: invoice.source_file ? `/invoice/${invoice.id}/file` : '#' },
         { icon: Truck, label: $t('mid.actionSupplier'), href: invoice.supplier_id ? `/suppliers/${invoice.supplier_id}` : '/suppliers' },
       ] as action}
         <a

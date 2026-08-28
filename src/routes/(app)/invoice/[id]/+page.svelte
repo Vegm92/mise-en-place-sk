@@ -2,13 +2,22 @@
   import type { PageData } from './$types';
   import { locale, t, ti } from '$lib/i18n';
   import { fmtEur } from '$lib/formatters';
+  import { uploadExtname } from '$lib/upload-formats';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+
+  const PREVIEWABLE_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 
   let { data }: { data: PageData } = $props();
   const { invoice, lineItems, unlinkedLineCount } = $derived(data);
 
   let confirmDelete = $state(false);
+
+  const sourceExt = $derived(invoice.source_file ? uploadExtname(invoice.source_file) : '');
+  const isPreviewable = $derived(PREVIEWABLE_EXTENSIONS.has(sourceExt));
+  const documentDisplayName = $derived(
+    invoice.source_file ? `${invoice.invoice_number ?? `#${invoice.id}`}${sourceExt}` : ''
+  );
 
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
@@ -50,7 +59,7 @@
       <div class="card-header">
         <div class="section-title">
           <span class="body-strong" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px;">
-            {invoice.source_file ?? 'invoice.pdf'}
+            {documentDisplayName || (invoice.invoice_number ?? `#${invoice.id}`)}
           </span>
         </div>
         <div style="display:flex;gap:4px;">
@@ -60,10 +69,10 @@
         </div>
       </div>
 
-      {#if invoice.source_file}
+      {#if invoice.source_file && isPreviewable}
         <iframe
           src="/invoice/{invoice.id}/file"
-          title={invoice.source_file}
+          title={documentDisplayName}
           style="width:100%;min-height:320px;border:0;background:var(--mep-surface-2);"
         ></iframe>
       {:else}
@@ -73,7 +82,9 @@
           display:flex;align-items:center;justify-content:center;
           padding:32px;
         ">
-          <span class="body" style="color:var(--mep-fg-4);">{$t('inv.detail.noFile')}</span>
+          <span class="body" style="color:var(--mep-fg-4);">
+            {invoice.source_file ? $t('inv.detail.noPreview') : $t('inv.detail.noFile')}
+          </span>
         </div>
       {/if}
     </div>
@@ -140,7 +151,7 @@
             download
             style="text-decoration:none;"
           >
-            {$t('inv.detail.downloadPdf')}
+            {$t('inv.detail.downloadOriginal')}
           </a>
         {/if}
         {#if !confirmDelete}
