@@ -1,7 +1,7 @@
 ﻿<script lang="ts">
   import { page } from '$app/stores';
   import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
@@ -25,8 +25,8 @@
   import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right';
   import Menu from '@lucide/svelte/icons/menu';
   import X from '@lucide/svelte/icons/x';
-import ChevronLeft from '@lucide/svelte/icons/chevron-left';
-  import ChevronRight from '@lucide/svelte/icons/chevron-right';
+import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
+  import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
   import ChevronDown from '@lucide/svelte/icons/chevron-down';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Newspaper from '@lucide/svelte/icons/newspaper';
@@ -45,9 +45,14 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     browser ? currentTheme() : 'light'
   );
   let mobileOpen = $state(false);
-  let sidebarCollapsed = $state(
-    typeof localStorage !== 'undefined' && localStorage.getItem('mep-sidebar-collapsed') === 'true'
-  );
+
+  function readStoredSidebarCollapsed(): boolean | null {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem('mep-sidebar-collapsed');
+    return raw === null ? null : raw === 'true';
+  }
+
+  let sidebarCollapsed = $state(readStoredSidebarCollapsed() ?? untrack(() => data.sidebarCollapsed) ?? false);
   let sidebarHasInteracted = $state(false);
   let isDesktop = $state(false);
   let locationOpen = $state(false);
@@ -137,6 +142,11 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     sidebarCollapsed = !collapsed;
     sidebarHasInteracted = true;
     localStorage.setItem('mep-sidebar-collapsed', String(sidebarCollapsed));
+    fetch('/api/sidebar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ collapsed: sidebarCollapsed }),
+    }).catch(() => {});
   }
 
   $effect(() => {
@@ -559,6 +569,18 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
               <item.icon size={16} style={itemIsLocked ? 'opacity:0.5;' : undefined} />
               {#if collapsed && itemIsLocked}
                 <span style="position:absolute;top:2px;right:2px;width:6px;height:6px;border-radius:50%;background:var(--mep-fg-3);" aria-hidden="true"></span>
+              {:else if collapsed && item.badge}
+                <span
+                  class="num"
+                  aria-hidden="true"
+                  style="
+                    position:absolute;top:-2px;right:-2px;font-size:11px;font-weight:600;line-height:1;
+                    min-width:16px;height:16px;padding:0 3px;border-radius:var(--mep-r-pill);
+                    background:{parentActive ? 'var(--mep-acc)' : 'var(--mep-warn-soft)'};
+                    color:{parentActive ? 'var(--mep-acc-fg)' : 'var(--mep-warn)'};
+                    display:inline-flex;align-items:center;justify-content:center;
+                  "
+                >{item.badge > 9 ? '9+' : item.badge}</span>
               {/if}
               {#if !collapsed}
                 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.label}</span>
@@ -691,6 +713,40 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
           </button>
         </form>
       </div>
+    {:else}
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <a
+          href="/settings"
+          onclick={() => mobileOpen = false}
+          class="btn btn-ghost btn-icon"
+          title={$t('nav.settings')}
+          aria-label={$t('nav.settings')}
+          style="width:34px;height:34px;padding:0;justify-content:center;"
+        >
+          <Settings size={15} />
+        </a>
+        <a
+          href="/help"
+          onclick={() => mobileOpen = false}
+          class="btn btn-ghost btn-icon"
+          title={$t('nav.help')}
+          aria-label={$t('nav.help')}
+          style="width:34px;height:34px;padding:0;justify-content:center;"
+        >
+          <CircleHelp size={15} />
+        </a>
+        <form method="POST" action="/logout">
+          <button
+            type="submit"
+            class="btn btn-ghost btn-icon"
+            title={$t('action.logout')}
+            aria-label={$t('action.logout')}
+            style="width:34px;height:34px;padding:0;justify-content:center;"
+          >
+            <LogOut size={15} />
+          </button>
+        </form>
+      </div>
     {/if}
   </aside>
 
@@ -699,8 +755,9 @@ import ChevronLeft from '@lucide/svelte/icons/chevron-left';
     style="position:absolute;top:50%;right:-17px;transform:translateY(-50%);width:34px;height:34px;padding:0;justify-content:center;border-radius:9999px;box-shadow:0 1px 3px rgba(0,0,0,0.15);"
     onclick={toggleSidebar}
     title={collapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
+    aria-label={collapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
   >
-    {#if collapsed}<ChevronRight size={16} />{:else}<ChevronLeft size={16} />{/if}
+    {#if collapsed}<PanelLeftOpen size={16} />{:else}<PanelLeftClose size={16} />{/if}
   </button>
   </div>
   {:else}

@@ -41,6 +41,7 @@ export const ROUTE_POLICY = {
 	'/(app)/api/chat':                   { feature: 'aiAssistant', access: true },
 	'/(app)/api/notifications':          'open',
 	'/(app)/api/product-aliases':        'open',
+	'/(app)/api/sidebar':                'open',
 	'/(app)/api/stock-levels':           { feature: 'stockTracking' },
 	'/(app)/api/supplier-category':      'open',
 	'/(app)/api/trend':                  'open',
