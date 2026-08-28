@@ -118,8 +118,8 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 406 | P3 | BLOCKED | 1 | Recommendation posted 2026-08-28 (keep benefit-first pacing; test founder-empathy as an /l/ variant via #327+#326); awaiting owner's recorded decision. | hero micro-copy audit |
 | 405 | P3 | PENDING | 0 | Triaged 2026-08-28: display-only badge restyle, implementable; note #333 part 1 provenance may later adjust framing/labels. | testimonial venue-type context |
 | 404 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; only already-substantiated claims (no invented support-SLA); FAQ batch copy now the #333 evergreen wording. | trust/support bar |
-| 403 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; 3-step ladder specified by owner incl. founder-price-lock tie-in to pricingProvisional. | founders incentive section |
-| 402 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: sin/con comparison section per issue's column copy, between pain and how-it-works. | sin vs con comparison |
+| 403 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: 3-step founders ladder tied to pricingProvisional. | founders incentive section |
+| 402 | P3 | DONE | 1 | Verified (commit 00e447c): comparison section between pain/how-it-works, 12 waitlist.compare.* keys es+en, pos/neg severity tokens, renders on all 6 landing pages, mobile collapse. Orchestrator visually verified light/dark/mobile screenshots + re-ran gates (3002/3002). Close GitHub issue when branch merges. | sin vs con comparison |
 | 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
 | 354 | P3 | BLOCKED | 1 | Decision analysis + route checklist posted on issue (env-flag via ROUTE_POLICY, billing-off keeps subscription rows); awaiting owner ratification. #356 executes against it. | feature-flag mechanism decision |
