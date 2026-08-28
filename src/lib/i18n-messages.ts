@@ -390,7 +390,7 @@ export const translations = {
     'set.profile.email':          'Email',
     'set.profile.emailBtn':       'Cambiar email',
     'set.profile.emailDesc':      'Te enviaremos un enlace de confirmación a la nueva dirección. El cambio se aplica al confirmarlo.',
-    'set.profile.password':       'Contraseña',
+    'set.profile.password':       'Contraseña', // NOSONAR — S2068 false positive: UI form label, not a credential
     'set.profile.currentPassword':'Contraseña actual',
     'set.profile.newPassword':    'Nueva contraseña (mínimo 12 caracteres)',
     'set.profile.confirmPassword':'Repite la nueva contraseña',
@@ -542,7 +542,7 @@ export const translations = {
     'login.welcome':     'Bienvenido de nuevo',
     'login.sub':         'Entra en el panel de tu cocina.',
     'login.email':       'Email',
-    'login.password':    'Contraseña',
+    'login.password':    'Contraseña', // NOSONAR — S2068 false positive: UI form label, not a credential
     'login.signIn':      'Iniciar sesión',
     'login.or':          'o',
     'login.google':      'Continuar con Google',
