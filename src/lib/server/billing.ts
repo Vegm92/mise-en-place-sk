@@ -18,7 +18,7 @@ import { trackEvent } from './events';
 import { sendEmail, subscriptionConfirmationEmail, subscriptionConsolidatedEmail } from './email';
 import { users } from './schema';
 import { PROVISIONAL_PRICE } from '$lib/billing-plans';
-import { renderTemplate } from '$lib/i18n';
+import { renderTemplate } from '$lib/i18n-messages';
 import { DAY_MS } from '$lib/constants';
 
 const secretKey = STRIPE_SECRET_KEY;
