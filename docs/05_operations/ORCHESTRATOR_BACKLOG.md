@@ -75,7 +75,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 535 | P3 | DONE | 1 | Verified (commit 5647b66): 16 sites migrated to locale-param formatters (currency style, $locale at call sites, server-safe), waitlist mock follows its toggle. 2738/2738. Residual fmtPrice comma-hardcode in analytics/prices → folded into #534's scope. | number formatting hardcoded es-ES |
 | 534 | P3 | DONE | 1 | Verified (commit f7bf14c): 4 stale consts → $derived, 30d/90d/6m keyed, AST-based detector + repo-wide zero-violation test; fmtPrice routed through fmtEur (#535 residual). 2748/2748. | language switch misses period labels |
 | 515 | P3 | DONE | 1 | Verified (commit 3bee004): restaurants.name sole source, no-op write removed, backfill migration 0048 (settings value wins — preserves what users saw), guard test. 2768/2768. | restaurant name two sources of truth |
-| 514 | P3 | PENDING | 0 | | dead code + schema hygiene |
+| 514 | P3 | DONE | 1 | Verified (commit 004d740): stub auth route deleted (+ROUTE_POLICY knock-on), upload_sessions dropped, both int-as-boolean columns → boolean w/ hand-fixed USING casts (migration 0049). 2768/2768. | dead code + schema hygiene |
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
 | 510 | P3 | DONE | 1 | Verified (commit 1c19fc2): IP-first sort + short-circuit, accurate scope attribution. 2354/2354. | rate-limit buckets consumed after failure |
 | 509 | P3 | DONE | 1 | Verified (commit f7e4149): synchronous validateAdminSeedConfig at boot (option A), in-seed checks kept as defense-in-depth with honest wording. 2359/2359. | auth-seed prod guard swallowed |
