@@ -35,7 +35,7 @@
       {#if supplierId}
         <div style="margin-top:6px;">
           <a
-            href="/suppliers/{supplierId}?edit=1"
+            href="/suppliers/{supplierId}?edit=1&highlight=category"
             class="btn btn-primary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
           >{$t('notif.categorize')}</a>
@@ -53,7 +53,7 @@
             onclick={() => onAcceptCategory(notification)}
           >{$t('notif.catAccept')}</button>
           <a
-            href="/suppliers/{p.supplierId}?edit=1"
+            href="/suppliers/{p.supplierId}?edit=1&highlight=category"
             class="btn btn-secondary"
             style="height:26px;font-size:11px;padding:0 10px;text-decoration:none;display:inline-flex;align-items:center;"
           >{$t('notif.catChange')}</a>

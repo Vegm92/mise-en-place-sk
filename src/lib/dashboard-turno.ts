@@ -274,7 +274,7 @@ function supplierItems(input: TurnoInput): WorkItem[] {
 		whyKey: 'turno.supplier.why',
 		whyVars: {},
 		actionKey: 'turno.supplier.action',
-		href: `/suppliers/${s.supplierId}`,
+		href: `/suppliers/${s.supplierId}?highlight=category`,
 	}];
 }
 

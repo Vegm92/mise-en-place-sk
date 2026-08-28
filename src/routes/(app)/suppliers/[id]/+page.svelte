@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import type { PageData } from './$types';
   import { VALID_CATEGORIES } from '$lib/constants';
   import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
@@ -22,6 +22,17 @@
   let tab = $state<'resumen' | 'albaranes' | 'productos' | 'conversiones'>(untrack(() => data.initialTab));
   let editing       = $state(untrack(() => data.initialEditing));
   let confirmDelete = $state(false);
+  let highlightCategory = $state(untrack(() => data.initialHighlightCategory));
+
+  $effect(() => {
+    if (!highlightCategory) return;
+    tick().then(() => {
+      document.getElementById('m-edit-category')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      document.getElementById('edit-category')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
+    const timer = setTimeout(() => { highlightCategory = false; }, 4000);
+    return () => clearTimeout(timer);
+  });
 
   const s = $derived(data.supplier);
   const m = $derived(data.metrics);
@@ -117,7 +128,8 @@
           </div>
           <div>
             <label for="m-edit-category" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.category')}</label>
-            <select id="m-edit-category" class="input" name="category" style="width:100%;">
+            <select id="m-edit-category" class="input" class:mep-field-highlight={highlightCategory} name="category" style="width:100%;"
+              onfocus={() => highlightCategory = false} onchange={() => highlightCategory = false}>
               <option value="">{$t('sup.noCategory')}</option>
               {#each VALID_CATEGORIES as cat}
                 <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
@@ -424,5 +436,6 @@
     bind:tab
     bind:editing
     bind:confirmDelete
+    bind:highlightCategory
   />
 </div>
