@@ -78,11 +78,11 @@ local `subscriptions` row + `settings` mirror gate feature access and quotas.
   129 €), **overridable via env** `PLAN_PRICE_STARTER_EUR` /
   `PLAN_PRICE_PRO_EUR` / `PLAN_PRICE_BUSINESS_EUR` (documented in
   `.env.example`; `billing.ts:81` uses the override when set and ≥ 0, else the
-  `PROVISIONAL_PRICE` fallback). The `/waitlist` pricing section hardcodes
-  29/59/129 independently instead of reading this source (open item #439);
-  the intended fix is for `/waitlist` to consume the same
-  override → `PROVISIONAL_PRICE` value so an `.env` change updates both the
-  app and the marketing page.
+  `PROVISIONAL_PRICE` fallback). The `/waitlist` pricing section reads
+  `PROVISIONAL_PRICE` directly (same constant `/billing` reads, issue #439);
+  it does not consume the server-only env override, so an `.env` price change
+  updates `/billing` but not the marketing page — only a change to
+  `PROVISIONAL_PRICE` itself updates both.
 - **Cancel / reinstate (Customer Portal is the single source of truth)**: plan
   cancellation and reinstatement are **not** performed in-app. The status card's
   "Manage subscription" button opens the Stripe Customer Portal (`?/portal` →

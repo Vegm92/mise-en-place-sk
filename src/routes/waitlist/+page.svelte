@@ -7,6 +7,7 @@
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
   import type { ActionData, PageData } from './$types';
+  import { PROVISIONAL_PRICE } from '$lib/billing-plans';
   import EmailForm from '$lib/components/waitlist/EmailForm.svelte';
   import CaptureMock from '$lib/components/waitlist/CaptureMock.svelte';
   import ExtractMock from '$lib/components/waitlist/ExtractMock.svelte';
@@ -90,11 +91,11 @@
       pricingTrialLimit: '14 días o 20 albaranes · sin tarjeta',
       pricingTrialTagline: 'Prueba el flujo completo de digitalización.',
       pricingTiers: [
-        { name: 'Starter', price: 29, recommended: false, tagline: 'Digitaliza y controla el gasto de un restaurante.',
+        { name: 'Starter', price: PROVISIONAL_PRICE.starter, recommended: false, tagline: 'Digitaliza y controla el gasto de un restaurante.',
           bullets: ['100 albaranes al mes', 'Vista de gasto por categoría y proveedor', '1 restaurante'] },
-        { name: 'Pro', price: 59, recommended: true, tagline: 'Todo lo de Starter, más la capa de inteligencia.',
+        { name: 'Pro', price: PROVISIONAL_PRICE.pro, recommended: true, tagline: 'Todo lo de Starter, más la capa de inteligencia.',
           bullets: ['300 albaranes al mes', 'Resumen automático por email', 'Asistente IA sobre tus datos', 'Análisis de precios y control de stock'] },
-        { name: 'Business', price: 129, recommended: false, tagline: 'Las mismas funciones, para un grupo de restaurantes.',
+        { name: 'Business', price: PROVISIONAL_PRICE.business, recommended: false, tagline: 'Las mismas funciones, para un grupo de restaurantes.',
           bullets: ['Albaranes ilimitados', 'Hasta 5 restaurantes', 'Soporte prioritario'] },
       ],
       faqEyebrow:        'Dudas frecuentes',
@@ -102,7 +103,7 @@
         { q: '¿Qué pasa con mis datos?', a: 'Tus albaranes son tuyos. Los almacenamos cifrados en servidores en la UE y puedes exportarlos o eliminarlos en cualquier momento. Nunca los usaremos para entrenar modelos públicos.' },
         { q: '¿Necesito cambiar mi software de TPV?', a: 'No. Mise en Place se conecta a Square y Revo desde el primer día, y exporta a Excel/CSV para el resto. Si usas otro TPV, escríbenos —probablemente lo integremos pronto.' },
         { q: '¿Y si el albarán está manchado o arrugado?', a: 'Esa es nuestra especialidad. El motor lee fotos de móvil hechas con prisas en una cocina caliente. Si algo no se entiende, te lo señala para que lo confirmes tú —no inventa.' },
-        { q: '¿Cuánto cuesta?', a: 'Durante el acceso anticipado es gratis. Al lanzamiento: Starter 29 €, Pro 59 € y Business 129 € al mes por restaurante — precios provisionales, pueden ajustarse antes del lanzamiento público.' },
+        { q: '¿Cuánto cuesta?', a: `Durante el acceso anticipado es gratis. Al lanzamiento: Starter ${PROVISIONAL_PRICE.starter} €, Pro ${PROVISIONAL_PRICE.pro} € y Business ${PROVISIONAL_PRICE.business} € al mes por restaurante — precios provisionales, pueden ajustarse antes del lanzamiento público.` },
         { q: '¿Cuándo empieza el acceso?', a: 'Abrimos en tandas a partir de julio de 2026. Avisamos por email con al menos una semana de antelación.' },
       ],
       closeHead:         'Empieza por el albarán de esta semana.',
@@ -187,11 +188,11 @@
       pricingTrialLimit: '14 days or 20 invoices · no card',
       pricingTrialTagline: 'Try the whole digitisation flow.',
       pricingTiers: [
-        { name: 'Starter', price: 29, recommended: false, tagline: 'Digitise invoices and see where the money goes.',
+        { name: 'Starter', price: PROVISIONAL_PRICE.starter, recommended: false, tagline: 'Digitise invoices and see where the money goes.',
           bullets: ['100 invoices per month', 'Spend by category and supplier', '1 restaurant'] },
-        { name: 'Pro', price: 59, recommended: true, tagline: 'Everything in Starter, plus the intelligence layer.',
+        { name: 'Pro', price: PROVISIONAL_PRICE.pro, recommended: true, tagline: 'Everything in Starter, plus the intelligence layer.',
           bullets: ['300 invoices per month', 'Automatic email digest', 'AI assistant over your data', 'Price analytics and stock tracking'] },
-        { name: 'Business', price: 129, recommended: false, tagline: 'The same features, across a group of restaurants.',
+        { name: 'Business', price: PROVISIONAL_PRICE.business, recommended: false, tagline: 'The same features, across a group of restaurants.',
           bullets: ['Unlimited invoices', 'Up to 5 restaurants', 'Priority support'] },
       ],
       faqEyebrow:        'Frequently asked questions',
@@ -199,7 +200,7 @@
         { q: 'What happens to my data?', a: 'Your invoices are yours. We store them encrypted on servers in the EU and you can export or delete them at any time. We will never use them to train public models.' },
         { q: 'Do I need to change my POS software?', a: 'No. Mise en Place connects to Square and Revo from day one, and exports to Excel/CSV for the rest. If you use another POS, write to us — we probably integrate it soon.' },
         { q: 'What if the delivery note is stained or crumpled?', a: "That's our specialty. The engine reads phone photos taken in a rush in a hot kitchen. If something is unclear, it flags it for you to confirm — it never makes things up." },
-        { q: 'How much does it cost?', a: 'Free during early access. At launch: Starter €29, Pro €59, and Business €129 per month per restaurant — provisional prices, may adjust before public launch.' },
+        { q: 'How much does it cost?', a: `Free during early access. At launch: Starter €${PROVISIONAL_PRICE.starter}, Pro €${PROVISIONAL_PRICE.pro}, and Business €${PROVISIONAL_PRICE.business} per month per restaurant — provisional prices, may adjust before public launch.` },
         { q: 'When does access start?', a: 'We open in batches from July 2026. We notify by email at least a week in advance.' },
       ],
       closeHead:         "Start with this week's invoice.",
