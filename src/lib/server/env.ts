@@ -46,6 +46,7 @@ export const SENTRY_API_BASE_URL      = stripTrailingSlashes(process.env.SENTRY_
 export const TURNSTILE_SECRET_KEY     = process.env.TURNSTILE_SECRET_KEY    ?? '';
 export const HEALTH_CHECK_TOKEN       = process.env.HEALTH_CHECK_TOKEN      ?? '';
 export const HEALTH_RATE_LIMIT_RPM    = parseInt(process.env.HEALTH_RATE_LIMIT_RPM ?? '60', 10);
+export const DIGEST_SHARE_VIEW_RATE_LIMIT_RPM = parseInt(process.env.DIGEST_SHARE_VIEW_RATE_LIMIT_RPM ?? '30', 10);
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
 if (!APP_BASE_URL) {

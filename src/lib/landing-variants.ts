@@ -167,3 +167,12 @@ export function venueTypeForLandingVariant(variant: string | null | undefined): 
 	if (!variant) return null;
 	return LANDING_VARIANT_VENUE_TYPE[variant] ?? null;
 }
+
+const VENUE_TYPE_LANDING_VARIANT: Partial<Record<VenueType, string>> = Object.fromEntries(
+	Object.entries(LANDING_VARIANT_VENUE_TYPE).map(([slug, venueType]) => [venueType, slug]),
+);
+
+export function landingVariantForVenueType(venueType: string | null | undefined): string | null {
+	if (!venueType) return null;
+	return VENUE_TYPE_LANDING_VARIANT[venueType as VenueType] ?? null;
+}
