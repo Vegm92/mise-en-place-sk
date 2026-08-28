@@ -344,6 +344,20 @@
       "when": 1787916370917,
       "tag": "0048_notification_message_backfill",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1787916430917,
+      "tag": "0049_restaurant_name_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1787917716682,
+      "tag": "0050_drop_upload_sessions_bool_columns",
+      "breakpoints": true
     }
   ]
 }

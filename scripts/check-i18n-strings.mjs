@@ -15,8 +15,9 @@
  *      runtime cannot be resolved statically and are skipped, not guessed at.
  *
  * Language-neutral tokens (brand, currency codes, units, date formats) are
- * allowlisted below. Legal pages and the marketing landing keep their own
- * locale-keyed copy and are skipped wholesale.
+ * allowlisted below. Legal pages keep their own locale-keyed copy and are
+ * skipped wholesale (issue #408); the waitlist mock illustrations are
+ * fixture-like demo data, skipped for the same reason (issue #407).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,7 +31,6 @@ const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: '
 const SKIP_FILES = [
 	'src/routes/privacy/+page.svelte',
 	'src/routes/terms/+page.svelte',
-	'src/routes/waitlist/+page.svelte',
 	// Mock product/invoice illustrations for the waitlist landing — fixture-like
 	// demo data (supplier names, line items), not real UI copy. Same exemption
 	// as the page they were extracted from.

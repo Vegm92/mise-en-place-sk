@@ -1,6 +1,7 @@
 import { db, forTenant } from './db';
 import { supplierMetrics, invoices } from './schema';
 import { sql, eq, and, isNull } from 'drizzle-orm';
+import { moneyToNumber } from './money';
 
 interface ReliabilityResult {
 	score: number;
@@ -34,7 +35,7 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 	const descriptions = topItems.map((t) => t.description);
 
 	const descParams = sql.join(descriptions.map(d => sql`${d}`), sql`, `);
-	const prices = await db.execute<{ description: string; unit_price: number }>(sql`
+	const prices = await db.execute<{ description: string; unit_price: string }>(sql`
 		SELECT ili.description, ili.unit_price
 		FROM invoice_line_items ili
 		JOIN invoices i ON i.id = ili.invoice_id
@@ -51,7 +52,7 @@ async function computePriceStability(supplierId: number, restaurantId: string): 
 	const byDescription = new Map<string, number[]>();
 	for (const p of prices) {
 		const arr = byDescription.get(p.description);
-		if (arr) arr.push(Number(p.unit_price)); else byDescription.set(p.description, [Number(p.unit_price)]);
+		if (arr) arr.push(moneyToNumber(p.unit_price)); else byDescription.set(p.description, [moneyToNumber(p.unit_price)]);
 	}
 
 	const itemCvs: number[] = [];

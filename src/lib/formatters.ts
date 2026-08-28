@@ -1,3 +1,6 @@
+import type { Locale } from './i18n';
+export type { Locale } from './i18n';
+
 export function fmt(n: number | null | undefined): string {
 	return (n ?? 0).toFixed(2);
 }
@@ -17,20 +20,31 @@ export function str(val: unknown): string {
 	return String(val);
 }
 
-const EUR_FMT = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const INTL_LOCALE: Record<Locale, string> = {
+	es: 'es-ES',
+	en: 'en-GB',
+};
 
-export function fmtEur(n: number): string {
-	return EUR_FMT.format(n) + ' €';
+export function toIntlLocale(locale: Locale): string {
+	return INTL_LOCALE[locale] ?? INTL_LOCALE.es;
 }
 
-export function fmtEurCompact(n: number): string {
-	return Math.round(n).toLocaleString('es-ES') + ' €';
+export function fmtEur(n: number, locale: Locale = 'es'): string {
+	return new Intl.NumberFormat(toIntlLocale(locale), { style: 'currency', currency: 'EUR' }).format(n);
 }
 
-export function fmtEurSigned(n: number): string {
+export function fmtEurCompact(n: number, locale: Locale = 'es'): string {
+	return new Intl.NumberFormat(toIntlLocale(locale), {
+		style: 'currency',
+		currency: 'EUR',
+		maximumFractionDigits: 0,
+	}).format(Math.round(n));
+}
+
+export function fmtEurSigned(n: number, locale: Locale = 'es'): string {
 	const rounded = Math.round(n);
 	const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
-	return sign + fmtEurCompact(Math.abs(rounded));
+	return sign + fmtEurCompact(Math.abs(rounded), locale);
 }
 
 const BUDGET_WARN_PCT = 80;
@@ -42,14 +56,18 @@ export function semColor(pct: number): string {
 	return 'var(--mep-neg)';
 }
 
-export function fmtDate(d: string | null, locale = 'es-ES'): string {
+export function fmtDate(d: string | null, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	return new Date(d).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' });
+	return new Date(d).toLocaleDateString(toIntlLocale(locale), { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export function fmtDateShort(d: string | null, locale = 'es-ES'): string {
+export function fmtDateShort(d: string | null, locale: Locale = 'es'): string {
 	if (!d) return '—';
-	return new Date(d).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
+	return new Date(d).toLocaleDateString(toIntlLocale(locale), { day: '2-digit', month: 'short' });
+}
+
+export function fmtMonthShort(ym: string, locale: Locale = 'es'): string {
+	return new Date(`${ym}-01T00:00:00`).toLocaleDateString(toIntlLocale(locale), { month: 'short' });
 }
 
 export function initials(name: string): string {

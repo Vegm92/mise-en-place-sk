@@ -1,7 +1,7 @@
 ﻿<script lang="ts">
   import { VALID_CATEGORIES } from '$lib/constants';
   import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
-  import { fmtEur, fmtDate, fmtDateShort, initials } from '$lib/formatters';
+  import { fmtEur, fmtDate, fmtDateShort, fmtMonthShort, initials } from '$lib/formatters';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Pencil from '@lucide/svelte/icons/pencil';
@@ -48,7 +48,7 @@
     frequencyScore: number;
     timelinessScore: number;
   }
-  interface MonthlyBar { label: string; value: number; partial: boolean }
+  interface MonthlyBar { key: string; value: number; partial: boolean }
   interface Conversion {
     id: number;
     ingredient: string;
@@ -77,6 +77,7 @@
     tab       = $bindable<'resumen'|'albaranes'|'productos'|'conversiones'>('resumen'),
     editing   = $bindable(false),
     confirmDelete = $bindable(false),
+    highlightCategory = $bindable(false),
   }: {
     supplier: Supplier;
     invoices: Invoice[];
@@ -89,6 +90,7 @@
     tab?: 'resumen'|'albaranes'|'productos'|'conversiones';
     editing?: boolean;
     confirmDelete?: boolean;
+    highlightCategory?: boolean;
   } = $props();
 
   const color = $derived(categoryColor(s.category));
@@ -243,7 +245,8 @@
               </div>
               <div>
                 <label for="edit-category" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.category')}</label>
-                <select id="edit-category" class="input" name="category" style="width:100%;">
+                <select id="edit-category" class="input" class:mep-field-highlight={highlightCategory} name="category" style="width:100%;"
+                  onfocus={() => highlightCategory = false} onchange={() => highlightCategory = false}>
                   <option value="">{$t('sup.noCategory')}</option>
                   {#each VALID_CATEGORIES as cat}
                     <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
@@ -329,7 +332,7 @@
                 </div>
                 {#if chartAvg > 0}
                   <div style="display:flex;align-items:baseline;gap:8px;">
-                    <span class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;">{fmtEur(chartAvg)}</span>
+                    <span class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;">{fmtEur(chartAvg, $locale)}</span>
                     <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('sup.monthlyAvg')}</span>
                   </div>
                 {/if}
@@ -351,11 +354,11 @@
                       font-size="10.5" font-weight="500" fill="var(--mep-fg)">
                       {bar.value >= 1000
                         ? (bar.value / 1000).toFixed(1).replace('.', ',') + 'k'
-                        : fmtEur(bar.value)}
+                        : fmtEur(bar.value, $locale)}
                     </text>
                   {/if}
                   <text x={bx + 18} y={CB + 14} text-anchor="middle"
-                    font-size="10.5" fill="var(--mep-fg-3)">{bar.label}</text>
+                    font-size="10.5" fill="var(--mep-fg-3)">{fmtMonthShort(bar.key, $locale)}</text>
                 {/each}
                 {#if chartAvg > 0}
                   {@const avgY = CB - (chartAvg / chartMax) * CH}
@@ -369,7 +372,7 @@
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{$t('sup.avgInvoice')}</div>
                 <div class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
-                  {fmtEur(avgInvoice)}
+                  {fmtEur(avgInvoice, $locale)}
                 </div>
                 <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$tp('misc.invoice', invoices.length)}</div>
               </div>
@@ -385,7 +388,7 @@
                 <div class="label" style="margin-bottom:6px;">{$t('sup.pendingPayment')}</div>
                 <div class="num" style="font-size:20px;font-weight:600;
                   color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">
-                  {fmtEur(pendingAmt)}
+                  {fmtEur(pendingAmt, $locale)}
                 </div>
                 <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('sup.openAmount')}</div>
               </div>
@@ -530,7 +533,7 @@
                       <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
                     </div>
                     <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">
-                      {fmtEur(inv.totalAmount ?? 0)}
+                      {fmtEur(inv.totalAmount ?? 0, $locale)}
                     </div>
                     <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
                   </a>
@@ -564,7 +567,7 @@
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{inv.invoiceNumber ?? 'â€”'}</td>
                     <td style="font-size:12.5px;">{fmtDate(inv.invoiceDate, $locale)}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDate(inv.dueDate, $locale)}</td>
-                    <td class="num" style="font-weight:500;">{fmtEur(inv.totalAmount ?? 0)}</td>
+                    <td class="num" style="font-weight:500;">{fmtEur(inv.totalAmount ?? 0, $locale)}</td>
                     <td><StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:2px 7px;" /></td>
                   </tr>
                 {/each}
@@ -596,7 +599,7 @@
                       opacity={hoveredSlice === null || hoveredSlice === i ? 1 : 0.35}
                       style="cursor:pointer;transition:stroke-width 120ms,opacity 120ms;"
                       role="img"
-                      aria-label="{slice.label}: {fmtEur(slice.spend)} ({(slice.pct * 100).toFixed(0)}%)"
+                      aria-label="{slice.label}: {fmtEur(slice.spend, $locale)} ({(slice.pct * 100).toFixed(0)}%)"
                       onmouseenter={() => hoveredSlice = i}
                       onmouseleave={() => hoveredSlice = null} />
                   {/each}
@@ -606,7 +609,7 @@
                     <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{(productDonut.slices[hoveredSlice].pct * 100).toFixed(0)}%</span>
                     <span style="font-size:11px;color:var(--mep-fg-3);max-width:100px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{productDonut.slices[hoveredSlice].label}</span>
                   {:else}
-                    <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total)}</span>
+                    <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total, $locale)}</span>
                     <span style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
                   {/if}
                 </div>
@@ -623,11 +626,12 @@
                       {slice.label}
                     </span>
                     <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);flex-shrink:0;width:34px;text-align:right;">{(slice.pct * 100).toFixed(0)}%</span>
-                    <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:80px;text-align:right;">{fmtEur(slice.spend)}</span>
+                    <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:80px;text-align:right;">{fmtEur(slice.spend, $locale)}</span>
                   </div>
-                  {#if hoveredSlice === i && slice.totalQty != null}
-                    <div style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
-                      {slice.totalQty.toFixed(2)} {slice.unit ?? ''} · {$t('sup.products.avgPrice')} {fmtEur(slice.avgPrice ?? 0)}{slice.lastDate ? ` · ${fmtDateShort(slice.lastDate, $locale)}` : ''}
+                  {#if slice.totalQty != null}
+                    <div class="sup-product-detail" class:is-visible={hoveredSlice === i}
+                      style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
+                      {slice.totalQty.toFixed(2)} {slice.unit ?? ''} · {$t('sup.products.avgPrice')} {fmtEur(slice.avgPrice ?? 0, $locale)}{slice.lastDate ? ` · ${fmtDateShort(slice.lastDate, $locale)}` : ''}
                     </div>
                   {/if}
                 {/each}
@@ -651,8 +655,8 @@
                   <tr>
                     <td style="font-size:12.5px;">{p.description ?? 'â€”'}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.unit ?? 'â€”'}</td>
-                    <td class="num" style="font-size:12.5px;">{p.avgPrice != null ? fmtEur(p.avgPrice) : 'â€”'}</td>
-                    <td class="num" style="font-size:12.5px;">{p.totalSpend != null ? fmtEur(p.totalSpend) : 'â€”'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.avgPrice != null ? fmtEur(p.avgPrice, $locale) : 'â€”'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.totalSpend != null ? fmtEur(p.totalSpend, $locale) : 'â€”'}</td>
                     <td class="num" style="font-size:12.5px;">{p.totalQty != null ? p.totalQty.toFixed(2) : 'â€”'}</td>
                     <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.lastDate ? fmtDateShort(p.lastDate, $locale) : 'â€”'}</td>
                   </tr>
@@ -738,4 +742,26 @@
     </div>
   </div>
 </div>
+
+<style>
+  .sup-product-detail {
+    opacity: 0;
+    transform: translateY(4px);
+    pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+  }
+  .sup-product-detail.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: 100ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sup-product-detail {
+      transition: none;
+    }
+    .sup-product-detail.is-visible {
+      transition-delay: 0ms;
+    }
+  }
+</style>
 

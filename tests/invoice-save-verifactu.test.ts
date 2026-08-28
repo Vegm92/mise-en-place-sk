@@ -95,7 +95,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		const [invoiceRow] = await testSql`
 			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
 		expect(invoiceRow.qr_url).toBe(VALID_QR);
-		expect(invoiceRow.qr_mismatch).toBe(1);
+		expect(invoiceRow.qr_mismatch).toBe(true);
 
 		const notifications = await testSql`
 			SELECT payload FROM system_notifications
@@ -122,7 +122,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 
 		const [invoiceRow] = await testSql`
 			SELECT qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow.qr_mismatch).toBe(1);
+		expect(invoiceRow.qr_mismatch).toBe(true);
 
 		const notifications = await testSql`
 			SELECT payload FROM system_notifications
@@ -151,7 +151,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		const [invoiceRow] = await testSql`
 			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
 		expect(invoiceRow.qr_url).toBe(VALID_QR);
-		expect(invoiceRow.qr_mismatch).toBe(0);
+		expect(invoiceRow.qr_mismatch).toBe(false);
 
 		const notifications = await testSql`
 			SELECT id FROM system_notifications
@@ -173,6 +173,6 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 		const [invoiceRow] = await testSql`
 			SELECT qr_url, qr_mismatch FROM invoices WHERE id = ${out.invoiceId}`;
 		expect(invoiceRow.qr_url).toBeNull();
-		expect(invoiceRow.qr_mismatch).toBe(0);
+		expect(invoiceRow.qr_mismatch).toBe(false);
 	});
 });

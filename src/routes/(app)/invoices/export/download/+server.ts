@@ -6,8 +6,9 @@ import { and, desc, eq, gte, isNull, lte, type SQL } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { EXPORT_ROW_CAP } from '$lib/server/env';
+import { toIntlLocale } from '$lib/formatters';
 
 const POSITIVE_INT = /^[1-9]\d*$/;
 
@@ -27,7 +28,7 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 
-	if (!(await checkRateLimit(`export:${rid}`, 5))) {
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'export', max: 5 }, { restaurantId: rid }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 
@@ -122,7 +123,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	if (truncated) {
 		const notice = sheet.addRow({
-			id: `Exportación truncada a ${EXPORT_ROW_CAP.toLocaleString('es-ES')} filas — acota el rango de fechas o el proveedor para exportar el resto.`,
+			id: `Exportación truncada a ${EXPORT_ROW_CAP.toLocaleString(toIntlLocale('es'))} filas — acota el rango de fechas o el proveedor para exportar el resto.`,
 		});
 		sheet.mergeCells(`A${notice.number}:H${notice.number}`);
 		notice.getCell('id').font = { italic: true, bold: true, color: { argb: 'FFB00020' } };

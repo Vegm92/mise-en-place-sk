@@ -6,12 +6,14 @@ import { and, eq, sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { confirmProductAlias, rejectProductAlias, mergeIntoProduct } from '$lib/server/products';
 import type { AliasDecision } from '$lib/server/products';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) throw error(403, 'No active restaurant');
-	if (!(await checkRateLimit(`product-alias:${rid}`, 60))) throw error(429, 'Too many requests');
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'product-alias', max: 60 }, { restaurantId: rid }))) {
+		throw error(429, 'Too many requests');
+	}
 
 	const body = await request.json().catch(() => null);
 	const description = typeof body?.description === 'string' ? body.description : '';

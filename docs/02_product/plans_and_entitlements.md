@@ -27,9 +27,10 @@ Full billing feature spec: `docs/03_features/billing.md`. Decision record:
   unless the env override `PLAN_PRICE_<TIER>_EUR` is set
   (`planMonthlyPriceCents`). MRR/ARPA/ACV/LTV are computed off this.
   **One source of truth**: the override → `PROVISIONAL_PRICE` value is what
-  `/billing` renders. `/waitlist` still hardcodes 29/59/129 independently
-  (open item #439) — the fix is for it to read the same resolved value so an
-  `.env` change updates both surfaces.
+  `/billing` renders. `/waitlist` reads `PROVISIONAL_PRICE` directly (issue
+  #439) rather than the resolved override — it is a public page with no
+  access to server env vars, so an `.env` override updates `/billing` but not
+  `/waitlist`; changing `PROVISIONAL_PRICE` itself still updates both.
 - Stripe price ids: `STRIPE_PRICE_ID_STARTER/_PRO/_BUSINESS`; legacy
   `STRIPE_PRICE_ID` is a fallback for starter. A tier without a price id is
   "not available" on `/billing` (`isTierAvailable`).

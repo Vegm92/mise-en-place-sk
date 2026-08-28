@@ -5,6 +5,7 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import CoachMark from '$lib/components/mep/CoachMark.svelte';
+  import Logo from '$lib/components/mep/Logo.svelte';
   import { tutorialStep, setTutorialStep, seedTutorialStep, type TutorialStep } from '$lib/stores/tutorial';
   import { TOUR_PAGES, tourPageAccessible, nextAccessibleIndex } from '$lib/tour-gating';
   import Lock from '@lucide/svelte/icons/lock';
@@ -408,11 +409,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     "
   >
     <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;{collapsed ? 'justify-content:center;' : ''}">
-      <svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
-        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
-      </svg>
+      <Logo size={22} />
       {#if !collapsed}
         <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
           Mise en Place

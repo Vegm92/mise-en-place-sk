@@ -65,9 +65,14 @@ in three passes:
    rather than guessed at — an unresolvable key is not evidence of a missing one.
 
 Language-neutral tokens are allowlisted: the brand name, currency codes, unit
-abbreviations, date-format strings. Three pages are skipped wholesale —
-`/privacy`, `/terms`, `/waitlist` — because legal copy and marketing landing text
-carry their own locale-keyed content and do not belong in the app string table.
+abbreviations, date-format strings. Two pages are skipped wholesale —
+`/privacy`, `/terms` — because legal copy carries its own locale-keyed content
+and does not belong in the app string table (issue #408). `/waitlist` used to
+be a third exemption; issue #407 moved its copy into the shared table under a
+`waitlist.*` namespace, reusing `billing.*` keys wherever the pricing copy is
+byte-identical, so it is checked like any other route. Its scroll-reactive
+mock illustrations (`src/lib/components/waitlist/*Mock.svelte`) stay skipped —
+fixture-like demo data (product names, line items), not real UI copy.
 
 This gate is the decision. Without it, the "one file, no library" approach decays
 into hardcoded Spanish within a quarter.

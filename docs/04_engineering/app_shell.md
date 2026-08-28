@@ -67,7 +67,7 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`property upload`**
 - A lapsed trial (or a cancelled/past-due subscription) may keep reading its data, but must not start new paid work (issue #287). First thing in the action: an expired tenant gets sent to /billing without uploading a 20 MB file first, and never reaches the rate limiter or quota gate.
 - Use typeof check instead of instanceof — SvelteKit's internal File class may differ from globalThis.File across Node.js versions, causing instanceof to silently drop files.
-- Each upload consumes a paid Gemini extraction — cap batch submissions per tenant regardless of plan quota: `checkRateLimit('upload:${rid}', 10)`.
+- Each upload consumes a paid Gemini extraction — cap batch submissions per tenant regardless of plan quota: `rateLimitScoped({ scope: 'tenant', name: 'upload', max: 10 }, { restaurantId: rid })` (ADR-029).
 - Plan quota gate — block before consuming any Gemini extraction and redirect (not fail) to /billing to upgrade, so the message + upgrade CTA render reliably for both the XHR and no-JS submit paths via the page's error banner. Skipped when no quota is configured.
 - Random storage namespace — generated before the batch exists so files can be saved first; it does not need to match the batch id.
 - Every file rejected by validation — report the first reason with the offending filename (issue #294); reasons are i18n keys.
@@ -215,6 +215,8 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`markup`**
 - Open Graph, Twitter / X Card, structured data (JSON-LD).
 - Sections: nav, masthead, hero (left rail, center headline + form, right rotated extract preview), integrations strip, Pain — Chapter I, How — Chapter II, product mock (replaces PNG screenshots: capture faux invoice + WhatsApp bubble, extract structured invoice table, dashboard stacked bar + alert with SVG pre-computed positions), Testimonials — Chapter III, final CTA inverted, footer.
+**`PAID_TIERS` / pricing cards**
+- Copy went through `$t`/`$ti` against `src/lib/i18n.ts`'s `waitlist.*` namespace (issue #407) instead of a page-local `copy` object; the language toggle now drives the shared `locale` writable (persisted via `initLocale()`, same `mep-locale` `localStorage` key the rest of the app uses) instead of local component state. Pricing-tier names/taglines/bullets are read straight from `billing.plan.*` / `TIER_COPY` (`$lib/billing-plans.ts`) — the same source `BillingPlanCard.svelte` renders from — rather than duplicating that copy; only the numbers (`PROVISIONAL_PRICE`) and quotas are supplied locally. `tests/waitlist-provisional-price.test.ts` diffs every rendered string, per locale, against the pre-migration inline object (pinned by commit SHA) to guarantee the move was byte-identical.
 
 ## Server core (DB, extraction, billing, jobs)
 

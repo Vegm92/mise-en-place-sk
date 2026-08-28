@@ -1,7 +1,8 @@
 <script lang="ts">
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import Check from '@lucide/svelte/icons/check';
-  import { t } from '$lib/i18n';
+  import { locale, t } from '$lib/i18n';
+  import { fmtEurCompact } from '$lib/formatters';
   import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
   import { groupNotifications, type Notif } from '$lib/notification-display';
 
@@ -34,7 +35,7 @@
   } = $props();
 
   function fmtAmount(n: number) {
-    return Math.round(n).toLocaleString('es-ES') + ' EUR';
+    return fmtEurCompact(n, $locale);
   }
 
   const notifGroupList = $derived([

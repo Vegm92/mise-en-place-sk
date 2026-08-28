@@ -34,7 +34,7 @@
     {#if item.eur > 0}
       <div style="text-align:right;flex-shrink:0;">
         <div class="num" style="font-size:20px;font-weight:600;letter-spacing:-0.02em;line-height:1.1;color:var(--mep-fg);">
-          {fmtEurCompact(item.eur)}
+          {fmtEurCompact(item.eur, $locale)}
         </div>
         <div class="label">{$t('turno.atStakeUnit')}</div>
       </div>

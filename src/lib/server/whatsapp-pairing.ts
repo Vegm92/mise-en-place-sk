@@ -4,6 +4,7 @@ import { db, forTenant } from './db';
 import { whatsappPairingCodes } from './schema';
 import { addContact } from './whatsapp-contacts';
 import { checkRateLimit } from './rate-limiter';
+import { rateLimitScoped } from './rate-limit-scope';
 import { normalizePhoneNumber } from '$lib/phone';
 
 export const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRTUVWXYZ';
@@ -56,7 +57,10 @@ export async function generatePairingCode(
 		normalizedPhone = normalized.phone;
 	}
 
-	if (!(await checkRateLimit(`whatsapp-pair-gen:${restaurantId}`, GENERATE_LIMIT, GENERATE_WINDOW_S))) {
+	if (!(await rateLimitScoped(
+		{ scope: 'tenant', name: 'whatsapp-pair-gen', max: GENERATE_LIMIT, windowSeconds: GENERATE_WINDOW_S },
+		{ restaurantId },
+	))) {
 		return { ok: false, reason: 'rateLimited' };
 	}
 

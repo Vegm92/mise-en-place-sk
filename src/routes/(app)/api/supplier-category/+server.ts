@@ -4,12 +4,14 @@ import { db, forTenant } from '$lib/server/db';
 import { suppliers, systemNotifications } from '$lib/server/schema';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const rid = locals.restaurantId;
 	if (!rid) throw error(403, 'No active restaurant');
-	if (!(await checkRateLimit(`supplier-category:${rid}`, 60))) throw error(429, 'Too many requests');
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'supplier-category', max: 60 }, { restaurantId: rid }))) {
+		throw error(429, 'Too many requests');
+	}
 
 	const body = await request.json().catch(() => null);
 	const supplierId = typeof body?.supplierId === 'number' ? body.supplierId : null;

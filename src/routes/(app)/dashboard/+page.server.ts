@@ -117,7 +117,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			trend, invoiceRangeRow,
 		] = await Promise.all([
 			db.select({
-				amount: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
+				amount: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)::float8`,
 				count: sql<number>`COUNT(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN 1 END)`,
 				incidencias: sql<number>`COUNT(CASE WHEN ${invoices.reviewState} = 'incidencia' THEN 1 END)`,
 			})
@@ -125,8 +125,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt))),
 
 			db.select({
-				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
-				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)::float8`,
+				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)::float8`,
 			})
 				.from(invoices)
 				.where(and(
@@ -135,7 +135,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') >= ${prevMonth}`
 				)),
 
-			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)` })
+			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)::float8` })
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
@@ -159,8 +159,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute(sql`
 				SELECT s.id, s.name,
 					COALESCE(s.category,'Other') AS category,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0)::float8 AS month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0)::float8 AS prev_month_spend,
 					COUNT(CASE WHEN i.review_state <> 'revisado' THEN 1 END) AS open_count,
 					MAX(CASE WHEN i.review_state = 'incidencia' THEN 1 ELSE 0 END) AS has_issues
 				FROM suppliers s
@@ -171,7 +171,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.execute(sql`
 				SELECT ${lineCategoryExpr()} AS category,
-				       COALESCE(SUM(${lineAmountExpr()}),0) AS total
+				       COALESCE(SUM(${lineAmountExpr()}),0)::float8 AS total
 				FROM invoice_line_items
 				JOIN invoices i ON i.id = invoice_line_items.invoice_id
 				JOIN suppliers ON suppliers.id = i.supplier_id
@@ -194,7 +194,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number, i.invoice_date,
-				       COALESCE(i.total_amount,0) AS display_amount,
+				       COALESCE(i.total_amount,0)::float8 AS display_amount,
 				       i.review_state,
 				       COUNT(li.id) AS item_count
 				FROM invoices i
@@ -206,7 +206,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				GROUP BY i.id, s.name ORDER BY i.invoice_date DESC, i.created_at DESC LIMIT 6
 			`),
 
-			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)` })
+			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)::float8` })
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
@@ -346,7 +346,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			? await db
 				.select({
 					description: invoiceLineItems.description,
-					spend: sql<number>`COALESCE(SUM(COALESCE(${invoiceLineItems.totalPrice},0)),0)`,
+					spend: sql<number>`COALESCE(SUM(COALESCE(${invoiceLineItems.totalPrice},0)),0)::float8`,
 				})
 				.from(invoiceLineItems)
 				.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))

@@ -179,6 +179,12 @@ describe('worklist', () => {
 		const item = buildWorklist(input({ missing: [{ supplier_name: 'Ruiz', days_late: 9, frequency: 'lunar' }] }))[0];
 		expect(item?.whyKey).toBe('turno.missing.why.periodic');
 	});
+
+	it('links the categorisation nudge to the Category field highlight (issue #574)', () => {
+		const item = buildWorklist(input({ uncategorized: [{ supplierId: 7, supplierName: 'Distribuciones Olé' }] }))[0];
+		expect(item?.kind).toBe('supplier');
+		expect(item?.href).toBe('/suppliers/7?highlight=category');
+	});
 });
 
 describe('pace curve', () => {

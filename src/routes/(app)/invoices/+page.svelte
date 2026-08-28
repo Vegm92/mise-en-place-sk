@@ -247,7 +247,7 @@
     onToggleTrendBadge={toggleTrendBadge}
     trendXLabels={data.trendData.xLabels}
     {trendSeries}
-    trendValueFormatter={fmtEur}
+    trendValueFormatter={(n) => fmtEur(n, $locale)}
     trendEmptyLabel={$t('tpl.trend.empty')}
   >
     {#snippet filters()}

@@ -4,7 +4,7 @@ import { GEMINI_API_KEY, CHAT_RATE_LIMIT_RPM } from '$lib/server/env';
 import { createGeminiProvider } from '$lib/server/llm-provider';
 import { recordLlmUsage } from '$lib/server/llm-quota';
 import { buildChatContext } from '$lib/server/chat-context';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { chatSessions, chatMessages } from '$lib/server/schema';
@@ -93,7 +93,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (!GEMINI_API_KEY) throw error(503, 'AI service is not configured — please contact support');
 
-	if (!await checkRateLimit(`chat:${locals.user!.id}`, CHAT_RATE_LIMIT_RPM)) {
+	if (!await rateLimitScoped({ scope: 'tenant', name: 'chat', max: CHAT_RATE_LIMIT_RPM }, { restaurantId: rid })) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 

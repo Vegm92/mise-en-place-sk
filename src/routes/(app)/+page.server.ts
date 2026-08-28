@@ -6,7 +6,7 @@ import { saveUploadedFiles } from '$lib/server/sessions';
 import { createBatch, getItem, getBatchItems, markQueued } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
@@ -93,7 +93,7 @@ export const actions: Actions = {
 		const invalidFiles = rejectInvalidFiles(files);
 		if (invalidFiles) return invalidFiles;
 
-		if (!(await checkRateLimit(`upload:${rid}`, 10))) {
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'upload', max: 10 }, { restaurantId: rid }))) {
 			return fail(429, { error: 'upload.err.rateLimited' });
 		}
 

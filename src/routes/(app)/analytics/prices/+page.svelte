@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { locale, t } from '$lib/i18n';
+  import { fmtEur } from '$lib/formatters';
   import Search from '@lucide/svelte/icons/search';
   import MobileAnalyticsPrices from '$lib/components/mobile/MobileAnalyticsPrices.svelte';
 
@@ -26,7 +27,7 @@
   const totalFlat = $derived(data.items.filter(p => p.change_pct === null || Math.abs(p.change_pct) < 0.01).length);
 
   function fmtPrice(n: number) {
-    return n.toFixed(2).replace('.', ',') + ' €';
+    return fmtEur(n, $locale);
   }
 
   function fmtDate(d: string | null) {
@@ -48,12 +49,12 @@
     return pct > 0 ? '↑' : '↓';
   }
 
-  const filterOptions: Array<[typeof filterChange, string]> = [
+  const filterOptions = $derived<Array<[typeof filterChange, string]>>([
     ['all',  $t('prices.filter.all')],
     ['up',   $t('prices.filter.up')],
     ['down', $t('prices.filter.down')],
     ['flat', $t('prices.filter.flat')],
-  ];
+  ]);
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">

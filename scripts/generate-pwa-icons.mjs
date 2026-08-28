@@ -1,6 +1,12 @@
 /**
- * Generates PWA icon PNGs using only Node.js built-ins (zlib + Buffer).
- * Design: deep-green background, cream "M" letterform for Mise en Place.
+ * Generates PWA icon PNGs (and the favicon PNGs + ICO) using only Node.js
+ * built-ins (zlib + Buffer). Design: the same three-bar mark used in-app
+ * (`src/lib/components/mep/Logo.svelte`) and in transactional email
+ * (`src/lib/server/email.ts`'s LOGO_SVG), on the ink/parchment brand pair
+ * (ADR-028) — ink background (#17171A, matches manifest.webmanifest's
+ * theme_color), parchment bars (#F1F0EE, matches its background_color).
+ * These constants are asserted against the manifest by
+ * tests/logo-usage-consistency.test.ts — change both together.
  * Run: node scripts/generate-pwa-icons.mjs
  */
 import { deflateSync } from 'node:zlib';
@@ -102,94 +108,83 @@ function createCanvas(w, h, bgR, bgG, bgB) {
 		}
 	}
 
-	function fillCircle(cx, cy, r, fr, fg, fb) {
-		for (let y = Math.ceil(cy - r); y <= Math.floor(cy + r); y++) {
-			for (let x = Math.ceil(cx - r); x <= Math.floor(cx + r); x++) {
-				const dx = x - cx, dy = y - cy;
-				// Anti-alias edge via distance
-				const dist = Math.sqrt(dx * dx + dy * dy);
-				if (dist <= r - 1) {
-					setPixel(x, y, fr, fg, fb);
-				} else if (dist <= r) {
-					const alpha = Math.round((r - dist) * 255);
-					setPixel(x, y, fr, fg, fb, alpha);
-				}
-			}
-		}
-	}
-
-	// Fill horizontal span [x1, x2) on row y
-	function fillSpan(y, x1, x2, r, g, b) {
-		for (let x = Math.ceil(x1); x < Math.floor(x2); x++) setPixel(x, y, r, g, b);
-	}
-
-	return { px, w, h, setPixel, fillRect, fillCircle, fillSpan };
+	return { px, w, h, setPixel, fillRect };
 }
 
 // ── Icon design ──────────────────────────────────────────────────────────────
-// Brand colours
-const BG_R = 0x1c, BG_G = 0x3b, BG_B = 0x2a; // #1C3B2A deep forest green
-const FG_R = 0xf0, FG_G = 0xe6, FG_B = 0xd3; // #F0E6D3 warm parchment cream
+// Brand colours — must match manifest.webmanifest's theme_color / background_color
+// (asserted by tests/logo-usage-consistency.test.ts).
+const BG_HEX = '#17171A'; // ink — manifest.webmanifest theme_color
+const FG_HEX = '#F1F0EE'; // parchment — manifest.webmanifest background_color
+const BG_R = 0x17, BG_G = 0x17, BG_B = 0x1a;
+const FG_R = 0xf1, FG_G = 0xf0, FG_B = 0xee;
 
 /**
- * Draws a "Mise en Place" M letterform on a green circular badge.
- * The M occupies ~60% of the icon area, centred.
- *
- * Letterform proportions (unit = icon size):
- *   left vertical:  x in [0.20, 0.32], y in [0.25, 0.75]
- *   right vertical: x in [0.68, 0.80], y in [0.25, 0.75]
- *   left arm:       diagonal from (0.32, 0.25) → (0.50, 0.55), strokeW 0.12
- *   right arm:      diagonal from (0.50, 0.55) → (0.68, 0.25), strokeW 0.12
+ * The three-bar mark shared with `src/lib/components/mep/Logo.svelte` and
+ * `src/lib/server/email.ts`'s LOGO_SVG, expressed in the same 24-unit space
+ * those use (viewBox="0 0 24 24"): three vertical bars, all starting at
+ * y=3.5, of decreasing height (17/13/9), left to right.
  */
+const BAR_UNIT = 24;
+const BARS = [
+	{ x: 2.5, h: 17 },
+	{ x: 10.5, h: 13 },
+	{ x: 18.5, h: 9 },
+];
+const BAR_W = 3;
+const BAR_Y = 3.5;
+
+/** Draws the mark on a flat ink square, bars filling their 24-unit-space position scaled to `size`. */
 function drawIcon(size) {
 	const cv = createCanvas(size, size, BG_R, BG_G, BG_B);
-	const s = size;
-
-	// Inner circle (slightly lighter green)
-	cv.fillCircle(s * 0.5, s * 0.5, s * 0.44, 0x27, 0x52, 0x3b);
-
-	// Proportional coordinates
-	const top    = s * 0.25;
-	const bottom = s * 0.75;
-	const lx0    = s * 0.20; // left outer edge
-	const lx1    = s * 0.32; // left inner edge
-	const rx0    = s * 0.68; // right inner edge
-	const vx     = s * 0.50; // valley x centre
-	const vy     = s * 0.57; // valley y
-
-	const strokeW = lx1 - lx0; // ≈ 0.12 s
-
-	// Left vertical stroke
-	cv.fillRect(lx0, top, strokeW, bottom - top, FG_R, FG_G, FG_B);
-
-	// Right vertical stroke
-	cv.fillRect(rx0, top, strokeW, bottom - top, FG_R, FG_G, FG_B);
-
-	// Left arm: diagonal from (lx1, top) → (vx, vy), constant-width stroke
-	{
-		const x1s = lx1, y1s = top, x2s = vx, y2s = vy;
-		const armH = y2s - y1s;
-		for (let dy = 0; dy <= armH; dy++) {
-			const t = dy / armH;
-			const cx = x1s + t * (x2s - x1s);
-			const py = y1s + dy;
-			cv.fillSpan(py, cx, cx + strokeW, FG_R, FG_G, FG_B);
-		}
+	const s = size / BAR_UNIT;
+	for (const bar of BARS) {
+		cv.fillRect(bar.x * s, BAR_Y * s, BAR_W * s, bar.h * s, FG_R, FG_G, FG_B);
 	}
-
-	// Right arm: diagonal from (vx - strokeW, vy) → (rx0 - strokeW, top)
-	{
-		const x1s = vx - strokeW, y1s = vy, x2s = rx0 - strokeW, y2s = top;
-		const armH = y1s - y2s;
-		for (let dy = 0; dy <= armH; dy++) {
-			const t = dy / armH;
-			const cx = x1s + t * (x2s - x1s);
-			const py = y1s - dy;
-			cv.fillSpan(py, cx, cx + strokeW, FG_R, FG_G, FG_B);
-		}
-	}
-
 	return encodePng(size, size, cv.px);
+}
+
+/** Maskable variant: bars pulled into an 80% safe zone, same relative layout. */
+function drawMaskable(size) {
+	const cv = createCanvas(size, size, BG_R, BG_G, BG_B);
+	const scale = 0.7;
+	const offset = (1 - scale) / 2;
+	const map = (v) => size * (offset + (v / BAR_UNIT) * scale);
+	for (const bar of BARS) {
+		const x0 = map(bar.x);
+		const y0 = map(BAR_Y);
+		const w0 = (BAR_W / BAR_UNIT) * scale * size;
+		const h0 = (bar.h / BAR_UNIT) * scale * size;
+		cv.fillRect(x0, y0, w0, h0, FG_R, FG_G, FG_B);
+	}
+	return encodePng(size, size, cv.px);
+}
+
+// ── ICO encoder (PNG-in-ICO, Vista+; every modern consumer supports it) ──────
+
+function encodeIco(pngsBySize) {
+	const count = pngsBySize.length;
+	const dir = Buffer.alloc(6 + 16 * count);
+	dir.writeUInt16LE(0, 0); // reserved
+	dir.writeUInt16LE(1, 2); // type: icon
+	dir.writeUInt16LE(count, 4);
+
+	let offset = dir.length;
+	const chunks = [dir];
+	pngsBySize.forEach(({ size, png }, i) => {
+		const entry = 6 + 16 * i;
+		dir.writeUInt8(size >= 256 ? 0 : size, entry + 0); // width (0 = 256)
+		dir.writeUInt8(size >= 256 ? 0 : size, entry + 1); // height (0 = 256)
+		dir.writeUInt8(0, entry + 2); // color count
+		dir.writeUInt8(0, entry + 3); // reserved
+		dir.writeUInt16LE(1, entry + 4); // planes
+		dir.writeUInt16LE(32, entry + 6); // bit count
+		dir.writeUInt32LE(png.length, entry + 8); // bytes in resource
+		dir.writeUInt32LE(offset, entry + 12); // offset
+		chunks.push(png);
+		offset += png.length;
+	});
+	return Buffer.concat(chunks);
 }
 
 // ── Generate all sizes ───────────────────────────────────────────────────────
@@ -203,55 +198,27 @@ for (const sz of sizes) {
 	console.log(`  ✓ icon-${sz}x${sz}.png`);
 }
 
-// apple-touch-icon
 writeFileSync(resolve(ROOT, 'static/apple-touch-icon.png'), drawIcon(180));
 console.log('  ✓ apple-touch-icon.png');
-
-// maskable icon (slightly different safe-zone crop — same design, larger circle)
-function drawMaskable(size) {
-	const cv = createCanvas(size, size, BG_R, BG_G, BG_B);
-	const s = size;
-	// For maskable, fill the entire square with the inner-green (no outer ring clipped off)
-	cv.fillRect(0, 0, s, s, 0x27, 0x52, 0x3b);
-
-	// Pull the M inward 20% (safe zone is 80% of icon)
-	const scale = 0.7; // letter takes up 70% of the icon
-	const offset = (1 - scale) / 2;
-	const top    = s * (0.25 * scale + offset);
-	const bottom = s * (0.75 * scale + offset);
-	const lx0    = s * (0.20 * scale + offset);
-	const lx1    = s * (0.32 * scale + offset);
-	const rx0    = s * (0.68 * scale + offset);
-	const vx     = s * (0.50 * scale + offset);
-	const vy     = s * (0.57 * scale + offset);
-	const strokeW = lx1 - lx0;
-
-	cv.fillRect(lx0, top, strokeW, bottom - top, FG_R, FG_G, FG_B);
-	cv.fillRect(rx0, top, strokeW, bottom - top, FG_R, FG_G, FG_B);
-
-	{
-		const x1s = lx1, y1s = top, x2s = vx, y2s = vy;
-		const armH = y2s - y1s;
-		for (let dy = 0; dy <= armH; dy++) {
-			const t = dy / armH;
-			const cx = x1s + t * (x2s - x1s);
-			cv.fillSpan(y1s + dy, cx, cx + strokeW, FG_R, FG_G, FG_B);
-		}
-	}
-	{
-		const x1s = vx - strokeW, y1s = vy, x2s = rx0 - strokeW, y2s = top;
-		const armH = y1s - y2s;
-		for (let dy = 0; dy <= armH; dy++) {
-			const t = dy / armH;
-			const cx = x1s + t * (x2s - x1s);
-			cv.fillSpan(y1s - dy, cx, cx + strokeW, FG_R, FG_G, FG_B);
-		}
-	}
-
-	return encodePng(size, size, cv.px);
-}
 
 writeFileSync(resolve(ICON_DIR, 'icon-maskable-512x512.png'), drawMaskable(512));
 console.log('  ✓ icon-maskable-512x512.png');
 
-console.log('\nAll PWA icons generated successfully.');
+const favicon32 = drawIcon(32);
+const favicon16 = drawIcon(16);
+writeFileSync(resolve(ROOT, 'static/favicon-32x32.png'), favicon32);
+console.log('  ✓ favicon-32x32.png');
+writeFileSync(resolve(ROOT, 'static/favicon-16x16.png'), favicon16);
+console.log('  ✓ favicon-16x16.png');
+
+writeFileSync(
+	resolve(ROOT, 'static/favicon.ico'),
+	encodeIco([
+		{ size: 16, png: favicon16 },
+		{ size: 32, png: favicon32 },
+		{ size: 48, png: drawIcon(48) },
+	]),
+);
+console.log('  ✓ favicon.ico');
+
+console.log(`\nAll PWA icons + favicons generated successfully (${BG_HEX} on ${FG_HEX}).`);

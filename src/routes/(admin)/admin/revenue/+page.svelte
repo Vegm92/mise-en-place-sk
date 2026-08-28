@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
-  import { t, ti } from '$lib/i18n';
+  import { locale, t, ti } from '$lib/i18n';
+  import { fmtEur, fmtEurCompact } from '$lib/formatters';
   import {
     COHORT_OFFSETS,
     HEALTHY_LTV_CAC_RATIO,
@@ -34,11 +35,11 @@
   const o = $derived(data.overview);
 
   function eur(cents: number): string {
-    return ((cents / 100) || 0).toLocaleString('es-ES', { maximumFractionDigits: 0 }) + ' €';
+    return fmtEurCompact((cents / 100) || 0, $locale);
   }
 
   function eur2(cents: number): string {
-    return (cents / 100).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    return fmtEur(cents / 100, $locale);
   }
 
   function pct(value: number | null): string {

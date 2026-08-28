@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { locale, t, ti } from '$lib/i18n';
+  import { fmtEur } from '$lib/formatters';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
 
@@ -11,7 +12,7 @@
 
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
-    return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    return fmtEur(n, $locale);
   }
   function fmtDate(s: Date | string | null | undefined) {
     if (!s) return '—';
