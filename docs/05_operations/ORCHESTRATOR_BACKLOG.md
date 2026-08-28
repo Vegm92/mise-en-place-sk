@@ -48,7 +48,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 520 | P2 | DONE | 1 | Verified (commit 42dfafc): 6/7 acceptance items already covered by intervening work (evidence per item); dead extraction retry policy fixed via perJobResults wiring. 2327/2327. | tenant-isolation tests cover load() only; silent skips |
 | 518 | P2 | DONE | 1 | Already solved on main (542ebc6 + ADR-025, full dispatcher); added missing concurrency-proof test (4c5b269). GitHub issue closed. 2328/2328. | scheduled jobs iterate all tenants sequentially |
 | 517 | P2 | DONE | 1 | Verified (commit c1e9b7c): action-authz lint gate (49 actions audited, 2 honest escape comments, CI-wired), ADR-001 amended. 2327/2327. | tenant-scoping lint for form actions |
-| 570 | P2 | PENDING | 0 | | verify auto-classifier status |
+| 570 | P2 | DONE | 1 | Verified working (supplier inline via extraction; product via pg-boss categorize job); trigger-chain test added (99a172c); GitHub issue closed with architecture answers. 2331/2331. | verify auto-classifier status |
 | 567 | P2 | PENDING | 0 | Feature, sizeable | collapsible sidebar |
 | 736 | P2 | DEFERRED | 0 | PR #723 branch | escandallo reads load tenant graph too often |
 | 733 | P2 | DEFERRED | 0 | PR #723 branch | updateRecipe drops unparseable fields; rename race |
