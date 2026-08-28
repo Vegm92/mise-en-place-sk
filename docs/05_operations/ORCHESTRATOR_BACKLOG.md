@@ -115,11 +115,11 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 439 | P3 | DONE | 1 | Verified (commit 76cd7f9): tiers + FAQ prose (es/en) interpolate PROVISIONAL_PRICE, regression-proven scan test. 2813/2813. | waitlist hardcodes prices |
 | 408 | P3 | BLOCKED | 1 | Decision question — analysis + recommendation (separate content files w/ import-rule lint) posted on the issue; awaiting owner's call. | legal-page copy into i18n |
 | 407 | P3 | DONE | 1 | Verified (commit d93aa24): ~91 waitlist.* keys, billing.*/TIER_COPY reuse (byte-compared), SKIP_FILES removed, byte-identity proof vs pre-migration git blob. 2829/2829. | waitlist copy into i18n table |
-| 406 | P3 | PENDING | 0 | Question/copy audit | hero micro-copy audit |
-| 405 | P3 | PENDING | 0 | Copy/content | testimonial venue-type context |
-| 404 | P3 | PENDING | 0 | Copy/content | trust/support bar |
-| 403 | P3 | PENDING | 0 | Copy/content | founders incentive section |
-| 402 | P3 | PENDING | 0 | Copy/content | sin vs con comparison |
+| 406 | P3 | BLOCKED | 1 | Recommendation posted 2026-08-28 (keep benefit-first pacing; test founder-empathy as an /l/ variant via #327+#326); awaiting owner's recorded decision. | hero micro-copy audit |
+| 405 | P3 | PENDING | 0 | Triaged 2026-08-28: display-only badge restyle, implementable; note #333 part 1 provenance may later adjust framing/labels. | testimonial venue-type context |
+| 404 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; only already-substantiated claims (no invented support-SLA); FAQ batch copy now the #333 evergreen wording. | trust/support bar |
+| 403 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; 3-step ladder specified by owner incl. founder-price-lock tie-in to pricingProvisional. | founders incentive section |
+| 402 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; sin/con column copy specified in issue. All four touch LandingPage.svelte + i18n — dispatch sequentially after #569 (i18n.ts conflict). | sin vs con comparison |
 | 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
 | 354 | P3 | BLOCKED | 1 | Decision analysis + route checklist posted on issue (env-flag via ROUTE_POLICY, billing-off keeps subscription rows); awaiting owner ratification. #356 executes against it. | feature-flag mechanism decision |
