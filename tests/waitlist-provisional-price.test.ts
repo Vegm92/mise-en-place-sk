@@ -213,6 +213,21 @@ function buildMigratedCopy(loc: Locale) {
 	};
 }
 
+/**
+ * Deliberate, documented deviations from the pinned #407 snapshot — never add
+ * to this map to paper over an accidental drift; each entry must correspond
+ * to a real, intentional copy change made in a later issue.
+ *
+ * - `privacy` (issue #326): the waitlist form now also captures UTM/referrer
+ *   attribution alongside the email, so "Solo guardamos tu email" / "We only
+ *   store your email" stopped being accurate and was trimmed to the parts
+ *   that still are.
+ */
+const POST_407_INTENTIONAL_CHANGES: Record<Locale, Partial<Record<string, string>>> = {
+	es: { privacy: 'Sin spam. Sin compromisos.' },
+	en: { privacy: 'No spam. No commitment.' },
+};
+
 describe('waitlist copy migration is byte-identical to the pre-migration inline object (issue #407)', () => {
 	it('the pinned pre-migration git blob still contains the expected copy object', () => {
 		expect(Object.keys(PRE_MIGRATION_COPY)).toEqual(['es', 'en']);
@@ -220,8 +235,9 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 	});
 
 	for (const loc of ['es', 'en'] as const) {
-		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table`, () => {
-			expect(buildMigratedCopy(loc)).toEqual(PRE_MIGRATION_COPY[loc]);
+		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table, aside from documented later changes`, () => {
+			const expected = { ...PRE_MIGRATION_COPY[loc], ...POST_407_INTENTIONAL_CHANGES[loc] };
+			expect(buildMigratedCopy(loc)).toEqual(expected);
 		});
 	}
 });
