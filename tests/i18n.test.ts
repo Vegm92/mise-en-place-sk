@@ -268,7 +268,7 @@ describe('tp (pluralizing translator)', () => {
   it('resolves every plural family in both locales', () => {
     const families = [
       'misc.invoice',
-      'inv.confirm.paid',
+      'inv.confirm.reviewed',
       'inv.confirm.delete',
       'confirm.extract',
       'confirm.addFile',
@@ -298,8 +298,8 @@ describe('tp (pluralizing translator)', () => {
 describe('strings de-hardcoded from components', () => {
   const keys = [
     'minv.filter.month',
-    'minv.filter.pending',
-    'minv.filter.overdue',
+    'minv.filter.toReview',
+    'minv.filter.issues',
     'minv.filter.supplier',
     'minv.filter.category',
     'minv.linesSuffix',
@@ -553,8 +553,9 @@ describe('issue #661 — invoice export status filter label', () => {
     'export.dateHint',
     'export.status',
     'export.allStatus',
-    'export.paid',
-    'export.pending',
+    'inv.review.revisado',
+    'inv.review.por_revisar',
+    'inv.review.incidencia',
     'export.download',
     'export.cancel',
     'export.backLabel',

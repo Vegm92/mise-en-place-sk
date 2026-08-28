@@ -1,5 +1,5 @@
 {
-  "id": "540bc0b3-3acb-4b85-916f-0b75f4e2c1ff",
+  "id": "516e8911-dabe-456b-b973-8b085d1180bf",
   "prevId": "1d7762c4-3d21-476d-80b6-2c9d75c091e9",
   "version": "7",
   "dialect": "postgresql",
@@ -1498,6 +1498,13 @@
           "notNull": false,
           "default": "'pending'"
         },
+        "review_state": {
+          "name": "review_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'revisado'"
+        },
         "source_file": {
           "name": "source_file",
           "type": "text",
@@ -1658,6 +1665,27 @@
             },
             {
               "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_invoices_rid_review_state": {
+          "name": "idx_invoices_rid_review_state",
+          "columns": [
+            {
+              "expression": "restaurant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "review_state",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3975,12 +4003,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "phone_number": {
-          "name": "phone_number",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "display_name": {
           "name": "display_name",

@@ -22,7 +22,7 @@
   const timelineEvents = $derived([
     { labelKey: 'inv.detail.uploaded',  ts: invoice.created_at },
     { labelKey: 'inv.detail.extracted', ts: invoice.created_at },
-    ...(invoice.status === 'accepted' || invoice.status === 'paid'
+    ...(invoice.review_state === 'revisado'
       ? [{ labelKey: 'inv.detail.confirmed', ts: null }]
       : []),
   ]);
@@ -82,7 +82,7 @@
       <div class="card p-4" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Invoice #${invoice.id}`}</span>
-          <StatusBadge status={invoice.status ?? 'pending'} />
+          <StatusBadge status={invoice.review_state ?? 'revisado'} />
         </div>
 
         <div class="divider"></div>

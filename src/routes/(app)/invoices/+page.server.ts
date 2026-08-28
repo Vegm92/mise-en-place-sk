@@ -6,7 +6,7 @@ import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotificat
 import { trackEvent } from '$lib/server/events';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
-import { invoiceStatusFilter, markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
+import { invoiceReviewFilter, markInvoiceReviewed, markInvoicesReviewedBulk } from '$lib/server/invoice-status';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { periodToDate } from '$lib/constants';
@@ -45,8 +45,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const offset     = (page - 1) * PAGE_SIZE;
 
 		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
-		const statusFilter = invoiceStatusFilter(status);
-		if (statusFilter) conditions.push(statusFilter);
+		const reviewFilter = invoiceReviewFilter(status);
+		if (reviewFilter) conditions.push(reviewFilter);
 		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
 		if (category)     conditions.push(eq(suppliers.category, category));
 		if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));
@@ -66,7 +66,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				invoice_date:   invoices.invoiceDate,
 				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
-				status:         invoices.status,
+				review_state:   invoices.reviewState,
 				confidence:     invoices.confidence,
 				source_file:    invoices.sourceFile,
 				created_at:     invoices.createdAt,
@@ -81,20 +81,19 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.offset(offset),
 
 			db.select({
-				pending_amount: sql<string>`COALESCE(SUM(CASE WHEN ${invoices.status}='pending' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
-				pending_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' THEN 1 END)`,
-				overdue_count:  sql<number>`COUNT(CASE WHEN ${invoices.status}='pending' AND ${invoices.dueDate} < CURRENT_DATE AND ${invoices.dueDate} IS NOT NULL THEN 1 END)`,
-				paid_count:     sql<number>`COUNT(CASE WHEN ${invoices.status}='paid' THEN 1 END)`,
+				reviewed_count: sql<number>`COUNT(CASE WHEN ${invoices.reviewState}='revisado' THEN 1 END)`,
+				to_review_count: sql<number>`COUNT(CASE WHEN ${invoices.reviewState}='por_revisar' THEN 1 END)`,
+				issue_count:    sql<number>`COUNT(CASE WHEN ${invoices.reviewState}='incidencia' THEN 1 END)`,
 			})
 				.from(invoices)
 				.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.invoiceDate, periodStartStr)))),
 
-			db.execute<{ month: string; paid: string; pending: string; overdue: string }>(sql`
+			db.execute<{ month: string; revisado: string; por_revisar: string; incidencia: string }>(sql`
 				SELECT
 					TO_CHAR(DATE_TRUNC('month', invoice_date), 'YYYY-MM') AS month,
-					COALESCE(SUM(CASE WHEN status='paid' THEN total_amount::numeric ELSE 0 END),0) AS paid,
-					COALESCE(SUM(CASE WHEN status='pending' AND (due_date IS NULL OR due_date >= CURRENT_DATE) THEN total_amount::numeric ELSE 0 END),0) AS pending,
-					COALESCE(SUM(CASE WHEN status='pending' AND due_date IS NOT NULL AND due_date < CURRENT_DATE THEN total_amount::numeric ELSE 0 END),0) AS overdue
+					COALESCE(SUM(CASE WHEN review_state='revisado' THEN total_amount::numeric ELSE 0 END),0) AS revisado,
+					COALESCE(SUM(CASE WHEN review_state='por_revisar' THEN total_amount::numeric ELSE 0 END),0) AS por_revisar,
+					COALESCE(SUM(CASE WHEN review_state='incidencia' THEN total_amount::numeric ELSE 0 END),0) AS incidencia
 				FROM invoices
 				WHERE restaurant_id = ${rid}
 				  AND deleted_at IS NULL
@@ -162,10 +161,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		}));
 
 		const stats = {
-			pending_amount: moneyToNumber(statsRow[0]?.pending_amount ?? '0'),
-			pending_count: statsRow[0]?.pending_count ?? 0,
-			overdue_count: statsRow[0]?.overdue_count ?? 0,
-			paid_count: statsRow[0]?.paid_count ?? 0,
+			reviewed_count: Number(statsRow[0]?.reviewed_count ?? 0),
+			to_review_count: Number(statsRow[0]?.to_review_count ?? 0),
+			issue_count: Number(statsRow[0]?.issue_count ?? 0),
 		};
 		const total = Number(countRow[0]?.cnt ?? 0);
 
@@ -173,9 +171,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const trendData = {
 			xLabels: trendRows.map(r => MONTH_LABELS[(Number.parseInt(r.month.split('-')[1], 10) - 1)] ?? r.month),
 			series: [
-				{ key: 'paid',    labelKey: 'inv.kpi.paid',    values: trendRows.map(r => Number(r.paid))    },
-				{ key: 'pending', labelKey: 'inv.kpi.pending',  values: trendRows.map(r => Number(r.pending)) },
-				{ key: 'overdue', labelKey: 'inv.kpi.overdue',  values: trendRows.map(r => Number(r.overdue)) },
+				{ key: 'revisado',    labelKey: 'inv.review.revisado',    values: trendRows.map(r => Number(r.revisado))    },
+				{ key: 'por_revisar', labelKey: 'inv.review.por_revisar', values: trendRows.map(r => Number(r.por_revisar)) },
+				{ key: 'incidencia',  labelKey: 'inv.review.incidencia',  values: trendRows.map(r => Number(r.incidencia))  },
 			],
 		};
 
@@ -197,20 +195,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 };
 
 export const actions: Actions = {
-	markPaid: async ({ request, locals }) => {
+	markReviewed: async ({ request, locals }) => {
 		const data = await request.formData();
 		const id = Number(data.get('id'));
 		const rid = locals.restaurantId!;
-		const ok = await markInvoicePaid(id, rid);
-		if (ok) trackEvent('invoice_status_changed', rid, { to: 'paid' }, id);
-		redirect(303, ok ? '/invoices' : '/invoices?conflict=1');
-	},
-	markUnpaid: async ({ request, locals }) => {
-		const data = await request.formData();
-		const id = Number(data.get('id'));
-		const rid = locals.restaurantId!;
-		const ok = await markInvoiceUnpaid(id, rid);
-		if (ok) trackEvent('invoice_status_changed', rid, { to: 'pending' }, id);
+		const ok = await markInvoiceReviewed(id, rid);
+		if (ok) trackEvent('invoice_review_state_changed', rid, { to: 'revisado' }, id);
 		redirect(303, ok ? '/invoices' : '/invoices?conflict=1');
 	},
 	deleteInvoice: async ({ request, locals }) => {
@@ -236,12 +226,12 @@ export const actions: Actions = {
 		trackEvent('invoice_status_changed', rid, { to: 'deleted' }, id);
 		redirect(303, '/invoices');
 	},
-	bulkPaid: async ({ request, locals }) => {
+	bulkReviewed: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
 		if (!await checkRateLimit(`bulk:${rid}`, 10)) redirect(303, '/invoices');
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
-		await markInvoicesPaidBulk(ids, rid);
+		await markInvoicesReviewedBulk(ids, rid);
 		redirect(303, '/invoices');
 	},
 	bulkDelete: async ({ request, locals }) => {
