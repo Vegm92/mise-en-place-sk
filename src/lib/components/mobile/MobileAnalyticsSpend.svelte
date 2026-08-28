@@ -40,12 +40,12 @@
     invoices_outside_range: number;
   } = $props();
 
-  const periods: Array<[string, string]> = [
-    ['month', '30 d'],
-    ['quarter', '90 d'],
-    ['half', '6 m'],
+  const periods = $derived<Array<[string, string]>>([
+    ['month', $t('spend.period.monthShort')],
+    ['quarter', $t('spend.period.quarterShort')],
+    ['half', $t('spend.period.halfShort')],
     ['all', $t('spend.period.allShort')],
-  ];
+  ]);
 
   function fmtEur(n: number | null | undefined) {
     return fmtEurCompact(n ?? 0, $locale);

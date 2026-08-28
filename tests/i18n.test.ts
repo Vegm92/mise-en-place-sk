@@ -576,3 +576,34 @@ describe('issue #661 — invoice export status filter label', () => {
     expect(tr('export.status')).toBe('Status');
   });
 });
+
+describe('issue #534 — analytics period/filter short labels', () => {
+  const keys = [
+    'spend.period.monthShort',
+    'spend.period.quarterShort',
+    'spend.period.halfShort',
+    'spend.period.allShort',
+    'prices.filter.all',
+    'prices.filter.up',
+    'prices.filter.down',
+    'prices.filter.flat',
+  ];
+
+  it('resolves every period/filter key the analytics pages use in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const k of keys) if (tr(k) === k) missing.push(`${lc}:${k}`);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('keys the previously-hardcoded 30 d / 90 d / 6 m short labels in both locales', () => {
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      expect(tr('spend.period.monthShort')).toBe('30 d');
+      expect(tr('spend.period.quarterShort')).toBe('90 d');
+      expect(tr('spend.period.halfShort')).toBe('6 m');
+    }
+  });
+});
