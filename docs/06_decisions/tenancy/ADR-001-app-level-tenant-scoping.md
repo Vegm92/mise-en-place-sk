@@ -1,6 +1,6 @@
 # ADR-001 — Tenant Isolation: App-Level Scoping (Option B)
 
-**Status:** Active — amended by [ADR-005](./ADR-005-rls-retired.md)  
+**Status:** Active — amended by [ADR-005](./ADR-005-rls-retired.md) and [#517](https://github.com/Vegm92/mise-en-place-sk/issues/517)  
 **Feature:** Tenancy  
 **Date:** 2026-06-11  
 **Issue:** [#120](https://github.com/Vegm92/mise-en-place-sk/issues/120)
@@ -11,6 +11,16 @@
 > "Option A" as written below routes through Supabase infrastructure that no
 > longer exists in this stack. The database-enforced path is still open, but via
 > a different route — see the rewritten *Why not Option A* section and #222.
+
+> **Amendment (2026-08-27, #517).** `forTenant().scope()` proves a *query* is
+> shaped correctly; it says nothing about whether the *action* running that
+> query should have been allowed to run at all. Two cross-tenant bugs — a batch
+> action that called a correctly-scoped store function with the wrong tenant's
+> id, and a remove action that ran a correctly-formed delete outside the branch
+> that had checked ownership — passed every query-shape lint because the query
+> itself was fine; the missing thing was an authorization check on the action.
+> See *Action-level authorization* below, added below the query-level model
+> this ADR otherwise still describes unchanged.
 
 ## Context
 
@@ -82,4 +92,44 @@ control. The policies would need writing fresh against a session variable, not p
 - Since ADR-005, app-level scoping is the **only** tenant boundary rather than the active one of two.
   `tests/tenant-isolation.test.ts` and `lint:tenant-scope` are therefore load-bearing, not
   belt-and-braces — see #380.
+
+## Action-level authorization (#517)
+
+`forTenant().scope()` and `lint:tenant-scope`/`lint:unscoped-query` prove a **query** is shaped
+correctly — it names a restaurant and filters by it. None of that proves the **action** running the
+query should have been allowed to run in the first place. An action that resolves an id from
+`params` or form data (a batch id, a supplier id, a restaurant id other than the caller's own) and
+then hands it to a correctly-scoped query is still a cross-tenant bug if nothing first checked that
+the caller owns that id — the query is shaped fine, it was just asked to touch the wrong row on
+purpose. Two such bugs shipped and passed every existing lint before this was written.
+
+The additional rule, enforced by `pnpm lint:action-authz` (`scripts/lint-invariants.mjs`,
+`action-authz` gate) over every exported action in `src/routes/(app)/**/+page.server.ts`:
+
+- An action whose body mutates a tenant table (`db`/`tx` `.insert()`/`.update()`/`.delete()`, or a
+  raw `.execute()` with an `INSERT`/`UPDATE`/`DELETE` against one) must, before or regardless of that
+  mutation, do one of:
+  1. Call a **known guard** — `requireOwnedBatch`, `requireOwner`, and any name added to
+     `KNOWN_AUTHZ_GUARDS` at the top of the gate as new ones are introduced — that checks the caller
+     owns the resolved id.
+  2. Scope every mutation itself, via `forTenant()`/`.scope()` in the same action body. An action
+     whose only externally-resolved id is `locals.restaurantId` — never a batch id, supplier id, or
+     other id read from `params`/form data — is authorized by construction; requiring a redundant
+     named guard on top of that would be noise, not safety.
+  3. Carry an explicit `// tenant-check-ok: <reason>` comment (same convention as
+     `tenant-scope-ok`), for the cases that are safe but don't fit the two shapes above — e.g. an
+     `INSERT` that creates a new row under the caller's own tenant, where there is no existing row to
+     check ownership of.
+- The gate reasons about **source text within one action's own body**, the same level of rigor
+  `tenant-scope` and `unscoped-tenant-query` already work at — it does not follow calls into helper
+  functions, imported or same-file. An action that delegates its mutation entirely to an imported
+  store function (e.g. every `/batch/[id]` action calling into `$lib/server/batch.ts`) is invisible
+  to this gate; those files are safe because the imported functions are themselves `forTenant()`-
+  scoped and the route additionally calls `requireOwnedBatch` as a defense the gate cannot demand.
+  Closing that reach gap would mean tracing a call graph, which is a different, heavier tool than
+  this project's lints have ever been — false negatives here are the accepted tradeoff for a lint
+  that runs in milliseconds with no parser.
+- Consistent with `tenant-scope-ok`, the policy on doubt is to **allow with an escape comment**: the
+  gate's value is making the authorization decision explicit and reviewable, not blocking every
+  pattern it cannot itself verify as safe.
 

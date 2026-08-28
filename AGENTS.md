@@ -156,6 +156,7 @@ pnpm test           # vitest (DB-backed suites run only against LOCAL postgres,
 pnpm db:check-sync  # CI gate: schema.ts vs committed migrations (ADR-003)
 pnpm lint:tenant-scope      # no bare eq(table.restaurantId, ...) outside scope()
 pnpm lint:unscoped-query    # no tenant-table query without a tenant filter
+pnpm lint:action-authz      # every (app) form action that mutates a tenant table has an authz check
 pnpm lint:no-sql-raw        # no sql.raw()
 pnpm lint:i18n              # no hardcoded user-facing strings
 pnpm lint:no-comments       # no inline code comments (explanations live in the per-subsystem `## Code notes` sections)
