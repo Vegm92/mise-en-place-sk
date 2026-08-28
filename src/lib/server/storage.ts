@@ -11,7 +11,10 @@ class LocalDriver {
 	constructor() { this.base = path.resolve(process.cwd(), UPLOADS_DIR); }
 
 	async save(key: string, buf: Buffer): Promise<void> {
-		const dest = path.join(this.base, key);
+		const dest = path.resolve(this.base, key);
+		if (!dest.startsWith(this.base + path.sep) && dest !== this.base) {
+			throw new Error(`Invalid storage key: ${key}`);
+		}
 		fs.mkdirSync(path.dirname(dest), { recursive: true });
 		fs.writeFileSync(dest, buf);
 	}
