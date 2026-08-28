@@ -4,6 +4,7 @@ import { db, forTenant } from './db';
 import { whatsappPairingCodes } from './schema';
 import { addContact } from './whatsapp-contacts';
 import { checkRateLimit } from './rate-limiter';
+import { normalizePhoneNumber } from '$lib/phone';
 
 export const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRTUVWXYZ';
 const CODE_LENGTH = 6;
@@ -20,6 +21,7 @@ export interface PairingCode {
 	code: string;
 	displayName: string | null;
 	expiresAt: Date;
+	phoneNumber: string | null;
 }
 
 function randomCode(): string {
@@ -37,13 +39,23 @@ export function normalizeCode(input: string): string | null {
 
 export type GenerateResult =
 	| { ok: true; pairing: PairingCode }
-	| { ok: false; reason: 'rateLimited' | 'error' };
+	| { ok: false; reason: 'rateLimited' | 'error' | 'invalid' | 'tooShort' | 'tooLong' };
 
 export async function generatePairingCode(
 	restaurantId: string,
 	userId: string,
 	displayName: string | null,
+	targetPhone: string | null = null,
 ): Promise<GenerateResult> {
+	let normalizedPhone: string | null = null;
+	if (targetPhone?.trim()) {
+		const normalized = normalizePhoneNumber(targetPhone);
+		if (!normalized.ok) {
+			return { ok: false, reason: normalized.reason === 'empty' ? 'invalid' : normalized.reason };
+		}
+		normalizedPhone = normalized.phone;
+	}
+
 	if (!(await checkRateLimit(`whatsapp-pair-gen:${restaurantId}`, GENERATE_LIMIT, GENERATE_WINDOW_S))) {
 		return { ok: false, reason: 'rateLimited' };
 	}
@@ -61,11 +73,30 @@ export async function generatePairingCode(
 			const code = randomCode();
 			const [row] = await db
 				.insert(whatsappPairingCodes)
-				.values({ restaurantId, code, displayName: displayName?.trim() || null, createdBy: userId, expiresAt })
+				.values({
+					restaurantId,
+					code,
+					phoneNumber: normalizedPhone,
+					displayName: displayName?.trim() || null,
+					createdBy: userId,
+					expiresAt,
+				})
 				.onConflictDoNothing({ target: whatsappPairingCodes.code })
-				.returning({ code: whatsappPairingCodes.code, expiresAt: whatsappPairingCodes.expiresAt });
+				.returning({
+					code: whatsappPairingCodes.code,
+					expiresAt: whatsappPairingCodes.expiresAt,
+					phoneNumber: whatsappPairingCodes.phoneNumber,
+				});
 			if (row) {
-				return { ok: true, pairing: { code: row.code, displayName: displayName?.trim() || null, expiresAt: row.expiresAt } };
+				return {
+					ok: true,
+					pairing: {
+						code: row.code,
+						displayName: displayName?.trim() || null,
+						expiresAt: row.expiresAt,
+						phoneNumber: row.phoneNumber,
+					},
+				};
 			}
 		}
 		console.error('[whatsapp-pairing] exhausted retries generating a unique code');
@@ -83,6 +114,7 @@ export async function activePairingCode(restaurantId: string): Promise<PairingCo
 			code: whatsappPairingCodes.code,
 			displayName: whatsappPairingCodes.displayName,
 			expiresAt: whatsappPairingCodes.expiresAt,
+			phoneNumber: whatsappPairingCodes.phoneNumber,
 		})
 		.from(whatsappPairingCodes)
 		.where(tdb.scope(whatsappPairingCodes.restaurantId, and(
@@ -116,7 +148,7 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 		return { ok: false, reason: 'rateLimited' };
 	}
 
-	let claimed: { id: number; restaurantId: string; displayName: string | null } | undefined;
+	let claimed: { id: number; restaurantId: string; displayName: string | null; phoneNumber: string | null } | undefined;
 	try {
 		[claimed] = await db
 			.update(whatsappPairingCodes)
@@ -130,6 +162,7 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 				id: whatsappPairingCodes.id,
 				restaurantId: whatsappPairingCodes.restaurantId,
 				displayName: whatsappPairingCodes.displayName,
+				phoneNumber: whatsappPairingCodes.phoneNumber,
 			});
 	} catch (err) {
 		console.error('[whatsapp-pairing] redemption claim failed:', err);
@@ -137,6 +170,17 @@ export async function redeemPairingCode(phone: string, rawCode: string): Promise
 	}
 
 	if (!claimed) return { ok: false, reason: 'invalid' };
+
+	if (claimed.phoneNumber) {
+		const senderPhone = normalizePhoneNumber(phone);
+		if (!senderPhone.ok || senderPhone.phone !== claimed.phoneNumber) {
+			await db
+				.update(whatsappPairingCodes)
+				.set({ redeemedAt: null, redeemedBy: null })
+				.where(eq(whatsappPairingCodes.id, claimed.id));
+			return { ok: false, reason: 'invalid' };
+		}
+	}
 
 	const added = await addContact(claimed.restaurantId, phone, claimed.displayName);
 	if (!added.ok) {

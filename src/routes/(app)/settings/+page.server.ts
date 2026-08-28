@@ -6,7 +6,7 @@ import { db, forTenant } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
-import { applyTierSettings, TIERS } from '$lib/server/billing';
+import { applyTierSettings, BILLING_PARENT, TIERS } from '$lib/server/billing';
 import { randomBytes } from 'node:crypto';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
@@ -17,7 +17,7 @@ import { passwordPolicyError } from '$lib/server/password-policy';
 import { createVerificationToken } from '$lib/server/verification-token';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { sendEmail, changeEmailAddress } from '$lib/server/email';
-import { addContact, listContacts, removeContact } from '$lib/server/whatsapp-contacts';
+import { listContacts, removeContact } from '$lib/server/whatsapp-contacts';
 import { WHATSAPP_ACCESS_TOKEN, WHATSAPP_DISPLAY_NUMBER, WHATSAPP_PHONE_NUMBER_ID } from '$lib/server/env';
 import { formatPhoneNumber, normalizePhoneNumber, waMeLink } from '$lib/phone';
 import { renderQrSvg } from '$lib/server/qr-svg';
@@ -165,6 +165,13 @@ export const actions: Actions = {
 			return fail(422, { section: 'email', error: 'set.profile.err.emailUnchanged' });
 		}
 
+		if (!(await checkRateLimit(`email-change:user:${locals.user!.id}`, 5))) {
+			return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
+		}
+		if (!(await checkRateLimit(`email-change:address:${email}`, 5))) {
+			return fail(429, { section: 'email', error: 'set.profile.err.rateLimited' });
+		}
+
 		const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
 		if (taken) return fail(400, { section: 'email', error: 'set.profile.err.emailFailed' });
 
@@ -218,6 +225,10 @@ export const actions: Actions = {
 		if (!name) return fail(422, { section: 'location', error: 'set.locations.err.nameRequired' });
 		if (name.length > 120) return fail(422, { section: 'location', error: 'set.profile.err.restaurantTooLong' });
 
+		if (!(await requireOwner(rid, userId))) {
+			return fail(403, { section: 'location', error: 'set.locations.err.notOwner' });
+		}
+
 		const entitlements = await locals.entitlements();
 		const { billingRestaurantId: billingRid, tier, features, maxLocations } = entitlements
 			?? { billingRestaurantId: rid, tier: 'trial' as const, features: TIERS.trial.features, maxLocations: TIERS.trial.maxLocations };
@@ -225,23 +236,31 @@ export const actions: Actions = {
 			return fail(403, { section: 'location', error: 'set.locations.err.notAvailable' });
 		}
 
-		const existing = await db.select({ id: userRestaurants.restaurantId })
-			.from(userRestaurants)
-			.where(eq(userRestaurants.userId, userId));
-		if (existing.length >= maxLocations) {
-			return fail(403, { section: 'location', error: 'set.locations.err.limitReached' });
-		}
-
 		const slug = `${name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 			.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'local'}-${randomBytes(3).toString('hex')}`;
 
-		const newId = await db.transaction(async (tx) => {
-			const [created] = await tx.insert(restaurants)
-				.values({ name, slug, parentId: billingRid })
-				.returning({ id: restaurants.id });
-			await tx.insert(userRestaurants).values({ userId, restaurantId: created.id, role: 'owner' });
-			return created.id;
-		});
+		let newId: string;
+		try {
+			newId = await db.transaction(async (tx) => {
+				await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'loc:' + billingRid}))`);
+
+				const [{ cnt }] = await tx.select({ cnt: sql<number>`count(*)::int` })
+					.from(restaurants)
+					.where(eq(BILLING_PARENT, billingRid));
+				if (Number(cnt) >= maxLocations) throw new LocationLimitReachedError();
+
+				const [created] = await tx.insert(restaurants)
+					.values({ name, slug, parentId: billingRid })
+					.returning({ id: restaurants.id });
+				await tx.insert(userRestaurants).values({ userId, restaurantId: created.id, role: 'owner' });
+				return created.id;
+			});
+		} catch (err) {
+			if (err instanceof LocationLimitReachedError) {
+				return fail(403, { section: 'location', error: 'set.locations.err.limitReached' });
+			}
+			throw err;
+		}
 
 		await applyTierSettings(newId, tier);
 
@@ -288,20 +307,22 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const phone = ((data.get('phone') as string) ?? '').trim();
 		const name  = ((data.get('name')  as string) ?? '').trim();
+		if (!phone) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.invalid' });
 		if (name.length > 80) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.nameTooLong' });
 
-		const result = await addContact(rid, phone, name);
+		const result = await generatePairingCode(rid, locals.user!.id, name, phone);
 		if (!result.ok) {
 			const errors = {
-				invalid:  'set.whatsapp.err.invalid',
-				tooShort: 'set.whatsapp.err.tooShort',
-				tooLong:  'set.whatsapp.err.tooLong',
-				taken:    'set.whatsapp.err.taken',
+				invalid:     'set.whatsapp.err.invalid',
+				tooShort:    'set.whatsapp.err.tooShort',
+				tooLong:     'set.whatsapp.err.tooLong',
+				rateLimited: 'set.whatsapp.err.pairRateLimited',
+				error:       'set.whatsapp.err.pairFailed',
 			} as const;
-			return fail(422, { section: 'whatsapp', error: errors[result.reason] });
+			return fail(result.reason === 'rateLimited' ? 429 : 422, { section: 'whatsapp', error: errors[result.reason] });
 		}
 
-		return { section: 'whatsapp', ok: 'set.whatsapp.ok.added' };
+		return { section: 'whatsapp', ok: 'set.whatsapp.ok.invited' };
 	},
 
 	removeWhatsappContact: async ({ request, locals }) => {
@@ -317,7 +338,7 @@ export const actions: Actions = {
 		const id = Number(data.get('id'));
 		if (!Number.isInteger(id)) return fail(422, { section: 'whatsapp', error: 'set.whatsapp.err.invalid' });
 
-		await removeContact(rid, id);
+		await removeContact(rid, id, locals.user!.id);
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.removed' };
 	},
 
@@ -358,6 +379,8 @@ export const actions: Actions = {
 		return { section: 'whatsapp', ok: 'set.whatsapp.ok.pairRevoked' };
 	},
 };
+
+class LocationLimitReachedError extends Error {}
 
 async function requireOwner(restaurantId: string, userId: string): Promise<boolean> {
 	const [membership] = await db.select({ role: userRestaurants.role })

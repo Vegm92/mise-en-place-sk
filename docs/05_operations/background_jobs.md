@@ -59,7 +59,7 @@ rather than where extraction got to. Web uploads leave it null.
 
 ## Schedule (cron, registered in the worker — ADR-011)
 
-All eight are registered from the `JOBS` array in `src/lib/server/alerts.ts`
+All nine are registered from the `JOBS` array in `src/lib/server/alerts.ts`
 (`registerScheduledJobs`); the cron strings live beside it. A job that throws is
 Sentry-reported and dead-lettered, then re-thrown so pg-boss records the failure.
 
@@ -73,6 +73,7 @@ Sentry-reported and dead-lettered, then re-thrown so pg-boss records the failure
 | `20 3 * * *` | Dead-letter retention purge | `runDeadLetterPurgeJob` — `alerts.ts` / `dead-letter.ts` |
 | `10 3 * * *` | `refresh_analytics_rollups()` — MV refresh (`mv_*` CONCURRENTLY) | `runAnalyticsRefreshJob` — `alerts.ts` (ADR-012) |
 | `40 3 * * *` | `sweepIdempotencyKeys` — expire claims per scope (48 h; 96 h for `stripe-webhook`) | `runIdempotencySweepJob` — `alerts.ts` / `idempotency.ts` (#389) |
+| `50 3 * * *` | Orphan-subscription reconciliation — root restaurants (`parent_id IS NULL`) with no `subscriptions` row get a dated trial auto-provisioned, reported to Sentry | `runOrphanSubscriptionsJob` — `billing.ts` (#486) |
 
 Not on this schedule: `rate-limiter.ts` sweeps its in-memory buckets on its own
 `setInterval` (every 2 min, per process), and `worker-heartbeat.ts` beats every
@@ -150,7 +151,7 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 |---|---|
 | `extract-invoice` | The pg-boss job survives (14-day `retentionSeconds`), but `failStalledItems` marks the batch item `failed` with `extract.err.stalled` once it has waited `EXTRACTION_STALL_TIMEOUT_MS` (15 min). That reaper runs on the **web** request path — the batch page load and `/api/batch-status/[id]` — so the user sees a stalled upload and retries. Nothing is silently lost, and a late job cannot double-process: `markExtracting` only transitions from `queued`/`extracting`, so it no-ops against a `failed` row. |
 | `normalize-product`, `categorize-product` | Fully. They sit in `created` and run when the worker returns. |
-| The 8 `scheduled-*` crons | **No.** pg-boss cron has no catch-up: a schedule that does not fire while the process is down is skipped, not deferred. A missed weekly digest, overdue reminder or trial notice is simply never sent — `claimOnce` keys on the occurrence, so the next run does not backfill it. The sweeps (file purge, dead-letter purge, idempotency, MRR snapshot) are idempotent and catch up on their next run. `scheduled-analytics-refresh` skipping means every materialized view stays stale until the next 03:10, so `/analytics/spend` serves old numbers while every live-computed surface stays correct. |
+| The 9 `scheduled-*` crons | **No.** pg-boss cron has no catch-up: a schedule that does not fire while the process is down is skipped, not deferred. A missed weekly digest, overdue reminder or trial notice is simply never sent — `claimOnce` keys on the occurrence, so the next run does not backfill it. The sweeps (file purge, dead-letter purge, idempotency, MRR snapshot, orphan-subscription reconciliation) are idempotent and catch up on their next run. `scheduled-analytics-refresh` skipping means every materialized view stays stale until the next 03:10, so `/analytics/spend` serves old numbers while every live-computed surface stays correct. |
 
 ## Operations pointers
 

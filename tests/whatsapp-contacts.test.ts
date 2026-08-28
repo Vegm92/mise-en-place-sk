@@ -11,9 +11,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { formatPhoneNumber, normalizePhoneNumber } from '../src/lib/phone';
 
-const { dbMock, insertReturning, selectRows, insertedValues } = vi.hoisted(() => {
+const { dbMock, insertReturning, selectRows, deleteReturning, insertedValues, trackEventMock } = vi.hoisted(() => {
 	const insertReturning: unknown[][] = [];
 	const selectRows: unknown[][] = [];
+	const deleteReturning: unknown[][] = [];
 	// Every payload passed to .values(), so tests can assert what got stored.
 	const insertedValues: Record<string, unknown>[] = [];
 
@@ -38,11 +39,13 @@ const { dbMock, insertReturning, selectRows, insertedValues } = vi.hoisted(() =>
 	return {
 		insertReturning,
 		selectRows,
+		deleteReturning,
 		insertedValues,
+		trackEventMock: vi.fn(),
 		dbMock: {
 			insert: vi.fn(() => chain(insertReturning.length ? insertReturning.shift() : [])),
 			select: vi.fn(() => chain(selectRows.length ? selectRows.shift() : [])),
-			delete: vi.fn(() => chain([{ id: 1 }])),
+			delete: vi.fn(() => chain(deleteReturning.length ? deleteReturning.shift() : [{ id: 1, restaurantId: '11111111-1111-1111-1111-111111111111', phoneNumber: '34612345678' }])),
 		},
 	};
 });
@@ -51,6 +54,7 @@ vi.mock('../src/lib/server/db', async () => {
 	const { forTenant } = await import('../src/lib/server/tenant');
 	return { db: dbMock, forTenant };
 });
+vi.mock('../src/lib/server/events', () => ({ trackEvent: trackEventMock }));
 
 const RESTAURANT_A = '11111111-1111-1111-1111-111111111111';
 const RESTAURANT_B = '22222222-2222-2222-2222-222222222222';
@@ -58,6 +62,7 @@ const RESTAURANT_B = '22222222-2222-2222-2222-222222222222';
 beforeEach(() => {
 	insertReturning.length = 0;
 	selectRows.length = 0;
+	deleteReturning.length = 0;
 	insertedValues.length = 0;
 	vi.clearAllMocks();
 });
@@ -162,7 +167,68 @@ describe('addContact', () => {
 describe('removeContact', () => {
 	it('reports success when a row was deleted', async () => {
 		const { removeContact } = await import('../src/lib/server/whatsapp-contacts');
-		expect(await removeContact(RESTAURANT_A, 1)).toBe(true);
+		deleteReturning.push([{ id: 1, phoneNumber: '34612345678' }]);
+		expect(await removeContact(RESTAURANT_A, 1, 'owner-user')).toBe(true);
 		expect(dbMock.delete).toHaveBeenCalled();
+	});
+
+	it('writes an audit event so the release is traceable', async () => {
+		const { removeContact } = await import('../src/lib/server/whatsapp-contacts');
+		deleteReturning.push([{ id: 5, phoneNumber: '34612345678' }]);
+		await removeContact(RESTAURANT_A, 5, 'owner-user');
+
+		expect(trackEventMock).toHaveBeenCalledWith(
+			'whatsapp_contact_released',
+			RESTAURANT_A,
+			expect.objectContaining({ contactId: 5, phoneNumber: '34612345678', releasedBy: 'owner-user', method: 'owner' }),
+		);
+	});
+
+	it('reports failure and skips the audit event when nothing was deleted', async () => {
+		const { removeContact } = await import('../src/lib/server/whatsapp-contacts');
+		deleteReturning.push([]);
+		expect(await removeContact(RESTAURANT_A, 999)).toBe(false);
+		expect(trackEventMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('releaseContactByPhone', () => {
+	it('deletes the contact wherever it lives and reports the freed tenant', async () => {
+		const { releaseContactByPhone } = await import('../src/lib/server/whatsapp-contacts');
+		deleteReturning.push([{ id: 9, restaurantId: RESTAURANT_B, phoneNumber: '34612345678' }]);
+
+		const result = await releaseContactByPhone('+34 612 345 678', 'support@mise.dev');
+
+		expect(result).toEqual({ ok: true, restaurantId: RESTAURANT_B });
+		expect(trackEventMock).toHaveBeenCalledWith(
+			'whatsapp_contact_released',
+			RESTAURANT_B,
+			expect.objectContaining({ contactId: 9, phoneNumber: '34612345678', releasedBy: 'support@mise.dev', method: 'support' }),
+		);
+	});
+
+	it('frees the number for another tenant to bind via pairing', async () => {
+		const { releaseContactByPhone } = await import('../src/lib/server/whatsapp-contacts');
+		const { addContact } = await import('../src/lib/server/whatsapp-contacts');
+		deleteReturning.push([{ id: 9, restaurantId: RESTAURANT_B, phoneNumber: '34612345678' }]);
+		await releaseContactByPhone('34612345678', 'support@mise.dev');
+
+		// Once released, the same number binds cleanly to a different tenant —
+		// the earlier conflict is gone because the row no longer exists.
+		insertReturning.push([{ id: 10 }]);
+		expect(await addContact(RESTAURANT_A, '34612345678', null)).toEqual({ ok: true });
+	});
+
+	it('rejects an unparseable phone before touching the database', async () => {
+		const { releaseContactByPhone } = await import('../src/lib/server/whatsapp-contacts');
+		expect(await releaseContactByPhone('not a phone', 'support@mise.dev')).toEqual({ ok: false, reason: 'invalid' });
+		expect(dbMock.delete).not.toHaveBeenCalled();
+	});
+
+	it('reports notFound and skips the audit event when the number is not bound anywhere', async () => {
+		const { releaseContactByPhone } = await import('../src/lib/server/whatsapp-contacts');
+		deleteReturning.push([]);
+		expect(await releaseContactByPhone('34612345678', 'support@mise.dev')).toEqual({ ok: false, reason: 'notFound' });
+		expect(trackEventMock).not.toHaveBeenCalled();
 	});
 });

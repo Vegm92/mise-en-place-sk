@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
-  import { UPLOAD_ACCEPT } from '$lib/upload-formats';
+  import { UPLOAD_ACCEPT, isHeicUpload } from '$lib/upload-formats';
   import { goto } from '$app/navigation';
   import Upload from '@lucide/svelte/icons/upload';
   import Sparkle from '@lucide/svelte/icons/sparkle';
@@ -153,6 +153,7 @@
   function addFiles(newFiles: FileList | null) {
     if (!newFiles || trialExpired) return;
     for (const f of Array.from(newFiles)) {
+      if (isHeicUpload(f)) { showError($ti('upload.reject.heic', { name: f.name })); continue; }
       if (f.size > MAX_MB * 1024 * 1024) { showError($ti('upload.imageTooLarge', { mb: MAX_MB }), true); continue; }
       if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
     }

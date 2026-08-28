@@ -39,6 +39,7 @@ import {
 	UPLOAD_ACCEPT,
 	MAX_UPLOAD_BYTES,
 	isSupportedUploadExtension,
+	isHeicUpload,
 } from '../src/lib/upload-formats';
 import { ALLOWED_EXTENSIONS, MAGIC_BYTES, saveUploadedFiles } from '../src/lib/server/sessions';
 import { classifyFile } from '../src/lib/server/extract';
@@ -141,6 +142,33 @@ describe('the upload guard admits exactly the supported list', () => {
 
 		const result = await saveUploadedFiles([big], 'ns');
 		expect(result.errors).toEqual([{ name: 'grande.pdf', reason: 'tooLarge' }]);
+	});
+});
+
+/**
+ * Issue #484: .heic was offered by the picker but rejected by the server,
+ * so an iPhone user's photo went all the way up before failing. It is now
+ * dropped from the accept list above (covered by the tests already in this
+ * file) and, additionally, caught client-side before the transfer starts.
+ */
+describe('the client refuses a HEIC pick before it ever reaches the guard', () => {
+	it.each([
+		['iphone.heic', ''],
+		['IPHONE.HEIC', ''],
+		['iphone.heif', ''],
+		['photo.jpg', 'image/heic'],
+		['photo', 'image/heif'],
+	])('flags %s (type=%s) as HEIC', (name, type) => {
+		expect(isHeicUpload({ name, type })).toBe(true);
+	});
+
+	it.each([
+		['factura.jpg', 'image/jpeg'],
+		['factura.png', 'image/png'],
+		['factura.pdf', 'application/pdf'],
+		['factura.xml', 'application/xml'],
+	])('does not flag %s (type=%s)', (name, type) => {
+		expect(isHeicUpload({ name, type })).toBe(false);
 	});
 });
 

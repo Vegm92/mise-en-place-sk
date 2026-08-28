@@ -70,7 +70,12 @@ vi.mock('../src/lib/server/whatsapp', () => ({
 }));
 vi.mock('../src/lib/server/storage', () => ({ getStorage: () => ({ save: vi.fn() }) }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
-vi.mock('../src/lib/server/billing', () => ({ getAccessState: accessMock }));
+vi.mock('../src/lib/server/billing', () => ({
+	getAccessState: accessMock,
+	ORPHAN_SUBSCRIPTIONS_QUEUE: 'scheduled-orphan-subscriptions',
+	ORPHAN_SUBSCRIPTIONS_CRON: '50 3 * * *',
+	runOrphanSubscriptionsJob: vi.fn(),
+}));
 vi.mock('../src/lib/server/locations', () => ({ isLocationLocked: lockedMock }));
 // Keep the real normalizeCode: whether a message *looks* like a code is the
 // routing decision under test here, so stubbing it would test nothing.
@@ -212,11 +217,13 @@ describe('pairing-code enrolment (issue #320)', () => {
 		expect(sendMock).not.toHaveBeenCalled();
 	});
 
-	it('explains the cross-tenant conflict rather than silently failing', async () => {
+	it('answers a cross-tenant conflict without confirming the number is registered elsewhere', async () => {
 		redeemMock.mockResolvedValue({ ok: false, reason: 'taken' });
 		queueSelects([]);
 		await handleWhatsAppMessage({ from: '+34699', id: 'm1', type: 'text', text: { body: 'A2B3C4' } });
-		expect(repliesText()).toMatch(/ya está autorizado en otro local/i);
+		// Generic — never names "another location" or confirms the number exists.
+		expect(repliesText()).toMatch(/no se ha podido vincular este número/i);
+		expect(repliesText()).not.toMatch(/otro local/i);
 	});
 
 	it('leaves ordinary chat from an unknown number on the "no autorizado" path', async () => {

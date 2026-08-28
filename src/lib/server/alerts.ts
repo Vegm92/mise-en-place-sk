@@ -12,7 +12,7 @@ import { moneyToNumber, moneyToNullableNumber } from './money';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
 import { sendEmail, weeklyDigestEmail, incidenciaDigestEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
-import { TIERS, effectiveTier } from './billing';
+import { TIERS, effectiveTier, ORPHAN_SUBSCRIPTIONS_CRON, ORPHAN_SUBSCRIPTIONS_QUEUE, runOrphanSubscriptionsJob } from './billing';
 import { getStorage } from './storage';
 import { MRR_SNAPSHOT_CRON, MRR_SNAPSHOT_QUEUE, runMrrSnapshotJob } from './revenue-metrics';
 import { purgeDeadLetters, recordDeadLetter } from './dead-letter';
@@ -908,6 +908,7 @@ const JOBS: ScheduledJob[] = [
 	{ queue: DEAD_LETTER_PURGE_QUEUE, cron: DEAD_LETTER_PURGE_CRON, run: runDeadLetterPurgeJob },
 	{ queue: ANALYTICS_REFRESH_QUEUE, cron: ANALYTICS_REFRESH_CRON, run: runAnalyticsRefreshJob },
 	{ queue: IDEMPOTENCY_SWEEP_QUEUE, cron: IDEMPOTENCY_SWEEP_CRON, run: runIdempotencySweepJob },
+	{ queue: ORPHAN_SUBSCRIPTIONS_QUEUE, cron: ORPHAN_SUBSCRIPTIONS_CRON, run: runOrphanSubscriptionsJob },
 ];
 
 export async function registerScheduledJobs(boss: PgBoss): Promise<void> {

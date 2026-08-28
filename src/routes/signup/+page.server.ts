@@ -36,18 +36,29 @@ export const actions: Actions = {
 			}
 			if (terms !== 'on') return fail(422, { error: 'terms_required' });
 
-			const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-			if (existing) return fail(422, { error: 'already_registered' });
+			const [existing] = await db.select({ id: users.id, emailVerified: users.emailVerified })
+				.from(users).where(eq(users.email, email)).limit(1);
 
-			const passwordHash = await bcrypt.hash(password, 12);
-			const [created] = await db.insert(users).values({ email, passwordHash }).returning();
-
-			if (!created) {
-				logAuthEvent('signup_failed', { ipHash });
-				return fail(422, { error: 'generic' });
+			if (existing && existing.emailVerified) {
+				return { success: true, email };
 			}
 
-			await recordConsent(created.id, 'signup_form').catch(e =>
+			const passwordHash = await bcrypt.hash(password, 12);
+			let userId: string;
+
+			if (existing) {
+				await db.update(users).set({ passwordHash }).where(eq(users.id, existing.id));
+				userId = existing.id;
+			} else {
+				const [created] = await db.insert(users).values({ email, passwordHash }).returning();
+				if (!created) {
+					logAuthEvent('signup_failed', { ipHash });
+					return fail(422, { error: 'generic' });
+				}
+				userId = created.id;
+			}
+
+			await recordConsent(userId, 'signup_form').catch(e =>
 				console.error('[signup] consent record failed:', e)
 			);
 			await sendVerificationEmail(event.url, email);
@@ -64,7 +75,12 @@ export const actions: Actions = {
 			return { success: true, email, resent: false };
 		}
 
-		await sendVerificationEmail(event.url, email);
+		const [existing] = await db.select({ id: users.id, emailVerified: users.emailVerified })
+			.from(users).where(eq(users.email, email)).limit(1);
+		if (existing && !existing.emailVerified) {
+			await sendVerificationEmail(event.url, email);
+		}
+
 		return { success: true, email, resent: true };
 	}),
 

@@ -509,7 +509,13 @@
                 <div class="set-pair">
                   <div class="set-pair-copy">
                     {#if data.whatsappPairingCode}
-                      <p class="set-lbl-hint">{$t('set.whatsapp.pairActive')}</p>
+                      <p class="set-lbl-hint">
+                        {#if data.whatsappPairingCode.phoneNumber}
+                          {$ti('set.whatsapp.pairActiveFor', { phone: formatPhoneNumber(data.whatsappPairingCode.phoneNumber) })}
+                        {:else}
+                          {$t('set.whatsapp.pairActive')}
+                        {/if}
+                      </p>
                       <div class="set-inline">
                         <form method="POST" action="?/generateWhatsappPairingCode">
                           <button type="submit" class="btn btn-secondary set-btn-sm">{$t('set.whatsapp.pairRegenerate')}</button>

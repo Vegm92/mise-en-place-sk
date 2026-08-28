@@ -82,6 +82,9 @@ vi.mock('../src/lib/server/billing', () => ({
 	getAccessState: vi.fn().mockResolvedValue({
 		allowed: true, status: 'active', trialEndsAt: null, trialExpired: false,
 	}),
+	ORPHAN_SUBSCRIPTIONS_QUEUE: 'scheduled-orphan-subscriptions',
+	ORPHAN_SUBSCRIPTIONS_CRON: '50 3 * * *',
+	runOrphanSubscriptionsJob: vi.fn(),
 }));
 vi.mock('../src/lib/server/whatsapp-pairing', async (importActual) => ({
 	...(await importActual<typeof import('../src/lib/server/whatsapp-pairing')>()),
@@ -306,6 +309,20 @@ describe('media validation (issue #483)', () => {
 
 		await handleWhatsAppMessage({ ...MEDIA });
 
+		expect(createBatchMock).not.toHaveBeenCalled();
+		expect(repliesText()).toMatch(/Ese tipo de archivo no me sirve/i);
+	});
+
+	// Issue #484: a HEIC photo (the iPhone default) used to be saved as a
+	// mislabelled .jpg and handed to Gemini, which cannot decode it. It must
+	// now be refused honestly, the same way any other unsupported type is.
+	it('refuses a HEIC photo with a clear message instead of saving it as .jpg', async () => {
+		downloadMock.mockResolvedValue({ buffer: Buffer.from('heic bytes'), extension: 'heic' });
+		queueRouting();
+
+		await handleWhatsAppMessage({ ...MEDIA });
+
+		expect(saveMock).not.toHaveBeenCalled();
 		expect(createBatchMock).not.toHaveBeenCalled();
 		expect(repliesText()).toMatch(/Ese tipo de archivo no me sirve/i);
 	});

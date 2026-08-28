@@ -127,6 +127,30 @@ describe('generatePairingCode', () => {
 		expect(result).toEqual({ ok: false, reason: 'rateLimited' });
 		expect(dbMock.insert).not.toHaveBeenCalled();
 	});
+
+	it('mints a phone-targeted invitation when the manual Settings form supplies a number', async () => {
+		insertReturning.push([{ code: 'A2B3C4', expiresAt: new Date('2026-07-27T10:15:00Z'), phoneNumber: PHONE }]);
+		const result = await generatePairingCode(RESTAURANT_A, USER, 'Chef García', '+34 612 345 678');
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.pairing.phoneNumber).toBe(PHONE);
+	});
+
+	it('rejects an unparseable invited number before spending a rate-limit slot', async () => {
+		const result = await generatePairingCode(RESTAURANT_A, USER, null, 'not a phone');
+		expect(result).toEqual({ ok: false, reason: 'invalid' });
+		expect(rateLimitMock).not.toHaveBeenCalled();
+		expect(dbMock.insert).not.toHaveBeenCalled();
+	});
+
+	it('leaves the invitation untargeted when no phone is supplied', async () => {
+		insertReturning.push([{ code: 'A2B3C4', expiresAt: new Date(), phoneNumber: null }]);
+		const result = await generatePairingCode(RESTAURANT_A, USER, null);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(result.pairing.phoneNumber).toBeNull();
+	});
 });
 
 describe('redeemPairingCode', () => {
@@ -179,5 +203,24 @@ describe('redeemPairingCode', () => {
 		expect((await redeemPairingCode(PHONE, 'A2B3C4')).ok).toBe(true);
 		expect((await redeemPairingCode(PHONE, 'A2B3C4')).ok).toBe(false);
 		expect(addContactMock).toHaveBeenCalledTimes(1);
+	});
+
+	it('binds a phone-targeted invitation when the redeeming number matches', async () => {
+		updateReturning.push([{ id: 3, restaurantId: RESTAURANT_A, displayName: 'Chef García', phoneNumber: PHONE }]);
+		const result = await redeemPairingCode(PHONE, 'A2B3C4');
+
+		expect(result).toEqual({ ok: true, restaurantId: RESTAURANT_A });
+		expect(addContactMock).toHaveBeenCalledWith(RESTAURANT_A, PHONE, 'Chef García');
+	});
+
+	it('refuses a phone-targeted invitation redeemed from a different number, and releases it', async () => {
+		updateReturning.push([{ id: 3, restaurantId: RESTAURANT_A, displayName: null, phoneNumber: PHONE }]);
+		const other = '34699999999';
+
+		// Indistinguishable from an unknown code — nothing here confirms the code
+		// exists or which number it was meant for.
+		expect(await redeemPairingCode(other, 'A2B3C4')).toEqual({ ok: false, reason: 'invalid' });
+		expect(addContactMock).not.toHaveBeenCalled();
+		expect(updatedValues.at(-1)).toEqual({ redeemedAt: null, redeemedBy: null });
 	});
 });
