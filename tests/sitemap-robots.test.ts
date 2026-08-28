@@ -61,4 +61,11 @@ describe('robots.txt', () => {
 		expect(body).toContain('Disallow: /dashboard');
 		expect(body).toContain('Disallow: /invoices');
 	});
+
+	it('disallows /s/ (issue #329 digest/alert share links) while keeping Allow: /l/', async () => {
+		const res = await robotsGet({ url: new URL('https://mise-en-place.app/robots.txt') } as never);
+		const body = await res.text();
+		expect(body).toContain('Disallow: /s/');
+		expect(body).toContain('Allow: /l/');
+	});
 });
