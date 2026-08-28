@@ -120,7 +120,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			agingRow, avgInvoiceRow, reminderRows,
 			cashOutRows, uncategorizedRows,
 			priceShockRows, budgetAlertRows,
-			trend,
+			trend, invoiceRangeRow,
 		] = await Promise.all([
 			db.select({ count: sql<number>`COUNT(*)` })
 				.from(invoices)
@@ -324,6 +324,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.limit(5),
 
 			getTrendDataByRange(rid, '30d', 'weekly'),
+
+			db.select({
+				total: sql<number>`COUNT(*)`,
+				in_month: sql<number>`COUNT(*) FILTER (WHERE TO_CHAR(${invoices.invoiceDate},'YYYY-MM') = ${selectedMonth})`,
+			})
+				.from(invoices)
+				.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt))),
 		]);
 
 		const overdue   = { count: Number(overdueRow[0]?.count    ?? 0) };
@@ -470,6 +477,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const missingInvoices = await detectMissingInvoices(rid, today);
 		const displayMonth = new Date(selectedMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
+		const invoiceRange = invoiceRangeRow[0] ?? { total: 0, in_month: 0 };
+		const invoicesOutsideMonth = Math.max(Number(invoiceRange.total) - Number(invoiceRange.in_month), 0);
+
 		type InvRow = { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; display_amount: number; status: string; item_count: number };
 		return {
 			title: 'dashboard.title', subtitle: displayMonth + ' · EUR', firstInvoice,
@@ -494,6 +504,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			spark_data: sparkData,
 			projection: { daily_rate: proj.dailyRate, projected_eom: proj.projectedEom, elapsed_pct: proj.projectedElapsedPct, days_elapsed: proj.daysElapsed, days_in_month: daysInMonth },
 			trend,
+			invoices_outside_month: invoicesOutsideMonth,
 		};
 	});
 };
