@@ -69,7 +69,10 @@ un solo paso siguiente y qué esperar de un producto en beta.
       remitente con nombre y cara convierte más que uno corporativo
 - [ ] ¿Se mandan desde el mismo sistema del producto, o hace falta otra
       herramienta? Empezar por lo que ya existe evita una decisión y un coste
-- [ ] ¿Sigue en pie «abrimos en tandas a partir de julio de 2026»?
+- [x] La landing ya no dice «a partir de julio de 2026» (issue #333) — el
+      texto actual es «abrimos en tandas según vamos incorporando
+      restaurantes». Si la secuencia de email reusa la fecha en algún borrador,
+      reusar esa misma frase en su lugar.
 
 ## Relacionado
 

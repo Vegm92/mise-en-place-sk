@@ -229,10 +229,23 @@ function buildMigratedCopy(loc: Locale) {
  *   attribution alongside the email, so "Solo guardamos tu email" / "We only
  *   store your email" stopped being accurate and was trimmed to the parts
  *   that still are.
+ * - `faq[4].a` (issue #333 part 2): the "when does access start" answer
+ *   advertised a "July 2026" opening that had passed by the time #327 fanned
+ *   this copy out to five more landing-page variants. We cannot invent a real
+ *   date, so the date framing was dropped in favour of the batch-cadence
+ *   wording already used elsewhere on the page ("abrimos en tandas" / "we
+ *   open in batches"), rather than replaced with another guess. `faq` is
+ *   nested (an array of {q,a}), so it is patched separately below rather
+ *   than through the flat POST_407_INTENTIONAL_CHANGES spread.
  */
 const POST_407_INTENTIONAL_CHANGES: Record<Locale, Partial<Record<string, string>>> = {
 	es: { privacy: 'Sin spam. Sin compromisos.' },
 	en: { privacy: 'No spam. No commitment.' },
+};
+
+const POST_333_FAQ_4_A: Record<Locale, string> = {
+	es: 'Abrimos en tandas según vamos incorporando restaurantes. Avisamos por email con al menos una semana de antelación.',
+	en: 'We open in batches as we bring on new restaurants. We notify by email at least a week in advance.',
 };
 
 describe('waitlist copy migration is byte-identical to the pre-migration inline object (issue #407)', () => {
@@ -244,6 +257,10 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 	for (const loc of ['es', 'en'] as const) {
 		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table, aside from documented later changes`, () => {
 			const expected = { ...PRE_MIGRATION_COPY[loc], ...POST_407_INTENTIONAL_CHANGES[loc] };
+			const preMigrationFaq = expected.faq as { q: string; a: string }[];
+			expected.faq = preMigrationFaq.map((row, i) =>
+				i === 4 ? { ...row, a: POST_333_FAQ_4_A[loc] } : row
+			);
 			expect(buildMigratedCopy(loc)).toEqual(expected);
 		});
 	}
