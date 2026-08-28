@@ -29,7 +29,7 @@ const CHAT_ACTION_ROUTES: { path: string; promptLines: string[] }[] = [
 
 const CHAT_ACTION_ALLOWED_PATHS = new Set(CHAT_ACTION_ROUTES.map((r) => r.path));
 const CHAT_ACTION_LABEL_MAX_LENGTH = 80;
-const CHAT_ACTION_HREF_BASE = 'http://chat-action.internal';
+const CHAT_ACTION_HREF_BASE = 'https://chat-action.internal';
 
 const SYSTEM_PROMPT = `You are a helpful assistant for a procurement management app called Mise en Place.
 The user manages supplier invoices, budgets, stock levels, and spending for a restaurant or pharmacy.

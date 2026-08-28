@@ -1,6 +1,5 @@
 <script lang="ts">
   import X from '@lucide/svelte/icons/x';
-  import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
   import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
   import Bullet from '$lib/components/mep/Bullet.svelte';
@@ -9,14 +8,13 @@
   import RailBlock from '$lib/components/desktop/turno/RailBlock.svelte';
   import WorkCard from '$lib/components/desktop/turno/WorkCard.svelte';
   import { categoryColor } from '$lib/colors';
-  import { locale, t, ti, tp, tcat } from '$lib/i18n';
+  import { t, ti, tp, tcat } from '$lib/i18n';
   import { fmtEurCompact, fmtEurSigned } from '$lib/formatters';
   import {
     buildWorklist, buildCategoryRisk, buildPaceCurve, planToDate, atStake, sortWorklist,
-    RIBBON_HORIZON_DAYS, CASH_OUT_HORIZON_DAYS,
   } from '$lib/dashboard-turno';
   import type {
-    TurnoInput, SortMode, PayableInput, PriceShockInput, UncategorizedInput, MissingInput,
+    TurnoInput, SortMode, PriceShockInput, UncategorizedInput, MissingInput,
   } from '$lib/dashboard-turno';
 
   export interface Mom { this_month: number; last_month: number; pct_change: number | null }
@@ -25,14 +23,13 @@
   export interface DashboardData {
     firstInvoice: boolean | null;
     mom: Mom;
-    pending: { count: number; amount: number };
+    review: { count: number; amount: number; incidencias: number };
     spark_data: number[] | null;
     total_budget: number;
     budgets: Record<string, number>;
     category_spend_map: Record<string, number>;
     projection: Projection | null;
     is_current_month: boolean;
-    payables: PayableInput[];
     uncategorized_suppliers: UncategorizedInput[];
     turno_price_shocks: PriceShockInput[];
     missing_invoices: MissingInput[];
@@ -69,8 +66,7 @@
     budgets: data.budgets,
     categorySpend: data.category_spend_map,
     priceShocks: data.turno_price_shocks,
-    payables: data.payables,
-    review: { count: data.pending.count, amount: data.pending.amount },
+    review: data.review,
     missing: data.missing_invoices,
     uncategorized: data.uncategorized_suppliers,
   });
@@ -85,9 +81,6 @@
   const projectedEom = $derived(data.projection?.projected_eom ?? data.mom.this_month);
   const overrun = $derived(projectedEom - data.total_budget);
 
-  const cashOutSoon = $derived(data.payables.filter((p) => p.days_delta >= 0 && p.days_delta <= RIBBON_HORIZON_DAYS));
-  const cashOutSoonTotal = $derived(cashOutSoon.reduce((s, p) => s + p.amount, 0));
-
   const categoryRisk = $derived(buildCategoryRisk(turnoInput).slice(0, 3));
   const paceCurve = $derived(buildPaceCurve(data.spark_data ?? [], turnoInput));
 
@@ -98,10 +91,6 @@
   });
 
   const hasPaceData = $derived(data.mom.this_month > 0 || hasBudget);
-
-  function fmtDueDate(iso: string) {
-    return new Date(iso).toLocaleDateString($locale, { day: '2-digit', month: 'short' });
-  }
 </script>
 
 <div class="hidden md:flex flex-col gap-3 p-4" style="min-height:0;">
@@ -156,16 +145,11 @@
 
     <StatusChip
       label={$t('turno.ribbon.review')}
-      value={fmtEurCompact(data.pending.amount, $locale)}
-      tone={data.pending.count > 0 ? 'caution' : 'pos'}
-      note={$tp('turno.ribbon.reviewNote', data.pending.count)}
-    />
-
-    <StatusChip
-      label={$ti('turno.ribbon.cashOut', { days: RIBBON_HORIZON_DAYS })}
-      value={fmtEurCompact(cashOutSoonTotal, $locale)}
-      tone={cashOutSoon.length > 0 ? 'caution' : 'pos'}
-      note={$tp('turno.ribbon.cashOutNote', cashOutSoon.length)}
+      value={fmtEurCompact(data.review.amount, $locale)}
+      tone={data.review.incidencias > 0 ? 'neg' : data.review.count > 0 ? 'caution' : 'pos'}
+      note={data.review.incidencias > 0
+        ? $tp('turno.ribbon.issuesNote', data.review.incidencias)
+        : $tp('turno.ribbon.reviewNote', data.review.count)}
       last
     />
 
@@ -279,35 +263,6 @@
                 <div class="num" style="font-size:11px;margin-top:4px;color:{cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
                   {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, $locale), delta: fmtEurSigned(cat.overrun, $locale) })}
                 </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </RailBlock>
-
-      <RailBlock title={$t('turno.rail.cashOut')}>
-        {#snippet headerRight()}
-          <a href="/reminders" class="btn btn-ghost" style="height:22px;font-size:11px;padding:0 6px;text-decoration:none;">
-            {$t('turno.rail.cashOutAll')} <ChevronRight size={11} />
-          </a>
-        {/snippet}
-        {#if data.payables.length === 0}
-          <div class="body">
-            {$ti('turno.rail.cashOutEmpty', { n: CASH_OUT_HORIZON_DAYS })}
-          </div>
-        {:else}
-          <div style="display:flex;flex-direction:column;">
-            {#each data.payables.slice(0, 5) as p, i (p.id)}
-              <div style="display:flex;align-items:center;gap:11px;padding:6px 0;border-bottom:{i < Math.min(data.payables.length, 5) - 1 ? '1px solid var(--mep-divider)' : 'none'};">
-                <span class="num" style="width:46px;font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{fmtDueDate(p.due_date)}</span>
-                <span class="body" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{p.supplier_name ?? '—'}</span>
-                <span class="num body-strong" style="flex-shrink:0;">{fmtEurCompact(p.amount, $locale)}</span>
-                <span
-                  class="badge"
-                  style="font-size:11px;flex-shrink:0;background:{p.days_delta < 0 ? 'var(--mep-neg-soft)' : p.days_delta <= 7 ? 'var(--mep-caution-soft)' : 'var(--mep-hover)'};color:{p.days_delta < 0 ? 'var(--mep-neg)' : p.days_delta <= 7 ? 'var(--mep-caution)' : 'var(--mep-fg-3)'};"
-                >
-                  {p.days_delta < 0 ? $t('turno.rail.overdue') : $ti('turno.rail.days', { n: p.days_delta })}
-                </span>
               </div>
             {/each}
           </div>

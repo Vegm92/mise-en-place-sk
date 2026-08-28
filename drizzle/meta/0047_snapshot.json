@@ -1,6 +1,6 @@
 {
-  "id": "3d9b9949-255e-4536-bbf2-cafd849bdb5c",
-  "prevId": "a0059cec-6fe5-498f-b869-b6cdef57dd44",
+  "id": "c7427928-78d0-4ff3-a0d3-63144a0182e0",
+  "prevId": "4cf1986c-509e-4c4f-93f2-ca184dbc5b55",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1266,10 +1266,10 @@
         },
         "requires_unit_conversion": {
           "name": "requires_unit_conversion",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "default": false
+          "default": 0
         },
         "canonical_unit": {
           "name": "canonical_unit",
@@ -1498,6 +1498,13 @@
           "notNull": false,
           "default": "'pending'"
         },
+        "review_state": {
+          "name": "review_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'revisado'"
+        },
         "source_file": {
           "name": "source_file",
           "type": "text",
@@ -1549,10 +1556,10 @@
         },
         "qr_mismatch": {
           "name": "qr_mismatch",
-          "type": "boolean",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
-          "default": false
+          "default": 0
         },
         "accepted_at": {
           "name": "accepted_at",
@@ -1658,6 +1665,27 @@
             },
             {
               "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_invoices_rid_review_state": {
+          "name": "idx_invoices_rid_review_state",
+          "columns": [
+            {
+              "expression": "restaurant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "review_state",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3422,6 +3450,61 @@
           "onUpdate": "no action"
         }
       },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.upload_sessions": {
+      "name": "upload_sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "upload_sessions_updated_at_idx": {
+          "name": "upload_sessions_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

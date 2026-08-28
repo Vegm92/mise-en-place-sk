@@ -1,0 +1,2 @@
+ALTER TABLE "invoices" ADD COLUMN "review_state" text DEFAULT 'revisado' NOT NULL;--> statement-breakpoint
+CREATE INDEX "idx_invoices_rid_review_state" ON "invoices" USING btree ("restaurant_id","review_state");

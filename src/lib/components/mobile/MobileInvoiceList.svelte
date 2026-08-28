@@ -16,7 +16,7 @@
     supplier_name: string | null;
     total_amount: number | null;
     display_amount?: number | null;
-    status: string | null;
+    review_state: string | null;
     invoice_date: string | null;
     line_items?: unknown[];
   }
@@ -147,15 +147,15 @@
       onclick={toggleMonth}
     >{$t('minv.filter.month')}</button>
     <button
-      class={chipClass(filters.status === 'pending')}
-      aria-pressed={filters.status === 'pending'}
-      onclick={() => toggleStatus('pending')}
-    >{$t('minv.filter.pending')}</button>
+      class={chipClass(filters.status === 'por_revisar')}
+      aria-pressed={filters.status === 'por_revisar'}
+      onclick={() => toggleStatus('por_revisar')}
+    >{$t('minv.filter.toReview')}</button>
     <button
-      class={chipClass(filters.status === 'overdue')}
-      aria-pressed={filters.status === 'overdue'}
-      onclick={() => toggleStatus('overdue')}
-    >{$t('minv.filter.overdue')}</button>
+      class={chipClass(filters.status === 'incidencia')}
+      aria-pressed={filters.status === 'incidencia'}
+      onclick={() => toggleStatus('incidencia')}
+    >{$t('minv.filter.issues')}</button>
     <button
       class={chipClass(filters.supplier_id !== '')}
       aria-pressed={filters.supplier_id !== ''}
@@ -271,7 +271,7 @@
                     {inv.supplier_name ?? '—'}
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
-                    <StatusBadge status={inv.status ?? 'pending'} style="font-size: 11px; padding: 1px 5px;" />
+                    <StatusBadge status={inv.review_state ?? 'revisado'} style="font-size: 11px; padding: 1px 5px;" />
                     <span class="num" style="font-size: 11px; color: var(--mep-fg-3);">
                       {inv.invoice_number ?? '—'}
                     </span>
