@@ -1,12 +1,13 @@
 /**
- * publicFormAction wrapper (issue #391).
+ * publicFormAction wrapper (issue #391, short-circuit fix issue #510).
  *
  * The public form routes used to reimplement honeypot + rate limiting per
  * route. These tests pin the shared behaviour: the honeypot short-circuits
- * before any limiter is touched, every configured rule is evaluated (the
- * per-IP and per-email caps are both consumed, matching the login and
- * password-recovery actions this replaced), and the blocked rule decides the
- * scope reported to auth telemetry.
+ * before any limiter is touched, rules are checked IP-scope first regardless
+ * of the order the caller lists them in, evaluation stops at the first rule
+ * that fails so a later (e.g. identity-scoped) bucket is never consumed, and
+ * the rule that actually tripped decides the scope reported to auth
+ * telemetry.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -34,7 +35,7 @@ function formEvent(fields: Record<string, string>) {
 }
 
 beforeEach(() => {
-	rateLimitMock.mockClear().mockResolvedValue(true);
+	rateLimitMock.mockReset().mockResolvedValue(true);
 	logAuthEventMock.mockClear();
 });
 
@@ -64,7 +65,7 @@ describe('publicFormAction', () => {
 		expect(handler).not.toHaveBeenCalled();
 	});
 
-	it('evaluates every rule even after one fails, and reports the blocked scope', async () => {
+	it('short-circuits on the first failing rule and never touches the email bucket', async () => {
 		rateLimitMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 		const handler = vi.fn();
 		const action = publicFormAction(
@@ -86,10 +87,30 @@ describe('publicFormAction', () => {
 			data: { error: 'rate_limited', email: 'chef@example.com' },
 		});
 		expect(handler).not.toHaveBeenCalled();
-		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual([
-			'login:ip:203.0.113.7',
-			'login:email:chef@example.com',
-		]);
+		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual(['login:ip:203.0.113.7']);
+		expect(rateLimitMock).not.toHaveBeenCalledWith('login:email:chef@example.com', expect.anything());
+		expect(logAuthEventMock).toHaveBeenCalledWith('login_rate_limited', {
+			ipHash: 'iphash',
+			scope: 'ip',
+		});
+	});
+
+	it('checks the IP-scoped rule before the identity-scoped one even when the caller lists it second', async () => {
+		rateLimitMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+		const action = publicFormAction(
+			{
+				rateLimitEvent: 'login_rate_limited',
+				limits: () => [
+					{ key: 'email-bucket', max: 1, scope: 'email' },
+					{ key: 'ip-bucket', max: 1, scope: 'ip' },
+				],
+			},
+			async () => ({ ok: true }),
+		);
+
+		expect(await action(formEvent({}))).toMatchObject({ status: 429 });
+		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual(['ip-bucket']);
+		expect(rateLimitMock).not.toHaveBeenCalledWith('email-bucket', expect.anything());
 		expect(logAuthEventMock).toHaveBeenCalledWith('login_rate_limited', {
 			ipHash: 'iphash',
 			scope: 'ip',
@@ -110,6 +131,7 @@ describe('publicFormAction', () => {
 		);
 
 		expect(await action(formEvent({}))).toMatchObject({ status: 429 });
+		expect(rateLimitMock.mock.calls.map(c => c[0])).toEqual(['a', 'b']);
 		expect(logAuthEventMock).toHaveBeenCalledWith('login_rate_limited', {
 			ipHash: 'iphash',
 			scope: 'email',

@@ -23,6 +23,10 @@ export interface PublicFormOptions {
 	turnstile?: boolean;
 }
 
+function byIpScopeFirst(a: RateLimitRule, b: RateLimitRule): number {
+	return (a.scope === 'ip' ? 0 : 1) - (b.scope === 'ip' ? 0 : 1);
+}
+
 export function publicFormAction<T>(
 	options: PublicFormOptions,
 	handler: (ctx: PublicFormContext) => Promise<T>,
@@ -42,16 +46,14 @@ export function publicFormAction<T>(
 			}
 		}
 
-		const rules = options.limits?.(ctx) ?? [];
-		const results = [] as boolean[];
-		for (const rule of rules) results.push(await checkRateLimit(rule.key, rule.max));
+		const rules = (options.limits?.(ctx) ?? []).slice().sort(byIpScopeFirst);
+		for (const rule of rules) {
+			if (await checkRateLimit(rule.key, rule.max)) continue;
 
-		const blocked = rules[results.indexOf(false)];
-		if (blocked) {
 			if (options.rateLimitEvent) {
 				logAuthEvent(options.rateLimitEvent, {
 					ipHash: ctx.ipHash,
-					...(blocked.scope ? { scope: blocked.scope } : {}),
+					...(rule.scope ? { scope: rule.scope } : {}),
 				});
 			}
 			return fail(429, { error: 'rate_limited', ...extra() });
