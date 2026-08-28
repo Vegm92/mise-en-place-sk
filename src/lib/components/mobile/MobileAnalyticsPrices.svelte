@@ -1,5 +1,6 @@
 <script lang="ts">
   import { locale, t } from '$lib/i18n';
+  import { fmtEur } from '$lib/formatters';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
 
   interface PriceItem {
@@ -51,7 +52,7 @@
   );
 
   function fmtPrice(n: number) {
-    return n.toFixed(2).replace('.', ',') + ' €';
+    return fmtEur(n, $locale);
   }
   function fmtDate(d: string | null) {
     if (!d) return '—';
@@ -71,12 +72,12 @@
     return pct > 0 ? '↑' : '↓';
   }
 
-  const filterOptions: Array<[typeof filterChange, string]> = [
+  const filterOptions = $derived<Array<[typeof filterChange, string]>>([
     ['all',  $t('prices.filter.all')],
     ['up',   $t('prices.filter.up')],
     ['down', $t('prices.filter.down')],
     ['flat', $t('prices.filter.flat')],
-  ];
+  ]);
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
