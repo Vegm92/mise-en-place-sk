@@ -8,7 +8,7 @@ import { claimRequest, releaseRequest, isValidKey } from '$lib/server/idempotenc
 import { getOrCreateSupplierId } from '$lib/server/supplier';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
 import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
-import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice } from '$lib/server/invoice-save';
+import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField } from '$lib/server/invoice-save';
 import type { TaxBand } from '$lib/tax';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -157,6 +157,7 @@ export const actions: Actions = {
 		const dueDateRaw     = data.get('due_date');
 		if (!isBlankOrIsoDate(invoiceDateRaw)) return fail(400, { errorKey: 'error.invalidInvoiceDate' });
 		if (!isBlankOrIsoDate(dueDateRaw))     return fail(400, { errorKey: 'error.invalidDueDate' });
+		if (findInvalidMonetaryField(data))    return fail(400, { errorKey: 'error.invalidAmount' });
 		const invoiceDate   = toIsoDate(invoiceDateRaw);
 		const dueDate       = toIsoDate(dueDateRaw);
 		const totalAmount   = toMoneyString(data.get('total_amount') as string | null);
