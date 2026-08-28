@@ -762,6 +762,7 @@
       </form>
 
       <div class="card rev-col rev-col-fixed rev-sizing rev-preview-frame rev-desktop-only" style="width:{previewOpen ? previewW : PREVIEW_SHUT_W}px;padding:0;">
+        <h2 class="sr-only">{$t('a11y.documentPreview')}</h2>
         {#if previewOpen}
           <div class="rev-bar rev-bar-head" style="padding:8px 8px 8px 12px;gap:6px;">
             <span style="display:inline-flex;color:var(--mep-fg-3);flex-shrink:0;"><FileText size={13} /></span>
@@ -829,6 +830,7 @@
         {/each}
 
         <div class="card rev-col rev-col-fill" data-coach="invoice-fields" style="padding:0;">
+          <h2 class="sr-only">{$t('a11y.extractedData')}</h2>
 
           <div class="rev-bar rev-bar-head">
             <div class="rev-bar-title">
@@ -888,15 +890,15 @@
 
               <div class="rev-grid">
                 <div class="rev-field-wide">
-                  <div class="rev-field-label">
+                  <label class="rev-field-label" for="field-supplier-name">
                     {$t('field.supplier')}
                     <ConfidenceDot confidence={fieldConf.supplier_name} />
-                  </div>
-                  <input type="text" name="supplier_name" bind:value={supplierNameInput}
+                  </label>
+                  <input id="field-supplier-name" type="text" name="supplier_name" bind:value={supplierNameInput}
                     class="rev-input" class:flagged={needsReview(supplierNameInput) || flagged('supplier_name')} />
                 </div>
                 <div>
-                  <div class="rev-field-label">
+                  <label class="rev-field-label" for="field-invoice-number">
                     {$t('field.invoiceNum')}
                     <ConfidenceDot confidence={fieldConf.invoice_number} />
                     {#if review?.data?.document_type === 'factura' || review?.data?.document_type === 'albaran'}
@@ -904,24 +906,24 @@
                         {$t(`field.documentType.${review.data.document_type}`)}
                       </span>
                     {/if}
-                  </div>
-                  <input type="text" name="invoice_number" bind:value={invoiceNumberInput}
+                  </label>
+                  <input id="field-invoice-number" type="text" name="invoice_number" bind:value={invoiceNumberInput}
                     class="rev-input num" class:flagged={flagged('invoice_number')} />
                 </div>
                 <div>
-                  <div class="rev-field-label">
+                  <label class="rev-field-label" for="field-invoice-date">
                     {$t('field.invoiceDate')}
                     <ConfidenceDot confidence={fieldConf.invoice_date} />
-                  </div>
-                  <input type="text" name="invoice_date" bind:value={invoiceDateInput} placeholder="YYYY-MM-DD"
+                  </label>
+                  <input id="field-invoice-date" type="text" name="invoice_date" bind:value={invoiceDateInput} placeholder="YYYY-MM-DD"
                     class="rev-input num" class:flagged={flagged('invoice_date')} />
                 </div>
                 <div>
-                  <div class="rev-field-label">
+                  <label class="rev-field-label" for="field-due-date">
                     {$t('extract.due')}
                     <ConfidenceDot confidence={fieldConf.due_date} />
-                  </div>
-                  <input type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD"
+                  </label>
+                  <input id="field-due-date" type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD"
                     oninput={() => { dueDateSuggested = false; }}
                     class="rev-input num" class:flagged={flagged('due_date')} />
                   {#if dueDateSuggested}
@@ -929,11 +931,11 @@
                   {/if}
                 </div>
                 <div class="rev-field-wide">
-                  <div class="rev-field-label">
+                  <label class="rev-field-label" for="field-total-amount">
                     {$t('tbl.total')}
                     <ConfidenceDot confidence={fieldConf.total_amount} />
-                  </div>
-                  <input type="text" name="total_amount" bind:value={totalAmountInput}
+                  </label>
+                  <input id="field-total-amount" type="text" name="total_amount" bind:value={totalAmountInput}
                     aria-describedby={hasDiscrepancy ? 'err-total_amount' : undefined}
                     class="rev-input num" class:mismatch={hasDiscrepancy} class:flagged={!hasDiscrepancy && flagged('total_amount')} />
                   {#if hasDiscrepancy}
@@ -943,8 +945,8 @@
                   {/if}
                 </div>
                 <div class="rev-grid-wide">
-                  <div class="rev-field-label">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></div>
-                  <textarea name="notes" maxlength={250} rows={2} bind:value={notesInput}
+                  <label class="rev-field-label" for="field-notes">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></label>
+                  <textarea id="field-notes" name="notes" maxlength={250} rows={2} bind:value={notesInput}
                     placeholder={$t('extract.notesPh')} class="rev-input"></textarea>
                 </div>
               </div>
@@ -986,31 +988,31 @@
                     {#if isOpen}
                       <div class="rev-card-body">
                         <div>
-                          <div class="rev-field-label">{$t('tbl.desc')} <ConfidenceDot confidence={itemConf} size={6} /></div>
-                          <input type="text" name="line_descriptions" bind:value={lineItems[i].description} class="rev-input" />
+                          <label class="rev-field-label" for="line-desc-{i}">{$t('tbl.desc')} <ConfidenceDot confidence={itemConf} size={6} /></label>
+                          <input id="line-desc-{i}" type="text" name="line_descriptions" bind:value={lineItems[i].description} class="rev-input" />
                         </div>
                         <div class="rev-card-grid3">
                           <div>
-                            <div class="rev-field-label">{$t('tbl.qty')}</div>
-                            <input type="text" name="line_quantities" bind:value={lineItems[i].quantity} class="rev-input num" style="text-align:right;" />
+                            <label class="rev-field-label" for="line-qty-{i}">{$t('tbl.qty')}</label>
+                            <input id="line-qty-{i}" type="text" name="line_quantities" bind:value={lineItems[i].quantity} class="rev-input num" style="text-align:right;" />
                           </div>
                           <div>
-                            <div class="rev-field-label">{$t('tbl.unit')}</div>
-                            <input type="text" name="line_units" bind:value={lineItems[i].unit} class="rev-input" />
+                            <label class="rev-field-label" for="line-unit-{i}">{$t('tbl.unit')}</label>
+                            <input id="line-unit-{i}" type="text" name="line_units" bind:value={lineItems[i].unit} class="rev-input" />
                           </div>
                           <div>
-                            <div class="rev-field-label">{$t('review.lineRate')}</div>
-                            <input type="text" bind:value={lineItems[i].tax_rate} class="rev-input num" placeholder="%" style="text-align:right;" />
+                            <label class="rev-field-label" for="line-rate-{i}">{$t('review.lineRate')}</label>
+                            <input id="line-rate-{i}" type="text" bind:value={lineItems[i].tax_rate} class="rev-input num" placeholder="%" style="text-align:right;" />
                           </div>
                         </div>
                         <div class="rev-card-grid2">
                           <div>
-                            <div class="rev-field-label">{$t('tbl.unitPrice')}</div>
-                            <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-input num" style="text-align:right;" />
+                            <label class="rev-field-label" for="line-unit-price-{i}">{$t('tbl.unitPrice')}</label>
+                            <input id="line-unit-price-{i}" type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-input num" style="text-align:right;" />
                           </div>
                           <div>
-                            <div class="rev-field-label">{$t('tbl.total')}</div>
-                            <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-input num" style="text-align:right;font-weight:600;" />
+                            <label class="rev-field-label" for="line-total-{i}">{$t('tbl.total')}</label>
+                            <input id="line-total-{i}" type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-input num" style="text-align:right;font-weight:600;" />
                           </div>
                         </div>
                         <button type="button" class="rev-card-remove" onclick={() => removeRow(i)}>
@@ -1033,14 +1035,14 @@
               <table class="tbl rev-lines" style="table-layout:fixed;width:100%;">
                 <thead>
                   <tr>
-                    <th class="num" style="width:38px;" title={$t('review.lineNumber')}>#</th>
-                    <th>{$t('tbl.desc')}</th>
-                    <th class="num" style="width:74px;">{$t('tbl.qty')}</th>
-                    <th style="width:80px;">{$t('tbl.unit')}</th>
-                    <th class="num" style="width:96px;">{$t('tbl.unitPrice')}</th>
-                    <th class="num" style="width:72px;" title={$t('review.lineRateHint')}>{$t('review.lineRate')}</th>
-                    <th class="num" style="width:100px;">{$t('tbl.total')}</th>
-                    <th style="width:36px;"></th>
+                    <th class="num" scope="col" style="width:38px;" title={$t('review.lineNumber')}>#</th>
+                    <th scope="col">{$t('tbl.desc')}</th>
+                    <th class="num" scope="col" style="width:74px;">{$t('tbl.qty')}</th>
+                    <th scope="col" style="width:80px;">{$t('tbl.unit')}</th>
+                    <th class="num" scope="col" style="width:96px;">{$t('tbl.unitPrice')}</th>
+                    <th class="num" scope="col" style="width:72px;" title={$t('review.lineRateHint')}>{$t('review.lineRate')}</th>
+                    <th class="num" scope="col" style="width:100px;">{$t('tbl.total')}</th>
+                    <th scope="col" style="width:36px;"><span class="sr-only">{$t('review.removeLine')}</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1052,25 +1054,34 @@
                       <td>
                         <div style="display:flex;align-items:center;gap:5px;">
                           <input type="text" name="line_descriptions" bind:value={lineItems[i].description}
+                            aria-label={$ti('batch.aria.lineDesc', { row: i + 1 })}
                             class="rev-cell" style="font-weight:500;" />
                           <ConfidenceDot confidence={itemConf} size={6} />
                         </div>
                       </td>
                       <td class="num">
-                        <input type="text" name="line_quantities" bind:value={lineItems[i].quantity} class="rev-cell num" style="text-align:right;" />
+                        <input type="text" name="line_quantities" bind:value={lineItems[i].quantity}
+                          aria-label={$ti('batch.aria.lineQty', { row: i + 1 })}
+                          class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td>
-                        <input type="text" name="line_units" bind:value={lineItems[i].unit} class="rev-cell" style="color:var(--mep-fg-2);" />
+                        <input type="text" name="line_units" bind:value={lineItems[i].unit}
+                          aria-label={$ti('batch.aria.lineUnit', { row: i + 1 })}
+                          class="rev-cell" style="color:var(--mep-fg-2);" />
                       </td>
                       <td class="num">
-                        <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price} class="rev-cell num" style="text-align:right;" />
+                        <input type="text" name="line_unit_prices" bind:value={lineItems[i].unit_price}
+                          aria-label={$ti('batch.aria.lineUnitPrice', { row: i + 1 })}
+                          class="rev-cell num" style="text-align:right;" />
                       </td>
                       <td class="num">
                         <input type="text" bind:value={lineItems[i].tax_rate} class="rev-cell num rev-cell-rate"
-                          placeholder="%" aria-label={$t('review.lineRate')} style="text-align:right;" />
+                          placeholder="%" aria-label={$ti('batch.aria.lineRate', { row: i + 1 })} style="text-align:right;" />
                       </td>
                       <td class="num">
-                        <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price} class="rev-cell num" style="text-align:right;font-weight:500;" />
+                        <input type="text" name="line_total_prices" bind:value={lineItems[i].total_price}
+                          aria-label={$ti('batch.aria.lineTotal', { row: i + 1 })}
+                          class="rev-cell num" style="text-align:right;font-weight:500;" />
                       </td>
                       <td>
                         <input type="hidden" name="line_tax_rates" value={percentToFraction(item.tax_rate) ?? ''} />
@@ -1123,11 +1134,11 @@
                 <table class="tbl rev-tax-tbl">
                   <thead>
                     <tr>
-                      <th class="num" style="width:92px;">{$t('review.taxRate')}</th>
-                      <th style="width:96px;">{$t('review.taxKind')}</th>
-                      <th class="num">{$t('review.taxBandBase')}</th>
-                      <th class="num" style="width:120px;">{$t('review.taxAmount')}</th>
-                      <th style="width:32px;"></th>
+                      <th class="num" scope="col" style="width:92px;">{$t('review.taxRate')}</th>
+                      <th scope="col" style="width:96px;">{$t('review.taxKind')}</th>
+                      <th class="num" scope="col">{$t('review.taxBandBase')}</th>
+                      <th class="num" scope="col" style="width:120px;">{$t('review.taxAmount')}</th>
+                      <th scope="col" style="width:32px;"><span class="sr-only">{$t('review.taxRemoveBand')}</span></th>
                     </tr>
                   </thead>
                   <tbody>
