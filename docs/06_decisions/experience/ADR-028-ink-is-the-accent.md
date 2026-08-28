@@ -128,6 +128,22 @@ is a separate decision about the mark itself.
 tier in dark (3.92:1, up from 3.47:1 before); it is used for de-emphasised meta
 text only.
 
+## Update — PWA icon art regenerated, mark unified (issue #571)
+
+The "Not handled" item above is resolved. `scripts/generate-pwa-icons.mjs` no
+longer draws the unrelated `#1C3B2A`/`#F0E6D3` "M" letterform: it now draws
+the same three-bar mark used in-app (`src/lib/components/mep/Logo.svelte`,
+introduced this issue to unify the ten inline copies that existed) and in
+transactional email (`email.ts`'s `LOGO_SVG`), in the ink/parchment pair —
+`#17171A` on `#F1F0EE`, matching `manifest.webmanifest`'s `theme_color` /
+`background_color` exactly. `static/favicon.svg` moves off a stray
+pre-ADR-026 amber (`#B8741A`) it had carried untouched through both the
+amber→slate and slate→tinta moves, onto the same pair and the same bar
+geometry, scaled. `tests/logo-usage-consistency.test.ts` pins the icon
+script's colour constants to the manifest going forward, and pins the
+`Logo.svelte` / `email.ts` bar geometry to each other, so this does not drift
+a third time.
+
 ## Related
 
 - [ADR-026](./ADR-026-warm-severity-ramp-cool-actions.md) — amended: the

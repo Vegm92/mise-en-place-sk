@@ -6,6 +6,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Mail from '@lucide/svelte/icons/mail';
+	import Logo from '$lib/components/mep/Logo.svelte';
 
 	const { data }: { data: PageData } = $props();
 
@@ -50,11 +51,7 @@
 
 	<aside class="auth-aside">
 		<div class="auth-lockup">
-			<svg class="auth-logo" width="21" height="21" viewBox="0 0 24 24" aria-hidden="true">
-				<rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-				<rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-				<rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
-			</svg>
+			<Logo size={21} />
 			<span class="auth-brand">Mise en Place</span>
 		</div>
 
@@ -161,7 +158,6 @@
 </div>
 
 <style>
-	.auth-logo { color: var(--mep-acc); flex-shrink: 0; }
 	.auth-brand {
 		font-size: 15.5px;
 		font-weight: 600;
@@ -426,7 +422,7 @@
 			gap: 20px;
 		}
 		.auth-spacer, .auth-steps, .auth-aside-note, .auth-aside-body { display: none; }
-		.auth-lockup svg { width: 18px; height: 18px; }
+		.auth-lockup :global(.mep-logo) { width: 18px; height: 18px; }
 		.auth-aside-title { font-size: 21px; letter-spacing: -0.6px; }
 		.auth-copy { gap: 8px; }
 		.auth-main { padding: 32px 24px 28px; }
