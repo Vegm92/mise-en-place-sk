@@ -67,7 +67,35 @@ vi.mock('../src/lib/server/rate-limiter.js', () => ({
 }));
 
 const deadLetterMocks = vi.hoisted(() => ({ recordDeadLetter: vi.fn() }));
-vi.mock('../src/lib/server/dead-letter.js', () => deadLetterMocks);
+vi.mock('../src/lib/server/dead-letter.js', () => ({
+	recordDeadLetter: deadLetterMocks.recordDeadLetter,
+	deadLetterRefFromJob: (queue: string, job: { id?: string | null; data?: unknown; retryCount?: number | null; retryLimit?: number | null }) => {
+		const data = (job.data ?? {}) as Record<string, unknown>;
+		const retryCount = job.retryCount ?? 0;
+		const retryLimit = job.retryLimit ?? 0;
+		return {
+			queue,
+			jobId: job.id ?? null,
+			restaurantId: typeof data.restaurantId === 'string' ? data.restaurantId : null,
+			sourceId: typeof data.itemId === 'string' ? data.itemId : null,
+			attempt: retryCount + 1,
+			retriesLeft: Math.max(0, retryLimit - retryCount),
+			payload: job.data,
+		};
+	},
+	runWithDeadLetter: async <T,>(
+		ref: { retriesLeft?: number; queue?: string; jobId?: string | null; attempt?: number },
+		run: () => Promise<T>,
+	): Promise<T> => {
+		try {
+			return await run();
+		} catch (err) {
+			if ((ref.retriesLeft ?? 0) > 0) throw err;
+			await deadLetterMocks.recordDeadLetter({ ...ref, error: err });
+			throw err;
+		}
+	},
+}));
 
 vi.mock('../src/lib/server/sessions.js', () => ({
 	uploadsDir: () => '/tmp/uploads',
@@ -83,7 +111,7 @@ const queueMocks = vi.hoisted(() => ({
 }));
 vi.mock('../src/lib/server/queue.js', () => queueMocks);
 
-const { processExtractionJob } = await import('../src/lib/server/extraction-worker');
+const { processExtractionJob, runExtractionJobForBoss } = await import('../src/lib/server/extraction-worker');
 
 const rateLimited = Object.assign(new Error('rate limited'), { status: 429 });
 vi.mock('../src/lib/server/locations.js', () => ({ isLocationLocked: vi.fn().mockResolvedValue(false) }));
@@ -384,7 +412,79 @@ describe('WhatsApp notification hand-off', () => {
 
 		await expect(
 			processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 }),
-		).resolves.toBeUndefined();
+		).resolves.toBe('completed');
 		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * `processExtractionJob` never throws for its own classified outcomes — it
+ * never did, even before #520 — so a `boss.work` handler that redelivers by
+ * catching a throw never redelivers a real extraction failure: the queue's
+ * `retryLimit: 2` (queue.ts) was configured but unreachable. `worker.ts` now
+ * runs the extraction queue with `perJobResults: true` and reports each job's
+ * disposition through this adapter instead, so pg-boss's own retry/dead-letter
+ * machinery drives off the classification #482 already computed.
+ */
+describe('runExtractionJobForBoss — the pg-boss redelivery pg-boss never got (#520)', () => {
+	const pgBossJob = (retryCount: number, retryLimit: number) => ({
+		id: 'pgboss-job-1',
+		data: { itemId: item.id, restaurantId: 'r1' },
+		retryCount,
+		retryLimit,
+	});
+
+	it('reports "failed" for a transient error with retries left, so pg-boss redelivers just this job', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockRejectedValue(rateLimited);
+
+		const result = await runExtractionJobForBoss(pgBossJob(0, 2));
+
+		expect(result).toEqual({ id: 'pgboss-job-1', status: 'failed' });
+		expect(batchMocks.markFailed).not.toHaveBeenCalled();
+	});
+
+	it('reports "completed" once retries are exhausted, so pg-boss does not redeliver again', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockRejectedValue(rateLimited);
+
+		const result = await runExtractionJobForBoss(pgBossJob(2, 2));
+
+		expect(result).toEqual({ id: 'pgboss-job-1', status: 'completed' });
+		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, 'extract.err.rateLimited');
+	});
+
+	it('reports "completed" for a permanent error even with retries left — the app already dead-lettered it', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockRejectedValue(new Error('boom'));
+
+		const result = await runExtractionJobForBoss(pgBossJob(0, 2));
+
+		expect(result).toEqual({ id: 'pgboss-job-1', status: 'completed' });
+		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledTimes(1);
+	});
+
+	it('reports "completed" on a successful extraction', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
+		});
+
+		const result = await runExtractionJobForBoss(pgBossJob(0, 2));
+
+		expect(result).toEqual({ id: 'pgboss-job-1', status: 'completed' });
+	});
+
+	it('routes a genuinely unexpected exception through the shared retriesLeft policy, not the extraction classifier', async () => {
+		batchMocks.getItem.mockRejectedValueOnce(new Error('connection reset'));
+
+		const retried = await runExtractionJobForBoss(pgBossJob(0, 2));
+		expect(retried).toEqual({ id: 'pgboss-job-1', status: 'failed' });
+		expect(deadLetterMocks.recordDeadLetter).not.toHaveBeenCalled();
+
+		batchMocks.getItem.mockRejectedValueOnce(new Error('connection reset'));
+		const final = await runExtractionJobForBoss(pgBossJob(2, 2));
+		expect(final).toEqual({ id: 'pgboss-job-1', status: 'deadletter' });
+		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledTimes(1);
 	});
 });

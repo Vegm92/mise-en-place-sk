@@ -70,6 +70,9 @@ jobs:
       - name: Lint — no unscoped tenant queries (ADR-001 / #380)
         run: pnpm lint:unscoped-query
 
+      - name: Lint — form actions have an authorization check (ADR-001 / #517)
+        run: pnpm lint:action-authz
+
       - name: Lint — no hardcoded user-facing strings
         run: pnpm lint:i18n
 

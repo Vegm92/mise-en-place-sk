@@ -124,6 +124,8 @@ export const actions: Actions = {
 
 		const cat = category && VALID_CATEGORIES.includes(category) ? category : null;
 
+		// tenant-check-ok: inserts under rid from locals; the ON CONFLICT target
+		// is (restaurant_id, name_key), so even the update path stays tenant-scoped.
 		const rows = await db.execute<{ id: number }>(sql`
 			INSERT INTO products (restaurant_id, canonical_name, name_key, category, canonical_unit)
 			VALUES (${rid}, ${canonicalName}, ${nameKey}, ${cat}, ${canonicalUnit})

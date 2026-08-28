@@ -224,6 +224,8 @@ export const actions: Actions = {
 		const category = String(data.get('category') ?? '');
 		if (!name) error(400, 'Name is required');
 		const cat = VALID_CATEGORIES.includes(category) ? category : null;
+		// tenant-check-ok: inserts a brand-new row under rid from locals; no
+		// existing row is targeted, so there is no ownership check to make.
 		const [row] = await db.insert(suppliers)
 			.values({ restaurantId: rid, name, category: cat })
 			.returning({ id: suppliers.id });
