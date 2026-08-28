@@ -339,7 +339,7 @@ export interface AccessState {
 export function resolveAccessState(
 	sub: { status: string; trialEndsAt: Date | null } | undefined,
 ): AccessState {
-	if (!sub) return { allowed: true, status: 'trialing', trialEndsAt: null, trialExpired: false };
+	if (!sub) return { allowed: false, status: 'trialing', trialEndsAt: null, trialExpired: true };
 
 	const status = sub.status as SubscriptionStatus;
 	const trialEndsAt = sub.trialEndsAt ?? null;
@@ -463,6 +463,42 @@ export async function getTierFeatures(restaurantId: string): Promise<TierConfig[
 
 export async function getAccessState(restaurantId: string): Promise<AccessState> {
 	return (await getEntitlements(restaurantId)).access;
+}
+
+export const ORPHAN_SUBSCRIPTIONS_QUEUE = 'scheduled-orphan-subscriptions';
+export const ORPHAN_SUBSCRIPTIONS_CRON = '50 3 * * *';
+
+export async function reconcileOrphanSubscriptions(): Promise<{ repaired: number }> {
+	const orphans = await db.select({ id: restaurants.id })
+		.from(restaurants)
+		.leftJoin(subscriptions, eq(restaurants.id, subscriptions.restaurantId))
+		.where(and(isNull(restaurants.parentId), isNull(subscriptions.id)));
+
+	for (const orphan of orphans) {
+		await db.insert(subscriptions)
+			.values({
+				restaurantId: orphan.id,
+				status: 'trialing',
+				trialEndsAt: new Date(Date.now() + TRIAL_DAYS * DAY_MS),
+			})
+			.onConflictDoUpdate({
+				target: subscriptions.restaurantId,
+				set: { updatedAt: new Date() },
+			});
+		await applyTierSettings(orphan.id, 'trial');
+	}
+
+	if (orphans.length > 0) {
+		const msg = `[billing] reconciled ${orphans.length} restaurant(s) with no subscription row — auto-provisioned a trial`;
+		console.warn(msg);
+		Sentry.captureMessage(msg, { level: 'warning', tags: { area: 'billing', op: 'reconcile_orphans' } });
+	}
+
+	return { repaired: orphans.length };
+}
+
+export async function runOrphanSubscriptionsJob(): Promise<{ repaired: number }> {
+	return await reconcileOrphanSubscriptions();
 }
 
 export async function getOrCreateCustomer(restaurantId: string, email: string, restaurantName: string, forceNew = false): Promise<string> {
@@ -715,7 +751,7 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 	const userId = typeof session.metadata?.userId === 'string' ? session.metadata.userId : null;
 	const stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? '';
 
-	await db.insert(subscriptions)
+	const applied = await db.insert(subscriptions)
 		.values({
 			restaurantId,
 			stripeCustomerId,
@@ -739,7 +775,11 @@ async function handleCheckoutCompleted(event: Stripe.Event, eventCreatedAt: Date
 				lastEventAt: eventCreatedAt,
 				updatedAt: new Date(),
 			},
-		});
+			setWhere: or(isNull(subscriptions.lastEventAt), lte(subscriptions.lastEventAt, eventCreatedAt)),
+		})
+		.returning({ id: subscriptions.id });
+	if (applied.length === 0) return;
+
 	await applyTierSettings(restaurantId, tier);
 	trackEvent('plan_upgraded', restaurantId, { tier, price_id: priceId });
 	console.info(`[billing] checkout.session.completed applied — restaurant=${restaurantId}, tier=${tier}, status=${sub.status}, subscription=${subscriptionId}`);

@@ -81,7 +81,7 @@ async function handlePairingAttempt(
 	if (result.reason === 'taken') {
 		await ctx.sendText(
 			from,
-			'⚠️ Este número ya está autorizado en otro local. Pide al administrador que lo dé de baja antes de registrarlo aquí.',
+			'⚠️ No se ha podido vincular este número. Comprueba el número o contacta con soporte.',
 		);
 		return;
 	}

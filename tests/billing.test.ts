@@ -324,9 +324,14 @@ describe('getAccessState', () => {
 		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
 	});
 
-	it('does not lock out a tenant with no subscription row at all', async () => {
+	// Issue #486: a missing subscription row used to fail OPEN (unlimited
+	// free access, invisible to trial-expiry enforcement since trialEndsAt
+	// stayed null). It must fail closed instead — the reconciliation job
+	// (billing.ts: reconcileOrphanSubscriptions) is what heals a legitimate
+	// gap by auto-provisioning a dated trial row.
+	it('denies a tenant with no subscription row at all, rather than failing open', async () => {
 		subscriptionRow.value = null;
-		expect(await getAccessState('rest-1')).toMatchObject({ allowed: true });
+		expect(await getAccessState('rest-1')).toMatchObject({ allowed: false, trialExpired: true });
 	});
 });
 

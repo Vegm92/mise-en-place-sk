@@ -32,7 +32,10 @@ local `subscriptions` row + `settings` mirror gate feature access and quotas.
 - **Tiers**: trial 20 / starter 100 / pro 300 / business unlimited invoices per
   month; feature flags per tier (see `docs/02_product/plans_and_entitlements.md`).
 - **Trial**: 30 days; `isAccessAllowed` = `active` always, `trialing` only while
-  `trialEndsAt > now`. No `subscriptions` row → treated as allowed-trialing.
+  `trialEndsAt > now`. No `subscriptions` row → denied (fails closed, issue
+  #486); a nightly reconciliation job auto-provisions a dated trial row for
+  any root restaurant caught without one, so the gap self-heals instead of
+  staying locked out.
 - **One subscription per user (ADR-024)**: a user account may hold **at most one
   live subscription** (`active`/`trialing`/`past_due`/`paused`). The tier's
   `maxLocations` sets how many restaurants that one subscription covers
@@ -133,7 +136,8 @@ from gated pages).
 
 ## Background dependencies
 
-Trial-expiry notice cron; MRR snapshot cron (`15 2 * * *`).
+Trial-expiry notice cron; MRR snapshot cron (`15 2 * * *`); orphan-subscription
+reconciliation cron (`50 3 * * *`).
 
 ## External dependencies
 
@@ -184,8 +188,13 @@ guard; quota arithmetic.
 - A checkout for a tier creates the subscription + settings mirror; webhook
   replay is a no-op; unknown price falls back with a loud log.
 - Access/quota gates respond correctly at the boundary (402/403/quota).
+- A restaurant with no `subscriptions` row is denied access, not granted it
+  (issue #486); every restaurant-creation path (`onboarding`, `auth-seed`)
+  writes a dated trial row, and the nightly reconciliation repairs any that
+  slip through.
 - Tests: `tests/billing.test.ts`, `tests/stripe-webhook.test.ts`
-  (signature verification, all branches, dedup, out-of-order).
+  (signature verification, all branches, dedup, out-of-order),
+  `tests/scheduler.test.ts` (orphan reconciliation), `tests/auth-seed.test.ts`.
 
 ## Code notes
 
@@ -285,7 +294,11 @@ guard; quota arithmetic.
 
 **`interface AccessState` / `function getAccessState`**
 
-- Gates paid capacity — uploads, extraction, AI chat (issue #287); read access to existing data is never gated. `trialExpired` gets its own copy. A missing subscription row is treated as allowed (only rows created outside onboarding hit that path).
+- Gates paid capacity — uploads, extraction, AI chat (issue #287); read access to existing data is never gated. `trialExpired` gets its own copy. A missing subscription row is denied, not granted (issue #486): `resolveAccessState(undefined)` returns `{ allowed: false, trialExpired: true }` rather than failing open, because the row is the only place trial-expiry enforcement can see the tenant — a permanently-missing row used to mean unlimited free access that never showed up in `runTrialNoticesJob` either, since `trialEndsAt` stayed null. Only a root restaurant's own row is looked up (child locations resolve through `BILLING_PARENT` to the same row), so there is no legitimate case where a tenant's billing parent has no row at all.
+
+**`const ORPHAN_SUBSCRIPTIONS_QUEUE` / `function reconcileOrphanSubscriptions` / `function runOrphanSubscriptionsJob`**
+
+- The repair half of issue #486: failing closed is correct but would permanently lock out any restaurant a partially-failed creation path left without a row. Nightly (`50 3 * * *`), scans root restaurants (`parent_id IS NULL` — a location never has its own row) left-joined to `subscriptions` for a NULL match, inserts a dated trial row (`TRIAL_DAYS`) for each and re-applies the trial tier's settings mirror, then reports the count to Sentry so a recurring orphan (a code path still skipping the insert) is visible rather than silently healing forever. Registered in `alerts.ts`'s `JOBS` array like `runMrrSnapshotJob`; re-exported through `scheduler.ts`.
 
 **`function getOrCreateCustomer`**
 

@@ -112,6 +112,12 @@ The new restaurant is created with `parent_id = billingRestaurantId(active)`
 owner, and the tier settings mirror is written for fallback only (see rule 8).
 The `active_restaurant` cookie is set to the new location.
 
+The owner check, the capacity check, and the insert all run inside one
+`db.transaction`, guarded by `pg_advisory_xact_lock(hashtext('loc:' +
+billingRestaurantId))` (same pattern as `getOrCreateCustomer`'s `cust:<id>`
+lock) — two concurrent submits at the limit serialize on the lock instead of
+both reading a pre-insert count and both passing (issue #499).
+
 ### 7. Access and lockout are group-wide
 
 `getAccessState` resolves the parent's subscription. If the parent's
@@ -242,6 +248,10 @@ Stripe (one customer/subscription per group), Resend, Sentry.
 - Billing idempotency lives on the parent: `cust:<parentId>` Stripe idempotency
   key + `pg_advisory_xact_lock` in `getOrCreateCustomer`, and
   `stripe-webhook`-scoped dedup in `idempotency_keys` (ADR-013).
+- Location creation is quota-safe under concurrency: `addLocation` takes
+  `pg_advisory_xact_lock(hashtext('loc:<billingRestaurantId>'))` before
+  counting the group and inserting, so two parallel submits at the limit
+  cannot both pass (issue #499).
 
 ## Observability
 
@@ -263,9 +273,14 @@ Stripe (one customer/subscription per group), Resend, Sentry.
 - Switching lists only member restaurants; invalid/foreign cookies fall back or
   redirect to onboarding.
 - Deleting the parent cascades its locations and all their data.
-- Tests: `tests/multi-location.test.ts` (switch + addLocation) plus — when the
-  gaps below are fixed — a layout-tier-in-location test, a billing-from-location
-  no-duplicate-subscription test, and a shared-quota-pool test.
+- Business owner's `addLocation` at the limit stays at the limit under
+  concurrency: two parallel submits at `maxLocations` insert exactly one
+  location, never two (issue #499).
+- Tests: `tests/multi-location.test.ts` (switch + addLocation) and
+  `tests/settings-add-location.test.ts` (owner gate, group-scoped capacity,
+  concurrent-submit safety) plus — when the gaps below are fixed — a
+  layout-tier-in-location test, a billing-from-location no-duplicate-subscription
+  test, and a shared-quota-pool test.
 
 ## Known implementation gaps (recorded 2026-08-13 — do not resolve silently)
 
@@ -283,15 +298,19 @@ to match is pending:
    `checkExtractionQuota` on the raw `restaurantId` — consumption is per
    location while the limit is read from the parent. Fix: resolve to the parent
    for one shared pool.
-4. `settings addLocation` does not verify the acting user is `owner` of the
-   parent (harmless today only because no `member` role is ever written). Fix:
-   owner gate.
-5. The capacity gate counts the user's **total** memberships
-   (`settings/+page.server.ts:224-229`), not the group's. Fix: count memberships
-   within the group (parent + its locations).
-6. `applyTierSettings(newId, tier)` writes a location mirror that goes stale on
+4. `applyTierSettings(newId, tier)` writes a location mirror that goes stale on
    upgrades; once reads resolve to the parent this mirror should be dropped so
    the parent is the single source.
+
+**Resolved 2026-08-27 (issue #499):** the two gaps formerly numbered 4 and 5
+here — `addLocation` missing the owner gate, and the capacity check counting
+the user's total memberships instead of the group's — are fixed, along with a
+third bug the same fix uncovered: the capacity check was check-then-act with
+no lock (same class as #244), so two concurrent submits at the limit could
+both pass and both insert. `addLocation` now calls `requireOwner`, counts via
+`BILLING_PARENT` scoped to the billing group, and does the count + insert
+inside a `pg_advisory_xact_lock`-guarded transaction. See rule 6 above, the
+idempotency rule below, and `tests/settings-add-location.test.ts`.
 
 ## Non-goals
 

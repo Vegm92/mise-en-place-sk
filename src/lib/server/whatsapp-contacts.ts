@@ -2,6 +2,7 @@ import { asc, eq } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { whatsappContacts } from './schema';
 import { normalizePhoneNumber } from '$lib/phone';
+import { trackEvent } from './events';
 
 export interface WhatsAppContact {
 	id: number;
@@ -62,11 +63,47 @@ export async function addContact(
 	return existing?.restaurantId === restaurantId ? { ok: true } : { ok: false, reason: 'taken' };
 }
 
-export async function removeContact(restaurantId: string, id: number): Promise<boolean> {
+export async function removeContact(restaurantId: string, id: number, releasedBy?: string): Promise<boolean> {
 	const tdb = forTenant(restaurantId);
 	const deleted = await db
 		.delete(whatsappContacts)
 		.where(tdb.scope(whatsappContacts.restaurantId, eq(whatsappContacts.id, id)))
-		.returning({ id: whatsappContacts.id });
-	return deleted.length > 0;
+		.returning({ id: whatsappContacts.id, phoneNumber: whatsappContacts.phoneNumber });
+
+	if (deleted.length === 0) return false;
+
+	trackEvent('whatsapp_contact_released', restaurantId, {
+		contactId: deleted[0].id,
+		phoneNumber: deleted[0].phoneNumber,
+		releasedBy: releasedBy ?? null,
+		method: 'owner',
+	});
+	return true;
+}
+
+export type ReleaseByPhoneResult =
+	| { ok: true; restaurantId: string }
+	| { ok: false; reason: 'invalid' | 'notFound' };
+
+export async function releaseContactByPhone(rawPhone: string, releasedBy: string): Promise<ReleaseByPhoneResult> {
+	const normalized = normalizePhoneNumber(rawPhone);
+	if (!normalized.ok) return { ok: false, reason: 'invalid' };
+
+	// tenant-scope-ok: support tooling — releasing a number by the number
+	// itself is inherently cross-tenant (the caller does not know which
+	// restaurant holds it), gated by admin auth in the calling route.
+	const [deleted] = await db
+		.delete(whatsappContacts)
+		.where(eq(whatsappContacts.phoneNumber, normalized.phone))
+		.returning({ id: whatsappContacts.id, restaurantId: whatsappContacts.restaurantId, phoneNumber: whatsappContacts.phoneNumber });
+
+	if (!deleted) return { ok: false, reason: 'notFound' };
+
+	trackEvent('whatsapp_contact_released', deleted.restaurantId, {
+		contactId: deleted.id,
+		phoneNumber: deleted.phoneNumber,
+		releasedBy,
+		method: 'support',
+	});
+	return { ok: true, restaurantId: deleted.restaurantId };
 }

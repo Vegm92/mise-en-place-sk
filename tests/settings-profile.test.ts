@@ -127,6 +127,22 @@ describe('saveEmail', () => {
 		expect(result).toMatchObject({ status: 400, data: { error: 'set.profile.err.emailFailed' } });
 		expect(sendEmailMock).not.toHaveBeenCalled();
 	});
+
+	it('rate limits repeated attempts per account', async () => {
+		rateLimitMock.mockResolvedValueOnce(false);
+		const result = await actions.saveEmail(formEvent({ email: 'new@example.com' }));
+		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		expect(rateLimitMock).toHaveBeenCalledWith('email-change:user:user-1', 5);
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	});
+
+	it('rate limits repeated attempts per target address', async () => {
+		rateLimitMock.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+		const result = await actions.saveEmail(formEvent({ email: 'new@example.com' }));
+		expect(result).toMatchObject({ status: 429, data: { error: 'set.profile.err.rateLimited' } });
+		expect(rateLimitMock).toHaveBeenCalledWith('email-change:address:new@example.com', 5);
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	});
 });
 
 describe('changePassword', () => {

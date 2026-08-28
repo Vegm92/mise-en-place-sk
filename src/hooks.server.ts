@@ -17,7 +17,7 @@ import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
 import { withTimeout } from '$lib/server/with-timeout';
 import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
-import { assertProductionEnv } from '$lib/server/config';
+import { assertProductionEnv, addressHeaderWarning } from '$lib/server/config';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 assertProductionEnv();
@@ -28,7 +28,6 @@ const API_GLOBAL_RATE_LIMIT = parseInt(process.env.API_GLOBAL_RATE_LIMIT ?? '300
 const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/api/whatsapp/webhook']);
 const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
 const SENTRY_RELEASE = process.env.SENTRY_RELEASE || undefined;
-const ADDRESS_HEADER = process.env.ADDRESS_HEADER ?? '';
 
 Sentry.init({
 	dsn: SENTRY_DSN,
@@ -53,13 +52,8 @@ function isNetworkUnreachable(e: unknown): boolean {
 	return msg.includes('ENOTFOUND') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed');
 }
 
-if (NODE_ENV === 'production' && !ADDRESS_HEADER) {
-	console.warn(
-		'[hooks] ADDRESS_HEADER is not set — getClientAddress() returns the socket peer address. ' +
-		'If a reverse proxy terminates TLS, set ADDRESS_HEADER=x-forwarded-for and XFF_DEPTH to the number of trusted proxies, ' +
-		'or the IP-keyed rate limits on login/signup/waitlist share a single bucket.',
-	);
-}
+const addressWarning = addressHeaderWarning();
+if (addressWarning) console.warn(addressWarning);
 
 cleanupStaleBatches().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] batch cleanup error:', e); });
 seedAdminUser().catch(e => { if (!isNetworkUnreachable(e)) console.error('[hooks] seed error:', e); });

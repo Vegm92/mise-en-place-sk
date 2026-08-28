@@ -50,7 +50,12 @@ vi.mock('../src/lib/server/idempotency', () => ({
 	releaseIdempotencyKey: releaseMock,
 }));
 vi.mock('../src/lib/server/rate-limiter', () => ({ checkRateLimit: rateLimitMock }));
-vi.mock('../src/lib/server/billing', () => ({ getAccessState: accessMock }));
+vi.mock('../src/lib/server/billing', () => ({
+	getAccessState: accessMock,
+	ORPHAN_SUBSCRIPTIONS_QUEUE: 'scheduled-orphan-subscriptions',
+	ORPHAN_SUBSCRIPTIONS_CRON: '50 3 * * *',
+	runOrphanSubscriptionsJob: vi.fn(),
+}));
 vi.mock('../src/lib/server/integrations/whatsapp/jobs', async (importActual) => ({
 	...(await importActual<typeof import('../src/lib/server/integrations/whatsapp/jobs')>()),
 	findJobByCode: findJobByCodeMock,

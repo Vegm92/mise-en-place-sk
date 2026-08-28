@@ -102,7 +102,8 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
   `acquireExtractionSlot()` semaphore (`worker.ts` `batchSize` follows the cap).
 - Scheduled cron jobs (see `docs/05_operations/background_jobs.md`):
   weekly digest, overdue reminders, trial-expiry notices, file purge,
-  MRR snapshot, dead-letter purge, analytics MV refresh.
+  MRR snapshot, dead-letter purge, analytics MV refresh, orphan-subscription
+  reconciliation.
 - The first three are dispatchers only: they keyset-page `restaurants` and queue
   one job per tenant onto `tenant-weekly-digest` / `tenant-overdue-reminder` /
   `tenant-trial-notice`, consumed `SCHEDULED_FANOUT_CONCURRENCY` at a time with

@@ -95,7 +95,7 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 **`function seedAdminUser`**
 - Seeds the initial admin + default restaurant on first startup (requires `AUTH_ADMIN_EMAIL`, `AUTH_ADMIN_PASSWORD`, `AUTH_ADMIN_RESTAURANT_NAME`); no-ops if the user exists (checked directly against `users`).
 - `AUTH_ADMIN_EMAIL` also gates `/admin` and receives password-reset mail, so a placeholder address means an admin nobody can recover (issue #295); in production an `@example.com/.org/.net` address is rejected.
-- User created directly (bcrypt + insert, the same path as signup, `emailVerified` pre-set), then the default restaurant and user→restaurant link.
+- User created directly (bcrypt + insert, the same path as signup, `emailVerified` pre-set), then the default restaurant, the user→restaurant link, and a `subscriptions` row (dated trial via `trialDaysFor`) — mirroring `onboarding/+page.server.ts`'s insert, so this bootstrap path does not leave the restaurant in the no-subscription-row gap `getAccessState` now denies by default (issue #486).
 
 ### `src/lib/server/auth-session.ts`
 **`function issueSessionCookie`**

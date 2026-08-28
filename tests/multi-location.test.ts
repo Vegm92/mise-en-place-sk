@@ -20,6 +20,11 @@ const { state, rateLimitMock, applyTierSettingsMock } = vi.hoisted(() => ({
 		/** restaurants the plan no longer covers (#679) */
 		lockedIds: [] as string[],
 		inserted: [] as Array<{ table: string; values: unknown }>,
+		/** role of `USER` on `rest-1`, checked by requireOwner (#499) */
+		ownerRole: 'owner' as string | undefined,
+		/** size of the billing group `rest-1` belongs to (#499); defaults to
+		 *  the membership count so existing per-test setup keeps working */
+		groupCount: null as number | null,
 	},
 	rateLimitMock: vi.fn().mockResolvedValue(true),
 	applyTierSettingsMock: vi.fn().mockResolvedValue(undefined),
@@ -34,8 +39,13 @@ vi.mock('$lib/server/db', () => {
 		return p;
 	};
 	const db = {
-		select: (fields?: Record<string, unknown>) =>
-			resolving(() => ('planTier' in (fields ?? {}) ? [{ planTier: state.subscriptionTier }] : state.memberships)),
+		select: (fields?: Record<string, unknown>) => resolving(() => {
+			const keys = fields ?? {};
+			if ('planTier' in keys) return [{ planTier: state.subscriptionTier }];
+			if ('role' in keys) return state.ownerRole ? [{ role: state.ownerRole }] : [];
+			if ('cnt' in keys) return [{ cnt: state.groupCount ?? state.memberships.length }];
+			return state.memberships;
+		}),
 		insert: (table: never) => ({
 			values: (values: unknown) => {
 				state.inserted.push({ table: getTableName(table), values });
@@ -46,6 +56,7 @@ vi.mock('$lib/server/db', () => {
 			},
 		}),
 		update: () => ({ set: () => ({ where: () => Promise.resolve([]) }) }),
+		execute: async () => [],
 		transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(db),
 	};
 	return { db, forTenant: (rid: string) => ({ rid, scope: () => ({}) }) };
@@ -103,6 +114,8 @@ beforeEach(() => {
 	state.subscriptionTier = 'business';
 	state.lockedIds = [];
 	state.inserted = [];
+	state.ownerRole = 'owner';
+	state.groupCount = null;
 	rateLimitMock.mockClear().mockResolvedValue(true);
 	applyTierSettingsMock.mockClear();
 });
@@ -196,5 +209,13 @@ describe('settings ?/addLocation', () => {
 	it('rejects an empty name', async () => {
 		const result = await settingsActions.addLocation(addLocationEvent('   '));
 		expect(result).toMatchObject({ status: 422, data: { error: 'set.locations.err.nameRequired' } });
+	});
+
+	// #499: only the owner of the current restaurant may add a billed location.
+	it('refuses a non-owner member and inserts nothing', async () => {
+		state.ownerRole = 'member';
+		const result = await settingsActions.addLocation(addLocationEvent('Sucursal ajena'));
+		expect(result).toMatchObject({ status: 403, data: { error: 'set.locations.err.notOwner' } });
+		expect(state.inserted).toEqual([]);
 	});
 });
