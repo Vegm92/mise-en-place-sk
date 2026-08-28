@@ -414,12 +414,16 @@
   .help-tip-body { flex: 1; font-size: 12.5px; }
   .help-tip-head { display: flex; align-items: center; gap: 8px; color: var(--mep-fg); }
   .help-tip-pro {
+    display: inline-flex;
+    align-items: center;
     font-size: 11px;
     font-weight: 700;
-    padding: 2px 6px;
+    letter-spacing: 0.04em;
+    padding: 0 5px;
     border-radius: var(--mep-r-tag);
-    background: var(--mep-acc);
-    color: var(--mep-acc-fg);
+    background: var(--mep-hover);
+    color: var(--mep-fg-2);
+    border: 1px solid var(--mep-border);
   }
 
   .help-card, .help-faq { overflow: hidden; }
