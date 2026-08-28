@@ -115,9 +115,11 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 
 **`function createVerificationToken`**
 - `identifier` is namespaced per use (`verify-email:<email>`, `reset-password:<email>`) so the two flows can never collide on a shared token row.
+- Deletes any prior token(s) for the identifier before inserting the new one (issue #503): a second reset/verify request supersedes the first link rather than leaving two simultaneously-valid links outstanding. Intentional — a stale "check your email" tab silently stops working the moment a newer request goes out, which is the same trade-off password-reset flows elsewhere make.
 
 **`function consumeVerificationToken`**
-- Verifies and deletes a token in one step, making it single-use.
+- Single `DELETE ... WHERE identifier = ? AND token = ? AND expires > now() RETURNING` (issue #503): the match, expiry check and burn happen as one statement, so two concurrent consumes of the same token race at the database's row lock and exactly one sees a row to delete — no select-then-delete window where both callers can pass. `deleted.length > 0` is the verdict.
+- An expired token fails the `expires > now()` predicate and is therefore never matched or deleted by this function — the row is simply left in place, inert (its identifier+token pair can never validate again). Nothing sweeps expired rows on a timer; they are only ever cleared by the next `createVerificationToken` call for the same identifier. This is harmless (dead rows, no PII beyond an email string already stored on the user, unreachable without knowing the 32-byte token) but is not a cleanup mechanism — do not rely on this table staying small.
 
 ### `src/lib/components/mep/AuthShell.svelte`
 **_module level_**
