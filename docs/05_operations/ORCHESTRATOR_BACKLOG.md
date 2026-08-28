@@ -47,7 +47,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 511 | P2 | DEFERRED | 0 | Likely moot under #746 review-state reframe (PR #748); recheck after merge | three conflicting InvoiceStatus vocabularies |
 | 520 | P2 | DONE | 1 | Verified (commit 42dfafc): 6/7 acceptance items already covered by intervening work (evidence per item); dead extraction retry policy fixed via perJobResults wiring. 2327/2327. | tenant-isolation tests cover load() only; silent skips |
 | 518 | P2 | PENDING | 0 | | scheduled jobs iterate all tenants sequentially |
-| 517 | P2 | PENDING | 0 | | tenant-scoping lint for form actions |
+| 517 | P2 | DONE | 1 | Verified (commit c1e9b7c): action-authz lint gate (49 actions audited, 2 honest escape comments, CI-wired), ADR-001 amended. 2327/2327. | tenant-scoping lint for form actions |
 | 570 | P2 | PENDING | 0 | | verify auto-classifier status |
 | 567 | P2 | PENDING | 0 | Feature, sizeable | collapsible sidebar |
 | 736 | P2 | DEFERRED | 0 | PR #723 branch | escandallo reads load tenant graph too often |
