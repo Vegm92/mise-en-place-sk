@@ -36,8 +36,8 @@ describe('mobile chips drive server filter params', () => {
 	});
 
 	it('derives chip active state from the applied server filters', () => {
-		expect(MOB).toMatch(/filters\.status\s*===\s*'pending'/);
-		expect(MOB).toMatch(/filters\.status\s*===\s*'overdue'/);
+		expect(MOB).toMatch(/filters\.status\s*===\s*'por_revisar'/);
+		expect(MOB).toMatch(/filters\.status\s*===\s*'incidencia'/);
 	});
 
 	it('makes "Este mes" a real date filter through date_from/date_to', () => {
