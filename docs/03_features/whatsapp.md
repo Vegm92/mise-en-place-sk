@@ -459,6 +459,7 @@ before the handler sees it, because contacts are stored as digits (ADR-019).
 **`function downloadWhatsAppMedia`**
 
 - Step 1 resolve the media download URL (Graph API, `/{mediaId}`); step 2 download the bytes.
+- The `/{mediaId}` metadata call always targets `GRAPH_API_BASE`, a constant built from env — `mediaId` only ever reaches it as a path segment, so there is nothing to allowlist there. The `meta.url` it returns is attacker-reachable in principle (a redirect, DNS/TLS interception, or a future untrusted `mediaId` source), and the bearer token is a permanent WhatsApp system-user secret, so before the token is attached: `meta.url` must be a string (a missing/malformed value is a clean error, not a `TypeError` from `new URL(undefined)`); the parsed URL must be `https:`; and its host must match `ALLOWED_MEDIA_HOSTS` (#505). The allowlist is `facebook.com`, `fbcdn.net`, `fbsbx.com`, `whatsapp.net` — `fbsbx.com` (Meta's lookaside CDN, e.g. `lookaside.fbsbx.com`) is what the tests simulate and matches what the Graph API actually returns for media today; `facebook.com`/`whatsapp.net` are kept for the metadata host itself and other Meta-owned media hosts. The second fetch uses `redirect: 'manual'` and treats any 3xx as an error rather than following it — Meta's CDN isn't expected to redirect, and Node's `fetch` does not strip `Authorization` on a cross-origin redirect, so silently following one would leak the token to whatever host the redirect names.
 
 ### `src/lib/phone.ts`
 

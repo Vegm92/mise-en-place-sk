@@ -1,6 +1,4 @@
-import { SENTRY_AUTH_TOKEN, SENTRY_ORG } from './env';
-
-const SENTRY_API_BASE = 'https://de.sentry.io/api/0';
+import { SENTRY_API_BASE_URL, SENTRY_AUTH_TOKEN, SENTRY_ORG } from './env';
 
 export type SentryIssue = {
 	id: string;
@@ -26,7 +24,7 @@ export function isSentryConfigured(): boolean {
 }
 
 async function sentryFetch<T>(path: string): Promise<T> {
-	const res = await fetch(`${SENTRY_API_BASE}${path}`, {
+	const res = await fetch(`${SENTRY_API_BASE_URL}${path}`, {
 		headers: { Authorization: `Bearer ${SENTRY_AUTH_TOKEN}` },
 	});
 	if (!res.ok) {

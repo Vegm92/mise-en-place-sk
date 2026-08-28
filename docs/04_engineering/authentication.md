@@ -94,7 +94,7 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 ### `src/lib/server/auth-seed.ts`
 **`function seedAdminUser`**
 - Seeds the initial admin + default restaurant on first startup (requires `AUTH_ADMIN_EMAIL`, `AUTH_ADMIN_PASSWORD`, `AUTH_ADMIN_RESTAURANT_NAME`); no-ops if the user exists (checked directly against `users`).
-- `AUTH_ADMIN_EMAIL` also gates `/admin` and receives password-reset mail, so a placeholder address means an admin nobody can recover (issue #295); in production an `@example.com/.org/.net` address is rejected.
+- `AUTH_ADMIN_EMAIL` also gates `/admin` and receives password-reset mail, so a placeholder address means an admin nobody can recover (issue #295); in production an `@example.com/.org/.net` address is rejected, as is the `changeme` default password. The real gate is `config.ts#validateAdminSeedConfig`, called synchronously at module scope in `hooks.server.ts` alongside `assertProductionEnv()` — it throws before the server starts serving, so a production boot with placeholder admin credentials never comes up. The checks here inside `seedAdminUser` itself are belt-and-braces for any caller that skips that boot gate; because `seedAdminUser()` is awaited behind `.catch()` in `hooks.server.ts`, a throw from here alone would only skip the seed, not stop the server (issue #509).
 - User created directly (bcrypt + insert, the same path as signup, `emailVerified` pre-set), then the default restaurant, the user→restaurant link, and a `subscriptions` row (dated trial via `trialDaysFor`) — mirroring `onboarding/+page.server.ts`'s insert, so this bootstrap path does not leave the restaurant in the no-subscription-row gap `getAccessState` now denies by default (issue #486).
 
 ### `src/lib/server/auth-session.ts`
@@ -115,9 +115,11 @@ Auth.js / SvelteKitAuth (`@auth/sveltekit`) with JWT sessions and the `DrizzleAd
 
 **`function createVerificationToken`**
 - `identifier` is namespaced per use (`verify-email:<email>`, `reset-password:<email>`) so the two flows can never collide on a shared token row.
+- Deletes any prior token(s) for the identifier before inserting the new one (issue #503): a second reset/verify request supersedes the first link rather than leaving two simultaneously-valid links outstanding. Intentional — a stale "check your email" tab silently stops working the moment a newer request goes out, which is the same trade-off password-reset flows elsewhere make.
 
 **`function consumeVerificationToken`**
-- Verifies and deletes a token in one step, making it single-use.
+- Single `DELETE ... WHERE identifier = ? AND token = ? AND expires > now() RETURNING` (issue #503): the match, expiry check and burn happen as one statement, so two concurrent consumes of the same token race at the database's row lock and exactly one sees a row to delete — no select-then-delete window where both callers can pass. `deleted.length > 0` is the verdict.
+- An expired token fails the `expires > now()` predicate and is therefore never matched or deleted by this function — the row is simply left in place, inert (its identifier+token pair can never validate again). Nothing sweeps expired rows on a timer; they are only ever cleared by the next `createVerificationToken` call for the same identifier. This is harmless (dead rows, no PII beyond an email string already stored on the user, unreachable without knowing the 32-byte token) but is not a cleanup mechanism — do not rely on this table staying small.
 
 ### `src/lib/components/mep/AuthShell.svelte`
 **_module level_**

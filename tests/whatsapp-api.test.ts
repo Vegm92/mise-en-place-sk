@@ -158,4 +158,84 @@ describe('downloadWhatsAppMedia', () => {
 		await expect(downloadWhatsAppMedia('media-4')).rejects.toBeInstanceOf(MediaTooLargeError);
 		expect(arrayBuffer).not.toHaveBeenCalled();
 	});
+
+	// Issue #505: the access token is a permanent WhatsApp system-user secret.
+	// It must never be attached to a URL Meta's Graph response didn't actually
+	// point at one of Meta's own media hosts — a redirect or a compromised/
+	// unexpected `url` field should never see the Authorization header.
+	describe('media URL host allowlisting', () => {
+		it.each([
+			['an off-host media URL', 'https://evil.example.com/steal'],
+			['a lookalike host that merely contains an allowed domain', 'https://fbcdn.net.evil.example.com/x'],
+			['a non-https media URL even on an allowed host', 'http://lookaside.fbsbx.com/abc'],
+		])('rejects %s and never fetches it with the token', async (_label, url) => {
+			fetchMock.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ url, mime_type: 'application/pdf' }),
+			});
+
+			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
+
+			await expect(downloadWhatsAppMedia('media-disallowed')).rejects.toThrow(/host not allowed/i);
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+		});
+
+		it.each([
+			'https://lookaside.fbsbx.com/abc',
+			'https://scontent.fbcdn.net/v/abc.pdf',
+			'https://z-p42-chatd.whatsapp.net/v/abc.pdf',
+			'https://graph.facebook.com/v25.0/media-1',
+		])('accepts a real Meta media host: %s', async (url) => {
+			fetchMock
+				.mockResolvedValueOnce({ ok: true, json: async () => ({ url, mime_type: 'application/pdf' }) })
+				.mockResolvedValueOnce({
+					ok: true,
+					headers: new Headers(),
+					arrayBuffer: async () => new TextEncoder().encode('pdf').buffer,
+				});
+
+			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
+
+			const result = await downloadWhatsAppMedia('media-ok');
+			expect(result.mimeType).toBe('application/pdf');
+			expect(fetchMock.mock.calls[1][1].redirect).toBe('manual');
+		});
+
+		it('refuses to follow a redirect response, credentials and all', async () => {
+			fetchMock
+				.mockResolvedValueOnce({
+					ok: true,
+					json: async () => ({ url: 'https://lookaside.fbsbx.com/abc', mime_type: 'application/pdf' }),
+				})
+				.mockResolvedValueOnce({ ok: false, status: 302, headers: new Headers() });
+
+			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
+
+			await expect(downloadWhatsAppMedia('media-redirect')).rejects.toThrow(/redirect/i);
+		});
+
+		it('rejects a missing meta.url with a clean error, not a TypeError', async () => {
+			fetchMock.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ mime_type: 'application/pdf' }),
+			});
+
+			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
+
+			await expect(downloadWhatsAppMedia('media-nourl')).rejects.toThrow(/did not include a url/i);
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+		});
+
+		it('rejects a malformed meta.url with a clean error, not a TypeError', async () => {
+			fetchMock.mockResolvedValueOnce({
+				ok: true,
+				json: async () => ({ url: 'not a url', mime_type: 'application/pdf' }),
+			});
+
+			const { downloadWhatsAppMedia } = await import('../src/lib/server/whatsapp');
+
+			await expect(downloadWhatsAppMedia('media-badurl')).rejects.toThrow(/not a valid URL/i);
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+		});
+	});
 });
