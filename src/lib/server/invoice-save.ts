@@ -35,8 +35,9 @@ const MONETARY_LINE_FIELDS = ['line_quantities', 'line_unit_prices', 'line_total
 
 export function findInvalidMonetaryField(formData: FormData): string | null {
 	const totalAmountRaw = formData.get('total_amount');
-	if (totalAmountRaw !== null && String(totalAmountRaw).trim() !== '' && parseAmount(totalAmountRaw) === null) {
-		return 'total_amount';
+	if (totalAmountRaw !== null) {
+		if (typeof totalAmountRaw !== 'string') return 'total_amount';
+		if (totalAmountRaw.trim() !== '' && parseAmount(totalAmountRaw) === null) return 'total_amount';
 	}
 
 	const descriptions = formData.getAll('line_descriptions').map(String);

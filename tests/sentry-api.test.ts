@@ -13,32 +13,16 @@ describe('SENTRY_API_BASE_URL (env.ts)', () => {
 		vi.resetModules();
 	});
 
-	it('defaults to the EU region when unset', async () => {
+	it.each([
+		['defaults to the EU region when unset', undefined, 'https://de.sentry.io/api/0'],
+		['falls back to the EU region when set to an empty string (e.g. a blank .env.example line)', '', 'https://de.sentry.io/api/0'],
+		['respects an override for a non-EU region', 'https://sentry.io/api/0', 'https://sentry.io/api/0'],
+		['strips a trailing slash so path concatenation never double-slashes', 'https://sentry.io/api/0/', 'https://sentry.io/api/0'],
+	])('%s', async (_label, envValue, expected) => {
 		vi.resetModules();
-		vi.stubEnv('SENTRY_API_BASE_URL', undefined);
+		vi.stubEnv('SENTRY_API_BASE_URL', envValue);
 		const { SENTRY_API_BASE_URL } = await import('../src/lib/server/env');
-		expect(SENTRY_API_BASE_URL).toBe('https://de.sentry.io/api/0');
-	});
-
-	it('falls back to the EU region when set to an empty string (e.g. a blank .env.example line)', async () => {
-		vi.resetModules();
-		vi.stubEnv('SENTRY_API_BASE_URL', '');
-		const { SENTRY_API_BASE_URL } = await import('../src/lib/server/env');
-		expect(SENTRY_API_BASE_URL).toBe('https://de.sentry.io/api/0');
-	});
-
-	it('respects an override for a non-EU region', async () => {
-		vi.resetModules();
-		vi.stubEnv('SENTRY_API_BASE_URL', 'https://sentry.io/api/0');
-		const { SENTRY_API_BASE_URL } = await import('../src/lib/server/env');
-		expect(SENTRY_API_BASE_URL).toBe('https://sentry.io/api/0');
-	});
-
-	it('strips a trailing slash so path concatenation never double-slashes', async () => {
-		vi.resetModules();
-		vi.stubEnv('SENTRY_API_BASE_URL', 'https://sentry.io/api/0/');
-		const { SENTRY_API_BASE_URL } = await import('../src/lib/server/env');
-		expect(SENTRY_API_BASE_URL).toBe('https://sentry.io/api/0');
+		expect(SENTRY_API_BASE_URL).toBe(expected);
 	});
 });
 

@@ -62,7 +62,7 @@ function base64ToBlob(dataUrl: string, type: string): Blob {
 	const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
 	const binary = atob(base64);
 	const bytes = new Uint8Array(binary.length);
-	for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+	for (let i = 0; i < binary.length; i++) bytes[i] = binary.codePointAt(i) ?? 0;
 	return new Blob([bytes], { type });
 }
 
@@ -190,16 +190,16 @@ export async function retryOfflineQueue(
 	return { location, droppedFailed, stillOffline, remaining };
 }
 
-export function createIndexedDbOfflineQueueStorage(): OfflineQueueStorage {
-	function openDb(): Promise<IDBDatabase> {
-		return new Promise((resolve, reject) => {
-			const req = indexedDB.open(DB_NAME, 1);
-			req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-			req.onsuccess = () => resolve(req.result);
-			req.onerror = () => reject(req.error);
-		});
-	}
+function openDb(): Promise<IDBDatabase> {
+	return new Promise((resolve, reject) => {
+		const req = indexedDB.open(DB_NAME, 1);
+		req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+		req.onsuccess = () => resolve(req.result);
+		req.onerror = () => reject(req.error);
+	});
+}
 
+export function createIndexedDbOfflineQueueStorage(): OfflineQueueStorage {
 	return {
 		async getAll() {
 			try {
