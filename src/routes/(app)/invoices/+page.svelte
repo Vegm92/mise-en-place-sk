@@ -411,7 +411,8 @@
           <div class="border border-divider rounded-lg overflow-hidden {expanded ? 'xl:col-span-2' : ''}">
             <button type="button"
               class="grid items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-hover transition-colors
-                     grid-cols-[auto_minmax(0,1fr)_95px_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]"
+                     grid-cols-[auto_minmax(0,1fr)_95px_100px_110px_32px] max-[800px]:grid-cols-[auto_minmax(0,1fr)_auto]
+                     xl:grid-cols-[auto_minmax(0,1fr)_100px_110px_32px]"
               style="width:100%;text-align:left;background:transparent;border:none;font:inherit;color:inherit;"
               onclick={() => toggleDrawer(inv.id)}>
 
@@ -423,19 +424,19 @@
                 onchange={(e) => toggleCheck(inv.id, (e.target as HTMLInputElement).checked)} />
 
               <div class="min-w-0">
-                <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{inv.supplier_name ?? '—'}</div>
+                <div class="body-strong overflow-hidden text-ellipsis whitespace-nowrap" title={inv.supplier_name ?? undefined}>{inv.supplier_name ?? '—'}</div>
                 <div class="body text-fg-3 overflow-hidden text-ellipsis whitespace-nowrap" style="font-size:11.5px;">
-                  {inv.invoice_number ?? '—'} · {inv.invoice_date ?? '—'}
+                  {inv.invoice_number ?? '—'} · {fmtDateShort(inv.invoice_date, $locale)}
                   <span class="text-fg-4">· {$t('inv.uploadedOn')} {inv.created_at ? fmtDateShort(inv.created_at.toISOString(), $locale) : '—'}</span>
                 </div>
               </div>
 
-              <div class="body text-fg-3 max-[800px]:hidden" style="font-size:12px;">
-                {inv.due_date ?? '—'}
+              <div class="body text-fg-3 max-[800px]:hidden xl:hidden" style="font-size:12px;">
+                {fmtDateShort(inv.due_date, $locale)}
               </div>
 
               <div class="num text-right font-semibold" style="font-size:13px;">
-                {fmt(inv.total_amount)} <span class="text-fg-3" style="font-weight:400;font-size:11px;">EUR</span>
+                {fmtEur(inv.total_amount ?? 0, $locale)}
               </div>
 
               <div class="max-[800px]:hidden">

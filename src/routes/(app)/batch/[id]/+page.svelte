@@ -593,7 +593,7 @@
   const previewIsPdf = $derived(previewExt === 'pdf');
   const previewFitSrc = $derived(previewIsPdf ? `${previewSrc}#toolbar=0&navpanes=0&view=FitH` : previewSrc);
 
-  const activeDoc = $derived(data.queue.find(q => q.id === data.review?.itemId) ?? data.queue.find(q => q.status === 'extracting') ?? data.queue[0]);
+  const activeDoc = $derived(data.queue.find(q => q.id === (data.review?.itemId ?? data.failedItem?.itemId)) ?? data.queue.find(q => q.status === 'extracting') ?? data.queue[0]);
   const activeDocIndex = $derived(Math.max(1, data.queue.findIndex(q => q.id === activeDoc?.id) + 1));
   const queueRemaining = $derived(data.queue.filter(q => q.status === 'queued' || q.status === 'pending').length);
 

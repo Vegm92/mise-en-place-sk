@@ -55,13 +55,14 @@
 
     <div class="card" style="padding:18px 20px;flex-shrink:0;" data-coach="budgets-main">
       <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
-      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;">
+      <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
         <div class="num" style="font-size:32px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.7px;line-height:1;">
           {fmtEur(totalSpent, $locale)}
         </div>
         <div style="font-size:13px;color:var(--mep-fg-3);">
           {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, $locale)}</span>
         </div>
+        <span style="font-size:11px;color:var(--mep-fg-4);">{$t('bud.exVat')}</span>
       </div>
       {#if totalLimit > 0}
         <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;">
@@ -243,7 +244,7 @@
           <div class="label">{$t('bud.atDay')} {today}</div>
           <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} {canGoForward} label={monthLabel} compact />
         </div>
-        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
           <div class="num" style="font-size:30px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.6px;line-height:1;">
             {fmtEur(totalSpent, $locale)}
           </div>
@@ -251,6 +252,7 @@
             {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, $locale)}</span>
           </div>
         </div>
+        <div style="font-size:11px;color:var(--mep-fg-4);margin-bottom:8px;">{$t('bud.exVat')}</div>
         {#if totalLimit > 0}
           <div style="height:8px;border-radius:4px;background:var(--mep-surface-2);overflow:hidden;display:flex;margin-bottom:10px;">
             {#each activeRows as r}

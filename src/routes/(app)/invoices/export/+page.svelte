@@ -15,7 +15,7 @@
         </a>
       {/snippet}
 
-      <form method="GET" action="/invoices/export/download" class="flex flex-col gap-4">
+      <form method="GET" action="/invoices/export/download" data-sveltekit-reload class="flex flex-col gap-4">
 
         <div class="flex flex-col gap-1">
           <label class="label" for="date_from">{$t('export.dateRange')}</label>
