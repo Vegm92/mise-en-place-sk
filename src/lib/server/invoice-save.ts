@@ -18,7 +18,7 @@ import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber, parseAmount } from './money';
 import { bandsFromInputs, sumTaxCents, taxableBaseMoney, type TaxBand } from '$lib/tax';
-import { renderTemplate } from '$lib/i18n';
+import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 import type { ReviewState } from '$lib/status';
 
