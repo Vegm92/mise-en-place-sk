@@ -131,7 +131,7 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 325 | P3 | PENDING | 0 | Tracking umbrella | relevance media flywheel |
 | 236 | P3 | PENDING | 0 | Feature, sizeable | email-in invoice ingest |
 | 224 | P3 | PENDING | 0 | Infra config | edge DDoS + Upstash config |
-| 222 | P3 | PENDING | 0 | Infra/DB heavy | RLS tenant isolation |
+| 222 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: fresh RLS policies vs current_setting('app.restaurant_id'), builds on #464's runtime-role split (safe rollout: enforcement activates only under the non-owner role, prod inert until owner's #464 step). Design-first brief incl. per-request context mechanism + pg-boss jobs. | RLS tenant isolation |
 | 332 | P4 | DEFERRED | 0 | labeled `future` | waitlist referral loop |
 | 331 | P4 | DEFERRED | 0 | labeled `future` | WhatsApp outbound digest |
 | 330 | P4 | DEFERRED | 0 | labeled `future` | public price index |
