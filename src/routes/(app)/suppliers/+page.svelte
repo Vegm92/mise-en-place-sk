@@ -128,7 +128,7 @@
     viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
     kpis={[
       { key: 'count',     label: $t('dsup.activeSuppliers'), value: data.suppliers.length, sub: $t('dsup.inTotal') },
-      { key: 'spend',     label: $t('spend.totalSpend'),     value: fmtEur(totalSpend),     sub: $t('dash.category.sub') },
+      { key: 'spend',     label: $t('spend.totalSpend'),     value: fmtEur(totalSpend, $locale),     sub: $t('dash.category.sub') },
       { key: 'invoices',  label: $t('nav.invoices'),         value: totalMonthInvoices,     sub: $t('dash.category.sub') },
       { key: 'unassigned',label: $t('dsup.unassigned'),      value: unassigned, sub: unassignedSub, variant: unassigned > 0 ? 'warn' : 'default' },
     ]}
@@ -299,8 +299,8 @@
                     </span>
                   </td>
                   <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{s.invoice_count}</td>
-                  <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0)}</td>
-                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtEur(s.total_spend ?? 0)}</td>
+                  <td class="num" style="font-weight:500;">{fmtEur(s.month_spend ?? 0, $locale)}</td>
+                  <td class="num" style="font-size:12.5px;color:var(--mep-fg-2);">{fmtEur(s.total_spend ?? 0, $locale)}</td>
                   <td style="padding:0 8px;">
                     {#if s.price_trend && s.price_trend.length >= 3}
                       <Sparkline values={s.price_trend} width={80} height={24} />

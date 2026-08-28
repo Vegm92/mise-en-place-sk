@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
-  import { t, ti } from '$lib/i18n';
+  import { locale, t, ti } from '$lib/i18n';
+  import { fmtEur as fmtEurBase } from '$lib/formatters';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
   import Plus from '@lucide/svelte/icons/plus';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -70,7 +71,7 @@
 
   function categoryLabel(key: string) { return $t(CATEGORIES.find(c => c.key === key)?.labelKey ?? key); }
   function categoryColor(key: string) { return CATEGORIES.find(c => c.key === key)?.color ?? 'var(--mep-fg-3)'; }
-  function fmtEur(v: number) { return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v); }
+  function fmtEur(v: number) { return fmtEurBase(v, $locale); }
 </script>
 
 <div class="p-6 flex flex-col gap-4">

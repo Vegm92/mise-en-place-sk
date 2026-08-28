@@ -279,7 +279,7 @@
                 </div>
                 <div style="text-align: right; flex-shrink: 0;">
                   <div class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">
-                    {(inv.display_amount ?? inv.total_amount) != null ? fmtEur((inv.display_amount ?? inv.total_amount)!) : '—'}
+                    {(inv.display_amount ?? inv.total_amount) != null ? fmtEur((inv.display_amount ?? inv.total_amount)!, $locale) : '—'}
                   </div>
                   {#if inv.line_items && inv.line_items.length > 0}
                     <div class="num" style="font-size: 11px; color: var(--mep-fg-3);">

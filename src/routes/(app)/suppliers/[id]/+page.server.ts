@@ -94,14 +94,13 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		const ym = (inv.invoiceDate as string).slice(0, 7);
 		monthlyCentsMap[ym] = (monthlyCentsMap[ym] ?? 0) + (toCents(inv.totalAmount) ?? 0);
 	}
-	const monthly: { key: string; label: string; value: number; partial: boolean }[] = [];
+	const monthly: { key: string; value: number; partial: boolean }[] = [];
 	for (let i = 6; i >= 0; i--) {
 		const d = new Date();
 		d.setDate(1);
 		d.setMonth(d.getMonth() - i);
 		const ym = d.toISOString().slice(0, 7);
-		const label = d.toLocaleDateString('es-ES', { month: 'short' });
-		monthly.push({ key: ym, label, value: (monthlyCentsMap[ym] ?? 0) / 100, partial: i === 0 });
+		monthly.push({ key: ym, value: (monthlyCentsMap[ym] ?? 0) / 100, partial: i === 0 });
 	}
 
 	const rawTab = url.searchParams.get('tab');

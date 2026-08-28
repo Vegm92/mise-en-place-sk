@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { t, tcat, tp } from '$lib/i18n';
+  import { locale, t, tcat, tp } from '$lib/i18n';
+  import { fmtEurCompact } from '$lib/formatters';
 
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
   interface Kpis {
@@ -47,7 +48,7 @@
   ];
 
   function fmtEur(n: number | null | undefined) {
-    return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
+    return fmtEurCompact(n ?? 0, $locale);
   }
 
   const spendDonut = $derived((() => {

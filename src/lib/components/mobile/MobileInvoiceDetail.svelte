@@ -7,6 +7,7 @@
   import Download from '@lucide/svelte/icons/download';
   import Truck from '@lucide/svelte/icons/truck';
   import { locale, t, ti } from '$lib/i18n';
+  import { fmtEur } from '$lib/formatters';
 
   interface LineItem {
     id: number;
@@ -43,7 +44,7 @@
 
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
-    return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    return fmtEur(n, $locale);
   }
   function fmtDate(s: Date | string | null | undefined) {
     if (!s) return '—';
