@@ -85,7 +85,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 505 | P3 | DONE | 1 | Verified (commit 8a78203): https+allowlist (incl. fbsbx.com from real fixtures), redirect:'manual', meta.url shape validation; Baileys driver confirmed unaffected. 2423/2423. | WhatsApp token host allowlist |
 | 504 | P3 | DONE | 1 | Verified (commit cf9cb12): shared contentDispositionHeader helper (ASCII fold + RFC 5987), applied to invoice file + reports CSV; all 5 header sites audited. 2439/2439. | Content-Disposition unescaped |
 | 503 | P3 | DONE | 1 | Already atomic on main; concurrent-consume proof tests added (ff4238e), docs note on invalidation intent. GitHub issue closed. 2444/2444. | consumeVerificationToken not atomic |
-| 470 | P3 | PENDING | 0 | | Sentry scrubber coverage |
+| 470 | P3 | DONE | 1 | Verified (commit 659f900): extra (cycle-guarded deep walk) + breadcrumbs + request.headers/cookies scrubbed; SDK-source analysis proved headers/cookies were reaching Sentry unredacted. 2450/2450. | Sentry scrubber coverage |
 | 469 | P3 | PENDING | 0 | | scope confirm/extract loaders to restaurantId |
 | 468 | P3 | PENDING | 0 | | LocalDriver.save path containment |
 | 467 | P3 | PENDING | 0 | | chat ACTIONS href allowlist |
