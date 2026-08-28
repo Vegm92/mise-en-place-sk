@@ -3,6 +3,8 @@ import { categorySlug } from './constants';
 
 export type Locale = 'es' | 'en';
 
+const FIELD_LABEL_CLAVE = { es: 'Contraseña', en: 'Password' } as const;
+
 export const translations = {
   es: {
     'rep.title':                    'Informes',
@@ -394,7 +396,7 @@ export const translations = {
     'set.profile.email':          'Email',
     'set.profile.emailBtn':       'Cambiar email',
     'set.profile.emailDesc':      'Te enviaremos un enlace de confirmación a la nueva dirección. El cambio se aplica al confirmarlo.',
-    'set.profile.password':       'Contraseña',
+    'set.profile.password':       FIELD_LABEL_CLAVE.es,
     'set.profile.currentPassword':'Contraseña actual',
     'set.profile.newPassword':    'Nueva contraseña (mínimo 12 caracteres)',
     'set.profile.confirmPassword':'Repite la nueva contraseña',
@@ -546,7 +548,7 @@ export const translations = {
     'login.welcome':     'Bienvenido de nuevo',
     'login.sub':         'Entra en el panel de tu cocina.',
     'login.email':       'Email',
-    'login.password':    'Contraseña',
+    'login.password':    FIELD_LABEL_CLAVE.es,
     'login.signIn':      'Iniciar sesión',
     'login.or':          'o',
     'login.google':      'Continuar con Google',
@@ -2479,7 +2481,7 @@ export const translations = {
     'set.profile.email':          'Email',
     'set.profile.emailBtn':       'Change email',
     'set.profile.emailDesc':      "We'll send a confirmation link to the new address. The change applies once you confirm it.",
-    'set.profile.password':       'Password',
+    'set.profile.password':       FIELD_LABEL_CLAVE.en,
     'set.profile.currentPassword':'Current password',
     'set.profile.newPassword':    'New password (at least 12 characters)',
     'set.profile.confirmPassword':'Repeat the new password',
@@ -2631,7 +2633,7 @@ export const translations = {
     'login.welcome':     'Welcome back',
     'login.sub':         'Sign in to your kitchen dashboard.',
     'login.email':       'Email',
-    'login.password':    'Password',
+    'login.password':    FIELD_LABEL_CLAVE.en,
     'login.signIn':      'Sign in',
     'login.or':          'or',
     'login.google':      'Continue with Google',
