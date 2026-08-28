@@ -11,8 +11,9 @@
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll, vi } from 'vitest';
 
-const { generateMock } = vi.hoisted(() => ({
+const { generateMock, rateLimitMock } = vi.hoisted(() => ({
 	generateMock: vi.fn(),
+	rateLimitMock: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock('$lib/server/db', async () => {
@@ -27,7 +28,7 @@ vi.mock('$lib/server/env', async (importOriginal) => {
 });
 
 vi.mock('$lib/server/rate-limiter', () => ({
-	checkRateLimit: vi.fn().mockResolvedValue(true),
+	checkRateLimit: rateLimitMock,
 }));
 
 vi.mock('$lib/server/llm-provider', async (importOriginal) => {
@@ -53,6 +54,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
 	generateMock.mockReset();
+	rateLimitMock.mockReset().mockResolvedValue(true);
 	if (!hasDbEnv) return;
 	await testSql`DELETE FROM llm_usage_log WHERE restaurant_id = ${rid}`;
 	await testSql`DELETE FROM chat_messages WHERE restaurant_id = ${rid}`;
@@ -65,13 +67,13 @@ afterAll(async () => {
 	await closeDb();
 });
 
-function chatEvent(message: string) {
+function chatEvent(message: string, userId = 'test-user') {
 	return {
 		request: new Request('http://localhost/api/chat', {
 			method: 'POST',
 			body: JSON.stringify({ message }),
 		}),
-		locals: { restaurantId: rid, user: { id: 'test-user', email: 'chef@example.com', name: null, image: null } },
+		locals: { restaurantId: rid, user: { id: userId, email: 'chef@example.com', name: null, image: null } },
 	} as unknown as Parameters<typeof POST>[0];
 }
 
@@ -220,5 +222,42 @@ describe.skipIf(!hasDbEnv)('#467 — ACTIONS hrefs are validated against the rou
 		const body = await res.json();
 		expect(body.reply).toBe('Mixed bag.');
 		expect(body.actions).toEqual([{ label: 'OK', href: '/invoices', variant: 'primary' }]);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('#440 — chat rate limit is tenant-scoped, not user-scoped', () => {
+	it('keys the rate-limit check by restaurant id, not by the requesting user id', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Reply.',
+			usage: { inputTokens: 1, outputTokens: 1, model: 'gemini-test' },
+		});
+
+		await POST(chatEvent('How much did I spend?', 'staff-a'));
+
+		expect(rateLimitMock).toHaveBeenCalledTimes(1);
+		const [key] = rateLimitMock.mock.calls[0]!;
+		expect(key).toBe(`chat:${rid}`);
+		expect(key).not.toContain('staff-a');
+	});
+
+	it('two different staff members of the same restaurant are checked against the same budget', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Reply.',
+			usage: { inputTokens: 1, outputTokens: 1, model: 'gemini-test' },
+		});
+
+		await POST(chatEvent('Question from staff A', 'staff-a'));
+		await POST(chatEvent('Question from staff B', 'staff-b'));
+
+		expect(rateLimitMock).toHaveBeenCalledTimes(2);
+		const keys = rateLimitMock.mock.calls.map((c) => c[0]);
+		expect(keys).toEqual([`chat:${rid}`, `chat:${rid}`]);
+	});
+
+	it('a shared budget exhausted by one staff member 429s the next, on paid Gemini capacity that would otherwise be multiplied per seat', async () => {
+		rateLimitMock.mockResolvedValueOnce(false);
+
+		await expect(POST(chatEvent('One too many', 'staff-a'))).rejects.toMatchObject({ status: 429 });
+		expect(generateMock).not.toHaveBeenCalled();
 	});
 });

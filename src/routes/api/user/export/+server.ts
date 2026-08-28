@@ -6,14 +6,14 @@ import {
 	categoryBudgets, unitConversions, chatSessions, chatMessages,
 	extractionCorrections, stockLevels, settings,
 } from '$lib/server/schema';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { eq, and, isNull, inArray } from 'drizzle-orm';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
 
-	if (!(await checkRateLimit(`account-export:${user.id}`, 5))) {
+	if (!(await rateLimitScoped({ scope: 'user', name: 'account-export', max: 5 }, { userId: user.id }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 

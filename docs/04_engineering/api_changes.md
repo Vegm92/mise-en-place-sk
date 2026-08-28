@@ -21,8 +21,11 @@ changing server routes and endpoints.
    entitlement). Check the feature spec's Security rules.
 2. **Validation**: hand-rolled guards — type cast, trim, length caps,
    whitelist. Never trust the client.
-3. **Rate limit**: decide the key scope (user / restaurant / IP) and call
-   `checkRateLimit(key, rpm)`. Document the scope choice (open item #440).
+3. **Rate limit**: for an authenticated route, call `rateLimitScoped({ scope, name, max }, identity)`
+   (`src/lib/server/rate-limit-scope.ts`) — `scope: 'tenant'` for paid/metered
+   capacity or a shared tenant resource, `scope: 'user'` for a per-person
+   safety limit or personal dashboard (ADR-029). For an unauthenticated route,
+   use `publicFormAction`'s `limits` option or an IP key directly.
 4. **Idempotency**: any endpoint that creates things (or is retried by a
    client/webhook) needs a claim: `claimIdempotencyKey(scope, key)` for
    anything replayable, `claimRequest` for form submits, `onConflictDoNothing`

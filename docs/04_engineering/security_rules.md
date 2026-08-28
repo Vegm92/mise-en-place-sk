@@ -57,7 +57,18 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 - `rate-limiter.ts`: Upstash sliding window when configured, in-memory token
   bucket otherwise (single-instance warning).
-- Key scoping matters (user vs restaurant vs IP) — see open item #440.
+- Key scoping is structural, not per-site judgment (ADR-029, #440):
+  `rateLimitScoped()` (`rate-limit-scope.ts`) takes `scope: 'tenant' | 'user'`
+  explicitly — tenant for paid/metered capacity and shared tenant resources
+  (chat's Gemini budget, the product/supplier-category/unit-conversion
+  catalogs, bulk actions, uploads, exports), user for per-person safety
+  limits and personal dashboards (password-change, account-delete/export,
+  switch-restaurant, notifications, stock-levels, trend). A handful of
+  non-authenticated or non-web-identity guards stay on `checkRateLimit()`
+  directly (health's IP key, the WhatsApp phone-keyed guards, the global
+  `/api/*` gateway fallback, the dual-keyed email-change) — see ADR-029 for
+  the full list and reasons. `tests/rate-limit-scope-enforcement.test.ts`
+  fails the build on a new direct `checkRateLimit()` call outside that list.
 - In-memory buckets swept every 2 min; concurrency semaphore for extraction.
 
 ## Security headers (every response)
@@ -90,7 +101,6 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
   MITM window (see `DEPLOYMENT.md`; `verify-full` + `DATABASE_CA_CERT` for
   stronger guarantees).
 - HSTS is set unconditionally (even over plain HTTP).
-- Rate-limit key scope has no documented rule (#440).
 - Upload has no file-level dedup (duplicates extracted twice).
 
 ## Code notes
@@ -103,7 +113,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 **`const POST`**
 
-- Destructive + irreversible — cap attempts, key `account-delete:${user.id}`. Re-authenticates before touching anything (#492): a password-holding account must pass `verifyCredentials` (the same primitive login uses) with its current password; an OAuth-only account (`passwordHash` null) keeps the typed `DELETE_MY_ACCOUNT` confirmation as a fallback.
+- Destructive + irreversible — cap attempts, `rateLimitScoped({ scope: 'user', name: 'account-delete', ... })` (ADR-029). Re-authenticates before touching anything (#492): a password-holding account must pass `verifyCredentials` (the same primitive login uses) with its current password; an OAuth-only account (`passwordHash` null) keeps the typed `DELETE_MY_ACCOUNT` confirmation as a fallback.
 - Delete owned restaurants (FK cascade) only where this user is the sole member — restaurants with other members survive so one owner can't wipe teammates' data.
 - All DB deletion — subscriptions, restaurants, `user_restaurants`, and the `users` row itself — runs inside ONE transaction (#492: previously `users` was deleted outside the transaction, and the Stripe cancel + file delete ran BEFORE it even started, so a mid-flight failure could leave a `users` row with no tenant, or cancel a live subscription / delete files while the account stayed intact). Stripe subscription ids and storage keys are only *collected* pre-transaction; nothing external is touched until the transaction has committed.
 - After commit, a retryable `account-cleanup` pg-boss job (`enqueueAccountCleanup` → `processAccountCleanupJob` in `account-cleanup.ts`) cancels the collected Stripe subscriptions and deletes the collected files, using the same dead-letter pattern as every other background job (`worker.ts`). A failure to enqueue is logged + sent to Sentry but does not fail the request — the account row is already gone by then.
@@ -119,7 +129,7 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 **`const GET`**
 
-- Heavy multi-table read — cap per user, key `account-export:${user.id}`.
+- Heavy multi-table read — cap per user, `rateLimitScoped({ scope: 'user', name: 'account-export', ... })` (ADR-029).
 
 ### `src/lib/server/consent.ts`
 
@@ -136,6 +146,12 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 **`interface Bucket`**
 
 - In-memory fallback bucket.
+
+### `src/lib/server/rate-limit-scope.ts`
+
+**`function rateLimitScoped`**
+
+- Structural identity choice for authenticated rate limits (ADR-029, #440): `scope: 'tenant'` keys on `identity.restaurantId`, `scope: 'user'` on `identity.userId`, key shape `` `${name}:${id}` `` (unchanged from the hand-written keys it replaces, so migrating a site whose scope doesn't change is a no-op for its bucket). Throws rather than keying on `undefined` when the scope's required identity is missing. Lives outside `rate-limiter.ts` on purpose — it imports `checkRateLimit` the normal way so every existing `vi.mock('$lib/server/rate-limiter', ...)` in the test suite keeps intercepting it unchanged.
 
 **`function checkInMemory`**
 

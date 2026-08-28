@@ -7,7 +7,7 @@ import { trackEvent } from '$lib/server/events';
 import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import type { SQL } from 'drizzle-orm';
 import { invoiceStatusFilter, markInvoicePaid, markInvoiceUnpaid, markInvoicesPaidBulk } from '$lib/server/invoice-status';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { periodToDate } from '$lib/constants';
 import {
@@ -238,7 +238,7 @@ export const actions: Actions = {
 	},
 	bulkPaid: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
-		if (!await checkRateLimit(`bulk:${rid}`, 10)) redirect(303, '/invoices');
+		if (!await rateLimitScoped({ scope: 'tenant', name: 'bulk', max: 10 }, { restaurantId: rid })) redirect(303, '/invoices');
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
 		await markInvoicesPaidBulk(ids, rid);
@@ -248,7 +248,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
 		const rid = locals.restaurantId!;
-		if (!await checkRateLimit(`bulk:${rid}`, 10)) redirect(303, '/invoices');
+		if (!await rateLimitScoped({ scope: 'tenant', name: 'bulk', max: 10 }, { restaurantId: rid })) redirect(303, '/invoices');
 		const tdb = forTenant(rid);
 		const uid = locals.user!.id;
 		if (ids.length > 0) {

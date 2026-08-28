@@ -6,7 +6,7 @@ import { and, desc, eq, gte, isNull, lte, type SQL } from 'drizzle-orm';
 import ExcelJS from 'exceljs';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { EXPORT_ROW_CAP } from '$lib/server/env';
 import { toIntlLocale } from '$lib/formatters';
 
@@ -29,7 +29,7 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const rid = locals.restaurantId!;
 
-	if (!(await checkRateLimit(`export:${rid}`, 5))) {
+	if (!(await rateLimitScoped({ scope: 'tenant', name: 'export', max: 5 }, { restaurantId: rid }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 

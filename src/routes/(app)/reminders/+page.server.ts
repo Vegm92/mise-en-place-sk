@@ -6,7 +6,7 @@ import { invoices, suppliers, systemNotifications } from '$lib/server/schema';
 import { and, asc, desc, eq, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { workingDaysUntilDeadline } from '$lib/server/working-days';
 import { markInvoicePaid, markInvoicesPaidBulk, acceptInvoice, rejectInvoice } from '$lib/server/invoice-status';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { moneyToNumber, sumCents } from '$lib/server/money';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -86,7 +86,7 @@ export const actions: Actions = {
 
 	bulkPaid: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
-		if (!await checkRateLimit(`bulk:${rid}`, 10)) redirect(303, '/reminders');
+		if (!await rateLimitScoped({ scope: 'tenant', name: 'bulk', max: 10 }, { restaurantId: rid })) redirect(303, '/reminders');
 		const data = await request.formData();
 		const ids = data.getAll('invoice_ids').map(Number).filter(Boolean);
 		await markInvoicesPaidBulk(ids, rid);

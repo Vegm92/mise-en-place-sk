@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto';
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { passwordPolicyError } from '$lib/server/password-policy';
 import { createVerificationToken } from '$lib/server/verification-token';
@@ -194,7 +195,7 @@ export const actions: Actions = {
 		if (policyError === 'tooLong') return fail(422, { section: 'password', error: 'set.profile.err.passwordLong' });
 		if (next !== confirm) return fail(422, { section: 'password', error: 'set.profile.err.passwordMismatch' });
 
-		if (!(await checkRateLimit(`password-change:${locals.user!.id}`, 5))) {
+		if (!(await rateLimitScoped({ scope: 'user', name: 'password-change', max: 5 }, { userId: locals.user!.id }))) {
 			return fail(429, { section: 'password', error: 'set.profile.err.rateLimited' });
 		}
 

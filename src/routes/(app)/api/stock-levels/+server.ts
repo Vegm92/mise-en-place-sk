@@ -3,11 +3,13 @@ import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { stockLevels } from '$lib/server/schema';
 import { sql } from 'drizzle-orm';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { requireFeature } from '$lib/server/billing';
 
 export const GET: RequestHandler = async ({ locals }) => {
-	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
+	if (!await rateLimitScoped({ scope: 'user', name: 'stock-levels', max: 60 }, { userId: locals.user!.id })) {
+		throw error(429, 'Too many requests');
+	}
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	await requireFeature('stockTracking', locals);
@@ -16,7 +18,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!await checkRateLimit(`stock-levels:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
+	if (!await rateLimitScoped({ scope: 'user', name: 'stock-levels', max: 60 }, { userId: locals.user!.id })) {
+		throw error(429, 'Too many requests');
+	}
 	const rid = locals.restaurantId!;
 	await requireFeature('stockTracking', locals);
 	const body = await request.json().catch(() => null);
