@@ -17,7 +17,7 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const PAGE = read('src/routes/(app)/batch/[id]/+page.svelte');
-const I18N = read('src/lib/i18n.ts');
+const I18N = read('src/lib/i18n-messages.ts');
 
 const footer = () => {
 	const at = PAGE.indexOf('rev-foot-totals');
