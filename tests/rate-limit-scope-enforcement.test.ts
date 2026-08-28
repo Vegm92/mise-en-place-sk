@@ -22,6 +22,8 @@
  *   generate side, restaurant-keyed, is migrated to rateLimitScoped())
  * - src/routes/(app)/settings/+page.server.ts — email-change is deliberately dual-keyed
  *   (user AND address, #496); password-change in the same file is migrated
+ * - src/routes/login/+page.server.ts — the resend-verification action (#743) is
+ *   ip-keyed and unauthenticated: there is no session identity to scope by yet
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -40,6 +42,7 @@ const ALLOWED_DIRECT_CALL_FILES = new Set([
 	'src/lib/server/integrations/whatsapp/message-handler.ts',
 	'src/lib/server/whatsapp-pairing.ts',
 	'src/routes/(app)/settings/+page.server.ts',
+	'src/routes/login/+page.server.ts',
 ]);
 
 function walkTsFiles(dir: string): string[] {
@@ -105,7 +108,6 @@ describe('checkRateLimit() call sites go through rateLimitScoped() (issue #440)'
 			'src/routes/(app)/invoices/+page.server.ts',
 			'src/routes/(app)/invoices/export/download/+server.ts',
 			'src/routes/(app)/invoice/[id]/+page.server.ts',
-			'src/routes/(app)/reminders/+page.server.ts',
 			'src/routes/(app)/+page.server.ts',
 			'src/routes/api/user/delete/+server.ts',
 			'src/routes/api/user/export/+server.ts',
