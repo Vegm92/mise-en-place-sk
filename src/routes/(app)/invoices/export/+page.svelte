@@ -41,7 +41,7 @@
           <div class="flex flex-col gap-1">
             <span class="label">{$t('export.status')}</span>
             <div class="flex gap-4 items-center flex-wrap">
-              {#each [['', $t('export.allStatus')], ['paid', $t('export.paid')], ['pending', $t('export.pending')]] as [val, lbl]}
+              {#each [['', $t('export.allStatus')], ['revisado', $t('inv.review.revisado')], ['por_revisar', $t('inv.review.por_revisar')], ['incidencia', $t('inv.review.incidencia')]] as [val, lbl]}
                 <label class="flex items-center gap-1.5 body cursor-pointer" style="font-size:13px;">
                   <input type="radio" name="status" value={val} checked={val === ''} class="accent-acc" />
                   {lbl}

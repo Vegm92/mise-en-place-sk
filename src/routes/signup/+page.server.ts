@@ -9,20 +9,13 @@ import { passwordPolicyError } from '$lib/server/password-policy';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
-import { createVerificationToken } from '$lib/server/verification-token';
-import { sendEmail, verifyEmailAddress } from '$lib/server/email';
+import { sendVerificationEmail } from '$lib/server/verification-email';
 import { signIn } from '$lib/server/auth';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
 	return {};
 };
-
-async function sendVerificationEmail(url: URL, email: string) {
-	const token = await createVerificationToken(`verify-email:${email}`);
-	const verifyUrl = `${url.origin}/verify-email?email=${encodeURIComponent(email)}&token=${token}`;
-	await sendEmail(verifyEmailAddress(email, verifyUrl));
-}
 
 export const actions: Actions = {
 	signUp: publicFormAction(

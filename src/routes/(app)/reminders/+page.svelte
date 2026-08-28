@@ -84,15 +84,13 @@
   }
 
   const nothingPending = $derived(
-    !data.overdue.length && !data.due_soon.length && notifItems.length === 0
+    !data.incidencias.length && notifItems.length === 0
   );
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileAlerts
-    overdue={data.overdue}
-    due_soon={data.due_soon}
-    total_amount={data.total_amount}
+    incidencias={data.incidencias}
     {groups}
     onDismiss={dismiss}
     onAcceptCategory={acceptCategory}
@@ -112,37 +110,16 @@
     <p class="body text-center py-16" data-coach="reminders-main">{$t('rem.allEmpty')}</p>
   {:else}
 
-    {#if data.overdue.length || data.due_soon.length}
+    {#if data.incidencias.length}
       <div class="flex gap-2 flex-wrap items-center" data-coach="reminders-main">
-        {#if data.overdue.length}
-          <div class="card px-3 py-2 bg-neg-soft border-neg" style="font-size:13px;">
-            <strong class="text-neg">{data.overdue.length}</strong>
-            <span class="text-fg-2"> {$t('rem.overdue').toLowerCase()}</span>
-          </div>
-        {/if}
-        <div class="card px-3 py-2" style="font-size:13px;">
-          <strong class="text-fg">{data.due_soon.length}</strong>
-          <span class="text-fg-2"> {$t('rem.dueWeek').toLowerCase()}</span>
+        <div class="card px-3 py-2 bg-neg-soft border-neg" style="font-size:13px;">
+          <strong class="text-neg">{data.incidencias.length}</strong>
+          <span class="text-fg-2"> {$t('rem.incidenciasCount')}</span>
         </div>
-        <div class="card px-3 py-2" style="font-size:13px;">
-          <span class="text-fg-2">{$t('rem.totalPending')}:</span>
-          <strong class="text-fg num"> {Math.round(data.total_amount)} EUR</strong>
-        </div>
-
-        <form method="post" action="?/bulkPaid" class="ml-auto">
-          {#each [...data.overdue, ...data.due_soon] as r (r.id)}
-            <input type="hidden" name="invoice_ids" value={r.id} />
-          {/each}
-          <button type="submit" class="btn btn-ghost text-pos" style="font-size:12px;gap:4px;">
-            <Check size={12} />{$t('rem.markAllPaid')}
-          </button>
-        </form>
       </div>
-    {/if}
 
-    {#if data.overdue.length}
-      <SectionCard title={$t('rem.overdue')} noPad>
-        {#each data.overdue as r (r.id)}
+      <SectionCard title={$t('rem.incidencias')} noPad>
+        {#each data.incidencias as r (r.id)}
           <div class="grid items-center gap-3 px-4 py-3 border-b border-divider last:border-0 hover:bg-hover transition-colors"
             style="grid-template-columns:1fr 120px 100px auto auto;">
             <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;min-w-0;display:contents;">
@@ -151,38 +128,13 @@
               <p class="body text-fg-3" style="font-size:12px;margin-top:2px;">{r.invoice_number ?? '—'}</p>
             </div>
             <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>
-            <p class="body text-fg-3 text-right" style="font-size:12px;">{r.due_date}</p>
-            <span class="badge badge-overdue">{Math.abs(r.days_delta)}{$t('rem.daysOverdue')}</span>
+            <p class="body text-fg-3 text-right" style="font-size:12px;">{r.invoice_date ?? '—'}</p>
+            <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
             </a>
-            <form method="post" action="?/markPaid">
+            <form method="post" action="?/markReviewed">
               <input type="hidden" name="invoiceId" value={r.id} />
               <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:4px;">
-                <Check size={12} />{$t('inv.markPaid')}
-              </button>
-            </form>
-          </div>
-        {/each}
-      </SectionCard>
-    {/if}
-
-    {#if data.due_soon.length}
-      <SectionCard title={$t('rem.dueWeek')} noPad>
-        {#each data.due_soon as r (r.id)}
-          <div class="grid items-center gap-3 px-4 py-3 border-b border-divider last:border-0 hover:bg-hover transition-colors"
-            style="grid-template-columns:1fr 120px 100px auto auto;">
-            <a href="/invoice/{r.id}" style="text-decoration:none;color:inherit;cursor:pointer;min-w-0;display:contents;">
-              <div class="min-w-0">
-              <p class="body-strong overflow-hidden text-ellipsis whitespace-nowrap">{r.supplier_name ?? '—'}</p>
-              <p class="body text-fg-3" style="font-size:12px;margin-top:2px;">{r.invoice_number ?? '—'}</p>
-            </div>
-            <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>
-            <p class="body text-fg-3 text-right" style="font-size:12px;">{r.due_date}</p>
-            <span class="badge badge-pending">{r.days_delta}{$t('misc.daysLeft')}</span>
-            </a>
-            <form method="post" action="?/markPaid">
-              <input type="hidden" name="invoiceId" value={r.id} />
-              <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:4px;">
-                <Check size={12} />{$t('inv.markPaid')}
+                <Check size={12} />{$t('inv.markReviewed')}
               </button>
             </form>
           </div>

@@ -25,7 +25,7 @@
     supplier_id: number | null;
     total_amount: number | null;
     display_amount?: number | null;
-    status: string | null;
+    review_state: string | null;
     invoice_date: Date | string | null;
     due_date: Date | string | null;
     source_file: string | null;
@@ -108,7 +108,7 @@
             {fmt(invoice.display_amount ?? invoice.total_amount)}
           </div>
         </div>
-        <StatusBadge status={invoice.status ?? 'pending'} />
+        <StatusBadge status={invoice.review_state ?? 'revisado'} />
       </div>
       <div style="
         margin-top: 12px; padding-top: 12px;
