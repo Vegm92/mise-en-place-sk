@@ -117,7 +117,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			trend, invoiceRangeRow,
 		] = await Promise.all([
 			db.select({
-				amount: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
+				amount: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)::float8`,
 				count: sql<number>`COUNT(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN 1 END)`,
 				incidencias: sql<number>`COUNT(CASE WHEN ${invoices.reviewState} = 'incidencia' THEN 1 END)`,
 			})

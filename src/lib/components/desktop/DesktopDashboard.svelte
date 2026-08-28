@@ -8,7 +8,7 @@
   import RailBlock from '$lib/components/desktop/turno/RailBlock.svelte';
   import WorkCard from '$lib/components/desktop/turno/WorkCard.svelte';
   import { categoryColor } from '$lib/colors';
-  import { t, ti, tp, tcat } from '$lib/i18n';
+  import { locale, t, ti, tp, tcat } from '$lib/i18n';
   import { fmtEurCompact, fmtEurSigned } from '$lib/formatters';
   import {
     buildWorklist, buildCategoryRisk, buildPaceCurve, planToDate, atStake, sortWorklist,
