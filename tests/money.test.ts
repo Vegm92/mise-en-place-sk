@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
 	toCents, fromCents, toMoneyString, sumCents, sumMoney, moneyEquals,
-	moneyToNumber, moneyToNullableNumber,
+	moneyToNumber, moneyToNullableNumber, parseAmount,
 } from '../src/lib/server/money';
 
 describe('toCents', () => {
@@ -49,6 +49,94 @@ describe('toCents', () => {
 
 	it('returns null for non-numeric input', () => {
 		expect(toCents('not a number')).toBeNull();
+	});
+
+	it('rejects a numeric prefix followed by garbage (issue #508)', () => {
+		expect(toCents('12abc')).toBeNull();
+	});
+
+	it('rejects scientific notation instead of producing Infinity (issue #508)', () => {
+		expect(toCents('1e999')).toBeNull();
+	});
+
+	it('rejects a hex literal (issue #508)', () => {
+		expect(toCents('0x10')).toBeNull();
+	});
+
+	it('parses an ES thousands-grouped amount unambiguously (issue #508)', () => {
+		expect(toCents('1.234,56')).toBe(123456);
+	});
+
+	it('parses a US thousands-grouped amount unambiguously (issue #508)', () => {
+		expect(toCents('1,234.56')).toBe(123456);
+	});
+
+	it('rejects mixed separators with an invalid (non-3-digit) grouping (issue #508)', () => {
+		expect(toCents('1,23.456')).toBeNull();
+		expect(toCents('1.23,456')).toBeNull();
+	});
+});
+
+describe('parseAmount (issue #508)', () => {
+	it.each([
+		['12', 12],
+		['12.34', 12.34],
+		['  42 ', 42],
+		['-45', -45],
+		['-1,50', -1.5],
+	])('parses %s as %d', (input, expected) => {
+		expect(parseAmount(input)).toBe(expected);
+	});
+
+	it('rejects a numeric prefix followed by garbage ("12abc")', () => {
+		expect(parseAmount('12abc')).toBeNull();
+	});
+
+	it('treats a Spanish decimal comma as a decimal point ("1,50" → 1.5, not 1)', () => {
+		expect(parseAmount('1,50')).toBe(1.5);
+	});
+
+	it('rejects scientific notation instead of returning Infinity ("1e999")', () => {
+		expect(parseAmount('1e999')).toBeNull();
+	});
+
+	it('rejects a hex literal ("0x10")', () => {
+		expect(parseAmount('0x10')).toBeNull();
+	});
+
+	it('treats an ambiguous single-period amount as a decimal, not a thousands group ("1.500" → 1.5)', () => {
+		expect(parseAmount('1.500')).toBe(1.5);
+	});
+
+	it('treats an ambiguous single-comma amount as a decimal ("1,500" → 1.5)', () => {
+		expect(parseAmount('1,500')).toBe(1.5);
+	});
+
+	it('accepts an unambiguous ES-grouped amount (period thousands, comma decimal): "1.234,56" → 1234.56', () => {
+		expect(parseAmount('1.234,56')).toBe(1234.56);
+	});
+
+	it('accepts an unambiguous US-grouped amount (comma thousands, period decimal): "1,234.56" → 1234.56', () => {
+		expect(parseAmount('1,234.56')).toBe(1234.56);
+	});
+
+	it('rejects a mixed amount whose grouping does not resolve unambiguously', () => {
+		expect(parseAmount('1,23.456')).toBeNull();
+		expect(parseAmount('1.23.456')).toBeNull();
+		expect(parseAmount('1,23,456')).toBeNull();
+	});
+
+	it('returns null for null, undefined and blank input', () => {
+		expect(parseAmount(null)).toBeNull();
+		expect(parseAmount(undefined)).toBeNull();
+		expect(parseAmount('')).toBeNull();
+		expect(parseAmount('   ')).toBeNull();
+	});
+
+	it('passes a finite number input through unchanged and rejects a non-finite one', () => {
+		expect(parseAmount(18.5)).toBe(18.5);
+		expect(parseAmount(Infinity)).toBeNull();
+		expect(parseAmount(NaN)).toBeNull();
 	});
 });
 
