@@ -12,6 +12,25 @@ import { eq } from 'drizzle-orm';
 
 export type ChatAction = { label: string; href: string; variant: 'primary' | 'secondary' };
 
+const CHAT_ACTION_ROUTES: { path: string; promptLines: string[] }[] = [
+	{
+		path: '/invoices',
+		promptLines: [
+			'- /invoices (invoice list)',
+			'- /invoices?supplier=[supplier-name-slug] (filtered by supplier)',
+		],
+	},
+	{ path: '/suppliers', promptLines: ['- /suppliers (supplier list)'] },
+	{ path: '/analytics/spend', promptLines: ['- /analytics/spend (spend analytics)'] },
+	{ path: '/analytics/prices', promptLines: ['- /analytics/prices (price trend analytics)'] },
+	{ path: '/reminders', promptLines: ['- /reminders (reminders)'] },
+	{ path: '/budgets', promptLines: ['- /budgets (budget overview)'] },
+];
+
+const CHAT_ACTION_ALLOWED_PATHS = new Set(CHAT_ACTION_ROUTES.map((r) => r.path));
+const CHAT_ACTION_LABEL_MAX_LENGTH = 80;
+const CHAT_ACTION_HREF_BASE = 'http://chat-action.internal';
+
 const SYSTEM_PROMPT = `You are a helpful assistant for a procurement management app called Mise en Place.
 The user manages supplier invoices, budgets, stock levels, and spending for a restaurant or pharmacy.
 Answer questions about their invoices, suppliers, spending, budgets, stock, and alerts using the data snapshot below.
@@ -23,21 +42,39 @@ ACTIONS:[{"label":"Button text","href":"/route","variant":"primary"},{"label":"B
 
 Only include actions when they are directly relevant. Max 2 actions per response. Omit the ACTIONS block entirely if not relevant.
 Valid routes:
-- /invoices (invoice list)
-- /invoices?supplier=[supplier-name-slug] (filtered by supplier)
-- /suppliers (supplier list)
-- /analytics/spend (spend analytics)
-- /analytics/prices (price trend analytics)
-- /reminders (reminders)
-- /budgets (budget overview)`;
+${CHAT_ACTION_ROUTES.flatMap((r) => r.promptLines).join('\n')}`;
+
+function isAllowedActionHref(href: unknown): href is string {
+	if (typeof href !== 'string' || !href.startsWith('/') || href.startsWith('//')) return false;
+	let url: URL;
+	try {
+		url = new URL(href, CHAT_ACTION_HREF_BASE);
+	} catch {
+		return false;
+	}
+	return url.origin === CHAT_ACTION_HREF_BASE && CHAT_ACTION_ALLOWED_PATHS.has(url.pathname);
+}
+
+function isValidChatAction(action: unknown): action is ChatAction {
+	if (!action || typeof action !== 'object') return false;
+	const a = action as Record<string, unknown>;
+	return (
+		typeof a.label === 'string' &&
+		a.label.length > 0 &&
+		a.label.length <= CHAT_ACTION_LABEL_MAX_LENGTH &&
+		(a.variant === 'primary' || a.variant === 'secondary') &&
+		isAllowedActionHref(a.href)
+	);
+}
 
 function parseActionsBlock(raw: string): { text: string; actions: ChatAction[] } {
 	const match = raw.match(/\nACTIONS:(\[.*\])\s*$/s);
 	if (!match) return { text: raw.trim(), actions: [] };
 	const text = raw.slice(0, raw.lastIndexOf('\nACTIONS:')).trim();
 	try {
-		const actions = JSON.parse(match[1]) as ChatAction[];
-		return { text, actions: Array.isArray(actions) ? actions.slice(0, 2) : [] };
+		const parsed = JSON.parse(match[1]);
+		const actions = Array.isArray(parsed) ? parsed.filter(isValidChatAction).slice(0, 2) : [];
+		return { text, actions };
 	} catch {
 		return { text, actions: [] };
 	}
