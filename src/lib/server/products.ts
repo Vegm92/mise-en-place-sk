@@ -13,7 +13,7 @@ import { createGeminiProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
 import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './queue';
-import { renderTemplate } from '$lib/i18n';
+import { renderTemplate } from '$lib/i18n-messages';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
