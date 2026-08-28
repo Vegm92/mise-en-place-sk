@@ -100,7 +100,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 564 | P3 | PENDING | 0 | Product question (INC-002) | stock forecast has no data basis |
 | 563 | P3 | PENDING | 0 | Legal/date question (INC-001) | B2B e-invoice date unconfirmed |
 | 441 | P3 | BLOCKED | 0 | Issue's own scope requires access-log/Sentry traffic check before deletion — not reachable from sandbox (Sentry MCP unauthenticated). Interim: #469 tenant-scoped both stubs. Owner: check traffic, then delete. | retire legacy redirect stubs |
-| 440 | P3 | PENDING | 0 | | rate-limit key mixing rule |
+| 440 | P3 | DONE | 1 | Verified (commit 8bb138a): ADR-029 rule, rateLimitScoped helper, 22 sites migrated, chat+unit-conversions re-keyed user→tenant, enforcement scan. 2808/2808. Behavior change: chat budget now per-restaurant. | rate-limit key mixing rule |
 | 439 | P3 | PENDING | 0 | | waitlist hardcodes prices |
 | 408 | P3 | PENDING | 0 | Question issue | legal-page copy into i18n |
 | 407 | P3 | PENDING | 0 | | waitlist copy into i18n table |
