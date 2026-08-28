@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { locale, t, tcat, initLocale } from '$lib/i18n';
 	import { VENUE_TYPES, VALID_CATEGORIES } from '$lib/constants';
 	import Logo from '$lib/components/mep/Logo.svelte';
@@ -8,7 +8,7 @@
 
 	const idempotencyKey = crypto.randomUUID();
 
-	let venueType = $state(data.prefillVenueType ?? '');
+	let venueType = $state(untrack(() => data.prefillVenueType) ?? '');
 
 	onMount(() => {
 		initLocale();
