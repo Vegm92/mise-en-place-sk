@@ -573,5 +573,8 @@ export const digestShares = pgTable('digest_shares', {
 }, (t) => [
 	uniqueIndex('digest_shares_token_unique').on(t.token),
 	index('digest_shares_restaurant_week_idx').on(t.restaurantId, t.week),
+	uniqueIndex('digest_shares_restaurant_week_active_unique')
+		.on(t.restaurantId, t.week)
+		.where(sql`${t.revokedAt} is null`),
 	check('digest_shares_week_format', sql`${t.week} ~ '^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$'`),
 ]);

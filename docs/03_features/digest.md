@@ -170,9 +170,10 @@ Week claim atomicity; feature gate; tenant scope.
 
 - Computed fresh from `restaurantId` + `week` at request time — nothing is read back from a stored digest or the free-text AI summary (which does contain supplier names and euro figures). Returns only `pctDelta` results and category labels; there is no code path that could add a supplier/amount/invoice field without also adding it to this file, which is short and reviewable by design.
 
-**`function getOrCreateCurrentWeekShare`**
+**`function getOrCreateActiveShare` / `getOrCreateCurrentWeekShare`**
 
-- Shared by `AlertRow`'s "share this price shock" (`POST /api/alert-share`); a price-shock share is just the current week's digest share token, so it carries exactly the same anonymised, category-level content — never the specific ingredient/supplier/price that triggered the alert.
+- Race-safe against two concurrent callers landing on the same `(restaurantId, week)` — the reports `share` action and `AlertRow`'s "share this price shock" (`POST /api/alert-share`, via `getOrCreateCurrentWeekShare`) both go through this one function. "select, then insert if missing" is a plain check-then-act: both callers can see no existing row and both insert, leaving two live tokens for one week. `digest_shares_restaurant_week_active_unique` (migration 0054) is a **partial** `UNIQUE(restaurant_id, week) WHERE revoked_at IS NULL` index — it rejects the losing insert while leaving revoked/historical rows unconstrained, so a legitimate re-share after a revoke still works. The insert targets that exact index with `onConflictDoNothing({ target: [restaurantId, week], where: revoked_at IS NULL })`; on conflict, one re-select fetches the winner's token — no retry loop, since the partial index guarantees at most one unrevoked row exists once the conflict resolves.
+- A price-shock share is just the current week's digest share token, so it carries exactly the same anonymised, category-level content — never the specific ingredient/supplier/price that triggered the alert.
 
 ### `src/routes/s/[token]/og.png/+server.ts`
 

@@ -8,7 +8,7 @@ import { requireFeature } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { digestShares } from '$lib/server/schema';
 import { and, eq, isNull } from 'drizzle-orm';
-import { generateShareToken } from '$lib/server/digest-share';
+import { getOrCreateActiveShare } from '$lib/server/digest-share';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 const DEFAULT_STYLE: ReportStyle = 'executive';
@@ -58,17 +58,13 @@ export const actions: Actions = {
 			return fail(429, { shareError: 'rateLimited' });
 		}
 
+		// tenant-check-ok: rid is locals.restaurantId only, never client input.
+		// getOrCreateActiveShare (digest-share.ts) tenant-scopes every read via
+		// forTenant().scope() and resolves the create race through the partial
+		// unique index on (restaurant_id, week) WHERE revoked_at IS NULL
+		// (migration 0054) — see docs/03_features/digest.md Code notes.
 		const week = isoWeek(new Date());
-		const tdb = forTenant(rid);
-		const [existing] = await db
-			.select({ token: digestShares.token })
-			.from(digestShares)
-			.where(tdb.scope(digestShares.restaurantId, and(eq(digestShares.week, week), isNull(digestShares.revokedAt))))
-			.limit(1);
-		if (existing) return { shareToken: existing.token, shareWeek: week };
-
-		const token = generateShareToken();
-		await db.insert(digestShares).values({ restaurantId: rid, week, token });
+		const { token } = await getOrCreateActiveShare(rid, week);
 
 		return { shareToken: token, shareWeek: week };
 	},
