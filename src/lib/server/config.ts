@@ -20,6 +20,23 @@ export function assertProductionEnv(env: NodeJS.ProcessEnv = process.env): void 
 	}
 }
 
+export function validateAdminSeedConfig(env: NodeJS.ProcessEnv = process.env): void {
+	if (env.NODE_ENV !== 'production') return;
+
+	const email = env.AUTH_ADMIN_EMAIL ?? '';
+	const password = env.AUTH_ADMIN_PASSWORD ?? '';
+
+	if (!email || !password) return;
+
+	if (password === 'changeme') {
+		throw new Error('[boot] AUTH_ADMIN_PASSWORD is still the default "changeme" — refusing to start in production. Set a strong password in your environment.');
+	}
+
+	if (/@example\.(com|org|net)$/i.test(email)) {
+		throw new Error(`[boot] AUTH_ADMIN_EMAIL is still a placeholder address (${email}) — refusing to start in production. Set a real, routable admin address.`);
+	}
+}
+
 const KNOWN_PROXY_PLATFORM_ENV_VARS = ['RAILWAY_PROJECT_ID', 'RAILWAY_SERVICE_ID', 'RENDER', 'FLY_APP_NAME'] as const;
 
 export function addressHeaderWarning(env: NodeJS.ProcessEnv = process.env): string | null {

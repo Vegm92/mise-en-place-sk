@@ -18,10 +18,11 @@ import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
 import { withTimeout } from '$lib/server/with-timeout';
 import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
-import { assertProductionEnv, addressHeaderWarning } from '$lib/server/config';
+import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } from '$lib/server/config';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 assertProductionEnv();
+validateAdminSeedConfig();
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env.MEMBERSHIP_TIMEOUT_MS ?? '5000', 10);

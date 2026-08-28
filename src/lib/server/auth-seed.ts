@@ -18,11 +18,11 @@ export async function seedAdminUser(): Promise<void> {
 	if (!email || !password) return;
 
 	if (password === 'changeme' && NODE_ENV === 'production') {
-		throw new Error('[auth-seed] AUTH_ADMIN_PASSWORD is still the default "changeme" — refusing to start in production. Set a strong password in your environment.');
+		throw new Error('[auth-seed] AUTH_ADMIN_PASSWORD is still the default "changeme" — refusing to seed the admin user in production. Set a strong password in your environment.');
 	}
 
 	if (/@example\.(com|org|net)$/i.test(email) && NODE_ENV === 'production') {
-		throw new Error(`[auth-seed] AUTH_ADMIN_EMAIL is still a placeholder address (${email}) — refusing to start in production. Set a real, routable admin address.`);
+		throw new Error(`[auth-seed] AUTH_ADMIN_EMAIL is still a placeholder address (${email}) — refusing to seed the admin user in production. Set a real, routable admin address.`);
 	}
 
 	const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
