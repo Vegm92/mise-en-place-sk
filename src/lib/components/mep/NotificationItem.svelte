@@ -1,7 +1,7 @@
 <script lang="ts">
   import X from '@lucide/svelte/icons/x';
   import { t, tiv } from '$lib/i18n';
-  import { notificationIcon, notificationColor, type Notif } from '$lib/notification-display';
+  import { notificationIcon, notificationColor, notificationMessage, type Notif } from '$lib/notification-display';
 
   let {
     notification,
@@ -20,7 +20,6 @@
   } = $props();
 
   const Ic = $derived(notificationIcon(notification.notificationType));
-  const msg = $derived(notification.payload as { messageKey?: string; messageVars?: Record<string, string | number> } | null);
 </script>
 
 <div style="display:flex;align-items:flex-start;gap:10px;">
@@ -29,7 +28,7 @@
   </div>
   <div style="flex:1;min-width:0;">
     <div style="font-size:12.5px;color:var(--mep-fg);line-height:1.4;">
-      {msg?.messageKey ? $tiv(msg.messageKey, msg.messageVars ?? {}) : notification.message}
+      {notificationMessage(notification, $tiv)}
     </div>
     {#if notification.notificationType === 'supplier_uncategorized'}
       {@const supplierId = (notification.payload as { supplierId?: number } | null)?.supplierId}

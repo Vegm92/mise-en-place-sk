@@ -6,6 +6,7 @@ import { CODE_ALPHABET } from '../../whatsapp-pairing';
 import { APP_BASE_URL } from '../../env';
 import { saveAlerts } from '../../alerts';
 import type { BatchItem, BatchItemReviewStatus } from '../../batch';
+import { renderTemplate } from '$lib/i18n';
 
 const JOB_CODE_LENGTH = 4;
 const JOB_CODE_ATTEMPTS = 5;
@@ -168,12 +169,14 @@ export function supplierOf(job: WhatsAppJob): string {
 
 export async function raiseReviewNotification(job: WhatsAppJob, decision: ReviewDecision): Promise<void> {
 	const notificationType = decision === 'reviewed' ? 'whatsapp_pending_save' : 'whatsapp_needs_review';
+	const messageKey = `notif.msg.${decision === 'reviewed' ? 'whatsappPendingSave' : 'whatsappNeedsReview'}`;
+	const messageVars = { supplier: supplierOf(job), code: job.jobCode ?? '' };
 	await saveAlerts(null, job.restaurantId, [{
 		notificationType,
-		message: '',
+		message: renderTemplate('es', messageKey, messageVars),
 		payload: {
-			messageKey: `notif.msg.${decision === 'reviewed' ? 'whatsappPendingSave' : 'whatsappNeedsReview'}`,
-			messageVars: { supplier: supplierOf(job), code: job.jobCode ?? '' },
+			messageKey,
+			messageVars,
 			batchId: job.batchId,
 			itemId: job.id,
 		},
