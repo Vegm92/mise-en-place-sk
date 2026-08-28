@@ -45,6 +45,21 @@ tenants) an email.
   action sets `_dismissed`.
 - Digest calls Gemini **directly** — usage not recorded (same gap as chat; fix
   contract in `docs/04_engineering/llm_usage_metering.md`).
+- **Public share** (issue #329): `/reports/[type]` (weekly, current-week only)
+  `share`/`revokeShare` actions get-or-create / revoke a `digest_shares` row
+  (crypto-random token, `restaurantId` + ISO `week`, `revokedAt` nullable).
+  `/s/[token]` (outside `(app)`, no auth) resolves the token and renders an
+  **anonymised** view computed fresh at request time — percentage deltas only
+  (overall spend vs. last week, top category movers) — never supplier names,
+  absolute euro figures, invoice numbers, or the restaurant name; a CTA links
+  the matching `/l/<variant>` landing page via `landingVariantForVenueType`,
+  falling back to `/waitlist`. `/s/[token]/og.png` serves a server-composed
+  SVG share card (not a Playwright/Puppeteer render — those are dev-only
+  dependencies per #465 and not available in the production runtime) with the
+  same anonymised content. `AlertRow`'s "share this price shock" affordance
+  (`POST /api/alert-share`) reuses the same mechanism (current week's token),
+  so a shared price-shock alert surfaces only the category-level movers
+  already on the public view — never the ingredient, supplier, or price.
 
 ## State transitions
 
@@ -56,11 +71,15 @@ tenants) an email.
 
 ## API dependencies
 
-`/digest` load + dismiss action.
+`/digest` load + dismiss action; `/reports/[type]` `share`/`revokeShare`
+actions; `/s/[token]` load (public); `/s/[token]/og.png` (public);
+`POST /api/alert-share` (tenant-scoped).
 
 ## UI dependencies
 
-`digest/+page.svelte`; email template via `email.ts`.
+`digest/+page.svelte`; email template via `email.ts`; `reports/[type]/+page.svelte`
+share panel; `s/[token]/+page.svelte` (public share view); `AlertRow.svelte`
+share button.
 
 ## Background dependencies
 
@@ -88,6 +107,19 @@ Week claim atomicity; feature gate; tenant scope.
 ## Security rules
 
 - Snapshot is tenant data as data (ADR-018); settings scoped to tenant.
+- **Public share (#329)**: `/s/[token]` is the first surface where
+  tenant-derived data crosses the tenant boundary. The token is
+  `crypto.randomBytes(24)` (192 bits, base64url) — not sequential/nanoid
+  default. `resolveShareToken` is deliberately unscoped (the token *is* the
+  boundary; `// tenant-scope-ok` documents why), but every query after
+  resolution is tenant-scoped as normal. The public payload is built by a
+  dedicated function (`buildPublicDigestPayload`) that only ever returns
+  percentage deltas and category labels — it has no absolute-amount,
+  supplier, or invoice-identifier field to leak, by construction, not by
+  filtering. `robots.txt` disallows `/s/`; the page carries `noindex,
+  nofollow`. Rate-limited per IP (`DIGEST_SHARE_VIEW_RATE_LIMIT_RPM`,
+  `checkRateLimit` directly — unauthenticated, so outside `rateLimitScoped`'s
+  tenant/user scopes per ADR-029).
 
 ## Idempotency rules
 
@@ -123,3 +155,25 @@ Week claim atomicity; feature gate; tenant scope.
 **`function getOrGenerateWeeklyDigest`**
 
 - If another request is already generating this week, serve the stored text instead of paying twice; on failure, release the claim so a later load retries.
+
+### `src/lib/server/digest-share.ts`
+
+**`function generateShareToken`**
+
+- `crypto.randomBytes(24).toString('base64url')` — 192 bits, unguessable; deliberately not `nanoid()`'s default alphabet/length.
+
+**`function resolveShareToken`**
+
+- The one deliberately cross-tenant query in this file: the token is the boundary the caller has no `restaurantId` to scope by yet (same shape as `whatsapp-pairing.ts`'s `redeemPairingCode`). Returns `null` for both an unknown and a revoked token — the caller cannot tell them apart, which is the point (issue #329's "enumeration returns 404").
+
+**`function buildPublicDigestPayload`**
+
+- Computed fresh from `restaurantId` + `week` at request time — nothing is read back from a stored digest or the free-text AI summary (which does contain supplier names and euro figures). Returns only `pctDelta` results and category labels; there is no code path that could add a supplier/amount/invoice field without also adding it to this file, which is short and reviewable by design.
+
+**`function getOrCreateCurrentWeekShare`**
+
+- Shared by `AlertRow`'s "share this price shock" (`POST /api/alert-share`); a price-shock share is just the current week's digest share token, so it carries exactly the same anonymised, category-level content — never the specific ingredient/supplier/price that triggered the alert.
+
+### `src/routes/s/[token]/og.png/+server.ts`
+
+- Server-composed SVG (`image/svg+xml`), not a headless-browser render: Playwright is a devDependency only (issue #465 removed it from production), and an og:image that 500s in prod on a missing browser binary is worse than a static one. Tradeoff, stated plainly: some social-preview crawlers (Facebook/Twitter/LinkedIn/Slack) do not reliably render SVG `og:image` — if that becomes a real problem, the fix is a real rasterizer dependency (`sharp`/`resvg`), not reaching for Playwright.
