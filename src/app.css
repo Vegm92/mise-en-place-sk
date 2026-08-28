@@ -238,10 +238,17 @@
   --mep-acc-hover:#2b4368;
   --mep-acc-ring: rgba(52, 80, 122, 0.30);
 }
+/* Dark --mep-acc-soft alpha is .10, not .16 (issue #720): ADR-026 measured
+   --mep-acc as a flat fill (5.10:1 on --mep-surface) but the same token also
+   sits as text on its own -soft tint. At .16 that tint lightens #1b1b1d
+   enough that #6f8fc4 text on it drops to 4.18:1, below the 4.5:1 AA floor.
+   .10 clears it at 4.58:1 and keeps a tint as visible as the live tinta
+   accent's light-mode tint (1.14:1 vs 1.15:1 against its own surface) — see
+   ADR-026's amendment and tests/contrast-tokens.test.ts. */
 :root[data-theme="dark"] .mep[data-accent="slate"] {
   --mep-acc:      #6f8fc4;
   --mep-acc-fg:   #0d1828;
-  --mep-acc-soft: rgba(111, 143, 196, 0.16);
+  --mep-acc-soft: rgba(111, 143, 196, 0.10);
   --mep-acc-hover:#7d9bce;
   --mep-acc-ring: rgba(111, 143, 196, 0.30);
 }
