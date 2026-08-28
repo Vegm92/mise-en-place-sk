@@ -103,7 +103,7 @@
     <div class="card" style="padding: 16px;">
       <div class="label" style="margin-bottom: 6px;">{$t('turno.atStake')}</div>
       <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.025em; line-height: 1;">
-        {stake > 0 ? fmtEur(stake) : '—'}
+        {stake > 0 ? fmtEur(stake, $locale) : '—'}
       </div>
       <div class="body" style="margin-top: 6px;">
         {worklist.length > 0 ? $ti('mdash.turno.stakeSub', { n: worklist.length, urgent: urgentCount }) : $t('turno.worklist.subMoney.zero')}
@@ -114,7 +114,7 @@
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$t('turno.ribbon.pace')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(data.mom.this_month)}
+          {fmtEurCompact(data.mom.this_month, $locale)}
         </span>
         {#if hasBudget}
           <Bullet
@@ -123,26 +123,26 @@
             max={data.total_budget}
             width={140}
             height={10}
-            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month), plan: fmtEurCompact(planMtd), budget: fmtEurCompact(data.total_budget) })}
+            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month, $locale), plan: fmtEurCompact(planMtd, $locale), budget: fmtEurCompact(data.total_budget, $locale) })}
           />
         {/if}
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && paceDelta > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta), day: daysElapsed }) : momNote}
+          {hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, $locale), day: daysElapsed }) : momNote}
         </span>
       </div>
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$t('turno.ribbon.forecast')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(projectedEom)}
+          {fmtEurCompact(projectedEom, $locale)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun) }) : $t('turno.ribbon.forecastNoBudget')}
+          {hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, $locale) }) : $t('turno.ribbon.forecastNoBudget')}
         </span>
       </div>
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$t('turno.ribbon.review')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(data.pending.amount)}
+          {fmtEurCompact(data.pending.amount, $locale)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {data.pending.count > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
           {$tp('turno.ribbon.reviewNote', data.pending.count)}
@@ -151,7 +151,7 @@
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$ti('turno.ribbon.cashOut', { days: RIBBON_HORIZON_DAYS })}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(cashOutSoonTotal)}
+          {fmtEurCompact(cashOutSoonTotal, $locale)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {cashOutSoon.length > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
           {$tp('turno.ribbon.cashOutNote', cashOutSoon.length)}
@@ -196,7 +196,7 @@
       {#snippet headerRight()}
         {#if hasBudget}
           <span class="num" style="font-size: 11px; font-weight: 500; color: {overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-            {fmtEurSigned(overrun)}
+            {fmtEurSigned(overrun, $locale)}
           </span>
         {/if}
       {/snippet}
@@ -212,9 +212,9 @@
           points={paceCurve}
           budget={data.total_budget}
           todayDay={data.is_current_month ? Math.min(daysElapsed, daysInMonth) : daysInMonth}
-          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget) })}
+          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget, $locale) })}
           forecastLabel={$t('turno.rail.forecastLabel')}
-          forecastValueLabel={fmtEurCompact(projectedEom)}
+          forecastValueLabel={fmtEurCompact(projectedEom, $locale)}
           ariaLabel={$t('turno.rail.paceAriaChart')}
           width={326}
           height={130}
@@ -237,7 +237,7 @@
               <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px;">
                 <span class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{$tcat(cat.category)}</span>
                 <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">
-                  {fmtEurCompact(cat.spent)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget)}</span>
+                  {fmtEurCompact(cat.spent, $locale)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget, $locale)}</span>
                 </span>
               </div>
               <Bullet
@@ -247,10 +247,10 @@
                 color={categoryColor(cat.category)}
                 width={326}
                 height={10}
-                label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent), budget: fmtEurCompact(cat.budget) })}
+                label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent, $locale), budget: fmtEurCompact(cat.budget, $locale) })}
               />
               <div class="num" style="font-size: 11px; margin-top: 5px; color: {cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
-                {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast), delta: fmtEurSigned(cat.overrun) })}
+                {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, $locale), delta: fmtEurSigned(cat.overrun, $locale) })}
               </div>
             </div>
           {/each}
@@ -272,7 +272,7 @@
             <div style="display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: {i < Math.min(data.payables.length, 4) - 1 ? '1px solid var(--mep-divider)' : 'none'};">
               <span class="num" style="width: 46px; font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{fmtDueDate(p.due_date)}</span>
               <span class="body" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{p.supplier_name ?? '—'}</span>
-              <span class="num body-strong" style="flex-shrink: 0;">{fmtEur(p.amount)}</span>
+              <span class="num body-strong" style="flex-shrink: 0;">{fmtEur(p.amount, $locale)}</span>
               <span
                 class="badge"
                 style="font-size: 11px; flex-shrink: 0; background: {p.days_delta < 0 ? 'var(--mep-neg-soft)' : p.days_delta <= 7 ? 'var(--mep-caution-soft)' : 'var(--mep-hover)'}; color: {p.days_delta < 0 ? 'var(--mep-neg)' : p.days_delta <= 7 ? 'var(--mep-caution)' : 'var(--mep-fg-3)'};"

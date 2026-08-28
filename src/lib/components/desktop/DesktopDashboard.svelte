@@ -128,9 +128,9 @@
   <div class="card" style="padding:10px 18px;display:flex;align-items:center;gap:20px;flex-shrink:0;flex-wrap:wrap;" data-coach="dashboard-main">
     <StatusChip
       label={$t('turno.ribbon.pace')}
-      value={fmtEurCompact(data.mom.this_month)}
+      value={fmtEurCompact(data.mom.this_month, $locale)}
       tone={hasBudget && paceDelta > 0 ? 'neg' : 'pos'}
-      note={hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta), day: daysElapsed }) : momNote}
+      note={hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, $locale), day: daysElapsed }) : momNote}
       wide={hasBudget}
     >
       {#snippet chart()}
@@ -141,7 +141,7 @@
             max={data.total_budget}
             width={90}
             height={11}
-            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month), plan: fmtEurCompact(planMtd), budget: fmtEurCompact(data.total_budget) })}
+            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month, $locale), plan: fmtEurCompact(planMtd, $locale), budget: fmtEurCompact(data.total_budget, $locale) })}
           />
         {/if}
       {/snippet}
@@ -149,21 +149,21 @@
 
     <StatusChip
       label={$t('turno.ribbon.forecast')}
-      value={fmtEurCompact(projectedEom)}
+      value={fmtEurCompact(projectedEom, $locale)}
       tone={hasBudget && overrun > 0 ? 'neg' : 'pos'}
-      note={hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun) }) : $t('turno.ribbon.forecastNoBudget')}
+      note={hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, $locale) }) : $t('turno.ribbon.forecastNoBudget')}
     />
 
     <StatusChip
       label={$t('turno.ribbon.review')}
-      value={fmtEurCompact(data.pending.amount)}
+      value={fmtEurCompact(data.pending.amount, $locale)}
       tone={data.pending.count > 0 ? 'caution' : 'pos'}
       note={$tp('turno.ribbon.reviewNote', data.pending.count)}
     />
 
     <StatusChip
       label={$ti('turno.ribbon.cashOut', { days: RIBBON_HORIZON_DAYS })}
-      value={fmtEurCompact(cashOutSoonTotal)}
+      value={fmtEurCompact(cashOutSoonTotal, $locale)}
       tone={cashOutSoon.length > 0 ? 'caution' : 'pos'}
       note={$tp('turno.ribbon.cashOutNote', cashOutSoon.length)}
       last
@@ -174,7 +174,7 @@
     <div style="text-align:right;">
       <div class="label">{$t('turno.atStake')}</div>
       <div class="num title-lg" style="line-height:1.15;">
-        {fmtEurCompact(stake)}
+        {fmtEurCompact(stake, $locale)}
       </div>
     </div>
   </div>
@@ -223,7 +223,7 @@
         {#snippet headerRight()}
           {#if hasBudget}
             <span class="num" style="font-size:11px;font-weight:500;color:{overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-              {fmtEurSigned(overrun)}
+              {fmtEurSigned(overrun, $locale)}
             </span>
           {/if}
         {/snippet}
@@ -239,9 +239,9 @@
           points={paceCurve}
           budget={data.total_budget}
           todayDay={data.is_current_month ? Math.min(daysElapsed, daysInMonth) : daysInMonth}
-          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget) })}
+          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget, $locale) })}
           forecastLabel={$t('turno.rail.forecastLabel')}
-          forecastValueLabel={fmtEurCompact(projectedEom)}
+          forecastValueLabel={fmtEurCompact(projectedEom, $locale)}
           ariaLabel={$t('turno.rail.paceAriaChart')}
         />
         {/if}
@@ -264,7 +264,7 @@
                 <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;gap:8px;">
                   <span class="body-strong" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{$tcat(cat.category)}</span>
                   <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">
-                    {fmtEurCompact(cat.spent)} <span style="color:var(--mep-fg-4);">/ {fmtEurCompact(cat.budget)}</span>
+                    {fmtEurCompact(cat.spent, $locale)} <span style="color:var(--mep-fg-4);">/ {fmtEurCompact(cat.budget, $locale)}</span>
                   </span>
                 </div>
                 <Bullet
@@ -274,10 +274,10 @@
                   color={categoryColor(cat.category)}
                   width={344}
                   height={11}
-                  label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent), budget: fmtEurCompact(cat.budget) })}
+                  label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent, $locale), budget: fmtEurCompact(cat.budget, $locale) })}
                 />
                 <div class="num" style="font-size:11px;margin-top:4px;color:{cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
-                  {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast), delta: fmtEurSigned(cat.overrun) })}
+                  {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, $locale), delta: fmtEurSigned(cat.overrun, $locale) })}
                 </div>
               </div>
             {/each}
@@ -301,7 +301,7 @@
               <div style="display:flex;align-items:center;gap:11px;padding:6px 0;border-bottom:{i < Math.min(data.payables.length, 5) - 1 ? '1px solid var(--mep-divider)' : 'none'};">
                 <span class="num" style="width:46px;font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{fmtDueDate(p.due_date)}</span>
                 <span class="body" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{p.supplier_name ?? '—'}</span>
-                <span class="num body-strong" style="flex-shrink:0;">{fmtEurCompact(p.amount)}</span>
+                <span class="num body-strong" style="flex-shrink:0;">{fmtEurCompact(p.amount, $locale)}</span>
                 <span
                   class="badge"
                   style="font-size:11px;flex-shrink:0;background:{p.days_delta < 0 ? 'var(--mep-neg-soft)' : p.days_delta <= 7 ? 'var(--mep-caution-soft)' : 'var(--mep-hover)'};color:{p.days_delta < 0 ? 'var(--mep-neg)' : p.days_delta <= 7 ? 'var(--mep-caution)' : 'var(--mep-fg-3)'};"

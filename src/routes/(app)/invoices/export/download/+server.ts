@@ -8,6 +8,7 @@ import { moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { EXPORT_ROW_CAP } from '$lib/server/env';
+import { toIntlLocale } from '$lib/formatters';
 
 const POSITIVE_INT = /^[1-9]\d*$/;
 
@@ -123,7 +124,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 	if (truncated) {
 		const notice = sheet.addRow({
-			id: `Exportación truncada a ${EXPORT_ROW_CAP.toLocaleString('es-ES')} filas — acota el rango de fechas o el proveedor para exportar el resto.`,
+			id: `Exportación truncada a ${EXPORT_ROW_CAP.toLocaleString(toIntlLocale('es'))} filas — acota el rango de fechas o el proveedor para exportar el resto.`,
 		});
 		sheet.mergeCells(`A${notice.number}:H${notice.number}`);
 		notice.getCell('id').font = { italic: true, bold: true, color: { argb: 'FFB00020' } };

@@ -150,7 +150,7 @@
 
     <div class="card" style="margin-bottom:12px;padding:10px 14px;display:flex;align-items:center;">
       <div style="flex:1;text-align:center;">
-        <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend)}</div>
+        <div class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{fmtEur(totalSpend, $locale)}</div>
         <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.totalSpend')}</div>
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
@@ -160,7 +160,7 @@
       </div>
       <div style="width:1px;height:26px;background:var(--mep-divider);"></div>
       <div style="flex:1;text-align:center;">
-        <div class="num" style="font-size:15px;font-weight:600;color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.3px;">{fmtEur(pendingAmt)}</div>
+        <div class="num" style="font-size:15px;font-weight:600;color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.3px;">{fmtEur(pendingAmt, $locale)}</div>
         <div style="font-size:11px;color:var(--mep-fg-3);margin-top:1px;">{$t('sup.pending')}</div>
       </div>
     </div>
@@ -253,7 +253,7 @@
                 <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
                 <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
               </div>
-              <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
+              <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0, $locale)}</div>
               <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
             </a>
           {/each}
@@ -307,7 +307,7 @@
               <div class="num" style="font-size:13.5px;font-weight:500;color:var(--mep-fg);">{inv.invoiceNumber ?? '—'}</div>
               <div style="font-size:11px;color:var(--mep-fg-3);margin-top:2px;">{fmtDate(inv.invoiceDate, $locale)}{inv.dueDate ? ` · ${$t('sup.dueShort')} ${fmtDateShort(inv.dueDate, $locale)}` : ''}</div>
             </div>
-            <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0)}</div>
+            <div class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(inv.totalAmount ?? 0, $locale)}</div>
             <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
           </a>
         {/each}
@@ -332,11 +332,11 @@
                     stroke={slice.color} stroke-width="22"
                     stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
                     stroke-dashoffset={-slice.offset}
-                    role="img" aria-label="{slice.label}: {fmtEur(slice.spend)} ({(slice.pct * 100).toFixed(0)}%)" />
+                    role="img" aria-label="{slice.label}: {fmtEur(slice.spend, $locale)} ({(slice.pct * 100).toFixed(0)}%)" />
                 {/each}
               </svg>
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-                <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total)}</span>
+                <span class="num" style="font-size:14px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total, $locale)}</span>
                 <span style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
               </div>
             </div>
@@ -346,7 +346,7 @@
                   <span style="width:9px;height:9px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
                   <span style="font-size:12px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{slice.label}</span>
                   <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">{(slice.pct * 100).toFixed(0)}%</span>
-                  <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:70px;text-align:right;">{fmtEur(slice.spend)}</span>
+                  <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:70px;text-align:right;">{fmtEur(slice.spend, $locale)}</span>
                 </div>
               {/each}
             </div>
@@ -359,13 +359,13 @@
             </div>
             <div style="display:flex;gap:10px;font-size:11.5px;color:var(--mep-fg-3);">
               {#if prod.unit}<span>{prod.unit}</span>{/if}
-              {#if prod.avgPrice != null}<span>· {fmtEur(prod.avgPrice)}</span>{/if}
+              {#if prod.avgPrice != null}<span>· {fmtEur(prod.avgPrice, $locale)}</span>{/if}
               {#if prod.lastDate}<span>· {fmtDateShort(prod.lastDate, $locale)}</span>{/if}
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px;">
               <div>
                 <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colSpend')}</div>
-                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalSpend != null ? fmtEur(prod.totalSpend) : '—'}</div>
+                <div class="num" style="font-size:13px;font-weight:600;color:var(--mep-fg);">{prod.totalSpend != null ? fmtEur(prod.totalSpend, $locale) : '—'}</div>
               </div>
               <div>
                 <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.colUnits')}</div>

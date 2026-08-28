@@ -415,7 +415,7 @@
               {:else if i === 1}
                 <ExtractMock copy={t} />
               {:else}
-                <DashboardMock copy={t} />
+                <DashboardMock copy={t} {locale} />
               {/if}
             </div>
           </div>
