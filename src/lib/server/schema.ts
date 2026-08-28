@@ -54,6 +54,7 @@ export const invoices = pgTable('invoices', {
 	taxBase:         numeric('tax_base', { precision: 12, scale: 2 }),
 	taxBreakdown:    text('tax_breakdown'),
 	status:          text('status').default('pending'),
+	reviewState:     text('review_state').notNull().default('revisado'),
 	sourceFile:      text('source_file'),
 	confidence:      real('confidence'),
 	contentHash:     text('content_hash'),
@@ -78,6 +79,7 @@ export const invoices = pgTable('invoices', {
 		.on(t.restaurantId, t.contentHash)
 		.where(sql`${t.contentHash} IS NOT NULL AND ${t.deletedAt} IS NULL`),
 	index('idx_invoices_rid_status').on(t.restaurantId, t.status),
+	index('idx_invoices_rid_review_state').on(t.restaurantId, t.reviewState),
 	index('idx_invoices_rid_created_at').on(t.restaurantId, t.createdAt),
 ]);
 

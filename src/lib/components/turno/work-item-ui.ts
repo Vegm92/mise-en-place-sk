@@ -1,6 +1,5 @@
 import TrendingUp from '@lucide/svelte/icons/trending-up';
 import Wallet from '@lucide/svelte/icons/wallet';
-import Clock from '@lucide/svelte/icons/clock';
 import FileCheck from '@lucide/svelte/icons/file-check';
 import CalendarOff from '@lucide/svelte/icons/calendar-off';
 import Truck from '@lucide/svelte/icons/truck';
@@ -9,7 +8,6 @@ import type { Severity, WorkKind } from '$lib/dashboard-turno';
 export const WORK_ICON: Record<WorkKind, typeof TrendingUp> = {
 	price: TrendingUp,
 	budget: Wallet,
-	due: Clock,
 	review: FileCheck,
 	missing: CalendarOff,
 	supplier: Truck,

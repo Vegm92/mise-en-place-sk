@@ -2,13 +2,15 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { publicFormAction } from '$lib/server/public-form-action';
 import { logAuthEvent } from '$lib/server/auth-events';
-import { verifyCredentials } from '$lib/server/auth-credentials';
+import { checkLoginCredentials } from '$lib/server/auth-credentials';
 import { issueSessionCookie } from '$lib/server/auth-session';
 import { signIn } from '$lib/server/auth';
 import { safeRedirect } from '$lib/server/safe-redirect';
 import { safe } from '$lib/server/load-guard';
 import { countWaitlistEmails } from '$lib/server/waitlist-db';
 import { BETA_SEATS } from '$lib/constants';
+import { checkRateLimit } from '$lib/server/rate-limiter';
+import { sendVerificationEmail } from '$lib/server/verification-email';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
@@ -45,17 +47,35 @@ export const actions: Actions = {
 
 			if (!email || !password) return fail(422, { error: 'missing', email });
 
-			const verified = await verifyCredentials(email, password);
-			if (!verified) {
+			const result = await checkLoginCredentials(email, password);
+
+			if (result.status === 'invalid') {
 				logAuthEvent('login_failed', { ipHash });
 				return fail(401, { error: 'invalid', email });
 			}
 
-			await issueSessionCookie(event.cookies, event.url.protocol === 'https:', verified);
+			if (result.status === 'unverified') {
+				logAuthEvent('login_failed', { ipHash, scope: 'unverified' });
+				return fail(403, { error: 'unverified', email: result.email });
+			}
+
+			await issueSessionCookie(event.cookies, event.url.protocol === 'https:', result.user);
 
 			redirect(303, redirectTo);
 		},
 	),
+
+	resend: publicFormAction({}, async ({ form, ip, event }) => {
+		const email = (form.get('email') as string)?.trim().toLowerCase();
+		if (!email) return fail(422, { error: 'missing' });
+
+		if (!(await checkRateLimit(`login:resend:${ip}`, 3))) {
+			return { email, resent: false };
+		}
+
+		await sendVerificationEmail(event.url, email);
+		return { email, resent: true };
+	}),
 
 	signInWithGoogle: signIn,
 };

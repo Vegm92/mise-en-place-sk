@@ -6,11 +6,10 @@ import ExcelJS from 'exceljs';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { toIsoDate } from '$lib/server/dates';
 
-const STATUS_LABELS: Record<string, string> = {
-	pending:  'Pendiente',
-	approved: 'Aprobada',
-	paid:     'Pagada',
-	overdue:  'Vencida',
+const REVIEW_STATE_LABELS: Record<string, string> = {
+	revisado:    'Revisado',
+	por_revisar: 'Por revisar',
+	incidencia:  'Incidencia',
 };
 
 const HEADER_FILL: ExcelJS.Fill  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8871E' } };
@@ -29,7 +28,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 	const dateTo     = toIsoDate(url.searchParams.get('date_to'));
 
 	const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
-	if (status)     conditions.push(eq(invoices.status, status));
+	if (status)     conditions.push(eq(invoices.reviewState, status));
 	if (supplierId) conditions.push(eq(invoices.supplierId, parseInt(supplierId, 10)));
 	if (dateFrom)   conditions.push(gte(invoices.invoiceDate, dateFrom));
 	if (dateTo)     conditions.push(lte(invoices.invoiceDate, dateTo));
@@ -42,7 +41,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			invoice_date:   invoices.invoiceDate,
 			due_date:       invoices.dueDate,
 			total_amount:   invoices.totalAmount,
-			status:         invoices.status,
+			review_state:   invoices.reviewState,
 			created_at:     invoices.createdAt,
 		})
 		.from(invoices)
@@ -76,7 +75,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 			invoice_date:   r.invoice_date ?? '—',
 			due_date:       r.due_date ?? '—',
 			total_amount:   moneyToNullableNumber(r.total_amount),
-			status:         STATUS_LABELS[r.status ?? ''] ?? r.status ?? '—',
+			status:         REVIEW_STATE_LABELS[r.review_state ?? ''] ?? r.review_state ?? '—',
 			created_at:     r.created_at ? r.created_at.toISOString().replace('T', ' ').slice(0, 19) : '—',
 		});
 	}

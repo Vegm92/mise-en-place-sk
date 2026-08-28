@@ -10,7 +10,7 @@ import { normalizeProductKey } from './normalize';
 import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './products';
 import { moneyToNumber, moneyToNullableNumber } from './money';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
-import { sendEmail, weeklyDigestEmail, overdueInvoiceEmail, trialExpiryEmail, trialExpiredEmail } from './email';
+import { sendEmail, weeklyDigestEmail, incidenciaDigestEmail, trialExpiryEmail, trialExpiredEmail } from './email';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, effectiveTier, ORPHAN_SUBSCRIPTIONS_CRON, ORPHAN_SUBSCRIPTIONS_QUEUE, runOrphanSubscriptionsJob } from './billing';
 import { getStorage } from './storage';
@@ -782,21 +782,19 @@ export async function sendOverdueReminder(data: OverdueReminderJobData): Promise
 		.from(invoices)
 		.where(tdb.scope(invoices.restaurantId, and(
 			isNull(invoices.deletedAt),
-			ne(invoices.status, 'paid'),
-			isNotNull(invoices.dueDate),
-			sql`${invoices.dueDate} < ${data.day}`,
+			eq(invoices.reviewState, 'incidencia'),
 		)));
 
 	const count = Number(row?.count ?? 0);
 	if (count === 0) return false;
 
-	if (!(await claimOnce(data.restaurantId, 'overdue_reminder_sent_day', data.day))) return false;
+	if (!(await claimOnce(data.restaurantId, 'incidencia_digest_sent_day', data.day))) return false;
 
 	const email = await ownerEmail(data.restaurantId);
 	if (!email) return false;
 
 	const total = `${Number(row?.total ?? 0).toFixed(2)} €`;
-	await sendEmail(overdueInvoiceEmail(email, data.name, count, total));
+	await sendEmail(incidenciaDigestEmail(email, data.name, count, total));
 	return true;
 }
 

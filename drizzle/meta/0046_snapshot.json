@@ -1,6 +1,6 @@
 {
-  "id": "516e8911-dabe-456b-b973-8b085d1180bf",
-  "prevId": "1d7762c4-3d21-476d-80b6-2c9d75c091e9",
+  "id": "4cf1986c-509e-4c4f-93f2-ca184dbc5b55",
+  "prevId": "516e8911-dabe-456b-b973-8b085d1180bf",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -4003,6 +4003,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "phone_number": {
+          "name": "phone_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "display_name": {
           "name": "display_name",

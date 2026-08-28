@@ -1,9 +1,9 @@
-# Feature Spec — Invoice Management (list / detail / edit / export / status)
+# Feature Spec — Invoice Management (list / detail / edit / export / review state)
 
 ## Purpose
 
-Browse, inspect, edit and export confirmed invoices; manage payment status and
-soft deletion.
+Browse, inspect, edit and export confirmed invoices; manage the review state
+(revisado / por revisar / incidencia) and soft deletion.
 
 ## Actors
 
@@ -25,11 +25,16 @@ soft deletion.
 
 ## Business rules
 
-- **Statuses** (`invoice-status.ts`, guarded transitions):
-  `pending ──accept──▶ accepted`, `pending ──reject──▶ rejected`,
-  `pending|accepted ──markPaid──▶ paid`, `paid ──markUnpaid──▶ pending`.
-  Bulk mark-paid supported. `overdue` is display-derivable (not a stored
-  transition here).
+- **Review states** (issue #746 — the product tracks albaranes, not payments):
+  `invoices.review_state` holds `por_revisar | revisado | incidencia`. The
+  canonical save path writes `revisado` for a clean save and `incidencia` when
+  the save carried a low-confidence ack, a totals mismatch, unit-conversion
+  warnings, a VeriFactu QR mismatch, or a possible-duplicate-purchase alert
+  (`invoice-save.ts`). `invoice-status.ts` provides the only transition:
+  `por_revisar|incidencia ──markReviewed──▶ revisado` (single and bulk, guarded
+  `UPDATE … WHERE review_state IN (...)`). The legacy `status` column
+  (`pending|accepted|rejected|paid`) and `due_date` remain as data but no
+  longer drive the UI.
 - **Edit** carries an optimistic-lock `version`; stale writes are rejected. The
   action delete-and-reinserts line items, so the edit form must post back every
   column the save path reads — `line_supplier_skus` included, or the SKU is
@@ -98,8 +103,9 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 - Deleting an invoice referenced by alerts/notifications — FK `SET NULL`
   patterns keep rows readable.
-- `e_invoice_format` invoices show acceptance working-days deadlines in
-  `/reminders` (not here).
+- `e_invoice_format` invoices keep their acceptance timestamps as data; the
+  `/reminders` page now surfaces incidencias, not acceptance deadlines
+  (issue #746).
 
 ## Security rules
 
@@ -108,8 +114,8 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 ## Idempotency rules
 
-- Status transitions are guarded `UPDATE ... WHERE status IN (...)`; version
-  check prevents double-apply of stale edits.
+- Review-state transitions are guarded `UPDATE ... WHERE review_state IN (...)`;
+  version check prevents double-apply of stale edits.
 
 ## Observability
 
@@ -117,13 +123,13 @@ Tenant scope on every read; version check on edit; status-transition guards.
 
 ## Acceptance criteria
 
-- Filtering, detail, edit-with-version, mark-paid/unpaid and export behave per
-  the status map above and stay tenant-isolated.
+- Filtering, detail, edit-with-version, mark-reviewed and export behave per
+  the review-state map above and stay tenant-isolated.
 - The list filter bar is collapsible (collapsed by default), badges the active
   filter count, applies instantly, debounces text input and keeps its whole
   state in the URL search params.
-- Tests: `tests/db-crud.test.ts`, `tests/status.test.ts` (status
-  transitions), `tests/xlsx-export.test.ts`, `tests/invoice-filters.test.ts`
+- Tests: `tests/db-crud.test.ts`, `tests/invoice-status-vocabulary.test.ts`
+  (review vocabulary), `tests/xlsx-export.test.ts`, `tests/invoice-filters.test.ts`
   (parse / serialise / active count / default collapsed state),
   `tests/debounce.test.ts` (debounce timing),
   `tests/invoices-filters-load.test.ts` (`load()` turns search params into SQL
@@ -219,48 +225,29 @@ Tenant scope on every read; version check on edit; status-transition guards.
 ### `src/routes/(app)/reminders/+page.server.ts`
 
 **`const rows`**
-- Shows pending AND accepted invoices not yet paid (`status IN ('pending', 'accepted')`).
-
-**`const enriched`**
-- 4-working-day acceptance countdown, only for e-invoices still `pending`.
+- Lists invoices saved with `review_state = 'incidencia'` (issue #746), newest first.
 
 **`const actions`**
-- Guarded transitions (issue #243): a stale tab whose invoice was already accepted/rejected/paid elsewhere gets a conflict banner, not a silent overwrite.
-
-**`property acceptInvoice`**
-- Accept an e-invoice — starts the paid-status obligation clock (RD 238/2026).
-
-**`property rejectInvoice`**
-- Reject an e-invoice — records the rejection date (RD 238/2026).
+- `markReviewed` — guarded transition to `revisado`; a stale tab whose invoice was already reviewed elsewhere gets a conflict banner, not a silent overwrite.
 
 ### `src/routes/(app)/reminders/+page.svelte`
 
 **`markup`**
-- Mobile alerts / desktop reminders variants; summary chips; overdue and due-soon sections.
+- Mobile alerts / desktop reminders variants; incidencias section linking each invoice with a mark-reviewed action; notification groups.
 
 ### `src/lib/server/invoice-status.ts`
 
-**`type InvoiceStatus`**
-- Guarded transitions (issue #243): every status mutation is an `UPDATE … WHERE status IN (from)` reporting whether it fired, so a stale tab or double-submit is a no-op instead of a lost update or a contradiction between `status` and the RD 238/2026 timestamps (`accepted_at` / `rejected_at` / `paid_at`).
-- Allowed: `pending → accepted | rejected | paid`; `accepted → paid`; `paid → pending` (markUnpaid resets the timestamps).
+**`type ReviewState`**
+- Re-exported from `$lib/status` (`por_revisar | revisado | incidencia`); the module declares no vocabulary of its own.
 
-**`function markInvoicePaid`**
-- pending/accepted → paid, recording the payment date.
+**`function markInvoiceReviewed`**
+- por_revisar/incidencia → revisado; guarded `UPDATE … WHERE review_state IN (from)` reporting whether it fired, so a stale tab or double-submit is a no-op (issue #243 pattern carried over to the review model, issue #746).
 
-**`function markInvoiceUnpaid`**
-- paid → pending, clearing the now-stale payment/acceptance timestamps.
+**`function markInvoicesReviewedBulk`**
+- Bulk por_revisar/incidencia → revisado; returns how many rows actually transitioned.
 
-**`function acceptInvoice`**
-- pending → accepted (RD 238/2026 acceptance).
-
-**`function rejectInvoice`**
-- pending → rejected (RD 238/2026 rejection).
-
-**`function markInvoicesPaidBulk`**
-- Bulk pending/accepted → paid; returns how many rows actually transitioned.
-
-**`function invoiceStatusFilter`**
-- Turns a status filter value from the URL into a predicate. `overdue` is not a stored status, so it compiles to `status='pending' AND due_date < CURRENT_DATE` rather than an equality that could never match (issue #520 — the list's overdue filter silently returned nothing). A value outside the vocabulary compiles to `false` instead of being passed through to SQL.
+**`function invoiceReviewFilter`**
+- Turns a review-state filter value from the URL into a `review_state` equality. A value outside the vocabulary compiles to `false` instead of being passed through to SQL (issue #520 pattern).
 
 ### `src/lib/server/working-days.ts`
 
