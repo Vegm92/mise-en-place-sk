@@ -277,6 +277,56 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		await testSql`DELETE FROM restaurants WHERE id = ${rid}`;
 	});
 
+	it('deletes real rows across every FK depth of the shared tenant-data map — suppliers, chained invoice/line-item rows, chained chat rows, and subscriptions — without an FK-order violation (issue #390)', async () => {
+		const { id: userId, email } = await makeUser('mapfk', 'hashed:pw');
+		const rid = await makeRestaurant('mapfk');
+		await membership(userId, rid, 'owner');
+		verifyCredentialsMock.mockResolvedValue({ id: userId, email, name: null, image: null });
+
+		await setSubscription(rid, `sub_mapfk_${Date.now()}`);
+		await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${rid}, 'MapFK Supplier')`;
+		const [invoiceRow] = await testSql`
+			INSERT INTO invoices (restaurant_id, invoice_number) VALUES (${rid}, 'MAPFK-1') RETURNING id
+		`;
+		await testSql`
+			INSERT INTO invoice_line_items (restaurant_id, invoice_id, description)
+			VALUES (${rid}, ${invoiceRow.id}, 'line 1')
+		`;
+		const [sessionRow] = await testSql`
+			INSERT INTO chat_sessions (restaurant_id, title) VALUES (${rid}, 'session') RETURNING id
+		`;
+		await testSql`
+			INSERT INTO chat_messages (restaurant_id, session_id, role, text)
+			VALUES (${rid}, ${sessionRow.id}, 'user', 'hi')
+		`;
+		const [productRow] = await testSql`
+			INSERT INTO products (restaurant_id, canonical_name, name_key) VALUES (${rid}, 'Aceite', 'aceite-mapfk') RETURNING id
+		`;
+		await testSql`
+			INSERT INTO product_aliases (restaurant_id, product_id, raw_key) VALUES (${rid}, ${productRow.id}, 'aceite-raw')
+		`;
+		const [batchRow] = await testSql`INSERT INTO upload_batches (restaurant_id) VALUES (${rid}) RETURNING id`;
+		await testSql`
+			INSERT INTO batch_items (batch_id, restaurant_id, position, file_key, display_name)
+			VALUES (${batchRow.id}, ${rid}, 1, 'k', 'd')
+		`;
+
+		const result = await runDelete(userId, email, { password: 'correct-horse' });
+
+		expect(result).toMatchObject({ thrown: false, status: 200, json: { deleted: true } });
+		expect(await restaurantExists(rid)).toBe(false);
+		expect(await subscriptionExists(rid)).toBe(false);
+		expect((await testSql`SELECT id FROM suppliers WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM invoices WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM invoice_line_items WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM chat_sessions WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM chat_messages WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM products WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM product_aliases WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM upload_batches WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect((await testSql`SELECT id FROM batch_items WHERE restaurant_id = ${rid}`).length).toBe(0);
+	});
+
 	it('rate limits deletion attempts', async () => {
 		const { id: userId, email } = await makeUser('ratelimited', 'hashed:pw');
 		rateLimitMock.mockResolvedValueOnce(false);
