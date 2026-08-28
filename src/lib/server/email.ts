@@ -190,8 +190,14 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 	}
 }
 
-export function welcomeEmail(email: string, restaurantName?: string): EmailPayload {
+const WELCOME_INTRO_BY_VENUE: Record<string, string> = {
+	menu_del_dia: 'En un menú del día el margen se cuenta en céntimos por cubierto: una subida de proveedor que no ves a tiempo se come el beneficio del día entero. Mise en Place detecta cada subida el mismo día que llega el albarán.',
+	grupo: 'Con varios locales, cada gerente suele negociar a ciegas. Mise en Place da de alta cada local por separado y compara el gasto entre ellos desde un solo panel — así ves quién paga de más por el mismo proveedor.',
+};
+
+export function welcomeEmail(email: string, restaurantName?: string, venueType?: string | null): EmailPayload {
 	const name = escapeHtml(restaurantName ?? 'tu restaurante');
+	const segmentIntro = venueType ? WELCOME_INTRO_BY_VENUE[venueType] : undefined;
 	return {
 		to: email,
 		kind: 'welcome',
@@ -203,6 +209,7 @@ export function welcomeEmail(email: string, restaurantName?: string): EmailPaylo
 			headline: '¡Bienvenido a Mise en Place!',
 			bodyHtml: `
 ${p(`Tu cuenta para ${strong(name)} ya está activa.`)}
+${segmentIntro ? p(segmentIntro) : ''}
 ${steps([
 	{ title: 'Sube tu primera factura', desc: 'Una foto o un PDF de un albarán de proveedor es suficiente para empezar.' },
 	{ title: 'La leemos automáticamente', desc: 'Extraemos productos, precios y totales — sin transcripción manual.' },
