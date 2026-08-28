@@ -1008,7 +1008,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             <strong id="upgrade-modal-title" style="flex:1;font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">
               {$t('sidebar.upgradeToProTitle')}
             </strong>
-            <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-acc-soft);color:var(--mep-acc);border:1px solid var(--mep-acc-ring);">{$t('nav.badge.pro')}</span>
+            <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-hover);color:var(--mep-fg-2);border:1px solid var(--mep-border);">{$t('nav.badge.pro')}</span>
           </div>
           <p class="body" style="line-height:1.6;margin:0 0 16px;">
             {$t('sidebar.upgradeToProDesc')}
