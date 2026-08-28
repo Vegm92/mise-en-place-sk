@@ -111,7 +111,7 @@ export function nonReactiveTranslatorConsts(code) {
 	const out = [];
 	for (const stmt of sf.statements) {
 		if (!ts.isVariableStatement(stmt)) continue;
-		if ((stmt.declarationList.flags & ts.NodeFlags.Const) === 0) continue;
+		if (stmt.declarationList.getFirstToken(sf)?.kind !== ts.SyntaxKind.ConstKeyword) continue;
 		for (const decl of stmt.declarationList.declarations) {
 			if (isOffendingConst(decl, sf)) {
 				out.push({ name: decl.name.getText(sf), pos: decl.getStart(sf) });
