@@ -110,10 +110,13 @@ throwing — a missing digest degrades the dashboard, it does not break it.
   `aiAssistant` feature on the tier, and a per-user rate limit
   (`CHAT_RATE_LIMIT_RPM`). The digest is gated once, on the `weeklyDigest`
   feature flag, at tenant-selection time in the scheduled job.
-- Neither feature routes through the [ADR-007](../extraction/ADR-007-llm-provider-seam.md)
-  provider seam — both construct `GoogleGenAI` directly — so their token usage is
-  absent from `llm_usage_log`. Extraction dominates cost and came first; this gap
-  is tracked in [#426](https://github.com/Vegm92/mise-en-place-sk/issues/426).
+- **Closed by [#426](https://github.com/Vegm92/mise-en-place-sk/issues/426):**
+  both features now route through the [ADR-007](../extraction/ADR-007-llm-provider-seam.md)
+  provider seam instead of constructing `GoogleGenAI` directly, so their token
+  usage lands in `llm_usage_log` with `caller_context` `'chat'` /
+  `'weekly-digest'`. This is logging only — chat and digest tokens are not
+  wired into `checkExtractionQuota` or the monthly plan quota, so today only
+  extraction can trip a tenant's cost ceiling.
 
 ## Related
 

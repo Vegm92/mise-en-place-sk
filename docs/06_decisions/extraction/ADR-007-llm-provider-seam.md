@@ -93,12 +93,19 @@ for the month, which is the correct direction to fail.
 - `COST_PER_MILLION` is a hardcoded price table and will drift from real Gemini
   pricing. It is an internal cost signal for dashboards and tenant ceilings, not
   an accounting record. Treat divergence from the provider invoice as expected.
-- The digest (`weekly-digest.ts`) and chat (`api/chat`) still construct
-  `GoogleGenAI` directly and are **not** behind the seam, so their tokens are not
-  in `llm_usage_log`. Extraction is the dominant cost and was addressed first;
-  bringing the other two behind `createLLMProvider` is tracked in
-  [#426](https://github.com/Vegm92/mise-en-place-sk/issues/426), not an
-  oversight of this decision.
+- **Closed by [#426](https://github.com/Vegm92/mise-en-place-sk/issues/426):**
+  the digest (`weekly-digest.ts`) and chat (`api/chat`) used to construct
+  `GoogleGenAI` directly, off the seam, so their tokens never reached
+  `llm_usage_log`. Both now call `createGeminiProvider().generate()` — chat
+  passes its system prompt through the `systemInstruction` param the seam
+  gained in [#466](https://github.com/Vegm92/mise-en-place-sk/issues/466) —
+  and record usage with `recordLlmUsage(restaurantId, usage, source)` at the
+  call site where the tenant id is already in scope (`'chat'` and
+  `'weekly-digest'` respectively), mirroring how `processNormalizeJob` and
+  `processCategorizeJob` in `products.ts` do it. This is logging only: neither
+  caller was added to `checkExtractionQuota` or `claimMonthlyExtraction` —
+  whether their tokens should count against a tenant's cost ceiling is a
+  separate product decision.
 - Adding a provider means: one `create<X>Provider` function, one `switch` case,
   and its rates in `COST_PER_MILLION`. It does *not* mean touching extraction
   routing, because [ADR-006](./ADR-006-file-classification-routes-extraction.md)
