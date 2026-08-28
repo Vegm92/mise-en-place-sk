@@ -1,6 +1,6 @@
 import type { ReportDoc, ReportType } from '$lib/reports';
 import { toCsv } from '$lib/reports';
-import { translations } from '$lib/i18n';
+import { translations } from '$lib/i18n-messages';
 import { categorySlug } from '$lib/constants';
 import { isoWeek } from '$lib/server/weekly-digest';
 import { buildWeekly } from './weekly';
