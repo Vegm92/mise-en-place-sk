@@ -61,7 +61,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 720 | P3 | DONE | 1 | Verified (commit 32aec64): slate acc-soft alpha 0.16→0.10, 4.18→4.58:1; ADR-026 amended w/ on-tint table; contrast test harness added. Note: slate accent is inert (all routes use tinta/ADR-028). 2344/2344. | active nav rows below AA in dark |
 | 749 | P3 | DONE | 1 | Verified (commit 57b2d3e): neg-soft dark 0.18→0.12 (4.57:1), caution-soft light 0.14→0.11 (4.53:1); full usage sweep, assertions upgraded, ADR amended. 2349/2349. Close GitHub issue when branch merges. | severity tokens below AA on own tints |
 | 719 | P3 | DONE | 1 | Verified (commit 18152ac): fg-4→fg-3 (3.92→5.21:1 dark), pinning tests. 2347/2347. Noted: location-switcher locked items still fg-4 (separate component). | locale hint below AA in dark |
-| 718 | P3 | PENDING | 0 | | one neutral PRO chip (ADR-026) |
+| 718 | P3 | DONE | 1 | Verified (commit ba89db6): #711's rebase had reintroduced the accent chip in the dialog — now neutral, guard test added. 2352/2352. Note: help-page .help-tip-pro still accent (predates scope; fold into #569's help work). | one neutral PRO chip (ADR-026) |
 | 738 | P3 | DEFERRED | 0 | PR #723 branch | escandallo number parsing zero/out-of-range |
 | 737 | P3 | DEFERRED | 0 | PR #723 branch | recipe module dead exports/dup waste factor |
 | 735 | P3 | DEFERRED | 0 | PR #723 branch | duplicate escandallo 409s second time |
