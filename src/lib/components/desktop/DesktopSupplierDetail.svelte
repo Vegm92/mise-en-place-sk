@@ -77,6 +77,7 @@
     tab       = $bindable<'resumen'|'albaranes'|'productos'|'conversiones'>('resumen'),
     editing   = $bindable(false),
     confirmDelete = $bindable(false),
+    highlightCategory = $bindable(false),
   }: {
     supplier: Supplier;
     invoices: Invoice[];
@@ -89,6 +90,7 @@
     tab?: 'resumen'|'albaranes'|'productos'|'conversiones';
     editing?: boolean;
     confirmDelete?: boolean;
+    highlightCategory?: boolean;
   } = $props();
 
   const color = $derived(categoryColor(s.category));
@@ -243,7 +245,8 @@
               </div>
               <div>
                 <label for="edit-category" class="label" style="display:block;margin-bottom:4px;">{$t('sup.field.category')}</label>
-                <select id="edit-category" class="input" name="category" style="width:100%;">
+                <select id="edit-category" class="input" class:mep-field-highlight={highlightCategory} name="category" style="width:100%;"
+                  onfocus={() => highlightCategory = false} onchange={() => highlightCategory = false}>
                   <option value="">{$t('sup.noCategory')}</option>
                   {#each VALID_CATEGORIES as cat}
                     <option value={cat} selected={s.category === cat}>{$tcat(cat)}</option>
