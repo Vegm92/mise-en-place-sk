@@ -55,6 +55,7 @@ function runtimeUrl(): string {
 let runtimeSql: ReturnType<typeof postgres> | null = null;
 let ridA = '';
 let ridB = '';
+const SHARE_TOKEN = `rls-test-share-token-${Date.now()}`;
 
 async function resetGucs(sql: ReturnType<typeof postgres>): Promise<void> {
 	await sql`SELECT set_config('app.restaurant_id', '', false), set_config('app.admin', '', false)`;
@@ -92,6 +93,11 @@ beforeAll(async () => {
 	await testSql`INSERT INTO invoices (restaurant_id, invoice_number, status) VALUES (${ridB}, 'RLS-B-1', 'pending')`;
 	await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridA}, 'RLS Supplier A')`;
 	await testSql`INSERT INTO suppliers (restaurant_id, name) VALUES (${ridB}, 'RLS Supplier B')`;
+	await testSql`UPDATE restaurants SET venue_type = 'carta' WHERE id = ${ridA}`;
+	await testSql`
+		INSERT INTO digest_shares (token, restaurant_id, week)
+		VALUES (${SHARE_TOKEN}, ${ridA}, '2026-W10')
+	`;
 });
 
 afterAll(async () => {
@@ -237,5 +243,62 @@ describe.skipIf(!canRun)('tenant-context mechanism — GUC set/reset/isolation',
 			expect(activeTenantContext()?.mode).toBe('tenant');
 			expect(activeTenantContext()?.restaurantId).toBe(ridA);
 		});
+	});
+});
+
+/**
+ * The public digest-share route (#329, src/routes/s/[token]) serves
+ * anonymous visitors: no session, no locals.restaurantId, and the token is
+ * the only authorization boundary. resolveShareToken() reads digest_shares
+ * and buildPublicDigestPayload() reads invoices/restaurants — both are
+ * RLS-protected tables — for a tenant the caller has no session-derived
+ * context for at all, so both routes wrap the lookup in runAsSystem() (see
+ * ADR-030's call-site table). The queries below mirror
+ * src/lib/server/digest-share.ts's actual predicates exactly (token lookup,
+ * period spend, restaurant venue_type) so this pins the real failure mode:
+ * without the wrap, an anonymous visitor's own valid share link 404s the
+ * moment the runtime-role cutover lands, even though nothing about the
+ * token or the data changed.
+ */
+describe.skipIf(!canRun)('digest share (#329) public route — runtime-role backstop', () => {
+	it('without app.admin (no wrap): the token lookup itself returns nothing', async () => {
+		await resetGucs(runtimeSql!);
+		const rows = await runtimeSql!`
+			SELECT restaurant_id, week FROM digest_shares WHERE token = ${SHARE_TOKEN} AND revoked_at IS NULL
+		`;
+		expect(rows).toHaveLength(0);
+	});
+
+	it('with app.admin (the wrap the route uses): token resolves and the payload queries return real data', async () => {
+		await runtimeSql!`SELECT set_config('app.admin', 'true', false)`;
+
+		const [share] = await runtimeSql!`
+			SELECT restaurant_id, week FROM digest_shares WHERE token = ${SHARE_TOKEN} AND revoked_at IS NULL
+		`;
+		expect(share?.restaurant_id).toBe(ridA);
+
+		const [spend] = await runtimeSql!`
+			SELECT COALESCE(SUM(i.total_amount), 0) AS spend FROM invoices i
+			WHERE i.restaurant_id = ${share.restaurant_id} AND i.deleted_at IS NULL
+		`;
+		expect(spend).toBeDefined();
+
+		const [restaurant] = await runtimeSql!`
+			SELECT venue_type FROM restaurants WHERE id = ${share.restaurant_id} LIMIT 1
+		`;
+		expect(restaurant?.venue_type).toBe('carta');
+
+		await resetGucs(runtimeSql!);
+	});
+
+	it('resolving one tenant\'s share token under app.admin never surfaces another tenant\'s row', async () => {
+		await runtimeSql!`SELECT set_config('app.admin', 'true', false)`;
+		const rows = await runtimeSql!`
+			SELECT restaurant_id FROM digest_shares WHERE token = ${SHARE_TOKEN} AND revoked_at IS NULL
+		`;
+		expect(rows).toHaveLength(1);
+		expect(rows[0].restaurant_id).toBe(ridA);
+		expect(rows[0].restaurant_id).not.toBe(ridB);
+		await resetGucs(runtimeSql!);
 	});
 });
