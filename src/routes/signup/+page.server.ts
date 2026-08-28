@@ -11,6 +11,7 @@ import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { sendVerificationEmail } from '$lib/server/verification-email';
 import { signIn } from '$lib/server/auth';
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '$lib/attribution';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (locals.user) redirect(303, locals.restaurantId ? '/' : '/onboarding');
@@ -44,13 +45,24 @@ export const actions: Actions = {
 			}
 
 			const passwordHash = await bcrypt.hash(password, 12);
+			const attribution = parseAttributionCookie(event.cookies.get(ATTRIBUTION_COOKIE));
 			let userId: string;
 
 			if (existing) {
 				await db.update(users).set({ passwordHash }).where(eq(users.id, existing.id));
 				userId = existing.id;
 			} else {
-				const [created] = await db.insert(users).values({ email, passwordHash }).returning();
+				const [created] = await db.insert(users).values({
+					email,
+					passwordHash,
+					attrSource:      attribution.source,
+					attrCampaign:    attribution.campaign,
+					attrVariant:     attribution.variant,
+					attrSegment:     attribution.segment,
+					attrReferrer:    attribution.referrer,
+					attrLandingPath: attribution.landingPath,
+					attrReferredBy:  attribution.referredBy,
+				}).returning();
 				if (!created) {
 					logAuthEvent('signup_failed', { ipHash });
 					return fail(422, { error: 'generic' });
