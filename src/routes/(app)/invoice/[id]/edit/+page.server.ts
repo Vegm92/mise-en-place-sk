@@ -9,6 +9,7 @@ import { getOrCreateSupplierId } from '$lib/server/supplier';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
 import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
 import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField } from '$lib/server/invoice-save';
+import { requirePositiveIntId } from '$lib/server/route-params';
 import type { TaxBand } from '$lib/tax';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -88,7 +89,7 @@ async function executeEditTransaction(
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	return handleLoad('invoice/edit', async () => {
-		const id  = Number(params.id);
+		const id  = requirePositiveIntId(params.id, 'invoice');
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 
@@ -145,7 +146,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 export const actions: Actions = {
 	save: async ({ request, params, locals }) => {
-		const id  = Number(params.id);
+		const id  = requirePositiveIntId(params.id, 'invoice');
 		const rid = locals.restaurantId!;
 		const uid = locals.user!.id;
 		const tdb = forTenant(rid);
