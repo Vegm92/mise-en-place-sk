@@ -93,7 +93,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 571 | P3 | PENDING | 0 | | unify logo usage |
 | 569 | P3 | PENDING | 0 | | help page docs/tips |
 | 568 | P3 | PENDING | 0 | | supplier products hover |
-| 524 | P3 | PENDING | 0 | | sql template numeric return types |
+| 524 | P3 | DONE | 1 | Verified (commit 49476a1): 18 dishonest sites across 6 files → ::float8 or string+moneyToNumber; regression-proven guard test. 2786/2786. | sql template numeric return types |
 | 523 | P3 | PENDING | 0 | Infra/env change | DATABASE_SSL_MODE verify-full |
 | 740 | P3 | PENDING | 0 | Deadline 2026-12-01; infra | Railway config-as-code → IaC |
 | 565 | P3 | DEFERRED | 0 | #746 says it resolves this question; recheck after PR #748 merges | pagada/no pagada as desvío |
