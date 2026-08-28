@@ -1,6 +1,15 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
   import { UPLOAD_ACCEPT, isHeicUpload } from '$lib/upload-formats';
+  import {
+    OFFLINE_QUEUE_MAX_ITEMS,
+    createIndexedDbOfflineQueueStorage,
+    enqueueFiles,
+    queueCount,
+    retryOfflineQueue,
+    sweepExpiredEntries,
+    type UploadOutcome,
+  } from '$lib/offline-queue';
   import { goto } from '$app/navigation';
   import Upload from '@lucide/svelte/icons/upload';
   import Sparkle from '@lucide/svelte/icons/sparkle';
@@ -61,91 +70,12 @@
   let previewUrl = $state<string | null>(null);
   let previewFile = $state<File | null>(null);
 
-  const OFFLINE_MAX = 3;
   let offlineBanner = $state<'saved' | 'retrying' | null>(null);
   let pendingOfflineCount = $state(0);
 
   let uploadProgress = $state(0);
 
-  const DB_NAME = 'mise-offline-queue';
-  const STORE_NAME = 'pending';
-
-  function openDb(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async function getQueuedCount(): Promise<number> {
-    try {
-      const db = await openDb();
-      return new Promise((resolve) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const req = tx.objectStore(STORE_NAME).count();
-        req.onsuccess = () => { resolve(req.result); db.close(); };
-        req.onerror = () => { resolve(0); db.close(); };
-      });
-    } catch { return 0; }
-  }
-
-  async function addToOfflineQueue(filesToQueue: File[]): Promise<void> {
-    const db = await openDb();
-    const items = await Promise.all(filesToQueue.map(async (f) => {
-      const b64 = await fileToBase64(f);
-      return { name: f.name, type: f.type, data: b64, timestamp: Date.now() };
-    }));
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      for (const item of items) store.add(item);
-      tx.oncomplete = () => { resolve(); db.close(); };
-      tx.onerror = () => { reject(tx.error); db.close(); };
-    });
-  }
-
-  async function getQueuedItems(): Promise<Array<{ id: number; name: string; type: string; data: string }>> {
-    try {
-      const db = await openDb();
-      return new Promise((resolve) => {
-        const tx = db.transaction(STORE_NAME, 'readonly');
-        const req = tx.objectStore(STORE_NAME).getAll();
-        req.onsuccess = () => { resolve(req.result); db.close(); };
-        req.onerror = () => { resolve([]); db.close(); };
-      });
-    } catch { return []; }
-  }
-
-  async function removeFromOfflineQueue(id: number): Promise<void> {
-    try {
-      const db = await openDb();
-      await new Promise<void>((resolve) => {
-        const tx = db.transaction(STORE_NAME, 'readwrite');
-        tx.objectStore(STORE_NAME).delete(id);
-        tx.oncomplete = () => { resolve(); db.close(); };
-      });
-    } catch { }
-  }
-
-  function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function base64ToFile(b64: string, name: string, type: string): File {
-    const arr = b64.split(',');
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8 = new Uint8Array(n);
-    while (n--) u8[n] = bstr.charCodeAt(n);
-    return new File([u8], name, { type });
-  }
+  const queueStorage = createIndexedDbOfflineQueueStorage();
 
   function addFiles(newFiles: FileList | null) {
     if (!newFiles) return;
@@ -219,41 +149,45 @@
   }
 
   async function handleOffline(filesToSave: File[]) {
-    const count = await getQueuedCount();
-    if (count >= OFFLINE_MAX) {
+    const count = await queueCount(queueStorage);
+    if (count >= OFFLINE_QUEUE_MAX_ITEMS) {
       showError($t('upload.offlineLimit'), true);
       return;
     }
-    await addToOfflineQueue(filesToSave);
-    pendingOfflineCount = await getQueuedCount();
+    await enqueueFiles(queueStorage, filesToSave);
+    pendingOfflineCount = await queueCount(queueStorage);
     offlineBanner = 'saved';
     files = [];
   }
 
+  async function uploadForRetry(file: File): Promise<UploadOutcome> {
+    const fd = new FormData();
+    fd.append('files', file);
+    uploadProgress = 0;
+    const loc = await uploadWithProgress(fd);
+    return loc ? { status: 'success', location: loc } : { status: 'rejected' };
+  }
+
+  let retryInFlight = false;
+
   async function retryOfflineUploads() {
-    const items = await getQueuedItems();
-    if (!items.length) { pendingOfflineCount = 0; offlineBanner = null; return; }
-    offlineBanner = 'retrying';
-    for (const item of items) {
-      try {
-        const f = base64ToFile(item.data, item.name, item.type);
-        const fd = new FormData();
-        fd.append('files', f);
-        uploadProgress = 0;
-        const loc = await uploadWithProgress(fd);
-        if (loc) {
-          await removeFromOfflineQueue(item.id);
-          pendingOfflineCount = await getQueuedCount();
-          await goto(loc, { invalidateAll: true });
-          return;
-        }
-      } catch {
-        offlineBanner = 'saved';
+    if (retryInFlight) return;
+    retryInFlight = true;
+    try {
+      const count = await queueCount(queueStorage);
+      if (count === 0) { pendingOfflineCount = 0; offlineBanner = null; return; }
+      offlineBanner = 'retrying';
+      const result = await retryOfflineQueue(queueStorage, uploadForRetry);
+      pendingOfflineCount = result.remaining;
+      if (result.droppedFailed > 0) showError($tp('upload.offlineDropped', result.droppedFailed));
+      if (result.location) {
+        await goto(result.location, { invalidateAll: true });
         return;
       }
+      offlineBanner = result.remaining > 0 ? 'saved' : null;
+    } finally {
+      retryInFlight = false;
     }
-    offlineBanner = null;
-    pendingOfflineCount = await getQueuedCount();
   }
 
   async function doUpload() {
@@ -294,9 +228,10 @@
   }
 
   $effect(() => {
-    getQueuedCount().then((n) => {
-      pendingOfflineCount = n;
-      if (n > 0 && navigator.onLine) retryOfflineUploads();
+    sweepExpiredEntries(queueStorage).then((result) => {
+      if (result.dropped > 0) showError($tp('upload.offlineExpired', result.dropped));
+      pendingOfflineCount = result.remaining.length;
+      if (result.remaining.length > 0 && navigator.onLine) retryOfflineUploads();
     });
     const onOnline = () => retryOfflineUploads();
     window.addEventListener('online', onOnline);
