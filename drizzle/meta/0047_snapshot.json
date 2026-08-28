@@ -1,6 +1,6 @@
 {
-  "id": "4cf1986c-509e-4c4f-93f2-ca184dbc5b55",
-  "prevId": "516e8911-dabe-456b-b973-8b085d1180bf",
+  "id": "c7427928-78d0-4ff3-a0d3-63144a0182e0",
+  "prevId": "4cf1986c-509e-4c4f-93f2-ca184dbc5b55",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3096,7 +3096,7 @@
         },
         "payload": {
           "name": "payload",
-          "type": "text",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -3139,6 +3139,22 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_system_notifications_budget_overage_exceeded": {
+          "name": "idx_system_notifications_budget_overage_exceeded",
+          "columns": [
+            {
+              "expression": "restaurant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"system_notifications\".\"status\" = 'pending' AND \"system_notifications\".\"notification_type\" = 'budget_overage' AND (\"system_notifications\".\"payload\"->>'level') = 'exceeded'",
           "concurrently": false,
           "method": "btree",
           "with": {}
