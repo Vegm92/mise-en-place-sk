@@ -46,13 +46,18 @@ import { classifyFile } from '../src/lib/server/extract';
 
 const ROOT = process.cwd();
 
+/** Pads well-formed leading bytes past the 1 KB minimum-size floor (#541) with trailing zeros. */
+function padToMinSize(bytes: number[], min = 1100): number[] {
+	return bytes.length >= min ? bytes : [...bytes, ...new Array(min - bytes.length).fill(0)];
+}
+
 /** Well-formed leading bytes for each supported type. */
 const SAMPLE: Record<string, number[]> = {
-	'.pdf':  [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37],
-	'.jpg':  [0xff, 0xd8, 0xff, 0xe0],
-	'.jpeg': [0xff, 0xd8, 0xff, 0xe0],
-	'.png':  [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
-	'.xml':  [...Buffer.from('<?xml version="1.0"?><Facturae/>')],
+	'.pdf':  padToMinSize([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]),
+	'.jpg':  padToMinSize([0xff, 0xd8, 0xff, 0xe0]),
+	'.jpeg': padToMinSize([0xff, 0xd8, 0xff, 0xe0]),
+	'.png':  padToMinSize([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+	'.xml':  padToMinSize([...Buffer.from('<?xml version="1.0"?><Facturae/>')]),
 };
 
 /** Types a picker must not offer, each rejected by at least one gate today. */
