@@ -14,6 +14,7 @@
   import ExtractMock from '$lib/components/waitlist/ExtractMock.svelte';
   import DashboardMock from '$lib/components/waitlist/DashboardMock.svelte';
   import AppDashboardMock from '$lib/components/waitlist/AppDashboardMock.svelte';
+  import Logo from '$lib/components/mep/Logo.svelte';
 
   const { form, data }: { form: ActionData; data: PageData } = $props();
 
@@ -180,11 +181,7 @@
   <nav class="mep-nav" style="display:flex;align-items:center;gap:14px;padding:16px 32px;
               border-bottom:1px solid var(--mep-divider);">
     <div style="display:flex;align-items:center;gap:10px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
-        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
-      </svg>
+      <Logo size={18} />
       <span style="font-size:17px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
     <span style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
@@ -484,11 +481,7 @@
   <footer class="mep-footer mep-section" style="padding:28px 72px;border-top:1px solid var(--mep-divider);
                  display:flex;align-items:center;justify-content:space-between;gap:20px;">
     <div style="display:flex;align-items:center;gap:10px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
-        <rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-        <rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
-      </svg>
+      <Logo size={18} />
       <span style="font-size:17px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
     <div style="font-size:12.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{$t('waitlist.footerNote')}</div>

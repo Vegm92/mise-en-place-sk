@@ -2,6 +2,7 @@
 	import type { ActionData, PageData } from './$types';
 	import { onMount } from 'svelte';
 	import { locale, t, initLocale } from '$lib/i18n';
+	import Logo from '$lib/components/mep/Logo.svelte';
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const idempotencyKey = crypto.randomUUID();
@@ -36,11 +37,7 @@
 		</div>
 
 		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:32px;">
-			<svg width="22" height="22" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
-				<rect x="2.5"  y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-				<rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-				<rect x="18.5" y="3.5" width="3" height="9"  rx="1.5" fill="currentColor"/>
-			</svg>
+			<Logo size={22} />
 			<span style="font-size:16px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
 				Mise en Place
 			</span>
