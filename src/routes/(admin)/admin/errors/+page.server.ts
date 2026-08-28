@@ -5,7 +5,7 @@ import { SENTRY_ORG, SENTRY_PROJECT } from '$lib/server/env';
 
 export const load: PageServerLoad = async () => handleLoad('errors', async () => {
 	if (!isSentryConfigured()) {
-		return { configured: false as const };
+		return { title: 'admin.errors', configured: false as const };
 	}
 
 	const [summary, issues] = await Promise.all([
@@ -14,6 +14,7 @@ export const load: PageServerLoad = async () => handleLoad('errors', async () =>
 	]);
 
 	return {
+		title: 'admin.errors',
 		configured: true as const,
 		summary,
 		issues,
