@@ -132,7 +132,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					sql`${invoices.dueDate} < ${todayIso}`
 				)),
 
-			db.select({ count: sql<number>`COUNT(*)`, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)` })
+			db.select({ count: sql<number>`COUNT(*)`, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)::float8` })
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
@@ -142,11 +142,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					sql`${invoices.dueDate} BETWEEN ${todayIso} AND ${weekEnd}`
 				)),
 
-			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
+			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)::float8`, count: sql<number>`COUNT(*)` })
 				.from(invoices)
 				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
 
-			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
+			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)::float8`, count: sql<number>`COUNT(*)` })
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
@@ -156,8 +156,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				)),
 
 			db.select({
-				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
-				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
+				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)::float8`,
+				last_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${prevMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)::float8`,
 			})
 				.from(invoices)
 				.where(and(
@@ -166,7 +166,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') >= ${prevMonth}`
 				)),
 
-			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)` })
+			db.select({ day: sql<string>`DATE(${invoices.invoiceDate})`, total: sql<number>`COALESCE(SUM(${invoices.totalAmount}),0)::float8` })
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
@@ -190,8 +190,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute(sql`
 				SELECT s.id, s.name,
 					COALESCE(s.category,'Other') AS category,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
-					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0)::float8 AS month_spend,
+					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0)::float8 AS prev_month_spend,
 					COUNT(CASE WHEN i.status='pending' THEN 1 END) AS open_count,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ${todayIso} THEN 1 ELSE 0 END) AS has_overdue,
 					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ${todayIso} AND ${weekEnd} THEN 1 ELSE 0 END) AS has_due_soon
@@ -203,7 +203,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.execute(sql`
 				SELECT ${lineCategoryExpr()} AS category,
-				       COALESCE(SUM(${lineAmountExpr()}),0) AS total
+				       COALESCE(SUM(${lineAmountExpr()}),0)::float8 AS total
 				FROM invoice_line_items
 				JOIN invoices i ON i.id = invoice_line_items.invoice_id
 				JOIN suppliers ON suppliers.id = i.supplier_id
@@ -226,7 +226,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number, i.invoice_date,
-				       COALESCE(i.total_amount,0) AS display_amount,
+				       COALESCE(i.total_amount,0)::float8 AS display_amount,
 				       COALESCE(i.status,'pending') AS status,
 				       COUNT(li.id) AS item_count
 				FROM invoices i
@@ -240,7 +240,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number, i.invoice_date,
-				       COALESCE(i.total_amount,0) AS display_amount,
+				       COALESCE(i.total_amount,0)::float8 AS display_amount,
 				       COUNT(li.id) AS item_count
 				FROM invoices i
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
@@ -259,7 +259,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				.from(invoices)
 				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
 
-			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)` })
+			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)::float8` })
 				.from(invoices)
 				.where(and(
 					tdb.scope(invoices.restaurantId),
@@ -270,7 +270,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number,
-				       i.due_date, COALESCE(i.total_amount,0) AS display_amount
+				       i.due_date, COALESCE(i.total_amount,0)::float8 AS display_amount
 				FROM invoices i
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
@@ -281,7 +281,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number,
-				       i.due_date, COALESCE(i.total_amount,0) AS display_amount
+				       i.due_date, COALESCE(i.total_amount,0)::float8 AS display_amount
 				FROM invoices i
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
 				WHERE i.restaurant_id = ${rid}
@@ -440,7 +440,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			? await db
 				.select({
 					description: invoiceLineItems.description,
-					spend: sql<number>`COALESCE(SUM(COALESCE(${invoiceLineItems.totalPrice},0)),0)`,
+					spend: sql<number>`COALESCE(SUM(COALESCE(${invoiceLineItems.totalPrice},0)),0)::float8`,
 				})
 				.from(invoiceLineItems)
 				.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))

@@ -40,9 +40,9 @@ async function summarySection(restaurantId: string): Promise<string> {
 	const summaryRows = await db.execute<SummaryRow>(sql`
 		SELECT
 			COUNT(*) FILTER (WHERE status = 'pending') AS pending_count,
-			COALESCE(SUM(total_amount) FILTER (WHERE status = 'pending'), 0) AS pending_total,
+			COALESCE(SUM(total_amount) FILTER (WHERE status = 'pending'), 0)::float8 AS pending_total,
 			COUNT(*) FILTER (WHERE status = 'pending' AND due_date < CURRENT_DATE) AS overdue_count,
-			COALESCE(SUM(total_amount) FILTER (WHERE status = 'paid' AND TO_CHAR(invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')), 0) AS paid_this_month
+			COALESCE(SUM(total_amount) FILTER (WHERE status = 'paid' AND TO_CHAR(invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')), 0)::float8 AS paid_this_month
 		FROM ${invoices}
 		WHERE restaurant_id = ${restaurantId}
 	`);
@@ -59,7 +59,7 @@ async function summarySection(restaurantId: string): Promise<string> {
 
 async function suppliersSection(restaurantId: string): Promise<string> {
 	const topSuppliers = await db.execute<SupplierRow>(sql`
-		SELECT s.name, COALESCE(SUM(i.total_amount), 0) AS ytd_spend, COUNT(i.id) AS invoice_count
+		SELECT s.name, COALESCE(SUM(i.total_amount), 0)::float8 AS ytd_spend, COUNT(i.id) AS invoice_count
 		FROM ${suppliers} s
 		LEFT JOIN ${invoices} i ON i.supplier_id = s.id
 			AND TO_CHAR(i.invoice_date, 'YYYY') = TO_CHAR(CURRENT_DATE, 'YYYY')
@@ -90,8 +90,8 @@ async function budgetsSection(restaurantId: string): Promise<string> {
 			  AND TO_CHAR(i.invoice_date, 'YYYY-MM') = TO_CHAR(CURRENT_DATE, 'YYYY-MM')
 			GROUP BY ${lineCategoryExpr()}
 		)
-		SELECT cb.category, cb.monthly_budget,
-			COALESCE(ms.spend, 0) AS actual_this_month
+		SELECT cb.category, cb.monthly_budget::float8 AS monthly_budget,
+			COALESCE(ms.spend, 0)::float8 AS actual_this_month
 		FROM ${categoryBudgets} cb
 		LEFT JOIN month_spend ms ON ms.category = cb.category
 		WHERE cb.restaurant_id = ${restaurantId}
@@ -113,7 +113,7 @@ function budgetPercent(budget: number, actual: number): number {
 
 async function recentSection(restaurantId: string): Promise<string> {
 	const recent = await db.execute<RecentRow>(sql`
-		SELECT s.name AS supplier, i.invoice_date, i.total_amount, i.status
+		SELECT s.name AS supplier, i.invoice_date, i.total_amount::float8 AS total_amount, i.status
 		FROM ${invoices} i
 		LEFT JOIN ${suppliers} s ON s.id = i.supplier_id
 		WHERE i.restaurant_id = ${restaurantId}
@@ -167,8 +167,8 @@ async function trendsSection(restaurantId: string): Promise<string> {
 	const trends = await db.execute<TrendRow>(sql`
 		SELECT
 			mep_norm_key(ili.description) AS item,
-			MIN(ili.unit_price) AS min_price,
-			MAX(ili.unit_price) AS max_price,
+			MIN(ili.unit_price)::float8 AS min_price,
+			MAX(ili.unit_price)::float8 AS max_price,
 			COUNT(*) AS occurrences
 		FROM ${invoiceLineItems} ili
 		JOIN ${invoices} i ON i.id = ili.invoice_id

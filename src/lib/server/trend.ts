@@ -125,7 +125,7 @@ export async function getTrendDataByRange(rid: string, rangeParam: string | null
 		.select({
 			key: keyExpr,
 			category: categoryExpr,
-			amount: sql<number>`COALESCE(SUM(${lineAmountExpr()}), 0)`,
+			amount: sql<number>`COALESCE(SUM(${lineAmountExpr()}), 0)::float8`,
 		})
 		.from(invoiceLineItems)
 		.innerJoin(invoices, eq(invoices.id, invoiceLineItems.invoiceId))
