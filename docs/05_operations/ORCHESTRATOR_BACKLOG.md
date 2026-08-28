@@ -109,7 +109,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 404 | P3 | PENDING | 0 | Copy/content | trust/support bar |
 | 403 | P3 | PENDING | 0 | Copy/content | founders incentive section |
 | 402 | P3 | PENDING | 0 | Copy/content | sin vs con comparison |
-| 390 | P3 | PENDING | 0 | | shared GDPR traversal for export/delete |
+| 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
 | 354 | P3 | PENDING | 0 | Decision issue | feature-flag mechanism decision |
 | 333 | P3 | PENDING | 0 | | testimonial provenance + stale date |
