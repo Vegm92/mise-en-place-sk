@@ -45,7 +45,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 533 | P2 | DONE | 1 | Already satisfied on main (e6c10d0 + a735941): keys present, lint:i18n key-resolution pass with deliberate-miss proof. GitHub issue closed with explanation. | missing $t() keys render raw |
 | 532 | P2 | DONE | 1 | Fixed incidentally by #489's layout rewrite (1ea714f): all COUNTs ::int + Number(), strict-equality DB tests pin the type. Close GitHub issue when branch merges. | nav renders literal "0" badge |
 | 511 | P2 | DEFERRED | 0 | Likely moot under #746 review-state reframe (PR #748); recheck after merge | three conflicting InvoiceStatus vocabularies |
-| 520 | P2 | PENDING | 0 | | tenant-isolation tests cover load() only; silent skips |
+| 520 | P2 | DONE | 1 | Verified (commit 42dfafc): 6/7 acceptance items already covered by intervening work (evidence per item); dead extraction retry policy fixed via perJobResults wiring. 2327/2327. | tenant-isolation tests cover load() only; silent skips |
 | 518 | P2 | PENDING | 0 | | scheduled jobs iterate all tenants sequentially |
 | 517 | P2 | PENDING | 0 | | tenant-scoping lint for form actions |
 | 570 | P2 | PENDING | 0 | | verify auto-classifier status |
