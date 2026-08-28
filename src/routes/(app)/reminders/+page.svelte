@@ -140,6 +140,8 @@
           </div>
         {/each}
       </SectionCard>
+    {:else}
+      <p class="body text-fg-3" data-coach="reminders-main">{$t('rem.noIncidencias')}</p>
     {/if}
 
     {#if groups.priceShock.length}
