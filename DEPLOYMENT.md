@@ -166,6 +166,8 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 | `EXTRACTION_STALL_TIMEOUT_MS` | `900000` | Hard timeout: the **web** process marks an item still queued/extracting past this as `failed` / `extract.err.stalled`. Keep it above the worst legitimate run (pg-boss retries × `GEMINI_TIMEOUT_MS`) or a working extraction gets reaped |
 | `WORKER_HEARTBEAT_INTERVAL_MS` | `30000` | How often the worker upserts `worker_heartbeats` |
 | `WORKER_HEARTBEAT_STALE_MS` | `120000` | Heartbeat age after which `/admin/health` and `/api/health` call the worker down. Must stay comfortably above the interval |
+| `HEALTH_CHECK_TOKEN` | unset | Optional shared secret for external monitoring that needs the detailed `/api/health` response (DB size, queue depth, uploads-dir, sessions, uptime, version) without an admin session. Send it as `X-Health-Token`. Unset = token path disabled; admin session is then the only way to reach the detail (issue #491). |
+| `HEALTH_RATE_LIMIT_RPM` | `60` | Requests/minute per IP that `/api/health` accepts before answering 429 — generous for load-balancer probe cadence, tight enough to block it as an amplification target (issue #491). |
 
 ---
 
@@ -187,7 +189,7 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
    - `node build` (web) and `node build/worker.js` (worker)
    - On Railway/Render/Fly: create two services from this repo, one per command. They do **not** share a disk — set `STORAGE_DRIVER=railway`; see [File storage](#file-storage). Set `ADDRESS_HEADER=x-forwarded-for` / `XFF_DEPTH=1` on the web service on Railway, whose edge proxy rewrites the header (see [Reverse proxy / client IP](#reverse-proxy--client-ip)).
    - On a VPS: `docker compose up -d` uses the included `Dockerfile` + `docker-compose.yml` (one image, web + worker services, shared `uploads` volume at `/app/uploads`). This topology has no reverse proxy, so `ADDRESS_HEADER`/`XFF_DEPTH` are intentionally unset — do not add them without also putting a real proxy in front.
-5. Point your platform's health check at `GET /api/health` — returns `200` healthy / `503` degraded and reports DB reachability, pg-boss queue depth, uploads-dir writability, and active sessions. The worker has no HTTP port; rely on the platform's process supervision/restart policy.
+5. Point your platform's health check at `GET /api/health` — public, rate-limited (`HEALTH_RATE_LIMIT_RPM`, default 60/min per IP), and returns only `{ "status": "ok" | "degraded" }` with a matching `200`/`503`, backed by a plain DB-reachability probe. The full detail (DB size, pg-boss queue depth, uploads-dir writability, active sessions, uptime, version) requires an admin session or the `X-Health-Token` header (`HEALTH_CHECK_TOKEN`) — see `/admin/health` for the human-facing equivalent. The worker has no HTTP port; rely on the platform's process supervision/restart policy.
 
 ## First startup
 

@@ -166,7 +166,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → product linking (issue #298)
 			SELECT payload FROM system_notifications
 			WHERE restaurant_id = ${rid} AND notification_type = 'product_suggestion'`;
 		expect(suggestions.length).toBeGreaterThanOrEqual(1);
-		const payloads = suggestions.map((s) => JSON.parse(s.payload));
+		const payloads = suggestions.map((s) => s.payload);
 		expect(payloads.some((p) => p.description === 'Merluza fresca grande')).toBe(true);
 	});
 });

@@ -149,6 +149,45 @@ export interface ExtractedInvoice {
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
 }
 
+const MAX_SUPPLIER_NAME_LENGTH = 200;
+const MAX_ADDRESS_LENGTH = 300;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PHONE_LENGTH = 40;
+const MAX_NIF_LENGTH = 40;
+const MAX_INVOICE_NUMBER_LENGTH = 100;
+const MAX_LINE_DESCRIPTION_LENGTH = 300;
+const MAX_PRODUCT_CODE_LENGTH = 100;
+
+const CONTROL_CHARS_PATTERN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
+
+function sanitizeFreeText(value: string | null | undefined, maxLength: number): string | null {
+	if (value == null) return null;
+	if (typeof value !== 'string') return null;
+	const collapsed = value
+		.replace(CONTROL_CHARS_PATTERN, '')
+		.replace(/[\r\n\t]+/g, ' ')
+		.replace(/ {2,}/g, ' ')
+		.trim();
+	return collapsed.length > maxLength ? collapsed.slice(0, maxLength) : collapsed;
+}
+
+export function sanitizeExtractedInvoice(invoice: ExtractedInvoice): ExtractedInvoice {
+	return {
+		...invoice,
+		supplier_name: sanitizeFreeText(invoice.supplier_name, MAX_SUPPLIER_NAME_LENGTH),
+		supplier_address: sanitizeFreeText(invoice.supplier_address, MAX_ADDRESS_LENGTH),
+		supplier_email: sanitizeFreeText(invoice.supplier_email, MAX_EMAIL_LENGTH),
+		supplier_phone: sanitizeFreeText(invoice.supplier_phone, MAX_PHONE_LENGTH),
+		supplier_nif: sanitizeFreeText(invoice.supplier_nif, MAX_NIF_LENGTH),
+		invoice_number: sanitizeFreeText(invoice.invoice_number, MAX_INVOICE_NUMBER_LENGTH),
+		line_items: (invoice.line_items ?? []).map((item) => ({
+			...item,
+			description: sanitizeFreeText(item.description, MAX_LINE_DESCRIPTION_LENGTH) ?? '',
+			product_code: sanitizeFreeText(item.product_code, MAX_PRODUCT_CODE_LENGTH),
+		})),
+	};
+}
+
 type ClassifiedFile =
 	| { type: 'text_pdf'; text: string }
 	| { type: 'scanned_pdf' }
@@ -161,19 +200,22 @@ const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 	png:  'image/png',
 };
 
-export type GenerateFn = (content: string | object[], signal?: AbortSignal) => Promise<string>;
+export type GenerateFn = (content: string | object[], signal?: AbortSignal, systemInstruction?: string) => Promise<string>;
 
 function getGenerateFn(): GenerateFn {
 	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
 	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-	return async (content, signal) => {
+	return async (content, signal, systemInstruction) => {
 		const contents = typeof content === 'string'
 			? content
 			: [{ role: 'user', parts: content }];
+		const config: { abortSignal?: AbortSignal; systemInstruction?: string } = {};
+		if (signal) config.abortSignal = signal;
+		if (systemInstruction) config.systemInstruction = systemInstruction;
 		const response = await ai.models.generateContent({
 			model: GEMINI_MODEL,
 			contents,
-			config: signal ? { abortSignal: signal } : undefined,
+			config: Object.keys(config).length ? config : undefined,
 		});
 		return response.text ?? '';
 	};
@@ -235,25 +277,23 @@ async function callGemini(
 	filePath: string,
 	signal?: AbortSignal,
 ): Promise<ExtractedInvoice> {
-	const generateWithRetry: GenerateFn = (content, sig) => withRetry(() => generate(content, sig));
+	const generateWithRetry: GenerateFn = (content, sig, si) => withRetry(() => generate(content, sig, si));
 	let rawText: string;
 
 	if (classified.type === 'text_pdf') {
-		rawText = await generateWithRetry(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`, signal);
+		rawText = await generateWithRetry(`INVOICE TEXT:\n${classified.text}`, signal, EXTRACTION_PROMPT);
 	} else if (classified.type === 'scanned_pdf') {
 		const pdfData = readFileSync(filePath).toString('base64');
 		rawText = await generateWithRetry([
 			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
-			{ text: EXTRACTION_PROMPT },
-		], signal);
+		], signal, EXTRACTION_PROMPT);
 	} else {
 		const ext = path.extname(filePath).toLowerCase().replace('.', '');
 		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
 		const imageData = readFileSync(filePath).toString('base64');
 		rawText = await generateWithRetry([
 			{ inlineData: { data: imageData, mimeType } },
-			{ text: EXTRACTION_PROMPT },
-		], signal);
+		], signal, EXTRACTION_PROMPT);
 	}
 
 	const raw = stripJsonFence(rawText);
@@ -273,7 +313,7 @@ export async function extractInvoice(
 	if (classified.type === 'xml') {
 		const result = parseEinvoice(classified.xml);
 		if (!result) throw new Error('Unrecognised XML e-invoice format (not Facturae 3.2.x or UBL 2.1)');
-		return result;
+		return sanitizeExtractedInvoice(result);
 	}
 
 	const generate = generateOverride ?? getGenerateFn();
@@ -290,7 +330,8 @@ export async function extractInvoice(
 	});
 
 	try {
-		return await Promise.race([callGemini(generate, classified, filePath, controller.signal), timeout]);
+		const invoice = await Promise.race([callGemini(generate, classified, filePath, controller.signal), timeout]);
+		return sanitizeExtractedInvoice(invoice);
 	} finally {
 		clearTimeout(timeoutHandle!);
 	}
@@ -306,19 +347,18 @@ async function callProvider(
 
 	const generateWithRetry = (content: string | object[]) =>
 		withRetry(async () => {
-			const resp = await provider.generate(content, signal);
+			const resp = await provider.generate(content, signal, EXTRACTION_PROMPT);
 			lastUsage = resp.usage;
 			return resp.text;
 		});
 
 	let rawText: string;
 	if (classified.type === 'text_pdf') {
-		rawText = await generateWithRetry(`${EXTRACTION_PROMPT}\n\nINVOICE TEXT:\n${classified.text}`);
+		rawText = await generateWithRetry(`INVOICE TEXT:\n${classified.text}`);
 	} else if (classified.type === 'scanned_pdf') {
 		const pdfData = readFileSync(filePath).toString('base64');
 		rawText = await generateWithRetry([
 			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
-			{ text: EXTRACTION_PROMPT },
 		]);
 	} else {
 		const ext = path.extname(filePath).toLowerCase().replace('.', '');
@@ -326,7 +366,6 @@ async function callProvider(
 		const imageData = readFileSync(filePath).toString('base64');
 		rawText = await generateWithRetry([
 			{ inlineData: { data: imageData, mimeType } },
-			{ text: EXTRACTION_PROMPT },
 		]);
 	}
 
@@ -348,7 +387,7 @@ export async function extractWithProvider(
 		const result = parseEinvoice(classified.xml);
 		if (!result) throw new Error('Unrecognised XML e-invoice format (not Facturae 3.2.x or UBL 2.1)');
 		const zeroUsage: LLMUsage = { inputTokens: 0, outputTokens: 0, model: 'xml-parser' };
-		return { invoice: result, usage: zeroUsage };
+		return { invoice: sanitizeExtractedInvoice(result), usage: zeroUsage };
 	}
 
 	const resolvedProvider = provider ?? createGeminiProvider();
@@ -365,7 +404,8 @@ export async function extractWithProvider(
 	});
 
 	try {
-		return await Promise.race([callProvider(resolvedProvider, classified, filePath, controller.signal), timeout]);
+		const { invoice, usage } = await Promise.race([callProvider(resolvedProvider, classified, filePath, controller.signal), timeout]);
+		return { invoice: sanitizeExtractedInvoice(invoice), usage };
 	} finally {
 		clearTimeout(timeoutHandle!);
 	}

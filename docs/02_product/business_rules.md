@@ -76,7 +76,7 @@ with an ADR if structural. Feature-level detail lives in `docs/03_features/`.
 | Processed requests purge | > 48 h | `idempotency.ts` |
 | Dead letters | pending kept 180 d, resolved 90 d | `dead-letter.ts` |
 | Old files | `DELETED_FILE_RETENTION_DAYS` cron purge | `alerts.ts` |
-| Account deletion | owner-only, cancels Stripe, deletes files + rows | `api/user/delete` |
+| Account deletion | owner-only, re-authenticates (password, or typed confirmation for OAuth-only), atomic row delete, then cancels Stripe + deletes files | `api/user/delete` |
 
 ## See also
 

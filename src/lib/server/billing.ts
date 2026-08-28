@@ -295,10 +295,10 @@ export async function notifyLocationsLocked(billingRestaurantId: string, tier: P
 		restaurantId: billingRestaurantId,
 		notificationType: LOCATIONS_LOCKED_NOTIFICATION,
 		message: `${locked} location(s) locked by the ${TIERS[tier].name} plan`,
-		payload: JSON.stringify({
+		payload: {
 			messageKey: 'notif.msg.locationsLocked',
 			messageVars: { plan: TIERS[tier].name, max, n: locked },
-		}),
+		},
 	});
 }
 

@@ -5,7 +5,7 @@ import { systemNotifications } from './schema';
 export function trackEvent(
 	event: string,
 	restaurantId: string,
-	payload?: object,
+	payload?: Record<string, unknown>,
 	invoiceId?: number | null,
 ): void {
 	db.insert(systemNotifications)
@@ -13,7 +13,7 @@ export function trackEvent(
 			restaurantId,
 			notificationType: event,
 			message: event,
-			payload: payload ? JSON.stringify(payload) : null,
+			payload: payload ?? null,
 			invoiceId: invoiceId ?? null,
 			status: 'logged',
 		})

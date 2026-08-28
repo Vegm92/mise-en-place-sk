@@ -58,7 +58,7 @@ async function dismissSuggestion(rid: string, supplierId: number): Promise<void>
 			and(
 				eq(systemNotifications.notificationType, 'supplier_category_suggested'),
 				eq(systemNotifications.status, 'pending'),
-				sql`${systemNotifications.payload}::json->>'supplierId' = ${String(supplierId)}`,
+				sql`${systemNotifications.payload}->>'supplierId' = ${String(supplierId)}`,
 			),
 		));
 }

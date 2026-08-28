@@ -321,9 +321,7 @@ export async function runCategorizationNudge(
 			eq(systemNotifications.notificationType, 'supplier_uncategorized'),
 		));
 	for (const row of existing) {
-		try {
-			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch (e) { console.error(e); }
+		if ((row.payload as { supplierId?: number } | null)?.supplierId === supplierId) return [];
 	}
 
 	return [{
@@ -407,9 +405,7 @@ export async function runCategorySuggestion(
 			eq(systemNotifications.notificationType, 'supplier_category_suggested'),
 		));
 	for (const row of existing) {
-		try {
-			if ((JSON.parse(row.payload ?? '{}') as { supplierId?: number }).supplierId === supplierId) return [];
-		} catch (e) { console.error(e); }
+		if ((row.payload as { supplierId?: number } | null)?.supplierId === supplierId) return [];
 	}
 
 	await db
@@ -420,7 +416,7 @@ export async function runCategorySuggestion(
 			and(
 				eq(systemNotifications.notificationType, 'supplier_uncategorized'),
 				eq(systemNotifications.status, 'pending'),
-				sql`${systemNotifications.payload}::json->>'supplierId' = ${String(supplierId)}`,
+				sql`${systemNotifications.payload}->>'supplierId' = ${String(supplierId)}`,
 			),
 		));
 
@@ -513,10 +509,8 @@ async function sentOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise
 		));
 	const sent = new Set<string>();
 	for (const row of rows) {
-		try {
-			const p = JSON.parse(row.payload ?? '{}');
-			if (p.category && p.level) sent.add(`${p.category}:${p.level}`);
-		} catch (e) { console.error(e); }
+		const p = row.payload as { category?: string; level?: string } | null;
+		if (p?.category && p.level) sent.add(`${p.category}:${p.level}`);
 	}
 	return sent;
 }
@@ -653,7 +647,7 @@ export async function saveAlerts(invoiceId: number | null, restaurantId: string,
 				restaurantId,
 				notificationType: alert.notificationType,
 				message: alert.message,
-				payload: alert.payload ? JSON.stringify(alert.payload) : null,
+				payload: alert.payload ?? null,
 				status: 'pending',
 			});
 		}

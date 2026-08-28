@@ -22,7 +22,7 @@ type ProductRow = {
 type SuggestionRow = {
 	id: number;
 	message: string;
-	payload: string | null;
+	payload: Record<string, unknown> | null;
 };
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -63,7 +63,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		]);
 
 		const suggestions = suggestionRows.map((row) => {
-			const payload = row.payload ? JSON.parse(row.payload) : {};
+			const payload = row.payload ?? {};
 			return {
 				id: row.id,
 				message: row.message,

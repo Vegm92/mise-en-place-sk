@@ -100,8 +100,17 @@ export async function checkRateLimit(
 	return checkInMemory(key, max, windowSeconds);
 }
 
+const SLOT_MAX_WAIT_MS = 5 * 60_000;
+
 let activeExtractions = 0;
-const extractionWaiters: Array<() => void> = [];
+
+interface ExtractionWaiter {
+	settled: boolean;
+	timer: ReturnType<typeof setTimeout>;
+	grant(): void;
+}
+
+const extractionWaiters: ExtractionWaiter[] = [];
 
 export function tryAcquireExtraction(max: number): boolean {
 	if (activeExtractions >= max) return false;
@@ -110,26 +119,52 @@ export function tryAcquireExtraction(max: number): boolean {
 }
 
 export function releaseExtraction(): void {
-	const next = extractionWaiters.shift();
-	if (next) {
-		next();
+	while (extractionWaiters.length > 0) {
+		const next = extractionWaiters.shift()!;
+		if (next.settled) continue;
+		next.grant();
 		return;
 	}
 	activeExtractions = Math.max(0, activeExtractions - 1);
 }
 
-function acquireExtractionInMemory(max: number): Promise<void> {
+export function getExtractionSemaphoreStatus(): { active: number; waiting: number } {
+	return { active: activeExtractions, waiting: extractionWaiters.length };
+}
+
+function acquireExtractionInMemory(max: number): Promise<{ timedOut: boolean }> {
 	if (activeExtractions < max) {
 		activeExtractions++;
-		return Promise.resolve();
+		return Promise.resolve({ timedOut: false });
 	}
-	return new Promise((resolve) => extractionWaiters.push(resolve));
+	return new Promise((resolve) => {
+		const waiter: ExtractionWaiter = {
+			settled: false,
+			timer: setTimeout(() => {
+				if (waiter.settled) return;
+				waiter.settled = true;
+				const idx = extractionWaiters.indexOf(waiter);
+				if (idx !== -1) extractionWaiters.splice(idx, 1);
+				console.warn(
+					`[rate-limiter] Timed out waiting ${SLOT_MAX_WAIT_MS}ms for an in-memory extraction slot ` +
+					`(max ${max}) — proceeding without a slot to avoid stalling the job`,
+				);
+				resolve({ timedOut: true });
+			}, SLOT_MAX_WAIT_MS),
+			grant() {
+				if (waiter.settled) return;
+				waiter.settled = true;
+				clearTimeout(waiter.timer);
+				resolve({ timedOut: false });
+			},
+		};
+		extractionWaiters.push(waiter);
+	});
 }
 
 const SLOT_KEY = 'mep:extract:slots';
 const SLOT_LEASE_MS = Math.max(GEMINI_TIMEOUT_MS + 60_000, 120_000);
 const SLOT_POLL_INTERVAL_MS = 250;
-const SLOT_MAX_WAIT_MS = 5 * 60_000;
 
 const ACQUIRE_SLOT_SCRIPT = `
 local now = tonumber(ARGV[1])
@@ -197,13 +232,13 @@ export async function acquireExtractionSlot(
 			console.error('[rate-limiter] Redis extraction semaphore error, falling back to in-memory:', e);
 		}
 	}
-	await acquireExtractionInMemory(cap);
+	const { timedOut } = await acquireExtractionInMemory(cap);
 	let released = false;
 	return {
 		async release() {
 			if (released) return;
 			released = true;
-			releaseExtraction();
+			if (!timedOut) releaseExtraction();
 		},
 	};
 }

@@ -6,8 +6,14 @@
  * over WhatsApp — produces the SAME hash and is rejected as a duplicate, while a
  * genuinely different invoice produces a different hash. These tests pin the
  * canonicalisation rules (lowercasing, trimming, null-coalescing, line order).
+ *
+ * Also covers issue #494 (a blank middle line description used to shift every
+ * later quantity/unit/price out of position in the hash relative to what was
+ * actually stored, via computeFormContentHash's blank-filtering) — end to end
+ * through saveReviewedInvoice, plus the direct hash-alignment and
+ * hash-stability seams.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -15,6 +21,18 @@ import {
 	computeInvoiceContentHash, computeFileHash,
 	amountsAreSimilar, isoDateOffset, findSimilarInvoice,
 } from '../src/lib/server/dedup';
+
+vi.mock('../src/lib/server/db', async () => {
+	const { testDb } = await import('./helpers/test-db');
+	const { forTenant } = await import('../src/lib/server/tenant');
+	return { db: testDb, forTenant };
+});
+
+import { computeFormContentHash, saveReviewedInvoice } from '../src/lib/server/invoice-save';
+import type { BatchItem } from '../src/lib/server/batch';
+import {
+	closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
+} from './helpers/test-db';
 
 type Fields = Parameters<typeof computeInvoiceContentHash>[0];
 
@@ -224,5 +242,183 @@ describe('findSimilarInvoice', () => {
 
 	it('returns null for an empty candidate list', () => {
 		expect(findSimilarInvoice([], 123.45)).toBeNull();
+	});
+});
+
+describe('computeFormContentHash — blank line alignment (issue #494)', () => {
+	const header = {
+		supplierName: 'Distribuidora Test',
+		invoiceNumber: 'INV-494',
+		invoiceDate: '2026-01-15',
+		dueDate: null,
+		totalAmount: '16.00',
+	};
+
+	function form(entries: Array<[string, string]>): FormData {
+		const fd = new FormData();
+		for (const [k, v] of entries) fd.append(k, v);
+		return fd;
+	}
+
+	const twoLines: Array<[string, string]> = [
+		['line_descriptions', 'Tomate'], ['line_quantities', '5'], ['line_units', 'kg'],
+		['line_unit_prices', '2.00'], ['line_total_prices', '10.00'], ['line_tax_rates', ''],
+		['line_descriptions', 'Aceite'], ['line_quantities', '2'], ['line_units', 'L'],
+		['line_unit_prices', '3.00'], ['line_total_prices', '6.00'], ['line_tax_rates', ''],
+	];
+
+	const withBlankMiddle: Array<[string, string]> = [
+		['line_descriptions', 'Tomate'], ['line_quantities', '5'], ['line_units', 'kg'],
+		['line_unit_prices', '2.00'], ['line_total_prices', '10.00'], ['line_tax_rates', ''],
+		['line_descriptions', ''], ['line_quantities', '99'], ['line_units', 'caja'],
+		['line_unit_prices', '9.99'], ['line_total_prices', '999.00'], ['line_tax_rates', ''],
+		['line_descriptions', 'Aceite'], ['line_quantities', '2'], ['line_units', 'L'],
+		['line_unit_prices', '3.00'], ['line_total_prices', '6.00'], ['line_tax_rates', ''],
+	];
+
+	it('hashes the same whether a blank mid-form row is present or absent (columns stay aligned to their own description)', () => {
+		expect(computeFormContentHash(header, form(withBlankMiddle)))
+			.toBe(computeFormContentHash(header, form(twoLines)));
+	});
+
+	it('with a blank middle row, the hash matches the aligned (as-inserted) values, not the pre-fix shifted ones', () => {
+		const hash = computeFormContentHash(header, form(withBlankMiddle));
+
+		const aligned = computeInvoiceContentHash({
+			...header,
+			lineDescriptions: ['Tomate', 'Aceite'],
+			lineQuantities: [5, 2],
+			lineUnits: ['kg', 'L'],
+			lineUnitPrices: ['2.00', '3.00'],
+			lineTotalPrices: ['10.00', '6.00'],
+			lineTaxRates: [null, null],
+		});
+		expect(hash).toBe(aligned);
+
+		const misaligned = computeInvoiceContentHash({
+			...header,
+			lineDescriptions: ['Tomate', 'Aceite'],
+			lineQuantities: [5, 99],
+			lineUnits: ['kg', 'caja'],
+			lineUnitPrices: ['2.00', '9.99'],
+			lineTotalPrices: ['10.00', '999.00'],
+			lineTaxRates: [null, null],
+		});
+		expect(hash).not.toBe(misaligned);
+	});
+
+	it('hashes a no-blank invoice identically to a direct computeInvoiceContentHash call (hash stability across the fix)', () => {
+		const direct = computeInvoiceContentHash({
+			...header,
+			lineDescriptions: ['Tomate', 'Aceite'],
+			lineQuantities: [5, 2],
+			lineUnits: ['kg', 'L'],
+			lineUnitPrices: ['2.00', '3.00'],
+			lineTotalPrices: ['10.00', '6.00'],
+			lineTaxRates: [null, null],
+		});
+		expect(computeFormContentHash(header, form(twoLines))).toBe(direct);
+	});
+});
+
+let dupRid = '';
+
+function dupFakeItem(): BatchItem {
+	return {
+		id: 'item-494',
+		batchId: 'batch-494',
+		restaurantId: dupRid,
+		position: 0,
+		fileKey: 'fake-494.pdf',
+		displayName: 'fake-494.pdf',
+		status: 'done',
+		extractedData: { confidence: 1 },
+		conversionNotes: null,
+		extractError: null,
+		queuedAt: null,
+		source: 'web',
+		sourceRef: null,
+		jobCode: null,
+		reviewStatus: null,
+	};
+}
+
+function dupHeaderFields(fd: FormData, invoiceNumber: string): void {
+	fd.append('supplier_name', 'Distribuidora Test 494');
+	fd.append('invoice_number', invoiceNumber);
+	fd.append('invoice_date', '2026-01-15');
+	fd.append('total_amount', '16.00');
+	fd.append('low_confidence_ack', 'true');
+}
+
+function dupFormWithBlankRow(invoiceNumber: string): FormData {
+	const fd = new FormData();
+	dupHeaderFields(fd, invoiceNumber);
+	fd.append('line_descriptions', 'Tomate');
+	fd.append('line_quantities', '5');
+	fd.append('line_units', 'kg');
+	fd.append('line_unit_prices', '2.00');
+	fd.append('line_total_prices', '10.00');
+	fd.append('line_tax_rates', '');
+	fd.append('line_descriptions', '');
+	fd.append('line_quantities', '99');
+	fd.append('line_units', 'caja');
+	fd.append('line_unit_prices', '9.99');
+	fd.append('line_total_prices', '999.00');
+	fd.append('line_tax_rates', '');
+	fd.append('line_descriptions', 'Aceite');
+	fd.append('line_quantities', '2');
+	fd.append('line_units', 'L');
+	fd.append('line_unit_prices', '3.00');
+	fd.append('line_total_prices', '6.00');
+	fd.append('line_tax_rates', '');
+	return fd;
+}
+
+function dupFormNoBlankRow(invoiceNumber: string): FormData {
+	const fd = new FormData();
+	dupHeaderFields(fd, invoiceNumber);
+	fd.append('line_descriptions', 'Tomate');
+	fd.append('line_quantities', '5');
+	fd.append('line_units', 'kg');
+	fd.append('line_unit_prices', '2.00');
+	fd.append('line_total_prices', '10.00');
+	fd.append('line_tax_rates', '');
+	fd.append('line_descriptions', 'Aceite');
+	fd.append('line_quantities', '2');
+	fd.append('line_units', 'L');
+	fd.append('line_unit_prices', '3.00');
+	fd.append('line_total_prices', '6.00');
+	fd.append('line_tax_rates', '');
+	return fd;
+}
+
+describe.skipIf(!hasDbEnv)('saveReviewedInvoice — blank middle row dedup (issue #494)', () => {
+	beforeAll(async () => {
+		const r = await createTestRestaurant('dedup-494');
+		dupRid = r.id;
+	});
+
+	afterAll(async () => {
+		await cleanupTestRestaurant(dupRid);
+		await closeDb();
+	});
+
+	it('re-submitting the same document without the hallucinated blank row is still caught as contentDuplicate', async () => {
+		const first = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-A'), dupRid);
+		expect(first.type).toBe('saved');
+		if (first.type !== 'saved') return;
+
+		const second = await saveReviewedInvoice(dupFakeItem(), dupFormNoBlankRow('INV-494-A'), dupRid);
+		expect(second).toEqual({ type: 'contentDuplicate', duplicateId: first.invoiceId });
+	});
+
+	it('re-submitting the exact same blank-row form is caught as contentDuplicate too', async () => {
+		const first = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-B'), dupRid);
+		expect(first.type).toBe('saved');
+		if (first.type !== 'saved') return;
+
+		const second = await saveReviewedInvoice(dupFakeItem(), dupFormWithBlankRow('INV-494-B'), dupRid);
+		expect(second).toEqual({ type: 'contentDuplicate', duplicateId: first.invoiceId });
 	});
 });

@@ -113,7 +113,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate purchase 
 
 		const notifications = await duplicateNotifications(factura.invoiceId);
 		expect(notifications).toHaveLength(1);
-		const payload = JSON.parse(notifications[0].payload);
+		const payload = notifications[0].payload;
 		expect(payload.matchedInvoiceId).toBe(albaran.invoiceId);
 		expect(payload.otherDocumentType).toBe('albaran');
 	});

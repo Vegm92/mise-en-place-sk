@@ -52,7 +52,7 @@ async function dismissSuggestion(rid: string, rawKey: string): Promise<void> {
 			and(
 				eq(systemNotifications.notificationType, 'product_suggestion'),
 				eq(systemNotifications.status, 'pending'),
-				sql`mep_norm_key(${systemNotifications.payload}::json->>'description') = ${rawKey}`,
+				sql`mep_norm_key(${systemNotifications.payload}->>'description') = ${rawKey}`,
 			),
 		));
 }
