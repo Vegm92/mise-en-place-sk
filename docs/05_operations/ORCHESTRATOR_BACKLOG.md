@@ -5,7 +5,10 @@ Baseline (main @ 71034ef): 1854 tests pass, 305 skipped. Open PRs: #723 (escanda
 
 DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re-check when the blocker clears.
 
-MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; this branch adds 0045_whatsapp_pairing_invite_phone.sql + 0046_system_notifications_payload_jsonb.sql. Whichever merges second must renumber its migrations and reconcile drizzle/meta/_journal.json before merging.
+MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; this branch adds 0045_whatsapp_pairing_invite_phone.sql through 0049. Whichever merges second must renumber its migrations and reconcile drizzle/meta/_journal.json before merging.
+
+PR SPLIT (2026-08-28, per owner): the branch is delivered as six stacked PRs, merge in order —
+#750 wave 1 billing/auth security (base main) → #751 reliability/perf → #752 UX/a11y/testing → #753 design+P3 security → #754 P3 UX/robustness → #755 tech debt/i18n (HEAD 357e266+). New-issue dispatching is ON HOLD until the owner says otherwise.
 
 ## Queue (work top-down within each tier)
 
