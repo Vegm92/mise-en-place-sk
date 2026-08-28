@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
-  import { t, tcat } from '$lib/i18n';
+  import { t, tcat, tp } from '$lib/i18n';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
 
   let { data }: { data: PageData } = $props();
@@ -60,6 +60,8 @@
     kpis={data.kpis}
     top_items={data.top_items}
     category_spend={data.category_spend}
+    has_invoices={data.has_invoices}
+    invoices_outside_range={data.invoices_outside_range}
   />
 </div>
 
@@ -109,7 +111,14 @@
       <div class="card" style="padding:16px;">
         <div class="subtitle" style="margin-bottom:4px;">{$t('spend.topItems')}</div>
         <div style="font-size:12px;color:var(--mep-fg-3);margin-bottom:16px;">{$t('spend.topItemsSub')}</div>
-        {#if !data.top_items.length}
+        {#if !data.top_items.length && data.has_invoices && data.invoices_outside_range > 0}
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
+            <div style="font-size:24px;opacity:0.25;">📅</div>
+            <p class="body-strong" style="color:var(--mep-fg-3);">{$t('spend.noneInRange')}</p>
+            <p class="body" style="color:var(--mep-fg-4);max-width:240px;">{$tp('spend.noneInRangeHint', data.invoices_outside_range)}</p>
+            <a href="?period=all" class="body" style="color:var(--mep-acc);text-decoration:none;margin-top:4px;">{$t('spend.widenRange')}</a>
+          </div>
+        {:else if !data.top_items.length}
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;text-align:center;">
             <div style="font-size:24px;opacity:0.25;">📊</div>
             <p class="body-strong" style="color:var(--mep-fg-3);">{$t('spend.noDataYet')}</p>

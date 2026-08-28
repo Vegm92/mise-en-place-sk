@@ -36,6 +36,7 @@
     uncategorized_suppliers: UncategorizedInput[];
     turno_price_shocks: PriceShockInput[];
     missing_invoices: MissingInput[];
+    invoices_outside_month: number;
   }
 
   let {
@@ -226,7 +227,12 @@
             </span>
           {/if}
         {/snippet}
-        {#if !hasPaceData}
+        {#if !hasPaceData && data.invoices_outside_month > 0}
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div class="body">{$tp('turno.rail.paceOutOfRange', data.invoices_outside_month)}</div>
+            <a href="/invoices" style="font-size:11px;color:var(--mep-acc);text-decoration:none;">{$t('turno.rail.paceOutOfRangeAction')}</a>
+          </div>
+        {:else if !hasPaceData}
           <div class="body">{$t('turno.rail.paceEmpty')}</div>
         {:else}
         <PaceChart

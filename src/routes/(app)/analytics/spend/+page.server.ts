@@ -31,8 +31,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		type CatRow = { category: string; total: string; invoice_count: number };
 		type KpisRow = { total_items_spend: string | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
+		type RangeCountRow = { total: string; in_range: string };
 
-		const [topItems, categorySpend, kpisRows, itemTrendRows] = await Promise.all([
+		const [topItems, categorySpend, kpisRows, itemTrendRows, rangeCountRows] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT
 					MAX(m.description)    AS description,
@@ -84,6 +85,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				  AND m.month >= TO_CHAR((NOW() - INTERVAL '6 months')::date, 'YYYY-MM')
 				ORDER BY m.item_key, m.month ASC
 			`),
+
+			db.execute<RangeCountRow>(sql`
+				SELECT
+					COUNT(*) AS total,
+					COUNT(*) FILTER (WHERE TRUE ${dateFilter}) AS in_range
+				FROM invoices i
+				WHERE i.restaurant_id = ${rid} AND i.deleted_at IS NULL
+			`),
 		]);
 
 		const itemTrendMap = new Map<string, number[]>();
@@ -122,6 +131,13 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			avg_invoice_items: kpisRow0?.avg_invoice_items ?? null,
 		};
 
-		return { title: 'spend.pageTitle', top_items, category_spend, kpis, period };
+		const totalInvoices = Number(rangeCountRows[0]?.total ?? 0);
+		const invoicesInRange = Number(rangeCountRows[0]?.in_range ?? 0);
+
+		return {
+			title: 'spend.pageTitle', top_items, category_spend, kpis, period,
+			has_invoices: totalInvoices > 0,
+			invoices_outside_range: Math.max(totalInvoices - invoicesInRange, 0),
+		};
 	});
 };
