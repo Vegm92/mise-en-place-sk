@@ -1,6 +1,6 @@
 import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
+import { db, runWithTenantContext } from '$lib/server/db';
 import { restaurants, userRestaurants, subscriptions, users } from '$lib/server/schema';
 import { eq, sql } from 'drizzle-orm';
 import { trialDaysFor, applyTierSettings } from '$lib/server/billing';
@@ -59,6 +59,7 @@ export const actions: Actions = {
 
 		let newRestaurantId: string | null = null;
 		await db.transaction(async (tx) => {
+			await tx.execute(sql`SET LOCAL app.admin = 'true'`);
 			await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${userId}))`);
 
 			const existing = await tx
@@ -107,7 +108,7 @@ export const actions: Actions = {
 		});
 
 		if (newRestaurantId) {
-			await applyTierSettings(newRestaurantId, 'trial');
+			await runWithTenantContext(newRestaurantId, () => applyTierSettings(newRestaurantId!, 'trial'));
 
 			if (locals.user.email) {
 				sendEmail(welcomeEmail(locals.user.email, name, venueType)).catch(e =>

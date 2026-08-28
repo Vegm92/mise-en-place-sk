@@ -11,7 +11,7 @@ const STRIPE_PRICE_ID_STARTER = (process.env.STRIPE_PRICE_ID_STARTER ?? '').trim
 const STRIPE_PRICE_ID_PRO = (process.env.STRIPE_PRICE_ID_PRO ?? '').trim();
 const STRIPE_PRICE_ID_BUSINESS = (process.env.STRIPE_PRICE_ID_BUSINESS ?? '').trim();
 const STRIPE_PRICE_ID = (process.env.STRIPE_PRICE_ID ?? '').trim();
-import { db, forTenant } from './db';
+import { db, forTenant, runAsSystem } from './db';
 import { subscriptions, restaurants, settings, systemNotifications, userRestaurants } from './schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, STRIPE_WEBHOOK_SCOPE } from './idempotency';
 import { trackEvent } from './events';
@@ -175,31 +175,33 @@ export interface OwnedSubscription {
 }
 
 export async function ownedActiveSubscriptions(userId: string): Promise<OwnedSubscription[]> {
-	const owned = await db.select({ restaurantId: userRestaurants.restaurantId })
-		.from(userRestaurants)
-		.where(and(
-			eq(userRestaurants.userId, userId),
-			eq(userRestaurants.role, 'owner'),
-		));
-	if (owned.length === 0) return [];
+	return runAsSystem(async () => {
+		const owned = await db.select({ restaurantId: userRestaurants.restaurantId })
+			.from(userRestaurants)
+			.where(and(
+				eq(userRestaurants.userId, userId),
+				eq(userRestaurants.role, 'owner'),
+			));
+		if (owned.length === 0) return [];
 
-	const ownedIds = owned.map(r => r.restaurantId);
-	const restRows = await db.select({ id: restaurants.id, parentId: restaurants.parentId })
-		.from(restaurants)
-		.where(inArray(restaurants.id, ownedIds));
-	const roots = [...new Set(restRows.map(r => r.parentId ?? r.id))];
+		const ownedIds = owned.map(r => r.restaurantId);
+		const restRows = await db.select({ id: restaurants.id, parentId: restaurants.parentId })
+			.from(restaurants)
+			.where(inArray(restaurants.id, ownedIds));
+		const roots = [...new Set(restRows.map(r => r.parentId ?? r.id))];
 
-	return db.select({
-		restaurantId: subscriptions.restaurantId,
-		stripeCustomerId: subscriptions.stripeCustomerId,
-		stripeSubscriptionId: subscriptions.stripeSubscriptionId,
-	})
-		.from(subscriptions)
-		.where(and(
-			inArray(subscriptions.restaurantId, roots),
-			inArray(subscriptions.status, ACTIVE_SUBSCRIPTION_STATUSES),
-			isNotNull(subscriptions.stripeSubscriptionId),
-		));
+		return db.select({
+			restaurantId: subscriptions.restaurantId,
+			stripeCustomerId: subscriptions.stripeCustomerId,
+			stripeSubscriptionId: subscriptions.stripeSubscriptionId,
+		})
+			.from(subscriptions)
+			.where(and(
+				inArray(subscriptions.restaurantId, roots),
+				inArray(subscriptions.status, ACTIVE_SUBSCRIPTION_STATUSES),
+				isNotNull(subscriptions.stripeSubscriptionId),
+			));
+	});
 }
 
 export async function cancelDuplicateSubscriptionsForUser(userId: string, keepRestaurantId: string): Promise<void> {
@@ -224,25 +226,27 @@ export async function cancelDuplicateSubscriptionsForUser(userId: string, keepRe
 
 async function notifyDuplicateSubscriptionCanceled(canceledRestaurantId: string, keptRestaurantId: string): Promise<void> {
 	try {
-		const [owner] = await db.select({ userId: userRestaurants.userId })
-			.from(userRestaurants)
-			.where(forTenant(canceledRestaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.role, 'owner')))
-			.limit(1);
-		if (!owner) return;
+		await runAsSystem(async () => {
+			const [owner] = await db.select({ userId: userRestaurants.userId })
+				.from(userRestaurants)
+				.where(forTenant(canceledRestaurantId).scope(userRestaurants.restaurantId, eq(userRestaurants.role, 'owner')))
+				.limit(1);
+			if (!owner) return;
 
-		const [ownerRow] = await db.select({ email: users.email }).from(users).where(eq(users.id, owner.userId)).limit(1);
-		if (!ownerRow?.email) return;
+			const [ownerRow] = await db.select({ email: users.email }).from(users).where(eq(users.id, owner.userId)).limit(1);
+			if (!ownerRow?.email) return;
 
-		const [[canceled], [kept]] = await Promise.all([
-			db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, canceledRestaurantId)),
-			db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, keptRestaurantId)),
-		]);
+			const [[canceled], [kept]] = await Promise.all([
+				db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, canceledRestaurantId)),
+				db.select({ name: restaurants.name }).from(restaurants).where(eq(restaurants.id, keptRestaurantId)),
+			]);
 
-		await sendEmail(subscriptionConsolidatedEmail(
-			ownerRow.email,
-			canceled?.name ?? 'tu restaurante',
-			kept?.name ?? 'otro restaurante',
-		));
+			await sendEmail(subscriptionConsolidatedEmail(
+				ownerRow.email,
+				canceled?.name ?? 'tu restaurante',
+				kept?.name ?? 'otro restaurante',
+			));
+		});
 	} catch (err) {
 		console.error(`[billing] failed to notify owner of duplicate-subscription cancellation (restaurant=${canceledRestaurantId}):`, err);
 		Sentry.captureException(err, { tags: { area: 'billing', op: 'reconcile_duplicates_notify' } });
@@ -271,9 +275,9 @@ export async function getMonthlyQuota(restaurantId: string): Promise<number | nu
 }
 
 export async function countGroupLocations(billingRestaurantId: string): Promise<number> {
-	const [row] = await db.select({ cnt: sql<number>`count(*)::int` })
+	const [row] = await runAsSystem(() => db.select({ cnt: sql<number>`count(*)::int` })
 		.from(restaurants)
-		.where(eq(BILLING_PARENT, billingRestaurantId));
+		.where(eq(BILLING_PARENT, billingRestaurantId)));
 	return row?.cnt ?? 0;
 }
 

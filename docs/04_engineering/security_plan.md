@@ -15,7 +15,7 @@ y los invariantes de `docs/00_system/architectural_invariants.md`.
 | 1 | Claves API en variables de entorno | ✅ |
 | 2 | Higiene de Git (secretos, .gitignore) | ✅ (gitleaks en CI) |
 | 3 | Aislamiento de la base de datos | ✅ código listo — fijar `DATABASE_CA_CERT` en Railway |
-| 4 | Row-Level Security / aislamiento por tenant | ✅ (a nivel de app, ADR-005) |
+| 4 | Row-Level Security / aislamiento por tenant | ✅ (a nivel de app, ADR-005; backstop de BD añadido en ADR-030/#222, inerte hasta el corte de #464) |
 | 5 | Cifrado en reposo y en tránsito | ⚠️ sin cifrado a nivel de columna |
 | 6 | Fuerza de autenticación | ✅ (mínimo 12) |
 | 7 | RBAC / restricción de acceso a registros | ✅ |
@@ -294,9 +294,20 @@ const res = await fetch(`/invoice/${invoiceOfB.id}`, { headers: cookieA });
 expect([403, 404, 303]).toContain(res.status); // jamás 200 con datos de B
 ```
 
-*(Si algún día se quiere defensa en profundidad con RLS nativo, revisar antes
-ADR-005 — se retiró por el coste de `SET LOCAL` por transacción con el pooler;
-no reintroducirlo sin nuevo ADR.)*
+**Defensa en profundidad añadida (ADR-030, issue #222, 2026-08-28):** RLS nativo
+de Postgres está de vuelta como backstop de base de datos —
+`drizzle/0055_rls_tenant_isolation.sql` habilita RLS (ENABLE, no FORCE) en
+cada tabla de `src/lib/server/tenant-data-map.ts`, con políticas nuevas
+contra `current_setting('app.restaurant_id', true)` (nunca portadas de las
+`auth.uid()` retiradas en ADR-005). El rol propietario que usan hoy todos los
+entornos (dev local, CI, y producción hasta que se complete el paso pendiente
+de #464) bypassa RLS por defecto, así que esto **no sustituye** las tres
+barreras de arriba — es un backstop que solo empieza a aplicar cuando
+`DATABASE_URL` apunte al rol `mep_runtime` de #464. El contexto por
+request/job lo fija `src/lib/server/tenant-context.ts`
+(`runWithTenantContext`/`runAsSystem`), no `SET LOCAL` por transacción — ver
+ADR-030 para el porqué y `DEPLOYMENT.md` para el runbook de activación y
+rollback.
 
 ---
 

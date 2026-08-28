@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
-import { db, forTenant } from '$lib/server/db';
+import { db, forTenant, runAsSystem, runWithTenantContext } from '$lib/server/db';
 import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
@@ -68,11 +68,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.from(userRestaurants)
 				.where(tdb.scope(userRestaurants.restaurantId, eq(userRestaurants.userId, locals.user!.id)))
 				.limit(1),
-			db.select({ id: restaurants.id, name: restaurants.name })
+			runAsSystem(() => db.select({ id: restaurants.id, name: restaurants.name })
 				.from(userRestaurants)
 				.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 				.where(eq(userRestaurants.userId, locals.user!.id))
-				.orderBy(asc(restaurants.name)),
+				.orderBy(asc(restaurants.name))),
 			locals.entitlements(),
 			WHATSAPP_ENABLED ? listContacts(rid) : Promise.resolve([]),
 			WHATSAPP_ENABLED ? activePairingCode(rid) : Promise.resolve(null),
@@ -242,6 +242,7 @@ export const actions: Actions = {
 		let newId: string;
 		try {
 			newId = await db.transaction(async (tx) => {
+				await tx.execute(sql`SET LOCAL app.admin = 'true'`);
 				await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'loc:' + billingRid}))`);
 
 				const [{ cnt }] = await tx.select({ cnt: sql<number>`count(*)::int` })
@@ -262,7 +263,7 @@ export const actions: Actions = {
 			throw err;
 		}
 
-		await applyTierSettings(newId, tier);
+		await runWithTenantContext(newId, () => applyTierSettings(newId, tier));
 
 		cookies.set('active_restaurant', newId, {
 			path: '/',

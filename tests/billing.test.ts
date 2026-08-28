@@ -36,7 +36,12 @@ vi.mock('../src/lib/server/db', () => {
 			Promise.resolve(subscriptionRow.value ? [subscriptionRow.value] : []).then(res);
 		return p;
 	};
-	return { db: { select: chain, update: chain, insert: chain }, forTenant: () => ({ scope: () => ({}) }) };
+	return {
+		db: { select: chain, update: chain, insert: chain },
+		forTenant: () => ({ scope: () => ({}) }),
+		runAsSystem: (fn: () => unknown) => fn(),
+		runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
+	};
 });
 
 // Mock the Stripe client so switchTier can be exercised without the network:

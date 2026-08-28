@@ -1,5 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
-import { db } from './db';
+import { db, runAsSystem } from './db';
 import { restaurants, subscriptions, userRestaurants } from './schema';
 import { BILLING_PARENT, TIERS, effectiveTier } from './billing';
 
@@ -35,7 +35,7 @@ function lockedFromRow(row: AllowanceRow): boolean {
 }
 
 export async function memberLocations(userId: string): Promise<MemberLocation[]> {
-	const rows = await db.select({
+	const rows = await runAsSystem(() => db.select({
 		restaurantId: userRestaurants.restaurantId,
 		billingRid:   BILLING_PARENT,
 		planTier:     subscriptions.planTier,
@@ -46,7 +46,7 @@ export async function memberLocations(userId: string): Promise<MemberLocation[]>
 		.from(userRestaurants)
 		.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
 		.leftJoin(subscriptions, eq(BILLING_PARENT, subscriptions.restaurantId))
-		.where(eq(userRestaurants.userId, userId));
+		.where(eq(userRestaurants.userId, userId)));
 
 	return rows.map(row => ({
 		restaurantId:        row.restaurantId,
@@ -56,7 +56,7 @@ export async function memberLocations(userId: string): Promise<MemberLocation[]>
 }
 
 export async function isLocationLocked(restaurantId: string): Promise<boolean> {
-	const [row] = await db.select({
+	const [row] = await runAsSystem(() => db.select({
 		planTier:    subscriptions.planTier,
 		status:      subscriptions.status,
 		trialEndsAt: subscriptions.trialEndsAt,
@@ -65,7 +65,7 @@ export async function isLocationLocked(restaurantId: string): Promise<boolean> {
 		.from(restaurants)
 		.leftJoin(subscriptions, eq(BILLING_PARENT, subscriptions.restaurantId))
 		.where(eq(restaurants.id, restaurantId))
-		.limit(1);
+		.limit(1));
 
 	return row ? lockedFromRow(row) : false;
 }

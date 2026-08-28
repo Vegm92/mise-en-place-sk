@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../../db';
+import { db, runAsSystem, runWithTenantContext } from '../../db';
 import { restaurants, whatsappContacts } from '../../schema';
 import { claimIdempotencyKey, releaseIdempotencyKey, WHATSAPP_SCOPE } from '../../idempotency';
 import { checkRateLimit } from '../../rate-limiter';
@@ -28,15 +28,17 @@ async function claimMessageId(messageId: string | undefined): Promise<boolean> {
 }
 
 async function resolveRestaurantId(from: string): Promise<string | null> {
-	// tenant-scope-ok: this IS the tenant resolution step — the sender's number
-	// is globally unique across contacts and determines which restaurant they
-	// belong to. There is no tenant context to scope by until this query returns.
-	const rows = await db
-		.select({ restaurantId: whatsappContacts.restaurantId })
-		.from(whatsappContacts)
-		.where(eq(whatsappContacts.phoneNumber, from))
-		.limit(1);
-	return rows[0]?.restaurantId ?? null;
+	return runAsSystem(async () => {
+		// tenant-scope-ok: this IS the tenant resolution step — the sender's number
+		// is globally unique across contacts and determines which restaurant they
+		// belong to. There is no tenant context to scope by until this query returns.
+		const rows = await db
+			.select({ restaurantId: whatsappContacts.restaurantId })
+			.from(whatsappContacts)
+			.where(eq(whatsappContacts.phoneNumber, from))
+			.limit(1);
+		return rows[0]?.restaurantId ?? null;
+	});
 }
 
 async function handleUnknownSender(
@@ -64,11 +66,11 @@ async function handlePairingAttempt(
 	const result = await redeemPairingCode(from, body);
 
 	if (result.ok) {
-		const [restaurant] = await db
+		const [restaurant] = await runAsSystem(() => db
 			.select({ name: restaurants.name })
 			.from(restaurants)
 			.where(eq(restaurants.id, result.restaurantId))
-			.limit(1);
+			.limit(1));
 		await ctx.sendText(
 			from,
 			`✅ Número autorizado${restaurant?.name ? ` para *${restaurant.name}*` : ''}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
@@ -177,33 +179,35 @@ async function routeMessage(
 		await handleUnknownSender(msg, msg.from, ctx);
 		return;
 	}
-	if (msg.type === 'image' || msg.type === 'document') {
-		if (!(await checkRateLimit(`whatsapp:${msg.from}`, WHATSAPP_SENDER_HOURLY_LIMIT, SENDER_WINDOW_S))) {
-			await ctx.sendText(
-				msg.from,
-				'⏳ Has enviado demasiadas facturas seguidas. Espera un momento e inténtalo de nuevo.',
-			);
-			return;
+	await runWithTenantContext(restaurantId, async () => {
+		if (msg.type === 'image' || msg.type === 'document') {
+			if (!(await checkRateLimit(`whatsapp:${msg.from}`, WHATSAPP_SENDER_HOURLY_LIMIT, SENDER_WINDOW_S))) {
+				await ctx.sendText(
+					msg.from,
+					'⏳ Has enviado demasiadas facturas seguidas. Espera un momento e inténtalo de nuevo.',
+				);
+				return;
+			}
+			if (await isLocationLocked(restaurantId)) {
+				await ctx.sendText(
+					msg.from,
+					'❌ Este local está fuera de tu plan actual. Vuelve al plan Business para volver a procesar sus albaranes.',
+				);
+				return;
+			}
+			const access = await getAccessState(restaurantId);
+			if (!access.allowed) {
+				await ctx.sendText(
+					msg.from,
+					access.trialExpired
+						? '❌ Tu prueba gratuita ha terminado. Activa una suscripción para volver a procesar facturas.'
+						: '❌ Tu suscripción no está activa. Reactívala para volver a procesar facturas.',
+				);
+				return;
+			}
 		}
-		if (await isLocationLocked(restaurantId)) {
-			await ctx.sendText(
-				msg.from,
-				'❌ Este local está fuera de tu plan actual. Vuelve al plan Business para volver a procesar sus albaranes.',
-			);
-			return;
-		}
-		const access = await getAccessState(restaurantId);
-		if (!access.allowed) {
-			await ctx.sendText(
-				msg.from,
-				access.trialExpired
-					? '❌ Tu prueba gratuita ha terminado. Activa una suscripción para volver a procesar facturas.'
-					: '❌ Tu suscripción no está activa. Reactívala para volver a procesar facturas.',
-			);
-			return;
-		}
-	}
-	await dispatchMessage(msg, msg.from, restaurantId, ctx, committed);
+		await dispatchMessage(msg, msg.from, restaurantId, ctx, committed);
+	});
 }
 
 export async function handleInboundMessage(
