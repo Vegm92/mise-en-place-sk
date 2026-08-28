@@ -804,7 +804,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
         </h1>
       </div>
 
-      <span class="hidden md:inline-flex"><ChatFab /></span>
+      <span class="hidden md:inline-flex"><ChatFab locked={!data.features.aiAssistant} /></span>
 
       <a href="/" class="btn btn-primary shell-primary" style="height:34px;text-decoration:none;">
         <Upload size={14} />

@@ -14,7 +14,6 @@ export type TourFeatureKey = 'weeklyDigest' | 'stockTracking' | 'supplierScores'
 
 export const TOUR_FEATURE_REQUIREMENT: Partial<Record<string, TourFeatureKey>> = {
 	'/reports': 'weeklyDigest',
-	'/chat':    'aiAssistant',
 };
 
 export function tourPageAccessible(path: string, features: Partial<Record<TourFeatureKey, boolean>>): boolean {

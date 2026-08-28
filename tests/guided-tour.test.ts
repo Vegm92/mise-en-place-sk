@@ -84,14 +84,16 @@ describe('the tour renders the help-centre copy', () => {
 
 describe('the tour counts only the steps this plan can reach', () => {
 	it('gates every tour page that its own loader gates', () => {
-		for (const [path, feature] of [['/reports', 'weeklyDigest'], ['/chat', 'aiAssistant']] as const) {
+		for (const [path, feature] of Object.entries(TOUR_FEATURE_REQUIREMENT)) {
 			const loader = read(`src/routes/(app)${path}/+page.server.ts`);
 			expect(loader, `${path} is expected to call requireFeature`).toContain(`requireFeature('${feature}'`);
-			expect(
-				TOUR_FEATURE_REQUIREMENT[path],
-				`${path} would 403 mid-tour: register it in TOUR_FEATURE_REQUIREMENT`,
-			).toBe(feature);
 		}
+	});
+
+	it('does not list /chat — it renders a locked preview instead of 403ing (#546)', () => {
+		expect(TOUR_FEATURE_REQUIREMENT['/chat']).toBeUndefined();
+		const loader = read('src/routes/(app)/chat/+page.server.ts');
+		expect(loader).not.toContain('requireFeature');
 	});
 
 	it('drops the inaccessible pages before numbering the steps', () => {
@@ -104,7 +106,9 @@ describe('the tour counts only the steps this plan can reach', () => {
 		const trial = { weeklyDigest: false, aiAssistant: false };
 		const reachable = TOUR_PAGES.filter((p) => tourPageAccessible(p.path, trial));
 		expect(reachable.map((p) => p.path)).not.toContain('/reports');
-		expect(reachable.map((p) => p.path)).not.toContain('/chat');
+		// /chat is reachable: it renders locked (composer disabled, upgrade CTA)
+		// rather than 403ing, so the tour can safely stop there (#546).
+		expect(reachable.map((p) => p.path)).toContain('/chat');
 		expect(reachable[reachable.length - 1].path).toBe('/settings');
 	});
 
