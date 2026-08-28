@@ -117,10 +117,17 @@
     { num: '03', tag: $t('waitlist.steps.2.tag'), title: $t('waitlist.steps.2.title'), body: $t('waitlist.steps.2.body') },
   ]);
 
+  function splitRole(role: string): { roleLine: string; venueType: string | null } {
+    const parts = role.split(' · ');
+    if (parts.length !== 3) return { roleLine: role, venueType: null };
+    const [title, venueType, place] = parts;
+    return { roleLine: `${title} · ${place}`, venueType };
+  }
+
   const testimonialItems = $derived([
-    { quote: $t('waitlist.testimonials.0.quote'), name: $t('waitlist.testimonials.0.name'), role: $t('waitlist.testimonials.0.role') },
-    { quote: $t('waitlist.testimonials.1.quote'), name: $t('waitlist.testimonials.1.name'), role: $t('waitlist.testimonials.1.role') },
-    { quote: $t('waitlist.testimonials.2.quote'), name: $t('waitlist.testimonials.2.name'), role: $t('waitlist.testimonials.2.role') },
+    { quote: $t('waitlist.testimonials.0.quote'), name: $t('waitlist.testimonials.0.name'), ...splitRole($t('waitlist.testimonials.0.role')) },
+    { quote: $t('waitlist.testimonials.1.quote'), name: $t('waitlist.testimonials.1.name'), ...splitRole($t('waitlist.testimonials.1.role')) },
+    { quote: $t('waitlist.testimonials.2.quote'), name: $t('waitlist.testimonials.2.name'), ...splitRole($t('waitlist.testimonials.2.role')) },
   ]);
 
   const foundingItems = $derived([
@@ -443,7 +450,12 @@
             <div style="margin-top:18px;font-size:13.5px;color:var(--mep-fg-2);">
               <span style="font-weight:600;color:var(--mep-fg);">{item.name}</span>
             </div>
-            <div style="font-size:12.5px;color:var(--mep-fg-3);margin-top:3px;">{item.role}</div>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;">
+              {#if item.venueType}
+                <span class="badge badge-neutral">{item.venueType}</span>
+              {/if}
+              <span style="font-size:12.5px;color:var(--mep-fg-3);">{item.roleLine}</span>
+            </div>
           </div>
         {/each}
       </div>
