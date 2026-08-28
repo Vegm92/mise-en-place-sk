@@ -68,7 +68,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 734 | P3 | DEFERRED | 0 | PR #723 branch | itemId=0 passes validation |
 | 543 | P3 | PENDING | 0 | | /admin pages render empty landmark |
 | 542 | P3 | DONE | 1 | Verified (commit 795c605): shared requirePositiveIntId on 15 loaders/actions across 5 routes (+file endpoint tightened); batch UUID path verified safe; 95 parameterized tests. 2560/2560. | malformed /invoice/[id] 500s |
-| 541 | P3 | PENDING | 0 | | upload silently discards rejected files |
+| 541 | P3 | DONE | 1 | Verified (commit 5a33c3a): client-side validateUploadFile (ext/size-band/magic-bytes, shared MAGIC_BYTES table w/ server, 1KB floor both sides), visible named rejections; drop-zone copy pre-existing. 2607/2607. Residual: mixed-batch server silent-drop unreachable via UI, flagged for follow-up. | upload silently discards rejected files |
 | 546 | P3 | PENDING | 0 | | tier gating inconsistent 402 vs redirect |
 | 538 | P3 | PENDING | 0 | | coach mark swallows first click; modal roles |
 | 536 | P3 | PENDING | 0 | | notification shows raw enum |
