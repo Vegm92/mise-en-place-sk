@@ -12,7 +12,7 @@ export function supplierCategoryExpr(): SQL<string> {
 }
 
 export function supplierTotalSpendExpr(): SQL<number> {
-	return sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)`;
+	return sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount}, 0)), 0)::float8`;
 }
 
 export function supplierLastInvoiceExpr(): SQL<string | null> {
