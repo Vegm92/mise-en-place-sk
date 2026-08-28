@@ -4,7 +4,7 @@ import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
 import { users } from './schema';
-import { renderTemplate } from '$lib/i18n';
+import { renderTemplate } from '$lib/i18n-messages';
 import { toMonthStr } from '$lib/formatters';
 import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { normalizeProductKey } from './normalize';

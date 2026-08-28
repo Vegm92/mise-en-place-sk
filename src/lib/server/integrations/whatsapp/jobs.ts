@@ -6,7 +6,7 @@ import { CODE_ALPHABET } from '../../whatsapp-pairing';
 import { APP_BASE_URL } from '../../env';
 import { saveAlerts } from '../../alerts';
 import type { BatchItem, BatchItemReviewStatus } from '../../batch';
-import { renderTemplate } from '$lib/i18n';
+import { renderTemplate } from '$lib/i18n-messages';
 
 const JOB_CODE_LENGTH = 4;
 const JOB_CODE_ATTEMPTS = 5;
