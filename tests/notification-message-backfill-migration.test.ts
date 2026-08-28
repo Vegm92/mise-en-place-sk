@@ -1,5 +1,5 @@
 /**
- * Issue #536 — drizzle/0047_notification_message_backfill.sql cleans up any
+ * Issue #536 — drizzle/0048_notification_message_backfill.sql cleans up any
  * existing system_notifications row whose message still carries the raw
  * `notificationType: value` machine string from before this fix (payload on
  * such rows predates the messageKey/messageVars scheme, so the render-time
@@ -16,7 +16,7 @@ import { systemNotifications } from '../src/lib/server/schema';
 import { notificationMessage } from '../src/lib/notification-display';
 import { testDb, testSql, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
 
-const MIGRATION_SQL = readFileSync('drizzle/0047_notification_message_backfill.sql', 'utf8');
+const MIGRATION_SQL = readFileSync('drizzle/0048_notification_message_backfill.sql', 'utf8');
 
 afterAll(async () => {
 	if (hasDbEnv) await closeDb();
@@ -33,7 +33,7 @@ async function rowsFor(restaurantId: string) {
 		.where(eq(systemNotifications.restaurantId, restaurantId));
 }
 
-describe.skipIf(!hasDbEnv)('0047_notification_message_backfill — legacy row cleanup (issue #536)', () => {
+describe.skipIf(!hasDbEnv)('0048_notification_message_backfill — legacy row cleanup (issue #536)', () => {
 	it("strips the 'notificationType: ' prefix from a legacy row's message", async () => {
 		const r = await createTestRestaurant('notif536-backfill-legacy');
 		try {
