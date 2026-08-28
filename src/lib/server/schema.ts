@@ -158,6 +158,13 @@ export const users = pgTable('users', {
 	accessStatus:  text('access_status').notNull().default('pending'),
 	founder:       boolean('founder').notNull().default(false),
 	tokenVersion:  integer('token_version').notNull().default(0),
+	attrSource:      text('attr_source'),
+	attrCampaign:    text('attr_campaign'),
+	attrVariant:     text('attr_variant'),
+	attrSegment:     text('attr_segment'),
+	attrReferrer:    text('attr_referrer'),
+	attrLandingPath: text('attr_landing_path'),
+	attrReferredBy:  text('attr_referred_by'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
@@ -346,10 +353,26 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
 ]);
 
 export const waitlist = pgTable('waitlist', {
-	id:        serial('id').primaryKey(),
-	email:     text('email').notNull().unique(),
-	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+	id:          serial('id').primaryKey(),
+	email:       text('email').notNull().unique(),
+	source:      text('source'),
+	campaign:    text('campaign'),
+	variant:     text('variant'),
+	segment:     text('segment'),
+	referrer:    text('referrer'),
+	landingPath: text('landing_path'),
+	referredBy:  text('referred_by'),
+	createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+export const funnelEvents = pgTable('funnel_events', {
+	id:        serial('id').primaryKey(),
+	event:     text('event').notNull(),
+	payload:   jsonb('payload').$type<Record<string, unknown>>(),
+	createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('idx_funnel_events_event_created').on(t.event, t.createdAt),
+]);
 
 export const uploadBatches = pgTable('upload_batches', {
 	id:           uuid('id').primaryKey().default(sql`gen_random_uuid()`),
