@@ -126,8 +126,8 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 333 | P3 | PENDING | 0 | | testimonial provenance + stale date |
 | 329 | P3 | PENDING | 0 | | digest share affordance |
 | 328 | P3 | PENDING | 0 | | onboarding captures only name |
-| 327 | P3 | PENDING | 0 | | landing copy hardcoded |
-| 326 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: attribution spine (schema + parseAttribution + cookie + funnel_events); blocks #327/#402-405 measurability. | no attribution capture |
+| 327 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28. Amended plan per issue's 2026-08-10 decision comment: copy stays in i18n.ts (#407 landed), variants override i18n keys; attribution hook = #326's mep_attr variant field. | landing copy hardcoded |
+| 326 | P3 | DONE | 1 | Verified (commits 094adcc+ce62989): waitlist+users attr columns + funnel_events (migration 0051, fresh-DB chain 0000→0051 proven by orchestrator), allowlist/capped parseAttribution, mep_attr cookie (first-touch, 30d), signup stamping, privacy copy updated (documented #407-snapshot allowlist). 2912/2912, all gates re-run clean. Risk: first-touch-wins semantics flagged for product. Close GitHub issue when branch merges. | no attribution capture |
 | 325 | P3 | PENDING | 0 | Tracking umbrella | relevance media flywheel |
 | 236 | P3 | PENDING | 0 | Feature, sizeable | email-in invoice ingest |
 | 224 | P3 | PENDING | 0 | Infra config | edge DDoS + Upstash config |
