@@ -4,9 +4,16 @@
  * (issue #439) — and, since issue #407, must source every string of copy
  * from the shared `src/lib/i18n.ts` table instead of a page-local object.
  *
- * The first describe block re-verifies #439: the page's `PAID_TIERS` array
- * and the "cost" FAQ answer key must reference `PROVISIONAL_PRICE`, never a
- * hardcoded literal.
+ * Issue #327 extracted the page's markup out of `src/routes/waitlist/+page.svelte`
+ * (now a thin wrapper) into the shared `src/lib/components/landing/LandingPage.svelte`
+ * — reused by every `/l/[variant]` landing page — so this file's source checks
+ * now read that component instead. The wrapper's own byte-identity is covered
+ * separately by the DOM comparison run manually for #327 (see its PR/report);
+ * this file's job is unchanged: prove the pricing and copy logic itself never
+ * drifted, wherever it lives.
+ *
+ * The first describe block re-verifies #439: `PAID_TIERS` and the "cost" FAQ
+ * answer key must reference `PROVISIONAL_PRICE`, never a hardcoded literal.
  *
  * The second describe block is the core acceptance check for #407: it
  * rebuilds, field by field, the exact object the page used to hardcode as
@@ -29,7 +36,7 @@ import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '../src/lib/billing-pl
 import { translations, renderTemplate, type Locale } from '../src/lib/i18n';
 
 const ROOT = path.resolve(__dirname, '..');
-const PAGE_SRC = readFileSync(path.join(ROOT, 'src/routes/waitlist/+page.svelte'), 'utf8');
+const PAGE_SRC = readFileSync(path.join(ROOT, 'src/lib/components/landing/LandingPage.svelte'), 'utf8');
 
 const BARE_PRICE = /\b(29|59|129)\b/;
 

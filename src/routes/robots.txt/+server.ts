@@ -3,6 +3,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 export const GET: RequestHandler = ({ url }) => {
 	const body = [
 		'User-agent: *',
+		'Allow: /l/',
 		'Disallow: /dashboard',
 		'Disallow: /invoices',
 		'Disallow: /invoice/',
