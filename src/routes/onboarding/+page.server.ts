@@ -7,17 +7,22 @@ import { trialDaysFor, applyTierSettings } from '$lib/server/billing';
 import { sendEmail, welcomeEmail } from '$lib/server/email';
 import { hasConsent, recordConsent } from '$lib/server/consent';
 import { claimRequest, isValidKey } from '$lib/server/idempotency';
+import { isValidVenueType, isValidCategory } from '$lib/constants';
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from '$lib/attribution';
+import { venueTypeForLandingVariant } from '$lib/landing-variants';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals, url, cookies }) => {
 	if (!locals.user) redirect(303, '/login');
 	const preview = url.searchParams.get('preview') === '1';
 	if (locals.restaurantId && !preview) redirect(303, '/');
 	const needsConsent = !(await hasConsent(locals.user.id));
-	return { preview, needsConsent };
+	const attribution = parseAttributionCookie(cookies.get(ATTRIBUTION_COOKIE));
+	const prefillVenueType = venueTypeForLandingVariant(attribution.variant);
+	return { preview, needsConsent, prefillVenueType };
 };
 
 export const actions: Actions = {
-	default: async ({ request, locals }) => {
+	default: async ({ request, locals, cookies }) => {
 		if (!locals.user) redirect(303, '/login');
 
 		const data = await request.formData();
@@ -25,6 +30,13 @@ export const actions: Actions = {
 
 		if (!name) return fail(422, { error: 'El nombre del restaurante es obligatorio.' });
 		if (name.length > 80) return fail(422, { error: 'El nombre no puede superar 80 caracteres.' });
+
+		const venueTypeRaw = (data.get('venueType') as string ?? '').trim();
+		const topCategoryRaw = (data.get('topCategory') as string ?? '').trim();
+		const venueType = isValidVenueType(venueTypeRaw) ? venueTypeRaw : null;
+		const topCategory = isValidCategory(topCategoryRaw) ? topCategoryRaw : null;
+
+		const attribution = parseAttributionCookie(cookies.get(ATTRIBUTION_COOKIE));
 
 		if (!(await hasConsent(locals.user.id))) {
 			if (data.get('terms') !== 'on') {
@@ -67,7 +79,14 @@ export const actions: Actions = {
 
 			const [restaurant] = await tx
 				.insert(restaurants)
-				.values({ name, slug })
+				.values({
+					name,
+					slug,
+					venueType,
+					topCategory,
+					acquisitionSource: attribution.source,
+					acquisitionVariant: attribution.variant,
+				})
 				.returning({ id: restaurants.id });
 
 			await tx.insert(userRestaurants).values({
@@ -91,7 +110,7 @@ export const actions: Actions = {
 			await applyTierSettings(newRestaurantId, 'trial');
 
 			if (locals.user.email) {
-				sendEmail(welcomeEmail(locals.user.email, name)).catch(e =>
+				sendEmail(welcomeEmail(locals.user.email, name, venueType)).catch(e =>
 					console.error('[onboarding] welcome email failed:', e)
 				);
 			}
