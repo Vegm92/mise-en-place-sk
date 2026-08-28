@@ -3,6 +3,8 @@ import { MAX_FILE_BYTES, MediaTooLargeError } from './file-validation';
 
 const GRAPH_API_BASE = `https://graph.facebook.com/${WHATSAPP_API_VERSION}`;
 
+const ALLOWED_MEDIA_HOSTS = /(^|\.)(facebook\.com|fbcdn\.net|fbsbx\.com|whatsapp\.net)$/;
+
 const MIME_TO_EXT: Record<string, string> = {
 	'image/jpeg':    'jpg',
 	'image/png':     'png',
@@ -52,13 +54,30 @@ export async function downloadWhatsAppMedia(
 		headers: { Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}` },
 	});
 	if (!metaRes.ok) throw new Error(`WhatsApp media metadata failed (${metaRes.status})`);
-	const meta = (await metaRes.json()) as { url: string; mime_type: string; file_size?: number };
+	const meta = (await metaRes.json()) as { url?: unknown; mime_type: string; file_size?: number };
 
 	if (meta.file_size && meta.file_size > MAX_FILE_BYTES) throw new MediaTooLargeError(meta.file_size);
 
-	const fileRes = await fetch(meta.url, {
+	if (typeof meta.url !== 'string' || meta.url === '') {
+		throw new Error('WhatsApp media metadata did not include a url');
+	}
+	let mediaUrl: URL;
+	try {
+		mediaUrl = new URL(meta.url);
+	} catch {
+		throw new Error(`WhatsApp media url is not a valid URL: ${meta.url}`);
+	}
+	if (mediaUrl.protocol !== 'https:' || !ALLOWED_MEDIA_HOSTS.test(mediaUrl.hostname)) {
+		throw new Error(`WhatsApp media URL host not allowed: ${mediaUrl.hostname}`);
+	}
+
+	const fileRes = await fetch(mediaUrl.toString(), {
 		headers: { Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}` },
+		redirect: 'manual',
 	});
+	if (fileRes.status >= 300 && fileRes.status < 400) {
+		throw new Error(`WhatsApp media download redirected (${fileRes.status}) — refusing to follow with credentials`);
+	}
 	if (!fileRes.ok) throw new Error(`WhatsApp media download failed (${fileRes.status})`);
 
 	const declaredLength = Number(fileRes.headers.get('content-length') ?? 0);
