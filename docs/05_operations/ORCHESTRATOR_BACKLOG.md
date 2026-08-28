@@ -114,7 +114,7 @@ PR SPLIT (2026-08-28, per owner): the branch is delivered as six stacked PRs, me
 | 402 | P3 | PENDING | 0 | Copy/content | sin vs con comparison |
 | 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
-| 354 | P3 | PENDING | 0 | Decision issue | feature-flag mechanism decision |
+| 354 | P3 | BLOCKED | 1 | Decision analysis + route checklist posted on issue (env-flag via ROUTE_POLICY, billing-off keeps subscription rows); awaiting owner ratification. #356 executes against it. | feature-flag mechanism decision |
 | 333 | P3 | PENDING | 0 | | testimonial provenance + stale date |
 | 329 | P3 | PENDING | 0 | | digest share affordance |
 | 328 | P3 | PENDING | 0 | | onboarding captures only name |
