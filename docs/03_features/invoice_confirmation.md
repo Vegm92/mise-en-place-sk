@@ -326,6 +326,7 @@ shapes, `low_confidence_ack` value.
 
 - Keeps the surviving line *indices*, not just the surviving descriptions: it used to index quantities/units/prices by position in the filtered list, so one blank description among real ones shifted every later column against its description and hashed an invoice that was never saved. `parseLineInputs` always skipped blanks correctly, so the hash and the stored rows disagreed.
 - Takes the tax bands as an argument rather than re-reading the form, so the batch path and the edit path (which posts no bands and passes the invoice's stored ones) produce the same hash for the same document.
+- `lineUnitPrices`/`lineTotalPrices` were already hashed via `toMoneyString` on the *raw form string*, never through `toFloat` — only `parseLineInputs`' stored `unitPrice`/`totalPrice` columns went `toFloat(raw)` → `toMoneyString(float)`, an extra hop `toFloat`'s bug could corrupt (issue #494 follow-up, issue #508). A comma-decimal price (`"12,50"`) therefore hashed correctly (`12.50`) but stored truncated (`12.00`) — hash and stored data silently disagreed. Now that `parseAmount` replaces `toFloat`, both hops agree, so this specific divergence is closed without changing what price fields hash to. `lineQuantities`/`lineTaxRates` *did* go through `toFloat` on both sides (hash and storage), so they were internally consistent pre-fix, just consistently wrong for comma-decimal input; switching them to `parseAmount` changes what a comma-decimal quantity/tax-rate hashes to. The only rows this can affect are ones that were originally submitted with a comma-decimal quantity or tax rate — their `content_hash` was already computed from truncated data, so a resubmit of the identical original text after this fix ships would (correctly) no longer match that stale hash; accepted as within scope for #508, not a reason to backfill `content_hash` for otherwise-correct invoices.
 
 **`function resolveTaxBreakdown`**
 
@@ -335,6 +336,12 @@ shapes, `low_confidence_ack` value.
 **`type SaveOutcome`**
 
 - Shared by the extract review route and the batch page; pure outcome-returning (no redirects/HTTP) — callers translate the outcome into `fail()`/`redirect()`.
+- `invalidAmount` (issue #508): a monetary form field (`total_amount`, `line_quantities`, `line_unit_prices`, `line_total_prices`, `line_tax_rates`) that isn't blank but fails `parseAmount` — a garbage prefix (`"12abc"`), scientific notation, a hex literal, or an unparseable separator combination. Both write paths (`saveReviewedInvoice` and the invoice edit action) call `findInvalidMonetaryField` before any parsing/insert, so malformed input is rejected with `error.invalidAmount` and nothing is written, instead of silently becoming `null` or a truncated number.
+
+**`function findInvalidMonetaryField`**
+
+- The old per-field `toFloat` (`parseFloat` + `isNaN`) accepted a leading numeric prefix and ignored the rest — `"12abc"` → 12, `"1e999"` → `Infinity`, and for the Spanish-first audience, a decimal comma (`"12,50"`) → 12, silently dropping the fraction. Replaced everywhere (here and the extraction-correction comparator, `normalizeNum`) with `parseAmount` from `$lib/money`, the same strict parser `toCents`/`toMoneyString` are built on — one shared definition, so a monetary field can't diverge between what's validated, hashed and stored.
+- Only flags a *non-blank, unparseable* value — blank stays optional (`null`), matching the pre-#508 behaviour for fields nobody is required to fill in. Line fields are checked only for rows `parseLineInputs` would actually keep (a non-blank description); a blank row's leftover garbage in a monetary column is never submitted and must not block the save.
 
 **`function linkProductsToInvoice`**
 
@@ -361,6 +368,12 @@ shapes, `low_confidence_ack` value.
 - Requires `document_type`, `invoice_date` and `total_amount` on both sides, so an albarán with no printed prices can't be matched this way — a known gap (see #461), not a bug.
 
 ### `src/lib/server/money.ts`
+
+**`parseAmount` / `normalizeAmountString` (issue #508)**
+
+- Strict shared parser behind every monetary form field, both write paths (`invoice-save.ts`, the invoice edit action) and `toCents`/`toMoneyString`. Rejects anything `Number()`/`parseFloat` would otherwise mangle silently: a numeric-prefix-plus-garbage string, scientific notation (`Infinity`), a hex literal, and a non-finite result — returns `null` instead, so callers can tell "no value" from "not a number" is a decision left to the caller (`findInvalidMonetaryField` in `invoice-save.ts` treats non-blank + `null` as a validation error).
+- Comma decimals are accepted deliberately (the Spanish-first audience types `12,50`), and so is a single period — both are treated as the decimal separator, never a thousands grouping, because a lone separator is inherently ambiguous (`"1.500"` could be 1.5 or 1500) and guessing wrong would silently corrupt an amount. Only *unambiguous* thousands-grouped input is accepted: `"1.234,56"` (ES: period groups of exactly 3 digits, comma decimal) and `"1,234.56"` (US, reversed roles) both parse to `1234.56`; anything with a group that isn't exactly 3 digits, or two separators of the same kind, is rejected rather than guessed at.
+- `toCents` used to carry its own copy of this regex; now both share `normalizeAmountString` so the money-string columns (2-decimal, cent-rounded) and the full-precision fields (`quantity`, `tax_rate`, `confidence`) can never disagree about what counts as a valid amount.
 
 **`toCents` / `fromCents` / `toMoneyString`**
 

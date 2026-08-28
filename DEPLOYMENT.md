@@ -124,6 +124,7 @@ directly internet-facing.
 | `SENTRY_AUTH_TOKEN` | empty | Sentry auth token (Settings → Auth Tokens, scopes `project:read`, `event:read`, `org:read`). Powers build-time source map upload **and** the runtime `/admin/errors` + `/admin/health` Sentry panels. Empty = source maps stay unminified-only and the admin panels show "not configured". |
 | `SENTRY_ORG` | empty | Sentry organization slug. |
 | `SENTRY_PROJECT` | empty | Sentry project slug. |
+| `SENTRY_API_BASE_URL` | `https://de.sentry.io/api/0` | Base URL for the runtime `/admin/errors` + `/admin/health` Sentry API calls. Defaults to the EU region, matching this deployment's org. A US-region (or other non-EU) org must set this to `https://sentry.io/api/0`, or those calls 401/404 even though the panels look "configured". |
 | `SENTRY_RELEASE` / `VITE_SENTRY_RELEASE` | empty | Set both to the deployed git SHA (e.g. `SENTRY_RELEASE=$(git rev-parse HEAD)` in CI/the deploy script) so Sentry can bisect issues to a release. Empty = issues aren't grouped by release. |
 
 ### Admin seed (first boot)

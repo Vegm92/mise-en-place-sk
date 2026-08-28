@@ -135,3 +135,90 @@ describe.skipIf(!hasDbEnv)('#426 — POST /api/chat routes through the LLM provi
 		expect(rows).toHaveLength(0);
 	});
 });
+
+describe.skipIf(!hasDbEnv)('#467 — ACTIONS hrefs are validated against the route allowlist', () => {
+	it('drops an off-allowlist href but keeps the other action in the same block', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Here you go.\nACTIONS:[{"label":"See invoices","href":"/invoices","variant":"primary"},{"label":"Admin panel","href":"/admin/users","variant":"secondary"}]',
+			usage: { inputTokens: 5, outputTokens: 5, model: 'gemini-test' },
+		});
+
+		const res = await POST(chatEvent('Show me invoices'));
+		const body = await res.json();
+		expect(body.reply).toBe('Here you go.');
+		expect(body.actions).toEqual([{ label: 'See invoices', href: '/invoices', variant: 'primary' }]);
+	});
+
+	it('drops an absolute/external URL href', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Careful with that link.\nACTIONS:[{"label":"Click me","href":"https://evil.example/phish","variant":"primary"}]',
+			usage: { inputTokens: 5, outputTokens: 5, model: 'gemini-test' },
+		});
+
+		const res = await POST(chatEvent('Show me a link'));
+		const body = await res.json();
+		expect(body.reply).toBe('Careful with that link.');
+		expect(body.actions).toBeUndefined();
+	});
+
+	it('drops a protocol-relative href', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Careful.\nACTIONS:[{"label":"Click me","href":"//evil.example/phish","variant":"primary"}]',
+			usage: { inputTokens: 5, outputTokens: 5, model: 'gemini-test' },
+		});
+
+		const res = await POST(chatEvent('Show me a link'));
+		const body = await res.json();
+		expect(body.actions).toBeUndefined();
+	});
+
+	it('drops a javascript: href', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Careful.\nACTIONS:[{"label":"Click me","href":"javascript:alert(1)","variant":"primary"}]',
+			usage: { inputTokens: 5, outputTokens: 5, model: 'gemini-test' },
+		});
+
+		const res = await POST(chatEvent('Show me a link'));
+		const body = await res.json();
+		expect(body.actions).toBeUndefined();
+	});
+
+	it('drops a backslash-based host-hijack href', async () => {
+		const actionsJson = JSON.stringify([{ label: 'Click me', href: '/\\evil.example/phish', variant: 'primary' }]);
+		generateMock.mockResolvedValue({
+			text: `Careful.\nACTIONS:${actionsJson}`,
+			usage: { inputTokens: 5, outputTokens: 5, model: 'gemini-test' },
+		});
+
+		const res = await POST(chatEvent('Show me a link'));
+		const body = await res.json();
+		expect(body.actions).toBeUndefined();
+	});
+
+	it('lets all documented valid routes through, including the supplier query-string filter', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Here are your options.\nACTIONS:[{"label":"Invoices for Acme","href":"/invoices?supplier=acme-foods","variant":"primary"},{"label":"Spend","href":"/analytics/spend","variant":"secondary"}]',
+			usage: { inputTokens: 5, outputTokens: 5, model: 'gemini-test' },
+		});
+
+		const res = await POST(chatEvent('Show me Acme invoices and spend'));
+		const body = await res.json();
+		expect(body.actions).toEqual([
+			{ label: 'Invoices for Acme', href: '/invoices?supplier=acme-foods', variant: 'primary' },
+			{ label: 'Spend', href: '/analytics/spend', variant: 'secondary' },
+		]);
+	});
+
+	it('does not crash on malformed ACTIONS entries and drops the invalid ones', async () => {
+		generateMock.mockResolvedValue({
+			text: 'Mixed bag.\nACTIONS:[null,"not an object",{"label":"","href":"/invoices","variant":"primary"},{"href":"/invoices","variant":"primary"},{"label":"OK","href":"/invoices","variant":"weird"},{"label":"OK","href":"/invoices","variant":"primary"}]',
+			usage: { inputTokens: 5, outputTokens: 5, model: 'gemini-test' },
+		});
+
+		const res = await POST(chatEvent('Show me invoices'));
+		expect(res.status).toBe(200);
+		const body = await res.json();
+		expect(body.reply).toBe('Mixed bag.');
+		expect(body.actions).toEqual([{ label: 'OK', href: '/invoices', variant: 'primary' }]);
+	});
+});

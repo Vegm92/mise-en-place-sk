@@ -94,7 +94,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 |---|---|---|
 | [020](./experience/ADR-020-both-viewports-rendered-css-chooses.md) | Separate mobile/desktop components, both rendered, CSS picks one | Active |
 | [021](./experience/ADR-021-bilingual-single-string-table.md) | One in-repo string table, Spanish first, enforced in CI | Active |
-| [026](./experience/ADR-026-warm-severity-ramp-cool-actions.md) | Severity is a warm traffic-light ramp; blue is reserved for actions | Active, amended by 027, 028 |
+| [026](./experience/ADR-026-warm-severity-ramp-cool-actions.md) | Severity is a warm traffic-light ramp; blue is reserved for actions | Active, amended by 027, 028, #720 |
 | [027](./experience/ADR-027-amber-accent-removed-and-enforced.md) | The amber accent block is deleted and the ramp split is test-enforced | Active, amended by 028 |
 | [028](./experience/ADR-028-ink-is-the-accent.md) | The accent is the ink; no hue carries the brand | Active |
 

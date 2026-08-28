@@ -16,7 +16,7 @@ import type { EnrichedLineItem, PackInfo } from './products';
 import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
-import { toMoneyString, moneyToNumber } from './money';
+import { toMoneyString, moneyToNumber, parseAmount } from './money';
 import { bandsFromInputs, sumTaxCents, taxableBaseMoney, type TaxBand } from '$lib/tax';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 import type { ReviewState } from '$lib/status';
@@ -24,15 +24,32 @@ import type { ReviewState } from '$lib/status';
 export type SaveOutcome =
 	| { type: 'lowConfidenceBlocked' }
 	| { type: 'invalidDate'; field: 'invoice_date' | 'due_date' }
+	| { type: 'invalidAmount'; field: string }
 	| { type: 'contentDuplicate'; duplicateId: number }
 	| { type: 'numberDuplicate' }
 	| { type: 'replay' }
 	| { type: 'saved'; invoiceId: number; isFirstInvoice: boolean };
 
-function toFloat(value: unknown): number | null {
-	if (!value) return null;
-	const n = parseFloat(String(value));
-	return isNaN(n) ? null : n;
+const MONETARY_LINE_FIELDS = ['line_quantities', 'line_unit_prices', 'line_total_prices', 'line_tax_rates'] as const;
+
+export function findInvalidMonetaryField(formData: FormData): string | null {
+	const totalAmountRaw = formData.get('total_amount');
+	if (totalAmountRaw !== null) {
+		if (typeof totalAmountRaw !== 'string') return 'total_amount';
+		if (totalAmountRaw.trim() !== '' && parseAmount(totalAmountRaw) === null) return 'total_amount';
+	}
+
+	const descriptions = formData.getAll('line_descriptions').map(String);
+	for (const field of MONETARY_LINE_FIELDS) {
+		const values = formData.getAll(field).map(String);
+		for (let i = 0; i < descriptions.length; i++) {
+			if (!descriptions[i].trim()) continue;
+			const raw = values[i];
+			if (raw !== undefined && raw.trim() !== '' && parseAmount(raw) === null) return field;
+		}
+	}
+
+	return null;
 }
 
 type HeaderSnapshot = {
@@ -56,8 +73,8 @@ function normalizeStr(v: unknown): string {
 }
 
 function normalizeNum(v: unknown): string {
-	const n = parseFloat(String(v ?? ''));
-	return isNaN(n) ? '' : n.toString();
+	const n = parseAmount(v);
+	return n === null ? '' : n.toString();
 }
 
 type CorrectionRow = typeof extractionCorrections.$inferInsert;
@@ -222,11 +239,11 @@ export function computeFormContentHash(
 	return computeInvoiceContentHash({
 		...header,
 		lineDescriptions: kept.map(i => descriptions[i]),
-		lineQuantities:   kept.map(i => toFloat(quantities[i])),
+		lineQuantities:   kept.map(i => parseAmount(quantities[i])),
 		lineUnits:        kept.map(i => units[i]?.trim() || null),
 		lineUnitPrices:   kept.map(i => toMoneyString(unitPrices[i])),
 		lineTotalPrices:  kept.map(i => toMoneyString(totalPrices[i])),
-		lineTaxRates:     kept.map(i => toFloat(taxRates[i])),
+		lineTaxRates:     kept.map(i => parseAmount(taxRates[i])),
 		taxBands,
 	});
 }
@@ -281,11 +298,11 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 		const unitVal = units[i]?.trim() || null;
 		out.push({
 			desc,
-			qtyFloat: toFloat(quantities[i]),
-			unitPriceFloat: toFloat(unitPrices[i]),
+			qtyFloat: parseAmount(quantities[i]),
+			unitPriceFloat: parseAmount(unitPrices[i]),
 			unitVal,
-			totalPriceVal: toFloat(totalPrices[i]),
-			taxRateVal: toFloat(taxRates[i]),
+			totalPriceVal: parseAmount(totalPrices[i]),
+			taxRateVal: parseAmount(taxRates[i]),
 			pack: parsePack(desc, unitVal),
 			supplierSku: supplierSkus[i]?.trim() || null,
 		});
@@ -558,10 +575,12 @@ export async function saveReviewedInvoice(
 	const dueDateRaw = formData.get('due_date');
 	if (!isBlankOrIsoDate(invoiceDateRaw)) return { type: 'invalidDate', field: 'invoice_date' };
 	if (!isBlankOrIsoDate(dueDateRaw)) return { type: 'invalidDate', field: 'due_date' };
+	const invalidAmountField = findInvalidMonetaryField(formData);
+	if (invalidAmountField) return { type: 'invalidAmount', field: invalidAmountField };
 	const invoiceDate = toIsoDate(invoiceDateRaw);
 	const dueDate = toIsoDate(dueDateRaw);
 	const totalAmount = toMoneyString(formData.get('total_amount') as string | null);
-	const confidenceRaw = toFloat(formData.get('confidence'));
+	const confidenceRaw = parseAmount(formData.get('confidence'));
 	const notesRaw = (formData.get('notes') as string) ?? '';
 	const notes = notesRaw.slice(0, 250) || null;
 

@@ -44,10 +44,12 @@
     if (f?.contentDuplicate) showContentDuplicateModal = true;
   });
 
-  const invalidDateKey = $derived.by(() => {
+  const formErrorKey = $derived.by(() => {
     const f = form as Record<string, unknown> | null;
-    if (f?.errorKey !== 'error.invalidDate') return null;
-    return f.errorField === 'due_date' ? 'error.invalidDueDate' : 'error.invalidInvoiceDate';
+    if (f?.errorKey === 'error.invalidDate') {
+      return f.errorField === 'due_date' ? 'error.invalidDueDate' : 'error.invalidInvoiceDate';
+    }
+    return typeof f?.errorKey === 'string' ? f.errorKey : null;
   });
 
   const RAIL_OPEN_W = 234;
@@ -858,10 +860,10 @@
           <div class="rev-scroll">
 
             <div class="rev-section">
-              {#if invalidDateKey}
+              {#if formErrorKey}
                 <div role="alert" class="rev-note rev-note-neg">
                   <AlertTriangle size={12} style="flex-shrink:0;" />
-                  <span style="flex:1;">{$t(invalidDateKey)}</span>
+                  <span style="flex:1;">{$t(formErrorKey)}</span>
                 </div>
               {/if}
               {#if review.duplicateOfId}

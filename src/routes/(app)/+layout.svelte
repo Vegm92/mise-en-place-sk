@@ -35,6 +35,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
   import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
+  import { clearOfflineQueue, createIndexedDbOfflineQueueStorage } from '$lib/offline-queue';
 
   const { children, data } = $props();
 
@@ -90,6 +91,11 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     { icon: Newspaper,     key: 'sidebar.upgradeFeatDigest' },
     { icon: MessageCircle, key: 'sidebar.upgradeFeatAssistant' },
   ];
+
+  function handleLogoutSubmit() {
+    if (!browser) return;
+    void clearOfflineQueue(createIndexedDbOfflineQueueStorage()).catch(() => {});
+  }
 
   function handleNavClick(item: NavItem, e: MouseEvent) {
     if (item.proOnly && item.feature && !data.features[item.feature]) {
@@ -698,7 +704,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           </div>
           <div style="font-size:11px;color:var(--mep-fg-3);">{data.restaurantName}</div>
         </div>
-        <form method="POST" action="/logout" style="flex-shrink:0;">
+        <form method="POST" action="/logout" style="flex-shrink:0;" onsubmit={handleLogoutSubmit}>
           <button
             type="submit"
             title={$t('action.switchAccount')}
@@ -707,7 +713,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             <ArrowLeftRight size={13} />
           </button>
         </form>
-        <form method="POST" action="/logout" style="flex-shrink:0;">
+        <form method="POST" action="/logout" style="flex-shrink:0;" onsubmit={handleLogoutSubmit}>
           <button
             type="submit"
             title={$t('action.logout')}
@@ -739,7 +745,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
         >
           <CircleHelp size={15} />
         </a>
-        <form method="POST" action="/logout">
+        <form method="POST" action="/logout" onsubmit={handleLogoutSubmit}>
           <button
             type="submit"
             class="btn btn-ghost btn-icon"
@@ -856,20 +862,20 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             <button type="button" class="acct-item" role="menuitem" onclick={toggleLocale}>
               <Languages size={15} />
               <span style="flex:1;">{$t('a11y.switchLanguage')}</span>
-              <span style="font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--mep-fg-4);">
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--mep-fg-3);">
                 {$locale === 'es' ? 'EN' : 'ES'}
               </span>
             </button>
 
             <div class="acct-sep"></div>
 
-            <form method="POST" action="/logout">
+            <form method="POST" action="/logout" onsubmit={handleLogoutSubmit}>
               <button type="submit" class="acct-item" role="menuitem">
                 <ArrowLeftRight size={15} />
                 <span>{$t('action.switchAccount')}</span>
               </button>
             </form>
-            <form method="POST" action="/logout">
+            <form method="POST" action="/logout" onsubmit={handleLogoutSubmit}>
               <button type="submit" class="acct-item" role="menuitem">
                 <LogOut size={15} />
                 <span>{$t('action.logout')}</span>
@@ -1021,7 +1027,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             <strong id="upgrade-modal-title" style="flex:1;font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">
               {$t('sidebar.upgradeToProTitle')}
             </strong>
-            <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-acc-soft);color:var(--mep-acc);border:1px solid var(--mep-acc-ring);">{$t('nav.badge.pro')}</span>
+            <span style="display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:0.04em;padding:0 5px;border-radius:var(--mep-r-tag);background:var(--mep-hover);color:var(--mep-fg-2);border:1px solid var(--mep-border);">{$t('nav.badge.pro')}</span>
           </div>
           <p class="body" style="line-height:1.6;margin:0 0 16px;">
             {$t('sidebar.upgradeToProDesc')}

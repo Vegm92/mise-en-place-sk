@@ -58,9 +58,10 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 731 | P2 | DEFERRED | 0 | PR #723 branch | printed escandallo repeats prep block |
 | 730 | P2 | DEFERRED | 0 | Verify: may be main's products module | no-allergens save blocks extraction |
 | 747 | P3 | PENDING | 0 | Bundle of 10 small findings; overlaps PR #748 surfaces — wait for its merge | beta-review polish bundle |
-| 720 | P3 | PENDING | 0 | | active nav rows below AA in dark |
-| 719 | P3 | PENDING | 0 | | locale hint below AA in dark |
-| 718 | P3 | PENDING | 0 | | one neutral PRO chip (ADR-026) |
+| 720 | P3 | DONE | 1 | Verified (commit 32aec64): slate acc-soft alpha 0.16→0.10, 4.18→4.58:1; ADR-026 amended w/ on-tint table; contrast test harness added. Note: slate accent is inert (all routes use tinta/ADR-028). 2344/2344. | active nav rows below AA in dark |
+| 749 | P3 | DONE | 1 | Verified (commit 57b2d3e): neg-soft dark 0.18→0.12 (4.57:1), caution-soft light 0.14→0.11 (4.53:1); full usage sweep, assertions upgraded, ADR amended. 2349/2349. Close GitHub issue when branch merges. | severity tokens below AA on own tints |
+| 719 | P3 | DONE | 1 | Verified (commit 18152ac): fg-4→fg-3 (3.92→5.21:1 dark), pinning tests. 2347/2347. Noted: location-switcher locked items still fg-4 (separate component). | locale hint below AA in dark |
+| 718 | P3 | DONE | 1 | Verified (commit ba89db6): #711's rebase had reintroduced the accent chip in the dialog — now neutral, guard test added. 2352/2352. Note: help-page .help-tip-pro still accent (predates scope; fold into #569's help work). | one neutral PRO chip (ADR-026) |
 | 738 | P3 | DEFERRED | 0 | PR #723 branch | escandallo number parsing zero/out-of-range |
 | 737 | P3 | DEFERRED | 0 | PR #723 branch | recipe module dead exports/dup waste factor |
 | 735 | P3 | DEFERRED | 0 | PR #723 branch | duplicate escandallo 409s second time |
@@ -76,18 +77,18 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 515 | P3 | PENDING | 0 | | restaurant name two sources of truth |
 | 514 | P3 | PENDING | 0 | | dead code + schema hygiene |
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
-| 510 | P3 | PENDING | 0 | | rate-limit buckets consumed after failure |
-| 509 | P3 | PENDING | 0 | | auth-seed prod guard swallowed |
-| 508 | P3 | PENDING | 0 | Also cover: computeFormContentHash uses toMoneyString(raw) vs inserted toMoneyString(toFloat(raw)) — diverges on comma-decimal input (found during #494) | toFloat accepts "12abc"/"1e999" |
-| 507 | P3 | PENDING | 0 | | IndexedDB keeps invoice files indefinitely |
-| 506 | P3 | PENDING | 0 | | Sentry API URL hardcoded EU |
-| 505 | P3 | PENDING | 0 | | WhatsApp token host allowlist |
-| 504 | P3 | PENDING | 0 | | Content-Disposition unescaped |
-| 503 | P3 | PENDING | 0 | | consumeVerificationToken not atomic |
-| 470 | P3 | PENDING | 0 | | Sentry scrubber coverage |
-| 469 | P3 | PENDING | 0 | | scope confirm/extract loaders to restaurantId |
-| 468 | P3 | PENDING | 0 | | LocalDriver.save path containment |
-| 467 | P3 | PENDING | 0 | | chat ACTIONS href allowlist |
+| 510 | P3 | DONE | 1 | Verified (commit 1c19fc2): IP-first sort + short-circuit, accurate scope attribution. 2354/2354. | rate-limit buckets consumed after failure |
+| 509 | P3 | DONE | 1 | Verified (commit f7e4149): synchronous validateAdminSeedConfig at boot (option A), in-seed checks kept as defense-in-depth with honest wording. 2359/2359. | auth-seed prod guard swallowed |
+| 508 | P3 | DONE | 1 | Verified (commit efbe25d): shared parseAmount (comma decimals, unambiguous grouping, garbage/hex/exponent rejected), 400 validation in both write paths, #494 hash/insert divergence closed with sound stability analysis. 2393/2393. | toFloat accepts "12abc"/"1e999" |
+| 507 | P3 | DONE | 1 | Verified (commit 070d877): extracted offline-queue module — 7d TTL sweep w/ notice, 5-attempt cap, exp backoff, Blob storage + base64 compat, clear on logout (all 5 forms). 2407/2407. | IndexedDB keeps invoice files indefinitely |
+| 506 | P3 | DONE | 1 | Verified (commit 57581a2): SENTRY_API_BASE_URL env var, EU default preserved for current deployment, docs + 6 tests. 2413/2413. | Sentry API URL hardcoded EU |
+| 505 | P3 | DONE | 1 | Verified (commit 8a78203): https+allowlist (incl. fbsbx.com from real fixtures), redirect:'manual', meta.url shape validation; Baileys driver confirmed unaffected. 2423/2423. | WhatsApp token host allowlist |
+| 504 | P3 | DONE | 1 | Verified (commit cf9cb12): shared contentDispositionHeader helper (ASCII fold + RFC 5987), applied to invoice file + reports CSV; all 5 header sites audited. 2439/2439. | Content-Disposition unescaped |
+| 503 | P3 | DONE | 1 | Already atomic on main; concurrent-consume proof tests added (ff4238e), docs note on invalidation intent. GitHub issue closed. 2444/2444. | consumeVerificationToken not atomic |
+| 470 | P3 | DONE | 1 | Verified (commit 659f900): extra (cycle-guarded deep walk) + breadcrumbs + request.headers/cookies scrubbed; SDK-source analysis proved headers/cookies were reaching Sentry unredacted. 2450/2450. | Sentry scrubber coverage |
+| 469 | P3 | DONE | 1 | Verified (commit 46c78e7): both loaders require item.restaurantId === locals.restaurantId; foreign == nonexistent. 5 DB-backed tests. 2455/2455. Subsumed if #441 retires the stubs. | scope confirm/extract loaders to restaurantId |
+| 468 | P3 | DONE | 1 | Verified (commit 2da6b2e): resolve+startsWith guard matching read/delete (sep-edge safe), traversal tests. 2458/2458. | LocalDriver.save path containment |
+| 467 | P3 | DONE | 1 | Verified (commit 64cf841): single-source CHAT_ACTION_ROUTES feeds prompt + validator; origin-pinned URL parse blocks external/js/backslash hijacks; label/variant hardening. 2465/2465. | chat ACTIONS href allowlist |
 | 574 | P3 | PENDING | 0 | | highlight Category field on Clasificar |
 | 571 | P3 | PENDING | 0 | | unify logo usage |
 | 569 | P3 | PENDING | 0 | | help page docs/tips |

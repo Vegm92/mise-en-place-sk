@@ -31,7 +31,13 @@
   --mep-warn:     #a85300;
   --mep-warn-soft:rgba(168, 83, 0, 0.12);
   --mep-caution:     #7f6b00;
-  --mep-caution-soft:rgba(127, 107, 0, 0.14);
+  /* --mep-caution-soft alpha is .11, not .14 (issue #749): at .14, #7f6b00
+     text on its own tint over --mep-surface (#ffffff) composited to 4.35:1,
+     below the 4.5:1 AA floor, despite the flat fill clearing it at 5.24:1.
+     .11 clears it at 4.53:1 and keeps the tint more visible than the #720
+     slate-dark precedent (1.16:1 vs 1.14:1 against --mep-surface) — see
+     ADR-026's amendment and tests/contrast-tokens.test.ts. */
+  --mep-caution-soft:rgba(127, 107, 0, 0.11);
   --mep-info:     #2a5fb5;
   --mep-info-soft:rgba(42, 95, 181, 0.12);
 
@@ -146,7 +152,13 @@
   --mep-pos:       #4cae7d;
   --mep-pos-soft:  rgba(76, 174, 125, 0.18);
   --mep-neg:       #e16b6b;
-  --mep-neg-soft:  rgba(225, 107, 107, 0.18);
+  /* --mep-neg-soft alpha is .12, not .18 (issue #749): at .18, #e16b6b text
+     on its own tint over --mep-surface (#1b1b1d) composited to 4.16:1, below
+     the 4.5:1 AA floor, despite the flat fill clearing it at 5.34:1. .12
+     clears it at 4.57:1 and keeps the tint more visible than the #720
+     slate-dark precedent (1.17:1 vs 1.14:1 against --mep-surface) — see
+     ADR-026's amendment and tests/contrast-tokens.test.ts. */
+  --mep-neg-soft:  rgba(225, 107, 107, 0.12);
   --mep-warn:      #e8934a;
   --mep-warn-soft: rgba(232, 147, 74, 0.18);
   --mep-caution:      #efc233;
@@ -238,10 +250,17 @@
   --mep-acc-hover:#2b4368;
   --mep-acc-ring: rgba(52, 80, 122, 0.30);
 }
+/* Dark --mep-acc-soft alpha is .10, not .16 (issue #720): ADR-026 measured
+   --mep-acc as a flat fill (5.10:1 on --mep-surface) but the same token also
+   sits as text on its own -soft tint. At .16 that tint lightens #1b1b1d
+   enough that #6f8fc4 text on it drops to 4.18:1, below the 4.5:1 AA floor.
+   .10 clears it at 4.58:1 and keeps a tint as visible as the live tinta
+   accent's light-mode tint (1.14:1 vs 1.15:1 against its own surface) — see
+   ADR-026's amendment and tests/contrast-tokens.test.ts. */
 :root[data-theme="dark"] .mep[data-accent="slate"] {
   --mep-acc:      #6f8fc4;
   --mep-acc-fg:   #0d1828;
-  --mep-acc-soft: rgba(111, 143, 196, 0.16);
+  --mep-acc-soft: rgba(111, 143, 196, 0.10);
   --mep-acc-hover:#7d9bce;
   --mep-acc-ring: rgba(111, 143, 196, 0.30);
 }
