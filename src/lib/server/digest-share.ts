@@ -1,17 +1,33 @@
 import { randomBytes } from 'node:crypto';
-import { eq, sql } from 'drizzle-orm';
-import { db } from './db';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { db, forTenant } from './db';
 import { digestShares, restaurants } from './schema';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from './category-spend';
 import { moneyToNumber } from './money';
 import { isoWeekRange, pctDelta, shiftIsoWeek } from './reports/shared';
 import { landingVariantForVenueType } from '../landing-variants';
+import { isoWeek } from './weekly-digest';
 
 const TOKEN_BYTES = 24;
 const TOP_CATEGORY_MOVERS = 3;
 
 export function generateShareToken(): string {
 	return randomBytes(TOKEN_BYTES).toString('base64url');
+}
+
+export async function getOrCreateCurrentWeekShare(restaurantId: string): Promise<{ token: string; week: string }> {
+	const week = isoWeek(new Date());
+	const tdb = forTenant(restaurantId);
+	const [existing] = await db
+		.select({ token: digestShares.token })
+		.from(digestShares)
+		.where(tdb.scope(digestShares.restaurantId, and(eq(digestShares.week, week), isNull(digestShares.revokedAt))))
+		.limit(1);
+	if (existing) return { token: existing.token, week };
+
+	const token = generateShareToken();
+	await db.insert(digestShares).values({ restaurantId, week, token });
+	return { token, week };
 }
 
 export interface ResolvedDigestShare {
