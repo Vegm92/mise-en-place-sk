@@ -31,7 +31,6 @@ import {
 
 const THRESHOLD_KEY   = 'budget_warning_threshold';
 const PRICE_ALERT_KEY = 'price_alert_threshold';
-const RESTAURANT_NAME_KEY = 'restaurant_name';
 
 const WHATSAPP_ENABLED = Boolean(WHATSAPP_ACCESS_TOKEN && WHATSAPP_PHONE_NUMBER_ID);
 
@@ -282,15 +281,11 @@ export const actions: Actions = {
 		if (!name) return fail(422, { section: 'restaurant', error: 'set.profile.err.restaurantRequired' });
 		if (name.length > 120) return fail(422, { section: 'restaurant', error: 'set.profile.err.restaurantTooLong' });
 
-		const tdb = forTenant(rid);
 		if (!(await requireOwner(rid, locals.user!.id))) {
 			return fail(403, { section: 'restaurant', error: 'set.profile.err.notOwner' });
 		}
 
 		await db.update(restaurants).set({ name }).where(eq(restaurants.id, rid));
-		await db.update(settings)
-			.set({ value: name })
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, RESTAURANT_NAME_KEY)));
 
 		return { section: 'restaurant', ok: 'set.profile.ok.restaurant' };
 	},

@@ -9,7 +9,9 @@
  * sargable range, and explicit columns on the notification list) still
  * returns the same data shape for a seeded tenant: correct badge counts,
  * the right notifications with no leaked columns, and settings-derived
- * fields (restaurant name, onboarding flag, tutorial step).
+ * fields (onboarding flag, tutorial step). The restaurant name is no longer
+ * one of those settings-derived fields (issue #515) — it comes solely from
+ * restaurants.name via the locations list.
  *
  * DB-backed for the load; the db singleton is swapped for the test client.
  * Skipped without DATABASE_URL.
@@ -60,7 +62,6 @@ beforeAll(async () => {
 
 	await testSql`
 		INSERT INTO settings (restaurant_id, key, value) VALUES
-			(${rid}, 'restaurant_name', 'Layout Custom Name'),
 			(${rid}, 'has_completed_onboarding', 'true'),
 			(${rid}, 'tutorial_step', 'done'),
 			(${rid}, 'sidebar_collapsed', 'true')
@@ -121,9 +122,13 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 
 	it('exposes settings-derived fields from the merged settings lookup', async () => {
 		const data = await runLoad();
-		expect(data.restaurantName).toBe('Layout Custom Name');
 		expect(data.hasCompletedOnboarding).toBe(true);
 		expect(data.tutorialStep).toBe('done');
+	});
+
+	it('exposes the restaurant name from restaurants.name, not a settings row (issue #515)', async () => {
+		const data = await runLoad();
+		expect(data.restaurantName).toMatch(/^Test Restaurant layout-load/);
 	});
 
 	it('exposes the collapsed sidebar preference from the same merged settings lookup (issue #567)', async () => {
@@ -142,14 +147,15 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		}
 	});
 
-	it('falls back to the restaurant record name when no restaurant_name setting is stored', async () => {
-		await testSql`DELETE FROM settings WHERE restaurant_id = ${rid} AND key = 'restaurant_name'`;
+	it('reflects a renamed restaurant immediately, with no settings row involved', async () => {
+		await testSql`UPDATE restaurants SET name = ${'Renamed Bistro'} WHERE id = ${rid}`;
 		try {
 			const data = await runLoad();
-			expect(data.restaurantName).toMatch(/^Test Restaurant layout-load/);
+			expect(data.restaurantName).toBe('Renamed Bistro');
+			const [settingsRow] = await testSql`SELECT 1 FROM settings WHERE restaurant_id = ${rid} AND key = 'restaurant_name'`;
+			expect(settingsRow).toBeUndefined();
 		} finally {
-			await testSql`
-				INSERT INTO settings (restaurant_id, key, value) VALUES (${rid}, 'restaurant_name', 'Layout Custom Name')`;
+			await testSql`UPDATE restaurants SET name = ${'Test Restaurant layout-load'} WHERE id = ${rid}`;
 		}
 	});
 
