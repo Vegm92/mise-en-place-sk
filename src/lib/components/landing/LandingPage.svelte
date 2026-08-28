@@ -248,8 +248,7 @@
                 align-items:center;max-width:1180px;margin:0 auto;">
       <div>
         <div style="max-width:560px;margin:0 auto;">
-          <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                      color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:26px;">
+          <div class="mep-eyebrow" style="margin-bottom:26px;">
             {$t('waitlist.eyebrow')}
           </div>
           <h1 style="margin:0;font-size:clamp(40px,5.6vw,59.5px);font-weight:600;color:var(--mep-fg);
@@ -289,14 +288,11 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);
-                  border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
-    <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.painEyebrow')}</div>
-      <h2 style="margin:0;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.painHead')}</h2>
-      <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+  <section class="mep-section mep-tinted" style="padding:76px 72px;">
+    <div class="mep-container">
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.painEyebrow')}</div>
+      <h2 class="mep-h2">{$t('waitlist.painHead')}</h2>
+      <div class="mep-grid-3" style="margin-top:44px;">
         {#each painItems as p}
           <div style="padding-top:20px;border-top:1px solid var(--mep-border);">
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
@@ -315,11 +311,9 @@
   </section>
 
   <section class="mep-section" style="padding:88px 72px;">
-    <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.howEyebrow')}</div>
-      <h2 style="margin:0 0 56px;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.howHead')}</h2>
+    <div class="mep-container">
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.howEyebrow')}</div>
+      <h2 class="mep-h2" style="margin:0 0 56px;">{$t('waitlist.howHead')}</h2>
 
       <div style="display:flex;flex-direction:column;gap:64px;">
         {#each stepItems as step, i}
@@ -351,12 +345,10 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);
-                  border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
-    <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:40px;">{$t('waitlist.testimonialsEyebrow')}</div>
-      <div class="mep-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
+  <section class="mep-section mep-tinted" style="padding:76px 72px;">
+    <div class="mep-container">
+      <div class="mep-eyebrow" style="margin-bottom:40px;">{$t('waitlist.testimonialsEyebrow')}</div>
+      <div class="mep-grid-3">
         {#each testimonialItems as item}
           <div style="padding-top:22px;border-top:1px solid var(--mep-border);">
             <p style="margin:0;font-size:17px;line-height:1.6;color:var(--mep-fg);letter-spacing:-0.005em;">
@@ -395,12 +387,10 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
+  <section class="mep-section mep-tinted" style="padding:76px 72px;">
     <div style="max-width:1080px;margin:0 auto;">
-      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.pricingEyebrow')}</div>
-      <h2 style="margin:0;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.pricingTitle')}</h2>
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.pricingEyebrow')}</div>
+      <h2 class="mep-h2">{$t('waitlist.pricingTitle')}</h2>
       <p style="margin:14px 0 0;max-width:620px;font-size:15px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{$t('waitlist.pricingSub')}</p>
 
       <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
@@ -462,8 +452,7 @@
 
   <section class="mep-section" style="padding:0 72px 76px;">
     <div style="max-width:720px;margin:0 auto;">
-      <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:20px;">{$t('waitlist.faqEyebrow')}</div>
+      <div class="mep-eyebrow" style="margin-bottom:20px;">{$t('waitlist.faqEyebrow')}</div>
       <div>
         {#each faqItems as row, i}
           {@const isOpen = openFaq === i}
@@ -495,7 +484,7 @@
     </div>
   </section>
 
-  <section class="mep-section" style="padding:96px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);">
+  <section class="mep-section mep-tinted-top" style="padding:96px 72px;">
     <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
                 gap:64px;align-items:center;">
       <div>
@@ -521,6 +510,39 @@
 </div>
 
 <style>
+  .mep-tinted {
+    background: var(--mep-surface-2);
+    border-top: 1px solid var(--mep-divider);
+    border-bottom: 1px solid var(--mep-divider);
+  }
+  .mep-tinted-top {
+    background: var(--mep-surface-2);
+    border-top: 1px solid var(--mep-divider);
+  }
+  .mep-container { max-width: 1000px; margin: 0 auto; }
+  .mep-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--mep-acc);
+    font-family: var(--mep-fs-mono);
+  }
+  .mep-h2 {
+    margin: 0;
+    max-width: 640px;
+    font-size: clamp(31px, 3.8vw, 37.5px);
+    font-weight: 600;
+    color: var(--mep-fg);
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+  }
+  .mep-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+  }
+
   @media (max-width: 960px) {
     .mep-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
     .mep-hero-grid { grid-template-columns: 1fr !important; gap: 48px !important; }
