@@ -13,13 +13,16 @@
  * `const copy = { es: {...}, en: {...} }` before the migration — but sourced
  * entirely from the shared i18n table (`$t`/`$ti` lookups, `billing.*` reuse,
  * `PROVISIONAL_PRICE`-fed interpolation) — and diffs it against the real
- * pre-migration object, evaluated straight out of the git blob at the last
- * commit before this migration. Any string that drifted, any key that was
- * mistranscribed, and any reused `billing.*` key that isn't actually
- * byte-identical to what it replaced will fail this diff.
+ * pre-migration object, evaluated out of a checked-in snapshot of the page at
+ * the last commit before this migration
+ * (tests/fixtures/waitlist-page-pre-i18n-881aee69.txt, extracted verbatim via
+ * `git show 881aee695ecbd83203ce49df606ca65e721d4cdf:src/routes/waitlist/+page.svelte`
+ * — a fixture rather than a live `git show` so the proof also runs in CI's
+ * shallow clone). Any string that drifted, any key that was mistranscribed,
+ * and any reused `billing.*` key that isn't actually byte-identical to what
+ * it replaced will fail this diff.
  */
 import { describe, it, expect } from 'vitest';
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '../src/lib/billing-plans';
@@ -74,10 +77,9 @@ describe('/waitlist reads prices from PROVISIONAL_PRICE, not hardcoded literals'
 });
 
 function loadPreMigrationCopy(): Record<Locale, Record<string, unknown>> {
-	const preMigrationSrc = execFileSync(
-		'git',
-		['show', '881aee695ecbd83203ce49df606ca65e721d4cdf:src/routes/waitlist/+page.svelte'],
-		{ encoding: 'utf8', cwd: ROOT }
+	const preMigrationSrc = readFileSync(
+		path.join(ROOT, 'tests/fixtures/waitlist-page-pre-i18n-881aee69.txt'),
+		'utf8'
 	);
 	const match = preMigrationSrc.match(/const copy = (\{[\s\S]*?\}) as const;/);
 	if (!match) throw new Error('pre-migration copy object literal not found in the pinned git blob');
