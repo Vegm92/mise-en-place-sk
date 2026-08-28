@@ -30,20 +30,24 @@ function normalizeAmountString(value: string): { sign: string; intPart: string; 
 }
 
 export function parseAmount(value: unknown): number | null {
-	if (value === null || value === undefined) return null;
 	if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-	const parts = normalizeAmountString(String(value));
+	if (typeof value !== 'string') return null;
+	const parts = normalizeAmountString(value);
 	if (!parts) return null;
-	const n = Number(`${parts.sign}${parts.intPart}${parts.fracPart ? `.${parts.fracPart}` : ''}`);
+	const frac = parts.fracPart ? '.' + parts.fracPart : '';
+	const n = Number(`${parts.sign}${parts.intPart}${frac}`);
 	return Number.isFinite(n) ? n : null;
 }
 
 export function toCents(value: MoneyInput): number | null {
 	if (value === null || value === undefined) return null;
-	const raw = typeof value === 'number'
-		? (Number.isFinite(value) ? value.toString() : null)
-		: value;
-	if (raw === null) return null;
+	let raw: string;
+	if (typeof value === 'number') {
+		if (!Number.isFinite(value)) return null;
+		raw = value.toString();
+	} else {
+		raw = value;
+	}
 
 	const parts = normalizeAmountString(raw);
 	if (!parts) return null;
