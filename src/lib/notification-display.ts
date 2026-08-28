@@ -16,6 +16,14 @@ export type Notif = {
   createdAt: Date | null;
 };
 
+export function notificationMessage(
+  n: { message: string; payload: unknown },
+  tiv: (key: string, vars: Record<string, string | number>) => string,
+): string {
+  const msg = n.payload as { messageKey?: string; messageVars?: Record<string, string | number> } | null;
+  return msg?.messageKey ? tiv(msg.messageKey, msg.messageVars ?? {}) : n.message;
+}
+
 export function notificationIcon(type: string) {
   if (type === 'price_shock')                 return TrendingUp;
   if (type === 'low_stock_forecast')          return Package;

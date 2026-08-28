@@ -120,10 +120,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		]);
 
 		const savedAlerts = Number.isFinite(savedId)
-			? (await db.select({ message: systemNotifications.message })
+			? await db.select({
+				id:               systemNotifications.id,
+				notificationType: systemNotifications.notificationType,
+				message:          systemNotifications.message,
+				payload:          systemNotifications.payload,
+			})
 				.from(systemNotifications)
-				.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.invoiceId, savedId))))
-				.map(r => r.message)
+				.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.invoiceId, savedId)))
 			: [];
 
 		const invoiceIds = invoiceRows.map(r => r.id);

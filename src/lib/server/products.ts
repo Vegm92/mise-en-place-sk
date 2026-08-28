@@ -13,6 +13,7 @@ import { createGeminiProvider } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
 import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './queue';
+import { renderTemplate } from '$lib/i18n';
 
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -846,10 +847,11 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 		`);
 		if (existing.length > 0) return;
 
+		const productSuggestionAiVars = { description: rawText, candidateName: candidate.name };
 		await db.insert(systemNotifications).values({
 			restaurantId,
 			notificationType: 'product_suggestion',
-			message: `product_suggestion: ${rawText} ~ ${candidate.name} (llm)`,
+			message: renderTemplate('es', 'notif.msg.productSuggestionAi', productSuggestionAiVars),
 			payload: {
 				description: rawText,
 				productId,
@@ -858,7 +860,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 				score: Math.round(verdict.confidence * 100) / 100,
 				source: 'llm',
 				messageKey: 'notif.msg.productSuggestionAi',
-				messageVars: { description: rawText, candidateName: candidate.name },
+				messageVars: productSuggestionAiVars,
 			},
 			status: 'pending',
 		});

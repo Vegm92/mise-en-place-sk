@@ -18,6 +18,7 @@ import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber, parseAmount } from './money';
 import { bandsFromInputs, taxableBaseMoney, type TaxBand } from '$lib/tax';
+import { renderTemplate } from '$lib/i18n';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 
 export type SaveOutcome =
@@ -166,13 +167,14 @@ async function insertEnrichedLines(
 		savedItems.push(line.item);
 
 		if (line.requiresUnitConversion) {
+			const unitConversionVars = { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal ?? '' };
 			unitConversionAlerts.push({
 				notificationType: 'unit_conversion_needed',
-				message: `unit_conversion_needed: ${li.desc} ${li.qtyFloat ?? '?'} ${li.unitVal}`,
+				message: renderTemplate('es', 'notif.msg.unitConversion', unitConversionVars),
 				payload: {
 					supplierId: target.supplierId, supplierName: target.supplierName, ingredient: li.desc, purchaseUnit: li.unitVal, quantity: li.qtyFloat,
 					messageKey: 'notif.msg.unitConversion',
-					messageVars: { ingredient: li.desc, quantity: li.qtyFloat ?? '?', unit: li.unitVal },
+					messageVars: unitConversionVars,
 				},
 			});
 		}
@@ -394,16 +396,17 @@ export async function linkProductsToInvoice(
 			productByKey.set(normalizeProductKey(desc), r.productId);
 
 			if (r.status === 'fuzzy' && r.suggestion) {
+				const productSuggestionVars = { description: desc, candidateName: r.suggestion.candidateName };
 				suggestions.push({
 					notificationType: 'product_suggestion',
-					message: `product_suggestion: ${desc} ~ ${r.suggestion.candidateName}`,
+					message: renderTemplate('es', 'notif.msg.productSuggestion', productSuggestionVars),
 					payload: {
 						description: desc,
 						productId: r.productId,
 						candidateName: r.suggestion.candidateName,
 						score: Math.round(r.suggestion.score * 100) / 100,
 						messageKey: 'notif.msg.productSuggestion',
-						messageVars: { description: desc, candidateName: r.suggestion.candidateName },
+						messageVars: productSuggestionVars,
 					},
 				});
 			} else if (r.status === 'created') {
@@ -481,13 +484,14 @@ async function runPostSaveEffects(params: {
 		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
 			invoiceId, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
 		);
+		const verifactuVars = { fields: qrMismatches.map((m) => m.field).join(', ') };
 		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
 			notificationType: 'verifactu_qr_mismatch',
-			message: `verifactu_qr_mismatch: ${qrMismatches.map((m) => m.field).join(', ')}`,
+			message: renderTemplate('es', 'notif.msg.verifactuMismatch', verifactuVars),
 			payload: {
 				invoiceNumber, mismatches: qrMismatches,
 				messageKey: 'notif.msg.verifactuMismatch',
-				messageVars: { fields: qrMismatches.map((m) => m.field).join(', ') },
+				messageVars: verifactuVars,
 			},
 		}] : [];
 		await saveAlerts(invoiceId, rid, [
