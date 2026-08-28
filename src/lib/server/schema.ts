@@ -62,7 +62,7 @@ export const invoices = pgTable('invoices', {
 	deletedAt:       timestamp('deleted_at', { withTimezone: true }),
 	eInvoiceFormat:  text('e_invoice_format'),
 	qrUrl:           text('qr_url'),
-	qrMismatch:      integer('qr_mismatch').default(0),
+	qrMismatch:      boolean('qr_mismatch').default(false),
 	acceptedAt:      timestamp('accepted_at', { withTimezone: true }),
 	rejectedAt:      timestamp('rejected_at', { withTimezone: true }),
 	paidAt:          timestamp('paid_at', { withTimezone: true }),
@@ -91,7 +91,7 @@ export const invoiceLineItems = pgTable('invoice_line_items', {
 	unitPrice:              numeric('unit_price', { precision: 12, scale: 2 }),
 	totalPrice:             numeric('total_price', { precision: 12, scale: 2 }),
 	taxRate:                real('tax_rate'),
-	requiresUnitConversion: integer('requires_unit_conversion').default(0),
+	requiresUnitConversion: boolean('requires_unit_conversion').default(false),
 	canonicalUnit:          text('canonical_unit'),
 	productId:              integer('product_id').references(() => products.id, { onDelete: 'set null' }),
 	unitsPerPack:           real('units_per_pack'),
@@ -348,15 +348,6 @@ export const waitlist = pgTable('waitlist', {
 	email:     text('email').notNull().unique(),
 	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
-
-export const uploadSessions = pgTable('upload_sessions', {
-	id:        text('id').primaryKey(),
-	data:      text('data').notNull(),
-	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-	updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-}, (t) => [
-	index('upload_sessions_updated_at_idx').on(t.updatedAt),
-]);
 
 export const uploadBatches = pgTable('upload_batches', {
 	id:           uuid('id').primaryKey().default(sql`gen_random_uuid()`),

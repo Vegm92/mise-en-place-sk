@@ -44,7 +44,7 @@ src/
 │   │   ├── alert-engine.ts  # price-shock / stock-forecast checks on invoice save
 │   │   ├── weekly-digest.ts # AI weekly summary (scheduled in the worker + on dashboard visit)
 │   │   ├── chat-context.ts  # data snapshot for the chat assistant
-│   │   ├── sessions.ts      # upload sessions (DB-backed, Postgres upload_sessions table)
+│   │   ├── sessions.ts      # upload file storage helpers (save/reject/delete)
 │   │   ├── rate-limiter.ts  # Upstash Redis token bucket, in-memory fallback (single instance!)
 │   │   ├── scheduler.ts     # pg-boss cron: weekly digest, overdue + trial-expiry email
 │   │   └── auth-seed.ts     # admin seeding; refuses default password in production

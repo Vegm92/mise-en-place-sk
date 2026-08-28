@@ -339,7 +339,7 @@ export async function enrichLineItems(
 				unitPrice: toMoneyString(li.unitPriceFloat),
 				totalPrice: toMoneyString(li.totalPriceVal),
 				taxRate: li.taxRateVal,
-				requiresUnitConversion: requiresConv ? 1 : 0,
+				requiresUnitConversion: requiresConv,
 				canonicalUnit,
 				unitsPerPack: pack?.unitsPerPack ?? null,
 				unitSize: pack?.unitSize ?? null,
@@ -648,7 +648,7 @@ export async function saveReviewedInvoice(
 				contentHash,
 				notes,
 				qrUrl: qrResult?.url ?? null,
-				qrMismatch: qrMismatches.length > 0 ? 1 : 0,
+				qrMismatch: qrMismatches.length > 0,
 			})
 			.onConflictDoNothing()
 			.returning({ id: invoices.id });

@@ -87,7 +87,7 @@ async function raiseLine(rid: string, supplierId: number, description: string, u
 	`;
 	const [line] = await testSql`
 		INSERT INTO invoice_line_items (restaurant_id, invoice_id, description, unit, quantity, unit_price, requires_unit_conversion)
-		VALUES (${rid}, ${inv.id}, ${description}, ${unit}, 2, 30, 1)
+		VALUES (${rid}, ${inv.id}, ${description}, ${unit}, 2, 30, true)
 		RETURNING id
 	`;
 	return line.id as number;
@@ -209,11 +209,11 @@ describe.skipIf(!hasDbEnv)('defineUnitConversion — setting a conversion from t
 		});
 
 		const [rowA] = await testSql`SELECT requires_unit_conversion, canonical_unit FROM invoice_line_items WHERE id = ${lineA}`;
-		expect(rowA.requires_unit_conversion).toBe(0);
+		expect(rowA.requires_unit_conversion).toBe(false);
 		expect(rowA.canonical_unit).toBe('L');
 
 		const [rowB] = await testSql`SELECT requires_unit_conversion FROM invoice_line_items WHERE id = ${lineB}`;
-		expect(rowB.requires_unit_conversion).toBe(1);
+		expect(rowB.requires_unit_conversion).toBe(true);
 
 		const otherTenantRules = await testSql`SELECT id FROM unit_conversions WHERE restaurant_id = ${ridB}`;
 		expect(otherTenantRules).toHaveLength(0);

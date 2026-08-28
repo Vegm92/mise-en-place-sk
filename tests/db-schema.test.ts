@@ -27,7 +27,6 @@ const EXPECTED_TABLES = [
 	'llm_usage_log',
 	'tenant_llm_quotas',
 	'waitlist',
-	'upload_sessions',
 	'upload_batches',
 	'batch_items',
 	'subscriptions',
@@ -54,6 +53,15 @@ describe.skipIf(!hasDbEnv)('Schema — all tables present', () => {
 		for (const t of EXPECTED_TABLES) {
 			expect(actual, `Table "${t}" is missing`).toContain(t);
 		}
+	});
+
+	it('upload_sessions was dropped (issue #514 — retired by ADR-015, #425 removed the last reader)', async () => {
+		const rows = await testSql`
+			SELECT table_name FROM information_schema.tables
+			WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+		`;
+		const actual = rows.map(r => r.table_name as string);
+		expect(actual).not.toContain('upload_sessions');
 	});
 });
 
@@ -117,6 +125,19 @@ describe.skipIf(!hasDbEnv)('Schema — column checks', () => {
 	it('waitlist: id, email, created_at', async () => {
 		const cols = await getColumns('waitlist');
 		['id', 'email', 'created_at'].forEach(c => expect(cols).toContain(c));
+	});
+
+	it('invoices.qr_mismatch and invoice_line_items.requires_unit_conversion are boolean, not int-as-boolean (issue #514)', async () => {
+		const rows = await testSql`
+			SELECT table_name, data_type FROM information_schema.columns
+			WHERE table_schema = 'public'
+			  AND (
+				  (table_name = 'invoices' AND column_name = 'qr_mismatch')
+				  OR (table_name = 'invoice_line_items' AND column_name = 'requires_unit_conversion')
+			  )
+		`;
+		expect(rows).toHaveLength(2);
+		for (const row of rows) expect(row.data_type).toBe('boolean');
 	});
 });
 

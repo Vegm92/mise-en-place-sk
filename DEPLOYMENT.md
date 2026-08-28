@@ -116,8 +116,9 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 > `STORAGE_DRIVER=railway` — with `local` there, every extraction fails "file
 > not found" and every redeploy deletes users' invoice files.
 
-> Upload sessions are stored in Postgres (table `upload_sessions`) and survive
-> restarts automatically; they need no volume.
+> Upload batches and their items are stored in Postgres (`upload_batches` /
+> `batch_items`, ADR-015) and survive restarts automatically; they need no
+> volume.
 
 ### Reverse proxy / client IP
 
