@@ -167,3 +167,50 @@ describe('on-tint contrast — text painted in a semantic colour on its own -sof
 		expect(fillRatio('#6f8fc4', adrSurfaceDark)).toBeCloseTo(5.1, 1);
 	});
 });
+
+/**
+ * Regression test for issue #719: the account menu's language row painted
+ * the target-locale hint ("EN"/"ES") in `--mep-fg-4` at 11px. On
+ * `--mep-surface` in dark that measured below the 4.5:1 AA floor for text
+ * this size — `--mep-fg-4` is the "de-emphasized, may not clear AA at small
+ * sizes" rung, not a body-text colour. Fixed by moving the hint to
+ * `--mep-fg-3`, the same rung #715 moved the rail's small text to (section
+ * headings, locked labels, switcher label, plan-card separator). This test
+ * pins `--mep-fg-3` on `--mep-surface` above 4.5:1 in both themes using the
+ * literal token values (not prose numbers, which drift — see the dark
+ * `--mep-surface` amendment in ADR-026) and confirms `--mep-fg-4` still
+ * fails dark today, so the regression the fix addressed stays reproducible.
+ */
+describe('fg-3 vs fg-4 on --mep-surface — account-menu locale hint (#719)', () => {
+	it('fg-3 on surface clears the 4.5:1 AA floor in both themes', () => {
+		const fg3Light = token(lightBlock, 'mep-fg-3');
+		const fg3Dark = token(darkBlock, 'mep-fg-3');
+
+		const ratioLight = fillRatio(fg3Light, surfaceLight);
+		const ratioDark = fillRatio(fg3Dark, surfaceDark);
+
+		expect(ratioLight).toBeGreaterThanOrEqual(4.5);
+		expect(ratioDark).toBeGreaterThanOrEqual(4.5);
+	});
+
+	it('fg-4 on surface still falls short in dark, confirming the bug fg-3 was moved to fix', () => {
+		const fg4Dark = token(darkBlock, 'mep-fg-4');
+		const ratioDark = fillRatio(fg4Dark, surfaceDark);
+		expect(ratioDark).toBeLessThan(4.5);
+	});
+
+	it('the account-menu locale hint does not use --mep-fg-4', () => {
+		const layoutPath = path.join(ROOT, 'src/routes/(app)/+layout.svelte');
+		const layout = readFileSync(layoutPath, 'utf8');
+		const menuStart = layout.indexOf('class="acct-menu"');
+		const lastMenuItem = layout.indexOf("action.logout", menuStart);
+		const menuEnd = layout.indexOf('{/if}', lastMenuItem);
+		expect(menuStart).toBeGreaterThan(-1);
+		expect(menuEnd).toBeGreaterThan(menuStart);
+
+		const acctMenuMarkup = layout.slice(menuStart, menuEnd);
+		expect(acctMenuMarkup).not.toContain('mep-fg-4');
+		expect(acctMenuMarkup).toContain("locale === 'es' ? 'EN' : 'ES'");
+		expect(acctMenuMarkup).toContain('mep-fg-3');
+	});
+});

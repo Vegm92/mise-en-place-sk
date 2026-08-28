@@ -852,7 +852,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             <button type="button" class="acct-item" role="menuitem" onclick={toggleLocale}>
               <Languages size={15} />
               <span style="flex:1;">{$t('a11y.switchLanguage')}</span>
-              <span style="font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--mep-fg-4);">
+              <span style="font-size:11px;font-weight:600;letter-spacing:0.02em;color:var(--mep-fg-3);">
                 {$locale === 'es' ? 'EN' : 'ES'}
               </span>
             </button>
