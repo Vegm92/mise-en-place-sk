@@ -5,6 +5,7 @@ import { getStorage } from '$lib/server/storage';
 import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
+import { contentDispositionHeader } from '$lib/server/content-disposition';
 
 const MIME: Record<string, string> = {
 	pdf:  'application/pdf',
@@ -44,7 +45,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	return new Response(new Uint8Array(buf), {
 		headers: {
 			'Content-Type':        mimeType,
-			'Content-Disposition': `inline; filename="${path.basename(key)}"`,
+			'Content-Disposition': contentDispositionHeader('inline', path.basename(key)),
 			'Cache-Control':       'private, no-store',
 		},
 	});

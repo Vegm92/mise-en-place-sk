@@ -5,6 +5,7 @@ import { buildReport, periodOptions, reportCsv } from '$lib/server/reports';
 import { getOrGenerateWeeklyDigest, isoWeek } from '$lib/server/weekly-digest';
 import { trackEvent } from '$lib/server/events';
 import { requireFeature } from '$lib/server/billing';
+import { contentDispositionHeader } from '$lib/server/content-disposition';
 
 export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const rid = locals.restaurantId;
@@ -28,7 +29,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 	return new Response(reportCsv(doc), {
 		headers: {
 			'Content-Type': 'text/csv; charset=utf-8',
-			'Content-Disposition': `attachment; filename="${doc.csv.filename}"`,
+			'Content-Disposition': contentDispositionHeader('attachment', doc.csv.filename),
 		},
 	});
 };
