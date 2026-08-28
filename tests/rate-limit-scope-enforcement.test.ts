@@ -24,6 +24,9 @@
  *   (user AND address, #496); password-change in the same file is migrated
  * - src/routes/login/+page.server.ts — the resend-verification action (#743) is
  *   ip-keyed and unauthenticated: there is no session identity to scope by yet
+ * - src/routes/s/[token]/+page.server.ts, src/routes/s/[token]/og.png/+server.ts —
+ *   the public, no-auth digest-share view (#329) and its OG image; ip-keyed,
+ *   no session exists to scope by
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
@@ -43,6 +46,8 @@ const ALLOWED_DIRECT_CALL_FILES = new Set([
 	'src/lib/server/whatsapp-pairing.ts',
 	'src/routes/(app)/settings/+page.server.ts',
 	'src/routes/login/+page.server.ts',
+	'src/routes/s/[token]/+page.server.ts',
+	'src/routes/s/[token]/og.png/+server.ts',
 ]);
 
 function walkTsFiles(dir: string): string[] {

@@ -4,6 +4,7 @@ export const GET: RequestHandler = ({ url }) => {
 	const body = [
 		'User-agent: *',
 		'Allow: /l/',
+		'Disallow: /s/',
 		'Disallow: /dashboard',
 		'Disallow: /invoices',
 		'Disallow: /invoice/',

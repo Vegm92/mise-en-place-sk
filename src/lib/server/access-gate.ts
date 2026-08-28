@@ -13,7 +13,8 @@ export function isPendingAllowedPath(path: string): boolean {
 		path === '/api/health'                  ||
 		path.startsWith('/auth/')               ||
 		path.startsWith('/waitlist')            ||
-		path.startsWith('/l/')
+		path.startsWith('/l/')                  ||
+		path.startsWith('/s/')
 	);
 }
 
