@@ -79,7 +79,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
 | 510 | P3 | DONE | 1 | Verified (commit 1c19fc2): IP-first sort + short-circuit, accurate scope attribution. 2354/2354. | rate-limit buckets consumed after failure |
 | 509 | P3 | DONE | 1 | Verified (commit f7e4149): synchronous validateAdminSeedConfig at boot (option A), in-seed checks kept as defense-in-depth with honest wording. 2359/2359. | auth-seed prod guard swallowed |
-| 508 | P3 | PENDING | 0 | Also cover: computeFormContentHash uses toMoneyString(raw) vs inserted toMoneyString(toFloat(raw)) — diverges on comma-decimal input (found during #494) | toFloat accepts "12abc"/"1e999" |
+| 508 | P3 | DONE | 1 | Verified (commit efbe25d): shared parseAmount (comma decimals, unambiguous grouping, garbage/hex/exponent rejected), 400 validation in both write paths, #494 hash/insert divergence closed with sound stability analysis. 2393/2393. | toFloat accepts "12abc"/"1e999" |
 | 507 | P3 | PENDING | 0 | | IndexedDB keeps invoice files indefinitely |
 | 506 | P3 | PENDING | 0 | | Sentry API URL hardcoded EU |
 | 505 | P3 | PENDING | 0 | | WhatsApp token host allowlist |
