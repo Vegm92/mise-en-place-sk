@@ -460,7 +460,7 @@ describe('upload action error keys (server-returned, issue #294)', () => {
     ...new Set([
       ...(serverSource.match(/upload\.(?:err|reject)\.[A-Za-z]+/g) ?? []),
       // reject reasons are interpolated into `upload.reject.${reason}`
-      ...(sessionsSource.match(/'(?:unsupportedType|tooLarge|contentMismatch)'/g) ?? [])
+      ...(sessionsSource.match(/'(?:unsupportedType|tooLarge|tooSmall|contentMismatch)'/g) ?? [])
         .map(r => `upload.reject.${r.replaceAll("'", '')}`),
     ]),
   ];

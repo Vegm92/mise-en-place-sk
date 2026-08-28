@@ -25,11 +25,16 @@ vi.mock('../src/lib/server/storage', () => ({
 
 import { saveUploadedFiles } from '../src/lib/server/sessions';
 
+/** Pads well-formed leading bytes past the 1 KB minimum-size floor (#541) with trailing zeros. */
+function padToMinSize(bytes: number[], min = 1100): number[] {
+	return bytes.length >= min ? bytes : [...bytes, ...new Array(min - bytes.length).fill(0)];
+}
+
 // Valid leading bytes for each accepted type.
 const MAGIC = {
-	pdf: [0x25, 0x50, 0x44, 0x46, 0x2d], // %PDF-
-	jpg: [0xff, 0xd8, 0xff],
-	png: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+	pdf: padToMinSize([0x25, 0x50, 0x44, 0x46, 0x2d]), // %PDF-
+	jpg: padToMinSize([0xff, 0xd8, 0xff]),
+	png: padToMinSize([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
 };
 
 function fileWith(name: string, bytes: number[], sizeOverride?: number): File {

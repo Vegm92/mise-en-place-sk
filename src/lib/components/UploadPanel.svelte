@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
-  import { UPLOAD_ACCEPT, isHeicUpload } from '$lib/upload-formats';
+  import { UPLOAD_ACCEPT, MAX_UPLOAD_BYTES, isHeicUpload, uploadExtname, validateUploadFile } from '$lib/upload-formats';
   import {
     OFFLINE_QUEUE_MAX_ITEMS,
     createIndexedDbOfflineQueueStorage,
@@ -65,7 +65,7 @@
   let uploading = $state(false);
   let fileInputEl = $state<HTMLInputElement>();
   let cameraInputEl = $state<HTMLInputElement>();
-  const MAX_MB = 20;
+  const MAX_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
 
   let previewUrl = $state<string | null>(null);
   let previewFile = $state<File | null>(null);
@@ -77,11 +77,15 @@
 
   const queueStorage = createIndexedDbOfflineQueueStorage();
 
-  function addFiles(newFiles: FileList | null) {
+  async function addFiles(newFiles: FileList | null) {
     if (!newFiles) return;
     for (const f of Array.from(newFiles)) {
       if (isHeicUpload(f)) { showError($ti('upload.reject.heic', { name: f.name })); continue; }
-      if (f.size > MAX_MB * 1024 * 1024) { showError($ti('upload.imageTooLarge', { mb: MAX_MB }), true); continue; }
+      const reason = await validateUploadFile(f);
+      if (reason) {
+        showError($ti(`upload.reject.${reason}`, { name: f.name, ext: uploadExtname(f.name) }));
+        continue;
+      }
       if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
     }
   }
