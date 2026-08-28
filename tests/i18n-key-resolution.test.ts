@@ -6,7 +6,7 @@ import { localeKeyTables, keyReferences, lookupKeys, missingKeyRefs } from '../s
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
-const tables = localeKeyTables(readFileSync(path.join(SRC, 'lib/i18n.ts'), 'utf8'));
+const tables = localeKeyTables(readFileSync(path.join(SRC, 'lib/i18n-messages.ts'), 'utf8'));
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -18,7 +18,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe('localeKeyTables (keys read back off the real locale tables)', () => {
-  it('reads one table per locale straight from src/lib/i18n.ts', () => {
+  it('reads one table per locale straight from src/lib/i18n-messages.ts', () => {
     expect([...tables.keys()].sort()).toEqual(['en', 'es']);
     expect(tables.get('es')!.size).toBeGreaterThan(1000);
     expect(tables.get('es')!.has('export.title')).toBe(true);

@@ -20,7 +20,7 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const PAGE = read('src/routes/(app)/budgets/+page.svelte');
-const I18N = read('src/lib/i18n.ts');
+const I18N = read('src/lib/i18n-messages.ts');
 
 const mobileBlock = () => {
 	const at = PAGE.indexOf('md:hidden');
