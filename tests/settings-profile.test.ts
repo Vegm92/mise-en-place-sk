@@ -188,10 +188,10 @@ describe('changePassword', () => {
 });
 
 describe('renameRestaurant', () => {
-	it('renames the restaurant and the settings override for an owner', async () => {
+	it('renames the restaurant for an owner, writing only the restaurants table (issue #515)', async () => {
 		const result = await actions.renameRestaurant(formEvent({ name: ' Casa Lua ' }));
 		expect(result).toEqual({ section: 'restaurant', ok: 'set.profile.ok.restaurant' });
-		expect(updatedRows).toEqual([{ name: 'Casa Lua' }, { value: 'Casa Lua' }]);
+		expect(updatedRows).toEqual([{ name: 'Casa Lua' }]);
 	});
 
 	it('refuses a non-owner member', async () => {
