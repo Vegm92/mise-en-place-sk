@@ -7,6 +7,7 @@
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
+  import Logo from '$lib/components/mep/Logo.svelte';
 
   const { children, data } = $props();
 
@@ -71,11 +72,7 @@
     <div class="hidden md:block" style="width:1px;height:18px;background:var(--mep-divider);"></div>
 
     <div style="display:flex;align-items:center;gap:10px;">
-      <svg width="18" height="18" viewBox="0 0 24 24" style="color:var(--mep-acc);flex-shrink:0;">
-        <rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"/>
-        <rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"/>
-        <rect x="18.5" y="3.5" width="3" height="9" rx="1.5" fill="currentColor"/>
-      </svg>
+      <Logo size={18} />
       <div class="hidden md:block" style="font-size:14px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;">
         Mise en Place
       </div>

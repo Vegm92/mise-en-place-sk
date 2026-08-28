@@ -275,10 +275,10 @@ export async function defineUnitConversion(
 
 	await database.execute(sql`
 		UPDATE invoice_line_items
-		SET requires_unit_conversion = 0,
+		SET requires_unit_conversion = false,
 		    canonical_unit = ${canonicalUnit}
 		WHERE restaurant_id = ${restaurantId}
-		  AND requires_unit_conversion = 1
+		  AND requires_unit_conversion = true
 		  AND mep_norm_key(description) = ${ingredientKey}
 		  AND mep_norm_key(unit) = ${purchaseUnitKey}
 		  AND invoice_id IN (

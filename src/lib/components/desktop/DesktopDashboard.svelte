@@ -8,7 +8,7 @@
   import RailBlock from '$lib/components/desktop/turno/RailBlock.svelte';
   import WorkCard from '$lib/components/desktop/turno/WorkCard.svelte';
   import { categoryColor } from '$lib/colors';
-  import { t, ti, tp, tcat } from '$lib/i18n';
+  import { locale, t, ti, tp, tcat } from '$lib/i18n';
   import { fmtEurCompact, fmtEurSigned } from '$lib/formatters';
   import {
     buildWorklist, buildCategoryRisk, buildPaceCurve, planToDate, atStake, sortWorklist,
@@ -117,9 +117,9 @@
   <div class="card" style="padding:10px 18px;display:flex;align-items:center;gap:20px;flex-shrink:0;flex-wrap:wrap;" data-coach="dashboard-main">
     <StatusChip
       label={$t('turno.ribbon.pace')}
-      value={fmtEurCompact(data.mom.this_month)}
+      value={fmtEurCompact(data.mom.this_month, $locale)}
       tone={hasBudget && paceDelta > 0 ? 'neg' : 'pos'}
-      note={hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta), day: daysElapsed }) : momNote}
+      note={hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, $locale), day: daysElapsed }) : momNote}
       wide={hasBudget}
     >
       {#snippet chart()}
@@ -130,7 +130,7 @@
             max={data.total_budget}
             width={90}
             height={11}
-            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month), plan: fmtEurCompact(planMtd), budget: fmtEurCompact(data.total_budget) })}
+            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month, $locale), plan: fmtEurCompact(planMtd, $locale), budget: fmtEurCompact(data.total_budget, $locale) })}
           />
         {/if}
       {/snippet}
@@ -138,14 +138,14 @@
 
     <StatusChip
       label={$t('turno.ribbon.forecast')}
-      value={fmtEurCompact(projectedEom)}
+      value={fmtEurCompact(projectedEom, $locale)}
       tone={hasBudget && overrun > 0 ? 'neg' : 'pos'}
-      note={hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun) }) : $t('turno.ribbon.forecastNoBudget')}
+      note={hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, $locale) }) : $t('turno.ribbon.forecastNoBudget')}
     />
 
     <StatusChip
       label={$t('turno.ribbon.review')}
-      value={fmtEurCompact(data.review.amount)}
+      value={fmtEurCompact(data.review.amount, $locale)}
       tone={data.review.incidencias > 0 ? 'neg' : data.review.count > 0 ? 'caution' : 'pos'}
       note={data.review.incidencias > 0
         ? $tp('turno.ribbon.issuesNote', data.review.incidencias)
@@ -158,7 +158,7 @@
     <div style="text-align:right;">
       <div class="label">{$t('turno.atStake')}</div>
       <div class="num title-lg" style="line-height:1.15;">
-        {fmtEurCompact(stake)}
+        {fmtEurCompact(stake, $locale)}
       </div>
     </div>
   </div>
@@ -207,7 +207,7 @@
         {#snippet headerRight()}
           {#if hasBudget}
             <span class="num" style="font-size:11px;font-weight:500;color:{overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-              {fmtEurSigned(overrun)}
+              {fmtEurSigned(overrun, $locale)}
             </span>
           {/if}
         {/snippet}
@@ -223,9 +223,9 @@
           points={paceCurve}
           budget={data.total_budget}
           todayDay={data.is_current_month ? Math.min(daysElapsed, daysInMonth) : daysInMonth}
-          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget) })}
+          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget, $locale) })}
           forecastLabel={$t('turno.rail.forecastLabel')}
-          forecastValueLabel={fmtEurCompact(projectedEom)}
+          forecastValueLabel={fmtEurCompact(projectedEom, $locale)}
           ariaLabel={$t('turno.rail.paceAriaChart')}
         />
         {/if}
@@ -248,7 +248,7 @@
                 <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;gap:8px;">
                   <span class="body-strong" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{$tcat(cat.category)}</span>
                   <span class="num" style="font-size:11px;color:var(--mep-fg-3);flex-shrink:0;">
-                    {fmtEurCompact(cat.spent)} <span style="color:var(--mep-fg-4);">/ {fmtEurCompact(cat.budget)}</span>
+                    {fmtEurCompact(cat.spent, $locale)} <span style="color:var(--mep-fg-4);">/ {fmtEurCompact(cat.budget, $locale)}</span>
                   </span>
                 </div>
                 <Bullet
@@ -258,10 +258,10 @@
                   color={categoryColor(cat.category)}
                   width={344}
                   height={11}
-                  label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent), budget: fmtEurCompact(cat.budget) })}
+                  label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent, $locale), budget: fmtEurCompact(cat.budget, $locale) })}
                 />
                 <div class="num" style="font-size:11px;margin-top:4px;color:{cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
-                  {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast), delta: fmtEurSigned(cat.overrun) })}
+                  {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, $locale), delta: fmtEurSigned(cat.overrun, $locale) })}
                 </div>
               </div>
             {/each}

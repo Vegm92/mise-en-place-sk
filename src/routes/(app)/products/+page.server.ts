@@ -6,7 +6,7 @@ import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { loadConversionPrompts } from '$lib/server/products';
 import { VALID_CATEGORIES, periodToDate } from '$lib/constants';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 type ProductRow = {
 	id: number;
@@ -108,7 +108,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const rid = locals.restaurantId!;
-		if (!(await checkRateLimit(`product-create:${rid}`, 30))) {
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'product-create', max: 30 }, { restaurantId: rid }))) {
 			return fail(429, { error: 'Too many requests' });
 		}
 

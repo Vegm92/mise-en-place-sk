@@ -1,20 +1,21 @@
 <script lang="ts">
   import type { PageData } from './$types';
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
-  import { t, tcat, tp } from '$lib/i18n';
+  import { locale, t, tcat, tp } from '$lib/i18n';
+  import { fmtEurCompact } from '$lib/formatters';
   import MobileAnalyticsSpend from '$lib/components/mobile/MobileAnalyticsSpend.svelte';
 
   let { data }: { data: PageData } = $props();
 
-  const periods: Array<[string, string]> = [
-    ['month',   '30 d'],
-    ['quarter', '90 d'],
-    ['half',    '6 m'],
+  const periods = $derived<Array<[string, string]>>([
+    ['month',   $t('spend.period.monthShort')],
+    ['quarter', $t('spend.period.quarterShort')],
+    ['half',    $t('spend.period.halfShort')],
     ['all',     $t('spend.period.allShort')],
-  ];
+  ]);
 
   function fmtEur(n: number | null | undefined) {
-    return new Intl.NumberFormat('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n ?? 0) + ' €';
+    return fmtEurCompact(n ?? 0, $locale);
   }
 
   interface DonutSlice {

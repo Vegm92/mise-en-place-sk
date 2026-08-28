@@ -12,10 +12,73 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 
 | Variable | Required | Notes |
 |---|---|---|
-| `DATABASE_URL` | Yes | Railway Postgres connection string — used by drizzle-kit migrations and pg-boss. Railway exposes it on the Postgres service as `DATABASE_URL` (internal, `*.railway.internal`) and `DATABASE_PUBLIC_URL` (external, for migrations run from your machine or CI). SSL is enforced by the client. |
-| `DATABASE_POOL_URL` | No | Separate pooled connection string for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. |
+| `DATABASE_URL` | Yes | Runtime connection used by the app and the pg-boss worker (web + worker services). **Production must point this at the scoped `mep_runtime` role** (issue #464, `scripts/create-runtime-role.sql`) — SELECT/INSERT/UPDATE/DELETE on app tables only, no DDL, not superuser/owner. Railway exposes the owner connection on the Postgres service as `DATABASE_URL` (internal, `*.railway.internal`) and `DATABASE_PUBLIC_URL` (external) — build the scoped role's URL from the same host/port/database with the `mep_runtime` credentials instead. See [Runtime vs. migration database roles](#runtime-vs-migration-database-roles) below. |
+| `DATABASE_MIGRATION_URL` | Yes (prod) | Owner/superuser connection used **only** by drizzle-kit ("`pnpm db:migrate`", `drizzle.config.ts`) — schema changes need DDL rights `DATABASE_URL` no longer has once it points at the scoped role. Falls back to `DATABASE_URL` with a console warning when unset, so a single-URL local `.env` is unaffected. Set this on the **web** service (Railway's `preDeployCommand` runs `pnpm db:migrate` inside it — see [Runtime vs. migration database roles](#runtime-vs-migration-database-roles)); the worker never runs migrations and does not need it. |
+| `DATABASE_POOL_URL` | No | Separate pooled connection string for the runtime Drizzle ORM queries. Falls back to `DATABASE_URL` when unset. Recommended for multi-replica / HA deployments. Use the scoped runtime role here too. |
 | `DATABASE_SSL_MODE` | No | `require` (default — encrypted, certificate **not** verified) or `verify-full` (certificate chain verified). Applies to both the web pool and the worker's pg-boss connection. Production logs a warning while it is `require`. |
 | `DATABASE_CA_CERT` | No | CA certificate used when `DATABASE_SSL_MODE=verify-full` — either the PEM itself or a path to a `.crt` file — **not** a mode name; setting it to `verify-full` is the swap that takes both services down at startup. Omit to use the system trust store. **Confirming `verify-full` against Railway's cert chain is an open acceptance criterion of #367** — until it is settled, `require` is the working default. |
+
+#### Runtime vs. migration database roles
+
+Before Railway migration issue #464, the app, the worker, and drizzle-kit all connected as the
+same Postgres owner/superuser role. RLS is deliberately disabled (ADR-005 — app-layer tenancy via
+`forTenant().scope()`), so that role had no least-privilege boundary at all: a SQL-injection bug or
+a missed `forTenant()` carried full DDL/superuser blast radius — drop tables, alter schema,
+read/write any tenant, create roles.
+
+**The fix is two credentials.** `DATABASE_MIGRATION_URL` keeps the owner/superuser role and is used
+only by drizzle-kit. `DATABASE_URL` becomes a dedicated `mep_runtime` role with
+SELECT/INSERT/UPDATE/DELETE on app tables — no DDL, no superuser/owner bit. `pg-boss` (both the web
+and worker processes call `PgBoss#start()`) runs its own schema migrations against a `pgboss`
+schema on every boot and on every `pg-boss` package version bump; `scripts/create-runtime-role.sql`
+gives `mep_runtime` **ownership of the `pgboss` schema only**, so that self-management keeps working
+with zero manual steps while every app table in `public` stays owned by the migration role.
+
+**One-time setup per database** (local, and separately for the Railway production database):
+
+1. Generate a strong password for the runtime role and run the script, connected as the existing
+   owner/superuser role:
+
+   ```bash
+   # Local
+   RUNTIME_ROLE_PASSWORD='...' psql "$DATABASE_URL" -f scripts/create-runtime-role.sql
+
+   # Railway — from your machine or CI, against the PUBLIC url (the internal
+   # *.railway.internal host is not reachable from outside the project):
+   RUNTIME_ROLE_PASSWORD='...' psql "$DATABASE_PUBLIC_URL" -f scripts/create-runtime-role.sql
+   ```
+
+   The script is idempotent — safe to re-run after `pnpm db:generate` adds new tables (it
+   re-applies grants) and safe to re-run in general (it does not reset an already-set password).
+
+2. Set Railway variables — **on the web service** (its `preDeployCommand` runs `pnpm db:migrate`,
+   so it needs both credentials) and **on the worker service** (it only ever needs `DATABASE_URL`):
+
+   | Service | `DATABASE_URL` | `DATABASE_MIGRATION_URL` |
+   |---|---|---|
+   | web     | `mep_runtime` connection string | owner/superuser connection string (existing `DATABASE_URL` value, renamed) |
+   | worker  | `mep_runtime` connection string | not needed |
+
+3. **Verify the boundary actually holds** before treating the cutover as done. `$RUNTIME_URL` below
+   is the connection string built in step 2 (the new `DATABASE_URL` value — same host/port/database
+   as before, with the `mep_runtime` credentials):
+
+   ```bash
+   # DML works
+   psql "$RUNTIME_URL" -c "SELECT count(*) FROM restaurants;"
+
+   # DDL is refused — expect "permission denied for schema public"
+   psql "$RUNTIME_URL" -c "CREATE TABLE should_fail (id int);"
+
+   # Existing-table DDL is refused too — expect "must be owner of table restaurants"
+   psql "$RUNTIME_URL" -c "ALTER TABLE restaurants ADD COLUMN should_fail text;"
+   ```
+
+   `tests/create-runtime-role.test.ts` runs the same three checks (plus a full pg-boss
+   start/enqueue/complete cycle) automatically against local Postgres in CI/`pnpm test`.
+
+Rotate the runtime role's password with `ALTER ROLE mep_runtime PASSWORD '...'` directly — re-running
+the script does not reset it.
 
 ### Auth (Auth.js / SvelteKitAuth)
 
@@ -53,8 +116,9 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 > `STORAGE_DRIVER=railway` — with `local` there, every extraction fails "file
 > not found" and every redeploy deletes users' invoice files.
 
-> Upload sessions are stored in Postgres (table `upload_sessions`) and survive
-> restarts automatically; they need no volume.
+> Upload batches and their items are stored in Postgres (`upload_batches` /
+> `batch_items`, ADR-015) and survive restarts automatically; they need no
+> volume.
 
 ### Reverse proxy / client IP
 
@@ -174,7 +238,9 @@ Setup checklist in [WhatsApp bot setup](#whatsapp-bot-setup) below. Leave `WHATS
 
 ## Deploy steps
 
-The app is **two processes** sharing one build and one `DATABASE_URL`:
+The app is **two processes** sharing one build. Both read the scoped `DATABASE_URL`
+(see [Runtime vs. migration database roles](#runtime-vs-migration-database-roles) above); only the
+web service's `db:migrate` step also needs `DATABASE_MIGRATION_URL`:
 
 | Process | Command | Role |
 |---|---|---|
@@ -184,7 +250,7 @@ The app is **two processes** sharing one build and one `DATABASE_URL`:
 **Both must run in production.** Without the worker, uploads succeed but extractions stay `queued` forever.
 
 1. `pnpm install --frozen-lockfile`
-2. `pnpm db:migrate` — applies `drizzle/` migrations. Tenant isolation does **not** depend on the database: it is enforced in application queries by `forTenant().scope()` (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. Row-level-security policies were dropped in the Railway migration, so `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **zero rows is the expected state** — see ADR-005, and #222 for the open path to database-enforced isolation.
+2. `pnpm db:migrate` — applies `drizzle/` migrations, using `DATABASE_MIGRATION_URL` (the owner/superuser role; falls back to `DATABASE_URL` when unset). Tenant isolation does **not** depend on the database: it is enforced in application queries by `forTenant().scope()` (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. Row-level-security policies were dropped in the Railway migration, so `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **zero rows is the expected state** — see ADR-005, and #222 for the open path to database-enforced isolation.
 3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
 4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
    - `node build` (web) and `node build/worker.js` (worker)

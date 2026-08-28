@@ -94,7 +94,7 @@
     <div class="card" style="padding: 16px;">
       <div class="label" style="margin-bottom: 6px;">{$t('turno.atStake')}</div>
       <div class="num" style="font-size: 32px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.025em; line-height: 1;">
-        {stake > 0 ? fmtEur(stake) : '—'}
+        {stake > 0 ? fmtEur(stake, $locale) : '—'}
       </div>
       <div class="body" style="margin-top: 6px;">
         {worklist.length > 0 ? $ti('mdash.turno.stakeSub', { n: worklist.length, urgent: urgentCount }) : $t('turno.worklist.subMoney.zero')}
@@ -105,7 +105,7 @@
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$t('turno.ribbon.pace')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(data.mom.this_month)}
+          {fmtEurCompact(data.mom.this_month, $locale)}
         </span>
         {#if hasBudget}
           <Bullet
@@ -114,26 +114,26 @@
             max={data.total_budget}
             width={140}
             height={10}
-            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month), plan: fmtEurCompact(planMtd), budget: fmtEurCompact(data.total_budget) })}
+            label={$ti('turno.ribbon.paceAria', { spent: fmtEurCompact(data.mom.this_month, $locale), plan: fmtEurCompact(planMtd, $locale), budget: fmtEurCompact(data.total_budget, $locale) })}
           />
         {/if}
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && paceDelta > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta), day: daysElapsed }) : momNote}
+          {hasBudget ? $ti('turno.ribbon.paceNote', { delta: fmtEurSigned(paceDelta, $locale), day: daysElapsed }) : momNote}
         </span>
       </div>
       <div class="card" style="padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$t('turno.ribbon.forecast')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(projectedEom)}
+          {fmtEurCompact(projectedEom, $locale)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {hasBudget && overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-          {hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun) }) : $t('turno.ribbon.forecastNoBudget')}
+          {hasBudget ? $ti('turno.ribbon.forecastNote', { delta: fmtEurSigned(overrun, $locale) }) : $t('turno.ribbon.forecastNoBudget')}
         </span>
       </div>
       <div class="card" style="grid-column: 1 / -1; padding: 12px; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
         <span class="label">{$t('turno.ribbon.review')}</span>
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
-          {fmtEurCompact(data.review.amount)}
+          {fmtEurCompact(data.review.amount, $locale)}
         </span>
         <span class="num" style="font-size: 11px; font-weight: 500; color: {data.review.incidencias > 0 ? 'var(--mep-neg)' : data.review.count > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
           {data.review.incidencias > 0
@@ -180,7 +180,7 @@
       {#snippet headerRight()}
         {#if hasBudget}
           <span class="num" style="font-size: 11px; font-weight: 500; color: {overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-pos)'};">
-            {fmtEurSigned(overrun)}
+            {fmtEurSigned(overrun, $locale)}
           </span>
         {/if}
       {/snippet}
@@ -196,9 +196,9 @@
           points={paceCurve}
           budget={data.total_budget}
           todayDay={data.is_current_month ? Math.min(daysElapsed, daysInMonth) : daysInMonth}
-          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget) })}
+          budgetLabel={$ti('turno.rail.budgetLine', { amount: fmtEurCompact(data.total_budget, $locale) })}
           forecastLabel={$t('turno.rail.forecastLabel')}
-          forecastValueLabel={fmtEurCompact(projectedEom)}
+          forecastValueLabel={fmtEurCompact(projectedEom, $locale)}
           ariaLabel={$t('turno.rail.paceAriaChart')}
           width={326}
           height={130}
@@ -221,7 +221,7 @@
               <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 5px;">
                 <span class="body-strong" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{$tcat(cat.category)}</span>
                 <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">
-                  {fmtEurCompact(cat.spent)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget)}</span>
+                  {fmtEurCompact(cat.spent, $locale)} <span style="color: var(--mep-fg-4);">/ {fmtEurCompact(cat.budget, $locale)}</span>
                 </span>
               </div>
               <Bullet
@@ -231,10 +231,10 @@
                 color={categoryColor(cat.category)}
                 width={326}
                 height={10}
-                label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent), budget: fmtEurCompact(cat.budget) })}
+                label={$ti('turno.rail.catBullet', { category: $tcat(cat.category), spent: fmtEurCompact(cat.spent, $locale), budget: fmtEurCompact(cat.budget, $locale) })}
               />
               <div class="num" style="font-size: 11px; margin-top: 5px; color: {cat.overrun > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
-                {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast), delta: fmtEurSigned(cat.overrun) })}
+                {$ti('turno.rail.catForecast', { amount: fmtEurCompact(cat.forecast, $locale), delta: fmtEurSigned(cat.overrun, $locale) })}
               </div>
             </div>
           {/each}

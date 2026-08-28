@@ -57,10 +57,10 @@
       <div class="label" style="margin-bottom:6px;text-transform:capitalize;">{monthLabel} · {$t('bud.atDay')} {today}</div>
       <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;">
         <div class="num" style="font-size:32px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.7px;line-height:1;">
-          {fmtEur(totalSpent)}
+          {fmtEur(totalSpent, $locale)}
         </div>
         <div style="font-size:13px;color:var(--mep-fg-3);">
-          {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit)}</span>
+          {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, $locale)}</span>
         </div>
       </div>
       {#if totalLimit > 0}
@@ -76,7 +76,7 @@
             <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
             {$t('bud.used')} · {$t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {$t('bud.atClose')}
           </span>
-          <span class="num">{fmtEur(totalLimit - totalSpent)} {$t('bud.remaining')}</span>
+          <span class="num">{fmtEur(totalLimit - totalSpent, $locale)} {$t('bud.remaining')}</span>
         </div>
       {:else}
         <div style="font-size:13px;color:var(--mep-fg-3);">{$t('bud.emptyDesktop')}</div>
@@ -132,9 +132,9 @@
                         style="height:30px;width:130px;text-align:right;" />
                     {/if}
                   </td>
-                  <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent)}</td>
+                  <td class="num" style="color:var(--mep-fg-2);">{fmtEur(r.spent, $locale)}</td>
                   <td class="num" style="color:{r.limit > 0 && r.remaining < 0 ? 'var(--mep-neg)' : 'var(--mep-fg-2)'};font-weight:{r.limit > 0 && r.remaining < 0 ? 500 : 400};">
-                    {r.limit > 0 ? fmtEur(r.remaining) : '—'}
+                    {r.limit > 0 ? fmtEur(r.remaining, $locale) : '—'}
                   </td>
                   <td>
                     {#if r.limit > 0}
@@ -208,9 +208,9 @@
               <tfoot>
                 <tr>
                   <td style="font-weight:600;color:var(--mep-fg);font-size:13px;padding:12px;">{$t('bud.total')}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalLimit)}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalSpent)}</td>
-                  <td class="num" style="font-weight:600;font-size:13px;color:var(--mep-fg-2);">{fmtEur(totalLimit - totalSpent)}</td>
+                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalLimit, $locale)}</td>
+                  <td class="num" style="font-weight:600;font-size:13px;">{fmtEur(totalSpent, $locale)}</td>
+                  <td class="num" style="font-weight:600;font-size:13px;color:var(--mep-fg-2);">{fmtEur(totalLimit - totalSpent, $locale)}</td>
                   <td colspan={2} class="num" style="font-weight:600;font-size:13px;color:{semColor(totalPct)};">
                     {totalPct.toFixed(1).replace('.',',')}%
                   </td>
@@ -245,10 +245,10 @@
         </div>
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;">
           <div class="num" style="font-size:30px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.6px;line-height:1;">
-            {fmtEur(totalSpent)}
+            {fmtEur(totalSpent, $locale)}
           </div>
           <div style="font-size:12.5px;color:var(--mep-fg-3);">
-            {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit)}</span>
+            {$t('bud.of')} <span class="num" style="color:var(--mep-fg-2);font-weight:500;">{fmtEur(totalLimit, $locale)}</span>
           </div>
         </div>
         {#if totalLimit > 0}
@@ -264,7 +264,7 @@
               <span class="num" style="color:{semColor(totalPct)};font-weight:600;">{totalPct.toFixed(1).replace('.',',')}%</span>
               · {$t('bud.projectionClose')} {(totalPct * 31 / today).toFixed(0)}% {$t('bud.atClose')}
             </span>
-            <span class="num">{fmtEur(totalLimit - totalSpent)} {$t('bud.remaining')}</span>
+            <span class="num">{fmtEur(totalLimit - totalSpent, $locale)} {$t('bud.remaining')}</span>
           </div>
         {:else}
           <div style="font-size:13px;color:var(--mep-fg-3);">
@@ -308,9 +308,9 @@
 
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
             <div>
-              <span class="num" style="font-size:13.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(r.spent)}</span>
+              <span class="num" style="font-size:13.5px;font-weight:600;color:var(--mep-fg);">{fmtEur(r.spent, $locale)}</span>
               {#if r.limit > 0}
-                <span style="font-size:11.5px;color:var(--mep-fg-3);"> · {fmtEur(r.limit)}</span>
+                <span style="font-size:11.5px;color:var(--mep-fg-3);"> · {fmtEur(r.limit, $locale)}</span>
               {/if}
             </div>
             <span class="num" style="font-size:13.5px;font-weight:600;color:{r.limit > 0 ? semColor(r.pct) : 'var(--mep-fg-3)'};">

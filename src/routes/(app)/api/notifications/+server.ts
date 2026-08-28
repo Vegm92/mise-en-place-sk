@@ -3,10 +3,12 @@ import type { RequestHandler } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { systemNotifications } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
-	if (!await checkRateLimit(`notifications:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
+	if (!await rateLimitScoped({ scope: 'user', name: 'notifications', max: 60 }, { userId: locals.user!.id })) {
+		throw error(429, 'Too many requests');
+	}
 	const rid    = locals.restaurantId!;
 	const tdb    = forTenant(rid);
 	const status = url.searchParams.get('status') ?? 'pending';
@@ -20,7 +22,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-	if (!await checkRateLimit(`notifications:${locals.user!.id}`, 60)) throw error(429, 'Too many requests');
+	if (!await rateLimitScoped({ scope: 'user', name: 'notifications', max: 60 }, { userId: locals.user!.id })) {
+		throw error(429, 'Too many requests');
+	}
 	const rid  = locals.restaurantId!;
 	const tdb  = forTenant(rid);
 	const body = await request.json().catch(() => ({}));

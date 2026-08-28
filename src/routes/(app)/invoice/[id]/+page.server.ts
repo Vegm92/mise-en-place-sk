@@ -7,7 +7,7 @@ import { asc, eq, and, isNull } from 'drizzle-orm';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { linkProductsToInvoice } from '$lib/server/invoice-save';
 import { parsePack } from '$lib/server/products';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { requirePositiveIntId } from '$lib/server/route-params';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -73,7 +73,7 @@ export const actions: Actions = {
 		const rid = locals.restaurantId!;
 		const tdb = forTenant(rid);
 
-		if (!(await checkRateLimit(`invoice-relink:${rid}`, 20))) {
+		if (!(await rateLimitScoped({ scope: 'tenant', name: 'invoice-relink', max: 20 }, { restaurantId: rid }))) {
 			return fail(429, { error: 'Too many requests' });
 		}
 

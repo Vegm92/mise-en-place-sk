@@ -94,21 +94,21 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		const ym = (inv.invoiceDate as string).slice(0, 7);
 		monthlyCentsMap[ym] = (monthlyCentsMap[ym] ?? 0) + (toCents(inv.totalAmount) ?? 0);
 	}
-	const monthly: { key: string; label: string; value: number; partial: boolean }[] = [];
+	const monthly: { key: string; value: number; partial: boolean }[] = [];
 	for (let i = 6; i >= 0; i--) {
 		const d = new Date();
 		d.setDate(1);
 		d.setMonth(d.getMonth() - i);
 		const ym = d.toISOString().slice(0, 7);
-		const label = d.toLocaleDateString('es-ES', { month: 'short' });
-		monthly.push({ key: ym, label, value: (monthlyCentsMap[ym] ?? 0) / 100, partial: i === 0 });
+		monthly.push({ key: ym, value: (monthlyCentsMap[ym] ?? 0) / 100, partial: i === 0 });
 	}
 
 	const rawTab = url.searchParams.get('tab');
 	const initialTab: Tab = VALID_TABS.includes(rawTab as Tab) ? (rawTab as Tab) : 'resumen';
 	const initialIngredient = url.searchParams.get('ingredient') ?? '';
 	const initialPurchaseUnit = url.searchParams.get('purchase_unit') ?? '';
-	const initialEditing = url.searchParams.get('edit') === '1';
+	const initialHighlightCategory = url.searchParams.get('highlight') === 'category';
+	const initialEditing = url.searchParams.get('edit') === '1' || initialHighlightCategory;
 
 	return {
 		title: 'sup.detail.pageTitle',
@@ -126,6 +126,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		})),
 		initialTab,
 		initialEditing,
+		initialHighlightCategory,
 		initialIngredient,
 		initialPurchaseUnit,
 	};

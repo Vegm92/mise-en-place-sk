@@ -1,8 +1,10 @@
 <script lang="ts">
   import { scrollReveal, stagger, revealAfter, easeOutCubic } from '$lib/waitlist/reveal';
+  import { fmtEur, type Locale } from '$lib/formatters';
 
   let {
     copy,
+    locale = 'es',
   }: {
     copy: {
       mockSpendLabel: string;
@@ -12,10 +14,11 @@
       mockAlertTitle: string;
       mockReview: string;
     };
+    locale?: Locale;
   } = $props();
 
   function fmtEUR(n: number): string {
-    return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    return fmtEur(n, locale);
   }
 
   const rawWeeks = [

@@ -2,10 +2,11 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import * as Sentry from '@sentry/sveltekit';
 import { db } from '$lib/server/db';
-import { userRestaurants, restaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
+import { userRestaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
 import { verifyCredentials } from '$lib/server/auth-credentials';
 import { enqueueAccountCleanup } from '$lib/server/queue';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
+import { explicitDeletionEntries, rootEntry } from '$lib/server/tenant-data-map';
 import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 
 async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
@@ -29,7 +30,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
 
-	if (!(await checkRateLimit(`account-delete:${user.id}`, 3))) {
+	if (!(await rateLimitScoped({ scope: 'user', name: 'account-delete', max: 3 }, { userId: user.id }))) {
 		throw error(429, 'Too many requests — please wait a moment before trying again');
 	}
 
@@ -93,8 +94,11 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 
 	await db.transaction(async (tx) => {
 		if (soleOwnedIds.length > 0) {
-			await tx.delete(subscriptions).where(inArray(subscriptions.restaurantId, soleOwnedIds));
-			await tx.delete(restaurants).where(inArray(restaurants.id, soleOwnedIds));
+			for (const entry of explicitDeletionEntries()) {
+				await tx.delete(entry.table).where(inArray(entry.scopeColumn, soleOwnedIds));
+			}
+			const root = rootEntry();
+			await tx.delete(root.table).where(inArray(root.scopeColumn, soleOwnedIds));
 		}
 		await tx.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
 		await tx.delete(users).where(eq(users.id, user.id));

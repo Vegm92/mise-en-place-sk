@@ -103,12 +103,13 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | ADR | Decision | Status |
 |---|---|---|
 | [022](./conventions/ADR-022-invariants-enforced-in-ci.md) | Architectural invariants are CI gates, not conventions | Active |
+| [029](./conventions/ADR-029-rate-limit-identity-is-tenant-or-user-by-what-the-limit-protects.md) | Rate-limit identity is tenant or user, chosen by what the limit protects | Active |
 
 ## Conventions
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **025**.
+number: **030**.
 
 **Folders group; they do not scope.** A decision belongs in the folder of the
 feature it most affects. Decisions that touch several areas live with the primary

@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { categoryColor, categoryTint } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
-  import { t, tcat, ti } from '$lib/i18n';
+  import { locale, t, tcat, ti } from '$lib/i18n';
   import ChevronRight from '@lucide/svelte/icons/chevron-right';
   import Sparkline from '$lib/components/PriceTrendSparkline.svelte';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
@@ -176,7 +176,7 @@
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
     <div style="flex: 1; text-align: center;">
-      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend)}</div>
+      <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.3px;">{fmtEur(totalSpend, $locale)}</div>
       <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 1px;">{$t('sup.monthSpendChip')}</div>
     </div>
     <div style="width: 1px; height: 28px; background: var(--mep-divider);"></div>
@@ -218,7 +218,7 @@
           </div>
           <div style="text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
             <div class="num" style="font-size: 13px; font-weight: 500; color: var(--mep-fg);">
-              {s.month_spend != null ? fmtEur(s.month_spend) : '—'}
+              {s.month_spend != null ? fmtEur(s.month_spend, $locale) : '—'}
             </div>
             {#if s.delta_pct != null && Math.abs(s.delta_pct) >= 0.1}
               <div class="num" style="font-size: 11px; color: {deltaColor(s.delta_pct)};">

@@ -16,8 +16,8 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 743 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 (another session) | unverified email shows wrong login error |
 | 742 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | CSP img-src missing blob: blocks camera preview |
 | 484 | P1 | DONE | 1 | Verified (commit 29498ff): client pre-upload HEIC rejection w/ iOS guidance, WhatsApp heic/heif no longer saved as .jpg (both drivers); allowlist parity test pre-existed via #520. 1872 tests pass. | .heic accepted by picker, rejected by server |
-| 464 | P1 | PENDING | 0 | Infra-heavy (Postgres roles); needs care | split Postgres superuser into runtime+migration roles |
-| 649 | P1 | PENDING | 0 | Large tracker issue; treat as umbrella | mobile 390px audit tracker |
+| 464 | P1 | DONE | 1 | Verified (commit 5fe56cd, recovered after container restart): idempotent role script (pgboss schema ownership, default privileges), DATABASE_MIGRATION_URL split, DDL-refusal proven vs local PG. 2756/2756. PRODUCTION STEP PENDING: owner runs the script on Railway + swaps env vars per DEPLOYMENT.md runbook. | split Postgres superuser into runtime+migration roles |
+| 649 | P1 | DONE | 1 | Umbrella verified complete: all 13 children (#650–#662) closed via merged PRs (#663-666, #668, #671); GitHub issue closed with checklist verification. | mobile 390px audit tracker |
 | 729 | P1 | DEFERRED | 0 | Escandallo code only on PR #723 branch | recipe name unescaped in emailed escandallo |
 | 728 | P1 | DEFERRED | 0 | PR #723 branch | sub-recipe nutrition scales on gross not net |
 | 727 | P1 | DEFERRED | 0 | PR #723 branch | MAX_RECIPE_DEPTH understates cost, poisons memo |
@@ -72,10 +72,10 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 546 | P3 | DONE | 1 | Verified (commit ab9b4a0): /chat + ChatFab locked-preview (composer disabled, CTA, lock-dot), 402 retained, nav locks pre-existing; tour now includes locked chat step (flag for owner). 2647/2647. | tier gating inconsistent 402 vs redirect |
 | 538 | P3 | DONE | 1 | Verified (commit 9ec76f0): backdrop pointer-events:none (Skip/Escape dismiss), batch modals get aria-labelledby + focus in/restore + Escape, layout-pattern mirror. 2667/2667. | coach mark swallows first click; modal roles |
 | 536 | P3 | DONE | 1 | Verified (commit 52b042b): 12 writer sites render es message via renderTemplate, shared notificationMessage resolver, invoices toast fixed, backfill migration 0047 (adds to PR #748 migration-number hazard). 2718/2718. | notification shows raw enum |
-| 535 | P3 | PENDING | 0 | | number formatting hardcoded es-ES |
-| 534 | P3 | PENDING | 0 | | language switch misses period labels |
-| 515 | P3 | PENDING | 0 | | restaurant name two sources of truth |
-| 514 | P3 | PENDING | 0 | | dead code + schema hygiene |
+| 535 | P3 | DONE | 1 | Verified (commit 5647b66): 16 sites migrated to locale-param formatters (currency style, $locale at call sites, server-safe), waitlist mock follows its toggle. 2738/2738. Residual fmtPrice comma-hardcode in analytics/prices → folded into #534's scope. | number formatting hardcoded es-ES |
+| 534 | P3 | DONE | 1 | Verified (commit f7bf14c): 4 stale consts → $derived, 30d/90d/6m keyed, AST-based detector + repo-wide zero-violation test; fmtPrice routed through fmtEur (#535 residual). 2748/2748. | language switch misses period labels |
+| 515 | P3 | DONE | 1 | Verified (commit 3bee004): restaurants.name sole source, no-op write removed, backfill migration 0048 (settings value wins — preserves what users saw), guard test. 2768/2768. | restaurant name two sources of truth |
+| 514 | P3 | DONE | 1 | Verified (commit 004d740): stub auth route deleted (+ROUTE_POLICY knock-on), upload_sessions dropped, both int-as-boolean columns → boolean w/ hand-fixed USING casts (migration 0049). 2768/2768. | dead code + schema hygiene |
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
 | 510 | P3 | DONE | 1 | Verified (commit 1c19fc2): IP-first sort + short-circuit, accurate scope attribution. 2354/2354. | rate-limit buckets consumed after failure |
 | 509 | P3 | DONE | 1 | Verified (commit f7e4149): synchronous validateAdminSeedConfig at boot (option A), in-seed checks kept as defense-in-depth with honest wording. 2359/2359. | auth-seed prod guard swallowed |
@@ -89,27 +89,27 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 469 | P3 | DONE | 1 | Verified (commit 46c78e7): both loaders require item.restaurantId === locals.restaurantId; foreign == nonexistent. 5 DB-backed tests. 2455/2455. Subsumed if #441 retires the stubs. | scope confirm/extract loaders to restaurantId |
 | 468 | P3 | DONE | 1 | Verified (commit 2da6b2e): resolve+startsWith guard matching read/delete (sep-edge safe), traversal tests. 2458/2458. | LocalDriver.save path containment |
 | 467 | P3 | DONE | 1 | Verified (commit 64cf841): single-source CHAT_ACTION_ROUTES feeds prompt + validator; origin-pinned URL parse blocks external/js/backslash hijacks; label/variant hardening. 2465/2465. | chat ACTIONS href allowlist |
-| 574 | P3 | PENDING | 0 | | highlight Category field on Clasificar |
-| 571 | P3 | PENDING | 0 | | unify logo usage |
+| 574 | P3 | DONE | 1 | Verified (commit 612a6fa): all 3 entry points carry ?highlight=category, pulsing ring w/ reduced-motion guard, fades on interaction/4s, mobile+desktop. 2843/2843. | highlight Category field on Clasificar |
+| 571 | P3 | DONE | 1 | Verified (commit 0507d72): shared theme-aware <Logo> replaces 10 inline copies; favicon/PWA icons recolored to manifest ink/parchment (closes ADR-028's deferred note); email copy sanctioned exception. 2850/2850. | unify logo usage |
 | 569 | P3 | PENDING | 0 | | help page docs/tips |
-| 568 | P3 | PENDING | 0 | | supplier products hover |
-| 524 | P3 | PENDING | 0 | | sql template numeric return types |
+| 568 | P3 | DONE | 1 | Verified (commit b189ad2): 200ms opacity/translateY transition, 100ms entry delay, pointer-events:none, reduced-motion guard. 2856/2856. HOLD: dispatching paused per owner — splitting branch into stacked PRs. | supplier products hover |
+| 524 | P3 | DONE | 1 | Verified (commit 49476a1): 18 dishonest sites across 6 files → ::float8 or string+moneyToNumber; regression-proven guard test. 2786/2786. | sql template numeric return types |
 | 523 | P3 | PENDING | 0 | Infra/env change | DATABASE_SSL_MODE verify-full |
 | 740 | P3 | PENDING | 0 | Deadline 2026-12-01; infra | Railway config-as-code → IaC |
 | 565 | P3 | DEFERRED | 0 | #746 says it resolves this question; recheck after PR #748 merges | pagada/no pagada as desvío |
 | 564 | P3 | PENDING | 0 | Product question (INC-002) | stock forecast has no data basis |
 | 563 | P3 | PENDING | 0 | Legal/date question (INC-001) | B2B e-invoice date unconfirmed |
-| 441 | P3 | PENDING | 0 | | retire legacy redirect stubs |
-| 440 | P3 | PENDING | 0 | | rate-limit key mixing rule |
-| 439 | P3 | PENDING | 0 | | waitlist hardcodes prices |
-| 408 | P3 | PENDING | 0 | Question issue | legal-page copy into i18n |
-| 407 | P3 | PENDING | 0 | | waitlist copy into i18n table |
+| 441 | P3 | BLOCKED | 0 | Issue's own scope requires access-log/Sentry traffic check before deletion — not reachable from sandbox (Sentry MCP unauthenticated). Interim: #469 tenant-scoped both stubs. Owner: check traffic, then delete. | retire legacy redirect stubs |
+| 440 | P3 | DONE | 1 | Verified (commit 8bb138a): ADR-029 rule, rateLimitScoped helper, 22 sites migrated, chat+unit-conversions re-keyed user→tenant, enforcement scan. 2808/2808. Behavior change: chat budget now per-restaurant. | rate-limit key mixing rule |
+| 439 | P3 | DONE | 1 | Verified (commit 76cd7f9): tiers + FAQ prose (es/en) interpolate PROVISIONAL_PRICE, regression-proven scan test. 2813/2813. | waitlist hardcodes prices |
+| 408 | P3 | BLOCKED | 1 | Decision question — analysis + recommendation (separate content files w/ import-rule lint) posted on the issue; awaiting owner's call. | legal-page copy into i18n |
+| 407 | P3 | DONE | 1 | Verified (commit d93aa24): ~91 waitlist.* keys, billing.*/TIER_COPY reuse (byte-compared), SKIP_FILES removed, byte-identity proof vs pre-migration git blob. 2829/2829. | waitlist copy into i18n table |
 | 406 | P3 | PENDING | 0 | Question/copy audit | hero micro-copy audit |
 | 405 | P3 | PENDING | 0 | Copy/content | testimonial venue-type context |
 | 404 | P3 | PENDING | 0 | Copy/content | trust/support bar |
 | 403 | P3 | PENDING | 0 | Copy/content | founders incentive section |
 | 402 | P3 | PENDING | 0 | Copy/content | sin vs con comparison |
-| 390 | P3 | PENDING | 0 | | shared GDPR traversal for export/delete |
+| 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
 | 354 | P3 | PENDING | 0 | Decision issue | feature-flag mechanism decision |
 | 333 | P3 | PENDING | 0 | | testimonial provenance + stale date |

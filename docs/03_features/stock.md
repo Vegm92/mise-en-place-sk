@@ -108,7 +108,7 @@ Numeric stock/burn; unit strings through `canonicalizeUnit`; tenant scope.
 
 **`const GET`**
 
-- Lists all stock level entries for this restaurant. Rate limit keyed on the authenticated user, not the client IP (issue #223) — `stock-levels:${locals.user!.id}`, 60/min — since behind a reverse proxy every request shares one IP and therefore one bucket.
+- Lists all stock level entries for this restaurant. Rate limit is user-scoped, not IP or restaurant (issue #223, ADR-029) — `rateLimitScoped({ scope: 'user', name: 'stock-levels', max: 60 }, { userId })` — user rather than IP since behind a reverse proxy every request shares one IP and therefore one bucket; user rather than restaurant because this paces one person's own dashboard polling, not a shared tenant budget.
 
 **`const POST`**
 
@@ -118,6 +118,6 @@ Numeric stock/burn; unit strings through `canonicalizeUnit`; tenant scope.
 
 **`const POST`**
 
-- Saves a new UoM rule and clears pending flags; rate limit `unit-conversions:${locals.user!.id}`, 30/min (issue #223).
+- Saves a new UoM rule and clears pending flags; rate limit is tenant-scoped — `rateLimitScoped({ scope: 'tenant', name: 'unit-conversions', max: 30 }, { restaurantId: rid })` (issue #223; re-keyed from user to tenant by ADR-029/#440 — it writes into the shared per-tenant conversion catalog and retroactively updates the tenant's `invoice_line_items`, the same shape as `product-aliases`/`supplier-category`, which were already tenant-keyed).
 - Clears pending flags joined by `supplier_id` when known, else by name; comparison is normalized (issue #296) so casing/accent/spacing drift between the pending line and the saved rule doesn't miss.
 - Since #582 the route is a thin validating shell over `defineUnitConversion` (`src/lib/server/products.ts`); the upsert, the line-item flag clearing and the resolution of pending `unit_conversion_needed` alerts all live in that one helper so the Products suggestions tab and the supplier "conversiones" tab cannot drift apart. The response echoes `resolvedPrompts` — how many pending alerts the rule closed.

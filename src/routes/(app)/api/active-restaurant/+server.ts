@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { memberLocations } from '$lib/server/locations';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 
@@ -9,7 +9,7 @@ export const POST: RequestHandler = async ({ request, locals, cookies }) => {
 	const user = locals.user;
 	if (!user) throw error(401, 'Unauthorized');
 
-	if (!(await checkRateLimit(`switch-restaurant:${user.id}`, 30))) {
+	if (!(await rateLimitScoped({ scope: 'user', name: 'switch-restaurant', max: 30 }, { userId: user.id }))) {
 		throw error(429, 'Too many requests — please wait a moment and try again');
 	}
 
