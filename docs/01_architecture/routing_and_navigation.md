@@ -194,11 +194,14 @@ src/routes/
   left, an `AppDashboardMock` styled after the real
   `DesktopDashboard`/`KpiCard` on the right, hidden on phone); "how it works"
   steps use scroll-reactive mock components (`src/lib/components/waitlist/`)
-  driven by `src/lib/waitlist/reveal.ts`'s scroll-into-view progress action. It
-  keeps its own `es`/`en` copy object and light/dark theme toggle independent
-  of the app i18n store/theme system; its mock components carry fixture-like
-  demo copy and are exempted from `scripts/check-i18n-strings.mjs`, same as the
-  page itself.
+  driven by `src/lib/waitlist/reveal.ts`'s scroll-into-view progress action. Its
+  light/dark theme toggle stays independent of the app theme system (its own
+  `localStorage` key, `mep-theme`), but copy and language now go through the
+  shared `$t`/`$ti` + `locale` store from `$lib/i18n.ts` under a `waitlist.*`
+  key namespace (issue #407) — reusing `billing.*` keys for pricing-tier
+  names/taglines/bullets that are byte-identical to `/billing`'s. Its mock
+  components still carry fixture-like demo copy and stay exempted from
+  `scripts/check-i18n-strings.mjs`; the page itself is no longer exempt.
 
 ## Code notes
 

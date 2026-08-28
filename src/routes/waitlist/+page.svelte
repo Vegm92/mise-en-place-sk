@@ -7,7 +7,8 @@
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
   import type { ActionData, PageData } from './$types';
-  import { PROVISIONAL_PRICE } from '$lib/billing-plans';
+  import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
+  import { t, ti, locale, initLocale } from '$lib/i18n';
   import EmailForm from '$lib/components/waitlist/EmailForm.svelte';
   import CaptureMock from '$lib/components/waitlist/CaptureMock.svelte';
   import ExtractMock from '$lib/components/waitlist/ExtractMock.svelte';
@@ -21,6 +22,7 @@
   );
 
   onMount(() => {
+    initLocale();
     const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
     if (storedTheme && storedTheme !== theme) theme = storedTheme;
   });
@@ -29,229 +31,125 @@
     theme = flipTheme();
   }
 
-  const copy = {
-    es: {
-      pageTitle:         'Mise en Place — Gestión de albaranes para restaurantes',
-      metaDescription:   'Digitaliza tus albaranes en segundos. Detecta subidas de precio, controla el gasto por categoría y defiende tu margen. Edición de fundadores — 50 cocinas, Barcelona.',
-      ogTitle:           'Sabe en qué gasta tu cocina, antes que tú.',
-      ogLocale:          'es_ES',
-      betaBadge:         'Beta privada',
-      signInLink:        'Entrar',
-      createAccountLink: 'Crear cuenta',
-      eyebrow:           'Control operativo para cocinas profesionales',
-      headline:          'Sabe en qué gasta tu cocina, antes que tú.',
-      sub:               'Albarán tras albarán, Mise en Place lee, normaliza y vigila tus precios. Tu margen, defendido cada día.',
-      placeholder:       'tu@email.com',
-      submit:            'Quiero acceso anticipado',
-      submitShort:       'Apuntarme',
-      success:           'Estás dentro.',
-      successBody:       'Te escribiremos en cuanto abramos un sitio. Vigila tu bandeja.',
-      alreadyReg:        'Ya estás en la lista. Te avisamos en cuanto abramos un sitio.',
-      errRequired:       'Introduce tu email para continuar.',
-      errInvalid:        'Ese email no parece válido.',
-      errRateLimited:    'Demasiados intentos. Por favor, espera un momento.',
-      errBot:            'No hemos podido verificar que la petición sea humana. Recarga la página e inténtalo de nuevo.',
-      privacy:           'Solo guardamos tu email. Sin spam. Sin compromisos.',
-      spotTotal:         50,
-      spotLabel:         'plazas prioritarias asignadas',
-      painEyebrow:       'El problema',
-      painHead:          'Cada semana se te escapan horas, datos y dinero.',
-      pain: [
-        { stat: '4–6 h', label: 'a la semana',      title: 'Tu equipo transcribe albaranes a mano.',          body: 'Cada albarán acaba en una hoja de cálculo —o en un cajón. Son entre cuatro y seis horas semanales que no cocinan, no entrenan, no atienden.' },
-        { stat: '¿0?',   label: 'visibilidad',       title: 'Nadie sabe en qué se gastó la semana.',         body: '¿Cuánto cárnico llevamos este mes? Sin sistema, esa respuesta tarda treinta minutos. Con Mise en Place, está en pantalla antes de que termines la pregunta.' },
-        { stat: '+8 %',  label: 'subidas invisibles', title: 'Los proveedores te suben el precio en silencio.', body: 'El aceite sube un ocho por ciento un martes cualquiera. Lo descubres tres meses después, revisando albaranes. Mise en Place detecta el cambio y te avisa el mismo día.' },
-      ],
-      howEyebrow:        'Cómo funciona',
-      howHead:           'Tres movimientos. Cero hojas de cálculo.',
-      steps: [
-        { num: '01', tag: 'Captura',    title: 'Una foto al albarán, o el PDF a la web.',       body: 'Desde el móvil del repartidor, por WhatsApp, o arrastrando el PDF al panel. Sin instalaciones. Sin app que recordar abrir.' },
-        { num: '02', tag: 'Inferencia', title: 'El Cerebro de Cocina extrae y normaliza.',       body: 'Proveedor, fechas, IVA, y cada línea con su producto, cantidad y precio. Los nombres se normalizan para que tu inventario sea perfecto.' },
-        { num: '03', tag: 'Poder',      title: 'Tu panel se ilumina con datos que importan.',    body: 'Gasto por categoría. Alertas de precio. Integración con tu TPV (Square / Revo) para restar el stock vendido. Tu margen, en tiempo real.' },
-      ],
-      testimonialsEyebrow: 'Lo que dicen los chefs',
-      testimonials: [
-        { quote: 'Cada semana pierdo horas pasando albaranes a mano. Si funciona como dices, lo firmo ahora mismo.', name: 'Jordi M.',  role: 'Jefe de Cocina · Restaurante de menú · Barcelona' },
-        { quote: 'Lo difícil no es gastar. Lo difícil es saber en qué gastas. Nunca tengo esa visión en tiempo real.', name: 'Ana R.', role: 'Responsable de Compras · Hotel boutique · Costa Brava' },
-        { quote: 'Si me ahorras el viernes de papeleo, me ahorras una jornada entera del equipo de oficina.',          name: 'Iván C.', role: 'Gerente · Grupo de cuatro locales · Eixample' },
-      ],
-      founderEyebrow:    'Una nota del fundador',
-      founderBody:       'Pasé años en cocinas y en restaurantes como chef y ayudando con la administración. El albarán es el documento más maltratado de la industria: nadie lo quiere, todos lo necesitan. Mise en Place existe para que esa hora del viernes deje de existir.',
-      founderName:       'Victor Granda Mancebo',
-      founderRole:       'Fundador · Barcelona',
-      pricingEyebrow:    'Precios',
-      pricingTitle:      'Un plan por cada etapa de la cocina',
-      pricingSub:        'Empieza digitalizando gratis. Añade la capa de inteligencia cuando el volumen lo justifique. Precios por restaurante, provisionales hasta el lanzamiento público.',
-      pricingProvisional:'precio provisional',
-      pricingPerMonth:   '/mes',
-      pricingCta:        'Apuntarme',
-      pricingRecommended:'Recomendado',
-      pricingFoot:       'Todos los planes incluyen digitalización de albaranes, vista de gasto por proveedor y soporte en español.',
-      pricingTrialName:  'Prueba',
-      pricingTrialPrice: 'Gratis',
-      pricingTrialLimit: '14 días o 20 albaranes · sin tarjeta',
-      pricingTrialTagline: 'Prueba el flujo completo de digitalización.',
-      pricingTiers: [
-        { name: 'Starter', price: PROVISIONAL_PRICE.starter, recommended: false, tagline: 'Digitaliza y controla el gasto de un restaurante.',
-          bullets: ['100 albaranes al mes', 'Vista de gasto por categoría y proveedor', '1 restaurante'] },
-        { name: 'Pro', price: PROVISIONAL_PRICE.pro, recommended: true, tagline: 'Todo lo de Starter, más la capa de inteligencia.',
-          bullets: ['300 albaranes al mes', 'Resumen automático por email', 'Asistente IA sobre tus datos', 'Análisis de precios y control de stock'] },
-        { name: 'Business', price: PROVISIONAL_PRICE.business, recommended: false, tagline: 'Las mismas funciones, para un grupo de restaurantes.',
-          bullets: ['Albaranes ilimitados', 'Hasta 5 restaurantes', 'Soporte prioritario'] },
-      ],
-      faqEyebrow:        'Dudas frecuentes',
-      faq: [
-        { q: '¿Qué pasa con mis datos?', a: 'Tus albaranes son tuyos. Los almacenamos cifrados en servidores en la UE y puedes exportarlos o eliminarlos en cualquier momento. Nunca los usaremos para entrenar modelos públicos.' },
-        { q: '¿Necesito cambiar mi software de TPV?', a: 'No. Mise en Place se conecta a Square y Revo desde el primer día, y exporta a Excel/CSV para el resto. Si usas otro TPV, escríbenos —probablemente lo integremos pronto.' },
-        { q: '¿Y si el albarán está manchado o arrugado?', a: 'Esa es nuestra especialidad. El motor lee fotos de móvil hechas con prisas en una cocina caliente. Si algo no se entiende, te lo señala para que lo confirmes tú —no inventa.' },
-        { q: '¿Cuánto cuesta?', a: `Durante el acceso anticipado es gratis. Al lanzamiento: Starter ${PROVISIONAL_PRICE.starter} €, Pro ${PROVISIONAL_PRICE.pro} € y Business ${PROVISIONAL_PRICE.business} € al mes por restaurante — precios provisionales, pueden ajustarse antes del lanzamiento público.` },
-        { q: '¿Cuándo empieza el acceso?', a: 'Abrimos en tandas a partir de julio de 2026. Avisamos por email con al menos una semana de antelación.' },
-      ],
-      closeHead:         'Empieza por el albarán de esta semana.',
-      closeSub:          'Deja tu email y te avisamos cuando abramos la siguiente tanda de cocinas.',
-      footerNote:        'Mise en Place · Barcelona · 2026 — Hecho en una cocina, no en una sala de juntas.',
-      mockWhatsappReply: 'Recibida ✓ · Procesando 14 líneas…',
-      mockConfirmed:     '✓ Confirmada',
-      mockExtractedIn:   'extraído en 2,3 s',
-      mockLinesVat:      '14 líneas · IVA 10 %',
-      mockSpendLabel:    'Gasto · últimas 7 semanas',
-      mockCatMeat:       'Carne',
-      mockCatFish:       'Pescado',
-      mockCatVeg:        'Verdura',
-      mockAlertTitle:    'Aceite de oliva virgen · +8,1 % esta semana',
-      mockReview:        'Revisar',
-      mockKpiSpend:      'Gasto del mes',
-      mockKpiAvg:        'Media / proveedor',
-      mockKpiPending:    'Pendiente',
-      mockKpiBudget:     'Presupuesto',
-      mockKpiOf:         'de',
-      mockKpiInvoicesShort: 'albaranes',
-      mockChartTitle:    'Evolución del gasto',
-    },
-    en: {
-      pageTitle:         'Mise en Place — Invoice Management for Restaurants',
-      metaDescription:   'Digitise your delivery notes in seconds. Detect price rises, track spend by category and defend your margin. Founders edition — 50 kitchens, Barcelona.',
-      ogTitle:           'Know what your kitchen spends, before you do.',
-      ogLocale:          'en_US',
-      betaBadge:         'Private beta',
-      signInLink:        'Sign in',
-      createAccountLink: 'Create account',
-      eyebrow:           'Operational control for professional kitchens',
-      headline:          'Know what your kitchen spends, before you do.',
-      sub:               'Invoice after invoice, Mise en Place reads, normalises, and watches your prices. Your margin, defended every day.',
-      placeholder:       'you@email.com',
-      submit:            'I want early access',
-      submitShort:       'Sign me up',
-      success:           "You're in.",
-      successBody:       "We'll reach out as soon as a spot opens. Watch your inbox.",
-      alreadyReg:        "You're already on the list. We'll let you know when a spot opens.",
-      errRequired:       'Enter your email to continue.',
-      errInvalid:        "That doesn't look like a valid email.",
-      errRateLimited:    'Too many attempts. Please wait a moment.',
-      errBot:            'We could not verify the request as human. Reload the page and try again.',
-      privacy:           'We only store your email. No spam. No commitment.',
-      spotTotal:         50,
-      spotLabel:         'priority spots claimed',
-      painEyebrow:       'The problem',
-      painHead:          'Every week you lose hours, data, and money.',
-      pain: [
-        { stat: '4–6 h', label: 'per week',        title: 'Your team transcribes invoices by hand.',      body: "Every delivery note ends up in a spreadsheet — or a drawer. That's four to six hours a week not cooking, not training, not serving." },
-        { stat: '¿0?',   label: 'visibility',       title: 'Nobody knows what was spent this week.',      body: "How much meat have we ordered this month? Without a system, answering that takes thirty minutes. With Mise en Place, it's on screen before you finish the question." },
-        { stat: '+8 %',  label: 'invisible hikes',  title: 'Suppliers raise prices without telling you.',  body: 'Olive oil goes up eight percent on a random Tuesday. You find out three months later. Mise en Place spots the change and alerts you the same day.' },
-      ],
-      howEyebrow:        'How it works',
-      howHead:           'Three moves. Zero spreadsheets.',
-      steps: [
-        { num: '01', tag: 'Capture',   title: 'A photo of the note, or the PDF to the web.',      body: "From the delivery driver's phone, via WhatsApp, or dragging the PDF into the panel. No install. No app to remember to open." },
-        { num: '02', tag: 'Inference', title: 'The Kitchen Brain extracts and normalises.',         body: 'Supplier, dates, VAT, and every line with its product, quantity and price. Names are normalised so your inventory is perfect.' },
-        { num: '03', tag: 'Power',     title: 'Your dashboard lights up with data that matters.',   body: 'Spend by category. Price alerts. Integration with your POS (Square / Revo) to deduct sold stock. Your margin, in real time.' },
-      ],
-      testimonialsEyebrow: 'What chefs are saying',
-      testimonials: [
-        { quote: "Every week I lose hours entering invoices by hand. If this works the way you describe, I'd sign right now.", name: 'Jordi M.',  role: 'Head Chef · Set-menu restaurant · Barcelona' },
-        { quote: "The hard part isn't spending. It's knowing what you're spending on. I never have that visibility in real time.", name: 'Ana R.', role: 'Purchasing Manager · Boutique hotel · Costa Brava' },
-        { quote: 'If you save me Friday paperwork, you save me a full day of office staff.',                                          name: 'Iván C.', role: 'General Manager · 4-venue group · Eixample' },
-      ],
-      founderEyebrow:    'A note from the founder',
-      founderBody:       "I spent three years in kitchens and two in restaurants helping with admin. The invoice is the most mistreated document in the industry: nobody wants it, everybody needs it. Mise en Place exists so that Friday hour stops existing.",
-      founderName:       'Víctor Egea Martínez',
-      founderRole:       'Founder · Barcelona',
-      pricingEyebrow:    'Pricing',
-      pricingTitle:      'A plan for each stage of the kitchen',
-      pricingSub:        'Start by digitising for free. Add the intelligence layer once volume justifies it. Priced per restaurant, provisional until public launch.',
-      pricingProvisional:'provisional price',
-      pricingPerMonth:   '/mo',
-      pricingCta:        'Sign me up',
-      pricingRecommended:'Recommended',
-      pricingFoot:       'Every plan includes invoice digitisation, spend-by-supplier view, and human support.',
-      pricingTrialName:  'Trial',
-      pricingTrialPrice: 'Free',
-      pricingTrialLimit: '14 days or 20 invoices · no card',
-      pricingTrialTagline: 'Try the whole digitisation flow.',
-      pricingTiers: [
-        { name: 'Starter', price: PROVISIONAL_PRICE.starter, recommended: false, tagline: 'Digitise invoices and see where the money goes.',
-          bullets: ['100 invoices per month', 'Spend by category and supplier', '1 restaurant'] },
-        { name: 'Pro', price: PROVISIONAL_PRICE.pro, recommended: true, tagline: 'Everything in Starter, plus the intelligence layer.',
-          bullets: ['300 invoices per month', 'Automatic email digest', 'AI assistant over your data', 'Price analytics and stock tracking'] },
-        { name: 'Business', price: PROVISIONAL_PRICE.business, recommended: false, tagline: 'The same features, across a group of restaurants.',
-          bullets: ['Unlimited invoices', 'Up to 5 restaurants', 'Priority support'] },
-      ],
-      faqEyebrow:        'Frequently asked questions',
-      faq: [
-        { q: 'What happens to my data?', a: 'Your invoices are yours. We store them encrypted on servers in the EU and you can export or delete them at any time. We will never use them to train public models.' },
-        { q: 'Do I need to change my POS software?', a: 'No. Mise en Place connects to Square and Revo from day one, and exports to Excel/CSV for the rest. If you use another POS, write to us — we probably integrate it soon.' },
-        { q: 'What if the delivery note is stained or crumpled?', a: "That's our specialty. The engine reads phone photos taken in a rush in a hot kitchen. If something is unclear, it flags it for you to confirm — it never makes things up." },
-        { q: 'How much does it cost?', a: `Free during early access. At launch: Starter €${PROVISIONAL_PRICE.starter}, Pro €${PROVISIONAL_PRICE.pro}, and Business €${PROVISIONAL_PRICE.business} per month per restaurant — provisional prices, may adjust before public launch.` },
-        { q: 'When does access start?', a: 'We open in batches from July 2026. We notify by email at least a week in advance.' },
-      ],
-      closeHead:         "Start with this week's invoice.",
-      closeSub:          "Leave your email and we'll let you know when we open the next batch of kitchens.",
-      footerNote:        'Mise en Place · Barcelona · 2026 — Built in a kitchen, not a boardroom.',
-      mockWhatsappReply: 'Received ✓ · Processing 14 lines…',
-      mockConfirmed:     '✓ Confirmed',
-      mockExtractedIn:   'extracted in 2.3 s',
-      mockLinesVat:      '14 lines · 10% VAT',
-      mockSpendLabel:    'Spend · last 7 weeks',
-      mockCatMeat:       'Meat',
-      mockCatFish:       'Fish',
-      mockCatVeg:        'Vegetables',
-      mockAlertTitle:    'Virgin olive oil · +8.1% this week',
-      mockReview:        'Review',
-      mockKpiSpend:      'Month spend',
-      mockKpiAvg:        'Avg / supplier',
-      mockKpiPending:    'Pending',
-      mockKpiBudget:     'Budget',
-      mockKpiOf:         'of',
-      mockKpiInvoicesShort: 'invoices',
-      mockChartTitle:    'Spend trend',
-    },
-  } as const;
+  function toggleLocale() {
+    locale.update((l) => (l === 'es' ? 'en' : 'es'));
+  }
 
-  type Locale = keyof typeof copy;
-  let locale = $state<Locale>('es');
-  const t = $derived(copy[locale]);
-  const otherLang = $derived(locale === 'es' ? 'EN' : 'ES');
-  function toggleLocale() { locale = locale === 'es' ? 'en' : 'es'; }
+  const SPOT_TOTAL = 50;
+
+  const PAID_TIERS: { id: TierId; price: number; recommended: boolean; quota: number | null }[] = [
+    { id: 'starter',  price: PROVISIONAL_PRICE.starter,  recommended: false, quota: 100 },
+    { id: 'pro',      price: PROVISIONAL_PRICE.pro,      recommended: true,  quota: 300 },
+    { id: 'business', price: PROVISIONAL_PRICE.business, recommended: false, quota: null },
+  ];
 
   let openFaq = $state(0);
 
-  const spotPct = $derived((data.spotTaken / t.spotTotal) * 100);
+  const spotPct = $derived((data.spotTaken / SPOT_TOTAL) * 100);
+
+  const painItems = $derived([
+    {
+      stat:  $t('waitlist.pain.0.stat'),
+      label: $t('waitlist.pain.0.label'),
+      title: $t('waitlist.pain.0.title'),
+      body:  $t('waitlist.pain.0.body'),
+    },
+    {
+      stat:  $t('waitlist.pain.1.stat'),
+      label: $t('waitlist.pain.1.label'),
+      title: $t('waitlist.pain.1.title'),
+      body:  $t('waitlist.pain.1.body'),
+    },
+    {
+      stat:  $t('waitlist.pain.2.stat'),
+      label: $t('waitlist.pain.2.label'),
+      title: $t('waitlist.pain.2.title'),
+      body:  $t('waitlist.pain.2.body'),
+    },
+  ]);
+
+  const stepItems = $derived([
+    { num: '01', tag: $t('waitlist.steps.0.tag'), title: $t('waitlist.steps.0.title'), body: $t('waitlist.steps.0.body') },
+    { num: '02', tag: $t('waitlist.steps.1.tag'), title: $t('waitlist.steps.1.title'), body: $t('waitlist.steps.1.body') },
+    { num: '03', tag: $t('waitlist.steps.2.tag'), title: $t('waitlist.steps.2.title'), body: $t('waitlist.steps.2.body') },
+  ]);
+
+  const testimonialItems = $derived([
+    { quote: $t('waitlist.testimonials.0.quote'), name: $t('waitlist.testimonials.0.name'), role: $t('waitlist.testimonials.0.role') },
+    { quote: $t('waitlist.testimonials.1.quote'), name: $t('waitlist.testimonials.1.name'), role: $t('waitlist.testimonials.1.role') },
+    { quote: $t('waitlist.testimonials.2.quote'), name: $t('waitlist.testimonials.2.name'), role: $t('waitlist.testimonials.2.role') },
+  ]);
+
+  const faqItems = $derived([
+    { q: $t('waitlist.faq.0.q'), a: $t('waitlist.faq.0.a') },
+    { q: $t('waitlist.faq.1.q'), a: $t('waitlist.faq.1.a') },
+    { q: $t('waitlist.faq.2.q'), a: $t('waitlist.faq.2.a') },
+    {
+      q: $t('waitlist.faq.3.q'),
+      a: $ti('waitlist.faq.3.a', {
+        starter: PROVISIONAL_PRICE.starter,
+        pro: PROVISIONAL_PRICE.pro,
+        business: PROVISIONAL_PRICE.business,
+      }),
+    },
+    { q: $t('waitlist.faq.4.q'), a: $t('waitlist.faq.4.a') },
+  ]);
+
+  const emailFormCopy = $derived({
+    placeholder:    $t('login.emailPlaceholder'),
+    submit:         $t('waitlist.form.submit'),
+    submitShort:    $t('waitlist.form.submitShort'),
+    success:        $t('waitlist.form.success'),
+    successBody:    $t('waitlist.form.successBody'),
+    alreadyReg:     $t('waitlist.form.alreadyReg'),
+    errRequired:    $t('waitlist.form.errRequired'),
+    errInvalid:     $t('waitlist.form.errInvalid'),
+    errRateLimited: $t('waitlist.form.errRateLimited'),
+    errBot:         $t('signup.err.bot'),
+    privacy:        $t('waitlist.form.privacy'),
+  });
+
+  const dashboardMockCopy = $derived({
+    mockSpendLabel: $t('waitlist.mock.spendLabel'),
+    mockCatMeat:    $t('waitlist.mock.catMeat'),
+    mockCatFish:    $t('tpl.demo.category.pescado'),
+    mockCatVeg:     $t('waitlist.mock.catVeg'),
+    mockAlertTitle: $t('waitlist.mock.alertTitle'),
+    mockReview:     $t('action.review'),
+  });
+
+  const extractMockCopy = $derived({
+    mockExtractedIn: $t('waitlist.mock.extractedIn'),
+    mockConfirmed:   $t('waitlist.mock.confirmed'),
+    mockLinesVat:    $t('waitlist.mock.linesVat'),
+  });
+
+  const appDashboardMockCopy = $derived({
+    mockKpiSpend:         $t('waitlist.mock.kpiSpend'),
+    mockKpiAvg:           $t('waitlist.mock.kpiAvg'),
+    mockKpiPending:       $t('dash.kpi.pending'),
+    mockKpiBudget:        $t('dash.budget'),
+    mockKpiOf:            $t('waitlist.mock.kpiOf'),
+    mockKpiInvoicesShort: $t('shell.quota'),
+    mockChartTitle:       $t('waitlist.mock.chartTitle'),
+  });
 </script>
 
 <svelte:head>
-  <title>{t.pageTitle}</title>
-  <meta name="description" content={t.metaDescription} />
+  <title>{$t('waitlist.pageTitle')}</title>
+  <meta name="description" content={$t('waitlist.metaDescription')} />
   <link rel="canonical" href={data.canonicalUrl} />
 
   <meta property="og:type"        content="website" />
   <meta property="og:url"         content={data.canonicalUrl} />
   <meta property="og:site_name"   content="Mise en Place" />
-  <meta property="og:title"       content={t.ogTitle} />
-  <meta property="og:description" content={t.metaDescription} />
-  <meta property="og:locale"      content={t.ogLocale} />
+  <meta property="og:title"       content={$t('waitlist.ogTitle')} />
+  <meta property="og:description" content={$t('waitlist.metaDescription')} />
+  <meta property="og:locale"      content={$locale === 'es' ? 'es_ES' : 'en_US'} />
 
   <meta name="twitter:card"        content="summary_large_image" />
-  <meta name="twitter:title"       content={t.ogTitle} />
-  <meta name="twitter:description" content={t.metaDescription} />
+  <meta name="twitter:title"       content={$t('waitlist.ogTitle')} />
+  <meta name="twitter:description" content={$t('waitlist.metaDescription')} />
 
   {@html `<script type="application/ld+json">${JSON.stringify({
     '@context': 'https://schema.org',
@@ -260,16 +158,16 @@
         '@type': 'WebSite',
         name: 'Mise en Place',
         url: data.canonicalUrl.replace('/waitlist', ''),
-        inLanguage: locale === 'es' ? 'es' : 'en',
+        inLanguage: $locale === 'es' ? 'es' : 'en',
         potentialAction: { '@type': 'RegisterAction', target: data.canonicalUrl + '#join' },
       },
       {
         '@type': 'SoftwareApplication',
         name: 'Mise en Place',
-        description: t.metaDescription,
+        description: $t('waitlist.metaDescription'),
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Web',
-        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', description: locale === 'es' ? 'Edición de fundadores — lista de espera' : 'Founders edition — waitlist' },
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR', description: $t('waitlist.jsonLdOfferDescription') },
         creator: { '@type': 'Organization', name: 'Mise en Place', address: { '@type': 'PostalAddress', addressLocality: 'Barcelona', addressCountry: 'ES' } },
       },
     ],
@@ -291,9 +189,9 @@
     </div>
     <span style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
                  color:var(--mep-acc);padding:2px 7px;border-radius:4px;
-                 background:var(--mep-acc-soft);font-family:var(--mep-fs-mono);">{t.betaBadge}</span>
+                 background:var(--mep-acc-soft);font-family:var(--mep-fs-mono);">{$t('waitlist.betaBadge')}</span>
     <div style="flex:1;"></div>
-    <button onclick={toggleTheme} aria-label="Toggle theme" style="width:28px;height:28px;flex-shrink:0;
+    <button onclick={toggleTheme} aria-label={$t('waitlist.themeToggleLabel')} style="width:28px;height:28px;flex-shrink:0;
                 border-radius:999px;border:1px solid var(--mep-border);background:var(--mep-surface);
                 display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mep-fg-2);">
       {#if theme === 'dark'}<Sun size={14} />{:else}<Moon size={14} />{/if}
@@ -305,15 +203,15 @@
       <button onclick={toggleLocale} style="background:transparent;border:none;cursor:pointer;
                                             padding:0;font-family:inherit;font-size:inherit;
                                             font-weight:inherit;letter-spacing:inherit;
-                                            color:var(--mep-fg-2);">{otherLang}</button>
+                                            color:var(--mep-fg-2);">{$locale === 'es' ? 'EN' : 'ES'}</button>
     </div>
     <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
       <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;
                                                        font-weight:600;text-decoration:none;
-                                                       white-space:nowrap;">{t.signInLink}</a>
+                                                       white-space:nowrap;">{$t('waitlist.signInLink')}</a>
       <a href="/signup" class="btn btn-primary" style="padding:0 14px;font-size:13px;
                                                       font-weight:600;text-decoration:none;
-                                                      white-space:nowrap;">{t.createAccountLink}</a>
+                                                      white-space:nowrap;">{$t('signup.submit')}</a>
     </div>
   </nav>
 
@@ -324,20 +222,20 @@
         <div style="max-width:560px;margin:0 auto;">
           <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
                       color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:26px;">
-            {t.eyebrow}
+            {$t('waitlist.eyebrow')}
           </div>
           <h1 style="margin:0;font-size:clamp(40px,5.6vw,59.5px);font-weight:600;color:var(--mep-fg);
                      letter-spacing:-0.035em;line-height:1.08;text-wrap:balance;">
-            {t.headline}
+            {$t('waitlist.headline')}
           </h1>
           <p style="margin:22px auto 0;max-width:560px;font-size:18.5px;line-height:1.6;
                     color:var(--mep-fg-2);text-wrap:pretty;">
-            {t.sub}
+            {$t('waitlist.sub')}
           </p>
         </div>
 
         <div style="max-width:460px;margin:40px auto 0;" id="join">
-          <EmailForm big={true} {form} copy={t} />
+          <EmailForm big={true} {form} copy={emailFormCopy} />
         </div>
         <div class="mep-spotbar" style="max-width:460px;margin:18px auto 0;display:flex;align-items:center;gap:14px;
                     padding:10px 14px;border-radius:10px;background:var(--mep-surface);
@@ -345,11 +243,11 @@
           <div style="display:flex;align-items:baseline;gap:6px;">
             <span style="font-size:24px;font-weight:700;color:var(--mep-acc);letter-spacing:-0.6px;
                          line-height:1;font-family:var(--mep-fs-mono);">{data.spotTaken}</span>
-            <span style="font-size:15px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">/ {t.spotTotal}</span>
+            <span style="font-size:15px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">/ {SPOT_TOTAL}</span>
           </div>
           <div style="flex:1;min-width:120px;">
             <div style="font-size:12px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.06em;
-                        font-weight:500;margin-bottom:5px;font-family:var(--mep-fs-mono);">{t.spotLabel}</div>
+                        font-weight:500;margin-bottom:5px;font-family:var(--mep-fs-mono);">{$t('waitlist.spotLabel')}</div>
             <div style="width:100%;height:5px;border-radius:3px;background:var(--mep-hover);overflow:hidden;">
               <div style="width:{spotPct}%;height:100%;background:var(--mep-acc);border-radius:3px;"></div>
             </div>
@@ -358,7 +256,7 @@
       </div>
 
       <div class="mep-hero-visual">
-        <AppDashboardMock copy={t} />
+        <AppDashboardMock copy={appDashboardMockCopy} />
       </div>
     </div>
   </section>
@@ -367,11 +265,11 @@
                   border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1000px;margin:0 auto;">
       <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.painEyebrow}</div>
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.painEyebrow')}</div>
       <h2 style="margin:0;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.painHead}</h2>
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.painHead')}</h2>
       <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
-        {#each t.pain as p}
+        {#each painItems as p}
           <div style="padding-top:20px;border-top:1px solid var(--mep-border);">
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
               <span style="font-size:44px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.04em;
@@ -391,12 +289,12 @@
   <section class="mep-section" style="padding:88px 72px;">
     <div style="max-width:1000px;margin:0 auto;">
       <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.howEyebrow}</div>
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.howEyebrow')}</div>
       <h2 style="margin:0 0 56px;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.howHead}</h2>
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.howHead')}</h2>
 
       <div style="display:flex;flex-direction:column;gap:64px;">
-        {#each t.steps as step, i}
+        {#each stepItems as step, i}
           <div class="mep-how-row" style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
             <div>
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;
@@ -412,11 +310,11 @@
             </div>
             <div>
               {#if i === 0}
-                <CaptureMock whatsappReply={t.mockWhatsappReply} />
+                <CaptureMock whatsappReply={$t('waitlist.mock.whatsappReply')} />
               {:else if i === 1}
-                <ExtractMock copy={t} />
+                <ExtractMock copy={extractMockCopy} />
               {:else}
-                <DashboardMock copy={t} {locale} />
+                <DashboardMock copy={dashboardMockCopy} locale={$locale} />
               {/if}
             </div>
           </div>
@@ -429,9 +327,9 @@
                   border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1000px;margin:0 auto;">
       <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:40px;">{t.testimonialsEyebrow}</div>
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:40px;">{$t('waitlist.testimonialsEyebrow')}</div>
       <div class="mep-grid-3" style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;">
-        {#each t.testimonials as item}
+        {#each testimonialItems as item}
           <div style="padding-top:22px;border-top:1px solid var(--mep-border);">
             <p style="margin:0;font-size:17px;line-height:1.6;color:var(--mep-fg);letter-spacing:-0.005em;">
               &ldquo;{item.quote}&rdquo;
@@ -453,17 +351,17 @@
                   background:linear-gradient(135deg,var(--mep-acc-soft) 0%,var(--mep-acc) 200%);
                   color:var(--mep-acc-fg);display:flex;align-items:center;justify-content:center;
                   font-size:31px;font-weight:700;font-family:var(--mep-fs-mono);letter-spacing:-1px;
-                  border:1px solid var(--mep-border);">VE</div>
+                  border:1px solid var(--mep-border);">{$t('waitlist.founderInitials')}</div>
       <div style="flex:1;">
         <div style="font-size:11.5px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
-                    color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:10px;">{t.founderEyebrow}</div>
+                    color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:10px;">{$t('waitlist.founderEyebrow')}</div>
         <p style="margin:0;font-size:19px;line-height:1.55;color:var(--mep-fg);letter-spacing:-0.005em;">
-          &ldquo;{t.founderBody}&rdquo;
+          &ldquo;{$t('waitlist.founderBody')}&rdquo;
         </p>
         <div style="margin-top:14px;font-size:13px;color:var(--mep-fg-2);">
-          <span style="font-weight:600;color:var(--mep-fg);">{t.founderName}</span>
+          <span style="font-weight:600;color:var(--mep-fg);">{$t('waitlist.founderName')}</span>
           {' · '}
-          <span style="color:var(--mep-fg-3);">{t.founderRole}</span>
+          <span style="color:var(--mep-fg-3);">{$t('waitlist.founderRole')}</span>
         </div>
       </div>
     </div>
@@ -472,57 +370,57 @@
   <section class="mep-section" style="padding:76px 72px;background:var(--mep-surface-2);border-top:1px solid var(--mep-divider);border-bottom:1px solid var(--mep-divider);">
     <div style="max-width:1080px;margin:0 auto;">
       <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{t.pricingEyebrow}</div>
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.pricingEyebrow')}</div>
       <h2 style="margin:0;max-width:640px;font-size:clamp(31px,3.8vw,37.5px);font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{t.pricingTitle}</h2>
-      <p style="margin:14px 0 0;max-width:620px;font-size:15px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{t.pricingSub}</p>
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.pricingTitle')}</h2>
+      <p style="margin:14px 0 0;max-width:620px;font-size:15px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{$t('waitlist.pricingSub')}</p>
 
       <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
         <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;
                     background:transparent;border-style:dashed;box-shadow:none;">
-          <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{t.pricingTrialName}</div>
+          <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{$t('billing.tier.trial.name')}</div>
           <div>
-            <div class="num" style="font-size:35px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);line-height:1.1;">{t.pricingTrialPrice}</div>
-            <div style="margin-top:8px;font-size:12.5px;color:var(--mep-fg-3);">{t.pricingTrialLimit}</div>
+            <div class="num" style="font-size:35px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);line-height:1.1;">{$t('waitlist.pricingTrialPrice')}</div>
+            <div style="margin-top:8px;font-size:12.5px;color:var(--mep-fg-3);">{$t('waitlist.pricingTrialLimit')}</div>
           </div>
-          <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{t.pricingTrialTagline}</div>
-          <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{t.pricingCta}</a>
+          <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{$t('billing.tier.trial.tagline')}</div>
+          <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{$t('waitlist.form.submitShort')}</a>
         </div>
 
-        {#each t.pricingTiers as tier}
+        {#each PAID_TIERS as tier}
           <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;position:relative;
                       border-color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-border)'};
                       box-shadow:{tier.recommended ? '0 0 0 1px var(--mep-acc), var(--mep-shadow-card)' : 'var(--mep-shadow-card)'};">
             <div style="display:flex;align-items:center;gap:8px;">
-              <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{tier.name}</div>
+              <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{$t(`billing.plan.${tier.id}`)}</div>
               {#if tier.recommended}
-                <span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:12px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{t.pricingRecommended}</span>
+                <span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:12px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{$t('billing.recommended')}</span>
               {/if}
             </div>
             <div>
               <div style="display:flex;align-items:baseline;gap:6px;">
                 <span class="num" style="font-size:35px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);
                   border-bottom:2px dotted var(--mep-border-strong);line-height:1.1;">{tier.price} €</span>
-                <span style="font-size:14px;color:var(--mep-fg-3);">{t.pricingPerMonth}</span>
+                <span style="font-size:14px;color:var(--mep-fg-3);">{$t('waitlist.pricingPerMonth')}</span>
               </div>
               <div style="margin-top:8px;">
                 <span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;
                   letter-spacing:0.02em;text-transform:uppercase;color:var(--mep-fg-3);
                   border:1px dashed var(--mep-border-strong);border-radius:4px;padding:1px 5px;">
-                  {t.pricingProvisional}
+                  {$t('billing.provisional')}
                 </span>
               </div>
             </div>
-            <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{tier.tagline}</div>
-            <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{t.pricingCta}</a>
+            <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{$t(`billing.tier.${tier.id}.tagline`)}</div>
+            <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{$t('waitlist.form.submitShort')}</a>
             <div style="height:1px;background:var(--mep-divider);"></div>
             <div style="display:flex;flex-direction:column;gap:8px;">
-              {#each tier.bullets as bullet}
+              {#each TIER_COPY[tier.id].bullets(tier.quota) as bullet}
                 <div style="display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--mep-fg-2);">
                   <span style="color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};margin-top:1px;flex-shrink:0;">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
                   </span>
-                  <span style="line-height:1.4;">{bullet}</span>
+                  <span style="line-height:1.4;">{bullet.interpolate ? $ti(bullet.key, bullet.interpolate) : $t(bullet.key)}</span>
                 </div>
               {/each}
             </div>
@@ -530,19 +428,19 @@
         {/each}
       </div>
 
-      <p style="margin:32px 0 0;font-size:13.5px;color:var(--mep-fg-3);line-height:1.6;max-width:780px;text-wrap:pretty;">{t.pricingFoot}</p>
+      <p style="margin:32px 0 0;font-size:13.5px;color:var(--mep-fg-3);line-height:1.6;max-width:780px;text-wrap:pretty;">{$t('waitlist.pricingFoot')}</p>
     </div>
   </section>
 
   <section class="mep-section" style="padding:0 72px 76px;">
     <div style="max-width:720px;margin:0 auto;">
       <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:20px;">{t.faqEyebrow}</div>
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:20px;">{$t('waitlist.faqEyebrow')}</div>
       <div>
-        {#each t.faq as row, i}
+        {#each faqItems as row, i}
           {@const isOpen = openFaq === i}
           <div style="border-top:1px solid var(--mep-divider);
-                      {i === t.faq.length - 1 ? 'border-bottom:1px solid var(--mep-divider);' : ''}">
+                      {i === faqItems.length - 1 ? 'border-bottom:1px solid var(--mep-divider);' : ''}">
             <button onclick={() => { openFaq = isOpen ? -1 : i; }}
               style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
                      display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
@@ -574,11 +472,11 @@
                 gap:64px;align-items:center;">
       <div>
         <h2 style="margin:0;font-size:clamp(31px,4vw,40px);font-weight:600;color:var(--mep-fg);
-                   letter-spacing:-0.025em;line-height:1.15;text-wrap:balance;">{t.closeHead}</h2>
-        <p style="margin:14px 0 0;font-size:17px;line-height:1.6;color:var(--mep-fg-2);max-width:420px;">{t.closeSub}</p>
+                   letter-spacing:-0.025em;line-height:1.15;text-wrap:balance;">{$t('waitlist.closeHead')}</h2>
+        <p style="margin:14px 0 0;font-size:17px;line-height:1.6;color:var(--mep-fg-2);max-width:420px;">{$t('waitlist.closeSub')}</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;">
-        <EmailForm big={true} {form} copy={t} />
+        <EmailForm big={true} {form} copy={emailFormCopy} />
       </div>
     </div>
   </section>
@@ -593,7 +491,7 @@
       </svg>
       <span style="font-size:17px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
     </div>
-    <div style="font-size:12.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{t.footerNote}</div>
+    <div style="font-size:12.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{$t('waitlist.footerNote')}</div>
   </footer>
 
 </div>
