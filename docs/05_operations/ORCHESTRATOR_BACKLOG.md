@@ -103,7 +103,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 440 | P3 | DONE | 1 | Verified (commit 8bb138a): ADR-029 rule, rateLimitScoped helper, 22 sites migrated, chat+unit-conversions re-keyed user→tenant, enforcement scan. 2808/2808. Behavior change: chat budget now per-restaurant. | rate-limit key mixing rule |
 | 439 | P3 | DONE | 1 | Verified (commit 76cd7f9): tiers + FAQ prose (es/en) interpolate PROVISIONAL_PRICE, regression-proven scan test. 2813/2813. | waitlist hardcodes prices |
 | 408 | P3 | PENDING | 0 | Question issue | legal-page copy into i18n |
-| 407 | P3 | PENDING | 0 | | waitlist copy into i18n table |
+| 407 | P3 | DONE | 1 | Verified (commit d93aa24): ~91 waitlist.* keys, billing.*/TIER_COPY reuse (byte-compared), SKIP_FILES removed, byte-identity proof vs pre-migration git blob. 2829/2829. | waitlist copy into i18n table |
 | 406 | P3 | PENDING | 0 | Question/copy audit | hero micro-copy audit |
 | 405 | P3 | PENDING | 0 | Copy/content | testimonial venue-type context |
 | 404 | P3 | PENDING | 0 | Copy/content | trust/support bar |
