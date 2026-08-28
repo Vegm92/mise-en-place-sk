@@ -66,13 +66,13 @@ beforeAll(async () => {
 	`;
 
 	await testSql`
-		INSERT INTO invoices (restaurant_id, invoice_number, status, due_date, created_at, deleted_at) VALUES
-			(${rid}, 'INV-1', 'pending',  NULL,                          now(),                        NULL),
-			(${rid}, 'INV-2', 'pending',  (now() - interval '1 day')::date, now(),                     NULL),
-			(${rid}, 'INV-3', 'accepted', (now() - interval '1 day')::date, now(),                     NULL),
-			(${rid}, 'INV-4', 'paid',     (now() - interval '1 day')::date, now(),                     NULL),
-			(${rid}, 'INV-5', 'pending',  NULL,                          now() - interval '2 months',  NULL),
-			(${rid}, 'INV-6', 'pending',  (now() - interval '1 day')::date, now(),                     now())
+		INSERT INTO invoices (restaurant_id, invoice_number, review_state, created_at, deleted_at) VALUES
+			(${rid}, 'INV-1', 'por_revisar', now(),                        NULL),
+			(${rid}, 'INV-2', 'incidencia',  now(),                        NULL),
+			(${rid}, 'INV-3', 'por_revisar', now(),                        NULL),
+			(${rid}, 'INV-4', 'revisado',    now(),                        NULL),
+			(${rid}, 'INV-5', 'revisado',    now() - interval '2 months',  NULL),
+			(${rid}, 'INV-6', 'incidencia',  now(),                        now())
 	`;
 
 	await testSql`
@@ -92,14 +92,14 @@ afterAll(async () => {
 });
 
 describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the query reduction (issue #489)', () => {
-	it('reports the invoice badge as pending, non-deleted invoices only', async () => {
+	it('reports the invoice badge as unreviewed, non-deleted invoices only', async () => {
 		const data = await runLoad();
 		expect(data.invoiceBadge).toBe(3);
 	});
 
-	it('reports the reminder badge as overdue invoices plus exceeded budget alerts', async () => {
+	it('reports the reminder badge as incidencias plus exceeded budget alerts', async () => {
 		const data = await runLoad();
-		expect(data.reminderBadge).toBe(3);
+		expect(data.reminderBadge).toBe(2);
 	});
 
 	it('reports quota usage as non-deleted invoices created this month', async () => {
@@ -148,15 +148,15 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		const other = await createTestRestaurant('layout-load-other');
 		try {
 			await testSql`
-				INSERT INTO invoices (restaurant_id, invoice_number, status, due_date, created_at, deleted_at)
-				VALUES (${other.id}, 'OTHER-1', 'pending', (now() - interval '1 day')::date, now(), NULL)`;
+				INSERT INTO invoices (restaurant_id, invoice_number, review_state, created_at, deleted_at)
+				VALUES (${other.id}, 'OTHER-1', 'incidencia', now(), NULL)`;
 			await testSql`
 				INSERT INTO system_notifications (restaurant_id, notification_type, message, payload, status, created_at)
 				VALUES (${other.id}, 'budget_overage', 'Other budget exceeded', ${JSON.stringify({ level: 'exceeded' })}, 'pending', now())`;
 
 			const data = await runLoad();
 			expect(data.invoiceBadge).toBe(3);
-			expect(data.reminderBadge).toBe(3);
+			expect(data.reminderBadge).toBe(2);
 			expect(data.quotaUsed).toBe(4);
 		} finally {
 			await cleanupTestRestaurant(other.id);
