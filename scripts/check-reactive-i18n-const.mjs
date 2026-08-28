@@ -88,12 +88,6 @@ function callsTranslator(node, sf) {
 }
 
 /**
- * Every offending top-level `const` in one `<script>` block's source.
- *
- * @param {string} code the text between `<script...>` and `</script>`
- * @returns {{ name: string, pos: number }[]}
- */
-/**
  * @param {ts.VariableDeclaration} decl
  * @param {ts.SourceFile} sf
  * @returns {boolean}
@@ -105,6 +99,12 @@ function isOffendingConst(decl, sf) {
 	return callsTranslator(decl.initializer, sf);
 }
 
+/**
+ * Every offending top-level `const` in one `<script>` block's source.
+ *
+ * @param {string} code the text between `<script...>` and `</script>`
+ * @returns {{ name: string, pos: number }[]}
+ */
 export function nonReactiveTranslatorConsts(code) {
 	const sf = ts.createSourceFile('x.ts', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 	/** @type {{ name: string, pos: number }[]} */
