@@ -83,7 +83,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 507 | P3 | DONE | 1 | Verified (commit 070d877): extracted offline-queue module — 7d TTL sweep w/ notice, 5-attempt cap, exp backoff, Blob storage + base64 compat, clear on logout (all 5 forms). 2407/2407. | IndexedDB keeps invoice files indefinitely |
 | 506 | P3 | DONE | 1 | Verified (commit 57581a2): SENTRY_API_BASE_URL env var, EU default preserved for current deployment, docs + 6 tests. 2413/2413. | Sentry API URL hardcoded EU |
 | 505 | P3 | DONE | 1 | Verified (commit 8a78203): https+allowlist (incl. fbsbx.com from real fixtures), redirect:'manual', meta.url shape validation; Baileys driver confirmed unaffected. 2423/2423. | WhatsApp token host allowlist |
-| 504 | P3 | PENDING | 0 | | Content-Disposition unescaped |
+| 504 | P3 | DONE | 1 | Verified (commit cf9cb12): shared contentDispositionHeader helper (ASCII fold + RFC 5987), applied to invoice file + reports CSV; all 5 header sites audited. 2439/2439. | Content-Disposition unescaped |
 | 503 | P3 | PENDING | 0 | | consumeVerificationToken not atomic |
 | 470 | P3 | PENDING | 0 | | Sentry scrubber coverage |
 | 469 | P3 | PENDING | 0 | | scope confirm/extract loaders to restaurantId |
