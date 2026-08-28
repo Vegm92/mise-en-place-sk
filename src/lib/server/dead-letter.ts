@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/sveltekit';
 import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
-import { db, forTenant } from './db';
+import { db, forTenant, runAsSystem, runWithTenantContext } from './db';
 import { deadLetterQueue, restaurants } from './schema';
 
 export const DEAD_LETTER_STATUSES = ['pending', 'reviewed', 'replayed', 'discarded'] as const;
@@ -149,58 +149,60 @@ export async function recordDeadLetter(input: DeadLetterInput): Promise<number |
 	const errorClass = input.errorClass ?? classifyDeadLetterError(input.error);
 	const { message, stack } = describeError(input.error);
 	try {
-		const payload = serializePayload(input.payload);
-		const attempt = Number.isInteger(input.attempt) ? (input.attempt as number) : 1;
-		const sourceId = typeof input.sourceId === 'string' ? input.sourceId : null;
+		return await runAsSystem(async () => {
+			const payload = serializePayload(input.payload);
+			const attempt = Number.isInteger(input.attempt) ? (input.attempt as number) : 1;
+			const sourceId = typeof input.sourceId === 'string' ? input.sourceId : null;
 
-		if (input.skipIfJobRecorded && input.jobId) {
-			// tenant-scope-ok: keyed by pg-boss's globally-unique job id, which
-			// already identifies one tenant's job; this is the worker drain asking
-			// whether the handler got there first.
-			const [already] = await db
-				.select({ id: deadLetterQueue.id })
-				.from(deadLetterQueue)
-				.where(eq(deadLetterQueue.jobId, input.jobId))
-				.limit(1);
-			if (already) return already.id;
-		}
+			if (input.skipIfJobRecorded && input.jobId) {
+				// tenant-scope-ok: keyed by pg-boss's globally-unique job id, which
+				// already identifies one tenant's job; this is the worker drain asking
+				// whether the handler got there first.
+				const [already] = await db
+					.select({ id: deadLetterQueue.id })
+					.from(deadLetterQueue)
+					.where(eq(deadLetterQueue.jobId, input.jobId))
+					.limit(1);
+				if (already) return already.id;
+			}
 
-		if (sourceId) {
-			const bumped = await db
-				.update(deadLetterQueue)
-				.set({
+			if (sourceId) {
+				const bumped = await db
+					.update(deadLetterQueue)
+					.set({
+						errorMessage: message,
+						stack,
+						payload,
+						attempt,
+						lastSeenAt: new Date(),
+						occurrences: sql`${deadLetterQueue.occurrences} + 1`,
+					})
+					.where(and(
+						eq(deadLetterQueue.queue, input.queue),
+						eq(deadLetterQueue.sourceId, sourceId),
+						eq(deadLetterQueue.errorClass, errorClass),
+						eq(deadLetterQueue.status, 'pending'),
+					))
+					.returning({ id: deadLetterQueue.id });
+				if (bumped.length > 0) return bumped[0].id;
+			}
+
+			const [row] = await db
+				.insert(deadLetterQueue)
+				.values({
+					queue: input.queue,
+					restaurantId: tenantColumnValue(input.restaurantId),
+					sourceId,
+					jobId: input.jobId ?? null,
+					errorClass,
 					errorMessage: message,
 					stack,
 					payload,
 					attempt,
-					lastSeenAt: new Date(),
-					occurrences: sql`${deadLetterQueue.occurrences} + 1`,
 				})
-				.where(and(
-					eq(deadLetterQueue.queue, input.queue),
-					eq(deadLetterQueue.sourceId, sourceId),
-					eq(deadLetterQueue.errorClass, errorClass),
-					eq(deadLetterQueue.status, 'pending'),
-				))
 				.returning({ id: deadLetterQueue.id });
-			if (bumped.length > 0) return bumped[0].id;
-		}
-
-		const [row] = await db
-			.insert(deadLetterQueue)
-			.values({
-				queue: input.queue,
-				restaurantId: tenantColumnValue(input.restaurantId),
-				sourceId,
-				jobId: input.jobId ?? null,
-				errorClass,
-				errorMessage: message,
-				stack,
-				payload,
-				attempt,
-			})
-			.returning({ id: deadLetterQueue.id });
-		return row?.id ?? null;
+			return row?.id ?? null;
+		});
 	} catch (err) {
 		console.error(`[dlq] could not record dead letter for "${input.queue}" (non-fatal):`, err);
 		Sentry.captureException(err, { tags: { deadLetter: input.queue, errorClass } });
@@ -253,7 +255,7 @@ export async function runWithDeadLetter<T>(
 	run: () => Promise<T>,
 ): Promise<T> {
 	try {
-		return await run();
+		return await runWithTenantContext(ref.restaurantId, run);
 	} catch (err) {
 		if ((ref.retriesLeft ?? 0) > 0) throw err;
 		console.error(`[dlq] "${ref.queue}" job ${ref.jobId ?? '-'} dead-lettered after ${ref.attempt ?? 1} attempt(s):`, err);

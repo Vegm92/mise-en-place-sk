@@ -52,7 +52,12 @@ vi.mock('../src/lib/server/db', async () => {
 	const client = url
 		? postgres(url, { ssl: isLocal ? false : 'require', prepare: false, max: 1, idle_timeout: 3 })
 		: null;
-	return { db: client ? drizzle(client, { schema }) : ({} as never), forTenant };
+	return {
+		db: client ? drizzle(client, { schema }) : ({} as never),
+		forTenant,
+		runAsSystem: (fn: () => unknown) => fn(),
+		runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
+	};
 });
 
 import { and, eq } from 'drizzle-orm';

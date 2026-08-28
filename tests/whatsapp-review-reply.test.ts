@@ -43,7 +43,11 @@ const {
 	};
 });
 
-vi.mock('../src/lib/server/db', () => ({ db: dbMock }));
+vi.mock('../src/lib/server/db', () => ({
+	db: dbMock,
+	runAsSystem: (fn: () => unknown) => fn(),
+	runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
+}));
 vi.mock('../src/lib/server/idempotency', () => ({
 	WHATSAPP_SCOPE: 'whatsapp',
 	claimIdempotencyKey: claimMock,

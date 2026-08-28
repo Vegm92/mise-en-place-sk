@@ -19,8 +19,9 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 | ADR | Decision | Status |
 |---|---|---|
-| [001](./tenancy/ADR-001-app-level-tenant-scoping.md) | Tenant isolation via `forTenant().scope()`, not RLS | Active, amended by 005 |
-| [005](./tenancy/ADR-005-rls-retired.md) | RLS policies dropped on Railway; app-layer scoping is the only boundary | Active |
+| [001](./tenancy/ADR-001-app-level-tenant-scoping.md) | Tenant isolation via `forTenant().scope()`, not RLS | Active, amended by 005, 030 |
+| [005](./tenancy/ADR-005-rls-retired.md) | RLS policies dropped on Railway; app-layer scoping is the only boundary | Active, amended by 030 |
+| [030](./tenancy/ADR-030-rls-runtime-role.md) | Database-enforced tenant isolation: `mep_runtime` role + ENABLE ROW LEVEL SECURITY | Active |
 
 ### [`ingestion/`](./ingestion) — upload → extract → confirm
 
@@ -109,7 +110,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **030**.
+number: **031**.
 
 **Folders group; they do not scope.** A decision belongs in the folder of the
 feature it most affects. Decisions that touch several areas live with the primary
@@ -138,7 +139,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **028**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **031**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original

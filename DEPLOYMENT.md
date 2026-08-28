@@ -21,10 +21,11 @@ Copy `.env.example` to `.env` and fill in every value before starting the server
 #### Runtime vs. migration database roles
 
 Before Railway migration issue #464, the app, the worker, and drizzle-kit all connected as the
-same Postgres owner/superuser role. RLS is deliberately disabled (ADR-005 — app-layer tenancy via
-`forTenant().scope()`), so that role had no least-privilege boundary at all: a SQL-injection bug or
-a missed `forTenant()` carried full DDL/superuser blast radius — drop tables, alter schema,
-read/write any tenant, create roles.
+same Postgres owner/superuser role, and that role had no least-privilege boundary at all: a
+SQL-injection bug or a missed `forTenant()` carried full DDL/superuser blast radius — drop tables,
+alter schema, read/write any tenant, create roles. RLS was disabled at the time (ADR-005) precisely
+because the app connected as the table owner, which bypasses RLS regardless of whether policies
+exist — `forTenant().scope()` was, and remains, the only enforcement that actually ran.
 
 **The fix is two credentials.** `DATABASE_MIGRATION_URL` keeps the owner/superuser role and is used
 only by drizzle-kit. `DATABASE_URL` becomes a dedicated `mep_runtime` role with
@@ -64,8 +65,9 @@ with zero manual steps while every app table in `public` stays owned by the migr
    as before, with the `mep_runtime` credentials):
 
    ```bash
-   # DML works
-   psql "$RUNTIME_URL" -c "SELECT count(*) FROM restaurants;"
+   # DML works (app.admin bypasses the row-level-security policies from step 4 below,
+   # so this proves the GRANT independently of tenant context)
+   psql "$RUNTIME_URL" -c "SELECT set_config('app.admin','true',false); SELECT count(*) FROM restaurants;"
 
    # DDL is refused — expect "permission denied for schema public"
    psql "$RUNTIME_URL" -c "CREATE TABLE should_fail (id int);"
@@ -76,6 +78,42 @@ with zero manual steps while every app table in `public` stays owned by the migr
 
    `tests/create-runtime-role.test.ts` runs the same three checks (plus a full pg-boss
    start/enqueue/complete cycle) automatically against local Postgres in CI/`pnpm test`.
+
+4. **This cutover also activates row-level-security enforcement** (issue #222, ADR-030,
+   `drizzle/0055_rls_tenant_isolation.sql`). The policies have been live on every environment since
+   that migration first ran, but they were inert everywhere — table owners always bypass RLS, and
+   `DATABASE_URL` was the owner role until step 2 above. The moment `DATABASE_URL` points at
+   `mep_runtime`, the database itself starts refusing any tenant-table read/write that does not carry
+   a matching `app.restaurant_id` (set per request/job by `src/lib/server/tenant-context.ts`) or
+   `app.admin = 'true'`. Verify the backstop, not just the grant:
+
+   ```bash
+   # No context: an unscoped read of a tenant table returns zero rows, even though
+   # real rows exist — this is the RLS backstop, not an empty table.
+   psql "$RUNTIME_URL" -c "SELECT count(*) FROM invoices;"
+
+   # With a real restaurant's id: the same unscoped query now returns only that
+   # tenant's rows. Swap in an id from `SELECT id FROM restaurants LIMIT 1;` run
+   # against the owner/migration connection.
+   psql "$RUNTIME_URL" -c "SELECT set_config('app.restaurant_id', '<some-restaurant-uuid>', false); SELECT count(*) FROM invoices;"
+   ```
+
+   `tests/rls-runtime-role.test.ts` runs the equivalent checks (plus the cross-tenant-write rejection,
+   the `app.admin` bypass, and that the owner role is unaffected) automatically against local Postgres.
+
+   **If something breaks after this cutover** (a page returns empty data it shouldn't, a write fails
+   with "row-level security policy" that used to succeed): that is almost always a code path this
+   ADR's audit missed — a query that legitimately needs to see more than one tenant but was not routed
+   through `runAsSystem()` (see ADR-030's table of enumerated call sites). To un-block production while
+   that is fixed forward, without losing the least-privilege boundary #464 built:
+   - **Fastest, temporary:** point `DATABASE_URL` back at the owner/superuser connection string (the
+     same value `DATABASE_MIGRATION_URL` holds) — this exactly reverses step 2 and makes RLS inert
+     again immediately, same as before this cutover.
+     - Do **not** run `ALTER TABLE … DISABLE ROW LEVEL SECURITY` or `DROP POLICY` as a live-incident
+       response — that is a migration-level change, reviewed and shipped normally, not a rollback
+       lever to pull under production load.
+   - Once the missing `runAsSystem()`/`SET LOCAL app.admin` call site is identified and fixed, redeploy
+     and repeat step 4's verification before pointing `DATABASE_URL` at `mep_runtime` again.
 
 Rotate the runtime role's password with `ALTER ROLE mep_runtime PASSWORD '...'` directly — re-running
 the script does not reset it.
@@ -250,7 +288,7 @@ web service's `db:migrate` step also needs `DATABASE_MIGRATION_URL`:
 **Both must run in production.** Without the worker, uploads succeed but extractions stay `queued` forever.
 
 1. `pnpm install --frozen-lockfile`
-2. `pnpm db:migrate` — applies `drizzle/` migrations, using `DATABASE_MIGRATION_URL` (the owner/superuser role; falls back to `DATABASE_URL` when unset). Tenant isolation does **not** depend on the database: it is enforced in application queries by `forTenant().scope()` (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. Row-level-security policies were dropped in the Railway migration, so `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **zero rows is the expected state** — see ADR-005, and #222 for the open path to database-enforced isolation.
+2. `pnpm db:migrate` — applies `drizzle/` migrations, using `DATABASE_MIGRATION_URL` (the owner/superuser role; falls back to `DATABASE_URL` when unset). Tenant isolation's primary enforcement does **not** depend on the database: it is `forTenant().scope()` in application queries (ADR-001), guarded by `pnpm lint:tenant-scope` in CI. Since migration `0055_rls_tenant_isolation.sql` (issue #222, ADR-030), `SELECT policyname FROM pg_policies WHERE schemaname='public';` returning **28 rows is the expected state** (one `tenant_isolation` policy per table in `src/lib/server/tenant-data-map.ts`) — but those policies are a backstop that only restricts the scoped `mep_runtime` role from #464, not the owner/superuser role `pnpm db:migrate` and this whole runbook still connect as; see [Runtime vs. migration database roles](#runtime-vs-migration-database-roles) above for what activates them.
 3. `pnpm build` (requires the env vars above at build time) — builds the web server **and** `build/worker.js`.
 4. Start both processes with `NODE_ENV=production` (Secure cookies) and `PORT`/`HOST` as needed:
    - `node build` (web) and `node build/worker.js` (worker)

@@ -92,7 +92,7 @@ vi.mock('$lib/server/db', () => {
 			}),
 		}),
 	};
-	return { db, forTenant: (rid: string) => ({ rid, scope: () => ({}) }) };
+	return { db, forTenant: (rid: string) => ({ rid, scope: () => ({}) }), runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
 });
 
 vi.mock('$lib/server/storage', () => ({ getStorage: () => ({ delete: storageDeleteMock }) }));

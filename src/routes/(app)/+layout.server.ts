@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { db, forTenant } from '$lib/server/db';
+import { db, forTenant, runAsSystem } from '$lib/server/db';
 import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
 import { asc, eq, desc, and, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
@@ -63,11 +63,11 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.from(settings)
 			.where(tdb.scope(settings.restaurantId, inArray(settings.key, LAYOUT_SETTINGS_KEYS))),
 
-		db.select({ id: restaurants.id, name: restaurants.name })
+		runAsSystem(() => db.select({ id: restaurants.id, name: restaurants.name })
 			.from(userRestaurants)
 			.innerJoin(restaurants, eq(restaurants.id, userRestaurants.restaurantId))
-			.where(eq(userRestaurants.userId, locals.user.id))
-			.orderBy(asc(restaurants.name)),
+			.where(eq(userRestaurants.userId, locals.user!.id))
+			.orderBy(asc(restaurants.name))),
 		locals.entitlements(),
 	]);
 

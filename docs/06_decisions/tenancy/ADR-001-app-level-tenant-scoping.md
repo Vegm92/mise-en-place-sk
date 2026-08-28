@@ -1,6 +1,6 @@
 # ADR-001 — Tenant Isolation: App-Level Scoping (Option B)
 
-**Status:** Active — amended by [ADR-005](./ADR-005-rls-retired.md) and [#517](https://github.com/Vegm92/mise-en-place-sk/issues/517)  
+**Status:** Active — amended by [ADR-005](./ADR-005-rls-retired.md), [ADR-030](./ADR-030-rls-runtime-role.md) and [#517](https://github.com/Vegm92/mise-en-place-sk/issues/517)  
 **Feature:** Tenancy  
 **Date:** 2026-06-11  
 **Issue:** [#120](https://github.com/Vegm92/mise-en-place-sk/issues/120)
@@ -79,6 +79,11 @@ is provider-neutral and described in [#222](https://github.com/Vegm92/mise-en-pl
 Railway arguably makes this easier than Supabase did, since role management is fully under our
 control. The policies would need writing fresh against a session variable, not porting from the
 `auth.uid()` versions. Still the correct long-term architecture; still not scheduled.
+
+**Update (2026-08-28).** [ADR-030](./ADR-030-rls-runtime-role.md) implemented this route. It remains
+a backstop, not a replacement: `forTenant().scope()` below is still the primary, always-on boundary,
+and the database layer only starts enforcing anything once #464's production cutover moves
+`DATABASE_URL` off the owner role.
 
 ## Consequences
 

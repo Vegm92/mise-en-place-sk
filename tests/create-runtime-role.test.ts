@@ -81,6 +81,11 @@ beforeAll(async () => {
 	await dropTestRole();
 	runScript();
 	runtimeSql = postgres(runtimeUrl(), { ssl: gate.isLocal ? false : 'require', max: 1 });
+	// This suite proves GRANTs, not tenant isolation (that's #222's
+	// tests/rls-runtime-role.test.ts) — #222 added row-level security
+	// policies on top of these grants, so a bare probe query needs the
+	// app.admin escape hatch to reach rows regardless of tenant.
+	await runtimeSql`SELECT set_config('app.admin', 'true', false)`;
 });
 
 afterAll(async () => {

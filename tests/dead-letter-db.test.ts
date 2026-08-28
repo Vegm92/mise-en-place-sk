@@ -15,7 +15,13 @@ import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
 	const { forTenant } = await import('../src/lib/server/tenant');
-	return { db: testDb, getDb: () => testDb, forTenant };
+	return {
+		db: testDb,
+		getDb: () => testDb,
+		forTenant,
+		runAsSystem: (fn: () => unknown) => fn(),
+		runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
+	};
 });
 
 const {

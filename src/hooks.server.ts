@@ -5,7 +5,7 @@ import { handle as authHandle } from '$lib/server/auth';
 import { cleanupStaleBatches } from '$lib/server/batch';
 import { seedAdminUser } from '$lib/server/auth-seed';
 import { isAdminUser } from '$lib/server/admin';
-import { db } from '$lib/server/db';
+import { db, runAsSystem, runWithTenantContext } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
 import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
@@ -28,6 +28,7 @@ const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const MEMBERSHIP_TIMEOUT_MS = parseInt(process.env.MEMBERSHIP_TIMEOUT_MS ?? '5000', 10);
 const API_GLOBAL_RATE_LIMIT = parseInt(process.env.API_GLOBAL_RATE_LIMIT ?? '300', 10);
 const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/api/whatsapp/webhook']);
+const SYSTEM_CONTEXT_PATHS = new Set(['/api/stripe-webhook', '/api/whatsapp/webhook']);
 const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
 const SENTRY_RELEASE = process.env.SENTRY_RELEASE || undefined;
 
@@ -204,7 +205,11 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	const authResponse = enforceAuth(path, event.locals.user);
 	if (authResponse) return authResponse;
 
-	const response = await resolve(event);
+	const isAdminPath = path === '/admin' || path.startsWith('/admin/');
+	const runResolve = async () => resolve(event);
+	const response = isAdminPath || SYSTEM_CONTEXT_PATHS.has(path)
+		? await runAsSystem(runResolve)
+		: await runWithTenantContext(event.locals.restaurantId, runResolve);
 
 	const isFramedByApp = path.startsWith('/api/upload/') || /^\/invoice\/[^/]+\/file$/.test(path);
 	response.headers.set('X-Frame-Options', isFramedByApp ? 'SAMEORIGIN' : 'DENY');
