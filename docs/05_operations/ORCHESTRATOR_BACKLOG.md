@@ -67,7 +67,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 735 | P3 | DEFERRED | 0 | PR #723 branch | duplicate escandallo 409s second time |
 | 734 | P3 | DEFERRED | 0 | PR #723 branch | itemId=0 passes validation |
 | 543 | P3 | PENDING | 0 | | /admin pages render empty landmark |
-| 542 | P3 | PENDING | 0 | | malformed /invoice/[id] 500s |
+| 542 | P3 | DONE | 1 | Verified (commit 795c605): shared requirePositiveIntId on 15 loaders/actions across 5 routes (+file endpoint tightened); batch UUID path verified safe; 95 parameterized tests. 2560/2560. | malformed /invoice/[id] 500s |
 | 541 | P3 | PENDING | 0 | | upload silently discards rejected files |
 | 546 | P3 | PENDING | 0 | | tier gating inconsistent 402 vs redirect |
 | 538 | P3 | PENDING | 0 | | coach mark swallows first click; modal roles |
