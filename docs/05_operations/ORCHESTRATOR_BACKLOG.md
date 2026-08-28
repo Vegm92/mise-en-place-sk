@@ -5,10 +5,12 @@ Baseline (main @ 71034ef): 1854 tests pass, 305 skipped. Open PRs: #723 (escanda
 
 DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re-check when the blocker clears.
 
-MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; this branch adds 0045_whatsapp_pairing_invite_phone.sql through 0049. Whichever merges second must renumber its migrations and reconcile drizzle/meta/_journal.json before merging.
+MERGE HAZARD — RESOLVED (2026-08-28): PR #748 merged into main first, so this branch's migrations were renumbered around its 0045_graceful_virginia_dare.sql: whatsapp pairing phone is now 0046, payload jsonb 0047, notification message backfill 0048, restaurant name backfill 0049, drop upload_sessions 0050. Journal and snapshots were regenerated with drizzle-kit; the full 0000–0050 chain applies cleanly on a fresh database.
 
 PR SPLIT (2026-08-28, per owner): the branch is delivered as six stacked PRs, merge in order —
-#750 wave 1 billing/auth security (base main) → #751 reliability/perf → #752 UX/a11y/testing → #753 design+P3 security → #754 P3 UX/robustness → #755 tech debt/i18n (HEAD 357e266+). New-issue dispatching is ON HOLD until the owner says otherwise.
+#750 wave 1 billing/auth security (base main) → #751 reliability/perf → #752 UX/a11y/testing → #753 design+P3 security → #754 P3 UX/robustness → #755 tech debt/i18n. New-issue dispatching is ON HOLD until the owner says otherwise.
+
+BASE MERGE (2026-08-28): main @ 3470c27 (PR #748 + beta fixes #742–#746: review-state model, trial gating, login resend) was merged into every stacked branch in order and into this branch; all suites green at every step (2850/2850 here). Review-state semantics adopted where main rewrote files this branch had touched (layout badges, dashboard, invoices/reminders actions), with this branch's deltas re-applied on top (::float8 casts #524, rateLimitScoped #440, locale-aware formatters #535, sidebar pref #567). SonarCloud quality-gate findings on PR #753 (wave 4) fixed per owner: https insecure-protocol and super-linear-regex security findings, cognitive-complexity split in sentry-scrub, plus the flagged maintainability/test smells.
 
 ## Queue (work top-down within each tier)
 
