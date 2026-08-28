@@ -5,7 +5,16 @@ Baseline (main @ 71034ef): 1854 tests pass, 305 skipped. Open PRs: #723 (escanda
 
 DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re-check when the blocker clears.
 
-MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; this branch adds 0045_whatsapp_pairing_invite_phone.sql + 0046_system_notifications_payload_jsonb.sql. Whichever merges second must renumber its migrations and reconcile drizzle/meta/_journal.json before merging.
+MERGE HAZARD — RESOLVED (2026-08-28): PR #748 merged into main first, so this branch's migrations were renumbered around its 0045_graceful_virginia_dare.sql: whatsapp pairing phone is now 0046, payload jsonb 0047, notification message backfill 0048, restaurant name backfill 0049, drop upload_sessions 0050. Journal and snapshots were regenerated with drizzle-kit; the full 0000–0050 chain applies cleanly on a fresh database.
+
+PR SPLIT (2026-08-28, per owner): the branch is delivered as six stacked PRs, merge in order —
+#750 wave 1 billing/auth security (base main) → #751 reliability/perf → #752 UX/a11y/testing → #753 design+P3 security → #754 P3 UX/robustness → #755 tech debt/i18n. New-issue dispatching is ON HOLD until the owner says otherwise.
+
+WAVE 6 GATE (2026-08-28 13:35Z): PR #755 green — CI passed and the SonarCloud quality gate passed on c33fca4 after three rounds (D→C→A reliability: bitwise-AND disambiguation, complexity split, localeCompare, PATH-free root, toHaveLength sweep, then const-by-keyword-token; plus the shallow-clone waitlist proof moved to a checked-in fixture). Remaining Sonar findings are the three documented create-runtime-role.sql duplicated-literal maintainability smells. Waves 1–5 (#750–#754) merged by the owner; #755 awaits owner merge, closing the thirteen wave-6 issues.
+
+BASE MERGE (2026-08-28): main @ 3470c27 (PR #748 + beta fixes #742–#746: review-state model, trial gating, login resend) was merged into every stacked branch in order and into this branch; all suites green at every step (2850/2850 here). Review-state semantics adopted where main rewrote files this branch had touched (layout badges, dashboard, invoices/reminders actions), with this branch's deltas re-applied on top (::float8 casts #524, rateLimitScoped #440, locale-aware formatters #535, sidebar pref #567). SonarCloud quality-gate findings on PR #753 (wave 4) fixed per owner: https insecure-protocol and super-linear-regex security findings, cognitive-complexity split in sentry-scrub, plus the flagged maintainability/test smells.
+
+STACK MERGED (2026-08-28): all six waves are merged — #750 (11:32Z), #751 (11:32Z), #752 (11:33Z), #753 (11:58Z), #754 (11:58Z), #755 (15:55Z). Post-split fixes that landed on the way: wave-4 and wave-6 SonarCloud quality gates driven to green (final blocker: the mistyped-bitwise-AND reliability rule, cleared by detecting const declarations via the leading keyword token, c33fca4), and the waitlist i18n-migration proof made hermetic for CI's shallow clone (pinned blob checked in as tests/fixtures/waitlist-page-pre-i18n-881aee69.txt). All thirteen wave-6 issues verified auto-closed on merge (#535 #534 #464 #515 #514 #524 #440 #439 #390 #407 #574 #571 #568); waves 1–5's issues were verified closed earlier. 43 issues remain open, all held/deferred/owner-gated: escandallo cluster #727–#738 waits on PR #723; #565/#747 re-triaged post-#748; the rest are the recorded ON HOLD and owner-gated sets. New-issue dispatching remains ON HOLD until the owner says otherwise.
 
 ## Queue (work top-down within each tier)
 
@@ -46,7 +55,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 537 | P2 | DONE | 1 | Verified (commit f4878ff): labels/aria on all batch fields, th scope, sr-only h2s; live Playwright audit clean both viewports; AST regression test. 2322/2322. Global icon buttons were already labeled (#460). | a11y: 33/36 batch review fields unnamed |
 | 533 | P2 | DONE | 1 | Already satisfied on main (e6c10d0 + a735941): keys present, lint:i18n key-resolution pass with deliberate-miss proof. GitHub issue closed with explanation. | missing $t() keys render raw |
 | 532 | P2 | DONE | 1 | Fixed incidentally by #489's layout rewrite (1ea714f): all COUNTs ::int + Number(), strict-equality DB tests pin the type. Close GitHub issue when branch merges. | nav renders literal "0" badge |
-| 511 | P2 | DEFERRED | 0 | Likely moot under #746 review-state reframe (PR #748); recheck after merge | three conflicting InvoiceStatus vocabularies |
+| 511 | P2 | OBSOLETE | 0 | Verified resolved on main by #746/#748: single exhaustive status union in status.ts, rejected badge negative, i18n keys present, export uses localized REVIEW_STATE_LABELS. Closed 2026-08-28 with evidence comment. | three conflicting InvoiceStatus vocabularies |
 | 520 | P2 | DONE | 1 | Verified (commit 42dfafc): 6/7 acceptance items already covered by intervening work (evidence per item); dead extraction retry policy fixed via perJobResults wiring. 2327/2327. | tenant-isolation tests cover load() only; silent skips |
 | 518 | P2 | DONE | 1 | Already solved on main (542ebc6 + ADR-025, full dispatcher); added missing concurrency-proof test (4c5b269). GitHub issue closed. 2328/2328. | scheduled jobs iterate all tenants sequentially |
 | 517 | P2 | DONE | 1 | Verified (commit c1e9b7c): action-authz lint gate (49 actions audited, 2 honest escape comments, CI-wired), ADR-001 amended. 2327/2327. | tenant-scoping lint for form actions |
@@ -57,7 +66,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 732 | P2 | DEFERRED | 0 | PR #723 branch | add-a-line row keeps submitted values |
 | 731 | P2 | DEFERRED | 0 | PR #723 branch | printed escandallo repeats prep block |
 | 730 | P2 | DEFERRED | 0 | Verify: may be main's products module | no-allergens save blocks extraction |
-| 747 | P3 | PENDING | 0 | Bundle of 10 small findings; overlaps PR #748 surfaces — wait for its merge | beta-review polish bundle |
+| 747 | P3 | PENDING | 0 | Re-checked 2026-08-28 post-#748: item 7 (reminders empty state) superseded by #746; item 9 formatters overlap #535 (in PR #755); the rest remain valid. Actionable after #755 merges, dispatch on hold. | beta-review polish bundle |
 | 720 | P3 | DONE | 1 | Verified (commit 32aec64): slate acc-soft alpha 0.16→0.10, 4.18→4.58:1; ADR-026 amended w/ on-tint table; contrast test harness added. Note: slate accent is inert (all routes use tinta/ADR-028). 2344/2344. | active nav rows below AA in dark |
 | 749 | P3 | DONE | 1 | Verified (commit 57b2d3e): neg-soft dark 0.18→0.12 (4.57:1), caution-soft light 0.14→0.11 (4.53:1); full usage sweep, assertions upgraded, ADR amended. 2349/2349. Close GitHub issue when branch merges. | severity tokens below AA on own tints |
 | 719 | P3 | DONE | 1 | Verified (commit 18152ac): fg-4→fg-3 (3.92→5.21:1 dark), pinning tests. 2347/2347. Noted: location-switcher locked items still fg-4 (separate component). | locale hint below AA in dark |
@@ -76,7 +85,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 534 | P3 | DONE | 1 | Verified (commit f7bf14c): 4 stale consts → $derived, 30d/90d/6m keyed, AST-based detector + repo-wide zero-violation test; fmtPrice routed through fmtEur (#535 residual). 2748/2748. | language switch misses period labels |
 | 515 | P3 | DONE | 1 | Verified (commit 3bee004): restaurants.name sole source, no-op write removed, backfill migration 0048 (settings value wins — preserves what users saw), guard test. 2768/2768. | restaurant name two sources of truth |
 | 514 | P3 | DONE | 1 | Verified (commit 004d740): stub auth route deleted (+ROUTE_POLICY knock-on), upload_sessions dropped, both int-as-boolean columns → boolean w/ hand-fixed USING casts (migration 0049). 2768/2768. | dead code + schema hygiene |
-| 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
+| 512 | P3 | OBSOLETE | 0 | Verified obsolete on main: the Vencidas chip and all stored-overdue filtering removed by #746 review-state pivot; overdue declared derived in status.ts. Closed 2026-08-28 with evidence comment. | "Vencidas" filter always empty |
 | 510 | P3 | DONE | 1 | Verified (commit 1c19fc2): IP-first sort + short-circuit, accurate scope attribution. 2354/2354. | rate-limit buckets consumed after failure |
 | 509 | P3 | DONE | 1 | Verified (commit f7e4149): synchronous validateAdminSeedConfig at boot (option A), in-seed checks kept as defense-in-depth with honest wording. 2359/2359. | auth-seed prod guard swallowed |
 | 508 | P3 | DONE | 1 | Verified (commit efbe25d): shared parseAmount (comma decimals, unambiguous grouping, garbage/hex/exponent rejected), 400 validation in both write paths, #494 hash/insert divergence closed with sound stability analysis. 2393/2393. | toFloat accepts "12abc"/"1e999" |
@@ -96,7 +105,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 524 | P3 | DONE | 1 | Verified (commit 49476a1): 18 dishonest sites across 6 files → ::float8 or string+moneyToNumber; regression-proven guard test. 2786/2786. | sql template numeric return types |
 | 523 | P3 | PENDING | 0 | Infra/env change | DATABASE_SSL_MODE verify-full |
 | 740 | P3 | PENDING | 0 | Deadline 2026-12-01; infra | Railway config-as-code → IaC |
-| 565 | P3 | DEFERRED | 0 | #746 says it resolves this question; recheck after PR #748 merges | pagada/no pagada as desvío |
+| 565 | P3 | BLOCKED | 0 | Product side resolved by #746 on main (payment lifecycle removed); remaining items are owner/marketing process decisions. Evidence comment left 2026-08-28; closing is Victor's call. | pagada/no pagada as desvío |
 | 564 | P3 | PENDING | 0 | Product question (INC-002) | stock forecast has no data basis |
 | 563 | P3 | PENDING | 0 | Legal/date question (INC-001) | B2B e-invoice date unconfirmed |
 | 441 | P3 | BLOCKED | 0 | Issue's own scope requires access-log/Sentry traffic check before deletion — not reachable from sandbox (Sentry MCP unauthenticated). Interim: #469 tenant-scoped both stubs. Owner: check traffic, then delete. | retire legacy redirect stubs |
@@ -111,7 +120,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 402 | P3 | PENDING | 0 | Copy/content | sin vs con comparison |
 | 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
-| 354 | P3 | PENDING | 0 | Decision issue | feature-flag mechanism decision |
+| 354 | P3 | BLOCKED | 1 | Decision analysis + route checklist posted on issue (env-flag via ROUTE_POLICY, billing-off keeps subscription rows); awaiting owner ratification. #356 executes against it. | feature-flag mechanism decision |
 | 333 | P3 | PENDING | 0 | | testimonial provenance + stale date |
 | 329 | P3 | PENDING | 0 | | digest share affordance |
 | 328 | P3 | PENDING | 0 | | onboarding captures only name |
