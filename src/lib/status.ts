@@ -1,3 +1,23 @@
+export const REVIEW_STATES = ['por_revisar', 'revisado', 'incidencia'] as const;
+
+export type ReviewState = (typeof REVIEW_STATES)[number];
+
+const REVIEW_BADGE_CLASS: Record<ReviewState, string> = {
+	por_revisar: 'badge badge-pending',
+	revisado:    'badge badge-confirmed',
+	incidencia:  'badge badge-overdue',
+};
+
+const REVIEW_STATE_KEY: Record<ReviewState, string> = {
+	por_revisar: 'inv.review.por_revisar',
+	revisado:    'inv.review.revisado',
+	incidencia:  'inv.review.incidencia',
+};
+
+export function isReviewState(s: string): s is ReviewState {
+	return s in REVIEW_BADGE_CLASS;
+}
+
 export const STORED_INVOICE_STATUSES = ['pending', 'accepted', 'rejected', 'paid'] as const;
 
 export const DERIVED_INVOICE_STATUSES = ['overdue'] as const;
@@ -36,10 +56,12 @@ export function isStoredInvoiceStatus(s: string): s is InvoiceStatus {
 }
 
 export function badgeClass(s: string): string {
+	if (isReviewState(s)) return REVIEW_BADGE_CLASS[s];
 	return isDisplayInvoiceStatus(s) ? BADGE_CLASS[s] : 'badge badge-neutral';
 }
 
 export function statusKey(s: string): string {
+	if (isReviewState(s)) return REVIEW_STATE_KEY[s];
 	return isDisplayInvoiceStatus(s) ? STATUS_KEY[s] : s;
 }
 

@@ -1,24 +1,18 @@
 /**
- * The invoice status vocabulary is one closed set (issue #520).
+ * The invoice review vocabulary is one closed set (issues #520, #746).
  *
- * `tests/status.test.ts` passed while three disagreeing `InvoiceStatus` unions
- * coexisted, because it only asserted the values `lib/status.ts` happened to
- * declare — never the values the database actually holds. Under it:
+ * Issue #746 replaced the payment lifecycle in the UI with review states:
+ * `invoices.review_state` holds 'por_revisar' | 'revisado' | 'incidencia',
+ * written by the canonical save path (invoice-save.ts) and by the
+ * mark-reviewed transitions (invoice-status.ts). The legacy `invoices.status`
+ * column ('pending' | 'accepted' | 'rejected' | 'paid') remains as data but
+ * no longer drives the UI.
  *
- *   - `invoices.status` is written 'pending' | 'accepted' | 'rejected' | 'paid',
- *     but `lib/status.ts` declared 'pending' | 'confirmed' | 'exported' |
- *     'overdue' | 'paid'. A row marked `accepted` or `rejected` therefore had
- *     no i18n key and rendered the raw English word in a Spanish-first UI;
- *   - the invoice list offered a status=overdue filter that compiled to
- *     `WHERE status = 'overdue'` — a value nothing ever writes, so the filter
- *     was guaranteed to return nothing;
- *   - the invoice detail timeline branched on 'confirmed' | 'exported', which
- *     no code path can produce, so the "confirmed" step never appeared.
- *
- * These assert over the vocabulary itself rather than over a hand-written list:
- * every status the database can hold has a badge and a key in both locales,
- * every status the UI offers is one the query layer can answer, and no source
- * file compares `invoices.status` against a word outside the set.
+ * These assert over the vocabulary itself rather than over a hand-written
+ * list: every review state the database can hold has a badge and a key in
+ * both locales, every state the UI offers is one the query layer can answer,
+ * and no source file compares `invoices.reviewState` (or the legacy
+ * `invoices.status`) against a word outside its set.
  */
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'node:fs';
@@ -31,15 +25,14 @@ vi.mock('../src/lib/server/db', () => ({
 }));
 
 import {
+	REVIEW_STATES,
 	STORED_INVOICE_STATUSES,
-	DERIVED_INVOICE_STATUSES,
-	DISPLAY_INVOICE_STATUSES,
 	badgeClass,
 	statusKey,
+	isReviewState,
 	isStoredInvoiceStatus,
-	isDisplayInvoiceStatus,
 } from '../src/lib/status';
-import { invoiceStatusFilter } from '../src/lib/server/invoice-status';
+import { invoiceReviewFilter } from '../src/lib/server/invoice-status';
 import { translations } from '../src/lib/i18n';
 
 const ROOT = process.cwd();
@@ -67,26 +60,25 @@ const SOURCE_FILES = [...walk(path.join(ROOT, 'src', 'lib')), ...walk(path.join(
 const LITERAL = /'([a-z_]+)'/g;
 
 /**
- * Every word this file compares against, or writes into, `invoices.status`.
- * Matching is deliberately narrow — a wide window picks up column aliases in
- * the same statement (`open_count`, `has_overdue`) and turns the test into
- * noise.
+ * Every word a source file compares against, or writes into, the given
+ * invoices column. Matching is deliberately narrow — a wide window picks up
+ * column aliases in the same statement and turns the test into noise.
  */
-function statusLiteralsIn(src: string): Set<string> {
+function columnLiteralsIn(src: string, tsName: string, sqlName: string): Set<string> {
 	const found = new Set<string>();
 	const add = (s: string | undefined) => { if (s) found.add(s); };
 
-	for (const m of src.matchAll(/\b(?:eq|ne)\(invoices\.status,\s*'([a-z_]+)'/g)) add(m[1]);
-	for (const m of src.matchAll(/inArray\(invoices\.status,\s*\[([^\]]*)\]/g)) {
+	for (const m of src.matchAll(new RegExp(`\\b(?:eq|ne)\\(invoices\\.${tsName},\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
+	for (const m of src.matchAll(new RegExp(`inArray\\(invoices\\.${tsName},\\s*\\[([^\\]]*)\\]`, 'g'))) {
 		for (const lit of m[1].matchAll(LITERAL)) add(lit[1]);
 	}
-	for (const m of src.matchAll(/invoices\.status\}\s*(?:=|<>|!=)\s*'([a-z_]+)'/g)) add(m[1]);
-	for (const m of src.matchAll(/update\(invoices\)[\s\S]{0,300}?\.set\(\{[\s\S]{0,250}?status:\s*'([a-z_]+)'/g)) add(m[1]);
-	for (const m of src.matchAll(/insert\(invoices\)[\s\S]{0,600}?status:\s*'([a-z_]+)'/g)) add(m[1]);
+	for (const m of src.matchAll(new RegExp(`invoices\\.${tsName}\\}\\s*(?:=|<>|!=)\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
+	for (const m of src.matchAll(new RegExp(`update\\(invoices\\)[\\s\\S]{0,300}?\\.set\\(\\{[\\s\\S]{0,250}?${tsName}:\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
+	for (const m of src.matchAll(new RegExp(`insert\\(invoices\\)[\\s\\S]{0,700}?${tsName}:\\s*'([a-z_]+)'`, 'g'))) add(m[1]);
 
 	for (const m of src.matchAll(/`([^`]*\bfrom\s+invoices\b[^`]*)`/gi)) {
-		for (const lit of m[1].matchAll(/\bstatus\s*=\s*'([a-z_]+)'/g)) add(lit[1]);
-		for (const inClause of m[1].matchAll(/\bstatus\s+in\s*\(([^)]*)\)/gi)) {
+		for (const lit of m[1].matchAll(new RegExp(`\\b${sqlName}\\s*(?:=|<>|!=)\\s*'([a-z_]+)'`, 'g'))) add(lit[1]);
+		for (const inClause of m[1].matchAll(new RegExp(`\\b${sqlName}\\s+in\\s*\\(([^)]*)\\)`, 'gi'))) {
 			for (const lit of inClause[1].matchAll(LITERAL)) add(lit[1]);
 		}
 	}
@@ -94,77 +86,70 @@ function statusLiteralsIn(src: string): Set<string> {
 	return found;
 }
 
-describe('the stored vocabulary is what the transition module writes', () => {
+describe('the review vocabulary is what the transition module writes', () => {
 	const src = read('src/lib/server/invoice-status.ts');
 
 	it('declares no union of its own', () => {
-		expect(src, 'invoice-status.ts must reuse InvoiceStatus from $lib/status, not redeclare it')
-			.not.toMatch(/export type InvoiceStatus\s*=\s*'/);
+		expect(src, 'invoice-status.ts must reuse ReviewState from $lib/status, not redeclare it')
+			.not.toMatch(/export type ReviewState\s*=\s*'/);
 	});
 
-	it.each([...src.matchAll(/status:\s*'([a-z_]+)'/g)].map((m) => m[1]))(
-		"writes status '%s', which is in the stored vocabulary",
-		(status) => {
-			expect(isStoredInvoiceStatus(status)).toBe(true);
+	it.each([...src.matchAll(/reviewState:\s*'([a-z_]+)'/g)].map((m) => m[1]))(
+		"writes review state '%s', which is in the vocabulary",
+		(state) => {
+			expect(isReviewState(state)).toBe(true);
 		}
 	);
 
-	it('writes every stored status somewhere, so the set has no dead members', () => {
-		const written = new Set([...src.matchAll(/status:\s*'([a-z_]+)'/g)].map((m) => m[1]));
-		for (const status of STORED_INVOICE_STATUSES) expect([...written]).toContain(status);
+	it('the canonical save path writes only vocabulary states', () => {
+		const save = read('src/lib/server/invoice-save.ts');
+		for (const m of save.matchAll(/(?:reviewState:|return flagged \?)\s*'([a-z_]+)'\s*(?::\s*'([a-z_]+)')?/g)) {
+			expect(isReviewState(m[1]!)).toBe(true);
+			if (m[2]) expect(isReviewState(m[2])).toBe(true);
+		}
 	});
 });
 
-describe('every displayable status renders', () => {
-	it.each(DISPLAY_INVOICE_STATUSES)('%s has a badge class defined in app.css', (status) => {
-		const cls = badgeClass(status);
+describe('every review state renders', () => {
+	it.each(REVIEW_STATES)('%s has a badge class defined in app.css', (state) => {
+		const cls = badgeClass(state);
 		expect(cls).not.toBe('badge badge-neutral');
 
 		const modifier = cls.split(' ').at(-1)!;
 		expect(read('src/app.css'), `.${modifier} is not declared in app.css`).toContain(`.${modifier}`);
 	});
 
-	it.each(DISPLAY_INVOICE_STATUSES)('%s has an i18n key in both locales', (status) => {
-		const key = statusKey(status);
+	it.each(REVIEW_STATES)('%s has an i18n key in both locales', (state) => {
+		const key = statusKey(state);
 
-		expect(key, `statusKey('${status}') fell through to the raw value`).toBe(`status.${status}`);
+		expect(key, `statusKey('${state}') fell through to the raw value`).toBe(`inv.review.${state}`);
 		expect(es[key], `${key} missing from es`).toBeTruthy();
 		expect(en[key], `${key} missing from en`).toBeTruthy();
 	});
 
-	it('falls back to a neutral badge rather than a green one for an unknown status', () => {
+	it('falls back to a neutral badge rather than a green one for an unknown state', () => {
 		expect(badgeClass('something-new')).toBe('badge badge-neutral');
 		expect(statusKey('something-new')).toBe('something-new');
-		expect(isDisplayInvoiceStatus('something-new')).toBe(false);
+		expect(isReviewState('something-new')).toBe(false);
 	});
 });
 
-describe('derived statuses are display-only', () => {
-	it.each(DERIVED_INVOICE_STATUSES)('%s is never stored', (status) => {
-		expect(isStoredInvoiceStatus(status)).toBe(false);
-	});
-
-	it('overdue compiles to a due-date predicate, not an equality on a value nothing writes', () => {
-		const sql = sqlText(invoiceStatusFilter('overdue'));
-
-		expect(sql).toContain('due_date');
-		expect(sql).not.toMatch(/status"?\s*=\s*\$\d+\s*$/);
-	});
-
-	it.each(STORED_INVOICE_STATUSES)('%s still compiles to a plain status equality', (status) => {
-		expect(sqlText(invoiceStatusFilter(status))).toMatch(/"status"\s*=/);
+describe('the review filter answers exactly the vocabulary', () => {
+	it.each(REVIEW_STATES)('%s compiles to a plain review_state equality', (state) => {
+		expect(sqlText(invoiceReviewFilter(state))).toMatch(/"review_state"\s*=/);
 	});
 
 	it('answers an empty filter with no predicate at all', () => {
-		expect(invoiceStatusFilter('')).toBeUndefined();
+		expect(invoiceReviewFilter('')).toBeUndefined();
 	});
 
-	it('refuses a status outside the vocabulary instead of querying for it', () => {
-		expect(sqlText(invoiceStatusFilter('confirmed'))).toBe('false');
+	it('refuses a state outside the vocabulary instead of querying for it', () => {
+		expect(sqlText(invoiceReviewFilter('pending'))).toBe('false');
+		expect(sqlText(invoiceReviewFilter('paid'))).toBe('false');
 	});
 });
 
-describe('the UI never offers a status the query layer cannot answer', () => {
+describe('the UI never offers a state the query layer cannot answer', () => {
 	const optionValues = [
 		...read('src/routes/(app)/invoices/+page.svelte').matchAll(
 			/id="inv-status"[\s\S]*?<\/select>/g
@@ -175,28 +160,41 @@ describe('the UI never offers a status the query layer cannot answer', () => {
 		expect(optionValues.length).toBeGreaterThan(0);
 	});
 
-	it.each(optionValues)('the %s option is a displayable status', (value) => {
-		expect(isDisplayInvoiceStatus(value)).toBe(true);
+	it.each(optionValues)('the %s option is a review state', (value) => {
+		expect(isReviewState(value)).toBe(true);
 	});
 
 	it.each(optionValues)('the %s option produces a real predicate', (value) => {
-		expect(sqlText(invoiceStatusFilter(value))).not.toBe('false');
+		expect(sqlText(invoiceReviewFilter(value))).not.toBe('false');
 	});
 });
 
-describe('no source file compares invoices.status against a foreign word', () => {
-	const offenders = SOURCE_FILES.flatMap((file) =>
-		[...statusLiteralsIn(fs.readFileSync(file, 'utf8'))]
+describe('no source file compares an invoices state column against a foreign word', () => {
+	const reviewOffenders = SOURCE_FILES.flatMap((file) =>
+		[...columnLiteralsIn(fs.readFileSync(file, 'utf8'), 'reviewState', 'review_state')]
+			.filter((s) => !isReviewState(s))
+			.map((s) => `${path.relative(ROOT, file)} → '${s}'`)
+	);
+
+	const statusOffenders = SOURCE_FILES.flatMap((file) =>
+		[...columnLiteralsIn(fs.readFileSync(file, 'utf8'), 'status', 'status')]
 			.filter((s) => !isStoredInvoiceStatus(s))
 			.map((s) => `${path.relative(ROOT, file)} → '${s}'`)
 	);
 
-	it('finds files referencing invoices.status at all', () => {
-		const referencing = SOURCE_FILES.filter((f) => statusLiteralsIn(fs.readFileSync(f, 'utf8')).size > 0);
+	it('finds files referencing review_state at all', () => {
+		const referencing = SOURCE_FILES.filter(
+			(f) => columnLiteralsIn(fs.readFileSync(f, 'utf8'), 'reviewState', 'review_state').size > 0
+		);
 		expect(referencing.length).toBeGreaterThan(0);
 	});
 
-	it('has no reference outside the stored vocabulary', () => {
-		expect(offenders).toEqual([]);
+	it('has no review_state reference outside the vocabulary', () => {
+		expect(reviewOffenders).toEqual([]);
+	});
+
+	it('has no legacy status reference outside the stored vocabulary', () => {
+		expect(STORED_INVOICE_STATUSES.length).toBeGreaterThan(0);
+		expect(statusOffenders).toEqual([]);
 	});
 });
