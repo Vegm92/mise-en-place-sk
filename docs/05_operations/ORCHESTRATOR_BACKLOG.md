@@ -88,7 +88,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 470 | P3 | DONE | 1 | Verified (commit 659f900): extra (cycle-guarded deep walk) + breadcrumbs + request.headers/cookies scrubbed; SDK-source analysis proved headers/cookies were reaching Sentry unredacted. 2450/2450. | Sentry scrubber coverage |
 | 469 | P3 | DONE | 1 | Verified (commit 46c78e7): both loaders require item.restaurantId === locals.restaurantId; foreign == nonexistent. 5 DB-backed tests. 2455/2455. Subsumed if #441 retires the stubs. | scope confirm/extract loaders to restaurantId |
 | 468 | P3 | DONE | 1 | Verified (commit 2da6b2e): resolve+startsWith guard matching read/delete (sep-edge safe), traversal tests. 2458/2458. | LocalDriver.save path containment |
-| 467 | P3 | PENDING | 0 | | chat ACTIONS href allowlist |
+| 467 | P3 | DONE | 1 | Verified (commit 64cf841): single-source CHAT_ACTION_ROUTES feeds prompt + validator; origin-pinned URL parse blocks external/js/backslash hijacks; label/variant hardening. 2465/2465. | chat ACTIONS href allowlist |
 | 574 | P3 | PENDING | 0 | | highlight Category field on Clasificar |
 | 571 | P3 | PENDING | 0 | | unify logo usage |
 | 569 | P3 | PENDING | 0 | | help page docs/tips |
