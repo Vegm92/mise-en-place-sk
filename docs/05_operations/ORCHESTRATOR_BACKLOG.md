@@ -16,7 +16,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 743 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 (another session) | unverified email shows wrong login error |
 | 742 | P1 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | CSP img-src missing blob: blocks camera preview |
 | 484 | P1 | DONE | 1 | Verified (commit 29498ff): client pre-upload HEIC rejection w/ iOS guidance, WhatsApp heic/heif no longer saved as .jpg (both drivers); allowlist parity test pre-existed via #520. 1872 tests pass. | .heic accepted by picker, rejected by server |
-| 464 | P1 | PENDING | 0 | Infra-heavy (Postgres roles); needs care | split Postgres superuser into runtime+migration roles |
+| 464 | P1 | DONE | 1 | Verified (commit 5fe56cd, recovered after container restart): idempotent role script (pgboss schema ownership, default privileges), DATABASE_MIGRATION_URL split, DDL-refusal proven vs local PG. 2756/2756. PRODUCTION STEP PENDING: owner runs the script on Railway + swaps env vars per DEPLOYMENT.md runbook. | split Postgres superuser into runtime+migration roles |
 | 649 | P1 | PENDING | 0 | Large tracker issue; treat as umbrella | mobile 390px audit tracker |
 | 729 | P1 | DEFERRED | 0 | Escandallo code only on PR #723 branch | recipe name unescaped in emailed escandallo |
 | 728 | P1 | DEFERRED | 0 | PR #723 branch | sub-recipe nutrition scales on gross not net |
