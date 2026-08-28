@@ -25,7 +25,6 @@
   import FileDown from '@lucide/svelte/icons/file-down';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Check from '@lucide/svelte/icons/check';
-  import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
   import ExternalLink from '@lucide/svelte/icons/external-link';
   import Eye from '@lucide/svelte/icons/eye';
   import Search from '@lucide/svelte/icons/search';
@@ -99,7 +98,7 @@
 
   let view = $state<'list' | 'chart'>('list');
 
-  let activeTrendKeys = $state(['paid', 'pending', 'overdue']);
+  let activeTrendKeys = $state(['revisado', 'por_revisar', 'incidencia']);
   function toggleTrendBadge(key: string) {
     activeTrendKeys = activeTrendKeys.includes(key)
       ? activeTrendKeys.filter(k => k !== key)
@@ -153,21 +152,21 @@
     }
   }
 
-  let confirmPaidOpen        = $state(false);
+  let confirmReviewedOpen    = $state(false);
   let confirmDeleteOpen      = $state(false);
   let deleteInvoiceId        = $state<number | null>(null);
   let confirmDeleteOneOpen   = $state(false);
 
-  function handleBulkPaid() {
+  function handleBulkReviewed() {
     if (!checkedIds.size) return;
-    confirmPaidOpen = true;
+    confirmReviewedOpen = true;
   }
   function handleBulkDelete() {
     if (!checkedIds.size) return;
     confirmDeleteOpen = true;
   }
-  function executeBulkPaid() {
-    (document.getElementById('bulk-paid-form') as HTMLFormElement).submit();
+  function executeBulkReviewed() {
+    (document.getElementById('bulk-reviewed-form') as HTMLFormElement).submit();
   }
   function executeBulkDelete() {
     (document.getElementById('bulk-delete-form') as HTMLFormElement).submit();
@@ -237,9 +236,9 @@
     bind:view
     viewLabels={{ list: $t('tpl.view.list'), chart: $t('tpl.view.chart') }}
     kpis={[
-      { key: 'pending',   label: $t('inv.kpi.pending'),   value: Math.round(stats.pending_amount) + ' €', sub: $tp('misc.invoice', stats.pending_count), variant: stats.pending_count > 0 ? 'warn' : 'default' },
-      { key: 'overdue',   label: $t('inv.kpi.overdue'),   value: stats.overdue_count, sub: $t('dash.kpi.overdue.sub'), variant: stats.overdue_count > 0 ? 'neg' : 'default' },
-      { key: 'paid',      label: $t('inv.kpi.paid'),      value: stats.paid_count, sub: $t('misc.invoices'), variant: 'pos' },
+      { key: 'reviewed',  label: $t('inv.kpi.reviewed'),  value: stats.reviewed_count, sub: $t('misc.invoices'), variant: 'pos' },
+      { key: 'toReview',  label: $t('inv.kpi.toReview'),  value: stats.to_review_count, sub: $t('misc.invoices'), variant: stats.to_review_count > 0 ? 'warn' : 'default' },
+      { key: 'issues',    label: $t('inv.kpi.issues'),    value: stats.issue_count, sub: $t('misc.invoices'), variant: stats.issue_count > 0 ? 'neg' : 'default' },
       { key: 'suppliers', label: $t('inv.kpi.suppliers'), value: stats.supplier_count, sub: $t('dash.kpi.active') },
     ]}
     trendTitle={$t('inv.trend.title')}
@@ -315,9 +314,9 @@
                   value={filterDraft.status}
                   onchange={(e) => setFilter('status', (e.target as HTMLSelectElement).value)}>
                   <option value="">{$t('inv.filter.allStatus')}</option>
-                  <option value="pending">{$t('status.pending')}</option>
-                  <option value="paid">{$t('status.paid')}</option>
-                  <option value="overdue">{$t('status.overdue')}</option>
+                  <option value="por_revisar">{$t('inv.review.por_revisar')}</option>
+                  <option value="revisado">{$t('inv.review.revisado')}</option>
+                  <option value="incidencia">{$t('inv.review.incidencia')}</option>
                 </select>
               </div>
 
@@ -370,7 +369,7 @@
       {#if invoices.length === 0}
         <p class="body text-center py-16">{$t('inv.noInvoices')}</p>
       {:else}
-        <form id="bulk-paid-form" method="post" action="?/bulkPaid" class="hidden">
+        <form id="bulk-reviewed-form" method="post" action="?/bulkReviewed" class="hidden">
           {#each [...checkedIds] as id}<input type="hidden" name="invoice_ids" value={id} />{/each}
         </form>
         <form id="bulk-delete-form" method="post" action="?/bulkDelete" class="hidden">
@@ -389,10 +388,10 @@
             <div class="flex items-center gap-2 bg-acc-soft border border-acc rounded-lg px-3 py-1.5 transition-all">
               <span class="body-strong text-acc" style="font-size:12px;">{checkedIds.size} {$t('inv.selected')}</span>
               <div class="w-px h-4 bg-divider"></div>
-              <button type="button" onclick={handleBulkPaid}
+              <button type="button" onclick={handleBulkReviewed}
                 class="btn btn-ghost text-pos" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
                 <Check size={12} />
-                {$t('inv.markPaid')}
+                {$t('inv.markReviewed')}
               </button>
               <button type="button" onclick={handleBulkDelete}
                 class="btn btn-ghost text-neg" style="height:26px;font-size:12px;padding:0 8px;gap:4px;">
@@ -439,7 +438,7 @@
               </div>
 
               <div class="max-[800px]:hidden">
-                <StatusBadge status={inv.status ?? 'pending'} />
+                <StatusBadge status={inv.review_state ?? 'revisado'} />
               </div>
 
               <div class="flex justify-end text-fg-3 transition-transform {expanded ? 'rotate-90' : ''}">
@@ -463,20 +462,12 @@
                       {$t('inv.detail.original')}
                     </a>
                   {/if}
-                  {#if inv.status === 'pending'}
-                    <form method="post" action="?/markPaid">
+                  {#if inv.review_state !== 'revisado'}
+                    <form method="post" action="?/markReviewed">
                       <input type="hidden" name="id" value={inv.id} />
                       <button type="submit" class="btn btn-ghost text-pos" style="height:28px;font-size:12px;gap:5px;">
                         <Check size={12} />
-                        {$t('inv.markPaid')}
-                      </button>
-                    </form>
-                  {:else}
-                    <form method="post" action="?/markUnpaid">
-                      <input type="hidden" name="id" value={inv.id} />
-                      <button type="submit" class="btn btn-ghost text-fg-2" style="height:28px;font-size:12px;gap:5px;">
-                        <RotateCcw size={12} />
-                        {$t('inv.markUnpaid')}
+                        {$t('inv.markReviewed')}
                       </button>
                     </form>
                   {/if}
@@ -572,9 +563,9 @@
 </div>
 
 <ConfirmDialog
-  bind:open={confirmPaidOpen}
-  message={$tp('inv.confirm.paid', checkedIds.size)}
-  onconfirm={executeBulkPaid}
+  bind:open={confirmReviewedOpen}
+  message={$tp('inv.confirm.reviewed', checkedIds.size)}
+  onconfirm={executeBulkReviewed}
 />
 <ConfirmDialog
   bind:open={confirmDeleteOpen}

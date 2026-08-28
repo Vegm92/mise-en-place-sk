@@ -1,66 +1,38 @@
-import { and, eq, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { invoices } from './schema';
-import { isStoredInvoiceStatus, type InvoiceStatus } from '$lib/status';
+import { isReviewState, type ReviewState } from '$lib/status';
 
-export type { InvoiceStatus };
+export type { ReviewState };
 
-export function invoiceStatusFilter(status: string): SQL | undefined {
-	if (!status) return undefined;
+const OPEN_REVIEW_STATES: ReviewState[] = ['por_revisar', 'incidencia'];
 
-	if (status === 'overdue') {
-		return and(
-			eq(invoices.status, 'pending'),
-			isNotNull(invoices.dueDate),
-			lt(invoices.dueDate, sql`CURRENT_DATE`),
-		);
-	}
-
-	return isStoredInvoiceStatus(status) ? eq(invoices.status, status) : sql`false`;
+export function invoiceReviewFilter(state: string): SQL | undefined {
+	if (!state) return undefined;
+	return isReviewState(state) ? eq(invoices.reviewState, state) : sql`false`;
 }
 
-async function transition(
-	id: number,
-	rid: string,
-	from: InvoiceStatus[],
-	set: Partial<typeof invoices.$inferInsert>,
-): Promise<boolean> {
+export async function markInvoiceReviewed(id: number, rid: string): Promise<boolean> {
 	const tdb = forTenant(rid);
 	const rows = await db.update(invoices)
-		.set(set)
+		.set({ reviewState: 'revisado' })
 		.where(and(
 			tdb.scope(invoices.restaurantId, eq(invoices.id, id)),
-			inArray(invoices.status, from),
+			inArray(invoices.reviewState, OPEN_REVIEW_STATES),
 		))
 		.returning({ id: invoices.id });
 	return rows.length > 0;
 }
 
-export function markInvoicePaid(id: number, rid: string): Promise<boolean> {
-	return transition(id, rid, ['pending', 'accepted'], { status: 'paid', paidAt: new Date() });
-}
-
-export function markInvoiceUnpaid(id: number, rid: string): Promise<boolean> {
-	return transition(id, rid, ['paid'], { status: 'pending', paidAt: null, acceptedAt: null });
-}
-
-export function acceptInvoice(id: number, rid: string): Promise<boolean> {
-	return transition(id, rid, ['pending'], { status: 'accepted', acceptedAt: new Date() });
-}
-
-export function rejectInvoice(id: number, rid: string): Promise<boolean> {
-	return transition(id, rid, ['pending'], { status: 'rejected', rejectedAt: new Date() });
-}
-
-export async function markInvoicesPaidBulk(ids: number[], rid: string): Promise<number> {
+export async function markInvoicesReviewedBulk(ids: number[], rid: string): Promise<number> {
 	if (ids.length === 0) return 0;
 	const tdb = forTenant(rid);
 	const rows = await db.update(invoices)
-		.set({ status: 'paid', paidAt: new Date() })
+		.set({ reviewState: 'revisado' })
 		.where(and(
 			tdb.scope(invoices.restaurantId),
 			inArray(invoices.id, ids),
-			inArray(invoices.status, ['pending', 'accepted']),
+			inArray(invoices.reviewState, OPEN_REVIEW_STATES),
 		))
 		.returning({ id: invoices.id });
 	return rows.length;
