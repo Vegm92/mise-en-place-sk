@@ -2,8 +2,16 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
-import { asc, eq, desc, and, isNull, sql } from 'drizzle-orm';
+import { asc, eq, desc, and, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
+
+const LAYOUT_SETTINGS_KEYS = ['restaurant_name', 'has_completed_onboarding', 'tutorial_step'] as const;
+
+type InvoiceBadgeCounts = {
+	invoice_badge: number;
+	incidencia_badge: number;
+	budget_exceeded_badge: number;
+} & Record<string, unknown>;
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -17,56 +25,43 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRow, incidenciaBadgeRow, budgetExceededBadgeRow, quotaUsedRow, restaurantNameRow, onboardingRow, restaurantRow, tutorialStepRow, locationRows, entitlements] = await Promise.all([
-		db.select()
+	const [rawNotifs, invoiceBadgeRows, quotaUsedRow, settingsRows, locationRows, entitlements] = await Promise.all([
+		db.select({
+			id:               systemNotifications.id,
+			notificationType: systemNotifications.notificationType,
+			message:          systemNotifications.message,
+			payload:          systemNotifications.payload,
+			createdAt:        systemNotifications.createdAt,
+		})
 			.from(systemNotifications)
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
 			.orderBy(desc(systemNotifications.createdAt))
 			.limit(20),
 
-		db.select({ cnt: sql<number>`COUNT(*)` })
-			.from(invoices)
-			.where(and(tdb.scope(invoices.restaurantId), sql`${invoices.reviewState} <> 'revisado'`, isNull(invoices.deletedAt))),
+		db.execute<InvoiceBadgeCounts>(sql`
+			SELECT
+				COUNT(*) FILTER (WHERE ${invoices.reviewState} <> 'revisado')::int AS invoice_badge,
+				COUNT(*) FILTER (WHERE ${invoices.reviewState} = 'incidencia')::int AS incidencia_badge,
+				(SELECT COUNT(*)::int FROM ${systemNotifications}
+					WHERE ${systemNotifications.restaurantId} = ${tdb.rid}
+					  AND ${systemNotifications.status} = 'pending'
+					  AND ${systemNotifications.notificationType} = 'budget_overage'
+					  AND ${systemNotifications.payload}->>'level' = 'exceeded'
+				) AS budget_exceeded_badge
+			FROM ${invoices}
+			WHERE ${invoices.restaurantId} = ${tdb.rid} AND ${invoices.deletedAt} IS NULL
+		`),
 
-		db.select({ cnt: sql<number>`COUNT(*)` })
+		db.select({ cnt: sql<number>`COUNT(*)::int` })
 			.from(invoices)
-			.where(and(
-				tdb.scope(invoices.restaurantId),
-				eq(invoices.reviewState, 'incidencia'),
-				isNull(invoices.deletedAt)
-			)),
-
-		db.select({ cnt: sql<number>`COUNT(*)` })
-			.from(systemNotifications)
-			.where(tdb.scope(systemNotifications.restaurantId, and(
-				eq(systemNotifications.status, 'pending'),
-				eq(systemNotifications.notificationType, 'budget_overage'),
-				sql`${systemNotifications.payload}::json->>'level' = 'exceeded'`
+			.where(tdb.scope(invoices.restaurantId, and(
+				isNull(invoices.deletedAt),
+				gte(invoices.createdAt, sql`date_trunc('month', now())`)
 			))),
 
-		db.select({ cnt: sql<number>`COUNT(*)` })
-			.from(invoices)
-			.where(and(
-				tdb.scope(invoices.restaurantId),
-				isNull(invoices.deletedAt),
-				sql`TO_CHAR(${invoices.createdAt}, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')`
-			)),
-
-		db.select({ value: settings.value })
+		db.select({ key: settings.key, value: settings.value })
 			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'restaurant_name'))),
-
-		db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding'))),
-
-		db.select({ name: restaurants.name })
-			.from(restaurants)
-			.where(eq(restaurants.id, rid)),
-
-		db.select({ value: settings.value })
-			.from(settings)
-			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'tutorial_step'))),
+			.where(tdb.scope(settings.restaurantId, inArray(settings.key, LAYOUT_SETTINGS_KEYS))),
 
 		db.select({ id: restaurants.id, name: restaurants.name })
 			.from(userRestaurants)
@@ -76,17 +71,14 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		locals.entitlements(),
 	]);
 
-	const hasCompletedOnboarding = onboardingRow[0]?.value === 'true';
-	const rawTutorialStep = tutorialStepRow[0]?.value;
+	const invoiceBadgeCounts = invoiceBadgeRows[0] as InvoiceBadgeCounts | undefined;
+	const settingsMap = new Map(settingsRows.map(row => [row.key, row.value]));
+	const hasCompletedOnboarding = settingsMap.get('has_completed_onboarding') === 'true';
+	const rawTutorialStep = settingsMap.get('tutorial_step');
 	const tutorialStep = (rawTutorialStep ?? (hasCompletedOnboarding ? 'done' : '1')) as string;
+	const currentLocation = locationRows.find(loc => loc.id === rid);
 
-	const notifications = rawNotifs.flatMap((n) => {
-		let payload: unknown = null;
-		if (n.payload) {
-			try { payload = JSON.parse(n.payload); } catch { return []; }
-		}
-		return [{ ...n, payload }];
-	});
+	const notifications = rawNotifs;
 
 	const planTier: PlanTier = entitlements?.tier ?? 'trial';
 	const tierConfig = TIERS[planTier];
@@ -104,12 +96,12 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		},
 		restaurantId: rid,
 		notifications,
-		invoiceBadge:            invoiceBadgeRow[0]?.cnt    ?? 0,
-		reminderBadge:           Number(incidenciaBadgeRow[0]?.cnt ?? 0) + Number(budgetExceededBadgeRow[0]?.cnt ?? 0),
-		quotaUsed:               quotaUsedRow[0]?.cnt        ?? 0,
+		invoiceBadge:            Number(invoiceBadgeCounts?.invoice_badge ?? 0),
+		reminderBadge:           Number(invoiceBadgeCounts?.incidencia_badge ?? 0) + Number(invoiceBadgeCounts?.budget_exceeded_badge ?? 0),
+		quotaUsed:               Number(quotaUsedRow[0]?.cnt ?? 0),
 		quotaLimit:              usable ? entitlements?.monthlyQuota ?? null : TIERS.trial.monthlyInvoiceQuota ?? 0,
 		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
-		restaurantName:          restaurantNameRow[0]?.value ?? restaurantRow[0]?.name ?? '',
+		restaurantName:          settingsMap.get('restaurant_name') ?? currentLocation?.name ?? '',
 		locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
 		hasCompletedOnboarding,
 		tutorialStep,

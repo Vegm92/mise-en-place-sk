@@ -70,9 +70,12 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 
 ### `src/routes/api/health/+server.ts`
 **`function GET`**
-- DB reachability; worker / extraction queue depth (pg-boss) — a growing backlog is the canonical signal the worker is down or wedged; active upload sessions (24 h, analytics only); uploads directory check (local driver only, `fs.statfsSync`, Node ≥ 18.8).
+- Split public/detail (issue #491): the endpoint is listed in `isPublicPath`, so anyone can hit it, and the plain response must not leak infrastructure detail (version pins the dependency set for CVE matching, uptime reveals deploy cadence, DB size / queue depth reveal customer volume) or let an unauthenticated caller trigger `pg_database_size` + a `pgboss.job` count on every hit.
+- Public path (no valid admin session or token): one `SELECT 1` decides `dbReachable`; response is exactly `{ status: 'ok' | 'degraded' }` with a matching `200`/`503`. Nothing else runs — no DB size, no queue count, no worker heartbeat read.
+- Detail path (`isAdminUser(locals.user)` or a timing-safe match against `HEALTH_CHECK_TOKEN` on `X-Health-Token`) runs `computeHealthDetail()`, the original computation: DB reachability + size; worker / extraction queue depth (pg-boss) — a growing backlog is the canonical signal the worker is down or wedged; active upload sessions (24 h, analytics only); uploads directory check (local driver only, `fs.statfsSync`, Node ≥ 18.8); uptime; `$app/environment` version.
 - Queue depth alone is ambiguous: a backlog looks identical whether the worker is dead or merely busy. `worker.liveness` / `last_seen_at` / `last_job_completed_at` (from `worker_heartbeats`) are what disambiguate it (#540); read defensively so a missing heartbeat row degrades to `unknown` instead of throwing.
-- Graceful degradation: `pgboss` schema not provisioned or a failed check leaves the flag false rather than throwing; responds 503 when degraded so load balancers / uptime monitors detect it.
+- Graceful degradation: `pgboss` schema not provisioned or a failed check leaves the flag false rather than throwing; the detail response's `status` still reflects `dbReachable` / uploads-dir writability, so a monitor reading the token-gated response gets the same 503 signal as before.
+- Rate-limited per IP (`checkRateLimit('health:<ip>', HEALTH_RATE_LIMIT_RPM)`, default 60/min) ahead of every other check, admin/token calls included — a soft amplification target either way. Exempt from the global `/api/*` backstop in `hooks.server.ts` because it carries this dedicated limit instead.
 
 ### `src/routes/robots.txt/+server.ts`
 **`const GET`**

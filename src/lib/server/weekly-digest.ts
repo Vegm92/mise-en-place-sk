@@ -1,9 +1,9 @@
-import { GoogleGenAI } from '@google/genai';
 import { eq, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { settings } from './schema';
 import { buildChatContext } from './chat-context';
-import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
+import { createGeminiProvider } from './llm-provider';
+import { recordLlmUsage } from './llm-quota';
 
 export function isoWeek(date: Date): string {
 	const d = new Date(date);
@@ -43,14 +43,24 @@ async function claimDigestWeek(restaurantId: string, week: string): Promise<bool
 	return rows.length > 0;
 }
 
-async function callGeminiText(prompt: string): Promise<string> {
-	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
-	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-	const response = await ai.models.generateContent({ model: GEMINI_MODEL, contents: prompt });
-	return response.text ?? '';
+export interface WeeklyDigestDeps {
+	provider?: ReturnType<typeof createGeminiProvider>;
+	recordUsage?: typeof recordLlmUsage;
 }
 
-export async function getOrGenerateWeeklyDigest(restaurantId: string, currentWeek: string): Promise<string | null> {
+async function callGeminiText(prompt: string, restaurantId: string, deps: WeeklyDigestDeps): Promise<string> {
+	const provider = deps.provider ?? createGeminiProvider();
+	const response = await provider.generate(prompt);
+	const recordUsage = deps.recordUsage ?? recordLlmUsage;
+	await recordUsage(restaurantId, response.usage, 'weekly-digest');
+	return response.text;
+}
+
+export async function getOrGenerateWeeklyDigest(
+	restaurantId: string,
+	currentWeek: string,
+	deps: WeeklyDigestDeps = {},
+): Promise<string | null> {
 	try {
 		const storedWeek = await getSetting(restaurantId, 'weekly_digest_week');
 		const storedText = await getSetting(restaurantId, 'weekly_digest_text');
@@ -77,7 +87,7 @@ ${context}`;
 
 		let text: string;
 		try {
-			text = await callGeminiText(prompt);
+			text = await callGeminiText(prompt, restaurantId, deps);
 		} catch (err) {
 			await upsertSetting(restaurantId, 'weekly_digest_week', storedWeek ?? '');
 			throw err;

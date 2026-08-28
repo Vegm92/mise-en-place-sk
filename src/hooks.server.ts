@@ -9,6 +9,7 @@ import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
 import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
+import { resolveTenantGate } from '$lib/server/tenant-gate';
 import { entitlementHandle } from '$lib/server/entitlements';
 import { memoizeEntitlements } from '$lib/server/billing';
 import { memberLocations, type MemberLocation } from '$lib/server/locations';
@@ -104,6 +105,18 @@ function enforceAccessDecision(decision: AccessDecision) {
 	return null;
 }
 
+function enforceTenant(routeId: string | null, restaurantId: string | null) {
+	if (restaurantId) return null;
+	const decision = resolveTenantGate(routeId);
+	if (decision === 'deny-api') {
+		return json({ error: 'No active restaurant' }, { status: 409 });
+	}
+	if (decision === 'redirect-onboarding') {
+		redirect(303, '/onboarding');
+	}
+	return null;
+}
+
 function enforceAuth(path: string, user: App.Locals['user']) {
 	if (path === '/' && !user) {
 		redirect(303, '/waitlist');
@@ -182,6 +195,9 @@ const appHandle: Handle = async ({ event, resolve }) => {
 		});
 		const refused = enforceAccessDecision(decision);
 		if (refused) return refused;
+
+		const tenantResponse = enforceTenant(event.route.id, event.locals.restaurantId);
+		if (tenantResponse) return tenantResponse;
 	}
 
 	const authResponse = enforceAuth(path, event.locals.user);

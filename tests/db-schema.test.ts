@@ -98,6 +98,14 @@ describe.skipIf(!hasDbEnv)('Schema — column checks', () => {
 		);
 	});
 
+	it('system_notifications.payload is jsonb, not text (issue #497)', async () => {
+		const rows = await testSql`
+			SELECT data_type FROM information_schema.columns
+			WHERE table_schema = 'public' AND table_name = 'system_notifications' AND column_name = 'payload'
+		`;
+		expect(rows[0]?.data_type).toBe('jsonb');
+	});
+
 	it('supplier_metrics: score columns all present', async () => {
 		const cols = await getColumns('supplier_metrics');
 		[
@@ -180,5 +188,15 @@ describe.skipIf(!hasDbEnv)('Schema — unique constraints', () => {
 			WHERE schemaname = 'public' AND tablename = 'settings'
 		`;
 		expect(rows.length).toBeGreaterThan(0);
+	});
+
+	it('system_notifications has a partial index serving the layout budget-overage filter (issue #497)', async () => {
+		const rows = await testSql`
+			SELECT indexdef FROM pg_indexes
+			WHERE schemaname = 'public' AND tablename = 'system_notifications'
+			  AND indexname = 'idx_system_notifications_budget_overage_exceeded'
+		`;
+		expect(rows).toHaveLength(1);
+		expect(rows[0].indexdef).toContain(`(payload ->> 'level'::text) = 'exceeded'::text`);
 	});
 });

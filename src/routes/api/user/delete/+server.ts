@@ -1,15 +1,15 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import * as Sentry from '@sentry/sveltekit';
 import { db } from '$lib/server/db';
-import { userRestaurants, restaurants, subscriptions, invoices, batchItems } from '$lib/server/schema';
-import { users } from '$lib/server/schema';
-import { getStorage } from '$lib/server/storage';
-import { cancelSubscription } from '$lib/server/billing';
+import { userRestaurants, restaurants, subscriptions, invoices, batchItems, users } from '$lib/server/schema';
+import { verifyCredentials } from '$lib/server/auth-credentials';
+import { enqueueAccountCleanup } from '$lib/server/queue';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 
-async function deleteTenantFiles(restaurantIds: string[]): Promise<void> {
-	if (restaurantIds.length === 0) return;
+async function collectTenantFileKeys(restaurantIds: string[]): Promise<string[]> {
+	if (restaurantIds.length === 0) return [];
 
 	const [invoiceFiles, batchFiles] = await Promise.all([
 		db.select({ key: invoices.sourceFile }).from(invoices)
@@ -22,17 +22,7 @@ async function deleteTenantFiles(restaurantIds: string[]): Promise<void> {
 	for (const row of [...invoiceFiles, ...batchFiles]) {
 		if (row.key) keys.add(row.key);
 	}
-
-	let failed = 0;
-	for (const key of keys) {
-		try {
-			await getStorage().delete(key);
-		} catch (err) {
-			failed++;
-			console.error('[account-delete] file delete failed (continuing):', err);
-		}
-	}
-	console.info(`[account-delete] removed ${keys.size - failed}/${keys.size} stored files`);
+	return [...keys];
 }
 
 export const POST: RequestHandler = async ({ locals, request, cookies }) => {
@@ -44,7 +34,20 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	if (body?.confirm !== 'DELETE_MY_ACCOUNT') {
+
+	const [userRow] = await db
+		.select({ passwordHash: users.passwordHash })
+		.from(users)
+		.where(eq(users.id, user.id))
+		.limit(1);
+	if (!userRow) throw error(401, 'Unauthorized');
+
+	if (userRow.passwordHash) {
+		const password = typeof body?.password === 'string' ? body.password : '';
+		if (!password) throw error(400, 'Missing password confirmation. Send { "password": "…" }');
+		const reauthed = await verifyCredentials(user.email, password);
+		if (!reauthed) throw error(401, 'Incorrect password');
+	} else if (body?.confirm !== 'DELETE_MY_ACCOUNT') {
 		throw error(400, 'Missing confirmation. Send { "confirm": "DELETE_MY_ACCOUNT" }');
 	}
 
@@ -57,6 +60,10 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		.filter(m => m.role === 'owner')
 		.map(m => m.restaurantId);
 
+	let soleOwnedIds: string[] = [];
+	let stripeSubscriptionIds: string[] = [];
+	let storageKeys: string[] = [];
+
 	if (ownedIds.length > 0) {
 		const otherMembers = await db
 			.select({ restaurantId: userRestaurants.restaurantId })
@@ -66,7 +73,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 				ne(userRestaurants.userId, user.id),
 			));
 		const shared = new Set(otherMembers.map(m => m.restaurantId));
-		const soleOwnedIds = ownedIds.filter(id => !shared.has(id));
+		soleOwnedIds = ownedIds.filter(id => !shared.has(id));
 
 		if (soleOwnedIds.length > 0) {
 			const liveSubs = await db
@@ -76,25 +83,31 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 					inArray(subscriptions.restaurantId, soleOwnedIds),
 					isNotNull(subscriptions.stripeSubscriptionId),
 				));
-			for (const s of liveSubs) {
-				if (s.stripeSubscriptionId) await cancelSubscription(s.stripeSubscriptionId);
-			}
+			stripeSubscriptionIds = liveSubs
+				.map(s => s.stripeSubscriptionId)
+				.filter((id): id is string => id !== null);
 
-			await deleteTenantFiles(soleOwnedIds);
+			storageKeys = await collectTenantFileKeys(soleOwnedIds);
 		}
-
-		await db.transaction(async (tx) => {
-			if (soleOwnedIds.length > 0) {
-				await tx.delete(subscriptions).where(inArray(subscriptions.restaurantId, soleOwnedIds));
-				await tx.delete(restaurants).where(inArray(restaurants.id, soleOwnedIds));
-			}
-			await tx.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
-		});
-	} else {
-		await db.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
 	}
 
-	await db.delete(users).where(eq(users.id, user.id));
+	await db.transaction(async (tx) => {
+		if (soleOwnedIds.length > 0) {
+			await tx.delete(subscriptions).where(inArray(subscriptions.restaurantId, soleOwnedIds));
+			await tx.delete(restaurants).where(inArray(restaurants.id, soleOwnedIds));
+		}
+		await tx.delete(userRestaurants).where(eq(userRestaurants.userId, user.id));
+		await tx.delete(users).where(eq(users.id, user.id));
+	});
+
+	if (stripeSubscriptionIds.length > 0 || storageKeys.length > 0) {
+		try {
+			await enqueueAccountCleanup(user.id, soleOwnedIds[0] ?? null, stripeSubscriptionIds, storageKeys);
+		} catch (err) {
+			console.error(`[account-delete] failed to enqueue post-commit cleanup for user=${user.id}:`, err);
+			Sentry.captureException(err, { tags: { area: 'account-delete', op: 'enqueue_cleanup' } });
+		}
+	}
 
 	cookies.delete('authjs.session-token', { path: '/' });
 	cookies.delete('__Secure-authjs.session-token', { path: '/' });

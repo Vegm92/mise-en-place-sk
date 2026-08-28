@@ -35,13 +35,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.where(tdb.scope(systemNotifications.restaurantId, eq(systemNotifications.status, 'pending')))
 			.orderBy(desc(systemNotifications.createdAt));
 
-		const notifications = notifRows.flatMap((n) => {
-			let payload: unknown = null;
-			if (n.payload) {
-				try { payload = JSON.parse(n.payload); } catch { return []; }
-			}
-			return [{ ...n, payload }];
-		});
+		const notifications = notifRows;
 
 		return {
 			title: 'nav.reminders',

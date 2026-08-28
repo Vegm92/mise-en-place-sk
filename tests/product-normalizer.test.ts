@@ -100,7 +100,7 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 			SELECT payload FROM system_notifications
 			WHERE restaurant_id = ${rid} AND notification_type = 'product_suggestion' AND status = 'pending'`;
 		expect(notifs).toHaveLength(1);
-		const payload = JSON.parse(notifs[0].payload);
+		const payload = notifs[0].payload;
 		expect(payload.source).toBe('llm');
 		expect(payload.candidateProductId).toBe(merluzaId);
 		expect(payload.description).toBe('MERL. GRANDE');

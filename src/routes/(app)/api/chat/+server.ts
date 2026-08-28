@@ -1,7 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { GoogleGenAI } from '@google/genai';
-import { GEMINI_API_KEY, GEMINI_MODEL, CHAT_RATE_LIMIT_RPM } from '$lib/server/env';
+import { GEMINI_API_KEY, CHAT_RATE_LIMIT_RPM } from '$lib/server/env';
+import { createGeminiProvider } from '$lib/server/llm-provider';
+import { recordLlmUsage } from '$lib/server/llm-quota';
 import { buildChatContext } from '$lib/server/chat-context';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { trackEvent } from '$lib/server/events';
@@ -78,7 +79,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	trackEvent('chat_message_sent', rid, { session_id: resolvedSessionId, length: message.length });
 
 	const context = await buildChatContext(rid);
-	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 	const systemInstruction = [
 		SYSTEM_PROMPT,
@@ -91,13 +91,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	].join('\n');
 
 	try {
-		const response = await ai.models.generateContent({
-			model: GEMINI_MODEL,
-			config: { systemInstruction },
-			contents: [{ role: 'user', parts: [{ text: message }] }],
-		});
+		const provider = createGeminiProvider();
+		const response = await provider.generate(message, undefined, systemInstruction);
+		await recordLlmUsage(rid, response.usage, 'chat');
 
-		const raw = response.text ?? 'No response generated.';
+		const raw = response.text || 'No response generated.';
 		const { text: reply, actions } = parseActionsBlock(raw);
 
 		await db.insert(chatMessages).values({

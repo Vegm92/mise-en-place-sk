@@ -28,17 +28,17 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 496 | P2 | DONE | 1 | Verified (commit fb0f33c): saveEmail rate-limited (user+address), resend gated on existing unverified account, neutral signup response + unverified reclaim. 2199/2199. Residual: timing side-channel (pre-existing pattern), per-address cap on signUp not added. | unrate-limited mail primitives + user enumeration |
 | 498 | P2 | DONE | 1 | Verified (commit d85b253): binding only via redeemPairingCode (targeted invites, migration 0045), generic taken responses, audited owner/admin release, ADR-019 updated. 2214/2214. | WhatsApp numbers globally unique across tenants |
 | 500 | P2 | DONE | 1 | Verified (commit d612085): option B — compose no longer sets ADDRESS_HEADER/XFF_DEPTH, docs updated, tested boot warning for set-without-known-proxy. 2218/2218. | X-Forwarded-For trust + published :3000 |
-| 494 | P2 | PENDING | 0 | | contentHash misaligned line arrays |
-| 493 | P2 | PENDING | 0 | | Excel export unbounded |
-| 492 | P2 | PENDING | 0 | | account deletion non-atomic |
-| 491 | P2 | PENDING | 0 | | /api/health public + leaks detail |
-| 490 | P2 | PENDING | 0 | | locals.restaurantId! opaque 500 on API routes |
-| 489 | P2 | PENDING | 0 | | layout runs 13 queries per navigation |
-| 501 | P2 | PENDING | 0 | | extraction semaphore no timeout |
-| 497 | P2 | PENDING | 0 | | system_notifications.payload text ::json |
-| 466 | P2 | PENDING | 0 | | move EXTRACTION_PROMPT to systemInstruction |
-| 465 | P2 | PENDING | 0 | | bump @sveltejs/kit ReDoS + overrides + puppeteer |
-| 426 | P2 | PENDING | 0 | | chat/digest bypass LLM provider seam |
+| 494 | P2 | DONE | 1 | Core bug already fixed by 1187278; acceptance tests added (commit 827a998), bug re-proven by revert. 2223/2223. Operational note: run pnpm db:backfill-content-hash in prod if not done when 1187278 shipped. | contentHash misaligned line arrays |
+| 493 | P2 | DONE | 1 | Verified (commit b3412ca): 5/min rate limit, EXPORT_ROW_CAP(10k)+1 truncation marker, 400 on bad supplier_id/dates. 2234/2234. | Excel export unbounded |
+| 492 | P2 | DONE | 1 | Verified (commit db92e3d): re-auth (password/typed fallback), single txn incl. users row, post-commit account-cleanup pg-boss job w/ dead-letter. 2248/2248. Residual: enqueue-failure only logged+Sentry. | account deletion non-atomic |
+| 491 | P2 | DONE | 1 | Verified (commit 08deaf2): public status-only 200/503 + per-IP rate limit; detail behind isAdminUser or X-Health-Token. 2258/2258. Note: external monitors parsing old JSON need HEALTH_CHECK_TOKEN. | /api/health public + leaks detail |
+| 490 | P2 | DONE | 1 | Verified (commit 39228ec): hooks-level tenant gate via route.id — 409 JSON for (app)/api/*, 303 /onboarding for pages; route-tree-walking tests. 2266/2266. | locals.restaurantId! opaque 500 on API routes |
+| 489 | P2 | DONE | 1 | Verified (commit 1ea714f): 11→6 queries, sargable month filter (EXPLAIN: idx bitmap scan, ~25x), merged settings/badges, explicit columns. 2282/2282. | layout runs 13 queries per navigation |
+| 501 | P2 | DONE | 1 | Verified (commit 05fdd46): in-memory waiters share SLOT_MAX_WAIT_MS, timed-out release is a no-op (no leak/double-grant), semaphore counts in health detail. 2285/2285. | extraction semaphore no timeout |
+| 497 | P2 | DONE | 1 | Verified (commit d927fa8): payload → jsonb (migration 0046, USING cast), all casts/parses removed, partial index for layout level filter. 2274/2274. | system_notifications.payload text ::json |
+| 466 | P2 | DONE | 1 | Verified (commit eb020bd): systemInstruction on all 3 extraction paths + XML/Gemini sanitation seam (length caps, control-char/newline normalization). 2298/2298. | move EXTRACTION_PROMPT to systemInstruction |
+| 465 | P2 | DONE | 1 | Verified (commit 759b8d2): kit ^2.70.3, overrides fixed (fast-uri/brace-expansion) + nanoid added; puppeteer already gone (64fbe26). pnpm audit: 0 findings. 2298/2298. | bump @sveltejs/kit ReDoS + overrides + puppeteer |
+| 426 | P2 | DONE | 1 | Verified (commit c6d7f7a): both via createGeminiProvider + recordLlmUsage ('chat'/'weekly-digest'), logging only, ADR-007/018 updated. 2306/2306. | chat/digest bypass LLM provider seam |
 | 540 | P2 | PENDING | 0 | | extraction spinner runs forever when worker down |
 | 539 | P2 | PENDING | 0 | | analytics says "no data" to users with invoices |
 | 537 | P2 | PENDING | 0 | | a11y: 33/36 batch review fields unnamed |
@@ -76,7 +76,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 512 | P3 | DEFERRED | 0 | Likely moot under #746 reframe (PR #748); recheck after merge | "Vencidas" filter always empty |
 | 510 | P3 | PENDING | 0 | | rate-limit buckets consumed after failure |
 | 509 | P3 | PENDING | 0 | | auth-seed prod guard swallowed |
-| 508 | P3 | PENDING | 0 | | toFloat accepts "12abc"/"1e999" |
+| 508 | P3 | PENDING | 0 | Also cover: computeFormContentHash uses toMoneyString(raw) vs inserted toMoneyString(toFloat(raw)) — diverges on comma-decimal input (found during #494) | toFloat accepts "12abc"/"1e999" |
 | 507 | P3 | PENDING | 0 | | IndexedDB keeps invoice files indefinitely |
 | 506 | P3 | PENDING | 0 | | Sentry API URL hardcoded EU |
 | 505 | P3 | PENDING | 0 | | WhatsApp token host allowlist |

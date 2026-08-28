@@ -30,12 +30,15 @@ export function createGeminiProvider() {
 	const model = GEMINI_MODEL;
 	return {
 		model,
-		async generate(content: string | object[], signal?: AbortSignal) {
+		async generate(content: string | object[], signal?: AbortSignal, systemInstruction?: string) {
 			const contents = (typeof content === 'string' ? content : [{ role: 'user', parts: content }]) as Parameters<typeof ai.models.generateContent>[0]['contents'];
+			const config: { abortSignal?: AbortSignal; systemInstruction?: string } = {};
+			if (signal) config.abortSignal = signal;
+			if (systemInstruction) config.systemInstruction = systemInstruction;
 			const response = await ai.models.generateContent({
 				model,
 				contents,
-				config: signal ? { abortSignal: signal } : undefined,
+				config: Object.keys(config).length ? config : undefined,
 			});
 			return {
 				text: response.text ?? '',

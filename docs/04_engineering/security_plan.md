@@ -936,7 +936,9 @@ curl -s -o /dev/null -w "%{http_code}" https://<dominio>/api/upload/1/x.pdf  # s
   `checkRateLimit('api-global:<sujeto>')` — sujeto = id de usuario
   autenticado, o IP si no hay sesión. `API_GLOBAL_RATE_LIMIT` (300/min por
   defecto, 0 lo desactiva) responde 429 con `Retry-After` antes de tocar la
-  DB de membresías.
+  DB de membresías. `/api/health` está exento de este backstop porque lleva
+  su propio límite por IP (`HEALTH_RATE_LIMIT_RPM`, 60/min por defecto,
+  issue #491) — sigue limitado, solo que con su propia clave.
 
 **Implementación (ya aplicada):**
 

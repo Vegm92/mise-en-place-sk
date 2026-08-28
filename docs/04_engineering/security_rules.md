@@ -97,15 +97,23 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 ### `src/routes/api/user/delete/+server.ts`
 
-**`function deleteTenantFiles`**
+**`function collectTenantFileKeys`**
 
-- Remove every stored file for these restaurants (#289): confirmed invoices (`invoices.source_file`), batch files (`batch_items.file_key`), WhatsApp captures (`whatsapp_bot_sessions.file_key`). Failures logged, never thrown — account deletion must still complete.
+- Reads (never deletes) every stored-file key for these restaurants (#289): confirmed invoices (`invoices.source_file`), batch files (`batch_items.file_key`). Collected before the transaction so the keys are already in hand no matter what the transaction does.
 
 **`const POST`**
 
-- Destructive + irreversible — cap attempts, key `account-delete:${user.id}`; require explicit confirmation in the body. Delete owned restaurants (FK cascade) only where this user is the sole member — restaurants with other members survive so one owner can't wipe teammates' data.
-- Cancel live Stripe subscriptions BEFORE deleting the rows linking the Stripe customer to the tenant — otherwise the card keeps charging and support can't trace it (#246). Immediate cancellation (GDPR, not cancel-at-period-end).
-- GDPR must reach the files, not just rows (#289): once the restaurant row goes, the cascade drops every pointer to the uploaded PDFs and nothing could find them again. Delete files first, best-effort — a storage hiccup must not block deletion. All row deletes commit atomically (clean retry state). Delete `users` + clear session cookies last — keeps the endpoint retryable; this is what ends the session.
+- Destructive + irreversible — cap attempts, key `account-delete:${user.id}`. Re-authenticates before touching anything (#492): a password-holding account must pass `verifyCredentials` (the same primitive login uses) with its current password; an OAuth-only account (`passwordHash` null) keeps the typed `DELETE_MY_ACCOUNT` confirmation as a fallback.
+- Delete owned restaurants (FK cascade) only where this user is the sole member — restaurants with other members survive so one owner can't wipe teammates' data.
+- All DB deletion — subscriptions, restaurants, `user_restaurants`, and the `users` row itself — runs inside ONE transaction (#492: previously `users` was deleted outside the transaction, and the Stripe cancel + file delete ran BEFORE it even started, so a mid-flight failure could leave a `users` row with no tenant, or cancel a live subscription / delete files while the account stayed intact). Stripe subscription ids and storage keys are only *collected* pre-transaction; nothing external is touched until the transaction has committed.
+- After commit, a retryable `account-cleanup` pg-boss job (`enqueueAccountCleanup` → `processAccountCleanupJob` in `account-cleanup.ts`) cancels the collected Stripe subscriptions and deletes the collected files, using the same dead-letter pattern as every other background job (`worker.ts`). A failure to enqueue is logged + sent to Sentry but does not fail the request — the account row is already gone by then.
+- Session cookies are cleared last; by that point the `users` row is already gone (inside the transaction), so the JWT session stops resolving to a real user on the next request regardless.
+
+### `src/lib/server/account-cleanup.ts`
+
+**`function processAccountCleanupJob`**
+
+- Post-commit half of account deletion (#492). Cancels every collected Stripe subscription and deletes every collected storage key, attempting all of them even once one has failed, then throws an `AggregateError` if anything failed — the signal `runWithDeadLetter` (`worker.ts`) needs to retry the job and, once retries are exhausted, record it in the dead-letter queue.
 
 ### `src/routes/api/user/export/+server.ts`
 

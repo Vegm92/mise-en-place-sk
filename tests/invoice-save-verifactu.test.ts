@@ -102,7 +102,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
 				AND notification_type = 'verifactu_qr_mismatch'`;
 		expect(notifications).toHaveLength(1);
-		const payload = JSON.parse(notifications[0].payload);
+		const payload = notifications[0].payload;
 		expect(payload.mismatches).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ field: 'importe', qrValue: '1250.00', aiValue: '9999' }),
@@ -129,7 +129,7 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → VERI*FACTU QR check (issue #
 			WHERE restaurant_id = ${rid} AND invoice_id = ${out.invoiceId}
 				AND notification_type = 'verifactu_qr_mismatch'`;
 		expect(notifications).toHaveLength(1);
-		const payload = JSON.parse(notifications[0].payload);
+		const payload = notifications[0].payload;
 		expect(payload.mismatches.some((m: { field: string }) => m.field === 'numserie')).toBe(true);
 	});
 

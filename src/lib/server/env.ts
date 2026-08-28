@@ -11,6 +11,7 @@ export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-3.1-flash-lite';
 export const GEMINI_TIMEOUT_MS = parseInt(process.env.GEMINI_TIMEOUT_MS ?? '120000', 10);
 export const CHAT_RATE_LIMIT_RPM = parseInt(process.env.CHAT_RATE_LIMIT_RPM ?? '20', 10);
 export const MAX_CONCURRENT_EXTRACTIONS = parseInt(process.env.MAX_CONCURRENT_EXTRACTIONS ?? '3', 10);
+export const EXPORT_ROW_CAP = parseInt(process.env.EXPORT_ROW_CAP ?? '10000', 10);
 export const SCHEDULED_FANOUT_CONCURRENCY = Math.max(1, parseInt(process.env.SCHEDULED_FANOUT_CONCURRENCY ?? '5', 10) || 1);
 export const EXTRACTION_STALL_WARN_MS = parseInt(process.env.EXTRACTION_STALL_WARN_MS ?? '120000', 10);
 export const EXTRACTION_STALL_TIMEOUT_MS = parseInt(process.env.EXTRACTION_STALL_TIMEOUT_MS ?? '900000', 10);
@@ -36,6 +37,8 @@ export const SENTRY_ORG               = process.env.SENTRY_ORG              ?? '
 export const SENTRY_PROJECT           = process.env.SENTRY_PROJECT          ?? '';
 export const SENTRY_RELEASE           = process.env.SENTRY_RELEASE          ?? '';
 export const TURNSTILE_SECRET_KEY     = process.env.TURNSTILE_SECRET_KEY    ?? '';
+export const HEALTH_CHECK_TOKEN       = process.env.HEALTH_CHECK_TOKEN      ?? '';
+export const HEALTH_RATE_LIMIT_RPM    = parseInt(process.env.HEALTH_RATE_LIMIT_RPM ?? '60', 10);
 
 if (!GEMINI_API_KEY) console.warn('[env] GEMINI_API_KEY is not set — invoice extraction will fail');
 if (!APP_BASE_URL) {
