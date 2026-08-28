@@ -71,7 +71,7 @@ MERGE HAZARD: PR #748 adds migration drizzle/0045_graceful_virginia_dare.sql; th
 | 541 | P3 | DONE | 1 | Verified (commit 5a33c3a): client-side validateUploadFile (ext/size-band/magic-bytes, shared MAGIC_BYTES table w/ server, 1KB floor both sides), visible named rejections; drop-zone copy pre-existing. 2607/2607. Residual: mixed-batch server silent-drop unreachable via UI, flagged for follow-up. | upload silently discards rejected files |
 | 546 | P3 | DONE | 1 | Verified (commit ab9b4a0): /chat + ChatFab locked-preview (composer disabled, CTA, lock-dot), 402 retained, nav locks pre-existing; tour now includes locked chat step (flag for owner). 2647/2647. | tier gating inconsistent 402 vs redirect |
 | 538 | P3 | DONE | 1 | Verified (commit 9ec76f0): backdrop pointer-events:none (Skip/Escape dismiss), batch modals get aria-labelledby + focus in/restore + Escape, layout-pattern mirror. 2667/2667. | coach mark swallows first click; modal roles |
-| 536 | P3 | PENDING | 0 | | notification shows raw enum |
+| 536 | P3 | DONE | 1 | Verified (commit 52b042b): 12 writer sites render es message via renderTemplate, shared notificationMessage resolver, invoices toast fixed, backfill migration 0047 (adds to PR #748 migration-number hazard). 2718/2718. | notification shows raw enum |
 | 535 | P3 | PENDING | 0 | | number formatting hardcoded es-ES |
 | 534 | P3 | PENDING | 0 | | language switch misses period labels |
 | 515 | P3 | PENDING | 0 | | restaurant name two sources of truth |
