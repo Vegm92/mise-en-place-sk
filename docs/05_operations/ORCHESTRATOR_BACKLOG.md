@@ -39,7 +39,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 466 | P2 | DONE | 1 | Verified (commit eb020bd): systemInstruction on all 3 extraction paths + XML/Gemini sanitation seam (length caps, control-char/newline normalization). 2298/2298. | move EXTRACTION_PROMPT to systemInstruction |
 | 465 | P2 | DONE | 1 | Verified (commit 759b8d2): kit ^2.70.3, overrides fixed (fast-uri/brace-expansion) + nanoid added; puppeteer already gone (64fbe26). pnpm audit: 0 findings. 2298/2298. | bump @sveltejs/kit ReDoS + overrides + puppeteer |
 | 426 | P2 | DONE | 1 | Verified (commit c6d7f7a): both via createGeminiProvider + recordLlmUsage ('chat'/'weekly-digest'), logging only, ADR-007/018 updated. 2306/2306. | chat/digest bypass LLM provider seam |
-| 540 | P2 | PENDING | 0 | | extraction spinner runs forever when worker down |
+| 540 | P2 | DONE | 1 | Already fixed on main (ea1c329, pre-dates this session); verified against acceptance criteria + tests; GitHub issue closed with explanation. | extraction spinner runs forever when worker down |
 | 539 | P2 | PENDING | 0 | | analytics says "no data" to users with invoices |
 | 537 | P2 | PENDING | 0 | | a11y: 33/36 batch review fields unnamed |
 | 533 | P2 | PENDING | 0 | | missing $t() keys render raw |
