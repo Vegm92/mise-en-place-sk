@@ -42,7 +42,7 @@ DEFERRED = not actionable right now (e.g. targets PR #723's unmerged branch); re
 | 540 | P2 | DONE | 1 | Already fixed on main (ea1c329, pre-dates this session); verified against acceptance criteria + tests; GitHub issue closed with explanation. | extraction spinner runs forever when worker down |
 | 539 | P2 | DONE | 1 | Verified (commit e3723c7): spend+dashboard get out-of-range states w/ count + widen action; /analytics/extraction verified already correct (unwindowed MV). 2315/2315. | analytics says "no data" to users with invoices |
 | 537 | P2 | DONE | 1 | Verified (commit f4878ff): labels/aria on all batch fields, th scope, sr-only h2s; live Playwright audit clean both viewports; AST regression test. 2322/2322. Global icon buttons were already labeled (#460). | a11y: 33/36 batch review fields unnamed |
-| 533 | P2 | PENDING | 0 | | missing $t() keys render raw |
+| 533 | P2 | DONE | 1 | Already satisfied on main (e6c10d0 + a735941): keys present, lint:i18n key-resolution pass with deliberate-miss proof. GitHub issue closed with explanation. | missing $t() keys render raw |
 | 532 | P2 | PENDING | 0 | | nav renders literal "0" badge |
 | 511 | P2 | DEFERRED | 0 | Likely moot under #746 review-state reframe (PR #748); recheck after merge | three conflicting InvoiceStatus vocabularies |
 | 520 | P2 | PENDING | 0 | | tenant-isolation tests cover load() only; silent skips |
