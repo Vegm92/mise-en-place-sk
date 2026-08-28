@@ -9,14 +9,14 @@
  *
  * Skips without DATABASE_URL, like the other DB-backed suites.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { isoWeek } from '../src/lib/server/weekly-digest';
 import { isoWeekRange, shiftIsoWeek } from '../src/lib/server/reports/shared';
 import {
-	generateShareToken, resolveShareToken, buildPublicDigestPayload,
+	generateShareToken, resolveShareToken, buildPublicDigestPayload, getOrCreateActiveShare,
 } from '../src/lib/server/digest-share';
 
 const describeDb = hasDbEnv ? describe : describe.skip;
@@ -69,6 +69,11 @@ describeDb('digest-share — anonymised public payload (issue #329, security)', 
 		if (!hasDbEnv) return;
 		await cleanupTestRestaurant(rid);
 		await closeDb();
+	});
+
+	afterEach(async () => {
+		if (!hasDbEnv) return;
+		await testSql`DELETE FROM digest_shares WHERE restaurant_id = ${rid}`;
 	});
 
 	it('never includes the supplier name, invoice number, restaurant name, or any absolute amount', async () => {
@@ -124,6 +129,46 @@ describeDb('digest-share — anonymised public payload (issue #329, security)', 
 
 		await testSql`UPDATE digest_shares SET revoked_at = now() WHERE token = ${token}`;
 		expect(await resolveShareToken(token)).toBeNull();
+	});
+
+	it('two concurrent creates for the same (restaurant, week) resolve to exactly one active token (issue #329 follow-up)', async () => {
+		const [first, second] = await Promise.all([
+			getOrCreateActiveShare(rid, week),
+			getOrCreateActiveShare(rid, week),
+		]);
+
+		expect(first.token).toBe(second.token);
+
+		const rows = await testSql`
+			SELECT token FROM digest_shares WHERE restaurant_id = ${rid} AND week = ${week} AND revoked_at IS NULL
+		`;
+		expect(rows).toHaveLength(1);
+		expect(rows[0]!.token).toBe(first.token);
+	});
+
+	it('a losing insert falls back to the winner\'s token via the partial-index conflict path (unit-level, not timing-dependent)', async () => {
+		const winner = await getOrCreateActiveShare(rid, week);
+		const loser = await getOrCreateActiveShare(rid, week);
+
+		expect(loser.token).toBe(winner.token);
+		const rows = await testSql`
+			SELECT token FROM digest_shares WHERE restaurant_id = ${rid} AND week = ${week} AND revoked_at IS NULL
+		`;
+		expect(rows).toHaveLength(1);
+	});
+
+	it('a re-share after revoke gets a fresh token, not blocked by the partial unique index', async () => {
+		const original = await getOrCreateActiveShare(rid, week);
+		await testSql`UPDATE digest_shares SET revoked_at = now() WHERE token = ${original.token}`;
+
+		const reshared = await getOrCreateActiveShare(rid, week);
+		expect(reshared.token).not.toBe(original.token);
+
+		const activeRows = await testSql`
+			SELECT token FROM digest_shares WHERE restaurant_id = ${rid} AND week = ${week} AND revoked_at IS NULL
+		`;
+		expect(activeRows).toHaveLength(1);
+		expect(activeRows[0]!.token).toBe(reshared.token);
 	});
 });
 

@@ -15,9 +15,9 @@ export function generateShareToken(): string {
 	return randomBytes(TOKEN_BYTES).toString('base64url');
 }
 
-export async function getOrCreateCurrentWeekShare(restaurantId: string): Promise<{ token: string; week: string }> {
-	const week = isoWeek(new Date());
+export async function getOrCreateActiveShare(restaurantId: string, week: string): Promise<{ token: string; week: string }> {
 	const tdb = forTenant(restaurantId);
+
 	const [existing] = await db
 		.select({ token: digestShares.token })
 		.from(digestShares)
@@ -26,8 +26,28 @@ export async function getOrCreateCurrentWeekShare(restaurantId: string): Promise
 	if (existing) return { token: existing.token, week };
 
 	const token = generateShareToken();
-	await db.insert(digestShares).values({ restaurantId, week, token });
-	return { token, week };
+	const inserted = await db
+		.insert(digestShares)
+		.values({ restaurantId, week, token })
+		.onConflictDoNothing({
+			target: [digestShares.restaurantId, digestShares.week],
+			where: sql`${digestShares.revokedAt} is null`,
+		})
+		.returning({ token: digestShares.token });
+
+	if (inserted[0]) return { token: inserted[0].token, week };
+
+	const [winner] = await db
+		.select({ token: digestShares.token })
+		.from(digestShares)
+		.where(tdb.scope(digestShares.restaurantId, and(eq(digestShares.week, week), isNull(digestShares.revokedAt))))
+		.limit(1);
+	if (!winner) throw new Error('digest-share: insert conflicted on the active-share index but no active row was found afterwards');
+	return { token: winner.token, week };
+}
+
+export async function getOrCreateCurrentWeekShare(restaurantId: string): Promise<{ token: string; week: string }> {
+	return getOrCreateActiveShare(restaurantId, isoWeek(new Date()));
 }
 
 export interface ResolvedDigestShare {
