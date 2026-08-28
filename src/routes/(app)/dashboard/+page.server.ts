@@ -1,18 +1,15 @@
-import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
-import type { Actions, PageServerLoad } from './$types';
+import type { PageServerLoad } from './$types';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { desc, eq, inArray, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
-import { markInvoicePaid, markInvoiceUnpaid } from '$lib/server/invoice-status';
 import { parseMonthParam, shiftMonth } from '$lib/formatters';
 import { getTrendDataByRange } from '$lib/server/trend';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { moneyToNumber } from '$lib/server/money';
-import { CASH_OUT_HORIZON_DAYS } from '$lib/dashboard-turno';
-import type { PayableInput, PriceShockInput, UncategorizedInput } from '$lib/dashboard-turno';
+import type { PriceShockInput, UncategorizedInput } from '$lib/dashboard-turno';
 
 function relativeTime(iso: Date | string | null, today: Date): string {
 	if (!iso) return '';
@@ -102,9 +99,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	return handleLoad('dashboard', async () => {
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
-		const todayIso = today.toISOString().split('T')[0]!;
-		const weekEnd = new Date(today.getTime() + 7 * 86400000).toISOString().split('T')[0]!;
-		const cashOutEnd = new Date(today.getTime() + CASH_OUT_HORIZON_DAYS * 86400000).toISOString().split('T')[0]!;
 		const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0]!;
 
 		const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -112,48 +106,23 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const prevMonth = shiftMonth(selectedMonth, -1);
 
 		const [
-			overdueRow, dueWeekRow, pendingRow, paidMonthRow,
+			reviewRow,
 			momRow, sparkRows, activeSuppRow,
 			supplierCountRow, supplierRows, catRows,
 			budgetRows, thresholdRow,
-			recentRows, pendingInvoiceRows,
-			agingRow, avgInvoiceRow, reminderRows,
-			cashOutRows, uncategorizedRows,
+			recentRows,
+			avgInvoiceRow,
+			uncategorizedRows,
 			priceShockRows, budgetAlertRows,
 			trend,
 		] = await Promise.all([
-			db.select({ count: sql<number>`COUNT(*)` })
+			db.select({
+				amount: sql<number>`COALESCE(SUM(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN COALESCE(${invoices.totalAmount},0) ELSE 0 END),0)`,
+				count: sql<number>`COUNT(CASE WHEN ${invoices.reviewState} <> 'revisado' THEN 1 END)`,
+				incidencias: sql<number>`COUNT(CASE WHEN ${invoices.reviewState} = 'incidencia' THEN 1 END)`,
+			})
 				.from(invoices)
-				.where(and(
-					tdb.scope(invoices.restaurantId),
-					eq(invoices.status, 'pending'),
-					isNotNull(invoices.dueDate),
-					isNull(invoices.deletedAt),
-					sql`${invoices.dueDate} < ${todayIso}`
-				)),
-
-			db.select({ count: sql<number>`COUNT(*)`, amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)` })
-				.from(invoices)
-				.where(and(
-					tdb.scope(invoices.restaurantId),
-					eq(invoices.status, 'pending'),
-					isNotNull(invoices.dueDate),
-					isNull(invoices.deletedAt),
-					sql`${invoices.dueDate} BETWEEN ${todayIso} AND ${weekEnd}`
-				)),
-
-			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
-				.from(invoices)
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
-
-			db.select({ amount: sql<number>`COALESCE(SUM(COALESCE(${invoices.totalAmount},0)),0)`, count: sql<number>`COUNT(*)` })
-				.from(invoices)
-				.where(and(
-					tdb.scope(invoices.restaurantId),
-					eq(invoices.status, 'paid'),
-					isNull(invoices.deletedAt),
-					sql`TO_CHAR(${invoices.invoiceDate}, 'YYYY-MM') = ${selectedMonth}`
-				)),
+				.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt))),
 
 			db.select({
 				this_month: sql<number>`COALESCE(SUM(CASE WHEN TO_CHAR(${invoices.invoiceDate},'YYYY-MM')=${selectedMonth} THEN COALESCE(${invoices.totalAmount},0) END),0)`,
@@ -192,9 +161,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					COALESCE(s.category,'Other') AS category,
 					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${selectedMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS month_spend,
 					COALESCE(SUM(CASE WHEN TO_CHAR(i.invoice_date,'YYYY-MM')=${prevMonth} THEN COALESCE(i.total_amount,0) ELSE 0 END),0) AS prev_month_spend,
-					COUNT(CASE WHEN i.status='pending' THEN 1 END) AS open_count,
-					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date < ${todayIso} THEN 1 ELSE 0 END) AS has_overdue,
-					MAX(CASE WHEN i.status='pending' AND i.due_date IS NOT NULL AND i.due_date BETWEEN ${todayIso} AND ${weekEnd} THEN 1 ELSE 0 END) AS has_due_soon
+					COUNT(CASE WHEN i.review_state <> 'revisado' THEN 1 END) AS open_count,
+					MAX(CASE WHEN i.review_state = 'incidencia' THEN 1 ELSE 0 END) AS has_issues
 				FROM suppliers s
 				LEFT JOIN invoices i ON i.supplier_id = s.id AND i.restaurant_id = ${rid} AND i.deleted_at IS NULL
 				WHERE s.restaurant_id = ${rid}
@@ -227,7 +195,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			db.execute(sql`
 				SELECT i.id, s.name AS supplier_name, i.invoice_number, i.invoice_date,
 				       COALESCE(i.total_amount,0) AS display_amount,
-				       COALESCE(i.status,'pending') AS status,
+				       i.review_state,
 				       COUNT(li.id) AS item_count
 				FROM invoices i
 				LEFT JOIN suppliers s ON s.id = i.supplier_id
@@ -238,27 +206,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				GROUP BY i.id, s.name ORDER BY i.invoice_date DESC, i.created_at DESC LIMIT 6
 			`),
 
-			db.execute(sql`
-				SELECT i.id, s.name AS supplier_name, i.invoice_number, i.invoice_date,
-				       COALESCE(i.total_amount,0) AS display_amount,
-				       COUNT(li.id) AS item_count
-				FROM invoices i
-				LEFT JOIN suppliers s ON s.id = i.supplier_id
-				LEFT JOIN invoice_line_items li ON li.invoice_id = i.id
-				WHERE i.restaurant_id = ${rid} AND i.status = 'pending'
-				  AND i.deleted_at IS NULL
-				  AND TO_CHAR(i.invoice_date,'YYYY-MM') = ${selectedMonth}
-				GROUP BY i.id, s.name ORDER BY i.created_at DESC LIMIT 5
-			`),
-
-			db.select({
-				fresh: sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) <= 7 THEN 1 END)`,
-				mid:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) BETWEEN 8 AND 30 THEN 1 END)`,
-				old:   sql<number>`COUNT(CASE WHEN NOW()::date - COALESCE(${invoices.invoiceDate},${invoices.createdAt}::date) > 30 THEN 1 END)`,
-			})
-				.from(invoices)
-				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.status, 'pending'), isNull(invoices.deletedAt))),
-
 			db.select({ avg: sql<number | null>`ROUND(AVG(${invoices.totalAmount})::numeric, 0)` })
 				.from(invoices)
 				.where(and(
@@ -267,29 +214,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					isNull(invoices.deletedAt),
 					sql`TO_CHAR(${invoices.invoiceDate},'YYYY-MM') = ${selectedMonth}`
 				)),
-
-			db.execute(sql`
-				SELECT i.id, s.name AS supplier_name, i.invoice_number,
-				       i.due_date, COALESCE(i.total_amount,0) AS display_amount
-				FROM invoices i
-				LEFT JOIN suppliers s ON s.id = i.supplier_id
-				WHERE i.restaurant_id = ${rid}
-				  AND i.deleted_at IS NULL
-				  AND i.status='pending' AND i.due_date IS NOT NULL AND i.due_date <= ${weekEnd}
-				ORDER BY i.due_date ASC
-			`),
-
-			db.execute(sql`
-				SELECT i.id, s.name AS supplier_name, i.invoice_number,
-				       i.due_date, COALESCE(i.total_amount,0) AS display_amount
-				FROM invoices i
-				LEFT JOIN suppliers s ON s.id = i.supplier_id
-				WHERE i.restaurant_id = ${rid}
-				  AND i.deleted_at IS NULL
-				  AND i.status IN ('pending','accepted')
-				  AND i.due_date IS NOT NULL AND i.due_date <= ${cashOutEnd}
-				ORDER BY i.due_date ASC
-			`),
 
 			db.select({ id: systemNotifications.id, payload: systemNotifications.payload })
 				.from(systemNotifications)
@@ -326,10 +250,11 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			getTrendDataByRange(rid, '30d', 'weekly'),
 		]);
 
-		const overdue   = { count: Number(overdueRow[0]?.count    ?? 0) };
-		const dueWeek   = { count: Number(dueWeekRow[0]?.count    ?? 0), amount: Number(dueWeekRow[0]?.amount   ?? 0) };
-		const pending   = { amount: Number(pendingRow[0]?.amount  ?? 0), count: Number(pendingRow[0]?.count     ?? 0) };
-		const paidMonth = { amount: Number(paidMonthRow[0]?.amount ?? 0), count: Number(paidMonthRow[0]?.count  ?? 0) };
+		const review = {
+			amount: Number(reviewRow[0]?.amount ?? 0),
+			count: Number(reviewRow[0]?.count ?? 0),
+			incidencias: Number(reviewRow[0]?.incidencias ?? 0),
+		};
 
 		const mom = momRow[0] ?? { this_month: 0, last_month: 0 };
 		const momPct = Number(mom.last_month) > 0
@@ -355,17 +280,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		const supplierCount = Number(supplierCountRow[0]?.cnt ?? 0);
 
-		type SupplierCardRow = { id: number; name: string; category: string; month_spend: number; prev_month_spend: number; open_count: number; has_overdue: number; has_due_soon: number };
+		type SupplierCardRow = { id: number; name: string; category: string; month_spend: number; prev_month_spend: number; open_count: number; has_issues: number };
 		const supps = (supplierRows as unknown as SupplierCardRow[]).map((r) => {
 			const delta = Number(r.prev_month_spend) > 0
 				? Math.round((Number(r.month_spend) - Number(r.prev_month_spend)) / Number(r.prev_month_spend) * 100 * 10) / 10
 				: null;
-			const dueBadge = Number(r.has_due_soon) ? 'due_soon' : 'paid_up';
 			return {
 				...r,
 				month_spend: Number(r.month_spend),
 				prev_month_spend: Number(r.prev_month_spend),
-				badge: Number(r.has_overdue) ? 'overdue' : dueBadge,
 				delta,
 			};
 		});
@@ -396,24 +319,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const highCount = dashboardAlerts.filter(a => a.sev === 'high').length;
 		const medCount  = dashboardAlerts.filter(a => a.sev === 'med').length;
 
-		const aging = agingRow[0] ?? { fresh: 0, mid: 0, old: 0 };
 		const avgInvoice = avgInvoiceRow[0]?.avg ?? null;
-
-		type ReminderRow = { id: number; supplier_name: string | null; invoice_number: string | null; due_date: string; display_amount: number };
-		const reminders = (reminderRows as unknown as ReminderRow[]).map((r) => {
-			const daysDelta = Math.round((new Date(r.due_date).getTime() - today.getTime()) / 86400000);
-			return { ...r, days_delta: daysDelta, overdue: daysDelta < 0 };
-		});
-
-		type CashOutRow = { id: number; supplier_name: string | null; invoice_number: string | null; due_date: string; display_amount: number };
-		const payables: PayableInput[] = (cashOutRows as unknown as CashOutRow[]).map((r) => ({
-			id: r.id,
-			supplier_name: r.supplier_name,
-			invoice_number: r.invoice_number,
-			due_date: r.due_date,
-			amount: Number(r.display_amount),
-			days_delta: Math.round((new Date(r.due_date).getTime() - today.getTime()) / 86400000),
-		}));
 
 		const uncategorized: UncategorizedInput[] = uncategorizedRows
 			.map((r) => {
@@ -470,25 +376,22 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const missingInvoices = await detectMissingInvoices(rid, today);
 		const displayMonth = new Date(selectedMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-		type InvRow = { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; display_amount: number; status: string; item_count: number };
+		type InvRow = { id: number; supplier_name: string | null; invoice_number: string | null; invoice_date: string | null; display_amount: number; review_state: string; item_count: number };
 		return {
 			title: 'dashboard.title', subtitle: displayMonth + ' · EUR', firstInvoice,
 			selectedMonth, currentMonth,
-			overdue, due_week: dueWeek, pending, paid_month: paidMonth,
+			review,
 			supplier_count: supplierCount, suppliers: supps, category_spend: categorySpend,
 			recent_invoices: recentRows as unknown as InvRow[],
-			pending_invoices: pendingInvoiceRows as unknown as InvRow[],
 			valid_categories: VALID_CATEGORIES, budgets,
 			budget_threshold: threshold, category_spend_map: categorySpendMap,
 			total_budget: totalBudget, total_spent: totalSpent,
 			total_pct_bar: totalPctBar, total_pct_actual: totalPctActual,
 			missing_invoices: missingInvoices, price_shock_alerts: priceShockAlerts,
 			dashboard_alerts: dashboardAlerts, alert_counts: { high: highCount, med: medCount },
-			reminders,
-			payables, uncategorized_suppliers: uncategorized, turno_price_shocks: turnoPriceShocks,
+			uncategorized_suppliers: uncategorized, turno_price_shocks: turnoPriceShocks,
 			is_current_month: selectedMonth === currentMonth,
 			mom: { this_month: Number(mom.this_month), last_month: Number(mom.last_month), pct_change: momPct },
-			aging: { fresh: Number(aging.fresh), mid: Number(aging.mid), old: Number(aging.old) },
 			avg_invoice: avgInvoice ? Number(avgInvoice) : null,
 			avg_per_supplier: proj.avgPerSupplier, avg_per_supplier_delta: proj.avgPerSupplierDelta,
 			spark_data: sparkData,
@@ -496,19 +399,4 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			trend,
 		};
 	});
-};
-
-export const actions: Actions = {
-	markPaid: async ({ request, locals }) => {
-		const data = await request.formData();
-		const id = Number(data.get('invoiceId'));
-		const ok = await markInvoicePaid(id, locals.restaurantId!);
-		redirect(303, ok ? '/dashboard' : '/dashboard?conflict=1');
-	},
-	markUnpaid: async ({ request, locals }) => {
-		const data = await request.formData();
-		const id = Number(data.get('invoiceId'));
-		const ok = await markInvoiceUnpaid(id, locals.restaurantId!);
-		redirect(303, ok ? '/dashboard' : '/dashboard?conflict=1');
-	},
 };

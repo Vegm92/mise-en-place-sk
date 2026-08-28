@@ -1,2 +1,0 @@
-ALTER TABLE "system_notifications" ALTER COLUMN "payload" SET DATA TYPE jsonb USING payload::jsonb;--> statement-breakpoint
-CREATE INDEX "idx_system_notifications_budget_overage_exceeded" ON "system_notifications" USING btree ("restaurant_id") WHERE "system_notifications"."status" = 'pending' AND "system_notifications"."notification_type" = 'budget_overage' AND ("system_notifications"."payload"->>'level') = 'exceeded';

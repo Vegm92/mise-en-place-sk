@@ -9,7 +9,7 @@ const LAYOUT_SETTINGS_KEYS = ['restaurant_name', 'has_completed_onboarding', 'tu
 
 type InvoiceBadgeCounts = {
 	invoice_badge: number;
-	overdue_badge: number;
+	incidencia_badge: number;
 	budget_exceeded_badge: number;
 } & Record<string, unknown>;
 
@@ -40,8 +40,8 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 		db.execute<InvoiceBadgeCounts>(sql`
 			SELECT
-				COUNT(*) FILTER (WHERE ${invoices.status} = 'pending')::int AS invoice_badge,
-				COUNT(*) FILTER (WHERE ${invoices.status} IN ('pending', 'accepted') AND ${invoices.dueDate} < CURRENT_DATE)::int AS overdue_badge,
+				COUNT(*) FILTER (WHERE ${invoices.reviewState} <> 'revisado')::int AS invoice_badge,
+				COUNT(*) FILTER (WHERE ${invoices.reviewState} = 'incidencia')::int AS incidencia_badge,
 				(SELECT COUNT(*)::int FROM ${systemNotifications}
 					WHERE ${systemNotifications.restaurantId} = ${tdb.rid}
 					  AND ${systemNotifications.status} = 'pending'
@@ -97,7 +97,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		restaurantId: rid,
 		notifications,
 		invoiceBadge:            Number(invoiceBadgeCounts?.invoice_badge ?? 0),
-		reminderBadge:           Number(invoiceBadgeCounts?.overdue_badge ?? 0) + Number(invoiceBadgeCounts?.budget_exceeded_badge ?? 0),
+		reminderBadge:           Number(invoiceBadgeCounts?.incidencia_badge ?? 0) + Number(invoiceBadgeCounts?.budget_exceeded_badge ?? 0),
 		quotaUsed:               Number(quotaUsedRow[0]?.cnt ?? 0),
 		quotaLimit:              usable ? entitlements?.monthlyQuota ?? null : TIERS.trial.monthlyInvoiceQuota ?? 0,
 		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
@@ -107,6 +107,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		tutorialStep,
 		planTier,
 		features: tierConfig.features,
+		trialExpired:       entitlements?.access.trialExpired ?? false,
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
 		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,

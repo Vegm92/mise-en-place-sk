@@ -8,6 +8,7 @@
   import Check from '@lucide/svelte/icons/check';
   import Camera from '@lucide/svelte/icons/camera';
   import WifiOff from '@lucide/svelte/icons/wifi-off';
+  import Lock from '@lucide/svelte/icons/lock';
   import { t, ti, tp } from '$lib/i18n';
   import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
   import FileTypeBadge from '$lib/components/FileTypeBadge.svelte';
@@ -18,6 +19,7 @@
     data: {
       saved: boolean; duplicate: boolean; error: string | null;
       errorVars?: ErrorVars; hasCompletedOnboarding: boolean; upgradeUrl?: string | null;
+      trialExpired?: boolean;
     };
     form: { error?: string; errorVars?: ErrorVars; upgradeUrl?: string } | null;
   }
@@ -50,6 +52,7 @@
 
   const errorMsg = $derived(localError ?? serverError);
   const upgradeUrl = $derived(form?.upgradeUrl ?? data.upgradeUrl ?? null);
+  const trialExpired = $derived(!!data.trialExpired);
 
   let files = $state<File[]>([]);
   let isDragging = $state(false);
@@ -148,7 +151,7 @@
   }
 
   function addFiles(newFiles: FileList | null) {
-    if (!newFiles) return;
+    if (!newFiles || trialExpired) return;
     for (const f of Array.from(newFiles)) {
       if (isHeicUpload(f)) { showError($ti('upload.reject.heic', { name: f.name })); continue; }
       if (f.size > MAX_MB * 1024 * 1024) { showError($ti('upload.imageTooLarge', { mb: MAX_MB }), true); continue; }
@@ -160,6 +163,7 @@
   function fileKind(name: string) { return name.split('.').pop()?.toLowerCase() === 'pdf' ? 'pdf' : 'img'; }
 
   function openCamera() {
+    if (trialExpired) return;
     cameraInputEl?.click();
   }
 
@@ -257,7 +261,7 @@
   }
 
   async function doUpload() {
-    if (!files.length || uploading) return;
+    if (!files.length || uploading || trialExpired) return;
     dismissError();
     uploading = true;
     uploadProgress = 0;
@@ -290,6 +294,7 @@
   function onDrop(e: DragEvent) {
     e.preventDefault();
     isDragging = false;
+    if (trialExpired) return;
     addFiles(e.dataTransfer?.files ?? null);
   }
 
@@ -369,6 +374,29 @@
   <div style="flex:1;overflow-y:auto;padding:0 18px 0;display:flex;flex-direction:column;gap:12px;padding-bottom:12px;">
 
     <div class="card" data-coach="upload-zone" style="padding:16px;">
+      {#if trialExpired}
+        <div style="
+          border:1.5px dashed var(--mep-border-strong);
+          border-radius:10px;
+          display:flex;flex-direction:column;align-items:center;
+          padding:24px 16px;
+          background:var(--mep-surface-2);
+          opacity:0.7;
+        ">
+          <div style="width:48px;height:48px;border-radius:var(--mep-r-pill);background:var(--mep-hover);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;margin-bottom:12px;flex-shrink:0;">
+            <Lock size={22} />
+          </div>
+          <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:4px;text-align:center;">
+            {$t('upload.trialExpiredTitle')}
+          </div>
+          <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:14px;text-align:center;">
+            {$t('billing.trialExpiredMsg')}
+          </div>
+          <a href="/billing?upgrade=trial" class="btn btn-primary" style="height:36px;padding:0 16px;text-decoration:none;">
+            {$t('billing.subscribeNow')}
+          </a>
+        </div>
+      {:else}
       <div
         style="
           border:1.5px dashed {isDragging?'var(--mep-acc)':'var(--mep-border-strong)'};
@@ -431,6 +459,7 @@
         />
 
       </div>
+      {/if}
     </div>
 
     <div class="card" style="padding:14px 14px 10px;">
@@ -479,7 +508,7 @@
       type="button"
       class="btn btn-primary"
       style="width:100%;height:44px;justify-content:center;font-weight:500;gap:6px;font-size:14px;"
-      disabled={files.length===0||uploading}
+      disabled={files.length===0||uploading||trialExpired}
       onclick={doUpload}
     >
       {#if uploading}
@@ -539,6 +568,29 @@
   <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
 
     <div class="card" data-coach="upload-zone" style="padding:20px;display:flex;flex-direction:column;">
+      {#if trialExpired}
+        <div style="
+          flex:1;border:1.5px dashed var(--mep-border-strong);
+          border-radius:10px;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          padding:32px 24px;
+          background:var(--mep-surface-2);
+          opacity:0.7;
+        ">
+          <div style="width:56px;height:56px;border-radius:var(--mep-r-pill);background:var(--mep-hover);color:var(--mep-fg-3);display:flex;align-items:center;justify-content:center;margin-bottom:16px;flex-shrink:0;">
+            <Lock size={24} />
+          </div>
+          <div style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;margin-bottom:6px;text-align:center;">
+            {$t('upload.trialExpiredTitle')}
+          </div>
+          <div style="font-size:13px;color:var(--mep-fg-2);margin-bottom:16px;text-align:center;max-width:360px;">
+            {$t('billing.trialExpiredMsg')}
+          </div>
+          <a href="/billing?upgrade=trial" class="btn btn-primary" style="height:36px;padding:0 14px;text-decoration:none;">
+            {$t('billing.subscribeNow')}
+          </a>
+        </div>
+      {:else}
       <div
         style="
           flex:1;border:1.5px dashed {isDragging ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};
@@ -592,6 +644,7 @@
         </button>
 
       </div>
+      {/if}
     </div>
 
     <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;">
@@ -635,7 +688,7 @@
           type="button"
           class="btn btn-primary"
           style="width:100%;height:38px;justify-content:center;font-weight:500;gap:6px;"
-          disabled={files.length === 0 || uploading}
+          disabled={files.length === 0 || uploading || trialExpired}
           onclick={doUpload}
         >
           {#if uploading}
