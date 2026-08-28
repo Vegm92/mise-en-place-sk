@@ -124,6 +124,8 @@ otherwise break the moment the runtime role goes live:
 | `src/lib/server/auth-seed.ts` — `seedAdminUser()` | Runs at process startup, outside any request |
 | `src/lib/server/dead-letter.ts` — `recordDeadLetter()` (always; unconditionally) | An audit trail, not tenant data — `restaurant_id` is nullable here and the write must never fail because RLS could not resolve a tenant for a failed job |
 | Onboarding's and add-location's `db.transaction()` blocks (`src/routes/onboarding/+page.server.ts`, `src/routes/(app)/settings/+page.server.ts`) | Creating a brand-new tenant's rows (a `subscriptions` row for a restaurant that doesn't exist in the request's ambient context yet; a sibling-location count across a billing family) — these use `SET LOCAL app.admin = 'true'` as the transaction's first statement rather than `runAsSystem()`, since the transaction already owns a connection and `SET LOCAL` auto-reverts at commit/rollback with no separate reservation needed |
+| `src/routes/s/[token]/+page.server.ts` and `.../og.png/+server.ts` — the `resolveShareToken()`/`buildPublicDigestPayload()` calls (#329) | Same trust shape as the signature-verified webhooks above: the caller is anonymous by design (a public share link), and the token *is* the authorization boundary rather than a session — there is no `locals.restaurantId` to fall back to. Wrapped inside the route load, next to the token check, rather than as a `hooks.server.ts` path-prefix entry, since `/s/[token]` is a dynamic path a `Set.has(path)` check can't match anyway, and it keeps the audited site next to the thing that authorizes it. Missed in the first pass — caught by orchestrator review, not by the initial audit — see `tests/rls-runtime-role.test.ts`'s "digest share (#329)" suite, which pins that the wrap is load-bearing (without it, an anonymous visitor's own valid share link would 404 under the runtime role) |
+| `src/routes/api/health/+server.ts` — `computeHealthDetail()`'s `batch_items` queue-depth probe | Reachable two ways with no tenant context: an admin session (already covered by the `/admin/**` blanket wrap for *pages*, but `/api/health` itself is not under `/admin/`) or an anonymous caller carrying a valid `HEALTH_CHECK_TOKEN` header (external uptime monitoring) — the query already carried a pre-existing `tenant-scope-ok` comment acknowledging it was deliberately cross-tenant, which was true before this ADR and remained true after; it needed the runtime mechanism, not just the lint exemption |
 
 Every other cross-tenant-looking read that was **not** added to this list was checked and found to
 already run inside the correctly-scoped ambient tenant context (e.g. `billing/+page.server.ts`'s own
@@ -144,6 +146,16 @@ picked up correct per-job tenant context from one change. `tenant-fanout.ts`'s `
 around `handler.run(job.data)`. pg-boss's own `pgboss` schema is untouched by this migration — #464
 already gave `mep_runtime` ownership of it, and ownership bypasses RLS the same way it does for the
 migration role on `public`.
+
+### 6. Swept every no-session route for the same failure mode
+
+`hooks.server.ts`'s `isPublicPath()` is the full list of routes reachable without a session; each was
+checked against `tenant-data-map.ts`'s table list. `/login`, `/signup`, `/forgot-password`,
+`/reset-password`, `/verify-email`, `/auth/**` touch only `users`/`accounts`/`sessions`/
+`verification_tokens` — none carry a policy. `/waitlist` and `/l/[variant]` touch `waitlist` and
+`funnel_events` (via `trackAnonymousEvent`) — `funnel_events` has no `restaurantId` column and was
+never in the map. `/privacy`, `/terms`, `/robots.txt`, `/sitemap.xml` touch no table. `/s/[token]`
+and `/api/health` did carry the gap fixed in section 4's table above; nothing else in this list does.
 
 ## Consequences
 
