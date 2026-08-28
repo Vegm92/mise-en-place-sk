@@ -28,10 +28,10 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 
-const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const TRANSLATOR_FNS = new Set(['t', 'ti', 'tp', 'tiv', 'tcat']);
 
@@ -93,19 +93,29 @@ function callsTranslator(node, sf) {
  * @param {string} code the text between `<script...>` and `</script>`
  * @returns {{ name: string, pos: number }[]}
  */
+/**
+ * @param {ts.VariableDeclaration} decl
+ * @param {ts.SourceFile} sf
+ * @returns {boolean}
+ */
+function isOffendingConst(decl, sf) {
+	if (!decl.initializer) return false;
+	if (isDerivedCall(decl.initializer)) return false;
+	if (isPlainFunction(decl.initializer)) return false;
+	return callsTranslator(decl.initializer, sf);
+}
+
 export function nonReactiveTranslatorConsts(code) {
 	const sf = ts.createSourceFile('x.ts', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 	/** @type {{ name: string, pos: number }[]} */
 	const out = [];
 	for (const stmt of sf.statements) {
 		if (!ts.isVariableStatement(stmt)) continue;
-		if (!(stmt.declarationList.flags & ts.NodeFlags.Const)) continue;
+		if ((stmt.declarationList.flags & ts.NodeFlags.Const) === 0) continue;
 		for (const decl of stmt.declarationList.declarations) {
-			if (!decl.initializer) continue;
-			if (isDerivedCall(decl.initializer)) continue;
-			if (isPlainFunction(decl.initializer)) continue;
-			if (!callsTranslator(decl.initializer, sf)) continue;
-			out.push({ name: decl.name.getText(sf), pos: decl.getStart(sf) });
+			if (isOffendingConst(decl, sf)) {
+				out.push({ name: decl.name.getText(sf), pos: decl.getStart(sf) });
+			}
 		}
 	}
 	return out;
@@ -153,7 +163,7 @@ export function scanDirs(dirs) {
 	const violations = [];
 	for (const dir of dirs) {
 		if (!fs.existsSync(dir)) continue;
-		for (const file of walk(dir).sort()) {
+		for (const file of walk(dir).sort((a, b) => a.localeCompare(b))) {
 			const text = fs.readFileSync(file, 'utf8');
 			for (const { code, offset } of scriptBlocks(text)) {
 				for (const hit of nonReactiveTranslatorConsts(code)) {

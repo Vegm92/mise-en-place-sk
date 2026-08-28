@@ -316,15 +316,15 @@ describe.skipIf(!hasDbEnv)('POST /api/user/delete (issue #492)', () => {
 		expect(result).toMatchObject({ thrown: false, status: 200, json: { deleted: true } });
 		expect(await restaurantExists(rid)).toBe(false);
 		expect(await subscriptionExists(rid)).toBe(false);
-		expect((await testSql`SELECT id FROM suppliers WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM invoices WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM invoice_line_items WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM chat_sessions WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM chat_messages WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM products WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM product_aliases WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM upload_batches WHERE restaurant_id = ${rid}`).length).toBe(0);
-		expect((await testSql`SELECT id FROM batch_items WHERE restaurant_id = ${rid}`).length).toBe(0);
+		expect(await testSql`SELECT id FROM suppliers WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM invoices WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM invoice_line_items WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM chat_sessions WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM chat_messages WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM products WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM product_aliases WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM upload_batches WHERE restaurant_id = ${rid}`).toHaveLength(0);
+		expect(await testSql`SELECT id FROM batch_items WHERE restaurant_id = ${rid}`).toHaveLength(0);
 	});
 
 	it('rate limits deletion attempts', async () => {

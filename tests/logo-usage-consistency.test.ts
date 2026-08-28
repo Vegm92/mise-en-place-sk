@@ -87,7 +87,7 @@ describe('logo usage consistency (issue #571)', () => {
 		const email = sources.find(s => s.rel === EMAIL_FILE)!;
 		const logoBars = extractBars(logo.text);
 		const emailBars = extractBars(email.text);
-		expect(logoBars.length).toBe(3);
+		expect(logoBars).toHaveLength(3);
 		expect(emailBars).toEqual(logoBars);
 	});
 
