@@ -628,8 +628,9 @@
                     <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);flex-shrink:0;width:34px;text-align:right;">{(slice.pct * 100).toFixed(0)}%</span>
                     <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:80px;text-align:right;">{fmtEur(slice.spend, $locale)}</span>
                   </div>
-                  {#if hoveredSlice === i && slice.totalQty != null}
-                    <div style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
+                  {#if slice.totalQty != null}
+                    <div class="sup-product-detail" class:is-visible={hoveredSlice === i}
+                      style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
                       {slice.totalQty.toFixed(2)} {slice.unit ?? ''} · {$t('sup.products.avgPrice')} {fmtEur(slice.avgPrice ?? 0, $locale)}{slice.lastDate ? ` · ${fmtDateShort(slice.lastDate, $locale)}` : ''}
                     </div>
                   {/if}
@@ -741,4 +742,26 @@
     </div>
   </div>
 </div>
+
+<style>
+  .sup-product-detail {
+    opacity: 0;
+    transform: translateY(4px);
+    pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease;
+  }
+  .sup-product-detail.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+    transition-delay: 100ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sup-product-detail {
+      transition: none;
+    }
+    .sup-product-detail.is-visible {
+      transition-delay: 0ms;
+    }
+  }
+</style>
 
