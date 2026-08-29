@@ -40,7 +40,7 @@ first, bilingual (es/en). WhatsApp is a second ingestion channel; XML e-invoices
 | `docs/03_features/*` | One specification per feature (rules, transitions, dependencies, validation) | Feature work — the contract for a feature |
 | `docs/04_engineering/*` | Coding conventions, testing, security, DB/API change procedures, dependency policy, deployment | Engineering procedure |
 | `docs/05_operations/*` | Background jobs, monitoring, incident response, troubleshooting | Ops concerns |
-| `docs/06_decisions/README.md` + `docs/06_decisions/**/ADR-*.md` | Architecture Decision Records (why the code is shaped this way) | Changing an established decision; next number is 033 |
+| `docs/06_decisions/README.md` + `docs/06_decisions/**/ADR-*.md` | Architecture Decision Records (why the code is shaped this way) | Changing an established decision; next number is 034 |
 | Per-subsystem `## Code notes` sections (`docs/03_features/` + `docs/04_engineering/`) | Line-by-line "how the code works" notes for most files | Reading any specific file |
 | `DEPLOYMENT.md` | Environment variables + deployment runbook | Deploy / env questions |
 | `README.md` | Product overview + getting started | First contact |

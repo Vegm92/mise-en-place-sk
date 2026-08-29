@@ -4,7 +4,7 @@ tags: [mep, seo, geo, marketing, arquitectura]
 
 # GEO program — being cited by ChatGPT, Perplexity and AI Overviews
 
-**Status: Phases 0 and 1 delivered, Phases 2-7 open.** Written 2026-08-29. Each phase below is
+**Status: Phases 0, 1 and 2a delivered; 2b-2e and phases 3-7 open.** Written 2026-08-29. Each phase below is
 sized to land as its own PR; the sequencing table at the bottom gives the order and the
 surface each one owns, so parallel sessions can claim without collision.
 
@@ -18,7 +18,7 @@ The repo is in better shape than most: `robots.txt` and `sitemap.xml` are genera
 
 ### The three blockers
 
-1. **English is invisible to every crawler.** `src/lib/i18n.ts:7` declares `export const locale = writable<Locale>('es')` and `initLocale()` runs only inside `onMount` (`src/lib/components/landing/LandingPage.svelte:53-57`). SSR therefore always emits Spanish. GPTBot, OAI-SearchBot, PerplexityBot and ClaudeBot do not execute JavaScript, so the English half of a 4,299-key bilingual table has never been seen by a search or AI engine. Both locales also share one URL, so there is no address for English to rank at even if it were rendered.
+1. **English is invisible to every crawler.** `src/lib/i18n.ts:7` declares `export const locale = writable<Locale>('es')` and `initLocale()` runs only inside `onMount` (`src/lib/components/landing/LandingPage.svelte:53-57`). SSR therefore always emits Spanish. GPTBot, OAI-SearchBot, PerplexityBot and ClaudeBot do not execute JavaScript, so the English half of a 4,299-key bilingual table has never been seen by a search or AI engine. Both locales also share one URL, so there is no address for English to rank at even if it were rendered. *(Phase 2a fixed the rendering half — see below. The address half is 2b.)*
 2. **There is no content system at all.** No mdsvex, no markdown, no blog route. The five landing variants are the entire indexable content surface. RAG engines cite pages that answer a question; we have five sales pages and two legal pages. `docs/onboarding/marketing/03_canales/contenido_y_seo.md` already plans this channel and is marked *"sin empezar"*.
 3. **Canonicals are derived from `url.origin` at request time** (`src/routes/waitlist/+page.server.ts:11`, `src/routes/l/[variant]/+page.server.ts:17`, plus both generated routes). Whichever host serves the request declares itself canonical. With the domain undecided, any apex/`app.` split silently produces duplicate canonicals. The repo is already inconsistent about this: `.env.example:345` says `miseenplace.app`, `tests/sitemap-robots.test.ts` asserts `mise-en-place.app`.
 
@@ -181,6 +181,29 @@ exactly one `User-agent` group exists and it is the wildcard.
 
 This is the largest change and it gates phases 3 and 4.
 
+**2a is delivered** — the SSR locale fix and the toggle-as-link, recorded as
+[ADR-033](../06_decisions/experience/ADR-033-the-rendered-locale-is-request-state.md).
+What landed: `src/lib/locale-url.ts`, `src/lib/server/locale.ts`,
+`src/lib/i18n-context.ts`, `%mep.lang%` in `src/app.html` substituted from
+`event.locals.locale`, a root `+layout.server.ts` + context provider,
+`LandingPage.svelte` on the context accessors, the toggle as an
+`<a hreflang rel="alternate">`, and `initLocale()` mirroring the preference
+into a cookie the server can read. Verified against a built server:
+`curl -A GPTBot 'http://host/waitlist?lang=en'` returns `<html lang="en">` with
+English body copy, and 50 interleaved es/en requests each rendered their own
+locale in both the shell and the body.
+
+**Two things worth carrying into 2b.** First, English is addressed by
+`?lang=en` for now, and the canonical still points at the bare Spanish path —
+deliberately, because English has no address of its own yet. 2b must *replace*
+that parameter with `/en/...`, not add to it; `localeHref()` in
+`src/lib/locale-url.ts` is the single function to rewrite, and
+`resolveLocale()` in `src/lib/server/locale.ts` the single place the precedence
+lives. Second, the root `+layout.server.ts` resolves from `url` and `cookies`
+rather than from `locals`: a load that reads only `locals` is never re-run on
+client-side navigation, so the page keeps rendering the previous language. That
+was found in a browser, not in review — keep the URL in the load's inputs.
+
 **URL shape.** Keep Spanish at the bare path so existing URLs and any accrued authority survive untouched; add English under a prefix:
 
 - `/waitlist` → es, `/en/waitlist` → en
@@ -319,7 +342,7 @@ The repo caps hand-written PRs at 800 added lines and serialises by surface, and
 |---|---|---|---|---|
 | 1 | 0 — truth audit | `i18n-messages.ts` | everything | ✅ merged (#765) |
 | 2 | 1 — origin, robots, sitemap, railway | `server/site-origin`, robots, sitemap | 3, 4 | ✅ delivered |
-| 3 | 2a — SSR locale fix + toggle-as-link | **`i18n.ts` (exclusive)** | 4 | |
+| 3 | 2a — SSR locale fix + toggle-as-link | **`i18n.ts` (exclusive)** | 4 | ✅ delivered (ADR-033) |
 | 4 | 2b-2e — route move, matcher, hreflang | `routes/` (exclusive) | 5, 6 | |
 | 5 | 4 + 5 — seo module, schema, OG | `seo/`, landing | — | |
 | 6 | 3 — content system | `content/`, `routes/` | — | |
