@@ -175,6 +175,7 @@ const appHandle: Handle = async ({ event, resolve }) => {
 
 	event.locals.accessApproved = isAdminUser(user) || accessOpen || userApproved;
 	event.locals.entitlements = memoizeEntitlements(event.locals.restaurantId);
+	event.locals.recipeGraphCache = null;
 
 	if (user) {
 		Sentry.getCurrentScope().setUser({ id: user.id });

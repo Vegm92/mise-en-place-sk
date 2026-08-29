@@ -1,0 +1,1 @@
+ALTER TABLE "recipe_items" ADD CONSTRAINT "recipe_items_unit_cost_pos" CHECK ("recipe_items"."unit_cost" IS NULL OR "recipe_items"."unit_cost" > 0);

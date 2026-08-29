@@ -81,24 +81,29 @@ export const actions: Actions = {
 		const tdb = forTenant(rid);
 		const data = await request.formData();
 
-		const macro = (key: string) => {
+		const macro = (key: string): { value: string | null; invalid: boolean } => {
 			const raw = String(data.get(key) ?? '').trim();
-			return raw === '' ? null : parseDecimal(raw, 2);
+			if (raw === '') return { value: null, invalid: false };
+			const parsed = parseDecimal(raw, 2, 6);
+			return { value: parsed, invalid: parsed === null };
 		};
 		const kcal100 = macro('kcal100');
 		const protein100 = macro('protein100');
 		const carbs100 = macro('carbs100');
 		const fat100 = macro('fat100');
-		const hasNutrition = [kcal100, protein100, carbs100, fat100].some((v) => v !== null);
+		if ([kcal100, protein100, carbs100, fat100].some((m) => m.invalid)) {
+			return fail(422, { error: 'rec.err.macro' });
+		}
+		const hasNutrition = [kcal100, protein100, carbs100, fat100].some((m) => m.value !== null);
 		const allergens = toAllergenList(data.getAll('allergens').map(String));
 
 		await db.update(products).set({
 			allergens,
 			allergensSource: allergens.length > 0 ? 'manual' : null,
-			kcal100,
-			protein100,
-			carbs100,
-			fat100,
+			kcal100: kcal100.value,
+			protein100: protein100.value,
+			carbs100: carbs100.value,
+			fat100: fat100.value,
 			nutritionSource: hasNutrition ? 'manual' : null,
 		}).where(tdb.scope(products.restaurantId, eq(products.id, id)));
 

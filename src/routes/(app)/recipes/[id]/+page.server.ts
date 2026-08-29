@@ -8,7 +8,7 @@ import { normalizeProductKey } from '$lib/server/normalize';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import {
 	collectProductIds, computeRecipeCosts, linkableProducts, loadProductFacts, loadRecipeGraph,
-	recipeParents, resolveProductPrices, wouldCycle
+	recipeAncestors, recipeParents, resolveProductPrices, wouldCycle, type RecipeNode
 } from '$lib/server/recipes';
 import {
 	EU_ALLERGENS, RECIPE_SECTIONS, RECIPE_STATUSES, RECIPE_UNITS, isRecipeKind, isRecipeLineKind,
@@ -40,13 +40,20 @@ function parseItemId(raw: FormDataEntryValue | null): number | null {
 	return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+async function requestGraph(rid: string, locals: App.Locals): Promise<Map<number, RecipeNode>> {
+	if (locals.recipeGraphCache?.rid === rid) return locals.recipeGraphCache.graph;
+	const graph = await loadRecipeGraph(rid);
+	locals.recipeGraphCache = { rid, graph };
+	return graph;
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const rid = locals.restaurantId!;
 	const id = Number(params.id);
 
 	return handleLoad('recipe-detail', async () => {
 		const recipe = await requireRecipe(rid, id);
-		const graph = await loadRecipeGraph(rid);
+		const graph = await requestGraph(rid, locals);
 		const [prices, facts] = await Promise.all([
 			resolveProductPrices(rid, collectProductIds(graph, true)),
 			loadProductFacts(rid, collectProductIds(graph, false)),
@@ -58,9 +65,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			recipeParents(rid, id),
 		]);
 
+		const ancestors = recipeAncestors(graph, id);
 		const linkableRecipes = [...graph.values()]
 			.map((n) => n.recipe)
-			.filter((r) => r.id !== id && !wouldCycle(graph, id, r.id))
+			.filter((r) => r.id !== id && !ancestors.has(r.id))
 			.map((r) => ({
 				id: r.id,
 				name: r.name,
@@ -140,7 +148,7 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 	const name = String(data.get('name') ?? '').trim();
 	if (!name) return { error: 'rec.err.lineName' };
 
-	const netQuantity = parseQty(String(data.get('netQuantity') ?? ''));
+	const netQuantity = parseQty(String(data.get('netQuantity') ?? ''), 10);
 	if (netQuantity === null) return { error: 'rec.err.qty' };
 
 	const wastePct = parsePercent(String(data.get('wastePct') ?? '0') || '0', 99.99);
@@ -150,8 +158,9 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 	if (!(RECIPE_UNITS as readonly string[]).includes(rawUnit)) return { error: 'rec.err.unit' };
 
 	const rawCost = String(data.get('unitCost') ?? '').trim();
-	const unitCost = rawCost === '' ? null : parseDecimal(rawCost, 4);
+	const unitCost = rawCost === '' ? null : parseDecimal(rawCost, 4, 8);
 	if (rawCost !== '' && unitCost === null) return { error: 'rec.err.cost' };
+	if (unitCost !== null && Number(unitCost) === 0) return { error: 'rec.err.costZero' };
 
 	const productIdRaw = Number(data.get('productId'));
 	const childIdRaw = Number(data.get('childRecipeId'));
@@ -164,10 +173,16 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 		return { error: 'rec.err.productRequired' };
 	}
 
-	const macro = (key: string) => {
-		const raw = String(data.get(key) ?? '').trim();
-		return raw === '' ? null : parseDecimal(raw, 2);
+	const macros: Record<'kcal100' | 'protein100' | 'carbs100' | 'fat100', string | null> = {
+		kcal100: null, protein100: null, carbs100: null, fat100: null,
 	};
+	for (const key of Object.keys(macros) as (keyof typeof macros)[]) {
+		const raw = String(data.get(key) ?? '').trim();
+		if (raw === '') continue;
+		const parsed = parseDecimal(raw, 2, 6);
+		if (parsed === null) return { error: 'rec.err.macro' };
+		macros[key] = parsed;
+	}
 
 	return {
 		kind,
@@ -179,15 +194,17 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 		unitCost,
 		wastePct,
 		allergens: toAllergenList(data.getAll('allergens').map(String)),
-		kcal100: macro('kcal100'),
-		protein100: macro('protein100'),
-		carbs100: macro('carbs100'),
-		fat100: macro('fat100'),
+		...macros,
 		note: String(data.get('note') ?? '').trim() || null,
 	};
 }
 
-async function linkTargetError(rid: string, recipeId: number, fields: ItemFields) {
+async function linkTargetError(
+	rid: string,
+	recipeId: number,
+	fields: ItemFields,
+	graph: Map<number, RecipeNode>
+) {
 	const tdb = forTenant(rid);
 	if (fields.productId !== null) {
 		const rows = await db.execute<{ id: number }>(sql`
@@ -199,7 +216,6 @@ async function linkTargetError(rid: string, recipeId: number, fields: ItemFields
 		const [child] = await db.select({ id: recipes.id }).from(recipes)
 			.where(tdb.scope(recipes.restaurantId, eq(recipes.id, fields.childRecipeId))).limit(1);
 		if (!child) return 'rec.err.unknownRecipe';
-		const graph = await loadRecipeGraph(rid);
 		if (wouldCycle(graph, recipeId, fields.childRecipeId)) return 'rec.err.cycle';
 	}
 	return null;
@@ -217,15 +233,15 @@ export const actions: Actions = {
 		const nameKey = normalizeProductKey(name);
 		if (!name || !nameKey) return fail(422, { error: 'rec.err.nameRequired' });
 
-		const portions = parseQty(String(data.get('portions') ?? '1'));
+		const portions = parseQty(String(data.get('portions') ?? '1'), 7);
 		if (portions === null) return fail(422, { error: 'rec.err.portions' });
 
 		const rawPrice = String(data.get('sellingPrice') ?? '').trim();
-		const sellingPrice = rawPrice === '' ? null : parseDecimal(rawPrice, 2);
+		const sellingPrice = rawPrice === '' ? null : parseDecimal(rawPrice, 2, 10);
 		if (rawPrice !== '' && sellingPrice === null) return fail(422, { error: 'rec.err.price' });
 
 		const rawYieldQty = String(data.get('yieldQty') ?? '').trim();
-		const yieldQty = rawYieldQty === '' ? null : parseQty(rawYieldQty);
+		const yieldQty = rawYieldQty === '' ? null : parseQty(rawYieldQty, 10);
 		if (rawYieldQty !== '' && yieldQty === null) return fail(422, { error: 'rec.err.yield' });
 
 		const rawVatPct = String(data.get('vatPct') ?? '').trim();
@@ -277,19 +293,24 @@ export const actions: Actions = {
 
 		const fields = readItemFields(await request.formData());
 		if ('error' in fields) return fail(422, { error: fields.error });
-		const linkError = await linkTargetError(rid, id, fields);
+
+		const graph = await requestGraph(rid, locals);
+		const linkError = await linkTargetError(rid, id, fields, graph);
 		if (linkError) return fail(422, { error: linkError });
 
 		const [{ top }] = await db.select({ top: sqlMax(recipeItems.sortOrder) })
 			.from(recipeItems)
 			.where(tdb.scope(recipeItems.restaurantId, eq(recipeItems.recipeId, id)));
 
-		await db.insert(recipeItems).values({
+		const [inserted] = await db.insert(recipeItems).values({
 			restaurantId: rid,
 			recipeId: id,
 			sortOrder: (top ?? 0) + 1,
 			...fields,
-		});
+		}).returning();
+
+		graph.get(id)?.items.push(inserted);
+
 		return { ok: 'rec.ok.lineAdded' };
 	},
 
@@ -305,7 +326,9 @@ export const actions: Actions = {
 
 		const fields = readItemFields(data);
 		if ('error' in fields) return fail(422, { error: fields.error });
-		const linkError = await linkTargetError(rid, id, fields);
+
+		const graph = await requestGraph(rid, locals);
+		const linkError = await linkTargetError(rid, id, fields, graph);
 		if (linkError) return fail(422, { error: linkError });
 
 		const updated = await db.update(recipeItems).set(fields).where(
@@ -313,8 +336,15 @@ export const actions: Actions = {
 				eq(recipeItems.id, itemId),
 				eq(recipeItems.recipeId, id)
 			))
-		).returning({ id: recipeItems.id });
+		).returning();
 		if (updated.length === 0) return fail(404, { error: 'rec.err.lineNotFound' });
+
+		const node = graph.get(id);
+		if (node) {
+			const idx = node.items.findIndex((i) => i.id === itemId);
+			if (idx >= 0) node.items[idx] = updated[0];
+			else node.items.push(updated[0]);
+		}
 
 		return { ok: 'rec.ok.saved' };
 	},
