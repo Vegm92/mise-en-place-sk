@@ -51,6 +51,10 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, '&#39;');
 }
 
+function sanitizeForHeader(value: string): string {
+	return value.replace(/[\r\n\x00-\x1f\x7f]+/g, ' ').trim();
+}
+
 function p(html: string): string {
 	return `<p style="font-size:15px;line-height:1.6;color:${COLOR_FG2};margin:0 0 16px;">${html}</p>`;
 }
@@ -93,6 +97,9 @@ interface LayoutOptions {
 }
 
 function renderEmailLayout(opts: LayoutOptions): string {
+	const preheader = escapeHtml(opts.preheader);
+	const headline = escapeHtml(opts.headline);
+
 	const chipHtml = opts.tagChip
 		? `<span style="font-family:${MONO_STACK};font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:${COLOR_ACCENT};background:${COLOR_ACCENT_SOFT};padding:4px 8px;border-radius:4px;white-space:nowrap;">${opts.tagChip}</span>`
 		: '';
@@ -130,11 +137,11 @@ function renderEmailLayout(opts: LayoutOptions): string {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
 <body style="margin:0;padding:0;background:${COLOR_BG};font-family:${FONT_STACK};">
-<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${opts.preheader}</div>
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLOR_BG};padding:40px 16px;">
 <tr><td align="center">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:${COLOR_SURFACE};border:1px solid ${COLOR_BORDER};border-radius:2px;">
-	<tr><td style="padding:10px 40px;background:${COLOR_SURFACE2};border-bottom:1px solid ${COLOR_DIVIDER};font-size:11px;color:${COLOR_FG3};letter-spacing:.01em;">${opts.preheader}</td></tr>
+	<tr><td style="padding:10px 40px;background:${COLOR_SURFACE2};border-bottom:1px solid ${COLOR_DIVIDER};font-size:11px;color:${COLOR_FG3};letter-spacing:.01em;">${preheader}</td></tr>
 	<tr><td style="padding:24px 40px 20px;">
 		<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
 			<td valign="middle" style="color:${COLOR_FG};">
@@ -152,7 +159,7 @@ function renderEmailLayout(opts: LayoutOptions): string {
 	<tr><td style="padding:0 40px;"><div style="height:1px;line-height:1px;font-size:1px;background:${COLOR_DIVIDER};">&nbsp;</div></td></tr>
 	<tr><td style="padding:32px 40px 8px;">
 		<p style="font-size:11px;font-weight:500;letter-spacing:.09em;text-transform:uppercase;color:${COLOR_FG3};margin:0 0 12px;">${opts.eyebrow}</p>
-		<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:${COLOR_FG};">${opts.headline}</h1>
+		<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:${COLOR_FG};">${headline}</h1>
 		${opts.bodyHtml}
 	</td></tr>
 	${ctaHtml}
@@ -218,16 +225,17 @@ export function recipeSheetEmail(
 	const allergenLine = sheet.allergens.length > 0
 		? p(`Alérgenos declarados: ${strong(escapeHtml(sheet.allergens.join(', ')))}.`)
 		: '';
+	const safeName = sanitizeForHeader(sheet.name);
 
 	return {
 		to: email,
 		kind: 'recipe_sheet',
-		subject: `Escandallo — ${sheet.name}`,
+		subject: `Escandallo — ${safeName}`,
 		html: renderEmailLayout({
-			preheader: `${sheet.name}: ${sheet.subtitle}.`,
+			preheader: `${safeName}: ${sheet.subtitle}.`,
 			tagChip: 'Escandallo',
 			eyebrow: 'Ficha técnica',
-			headline: sheet.name,
+			headline: safeName,
 			bodyHtml:
 				p(`Ficha técnica de ${strong(escapeHtml(restaurantName))} — ${escapeHtml(sheet.subtitle)}.`) +
 				dataTable(['Indicador', 'Valor'], sheet.kpis.map((k) => [k.label, k.value])) +
@@ -249,14 +257,15 @@ const WELCOME_INTRO_BY_VENUE: Record<string, string> = {
 };
 
 export function welcomeEmail(email: string, restaurantName?: string, venueType?: string | null): EmailPayload {
-	const name = escapeHtml(restaurantName ?? 'tu restaurante');
+	const rawName = restaurantName ?? 'tu restaurante';
+	const name = escapeHtml(rawName);
 	const segmentIntro = venueType ? WELCOME_INTRO_BY_VENUE[venueType] : undefined;
 	return {
 		to: email,
 		kind: 'welcome',
 		subject: '¡Bienvenido a Mise en Place! 🎉',
 		html: renderEmailLayout({
-			preheader: `Tu cuenta para ${name} ya está activa — esto es lo que pasa a continuación.`,
+			preheader: `Tu cuenta para ${rawName} ya está activa — esto es lo que pasa a continuación.`,
 			tagChip: 'Cuenta activa',
 			eyebrow: 'Bienvenida',
 			headline: '¡Bienvenido a Mise en Place!',
@@ -347,15 +356,14 @@ ${p('Si todavía no tienes cuenta, regístrate y aplica el código durante el pa
 
 export function weeklyDigestEmail(email: string, restaurantName: string, digestHtml: string): EmailPayload {
 	const styledDigest = digestHtml.replace(/<p>/g, `<p style="font-size:15px;line-height:1.6;color:${COLOR_FG2};margin:0 0 16px;">`);
-	const name = escapeHtml(restaurantName);
 	return {
 		to: email,
 		kind: 'weekly_digest',
 		subject: `Tu resumen semanal — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `Tu resumen semanal de gastos de ${name}.`,
+			preheader: `Tu resumen semanal de gastos de ${restaurantName}.`,
 			eyebrow: 'Resumen semanal',
-			headline: `Resumen semanal — ${name}`,
+			headline: `Resumen semanal — ${restaurantName}`,
 			bodyHtml: `
 ${p('Este es el resumen semanal de gastos:')}
 ${styledDigest}`,
@@ -375,7 +383,7 @@ export function incidenciaDigestEmail(email: string, restaurantName: string, iss
 		kind: 'incidencia_digest',
 		subject: `${invoicesLabel} — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `${invoicesLabel} por un total de ${totalAmount} en ${name}.`,
+			preheader: `${invoicesLabel} por un total de ${totalAmount} en ${restaurantName}.`,
 			tagChip: 'Incidencias',
 			eyebrow: 'Albaranes con incidencias',
 			headline: invoicesLabel,
@@ -395,7 +403,7 @@ export function trialExpiryEmail(email: string, restaurantName: string, daysLeft
 		kind: 'trial_expiry',
 		subject: `Tu prueba gratuita termina en ${daysLabel} — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `Tu prueba gratuita para ${name} termina en ${daysLabel}.`,
+			preheader: `Tu prueba gratuita para ${restaurantName} termina en ${daysLabel}.`,
 			tagChip: 'Prueba gratuita',
 			eyebrow: 'Prueba gratuita',
 			headline: `Termina en ${daysLabel}`,
@@ -415,7 +423,7 @@ export function trialExpiredEmail(email: string, restaurantName: string): EmailP
 		kind: 'trial_expired',
 		subject: `Tu prueba gratuita ha terminado — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `La prueba gratuita para ${name} ha terminado.`,
+			preheader: `La prueba gratuita para ${restaurantName} ha terminado.`,
 			tagChip: 'Prueba gratuita',
 			eyebrow: 'Prueba gratuita',
 			headline: 'Tu prueba gratuita ha terminado.',
@@ -436,10 +444,10 @@ export function subscriptionConfirmationEmail(email: string, restaurantName: str
 		kind: 'subscription_confirmation',
 		subject: `Suscripción activada: plan ${planName} — ${restaurantName}`,
 		html: renderEmailLayout({
-			preheader: `Tu suscripción al plan ${plan} para ${name} ya está activa.`,
+			preheader: `Tu suscripción al plan ${planName} para ${restaurantName} ya está activa.`,
 			tagChip: 'Suscripción activa',
 			eyebrow: 'Confirmación',
-			headline: `Plan ${plan} activado`,
+			headline: `Plan ${planName} activado`,
 			bodyHtml: `
 ${p(`¡Gracias! Tu suscripción al plan ${strong(plan)} para ${strong(name)} ya está activa.`)}
 ${p('Puedes consultar tu factura y gestionar la suscripción en cualquier momento desde la sección de facturación.')}`,
@@ -457,7 +465,7 @@ export function subscriptionConsolidatedEmail(email: string, restaurantName: str
 		kind: 'subscription_consolidated',
 		subject: `Tu plan de pago en ${restaurantName} ha sido cancelado`,
 		html: renderEmailLayout({
-			preheader: `Cada cuenta solo puede tener un plan activo; hemos mantenido el de ${keptName}.`,
+			preheader: `Cada cuenta solo puede tener un plan activo; hemos mantenido el de ${keptRestaurantName}.`,
 			tagChip: 'Plan cancelado',
 			eyebrow: 'Suscripción',
 			headline: 'Tu plan ha cambiado a prueba gratuita',
