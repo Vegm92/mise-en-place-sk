@@ -91,5 +91,9 @@ verificas cada dato contra la fuente antes de publicar. Los prompts están en
 
 ## Relacionado
 
+- `docs/05_operations/geo_program_plan.md` — el plan técnico y de contenido para que
+  nos citen ChatGPT, Perplexity y las respuestas de IA de Google. Cubre dónde se publica
+  (hoy no hay blog: es la casilla pendiente de arriba), cómo se estructura una pieza para
+  que un modelo la pueda extraer, y las fuentes enlazadas como requisito de build
 - [[docs/onboarding/marketing/01_estrategia/mensajes|Mensajes]] — el ángulo regulatorio, en detalle
 - [[docs/onboarding/marketing/04_produccion/plantillas|Plantillas]]

@@ -432,7 +432,10 @@
 
   <section class="mep-section mep-tinted" style="padding:76px 72px;">
     <div class="mep-container">
-      <div class="mep-eyebrow" style="margin-bottom:40px;">{$t('waitlist.testimonialsEyebrow')}</div>
+      <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.testimonialsEyebrow')}</div>
+      <p style="margin:0 0 34px;font-size:13px;line-height:1.55;color:var(--mep-fg-3);max-width:620px;">
+        {$t('waitlist.testimonialsDisclaimer')}
+      </p>
       <div class="mep-grid-3">
         {#each testimonialItems as item}
           <div style="padding-top:22px;border-top:1px solid var(--mep-border);">
