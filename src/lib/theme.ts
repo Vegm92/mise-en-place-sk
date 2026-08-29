@@ -1,4 +1,4 @@
-const CHROME = { light: '#f1f0ee', dark: '#131314' } as const;
+const CHROME = { light: '#ecedf1', dark: '#121319' } as const;
 
 export type Theme = 'light' | 'dark';
 
