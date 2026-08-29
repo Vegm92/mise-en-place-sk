@@ -72,10 +72,8 @@
     <div class="hidden md:block" style="width:1px;height:18px;background:var(--mep-divider);"></div>
 
     <div style="display:flex;align-items:center;gap:10px;">
-      <Logo size={18} />
-      <div class="hidden md:block" style="font-size:14px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.2px;">
-        Mise en Place
-      </div>
+      <span class="md:hidden"><Logo size={18} /></span>
+      <span class="hidden md:inline"><Logo size={18} wordmark /></span>
       <span class="num hidden md:inline-flex" style="
         align-items:center;
         padding:2px 7px;border-radius:4px;

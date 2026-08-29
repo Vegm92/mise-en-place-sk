@@ -56,10 +56,7 @@
 	<div style="width:100%;max-width:440px;">
 
 		<div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:24px;">
-			<Logo size={22} />
-			<span style="font-size:16px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
-				Mise en Place
-			</span>
+			<Logo size={22} wordmark />
 		</div>
 
 		<div class="card" style="padding:28px;">
