@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { products, recipeItems, recipes } from './schema';
 import {
-	MAX_RECIPE_DEPTH, addNutrition, convertQty, emptyNutrition, lineCostCents, lineNutrition,
+	addNutrition, convertQty, emptyNutrition, lineCostCents, lineNutrition,
 	qtyToNumber, rateFromCents, recipeTotals, scaleNutrition, toAllergenList, toRate, wasteFactor,
 	type Allergen, type NutritionTotals, type RecipeKind, type RecipeLineKind, type RecipeTotals
 } from '$lib/recipes';
@@ -16,7 +16,7 @@ export type LineWarning =
 	| 'missing-price' | 'unit-mismatch' | 'cycle' | 'missing-child'
 	| 'child-no-yield' | 'nutrition-skipped';
 
-export type RecipeWarning = 'cycle' | 'no-price' | 'depth-exceeded' | 'nutrition-partial';
+export type RecipeWarning = 'cycle' | 'no-price' | 'nutrition-partial';
 
 export interface ResolvedPrice {
 	rateUnits: number;
@@ -284,8 +284,6 @@ export function computeRecipeCosts(
 				} else if (color.get(childId) === GREY) {
 					lineWarnings.push('cycle');
 					warnings.add('cycle');
-				} else if (depth + 1 > MAX_RECIPE_DEPTH) {
-					warnings.add('depth-exceeded');
 				} else {
 					const child = resolve(childId, depth + 1);
 					if (child) {
@@ -305,9 +303,9 @@ export function computeRecipeCosts(
 							priceSource = 'child';
 							unitRateUnits =
 								(rateFromCents(child.totalCostCents) / childYield) * yieldPerLineUnit;
-							const fraction = (grossQty * yieldPerLineUnit) / childYield;
+							const nutritionFraction = (netQty * yieldPerLineUnit) / childYield;
 							if (child.nutritionTotal) {
-								nutrition = scaleNutrition(child.nutritionTotal, fraction);
+								nutrition = scaleNutrition(child.nutritionTotal, nutritionFraction);
 							}
 							if (child.nutritionPartial) nutritionPartial = true;
 						}
