@@ -109,7 +109,10 @@ const surfaceDark = token(darkBlock, 'mep-surface');
 describe('on-tint contrast — text painted in a semantic colour on its own -soft tint (#720)', () => {
 	it('reads the surfaces this test computes against', () => {
 		expect(surfaceLight).toBe('#ffffff');
-		expect(surfaceDark).toBe('#1b1b1d');
+		// Retoned with the rest of the dark ground by ADR-031 (#1b1b1d →
+		// #1a1b21): a four-point shift on blue, which moves every ratio below
+		// by less than 0.01. The AA floors and the pinned values still hold.
+		expect(surfaceDark).toBe('#1a1b21');
 	});
 
 	it('slate accent text on its own -soft tint clears AA in both themes', () => {

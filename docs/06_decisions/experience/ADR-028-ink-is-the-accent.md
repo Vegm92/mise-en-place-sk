@@ -1,6 +1,6 @@
 # ADR-028 — The accent is the ink; no hue carries the brand
 
-**Status:** Active
+**Status:** Active, amended by [ADR-031](./ADR-031-the-ink-gains-a-hue.md)
 **Feature:** experience
 **Date:** 2026-08-26
 
@@ -144,8 +144,21 @@ script's colour constants to the manifest going forward, and pins the
 `Logo.svelte` / `email.ts` bar geometry to each other, so this does not drift
 a third time.
 
+## Update — the ink gains a temperature (ADR-031)
+
+The rule below survives; the values in the two tables above do not.
+[ADR-031](./ADR-031-the-ink-gains-a-hue.md) keeps `--mep-acc` as the ink doing
+double duty as fill and as text, and keeps colour reserved for meaning, but
+moves the ink off achromatic: `#1b2a44` light, `#8fa8cf` dark, with the neutral
+ramp retoned from an achromatic paper to a cool one. Read this ADR for *why the
+accent is the ink*; read ADR-031 for *what the ink currently is*. The
+ink/parchment brand pair recorded in the icon update below likewise moves to
+`#1B2A44` on `#ECEDF1`.
+
 ## Related
 
+- [ADR-031](./ADR-031-the-ink-gains-a-hue.md) — amends this: same rule, warmer
+  (well, cooler) ink; the current token values live there
 - [ADR-026](./ADR-026-warm-severity-ramp-cool-actions.md) — amended: the
   severity ramp stands, its "Acción" row is superseded here
 - [ADR-027](./ADR-027-amber-accent-removed-and-enforced.md) — the amber block

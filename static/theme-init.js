@@ -18,5 +18,5 @@ try {
 function setTheme(t) {
 	document.documentElement.dataset.theme = t;
 	var meta = document.querySelector('meta[name="theme-color"]');
-	if (meta) meta.setAttribute('content', t === 'dark' ? '#131314' : '#f1f0ee');
+	if (meta) meta.setAttribute('content', t === 'dark' ? '#121319' : '#ecedf1');
 }
