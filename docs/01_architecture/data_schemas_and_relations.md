@@ -1,8 +1,8 @@
 # Data Schemas and Relations
 
 Source of truth: `src/lib/server/schema.ts` + committed migrations in
-`drizzle/` (ADR-003). 40 tables + 5 materialized views, latest migration
-`0042`. Statuses are `text` with app-level
+`drizzle/` (ADR-003). 44 tables + 5 materialized views, latest migration
+`0057`. Statuses are `text` with app-level
 defaults — **there are no Postgres enums**. All business tables carry
 `restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE`.
 
@@ -42,9 +42,19 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 |---|---|---|---|
 | `suppliers` | Vendor | `name`, `alias`, `category`, `contactEmail`/`contactPhone`, `cif`, `address`, `deliveryDays`, `paymentTerms`, `notes` | Unique `(rid, lower(name))`; category ∈ 14 canonical |
 | `supplier_metrics` | Reliability scores | 1:1 `supplierId`, `score`, `priceStability`, `frequency`, `timeliness`, `priceStabilityCv` | Computed + cached |
-| `products` | Normalized product identity | `canonicalName`, `nameKey`, `category`, `canonicalUnit`, `unitsPerPack`, `baseUnit` | Unique `(rid, name_key)` + GIN trgm index |
+| `products` | Normalized product identity | `canonicalName`, `nameKey`, `category`, `canonicalUnit`, `unitsPerPack`, `baseUnit`, `allergens` jsonb, `allergensSource` `manual\|extracted`, `kcal100`/`protein100`/`carbs100`/`fat100`, `nutritionSource` `manual\|extracted` | Unique `(rid, name_key)` + GIN trgm index; allergens/nutrition declared once per product and inherited by escandallo lines (migration 0056) |
 | `product_aliases` | Raw invoice string → product | `productId`, `supplierId` (SET NULL), `rawKey`, `rawText`, `source` `exact\|fuzzy\|llm`, `confirmedAt` | Unique `(rid, raw_key)`; partial index WHERE confirmedAt NULL |
 | `unit_conversions` | Purchase→canonical factor | `supplierName`, `ingredient`, `purchaseUnit`, `canonicalUnit`, `conversionFactor` | Unique `(rid, supplier_name, ingredient, purchase_unit)` |
+
+## Recipes / costing (escandallos)
+
+| Table | Purpose | Notable columns | Notes |
+|---|---|---|---|
+| `recipes` | A costed sheet (dish or prep) | `name`, `nameKey`, `kind` `plato\|elaboracion`, `status` `draft\|active\|archived`, `section`, `portions`, `yieldQty`/`yieldUnit`, `sellingPrice`, `vatPct`, `targetFoodCostPct`, `preparation`, `notes` | Unique `(rid, name_key)`; unique `(id, rid)` (`uq_recipes_id_rid`) backs the composite FKs below (ADR-031) |
+| `recipe_items` | One ingredient line | `recipeId`, `kind` `free\|product\|recipe`, `productId` (SET NULL), `childRecipeId`, `netQuantity`, `unit`, `unitCost`, `wastePct`, `allergens` jsonb, `kcal100`/`protein100`/`carbs100`/`fat100`, `note`, `sortOrder` | Composite FKs `(recipeId, rid)`/`(childRecipeId, rid)` → `recipes(id, rid)` (cascade / restrict) so a cross-tenant link is structurally impossible; `recipe_items_child_fk` is `ON DELETE RESTRICT` (a prep in use cannot be deleted) |
+
+RLS (ADR-030): both tables carry the same `tenant_isolation` ENABLE-RLS policy as
+every other tenant table (migration 0057), keyed on `app.restaurant_id`/`app.admin`.
 
 ## Insights
 

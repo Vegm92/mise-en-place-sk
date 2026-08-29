@@ -61,9 +61,9 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 ## Database
 
-- Canonical schema: `src/lib/server/schema.ts`. 43 tables + 5 materialized
+- Canonical schema: `src/lib/server/schema.ts`. 44 tables + 5 materialized
   views.
-- Committed Drizzle migrations in `drizzle/` (latest `0045`) are canonical
+- Committed Drizzle migrations in `drizzle/` (latest `0057`) are canonical
   (ADR-003); `pnpm db:check-sync` fails CI on drift.
 - Every business table carries `restaurant_id`. Statuses are `text` — no enums.
 - Table inventory: `docs/01_architecture/data_schemas_and_relations.md`.
