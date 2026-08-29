@@ -4,13 +4,13 @@
 	import { MATRIX_GROUPS, type MatrixColumn, type MatrixFeatures } from '$lib/billing-plans';
 
 	const { trialTier, tiers }: {
-		trialTier: { monthlyInvoiceQuota: number | null; maxLocations: number; features: MatrixFeatures };
-		tiers: { tier: string; nameKey: string; monthlyInvoiceQuota: number | null; maxLocations: number; features: MatrixFeatures }[];
+		trialTier: { monthlyInvoiceQuota: number | null; maxLocations: number; maxRecipes: number | null; features: MatrixFeatures };
+		tiers: { tier: string; nameKey: string; monthlyInvoiceQuota: number | null; maxLocations: number; maxRecipes: number | null; features: MatrixFeatures }[];
 	} = $props();
 
 	const matrixCols = $derived<MatrixColumn[]>([
-		{ id: 'trial', name: $t('billing.tier.trial.name'), quota: trialTier.monthlyInvoiceQuota, maxLocations: trialTier.maxLocations, features: trialTier.features },
-		...tiers.map(tr => ({ id: tr.tier, name: $t(tr.nameKey), quota: tr.monthlyInvoiceQuota, maxLocations: tr.maxLocations, features: tr.features })),
+		{ id: 'trial', name: $t('billing.tier.trial.name'), quota: trialTier.monthlyInvoiceQuota, maxLocations: trialTier.maxLocations, maxRecipes: trialTier.maxRecipes, features: trialTier.features },
+		...tiers.map(tr => ({ id: tr.tier, name: $t(tr.nameKey), quota: tr.monthlyInvoiceQuota, maxLocations: tr.maxLocations, maxRecipes: tr.maxRecipes, features: tr.features })),
 	]);
 </script>
 

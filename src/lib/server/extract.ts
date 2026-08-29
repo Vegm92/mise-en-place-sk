@@ -54,6 +54,7 @@ Return ONLY valid JSON with this exact structure:
       "unit": "string or null",
       "unit_price": number or null,
       "total_price": number or null,
+      "allergens": array of allergen codes PRINTED ON THE DOCUMENT for this line, or null,
       "confidence": 0.0 to 1.0
     }
   ],
@@ -78,6 +79,12 @@ Rules:
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
+- allergens: ONLY report allergens the document itself prints for that line — a "Contiene:" / "Alérgenos:"
+  note, an allergen column, or an explicit icon legend. NEVER infer them from the product name: "pan" does
+  not imply gluten and "merluza" does not imply pescado unless the document says so. Allergen information
+  is a food-safety declaration; a guess is worse than a null. Use only these codes:
+  gluten, crustaceos, huevos, pescado, cacahuetes, soja, lacteos, frutos_cascara, apio, mostaza, sesamo,
+  sulfitos, altramuces, moluscos.
 - Spanish invoices commonly print both parties' details (emisor/proveedor AND cliente/destinatario).
   supplier_nif, supplier_address, supplier_email and supplier_phone must always refer to the
   SUPPLIER issuing the invoice, never the restaurant/client receiving it — when in doubt, or when
@@ -141,6 +148,7 @@ export interface ExtractedInvoice {
 		unit: string | null;
 		unit_price: number | null;
 		total_price: number | null;
+		allergens?: string[] | null;
 		confidence?: number;
 	}>;
 	outstanding_balance?: number | null;

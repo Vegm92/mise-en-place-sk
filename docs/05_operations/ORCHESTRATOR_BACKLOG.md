@@ -28,7 +28,11 @@ STACK COMPLETE (2026-08-29 ~01:0xZ): all six groups merged — #758, #759, #760,
 
 SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrator to continue eliminating the backlog — new-issue dispatching is ON again. Recovery check: branch claude/mise-en-place-backlog-qa-8tl082 == main @ c97b172, working tree clean, no interrupted work. PR #723 still open → escandallo cluster (#727–#738) stays DEFERRED; #730 verified: no allergen code exists on main (grep of src/), so it is #723-branch-only — DEFERRED confirmed. #532 verified fixed on main (::int casts in (app)/+layout.server.ts) and closed with evidence. #747 unblocked by #755's merge → dispatched.
 
-## Queue (work top-down within each tier)
+SESSION RESUME 2 (2026-08-29, backlog-qa session): owner re-invoked the orchestrator loop. Recovery: PR #764 merged this branch into main; branch reset onto origin/main @ 4335537 (fast-forward, no lost work). Re-triage: 31 open issues, zero new since close-out; no owner replies on any gated issue (#333p1, #354, #406, #408, #441, #565 all still end with the orchestrator's own analysis comment). PR #723 still open/unmerged.
+
+ESCANDALLO DECISION (2026-08-29): with everything else owner-gated/human-only/future, the only actionable frontier is the escandallo cluster #727–#738 — 12 review findings (3× P1, one security) against PR #723's branch. Prior DEFERRED status was a practical constraint ("code only on #723's branch"), not an owner directive. Plan: PHASE 0 — merge origin/claude/escandallo-generation-system-axu369 into this branch and reconcile with main's moved invariants: renumber branch migrations 0044/0045 → 0056/0057 (regenerate journal+snapshots, prove fresh chain), port the ~392 new i18n keys into i18n-messages.ts (i18n.ts stays main's thin re-export), enable RLS on recipes/recipe_items per ADR-030/#222, ROUTE_POLICY entries for the /recipes routes, pass action-authz + all lint gates + full suite under REQUIRE_DB_TESTS=1 + build. THEN dispatch #727..#738 one at a time (P1s first). All work stays on this branch — no pushes to #723's branch. Owner outcome: this branch supersedes #723 (feature + fixes); #723 can be closed in its favor when this merges.
+
+PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generation-system-axu369 (commit 3fc25b5, two-parent merge preserving both histories). Migrations regenerated fresh via drizzle-kit as 0056 (recipes/recipe_items tables + products allergen/nutrition columns — one hand-fix: the composite-FK unique index had to move ahead of the FK that references it in the generated statement order) and hand-authored 0057 (RLS ENABLE + tenant_isolation policy on both new tables, same shape as 0055/ADR-030); fresh chain 0000→0057 proven on local Postgres, `pnpm db:check-sync` clean. i18n: ~392 recipe/allergen keys ported into i18n-messages.ts, both locales, key-parity verified (2335 keys each). ADR collision: the branch's costing ADR-026 renumbered to ADR-031 (docs/06_decisions/README.md's next-available slot at merge time); next number is now 032. GDPR #390: recipes/recipe_items added to tenant-data-map.ts (exportable + cascade-deleted), the two pinned tests updated. Rate limiting: the three recipe actions that called checkRateLimit() directly migrated to rateLimitScoped({scope:'tenant'}) per ADR-029 so they pass the #440 enforcement scan. action-authz: recipes' create action (raw parameterized INSERT with ON CONFLICT) got the same tenant-check-ok escape comment as the equivalent products/suppliers/reports actions. Full suite 3221/3221 passing under REQUIRE_DB_TESTS=1 (one transient failure seen mid-session in tests/create-runtime-role.test.ts's pg-boss-under-runtime-role case — reproduced identically against an unmodified main checkout in this sandbox at the time, so confirmed as a sandbox/pg-boss environment flake rather than a merge regression; re-runs after it were consistently green). All lint gates, svelte-check (0 errors/0 warnings), and the app+worker build are clean. Escandallo cluster #727–#738 is now unblocked and actionable on this branch.
 
 | # | Pri | Status | Att | Last result / notes | Title (short) |
 |---|-----|--------|-----|---------------------|---------------|
@@ -39,9 +43,9 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 484 | P1 | DONE | 1 | Verified (commit 29498ff): client pre-upload HEIC rejection w/ iOS guidance, WhatsApp heic/heif no longer saved as .jpg (both drivers); allowlist parity test pre-existed via #520. 1872 tests pass. | .heic accepted by picker, rejected by server |
 | 464 | P1 | DONE | 1 | Verified (commit 5fe56cd, recovered after container restart): idempotent role script (pgboss schema ownership, default privileges), DATABASE_MIGRATION_URL split, DDL-refusal proven vs local PG. 2756/2756. PRODUCTION STEP PENDING: owner runs the script on Railway + swaps env vars per DEPLOYMENT.md runbook. | split Postgres superuser into runtime+migration roles |
 | 649 | P1 | DONE | 1 | Umbrella verified complete: all 13 children (#650–#662) closed via merged PRs (#663-666, #668, #671); GitHub issue closed with checklist verification. | mobile 390px audit tracker |
-| 729 | P1 | DEFERRED | 0 | Escandallo code only on PR #723 branch | recipe name unescaped in emailed escandallo |
-| 728 | P1 | DEFERRED | 0 | PR #723 branch | sub-recipe nutrition scales on gross not net |
-| 727 | P1 | DEFERRED | 0 | PR #723 branch | MAX_RECIPE_DEPTH understates cost, poisons memo |
+| 729 | P1 | PENDING | 0 | Phase 0 accepted (orchestrator re-ran gates: 3221/3221, 6 lint gates, check 0/0, builds OK); next after 727/728 | recipe name unescaped in emailed escandallo |
+| 728 | P1 | IN_PROGRESS | 1 | Dispatched with #727 (same function, separate commits) | sub-recipe nutrition scales on gross not net |
+| 727 | P1 | IN_PROGRESS | 1 | Dispatched | MAX_RECIPE_DEPTH understates cost, poisons memo |
 | 745 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | trial expiry invisible, upload loses files |
 | 744 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | /pending queue position 0 (ms vs µs truncation) |
 | 746 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | replace payment lifecycle with review states |
@@ -73,20 +77,20 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 517 | P2 | DONE | 1 | Verified (commit c1e9b7c): action-authz lint gate (49 actions audited, 2 honest escape comments, CI-wired), ADR-001 amended. 2327/2327. | tenant-scoping lint for form actions |
 | 570 | P2 | DONE | 1 | Verified working (supplier inline via extraction; product via pg-boss categorize job); trigger-chain test added (99a172c); GitHub issue closed with architecture answers. 2331/2331. | verify auto-classifier status |
 | 567 | P2 | DONE | 1 | Verified (commit 8111b97): shell pre-existed (#572); added settings persistence (merged query + /api/sidebar), collapsed badges, collapsed footer, spec'd icons+aria. 2338/2338. | collapsible sidebar |
-| 736 | P2 | DEFERRED | 0 | PR #723 branch | escandallo reads load tenant graph too often |
-| 733 | P2 | DEFERRED | 0 | PR #723 branch | updateRecipe drops unparseable fields; rename race |
-| 732 | P2 | DEFERRED | 0 | PR #723 branch | add-a-line row keeps submitted values |
-| 731 | P2 | DEFERRED | 0 | PR #723 branch | printed escandallo repeats prep block |
-| 730 | P2 | DEFERRED | 0 | Verified 2026-08-28: no allergen code on main — #723-branch-only | no-allergens save blocks extraction |
+| 736 | P2 | PENDING | 0 | Unblocked by Phase 0 | escandallo reads load tenant graph too often |
+| 733 | P2 | PENDING | 0 | Unblocked by Phase 0 | updateRecipe drops unparseable fields; rename race |
+| 732 | P2 | PENDING | 0 | Unblocked by Phase 0 | add-a-line row keeps submitted values |
+| 731 | P2 | PENDING | 0 | Unblocked by Phase 0 | printed escandallo repeats prep block |
+| 730 | P2 | PENDING | 0 | Unblocked by Phase 0 (allergen code arrives with the merge) | no-allergens save blocks extraction |
 | 747 | P3 | DONE | 1 | Verified (commit 214e53b): items 1-4,6-10 fixed w/ 28 tests (2878/2878, svelte-check 0/0, 6 lint gates + i18n clean, build green — all re-run by orchestrator); item 5 proven browser/OS-controlled (no app fix); item 7 was NOT obsolete post-#746, fixed. Live-verified via local PG + Chromium. Risks: xl two-col invoice list hides due-date col; pre-deploy raw tokens fail once (1h TTL). Close GitHub issue when branch merges. | beta-review polish bundle |
 | 720 | P3 | DONE | 1 | Verified (commit 32aec64): slate acc-soft alpha 0.16→0.10, 4.18→4.58:1; ADR-026 amended w/ on-tint table; contrast test harness added. Note: slate accent is inert (all routes use tinta/ADR-028). 2344/2344. | active nav rows below AA in dark |
 | 749 | P3 | DONE | 1 | Verified (commit 57b2d3e): neg-soft dark 0.18→0.12 (4.57:1), caution-soft light 0.14→0.11 (4.53:1); full usage sweep, assertions upgraded, ADR amended. 2349/2349. Close GitHub issue when branch merges. | severity tokens below AA on own tints |
 | 719 | P3 | DONE | 1 | Verified (commit 18152ac): fg-4→fg-3 (3.92→5.21:1 dark), pinning tests. 2347/2347. Noted: location-switcher locked items still fg-4 (separate component). | locale hint below AA in dark |
 | 718 | P3 | DONE | 1 | Verified (commit ba89db6): #711's rebase had reintroduced the accent chip in the dialog — now neutral, guard test added. 2352/2352. Note: help-page .help-tip-pro still accent (predates scope; fold into #569's help work). | one neutral PRO chip (ADR-026) |
-| 738 | P3 | DEFERRED | 0 | PR #723 branch | escandallo number parsing zero/out-of-range |
-| 737 | P3 | DEFERRED | 0 | PR #723 branch | recipe module dead exports/dup waste factor |
-| 735 | P3 | DEFERRED | 0 | PR #723 branch | duplicate escandallo 409s second time |
-| 734 | P3 | DEFERRED | 0 | PR #723 branch | itemId=0 passes validation |
+| 738 | P3 | PENDING | 0 | Unblocked by Phase 0 | escandallo number parsing zero/out-of-range |
+| 737 | P3 | PENDING | 0 | Unblocked by Phase 0 | recipe module dead exports/dup waste factor |
+| 735 | P3 | PENDING | 0 | Unblocked by Phase 0 | duplicate escandallo 409s second time |
+| 734 | P3 | PENDING | 0 | Unblocked by Phase 0 | itemId=0 passes validation |
 | 543 | P3 | DONE | 1 | Verified (commit fb3dada): layout svelte:head title + per-page i18n titles (8 routes), billing h1 demoted, 53 th scope attrs, 27 source-scan tests. 2634/2634. | /admin pages render empty title |
 | 542 | P3 | DONE | 1 | Verified (commit 795c605): shared requirePositiveIntId on 15 loaders/actions across 5 routes (+file endpoint tightened); batch UUID path verified safe; 95 parameterized tests. 2560/2560. | malformed /invoice/[id] 500s |
 | 541 | P3 | DONE | 1 | Verified (commit 5a33c3a): client-side validateUploadFile (ext/size-band/magic-bytes, shared MAGIC_BYTES table w/ server, 1KB floor both sides), visible named rejections; drop-zone copy pre-existing. 2607/2607. Residual: mixed-batch server silent-drop unreachable via UI, flagged for follow-up. | upload silently discards rejected files |
