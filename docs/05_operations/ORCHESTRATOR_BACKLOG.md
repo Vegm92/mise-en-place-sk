@@ -43,9 +43,9 @@ PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generatio
 | 484 | P1 | DONE | 1 | Verified (commit 29498ff): client pre-upload HEIC rejection w/ iOS guidance, WhatsApp heic/heif no longer saved as .jpg (both drivers); allowlist parity test pre-existed via #520. 1872 tests pass. | .heic accepted by picker, rejected by server |
 | 464 | P1 | DONE | 1 | Verified (commit 5fe56cd, recovered after container restart): idempotent role script (pgboss schema ownership, default privileges), DATABASE_MIGRATION_URL split, DDL-refusal proven vs local PG. 2756/2756. PRODUCTION STEP PENDING: owner runs the script on Railway + swaps env vars per DEPLOYMENT.md runbook. | split Postgres superuser into runtime+migration roles |
 | 649 | P1 | DONE | 1 | Umbrella verified complete: all 13 children (#650–#662) closed via merged PRs (#663-666, #668, #671); GitHub issue closed with checklist verification. | mobile 390px audit tracker |
-| 729 | P1 | PENDING | 0 | Phase 0 accepted (orchestrator re-ran gates: 3221/3221, 6 lint gates, check 0/0, builds OK); next after 727/728 | recipe name unescaped in emailed escandallo |
-| 728 | P1 | IN_PROGRESS | 1 | Dispatched with #727 (same function, separate commits) | sub-recipe nutrition scales on gross not net |
-| 727 | P1 | IN_PROGRESS | 1 | Dispatched | MAX_RECIPE_DEPTH understates cost, poisons memo |
+| 729 | P1 | IN_PROGRESS | 1 | Dispatched | recipe name unescaped in emailed escandallo |
+| 728 | P1 | DONE | 1 | Verified (commit 52c077b): nutrition fraction gross→net in sub-recipe branch only, cost path untouched; pre-fix failure proven (2000 vs 1000 kcal); client module confirmed free of the bug. Orchestrator re-ran gates: 3225/3225, 6 lint gates, check 0/0, build. | sub-recipe nutrition scales on gross not net |
+| 727 | P1 | DONE | 1 | Verified (commit 148b4ce): depth cap dropped per issue's own recommendation (memoized DFS bounds work, cycle guard terminates), depth-exceeded warning/i18n keys removed with zero dangling refs (grepped), ADR-031 updated; pre-fix failures proven (900 vs 1200; r9 100 vs 400). Gates re-run by orchestrator. | MAX_RECIPE_DEPTH understates cost, poisons memo |
 | 745 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | trial expiry invisible, upload loses files |
 | 744 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | /pending queue position 0 (ms vs µs truncation) |
 | 746 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | replace payment lifecycle with review states |
