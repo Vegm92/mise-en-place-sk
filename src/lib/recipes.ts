@@ -103,26 +103,46 @@ export function convertQty(qty: number, from: string | null, to: string | null):
 	return (qty * fa.factor) / fb.factor;
 }
 
-export function parseQty(raw: MoneyInput): string | null {
-	if (raw === null || raw === undefined) return null;
-	const text = String(raw).trim();
-	if (text === '') return null;
-	const m = QTY_INPUT.exec(text);
-	if (!m) return null;
-	const [, intPart, fracPart = ''] = m;
-	const frac = (fracPart + '0000').slice(0, 4);
-	const value = `${intPart}.${frac}`;
-	return Number(value) > 0 ? value : null;
+const MAX_RAW_INT_DIGITS = 32;
+
+function roundDecimalString(
+	intPart: string,
+	fracPart: string,
+	scale: number,
+	maxIntDigits: number
+): string | null {
+	if (intPart.length > MAX_RAW_INT_DIGITS) return null;
+	const padded = (fracPart + '0'.repeat(scale + 1)).slice(0, scale + 1);
+	const kept = padded.slice(0, scale);
+	const roundUp = Number(padded[scale] ?? '0') >= 5;
+	let units = BigInt(intPart) * 10n ** BigInt(scale) + BigInt(kept || '0');
+	if (roundUp) units += 1n;
+	const digits = units.toString().padStart(scale + 1, '0');
+	const wholePart = digits.slice(0, digits.length - scale) || '0';
+	const fracDigits = scale > 0 ? digits.slice(digits.length - scale) : '';
+	if (wholePart.length > maxIntDigits) return null;
+	return scale > 0 ? `${wholePart}.${fracDigits}` : wholePart;
 }
 
-export function parseDecimal(raw: MoneyInput, scale = 2): string | null {
+export function parseQty(raw: MoneyInput, maxIntDigits = 15): string | null {
 	if (raw === null || raw === undefined) return null;
 	const text = String(raw).trim();
 	if (text === '') return null;
 	const m = QTY_INPUT.exec(text);
 	if (!m) return null;
 	const [, intPart, fracPart = ''] = m;
-	return `${intPart}.${(fracPart + '0'.repeat(scale)).slice(0, scale)}`;
+	const value = roundDecimalString(intPart, fracPart, 4, maxIntDigits);
+	return value !== null && Number(value) > 0 ? value : null;
+}
+
+export function parseDecimal(raw: MoneyInput, scale = 2, maxIntDigits = 15): string | null {
+	if (raw === null || raw === undefined) return null;
+	const text = String(raw).trim();
+	if (text === '') return null;
+	const m = QTY_INPUT.exec(text);
+	if (!m) return null;
+	const [, intPart, fracPart = ''] = m;
+	return roundDecimalString(intPart, fracPart, scale, maxIntDigits);
 }
 
 export function parsePercent(raw: MoneyInput, max: number): string | null {
@@ -139,15 +159,10 @@ export function qtyToNumber(raw: MoneyInput): number {
 }
 
 export function toRate(value: MoneyInput): number | null {
-	if (value === null || value === undefined) return null;
-	const text = String(value).trim();
-	if (text === '') return null;
-	const m = QTY_INPUT.exec(text);
-	if (!m) return null;
-	const [, intPart, fracPart = ''] = m;
-	const frac = (fracPart + '0000').slice(0, 4);
-	const roundUp = fracPart.length > 4 && Number(fracPart[4]) >= 5;
-	return Number(intPart) * RATE_SCALE + Number(frac) + (roundUp ? 1 : 0);
+	const parsed = parseDecimal(value, 4);
+	if (parsed === null) return null;
+	const [intPart, fracPart] = parsed.split('.');
+	return Number(intPart) * RATE_SCALE + Number(fracPart);
 }
 
 export function fromRate(units: number): string {

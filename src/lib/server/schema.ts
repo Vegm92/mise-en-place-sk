@@ -656,4 +656,5 @@ export const recipeItems = pgTable('recipe_items', {
 	check('recipe_items_no_self_ref', sql`${t.childRecipeId} IS NULL OR ${t.childRecipeId} <> ${t.recipeId}`),
 	check('recipe_items_qty_pos',     sql`${t.netQuantity} > 0`),
 	check('recipe_items_waste_range', sql`${t.wastePct} >= 0 AND ${t.wastePct} < 100`),
+	check('recipe_items_unit_cost_pos', sql`${t.unitCost} IS NULL OR ${t.unitCost} > 0`),
 ]);

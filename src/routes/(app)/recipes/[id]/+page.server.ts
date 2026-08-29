@@ -148,7 +148,7 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 	const name = String(data.get('name') ?? '').trim();
 	if (!name) return { error: 'rec.err.lineName' };
 
-	const netQuantity = parseQty(String(data.get('netQuantity') ?? ''));
+	const netQuantity = parseQty(String(data.get('netQuantity') ?? ''), 10);
 	if (netQuantity === null) return { error: 'rec.err.qty' };
 
 	const wastePct = parsePercent(String(data.get('wastePct') ?? '0') || '0', 99.99);
@@ -158,8 +158,9 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 	if (!(RECIPE_UNITS as readonly string[]).includes(rawUnit)) return { error: 'rec.err.unit' };
 
 	const rawCost = String(data.get('unitCost') ?? '').trim();
-	const unitCost = rawCost === '' ? null : parseDecimal(rawCost, 4);
+	const unitCost = rawCost === '' ? null : parseDecimal(rawCost, 4, 8);
 	if (rawCost !== '' && unitCost === null) return { error: 'rec.err.cost' };
+	if (unitCost !== null && Number(unitCost) === 0) return { error: 'rec.err.costZero' };
 
 	const productIdRaw = Number(data.get('productId'));
 	const childIdRaw = Number(data.get('childRecipeId'));
@@ -172,10 +173,16 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 		return { error: 'rec.err.productRequired' };
 	}
 
-	const macro = (key: string) => {
-		const raw = String(data.get(key) ?? '').trim();
-		return raw === '' ? null : parseDecimal(raw, 2);
+	const macros: Record<'kcal100' | 'protein100' | 'carbs100' | 'fat100', string | null> = {
+		kcal100: null, protein100: null, carbs100: null, fat100: null,
 	};
+	for (const key of Object.keys(macros) as (keyof typeof macros)[]) {
+		const raw = String(data.get(key) ?? '').trim();
+		if (raw === '') continue;
+		const parsed = parseDecimal(raw, 2, 6);
+		if (parsed === null) return { error: 'rec.err.macro' };
+		macros[key] = parsed;
+	}
 
 	return {
 		kind,
@@ -187,10 +194,7 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 		unitCost,
 		wastePct,
 		allergens: toAllergenList(data.getAll('allergens').map(String)),
-		kcal100: macro('kcal100'),
-		protein100: macro('protein100'),
-		carbs100: macro('carbs100'),
-		fat100: macro('fat100'),
+		...macros,
 		note: String(data.get('note') ?? '').trim() || null,
 	};
 }
@@ -229,15 +233,15 @@ export const actions: Actions = {
 		const nameKey = normalizeProductKey(name);
 		if (!name || !nameKey) return fail(422, { error: 'rec.err.nameRequired' });
 
-		const portions = parseQty(String(data.get('portions') ?? '1'));
+		const portions = parseQty(String(data.get('portions') ?? '1'), 7);
 		if (portions === null) return fail(422, { error: 'rec.err.portions' });
 
 		const rawPrice = String(data.get('sellingPrice') ?? '').trim();
-		const sellingPrice = rawPrice === '' ? null : parseDecimal(rawPrice, 2);
+		const sellingPrice = rawPrice === '' ? null : parseDecimal(rawPrice, 2, 10);
 		if (rawPrice !== '' && sellingPrice === null) return fail(422, { error: 'rec.err.price' });
 
 		const rawYieldQty = String(data.get('yieldQty') ?? '').trim();
-		const yieldQty = rawYieldQty === '' ? null : parseQty(rawYieldQty);
+		const yieldQty = rawYieldQty === '' ? null : parseQty(rawYieldQty, 10);
 		if (rawYieldQty !== '' && yieldQty === null) return fail(422, { error: 'rec.err.yield' });
 
 		const rawVatPct = String(data.get('vatPct') ?? '').trim();
