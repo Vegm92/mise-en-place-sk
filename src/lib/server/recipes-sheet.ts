@@ -164,9 +164,11 @@ export async function buildRecipeSheet(
 	const lines = cost.lines.map(sheetLine);
 
 	const preps: SheetPrep[] = [];
+	const seenChildRecipeIds = new Set<number>();
 	for (const line of cost.lines) {
 		if (line.kind !== 'recipe' || line.childRecipeId === null) continue;
-		if (preps.some((p) => p.name === line.name)) continue;
+		if (seenChildRecipeIds.has(line.childRecipeId)) continue;
+		seenChildRecipeIds.add(line.childRecipeId);
 		const child = costs.get(line.childRecipeId);
 		const childNode = graph.get(line.childRecipeId);
 		if (!child || !childNode) continue;
