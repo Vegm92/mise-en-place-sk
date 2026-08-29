@@ -24,21 +24,35 @@ actually give us, and the architecture that gets sales into the schema.
 
 ## 1. Recommendation up front
 
-Build a **vendor-neutral sales ingest layer first**, and native connectors
-second. Concretely:
+**Do not pick a vendor first.** Every native connector — Revo's token, Glop's
+portal registration, Lightspeed's partner programme, Ágora's per-venue licence —
+costs a negotiation before it returns a single row of data, and each one buys you
+exactly one vendor.
+
+There is a path that needs no vendor's permission at all: **every one of the five
+already has a web back office that the restaurant logs into, and every one of them
+exports sales to CSV or Excel.** A headless browser signing in with the
+restaurant's own credentials gets the same file. One mechanism, all five vendors,
+nobody to ask.
 
 | Phase | What | Why |
 |---|---|---|
-| **0** | Generic Sales API (a documented endpoint TPVs and dealers push to) + a CSV / Z-report importer | Works with *all* TPVs on day one, including the on-premise ones we cannot reach. Zero vendor dependency, zero vendor negotiation. This is exactly the pattern Haddock uses. |
-| **1** | **Revo XEF** native connector | Best public API of the Spanish natives, cloud-hosted, born in Barcelona province, and already named in our landing copy |
-| **2** | **Glop** connector | Genuinely public REST docs with webhooks; lowest friction after Revo |
-| **3** | **Lightspeed K-Series** connector | Best-documented API of all five, but partner-gated — start the partner application early because approval is the long pole |
-| **4** | **Ágora** and **ICG** | Largest install bases, hardest architecture (on-premise). Needs a local agent or dealer-channel cooperation. Do not start here despite the market share |
+| **0** | **Headless back-office sync** — sign in as the restaurant, pull the sales export | Vendor-agnostic and un-gated. Works across all five without a partner programme, a dealer licence or an API approval. Proves the whole downstream product before we spend a single negotiation. |
+| **0b** | CSV / Z-report drag-and-drop | The manual fallback for anything headless cannot reach (2FA, an unusual back office). Two days of work; makes the feature universal. |
+| **1** | **Revo XEF** native connector | Once headless proves demand, this is the first vendor worth doing properly: real webhooks, a sandbox, and chain-level tokens. |
+| **2** | Generic push endpoint (the Haddock pattern) + **Glop** connector | The push endpoint lets vendors and dealers integrate *us* once we are worth integrating with. Ordering matters — it needs adoption to be worth publishing. |
+| **3** | **Lightspeed K-Series** | Best-documented API of the five, but partner-gated. Start the application in phase 1; approval is the long pole, not the code. |
 
-The ordering is deliberately *inverse to install base*. Ágora and ICG have the
-most terminals in Spain; they are also the two that cannot be reached from our
-cloud without extra machinery. Phase 0 is what lets us serve their customers
-anyway.
+The point of phase 0 is not that it is elegant. It is that **it is the only step
+that does not depend on anyone else saying yes**, and it makes every later phase a
+choice rather than a prerequisite.
+
+> **A revision this changes.** An earlier draft of this document ranked Ágora and
+> ICG as effectively unreachable because both are on-premise. That is true of their
+> *databases* and false of their *back offices* — ICG's HiOffice is a cloud ERP that
+> exports Excel, and Ágora's administration is reachable remotely through My Ágora
+> Premium. Headless access substantially flattens the difficulty gap between all
+> five. See §4.2 and §4.3.
 
 ---
 
@@ -56,7 +70,10 @@ structurally standardised**, in the same way supplier invoices are being
 standardised by Facturae/UBL (which `src/lib/server/einvoice-parser.ts` already
 exploits). A VERI\*FACTU-shaped ingest path is a vendor-neutral sales feed that
 does not care which TPV produced it. This is the strongest single argument for
-building the generic layer in Phase 0 rather than a pile of bespoke connectors.
+normalising sales into **one internal model that every source writes into**,
+rather than letting a pile of bespoke connectors each shape their own — and for
+not over-investing in any single vendor's payload today, since the shape of that
+payload is legislated to change in 2027 anyway.
 
 *This does not make us VERI\*FACTU-compliant and we must never say it does — we
 do not issue invoices. See `docs/onboarding/marketing/00_base/02_reglas_inquebrantables.md`
@@ -116,8 +133,8 @@ reachable the data is — not by raw national terminal count.
 | # | System | Who | Position in BCN | Architecture | Data access | Integration difficulty |
 |---|---|---|---|---|---|---|
 | 1 | **Revo XEF** (Cegid Revo) | Founded 2013, Manresa (Barcelona). ~1,900 clients / 35,000+ users at acquisition; bought by Cegid in 2023 | Very strong in modern/independent Barcelona restaurants; reference clients include Meliá, Catalonia Hotels & Resorts, UDON | Cloud, iPad-native | Public REST API + webhooks + sandbox | **Low** |
-| 2 | **Ágora** (IGT Microelectronics) | Valencia; **37,000+ customers in Spain** | Huge among traditional independents — bars, cafeterías, menú del día | **On-premise** LAN server; ACMS for chains | API via paid add-on module, reachable only on the local network | **High** |
-| 3 | **ICG Software** (FrontRest / HioPOS) | Spanish, since 1985; HioPOS sold in 12 countries | Strong in mid-market, groups and hotels across Catalonia | On-premise SQL Server (FrontRest) + HioPOS Cloud | Database-level (ICG Analytics works directly over any ICG database); dealer channel | **High** |
+| 2 | **Ágora** (IGT Microelectronics) | Valencia; **37,000+ customers in Spain** | Huge among traditional independents — bars, cafeterías, menú del día | **On-premise** LAN server; ACMS for chains; web admin remote via My Ágora Premium | API needs a paid per-venue licence; **back office exports PDF/Excel** | **High** by API, **medium** headless |
+| 3 | **ICG Software** (FrontRest / HioPOS) | Spanish, since 1985; HioPOS sold in 12 countries | Strong in mid-market, groups and hotels across Catalonia | On-premise SQL Server (FrontRest) + **HiOffice cloud back office** | No public API, but HiOffice **exports Excel/PDF/Sheets** over the web | **High** by API, **low–medium** headless |
 | 4 | **Glop** | Valencia | Solid SMB presence, strong stock features | Windows-based with cloud services | **Public documented REST API + webhooks** (`apidoc.glop.es`) | **Low–Medium** |
 | 5 | **Lightspeed Restaurant (K-Series)** | International (Canada); absorbed Gastrofix | Mid/high-end restaurants and hotel F&B | Cloud | Best-documented API of the five, but **partner-gated** | **Medium** (technically easy, commercially slow) |
 
@@ -187,21 +204,25 @@ external system talks to Ágora, and it reveals the architecture:
    Management System) is configured.
 4. Activation of a **paid Ágora integration licence**.
 
-**Assessment.** This is a LAN-resident server, not a cloud API. The implications
-are serious and shape the whole architecture:
+**Assessment of the API path.** This is a LAN-resident server, not a cloud API.
+We cannot pull from our cloud unless the venue exposes a port with a static IP,
+which many independents do not have; and there is a **per-venue licence paid to
+Ágora**, gated by the local distributor, so the API route is a commercial
+conversation with the dealer channel before it is an engineering task.
 
-- We cannot pull from our cloud unless the venue exposes a port to the internet
-  with a static IP — which many independents do not have, and which we should
-  not encourage them to create.
-- Chains running ACMS are reachable centrally; single independents largely are
-  not.
-- There is a **per-venue licence cost paid to Ágora**, and it is gated by the
-  local distributor. Integration is therefore a commercial conversation with the
-  dealer channel, not just an engineering task.
+**But the back office is a different story.** Ágora ships a browser-based
+**Administración Web** for managing the business remotely in real time, and its
+reports — sales, stock, accounting, employees — **export to PDF and Excel**.
+Remote access is provided by **My Ágora Premium**, which explicitly removes the
+fixed-IP and dynamic-DNS requirement; what it still needs is a router port
+forwarded to the Ágora server and a recent version (Ágora Restaurant 4.2.9 /
+Retail 2.4.9).
 
-This single finding is the strongest argument for the Phase 0 push model: for
-Ágora venues, the practical path is that *Ágora (or its dealer) pushes to us*,
-or a small local agent does, rather than us reaching in.
+So Ágora is reachable headlessly **for any venue already running My Ágora
+Premium** — which is the same venues whose owners are engaged enough to want
+what we sell. It is a qualification question at onboarding ("do you log into
+Ágora from home?"), not an architectural dead end. For venues without it, the
+CSV fallback and the push endpoint remain.
 
 ### 4.3 ICG (FrontRest / HioPOS) — enterprise-shaped, channel-mediated
 
@@ -217,9 +238,19 @@ achievable. That is a strong signal that the push model works for ICG and the
 pull model does not.
 
 **Assessment.** Do not attempt a direct database integration ourselves: it is
-fragile, version-coupled, and a security liability inside a customer's LAN. The
-realistic route is the ICG partner channel plus our generic push API. Prioritise
-HioPOS Cloud venues if a cloud API materialises there.
+fragile, version-coupled, and a security liability inside a customer's LAN.
+
+**The back office reverses the verdict.** ICG's **HiOffice Premium** is a web
+back-office ERP reached over the internet from any browser, centralising data
+from every HIOPOS terminal in the customer's database in real time, with
+**reports exported to Excel, PDF or Google Sheets**; ICG Analytics likewise
+exports to CSV, Excel and PDF. That makes ICG one of the *more* accessible of the
+five by the headless route, not one of the least — the opposite of the
+database-level conclusion above.
+
+ICG FrontRest also already appears in Haddock's generic-TPV list, so an ICG-side
+push adapter demonstrably exists too. Two viable routes; neither is the SQL
+Server.
 
 ### 4.4 Glop — the easiest technical win after Revo
 
@@ -265,7 +296,67 @@ the paperwork, not the code, is the critical path.
 
 ## 5. Architecture
 
-### 5.1 Two patterns, not one
+### 5.0 Headless first — how it actually works
+
+The restaurant already logs into a web back office and downloads its own sales.
+We do the same thing on a schedule, with their credentials, on their behalf.
+
+**Do not scrape the DOM.** That is the version of this idea that deserves its bad
+reputation. Every one of these back offices renders its reports from an
+underlying JSON or CSV endpoint, and that endpoint is far more stable than the
+markup around it. The shape to build is:
+
+1. **Discover once, per vendor.** Drive the back office in a headed browser
+   during development, capture the network calls behind "export report", and
+   write down the endpoint, its parameters and its response shape. This is a
+   half-day of manual work per vendor, done once.
+2. **Log in headlessly.** Playwright signs in and yields a session cookie. This
+   is the only step that needs a browser.
+3. **Fetch over plain HTTP.** With the cookie, call the export endpoint
+   directly for a date range. No DOM, no selectors, no rendering. A UI redesign
+   does not break this; only an API change does, and those are far rarer.
+4. **Parse into the same normalised tables** every other source writes into
+   (§6). The headless driver is a *source*, not a special case.
+
+We already have the tooling: Playwright is a devDependency and `pnpm qa:sweep`
+already drives headless Chromium against the running app, so the dependency,
+the CI experience and the container story are all precedent rather than new.
+
+**Structure it behind a seam, exactly as WhatsApp is.** ADR-025 faced this same
+choice — an official API that needed paperwork we did not have, versus an
+unofficial route that worked immediately — and resolved it with a transport
+interface in `src/lib/server/integrations/whatsapp/`, where `transport.ts`
+defines the contract, one driver file is the only thing that imports the
+unofficial library, and the handlers never learn which transport they are on.
+Swapping to the official Cloud API becomes one file rather than a rewrite.
+
+Do the same here: `src/lib/server/integrations/pos/source.ts` defines
+`SalesSource` (`connect`, `testConnection`, `fetchRange`, `fetchCatalog`), and
+`driver-headless-revo.ts`, `driver-api-revo.ts`, `driver-csv.ts` are
+interchangeable implementations. Then the phase-1 Revo connector genuinely is a
+one-file addition, and the headless driver can be retired per-vendor the day an
+official route opens — without touching a single line of the sales pipeline.
+
+**This is the same trade the repo has already made once, knowingly**, and it
+should be recorded the same way: as an ADR (next number 033) that states the
+stopgap, the seam, and the conditions for retiring it.
+
+#### What to be honest about
+
+| Risk | Reality | Mitigation |
+|---|---|---|
+| **Terms of service** | Some back offices prohibit automated access. This is the real constraint, and it is per-vendor. It is the restaurant's own data and their own credentials, which helps, but it is not automatically a defence | **Read each vendor's terms before shipping that driver.** Where they forbid it, use the CSV fallback for that vendor and pursue the API instead. Prefer an official route the moment one exists |
+| **Credential sensitivity** | A back-office password is far more dangerous than an API token — it is usually *write* access to the whole business, not read access to sales | Ask for a **dedicated read-only user** where the TPV supports roles (Revo, Ágora and ICG all have user management). Encrypt at rest (§5.3), never log, never surface in Sentry. This is non-negotiable |
+| **2FA / captcha** | Ends automation cleanly where enforced | No workaround worth attempting. This is exactly what phase 0b (CSV upload) is for |
+| **Brittleness** | UI changes break DOM scrapers | Largely avoided by hitting the export endpoint rather than the DOM. Budget for per-vendor breakage anyway, and alert on a driver that returns zero rows for a venue that had sales yesterday |
+| **Export limits** | Revo's report export is reportedly capped at six months per pull | Fine for a nightly incremental; matters only for the initial backfill, which can page |
+| **It looks like a hack to a vendor** | It is un-gated, not covert — we identify ourselves and act for the account holder | Do not disguise the client. A descriptive User-Agent and a sane request rate. If a vendor objects, that is the moment to open the partner conversation, from a position of having their customers |
+
+The honest summary: **headless gets us to real data in weeks instead of
+quarters, and it is a stopgap, not a destination.** Phase 1 onwards exists
+precisely because we should not still be doing this in two years.
+
+### 5.1 Two patterns for the long run
 
 | | **Pull** (we call them) | **Push** (they call us) |
 |---|---|---|
@@ -462,35 +553,40 @@ ticket-item pipeline plus good PLU mapping. Ship the headline first.
   opaque id, not a name, unless there is a specific product reason.
 - Nothing here makes us a VERI\*FACTU system. We read; we do not issue.
 
-**Landing copy — needs a decision**
+**Landing copy — resolved**
 
-`docs/onboarding/marketing/00_base/02_reglas_inquebrantables.md` and
-`docs/onboarding/marketing/03_canales/landing_waitlist.md` both flag that the
-live landing promises connection to **Square and Revo "desde el primer día"**,
-and that this is not built. This report does not resolve that by itself. Two
-honest options:
+Two marketing docs listed the claim "se conecta a Square y Revo desde el primer
+día" as live on the landing and unbuilt in the product. **Checked against the
+source: the claim is already gone.** `waitlist.faq.1.a` had been retracted in
+both locales during the GEO pass (`docs/05_operations/geo_program_plan.md`); the
+two marketing docs were simply stale and have been corrected.
 
-1. Build the Revo connector (Phase 1) and make the Revo half true. Then drop or
-   qualify Square, which has a small Barcelona share and does not deserve equal
-   billing.
-2. Amend the copy now to a forward-looking claim, and keep rule 1 intact.
+The copy now reads, in both locales, that we are **working on** connecting to the
+TPVs most used in Spain and that it is **not yet available** — which is true
+today and stays true through phase 0, since a headless connector for one
+restaurant's own back office is not the same as "connected to Revo".
 
-Doing neither is the only genuinely bad outcome, and it gets worse the moment
-real traffic arrives.
+The rule that still binds: **do not name a specific TPV as connected until it
+is.** "Estamos trabajando en ello" is fair; "compatible con Revo" is not, until
+a Revo venue is syncing in production.
 
 ---
 
 ## 9. Decisions needed from Victor
 
-1. **Is TPV integration a product goal?** The marketing docs carry this as an
+1. **Is TPV integration a product goal?** The marketing docs carried this as an
    open question. Everything above assumes yes.
-2. **Generic-push-first, or Revo-first?** This document argues push-first
-   because it serves Ágora and ICG venues we otherwise cannot reach — but
-   Revo-first makes existing landing copy true sooner.
-3. **Square**: keep it in the promise, or drop it? Its Barcelona share does not
-   justify connector work on merit.
-4. **Local agent for on-premise venues** — in scope, or do we simply decline
-   Ágora/ICG single-site independents until their vendors push to us?
+2. **Is headless-first acceptable to you as a stopgap?** It is un-gated and fast,
+   it is how we reach all five without asking anyone, and it carries the
+   terms-of-service and credential risks in §5.0. The repo has made this exact
+   trade once already (ADR-025, Baileys). If the answer is no, the honest
+   alternative is Revo-first and a much narrower phase 0.
+3. **Which vendor do we drive first with a real restaurant?** Headless needs one
+   willing venue to develop against. Whoever that is decides the first driver —
+   so this is a customer-selection question, not a technical one.
+4. **Read-only sub-users:** are we willing to make "create an integration user in
+   your TPV" part of onboarding? It is friction, and it is the single biggest
+   reduction in credential risk available to us.
 5. **Entitlement tier.** Sales integration is a natural Pro/Business feature
    alongside `stockTracking`. Which tier, and does it change provisional pricing?
 
@@ -510,5 +606,6 @@ real traffic arrives.
 - [VeriFactu en hostelería — TeamSystem](https://teamsystem.es/magazine/verifactu-hosteleria/) · [5 claves de VeriFactu para hostelería — OFI](https://www.ofi.es/news/5-claves-de-verifactu-para-hosteleria/)
 - [Ordatic — Hosteltáctil](https://hosteltactil.com/partners/ordatic/) · [Ordatic — Valencia Plaza](https://valenciaplaza.com/ordatic-la-startup-que-agiliza-a-los-restaurantes-el-uso-de-plataformas-de-delivery)
 - [Licencias de terrazas en Barcelona — ViaEmpresa](https://www.viaempresa.cat/es/empresa/cuantas-licencias-terrazas-bares-restaurantes-hay-en-barcelona_2235257_102.html) · [Gremi de Restauració de Barcelona](https://gremirestauracio.com/es/quienes-somos)
+- Back-office / headless route: [Revo BACK](https://revo.works/en/revoback) and [Revo reports FAQ](https://support.revo.works/en/articles/773) · [Ágora Administración Web](https://www.agorapos.com/manual/agora-restaurant/html/WA_AdministracionWeb.html) · [My Ágora Premium — acceso a la administración](https://www.infinitel.es/noticia/software/my-agora-premium-acceso-a-la-administracion/) · [ICG HiOffice Premium](https://hiopos.online/erp-hioffice-premium/)
 - [Square para hostelería (ES)](https://squareup.com/es/es/solutions/hospitality) · [Square llega a España — MuyCanal](https://www.muycanal.com/2022/01/25/square-comercio-tpv)
 - [Last.app — software TPV](https://www.last.app/producto/software-tpv) · [Camarero10](https://www.camarero10.com/) · [Numier](https://numier.com/) · [Hosteltáctil](https://hosteltactil.com/)
