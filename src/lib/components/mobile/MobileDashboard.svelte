@@ -79,6 +79,12 @@
     return $ti('turno.ribbon.paceNoBudget', { delta: (pct >= 0 ? '+' : '') + pct + '%' });
   });
 
+  const reviewColor = $derived.by(() => {
+    if (data.review.incidencias > 0) return 'var(--mep-neg)';
+    if (data.review.count > 0) return 'var(--mep-caution)';
+    return 'var(--mep-pos)';
+  });
+
 </script>
 
 <div style="height: 100%; overflow: auto; padding-bottom: 24px;">
@@ -135,7 +141,7 @@
         <span class="num" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--mep-fg);">
           {fmtEurCompact(data.review.amount, $locale)}
         </span>
-        <span class="num" style="font-size: 11px; font-weight: 500; color: {data.review.incidencias > 0 ? 'var(--mep-neg)' : data.review.count > 0 ? 'var(--mep-caution)' : 'var(--mep-pos)'};">
+        <span class="num" style="font-size: 11px; font-weight: 500; color: {reviewColor};">
           {data.review.incidencias > 0
             ? $tp('turno.ribbon.issuesNote', data.review.incidencias)
             : $tp('turno.ribbon.reviewNote', data.review.count)}

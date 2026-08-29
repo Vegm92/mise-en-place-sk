@@ -33,7 +33,7 @@ describe('recipeSheetEmail — recipe name is escaped in headline/preheader (#72
 		});
 		expect(html).not.toContain('<img src=x onerror=alert(1)>');
 		const escaped = '&lt;img src=x onerror=alert(1)&gt;';
-		expect(html).toContain(`<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:#17171a;">${escaped}</h1>`);
+		expect(html).toContain(`<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:#15181f;">${escaped}</h1>`);
 		// preheader is rendered twice (hidden preview text + visible top bar) plus once in the headline.
 		expect((html.match(new RegExp(escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length).toBe(3);
 	});
@@ -72,6 +72,6 @@ describe('email layout centralized escaping — no double-escaping regression (#
 	it('renders the recipe sheet preheader/headline for a benign name byte-identically to before centralizing (regression anchor)', () => {
 		const { html } = recipeSheetEmail('chef@example.com', 'Casa Lua', baseSheet);
 		expect(html).toContain('Tarta de queso: 8 raciones.');
-		expect(html).toContain('<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:#17171a;">Tarta de queso</h1>');
+		expect(html).toContain('<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:#15181f;">Tarta de queso</h1>');
 	});
 });
