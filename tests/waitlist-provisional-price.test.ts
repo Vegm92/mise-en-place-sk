@@ -258,6 +258,12 @@ const POST_333_FAQ_4_A: Record<Locale, string> = {
  * is not computable without the sales data that integration would have
  * supplied. They are retracted rather than restated, and pinned here so the
  * migration diff above stays meaningful. See tests/landing-claims-ratchet.test.ts.
+ *
+ * `faq[1]` was revised again once the TPV market study landed
+ * (docs/02_product/tpv_sales_integration_spain.md): the answer now says we are
+ * working on connecting to the TPVs most used in Spain rather than naming a
+ * roadmap, and still states it is not available yet. The retraction is
+ * unchanged — no TPV is named as connected — so the ratchet still holds.
  */
 const POST_GEO0_STEPS_2_BODY: Record<Locale, string> = {
 	es: 'Gasto por categoría. Alertas de precio. Comparativa entre proveedores y entre locales. Tu coste de compra, al día.',
@@ -267,11 +273,11 @@ const POST_GEO0_STEPS_2_BODY: Record<Locale, string> = {
 const POST_GEO0_FAQ: Record<Locale, Record<number, string>> = {
 	es: {
 		0: 'Tus albaranes son tuyos: puedes exportarlos o eliminarlos en cualquier momento. En la política de privacidad explicamos dónde se alojan tus datos, cuánto tiempo se conservan y quién los trata.',
-		1: 'No. Mise en Place trabaja sobre tus albaranes y facturas, sea cual sea tu TPV, y exporta a Excel/CSV para que el dato entre donde lo necesites. Las integraciones directas con TPV están en la hoja de ruta, todavía no disponibles. Si usas uno en concreto, escríbenos y lo tenemos en cuenta al priorizar.',
+		1: 'No. Mise en Place trabaja sobre tus albaranes y facturas, sea cual sea tu TPV, y exporta a Excel/CSV para que el dato entre donde lo necesites. Estamos trabajando en conectar con los TPV más usados en España para traer también tus ventas, pero todavía no está disponible. Si usas uno en concreto, escríbenos y lo tenemos en cuenta al priorizar.',
 	},
 	en: {
 		0: 'Your delivery notes are yours: you can export or delete them at any time. Our privacy policy explains where your data is hosted, how long it is kept, and who processes it.',
-		1: 'No. Mise en Place works from your delivery notes and invoices, whatever POS you use, and exports to Excel/CSV so the data lands wherever you need it. Direct POS integrations are on the roadmap, not available yet. If you use a particular one, write to us and we will weigh it when prioritising.',
+		1: 'No. Mise en Place works from your delivery notes and invoices, whatever POS you use, and exports to Excel/CSV so the data lands wherever you need it. We are working on connecting to the POS systems most used in Spain so your sales come in too, but it is not available yet. If you use a particular one, write to us and we will weigh it when prioritising.',
 	},
 };
 

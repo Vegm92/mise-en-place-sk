@@ -51,25 +51,19 @@ describe('retracted product claims stay retracted', () => {
 		}
 	}
 
-	/**
-	 * Assert the property, not the phrasing. The first version of this demanded
-	 * the literal "hoja de ruta"/"roadmap" — the words that happened to be in
-	 * the copy when it was written — which failed PR #774 for rewording the
-	 * same disclaimer to "todavía no está disponible" / "not available yet".
-	 * That is at least as honest, so the guard was wrong, not the copy. What
-	 * must never regress is that the answer disclaims current availability;
-	 * how it says so is the copywriter's call.
-	 */
-	const DISCLAIMS_AVAILABILITY: Record<Locale, RegExp> = {
-		es: /hoja de ruta|todavía no|todavia no|aún no|aun no|no está disponible|no esta disponible|próximamente|proximamente/,
-		en: /roadmap|not yet|not available|coming soon/,
-	};
-
 	for (const loc of LOCALES) {
 		it(`${loc}: the POS answer states the integration is not available yet`, () => {
 			const answer = table(loc)['waitlist.faq.1.a'];
 			expect(answer).toBeTruthy();
-			expect(answer.toLowerCase()).toMatch(DISCLAIMS_AVAILABILITY[loc]);
+			// Pin the guarantee, not the phrasing. This asserted /hoja de ruta/ and
+			// /roadmap/ while the answer happened to use those words — but "it is on
+			// the roadmap" never itself said "not available", which is what the test
+			// name promises and what rule 1 actually requires. Matching the negation
+			// of availability holds the copy to the claim regardless of how the
+			// roadmap half is worded.
+			expect(answer.toLowerCase()).toMatch(
+				loc === 'es' ? /no (est[áa] disponible|disponible)/ : /not (yet )?available/
+			);
 		});
 	}
 });
