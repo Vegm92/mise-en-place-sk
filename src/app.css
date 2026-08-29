@@ -208,7 +208,7 @@
    What changed is only the temperature, never the vocabulary: colour on this
    screen still means something (pos / neg / warn / caution / info, category
    ramp, chart series), and the accent sits far outside every one of those
-   bands. See docs/06_decisions/experience/ADR-031-the-ink-gains-a-hue.md,
+   bands. See docs/06_decisions/experience/ADR-032-the-ink-gains-a-hue.md,
    which amends ADR-028 rather than reversing it.
 
    The amber accent block lived here until it was removed: its --mep-acc was

@@ -1,4 +1,4 @@
-# ADR-031 — The ink gains a hue
+# ADR-032 — The ink gains a hue
 
 **Status:** Active
 **Feature:** experience
@@ -128,6 +128,17 @@ do not resolve custom properties) and `src/routes/s/[token]/og.png/+server.ts`
 (a server-rendered share card has no viewer to theme for) carry sanctioned
 copies of the light ramp; both are updated, and the accent-discipline test
 already pins `email.ts` to the light tokens.
+
+**One cross-branch break to land after.** PR #768 adds
+`tests/recipe-sheet-email.test.ts`, which asserts the rendered `<h1>` of a
+transactional email including `color:#17171a` — the literal old `--mep-fg`,
+copied into the expectation rather than read from the tokens. This ADR moves
+that value to `#15181f`. The two branches do not touch the same lines of
+`email.ts`, so they merge cleanly and each is green on its own; whichever lands
+second turns the other red. Whoever merges second updates that assertion — and
+the durable fix is for it to read `COLOR_FG` rather than restate it, the same
+reasoning `contrast-tokens.test.ts` gives for parsing tokens out of `app.css`
+instead of trusting an ADR's prose.
 
 **Not handled.** The dark `--mep-acc` / `--mep-info` proximity above. And the
 landing page still leans on the accent for its eyebrows, spot counter and

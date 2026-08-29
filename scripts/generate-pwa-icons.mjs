@@ -3,7 +3,7 @@
  * built-ins (zlib + Buffer). Design: the same three-bar mark used in-app
  * (`src/lib/components/mep/Logo.svelte`) and in transactional email
  * (`src/lib/server/email.ts`'s LOGO_SVG), on the ink/parchment brand pair
- * (ADR-031, amending ADR-028) — ink background (#1B2A44, matches
+ * (ADR-032, amending ADR-028) — ink background (#1B2A44, matches
  * manifest.webmanifest's theme_color), paper bars (#ECEDF1, matches its
  * background_color).
  * These constants are asserted against the manifest by
@@ -119,7 +119,7 @@ const BG_HEX = '#1B2A44'; // ink — manifest.webmanifest theme_color
 const FG_HEX = '#ECEDF1'; // paper — manifest.webmanifest background_color
 
 /** The channels the canvas actually paints, derived from the hex above. These
- *  used to be hand-written literals alongside it, so ADR-031's recolour landed
+ *  used to be hand-written literals alongside it, so ADR-032's recolour landed
  *  in BG_HEX/FG_HEX — which is all logo-usage-consistency.test.ts reads — while
  *  the icons kept drawing the old ink. Deriving them removes the second copy. */
 function channels(hex) {
