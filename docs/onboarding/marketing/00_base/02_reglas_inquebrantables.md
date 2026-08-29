@@ -23,7 +23,7 @@ propia landing: parte de lo que hay ahí es promesa, no producto.
 
 | Afirmación viva en la landing | Estado real | Qué hacer |
 |---|---|---|
-| «Se conecta a Square y Revo desde el primer día» | **La integración con TPV no está construida.** La documentación de producto la marca explícitamente como futura | No repetirlo en material nuevo hasta confirmarlo con Victor |
+| ~~«Se conecta a Square y Revo desde el primer día»~~ | **Resuelto.** La afirmación ya no existe en la landing: `waitlist.faq.1.a` dice ahora, en ambos idiomas, que estamos trabajando en conectar con los TPV más usados en España y que **todavía no está disponible** | Se puede decir «estamos trabajando en ello». Sigue prohibido nombrar un TPV concreto como ya conectado hasta que lo esté. El plan está en [`docs/02_product/tpv_sales_integration_spain.md`](../../../02_product/tpv_sales_integration_spain.md) |
 | «Almacenamos cifradas en servidores en la UE» | Verosímil, pero hay que confirmar la región real del alojamiento | Confirmar antes de reutilizar la frase |
 | «Nunca las usaremos para entrenar modelos públicos» | Depende de las condiciones del proveedor de IA | Confirmar antes de reutilizar la frase |
 | Testimonios firmados con nombre y rol | Sin clientes de pago todavía. Hay que aclarar si son reales, de entrevistas, o ilustrativos | Preguntar. Si son ilustrativos, **deben ir marcados como tales** |
