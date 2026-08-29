@@ -43,9 +43,9 @@ PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generatio
 | 484 | P1 | DONE | 1 | Verified (commit 29498ff): client pre-upload HEIC rejection w/ iOS guidance, WhatsApp heic/heif no longer saved as .jpg (both drivers); allowlist parity test pre-existed via #520. 1872 tests pass. | .heic accepted by picker, rejected by server |
 | 464 | P1 | DONE | 1 | Verified (commit 5fe56cd, recovered after container restart): idempotent role script (pgboss schema ownership, default privileges), DATABASE_MIGRATION_URL split, DDL-refusal proven vs local PG. 2756/2756. PRODUCTION STEP PENDING: owner runs the script on Railway + swaps env vars per DEPLOYMENT.md runbook. | split Postgres superuser into runtime+migration roles |
 | 649 | P1 | DONE | 1 | Umbrella verified complete: all 13 children (#650–#662) closed via merged PRs (#663-666, #668, #671); GitHub issue closed with checklist verification. | mobile 390px audit tracker |
-| 729 | P1 | PENDING | 0 | Unblocked by Phase 0 integration (see ESCANDALLO DECISION) | recipe name unescaped in emailed escandallo |
-| 728 | P1 | PENDING | 0 | Unblocked by Phase 0 integration | sub-recipe nutrition scales on gross not net |
-| 727 | P1 | PENDING | 0 | Unblocked by Phase 0 integration | MAX_RECIPE_DEPTH understates cost, poisons memo |
+| 729 | P1 | PENDING | 0 | Phase 0 accepted (orchestrator re-ran gates: 3221/3221, 6 lint gates, check 0/0, builds OK); next after 727/728 | recipe name unescaped in emailed escandallo |
+| 728 | P1 | IN_PROGRESS | 1 | Dispatched with #727 (same function, separate commits) | sub-recipe nutrition scales on gross not net |
+| 727 | P1 | IN_PROGRESS | 1 | Dispatched | MAX_RECIPE_DEPTH understates cost, poisons memo |
 | 745 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | trial expiry invisible, upload loses files |
 | 744 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | /pending queue position 0 (ms vs µs truncation) |
 | 746 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | replace payment lifecycle with review states |
