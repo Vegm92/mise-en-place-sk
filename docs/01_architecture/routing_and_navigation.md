@@ -8,7 +8,8 @@ at the top level. A stale legacy page is noted where applicable.
 
 ```
 src/routes/
-├── +layout.svelte                     # root layout (CSP/theme)
+├── +layout.server.ts                  # resolves the rendered locale from url + cookie
+├── +layout.svelte                     # root layout (CSP/theme, locale context)
 ├── +error.svelte
 ├── (app)/                             # authenticated app shell
 │   ├── +layout.server.ts              # tenancy, badges, quota, onboarding flag, sentry tag
@@ -105,6 +106,30 @@ src/routes/
 - `/api/*` unauthenticated → 401 JSON; page unauthenticated → redirect
   `/login?redirectTo=...`.
 - `/admin*` → `isAdminUser` (`AUTH_ADMIN_EMAIL`) else redirect `/`.
+
+## Locale
+
+The locale a page **renders** is resolved per request; the locale a user
+**prefers** lives in the browser. They are separate mechanisms
+([ADR-033](../06_decisions/experience/ADR-033-the-rendered-locale-is-request-state.md)).
+
+- Precedence: `?lang=` → `mep-locale` cookie → `es`. No `Accept-Language`
+  negotiation — it makes crawling nondeterministic.
+- `hooks.server.ts` sets `event.locals.locale` and substitutes it into the
+  `%mep.lang%` placeholder in `src/app.html`, so `<html lang>` is correct on
+  every route including the app shell. An explicit `?lang=` is persisted to the
+  cookie.
+- `+layout.server.ts` (root) resolves again from `url` + `cookies` rather than
+  reading `locals`, because SvelteKit only re-runs a load whose *tracked* inputs
+  changed and `locals` is not one. The root `+layout.svelte` publishes the
+  result as a Svelte context.
+- Public pages (`waitlist/`, `l/[variant]/`) read that context. The
+  authenticated app still reads the `locale` writable in `$lib/i18n.ts`; it is
+  single-session and `noindex`, and `locale.set()` must never be called on the
+  server.
+- `?lang=` is provisional. GEO phase 2b gives English its own path
+  (`/en/waitlist`) and `localeHref()` in `src/lib/locale-url.ts` is the one
+  function that changes.
 
 ## Page → subsystem mapping
 
@@ -209,13 +234,34 @@ src/routes/
   driven by `src/lib/waitlist/reveal.ts`'s scroll-into-view progress action. Its
   light/dark theme toggle stays independent of the app theme system (its own
   `localStorage` key, `mep-theme`), but copy and language now go through the
-  shared `$t`/`$ti` + `locale` store from `$lib/i18n.ts` under a `waitlist.*`
-  key namespace (issue #407) — reusing `billing.*` keys for pricing-tier
-  names/taglines/bullets that are byte-identical to `/billing`'s. Its mock
-  components still carry fixture-like demo copy and stay exempted from
-  `scripts/check-i18n-strings.mjs`; the page itself is no longer exempt.
+  `waitlist.*` key namespace (issue #407) — reusing `billing.*` keys for
+  pricing-tier names/taglines/bullets that are byte-identical to `/billing`'s.
+  Its mock components still carry fixture-like demo copy and stay exempted from
+  `scripts/check-i18n-strings.mjs`; the page itself is no longer exempt. Its
+  translators come from `$lib/i18n-context.ts` rather than the module store in
+  `$lib/i18n.ts`, so the locale it renders is request state
+  ([ADR-033](../06_decisions/experience/ADR-033-the-rendered-locale-is-request-state.md)).
 
 ## Code notes
+
+### `src/lib/locale-url.ts`, `src/lib/server/locale.ts`, `src/lib/i18n-context.ts`
+
+- The split is deliberate. `locale-url.ts` is pure and importable from
+  anywhere; `server/locale.ts` owns the cookie; `i18n-context.ts` owns the
+  Svelte plumbing. Nothing in the trio holds module-level mutable state, which
+  is the whole point — under `adapter-node` a module is shared by every
+  concurrent request.
+- `resolveLocale` returns `{ locale, explicit }`. `explicit` is false only for
+  the bare default, and it is what tells the client whether the server had a
+  real signal or was guessing: a stale `localStorage` value wins over a guess
+  and loses to a signal.
+- `getLocale()` throws when no parent called `setLocaleContext`. A fallback to
+  Spanish would turn a missing provider into a silently wrong-language page,
+  which is the failure this whole seam exists to remove.
+- `localeHref()` always writes the parameter, in both directions. Dropping it
+  for the default locale looks tidier and is wrong: with a remembered cookie,
+  a bare path would render the *other* language, so the "ES" link would not
+  switch back.
 
 ### `src/lib/server/idempotency.ts`
 
