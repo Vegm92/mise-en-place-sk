@@ -51,8 +51,7 @@
 
 	<aside class="auth-aside">
 		<div class="auth-lockup">
-			<Logo size={21} />
-			<span class="auth-brand">Mise en Place</span>
+			<Logo size={21} wordmark />
 		</div>
 
 		<div class="auth-spacer"></div>
@@ -158,13 +157,6 @@
 </div>
 
 <style>
-	.auth-brand {
-		font-size: 15.5px;
-		font-weight: 600;
-		letter-spacing: -0.3px;
-		color: var(--mep-fg);
-	}
-
 	.auth-head { display: flex; flex-direction: column; gap: 6px; }
 	.auth-status {
 		align-self: flex-start;
