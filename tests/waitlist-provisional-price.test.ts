@@ -248,6 +248,33 @@ const POST_333_FAQ_4_A: Record<Locale, string> = {
 	en: 'We open in batches as we bring on new restaurants. We notify by email at least a week in advance.',
 };
 
+/**
+ * GEO Phase 0 — retracted claims.
+ *
+ * Three strings asserted things the product does not do (marketing rule 1):
+ * a Square/Revo POS integration that is not built, and EU-encryption /
+ * never-train guarantees that were never confirmed against the actual
+ * infrastructure. `steps[2]` additionally promised real-time *margin*, which
+ * is not computable without the sales data that integration would have
+ * supplied. They are retracted rather than restated, and pinned here so the
+ * migration diff above stays meaningful. See tests/landing-claims-ratchet.test.ts.
+ */
+const POST_GEO0_STEPS_2_BODY: Record<Locale, string> = {
+	es: 'Gasto por categoría. Alertas de precio. Comparativa entre proveedores y entre locales. Tu coste de compra, al día.',
+	en: 'Spend by category. Price alerts. Comparison across suppliers and across venues. Your purchase cost, up to date.',
+};
+
+const POST_GEO0_FAQ: Record<Locale, Record<number, string>> = {
+	es: {
+		0: 'Tus albaranes son tuyos: puedes exportarlos o eliminarlos en cualquier momento. En la política de privacidad explicamos dónde se alojan tus datos, cuánto tiempo se conservan y quién los trata.',
+		1: 'No. Mise en Place trabaja sobre tus albaranes y facturas, sea cual sea tu TPV, y exporta a Excel/CSV para que el dato entre donde lo necesites. Las integraciones directas con TPV están en la hoja de ruta, todavía no disponibles. Si usas uno en concreto, escríbenos y lo tenemos en cuenta al priorizar.',
+	},
+	en: {
+		0: 'Your delivery notes are yours: you can export or delete them at any time. Our privacy policy explains where your data is hosted, how long it is kept, and who processes it.',
+		1: 'No. Mise en Place works from your delivery notes and invoices, whatever POS you use, and exports to Excel/CSV so the data lands wherever you need it. Direct POS integrations are on the roadmap, not available yet. If you use a particular one, write to us and we will weigh it when prioritising.',
+	},
+};
+
 describe('waitlist copy migration is byte-identical to the pre-migration inline object (issue #407)', () => {
 	it('the pinned pre-migration git blob still contains the expected copy object', () => {
 		expect(Object.keys(PRE_MIGRATION_COPY)).toEqual(['es', 'en']);
@@ -258,8 +285,14 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table, aside from documented later changes`, () => {
 			const expected = { ...PRE_MIGRATION_COPY[loc], ...POST_407_INTENTIONAL_CHANGES[loc] };
 			const preMigrationFaq = expected.faq as { q: string; a: string }[];
-			expected.faq = preMigrationFaq.map((row, i) =>
-				i === 4 ? { ...row, a: POST_333_FAQ_4_A[loc] } : row
+			expected.faq = preMigrationFaq.map((row, i) => {
+				if (i === 4) return { ...row, a: POST_333_FAQ_4_A[loc] };
+				const retracted = POST_GEO0_FAQ[loc][i];
+				return retracted === undefined ? row : { ...row, a: retracted };
+			});
+			const preMigrationSteps = expected.steps as { num: string; tag: string; title: string; body: string }[];
+			expected.steps = preMigrationSteps.map((row, i) =>
+				i === 2 ? { ...row, body: POST_GEO0_STEPS_2_BODY[loc] } : row
 			);
 			expect(buildMigratedCopy(loc)).toEqual(expected);
 		});
