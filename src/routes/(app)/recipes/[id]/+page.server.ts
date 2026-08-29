@@ -1,5 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { and, asc, eq, max as sqlMax, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, max as sqlMax, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
@@ -22,6 +22,17 @@ async function requireRecipe(rid: string, id: number) {
 		.where(tdb.scope(recipes.restaurantId, eq(recipes.id, id))).limit(1);
 	if (!row) error(404, 'Not found');
 	return row;
+}
+
+function pgErrorCode(err: unknown): unknown {
+	if (typeof err !== 'object' || err === null) return undefined;
+	const code = (err as { code?: unknown }).code;
+	if (code !== undefined) return code;
+	return pgErrorCode((err as { cause?: unknown }).cause);
+}
+
+function isUniqueViolation(err: unknown): boolean {
+	return pgErrorCode(err) === '23505';
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -209,32 +220,46 @@ export const actions: Actions = {
 		if (rawPrice !== '' && sellingPrice === null) return fail(422, { error: 'rec.err.price' });
 
 		const rawYieldQty = String(data.get('yieldQty') ?? '').trim();
+		const yieldQty = rawYieldQty === '' ? null : parseQty(rawYieldQty);
+		if (rawYieldQty !== '' && yieldQty === null) return fail(422, { error: 'rec.err.yield' });
+
+		const rawVatPct = String(data.get('vatPct') ?? '').trim();
+		const vatPct = rawVatPct === '' ? null : parsePercent(rawVatPct, 100);
+		if (rawVatPct !== '' && vatPct === null) return fail(422, { error: 'rec.err.vat' });
+
+		const rawTargetFoodCostPct = String(data.get('targetFoodCostPct') ?? '').trim();
+		const targetFoodCostPct = rawTargetFoodCostPct === ''
+			? null : parsePercent(rawTargetFoodCostPct, 100);
+		if (rawTargetFoodCostPct !== '' && targetFoodCostPct === null) {
+			return fail(422, { error: 'rec.err.targetFoodCost' });
+		}
+
 		const rawYieldUnit = String(data.get('yieldUnit') ?? '').trim();
 		const rawKind = String(data.get('kind') ?? 'plato');
 		const rawStatus = String(data.get('status') ?? 'draft');
 		const rawSection = String(data.get('section') ?? '');
 
-		const duplicate = await db.select({ id: recipes.id }).from(recipes)
-			.where(tdb.scope(recipes.restaurantId, and(eq(recipes.nameKey, nameKey), ne(recipes.id, id))))
-			.limit(1);
-		if (duplicate.length > 0) return fail(409, { error: 'rec.err.duplicate' });
-
-		await db.update(recipes).set({
-			name,
-			nameKey,
-			kind: isRecipeKind(rawKind) ? rawKind : 'plato',
-			status: isRecipeStatus(rawStatus) ? rawStatus : 'draft',
-			section: isRecipeSection(rawSection) ? rawSection : null,
-			portions,
-			yieldQty: rawYieldQty === '' ? null : parseQty(rawYieldQty),
-			yieldUnit: (RECIPE_UNITS as readonly string[]).includes(rawYieldUnit) ? rawYieldUnit : null,
-			sellingPrice,
-			vatPct: parsePercent(String(data.get('vatPct') ?? ''), 100),
-			targetFoodCostPct: parsePercent(String(data.get('targetFoodCostPct') ?? ''), 100),
-			preparation: String(data.get('preparation') ?? '').trim() || null,
-			notes: String(data.get('notes') ?? '').trim() || null,
-			updatedAt: new Date(),
-		}).where(tdb.scope(recipes.restaurantId, eq(recipes.id, id)));
+		try {
+			await db.update(recipes).set({
+				name,
+				nameKey,
+				kind: isRecipeKind(rawKind) ? rawKind : 'plato',
+				status: isRecipeStatus(rawStatus) ? rawStatus : 'draft',
+				section: isRecipeSection(rawSection) ? rawSection : null,
+				portions,
+				yieldQty,
+				yieldUnit: (RECIPE_UNITS as readonly string[]).includes(rawYieldUnit) ? rawYieldUnit : null,
+				sellingPrice,
+				vatPct,
+				targetFoodCostPct,
+				preparation: String(data.get('preparation') ?? '').trim() || null,
+				notes: String(data.get('notes') ?? '').trim() || null,
+				updatedAt: new Date(),
+			}).where(tdb.scope(recipes.restaurantId, eq(recipes.id, id)));
+		} catch (err) {
+			if (isUniqueViolation(err)) return fail(409, { error: 'rec.err.duplicate' });
+			throw err;
+		}
 
 		return { ok: 'rec.ok.saved' };
 	},
