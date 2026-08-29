@@ -78,10 +78,10 @@ PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generatio
 | 570 | P2 | DONE | 1 | Verified working (supplier inline via extraction; product via pg-boss categorize job); trigger-chain test added (99a172c); GitHub issue closed with architecture answers. 2331/2331. | verify auto-classifier status |
 | 567 | P2 | DONE | 1 | Verified (commit 8111b97): shell pre-existed (#572); added settings persistence (merged query + /api/sidebar), collapsed badges, collapsed footer, spec'd icons+aria. 2338/2338. | collapsible sidebar |
 | 736 | P2 | PENDING | 0 | Unblocked by Phase 0 | escandallo reads load tenant graph too often |
-| 733 | P2 | IN_PROGRESS | 1 | Dispatched with #734/#735 (same actions file, separate commits) | updateRecipe drops unparseable fields; rename race |
+| 733 | P2 | DONE | 1 | Verified (commit 475c327): empty-vs-invalid split for yield/vat/target (422 + new i18n keys), rename race → catch 23505 (incl. DrizzleQueryError.cause walk) → 409, concurrent 5-way test proven pre-fix. Orchestrator re-ran gates: 3246/3246. | updateRecipe drops unparseable fields; rename race |
 | 732 | P2 | PENDING | 0 | Unblocked by Phase 0 | add-a-line row keeps submitted values |
-| 731 | P2 | PENDING | 0 | Unblocked by Phase 0 | printed escandallo repeats prep block |
-| 730 | P2 | PENDING | 0 | Unblocked by Phase 0 (allergen code arrives with the merge) | no-allergens save blocks extraction |
+| 731 | P2 | IN_PROGRESS | 1 | Dispatched with #730 | printed escandallo repeats prep block |
+| 730 | P2 | IN_PROGRESS | 1 | Dispatched with #731 (disjoint files) | no-allergens save blocks extraction |
 | 747 | P3 | DONE | 1 | Verified (commit 214e53b): items 1-4,6-10 fixed w/ 28 tests (2878/2878, svelte-check 0/0, 6 lint gates + i18n clean, build green — all re-run by orchestrator); item 5 proven browser/OS-controlled (no app fix); item 7 was NOT obsolete post-#746, fixed. Live-verified via local PG + Chromium. Risks: xl two-col invoice list hides due-date col; pre-deploy raw tokens fail once (1h TTL). Close GitHub issue when branch merges. | beta-review polish bundle |
 | 720 | P3 | DONE | 1 | Verified (commit 32aec64): slate acc-soft alpha 0.16→0.10, 4.18→4.58:1; ADR-026 amended w/ on-tint table; contrast test harness added. Note: slate accent is inert (all routes use tinta/ADR-028). 2344/2344. | active nav rows below AA in dark |
 | 749 | P3 | DONE | 1 | Verified (commit 57b2d3e): neg-soft dark 0.18→0.12 (4.57:1), caution-soft light 0.14→0.11 (4.53:1); full usage sweep, assertions upgraded, ADR amended. 2349/2349. Close GitHub issue when branch merges. | severity tokens below AA on own tints |
@@ -89,8 +89,8 @@ PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generatio
 | 718 | P3 | DONE | 1 | Verified (commit ba89db6): #711's rebase had reintroduced the accent chip in the dialog — now neutral, guard test added. 2352/2352. Note: help-page .help-tip-pro still accent (predates scope; fold into #569's help work). | one neutral PRO chip (ADR-026) |
 | 738 | P3 | PENDING | 0 | Unblocked by Phase 0 | escandallo number parsing zero/out-of-range |
 | 737 | P3 | PENDING | 0 | Unblocked by Phase 0 | recipe module dead exports/dup waste factor |
-| 735 | P3 | IN_PROGRESS | 1 | Dispatched with #733 | duplicate escandallo 409s second time |
-| 734 | P3 | IN_PROGRESS | 1 | Dispatched with #733 | itemId=0 passes validation |
+| 735 | P3 | DONE | 1 | Verified (commit 9d1db4f): bounded (copia N) suffix loop ≤9 via onConflictDoNothing, empty-nameKey guard parity; 3× duplicate acceptance test, no name-length limit exists (checked). Gates re-run. | duplicate escandallo 409s second time |
+| 734 | P3 | DONE | 1 | Verified (commit 5eb6e93): parseItemId >0 gate, .returning() row-count checks → 404 rec.err.lineNotFound, id-specific 422 key; 6 false-success cases proven pre-fix. Gates re-run. | itemId=0 passes validation |
 | 543 | P3 | DONE | 1 | Verified (commit fb3dada): layout svelte:head title + per-page i18n titles (8 routes), billing h1 demoted, 53 th scope attrs, 27 source-scan tests. 2634/2634. | /admin pages render empty title |
 | 542 | P3 | DONE | 1 | Verified (commit 795c605): shared requirePositiveIntId on 15 loaders/actions across 5 routes (+file endpoint tightened); batch UUID path verified safe; 95 parameterized tests. 2560/2560. | malformed /invoice/[id] 500s |
 | 541 | P3 | DONE | 1 | Verified (commit 5a33c3a): client-side validateUploadFile (ext/size-band/magic-bytes, shared MAGIC_BYTES table w/ server, 1KB floor both sides), visible named rejections; drop-zone copy pre-existing. 2607/2607. Residual: mixed-batch server silent-drop unreachable via UI, flagged for follow-up. | upload silently discards rejected files |
