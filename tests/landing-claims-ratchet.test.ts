@@ -55,7 +55,15 @@ describe('retracted product claims stay retracted', () => {
 		it(`${loc}: the POS answer says integrations are not available yet`, () => {
 			const answer = table(loc)['waitlist.faq.1.a'];
 			expect(answer).toBeTruthy();
-			expect(answer.toLowerCase()).toMatch(loc === 'es' ? /hoja de ruta/ : /roadmap/);
+			// Pin the guarantee, not the phrasing. This asserted /hoja de ruta/ and
+			// /roadmap/ while the answer happened to use those words — but "it is on
+			// the roadmap" never itself said "not available", which is what the test
+			// name promises and what rule 1 actually requires. Matching the negation
+			// of availability holds the copy to the claim regardless of how the
+			// roadmap half is worded.
+			expect(answer.toLowerCase()).toMatch(
+				loc === 'es' ? /no (est[áa] disponible|disponible)/ : /not (yet )?available/
+			);
 		});
 	}
 });
