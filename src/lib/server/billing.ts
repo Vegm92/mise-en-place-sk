@@ -148,8 +148,9 @@ export function tierFromPriceId(priceId: string | null | undefined): PlanTier {
 		configured.map(([, id]) => stripeAccountFragment(id)).filter((a): a is string => a !== null),
 	);
 	const wrongAccount = liveAccount !== null && configuredAccounts.size > 0 && !configuredAccounts.has(liveAccount);
+	const configuredAccountList = [...configuredAccounts].map(a => `…${a}`).join('/');
 	const hint = wrongAccount
-		? ` The live price belongs to Stripe account …${liveAccount} but every configured price belongs to ${[...configuredAccounts].map(a => `…${a}`).join('/')} — STRIPE_SECRET_KEY and the price IDs are from different Stripe accounts.`
+		? ` The live price belongs to Stripe account …${liveAccount} but every configured price belongs to ${configuredAccountList} — STRIPE_SECRET_KEY and the price IDs are from different Stripe accounts.`
 		: '';
 
 	const message = `[billing] Stripe price ID ${priceId} matches no configured tier (configured: ${summary}).${hint} Falling back to 'starter'.`;

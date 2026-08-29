@@ -232,6 +232,290 @@ function nullableNumber(value: string | null): number | null {
 	return Number.isFinite(n) ? n : null;
 }
 
+interface RecipeResolveCtx {
+	graph: Map<number, RecipeNode>;
+	prices: Map<number, ResolvedPrice>;
+	facts: Map<number, ProductFacts>;
+	color: Map<number, number>;
+	resolveNode: (id: number, depth: number) => RecipeCost | null;
+}
+
+interface LineAggregate {
+	warnings: Set<RecipeWarning>;
+	allergens: Set<Allergen>;
+	childDepth: number;
+	nutritionTotal: NutritionTotals;
+	nutritionKnown: number;
+	nutritionPartial: boolean;
+}
+
+interface RecipeLinePriceResult {
+	unitRateUnits: number | null;
+	priceSource: PriceSource;
+	nutrition: NutritionTotals | null;
+	lineWarnings: LineWarning[];
+}
+
+function resolveRecipeLinePrice(
+	item: RecipeItemRow,
+	depth: number,
+	netQty: number,
+	ctx: RecipeResolveCtx,
+	agg: LineAggregate
+): RecipeLinePriceResult {
+	const none: RecipeLinePriceResult = {
+		unitRateUnits: null, priceSource: 'none', nutrition: null, lineWarnings: [],
+	};
+	const lineWarnings: LineWarning[] = [];
+	const childId = item.childRecipeId;
+	const childNode = childId === null ? null : ctx.graph.get(childId);
+
+	if (childId === null || !childNode) {
+		return { ...none, lineWarnings: ['missing-child'] };
+	}
+
+	if (ctx.color.get(childId) === GREY) {
+		agg.warnings.add('cycle');
+		return { ...none, lineWarnings: ['cycle'] };
+	}
+
+	const child = ctx.resolveNode(childId, depth + 1);
+	if (!child) return { ...none, lineWarnings };
+
+	agg.childDepth = Math.max(agg.childDepth, child.depth + 1);
+	for (const code of child.allergens) agg.allergens.add(code);
+	if (child.warnings.includes('cycle')) agg.warnings.add('cycle');
+
+	const childYield = child.yieldQty ?? child.portions;
+	if (child.yieldQty === null) lineWarnings.push('child-no-yield');
+
+	const yieldPerLineUnit =
+		child.yieldUnit === null ? 1 : convertQty(1, item.unit, child.yieldUnit);
+
+	if (yieldPerLineUnit === null) {
+		lineWarnings.push('unit-mismatch');
+		return { ...none, lineWarnings };
+	}
+
+	if (childYield <= 0) return { ...none, lineWarnings };
+
+	const unitRateUnits = (rateFromCents(child.totalCostCents) / childYield) * yieldPerLineUnit;
+	const nutritionFraction = (netQty * yieldPerLineUnit) / childYield;
+	const nutrition = child.nutritionTotal
+		? scaleNutrition(child.nutritionTotal, nutritionFraction)
+		: null;
+	if (child.nutritionPartial) agg.nutritionPartial = true;
+
+	return { unitRateUnits, priceSource: 'child', nutrition, lineWarnings };
+}
+
+interface ProductLinePriceResult {
+	unitRateUnits: number | null;
+	priceSource: PriceSource;
+	priceAsOf: string | null;
+	supplierName: string | null;
+	lineWarnings: LineWarning[];
+}
+
+function resolveProductLinePrice(
+	item: RecipeItemRow,
+	prices: Map<number, ResolvedPrice>
+): ProductLinePriceResult {
+	const none: ProductLinePriceResult = {
+		unitRateUnits: null, priceSource: 'none', priceAsOf: null, supplierName: null, lineWarnings: [],
+	};
+	const resolved = item.productId === null ? undefined : prices.get(item.productId);
+	if (!resolved) return none;
+
+	const converted = convertQty(1, item.unit, resolved.baseUnit);
+	if (converted === null) return { ...none, lineWarnings: ['unit-mismatch'] };
+
+	return {
+		unitRateUnits: resolved.rateUnits * converted,
+		priceSource: resolved.source,
+		priceAsOf: resolved.asOf,
+		supplierName: resolved.supplierName,
+		lineWarnings: [],
+	};
+}
+
+function computeOwnLineNutrition(
+	item: RecipeItemRow,
+	inherited: ProductFacts | undefined,
+	netQty: number
+): NutritionTotals | null {
+	const own = {
+		kcal100: nullableNumber(item.kcal100),
+		protein100: nullableNumber(item.protein100),
+		carbs100: nullableNumber(item.carbs100),
+		fat100: nullableNumber(item.fat100),
+	};
+	const hasOwn = Object.values(own).some((v) => v !== null);
+	return lineNutrition(netQty, item.unit, hasOwn ? own : {
+		kcal100: inherited?.kcal100 ?? null,
+		protein100: inherited?.protein100 ?? null,
+		carbs100: inherited?.carbs100 ?? null,
+		fat100: inherited?.fat100 ?? null,
+	});
+}
+
+function computeRecipeLine(
+	item: RecipeItemRow,
+	depth: number,
+	ctx: RecipeResolveCtx,
+	agg: LineAggregate
+): LineCost {
+	const lineWarnings: LineWarning[] = [];
+	const kind = (item.kind ?? 'free') as RecipeLineKind;
+	const netQty = qtyToNumber(item.netQuantity);
+	const wastePct = qtyToNumber(item.wastePct);
+	const grossQty = netQty / wasteFactor(wastePct);
+	const inherited = item.productId === null ? undefined : ctx.facts.get(item.productId);
+	const ownAllergens = toAllergenList(item.allergens);
+	const lineAllergens = ownAllergens.length > 0
+		? ownAllergens
+		: (inherited?.allergens ?? []);
+
+	let unitRateUnits: number | null = null;
+	let priceSource: PriceSource = 'none';
+	let priceAsOf: string | null = null;
+	let supplierName: string | null = null;
+	let nutrition: NutritionTotals | null = null;
+
+	const manualRate = toRate(item.unitCost);
+
+	if (kind === 'recipe') {
+		const priced = resolveRecipeLinePrice(item, depth, netQty, ctx, agg);
+		lineWarnings.push(...priced.lineWarnings);
+		unitRateUnits = priced.unitRateUnits;
+		priceSource = priced.priceSource;
+		nutrition = priced.nutrition;
+	} else if (kind === 'product' && manualRate === null && item.productId !== null) {
+		const priced = resolveProductLinePrice(item, ctx.prices);
+		lineWarnings.push(...priced.lineWarnings);
+		unitRateUnits = priced.unitRateUnits;
+		priceSource = priced.priceSource;
+		priceAsOf = priced.priceAsOf;
+		supplierName = priced.supplierName;
+	}
+
+	if (unitRateUnits === null && manualRate !== null) {
+		unitRateUnits = manualRate;
+		priceSource = 'manual';
+	}
+
+	if (unitRateUnits === null) {
+		lineWarnings.push('missing-price');
+		agg.warnings.add('no-price');
+	}
+
+	const costCents = unitRateUnits === null ? 0 : lineCostCents(grossQty, unitRateUnits);
+
+	if (kind !== 'recipe') {
+		nutrition = computeOwnLineNutrition(item, inherited, netQty);
+	}
+
+	if (nutrition) {
+		agg.nutritionTotal = addNutrition(agg.nutritionTotal, nutrition);
+		agg.nutritionKnown += 1;
+	} else {
+		agg.nutritionPartial = true;
+		lineWarnings.push('nutrition-skipped');
+	}
+
+	for (const code of lineAllergens) agg.allergens.add(code);
+
+	return {
+		itemId: item.id,
+		kind,
+		name: item.name,
+		productId: item.productId,
+		childRecipeId: item.childRecipeId,
+		netQty,
+		grossQty,
+		unit: item.unit,
+		wastePct,
+		unitRateUnits,
+		netRateUnits: unitRateUnits === null ? null : unitRateUnits / wasteFactor(wastePct),
+		priceSource,
+		priceAsOf,
+		supplierName,
+		costCents,
+		sharePct: 0,
+		allergens: lineAllergens,
+		nutrition,
+		note: item.note,
+		warnings: lineWarnings,
+	};
+}
+
+function buildRecipeLines(
+	node: RecipeNode,
+	depth: number,
+	ctx: RecipeResolveCtx
+): { lines: LineCost[]; totalCostCents: number; agg: LineAggregate } {
+	const agg: LineAggregate = {
+		warnings: new Set<RecipeWarning>(),
+		allergens: new Set<Allergen>(),
+		childDepth: 0,
+		nutritionTotal: emptyNutrition(),
+		nutritionKnown: 0,
+		nutritionPartial: false,
+	};
+
+	const lines: LineCost[] = [];
+	let totalCostCents = 0;
+	for (const item of node.items) {
+		const line = computeRecipeLine(item, depth, ctx, agg);
+		totalCostCents += line.costCents;
+		lines.push(line);
+	}
+
+	for (const line of lines) {
+		line.sharePct = totalCostCents > 0 ? (line.costCents / totalCostCents) * 100 : 0;
+	}
+
+	return { lines, totalCostCents, agg };
+}
+
+function finalizeRecipeCost(
+	id: number,
+	node: RecipeNode,
+	lines: LineCost[],
+	totalCostCents: number,
+	agg: LineAggregate
+): RecipeCost {
+	const portions = Math.max(qtyToNumber(node.recipe.portions), 0) || 1;
+	const totals = recipeTotals({
+		totalCostCents,
+		portions,
+		sellingPrice: node.recipe.sellingPrice,
+		vatPct: node.recipe.vatPct,
+		targetFoodCostPct: node.recipe.targetFoodCostPct,
+	});
+
+	if (agg.nutritionPartial) agg.warnings.add('nutrition-partial');
+
+	return {
+		...totals,
+		recipeId: id,
+		kind: (node.recipe.kind ?? 'plato') as RecipeKind,
+		portions,
+		yieldQty: node.recipe.yieldQty === null ? null : qtyToNumber(node.recipe.yieldQty),
+		yieldUnit: node.recipe.yieldUnit,
+		lines,
+		allergens: EU_ALLERGENS.filter((code) => agg.allergens.has(code)),
+		nutritionTotal: agg.nutritionKnown > 0 ? agg.nutritionTotal : null,
+		nutritionPerPortion:
+			agg.nutritionKnown > 0 ? scaleNutrition(agg.nutritionTotal, 1 / portions) : null,
+		nutritionPartial: agg.nutritionPartial,
+		nutritionCoverage: { known: agg.nutritionKnown, total: lines.length },
+		missingPriceCount: lines.filter((l) => l.warnings.includes('missing-price')).length,
+		depth: agg.childDepth,
+		warnings: [...agg.warnings],
+	};
+}
+
 export function computeRecipeCosts(
 	graph: Map<number, RecipeNode>,
 	prices: Map<number, ResolvedPrice>,
@@ -248,181 +532,9 @@ export function computeRecipeCosts(
 
 		color.set(id, GREY);
 
-		const lines: LineCost[] = [];
-		const warnings = new Set<RecipeWarning>();
-		const allergens = new Set<Allergen>();
-		let totalCostCents = 0;
-		let childDepth = 0;
-		let nutritionTotal = emptyNutrition();
-		let nutritionKnown = 0;
-		let nutritionPartial = false;
-
-		for (const item of node.items) {
-			const lineWarnings: LineWarning[] = [];
-			const kind = (item.kind ?? 'free') as RecipeLineKind;
-			const netQty = qtyToNumber(item.netQuantity);
-			const wastePct = qtyToNumber(item.wastePct);
-			const grossQty = netQty / wasteFactor(wastePct);
-			const inherited = item.productId === null ? undefined : facts.get(item.productId);
-			const ownAllergens = toAllergenList(item.allergens);
-			const lineAllergens = ownAllergens.length > 0
-				? ownAllergens
-				: (inherited?.allergens ?? []);
-
-			let unitRateUnits: number | null = null;
-			let priceSource: PriceSource = 'none';
-			let priceAsOf: string | null = null;
-			let supplierName: string | null = null;
-			let nutrition: NutritionTotals | null = null;
-
-			const manualRate = toRate(item.unitCost);
-
-			if (kind === 'recipe') {
-				const childId = item.childRecipeId;
-				const childNode = childId === null ? null : graph.get(childId);
-				if (childId === null || !childNode) {
-					lineWarnings.push('missing-child');
-				} else if (color.get(childId) === GREY) {
-					lineWarnings.push('cycle');
-					warnings.add('cycle');
-				} else {
-					const child = resolve(childId, depth + 1);
-					if (child) {
-						childDepth = Math.max(childDepth, child.depth + 1);
-						for (const code of child.allergens) allergens.add(code);
-						if (child.warnings.includes('cycle')) warnings.add('cycle');
-
-						const childYield = child.yieldQty ?? child.portions;
-						if (child.yieldQty === null) lineWarnings.push('child-no-yield');
-
-						const yieldPerLineUnit =
-							child.yieldUnit === null ? 1 : convertQty(1, item.unit, child.yieldUnit);
-
-						if (yieldPerLineUnit === null) {
-							lineWarnings.push('unit-mismatch');
-						} else if (childYield > 0) {
-							priceSource = 'child';
-							unitRateUnits =
-								(rateFromCents(child.totalCostCents) / childYield) * yieldPerLineUnit;
-							const nutritionFraction = (netQty * yieldPerLineUnit) / childYield;
-							if (child.nutritionTotal) {
-								nutrition = scaleNutrition(child.nutritionTotal, nutritionFraction);
-							}
-							if (child.nutritionPartial) nutritionPartial = true;
-						}
-					}
-				}
-			} else if (kind === 'product' && manualRate === null && item.productId !== null) {
-				const resolved = prices.get(item.productId);
-				if (resolved) {
-					const converted = convertQty(1, item.unit, resolved.baseUnit);
-					if (converted === null) {
-						lineWarnings.push('unit-mismatch');
-					} else {
-						unitRateUnits = resolved.rateUnits * converted;
-						priceSource = resolved.source;
-						priceAsOf = resolved.asOf;
-						supplierName = resolved.supplierName;
-					}
-				}
-			}
-
-			if (unitRateUnits === null && manualRate !== null) {
-				unitRateUnits = manualRate;
-				priceSource = 'manual';
-			}
-
-			if (unitRateUnits === null) {
-				lineWarnings.push('missing-price');
-				warnings.add('no-price');
-			}
-
-			const costCents = unitRateUnits === null ? 0 : lineCostCents(grossQty, unitRateUnits);
-			totalCostCents += costCents;
-
-			if (kind !== 'recipe') {
-				const own = {
-					kcal100: nullableNumber(item.kcal100),
-					protein100: nullableNumber(item.protein100),
-					carbs100: nullableNumber(item.carbs100),
-					fat100: nullableNumber(item.fat100),
-				};
-				const hasOwn = Object.values(own).some((v) => v !== null);
-				nutrition = lineNutrition(netQty, item.unit, hasOwn ? own : {
-					kcal100: inherited?.kcal100 ?? null,
-					protein100: inherited?.protein100 ?? null,
-					carbs100: inherited?.carbs100 ?? null,
-					fat100: inherited?.fat100 ?? null,
-				});
-			}
-
-			if (nutrition) {
-				nutritionTotal = addNutrition(nutritionTotal, nutrition);
-				nutritionKnown += 1;
-			} else {
-				nutritionPartial = true;
-				lineWarnings.push('nutrition-skipped');
-			}
-
-			for (const code of lineAllergens) allergens.add(code);
-
-			lines.push({
-				itemId: item.id,
-				kind,
-				name: item.name,
-				productId: item.productId,
-				childRecipeId: item.childRecipeId,
-				netQty,
-				grossQty,
-				unit: item.unit,
-				wastePct,
-				unitRateUnits,
-				netRateUnits: unitRateUnits === null ? null : unitRateUnits / wasteFactor(wastePct),
-				priceSource,
-				priceAsOf,
-				supplierName,
-				costCents,
-				sharePct: 0,
-				allergens: lineAllergens,
-				nutrition,
-				note: item.note,
-				warnings: lineWarnings,
-			});
-		}
-
-		for (const line of lines) {
-			line.sharePct = totalCostCents > 0 ? (line.costCents / totalCostCents) * 100 : 0;
-		}
-
-		const portions = Math.max(qtyToNumber(node.recipe.portions), 0) || 1;
-		const totals = recipeTotals({
-			totalCostCents,
-			portions,
-			sellingPrice: node.recipe.sellingPrice,
-			vatPct: node.recipe.vatPct,
-			targetFoodCostPct: node.recipe.targetFoodCostPct,
-		});
-
-		if (nutritionPartial) warnings.add('nutrition-partial');
-
-		const out: RecipeCost = {
-			...totals,
-			recipeId: id,
-			kind: (node.recipe.kind ?? 'plato') as RecipeKind,
-			portions,
-			yieldQty: node.recipe.yieldQty === null ? null : qtyToNumber(node.recipe.yieldQty),
-			yieldUnit: node.recipe.yieldUnit,
-			lines,
-			allergens: EU_ALLERGENS.filter((code) => allergens.has(code)),
-			nutritionTotal: nutritionKnown > 0 ? nutritionTotal : null,
-			nutritionPerPortion:
-				nutritionKnown > 0 ? scaleNutrition(nutritionTotal, 1 / portions) : null,
-			nutritionPartial,
-			nutritionCoverage: { known: nutritionKnown, total: lines.length },
-			missingPriceCount: lines.filter((l) => l.warnings.includes('missing-price')).length,
-			depth: childDepth,
-			warnings: [...warnings],
-		};
+		const ctx: RecipeResolveCtx = { graph, prices, facts, color, resolveNode: resolve };
+		const { lines, totalCostCents, agg } = buildRecipeLines(node, depth, ctx);
+		const out = finalizeRecipeCost(id, node, lines, totalCostCents, agg);
 
 		color.set(id, BLACK);
 		costs.set(id, out);
@@ -479,7 +591,7 @@ export function wouldCycle(
 	return false;
 }
 
-export function recipeAncestors(graph: Map<number, RecipeNode>, id: number): Set<number> {
+function buildRecipeParentIndex(graph: Map<number, RecipeNode>): Map<number, number[]> {
 	const parentsOf = new Map<number, number[]>();
 	for (const [parentId, node] of graph) {
 		for (const item of node.items) {
@@ -489,6 +601,11 @@ export function recipeAncestors(graph: Map<number, RecipeNode>, id: number): Set
 			else parentsOf.set(item.childRecipeId, [parentId]);
 		}
 	}
+	return parentsOf;
+}
+
+export function recipeAncestors(graph: Map<number, RecipeNode>, id: number): Set<number> {
+	const parentsOf = buildRecipeParentIndex(graph);
 
 	const ancestors = new Set<number>();
 	const queue = [id];

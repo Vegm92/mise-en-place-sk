@@ -1,29 +1,32 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { landingVariantSlugs } from '$lib/landing-variants';
+import { siteOrigin } from '$lib/server/site-origin';
+
+const LANDING_LASTMOD = '2026-08-29';
 
 const PUBLIC_ROUTES = [
-	{ path: '/waitlist', priority: '1.0', changefreq: 'monthly' },
-	{ path: '/signup',   priority: '0.6', changefreq: 'yearly'  },
-	{ path: '/privacy',  priority: '0.3', changefreq: 'yearly'  },
-	{ path: '/terms',    priority: '0.3', changefreq: 'yearly'  },
-	{ path: '/login',    priority: '0.4', changefreq: 'yearly'  },
+	{ path: '/waitlist', priority: '1.0', changefreq: 'monthly', lastmod: LANDING_LASTMOD },
+	{ path: '/signup',   priority: '0.6', changefreq: 'yearly',  lastmod: '2026-08-28'    },
+	{ path: '/privacy',  priority: '0.3', changefreq: 'yearly',  lastmod: '2026-08-28'    },
+	{ path: '/terms',    priority: '0.3', changefreq: 'yearly',  lastmod: '2026-08-27'    },
+	{ path: '/login',    priority: '0.4', changefreq: 'yearly',  lastmod: '2026-08-28'    },
 ];
 
 const VARIANT_ROUTES = landingVariantSlugs().map((slug) => ({
 	path: `/l/${slug}`,
 	priority: '0.8',
 	changefreq: 'monthly',
+	lastmod: LANDING_LASTMOD,
 }));
 
 export const GET: RequestHandler = ({ url }) => {
-	const origin = url.origin;
-	const now = new Date().toISOString().split('T')[0];
+	const origin = siteOrigin(url);
 
 	const urls = [...PUBLIC_ROUTES, ...VARIANT_ROUTES].map(
-		({ path, priority, changefreq }) => `
+		({ path, priority, changefreq, lastmod }) => `
   <url>
     <loc>${origin}${path}</loc>
-    <lastmod>${now}</lastmod>
+    <lastmod>${lastmod}</lastmod>
     <changefreq>${changefreq}</changefreq>
     <priority>${priority}</priority>
   </url>`
