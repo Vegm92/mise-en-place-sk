@@ -13,7 +13,10 @@
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
-  import { t as baseT, ti as baseTi, locale, initLocale } from '$lib/i18n';
+  import { page } from '$app/stores';
+  import { locale as preferredLocale } from '$lib/i18n';
+  import { getLocale, getT, getTi } from '$lib/i18n-context';
+  import { localeHref, otherLocale } from '$lib/locale-url';
   import { overrideFor, interpolate, type LandingOverrides } from '$lib/landing-copy';
   import EmailForm from '$lib/components/waitlist/EmailForm.svelte';
   import CaptureMock from '$lib/components/waitlist/CaptureMock.svelte';
@@ -34,6 +37,10 @@
     overrides?: LandingOverrides | null;
   } = $props();
 
+  const locale = getLocale();
+  const baseT = getT();
+  const baseTi = getTi();
+
   const t = derived([baseT, locale], ([$baseT, $locale]) => (key: string): string => {
     return overrideFor(overrides, $locale, key) ?? $baseT(key);
   });
@@ -51,7 +58,6 @@
   );
 
   onMount(() => {
-    initLocale();
     const storedTheme = localStorage.getItem('mep-theme') as 'light' | 'dark' | null;
     if (storedTheme && storedTheme !== theme) theme = storedTheme;
   });
@@ -60,8 +66,11 @@
     theme = flipTheme();
   }
 
-  function toggleLocale() {
-    locale.update((l) => (l === 'es' ? 'en' : 'es'));
+  const alternate = $derived(otherLocale($locale));
+  const alternateHref = $derived(localeHref($page.url, alternate));
+
+  function rememberLocale() {
+    preferredLocale.set(alternate);
   }
 
   const SPOT_TOTAL = 50;
@@ -266,10 +275,12 @@
                 border:1px solid var(--mep-border);background:var(--mep-surface);
                 font-size:11.5px;font-weight:600;letter-spacing:0.06em;color:var(--mep-fg-2);
                 font-family:var(--mep-fs-mono);gap:8px;">
-      <button onclick={toggleLocale} style="background:transparent;border:none;cursor:pointer;
-                                            padding:0;font-family:inherit;font-size:inherit;
-                                            font-weight:inherit;letter-spacing:inherit;
-                                            color:var(--mep-fg-2);">{$locale === 'es' ? 'EN' : 'ES'}</button>
+      <a href={alternateHref} hreflang={alternate} lang={alternate} rel="alternate"
+         onclick={rememberLocale} style="background:transparent;border:none;cursor:pointer;
+                                         padding:0;font-family:inherit;font-size:inherit;
+                                         font-weight:inherit;letter-spacing:inherit;
+                                         text-decoration:none;
+                                         color:var(--mep-fg-2);">{$locale === 'es' ? 'EN' : 'ES'}</a>
     </div>
     <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
       <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;

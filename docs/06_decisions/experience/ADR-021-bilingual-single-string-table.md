@@ -111,6 +111,12 @@ provider text or document content could be interpolated into it.
 - **The locale store is client-side only.** SSR always renders Spanish; the client
   corrects on hydration if the user chose English. A visible flash for English
   users on first paint, accepted because Spanish is the majority locale.
+  **Amended by [ADR-033](ADR-033-the-rendered-locale-is-request-state.md)** for
+  the public marketing surface: the flash was the visible half of the cost, and
+  the invisible half was that no crawler — which is to say no search or AI
+  engine — ever saw the English table at all. The public pages now render from
+  a request-scoped context; the store described here survives unchanged as the
+  client-side *preference* for the authenticated app.
 - Icons and colours for notification types live in `notification-display.ts`,
   keyed by type rather than by message text, so presentation stays locale-neutral.
 
@@ -118,3 +124,4 @@ provider text or document content could be interpolated into it.
 
 - [ADR-010](../insights/ADR-010-alerts-computed-on-save.md) — why alerts store keys
 - [ADR-022](../conventions/ADR-022-invariants-enforced-in-ci.md) — the other CI invariant gates
+- [ADR-033](ADR-033-the-rendered-locale-is-request-state.md) — how the *rendered* locale became request state
