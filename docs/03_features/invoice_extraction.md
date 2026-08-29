@@ -73,6 +73,16 @@ and the UI offers Retry; past `EXTRACTION_STALL_TIMEOUT_MS` (15 min)
 (`queued|extracting → failed → queued`), which restarts the clock — plain
 `markQueued` only accepts `pending`/`failed`.
 
+- **Allergens** (recipe costing): each line item may carry an `allergens` array
+  of the fourteen EU codes. The prompt permits them **only** when the document
+  itself prints them (a "Contiene:" note, an allergen column, an icon legend)
+  and forbids inferring them from the product name — an allergen declaration is
+  a food-safety statement, so a guess is worse than a null. On save they reach
+  the resolved product through `applyExtractedAllergens`, which fills only an
+  empty set and never a hand-declared one. In practice delivery notes print
+  allergens sometimes and nutrition data essentially never, so coverage is
+  sparse by design and hand entry stays the primary path.
+
 ## Data dependencies
 
 `batch_items` (incl. `queued_at`), `monthly_usage`, `llm_usage_log`, `products`

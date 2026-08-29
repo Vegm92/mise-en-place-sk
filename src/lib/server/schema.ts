@@ -1,5 +1,5 @@
 import {
-	boolean, check, date, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
+	boolean, check, date, foreignKey, index, integer, jsonb, numeric, pgTable, primaryKey, real, serial, text, timestamp, uniqueIndex, uuid,
 	type AnyPgColumn
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
@@ -123,8 +123,17 @@ export const products = pgTable('products', {
 	unitsPerPack:  real('units_per_pack'),
 	baseUnit:      text('base_unit'),
 	createdAt:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+	allergens:       jsonb('allergens').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+	allergensSource: text('allergens_source'),
+	kcal100:         numeric('kcal_100', { precision: 8, scale: 2 }),
+	protein100:      numeric('protein_100', { precision: 8, scale: 2 }),
+	carbs100:        numeric('carbs_100', { precision: 8, scale: 2 }),
+	fat100:          numeric('fat_100', { precision: 8, scale: 2 }),
+	nutritionSource: text('nutrition_source'),
 }, (t) => [
 	uniqueIndex('products_restaurant_name_key_unique').on(t.restaurantId, t.nameKey),
+	check('products_allergens_source_valid', sql`${t.allergensSource} IS NULL OR ${t.allergensSource} IN ('manual','extracted')`),
+	check('products_nutrition_source_valid', sql`${t.nutritionSource} IS NULL OR ${t.nutritionSource} IN ('manual','extracted')`),
 ]);
 
 export const categoryBudgets = pgTable('category_budgets', {
@@ -577,4 +586,74 @@ export const digestShares = pgTable('digest_shares', {
 		.on(t.restaurantId, t.week)
 		.where(sql`${t.revokedAt} is null`),
 	check('digest_shares_week_format', sql`${t.week} ~ '^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$'`),
+]);
+
+export const recipes = pgTable('recipes', {
+	id:                serial('id').primaryKey(),
+	restaurantId:      uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	name:              text('name').notNull(),
+	nameKey:           text('name_key').notNull(),
+	kind:              text('kind').notNull().default('plato'),
+	status:            text('status').notNull().default('draft'),
+	section:           text('section'),
+	portions:          numeric('portions', { precision: 10, scale: 3 }).notNull().default('1'),
+	yieldQty:          numeric('yield_qty', { precision: 14, scale: 4 }),
+	yieldUnit:         text('yield_unit'),
+	sellingPrice:      numeric('selling_price', { precision: 12, scale: 2 }),
+	vatPct:            numeric('vat_pct', { precision: 5, scale: 2 }),
+	targetFoodCostPct: numeric('target_food_cost_pct', { precision: 5, scale: 2 }),
+	preparation:       text('preparation'),
+	notes:             text('notes'),
+	createdAt:         timestamp('created_at', { withTimezone: true }).defaultNow(),
+	updatedAt:         timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => [
+	uniqueIndex('uq_recipes_rid_name_key').on(t.restaurantId, t.nameKey),
+	uniqueIndex('uq_recipes_id_rid').on(t.id, t.restaurantId),
+	index('idx_recipes_rid_status').on(t.restaurantId, t.status),
+	check('recipes_kind_valid',      sql`${t.kind} IN ('plato','elaboracion')`),
+	check('recipes_status_valid',    sql`${t.status} IN ('draft','active','archived')`),
+	check('recipes_portions_pos',    sql`${t.portions} > 0`),
+	check('recipes_yield_pos',       sql`${t.yieldQty} IS NULL OR ${t.yieldQty} > 0`),
+	check('recipes_vat_range',       sql`${t.vatPct} IS NULL OR (${t.vatPct} >= 0 AND ${t.vatPct} <= 100)`),
+	check('recipes_target_fc_range', sql`${t.targetFoodCostPct} IS NULL OR (${t.targetFoodCostPct} > 0 AND ${t.targetFoodCostPct} <= 100)`),
+]);
+
+export const recipeItems = pgTable('recipe_items', {
+	id:            serial('id').primaryKey(),
+	restaurantId:  uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	recipeId:      integer('recipe_id').notNull(),
+	kind:          text('kind').notNull().default('free'),
+	name:          text('name').notNull(),
+	productId:     integer('product_id').references(() => products.id, { onDelete: 'set null' }),
+	childRecipeId: integer('child_recipe_id'),
+	netQuantity:   numeric('net_quantity', { precision: 14, scale: 4 }).notNull(),
+	unit:          text('unit'),
+	unitCost:      numeric('unit_cost', { precision: 12, scale: 4 }),
+	wastePct:      numeric('waste_pct', { precision: 5, scale: 2 }).notNull().default('0'),
+	allergens:     jsonb('allergens').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+	kcal100:       numeric('kcal_100', { precision: 8, scale: 2 }),
+	protein100:    numeric('protein_100', { precision: 8, scale: 2 }),
+	carbs100:      numeric('carbs_100', { precision: 8, scale: 2 }),
+	fat100:        numeric('fat_100', { precision: 8, scale: 2 }),
+	note:          text('note'),
+	sortOrder:     integer('sort_order').notNull().default(0),
+}, (t) => [
+	foreignKey({
+		name: 'recipe_items_recipe_fk',
+		columns: [t.recipeId, t.restaurantId],
+		foreignColumns: [recipes.id, recipes.restaurantId],
+	}).onDelete('cascade'),
+	foreignKey({
+		name: 'recipe_items_child_fk',
+		columns: [t.childRecipeId, t.restaurantId],
+		foreignColumns: [recipes.id, recipes.restaurantId],
+	}).onDelete('restrict'),
+	index('idx_recipe_items_rid_recipe').on(t.restaurantId, t.recipeId, t.sortOrder),
+	index('idx_recipe_items_rid_child').on(t.restaurantId, t.childRecipeId).where(sql`${t.childRecipeId} IS NOT NULL`),
+	index('idx_recipe_items_rid_product').on(t.restaurantId, t.productId).where(sql`${t.productId} IS NOT NULL`),
+	check('recipe_items_kind_valid', sql`${t.kind} IN ('free','product','recipe')`),
+	check('recipe_items_kind_refs', sql`(${t.kind} = 'free' AND ${t.productId} IS NULL AND ${t.childRecipeId} IS NULL) OR (${t.kind} = 'product' AND ${t.childRecipeId} IS NULL) OR (${t.kind} = 'recipe' AND ${t.productId} IS NULL AND ${t.childRecipeId} IS NOT NULL)`),
+	check('recipe_items_no_self_ref', sql`${t.childRecipeId} IS NULL OR ${t.childRecipeId} <> ${t.recipeId}`),
+	check('recipe_items_qty_pos',     sql`${t.netQuantity} > 0`),
+	check('recipe_items_waste_range', sql`${t.wastePct} >= 0 AND ${t.wastePct} < 100`),
 ]);
