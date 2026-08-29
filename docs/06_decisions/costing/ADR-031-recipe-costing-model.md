@@ -61,8 +61,24 @@ marking flags the offending *edge*, contributes 0 cents and warns — it never
 throws and never spins, so a graph corrupted by any other path still renders a
 readable sheet. On write, `wouldCycle()` BFS-walks the prospective child's
 descendants and the action rejects with 422. The write guard races under
-concurrent POSTs; the read guard does not. `MAX_RECIPE_DEPTH = 8` is the second
-belt.
+concurrent POSTs; the read guard does not.
+
+There is no separate depth cap, and there used to be one. `MAX_RECIPE_DEPTH = 8`
+was meant as a second belt, cutting the walk short past eight levels, but it was
+never a safe one: the cut node's `depth-exceeded` warning was attached only to
+that node, never propagated to the ancestors that depended on it, so a sheet
+could silently under-report its cost with no warning surfaced at the root; the
+memo cache is keyed by recipe id alone, not by the depth a node was first
+reached at, so a node truncated when reached deep from one caller then handed
+its truncated (wrong) cost to every other caller, including a request for that
+same recipe standalone — a recipe's cost depended on what else in the tenant
+referenced it; and the missing branch was labelled `missing-price`, inflating
+the `/recipes` missing-price KPI for a reason that had nothing to do with a
+missing price (issue #727). The tricolour cycle guard already bounds every walk
+to at most the graph's node count on its own — memoization computes each node
+exactly once regardless of how many parents reach it, so there is no
+pathological blow-up for a second cap to guard against — so the cap was
+removed rather than fixed a second time.
 
 **Food cost and margin are measured against the taxable base.**
 `selling_price` is stored with VAT, as menus are priced; `net = gross / (1 + vat)`
@@ -112,7 +128,9 @@ What this costs:
 
 Held in place by: `tests/recipe-cost.test.ts` (merma both directions, the
 taxable-base ratios, rate precision, sub-recipe apportionment, cycles,
-nutrition coverage), `tests/recipe-graph-db.test.ts` (tenant isolation of the
+nutrition coverage, a deep chain costing complete with no depth warning and a
+sub-recipe's cost independent of the depth at which it is first reached),
+`tests/recipe-graph-db.test.ts` (tenant isolation of the
 graph, the composite FK rejecting a cross-tenant child, `ON DELETE RESTRICT`),
 and the standing gates `db:check-sync`, `lint:tenant-scope` and
 `lint:unscoped-query`.
