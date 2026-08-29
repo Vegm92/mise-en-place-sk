@@ -37,7 +37,7 @@ Detalles que conviene saber:
 | Problema | Detalle |
 |---|---|
 | **Precios duplicados** | Los 29/59/129 están escritos aquí a mano e independientes de los de la app. Cambiar uno no cambia el otro (tarea #439) |
-| **TPV no construido** | Las dudas frecuentes prometen conexión con Square y Revo «desde el primer día». No existe todavía |
+| ~~**TPV no construido**~~ | **Resuelto.** La promesa de Square y Revo «desde el primer día» ya no está en la landing. `waitlist.faq.1.a` dice ahora que estamos trabajando en conectar con los TPV más usados en España y que todavía no está disponible — sin nombrar ninguno como ya conectado. Plan: [`docs/02_product/tpv_sales_integration_spain.md`](../../../02_product/tpv_sales_integration_spain.md) |
 | **Testimonios sin origen claro** | Hay que confirmar si son reales, de entrevistas o ilustrativos, y marcarlos si es lo tercero |
 | **Fecha de apertura** | Resuelto (issue #333): ya no promete un mes/año concreto — dice «abrimos en tandas según vamos incorporando restaurantes». Cuando haya una fecha real, es un cambio de una sola clave en `src/lib/i18n.ts` (`waitlist.faq.4.a`) |
 | **Medición** | Se desconoce qué analítica hay instalada. Sin eso, no se puede optimizar nada |
