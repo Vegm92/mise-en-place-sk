@@ -5,6 +5,7 @@ import { categoryColor } from '$lib/colors';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '../category-spend';
 import type { Cell, ReportDoc } from '$lib/reports';
 import {
+	deltaTone,
 	fmtPct,
 	fmtPlainPct,
 	generatedStamp,
@@ -78,6 +79,8 @@ export async function buildMonthly(rid: string, month: string, now: Date): Promi
 	const maxSpend = Math.max(...categories.map((c) => c.spend), 0) || 1;
 	const monthDelta = pctDelta(totalSpend, totalPrev);
 	const variance = totalSpend - totalBudget;
+	let varianceTone: 'up' | 'down' | null = null;
+	if (totalBudget) varianceTone = variance > 0 ? 'up' : 'down';
 
 	const usedCell = (spend: number, budget: number): Cell => {
 		if (!budget) return '—';
@@ -114,9 +117,9 @@ export async function buildMonthly(rid: string, month: string, now: Date): Promi
 		periodIso: month,
 		generatedAt: generatedStamp(now),
 		kpis: [
-			{ label: 'rep.kpi.monthSpend', value: money(totalSpend), note: { key: 'rep.kpi.vsPeriod', vars: { delta: fmtPct(monthDelta), period: prevMonth } }, tone: monthDelta && monthDelta > 0 ? 'up' : monthDelta ? 'down' : null },
+			{ label: 'rep.kpi.monthSpend', value: money(totalSpend), note: { key: 'rep.kpi.vsPeriod', vars: { delta: fmtPct(monthDelta), period: prevMonth } }, tone: deltaTone(monthDelta) },
 			{ label: 'rep.kpi.budget', value: totalBudget ? money(totalBudget) : '—', note: totalBudget ? null : 'rep.kpi.noBudget', tone: null },
-			{ label: 'rep.kpi.variance', value: totalBudget ? money(variance) : '—', note: null, tone: totalBudget ? (variance > 0 ? 'up' : 'down') : null },
+			{ label: 'rep.kpi.variance', value: totalBudget ? money(variance) : '—', note: null, tone: varianceTone },
 			{ label: 'rep.kpi.overBudget', value: String(overBudget), note: 'rep.kpi.overBudgetNote', tone: overBudget > 0 ? 'warn' : null },
 		],
 		summary: null,

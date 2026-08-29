@@ -142,6 +142,48 @@ type ItemFields = {
 	note: string | null;
 };
 
+function parseItemUnitCost(rawCost: string): { unitCost: string | null } | { error: string } {
+	const unitCost = rawCost === '' ? null : parseDecimal(rawCost, 4, 8);
+	if (rawCost !== '' && unitCost === null) return { error: 'rec.err.cost' };
+	if (unitCost !== null && Number(unitCost) === 0) return { error: 'rec.err.costZero' };
+	return { unitCost };
+}
+
+function resolveItemLinkIds(
+	kind: ItemFields['kind'],
+	data: FormData,
+	unitCost: string | null
+): { productId: number | null; childRecipeId: number | null } | { error: string } {
+	const productIdRaw = Number(data.get('productId'));
+	const childIdRaw = Number(data.get('childRecipeId'));
+	const productId = kind === 'product' && Number.isInteger(productIdRaw) && productIdRaw > 0
+		? productIdRaw : null;
+	const childRecipeId = kind === 'recipe' && Number.isInteger(childIdRaw) && childIdRaw > 0
+		? childIdRaw : null;
+
+	if (kind === 'recipe' && childRecipeId === null) return { error: 'rec.err.childRequired' };
+	if (kind === 'product' && productId === null && unitCost === null) {
+		return { error: 'rec.err.productRequired' };
+	}
+	return { productId, childRecipeId };
+}
+
+function parseItemMacros(
+	data: FormData
+): { macros: Record<'kcal100' | 'protein100' | 'carbs100' | 'fat100', string | null> } | { error: string } {
+	const macros: Record<'kcal100' | 'protein100' | 'carbs100' | 'fat100', string | null> = {
+		kcal100: null, protein100: null, carbs100: null, fat100: null,
+	};
+	for (const key of Object.keys(macros) as (keyof typeof macros)[]) {
+		const raw = String(data.get(key) ?? '').trim();
+		if (raw === '') continue;
+		const parsed = parseDecimal(raw, 2, 6);
+		if (parsed === null) return { error: 'rec.err.macro' };
+		macros[key] = parsed;
+	}
+	return { macros };
+}
+
 function readItemFields(data: FormData): ItemFields | { error: string } {
 	const rawKind = String(data.get('kind') ?? 'free');
 	const kind = isRecipeLineKind(rawKind) ? rawKind : 'free';
@@ -158,31 +200,17 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 	if (!(RECIPE_UNITS as readonly string[]).includes(rawUnit)) return { error: 'rec.err.unit' };
 
 	const rawCost = String(data.get('unitCost') ?? '').trim();
-	const unitCost = rawCost === '' ? null : parseDecimal(rawCost, 4, 8);
-	if (rawCost !== '' && unitCost === null) return { error: 'rec.err.cost' };
-	if (unitCost !== null && Number(unitCost) === 0) return { error: 'rec.err.costZero' };
+	const costResult = parseItemUnitCost(rawCost);
+	if ('error' in costResult) return costResult;
+	const { unitCost } = costResult;
 
-	const productIdRaw = Number(data.get('productId'));
-	const childIdRaw = Number(data.get('childRecipeId'));
-	const productId = kind === 'product' && Number.isInteger(productIdRaw) && productIdRaw > 0
-		? productIdRaw : null;
-	const childRecipeId = kind === 'recipe' && Number.isInteger(childIdRaw) && childIdRaw > 0
-		? childIdRaw : null;
-	if (kind === 'recipe' && childRecipeId === null) return { error: 'rec.err.childRequired' };
-	if (kind === 'product' && productId === null && unitCost === null) {
-		return { error: 'rec.err.productRequired' };
-	}
+	const linkResult = resolveItemLinkIds(kind, data, unitCost);
+	if ('error' in linkResult) return linkResult;
+	const { productId, childRecipeId } = linkResult;
 
-	const macros: Record<'kcal100' | 'protein100' | 'carbs100' | 'fat100', string | null> = {
-		kcal100: null, protein100: null, carbs100: null, fat100: null,
-	};
-	for (const key of Object.keys(macros) as (keyof typeof macros)[]) {
-		const raw = String(data.get(key) ?? '').trim();
-		if (raw === '') continue;
-		const parsed = parseDecimal(raw, 2, 6);
-		if (parsed === null) return { error: 'rec.err.macro' };
-		macros[key] = parsed;
-	}
+	const macroResult = parseItemMacros(data);
+	if ('error' in macroResult) return macroResult;
+	const { macros } = macroResult;
 
 	return {
 		kind,
@@ -221,6 +249,90 @@ async function linkTargetError(
 	return null;
 }
 
+type UpdateRecipeFields = {
+	name: string;
+	nameKey: string;
+	portions: string;
+	sellingPrice: string | null;
+	yieldQty: string | null;
+	vatPct: string | null;
+	targetFoodCostPct: string | null;
+};
+
+function parseUpdateRecipeFields(data: FormData): UpdateRecipeFields | { error: string } {
+	const name = String(data.get('name') ?? '').trim();
+	const nameKey = normalizeProductKey(name);
+	if (!name || !nameKey) return { error: 'rec.err.nameRequired' };
+
+	const portions = parseQty(String(data.get('portions') ?? '1'), 7);
+	if (portions === null) return { error: 'rec.err.portions' };
+
+	const rawPrice = String(data.get('sellingPrice') ?? '').trim();
+	const sellingPrice = rawPrice === '' ? null : parseDecimal(rawPrice, 2, 10);
+	if (rawPrice !== '' && sellingPrice === null) return { error: 'rec.err.price' };
+
+	const rawYieldQty = String(data.get('yieldQty') ?? '').trim();
+	const yieldQty = rawYieldQty === '' ? null : parseQty(rawYieldQty, 10);
+	if (rawYieldQty !== '' && yieldQty === null) return { error: 'rec.err.yield' };
+
+	const rawVatPct = String(data.get('vatPct') ?? '').trim();
+	const vatPct = rawVatPct === '' ? null : parsePercent(rawVatPct, 100);
+	if (rawVatPct !== '' && vatPct === null) return { error: 'rec.err.vat' };
+
+	const rawTargetFoodCostPct = String(data.get('targetFoodCostPct') ?? '').trim();
+	const targetFoodCostPct = rawTargetFoodCostPct === ''
+		? null : parsePercent(rawTargetFoodCostPct, 100);
+	if (rawTargetFoodCostPct !== '' && targetFoodCostPct === null) {
+		return { error: 'rec.err.targetFoodCost' };
+	}
+
+	return { name, nameKey, portions, sellingPrice, yieldQty, vatPct, targetFoodCostPct };
+}
+
+function normalizeRecipeEnumFields(data: FormData) {
+	const rawYieldUnit = String(data.get('yieldUnit') ?? '').trim();
+	const rawKind = String(data.get('kind') ?? 'plato');
+	const rawStatus = String(data.get('status') ?? 'draft');
+	const rawSection = String(data.get('section') ?? '');
+	return {
+		kind: isRecipeKind(rawKind) ? rawKind : 'plato',
+		status: isRecipeStatus(rawStatus) ? rawStatus : 'draft',
+		section: isRecipeSection(rawSection) ? rawSection : null,
+		yieldUnit: (RECIPE_UNITS as readonly string[]).includes(rawYieldUnit) ? rawYieldUnit : null,
+	};
+}
+
+async function persistRecipeUpdate(
+	tdb: ReturnType<typeof forTenant>,
+	id: number,
+	fields: UpdateRecipeFields,
+	enums: ReturnType<typeof normalizeRecipeEnumFields>,
+	data: FormData
+): Promise<{ error: string; status: number } | null> {
+	try {
+		await db.update(recipes).set({
+			name: fields.name,
+			nameKey: fields.nameKey,
+			kind: enums.kind,
+			status: enums.status,
+			section: enums.section,
+			portions: fields.portions,
+			yieldQty: fields.yieldQty,
+			yieldUnit: enums.yieldUnit,
+			sellingPrice: fields.sellingPrice,
+			vatPct: fields.vatPct,
+			targetFoodCostPct: fields.targetFoodCostPct,
+			preparation: String(data.get('preparation') ?? '').trim() || null,
+			notes: String(data.get('notes') ?? '').trim() || null,
+			updatedAt: new Date(),
+		}).where(tdb.scope(recipes.restaurantId, eq(recipes.id, id)));
+		return null;
+	} catch (err) {
+		if (isUniqueViolation(err)) return { error: 'rec.err.duplicate', status: 409 };
+		throw err;
+	}
+}
+
 export const actions: Actions = {
 	updateRecipe: async ({ params, request, locals }) => {
 		const rid = locals.restaurantId!;
@@ -229,58 +341,12 @@ export const actions: Actions = {
 		const tdb = forTenant(rid);
 		const data = await request.formData();
 
-		const name = String(data.get('name') ?? '').trim();
-		const nameKey = normalizeProductKey(name);
-		if (!name || !nameKey) return fail(422, { error: 'rec.err.nameRequired' });
+		const fields = parseUpdateRecipeFields(data);
+		if ('error' in fields) return fail(422, { error: fields.error });
 
-		const portions = parseQty(String(data.get('portions') ?? '1'), 7);
-		if (portions === null) return fail(422, { error: 'rec.err.portions' });
-
-		const rawPrice = String(data.get('sellingPrice') ?? '').trim();
-		const sellingPrice = rawPrice === '' ? null : parseDecimal(rawPrice, 2, 10);
-		if (rawPrice !== '' && sellingPrice === null) return fail(422, { error: 'rec.err.price' });
-
-		const rawYieldQty = String(data.get('yieldQty') ?? '').trim();
-		const yieldQty = rawYieldQty === '' ? null : parseQty(rawYieldQty, 10);
-		if (rawYieldQty !== '' && yieldQty === null) return fail(422, { error: 'rec.err.yield' });
-
-		const rawVatPct = String(data.get('vatPct') ?? '').trim();
-		const vatPct = rawVatPct === '' ? null : parsePercent(rawVatPct, 100);
-		if (rawVatPct !== '' && vatPct === null) return fail(422, { error: 'rec.err.vat' });
-
-		const rawTargetFoodCostPct = String(data.get('targetFoodCostPct') ?? '').trim();
-		const targetFoodCostPct = rawTargetFoodCostPct === ''
-			? null : parsePercent(rawTargetFoodCostPct, 100);
-		if (rawTargetFoodCostPct !== '' && targetFoodCostPct === null) {
-			return fail(422, { error: 'rec.err.targetFoodCost' });
-		}
-
-		const rawYieldUnit = String(data.get('yieldUnit') ?? '').trim();
-		const rawKind = String(data.get('kind') ?? 'plato');
-		const rawStatus = String(data.get('status') ?? 'draft');
-		const rawSection = String(data.get('section') ?? '');
-
-		try {
-			await db.update(recipes).set({
-				name,
-				nameKey,
-				kind: isRecipeKind(rawKind) ? rawKind : 'plato',
-				status: isRecipeStatus(rawStatus) ? rawStatus : 'draft',
-				section: isRecipeSection(rawSection) ? rawSection : null,
-				portions,
-				yieldQty,
-				yieldUnit: (RECIPE_UNITS as readonly string[]).includes(rawYieldUnit) ? rawYieldUnit : null,
-				sellingPrice,
-				vatPct,
-				targetFoodCostPct,
-				preparation: String(data.get('preparation') ?? '').trim() || null,
-				notes: String(data.get('notes') ?? '').trim() || null,
-				updatedAt: new Date(),
-			}).where(tdb.scope(recipes.restaurantId, eq(recipes.id, id)));
-		} catch (err) {
-			if (isUniqueViolation(err)) return fail(409, { error: 'rec.err.duplicate' });
-			throw err;
-		}
+		const enums = normalizeRecipeEnumFields(data);
+		const persistError = await persistRecipeUpdate(tdb, id, fields, enums, data);
+		if (persistError) return fail(persistError.status, { error: persistError.error });
 
 		return { ok: 'rec.ok.saved' };
 	},

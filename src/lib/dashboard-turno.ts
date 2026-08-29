@@ -64,17 +64,19 @@ const MISSING_FREQUENCIES: string[] = ['weekly', 'biweekly', 'monthly', 'periodi
 const MAX_PRICE_ITEMS = 3;
 const MAX_BUDGET_ITEMS = 2;
 
-export function elapsedFraction(input: Pick<TurnoInput, 'isCurrentMonth' | 'daysElapsed' | 'daysInMonth'>): number {
+export type MonthProgressInput = Pick<TurnoInput, 'isCurrentMonth' | 'daysElapsed' | 'daysInMonth'>;
+
+export function elapsedFraction(input: MonthProgressInput): number {
 	if (!input.isCurrentMonth) return 1;
 	if (input.daysInMonth <= 0) return 1;
 	return Math.min(1, Math.max(input.daysElapsed, 0) / input.daysInMonth);
 }
 
-export function planToDate(totalBudget: number, input: Pick<TurnoInput, 'isCurrentMonth' | 'daysElapsed' | 'daysInMonth'>): number {
+export function planToDate(totalBudget: number, input: MonthProgressInput): number {
 	return totalBudget * elapsedFraction(input);
 }
 
-export function forecastFromRunRate(spent: number, input: Pick<TurnoInput, 'isCurrentMonth' | 'daysElapsed' | 'daysInMonth'>): number {
+export function forecastFromRunRate(spent: number, input: MonthProgressInput): number {
 	const f = elapsedFraction(input);
 	if (f <= 0) return spent;
 	return spent / f;

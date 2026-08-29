@@ -8,7 +8,7 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lte, or, sql } 
 import type { SQL } from 'drizzle-orm';
 import { invoiceReviewFilter, markInvoiceReviewed, markInvoicesReviewedBulk } from '$lib/server/invoice-status';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
-import { moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
+import { moneyToNullableNumber } from '$lib/server/money';
 import { periodToDate } from '$lib/constants';
 import {
 	countActiveInvoiceFilters,
