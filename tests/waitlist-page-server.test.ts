@@ -12,29 +12,19 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { insertWaitlistEmailMock, countWaitlistEmailsMock, trackAnonymousEventMock } = vi.hoisted(() => ({
-	insertWaitlistEmailMock: vi.fn().mockResolvedValue(true),
-	countWaitlistEmailsMock: vi.fn().mockResolvedValue(0),
-	trackAnonymousEventMock: vi.fn(),
-}));
-
-vi.mock('$lib/server/waitlist-db', () => ({
-	insertWaitlistEmail: insertWaitlistEmailMock,
-	countWaitlistEmails: countWaitlistEmailsMock,
-}));
-vi.mock('$lib/server/events', () => ({ trackAnonymousEvent: trackAnonymousEventMock }));
-vi.mock('$lib/server/rate-limiter', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
+vi.mock('$lib/server/waitlist-db', async () => (await import('./helpers/waitlist-route-mocks')).waitlistDbMock);
+vi.mock('$lib/server/events', async () => (await import('./helpers/waitlist-route-mocks')).eventsMock);
+vi.mock('$lib/server/rate-limiter', async () => (await import('./helpers/waitlist-route-mocks')).rateLimiterMock);
 
 import { load, actions } from '../src/routes/waitlist/+page.server';
-
-function fakeCookies(initial: Record<string, string> = {}) {
-	const store = { ...initial };
-	return {
-		get: vi.fn((name: string) => store[name]),
-		set: vi.fn((name: string, value: string, _opts?: Record<string, unknown>) => { store[name] = value; }),
-		_store: store,
-	};
-}
+import {
+	insertWaitlistEmailMock,
+	countWaitlistEmailsMock,
+	trackAnonymousEventMock,
+	resetWaitlistRouteMocks,
+	fakeCookies,
+	joinEvent,
+} from './helpers/waitlist-route-mocks';
 
 function loadEvent(urlStr: string, opts: { referer?: string; cookies?: ReturnType<typeof fakeCookies> } = {}) {
 	return {
@@ -44,21 +34,7 @@ function loadEvent(urlStr: string, opts: { referer?: string; cookies?: ReturnTyp
 	} as never;
 }
 
-function joinEvent(email: string, cookies: ReturnType<typeof fakeCookies>) {
-	const form = new FormData();
-	form.append('email', email);
-	return {
-		request: { formData: async () => form },
-		getClientAddress: () => '203.0.113.9',
-		cookies,
-	} as never;
-}
-
-beforeEach(() => {
-	insertWaitlistEmailMock.mockClear().mockResolvedValue(true);
-	countWaitlistEmailsMock.mockClear().mockResolvedValue(0);
-	trackAnonymousEventMock.mockClear();
-});
+beforeEach(resetWaitlistRouteMocks);
 
 describe('/waitlist load — sets the mep_attr cookie', () => {
 	it('sets mep_attr with source + campaign from utm_source / utm_campaign', async () => {
