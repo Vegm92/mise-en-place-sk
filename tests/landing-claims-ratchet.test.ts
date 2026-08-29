@@ -52,7 +52,7 @@ describe('retracted product claims stay retracted', () => {
 	}
 
 	for (const loc of LOCALES) {
-		it(`${loc}: the POS answer says integrations are not available yet`, () => {
+		it(`${loc}: the POS answer states the integration is not available yet`, () => {
 			const answer = table(loc)['waitlist.faq.1.a'];
 			expect(answer).toBeTruthy();
 			// Pin the guarantee, not the phrasing. This asserted /hoja de ruta/ and

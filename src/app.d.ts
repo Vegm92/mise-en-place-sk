@@ -1,5 +1,6 @@
 import type { Entitlements } from '$lib/server/billing';
 import type { RecipeNode } from '$lib/server/recipes';
+import type { Locale } from '$lib/i18n-messages';
 
 declare global {
 	namespace App {
@@ -10,6 +11,7 @@ declare global {
 			accessApproved: boolean;
 			entitlements:   () => Promise<Entitlements | null>;
 			recipeGraphCache: { rid: string; graph: Map<number, RecipeNode> } | null;
+			locale:         Locale;
 		}
 	}
 }

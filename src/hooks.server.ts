@@ -20,6 +20,8 @@ import { withTimeout } from '$lib/server/with-timeout';
 import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
 import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } from '$lib/server/config';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { resolveLocale, rememberLocale, LOCALE_COOKIE } from '$lib/server/locale';
+import { requestedLocale } from '$lib/locale-url';
 
 assertProductionEnv();
 validateAdminSeedConfig();
@@ -241,12 +243,20 @@ function applySecurityHeaders(path: string, response: Response, event: RequestEv
 	return response;
 }
 
+function applyLocale(event: RequestEvent): void {
+	const { locale } = resolveLocale(event.url, event.cookies.get(LOCALE_COOKIE));
+	event.locals.locale = locale;
+	if (requestedLocale(event.url)) rememberLocale(event.cookies, locale);
+}
+
 const appHandle: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 
 	if (isBypassPath(path)) {
 		return resolve(event);
 	}
+
+	applyLocale(event);
 
 	const session = await event.locals.auth();
 	const user: App.Locals['user'] = session?.user?.id
@@ -274,7 +284,10 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	const authResponse = enforceAuth(path, event.locals.user);
 	if (authResponse) return authResponse;
 
-	const response = await resolveWithContext(event, path, resolve);
+	const resolveWithLocale = (e: RequestEvent) =>
+		resolve(e, { transformPageChunk: ({ html }) => html.replace('%mep.lang%', e.locals.locale) });
+
+	const response = await resolveWithContext(event, path, resolveWithLocale);
 
 	return applySecurityHeaders(path, response, event);
 };
