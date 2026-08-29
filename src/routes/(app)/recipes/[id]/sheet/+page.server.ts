@@ -2,7 +2,7 @@ import { error, fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
-import { db, forTenant } from '$lib/server/db';
+import { db } from '$lib/server/db';
 import { restaurants } from '$lib/server/schema';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { recipeSheetEmail, sendEmail } from '$lib/server/email';
@@ -10,7 +10,7 @@ import { trackEvent } from '$lib/server/events';
 import { buildRecipeSheet } from '$lib/server/recipes-sheet';
 import { translations } from '$lib/i18n';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 
 function recipeId(params: { id: string }): number {
 	const id = Number(params.id);
