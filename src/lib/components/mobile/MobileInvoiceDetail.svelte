@@ -60,8 +60,9 @@
 
   const sourceExt = $derived(invoice.source_file ? uploadExtname(invoice.source_file) : '');
   const isPreviewable = $derived(PREVIEWABLE_EXTENSIONS.has(sourceExt));
+  const invoiceNumberDisplay = $derived(invoice.invoice_number ?? `#${invoice.id}`);
   const documentDisplayName = $derived(
-    invoice.source_file ? `${invoice.invoice_number ?? `#${invoice.id}`}${sourceExt}` : ''
+    invoice.source_file ? `${invoiceNumberDisplay}${sourceExt}` : ''
   );
 </script>
 

@@ -148,9 +148,10 @@ export async function recordJobRun(label: string, result: DispatchResult): Promi
 }
 
 export async function lastJobRuns(): Promise<JobRunSummary[]> {
+	const jobRunFlagLike = `${JOB_RUN_FLAG_PREFIX}%`;
 	const rows = await db.select({ key: appFlags.key, value: appFlags.value })
 		.from(appFlags)
-		.where(sql`${appFlags.key} LIKE ${`${JOB_RUN_FLAG_PREFIX}%`}`);
+		.where(sql`${appFlags.key} LIKE ${jobRunFlagLike}`);
 
 	return rows.flatMap(row => {
 		try {
