@@ -1,4 +1,5 @@
 import type { Locale, WaitlistKey } from './i18n';
+import type { VenueType } from './constants';
 
 export type LandingVariantOverrides = Record<Locale, Partial<Record<WaitlistKey, string>>>;
 
@@ -150,9 +151,19 @@ export const LANDING_VARIANTS: Record<string, LandingVariant> = {
 };
 
 export function getLandingVariant(slug: string): LandingVariant | null {
-	return Object.prototype.hasOwnProperty.call(LANDING_VARIANTS, slug) ? LANDING_VARIANTS[slug] : null;
+	return Object.hasOwn(LANDING_VARIANTS, slug) ? LANDING_VARIANTS[slug] : null;
 }
 
 export function landingVariantSlugs(): string[] {
 	return Object.keys(LANDING_VARIANTS);
+}
+
+const LANDING_VARIANT_VENUE_TYPE: Partial<Record<string, VenueType>> = {
+	'menu-del-dia':      'menu_del_dia',
+	'grupo-multi-local': 'grupo',
+};
+
+export function venueTypeForLandingVariant(variant: string | null | undefined): VenueType | null {
+	if (!variant) return null;
+	return LANDING_VARIANT_VENUE_TYPE[variant] ?? null;
 }

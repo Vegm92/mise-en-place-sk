@@ -14,7 +14,7 @@
  * point ("commits to its niche, doesn't soften the general message").
  */
 import { describe, it, expect } from 'vitest';
-import { LANDING_VARIANTS, getLandingVariant, landingVariantSlugs } from '../src/lib/landing-variants';
+import { LANDING_VARIANTS, getLandingVariant, landingVariantSlugs, venueTypeForLandingVariant } from '../src/lib/landing-variants';
 import { translations, type Locale } from '../src/lib/i18n';
 
 const LAUNCH_SLUGS = ['menu-del-dia', 'aceite-de-oliva', 'verifactu-2027', 'grupo-multi-local', 'pescado-fresco'];
@@ -89,6 +89,29 @@ describe('every variant override commits to its niche (differs from the base cop
 			});
 		}
 	}
+});
+
+describe('venueTypeForLandingVariant — onboarding venue-type preselection (issue #328)', () => {
+	it('maps menu-del-dia to menu_del_dia', () => {
+		expect(venueTypeForLandingVariant('menu-del-dia')).toBe('menu_del_dia');
+	});
+
+	it('maps grupo-multi-local to grupo', () => {
+		expect(venueTypeForLandingVariant('grupo-multi-local')).toBe('grupo');
+	});
+
+	it('returns null for a launch slug with no venue-type mapping', () => {
+		expect(venueTypeForLandingVariant('aceite-de-oliva')).toBeNull();
+		expect(venueTypeForLandingVariant('verifactu-2027')).toBeNull();
+		expect(venueTypeForLandingVariant('pescado-fresco')).toBeNull();
+	});
+
+	it('returns null for an unknown or missing variant', () => {
+		expect(venueTypeForLandingVariant('unknown-slug')).toBeNull();
+		expect(venueTypeForLandingVariant(null)).toBeNull();
+		expect(venueTypeForLandingVariant(undefined)).toBeNull();
+		expect(venueTypeForLandingVariant('')).toBeNull();
+	});
 });
 
 describe('the menu-del-dia launch copy matches the issue #327 example', () => {

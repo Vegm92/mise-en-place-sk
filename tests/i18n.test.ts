@@ -141,6 +141,10 @@ describe('locale key parity (es vs en)', () => {
     'pending.approve', 'pending.reject',
     'onboard.title', 'onboard.subtitle', 'onboard.nameLabel',
     'onboard.namePlaceholder', 'onboard.submit',
+    // Onboarding segmentation questions (issue #328)
+    'onboard.venue.label', 'onboard.venue.skip', 'onboard.venue.menuDelDia',
+    'onboard.venue.carta', 'onboard.venue.barTapas', 'onboard.venue.hotel', 'onboard.venue.grupo',
+    'onboard.category.label', 'onboard.category.skip',
     'action.delete',
     'sup.contact', 'sup.noCategory', 'sup.confirmDelete.title',
     'sup.confirmDelete.body', 'sup.confirmDelete.yes',
