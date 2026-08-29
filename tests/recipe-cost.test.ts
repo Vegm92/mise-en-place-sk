@@ -261,6 +261,29 @@ describe('computeRecipeCosts — sub-recipes', () => {
 		const cost = computeRecipeCosts(graphOf(plato), new Map()).get(1)!;
 		expect(cost.lines[0].warnings).toContain('missing-child');
 	});
+
+	it('scales a sub-recipe line nutrition on the net quantity, not the gross (issue #728)', () => {
+		const base = node(
+			{ id: 2, kind: 'elaboracion', yieldQty: '1.0000', yieldUnit: 'kg' },
+			[{ name: 'base', netQuantity: '1.0000', unit: 'kg', unitCost: '2.0000', kcal100: '100.00' }]
+		);
+		expect(computeRecipeCosts(graphOf(node({ id: 1 }, []), base), new Map()).get(2)!.totalCostCents)
+			.toBe(200);
+
+		const noWaste = node({ id: 1 }, [
+			{ kind: 'recipe', name: 'base', childRecipeId: 2, netQuantity: '1.0000', unit: 'kg' },
+		]);
+		const costNoWaste = computeRecipeCosts(graphOf(noWaste, base), new Map()).get(1)!;
+		expect(costNoWaste.totalCostCents).toBe(200);
+		expect(costNoWaste.nutritionTotal!.kcal).toBeCloseTo(1000, 6);
+
+		const withWaste = node({ id: 1 }, [
+			{ kind: 'recipe', name: 'base', childRecipeId: 2, netQuantity: '1.0000', unit: 'kg', wastePct: '50.00' },
+		]);
+		const costWithWaste = computeRecipeCosts(graphOf(withWaste, base), new Map()).get(1)!;
+		expect(costWithWaste.totalCostCents).toBe(400);
+		expect(costWithWaste.nutritionTotal!.kcal).toBeCloseTo(1000, 6);
+	});
 });
 
 describe('cycles', () => {
@@ -292,6 +315,54 @@ describe('cycles', () => {
 		const graph = graphOf(a, b, c);
 		expect(wouldCycle(graph, 1, 3)).toBe(false);
 		expect(wouldCycle(graph, 3, 1)).toBe(true);
+	});
+});
+
+describe('computeRecipeCosts — depth (issue #727)', () => {
+	function chainLink(id: number, childId: number | null): RecipeNode {
+		const items: ItemInput[] = [
+			{ name: `own-${id}`, netQuantity: '1.0000', unit: 'kg', unitCost: '1.0000' },
+		];
+		if (childId !== null) {
+			items.push({
+				kind: 'recipe', name: `link-${childId}`, childRecipeId: childId,
+				netQuantity: '1.0000', unit: 'kg',
+			});
+		}
+		return node({ id, kind: 'elaboracion', yieldQty: '1.0000', yieldUnit: 'kg' }, items);
+	}
+
+	function chainGraph(ids: number[]): Map<number, RecipeNode> {
+		const nodes = ids.map((id, i) => chainLink(id, i < ids.length - 1 ? ids[i + 1] : null));
+		return graphOf(...nodes);
+	}
+
+	it('costs a twelve-link chain of 100-cent recipes completely, with no depth cutoff', () => {
+		const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+		const costs = computeRecipeCosts(chainGraph(ids), new Map());
+		const root = costs.get(1)!;
+		expect(root.totalCostCents).toBe(1200);
+		expect(root.warnings).toEqual(['nutrition-partial']);
+	});
+
+	it('never reports missing-price on a chain where every line is priced', () => {
+		const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+		const costs = computeRecipeCosts(chainGraph(ids), new Map());
+		let missingPriceTotal = 0;
+		for (const cost of costs.values()) {
+			missingPriceTotal += cost.missingPriceCount;
+			expect(cost.warnings).not.toContain('no-price');
+		}
+		expect(missingPriceTotal).toBe(0);
+	});
+
+	it('costs a sub-recipe the same standalone as when reached deep inside a long chain', () => {
+		const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+		const inContext = computeRecipeCosts(chainGraph(ids), new Map()).get(9)!;
+		const standalone = computeRecipeCosts(chainGraph([9, 10, 11, 12]), new Map()).get(9)!;
+		expect(inContext.totalCostCents).toBe(400);
+		expect(standalone.totalCostCents).toBe(400);
+		expect(inContext.totalCostCents).toBe(standalone.totalCostCents);
 	});
 });
 

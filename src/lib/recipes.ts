@@ -24,7 +24,6 @@ export const EU_ALLERGENS = [
 ] as const;
 export type Allergen = (typeof EU_ALLERGENS)[number];
 
-export const MAX_RECIPE_DEPTH = 8;
 export const RATE_SCALE = 10_000;
 
 export const DEFAULT_VAT_PCT = 10;
