@@ -26,8 +26,17 @@ export type Allergen = (typeof EU_ALLERGENS)[number];
 
 export const RATE_SCALE = 10_000;
 
-export const DEFAULT_VAT_PCT = 10;
+export const DEFAULT_VAT_PCT = '10.00';
 export const DEFAULT_TARGET_FOOD_COST_PCT = 30;
+
+export const RECIPE_WARNINGS = ['cycle', 'no-price', 'nutrition-partial'] as const;
+export type RecipeWarning = (typeof RECIPE_WARNINGS)[number];
+
+export const SHEET_WARN_KEY: Record<RecipeWarning, string | null> = {
+	cycle: 'rec.warn.sheet.cycle',
+	'no-price': 'rec.warn.sheet.no-price',
+	'nutrition-partial': null,
+};
 
 export type UnitFamily = 'mass' | 'volume' | 'count';
 
@@ -208,7 +217,7 @@ export function scaleNutrition(n: NutritionTotals, factor: number): NutritionTot
 	};
 }
 
-export function nutritionHundreds(netQty: number, unit: string | null): number | null {
+function nutritionHundreds(netQty: number, unit: string | null): number | null {
 	const family = unitFamily(unit);
 	if (family === 'mass') {
 		const grams = convertQty(netQty, unit, 'g');

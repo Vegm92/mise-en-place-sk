@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { t, ti } from '$lib/i18n';
   import { fmtEur } from '$lib/formatters';
-  import { EU_ALLERGENS, RECIPE_LINE_KINDS, fromRate, netFromGross } from '$lib/recipes';
+  import { EU_ALLERGENS, RECIPE_LINE_KINDS, fromRate, netFromGross, wasteFactor } from '$lib/recipes';
   import Trash2 from '@lucide/svelte/icons/trash-2';
   import Check from '@lucide/svelte/icons/check';
   import Plus from '@lucide/svelte/icons/plus';
@@ -54,7 +54,7 @@
   let open          = $state(false);
 
   const round4 = (n: number) => Number(n.toFixed(4));
-  const factor = $derived(waste >= 0 && waste < 100 ? 1 - waste / 100 : 1);
+  const factor = $derived(wasteFactor(waste));
   const gross = $derived(round4(net / factor));
 
   function setGross(value: number) {

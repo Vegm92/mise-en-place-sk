@@ -3,7 +3,7 @@ import { db, forTenant } from './db';
 import { recipes } from './schema';
 import { fmtEur } from '$lib/formatters';
 import { moneyPlain, generatedStamp } from './reports/shared';
-import { convertQty, fromRate, unitFamily, type Allergen } from '$lib/recipes';
+import { convertQty, fromRate, unitFamily, type Allergen, type RecipeWarning } from '$lib/recipes';
 import {
 	collectProductIds, computeRecipeCosts, loadProductFacts, loadRecipeGraph, resolveProductPrices,
 	type LineCost, type RecipeCost
@@ -64,7 +64,7 @@ export interface RecipeSheetDoc {
 		foodCost: string;
 		marginPct: string;
 	};
-	warnings: string[];
+	warnings: RecipeWarning[];
 	csv: { filename: string; header: string[]; rows: (string | number | null)[][] };
 }
 
