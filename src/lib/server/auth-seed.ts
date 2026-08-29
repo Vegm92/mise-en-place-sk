@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import { db } from './db';
+import { db, runAsSystem } from './db';
 import { restaurants, subscriptions, userRestaurants, users } from './schema';
 import { trialDaysFor } from './billing';
 import { DAY_MS } from '$lib/constants';
@@ -29,39 +29,42 @@ export async function seedAdminUser(): Promise<void> {
 	if (existing) return;
 
 	const passwordHash = await bcrypt.hash(password, 12);
-	const [created] = await db
-		.insert(users)
-		.values({ email, passwordHash, emailVerified: new Date(), accessStatus: 'approved' })
-		.returning();
+	const seeded = await runAsSystem(async () => {
+		const [created] = await db
+			.insert(users)
+			.values({ email, passwordHash, emailVerified: new Date(), accessStatus: 'approved' })
+			.returning();
 
-	if (!created) {
-		console.error('[auth-seed] Failed to create admin user');
-		return;
-	}
+		if (!created) {
+			console.error('[auth-seed] Failed to create admin user');
+			return false;
+		}
 
-	const slug = restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-	const [restaurant] = await db
-		.insert(restaurants)
-		.values({ name: restaurantName, slug })
-		.returning();
+		const slug = restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+		const [restaurant] = await db
+			.insert(restaurants)
+			.values({ name: restaurantName, slug })
+			.returning();
 
-	if (!restaurant) {
-		console.error('[auth-seed] Failed to create default restaurant');
-		return;
-	}
+		if (!restaurant) {
+			console.error('[auth-seed] Failed to create default restaurant');
+			return false;
+		}
 
-	await db.insert(userRestaurants).values({
-		userId:       created.id,
-		restaurantId: restaurant.id,
-		role:         'owner',
+		await db.insert(userRestaurants).values({
+			userId:       created.id,
+			restaurantId: restaurant.id,
+			role:         'owner',
+		});
+
+		const trialEndsAt = new Date(Date.now() + trialDaysFor(created.founder ?? false) * DAY_MS);
+		await db.insert(subscriptions).values({
+			restaurantId: restaurant.id,
+			status:       'trialing',
+			trialEndsAt,
+		});
+		return true;
 	});
 
-	const trialEndsAt = new Date(Date.now() + trialDaysFor(created.founder ?? false) * DAY_MS);
-	await db.insert(subscriptions).values({
-		restaurantId: restaurant.id,
-		status:       'trialing',
-		trialEndsAt,
-	});
-
-	console.log(`[auth-seed] Admin seeded OK → restaurant "${restaurantName}"`);
+	if (seeded) console.log(`[auth-seed] Admin seeded OK → restaurant "${restaurantName}"`);
 }

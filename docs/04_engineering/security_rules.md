@@ -17,8 +17,18 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 - `locals.restaurantId` derived per request from `user_restaurants` membership
   and the `active_restaurant` cookie — **re-validated on every switch**.
-- All business queries scoped by `forTenant().scope()`; RLS is retired
-  (ADR-005). Enforced by lint gates + `tests/tenant-isolation*.test.ts`.
+- All business queries scoped by `forTenant().scope()` (ADR-001) — the
+  primary, always-active boundary. Enforced by lint gates +
+  `tests/tenant-isolation*.test.ts`.
+- Database-enforced backstop (ADR-030, #222): Postgres RLS policies
+  (`drizzle/0055_rls_tenant_isolation.sql`) on every table in
+  `src/lib/server/tenant-data-map.ts`, keyed on the `app.restaurant_id` /
+  `app.admin` session GUCs `src/lib/server/tenant-context.ts` sets per
+  request/job. ENABLE, not FORCE — the owner role every environment still
+  connects as bypasses it entirely; it only restricts the scoped
+  `mep_runtime` role from #464, and only once production's pending cutover
+  (DEPLOYMENT.md) moves `DATABASE_URL` off the owner role. Held in place by
+  `tests/rls-runtime-role.test.ts`.
 - Role checks for owner-only actions (billing, WhatsApp pairing, locations).
 
 ## Input validation
@@ -182,6 +192,16 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 **`function forTenant`**
 
 - Tenant-scoped query context, no DB dependency (ADR-001-app-level-tenant-scoping.md). Use in route handlers instead of raw `eq(table.restaurantId, rid)` inline.
+
+### `src/lib/server/tenant-context.ts`
+
+**`function runWithTenantContext` / `function runAsSystem` / `function activeTenantContext`**
+
+- The database-enforcement mechanism ADR-030 (#222) adds on top of `forTenant()`: reserves one physical Postgres connection (`postgres.js`'s `sql.reserve()`) for the duration of `fn`, sets `app.restaurant_id` (`runWithTenantContext`) or `app.admin = 'true'` (`runAsSystem`) as a session GUC on it via `AsyncLocalStorage`, and unconditionally clears both GUCs before releasing the connection back to the pool in a `finally` — the fix for the "pool contamination" failure mode (a stale tenant's setting reused by an unrelated later query on the same physical connection).
+- `runWithTenantContext(null | '', fn)` is a no-op — runs `fn()` against the ordinary pooled client with no context set, which is correct for non-tenant/pre-tenant paths (the tenant table RLS policies then see no matching GUC and return nothing, the intended backstop).
+- `src/lib/server/db.ts`'s `db` export is a `Proxy` that resolves to `activeTenantContext()?.db` when a context is active, the plain pooled client otherwise — every existing `db.select()/.insert()/...` call site needs no change to pick this up.
+- `runAsSystem()` is reserved for enumerated, audited cross-tenant/system code paths (admin routes, scheduled dispatchers, webhook ingestion, new-tenant bootstrap) — see ADR-030's table. Never use it as a general-purpose "make this query work" fix.
+- Inside an existing `db.transaction()` that needs the same admin escape hatch (new-tenant creation transactions), use `SET LOCAL app.admin = 'true'` as the transaction's first statement instead — it shares the transaction's own connection and auto-reverts at commit/rollback, no separate reservation needed.
 
 **`method scope`**
 
