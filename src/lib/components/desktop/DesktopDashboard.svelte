@@ -91,6 +91,12 @@
   });
 
   const hasPaceData = $derived(data.mom.this_month > 0 || hasBudget);
+
+  const reviewTone = $derived.by(() => {
+    if (data.review.incidencias > 0) return 'neg';
+    if (data.review.count > 0) return 'caution';
+    return 'pos';
+  });
 </script>
 
 <div class="hidden md:flex flex-col gap-3 p-4" style="min-height:0;">
@@ -146,7 +152,7 @@
     <StatusChip
       label={$t('turno.ribbon.review')}
       value={fmtEurCompact(data.review.amount, $locale)}
-      tone={data.review.incidencias > 0 ? 'neg' : data.review.count > 0 ? 'caution' : 'pos'}
+      tone={reviewTone}
       note={data.review.incidencias > 0
         ? $tp('turno.ribbon.issuesNote', data.review.incidencias)
         : $tp('turno.ribbon.reviewNote', data.review.count)}

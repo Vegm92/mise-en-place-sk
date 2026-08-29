@@ -99,17 +99,19 @@ export async function pendingJobsFor(phone: string): Promise<WhatsAppJob[]> {
 	return rows as WhatsAppJob[];
 }
 
+function reviewStatusFilter(from: Array<BatchItemReviewStatus | null>) {
+	const fromValues = from.filter((v): v is BatchItemReviewStatus => v !== null);
+	if (!from.includes(null)) return inArray(batchItems.reviewStatus, fromValues);
+	if (fromValues.length) return or(isNull(batchItems.reviewStatus), inArray(batchItems.reviewStatus, fromValues));
+	return isNull(batchItems.reviewStatus);
+}
+
 export async function setReviewStatus(
 	itemId: string,
 	next: BatchItemReviewStatus,
 	from: Array<BatchItemReviewStatus | null>,
 ): Promise<boolean> {
-	const fromValues = from.filter((v): v is BatchItemReviewStatus => v !== null);
-	const previous = from.includes(null)
-		? fromValues.length
-			? or(isNull(batchItems.reviewStatus), inArray(batchItems.reviewStatus, fromValues))
-			: isNull(batchItems.reviewStatus)
-		: inArray(batchItems.reviewStatus, fromValues);
+	const previous = reviewStatusFilter(from);
 
 	// tenant-scope-ok: keyed on the item UUID the caller already resolved from
 	// the sender's own source_ref (findJobByCode / pendingJobsFor), the same
@@ -148,11 +150,9 @@ export function parseReview(body: string): ParsedReview | null {
 	if (!words.length || words.length > 3) return null;
 
 	const [head, ...rest] = words;
-	const decision: ReviewDecision | null = AFFIRMATIVE.has(head)
-		? 'reviewed'
-		: NEGATIVE.has(head)
-			? 'to_review'
-			: null;
+	let decision: ReviewDecision | null = null;
+	if (AFFIRMATIVE.has(head)) decision = 'reviewed';
+	else if (NEGATIVE.has(head)) decision = 'to_review';
 	if (!decision) return null;
 
 	for (const word of rest) {

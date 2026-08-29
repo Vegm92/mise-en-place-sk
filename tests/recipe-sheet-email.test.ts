@@ -11,9 +11,32 @@
  * hygiene). This also covers the pre-existing `welcomeEmail` regression
  * guard so a double-escaping bug in the centralized layout would show up
  * here too.
+ *
+ * The headline assertions below deliberately do NOT pin the <h1> style
+ * attribute. They used to embed the whole tag, colour included, purely as a
+ * way of saying "inside the headline element" — so commit b719088 ("Tinta
+ * gains a hue"), which moved the email palette's COLOR_FG from #17171a to
+ * #15181f, broke two escaping tests that have nothing to do with colour. A
+ * security guard that fails on a palette tweak trains people to edit the
+ * guard. Matching the element and asserting its exact inner content is both
+ * immune to restyling and strictly stronger than the old substring check:
+ * it proves the escaped payload is the *entire* headline, not merely present
+ * somewhere inside a longer string.
+ *
+ * ADR-032 foresaw this exact collision and prescribed the durable fix: read
+ * the token "rather than restate it". PR #772 restated it — swapping #17171a
+ * for #15181f — which is green today and breaks again on the next palette
+ * change. This goes one step further than the ADR's suggestion and drops the
+ * colour coupling altogether, which also avoids exporting email.ts's private
+ * COLOR_FG purely to satisfy a test. Presentation belongs in a styling test;
+ * this file is a security guard.
  */
 import { describe, it, expect } from 'vitest';
 import { recipeSheetEmail, welcomeEmail } from '../src/lib/server/email';
+
+function headlineOf(html: string): string | null {
+	return /<h1\b[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? null;
+}
 
 const baseSheet = {
 	id: 1,
@@ -33,7 +56,7 @@ describe('recipeSheetEmail — recipe name is escaped in headline/preheader (#72
 		});
 		expect(html).not.toContain('<img src=x onerror=alert(1)>');
 		const escaped = '&lt;img src=x onerror=alert(1)&gt;';
-		expect(html).toContain(`<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:#17171a;">${escaped}</h1>`);
+		expect(headlineOf(html)).toBe(escaped);
 		// preheader is rendered twice (hidden preview text + visible top bar) plus once in the headline.
 		expect((html.match(new RegExp(escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) ?? []).length).toBe(3);
 	});
@@ -72,6 +95,6 @@ describe('email layout centralized escaping — no double-escaping regression (#
 	it('renders the recipe sheet preheader/headline for a benign name byte-identically to before centralizing (regression anchor)', () => {
 		const { html } = recipeSheetEmail('chef@example.com', 'Casa Lua', baseSheet);
 		expect(html).toContain('Tarta de queso: 8 raciones.');
-		expect(html).toContain('<h1 style="font-size:27px;line-height:1.18;font-weight:600;letter-spacing:-.025em;margin:0 0 14px;color:#17171a;">Tarta de queso</h1>');
+		expect(headlineOf(html)).toBe('Tarta de queso');
 	});
 });

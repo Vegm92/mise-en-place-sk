@@ -4,7 +4,7 @@ tags: [mep, seo, geo, marketing, arquitectura]
 
 # GEO program — being cited by ChatGPT, Perplexity and AI Overviews
 
-**Status: Phase 0 delivered, Phases 1-7 open.** Written 2026-08-29. Each phase below is
+**Status: Phases 0 and 1 delivered, Phases 2-7 open.** Written 2026-08-29. Each phase below is
 sized to land as its own PR; the sequencing table at the bottom gives the order and the
 surface each one owns, so parallel sessions can claim without collision.
 
@@ -30,7 +30,7 @@ Settled with the owner before this plan was written; reopen them explicitly rath
 
 - **Scope**: technical GEO + build the content system in-repo. Off-site authority ships as a playbook doc, not executed.
 - **Language**: bilingual URL split, each locale server-rendered at its own address with hreflang.
-- **Domain**: undecided — everything reads one configurable `PUBLIC_SITE_ORIGIN`, never `url.origin`.
+- **Domain**: undecided — everything reads one configured origin, never `url.origin`. That origin turned out to already exist as `APP_BASE_URL`; see Phase 1.
 - **Testimonials are illustrative**, not customers → no `Review` or `AggregateRating` schema anywhere, and a visible "ilustrativo" marker (unbreakable rule 1). Delivered in Phase 0.
 
 ### Constraints that override any GEO tactic
@@ -110,13 +110,36 @@ B2B e-invoice date is **not** — content must never assert 2028.
 
 ---
 
-## Phase 1 — Single origin + crawl foundation
+## Phase 1 — Single origin + crawl foundation ✅ delivered
 
 Small, and it unblocks every later phase that emits a URL.
 
-**New** `src/lib/seo/origin.ts` — `siteOrigin(url: URL): string`, reading `PUBLIC_SITE_ORIGIN` from `$env/static/public` and falling back to `url.origin` when unset (so local dev and preview deploys keep working).
+**Reuses `APP_BASE_URL` rather than introducing `PUBLIC_SITE_ORIGIN`.** This plan
+originally called for a new variable. That was wrong: `APP_BASE_URL`
+(`src/lib/server/env.ts:39`) already exists and is already the public origin — every
+transactional email builds its `/privacy`, `/signup` and `/login` links off it, as does
+the `/batch/[id]` link sent over WhatsApp. Adding a second variable for the same concept
+would have created exactly the two-sources-of-truth problem the phase exists to remove.
+A separate marketing origin is only worth introducing if the apex and `app.` hosts are
+ever genuinely split; that is the moment to add one, not before.
 
-**Modify** to use it instead of `url.origin`: `src/routes/robots.txt/+server.ts`, `src/routes/sitemap.xml/+server.ts`, `src/routes/waitlist/+page.server.ts:11`, `src/routes/l/[variant]/+page.server.ts:17`. Add `PUBLIC_SITE_ORIGIN` to `.env.example` and to the Railway service variables.
+**New** `src/lib/server/site-origin.ts` — `siteOrigin(url)` and `canonicalUrl(url, path)`,
+reading `APP_BASE_URL`, stripping trailing slashes (it has none of its own, unlike
+`SENTRY_API_BASE_URL`), and falling back to `url.origin` when unset so dev and preview
+deploys keep working. It lives under `server/` rather than the planned `src/lib/seo/`
+because it reads server env; the client-safe `src/lib/seo/` module still arrives in Phase 4
+for the schema builders.
+
+**Modified** to use it instead of `url.origin`: `src/routes/robots.txt/+server.ts`,
+`src/routes/sitemap.xml/+server.ts`, `src/routes/waitlist/+page.server.ts`,
+`src/routes/l/[variant]/+page.server.ts`.
+
+**Known follow-up, not fixed here.** `src/lib/server/email.ts:6` re-declares
+`APP_BASE_URL` straight off `process.env` with its own hardcoded fallback
+(`https://mise-place.com`), bypassing `env.ts`, which falls back to `''`. So the two
+disagree when the variable is unset. Centralising it would change email link behaviour in
+dev, so it is left alone deliberately — worth folding into whichever phase next touches
+email.
 
 **`robots.txt` — the AI-crawler stance.** Block nobody: `GPTBot`, `OAI-SearchBot`, `ChatGPT-User`, `PerplexityBot`, `Perplexity-User`, `ClaudeBot`, `Claude-User`, `Claude-SearchBot`, `Bingbot`, `CCBot`, `Google-Extended`, `Applebot-Extended`. For a pre-launch company with no proprietary corpus, training inclusion is how the brand becomes a known entity, and the `-User` agents are live fetches for someone who already asked about us.
 
@@ -139,7 +162,18 @@ Compounding it: `applyPrivateCacheHeaders()` at `src/hooks.server.ts:221` stamps
 
 **Verification setup**: Search Console via **DNS TXT domain property** — it survives host changes and covers every subdomain, which matters most while the domain is undecided. (Correction: hash-CSP was never a constraint here; CSP governs script and style execution, not `<meta>` tags or static files. What it does block is GTM/GA, which pushes measurement server-side anyway — see Phase 6.) Backup: a static `static/google<token>.html`. Bing Webmaster imports from GSC.
 
-*Verify*: extend `tests/sitemap-robots.test.ts` (it already asserts `Allow: /l/` and the Disallow set) with the AI-agent blocks and the origin override; `curl` `/robots.txt` and `/sitemap.xml` against a build with `PUBLIC_SITE_ORIGIN` set and confirm no `url.origin` leakage.
+**Sitemap `lastmod`.** Now a declared per-route constant rather than `new Date()`
+evaluated per request. Dates were taken from `git log -1 --format=%cs` on each page's
+source and are maintained by hand when copy changes. The hreflang `xhtml:link` alternates
+this plan also lists are **deferred to Phase 2** — there is no `/en/` tree for them to
+point at yet, and an alternate pointing at a 404 is worse than none.
+
+*Verified*: `tests/sitemap-robots.test.ts` grew from 8 to 17 tests covering the three new
+guarantees — that both routes emit the configured origin even when another host served the
+request (proved with `vi.stubEnv` + `vi.resetModules`, including the trailing-slash and
+unset-fallback cases), that `lastmod` values are valid past dates and *differ per route*
+(which is what proves they are declared rather than stamped at request time), and that
+exactly one `User-agent` group exists and it is the wildcard.
 
 ---
 
@@ -281,16 +315,16 @@ Stated explicitly so it does not get picked up later as an obvious-looking win:
 
 The repo caps hand-written PRs at 800 added lines and serialises by surface, and `src/lib/i18n.ts` is a one-session-at-a-time surface. So:
 
-| PR | Phase | Surface | Blocks |
-|---|---|---|---|
-| 1 | 0 — truth audit | `i18n-messages.ts` | everything |
-| 2 | 1 — origin, robots, sitemap, railway | `seo/`, robots, sitemap | 3, 4 |
-| 3 | 2a — SSR locale fix + toggle-as-link | **`i18n.ts` (exclusive)** | 4 |
-| 4 | 2b-2e — route move, matcher, hreflang | `routes/` (exclusive) | 5, 6 |
-| 5 | 4 + 5 — seo module, schema, OG | `seo/`, landing | — |
-| 6 | 3 — content system | `content/`, `routes/` | — |
-| 7 | 6 — measurement | attribution, hooks, admin | — |
-| 8 | 7 — docs | `docs/` | — |
+| PR | Phase | Surface | Blocks | State |
+|---|---|---|---|---|
+| 1 | 0 — truth audit | `i18n-messages.ts` | everything | ✅ merged (#765) |
+| 2 | 1 — origin, robots, sitemap, railway | `server/site-origin`, robots, sitemap | 3, 4 | ✅ delivered |
+| 3 | 2a — SSR locale fix + toggle-as-link | **`i18n.ts` (exclusive)** | 4 | |
+| 4 | 2b-2e — route move, matcher, hreflang | `routes/` (exclusive) | 5, 6 | |
+| 5 | 4 + 5 — seo module, schema, OG | `seo/`, landing | — | |
+| 6 | 3 — content system | `content/`, `routes/` | — | |
+| 7 | 6 — measurement | attribution, hooks, admin | — | |
+| 8 | 7 — docs | `docs/` | — | |
 
 PR 7 runs in parallel with 4-6 (different surfaces). Everything else is serial.
 

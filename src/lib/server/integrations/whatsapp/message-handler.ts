@@ -71,9 +71,10 @@ async function handlePairingAttempt(
 			.from(restaurants)
 			.where(eq(restaurants.id, result.restaurantId))
 			.limit(1));
+		const restaurantSuffix = restaurant?.name ? ` para *${restaurant.name}*` : '';
 		await ctx.sendText(
 			from,
-			`✅ Número autorizado${restaurant?.name ? ` para *${restaurant.name}*` : ''}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
+			`✅ Número autorizado${restaurantSuffix}.\nYa puedes enviarme fotos o PDF de tus facturas.`,
 		);
 		return;
 	}
