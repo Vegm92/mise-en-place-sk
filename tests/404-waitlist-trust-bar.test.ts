@@ -112,9 +112,19 @@ describe('every trust-bar claim is already substantiated elsewhere on the page (
 		es: ['tandas', 'antelaci'],
 		en: ['batches', 'advance'],
 	};
+	/**
+	 * Re-anchored in GEO Phase 0. This pair used to pin the privacy claim to
+	 * the FAQ's "cifrados en servidores de la UE" — but that was one of the
+	 * unverified assertions the phase retracted (marketing rule 1), so the
+	 * words it pinned no longer exist. The acceptance criterion itself is
+	 * unchanged: the trust-bar claim must still be substantiated by the FAQ
+	 * answer. It is now anchored on the export/delete guarantee, which is a
+	 * real, shipped feature (see tests/account-export.test.ts,
+	 * tests/account-delete.test.ts) rather than an infrastructure promise.
+	 */
 	const PRIVACY_WORDS: Record<Locale, string[]> = {
-		es: ['ue'],
-		en: ['eu'],
+		es: ['export', 'elimin'],
+		en: ['export', 'delete'],
 	};
 
 	it('cadence item reuses words from waitlist.faq.4.a (the batch-cadence FAQ answer)', () => {
@@ -140,12 +150,11 @@ describe('every trust-bar claim is already substantiated elsewhere on the page (
 		for (const loc of LOCALES) {
 			const source = tr(loc, 'waitlist.faq.0.a').toLowerCase();
 			const claim = (tr(loc, 'waitlist.trustBar.privacy.label') + ' ' + tr(loc, 'waitlist.trustBar.privacy.body')).toLowerCase();
-			expect(source, `${loc} faq.0.a should mention encryption`).toMatch(/cifrad|encrypt/);
-			expect(claim, `${loc} privacy claim should mention encryption`).toMatch(/cifrad|encrypt/);
 			for (const word of PRIVACY_WORDS[loc]) {
-				expect(source, `${loc} faq.0.a should mention the EU`).toContain(word);
-				expect(claim, `${loc} privacy claim should mention the EU`).toContain(word);
+				expect(source, `${loc} faq.0.a should mention "${word}"`).toContain(word);
+				expect(claim, `${loc} privacy claim should reuse "${word}" from faq.0.a`).toContain(word);
 			}
+			expect(claim, `${loc} privacy claim must not re-assert unverified hosting`).not.toMatch(/cifrad|encrypt|\bue\b|\beu\b/);
 		}
 	});
 
