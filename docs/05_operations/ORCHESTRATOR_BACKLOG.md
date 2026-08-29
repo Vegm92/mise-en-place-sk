@@ -43,7 +43,7 @@ PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generatio
 | 484 | P1 | DONE | 1 | Verified (commit 29498ff): client pre-upload HEIC rejection w/ iOS guidance, WhatsApp heic/heif no longer saved as .jpg (both drivers); allowlist parity test pre-existed via #520. 1872 tests pass. | .heic accepted by picker, rejected by server |
 | 464 | P1 | DONE | 1 | Verified (commit 5fe56cd, recovered after container restart): idempotent role script (pgboss schema ownership, default privileges), DATABASE_MIGRATION_URL split, DDL-refusal proven vs local PG. 2756/2756. PRODUCTION STEP PENDING: owner runs the script on Railway + swaps env vars per DEPLOYMENT.md runbook. | split Postgres superuser into runtime+migration roles |
 | 649 | P1 | DONE | 1 | Umbrella verified complete: all 13 children (#650–#662) closed via merged PRs (#663-666, #668, #671); GitHub issue closed with checklist verification. | mobile 390px audit tracker |
-| 729 | P1 | IN_PROGRESS | 1 | Dispatched | recipe name unescaped in emailed escandallo |
+| 729 | P1 | DONE | 1 | Verified (commit eb8a126): renderEmailLayout escapes headline/preheader centrally (call-site pre-escaping removed, no double-escape — regression-anchored), subject control-char sanitization, latent incidencia totalAmount preheader fix; pre-fix injection+CRLF proven. Orchestrator re-ran gates: 3230/3230, 6 gates, check 0/0, build. | recipe name unescaped in emailed escandallo |
 | 728 | P1 | DONE | 1 | Verified (commit 52c077b): nutrition fraction gross→net in sub-recipe branch only, cost path untouched; pre-fix failure proven (2000 vs 1000 kcal); client module confirmed free of the bug. Orchestrator re-ran gates: 3225/3225, 6 lint gates, check 0/0, build. | sub-recipe nutrition scales on gross not net |
 | 727 | P1 | DONE | 1 | Verified (commit 148b4ce): depth cap dropped per issue's own recommendation (memoized DFS bounds work, cycle guard terminates), depth-exceeded warning/i18n keys removed with zero dangling refs (grepped), ADR-031 updated; pre-fix failures proven (900 vs 1200; r9 100 vs 400). Gates re-run by orchestrator. | MAX_RECIPE_DEPTH understates cost, poisons memo |
 | 745 | P2 | OBSOLETE | 0 | Closed 2026-08-27 via PR #748 | trial expiry invisible, upload loses files |
@@ -78,7 +78,7 @@ PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generatio
 | 570 | P2 | DONE | 1 | Verified working (supplier inline via extraction; product via pg-boss categorize job); trigger-chain test added (99a172c); GitHub issue closed with architecture answers. 2331/2331. | verify auto-classifier status |
 | 567 | P2 | DONE | 1 | Verified (commit 8111b97): shell pre-existed (#572); added settings persistence (merged query + /api/sidebar), collapsed badges, collapsed footer, spec'd icons+aria. 2338/2338. | collapsible sidebar |
 | 736 | P2 | PENDING | 0 | Unblocked by Phase 0 | escandallo reads load tenant graph too often |
-| 733 | P2 | PENDING | 0 | Unblocked by Phase 0 | updateRecipe drops unparseable fields; rename race |
+| 733 | P2 | IN_PROGRESS | 1 | Dispatched with #734/#735 (same actions file, separate commits) | updateRecipe drops unparseable fields; rename race |
 | 732 | P2 | PENDING | 0 | Unblocked by Phase 0 | add-a-line row keeps submitted values |
 | 731 | P2 | PENDING | 0 | Unblocked by Phase 0 | printed escandallo repeats prep block |
 | 730 | P2 | PENDING | 0 | Unblocked by Phase 0 (allergen code arrives with the merge) | no-allergens save blocks extraction |
@@ -89,8 +89,8 @@ PHASE 0 COMPLETE (2026-08-29): `git merge` of origin/claude/escandallo-generatio
 | 718 | P3 | DONE | 1 | Verified (commit ba89db6): #711's rebase had reintroduced the accent chip in the dialog — now neutral, guard test added. 2352/2352. Note: help-page .help-tip-pro still accent (predates scope; fold into #569's help work). | one neutral PRO chip (ADR-026) |
 | 738 | P3 | PENDING | 0 | Unblocked by Phase 0 | escandallo number parsing zero/out-of-range |
 | 737 | P3 | PENDING | 0 | Unblocked by Phase 0 | recipe module dead exports/dup waste factor |
-| 735 | P3 | PENDING | 0 | Unblocked by Phase 0 | duplicate escandallo 409s second time |
-| 734 | P3 | PENDING | 0 | Unblocked by Phase 0 | itemId=0 passes validation |
+| 735 | P3 | IN_PROGRESS | 1 | Dispatched with #733 | duplicate escandallo 409s second time |
+| 734 | P3 | IN_PROGRESS | 1 | Dispatched with #733 | itemId=0 passes validation |
 | 543 | P3 | DONE | 1 | Verified (commit fb3dada): layout svelte:head title + per-page i18n titles (8 routes), billing h1 demoted, 53 th scope attrs, 27 source-scan tests. 2634/2634. | /admin pages render empty title |
 | 542 | P3 | DONE | 1 | Verified (commit 795c605): shared requirePositiveIntId on 15 loaders/actions across 5 routes (+file endpoint tightened); batch UUID path verified safe; 95 parameterized tests. 2560/2560. | malformed /invoice/[id] 500s |
 | 541 | P3 | DONE | 1 | Verified (commit 5a33c3a): client-side validateUploadFile (ext/size-band/magic-bytes, shared MAGIC_BYTES table w/ server, 1KB floor both sides), visible named rejections; drop-zone copy pre-existing. 2607/2607. Residual: mixed-batch server silent-drop unreachable via UI, flagged for follow-up. | upload silently discards rejected files |
