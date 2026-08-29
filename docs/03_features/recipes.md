@@ -205,6 +205,14 @@ grey node marks that edge as a cycle rather than throwing.
 **`wouldCycle`** — BFS over the prospective child's descendants, used by the
 write path. Racy under concurrent POSTs, which is why the read guard exists too.
 
+**`recipeAncestors`** — reverse BFS over the same contains-graph, run once
+(O(V+E)) to answer "which recipes transitively contain `id`". The detail
+load's `linkableRecipes` uses this instead of calling `wouldCycle(graph, id,
+candidate)` per candidate (O(V*E)); `wouldCycle(graph, id, candidateId)` is
+true iff `candidateId === id || recipeAncestors(graph, id).has(candidateId)`
+— see tests/736-linkable-recipes-ancestors.test.ts for the equivalence proof
+against random graphs. `wouldCycle` itself stays as the write-side check.
+
 ### `src/lib/server/recipes-sheet.ts`
 
 **`buildRecipeSheet`** — the one document the printable costing sheet, the
@@ -224,6 +232,23 @@ Postgres, where it would arrive as NaN and 500.
 
 **`readItemFields`** — all line validation in one place, returning either the
 fields or an i18n error key.
+
+**`requestGraph`** — a per-request cache for the loaded graph, keyed off
+`locals.recipeGraphCache` (reset to `null` per request in `hooks.server.ts`,
+never module-level). SvelteKit reruns a page's `load` right after a form
+action, using the same `RequestEvent`/`locals`, unless the action redirects —
+so without this, an `addItem`/`updateItem` POST that touches a recipe-kind
+line loaded the graph once in `linkTargetError`'s cycle check and again in
+`load`. `addItem`/`updateItem` patch their in-memory copy of the graph with
+the exact row `.returning()` gives back for the write they just made, so the
+cached graph `load` reuses afterward is never stale.
+
+### `src/routes/(app)/recipes/+page.server.ts`
+
+The list `load` now mirrors the detail page: one `loadRecipeGraph` +
+`computeRecipeCosts` pairing, with row data (id/name/kind/status/section/
+portions) read off the graph's `RecipeNode.recipe` instead of a second bare
+`recipes` SELECT — same `ORDER BY name` the graph query already applies.
 
 ### `src/lib/components/mep/FoodCostGauge.svelte`
 

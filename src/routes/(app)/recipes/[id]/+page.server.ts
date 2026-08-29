@@ -8,7 +8,7 @@ import { normalizeProductKey } from '$lib/server/normalize';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import {
 	collectProductIds, computeRecipeCosts, linkableProducts, loadProductFacts, loadRecipeGraph,
-	recipeParents, resolveProductPrices, wouldCycle
+	recipeAncestors, recipeParents, resolveProductPrices, wouldCycle, type RecipeNode
 } from '$lib/server/recipes';
 import {
 	EU_ALLERGENS, RECIPE_SECTIONS, RECIPE_STATUSES, RECIPE_UNITS, isRecipeKind, isRecipeLineKind,
@@ -40,13 +40,20 @@ function parseItemId(raw: FormDataEntryValue | null): number | null {
 	return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+async function requestGraph(rid: string, locals: App.Locals): Promise<Map<number, RecipeNode>> {
+	if (locals.recipeGraphCache?.rid === rid) return locals.recipeGraphCache.graph;
+	const graph = await loadRecipeGraph(rid);
+	locals.recipeGraphCache = { rid, graph };
+	return graph;
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const rid = locals.restaurantId!;
 	const id = Number(params.id);
 
 	return handleLoad('recipe-detail', async () => {
 		const recipe = await requireRecipe(rid, id);
-		const graph = await loadRecipeGraph(rid);
+		const graph = await requestGraph(rid, locals);
 		const [prices, facts] = await Promise.all([
 			resolveProductPrices(rid, collectProductIds(graph, true)),
 			loadProductFacts(rid, collectProductIds(graph, false)),
@@ -58,9 +65,10 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			recipeParents(rid, id),
 		]);
 
+		const ancestors = recipeAncestors(graph, id);
 		const linkableRecipes = [...graph.values()]
 			.map((n) => n.recipe)
-			.filter((r) => r.id !== id && !wouldCycle(graph, id, r.id))
+			.filter((r) => r.id !== id && !ancestors.has(r.id))
 			.map((r) => ({
 				id: r.id,
 				name: r.name,
@@ -187,7 +195,12 @@ function readItemFields(data: FormData): ItemFields | { error: string } {
 	};
 }
 
-async function linkTargetError(rid: string, recipeId: number, fields: ItemFields) {
+async function linkTargetError(
+	rid: string,
+	recipeId: number,
+	fields: ItemFields,
+	graph: Map<number, RecipeNode>
+) {
 	const tdb = forTenant(rid);
 	if (fields.productId !== null) {
 		const rows = await db.execute<{ id: number }>(sql`
@@ -199,7 +212,6 @@ async function linkTargetError(rid: string, recipeId: number, fields: ItemFields
 		const [child] = await db.select({ id: recipes.id }).from(recipes)
 			.where(tdb.scope(recipes.restaurantId, eq(recipes.id, fields.childRecipeId))).limit(1);
 		if (!child) return 'rec.err.unknownRecipe';
-		const graph = await loadRecipeGraph(rid);
 		if (wouldCycle(graph, recipeId, fields.childRecipeId)) return 'rec.err.cycle';
 	}
 	return null;
@@ -277,19 +289,24 @@ export const actions: Actions = {
 
 		const fields = readItemFields(await request.formData());
 		if ('error' in fields) return fail(422, { error: fields.error });
-		const linkError = await linkTargetError(rid, id, fields);
+
+		const graph = await requestGraph(rid, locals);
+		const linkError = await linkTargetError(rid, id, fields, graph);
 		if (linkError) return fail(422, { error: linkError });
 
 		const [{ top }] = await db.select({ top: sqlMax(recipeItems.sortOrder) })
 			.from(recipeItems)
 			.where(tdb.scope(recipeItems.restaurantId, eq(recipeItems.recipeId, id)));
 
-		await db.insert(recipeItems).values({
+		const [inserted] = await db.insert(recipeItems).values({
 			restaurantId: rid,
 			recipeId: id,
 			sortOrder: (top ?? 0) + 1,
 			...fields,
-		});
+		}).returning();
+
+		graph.get(id)?.items.push(inserted);
+
 		return { ok: 'rec.ok.lineAdded' };
 	},
 
@@ -305,7 +322,9 @@ export const actions: Actions = {
 
 		const fields = readItemFields(data);
 		if ('error' in fields) return fail(422, { error: fields.error });
-		const linkError = await linkTargetError(rid, id, fields);
+
+		const graph = await requestGraph(rid, locals);
+		const linkError = await linkTargetError(rid, id, fields, graph);
 		if (linkError) return fail(422, { error: linkError });
 
 		const updated = await db.update(recipeItems).set(fields).where(
@@ -313,8 +332,15 @@ export const actions: Actions = {
 				eq(recipeItems.id, itemId),
 				eq(recipeItems.recipeId, id)
 			))
-		).returning({ id: recipeItems.id });
+		).returning();
 		if (updated.length === 0) return fail(404, { error: 'rec.err.lineNotFound' });
+
+		const node = graph.get(id);
+		if (node) {
+			const idx = node.items.findIndex((i) => i.id === itemId);
+			if (idx >= 0) node.items[idx] = updated[0];
+			else node.items.push(updated[0]);
+		}
 
 		return { ok: 'rec.ok.saved' };
 	},

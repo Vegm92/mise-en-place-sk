@@ -483,6 +483,30 @@ export function wouldCycle(
 	return false;
 }
 
+export function recipeAncestors(graph: Map<number, RecipeNode>, id: number): Set<number> {
+	const parentsOf = new Map<number, number[]>();
+	for (const [parentId, node] of graph) {
+		for (const item of node.items) {
+			if (item.childRecipeId === null) continue;
+			const list = parentsOf.get(item.childRecipeId);
+			if (list) list.push(parentId);
+			else parentsOf.set(item.childRecipeId, [parentId]);
+		}
+	}
+
+	const ancestors = new Set<number>();
+	const queue = [id];
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		for (const parentId of parentsOf.get(current) ?? []) {
+			if (ancestors.has(parentId)) continue;
+			ancestors.add(parentId);
+			queue.push(parentId);
+		}
+	}
+	return ancestors;
+}
+
 export async function recipeParents(
 	rid: string,
 	recipeId: number
