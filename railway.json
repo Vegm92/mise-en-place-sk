@@ -11,7 +11,7 @@
     "preDeployCommand": [
       "pnpm db:migrate"
     ],
-    "sleepApplication": true,
+    "sleepApplication": false,
     "useLegacyStacker": false,
     "ipv6EgressEnabled": false,
     "restartPolicyType": "ON_FAILURE",
