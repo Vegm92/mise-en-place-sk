@@ -11,7 +11,9 @@ export function pctDelta(current: number, previous: number): number | null {
 
 export function fmtPct(value: number | null, digits = 1): string {
 	if (value === null || !Number.isFinite(value)) return '—';
-	const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+	let sign = '';
+	if (value > 0) sign = '+';
+	else if (value < 0) sign = '−';
 	return `${sign}${Math.abs(value).toFixed(digits).replace('.', ',')} %`;
 }
 
