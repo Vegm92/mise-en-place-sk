@@ -2,7 +2,7 @@ import { writable, derived } from 'svelte/store';
 import { categorySlug } from './constants';
 import { translations, type Locale } from './i18n-messages';
 
-export { translations, renderTemplate, type Locale } from './i18n-messages';
+export { translations, renderTemplate, type Locale, type TranslationKey, type WaitlistKey } from './i18n-messages';
 
 export const locale = writable<Locale>('es');
 

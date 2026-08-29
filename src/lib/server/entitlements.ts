@@ -92,6 +92,8 @@ export const ROUTE_POLICY = {
 	'/api/whatsapp':                     'open',
 	'/api/whatsapp/webhook':             'open',
 	'/forgot-password':                  'open',
+	'/l':                                'open',
+	'/l/[variant]':                      'open',
 	'/login':                            'open',
 	'/logout':                           'open',
 	'/onboarding':                       'open',

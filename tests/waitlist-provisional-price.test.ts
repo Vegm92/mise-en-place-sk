@@ -4,9 +4,16 @@
  * (issue #439) — and, since issue #407, must source every string of copy
  * from the shared `src/lib/i18n.ts` table instead of a page-local object.
  *
- * The first describe block re-verifies #439: the page's `PAID_TIERS` array
- * and the "cost" FAQ answer key must reference `PROVISIONAL_PRICE`, never a
- * hardcoded literal.
+ * Issue #327 extracted the page's markup out of `src/routes/waitlist/+page.svelte`
+ * (now a thin wrapper) into the shared `src/lib/components/landing/LandingPage.svelte`
+ * — reused by every `/l/[variant]` landing page — so this file's source checks
+ * now read that component instead. The wrapper's own byte-identity is covered
+ * separately by the DOM comparison run manually for #327 (see its PR/report);
+ * this file's job is unchanged: prove the pricing and copy logic itself never
+ * drifted, wherever it lives.
+ *
+ * The first describe block re-verifies #439: `PAID_TIERS` and the "cost" FAQ
+ * answer key must reference `PROVISIONAL_PRICE`, never a hardcoded literal.
  *
  * The second describe block is the core acceptance check for #407: it
  * rebuilds, field by field, the exact object the page used to hardcode as
@@ -29,7 +36,7 @@ import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '../src/lib/billing-pl
 import { translations, renderTemplate, type Locale } from '../src/lib/i18n';
 
 const ROOT = path.resolve(__dirname, '..');
-const PAGE_SRC = readFileSync(path.join(ROOT, 'src/routes/waitlist/+page.svelte'), 'utf8');
+const PAGE_SRC = readFileSync(path.join(ROOT, 'src/lib/components/landing/LandingPage.svelte'), 'utf8');
 
 const BARE_PRICE = /\b(29|59|129)\b/;
 
@@ -213,6 +220,21 @@ function buildMigratedCopy(loc: Locale) {
 	};
 }
 
+/**
+ * Deliberate, documented deviations from the pinned #407 snapshot — never add
+ * to this map to paper over an accidental drift; each entry must correspond
+ * to a real, intentional copy change made in a later issue.
+ *
+ * - `privacy` (issue #326): the waitlist form now also captures UTM/referrer
+ *   attribution alongside the email, so "Solo guardamos tu email" / "We only
+ *   store your email" stopped being accurate and was trimmed to the parts
+ *   that still are.
+ */
+const POST_407_INTENTIONAL_CHANGES: Record<Locale, Partial<Record<string, string>>> = {
+	es: { privacy: 'Sin spam. Sin compromisos.' },
+	en: { privacy: 'No spam. No commitment.' },
+};
+
 describe('waitlist copy migration is byte-identical to the pre-migration inline object (issue #407)', () => {
 	it('the pinned pre-migration git blob still contains the expected copy object', () => {
 		expect(Object.keys(PRE_MIGRATION_COPY)).toEqual(['es', 'en']);
@@ -220,8 +242,9 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 	});
 
 	for (const loc of ['es', 'en'] as const) {
-		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table`, () => {
-			expect(buildMigratedCopy(loc)).toEqual(PRE_MIGRATION_COPY[loc]);
+		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table, aside from documented later changes`, () => {
+			const expected = { ...PRE_MIGRATION_COPY[loc], ...POST_407_INTENTIONAL_CHANGES[loc] };
+			expect(buildMigratedCopy(loc)).toEqual(expected);
 		});
 	}
 });
