@@ -302,6 +302,12 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
   const sectionActive = (section: NavSection) => section.items.some(itemActive);
 
+  const navItemColor = (parentActive: boolean, locked: boolean) => {
+    if (parentActive) return 'var(--mep-acc)';
+    if (locked) return 'var(--mep-fg-3)';
+    return 'var(--mep-fg-2)';
+  };
+
   const sectionBadge = (section: NavSection) =>
     section.items.reduce((sum, item) => sum + (Number(item.badge) || 0), 0);
 
@@ -359,13 +365,11 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     switchingLocation = false;
   }
 
-  const pageTitle = $derived(
-    $page.data.title
-      ? ($page.data.titleParams
-          ? $ti($page.data.title, $page.data.titleParams as Record<string, string | number>)
-          : $t($page.data.title))
-      : 'Mise en Place'
-  );
+  const pageTitle = $derived.by(() => {
+    if (!$page.data.title) return 'Mise en Place';
+    if ($page.data.titleParams) return $ti($page.data.title, $page.data.titleParams as Record<string, string | number>);
+    return $t($page.data.title);
+  });
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const headerPlace = $derived(currentLocation || data.restaurantName || '');
   const canSwitchPlace = $derived((data.locations?.length ?? 0) > 1);
@@ -567,7 +571,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
                 cursor:pointer;text-decoration:none;
                 justify-content:{collapsed ? 'center' : 'flex-start'};
                 background:{parentActive ? 'var(--mep-acc-soft)' : 'transparent'};
-                color:{parentActive ? 'var(--mep-acc)' : itemIsLocked ? 'var(--mep-fg-3)' : 'var(--mep-fg-2)'};
+                color:{navItemColor(parentActive, itemIsLocked)};
                 font-size:13.5px;font-weight:{parentActive ? 500 : 400};
               "
             >
