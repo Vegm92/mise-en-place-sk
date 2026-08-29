@@ -348,53 +348,60 @@ export const actions: Actions = {
 		const source = await requireRecipe(rid, id);
 		const tdb = forTenant(rid);
 
+		const MAX_COPY_ATTEMPTS = 9;
 		let newId: number | null = null;
-		await db.transaction(async (tx) => {
-			const name = `${source.name} (copia)`;
-			const inserted = await tx.insert(recipes).values({
-				restaurantId: rid,
-				name,
-				nameKey: normalizeProductKey(name),
-				kind: source.kind,
-				status: 'draft',
-				section: source.section,
-				portions: source.portions,
-				yieldQty: source.yieldQty,
-				yieldUnit: source.yieldUnit,
-				sellingPrice: source.sellingPrice,
-				vatPct: source.vatPct,
-				targetFoodCostPct: source.targetFoodCostPct,
-				preparation: source.preparation,
-				notes: source.notes,
-			}).onConflictDoNothing().returning({ id: recipes.id });
-			if (inserted.length === 0) return;
-			newId = inserted[0].id;
 
-			const lines = await tx.select().from(recipeItems)
-				.where(tdb.scope(recipeItems.restaurantId, eq(recipeItems.recipeId, id)))
-				.orderBy(asc(recipeItems.sortOrder));
-			if (lines.length === 0) return;
+		for (let attempt = 1; attempt <= MAX_COPY_ATTEMPTS && newId === null; attempt++) {
+			const name = attempt === 1 ? `${source.name} (copia)` : `${source.name} (copia ${attempt})`;
+			const nameKey = normalizeProductKey(name);
+			if (!nameKey) return fail(422, { error: 'rec.err.nameRequired' });
 
-			await tx.insert(recipeItems).values(lines.map((line) => ({
-				restaurantId: rid,
-				recipeId: newId!,
-				kind: line.kind,
-				name: line.name,
-				productId: line.productId,
-				childRecipeId: line.childRecipeId,
-				netQuantity: line.netQuantity,
-				unit: line.unit,
-				unitCost: line.unitCost,
-				wastePct: line.wastePct,
-				allergens: line.allergens,
-				kcal100: line.kcal100,
-				protein100: line.protein100,
-				carbs100: line.carbs100,
-				fat100: line.fat100,
-				note: line.note,
-				sortOrder: line.sortOrder,
-			})));
-		});
+			await db.transaction(async (tx) => {
+				const inserted = await tx.insert(recipes).values({
+					restaurantId: rid,
+					name,
+					nameKey,
+					kind: source.kind,
+					status: 'draft',
+					section: source.section,
+					portions: source.portions,
+					yieldQty: source.yieldQty,
+					yieldUnit: source.yieldUnit,
+					sellingPrice: source.sellingPrice,
+					vatPct: source.vatPct,
+					targetFoodCostPct: source.targetFoodCostPct,
+					preparation: source.preparation,
+					notes: source.notes,
+				}).onConflictDoNothing().returning({ id: recipes.id });
+				if (inserted.length === 0) return;
+				newId = inserted[0].id;
+
+				const lines = await tx.select().from(recipeItems)
+					.where(tdb.scope(recipeItems.restaurantId, eq(recipeItems.recipeId, id)))
+					.orderBy(asc(recipeItems.sortOrder));
+				if (lines.length === 0) return;
+
+				await tx.insert(recipeItems).values(lines.map((line) => ({
+					restaurantId: rid,
+					recipeId: newId!,
+					kind: line.kind,
+					name: line.name,
+					productId: line.productId,
+					childRecipeId: line.childRecipeId,
+					netQuantity: line.netQuantity,
+					unit: line.unit,
+					unitCost: line.unitCost,
+					wastePct: line.wastePct,
+					allergens: line.allergens,
+					kcal100: line.kcal100,
+					protein100: line.protein100,
+					carbs100: line.carbs100,
+					fat100: line.fat100,
+					note: line.note,
+					sortOrder: line.sortOrder,
+				})));
+			});
+		}
 
 		if (newId === null) return fail(409, { error: 'rec.err.duplicate' });
 		redirect(303, `/recipes/${newId}`);
