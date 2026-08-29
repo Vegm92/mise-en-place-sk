@@ -68,6 +68,14 @@ time (normalized units, pack-aware prices) and the catalog is user-curatable.
 
 n/a for products (rows/aliases mutate); notifications go `pending → sent`.
 
+- **Allergens and nutrition** (issue: recipe costing): `products` carries the
+  fourteen EU allergen codes and the four per-100 macros, each with a
+  `source` column (`manual` | `extracted`). A user editing them on
+  `/products/[id]` stamps `manual`. Extraction may fill an allergen set that is
+  still empty via `applyExtractedAllergens`, which never overwrites a `manual`
+  value and raises `product_allergens_suggested` for confirmation. Recipe lines
+  linked to the product inherit both unless the line declares its own.
+
 ## Data dependencies
 
 `products`, `product_aliases`, `unit_conversions`, `invoice_line_items`,
