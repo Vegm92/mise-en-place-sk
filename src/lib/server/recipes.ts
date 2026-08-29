@@ -303,9 +303,9 @@ export function computeRecipeCosts(
 							priceSource = 'child';
 							unitRateUnits =
 								(rateFromCents(child.totalCostCents) / childYield) * yieldPerLineUnit;
-							const fraction = (grossQty * yieldPerLineUnit) / childYield;
+							const nutritionFraction = (netQty * yieldPerLineUnit) / childYield;
 							if (child.nutritionTotal) {
-								nutrition = scaleNutrition(child.nutritionTotal, fraction);
+								nutrition = scaleNutrition(child.nutritionTotal, nutritionFraction);
 							}
 							if (child.nutritionPartial) nutritionPartial = true;
 						}

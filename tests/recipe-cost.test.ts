@@ -261,6 +261,29 @@ describe('computeRecipeCosts — sub-recipes', () => {
 		const cost = computeRecipeCosts(graphOf(plato), new Map()).get(1)!;
 		expect(cost.lines[0].warnings).toContain('missing-child');
 	});
+
+	it('scales a sub-recipe line nutrition on the net quantity, not the gross (issue #728)', () => {
+		const base = node(
+			{ id: 2, kind: 'elaboracion', yieldQty: '1.0000', yieldUnit: 'kg' },
+			[{ name: 'base', netQuantity: '1.0000', unit: 'kg', unitCost: '2.0000', kcal100: '100.00' }]
+		);
+		expect(computeRecipeCosts(graphOf(node({ id: 1 }, []), base), new Map()).get(2)!.totalCostCents)
+			.toBe(200);
+
+		const noWaste = node({ id: 1 }, [
+			{ kind: 'recipe', name: 'base', childRecipeId: 2, netQuantity: '1.0000', unit: 'kg' },
+		]);
+		const costNoWaste = computeRecipeCosts(graphOf(noWaste, base), new Map()).get(1)!;
+		expect(costNoWaste.totalCostCents).toBe(200);
+		expect(costNoWaste.nutritionTotal!.kcal).toBeCloseTo(1000, 6);
+
+		const withWaste = node({ id: 1 }, [
+			{ kind: 'recipe', name: 'base', childRecipeId: 2, netQuantity: '1.0000', unit: 'kg', wastePct: '50.00' },
+		]);
+		const costWithWaste = computeRecipeCosts(graphOf(withWaste, base), new Map()).get(1)!;
+		expect(costWithWaste.totalCostCents).toBe(400);
+		expect(costWithWaste.nutritionTotal!.kcal).toBeCloseTo(1000, 6);
+	});
 });
 
 describe('cycles', () => {
