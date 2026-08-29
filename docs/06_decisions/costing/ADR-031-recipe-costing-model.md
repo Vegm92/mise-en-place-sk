@@ -46,7 +46,10 @@ of truth; gross is derived as `net / (1 − waste_pct/100)` and the line is char
 on the gross, because that is what is bought. The editor shows both columns and
 both are editable — typing a gross back-computes the net client-side and submits
 the net — so there is one column in the database and no pair that can
-desynchronise.
+desynchronise. Nutrition follows the net on every line kind, sub-recipe
+references included: the plate delivers only the edible amount, waste and all,
+so kcal is never inflated by the trim that cost alone is right to charge for
+(issue #728).
 
 **The graph is loaded whole and resolved in TypeScript.** `loadRecipeGraph(rid)`
 issues exactly two tenant-scoped queries (all `recipes`, all `recipe_items`) and
