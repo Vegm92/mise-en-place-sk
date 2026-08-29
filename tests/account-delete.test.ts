@@ -40,6 +40,12 @@ vi.mock('$lib/server/queue', () => ({ enqueueAccountCleanup: enqueueAccountClean
 vi.mock('$lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
 	const { forTenant } = await import('../src/lib/server/tenant');
+	// testDb is null when the DB gate is off — its NonNullable is a type
+	// assertion, not a runtime guarantee. The suite below is describe.skipIf'd
+	// in that case, but this factory still runs at import time, and
+	// `new Proxy(null, ...)` throws, failing the whole file at collection
+	// instead of skipping it. Hand back an inert stand-in: nothing reads it.
+	if (!testDb) return { db: {}, forTenant };
 	const db = new Proxy(testDb as object, {
 		get(target, prop, receiver) {
 			if (prop === 'transaction') {
