@@ -3,8 +3,9 @@
  * built-ins (zlib + Buffer). Design: the same three-bar mark used in-app
  * (`src/lib/components/mep/Logo.svelte`) and in transactional email
  * (`src/lib/server/email.ts`'s LOGO_SVG), on the ink/parchment brand pair
- * (ADR-028) — ink background (#17171A, matches manifest.webmanifest's
- * theme_color), parchment bars (#F1F0EE, matches its background_color).
+ * (ADR-032, amending ADR-028) — ink background (#1B2A44, matches
+ * manifest.webmanifest's theme_color), paper bars (#ECEDF1, matches its
+ * background_color).
  * These constants are asserted against the manifest by
  * tests/logo-usage-consistency.test.ts — change both together.
  * Run: node scripts/generate-pwa-icons.mjs
@@ -114,10 +115,19 @@ function createCanvas(w, h, bgR, bgG, bgB) {
 // ── Icon design ──────────────────────────────────────────────────────────────
 // Brand colours — must match manifest.webmanifest's theme_color / background_color
 // (asserted by tests/logo-usage-consistency.test.ts).
-const BG_HEX = '#17171A'; // ink — manifest.webmanifest theme_color
-const FG_HEX = '#F1F0EE'; // parchment — manifest.webmanifest background_color
-const BG_R = 0x17, BG_G = 0x17, BG_B = 0x1a;
-const FG_R = 0xf1, FG_G = 0xf0, FG_B = 0xee;
+const BG_HEX = '#1B2A44'; // ink — manifest.webmanifest theme_color
+const FG_HEX = '#ECEDF1'; // paper — manifest.webmanifest background_color
+
+/** The channels the canvas actually paints, derived from the hex above. These
+ *  used to be hand-written literals alongside it, so ADR-032's recolour landed
+ *  in BG_HEX/FG_HEX — which is all logo-usage-consistency.test.ts reads — while
+ *  the icons kept drawing the old ink. Deriving them removes the second copy. */
+function channels(hex) {
+	const n = parseInt(hex.slice(1), 16);
+	return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const [BG_R, BG_G, BG_B] = channels(BG_HEX);
+const [FG_R, FG_G, FG_B] = channels(FG_HEX);
 
 /**
  * The three-bar mark shared with `src/lib/components/mep/Logo.svelte` and

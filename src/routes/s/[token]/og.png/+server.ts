@@ -7,11 +7,11 @@ import { runAsSystem } from '$lib/server/db';
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const INK = '#1a1a1a';
+const INK = '#15181f';
 const MUTED = '#6b6b6b';
 const NEG = '#b03a3a';
 const POS = '#14694a';
-const PAPER = '#f1f0ee';
+const PAPER = '#ecedf1';
 const CARD = '#ffffff';
 
 function escapeXml(value: string): string {

@@ -25,16 +25,16 @@ export interface EmailPayload {
 const BRAND_NAME = 'Mise en Place';
 const BRAND_CITY = 'Barcelona';
 
-const COLOR_BG = '#f1f0ee';
+const COLOR_BG = '#ecedf1';
 const COLOR_SURFACE = '#ffffff';
-const COLOR_SURFACE2 = '#f8f7f5';
-const COLOR_FG = '#17171a';
-const COLOR_FG2 = '#46464a';
-const COLOR_FG3 = '#5b5b60';
-const COLOR_BORDER = 'rgba(20,20,24,.13)';
-const COLOR_DIVIDER = 'rgba(20,20,24,.07)';
-const COLOR_ACCENT = '#17171a';
-const COLOR_ACCENT_SOFT = 'rgba(23,23,26,.07)';
+const COLOR_SURFACE2 = '#f5f6fa';
+const COLOR_FG = '#15181f';
+const COLOR_FG2 = '#44464e';
+const COLOR_FG3 = '#595c65';
+const COLOR_BORDER = 'rgba(20,24,36,.14)';
+const COLOR_DIVIDER = 'rgba(20,24,36,.08)';
+const COLOR_ACCENT = '#1b2a44';
+const COLOR_ACCENT_SOFT = 'rgba(27,42,68,.09)';
 
 const FONT_STACK = "'Mona Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO_STACK = "'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace";
