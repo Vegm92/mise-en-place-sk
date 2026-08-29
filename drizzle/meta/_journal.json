@@ -407,6 +407,13 @@
       "when": 1787966690130,
       "tag": "0057_recipes_rls_tenant_isolation",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1787975352830,
+      "tag": "0058_recipe_items_unit_cost_positive",
+      "breakpoints": true
     }
   ]
 }

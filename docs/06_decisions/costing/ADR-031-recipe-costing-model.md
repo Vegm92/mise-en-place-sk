@@ -102,7 +102,9 @@ flatten it to zero. The engine carries rates in fixed-point ten-thousandths
 `src/lib/money.ts`. Percentages (`vat_pct`, `waste_pct`, `target_food_cost_pct`)
 are stored as percentages, never fractions — `percentToFraction` in
 `src/lib/tax.ts` accepts both, which is exactly why the convention has to be
-pinned in one place.
+pinned in one place. `parseQty`/`parseDecimal` round half-up on the first
+truncated digit rather than floor, the same rule `toRate` already used, so
+typed input and a resolved rate agree on the same fourth decimal (issue #738).
 
 ## Consequences
 
