@@ -5,7 +5,10 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
-import { countRecipes, recipeCosts } from '$lib/server/recipes';
+import {
+	collectProductIds, computeRecipeCosts, countRecipes, loadProductFacts, loadRecipeGraph,
+	resolveProductPrices
+} from '$lib/server/recipes';
 import { RECIPE_SECTIONS, RECIPE_STATUSES, isRecipeKind } from '$lib/recipes';
 import { periodToDate } from '$lib/constants';
 
@@ -17,8 +20,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const periodStart = periodToDate(period).toISOString().slice(0, 10);
 
 	return handleLoad('recipes', async () => {
-		const [costs, trendRows, entitlements] = await Promise.all([
-			recipeCosts(rid),
+		const [graph, trendRows, entitlements] = await Promise.all([
+			loadRecipeGraph(rid),
 			db.execute<{ month: string; count: string }>(sql`
 				SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS month, COUNT(*) AS count
 				FROM recipes
@@ -29,23 +32,21 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			locals.entitlements(),
 		]);
 
-		const graphRows = await db.execute<{
-			id: number; name: string; kind: string; status: string; section: string | null;
-			portions: string; selling_price: string | null;
-		}>(sql`
-			SELECT id, name, kind, status, section, portions, selling_price
-			FROM recipes WHERE restaurant_id = ${rid} ORDER BY name
-		`);
+		const [prices, facts] = await Promise.all([
+			resolveProductPrices(rid, collectProductIds(graph, true)),
+			loadProductFacts(rid, collectProductIds(graph, false)),
+		]);
+		const costs = computeRecipeCosts(graph, prices, facts);
 
-		const recipes = graphRows.map((row) => {
-			const cost = costs.get(Number(row.id));
+		const recipes = [...graph.values()].map(({ recipe }) => {
+			const cost = costs.get(recipe.id);
 			return {
-				id: Number(row.id),
-				name: row.name,
-				kind: row.kind,
-				status: row.status,
-				section: row.section,
-				portions: Number(row.portions),
+				id: recipe.id,
+				name: recipe.name,
+				kind: recipe.kind,
+				status: recipe.status,
+				section: recipe.section,
+				portions: Number(recipe.portions),
 				lineCount: cost?.lines.length ?? 0,
 				costPerPortionCents: cost?.costPerPortionCents ?? 0,
 				grossPriceCents: cost?.grossPriceCents ?? null,
