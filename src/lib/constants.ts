@@ -24,6 +24,26 @@ export const VALID_CATEGORIES: string[] = [
 
 export const MIN_CATEGORY_CONFIDENCE = 0.6;
 
+export const VENUE_TYPES = [
+	{ value: 'menu_del_dia', labelKey: 'onboard.venue.menuDelDia' },
+	{ value: 'carta',        labelKey: 'onboard.venue.carta' },
+	{ value: 'bar_tapas',    labelKey: 'onboard.venue.barTapas' },
+	{ value: 'hotel',        labelKey: 'onboard.venue.hotel' },
+	{ value: 'grupo',        labelKey: 'onboard.venue.grupo' },
+] as const;
+
+export type VenueType = typeof VENUE_TYPES[number]['value'];
+
+const VENUE_TYPE_VALUES: ReadonlySet<string> = new Set(VENUE_TYPES.map(v => v.value));
+
+export function isValidVenueType(value: unknown): value is VenueType {
+	return typeof value === 'string' && VENUE_TYPE_VALUES.has(value);
+}
+
+export function isValidCategory(value: unknown): value is string {
+	return typeof value === 'string' && VALID_CATEGORIES.includes(value);
+}
+
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
 function categoryKey(value: string): string {

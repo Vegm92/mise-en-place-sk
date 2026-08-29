@@ -7,6 +7,11 @@
   import { cubicOut } from 'svelte/easing';
   import Sun from '@lucide/svelte/icons/sun';
   import Moon from '@lucide/svelte/icons/moon';
+  import Check from '@lucide/svelte/icons/check';
+  import X from '@lucide/svelte/icons/x';
+  import Clock from '@lucide/svelte/icons/clock';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
   import { t as baseT, ti as baseTi, locale, initLocale } from '$lib/i18n';
   import { overrideFor, interpolate, type LandingOverrides } from '$lib/landing-copy';
@@ -92,16 +97,49 @@
     },
   ]);
 
+  const compareWithoutItems = $derived([
+    $t('waitlist.compare.without.0'),
+    $t('waitlist.compare.without.1'),
+    $t('waitlist.compare.without.2'),
+    $t('waitlist.compare.without.3'),
+  ]);
+
+  const compareWithItems = $derived([
+    $t('waitlist.compare.with.0'),
+    $t('waitlist.compare.with.1'),
+    $t('waitlist.compare.with.2'),
+    $t('waitlist.compare.with.3'),
+  ]);
+
   const stepItems = $derived([
     { num: '01', tag: $t('waitlist.steps.0.tag'), title: $t('waitlist.steps.0.title'), body: $t('waitlist.steps.0.body') },
     { num: '02', tag: $t('waitlist.steps.1.tag'), title: $t('waitlist.steps.1.title'), body: $t('waitlist.steps.1.body') },
     { num: '03', tag: $t('waitlist.steps.2.tag'), title: $t('waitlist.steps.2.title'), body: $t('waitlist.steps.2.body') },
   ]);
 
+  function splitRole(role: string): { roleLine: string; venueType: string | null } {
+    const parts = role.split(' · ');
+    if (parts.length !== 3) return { roleLine: role, venueType: null };
+    const [title, venueType, place] = parts;
+    return { roleLine: `${title} · ${place}`, venueType };
+  }
+
   const testimonialItems = $derived([
-    { quote: $t('waitlist.testimonials.0.quote'), name: $t('waitlist.testimonials.0.name'), role: $t('waitlist.testimonials.0.role') },
-    { quote: $t('waitlist.testimonials.1.quote'), name: $t('waitlist.testimonials.1.name'), role: $t('waitlist.testimonials.1.role') },
-    { quote: $t('waitlist.testimonials.2.quote'), name: $t('waitlist.testimonials.2.name'), role: $t('waitlist.testimonials.2.role') },
+    { quote: $t('waitlist.testimonials.0.quote'), name: $t('waitlist.testimonials.0.name'), ...splitRole($t('waitlist.testimonials.0.role')) },
+    { quote: $t('waitlist.testimonials.1.quote'), name: $t('waitlist.testimonials.1.name'), ...splitRole($t('waitlist.testimonials.1.role')) },
+    { quote: $t('waitlist.testimonials.2.quote'), name: $t('waitlist.testimonials.2.name'), ...splitRole($t('waitlist.testimonials.2.role')) },
+  ]);
+
+  const foundingItems = $derived([
+    { title: $t('waitlist.founding.0.title'), body: $t('waitlist.founding.0.body') },
+    { title: $t('waitlist.founding.1.title'), body: $t('waitlist.founding.1.body') },
+    { title: $t('waitlist.founding.2.title'), body: $t('waitlist.founding.2.body') },
+  ]);
+
+  const trustBarItems = $derived([
+    { label: $t('waitlist.trustBar.cadence.label'), body: $t('waitlist.trustBar.cadence.body') },
+    { label: $t('waitlist.trustBar.support.label'), body: $t('waitlist.trustBar.support.body') },
+    { label: $t('waitlist.trustBar.privacy.label'), body: $t('waitlist.trustBar.privacy.body') },
   ]);
 
   const faqItems = $derived([
@@ -310,6 +348,53 @@
     </div>
   </section>
 
+  <section class="mep-section" style="padding:76px 72px;">
+    <div style="max-width:1000px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.compareEyebrow')}</div>
+      <h2 style="margin:0;max-width:640px;font-size:32px;font-weight:600;
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.compareHead')}</h2>
+
+      <div class="mep-compare-grid" style="margin-top:44px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div style="border-radius:var(--mep-r-card);border:1px solid var(--mep-neg);
+                    background:var(--mep-neg-soft);padding:28px;">
+          <div style="font-size:16px;font-weight:600;color:var(--mep-neg);letter-spacing:-0.01em;
+                      margin-bottom:20px;">{$t('waitlist.compare.without.title')}</div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            {#each compareWithoutItems as item}
+              <div style="display:flex;gap:12px;align-items:flex-start;">
+                <div style="width:22px;height:22px;border-radius:999px;flex-shrink:0;
+                            background:var(--mep-neg);color:var(--mep-neg-fg);
+                            display:flex;align-items:center;justify-content:center;">
+                  <X size={13} />
+                </div>
+                <span style="font-size:13px;line-height:1.5;color:var(--mep-fg-2);padding-top:2px;">{item}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <div style="border-radius:var(--mep-r-card);border:1px solid var(--mep-pos);
+                    background:var(--mep-pos-soft);padding:28px;">
+          <div style="font-size:16px;font-weight:600;color:var(--mep-pos);letter-spacing:-0.01em;
+                      margin-bottom:20px;">{$t('waitlist.compare.with.title')}</div>
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            {#each compareWithItems as item}
+              <div style="display:flex;gap:12px;align-items:flex-start;">
+                <div style="width:22px;height:22px;border-radius:999px;flex-shrink:0;
+                            background:var(--mep-pos);color:var(--mep-pos-fg);
+                            display:flex;align-items:center;justify-content:center;">
+                  <Check size={13} />
+                </div>
+                <span style="font-size:13px;line-height:1.5;color:var(--mep-fg);padding-top:2px;">{item}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="mep-section" style="padding:88px 72px;">
     <div class="mep-container">
       <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.howEyebrow')}</div>
@@ -357,7 +442,12 @@
             <div style="margin-top:18px;font-size:13.5px;color:var(--mep-fg-2);">
               <span style="font-weight:600;color:var(--mep-fg);">{item.name}</span>
             </div>
-            <div style="font-size:12.5px;color:var(--mep-fg-3);margin-top:3px;">{item.role}</div>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;">
+              {#if item.venueType}
+                <span class="badge badge-neutral">{item.venueType}</span>
+              {/if}
+              <span style="font-size:12.5px;color:var(--mep-fg-3);">{item.roleLine}</span>
+            </div>
           </div>
         {/each}
       </div>
@@ -450,6 +540,29 @@
     </div>
   </section>
 
+  <section class="mep-section" style="padding:76px 72px;">
+    <div style="max-width:1000px;margin:0 auto;">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
+                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.foundingEyebrow')}</div>
+      <h2 style="margin:0;max-width:640px;font-size:32px;font-weight:600;
+                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.foundingHead')}</h2>
+      <p style="margin:14px 0 0;max-width:640px;font-size:16px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{$t('waitlist.foundingSub')}</p>
+
+      <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
+        {#each foundingItems as item, i}
+          <div style="border-radius:var(--mep-r-card);border:1px solid var(--mep-border);
+                      background:var(--mep-surface);padding:24px;">
+            <div style="width:30px;height:30px;border-radius:999px;background:var(--mep-acc-soft);
+                        color:var(--mep-acc);display:flex;align-items:center;justify-content:center;
+                        font-size:13px;font-weight:700;font-family:var(--mep-fs-mono);margin-bottom:16px;">0{i + 1}</div>
+            <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;margin-bottom:8px;">{item.title}</div>
+            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;">{item.body}</div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  </section>
+
   <section class="mep-section" style="padding:0 72px 76px;">
     <div style="max-width:720px;margin:0 auto;">
       <div class="mep-eyebrow" style="margin-bottom:20px;">{$t('waitlist.faqEyebrow')}</div>
@@ -484,6 +597,33 @@
     </div>
   </section>
 
+  <section class="mep-section" style="padding:0 72px 56px;">
+    <div class="mep-trust-bar" role="list" aria-label={$t('waitlist.trustBarLabel')}
+      style="max-width:940px;margin:0 auto;display:flex;border:1px solid var(--mep-divider);
+             border-radius:var(--mep-r-card);background:var(--mep-surface);overflow:hidden;">
+      {#each trustBarItems as item, i}
+        <div class="mep-trust-bar-item" role="listitem"
+          style="flex:1;display:flex;gap:12px;align-items:flex-start;padding:20px 22px;">
+          <div style="width:30px;height:30px;border-radius:999px;flex-shrink:0;
+                      background:var(--mep-acc-soft);color:var(--mep-acc);
+                      display:flex;align-items:center;justify-content:center;">
+            {#if i === 0}
+              <Clock size={15} />
+            {:else if i === 1}
+              <MessageCircle size={15} />
+            {:else}
+              <ShieldCheck size={15} />
+            {/if}
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.005em;margin-bottom:3px;">{item.label}</div>
+            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;">{item.body}</div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </section>
+
   <section class="mep-section mep-tinted-top" style="padding:96px 72px;">
     <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
                 gap:64px;align-items:center;">
@@ -510,6 +650,9 @@
 </div>
 
 <style>
+  .mep-trust-bar-item:not(:first-child) {
+    border-left: 1px solid var(--mep-divider);
+  }
   .mep-tinted {
     background: var(--mep-surface-2);
     border-top: 1px solid var(--mep-divider);
@@ -554,7 +697,12 @@
     .mep-nav-signin { flex: 1 0 100% !important; justify-content: flex-end; }
     .mep-section { padding-left: 20px !important; padding-right: 20px !important; }
     .mep-hero { padding-top: 56px !important; }
-    .mep-grid-3, .mep-grid-4 { grid-template-columns: 1fr !important; }
+    .mep-grid-3, .mep-grid-4, .mep-compare-grid { grid-template-columns: 1fr !important; }
+    .mep-trust-bar { flex-direction: column !important; }
+    .mep-trust-bar-item:not(:first-child) {
+      border-left: none !important;
+      border-top: 1px solid var(--mep-divider);
+    }
     .mep-how-row { grid-template-columns: 1fr !important; gap: 24px !important; }
     .mep-founder-card { flex-direction: column !important; }
     .mep-close-grid { grid-template-columns: 1fr !important; gap: 32px !important; }

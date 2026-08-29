@@ -5,11 +5,16 @@ import {
 import { sql } from 'drizzle-orm';
 
 export const restaurants = pgTable('restaurants', {
-	id:        uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-	name:      text('name').notNull(),
-	slug:      text('slug').notNull().unique(),
-	parentId:  uuid('parent_id').references((): AnyPgColumn => restaurants.id, { onDelete: 'cascade' }),
-	createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+	id:                 uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	name:               text('name').notNull(),
+	slug:               text('slug').notNull().unique(),
+	parentId:           uuid('parent_id').references((): AnyPgColumn => restaurants.id, { onDelete: 'cascade' }),
+	createdAt:          timestamp('created_at', { withTimezone: true }).defaultNow(),
+	venueType:          text('venue_type'),
+	city:               text('city'),
+	topCategory:        text('top_category'),
+	acquisitionSource:  text('acquisition_source'),
+	acquisitionVariant: text('acquisition_variant'),
 }, (t) => [
 	index('restaurants_parent_idx').on(t.parentId),
 ]);

@@ -365,6 +365,13 @@
       "when": 1787939290455,
       "tag": "0051_waitlist_signup_attribution",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1787947991546,
+      "tag": "0052_onboarding_segmentation",
+      "breakpoints": true
     }
   ]
 }

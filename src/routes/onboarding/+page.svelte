@@ -1,11 +1,14 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import { onMount } from 'svelte';
-	import { locale, t, initLocale } from '$lib/i18n';
+	import { onMount, untrack } from 'svelte';
+	import { locale, t, tcat, initLocale } from '$lib/i18n';
+	import { VENUE_TYPES, VALID_CATEGORIES } from '$lib/constants';
 	import Logo from '$lib/components/mep/Logo.svelte';
 	const { data, form }: { data: PageData; form: ActionData } = $props();
 
 	const idempotencyKey = crypto.randomUUID();
+
+	let venueType = $state(untrack(() => data.prefillVenueType) ?? '');
 
 	onMount(() => {
 		initLocale();
@@ -73,6 +76,30 @@
 						class="input"
 						style="height:36px;"
 					/>
+				</div>
+
+				<div style="display:flex;flex-direction:column;gap:6px;">
+					<label for="venueType" style="font-size:13px;font-weight:500;color:var(--mep-fg-2);">
+						{$t('onboard.venue.label')}
+					</label>
+					<select id="venueType" name="venueType" class="input" style="height:36px;" bind:value={venueType}>
+						<option value="">{$t('onboard.venue.skip')}</option>
+						{#each VENUE_TYPES as v (v.value)}
+							<option value={v.value}>{$t(v.labelKey)}</option>
+						{/each}
+					</select>
+				</div>
+
+				<div style="display:flex;flex-direction:column;gap:6px;">
+					<label for="topCategory" style="font-size:13px;font-weight:500;color:var(--mep-fg-2);">
+						{$t('onboard.category.label')}
+					</label>
+					<select id="topCategory" name="topCategory" class="input" style="height:36px;">
+						<option value="">{$t('onboard.category.skip')}</option>
+						{#each VALID_CATEGORIES as c (c)}
+							<option value={c}>{$tcat(c)}</option>
+						{/each}
+					</select>
 				</div>
 
 				{#if data.needsConsent}
