@@ -358,6 +358,13 @@
       "when": 1787917716682,
       "tag": "0050_drop_upload_sessions_bool_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1787939290455,
+      "tag": "0051_waitlist_signup_attribution",
+      "breakpoints": true
     }
   ]
 }

@@ -123,11 +123,11 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
 | 354 | P3 | BLOCKED | 1 | Decision analysis + route checklist posted on issue (env-flag via ROUTE_POLICY, billing-off keeps subscription rows); awaiting owner ratification. #356 executes against it. | feature-flag mechanism decision |
-| 333 | P3 | PENDING | 0 | | testimonial provenance + stale date |
+| 333 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: drop/neutralize stale "Jul 2026" date framing (now multiplied across 6 landing pages by #327); testimonial provenance is owner judgement — question to be posted on issue. | testimonial provenance + stale date |
 | 329 | P3 | PENDING | 0 | | digest share affordance |
 | 328 | P3 | PENDING | 0 | | onboarding captures only name |
-| 327 | P3 | PENDING | 0 | | landing copy hardcoded |
-| 326 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: attribution spine (schema + parseAttribution + cookie + funnel_events); blocks #327/#402-405 measurability. | no attribution capture |
+| 327 | P3 | DONE | 1 | Verified (commit beae97a): LandingPage.svelte extraction (waitlist DOM byte-identical per live diff), i18n-key override mechanism (WaitlistKey-typed), 5 /l/ variants es+en, sitemap/robots, variant→mep_attr→signup chain live-proven. 2970/2970, all gates re-run clean; #439 byte-identity assertions untouched (path-only update). Latent footgun flagged: hooks/access-gate hand-maintained public-path lists parallel to ROUTE_POLICY. Close GitHub issue when branch merges. | landing copy hardcoded |
+| 326 | P3 | DONE | 1 | Verified (commits 094adcc+ce62989): waitlist+users attr columns + funnel_events (migration 0051, fresh-DB chain 0000→0051 proven by orchestrator), allowlist/capped parseAttribution, mep_attr cookie (first-touch, 30d), signup stamping, privacy copy updated (documented #407-snapshot allowlist). 2912/2912, all gates re-run clean. Risk: first-touch-wins semantics flagged for product. Close GitHub issue when branch merges. | no attribution capture |
 | 325 | P3 | PENDING | 0 | Tracking umbrella | relevance media flywheel |
 | 236 | P3 | PENDING | 0 | Feature, sizeable | email-in invoice ingest |
 | 224 | P3 | PENDING | 0 | Infra config | edge DDoS + Upstash config |

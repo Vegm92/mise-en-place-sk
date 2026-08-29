@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/sveltekit';
 import { db } from './db';
-import { systemNotifications } from './schema';
+import { systemNotifications, funnelEvents } from './schema';
 
 export function trackEvent(
 	event: string,
@@ -19,6 +19,21 @@ export function trackEvent(
 		})
 		.catch((e) => {
 			console.error('[trackEvent] insert failed', e);
+			Sentry.captureException(e);
+		});
+}
+
+export function trackAnonymousEvent(
+	event: string,
+	payload?: Record<string, unknown>,
+): void {
+	db.insert(funnelEvents)
+		.values({
+			event,
+			payload: payload ?? null,
+		})
+		.catch((e) => {
+			console.error('[trackAnonymousEvent] insert failed', e);
 			Sentry.captureException(e);
 		});
 }

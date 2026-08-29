@@ -72,13 +72,17 @@ vi.mock('$lib/server/db', () => {
 
 import { actions } from '../src/routes/signup/+page.server';
 
-function signupEvent(fields: Record<string, string>) {
+function signupEvent(fields: Record<string, string>, attrCookie?: string) {
 	const data = new FormData();
 	for (const [k, v] of Object.entries(fields)) data.append(k, v);
 	return {
 		request: { formData: async () => data },
 		getClientAddress: () => '203.0.113.7',
 		url: new URL('https://app.example.test/signup'),
+		cookies: {
+			get: (name: string) => (name === 'mep_attr' ? attrCookie : undefined),
+			set: vi.fn(),
+		},
 	} as never;
 }
 
@@ -104,6 +108,31 @@ describe('signUp', () => {
 		expect(insertedRows[0]).toMatchObject({ email: GOOD_SIGNUP.email });
 		expect(recordConsentMock).toHaveBeenCalledWith('new-user-id', 'signup_form');
 		expect(sendEmailMock).toHaveBeenCalledOnce();
+	});
+
+	it('stamps attribution from the mep_attr cookie onto a newly created user (issue #326)', async () => {
+		const cookie = JSON.stringify({
+			source: 'google', campaign: 'spring_launch', variant: 'b', segment: 'chefs',
+			referrer: 'https://google.com/search', landingPath: '/waitlist', referredBy: 'ABC123',
+		});
+		const result = await actions.signUp(signupEvent(GOOD_SIGNUP, cookie));
+		expect(result).toEqual({ success: true, email: GOOD_SIGNUP.email });
+		expect(insertedRows).toHaveLength(1);
+		expect(insertedRows[0]).toMatchObject({
+			attrSource: 'google',
+			attrCampaign: 'spring_launch',
+			attrVariant: 'b',
+			attrSegment: 'chefs',
+			attrReferrer: 'https://google.com/search',
+			attrLandingPath: '/waitlist',
+			attrReferredBy: 'ABC123',
+		});
+	});
+
+	it('stamps null attribution when there is no mep_attr cookie', async () => {
+		const result = await actions.signUp(signupEvent(GOOD_SIGNUP));
+		expect(result).toEqual({ success: true, email: GOOD_SIGNUP.email });
+		expect(insertedRows[0]).toMatchObject({ attrSource: null, attrCampaign: null });
 	});
 
 	it('responds identically whether the address is free, verified-taken, or unverified-taken', async () => {

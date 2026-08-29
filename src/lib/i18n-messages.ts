@@ -2010,7 +2010,7 @@ export const translations = {
     'waitlist.form.errRequired':     'Introduce tu email para continuar.',
     'waitlist.form.errInvalid':      'Ese email no parece válido.',
     'waitlist.form.errRateLimited':  'Demasiados intentos. Por favor, espera un momento.',
-    'waitlist.form.privacy':         'Solo guardamos tu email. Sin spam. Sin compromisos.',
+    'waitlist.form.privacy':         'Sin spam. Sin compromisos.',
     'waitlist.spotLabel':            'plazas prioritarias asignadas',
     'waitlist.painEyebrow':          'El problema',
     'waitlist.painHead':             'Cada semana se te escapan horas, datos y dinero.',
@@ -4095,7 +4095,7 @@ export const translations = {
     'waitlist.form.errRequired':     'Enter your email to continue.',
     'waitlist.form.errInvalid':      "That doesn't look like a valid email.",
     'waitlist.form.errRateLimited':  'Too many attempts. Please wait a moment.',
-    'waitlist.form.privacy':         'We only store your email. No spam. No commitment.',
+    'waitlist.form.privacy':         'No spam. No commitment.',
     'waitlist.spotLabel':            'priority spots claimed',
     'waitlist.painEyebrow':          'The problem',
     'waitlist.painHead':             'Every week you lose hours, data, and money.',
@@ -4171,6 +4171,9 @@ export const translations = {
     'waitlist.mock.chartTitle':      'Spend trend',
   },
 } satisfies Record<Locale, Record<string, string>>;
+
+export type TranslationKey = keyof typeof translations.es;
+export type WaitlistKey = Extract<TranslationKey, `waitlist.${string}`>;
 
 export function renderTemplate(loc: Locale, key: string, vars: Record<string, string | number> = {}): string {
   const template = (translations[loc] as Record<string, string>)[key] ?? key;

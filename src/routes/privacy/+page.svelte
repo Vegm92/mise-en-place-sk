@@ -79,7 +79,8 @@
       p7c2:         ' (www.aepd.es).',
 
       h8:           '8. Cookies',
-      p8:           'Usamos únicamente cookies estrictamente necesarias para mantener tu sesión autenticada. No empleamos cookies de seguimiento ni publicidad de terceros.',
+      p8:           'Usamos cookies estrictamente necesarias para mantener tu sesión autenticada. No empleamos cookies de seguimiento ni publicidad de terceros.',
+      p8b:          'Si llegas a la lista de espera o al registro a través de un enlace de campaña (por ejemplo, con parámetros utm_source o utm_campaign), guardamos esa procedencia en una cookie propia ("mep_attr") durante un máximo de 30 días, solo para saber qué mensaje o canal funciona. No se comparte con terceros ni se usa para seguirte por otros sitios.',
 
       h9:           '9. Seguridad',
       p9:           'Todos los datos se transmiten cifrados mediante TLS 1.2+. Las contraseñas se almacenan con hash bcrypt. El acceso a los datos de producción está restringido mediante roles y auditoría.',
@@ -162,7 +163,8 @@
       p7c2:         ' (www.aepd.es).',
 
       h8:           '8. Cookies',
-      p8:           'We use only strictly necessary cookies to keep your session authenticated. We do not use third-party tracking or advertising cookies.',
+      p8:           'We use strictly necessary cookies to keep your session authenticated. We do not use third-party tracking or advertising cookies.',
+      p8b:          'If you reach the waitlist or sign-up page through a campaign link (for example, with utm_source or utm_campaign parameters), we store that origin in a first-party cookie ("mep_attr") for up to 30 days, solely to see which message or channel worked. It is not shared with third parties or used to track you across other sites.',
 
       h9:           '9. Security',
       p9:           'All data is transmitted encrypted via TLS 1.2+. Passwords are stored with bcrypt hashing. Access to production data is restricted through roles and auditing.',
@@ -273,6 +275,7 @@
 
     <h2>{c.h8}</h2>
     <p>{c.p8}</p>
+    <p>{c.p8b}</p>
 
     <h2>{c.h9}</h2>
     <p>{c.p9}</p>

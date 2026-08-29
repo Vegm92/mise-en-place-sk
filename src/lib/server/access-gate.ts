@@ -12,7 +12,8 @@ export function isPendingAllowedPath(path: string): boolean {
 		path === '/sitemap.xml'                 ||
 		path === '/api/health'                  ||
 		path.startsWith('/auth/')               ||
-		path.startsWith('/waitlist')
+		path.startsWith('/waitlist')            ||
+		path.startsWith('/l/')
 	);
 }
 
