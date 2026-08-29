@@ -2,9 +2,10 @@ import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { products, recipeItems, recipes } from './schema';
 import {
-	addNutrition, convertQty, emptyNutrition, lineCostCents, lineNutrition,
+	EU_ALLERGENS, addNutrition, convertQty, emptyNutrition, lineCostCents, lineNutrition,
 	qtyToNumber, rateFromCents, recipeTotals, scaleNutrition, toAllergenList, toRate, wasteFactor,
-	type Allergen, type NutritionTotals, type RecipeKind, type RecipeLineKind, type RecipeTotals
+	type Allergen, type NutritionTotals, type RecipeKind, type RecipeLineKind, type RecipeTotals,
+	type RecipeWarning
 } from '$lib/recipes';
 
 export type RecipeRow = typeof recipes.$inferSelect;
@@ -16,7 +17,7 @@ export type LineWarning =
 	| 'missing-price' | 'unit-mismatch' | 'cycle' | 'missing-child'
 	| 'child-no-yield' | 'nutrition-skipped';
 
-export type RecipeWarning = 'cycle' | 'no-price' | 'nutrition-partial';
+export type { RecipeWarning };
 
 export interface ResolvedPrice {
 	rateUnits: number;
@@ -412,7 +413,7 @@ export function computeRecipeCosts(
 			yieldQty: node.recipe.yieldQty === null ? null : qtyToNumber(node.recipe.yieldQty),
 			yieldUnit: node.recipe.yieldUnit,
 			lines,
-			allergens: [...allergens],
+			allergens: EU_ALLERGENS.filter((code) => allergens.has(code)),
 			nutritionTotal: nutritionKnown > 0 ? nutritionTotal : null,
 			nutritionPerPortion:
 				nutritionKnown > 0 ? scaleNutrition(nutritionTotal, 1 / portions) : null,
@@ -455,11 +456,6 @@ export async function recipeCosts(rid: string): Promise<Map<number, RecipeCost>>
 	return computeRecipeCosts(graph, prices, facts);
 }
 
-export async function recipeCost(rid: string, recipeId: number): Promise<RecipeCost | null> {
-	const all = await recipeCosts(rid);
-	return all.get(recipeId) ?? null;
-}
-
 export function wouldCycle(
 	graph: Map<number, RecipeNode>,
 	parentId: number,
@@ -481,6 +477,30 @@ export function wouldCycle(
 		}
 	}
 	return false;
+}
+
+export function recipeAncestors(graph: Map<number, RecipeNode>, id: number): Set<number> {
+	const parentsOf = new Map<number, number[]>();
+	for (const [parentId, node] of graph) {
+		for (const item of node.items) {
+			if (item.childRecipeId === null) continue;
+			const list = parentsOf.get(item.childRecipeId);
+			if (list) list.push(parentId);
+			else parentsOf.set(item.childRecipeId, [parentId]);
+		}
+	}
+
+	const ancestors = new Set<number>();
+	const queue = [id];
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		for (const parentId of parentsOf.get(current) ?? []) {
+			if (ancestors.has(parentId)) continue;
+			ancestors.add(parentId);
+			queue.push(parentId);
+		}
+	}
+	return ancestors;
 }
 
 export async function recipeParents(
@@ -522,10 +542,4 @@ export async function linkableProducts(rid: string) {
 		.from(products)
 		.where(tdb.scope(products.restaurantId))
 		.orderBy(asc(products.canonicalName));
-}
-
-export async function recipesByIds(rid: string, ids: number[]): Promise<RecipeRow[]> {
-	if (ids.length === 0) return [];
-	const tdb = forTenant(rid);
-	return db.select().from(recipes).where(tdb.scope(recipes.restaurantId, inArray(recipes.id, ids)));
 }

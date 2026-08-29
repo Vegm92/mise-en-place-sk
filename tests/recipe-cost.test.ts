@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-	convertQty, fromRate, grossFromNet, lineCostCents, netFromGross, parseQty, recipeTotals,
-	toAllergenList, toRate
+	convertQty, fromRate, grossFromNet, lineCostCents, netFromGross, parseDecimal, parseQty,
+	recipeTotals, toAllergenList, toRate
 } from '../src/lib/recipes';
 import {
 	computeRecipeCosts, wouldCycle,
@@ -76,7 +76,11 @@ describe('units', () => {
 describe('quantity and rate parsing', () => {
 	it('parses quantities to four decimals and tolerates a comma', () => {
 		expect(parseQty('0,8')).toBe('0.8000');
-		expect(parseQty('1.23456')).toBe('1.2345');
+	});
+
+	it('rounds half-up on the fifth decimal instead of truncating (issue #738)', () => {
+		expect(parseQty('1.23456')).toBe('1.2346');
+		expect(parseQty('1.23454')).toBe('1.2345');
 	});
 
 	it('rejects zero and non-numeric quantities', () => {
@@ -88,6 +92,23 @@ describe('quantity and rate parsing', () => {
 		expect(toRate('0.0035')).toBe(35);
 		expect(fromRate(35)).toBe('0.0035');
 		expect(toRate('12.00')).toBe(120_000);
+	});
+
+	it('parseDecimal rounds half-up on the digit past its scale, matching toRate (issue #738)', () => {
+		expect(parseDecimal('1.235', 2)).toBe('1.24');
+		expect(parseDecimal('1.234', 2)).toBe('1.23');
+		expect(parseDecimal('9.995', 2)).toBe('10.00');
+	});
+
+	it('bounds a parser to the integer-digit width its column allows, rejecting past it (issue #738)', () => {
+		expect(parseDecimal('99999999.99', 2, 8)).toBe('99999999.99');
+		expect(parseDecimal('100000000.00', 2, 8)).toBeNull();
+		expect(parseQty('9999999999.0000', 10)).toBe('9999999999.0000');
+		expect(parseQty('10000000000.0000', 10)).toBeNull();
+	});
+
+	it('a rounding carry that pushes past the integer-digit bound is still rejected (issue #738)', () => {
+		expect(parseDecimal('99999999.995', 2, 8)).toBeNull();
 	});
 });
 
@@ -252,6 +273,19 @@ describe('computeRecipeCosts — sub-recipes', () => {
 		]);
 		const cost = computeRecipeCosts(graphOf(plato, salsa), new Map()).get(1)!;
 		expect(cost.allergens.sort()).toEqual(['gluten', 'lacteos']);
+	});
+
+	it('reports allergens in canonical EU order, not Set insertion order (issue #737)', () => {
+		const salsa = node(
+			{ id: 2, kind: 'elaboracion', yieldQty: '1.0000', yieldUnit: 'kg' },
+			[{ name: 'nata', netQuantity: '1.0000', unit: 'kg', unitCost: '2.0000', allergens: ['lacteos'] }]
+		);
+		const plato = node({ id: 1 }, [
+			{ kind: 'recipe', name: 'salsa', childRecipeId: 2, netQuantity: '0.1000', unit: 'kg' },
+			{ name: 'pan', netQuantity: '0.1000', unit: 'kg', unitCost: '2.0000', allergens: ['gluten'] },
+		]);
+		const cost = computeRecipeCosts(graphOf(plato, salsa), new Map()).get(1)!;
+		expect(cost.allergens).toEqual(['gluten', 'lacteos']);
 	});
 
 	it('flags a missing child instead of crashing', () => {

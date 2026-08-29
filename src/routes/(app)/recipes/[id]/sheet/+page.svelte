@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { t, ti } from '$lib/i18n';
+  import { SHEET_WARN_KEY } from '$lib/recipes';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Printer from '@lucide/svelte/icons/printer';
@@ -78,9 +79,10 @@
   <p class="body text-fg-3" style="font-size:11px;">{subtitle}</p>
 
   {#each doc.warnings as w (w)}
-    {#if w !== 'nutrition-partial'}
+    {@const key = SHEET_WARN_KEY[w]}
+    {#if key}
       <p class="body text-warn flex items-center gap-1" style="font-size:11px;margin-top:8px;">
-        <AlertTriangle size={12} />{$t(`rec.warn.sheet.${w}`)}
+        <AlertTriangle size={12} />{$t(key)}
       </p>
     {/if}
   {/each}

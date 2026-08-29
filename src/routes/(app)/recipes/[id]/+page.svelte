@@ -3,7 +3,7 @@
   import { untrack } from 'svelte';
   import { t, ti } from '$lib/i18n';
   import { fmtEur } from '$lib/formatters';
-  import { recipeTotals } from '$lib/recipes';
+  import { DEFAULT_TARGET_FOOD_COST_PCT, DEFAULT_VAT_PCT, recipeTotals } from '$lib/recipes';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import KpiCard from '$lib/components/mep/KpiCard.svelte';
@@ -25,8 +25,8 @@
   let confirmDelete = $state(false);
   let portions = $state(untrack(() => recipe.portions));
   let sellingPrice = $state(untrack(() => recipe.sellingPrice ?? ''));
-  let vatPct = $state(untrack(() => recipe.vatPct ?? '10.00'));
-  let targetPct = $state(untrack(() => Number(recipe.targetFoodCostPct ?? 30)));
+  let vatPct = $state(untrack(() => recipe.vatPct ?? DEFAULT_VAT_PCT));
+  let targetPct = $state(untrack(() => Number(recipe.targetFoodCostPct ?? DEFAULT_TARGET_FOOD_COST_PCT)));
   let kind = $state(untrack(() => recipe.kind));
 
   const costByItem = $derived(new Map((cost?.lines ?? []).map((l) => [l.itemId, l])));
