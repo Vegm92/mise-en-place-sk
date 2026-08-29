@@ -102,7 +102,7 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 467 | P3 | DONE | 1 | Verified (commit 64cf841): single-source CHAT_ACTION_ROUTES feeds prompt + validator; origin-pinned URL parse blocks external/js/backslash hijacks; label/variant hardening. 2465/2465. | chat ACTIONS href allowlist |
 | 574 | P3 | DONE | 1 | Verified (commit 612a6fa): all 3 entry points carry ?highlight=category, pulsing ring w/ reduced-motion guard, fades on interaction/4s, mobile+desktop. 2843/2843. | highlight Category field on Clasificar |
 | 571 | P3 | DONE | 1 | Verified (commit 0507d72): shared theme-aware <Logo> replaces 10 inline copies; favicon/PWA icons recolored to manifest ink/parchment (closes ADR-028's deferred note); email copy sanctioned exception. 2850/2850. | unify logo usage |
-| 569 | P3 | PENDING | 0 | | help page docs/tips |
+| 569 | P3 | DONE | 1 | Already satisfied on main by PR #682's help centre (all acceptance criteria, 142 tests). Branch adds (fdfb8ea): post-#746 copy accuracy (review states/turno worklist, es+en) + #718's .help-tip-pro neutral-chip fix w/ guard test. 2973/2973, gates re-run clean. GitHub issue closed 2026-08-28. | help page docs/tips |
 | 568 | P3 | DONE | 1 | Verified (commit b189ad2): 200ms opacity/translateY transition, 100ms entry delay, pointer-events:none, reduced-motion guard. 2856/2856. HOLD: dispatching paused per owner — splitting branch into stacked PRs. | supplier products hover |
 | 524 | P3 | DONE | 1 | Verified (commit 49476a1): 18 dishonest sites across 6 files → ::float8 or string+moneyToNumber; regression-proven guard test. 2786/2786. | sql template numeric return types |
 | 523 | P3 | PENDING | 0 | Infra/env change | DATABASE_SSL_MODE verify-full |
@@ -115,17 +115,17 @@ SESSION RESUME (2026-08-28, backlog-qa session): owner re-invoked the orchestrat
 | 439 | P3 | DONE | 1 | Verified (commit 76cd7f9): tiers + FAQ prose (es/en) interpolate PROVISIONAL_PRICE, regression-proven scan test. 2813/2813. | waitlist hardcodes prices |
 | 408 | P3 | BLOCKED | 1 | Decision question — analysis + recommendation (separate content files w/ import-rule lint) posted on the issue; awaiting owner's call. | legal-page copy into i18n |
 | 407 | P3 | DONE | 1 | Verified (commit d93aa24): ~91 waitlist.* keys, billing.*/TIER_COPY reuse (byte-compared), SKIP_FILES removed, byte-identity proof vs pre-migration git blob. 2829/2829. | waitlist copy into i18n table |
-| 406 | P3 | PENDING | 0 | Question/copy audit | hero micro-copy audit |
-| 405 | P3 | PENDING | 0 | Copy/content | testimonial venue-type context |
-| 404 | P3 | PENDING | 0 | Copy/content | trust/support bar |
-| 403 | P3 | PENDING | 0 | Copy/content | founders incentive section |
-| 402 | P3 | PENDING | 0 | Copy/content | sin vs con comparison |
+| 406 | P3 | BLOCKED | 1 | Recommendation posted 2026-08-28 (keep benefit-first pacing; test founder-empathy as an /l/ variant via #327+#326); awaiting owner's recorded decision. | hero micro-copy audit |
+| 405 | P3 | PENDING | 0 | Triaged 2026-08-28: display-only badge restyle, implementable; note #333 part 1 provenance may later adjust framing/labels. | testimonial venue-type context |
+| 404 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; only already-substantiated claims (no invented support-SLA); FAQ batch copy now the #333 evergreen wording. | trust/support bar |
+| 403 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; 3-step ladder specified by owner incl. founder-price-lock tie-in to pricingProvisional. | founders incentive section |
+| 402 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: sin/con comparison section per issue's column copy, between pain and how-it-works. | sin vs con comparison |
 | 390 | P3 | DONE | 1 | Verified (commit b8a218a): 27-entry tenant-data map w/ deletion strategy + exportKey, schema-introspection drift guard, export JSON byte-shape preserved. 2826/2826. Note: 15 never-exported tables now visible as exportKey:null (pre-existing Art.20 gap, catalogued). | shared GDPR traversal for export/delete |
 | 356 | P3 | PENDING | 0 | Depends on #354 decision | gate e-invoicing behind flag |
 | 354 | P3 | BLOCKED | 1 | Decision analysis + route checklist posted on issue (env-flag via ROUTE_POLICY, billing-off keeps subscription rows); awaiting owner ratification. #356 executes against it. | feature-flag mechanism decision |
-| 333 | P3 | IN_PROGRESS | 1 | Dispatched 2026-08-28: drop/neutralize stale "Jul 2026" date framing (now multiplied across 6 landing pages by #327); testimonial provenance is owner judgement — question to be posted on issue. | testimonial provenance + stale date |
-| 329 | P3 | PENDING | 0 | | digest share affordance |
-| 328 | P3 | PENDING | 0 | | onboarding captures only name |
+| 333 | P3 | BLOCKED | 1 | Part 2 DONE (commit 4523ed7): waitlist.faq.4.a date framing dropped es+en, propagates to all 6 landing pages, snapshot allowlist documented, 2970/2970 + gates re-run clean. Part 1 (testimonial provenance) awaits owner's real/illustrative call — question posted on issue 2026-08-28. | testimonial provenance + stale date |
+| 329 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; digest_shares tokens + public /s/[token] anonymised view + OG card; SECURITY-SENSITIVE (first tenant-data-crossing surface) — anonymisation assertions are load-bearing. After #328. | digest share affordance |
+| 328 | P3 | PENDING | 0 | Triaged 2026-08-28: implementable; defuse the stored-enum open question by using nullable text + TS option list (owner can amend cheaply); venueType prefill now wired to #326/#327 attribution. After waitlist cluster. | onboarding captures only name |
 | 327 | P3 | DONE | 1 | Verified (commit beae97a): LandingPage.svelte extraction (waitlist DOM byte-identical per live diff), i18n-key override mechanism (WaitlistKey-typed), 5 /l/ variants es+en, sitemap/robots, variant→mep_attr→signup chain live-proven. 2970/2970, all gates re-run clean; #439 byte-identity assertions untouched (path-only update). Latent footgun flagged: hooks/access-gate hand-maintained public-path lists parallel to ROUTE_POLICY. Close GitHub issue when branch merges. | landing copy hardcoded |
 | 326 | P3 | DONE | 1 | Verified (commits 094adcc+ce62989): waitlist+users attr columns + funnel_events (migration 0051, fresh-DB chain 0000→0051 proven by orchestrator), allowlist/capped parseAttribution, mep_attr cookie (first-touch, 30d), signup stamping, privacy copy updated (documented #407-snapshot allowlist). 2912/2912, all gates re-run clean. Risk: first-touch-wins semantics flagged for product. Close GitHub issue when branch merges. | no attribution capture |
 | 325 | P3 | PENDING | 0 | Tracking umbrella | relevance media flywheel |

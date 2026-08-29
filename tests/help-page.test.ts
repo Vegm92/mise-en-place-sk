@@ -117,6 +117,27 @@ describe('the page is wired into the shell', () => {
 	});
 });
 
+describe('the tip PRO chip stays neutral (ADR-026)', () => {
+	// #718 fixed the same drift in the upgrade dialog: a PRO chip labels
+	// state, not something to press, so it must use the neutral triple
+	// (--mep-hover / --mep-fg-2 / --mep-border), never --mep-acc.
+	const rule = PAGE.match(/\.help-tip-pro\s*\{([^}]*)\}/)?.[1] ?? '';
+
+	it('finds the .help-tip-pro rule', () => {
+		expect(rule).not.toBe('');
+	});
+
+	it('never spells it with --mep-acc', () => {
+		expect(rule).not.toMatch(/--mep-acc/);
+	});
+
+	it('uses the neutral background/color/border triple', () => {
+		expect(rule).toMatch(/background:\s*var\(--mep-hover\)/);
+		expect(rule).toMatch(/color:\s*var\(--mep-fg-2\)/);
+		expect(rule).toMatch(/border:\s*1px solid var\(--mep-border\)/);
+	});
+});
+
 describe('the tutorial API is linked', () => {
 	it('starts the guided tour through the tutorial store', () => {
 		expect(PAGE).toContain("from '$lib/stores/tutorial'");
