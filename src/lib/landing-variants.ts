@@ -151,7 +151,7 @@ export const LANDING_VARIANTS: Record<string, LandingVariant> = {
 };
 
 export function getLandingVariant(slug: string): LandingVariant | null {
-	return Object.prototype.hasOwnProperty.call(LANDING_VARIANTS, slug) ? LANDING_VARIANTS[slug] : null;
+	return Object.hasOwn(LANDING_VARIANTS, slug) ? LANDING_VARIANTS[slug] : null;
 }
 
 export function landingVariantSlugs(): string[] {
