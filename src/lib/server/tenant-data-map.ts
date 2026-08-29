@@ -6,7 +6,7 @@ import {
 	unitConversions, stockLevels, extractionCorrections, chatSessions, chatMessages,
 	llmUsageLog, tenantLlmQuotas, monthlyUsage, idempotencyKeys, uploadBatches, batchItems,
 	whatsappContacts, whatsappPairingCodes, subscriptions, mrrSnapshots, deadLetterQueue,
-	digestShares,
+	digestShares, recipes, recipeItems,
 } from './schema';
 
 export type TenantDeletionStrategy = 'root' | 'explicit' | 'cascade-via-restaurants';
@@ -52,6 +52,8 @@ export const tenantDataMap: readonly TenantDataMapEntry[] = [
 	{ tableName: 'mrr_snapshots', table: mrrSnapshots, scopeColumn: mrrSnapshots.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'dead_letter_queue', table: deadLetterQueue, scopeColumn: deadLetterQueue.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'digest_shares', table: digestShares, scopeColumn: digestShares.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
+	{ tableName: 'recipes', table: recipes, scopeColumn: recipes.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'recipes' },
+	{ tableName: 'recipe_items', table: recipeItems, scopeColumn: recipeItems.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'recipe_items' },
 ];
 
 export function exportableEntries(): TenantDataMapEntry[] {

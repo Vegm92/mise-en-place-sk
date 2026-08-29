@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
+  import { untrack } from 'svelte';
   import { t, tcat } from '$lib/i18n';
   import { fmt } from '$lib/formatters';
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
@@ -14,6 +15,14 @@
   const blockedSuppliers = $derived(
     (form && 'suppliers' in form ? form.suppliers : []) as BlockedSupplier[]
   );
+
+  let pickedAllergens = $state(untrack(() => new Set<string>(product.allergens ?? [])));
+  function toggleAllergen(code: string) {
+    const next = new Set(pickedAllergens);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    pickedAllergens = next;
+  }
 
   let confirmUnlinkOpen = $state(false);
   let unlinkSupplierId = $state<number | null>(null);
@@ -82,6 +91,43 @@
       <button type="submit" class="btn btn-primary self-start" style="font-size:12.5px;">
         {$t('prod.detail.save')}
       </button>
+    </form>
+  </SectionCard>
+
+  <SectionCard title={$t('prod.facts.title')} sub={$t('prod.facts.sub')}>
+    <form method="post" action="?/saveFacts" class="flex flex-col gap-3">
+      <div class="flex flex-wrap gap-1">
+        {#each data.allergens as code (code)}
+          <label class="chip" style={pickedAllergens.has(code) ? 'border-color:var(--mep-acc);color:var(--mep-acc);' : ''}>
+            <input type="checkbox" name="allergens" value={code} checked={pickedAllergens.has(code)}
+              onchange={() => toggleAllergen(code)} style="margin-right:5px;" />
+            {$t(`rec.allergen.${code}`)}
+          </label>
+        {/each}
+      </div>
+      {#if product.allergensSource}
+        <span class="body text-fg-3" style="font-size:11px;">{$t(`prod.facts.source.${product.allergensSource}`)}</span>
+      {/if}
+      <div class="flex flex-wrap gap-2 items-end">
+        <span class="label text-fg-3" style="width:100%;">{$t('rec.nut.per100')}</span>
+        <label class="flex flex-col gap-1">
+          <span class="label text-fg-3">{$t('rec.nut.kcal')}</span>
+          <input class="input" style="padding:0 8px;max-width:110px;" name="kcal100" inputmode="decimal" value={product.kcal100 ?? ''} />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="label text-fg-3">{$t('rec.nut.protein')}</span>
+          <input class="input" style="padding:0 8px;max-width:110px;" name="protein100" inputmode="decimal" value={product.protein100 ?? ''} />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="label text-fg-3">{$t('rec.nut.carbs')}</span>
+          <input class="input" style="padding:0 8px;max-width:110px;" name="carbs100" inputmode="decimal" value={product.carbs100 ?? ''} />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="label text-fg-3">{$t('rec.nut.fat')}</span>
+          <input class="input" style="padding:0 8px;max-width:110px;" name="fat100" inputmode="decimal" value={product.fat100 ?? ''} />
+        </label>
+      </div>
+      <button type="submit" class="btn btn-primary" style="font-size:13px;align-self:flex-start;">{$t('prod.facts.save')}</button>
     </form>
   </SectionCard>
 

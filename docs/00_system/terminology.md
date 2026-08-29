@@ -42,6 +42,18 @@ concept, add it here before using it in specs.
 | **Unit conversion** | A supplier-scoped conversion factor between purchase unit and canonical unit. | `unit_conversions` |
 | **Pack** | A multi-pack quantity in a line item ("3 x 1 kg"); parsed, not assumed. | `parsePack` |
 
+## Recipe costing
+
+| Term | Definition | Code / table |
+|---|---|---|
+| **Escandallo** | A recipe costing sheet: the ordered ingredients of a dish with waste, portions and menu price, costed from real purchase prices. | `recipes` |
+| **Elaboración / prep** | A sheet used as an ingredient of another sheet (a sauce, a stock). Declares a yield so its cost can be shared out. | `recipes.kind = 'elaboracion'` |
+| **Merma** | Waste percentage between the weight bought and the weight that reaches the plate. Stored per line; the net is stored and the gross derived. | `recipe_items.waste_pct` |
+| **Bruto / Neto** | Gross (bought) and net (plated) quantity of a line. `gross = net / (1 − merma)`; the line is charged on the gross. | `recipe_items.net_quantity` |
+| **Food cost** | Cost per portion as a percentage of the menu price **excluding VAT** (the taxable base), never of the shelf price. | `recipeTotals` |
+| **Ración / portion** | How many servings a sheet yields; the divisor for cost per portion. | `recipes.portions` |
+| **Yield** | What a prep produces (2 kg of sofrito), the divisor that turns its total cost into a rate. | `recipes.yield_qty` |
+
 ## Insights
 
 | Term | Definition | Code / table |

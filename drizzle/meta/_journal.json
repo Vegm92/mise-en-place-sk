@@ -393,6 +393,20 @@
       "when": 1787952284135,
       "tag": "0055_rls_tenant_isolation",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1787966673127,
+      "tag": "0056_aberrant_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1787966690130,
+      "tag": "0057_recipes_rls_tenant_isolation",
+      "breakpoints": true
     }
   ]
 }
