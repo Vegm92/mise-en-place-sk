@@ -22,6 +22,14 @@
  * immune to restyling and strictly stronger than the old substring check:
  * it proves the escaped payload is the *entire* headline, not merely present
  * somewhere inside a longer string.
+ *
+ * ADR-032 foresaw this exact collision and prescribed the durable fix: read
+ * the token "rather than restate it". PR #772 restated it — swapping #17171a
+ * for #15181f — which is green today and breaks again on the next palette
+ * change. This goes one step further than the ADR's suggestion and drops the
+ * colour coupling altogether, which also avoids exporting email.ts's private
+ * COLOR_FG purely to satisfy a test. Presentation belongs in a styling test;
+ * this file is a security guard.
  */
 import { describe, it, expect } from 'vitest';
 import { recipeSheetEmail, welcomeEmail } from '../src/lib/server/email';

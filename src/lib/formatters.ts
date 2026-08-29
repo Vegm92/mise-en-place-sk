@@ -43,7 +43,9 @@ export function fmtEurCompact(n: number, locale: Locale = 'es'): string {
 
 export function fmtEurSigned(n: number, locale: Locale = 'es'): string {
 	const rounded = Math.round(n);
-	const sign = rounded > 0 ? '+' : rounded < 0 ? '−' : '';
+	let sign = '';
+	if (rounded > 0) sign = '+';
+	else if (rounded < 0) sign = '−';
 	return sign + fmtEurCompact(Math.abs(rounded), locale);
 }
 

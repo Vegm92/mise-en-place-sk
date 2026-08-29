@@ -12,22 +12,35 @@
 
 	function fmtPct(value: number | null): string {
 		if (value === null || !Number.isFinite(value)) return '—';
-		const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+		let sign = '';
+		if (value > 0) sign = '+';
+		else if (value < 0) sign = '−';
 		return `${sign}${Math.abs(value).toFixed(1).replace('.', $locale === 'es' ? ',' : '.')} %`;
 	}
 
-	const spendTone = $derived(
-		data.spendChangePct === null ? null : data.spendChangePct > 0 ? 'up' : data.spendChangePct < 0 ? 'down' : null,
-	);
-	const spendKey = $derived(
-		data.spendChangePct === null
-			? 'pshare.spendUnknown'
-			: data.spendChangePct > 0
-				? 'pshare.spendUp'
-				: data.spendChangePct < 0
-					? 'pshare.spendDown'
-					: 'pshare.spendFlat',
-	);
+	const spendTone = $derived.by(() => {
+		if (data.spendChangePct === null) return null;
+		if (data.spendChangePct > 0) return 'up';
+		if (data.spendChangePct < 0) return 'down';
+		return null;
+	});
+	const spendKey = $derived.by(() => {
+		if (data.spendChangePct === null) return 'pshare.spendUnknown';
+		if (data.spendChangePct > 0) return 'pshare.spendUp';
+		if (data.spendChangePct < 0) return 'pshare.spendDown';
+		return 'pshare.spendFlat';
+	});
+	const spendColor = $derived.by(() => {
+		if (spendTone === 'up') return 'var(--mep-neg)';
+		if (spendTone === 'down') return 'var(--mep-pos)';
+		return 'var(--mep-fg)';
+	});
+	function moverColor(deltaPct: number | null): string {
+		const d = deltaPct ?? 0;
+		if (d > 0) return 'var(--mep-neg)';
+		if (d < 0) return 'var(--mep-pos)';
+		return 'var(--mep-fg-3)';
+	}
 </script>
 
 <svelte:head>
@@ -81,7 +94,7 @@
 			{:else}
 				<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:20px;">
 					<span class="num" style="font-size:32px;font-weight:600;letter-spacing:-0.02em;
-					             color:{spendTone === 'up' ? 'var(--mep-neg)' : spendTone === 'down' ? 'var(--mep-pos)' : 'var(--mep-fg)'};">
+					             color:{spendColor};">
 						{fmtPct(data.spendChangePct)}
 					</span>
 				</div>
@@ -100,7 +113,7 @@
 								<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
 									<span style="font-size:13px;color:var(--mep-fg);">{$tcat(mover.category)}</span>
 									<span class="num" style="font-size:13px;font-weight:600;
-									             color:{(mover.deltaPct ?? 0) > 0 ? 'var(--mep-neg)' : (mover.deltaPct ?? 0) < 0 ? 'var(--mep-pos)' : 'var(--mep-fg-3)'};">
+									             color:{moverColor(mover.deltaPct)};">
 										{fmtPct(mover.deltaPct)}
 									</span>
 								</div>

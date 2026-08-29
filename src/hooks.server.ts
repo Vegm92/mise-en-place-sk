@@ -133,32 +133,30 @@ function enforceAuth(path: string, user: App.Locals['user']) {
 	redirect(303, `/login?redirectTo=${encodeURIComponent(path)}`);
 }
 
-const appHandle: Handle = async ({ event, resolve }) => {
-	const path = event.url.pathname;
+function isBypassPath(path: string): boolean {
+	return path.startsWith('/_app/') || path === '/favicon.ico' ||
+		path === '/sw.js' || path === '/manifest.webmanifest';
+}
 
-	if (path.startsWith('/_app/') || path === '/favicon.ico' ||
-	    path === '/sw.js' || path === '/manifest.webmanifest') {
-		return resolve(event);
+async function enforceApiRateLimit(
+	event: RequestEvent,
+	path: string,
+	user: App.Locals['user']
+): Promise<Response | null> {
+	if (!(path.startsWith('/api/') && !API_RATE_LIMIT_EXEMPT.has(path) && API_GLOBAL_RATE_LIMIT > 0)) {
+		return null;
 	}
-
-	const session = await event.locals.auth();
-	const user: App.Locals['user'] = session?.user?.id
-		? {
-			id:    session.user.id,
-			email: session.user.email ?? '',
-			name:  session.user.name ?? null,
-			image: session.user.image ?? null,
-		}
-		: null;
-	event.locals.user = user;
-
-	if (path.startsWith('/api/') && !API_RATE_LIMIT_EXEMPT.has(path) && API_GLOBAL_RATE_LIMIT > 0) {
-		const subject = user ? `u:${user.id}` : `ip:${event.getClientAddress()}`;
-		if (!(await checkRateLimit(`api-global:${subject}`, API_GLOBAL_RATE_LIMIT))) {
-			return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
-		}
+	const subject = user ? `u:${user.id}` : `ip:${event.getClientAddress()}`;
+	if (!(await checkRateLimit(`api-global:${subject}`, API_GLOBAL_RATE_LIMIT))) {
+		return json({ error: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '60' } });
 	}
+	return null;
+}
 
+async function applyLocalsForUser(
+	event: RequestEvent,
+	user: App.Locals['user']
+): Promise<{ userApproved: boolean; accessOpen: boolean }> {
 	let userApproved = false;
 	let accessOpen   = false;
 
@@ -177,18 +175,32 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	event.locals.entitlements = memoizeEntitlements(event.locals.restaurantId);
 	event.locals.recipeGraphCache = null;
 
+	return { userApproved, accessOpen };
+}
+
+function applySentryContext(user: App.Locals['user'], restaurantId: string | null): void {
 	if (user) {
 		Sentry.getCurrentScope().setUser({ id: user.id });
 	}
 
-	if (event.locals.restaurantId) {
-		Sentry.getCurrentScope().setTag('restaurantId', event.locals.restaurantId);
+	if (restaurantId) {
+		Sentry.getCurrentScope().setTag('restaurantId', restaurantId);
 	}
+}
 
-	if ((path === '/admin' || path.startsWith('/admin/')) && !isAdminUser(event.locals.user)) {
+function enforceAdminRedirect(path: string, user: App.Locals['user']): void {
+	if ((path === '/admin' || path.startsWith('/admin/')) && !isAdminUser(user)) {
 		redirect(303, '/');
 	}
+}
 
+function enforceUserAccess(
+	event: RequestEvent,
+	path: string,
+	user: App.Locals['user'],
+	userApproved: boolean,
+	accessOpen: boolean
+): Response | null {
 	if (user) {
 		const decision = resolveAccess({
 			path,
@@ -199,19 +211,24 @@ const appHandle: Handle = async ({ event, resolve }) => {
 		const refused = enforceAccessDecision(decision);
 		if (refused) return refused;
 
-		const tenantResponse = enforceTenant(event.route.id, event.locals.restaurantId);
-		if (tenantResponse) return tenantResponse;
+		return enforceTenant(event.route.id, event.locals.restaurantId);
 	}
+	return null;
+}
 
-	const authResponse = enforceAuth(path, event.locals.user);
-	if (authResponse) return authResponse;
-
+async function resolveWithContext(
+	event: RequestEvent,
+	path: string,
+	resolveEvent: (event: RequestEvent) => Response | Promise<Response>
+): Promise<Response> {
 	const isAdminPath = path === '/admin' || path.startsWith('/admin/');
-	const runResolve = async () => resolve(event);
-	const response = isAdminPath || SYSTEM_CONTEXT_PATHS.has(path)
+	const runResolve = async () => resolveEvent(event);
+	return isAdminPath || SYSTEM_CONTEXT_PATHS.has(path)
 		? await runAsSystem(runResolve)
 		: await runWithTenantContext(event.locals.restaurantId, runResolve);
+}
 
+function applySecurityHeaders(path: string, response: Response, event: RequestEvent): Response {
 	const isFramedByApp = path.startsWith('/api/upload/') || /^\/invoice\/[^/]+\/file$/.test(path);
 	response.headers.set('X-Frame-Options', isFramedByApp ? 'SAMEORIGIN' : 'DENY');
 	response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -222,6 +239,44 @@ const appHandle: Handle = async ({ event, resolve }) => {
 	if (event.route.id !== null) applyPrivateCacheHeaders(response.headers);
 
 	return response;
+}
+
+const appHandle: Handle = async ({ event, resolve }) => {
+	const path = event.url.pathname;
+
+	if (isBypassPath(path)) {
+		return resolve(event);
+	}
+
+	const session = await event.locals.auth();
+	const user: App.Locals['user'] = session?.user?.id
+		? {
+			id:    session.user.id,
+			email: session.user.email ?? '',
+			name:  session.user.name ?? null,
+			image: session.user.image ?? null,
+		}
+		: null;
+	event.locals.user = user;
+
+	const rateLimited = await enforceApiRateLimit(event, path, user);
+	if (rateLimited) return rateLimited;
+
+	const { userApproved, accessOpen } = await applyLocalsForUser(event, user);
+
+	applySentryContext(user, event.locals.restaurantId);
+
+	enforceAdminRedirect(path, user);
+
+	const accessResponse = enforceUserAccess(event, path, user, userApproved, accessOpen);
+	if (accessResponse) return accessResponse;
+
+	const authResponse = enforceAuth(path, event.locals.user);
+	if (authResponse) return authResponse;
+
+	const response = await resolveWithContext(event, path, resolve);
+
+	return applySecurityHeaders(path, response, event);
 };
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), authHandle, appHandle, entitlementHandle);

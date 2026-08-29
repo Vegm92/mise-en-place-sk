@@ -6,6 +6,7 @@ import type { Cell, ReportDoc } from '$lib/reports';
 import {
 	DATA_NEUTRAL,
 	deltaCell,
+	deltaTone,
 	fmtPct,
 	fmtPlainPct,
 	generatedStamp,
@@ -128,7 +129,6 @@ export async function buildWeekly(rid: string, week: string, digest: string | nu
 
 	const weekDelta = pctDelta(current.spend, previous.spend);
 	const ticketDelta = pctDelta(avgTicket, prevAvgTicket);
-	const toneOf = (d: number | null) => (d === null || d === 0 ? null : d > 0 ? ('up' as const) : ('down' as const));
 
 	return {
 		type: 'weekly',
@@ -138,10 +138,10 @@ export async function buildWeekly(rid: string, week: string, digest: string | nu
 		periodIso: week,
 		generatedAt: generatedStamp(now),
 		kpis: [
-			{ label: 'rep.kpi.weekSpend', value: money(current.spend), note: { key: 'rep.kpi.vsPeriod', vars: { delta: fmtPct(weekDelta), period: prevWeek } }, tone: toneOf(weekDelta) },
+			{ label: 'rep.kpi.weekSpend', value: money(current.spend), note: { key: 'rep.kpi.vsPeriod', vars: { delta: fmtPct(weekDelta), period: prevWeek } }, tone: deltaTone(weekDelta) },
 			{ label: 'rep.kpi.invoices', value: String(current.invoices), note: { key: 'rep.kpi.fromSuppliers', vars: { n: current.suppliers } }, tone: null },
 			{ label: 'rep.kpi.pending', value: String(pending), note: 'rep.kpi.pendingNote', tone: pending > 0 ? 'warn' : null },
-			{ label: 'rep.kpi.avgTicket', value: money(avgTicket), note: { key: 'rep.kpi.vsPeriod', vars: { delta: fmtPct(ticketDelta), period: prevWeek } }, tone: toneOf(ticketDelta) },
+			{ label: 'rep.kpi.avgTicket', value: money(avgTicket), note: { key: 'rep.kpi.vsPeriod', vars: { delta: fmtPct(ticketDelta), period: prevWeek } }, tone: deltaTone(ticketDelta) },
 		],
 		summary: digest,
 		chartTitle: 'rep.chart.spendByDay',

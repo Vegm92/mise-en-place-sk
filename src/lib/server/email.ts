@@ -52,7 +52,7 @@ function escapeHtml(value: string): string {
 }
 
 function sanitizeForHeader(value: string): string {
-	return value.replace(/[\r\n\x00-\x1f\x7f]+/g, ' ').trim();
+	return value.replace(/[\x00-\x1f\x7f]+/g, ' ').trim();
 }
 
 function p(html: string): string {
@@ -201,7 +201,10 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
 function dataTable(header: string[], rows: string[][], numericFrom = 1): string {
 	const th = header.map((cell, i) => `<th style="text-align:${i >= numericFrom ? 'right' : 'left'};font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:${COLOR_FG3};padding:0 8px 6px;border-bottom:1px solid ${COLOR_BORDER};">${escapeHtml(cell)}</th>`).join('');
 	const tr = rows.map((row) => {
-		const tds = row.map((cell, i) => `<td style="text-align:${i >= numericFrom ? 'right' : 'left'};font-size:12.5px;color:${i === 0 ? COLOR_FG : COLOR_FG2};padding:7px 8px;border-bottom:1px solid ${COLOR_DIVIDER};${i >= numericFrom ? `font-family:${MONO_STACK};` : ''}">${escapeHtml(cell)}</td>`).join('');
+		const tds = row.map((cell, i) => {
+			const fontStyle = i >= numericFrom ? `font-family:${MONO_STACK};` : '';
+			return `<td style="text-align:${i >= numericFrom ? 'right' : 'left'};font-size:12.5px;color:${i === 0 ? COLOR_FG : COLOR_FG2};padding:7px 8px;border-bottom:1px solid ${COLOR_DIVIDER};${fontStyle}">${escapeHtml(cell)}</td>`;
+		}).join('');
 		return `<tr>${tds}</tr>`;
 	}).join('');
 	return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:14px 0 4px;"><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table>`;
