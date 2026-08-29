@@ -35,6 +35,11 @@ function isUniqueViolation(err: unknown): boolean {
 	return pgErrorCode(err) === '23505';
 }
 
+function parseItemId(raw: FormDataEntryValue | null): number | null {
+	const n = Number(raw);
+	return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const rid = locals.restaurantId!;
 	const id = Number(params.id);
@@ -295,20 +300,22 @@ export const actions: Actions = {
 		const tdb = forTenant(rid);
 
 		const data = await request.formData();
-		const itemId = Number(data.get('itemId'));
-		if (!Number.isInteger(itemId)) return fail(422, { error: 'rec.err.lineName' });
+		const itemId = parseItemId(data.get('itemId'));
+		if (itemId === null) return fail(422, { error: 'rec.err.lineId' });
 
 		const fields = readItemFields(data);
 		if ('error' in fields) return fail(422, { error: fields.error });
 		const linkError = await linkTargetError(rid, id, fields);
 		if (linkError) return fail(422, { error: linkError });
 
-		await db.update(recipeItems).set(fields).where(
+		const updated = await db.update(recipeItems).set(fields).where(
 			tdb.scope(recipeItems.restaurantId, and(
 				eq(recipeItems.id, itemId),
 				eq(recipeItems.recipeId, id)
 			))
-		);
+		).returning({ id: recipeItems.id });
+		if (updated.length === 0) return fail(404, { error: 'rec.err.lineNotFound' });
+
 		return { ok: 'rec.ok.saved' };
 	},
 
@@ -317,15 +324,18 @@ export const actions: Actions = {
 		const id = Number(params.id);
 		await requireRecipe(rid, id);
 		const tdb = forTenant(rid);
-		const itemId = Number((await request.formData()).get('itemId'));
-		if (!Number.isInteger(itemId)) return fail(422, { error: 'rec.err.lineName' });
+		const data = await request.formData();
+		const itemId = parseItemId(data.get('itemId'));
+		if (itemId === null) return fail(422, { error: 'rec.err.lineId' });
 
-		await db.delete(recipeItems).where(
+		const deleted = await db.delete(recipeItems).where(
 			tdb.scope(recipeItems.restaurantId, and(
 				eq(recipeItems.id, itemId),
 				eq(recipeItems.recipeId, id)
 			))
-		);
+		).returning({ id: recipeItems.id });
+		if (deleted.length === 0) return fail(404, { error: 'rec.err.lineNotFound' });
+
 		return { ok: 'rec.ok.lineDeleted' };
 	},
 
