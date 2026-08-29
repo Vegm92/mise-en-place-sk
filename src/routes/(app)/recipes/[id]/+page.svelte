@@ -241,7 +241,9 @@
               {#each items as line (line.id)}
                 <RecipeLineRow {line} cost={costByItem.get(line.id) ?? null} {units} {catalog} {linkableRecipes} />
               {/each}
-              <RecipeLineRow {units} {catalog} {linkableRecipes} />
+              {#key items.length}
+                <RecipeLineRow {units} {catalog} {linkableRecipes} />
+              {/key}
             </tbody>
             {#if cost && items.length > 0}
               <tfoot>
