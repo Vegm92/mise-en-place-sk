@@ -51,7 +51,7 @@ vi.mock('../src/lib/server/db', () => {
 			};
 		},
 	};
-	return { db };
+	return { db, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
 });
 
 vi.mock('bcryptjs', () => ({ default: { hash: vi.fn().mockResolvedValue('hashed-password') } }));

@@ -1,7 +1,7 @@
 import type { JobResult, JobWithMetadata, PgBoss } from 'pg-boss';
 import { asc, eq, gt, sql } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
-import { db } from './db';
+import { db, runAsSystem, runWithTenantContext } from './db';
 import { appFlags, restaurants, subscriptions } from './schema';
 import type { PlanTier } from './billing';
 import { SCHEDULED_FANOUT_CONCURRENCY } from './env';
@@ -67,7 +67,7 @@ export async function tenantPage(
 	afterId: string | null,
 	pageSize: number = TENANT_PAGE_SIZE,
 ): Promise<TenantSummary[]> {
-	const rows = await db.select({
+	const rows = await runAsSystem(() => db.select({
 		id: restaurants.id,
 		name: restaurants.name,
 		planTier: subscriptions.planTier,
@@ -78,7 +78,7 @@ export async function tenantPage(
 		.leftJoin(subscriptions, eq(restaurants.id, subscriptions.restaurantId))
 		.where(afterId ? gt(restaurants.id, afterId) : undefined)
 		.orderBy(asc(restaurants.id))
-		.limit(pageSize);
+		.limit(pageSize));
 
 	return rows.map(r => ({
 		id: r.id,
@@ -217,7 +217,7 @@ async function settleTenantJob<D extends TenantJobData>(
 	job: JobWithMetadata<D>,
 ): Promise<JobResult<{ sent: boolean } | { error: string }>> {
 	try {
-		const sent = await handler.run(job.data);
+		const sent = await runWithTenantContext(job.data.restaurantId, () => handler.run(job.data));
 		return { id: job.id, status: 'completed', output: { sent } };
 	} catch (err) {
 		console.error(`[scheduler] ${handler.label} failed for ${job.data?.restaurantId ?? 'a tenant'}:`, err);

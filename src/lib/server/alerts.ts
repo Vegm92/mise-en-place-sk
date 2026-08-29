@@ -1,7 +1,7 @@
 import type { PgBoss } from 'pg-boss';
 import { and, eq, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
-import { db, forTenant } from './db';
+import { db, forTenant, runAsSystem } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
 import { users } from './schema';
 import { renderTemplate } from '$lib/i18n-messages';
@@ -931,7 +931,7 @@ export async function registerScheduledJobs(boss: PgBoss): Promise<void> {
 		await boss.work(job.queue, { batchSize: 1 }, async () => {
 			const started = Date.now();
 			try {
-				const result = await job.run(boss);
+				const result = await runAsSystem(() => job.run(boss));
 				console.info(`[scheduler] ${job.queue} finished in ${Date.now() - started}ms`, result);
 			} catch (err) {
 				console.error(`[scheduler] ${job.queue} failed after ${Date.now() - started}ms — dead-lettered:`, err);

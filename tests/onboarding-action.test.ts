@@ -24,7 +24,7 @@ const { sendEmailMock, welcomeEmailMock } = vi.hoisted(() => ({
 
 vi.mock('../src/lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');
-	return { db: testDb };
+	return { db: testDb, runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
 });
 vi.mock('$lib/server/email', () => ({
 	sendEmail: sendEmailMock,

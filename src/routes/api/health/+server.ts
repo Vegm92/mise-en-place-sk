@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/server/db';
+import { db, runAsSystem } from '$lib/server/db';
 import { sql, gt, and, inArray } from 'drizzle-orm';
 import { batchItems } from '$lib/server/schema';
 import { STORAGE_DRIVER, UPLOADS_DIR, HEALTH_CHECK_TOKEN, HEALTH_RATE_LIMIT_RPM } from '$lib/server/env';
@@ -63,15 +63,17 @@ async function computeHealthDetail() {
 	let activeCount = 0;
 	try {
 		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-		// tenant-scope-ok: system-wide queue-depth probe for /api/health, deliberately cross-tenant
-		const rows = await db
-			.select({ cnt: sql<number>`COUNT(*)` })
-			.from(batchItems)
-			.where(and(
-				inArray(batchItems.status, ['queued', 'extracting']),
-				gt(batchItems.updatedAt, cutoff),
-			));
-		activeCount = Number(rows[0]?.cnt ?? 0);
+		activeCount = await runAsSystem(async () => {
+			// tenant-scope-ok: system-wide queue-depth probe for /api/health, deliberately cross-tenant
+			const rows = await db
+				.select({ cnt: sql<number>`COUNT(*)` })
+				.from(batchItems)
+				.where(and(
+					inArray(batchItems.status, ['queued', 'extracting']),
+					gt(batchItems.updatedAt, cutoff),
+				));
+			return Number(rows[0]?.cnt ?? 0);
+		});
 	} catch { }
 
 	let uploadsDir: { writable: boolean; free_mb: number } | null = null;

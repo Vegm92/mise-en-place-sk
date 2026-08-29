@@ -40,7 +40,7 @@ first, bilingual (es/en). WhatsApp is a second ingestion channel; XML e-invoices
 | `docs/03_features/*` | One specification per feature (rules, transitions, dependencies, validation) | Feature work — the contract for a feature |
 | `docs/04_engineering/*` | Coding conventions, testing, security, DB/API change procedures, dependency policy, deployment | Engineering procedure |
 | `docs/05_operations/*` | Background jobs, monitoring, incident response, troubleshooting | Ops concerns |
-| `docs/06_decisions/README.md` + `docs/06_decisions/**/ADR-*.md` | Architecture Decision Records (why the code is shaped this way) | Changing an established decision; next number is 030 |
+| `docs/06_decisions/README.md` + `docs/06_decisions/**/ADR-*.md` | Architecture Decision Records (why the code is shaped this way) | Changing an established decision; next number is 031 |
 | Per-subsystem `## Code notes` sections (`docs/03_features/` + `docs/04_engineering/`) | Line-by-line "how the code works" notes for most files | Reading any specific file |
 | `DEPLOYMENT.md` | Environment variables + deployment runbook | Deploy / env questions |
 | `README.md` | Product overview + getting started | First contact |
@@ -98,7 +98,12 @@ Non-negotiable, verified against the implementation:
 
 - **Tenancy**: every restaurant-owned query/mutation is scoped by
   `locals.restaurantId` via `forTenant().scope()`. Never trust client state for
-  authorization. RLS is retired (ADR-005); app-layer scoping is the ONLY boundary.
+  authorization. This is the primary, always-active boundary (ADR-001).
+  ADR-030 (#222) adds a database-enforced backstop — Postgres RLS policies
+  keyed on a session GUC (`src/lib/server/tenant-context.ts`) — but it only
+  restricts the scoped `mep_runtime` role from #464, not the owner role every
+  environment still connects as; app-layer scoping remains the boundary that
+  actually holds today.
 - **Invoice persistence**: one canonical write path (`src/lib/server/invoice-save.ts`,
   ADR-008). Do not add a second invoice-creation path.
 - **Idempotency**: retries must not create duplicate invoices (`contentHash` +

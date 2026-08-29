@@ -27,6 +27,8 @@ const { dbExecuteMock, dbSelectMock, rateLimitMock, isAdminUserMock } = vi.hoist
 
 vi.mock('$lib/server/db', () => ({
 	db: { execute: dbExecuteMock, select: dbSelectMock },
+	runAsSystem: (fn: () => unknown) => fn(),
+	runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
 }));
 vi.mock('$lib/server/rate-limiter', () => ({
 	checkRateLimit: rateLimitMock,

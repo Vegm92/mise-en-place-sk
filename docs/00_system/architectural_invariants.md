@@ -13,10 +13,24 @@ plan and explicit human approval — it is never a silent convenience.
 - Every restaurant-owned query and mutation must filter by
   `locals.restaurantId` through `forTenant().scope()` — never a bare
   `eq(table.restaurantId, ...)`.
-- RLS is retired (ADR-005); app-layer scoping is the ONLY boundary. A single
-  unscoped query is a cross-tenant data leak.
+- App-layer scoping is the PRIMARY, always-active boundary (ADR-001; RLS was
+  retired for this role in ADR-005). A single unscoped query is a cross-tenant
+  data leak — do not rely on the database backstop below to catch it; the
+  owner role every environment still connects as bypasses it entirely.
+- ADR-030 (#222) added a database-enforced backstop: Postgres RLS policies on
+  every table in `src/lib/server/tenant-data-map.ts`, keyed on the
+  `app.restaurant_id` / `app.admin` session GUCs set per request/job by
+  `src/lib/server/tenant-context.ts` (`runWithTenantContext` /
+  `runAsSystem`). It restricts only the scoped `mep_runtime` role from #464 —
+  ENABLE, not FORCE, so the owner role is unaffected — and only takes effect
+  in production once #464's pending cutover moves `DATABASE_URL` off the
+  owner role (see DEPLOYMENT.md's "Runtime vs. migration database roles").
+  A new cross-tenant system/admin read must go through `runAsSystem()`
+  (or, inside an existing `db.transaction()`, `SET LOCAL app.admin = 'true'`
+  as its first statement) — never widen a policy to a blanket fallback.
 - Enforcement: `pnpm lint:tenant-scope`, `pnpm lint:unscoped-query`,
-  `tests/tenant-isolation.test.ts`, `tests/tenant-isolation-routes.test.ts`.
+  `tests/tenant-isolation.test.ts`, `tests/tenant-isolation-routes.test.ts`,
+  `tests/rls-runtime-role.test.ts` (the database-level backstop, DB-gated).
 
 ## AUTHORIZATION — never trust client state
 

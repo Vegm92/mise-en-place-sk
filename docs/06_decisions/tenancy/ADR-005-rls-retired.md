@@ -1,6 +1,6 @@
 # ADR-005 — Railway Postgres: RLS Retired, App-Layer Scoping Is The Boundary
 
-**Status:** Active  
+**Status:** Active — amended by [ADR-030](./ADR-030-rls-runtime-role.md)  
 **Feature:** Tenancy  
 **Date:** 2026-08-03  
 **Issues:** [#366](https://github.com/Vegm92/mise-en-place-sk/issues/366), [#368](https://github.com/Vegm92/mise-en-place-sk/issues/368), [#376](https://github.com/Vegm92/mise-en-place-sk/issues/376), [#377](https://github.com/Vegm92/mise-en-place-sk/issues/377)
@@ -56,6 +56,12 @@ carry policies referencing an `auth.uid()` that is not there.
 - Database-enforced isolation remains open via #222, on a provider-neutral route: a non-owner role,
   `FORCE ROW LEVEL SECURITY`, and policies written against `SET LOCAL app.restaurant_id`. This ADR
   does not close that door — it removes the artifact that made it look already half-open.
+  **Update (2026-08-28):** [ADR-030](./ADR-030-rls-runtime-role.md) took up this door — policies are
+  live (`drizzle/0055_rls_tenant_isolation.sql`) against the `mep_runtime` role from #464, keyed on a
+  session GUC set per request/job rather than `SET LOCAL`, and using ENABLE rather than FORCE (with
+  the reasoning recorded there). `forTenant().scope()` stays the primary, always-active boundary;
+  RLS is the backstop, and inert until #464's production cutover flips `DATABASE_URL` off the owner
+  role.
 
 ## Verification
 

@@ -59,7 +59,7 @@ vi.mock('$lib/server/db', () => {
 		execute: async () => [],
 		transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn(db),
 	};
-	return { db, forTenant: (rid: string) => ({ rid, scope: () => ({}) }) };
+	return { db, forTenant: (rid: string) => ({ rid, scope: () => ({}) }), runAsSystem: (fn: () => unknown) => fn(), runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn() };
 });
 vi.mock('$lib/server/locations', () => ({
 	memberLocations: vi.fn(async () => state.memberships.map(m => ({

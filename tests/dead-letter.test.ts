@@ -49,7 +49,12 @@ vi.mock('$lib/server/db', () => {
 		insert: () => ({ values: insertValues }),
 		update: () => ({ set: updateSet }),
 	};
-	return { db, forTenant: (rid: string) => ({ rid, scope: () => undefined }) };
+	return {
+		db,
+		forTenant: (rid: string) => ({ rid, scope: () => undefined }),
+		runAsSystem: (fn: () => unknown) => fn(),
+		runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
+	};
 });
 
 import {
