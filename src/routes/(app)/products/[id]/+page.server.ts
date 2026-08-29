@@ -90,10 +90,11 @@ export const actions: Actions = {
 		const carbs100 = macro('carbs100');
 		const fat100 = macro('fat100');
 		const hasNutrition = [kcal100, protein100, carbs100, fat100].some((v) => v !== null);
+		const allergens = toAllergenList(data.getAll('allergens').map(String));
 
 		await db.update(products).set({
-			allergens: toAllergenList(data.getAll('allergens').map(String)),
-			allergensSource: 'manual',
+			allergens,
+			allergensSource: allergens.length > 0 ? 'manual' : null,
 			kcal100,
 			protein100,
 			carbs100,
