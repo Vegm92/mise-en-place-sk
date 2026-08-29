@@ -1,16 +1,47 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { ActionData, PageData } from './$types';
   import { page } from '$app/stores';
+  import { enhance } from '$app/forms';
   import { t, ti, tiv, tcat } from '$lib/i18n';
   import { REPORT_STYLES, cellKind, cellText, cellTone, type Cell, type Label } from '$lib/reports';
   import ArrowLeft from '@lucide/svelte/icons/arrow-left';
   import Printer from '@lucide/svelte/icons/printer';
   import Download from '@lucide/svelte/icons/download';
+  import Share from '@lucide/svelte/icons/share';
+  import Copy from '@lucide/svelte/icons/copy';
+  import X from '@lucide/svelte/icons/x';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
 
-  let { data }: { data: PageData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
   const doc = $derived(data.doc);
+
+  let shareSubmitting = $state(false);
+  let shareCopied = $state(false);
+
+  const shareToken = $derived(form?.shareToken ?? (form?.shareRevoked ? null : data.shareToken));
+  const shareError = $derived(form?.shareError ?? null);
+  const shareUrl = $derived(shareToken ? `${$page.url.origin}/s/${shareToken}` : null);
+
+  function shareResult() {
+    shareSubmitting = true;
+    return async ({ update }: { update: () => Promise<void> }) => {
+      shareSubmitting = false;
+      shareCopied = false;
+      await update();
+    };
+  }
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      shareCopied = true;
+      setTimeout(() => { shareCopied = false; }, 2000);
+    } catch {
+      shareCopied = false;
+    }
+  }
 
   function label(value: Label): string {
     return typeof value === 'string' ? $t(value) : $tiv(value.key, value.vars);
@@ -75,7 +106,41 @@
       <Download size={14} />
       {$t('rep.downloadCsv')}
     </a>
+    {#if data.shareWeek && !shareToken}
+      <form method="post" action="?/share" use:enhance={shareResult} style="display:contents;">
+        <button type="submit" class="rep-action" disabled={shareSubmitting}>
+          <Share size={14} />
+          {$t('dshare.button')}
+        </button>
+      </form>
+    {/if}
   </div>
+
+  {#if data.shareWeek && shareToken}
+    <div class="report-toolbar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      <input
+        readonly
+        value={shareUrl}
+        aria-label={$t('dshare.linkLabel')}
+        class="input"
+        style="flex:1;min-width:200px;"
+        onclick={(e) => (e.currentTarget as HTMLInputElement).select()}
+      />
+      <button type="button" class="rep-action" onclick={copyShareLink}>
+        <Copy size={14} />
+        {shareCopied ? $t('dshare.copied') : $t('dshare.copy')}
+      </button>
+      <form method="post" action="?/revokeShare" use:enhance={shareResult} style="display:contents;">
+        <button type="submit" class="rep-action" disabled={shareSubmitting}>
+          <X size={14} />
+          {$t('dshare.revoke')}
+        </button>
+      </form>
+    </div>
+  {/if}
+  {#if shareError}
+    <p style="font-size:11px;color:var(--mep-neg);margin:0;">{$t('dshare.error')}</p>
+  {/if}
 
   <div class="report-toolbar" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;">
     <div style="display:flex;gap:6px;align-items:center;">

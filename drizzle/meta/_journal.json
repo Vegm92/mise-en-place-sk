@@ -372,6 +372,20 @@
       "when": 1787947991546,
       "tag": "0052_onboarding_segmentation",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1787950034489,
+      "tag": "0053_digest_shares",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1787952274135,
+      "tag": "0054_digest_shares_one_active_per_week",
+      "breakpoints": true
     }
   ]
 }

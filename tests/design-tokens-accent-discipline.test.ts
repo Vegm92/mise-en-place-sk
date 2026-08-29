@@ -175,9 +175,15 @@ describe('accent discipline — blue acts, warm warns', () => {
 		);
 		expect(ramp.size).toBeGreaterThan(0);
 
-		// email.ts is the one sanctioned copy — email clients do not resolve
-		// custom properties — and the test above pins it to the light tokens.
-		const SANCTIONED = new Set(['src/lib/server/email.ts']);
+		// email.ts and the og.png share card are the sanctioned copies — email
+		// clients and a server-rendered SVG image do not resolve custom
+		// properties either. og.png hand-copies the light --mep-neg/--mep-pos
+		// values (issue #329): a shared card has no viewer to theme for, so it
+		// renders one fixed light look, same reasoning as email.ts's copy.
+		const SANCTIONED = new Set([
+			'src/lib/server/email.ts',
+			'src/routes/s/[token]/og.png/+server.ts',
+		]);
 
 		const offenders: string[] = [];
 		for (const { rel, text } of sources) {

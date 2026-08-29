@@ -102,14 +102,23 @@ describe('MEP design tokens', () => {
 		// The load functions run on the server, which cannot know the theme: it
 		// lives in localStorage and is stamped onto documentElement by
 		// static/theme-init.js. Anything they colour is stuck on one ramp.
+		// og.png (issue #329) is a server-rendered SVG share card, not a themed
+		// page — there is no viewer session to read a theme from, and no CSS
+		// custom properties resolve inside a standalone SVG document either.
+		// It hand-copies the light --mep-neg/--mep-pos values, same carve-out
+		// as email.ts (see design-tokens-accent-discipline.test.ts).
+		const SANCTIONED = new Set(['src/routes/s/[token]/og.png/+server.ts']);
+
 		const offenders: string[] = [];
 		for (const file of walk(SRC)) {
 			if (!/\+(page|layout)\.server\.ts$|\+server\.ts$/.test(file)) continue;
+			const rel = path.relative(ROOT, file).split(path.sep).join('/');
+			if (SANCTIONED.has(rel)) continue;
 			const src = readFileSync(file, 'utf8');
 			// `color: { argb }` is an ExcelJS cell style in the .xlsx export —
 			// a generated file, with no theme to follow. Only CSS-shaped values count.
 			if (/\bcolors?\s*:(?!\s*\{)/.test(src) || /#[0-9a-fA-F]{6}\b/.test(src)) {
-				offenders.push(path.relative(ROOT, file));
+				offenders.push(rel);
 			}
 		}
 		expect(offenders).toEqual([]);

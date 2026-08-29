@@ -14,6 +14,11 @@ describe('isPendingAllowedPath', () => {
 		expect(isPendingAllowedPath('/waitlist')).toBe(true);
 	});
 
+	it('allows the public digest/alert share view (issue #329)', () => {
+		expect(isPendingAllowedPath('/s/abc123')).toBe(true);
+		expect(isPendingAllowedPath('/s/abc123/og.png')).toBe(true);
+	});
+
 	it('rejects the app itself', () => {
 		expect(isPendingAllowedPath('/')).toBe(false);
 		expect(isPendingAllowedPath('/dashboard')).toBe(false);
