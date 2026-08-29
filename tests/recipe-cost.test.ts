@@ -254,6 +254,19 @@ describe('computeRecipeCosts — sub-recipes', () => {
 		expect(cost.allergens.sort()).toEqual(['gluten', 'lacteos']);
 	});
 
+	it('reports allergens in canonical EU order, not Set insertion order (issue #737)', () => {
+		const salsa = node(
+			{ id: 2, kind: 'elaboracion', yieldQty: '1.0000', yieldUnit: 'kg' },
+			[{ name: 'nata', netQuantity: '1.0000', unit: 'kg', unitCost: '2.0000', allergens: ['lacteos'] }]
+		);
+		const plato = node({ id: 1 }, [
+			{ kind: 'recipe', name: 'salsa', childRecipeId: 2, netQuantity: '0.1000', unit: 'kg' },
+			{ name: 'pan', netQuantity: '0.1000', unit: 'kg', unitCost: '2.0000', allergens: ['gluten'] },
+		]);
+		const cost = computeRecipeCosts(graphOf(plato, salsa), new Map()).get(1)!;
+		expect(cost.allergens).toEqual(['gluten', 'lacteos']);
+	});
+
 	it('flags a missing child instead of crashing', () => {
 		const plato = node({ id: 1 }, [
 			{ kind: 'recipe', name: 'fantasma', childRecipeId: 99, netQuantity: '1.0000', unit: 'kg' },
