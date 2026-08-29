@@ -81,11 +81,13 @@ const CSV_SEP = ';';
 const CSV_EOL = '\r\n';
 const CSV_BOM = '﻿';
 
+function numericCsvText(value: number): string {
+	return Number.isFinite(value) ? value.toFixed(2).replace('.', ',') : '';
+}
+
 function csvField(value: string | number | null | undefined): string {
 	if (value === null || value === undefined) return '';
-	const text = typeof value === 'number'
-		? (Number.isFinite(value) ? value.toFixed(2).replace('.', ',') : '')
-		: value;
+	const text = typeof value === 'number' ? numericCsvText(value) : value;
 	if (/["\r\n;]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
 	return text;
 }

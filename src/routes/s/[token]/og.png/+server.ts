@@ -25,7 +25,9 @@ function escapeXml(value: string): string {
 
 function fmtPct(value: number | null): string {
 	if (value === null || !Number.isFinite(value)) return '—';
-	const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+	let sign = '';
+	if (value > 0) sign = '+';
+	else if (value < 0) sign = '−';
 	return `${sign}${Math.abs(value).toFixed(1).replace('.', ',')} %`;
 }
 
