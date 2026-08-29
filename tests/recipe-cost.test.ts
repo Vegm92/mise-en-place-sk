@@ -295,6 +295,54 @@ describe('cycles', () => {
 	});
 });
 
+describe('computeRecipeCosts — depth (issue #727)', () => {
+	function chainLink(id: number, childId: number | null): RecipeNode {
+		const items: ItemInput[] = [
+			{ name: `own-${id}`, netQuantity: '1.0000', unit: 'kg', unitCost: '1.0000' },
+		];
+		if (childId !== null) {
+			items.push({
+				kind: 'recipe', name: `link-${childId}`, childRecipeId: childId,
+				netQuantity: '1.0000', unit: 'kg',
+			});
+		}
+		return node({ id, kind: 'elaboracion', yieldQty: '1.0000', yieldUnit: 'kg' }, items);
+	}
+
+	function chainGraph(ids: number[]): Map<number, RecipeNode> {
+		const nodes = ids.map((id, i) => chainLink(id, i < ids.length - 1 ? ids[i + 1] : null));
+		return graphOf(...nodes);
+	}
+
+	it('costs a twelve-link chain of 100-cent recipes completely, with no depth cutoff', () => {
+		const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+		const costs = computeRecipeCosts(chainGraph(ids), new Map());
+		const root = costs.get(1)!;
+		expect(root.totalCostCents).toBe(1200);
+		expect(root.warnings).toEqual(['nutrition-partial']);
+	});
+
+	it('never reports missing-price on a chain where every line is priced', () => {
+		const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+		const costs = computeRecipeCosts(chainGraph(ids), new Map());
+		let missingPriceTotal = 0;
+		for (const cost of costs.values()) {
+			missingPriceTotal += cost.missingPriceCount;
+			expect(cost.warnings).not.toContain('no-price');
+		}
+		expect(missingPriceTotal).toBe(0);
+	});
+
+	it('costs a sub-recipe the same standalone as when reached deep inside a long chain', () => {
+		const ids = Array.from({ length: 12 }, (_, i) => i + 1);
+		const inContext = computeRecipeCosts(chainGraph(ids), new Map()).get(9)!;
+		const standalone = computeRecipeCosts(chainGraph([9, 10, 11, 12]), new Map()).get(9)!;
+		expect(inContext.totalCostCents).toBe(400);
+		expect(standalone.totalCostCents).toBe(400);
+		expect(inContext.totalCostCents).toBe(standalone.totalCostCents);
+	});
+});
+
 describe('allergens and nutrition', () => {
 	it('keeps only the fourteen EU codes, deduplicated and in canonical order', () => {
 		expect(toAllergenList(['moluscos', 'gluten', 'gluten', 'unicornio'])).toEqual(['gluten', 'moluscos']);
