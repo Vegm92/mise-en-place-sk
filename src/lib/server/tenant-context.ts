@@ -31,6 +31,18 @@ async function withReservedContext<T>(
 ): Promise<T> {
 	const reserved = await getClient().reserve();
 	(reserved as unknown as { options?: unknown }).options ??= (getClient() as unknown as { options: unknown }).options;
+	type BeginFn = (fn: (sql: ReservedSql) => Promise<unknown>) => Promise<unknown>;
+	(reserved as unknown as { begin?: BeginFn }).begin ??= async (fn) => {
+		await reserved`BEGIN`;
+		try {
+			const result = await fn(reserved);
+			await reserved`COMMIT`;
+			return result;
+		} catch (err) {
+			await reserved`ROLLBACK`;
+			throw err;
+		}
+	};
 	try {
 		if (mode === 'tenant') {
 			await reserved`SELECT set_config('app.restaurant_id', ${restaurantId}, false), set_config('app.admin', '', false)`;
