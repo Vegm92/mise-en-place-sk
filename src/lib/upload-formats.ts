@@ -8,7 +8,7 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export const MIN_UPLOAD_BYTES = 1024;
 
-export const MAX_UPLOAD_TOTAL_BYTES = 60 * 1024 * 1024;
+export const MAX_UPLOAD_TOTAL_BYTES = 100 * 1024 * 1024;
 
 export function isSupportedUploadExtension(ext: string): ext is SupportedUploadExtension {
 	return (SUPPORTED_UPLOAD_EXTENSIONS as readonly string[]).includes(ext.toLowerCase());

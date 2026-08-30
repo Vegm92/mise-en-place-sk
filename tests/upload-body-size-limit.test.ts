@@ -119,9 +119,9 @@ describe('form-action failures reach the user', () => {
 
 	it('interpolates the limit into the message the failure carries', () => {
 		locale.set('es');
-		expect(get(ti)('upload.err.totalTooLarge', { mb: 60 })).toContain('60 MB');
+		expect(get(ti)('upload.err.totalTooLarge', { mb: 100 })).toContain('100 MB');
 		locale.set('en');
-		expect(get(ti)('upload.err.totalTooLarge', { mb: 60 })).toContain('60 MB');
+		expect(get(ti)('upload.err.totalTooLarge', { mb: 100 })).toContain('100 MB');
 	});
 
 	it('a plain JSON.parse of that same response yields no error — the original bug', () => {
