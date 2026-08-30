@@ -136,6 +136,11 @@ beforeAll(async () => {
 
 	foreignId = await makeRestaurant('foreign');
 	await membership(ownerId, foreignId, 'owner');
+
+	await testSql`
+		INSERT INTO app_flags (key, value) VALUES ('beta_feature_multiLocation', 'true')
+		ON CONFLICT (key) DO UPDATE SET value = 'true'
+	`;
 });
 
 afterAll(async () => {
@@ -144,6 +149,7 @@ afterAll(async () => {
 	await cleanupTestRestaurant(foreignId);
 	if (ownerId) await testSql`DELETE FROM users WHERE id = ${ownerId}`;
 	if (memberId) await testSql`DELETE FROM users WHERE id = ${memberId}`;
+	await testSql`DELETE FROM app_flags WHERE key = 'beta_feature_multiLocation'`;
 	await closeDb();
 });
 
