@@ -14,7 +14,6 @@ import { entitlementHandle } from '$lib/server/entitlements';
 import { memoizeEntitlements } from '$lib/server/billing';
 import { memberLocations, type MemberLocation } from '$lib/server/locations';
 import { eq } from 'drizzle-orm';
-import { isHttpError } from '@sveltejs/kit';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
 import { withTimeout } from '$lib/server/with-timeout';
 import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
@@ -47,8 +46,8 @@ Sentry.init({
 	},
 });
 
-export const handleError = Sentry.handleErrorWithSentry(({ error }: { error: unknown }) => {
-	if (isHttpError(error) && error.status < 500) return;
+export const handleError = Sentry.handleErrorWithSentry(({ error, status }: { error: unknown; status: number }) => {
+	if (status < 500) return;
 	console.error('[server error]', error);
 });
 
