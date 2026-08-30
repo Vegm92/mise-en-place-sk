@@ -3,11 +3,12 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { moneyToNumber } from '$lib/server/money';
+import { periodRange } from '$lib/server/period-range';
 
-export const load: PageServerLoad = async ({ locals, parent }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	return handleLoad('analytics/spend', async () => {
-		const { rangeFrom, rangeTo } = await parent();
+		const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
 		const monthFrom = rangeFrom.slice(0, 7);
 		const monthTo   = rangeTo.slice(0, 7);
 
@@ -40,7 +41,7 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 					SUM(c.invoice_count)  AS invoice_count
 				FROM mv_category_monthly_spend c
 				WHERE c.restaurant_id = ${rid}
-				  AND m.month >= ${monthFrom} AND m.month <= ${monthTo}
+				  AND c.month >= ${monthFrom} AND c.month <= ${monthTo}
 				GROUP BY c.category
 				ORDER BY total DESC
 			`),

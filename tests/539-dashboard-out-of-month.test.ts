@@ -25,11 +25,15 @@ type LoadResult = {
 	invoices_outside_month: number;
 };
 
-async function loadDashboard(rid: string, qs = ''): Promise<LoadResult> {
+async function loadDashboard(rid: string, qs = '', parentRange?: { rangeFrom: string; rangeTo: string }): Promise<LoadResult> {
 	const { load } = await import('../src/routes/(app)/dashboard/+page.server');
+	const parent = parentRange
+		? async () => ({ ...parentRange, activePeriod: '1m' })
+		: undefined;
 	return (await load({
 		url: new URL(`http://localhost/dashboard${qs ? `?${qs}` : ''}`),
 		locals: { restaurantId: rid },
+		...(parent ? { parent } : {}),
 	} as never)) as unknown as LoadResult;
 }
 
@@ -78,7 +82,7 @@ describeDb('/dashboard load() — no data vs none this month (issue #539)', () =
 	});
 
 	it('navigating to the month the invoices are actually in clears the flag and shows the spend', async () => {
-		const res = await loadDashboard(ridOtherMonth, `month=${pastMonth}`);
+		const res = await loadDashboard(ridOtherMonth, '', { rangeFrom: `${pastMonth}-01`, rangeTo: `${pastMonth}-28` });
 		expect(res.mom.this_month).toBe(360);
 		expect(res.invoices_outside_month).toBe(0);
 	});

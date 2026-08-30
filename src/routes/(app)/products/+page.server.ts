@@ -1,6 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
+import { periodRange } from '$lib/server/period-range';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
@@ -27,7 +28,7 @@ type SuggestionRow = {
 
 export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
-	const { rangeFrom, rangeTo } = await parent();
+	const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
 
 	return handleLoad('products', async () => {
 		const [products, suggestionRows, trendRows, conversionPrompts] = await Promise.all([

@@ -1,28 +1,18 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/state';
 
   const PERIODS = ['24h', '1w', '1m', '3m', '6m', '1y', 'all'] as const;
 
   let { active = '1m' }: { active?: string } = $props();
   let open = $state(false);
 
-  function fromPeriod(p: string): [string, string] {
-    const today = new Date();
-    const to = today.toISOString().slice(0, 10)!;
-    if (p === 'all') return ['2000-01-01', to];
-    const days: Record<string, number> = { '24h': 0, '1w': 6, '1m': 29, '3m': 89, '6m': 179, '1y': 364 };
-    const from = new Date(today.getTime() - (days[p] ?? 29) * 86400000).toISOString().slice(0, 10)!;
-    return [from, to];
-  }
-
   function pick(p: string) {
-    const [from, to] = fromPeriod(p);
-    const age = 30 * 24 * 3600;
-    document.cookie = `mep_period=${p}; path=/; max-age=${age}; SameSite=Lax`;
-    document.cookie = `mep_date_from=${from}; path=/; max-age=${age}; SameSite=Lax`;
-    document.cookie = `mep_date_to=${to}; path=/; max-age=${age}; SameSite=Lax`;
     open = false;
-    invalidateAll();
+    const url = new URL(page.url);
+    if (p === '1m') url.searchParams.delete('period');
+    else url.searchParams.set('period', p);
+    goto(url.toString(), { replaceState: true, noScroll: true, keepFocus: true });
   }
 </script>
 
