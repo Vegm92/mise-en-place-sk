@@ -5,6 +5,7 @@
   import { seriesColor } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
+  import MobileRecipes from '$lib/components/mobile/MobileRecipes.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import { PERIOD_PILLS } from '$lib/constants';
   import Plus from '@lucide/svelte/icons/plus';
@@ -86,6 +87,11 @@
 
 <svelte:head><title>{$t('rec.title')}</title></svelte:head>
 
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileRecipes recipes={recipes} sections={sections} statuses={statuses} />
+</div>
+
+<div class="hidden md:block">
 <div class="flex flex-col gap-1 mb-4">
   <h1 class="title">{$t('rec.title')}</h1>
   <p class="body text-fg-3" style="font-size:13px;">{$t('rec.subtitle')}</p>
@@ -232,3 +238,4 @@
     {/if}
   {/snippet}
 </ListPageTemplate>
+</div>
