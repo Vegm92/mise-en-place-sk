@@ -34,6 +34,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { locale, t, initLocale, ti } from '$lib/i18n';
+  import DateRangePicker from '$lib/components/mep/DateRangePicker.svelte';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
   import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
@@ -812,6 +813,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           {pageTitle}
         </h1>
       </div>
+
+      <DateRangePicker active={data.activePeriod} />
 
       <span class="hidden md:inline-flex"><ChatFab locked={!data.features.aiAssistant} /></span>
 

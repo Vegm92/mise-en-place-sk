@@ -14,7 +14,21 @@ type InvoiceBadgeCounts = {
 	budget_exceeded_badge: number;
 } & Record<string, unknown>;
 
-export const load: LayoutServerLoad = async ({ locals, url }) => {
+function cookiePeriod(cookies: import('@sveltejs/kit').Cookies): { rangeFrom: string; rangeTo: string; activePeriod: string } {
+	const today = new Date();
+	const to = today.toISOString().slice(0, 10)!;
+	const p = cookies.get('mep_period') ?? '1m';
+	const days: Record<string, number> = { '24h': 0, '1w': 6, '1m': 29, '3m': 89, '6m': 179, '1y': 364 };
+	const from = p === 'all' ? '2000-01-01'
+		: new Date(today.getTime() - (days[p] ?? 29) * 86400000).toISOString().slice(0, 10)!;
+	const cookieFrom = cookies.get('mep_date_from');
+	const cookieTo = cookies.get('mep_date_to');
+	const rangeFrom = (cookieFrom && /^\d{4}-\d{2}-\d{2}$/.test(cookieFrom)) ? cookieFrom : from;
+	const rangeTo = (cookieTo && /^\d{4}-\d{2}-\d{2}$/.test(cookieTo)) ? cookieTo : to;
+	return { rangeFrom, rangeTo, activePeriod: p };
+}
+
+export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 	if (!locals.user) {
 		redirect(303, `/login?redirectTo=${encodeURIComponent(url.pathname)}`);
 	}
@@ -115,5 +129,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
 		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,
+		...cookiePeriod(cookies),
 	};
 };
