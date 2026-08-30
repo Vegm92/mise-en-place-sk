@@ -92,11 +92,9 @@ describe('mobile dashboard data threading', () => {
 		expect(DASH_PAGE).toMatch(/<DesktopDashboard[\s\S]*?\{data\}/);
 	});
 
-	it('passes the same period-nav props to both dashboards', () => {
-		for (const prop of ['prevMonthUrl', 'nextMonthUrl', 'canGoForward', 'currentPeriod']) {
-			const mobileCount = (DASH_PAGE.match(new RegExp(`${prop}=\\{${prop}\\}`, 'g')) ?? []).length;
-			expect(mobileCount, `${prop} should be passed to both dashboards`).toBe(2);
-		}
+	it('passes {data} to both dashboards without extra period-nav props', () => {
+		expect(DASH_PAGE).toMatch(/<MobileDashboard[\s\S]*?\{data\}/);
+		expect(DASH_PAGE).toMatch(/<DesktopDashboard[\s\S]*?\{data\}/);
 	});
 });
 

@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { handleLoad } from '$lib/server/load-guard';
 import type { Actions, PageServerLoad } from './$types';
+import { periodRange } from '$lib/server/period-range';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, invoiceAuditLog, suppliers, systemNotifications } from '$lib/server/schema';
 import { trackEvent } from '$lib/server/events';
@@ -29,7 +30,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
-		const { rangeFrom, rangeTo } = await parent();
+		const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
 		const filters = parseInvoiceFilters(url.searchParams);
 		const {

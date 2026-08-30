@@ -1,5 +1,6 @@
 import { handleLoad } from '$lib/server/load-guard';
 import type { PageServerLoad } from './$types';
+import { periodRange } from '$lib/server/period-range';
 import { db, forTenant } from '$lib/server/db';
 import { invoices, invoiceLineItems, suppliers, categoryBudgets, settings, systemNotifications } from '$lib/server/schema';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
@@ -100,7 +101,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const tdb = forTenant(rid);
 
 	return handleLoad('dashboard', async () => {
-		const { rangeFrom, rangeTo } = await parent();
+		const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const todayStr = today.toISOString().split('T')[0]!;
