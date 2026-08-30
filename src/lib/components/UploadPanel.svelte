@@ -1,6 +1,14 @@
 <script lang="ts">
   import { fmtSize } from '$lib/formatters';
-  import { UPLOAD_ACCEPT, MAX_UPLOAD_BYTES, isHeicUpload, uploadExtname, validateUploadFile } from '$lib/upload-formats';
+  import {
+    UPLOAD_ACCEPT,
+    MAX_UPLOAD_BYTES,
+    MAX_UPLOAD_TOTAL_BYTES,
+    exceedsUploadTotal,
+    isHeicUpload,
+    uploadExtname,
+    validateUploadFile,
+  } from '$lib/upload-formats';
   import {
     OFFLINE_QUEUE_MAX_ITEMS,
     createIndexedDbOfflineQueueStorage,
@@ -11,6 +19,8 @@
     type UploadOutcome,
   } from '$lib/offline-queue';
   import { goto } from '$app/navigation';
+  import { deserialize } from '$app/forms';
+  import type { ActionResult } from '@sveltejs/kit';
   import Upload from '@lucide/svelte/icons/upload';
   import Sparkle from '@lucide/svelte/icons/sparkle';
   import X from '@lucide/svelte/icons/x';
@@ -23,6 +33,7 @@
   import FileTypeBadge from '$lib/components/FileTypeBadge.svelte';
 
   type ErrorVars = Record<string, string | number>;
+  type UploadFailure = { error?: string; errorVars?: ErrorVars };
 
   interface Props {
     data: {
@@ -59,6 +70,16 @@
     return vars ? $ti(key, vars) : $t(key);
   });
 
+  function uploadFailureMessage(
+    result: ActionResult<Record<string, never>, UploadFailure>,
+  ): string {
+    if (result.type === 'failure' && result.data?.error) {
+      const { error, errorVars } = result.data;
+      return errorVars ? $ti(error, errorVars) : $t(error);
+    }
+    return $t('upload.err.serverError');
+  }
+
   const errorMsg = $derived(localError ?? serverError);
   const upgradeUrl = $derived(form?.upgradeUrl ?? data.upgradeUrl ?? null);
   const trialExpired = $derived(!!data.trialExpired);
@@ -69,6 +90,7 @@
   let fileInputEl = $state<HTMLInputElement>();
   let cameraInputEl = $state<HTMLInputElement>();
   const MAX_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
+  const MAX_TOTAL_MB = MAX_UPLOAD_TOTAL_BYTES / (1024 * 1024);
 
   let previewUrl = $state<string | null>(null);
   let previewFile = $state<File | null>(null);
@@ -136,20 +158,21 @@
         if (e.lengthComputable) uploadProgress = Math.round((e.loaded / e.total) * 100);
       });
       xhr.addEventListener('load', () => {
+        let result: ActionResult<Record<string, never>, UploadFailure>;
         try {
-          const result = JSON.parse(xhr.responseText) as {
-            type: string; location?: string;
-            data?: { error?: string; errorVars?: ErrorVars };
-          };
-          if (result.type === 'redirect' && result.location) {
-            resolve(result.location);
-          } else {
-            if (result.data?.error) {
-              showError(result.data.errorVars ? $ti(result.data.error, result.data.errorVars) : $t(result.data.error));
-            }
-            resolve(null);
-          }
-        } catch { reject(new Error($t('upload.err.badResponse'))); }
+          result = deserialize<Record<string, never>, UploadFailure>(xhr.responseText);
+        } catch {
+          reject(new Error($t('upload.err.badResponse')));
+          return;
+        }
+        if (result.type === 'redirect') {
+          resolve(result.location);
+          return;
+        }
+        if (result.type === 'failure' || result.type === 'error') {
+          showError(uploadFailureMessage(result));
+        }
+        resolve(null);
       });
       xhr.addEventListener('error', () => reject(new Error($t('upload.err.network'))));
       xhr.send(fd);
@@ -201,6 +224,10 @@
   async function doUpload() {
     if (!files.length || uploading || trialExpired) return;
     dismissError();
+    if (exceedsUploadTotal(files)) {
+      showError($ti('upload.err.totalTooLarge', { mb: MAX_TOTAL_MB }));
+      return;
+    }
     uploading = true;
     uploadProgress = 0;
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
