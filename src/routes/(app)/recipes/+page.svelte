@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { t, ti } from '$lib/i18n';
   import { seriesColor } from '$lib/colors';
   import { fmtEur } from '$lib/formatters';
@@ -72,7 +72,7 @@
   ]);
 
   const periodPills = $derived(PERIOD_PILLS.map((p) => {
-    const params = new URLSearchParams($page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams);
     params.set('period', p.value);
     return { value: p.value, label: $t(p.labelKey), href: `/recipes?${params.toString()}` };
   }));

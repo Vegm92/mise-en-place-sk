@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Send from '@lucide/svelte/icons/send';
   import Plus from '@lucide/svelte/icons/plus';
@@ -75,7 +75,7 @@
       }
       if (d.sessionId && d.sessionId !== activeSessionId) {
         activeSessionId = d.sessionId;
-        const url = new URL($page.url);
+        const url = new URL(page.url);
         url.searchParams.set('session', String(d.sessionId));
         goto(url.toString(), { replaceState: true, noScroll: true });
       }

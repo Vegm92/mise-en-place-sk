@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { t, initLocale } from '$lib/i18n';
 	import Turnstile from '$lib/components/Turnstile.svelte';
@@ -24,7 +24,7 @@
 		initLocale();
 	});
 
-	const urlError = $derived($page.url.searchParams.get('error'));
+	const urlError = $derived(page.url.searchParams.get('error'));
 
 	const errorMessage = $derived.by(() => {
 		if (termsMissing) return $t('signup.err.terms');

@@ -13,7 +13,7 @@
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import ShieldCheck from '@lucide/svelte/icons/shield-check';
   import { PROVISIONAL_PRICE, TIER_COPY, type TierId } from '$lib/billing-plans';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { locale as preferredLocale } from '$lib/i18n';
   import { getLocale, getT, getTi } from '$lib/i18n-context';
   import { localeHref, otherLocale } from '$lib/locale-url';
@@ -67,7 +67,7 @@
   }
 
   const alternate = $derived(otherLocale($locale));
-  const alternateHref = $derived(localeHref($page.url, alternate));
+  const alternateHref = $derived(localeHref(page.url, alternate));
 
   function rememberLocale() {
     preferredLocale.set(alternate);

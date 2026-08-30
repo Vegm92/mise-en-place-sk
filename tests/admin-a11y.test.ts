@@ -1,7 +1,7 @@
 /**
  * Regression test for issue #543: all seven (now eight) /admin pages rendered
  * an empty <title> — the (admin) route group has its own layout that never
- * declared a <svelte:head>, unlike the (app) group's `$page.data.title` →
+ * declared a <svelte:head>, unlike the (app) group's `page.data.title` →
  * `<svelte:head><title>` convention. This statically scans the route sources
  * (no component-render infra available in this suite, same approach as
  * tests/mobile-shell-title.test.ts and tests/batch-review-a11y.test.ts) and
@@ -45,7 +45,7 @@ function routeOf(dir: string): string {
 
 /**
  * The i18n key a route hands to the (admin) layout. The layout reads
- * `$page.data.title` and resolves it through `$t`, so anything that is not a
+ * `page.data.title` and resolves it through `$t`, so anything that is not a
  * single-quoted key (a template literal, a missing load) yields null here.
  */
 function titleKeyOf(dir: string): string | null {
@@ -106,7 +106,7 @@ describe('issue #543 — every /admin route names itself in the tab title', () =
 	it('the (admin) layout declares a <svelte:head><title>', () => {
 		const layout = readFileSync(LAYOUT, 'utf8');
 		expect(layout, 'the layout must reactively derive a page title').toMatch(
-			/\$page\.data\.title/,
+			/page\.data\.title/,
 		);
 		expect(layout).toMatch(/<svelte:head>\s*<title>\{pageTitle\}<\/title>\s*<\/svelte:head>/);
 	});

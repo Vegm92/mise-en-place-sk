@@ -1,14 +1,14 @@
 <script>
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { t } from '$lib/i18n';
 </script>
 
 <div class="error-page">
-	<h1>{$page.status}</h1>
+	<h1>{page.status}</h1>
 	<p>
-		{$page.status === 404 && $page.error?.message === 'Not Found'
+		{page.status === 404 && page.error?.message === 'Not Found'
 			? $t('error.notFound')
-			: ($page.error?.message ?? $t('error.generic'))}
+			: (page.error?.message ?? $t('error.generic'))}
 	</p>
 	<a href="/">{$t('error.backToPanel')}</a>
 </div>

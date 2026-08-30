@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { t, initLocale } from '$lib/i18n';
 	import Logo from '$lib/components/mep/Logo.svelte';
@@ -10,7 +10,7 @@
 </script>
 
 <svelte:head>
-	<title>{$page.status} · Mise en Place</title>
+	<title>{page.status} · Mise en Place</title>
 </svelte:head>
 
 <div class="mep" data-accent="tinta" data-density="default"
@@ -28,12 +28,12 @@
 
 		<div class="card" style="padding:28px;text-align:center;">
 			<h1 style="font-size:32px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;margin:0 0 8px;">
-				{$page.status}
+				{page.status}
 			</h1>
 			<p style="font-size:13.5px;line-height:1.6;color:var(--mep-fg-2);margin:0 0 20px;">
-				{$page.status === 404 && $page.error?.message === 'Not Found'
+				{page.status === 404 && page.error?.message === 'Not Found'
 					? $t('error.notFound')
-					: ($page.error?.message ?? $t('error.unexpected'))}
+					: (page.error?.message ?? $t('error.unexpected'))}
 			</p>
 			<a href="/" class="btn btn-primary" style="justify-content:center;text-decoration:none;">
 				{$t('error.goHome')}
