@@ -104,6 +104,18 @@ Category ∈ `VALID_CATEGORIES`; amount numeric ≥ 0; month = current.
 - Clearing the budget amount deletes the row.
 - Tests: `tests/budgets.test.ts`, `tests/alert-engine.test.ts` (budget rule).
 
+## Beta status
+
+Frozen for the MVP private beta (2026-08-29 executive audit, PR #794): the
+`/budgets` route (and its dashboard nav entry, tour step) is hidden unless the
+`budgets` row in `app_flags` (`beta_feature_budgets`, default disabled) is set
+to `'true'` — see `docs/03_features/feature_flags.md`. Gated in
+`hooks.server.ts` (`enforceFeatureFlag`, redirects to `/dashboard`) and in
+`(app)/+layout.server.ts`/`+layout.svelte` (nav item + tour page hidden). The
+dashboard pace-vs-budget widget already degrades gracefully to its empty
+state when no `category_budgets` rows exist, so no change was needed there.
+Toggle from `/admin/feature-flags`.
+
 ## Code notes
 
 ### `src/routes/(app)/budgets/+page.server.ts`

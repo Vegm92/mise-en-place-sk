@@ -312,6 +312,18 @@ both pass and both insert. `addLocation` now calls `requireOwner`, counts via
 inside a `pg_advisory_xact_lock`-guarded transaction. See rule 6 above, the
 idempotency rule below, and `tests/settings-add-location.test.ts`.
 
+## Beta status
+
+Frozen for the MVP private beta (2026-08-29 executive audit, PR #794): adding
+a new location is disabled regardless of plan tier unless the `multiLocation`
+row in `app_flags` (`beta_feature_multiLocation`, default disabled) is set to
+`'true'` — see `docs/03_features/feature_flags.md`. The global flag is ANDed
+with the existing `features.multiLocation` tier check in
+`(app)/settings/+page.server.ts` (both the page's `multiLocation` value and
+the `addLocation` action), so a Business-tier restaurant still needs the
+global flag on. Existing locations and the location switcher are unaffected —
+only creating a new one is gated. Toggle from `/admin/feature-flags`.
+
 ## Non-goals
 
 - **Member invites**: `role = 'member'` and inviting other users is reserved but

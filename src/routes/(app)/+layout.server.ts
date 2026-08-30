@@ -4,6 +4,7 @@ import { db, forTenant, runAsSystem } from '$lib/server/db';
 import { systemNotifications, invoices, settings, restaurants, userRestaurants } from '$lib/server/schema';
 import { asc, eq, desc, and, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
+import { getBetaFeatureFlags } from '$lib/server/feature-flags';
 
 const LAYOUT_SETTINGS_KEYS = ['has_completed_onboarding', 'tutorial_step', 'sidebar_collapsed'] as const;
 
@@ -25,7 +26,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRows, quotaUsedRow, settingsRows, locationRows, entitlements] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRows, quotaUsedRow, settingsRows, locationRows, entitlements, betaFeatures] = await Promise.all([
 		db.select({
 			id:               systemNotifications.id,
 			notificationType: systemNotifications.notificationType,
@@ -69,6 +70,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.where(eq(userRestaurants.userId, locals.user!.id))
 			.orderBy(asc(restaurants.name))),
 		locals.entitlements(),
+		getBetaFeatureFlags(),
 	]);
 
 	const invoiceBadgeCounts = invoiceBadgeRows[0] as InvoiceBadgeCounts | undefined;
@@ -108,6 +110,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		sidebarCollapsed: settingsMap.get('sidebar_collapsed') === 'true',
 		planTier,
 		features: tierConfig.features,
+		betaFeatures: { recipes: betaFeatures.recipes, budgets: betaFeatures.budgets },
 		trialExpired:       entitlements?.access.trialExpired ?? false,
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
