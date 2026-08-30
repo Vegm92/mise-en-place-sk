@@ -36,7 +36,7 @@ const HEADLINE_SUITES: Array<{ file: string; guarantee: string }> = [
 const RULE = '━'.repeat(66);
 
 function relative(moduleId: string, cwd: string): string {
-	const rel = path.relative(cwd, moduleId);
+	const rel = path.relative(cwd, moduleId).replace(/\\/g, '/');
 	return rel.startsWith('..') ? moduleId : rel;
 }
 
