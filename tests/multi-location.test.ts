@@ -44,6 +44,7 @@ vi.mock('$lib/server/db', () => {
 			if ('planTier' in keys) return [{ planTier: state.subscriptionTier }];
 			if ('role' in keys) return state.ownerRole ? [{ role: state.ownerRole }] : [];
 			if ('cnt' in keys) return [{ cnt: state.groupCount ?? state.memberships.length }];
+			if ('value' in keys) return [{ value: 'true' }];
 			return state.memberships;
 		}),
 		insert: (table: never) => ({

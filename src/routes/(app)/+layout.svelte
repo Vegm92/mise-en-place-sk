@@ -173,7 +173,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
   const showTourNudge = $derived($tutorialStep === 'done' && curPath === '/dashboard');
 
-  const tourPages = $derived(TOUR_PAGES.filter(p => tourPageAccessible(p.path, data.features)));
+  const visibleTourPages = $derived(TOUR_PAGES.filter(p => p.path !== '/budgets' || data.betaFeatures.budgets));
+  const tourPages = $derived(visibleTourPages.filter(p => tourPageAccessible(p.path, data.features)));
   const tourIndex = $derived(tourPages.findIndex(p => p.step === $tutorialStep));
   const activeTourPage = $derived(tourIndex >= 0 ? tourPages[tourIndex] : null);
   const showTourStep = $derived(activeTourPage !== null && curPath === activeTourPage.path);
@@ -193,14 +194,14 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   }
 
   $effect(() => {
-    const stored = TOUR_PAGES.findIndex(p => p.step === $tutorialStep);
-    if (stored === -1 || tourPageAccessible(TOUR_PAGES[stored].path, data.features)) return;
-    const nextIdx = nextAccessibleIndex(TOUR_PAGES, stored + 1, data.features);
+    const stored = visibleTourPages.findIndex(p => p.step === $tutorialStep);
+    if (stored === -1 || tourPageAccessible(visibleTourPages[stored].path, data.features)) return;
+    const nextIdx = nextAccessibleIndex(visibleTourPages, stored + 1, data.features);
     if (nextIdx === -1) {
       setTutorialStep('dismissed');
       return;
     }
-    void goToTourStep(TOUR_PAGES[nextIdx]);
+    void goToTourStep(visibleTourPages[nextIdx]);
   });
 
   onMount(() => {
@@ -257,8 +258,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             id: 'planning',
             label: $t('nav.section.planning'),
             items: [
-              { href: '/recipes',   icon: ChefHat, label: $t('nav.recipes'), badge: 0 },
-              { href: '/budgets',   icon: Tag,  label: $t('nav.budgets'),   badge: 0 },
+              ...(data.betaFeatures.recipes ? [{ href: '/recipes', icon: ChefHat, label: $t('nav.recipes'), badge: 0 }] : []),
+              ...(data.betaFeatures.budgets ? [{ href: '/budgets', icon: Tag,     label: $t('nav.budgets'), badge: 0 }] : []),
               { href: '/reminders', icon: Bell, label: $t('nav.reminders'), badge: data.reminderBadge },
             ],
           },

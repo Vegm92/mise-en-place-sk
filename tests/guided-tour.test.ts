@@ -97,9 +97,13 @@ describe('the tour counts only the steps this plan can reach', () => {
 	});
 
 	it('drops the inaccessible pages before numbering the steps', () => {
-		expect(SHELL).toContain('const tourPages = $derived(TOUR_PAGES.filter(p => tourPageAccessible(p.path, data.features)))');
+		expect(SHELL).toContain('const tourPages = $derived(visibleTourPages.filter(p => tourPageAccessible(p.path, data.features)))');
 		expect(SHELL).toContain('totalSteps={tourPages.length}');
 		expect(SHELL).not.toContain('totalSteps={TOUR_PAGES.length}');
+	});
+
+	it('also drops /budgets from the tour while the beta flag has it frozen', () => {
+		expect(SHELL).toContain("const visibleTourPages = $derived(TOUR_PAGES.filter(p => p.path !== '/budgets' || data.betaFeatures.budgets))");
 	});
 
 	it('leaves a trial account a tour it can walk end to end', () => {

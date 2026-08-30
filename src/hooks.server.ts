@@ -8,6 +8,7 @@ import { isAdminUser } from '$lib/server/admin';
 import { db, runAsSystem, runWithTenantContext } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { isAccessOpen } from '$lib/server/app-flags';
+import { isBetaFeatureEnabled, type BetaFeatureKey } from '$lib/server/feature-flags';
 import { PENDING_PATH, resolveAccess, type AccessDecision } from '$lib/server/access-gate';
 import { resolveTenantGate } from '$lib/server/tenant-gate';
 import { entitlementHandle } from '$lib/server/entitlements';
@@ -195,6 +196,23 @@ function enforceAdminRedirect(path: string, user: App.Locals['user']): void {
 	}
 }
 
+const BETA_FEATURE_ROUTES: { prefix: string; flag: BetaFeatureKey }[] = [
+	{ prefix: '/recipes', flag: 'recipes' },
+	{ prefix: '/budgets', flag: 'budgets' },
+	{ prefix: '/api/stock-levels', flag: 'stock' },
+];
+
+async function enforceFeatureFlag(path: string): Promise<Response | null> {
+	const match = BETA_FEATURE_ROUTES.find(r => path === r.prefix || path.startsWith(`${r.prefix}/`));
+	if (!match || (await isBetaFeatureEnabled(match.flag))) return null;
+
+	if (path.startsWith('/api/')) {
+		return json({ error: 'feature_disabled' }, { status: 404 });
+	}
+	redirect(303, '/dashboard');
+	return null;
+}
+
 function enforceUserAccess(
 	event: RequestEvent,
 	path: string,
@@ -282,6 +300,9 @@ const appHandle: Handle = async ({ event, resolve }) => {
 
 	const authResponse = enforceAuth(path, event.locals.user);
 	if (authResponse) return authResponse;
+
+	const flagResponse = await enforceFeatureFlag(path);
+	if (flagResponse) return flagResponse;
 
 	const resolveWithLocale = (e: RequestEvent) =>
 		resolve(e, { transformPageChunk: ({ html }) => html.replace('%mep.lang%', e.locals.locale) });
