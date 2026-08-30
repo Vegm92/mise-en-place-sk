@@ -34,6 +34,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import Sparkles from '@lucide/svelte/icons/sparkles';
   import { locale, t, initLocale, ti } from '$lib/i18n';
+  import DateRangePicker from '$lib/components/mep/DateRangePicker.svelte';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
   import ErrorBoundary from '$lib/components/mep/ErrorBoundary.svelte';
@@ -366,6 +367,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     switchingLocation = false;
   }
 
+  const periodQ = $derived(data.activePeriod && data.activePeriod !== '1m' ? `?period=${data.activePeriod}` : '');
+
   const pageTitle = $derived.by(() => {
     if (!page.data.title) return 'Mise en Place';
     if (page.data.titleParams) return $ti(page.data.title, page.data.titleParams as Record<string, string | number>);
@@ -558,7 +561,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
             {@const parentActive = itemActive(item)}
             {@const itemIsLocked = itemLocked(item)}
             <a
-              href={item.href}
+              href="{item.href}{periodQ}"
               class="sidenav-item"
               onclick={(e) => { handleNavClick(item, e); if (!e.defaultPrevented) mobileOpen = false; }}
               data-sveltekit-preload-data={item.proOnly ? 'off' : undefined}
@@ -615,7 +618,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
               <div style="margin-left:32px;margin-top:1px;margin-bottom:4px;padding-left:10px;border-left:1px solid var(--mep-divider);display:flex;flex-direction:column;">
                 {#each item.sub as sub}
                   <a
-                    href={sub.href}
+                    href="{sub.href}{periodQ}"
                     onclick={() => mobileOpen = false}
                     style="
                       padding:5px 10px;border-radius:5px;text-decoration:none;
@@ -812,6 +815,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
           {pageTitle}
         </h1>
       </div>
+
+      <DateRangePicker active={data.activePeriod} />
 
       <span class="hidden md:inline-flex"><ChatFab locked={!data.features.aiAssistant} /></span>
 

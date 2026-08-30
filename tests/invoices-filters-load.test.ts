@@ -177,8 +177,8 @@ describe('/invoices load() — filters come from the search params', () => {
 		expect(result.filters.date_from).toBe('');
 		expect(result.filters.date_to).toBe('');
 		const listWhere = render(state.whereArgs[0]);
-		expect(listWhere.sql).not.toContain('"invoice_date"');
 		expect(listWhere.params).not.toContain('ayer');
+		expect(listWhere.params).not.toContain('2026-02-30');
 	});
 
 	it('falls back to the default sort for an unknown sort key', async () => {

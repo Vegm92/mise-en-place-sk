@@ -5,6 +5,7 @@ import { systemNotifications, invoices, settings, restaurants, userRestaurants }
 import { asc, eq, desc, and, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 import { getBetaFeatureFlags } from '$lib/server/feature-flags';
+import { periodRange } from '$lib/server/period-range';
 
 const LAYOUT_SETTINGS_KEYS = ['has_completed_onboarding', 'tutorial_step', 'sidebar_collapsed'] as const;
 
@@ -115,5 +116,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
 		currentPeriodEnd:   subscription?.currentPeriodEnd?.toISOString() ?? null,
+		...periodRange(url),
 	};
 };

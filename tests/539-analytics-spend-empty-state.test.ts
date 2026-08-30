@@ -22,7 +22,6 @@ const describeDb = hasDbEnv ? describe : describe.skip;
 type LoadResult = {
 	top_items: Array<{ description: string }>;
 	category_spend: Array<{ category: string }>;
-	period: string;
 	has_invoices: boolean;
 	invoices_outside_range: number;
 };
@@ -88,7 +87,6 @@ describeDb('/analytics/spend load() — no data vs none in range (issue #539)', 
 
 	it('a tenant whose invoices all predate the default 30-day window is flagged out-of-range, not data-less', async () => {
 		const res = await loadSpend(ridOutOfRange);
-		expect(res.period).toBe('month');
 		expect(res.top_items).toHaveLength(0);
 		expect(res.has_invoices).toBe(true);
 		expect(res.invoices_outside_range).toBe(3);
@@ -102,7 +100,7 @@ describeDb('/analytics/spend load() — no data vs none in range (issue #539)', 
 	});
 
 	it('a window that actually covers the invoices shows data with no out-of-range flag', async () => {
-		const res = await loadSpend(ridOutOfRange, 'period=half');
+		const res = await loadSpend(ridOutOfRange, 'period=6m');
 		expect(res.top_items.length).toBeGreaterThan(0);
 		expect(res.invoices_outside_range).toBe(0);
 	});

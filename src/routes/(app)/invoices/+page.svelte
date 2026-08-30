@@ -44,7 +44,7 @@
   });
 
   function pageUrl(p: number): string {
-    return invoiceFiltersHref(serverFilters, { period: data.period, page: p });
+    return invoiceFiltersHref(serverFilters, { page: p });
   }
 
   const SEARCH_DEBOUNCE_MS = 300;
@@ -62,8 +62,8 @@
   });
 
   function applyFilters(replace = false) {
-    lastRequested = invoiceFilterParams(filterDraft, { period: data.period }).toString();
-    goto(invoiceFiltersHref(filterDraft, { period: data.period }), {
+    lastRequested = invoiceFilterParams(filterDraft, {}).toString();
+    goto(invoiceFiltersHref(filterDraft, {}), {
       keepFocus: true,
       noScroll: true,
       replaceState: replace,
