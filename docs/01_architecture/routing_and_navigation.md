@@ -26,9 +26,9 @@ src/routes/
 │   ├── extract/[id]/                  # legacy redirect stub → /batch/[batchId]
 │   ├── suppliers/                     # list + detail [id] (spend, reliability)
 │   ├── products/                      # list + detail [id] (aliases, merge, conversions)
-│   ├── recipes/                       # escandallos: list, sheet editor, A4 sheet, CSV, email
+│   ├── recipes/                       # escandallos: list, sheet editor, A4 sheet, CSV, email (beta flag: recipes)
 │   │   └── [id]/{,sheet/,cocina/,csv/} # editor · A4 costing sheet · kitchen sheet · CSV
-│   ├── budgets/                       # limits + current-month spend (progress bars)
+│   ├── budgets/                       # limits + current-month spend (progress bars) (beta flag: budgets)
 │   ├── reminders/                     # overdue/due-soon + alerts hub (mark-paid, accept/reject)
 │   ├── analytics/
 │   │   ├── spend/                     # MV-based spend analytics
@@ -46,7 +46,7 @@ src/routes/
 │       ├── chat/+server.ts               # chat endpoint
 │       ├── notifications/+server.ts      # GET pending / POST mark-sent
 │       ├── product-aliases/+server.ts    # confirm/reject alias + dismiss
-│       ├── stock-levels/+server.ts       # GET/PUT (gated: stockTracking)
+│       ├── stock-levels/+server.ts       # GET/PUT (gated: stockTracking; beta flag: stock)
 │       ├── supplier-category/+server.ts  # set supplier category
 │       ├── trend/+server.ts              # trend buckets (client refetch)
 │       ├── tutorial/+server.ts           # persist tutorial step
@@ -59,7 +59,8 @@ src/routes/
 │       ├── errors/                  # Sentry unresolved issues (REST)
 │       ├── health/                  # system checks + row counts
 │       ├── revenue/                 # MRR/ARPA/LTV/cohorts + cost tracking
-│       └── dead-letters/            # DLQ list, status, replay extraction jobs
+│       ├── dead-letters/            # DLQ list, status, replay extraction jobs
+│       └── feature-flags/           # toggle beta feature flags (recipes/stock/budgets/multiLocation)
 ├── api/
 │   ├── auth/[...all]/+server.ts     # Auth.js catch-all (mounted at /auth)
 │   ├── batch-status/[id]/+server.ts # extraction status polling (2.5 s poll)
@@ -167,7 +168,9 @@ The locale a page **renders** is resolved per request; the locale a user
   `/recipes/[id]/sheet` is the print-first A4 page and `/recipes/[id]/csv` the
   export. All three render one `RecipeSheetDoc` from
   `src/lib/server/recipes-sheet.ts`, as does the `sendSheet` email. Routes are
-  `'open'`; the 3-sheet limit on trial/starter is a count checked in `create`.
+  `'open'` in `ROUTE_POLICY`; the 3-sheet limit on trial/starter is a count
+  checked in `create`. Gated additionally by the `recipes` beta flag
+  (`docs/03_features/feature_flags.md`) ahead of any entitlement check.
   `/recipes/[id]/cocina` renders the same document for the pass — net weights,
   large steps, allergens up top — while `/sheet` keeps the money.
 

@@ -72,7 +72,7 @@ flowchart TB
 | **Proveedores** | `/suppliers` | Se crean solos a partir de las facturas. Gasto por proveedor, evolución de sus precios, fiabilidad, datos de contacto |
 | **Productos** | `/products` | El catálogo normalizado. Aquí se resuelve que "TOMATE PERA 5KG" y "Tomate pera caja 5 kg" son el mismo producto |
 | **Analítica** | `/analytics` | Gasto por categoría y periodo, evolución de precios, calidad de la extracción |
-| **Presupuestos** | `/budgets` | Límite mensual por categoría de compra, con barras de progreso y avisos de desvío |
+| **Presupuestos** | `/budgets` | Límite mensual por categoría de compra, con barras de progreso y avisos de desvío. Congelada tras el audit del 2026-08-29: oculta y bloqueada por defecto hasta que se reactive desde `/admin/feature-flags` |
 | **Recordatorios** | `/reminders` | El centro único de "cosas que requieren atención": facturas vencidas o próximas a vencer **y** todas las alertas (subidas de precio, stock bajo, presupuesto pasado) |
 | **Asistente** | `/chat` | Preguntas en lenguaje natural sobre los propios datos: *"¿cuánto gasté en pescado este mes?"* |
 | **Resumen semanal** | `/digest` | Resumen generado por IA de lo que ha pasado en la semana; también llega por email |
@@ -103,7 +103,9 @@ nueva para la interfaz, ten lista **la versión española y la inglesa**.
 **Cada restaurante vive en su burbuja.** Un usuario nunca puede ver datos de otro
 restaurante; en el equipo esto se llama **aislamiento por inquilino**
 (*multi-tenant*). Los clientes con varios locales cambian de local con un
-selector, y en el plan Business ven hasta cinco.
+selector, y en el plan Business ven hasta cinco. Añadir un local nuevo está
+congelado tras el audit del 2026-08-29 (beta flag `multiLocation`, apagada por
+defecto); los locales ya creados siguen intactos.
 
 ## Si quieres profundizar
 

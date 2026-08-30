@@ -31,13 +31,13 @@ Spanish first, bilingual (es/en).
 | Suppliers | Auto-created; spend, price trends, reliability metrics, contact data, category | `/suppliers` |
 | Products | Normalized catalog, aliases, unit conversions, pack sizes, merge/split | `/products` |
 | Analytics | Spend by category/period, price evolution, extraction-quality dashboard | `/analytics/*` |
-| Budgets | Monthly budget per category with overage warnings | `/budgets` |
+| Budgets | Monthly budget per category with overage warnings — beta-flag-gated, default off (`03_features/feature_flags.md`) | `/budgets` |
 | Reminders | Overdue / due-soon invoices + alerts hub, one-click mark-paid | `/reminders` |
 | Alerts | Price shock, low-stock forecast, budget overage, unit-conversion, category nudges, product suggestions, VERI\*FACTU mismatch | notification bell + reminders |
 | Weekly digest | Gemini-generated weekly summary per restaurant | `/digest` |
 | Chat | Data-aware assistant over the restaurant's own data | `/chat` + floating FAB |
 | Billing | Plan cards, Stripe checkout, trial | `/billing` |
-| Settings | Profile, restaurant, locations, WhatsApp pairing | `/settings` |
+| Settings | Profile, restaurant, locations (multi-location beta-flag-gated, default off), WhatsApp pairing | `/settings` |
 | Admin/ops | Dashboard, system events, health, errors (Sentry), revenue, dead letters | `/admin/*` |
 | Waitlist | Public bilingual landing + email capture | `/waitlist` |
 
