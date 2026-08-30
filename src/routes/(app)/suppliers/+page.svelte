@@ -2,7 +2,7 @@
   import type { PageData } from './$types';
   import { categoryColor, categoryTint } from '$lib/colors';
   import { untrack } from 'svelte';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { goto } from '$app/navigation';
   import { fmtEur, fmtDateShort, initials } from '$lib/formatters';
   import { locale, t, ti, tcat } from '$lib/i18n';
@@ -50,7 +50,7 @@
   }
 
   function listUrl(patch: Record<string, string | null>) {
-    const params = new URLSearchParams($page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams);
     for (const [key, value] of Object.entries(patch)) {
       if (value) params.set(key, value); else params.delete(key);
     }
@@ -72,7 +72,7 @@
   });
 
   const periodPills = $derived(PERIOD_PILLS.map(p => {
-    const params = new URLSearchParams($page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams);
     params.set('period', p.value);
     return { value: p.value, label: $t(p.labelKey), href: `/suppliers?${params.toString()}` };
   }));

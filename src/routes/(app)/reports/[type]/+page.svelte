@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ActionData, PageData } from './$types';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { enhance } from '$app/forms';
   import { t, ti, tiv, tcat } from '$lib/i18n';
   import { REPORT_STYLES, cellKind, cellText, cellTone, type Cell, type Label } from '$lib/reports';
@@ -21,7 +21,7 @@
 
   const shareToken = $derived(form?.shareToken ?? (form?.shareRevoked ? null : data.shareToken));
   const shareError = $derived(form?.shareError ?? null);
-  const shareUrl = $derived(shareToken ? `${$page.url.origin}/s/${shareToken}` : null);
+  const shareUrl = $derived(shareToken ? `${page.url.origin}/s/${shareToken}` : null);
 
   function shareResult() {
     shareSubmitting = true;
@@ -71,12 +71,12 @@
   }
 
   function href(params: Record<string, string>): string {
-    const next = new URLSearchParams($page.url.searchParams);
+    const next = new URLSearchParams(page.url.searchParams);
     for (const [k, v] of Object.entries(params)) next.set(k, v);
     return `?${next.toString()}`;
   }
 
-  const csvHref = $derived(`/reports/${doc.type}/csv${$page.url.search}`);
+  const csvHref = $derived(`/reports/${doc.type}/csv${page.url.search}`);
 </script>
 
 <svelte:head>

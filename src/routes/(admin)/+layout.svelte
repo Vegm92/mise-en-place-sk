@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { onMount } from 'svelte';
   import { browser } from '$app/environment';
@@ -26,10 +26,10 @@
   }
 
   const pageTitle = $derived(
-    $page.data.title ? $t($page.data.title) : $t('admin.banner')
+    page.data.title ? $t(page.data.title) : $t('admin.banner')
   );
 
-  const p = $derived($page.url.pathname);
+  const p = $derived(page.url.pathname);
   const navItems = $derived([
     { href: '/admin',         label: $t('admin.overview') },
     { href: '/admin/access',  label: $t('admin.access.nav') },

@@ -28,8 +28,8 @@ describe('issue #747 — 404 route-miss message goes through i18n', () => {
 		it(`${path.relative(ROOT, file)} no longer renders SvelteKit's literal "Not Found" unconditionally`, () => {
 			const source = readFileSync(file, 'utf8');
 			expect(source).toContain("error.notFound");
-			expect(source).toMatch(/\$page\.status === 404/);
-			expect(source).toMatch(/\$page\.error\?\.message === 'Not Found'/);
+			expect(source).toMatch(/page\.status === 404/);
+			expect(source).toMatch(/page\.error\?\.message === 'Not Found'/);
 		});
 	}
 });
