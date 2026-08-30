@@ -62,7 +62,7 @@
   <button
     type="button"
     onclick={() => open = !open}
-    style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--mep-fg-1);background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;"
+    style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--mep-fg);background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:6px;padding:5px 10px;cursor:pointer;white-space:nowrap;"
   >
     {label || from}
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style="opacity:.5;flex-shrink:0;">
@@ -71,13 +71,13 @@
   </button>
 
   {#if open}
-    <div style="position:absolute;top:calc(100% + 6px);left:0;z-index:100;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px;min-width:260px;box-shadow:0 4px 16px rgba(0,0,0,.15);">
+    <div style="position:absolute;top:calc(100% + 6px);left:0;z-index:100;background:var(--mep-surface-2);border:1px solid var(--mep-border-strong);border-radius:var(--mep-r-card);padding:12px;display:flex;flex-direction:column;gap:10px;min-width:260px;box-shadow:0 4px 16px rgba(0,0,0,.15);">
       <div style="display:flex;gap:4px;flex-wrap:wrap;">
         {#each (['thisMonth','lastMonth','last7','last30'] as const) as preset}
           <button
             type="button"
             onclick={() => setPreset(preset)}
-            style="font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--mep-border-strong);background:var(--mep-surface-1);color:var(--mep-fg-2);cursor:pointer;white-space:nowrap;"
+            style="font-size:11px;padding:3px 8px;border-radius:4px;border:1px solid var(--mep-border-strong);background:var(--mep-surface-2);color:var(--mep-fg-2);cursor:pointer;white-space:nowrap;"
           >{$t(`dateRange.${preset}`)}</button>
         {/each}
       </div>
@@ -88,7 +88,7 @@
           type="date"
           bind:value={localFrom}
           max={localTo}
-          style="font-size:11px;padding:3px 6px;border-radius:4px;border:1px solid var(--mep-border-strong);background:var(--mep-surface-1);color:var(--mep-fg-1);width:100%;"
+          style="font-size:16px;padding:3px 6px;border-radius:4px;border:1px solid var(--mep-border-strong);background:var(--mep-surface-2);color:var(--mep-fg);width:100%;"
         />
         <span style="font-size:11px;color:var(--mep-fg-3);">{$t('dateRange.to')}</span>
         <input
@@ -96,14 +96,14 @@
           bind:value={localTo}
           min={localFrom}
           max={new Date().toISOString().split('T')[0]}
-          style="font-size:11px;padding:3px 6px;border-radius:4px;border:1px solid var(--mep-border-strong);background:var(--mep-surface-1);color:var(--mep-fg-1);width:100%;"
+          style="font-size:16px;padding:3px 6px;border-radius:4px;border:1px solid var(--mep-border-strong);background:var(--mep-surface-2);color:var(--mep-fg);width:100%;"
         />
       </div>
 
       <button
         type="button"
         onclick={applyLocal}
-        style="font-size:12px;padding:5px 12px;border-radius:4px;border:none;background:var(--mep-accent);color:#fff;cursor:pointer;align-self:flex-end;"
+        style="font-size:13px;padding:5px 12px;border-radius:4px;border:none;background:var(--mep-acc);color:var(--mep-acc-fg);cursor:pointer;align-self:flex-end;"
       >{$t('dateRange.apply')}</button>
     </div>
   {/if}
