@@ -257,6 +257,12 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 - Ignore errors — the object may already be gone.
 
+### `src/lib/upload-formats.ts`
+
+**`const MAX_UPLOAD_TOTAL_BYTES`**
+
+- Ceiling on one upload *request*, distinct from the 20 MB `MAX_UPLOAD_BYTES` per file. `@sveltejs/adapter-node` reads no request body larger than `BODY_SIZE_LIMIT`, which **defaults to 512K** — below any photo a phone takes, which is why mobile uploads failed while desktop PDFs went through. The image sets `BODY_SIZE_LIMIT=64M` (see `Dockerfile` and DEPLOYMENT.md) and this constant stays under it so the client refuses an oversized batch itself instead of having the request cut; `tests/upload-body-size-limit.test.ts` holds the two in sync.
+
 ### `src/lib/components/UploadPanel.svelte`
 
 **`const localError`**
@@ -290,10 +296,12 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 **`function uploadWithProgress`**
 
 - Upload with progress and offline fallback; the action's payload carries an i18n key + vars (#294).
+- Decodes the response with `deserialize` from `$app/forms`, **not** `JSON.parse`. A form action's `data` goes over the wire devalue-encoded — a *string*, not an object — so the original `JSON.parse(xhr.responseText).data?.error` was always `undefined` and every server-side rejection (quota, rate limit, bad file, an adapter 413) silently reset the button with no message at all. That is the whole of the "I press Extraer albarán and nothing happens" report; `use:enhance` never hit it because it deserializes for you, and this is the one upload path that hand-rolls XHR to get a progress bar.
 
 **`function doUpload`**
 
 - Client-side navigation keeps the app shell intact — a hard reload re-runs every layout query for nothing.
+- Refuses a queue over `MAX_UPLOAD_TOTAL_BYTES` before sending. Past the server's `BODY_SIZE_LIMIT` the body stream is killed with a 413 *before* the action runs and the request is severed mid-flight, so the browser reports a bare network error the app cannot annotate. Checking the total up front turns that into a sentence the user can act on.
 
 **`const onOnline`**
 

@@ -158,10 +158,6 @@
         if (e.lengthComputable) uploadProgress = Math.round((e.loaded / e.total) * 100);
       });
       xhr.addEventListener('load', () => {
-        // Form-action responses are devalue-encoded: `result.data` arrives as a
-        // *string*, so reading `.error` off the raw JSON silently yields
-        // undefined and every server-side rejection looks like nothing
-        // happening. `deserialize` decodes it back into the action's payload.
         let result: ActionResult<Record<string, never>, UploadFailure>;
         try {
           result = deserialize<Record<string, never>, UploadFailure>(xhr.responseText);
