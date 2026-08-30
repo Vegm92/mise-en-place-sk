@@ -74,9 +74,18 @@ Return ONLY valid JSON with this exact structure:
 Rules:
 - total_amount must be the final amount INCLUDING all taxes (total a pagar), not the pre-tax base.
 - If tax is shown separately, sum tax_base + all tax_amount values to get total_amount (include both IVA and REC amounts).
-- tax_breakdown must reflect what is explicitly printed on the document — do not invent rates or types.
+- tax_breakdown must reflect what is printed on the document or arithmetically inferred (see Tax fallback below) — do not guess rates you cannot derive.
 - If a document shows both IVA and Recargo de Equivalencia (REC) columns, emit two separate entries in tax_breakdown: one with type "iva" and one with type "rec".
 - If the document is an albarán with no prices, set total_amount to null and still extract all line item quantities and descriptions.
+
+Bottom totals table — scan this first: Spanish albaranes and facturas almost always print a summary row near the bottom with columns such as IMP. BRUTO / BASE IMP. / CUOTA I.V.A. / REC. EQUIV. / TOTAL FACTURA (or similar labels). This row is the primary source for tax_base, tax_breakdown, and total_amount. The IVA rate is often printed as a label INSIDE the CUOTA I.V.A. column (e.g. the column reads "CUOTA I.V.A. 10%" with the euro amount beneath it) — extract rate=0.10 and tax_amount from that cell.
+
+Tax fallback — use arithmetic when OCR is uncertain: After reading all line items, compute line_sum = sum of all line_item total_price values (skip nulls). If line_sum > 0 AND total_amount > line_sum AND tax_breakdown is null or its tax_amount sum does not account for the gap:
+  1. gap = round(total_amount − line_sum, 2). This gap is almost certainly tax.
+  2. Derive rate = gap / line_sum. Snap to the nearest standard Spanish rate (0.04, 0.10, 0.21) if within 2%.
+  3. Emit a tax_breakdown entry: { rate, base: line_sum, tax_amount: gap, type: "iva" }.
+  4. Set that entry's implied confidence to 0.55 by adding "tax_inferred": true at the top level of the JSON — this signals the tax was calculated, not directly read. Do NOT lower the document-level confidence field for this reason alone.
+  Only skip this fallback when total_amount equals line_sum (no gap) or when total_amount is null.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
 - allergens: ONLY report allergens the document itself prints for that line — a "Contiene:" / "Alérgenos:"
@@ -155,6 +164,7 @@ export interface ExtractedInvoice {
 	qr_url?: string | null;
 	qr_mismatch?: boolean;
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
+	tax_inferred?: boolean;
 }
 
 const MAX_SUPPLIER_NAME_LENGTH = 200;
