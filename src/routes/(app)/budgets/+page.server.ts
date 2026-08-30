@@ -6,15 +6,16 @@ import { categoryBudgets } from '$lib/server/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { trackEvent } from '$lib/server/events';
-import { toMonthStr, parseMonthParam } from '$lib/formatters';
+import { toMonthStr } from '$lib/formatters';
 import { toMoneyString, moneyToNumber } from '$lib/server/money';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	const currentMonth = toMonthStr(new Date());
-	const selectedMonth = parseMonthParam(url.searchParams.get('month'), currentMonth);
+	const { rangeFrom } = await parent();
+	const selectedMonth = rangeFrom.slice(0, 7);
 
 	return handleLoad('budgets', async () => {
 		const [rows, spendRows] = await Promise.all([

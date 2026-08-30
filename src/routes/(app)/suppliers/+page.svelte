@@ -166,7 +166,6 @@
       {/if}
 
       <div style="flex:1;"></div>
-      <PeriodPills active={data.period} pills={periodPills} />
       <button class="btn btn-secondary"
         style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;"
         onclick={() => showAdd = true}>

@@ -166,7 +166,6 @@
       {/if}
 
       <div style="flex:1;"></div>
-      <PeriodPills active={data.period} pills={periodPills} />
 
       {#if tab === 'catalog'}
         <div id="prod-filter-panel" style="width:100%;">

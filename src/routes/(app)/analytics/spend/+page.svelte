@@ -57,7 +57,7 @@
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
   <MobileAnalyticsSpend
-    period={data.period}
+    period={data.activePeriod}
     kpis={data.kpis}
     top_items={data.top_items}
     category_spend={data.category_spend}
@@ -71,19 +71,6 @@
 
     <div style="display:flex;align-items:center;gap:12px;">
       <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">{$t('spend.question')}</h2>
-      <div style="flex:1;"></div>
-      <div style="display:flex;gap:0;background:var(--mep-surface-2);border-radius:6px;padding:2px;border:1px solid var(--mep-divider);">
-        {#each periods as [val, short]}
-          <a href="?period={val}" style="
-            background:{data.period === val ? 'var(--mep-surface)' : 'transparent'};
-            color:{data.period === val ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
-            font-size:12px;font-weight:{data.period === val ? 500 : 400};
-            padding:5px 12px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;
-            box-shadow:{data.period === val ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'};
-            font-family:inherit;
-          ">{short}</a>
-        {/each}
-      </div>
     </div>
 
     <div class="grid grid-cols-4 gap-3 max-[900px]:grid-cols-2" data-coach="analytics-main">

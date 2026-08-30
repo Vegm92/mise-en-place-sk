@@ -1,31 +1,15 @@
 import type { PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
 import { db } from '$lib/server/db';
-import { sql, type SQL } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { moneyToNumber } from '$lib/server/money';
 
-const PERIOD_DATE_SQL: Record<string, SQL> = {
-	month:   sql`AND i.invoice_date >= DATE_TRUNC('month', NOW())::date`,
-	quarter: sql`AND i.invoice_date >= (NOW() - INTERVAL '3 months')::date`,
-	half:    sql`AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date`,
-	all:     sql``,
-};
-
-const PERIOD_MONTH_FILTER: Record<string, SQL | null> = {
-	month:   sql`AND month = TO_CHAR(NOW(), 'YYYY-MM')`,
-	quarter: sql`AND month >= TO_CHAR((NOW() - INTERVAL '3 months')::date, 'YYYY-MM')`,
-	half:    sql`AND month >= TO_CHAR((NOW() - INTERVAL '6 months')::date, 'YYYY-MM')`,
-	all:     null,
-};
-
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
 	const rid = locals.restaurantId!;
 	return handleLoad('analytics/spend', async () => {
-		let period = url.searchParams.get('period') ?? 'month';
-		if (!(period in PERIOD_MONTH_FILTER)) period = 'month';
-		const monthFilter = PERIOD_MONTH_FILTER[period];
-		const monthFilterSql = monthFilter ?? sql``;
-		const dateFilter = PERIOD_DATE_SQL[period]!;
+		const { rangeFrom, rangeTo } = await parent();
+		const monthFrom = rangeFrom.slice(0, 7);
+		const monthTo   = rangeTo.slice(0, 7);
 
 		type TopItem = { description: string; total_spend: string; item_count: number; avg_unit_price: string | null; supplier_name: string };
 		type CatRow = { category: string; total: string; invoice_count: number };
@@ -43,7 +27,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					MAX(m.supplier_names) AS supplier_name
 				FROM mv_item_monthly_spend m
 				WHERE m.restaurant_id = ${rid}
-				  ${monthFilterSql}
+				  AND m.month >= ${monthFrom} AND m.month <= ${monthTo}
 				GROUP BY m.item_key
 				ORDER BY total_spend DESC
 				LIMIT 15
@@ -56,7 +40,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					SUM(c.invoice_count)  AS invoice_count
 				FROM mv_category_monthly_spend c
 				WHERE c.restaurant_id = ${rid}
-				  ${monthFilterSql}
+				  AND m.month >= ${monthFrom} AND m.month <= ${monthTo}
 				GROUP BY c.category
 				ORDER BY total DESC
 			`),
@@ -72,7 +56,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				JOIN suppliers s ON s.id = i.supplier_id
 				WHERE ili.description IS NOT NULL AND ili.description != ''
 				  AND i.restaurant_id = ${rid}
-				  ${dateFilter}
+				  AND i.invoice_date >= ${rangeFrom}::date AND i.invoice_date <= ${rangeTo}::date
 			`),
 
 			db.execute<ItemTrendRow>(sql`
@@ -82,14 +66,14 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					m.avg_unit_price AS avg_price
 				FROM mv_item_monthly_spend m
 				WHERE m.restaurant_id = ${rid}
-				  AND m.month >= TO_CHAR((NOW() - INTERVAL '6 months')::date, 'YYYY-MM')
+				  AND m.month >= ${monthFrom} AND m.month <= ${monthTo}
 				ORDER BY m.item_key, m.month ASC
 			`),
 
 			db.execute<RangeCountRow>(sql`
 				SELECT
 					COUNT(*) AS total,
-					COUNT(*) FILTER (WHERE TRUE ${dateFilter}) AS in_range
+					COUNT(*) FILTER (WHERE i.invoice_date >= ${rangeFrom}::date AND i.invoice_date <= ${rangeTo}::date) AS in_range
 				FROM invoices i
 				WHERE i.restaurant_id = ${rid} AND i.deleted_at IS NULL
 			`),
@@ -135,7 +119,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		const invoicesInRange = Number(rangeCountRows[0]?.in_range ?? 0);
 
 		return {
-			title: 'spend.pageTitle', top_items, category_spend, kpis, period,
+			title: 'spend.pageTitle', top_items, category_spend, kpis,
 			has_invoices: totalInvoices > 0,
 			invoices_outside_range: Math.max(totalInvoices - invoicesInRange, 0),
 		};

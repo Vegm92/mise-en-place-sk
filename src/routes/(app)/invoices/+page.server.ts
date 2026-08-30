@@ -9,7 +9,6 @@ import type { SQL } from 'drizzle-orm';
 import { invoiceReviewFilter, markInvoiceReviewed, markInvoicesReviewedBulk } from '$lib/server/invoice-status';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { moneyToNullableNumber } from '$lib/server/money';
-import { periodToDate } from '$lib/constants';
 import {
 	countActiveInvoiceFilters,
 	escapeLikePattern,
@@ -26,10 +25,11 @@ const SORT_OPTIONS: Record<InvoiceSortKey, SQL> = {
 	invoice_date_asc:  asc(invoices.invoiceDate),
 };
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('invoices', async () => {
+		const { rangeFrom, rangeTo } = await parent();
 		const savedId = parseInt(url.searchParams.get('saved') ?? '', 10);
 		const filters = parseInvoiceFilters(url.searchParams);
 		const {
@@ -39,18 +39,18 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			sort,
 		} = filters;
 		const supplierIdNum = Number.parseInt(supplierId, 10);
-		const period = url.searchParams.get('period') ?? '30d';
-		const periodStartStr = periodToDate(period).toISOString().slice(0, 10);
 		const page       = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 		const offset     = (page - 1) * PAGE_SIZE;
+		const effectiveDateFrom = dateFrom || rangeFrom;
+		const effectiveDateTo   = dateTo   || rangeTo;
 
 		const conditions: SQL[] = [tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)];
 		const reviewFilter = invoiceReviewFilter(status);
 		if (reviewFilter) conditions.push(reviewFilter);
 		if (Number.isFinite(supplierIdNum)) conditions.push(eq(invoices.supplierId, supplierIdNum));
-		if (category)     conditions.push(eq(suppliers.category, category));
-		if (dateFrom)     conditions.push(gte(invoices.invoiceDate, dateFrom));
-		if (dateTo)       conditions.push(lte(invoices.invoiceDate, dateTo));
+		if (category)           conditions.push(eq(suppliers.category, category));
+		if (effectiveDateFrom)  conditions.push(gte(invoices.invoiceDate, effectiveDateFrom));
+		if (effectiveDateTo)    conditions.push(lte(invoices.invoiceDate, effectiveDateTo));
 		if (uploadedFrom) conditions.push(gte(invoices.createdAt, new Date(`${uploadedFrom}T00:00:00`)));
 		if (uploadedTo)   conditions.push(lte(invoices.createdAt, new Date(`${uploadedTo}T23:59:59.999`)));
 		if (q) {
@@ -86,7 +86,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				issue_count:    sql<number>`COUNT(CASE WHEN ${invoices.reviewState}='incidencia' THEN 1 END)`,
 			})
 				.from(invoices)
-				.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.invoiceDate, periodStartStr)))),
+				.where(tdb.scope(invoices.restaurantId, and(isNull(invoices.deletedAt), gte(invoices.invoiceDate, rangeFrom), lte(invoices.invoiceDate, rangeTo)))),
 
 			db.execute<{ month: string; revisado: string; por_revisar: string; incidencia: string }>(sql`
 				SELECT
@@ -97,7 +97,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				FROM invoices
 				WHERE restaurant_id = ${rid}
 				  AND deleted_at IS NULL
-				  AND invoice_date >= (NOW() - INTERVAL '6 months')::date
+				  AND invoice_date >= ${rangeFrom} AND invoice_date <= ${rangeTo}
 				GROUP BY DATE_TRUNC('month', invoice_date)
 				ORDER BY DATE_TRUNC('month', invoice_date) ASC
 			`),
@@ -182,7 +182,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			invoices: invoiceList,
 			stats: { ...stats, supplier_count: supplierCountRow[0]?.cnt ?? 0 },
 			suppliers: supplierRows,
-			period,
 			trendData,
 			filters,
 			activeFilterCount: countActiveInvoiceFilters(filters),
