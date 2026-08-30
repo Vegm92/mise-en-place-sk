@@ -275,6 +275,14 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 **`const STEPS`**
 - Upload → Extract → Review progress indicator (issue #232). Extracted from UploadPanel so the cue survives the navigation to /batch/[id] — where steps 2 and 3 actually happen, and where it was previously missing at exactly the moment it helps most. `active` is the zero-based index of the current step; earlier steps read as done, later ones as pending.
 
+### `src/lib/components/mep/Logo.svelte`
+
+**`const MARK_D`**
+- The mark (ADR-033): a lowercase m drawn as one round-capped 2.6-unit stroke whose second shoulder sits lower than the first — the initial of the name and the spend-stepping-down curve in a single gesture, replacing the three-bar artwork. Centred in the 24-unit box (ink x 3.1–20.9, y 4.2–19.8 with the stroke). The sanctioned email copy in `src/lib/server/email.ts` must keep this exact path — `tests/logo-usage-consistency.test.ts` asserts byte-identical path data, and `scripts/generate-pwa-icons.mjs` rasterises the same geometry.
+
+**`const fontSize`**
+- Wordmark mode (`<Logo wordmark />`) renders the m as the initial of "ise en place". The metrics were measured against real Mona Sans 600 in a browser, not eyeballed: the mark's ink height (15.6/24 of the box) equals the font's l/M ascender (~0.74em), so `fontSize = 0.878·size`; `baselineShift = 0.175·size` puts the ink bottom on the text baseline (that is how far the ink sits above the svg box bottom); `tailGap = 0.079·size` closes the gap to the font's own letter fit. The literal "ise en place" is the brand wordmark, allowlisted in `scripts/check-i18n-strings.mjs` alongside "Mise en Place" — never translated.
+
 ### `src/lib/components/mobile/MobileDashboard.svelte`
 
 **`const currentMonthStr`**

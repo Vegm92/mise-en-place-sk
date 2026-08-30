@@ -18,6 +18,12 @@
  *
  * This scan pins all of that so it cannot drift back to ten copies, or off
  * the brand pair, a third time.
+ *
+ * ADR-033 later replaced the three-bar artwork with the descending-shoulder
+ * m monogram (a round-capped stroke path). The invariants are unchanged —
+ * one in-app copy, one sanctioned email copy with identical geometry, icon
+ * artwork on the manifest's ink/parchment pair — only the fingerprint and
+ * the geometry extraction moved from `<rect>` bars to the mark's path data.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -43,24 +49,21 @@ const sources = walk(SRC).map(file => ({
 const LOGO_COMPONENT = 'src/lib/components/mep/Logo.svelte';
 const EMAIL_FILE = 'src/lib/server/email.ts';
 
-/** Fingerprint of the mark's first bar — specific enough that nothing else in
- *  the tree could coincidentally match it. */
-const MARK_FINGERPRINT = /<rect\s+x="2\.5"\s+y="3\.5"\s+width="3"\s+height="17"/;
+/** Fingerprint of the mark's opening stem and first shoulder — specific
+ *  enough that nothing else in the tree could coincidentally match it. */
+const MARK_FINGERPRINT = /M4\.4 18\.5 V9\.5 Q4\.4 5\.5 8\.2 5\.5/;
 
-/** Pulls the three `<rect x=".." y=".." width=".." height="..">` bars, in
- *  order, from a snippet — works for both the Svelte self-closing form and
- *  email.ts's `</rect>` form. */
-function extractBars(text: string): Array<[string, string, string, string]> {
-	return [
-		...text.matchAll(/<rect\s+x="([\d.]+)"\s+y="([\d.]+)"\s+width="([\d.]+)"\s+height="([\d.]+)"/g),
-	].map(m => [m[1], m[2], m[3], m[4]] as [string, string, string, string]);
+/** Pulls every copy of the mark's path data from a snippet — works for both
+ *  Logo.svelte's quoted string constant and email.ts's `d="..."` literal. */
+function extractMarkPaths(text: string): string[] {
+	return [...text.matchAll(/(M4\.4 18\.5[^"'`]+)/g)].map(m => m[1].trim());
 }
 
 describe('logo usage consistency (issue #571)', () => {
 	it('Logo.svelte exists and is theme-aware (currentColor + --mep-acc)', () => {
 		const logo = sources.find(s => s.rel === LOGO_COMPONENT);
 		expect(logo, `${LOGO_COMPONENT} should exist`).toBeDefined();
-		expect(logo!.text).toMatch(/fill="currentColor"/);
+		expect(logo!.text).toMatch(/stroke="currentColor"/);
 		expect(logo!.text).toContain('color: var(--mep-acc)');
 	});
 
@@ -85,10 +88,11 @@ describe('logo usage consistency (issue #571)', () => {
 	it('keeps the sanctioned email.ts mark geometry identical to Logo.svelte', () => {
 		const logo = sources.find(s => s.rel === LOGO_COMPONENT)!;
 		const email = sources.find(s => s.rel === EMAIL_FILE)!;
-		const logoBars = extractBars(logo.text);
-		const emailBars = extractBars(email.text);
-		expect(logoBars).toHaveLength(3);
-		expect(emailBars).toEqual(logoBars);
+		const logoPaths = extractMarkPaths(logo.text);
+		const emailPaths = extractMarkPaths(email.text);
+		expect(logoPaths.length).toBeGreaterThanOrEqual(1);
+		expect(emailPaths).toHaveLength(1);
+		for (const p of [...logoPaths, ...emailPaths]) expect(p).toBe(logoPaths[0]);
 	});
 
 	it('favicon.svg carries no retired amber value', () => {

@@ -40,7 +40,7 @@ const COLOR_ACCENT_SOFT = 'rgba(27,42,68,.09)';
 const FONT_STACK = "'Mona Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO_STACK = "'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace";
 
-const LOGO_SVG = '<svg viewBox="0 0 24 24" width="20" height="20"><rect x="2.5" y="3.5" width="3" height="17" rx="1.5" fill="currentColor"></rect><rect x="10.5" y="3.5" width="3" height="13" rx="1.5" fill="currentColor"></rect><rect x="18.5" y="3.5" width="3" height="9" rx="1.5" fill="currentColor"></rect></svg>';
+const LOGO_SVG = '<svg viewBox="0 0 24 24" width="20" height="20"><path d="M4.4 18.5 V9.5 Q4.4 5.5 8.2 5.5 Q12 5.5 12 9.5 V18.5 M12 13 Q12 9.5 15.8 9.5 Q19.6 9.5 19.6 13 V18.5" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg>';
 
 function escapeHtml(value: string): string {
 	return value

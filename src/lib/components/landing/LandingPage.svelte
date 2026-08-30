@@ -259,8 +259,7 @@
   <nav class="mep-nav" style="display:flex;align-items:center;gap:14px;padding:16px 32px;
               border-bottom:1px solid var(--mep-divider);">
     <div style="display:flex;align-items:center;gap:10px;">
-      <Logo size={18} />
-      <span style="font-size:17px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
+      <Logo size={20} wordmark />
     </div>
     <span style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
                  color:var(--mep-acc);padding:2px 7px;border-radius:4px;
@@ -655,8 +654,7 @@
   <footer class="mep-footer mep-section" style="padding:28px 72px;border-top:1px solid var(--mep-divider);
                  display:flex;align-items:center;justify-content:space-between;gap:20px;">
     <div style="display:flex;align-items:center;gap:10px;">
-      <Logo size={18} />
-      <span style="font-size:17px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">Mise en Place</span>
+      <Logo size={20} wordmark />
     </div>
     <div style="font-size:12.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{$t('waitlist.footerNote')}</div>
   </footer>
