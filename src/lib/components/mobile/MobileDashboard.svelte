@@ -1,6 +1,5 @@
 <script lang="ts">
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
-  import DateRangePicker from '$lib/components/mep/DateRangePicker.svelte';
   import Bullet from '$lib/components/mep/Bullet.svelte';
   import PaceChart from '$lib/components/mep/PaceChart.svelte';
   import RailBlock from '$lib/components/desktop/turno/RailBlock.svelte';
@@ -14,17 +13,7 @@
   import type { TurnoInput, SortMode } from '$lib/dashboard-turno';
   import type { DashboardData } from '$lib/components/desktop/DesktopDashboard.svelte';
 
-  let {
-    data,
-    rangeFrom,
-    rangeTo,
-    currentPeriod,
-  }: {
-    data: DashboardData;
-    rangeFrom: string;
-    rangeTo: string;
-    currentPeriod: string;
-  } = $props();
+  let { data }: { data: DashboardData } = $props();
 
   let sortMode = $state<SortMode>('money');
 
@@ -88,11 +77,8 @@
 <div style="height: 100%; overflow: auto; padding-bottom: 24px;">
   <div style="padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-      <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;">
-        {$t(greeting)} · {dateStr}
-      </div>
-      <DateRangePicker from={rangeFrom} to={rangeTo} label={currentPeriod} baseUrl="/dashboard" />
+    <div style="font-size:13px;color:var(--mep-fg-3);">
+      {$t(greeting)} · {dateStr}
     </div>
 
     <div class="card" style="padding: 16px;">

@@ -5,7 +5,6 @@ import { invoices, invoiceLineItems, suppliers, categoryBudgets, settings, syste
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { desc, eq, inArray, isNotNull, isNull, sql, and } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
-import { parseMonthParam } from '$lib/formatters';
 import { getTrendDataByRange } from '$lib/server/trend';
 import { detectMissingInvoices } from '$lib/server/supplier-cadence';
 import { moneyToNumber } from '$lib/server/money';
@@ -95,32 +94,18 @@ function buildProjection(
 	return { avgPerSupplier, avgPerSupplierDelta, daysElapsed, dailyRate, projectedEom, projectedElapsedPct };
 }
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const firstInvoice = url.searchParams.get('first_invoice') === '1';
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 
 	return handleLoad('dashboard', async () => {
+		const { rangeFrom, rangeTo } = await parent();
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		const todayStr = today.toISOString().split('T')[0]!;
 		const sevenDaysAgo = new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0]!;
-
 		const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-
-		const fromParam = url.searchParams.get('from');
-		const toParam = url.searchParams.get('to');
-		const legacyMonth = parseMonthParam(url.searchParams.get('month'), currentMonth);
-		let rangeFrom: string, rangeTo: string;
-		if (fromParam && toParam && /^\d{4}-\d{2}-\d{2}$/.test(fromParam) && /^\d{4}-\d{2}-\d{2}$/.test(toParam) && fromParam <= toParam) {
-			rangeFrom = fromParam;
-			rangeTo = toParam <= todayStr ? toParam : todayStr;
-		} else {
-			const [ly, lm] = legacyMonth.split('-').map(Number);
-			const lastDay = new Date(ly!, lm!, 0).getDate();
-			rangeFrom = `${legacyMonth}-01`;
-			rangeTo = `${legacyMonth}-${String(lastDay).padStart(2, '0')}`;
-		}
 		const selectedMonth = rangeFrom.slice(0, 7);
 		const rangeFromMs = new Date(rangeFrom + 'T00:00:00Z').getTime();
 		const rangeToMs = new Date(rangeTo + 'T00:00:00Z').getTime();
