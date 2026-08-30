@@ -28,6 +28,7 @@ export const ROUTE_POLICY = {
 	'/(admin)/admin/dead-letters':       'open',
 	'/(admin)/admin/errors':             'open',
 	'/(admin)/admin/events':             'open',
+	'/(admin)/admin/feature-flags':      'open',
 	'/(admin)/admin/health':             'open',
 	'/(admin)/admin/revenue':            'open',
 	'/(admin)/admin/whatsapp':           'open',

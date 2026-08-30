@@ -170,6 +170,18 @@ Costing is always computed at today's prices. A sheet printed in March re-costs
 when reopened and there is no record of what it cost then. Fixing it means a
 `recipe_cost_snapshots` row written on print or send; see ADR-031.
 
+## Beta status
+
+Frozen for the MVP private beta (2026-08-29 executive audit, PR #794): the
+whole `/recipes` route tree is hidden unless the `recipes` row in `app_flags`
+(`beta_feature_recipes`, default disabled) is set to `'true'` — see
+`docs/03_features/feature_flags.md`. Gated in `hooks.server.ts`
+(`enforceFeatureFlag`, redirects to `/dashboard`) and in
+`(app)/+layout.server.ts`/`+layout.svelte` (nav item hidden). The allergen
+helpers shared with `products/[id]` (`EU_ALLERGENS`, `parseDecimal`,
+`toAllergenList` from `$lib/recipes.ts`) are client-safe and unaffected.
+Toggle from `/admin/feature-flags`.
+
 ## Code notes
 
 ### `src/lib/recipes.ts`
