@@ -56,6 +56,12 @@
 
   let search = $state(untrack(() => appliedSearch));
   let sheetOpen = $state(false);
+  let sortSheetOpen = $state(false);
+
+  function pickSort(key: SupplierSortKey) {
+    sortSheetOpen = false;
+    onApply?.({ sort: key });
+  }
 
   const inlineCategories = $derived.by(() => {
     const used = categories.filter(cat => (categoryCounts[cat] ?? 0) > 0);
@@ -106,20 +112,6 @@
     />
   </div>
 
-  <div style="padding: 0 18px 10px;">
-    <select
-      class="input"
-      style="width: 100%; height: 36px; box-sizing: border-box;"
-      aria-label={$t('sup.sort.label')}
-      value={sort}
-      onchange={(e) => onApply?.({ sort: e.currentTarget.value })}
-    >
-      {#each SUPPLIER_SORT_KEYS as key}
-        <option value={key}>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</option>
-      {/each}
-    </select>
-  </div>
-
   <ScrollStrip label={$t('sup.categoriesLabel')} extraStyle="flex-shrink:0;">
     <button class={chipClass(!category)} onclick={() => onApply?.({ category: null })}>{$t('sup.allChip')}</button>
     <button
@@ -141,7 +133,38 @@
         class={chipClass(false)}
       >{$ti('sup.categorySheet.open', { n: hiddenCategories.length })}</button>
     {/if}
+    <button
+      class={chipClass(false)}
+      style="gap: 5px;"
+      aria-haspopup="dialog"
+      onclick={() => sortSheetOpen = true}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+      {$t('sup.sort.label')}
+    </button>
   </ScrollStrip>
+
+  {#if sortSheetOpen}
+    <button
+      type="button"
+      class="filter-sheet-backdrop"
+      aria-label={$t('sup.categorySheet.close')}
+      onclick={() => sortSheetOpen = false}
+    ></button>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('sup.sort.label')}>
+      <div class="filter-sheet-head">
+        <span class="body-strong">{$t('sup.sort.label')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => sortSheetOpen = false}>{$t('sup.categorySheet.close')}</button>
+      </div>
+      <div class="filter-sheet-list">
+        {#each SUPPLIER_SORT_KEYS as key}
+          <button type="button" class="filter-sheet-option" aria-pressed={sort === key} onclick={() => pickSort(key)}>
+            <span>{$t(SUPPLIER_SORT_LABEL_KEYS[key])}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   {#if sheetOpen}
     <button
