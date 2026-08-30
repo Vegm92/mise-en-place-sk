@@ -1,7 +1,7 @@
 <script lang="ts">
   import X from '@lucide/svelte/icons/x';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
-  import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
+  import DateRangePicker from '$lib/components/mep/DateRangePicker.svelte';
   import Bullet from '$lib/components/mep/Bullet.svelte';
   import PaceChart from '$lib/components/mep/PaceChart.svelte';
   import StatusChip from '$lib/components/desktop/turno/StatusChip.svelte';
@@ -38,15 +38,13 @@
 
   let {
     data,
-    prevMonthUrl,
-    nextMonthUrl,
-    canGoForward,
+    rangeFrom,
+    rangeTo,
     currentPeriod,
   }: {
     data: DashboardData;
-    prevMonthUrl: string;
-    nextMonthUrl: string;
-    canGoForward: boolean;
+    rangeFrom: string;
+    rangeTo: string;
     currentPeriod: string;
   } = $props();
 
@@ -101,8 +99,9 @@
 
 <div class="hidden md:flex flex-col gap-3 p-4" style="min-height:0;">
 
-  <div style="display:flex;align-items:center;gap:10px;">
-    <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:13px;font-weight:600;color:var(--mep-fg-1);">{currentPeriod}</span>
+    <DateRangePicker from={rangeFrom} to={rangeTo} baseUrl="/dashboard" />
   </div>
 
   {#if data.firstInvoice && !firstInvoiceDismissed}
