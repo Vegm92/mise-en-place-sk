@@ -10,8 +10,6 @@
   import { fmtEur } from '$lib/formatters';
   import { uploadExtname } from '$lib/upload-formats';
 
-  const PREVIEWABLE_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
-
   interface LineItem {
     id: number;
     description: string | null;
@@ -59,7 +57,6 @@
   const remaining = $derived(Math.max(0, lineItems.length - 5));
 
   const sourceExt = $derived(invoice.source_file ? uploadExtname(invoice.source_file) : '');
-  const isPreviewable = $derived(PREVIEWABLE_EXTENSIONS.has(sourceExt));
   const invoiceNumberDisplay = $derived(invoice.invoice_number ?? `#${invoice.id}`);
   const documentDisplayName = $derived(
     invoice.source_file ? `${invoiceNumberDisplay}${sourceExt}` : ''
@@ -144,7 +141,7 @@
     {#if invoice.source_file}
       <div class="card" style="padding: 0; overflow: hidden;">
         <div style="
-          padding: 10px 14px; border-bottom: 1px solid var(--mep-divider);
+          padding: 10px 14px;
           display: flex; align-items: center; gap: 8px;
         ">
           <FileText size={13} style="color: var(--mep-fg-2); flex-shrink: 0;" />
@@ -155,18 +152,6 @@
             style="font-size: 12px; color: var(--mep-acc); font-weight: 500; text-decoration: none; flex-shrink: 0;">
             {$t('mid.open')}
           </a>
-        </div>
-        <div style="padding: 16px; background: var(--mep-surface-2); display: flex; align-items: center; justify-content: center;">
-          <div style="
-            width: 130px; height: 165px; background: var(--mep-surface); border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.10);
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-          ">
-            <FileText size={32} style="color: var(--mep-fg-3);" />
-            <span style="font-size: 11px; color: var(--mep-fg-3);text-align:center;padding:0 8px;">
-              {isPreviewable ? $t('mid.preview') : $t('inv.detail.noPreview')}
-            </span>
-          </div>
         </div>
       </div>
     {/if}
