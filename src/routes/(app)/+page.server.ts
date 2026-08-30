@@ -11,6 +11,7 @@ import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
 import { and, isNull, sql } from 'drizzle-orm';
+import { MAX_UPLOAD_TOTAL_BYTES } from '$lib/upload-formats';
 
 async function remainingMonthlyQuota(rid: string, limit: number | null): Promise<number | null> {
 	if (limit === null) return null;
@@ -33,6 +34,7 @@ async function remainingMonthlyQuota(rid: string, limit: number | null): Promise
 }
 
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+const MAX_UPLOAD_TOTAL_MB = MAX_UPLOAD_TOTAL_BYTES / (1024 * 1024);
 
 function rejectInvalidFiles(files: File[]) {
 	if (files.length === 0) {
@@ -83,7 +85,13 @@ export const actions: Actions = {
 		let formData: FormData;
 		try {
 			formData = await request.formData();
-		} catch {
+		} catch (err) {
+			// adapter-node errors the body stream with a 413 when the request
+			// exceeds BODY_SIZE_LIMIT, which surfaces here as a formData() rejection.
+			// "could not parse the form" would be a lie — say what actually happened.
+			if ((err as { status?: number }).status === 413) {
+				return fail(413, { error: 'upload.err.totalTooLarge', errorVars: { mb: MAX_UPLOAD_TOTAL_MB } });
+			}
 			return fail(400, { error: 'upload.err.formParse' });
 		}
 

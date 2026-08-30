@@ -142,6 +142,15 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 | `STORAGE_DRIVER` | `local` | `local` writes to `UPLOADS_DIR` on disk; `railway` writes to a Railway Bucket (S3-compatible). |
 | `STORAGE_BUCKET` | `invoice-uploads` | Bucket name when `STORAGE_DRIVER=railway` (also `AWS_S3_BUCKET_NAME` below). |
 | `UPLOADS_DIR` | `uploads` | Uploaded invoice files (PDF/JPG/PNG, 20 MB max each) when `STORAGE_DRIVER=local`. |
+| `BODY_SIZE_LIMIT` | `64M` (set in `Dockerfile`) | Largest request body `adapter-node` will read. **Must stay above `MAX_UPLOAD_TOTAL_BYTES`** (`src/lib/upload-formats.ts`). |
+
+> **Do not leave `BODY_SIZE_LIMIT` unset.** `adapter-node` defaults it to
+> **512K**, which is smaller than any photo a phone takes. Over the limit the
+> body stream is killed with a 413 *before* the upload action runs and the
+> request is cut mid-flight, so the browser reports a bare network error — the
+> app never gets to explain anything. The `Dockerfile` sets it, so Railway and
+> `docker compose` both inherit it; a deployment that runs `node build` outside
+> the image has to set it itself.
 
 **`STORAGE_DRIVER=railway`** additionally requires the standard AWS SDK vars that `railway bucket credentials` prints: `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, `AWS_S3_URL_STYLE`. A Railway Bucket is project-scoped, so both the web and worker services read/write the same bucket by sharing these variables — no separate volume or plan upgrade needed as invoice volume grows (billed per GB-month).
 
