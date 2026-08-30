@@ -23,6 +23,7 @@ export default defineConfig({
 		target: 'node22',
 		rollupOptions: {
 			output: { entryFileNames: 'worker.js' },
+			external: ['@whiskeysockets/baileys', 'qrcode-terminal'],
 		},
 	},
 });

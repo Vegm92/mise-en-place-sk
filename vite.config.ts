@@ -82,6 +82,11 @@ export default defineConfig(({ mode }) => {
 				},
 			}),
 		],
+		build: {
+			rollupOptions: {
+				external: ['@whiskeysockets/baileys', 'qrcode-terminal'],
+			},
+		},
 		server: {
 			allowedHosts: true,
 		},
