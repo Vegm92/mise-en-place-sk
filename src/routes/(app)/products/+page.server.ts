@@ -1,11 +1,12 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
+import { periodRange } from '$lib/server/period-range';
 import { db } from '$lib/server/db';
 import { sql } from 'drizzle-orm';
 import { normalizeProductKey } from '$lib/server/normalize';
 import { loadConversionPrompts } from '$lib/server/products';
-import { VALID_CATEGORIES, periodToDate } from '$lib/constants';
+import { VALID_CATEGORIES } from '$lib/constants';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 
 type ProductRow = {
@@ -25,10 +26,9 @@ type SuggestionRow = {
 	payload: Record<string, unknown> | null;
 };
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
-	const period = url.searchParams.get('period') ?? '30d';
-	const periodStart = periodToDate(period).toISOString().slice(0, 10);
+	const { rangeFrom, rangeTo } = await parent?.() ?? periodRange(url);
 
 	return handleLoad('products', async () => {
 		const [products, suggestionRows, trendRows, conversionPrompts] = await Promise.all([
@@ -54,7 +54,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 					COUNT(*) AS count
 				FROM products
 				WHERE restaurant_id = ${rid}
-				  AND created_at >= ${periodStart}
+				  AND created_at >= ${rangeFrom} AND created_at <= ${rangeTo}
 				GROUP BY DATE_TRUNC('month', created_at)
 				ORDER BY DATE_TRUNC('month', created_at) ASC
 			`),
@@ -85,7 +85,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 		return {
 			title: 'nav.products',
-			period,
 			trendData,
 			products: products.map((p) => ({
 				id:            p.id,

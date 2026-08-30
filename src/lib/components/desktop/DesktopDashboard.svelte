@@ -1,7 +1,6 @@
 <script lang="ts">
   import X from '@lucide/svelte/icons/x';
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
-  import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
   import Bullet from '$lib/components/mep/Bullet.svelte';
   import PaceChart from '$lib/components/mep/PaceChart.svelte';
   import StatusChip from '$lib/components/desktop/turno/StatusChip.svelte';
@@ -36,19 +35,7 @@
     invoices_outside_month: number;
   }
 
-  let {
-    data,
-    prevMonthUrl,
-    nextMonthUrl,
-    canGoForward,
-    currentPeriod,
-  }: {
-    data: DashboardData;
-    prevMonthUrl: string;
-    nextMonthUrl: string;
-    canGoForward: boolean;
-    currentPeriod: string;
-  } = $props();
+  let { data }: { data: DashboardData } = $props();
 
   let firstInvoiceDismissed = $state(false);
   let sortMode = $state<SortMode>('money');
@@ -100,10 +87,6 @@
 </script>
 
 <div class="hidden md:flex flex-col gap-3 p-4" style="min-height:0;">
-
-  <div style="display:flex;align-items:center;gap:10px;">
-    <PeriodPicker prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
-  </div>
 
   {#if data.firstInvoice && !firstInvoiceDismissed}
     <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--mep-r-card);background:var(--mep-pos-soft);border-left:3px solid var(--mep-pos);">
