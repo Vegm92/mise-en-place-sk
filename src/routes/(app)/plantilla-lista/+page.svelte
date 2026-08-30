@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { locale, t, ti } from '$lib/i18n';
   import { fmtEur as fmtEurBase } from '$lib/formatters';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
@@ -13,7 +13,7 @@
     ['year', 'tpl.demo.period.year'], ['all', 'tpl.demo.period.all'],
   ];
 
-  const period = $derived(($page.url.searchParams.get('period') as PeriodKey) ?? 'month');
+  const period = $derived((page.url.searchParams.get('period') as PeriodKey) ?? 'month');
 
   interface Category { key: string; labelKey: string; color: string }
   const CATEGORIES: Category[] = [

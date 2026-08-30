@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { toggleTheme as flipTheme, currentTheme } from '$lib/theme';
   import { onMount, untrack } from 'svelte';
   import { browser } from '$app/environment';
@@ -41,7 +41,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 
   const { children, data } = $props();
 
-  const p = $derived($page.url.pathname);
+  const p = $derived(page.url.pathname);
   const is = (path: string) => p === path || p.startsWith(path + '/');
 
   let theme = $state<'light' | 'dark'>(
@@ -83,7 +83,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   });
 
   $effect(() => {
-    void $page.url.pathname;
+    void page.url.pathname;
     headerScrolled = false;
     accountOpen = false;
   });
@@ -161,8 +161,8 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     seedTutorialStep((data.tutorialStep as TutorialStep) ?? null);
   });
 
-  const curPath = $derived($page.url.pathname);
-  const isFirstInvoice = $derived($page.url.searchParams.get('first_invoice') === '1');
+  const curPath = $derived(page.url.pathname);
+  const isFirstInvoice = $derived(page.url.searchParams.get('first_invoice') === '1');
 
   const showReviewCoachMark = $derived(
     ($tutorialStep === '1' || $tutorialStep === '2') && curPath.startsWith('/batch/')
@@ -366,9 +366,9 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   }
 
   const pageTitle = $derived.by(() => {
-    if (!$page.data.title) return 'Mise en Place';
-    if ($page.data.titleParams) return $ti($page.data.title, $page.data.titleParams as Record<string, string | number>);
-    return $t($page.data.title);
+    if (!page.data.title) return 'Mise en Place';
+    if (page.data.titleParams) return $ti(page.data.title, page.data.titleParams as Record<string, string | number>);
+    return $t(page.data.title);
   });
   const userName  = $derived(data?.user?.name ?? 'Usuario');
   const headerPlace = $derived(currentLocation || data.restaurantName || '');

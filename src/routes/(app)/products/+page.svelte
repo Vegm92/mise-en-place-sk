@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { PageData, ActionData } from './$types';
   import { categoryColor, categoryTint, seriesColor } from '$lib/colors';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { t, tcat, ti } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
@@ -52,7 +52,7 @@
   const uncategorizedCount   = $derived(products.filter(p => p.category == null).length);
 
   const periodPills = $derived(PERIOD_PILLS.map(p => {
-    const params = new URLSearchParams($page.url.searchParams);
+    const params = new URLSearchParams(page.url.searchParams);
     params.set('period', p.value);
     return { value: p.value, label: $t(p.labelKey), href: `/products?${params.toString()}` };
   }));

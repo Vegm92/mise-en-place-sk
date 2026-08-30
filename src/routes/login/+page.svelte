@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { t, ti, initLocale } from '$lib/i18n';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -15,10 +15,10 @@
 	});
 
 	const KNOWN_ERRORS = new Set(['missing', 'invalid', 'rate_limited', 'oauth', 'unverified']);
-	const rawError = $derived(form?.error ?? $page.url.searchParams.get('error'));
+	const rawError = $derived(form?.error ?? page.url.searchParams.get('error'));
 	const error = $derived(rawError && !KNOWN_ERRORS.has(rawError) ? 'oauth' : rawError);
-	const resetDone = $derived($page.url.searchParams.get('reset') === '1');
-	const verified = $derived($page.url.searchParams.get('verified') === '1');
+	const resetDone = $derived(page.url.searchParams.get('reset') === '1');
+	const verified = $derived(page.url.searchParams.get('verified') === '1');
 
 	const showUnverified = $derived(error === 'unverified' || form?.resent !== undefined);
 	const unverifiedEmail = $derived(form?.email ?? '');
