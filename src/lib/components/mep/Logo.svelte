@@ -50,4 +50,8 @@
 		letter-spacing: -0.01em;
 		white-space: nowrap;
 	}
+
+	.mep-logo-wordmark svg {
+		display: inline;
+	}
 </style>
