@@ -2,8 +2,8 @@
 
 The AI's map of the repository. Read this first to locate any subsystem; it is a
 table of contents, not the documentation itself. All file paths are relative to
-the repository root. Everything here was verified against `main` (HEAD ~ #445)
-on 2026-08-13; if a doc disagrees with source, the source wins — report the drift.
+the repository root. Everything here was verified against `main` (HEAD ~ #796)
+on 2026-08-30; if a doc disagrees with source, the source wins — report the drift.
 
 ## Product purpose
 
@@ -19,8 +19,9 @@ Spanish-first, bilingual (es/en). Product definition:
 
 - SvelteKit 2 + Svelte 5 (runes) + TypeScript, `@sveltejs/adapter-node`
 - Tailwind CSS 4
-- Drizzle ORM + `postgres` (postgres.js), Railway Postgres, no RLS (migrated
-  off Supabase Postgres, #366)
+- Drizzle ORM + `postgres` (postgres.js), Railway Postgres (migrated off
+  Supabase Postgres, #366). App-layer tenancy is primary; a Postgres RLS
+  backstop was added on top (ADR-030, #222), scoped to the `mep_runtime` role
 - Auth.js (`@auth/sveltekit` + `@auth/drizzle-adapter`), JWT sessions,
   Credentials + Google OAuth (migrated off Supabase Auth, #369/#372/#370)
 - Gemini (`@google/genai`, default `gemini-2.5-flash`) via provider seam
@@ -63,7 +64,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 - Canonical schema: `src/lib/server/schema.ts`. 44 tables + 5 materialized
   views.
-- Committed Drizzle migrations in `drizzle/` (latest `0057`) are canonical
+- Committed Drizzle migrations in `drizzle/` (latest `0058`) are canonical
   (ADR-003); `pnpm db:check-sync` fails CI on drift.
 - Every business table carries `restaurant_id`. Statuses are `text` — no enums.
 - Table inventory: `docs/01_architecture/data_schemas_and_relations.md`.
@@ -87,9 +88,10 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
   the `active_restaurant` cookie, re-validated server-side on switch
   (`src/hooks.server.ts`, `(app)/api/active-restaurant/+server.ts`, ADR-014).
 - Tenant scoping: `forTenant().scope()` in `src/lib/server/tenant.ts`; enforced
-  by `lint:tenant-scope` + `lint:unscoped-query` CI gates (ADR-001/005/022). No
-  RLS — isolation relies on `locals.restaurantId` app-layer scoping, exercised
-  by the tenant-isolation tests.
+  by `lint:tenant-scope` + `lint:unscoped-query` CI gates (ADR-001/005/022).
+  App-layer scoping is primary; a Postgres RLS backstop (ADR-030) is enabled
+  but not yet forced in production, exercised by the tenant-isolation tests
+  and `tests/rls-runtime-role.test.ts`.
 - Full detail: `docs/04_engineering/security_rules.md`.
 
 ## Background worker

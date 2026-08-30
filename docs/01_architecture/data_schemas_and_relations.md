@@ -2,7 +2,7 @@
 
 Source of truth: `src/lib/server/schema.ts` + committed migrations in
 `drizzle/` (ADR-003). 44 tables + 5 materialized views, latest migration
-`0057`. Statuses are `text` with app-level
+`0058`. Statuses are `text` with app-level
 defaults — **there are no Postgres enums**. All business tables carry
 `restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE`.
 
@@ -85,6 +85,8 @@ directly at write time. Source of the trend/analytics pages.
 | `subscriptions` | Entitlement state | `restaurantId` unique, `stripeCustomerId`/`stripeSubscriptionId`/`stripePriceId` unique, `planTier` `trial\|starter\|pro\|business`, `status` `trialing\|active\|…`, `trialEndsAt`, `currentPeriodEnd`, `cancelAtPeriodEnd`, `lastEventAt` | Stripe owns money, Postgres owns entitlement (ADR-013) |
 | — Stripe webhook dedup | `idempotency_keys`, `stripe-webhook` scope | key = Stripe `event.id` | Claim-before-process |
 | `mrr_snapshots` | Monthly revenue snapshot | `(month, restaurantId)` unique, `planTier`, `status`, `mrrCents`, `atRiskCents`, `source` `live\|estimated` | Fed by cron + admin backfill; CHECK on `month` format (#516) |
+| `acquisition_costs` | Admin-entered CAC input | `month`, `category`, `amountCents`, `note`, `createdBy` | Feeds `/admin/revenue` CAC calc; not tenant-scoped (platform-level) |
+| `revenue_assumptions` | Admin-entered revenue model knobs | `(key, value)` | Backs `revenue-math.ts`; not tenant-scoped |
 
 ## Chat
 
@@ -112,6 +114,8 @@ directly at write time. Source of the trend/analytics pages.
 | `dead_letter_queue` | Exhausted job audit | `queue`, `sourceId`, `jobId`, `errorClass`, `errorMessage`, `stack`, `payload` jsonb, `attempt`, `occurrences`, `status` `pending\|reviewed\|replayed\|discarded` | Dedupe index `(queue, source_id, error_class, status)` |
 | `worker_heartbeats` | Worker liveness (#540) | PK `id` (one row, `worker`), `startedAt`, `lastSeenAt`, `lastJobCompletedAt`, `jobsCompleted` | Written by `src/worker.ts` every 30 s and after each job batch; read by `/admin/health` and `/api/health`. Not tenant-scoped — it is a process-level signal |
 | `waitlist` | Landing email capture | `email` unique |
+| `app_flags` | Global key/value flag store | PK `key`, `value` text | Backs `access_open` and the four `beta_feature_*` keys (`docs/03_features/feature_flags.md`); not tenant-scoped by design |
+| `digest_shares` | Public share link for a weekly digest | `token` unique, `restaurantId`, `week`, `revokedAt` | Unique active `(restaurantId, week)` while `revokedAt IS NULL`; RLS-enabled (migration 0055) |
 
 ## Functions and extensions
 
@@ -123,7 +127,10 @@ directly at write time. Source of the trend/analytics pages.
 
 - `restaurant_id` on every business table; `user_restaurants` and `subscriptions`
   are the deliberate exceptions.
-- No enums; no triggers; no RLS (migration 0001 was dropped on Railway, ADR-005).
+- No enums; no triggers. Migration 0001's RLS was dropped on Railway (ADR-005);
+  a new RLS backstop (ADR-030, migrations 0055/0057) is ENABLE-only, scoped to
+  the `mep_runtime` role, and additive to — never a replacement for —
+  app-layer `forTenant().scope()`.
 - Unique constraints do double duty as the last line of idempotency defense.
 - Migration workflow and verification: `docs/04_engineering/database_changes.md`.
 
