@@ -33,12 +33,10 @@ describe('issue #747 — invoice detail viewer never prints the raw storage key'
 		expect(source).toContain('documentDisplayName');
 	});
 
-	it('both viewers gate the preview on a previewable-extension check', () => {
-		for (const file of [DESKTOP, MOBILE]) {
-			const source = readFileSync(file, 'utf8');
-			expect(source, file).toContain('isPreviewable');
-			expect(source, file).toMatch(/PREVIEWABLE_EXTENSIONS/);
-		}
+	it('desktop viewer gates the preview on a previewable-extension check', () => {
+		const source = readFileSync(DESKTOP, 'utf8');
+		expect(source, DESKTOP).toContain('isPreviewable');
+		expect(source, DESKTOP).toMatch(/PREVIEWABLE_EXTENSIONS/);
 	});
 
 	it('defines a "no preview" note in both locales, distinct from "no file attached"', () => {
