@@ -88,11 +88,11 @@
 <div style="height: 100%; overflow: auto; padding-bottom: 24px;">
   <div style="padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
       <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;">
         {$t(greeting)} · {dateStr}
       </div>
-      <DateRangePicker from={rangeFrom} to={rangeTo} baseUrl="/dashboard" />
+      <DateRangePicker from={rangeFrom} to={rangeTo} label={currentPeriod} baseUrl="/dashboard" />
     </div>
 
     <div class="card" style="padding: 16px;">

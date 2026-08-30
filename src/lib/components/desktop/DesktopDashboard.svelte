@@ -100,8 +100,7 @@
 <div class="hidden md:flex flex-col gap-3 p-4" style="min-height:0;">
 
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-    <span style="font-size:13px;font-weight:600;color:var(--mep-fg-1);">{currentPeriod}</span>
-    <DateRangePicker from={rangeFrom} to={rangeTo} baseUrl="/dashboard" />
+    <DateRangePicker from={rangeFrom} to={rangeTo} label={currentPeriod} baseUrl="/dashboard" />
   </div>
 
   {#if data.firstInvoice && !firstInvoiceDismissed}
