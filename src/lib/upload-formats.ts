@@ -8,6 +8,8 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export const MIN_UPLOAD_BYTES = 1024;
 
+export const MAX_UPLOAD_TOTAL_BYTES = 60 * 1024 * 1024;
+
 export function isSupportedUploadExtension(ext: string): ext is SupportedUploadExtension {
 	return (SUPPORTED_UPLOAD_EXTENSIONS as readonly string[]).includes(ext.toLowerCase());
 }
@@ -43,6 +45,14 @@ export const MAGIC_BYTES: Record<string, (buf: Uint8Array) => boolean> = {
 };
 
 export type RejectReason = 'unsupportedType' | 'tooLarge' | 'tooSmall' | 'contentMismatch';
+
+export function totalUploadBytes(files: readonly { size: number }[]): number {
+	return files.reduce((sum, f) => sum + f.size, 0);
+}
+
+export function exceedsUploadTotal(files: readonly { size: number }[]): boolean {
+	return totalUploadBytes(files) > MAX_UPLOAD_TOTAL_BYTES;
+}
 
 export function checkUploadSize(size: number): 'tooLarge' | 'tooSmall' | null {
 	if (size > MAX_UPLOAD_BYTES) return 'tooLarge';
