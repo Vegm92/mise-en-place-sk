@@ -156,7 +156,7 @@
       <div class="card" style="padding: 24px 18px; text-align: center;">
         <div class="subtitle" style="margin-bottom: 6px;">{$t('turno.empty.title')}</div>
         <div class="body" style="margin: 0 0 14px;">{$t('turno.empty.body')}</div>
-        <a href="/extract" class="btn btn-primary" style="text-decoration: none;">{$t('turno.empty.action')}</a>
+        <a href="/" class="btn btn-primary" style="text-decoration: none;">{$t('turno.empty.action')}</a>
       </div>
     {:else}
       <div style="display: flex; flex-direction: column; gap: 10px;">
