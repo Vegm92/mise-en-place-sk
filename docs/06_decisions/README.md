@@ -88,6 +88,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 |---|---|---|
 | [004](./whatsapp/ADR-004-whatsapp-converges-on-batch-pipeline.md) | WhatsApp converges on the batch upload pipeline | Active, cutover complete |
 | [019](./whatsapp/ADR-019-phone-number-is-the-tenant-key.md) | Phone number is the tenant key, bound by a short-lived pairing code | Active |
+| [025](./whatsapp/ADR-025-unofficial-whatsapp-client-for-the-mvp.md) | The WhatsApp bot runs on an unofficial client until the business is registered with Meta | Active |
 
 ### [`data/`](./data) — schema and migrations
 
@@ -105,6 +106,8 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | [027](./experience/ADR-027-amber-accent-removed-and-enforced.md) | The amber accent block is deleted and the ramp split is test-enforced | Active, amended by 028 |
 | [028](./experience/ADR-028-ink-is-the-accent.md) | The accent is the ink; no hue carries the brand | Active, amended by 032 |
 | [032](./experience/ADR-032-the-ink-gains-a-hue.md) | The ink gains a temperature: `--mep-acc` goes blue-black light, steel blue dark | Active |
+| [033](./experience/ADR-033-the-mark-is-an-m.md) | The mark is a descending lowercase m; the wordmark begins with it | Active |
+| [033](./experience/ADR-033-the-rendered-locale-is-request-state.md) | Rendered locale is decided from request state (path prefix), not a client-side store, so SSR serves the right language to bots | Active |
 
 ### [`conventions/`](./conventions) — repo-wide engineering rules
 
@@ -117,7 +120,13 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 
 **Numbering is global and sequential.** ADR-014 is ADR-014 wherever it lives, so
 a reference in code, a commit message or an issue resolves without a path. Next
-number: **032**.
+number: **034**.
+
+**Known collisions (parallel branches picked the same number before merging):**
+ADR-025 exists twice (`insights/`, `whatsapp/`), ADR-027 exists twice
+(`analytics/`, `experience/`), ADR-033 exists twice (both `experience/`).
+None have been renumbered — renumbering after the fact breaks existing
+cross-references — so resolve by folder + filename, not by number alone.
 
 **Folders group; they do not scope.** A decision belongs in the folder of the
 feature it most affects. Decisions that touch several areas live with the primary
@@ -146,7 +155,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **032**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **034**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original
