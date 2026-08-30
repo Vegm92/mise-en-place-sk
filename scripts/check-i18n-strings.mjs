@@ -47,6 +47,7 @@ const TEXT_ATTRS = new Set(['placeholder', 'title', 'aria-label', 'alt']);
 const ALLOWED = new Set([
 	'Mise en Place',
 	'· Mise en Place',
+	'ise en place',
 	'EUR',
 	'kg',
 	'CV:',

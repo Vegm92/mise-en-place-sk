@@ -1,11 +1,11 @@
 /**
  * Generates PWA icon PNGs (and the favicon PNGs + ICO) using only Node.js
- * built-ins (zlib + Buffer). Design: the same three-bar mark used in-app
- * (`src/lib/components/mep/Logo.svelte`) and in transactional email
- * (`src/lib/server/email.ts`'s LOGO_SVG), on the ink/parchment brand pair
- * (ADR-032, amending ADR-028) — ink background (#1B2A44, matches
- * manifest.webmanifest's theme_color), paper bars (#ECEDF1, matches its
- * background_color).
+ * built-ins (zlib + Buffer). Design: the same descending-shoulder m monogram
+ * used in-app (`src/lib/components/mep/Logo.svelte`) and in transactional
+ * email (`src/lib/server/email.ts`'s LOGO_SVG), on the ink/parchment brand
+ * pair (ADR-033, amending ADR-028/ADR-032's artwork) — ink background
+ * (#1B2A44, matches manifest.webmanifest's theme_color), paper mark (#ECEDF1,
+ * matches its background_color).
  * These constants are asserted against the manifest by
  * tests/logo-usage-consistency.test.ts — change both together.
  * Run: node scripts/generate-pwa-icons.mjs
@@ -130,44 +130,128 @@ const [BG_R, BG_G, BG_B] = channels(BG_HEX);
 const [FG_R, FG_G, FG_B] = channels(FG_HEX);
 
 /**
- * The three-bar mark shared with `src/lib/components/mep/Logo.svelte` and
+ * The m-monogram mark shared with `src/lib/components/mep/Logo.svelte` and
  * `src/lib/server/email.ts`'s LOGO_SVG, expressed in the same 24-unit space
- * those use (viewBox="0 0 24 24"): three vertical bars, all starting at
- * y=3.5, of decreasing height (17/13/9), left to right.
+ * those use (viewBox="0 0 24 24"): a round-capped 2.6-unit stroke drawing a
+ * lowercase m whose second shoulder sits lower than the first (SVG path
+ * "M4.4 18.5 V9.5 Q4.4 5.5 8.2 5.5 Q12 5.5 12 9.5 V18.5
+ *  M12 13 Q12 9.5 15.8 9.5 Q19.6 9.5 19.6 13 V18.5").
  */
-const BAR_UNIT = 24;
-const BARS = [
-	{ x: 2.5, h: 17 },
-	{ x: 10.5, h: 13 },
-	{ x: 18.5, h: 9 },
+const MARK_UNIT = 24;
+const STROKE_W = 2.6;
+/** The two subpaths as segment lists: M = move, L = line, Q = quadratic bezier. */
+const MARK_SUBPATHS = [
+	[
+		['M', 4.4, 18.5],
+		['L', 4.4, 9.5],
+		['Q', 4.4, 5.5, 8.2, 5.5],
+		['Q', 12, 5.5, 12, 9.5],
+		['L', 12, 18.5],
+	],
+	[
+		['M', 12, 13],
+		['Q', 12, 9.5, 15.8, 9.5],
+		['Q', 19.6, 9.5, 19.6, 13],
+		['L', 19.6, 18.5],
+	],
 ];
-const BAR_W = 3;
-const BAR_Y = 3.5;
 
-/** Draws the mark on a flat ink square, bars filling their 24-unit-space position scaled to `size`. */
-function drawIcon(size) {
-	const cv = createCanvas(size, size, BG_R, BG_G, BG_B);
-	const s = size / BAR_UNIT;
-	for (const bar of BARS) {
-		cv.fillRect(bar.x * s, BAR_Y * s, BAR_W * s, bar.h * s, FG_R, FG_G, FG_B);
+/** Flattens one subpath into densely sampled points (24-unit space). */
+function samplePath(subpath, samplesPerSeg = 96) {
+	const pts = [];
+	let cur = null;
+	for (const seg of subpath) {
+		if (seg[0] === 'M') {
+			cur = [seg[1], seg[2]];
+			pts.push(cur);
+		} else if (seg[0] === 'L') {
+			const [x1, y1] = cur;
+			const [, x2, y2] = seg;
+			for (let i = 1; i <= samplesPerSeg; i++) {
+				const t = i / samplesPerSeg;
+				pts.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+			}
+			cur = [x2, y2];
+		} else {
+			const [x0, y0] = cur;
+			const [, cx, cy, x2, y2] = seg;
+			for (let i = 1; i <= samplesPerSeg; i++) {
+				const t = i / samplesPerSeg;
+				const u = 1 - t;
+				pts.push([u * u * x0 + 2 * u * t * cx + t * t * x2, u * u * y0 + 2 * u * t * cy + t * t * y2]);
+			}
+			cur = [x2, y2];
+		}
 	}
-	return encodePng(size, size, cv.px);
+	return pts;
 }
 
-/** Maskable variant: bars pulled into an 80% safe zone, same relative layout. */
-function drawMaskable(size) {
-	const cv = createCanvas(size, size, BG_R, BG_G, BG_B);
-	const scale = 0.7;
-	const offset = (1 - scale) / 2;
-	const map = (v) => size * (offset + (v / BAR_UNIT) * scale);
-	for (const bar of BARS) {
-		const x0 = map(bar.x);
-		const y0 = map(BAR_Y);
-		const w0 = (BAR_W / BAR_UNIT) * scale * size;
-		const h0 = (bar.h / BAR_UNIT) * scale * size;
-		cv.fillRect(x0, y0, w0, h0, FG_R, FG_G, FG_B);
+/** Fills a solid disc — stamping discs along the sampled path renders the
+ *  round-capped, round-joined stroke exactly. */
+function stampDisc(cv, cx, cy, r, R, G, B) {
+	const y0 = Math.max(0, Math.ceil(cy - r));
+	const y1 = Math.min(cv.h - 1, Math.floor(cy + r));
+	for (let y = y0; y <= y1; y++) {
+		const dy = y - cy;
+		const half = Math.sqrt(Math.max(0, r * r - dy * dy));
+		const x0 = Math.max(0, Math.ceil(cx - half));
+		const x1 = Math.min(cv.w - 1, Math.floor(cx + half));
+		for (let x = x0; x <= x1; x++) cv.setPixel(x, y, R, G, B);
 	}
-	return encodePng(size, size, cv.px);
+}
+
+/** Box-downsamples an ss×-supersampled canvas — the stroke's anti-aliasing. */
+function downsample(cv, ss) {
+	const w = cv.w / ss;
+	const h = cv.h / ss;
+	const out = new Uint8ClampedArray(w * h * 4);
+	const n = ss * ss;
+	for (let y = 0; y < h; y++) {
+		for (let x = 0; x < w; x++) {
+			let r = 0, g = 0, b = 0;
+			for (let sy = 0; sy < ss; sy++) {
+				for (let sx = 0; sx < ss; sx++) {
+					const i = ((y * ss + sy) * cv.w + (x * ss + sx)) * 4;
+					r += cv.px[i];
+					g += cv.px[i + 1];
+					b += cv.px[i + 2];
+				}
+			}
+			const o = (y * w + x) * 4;
+			out[o] = r / n;
+			out[o + 1] = g / n;
+			out[o + 2] = b / n;
+			out[o + 3] = 255;
+		}
+	}
+	return out;
+}
+
+const SUPERSAMPLE = 4;
+
+/** Draws the mark on a flat ink square; `inset` shrinks it toward the centre
+ *  (0 = full 24-unit layout, 0.7 = maskable safe zone). */
+function drawMark(size, scale) {
+	const ss = SUPERSAMPLE;
+	const cv = createCanvas(size * ss, size * ss, BG_R, BG_G, BG_B);
+	const offset = (1 - scale) / 2;
+	const map = (v) => size * ss * (offset + (v / MARK_UNIT) * scale);
+	const r = ((STROKE_W / 2 / MARK_UNIT) * scale * size) * ss;
+	for (const subpath of MARK_SUBPATHS) {
+		for (const [px2, py] of samplePath(subpath)) {
+			stampDisc(cv, map(px2), map(py), r, FG_R, FG_G, FG_B);
+		}
+	}
+	return encodePng(size, size, downsample(cv, ss));
+}
+
+function drawIcon(size) {
+	return drawMark(size, 1);
+}
+
+/** Maskable variant: mark pulled into an 80% safe zone, same relative layout. */
+function drawMaskable(size) {
+	return drawMark(size, 0.7);
 }
 
 // ── ICO encoder (PNG-in-ICO, Vista+; every modern consumer supports it) ──────

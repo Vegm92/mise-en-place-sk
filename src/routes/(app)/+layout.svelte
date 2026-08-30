@@ -415,11 +415,10 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
     "
   >
     <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;{collapsed ? 'justify-content:center;' : ''}">
-      <Logo size={22} />
-      {#if !collapsed}
-        <span style="font-size:15px;font-weight:600;letter-spacing:-0.2px;color:var(--mep-fg);">
-          Mise en Place
-        </span>
+      {#if collapsed}
+        <Logo size={22} />
+      {:else}
+        <Logo size={20} wordmark />
       {/if}
     </div>
 
