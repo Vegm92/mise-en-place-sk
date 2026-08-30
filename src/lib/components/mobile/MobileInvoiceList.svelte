@@ -27,6 +27,13 @@
     category: string | null;
   }
 
+  interface Stats {
+    reviewed_count: number;
+    to_review_count: number;
+    issue_count: number;
+    supplier_count: number;
+  }
+
   let {
     invoices,
     q,
@@ -36,6 +43,7 @@
     pagination,
     onFilter,
     onLoadMore,
+    stats,
   }: {
     invoices: Invoice[];
     q: string;
@@ -45,6 +53,7 @@
     pagination: { page: number; pageSize: number; total: number; totalPages: number };
     onFilter: (patch: Partial<InvoiceFilters>) => void;
     onLoadMore: () => void;
+    stats: Stats;
     } = $props();
 
   let supplierSheetOpen = $state(false);
@@ -124,7 +133,31 @@
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; padding-top: 2px;">
-  <div style="padding: 0 18px 10px; position: relative;">
+  <div style="padding: 10px 18px 0; flex-shrink: 0;">
+    <div class="card" style="display: flex; align-items: center; padding: 0;">
+      <div style="flex: 1; text-align: center; padding: 10px 6px;">
+        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-pos); letter-spacing: -0.02em; line-height: 1.1;">{stats.reviewed_count}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.reviewed')}</div>
+      </div>
+      <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
+      <div style="flex: 1; text-align: center; padding: 10px 6px;">
+        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-warn); letter-spacing: -0.02em; line-height: 1.1;">{stats.to_review_count}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.toReview')}</div>
+      </div>
+      <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
+      <div style="flex: 1; text-align: center; padding: 10px 6px;">
+        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-neg); letter-spacing: -0.02em; line-height: 1.1;">{stats.issue_count}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.issues')}</div>
+      </div>
+      <div style="width: 1px; height: 30px; background: var(--mep-border); flex-shrink: 0;"></div>
+      <div style="flex: 1; text-align: center; padding: 10px 6px;">
+        <div class="num" style="font-size: 16px; font-weight: 600; color: var(--mep-fg); letter-spacing: -0.02em; line-height: 1.1;">{stats.supplier_count}</div>
+        <div style="font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--mep-fg-3); margin-top: 2px;">{$t('inv.kpi.suppliers')}</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 10px 18px 10px; position: relative;">
     <span style="position: absolute; left: 30px; top: 50%; transform: translateY(-50%); color: var(--mep-fg-3); pointer-events: none;">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>

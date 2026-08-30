@@ -64,9 +64,10 @@ describe('analytics mobile parity (issue #654)', () => {
 			expect(PRICES_MOBILE).toContain("$t('prices.downSub')");
 		});
 
-		it('ports the per-supplier selector desktop drives ?supplier_id with', () => {
+		it('ports the per-supplier filter (chip + bottom sheet) desktop drives ?supplier_id with', () => {
 			expect(PRICES_MOBILE).toContain("$t('prices.allSuppliers')");
-			expect(PRICES_MOBILE).toMatch(/name="supplier_id"/);
+			expect(PRICES_MOBILE).toContain("$t('prices.filter.supplier')");
+			expect(PRICES_MOBILE).toMatch(/searchParams\.set\('supplier_id'/);
 			expect(PRICES_PAGE).toMatch(/suppliers=\{data\.suppliers\}/);
 			expect(PRICES_PAGE).toMatch(/selected_supplier=\{data\.selected_supplier\}/);
 		});

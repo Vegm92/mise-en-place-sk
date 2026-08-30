@@ -224,6 +224,7 @@
     pagination={pagination}
     onFilter={patchFilters}
     onLoadMore={loadMoreMobile}
+    stats={stats}
   />
 </div>
 

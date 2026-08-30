@@ -5,6 +5,7 @@
   import { t, tcat, ti } from '$lib/i18n';
   import { invalidateAll } from '$app/navigation';
   import ListPageTemplate from '$lib/components/mep/ListPageTemplate.svelte';
+  import MobileProducts from '$lib/components/mobile/MobileProducts.svelte';
   import PeriodPills from '$lib/components/mep/PeriodPills.svelte';
   import { PERIOD_PILLS } from '$lib/constants';
   import Plus from '@lucide/svelte/icons/plus';
@@ -62,10 +63,7 @@
     data.trendData.series.map((s, i) => ({ key: s.key, label: $t(s.label), color: seriesColor(i), values: s.values }))
   );
 
-  async function saveConversion(prompt: ConversionPrompt, event: SubmitEvent) {
-    event.preventDefault();
-    const form = event.currentTarget as HTMLFormElement;
-    const fields = new FormData(form);
+  async function saveConversion(prompt: ConversionPrompt, canonicalUnit: string, conversionFactor: string) {
     conversionBusy = { ...conversionBusy, [prompt.notificationId]: true };
     conversionError = { ...conversionError, [prompt.notificationId]: false };
     try {
@@ -77,8 +75,8 @@
           supplier_name:     prompt.supplierName,
           ingredient:        prompt.ingredient,
           purchase_unit:     prompt.purchaseUnit,
-          canonical_unit:    String(fields.get('canonical_unit') ?? ''),
-          conversion_factor: String(fields.get('conversion_factor') ?? ''),
+          canonical_unit:    canonicalUnit,
+          conversion_factor: conversionFactor,
         }),
       });
       if (!res.ok) {
@@ -106,7 +104,18 @@
   }
 </script>
 
-<div class="p-6">
+<div class="md:hidden" style="height:100%;overflow:hidden;">
+  <MobileProducts
+    products={products}
+    suggestions={suggestions}
+    conversionPrompts={conversionPrompts}
+    categories={categories}
+    onRespondSuggestion={respondSuggestion}
+    onSaveConversion={saveConversion}
+  />
+</div>
+
+<div class="hidden md:block p-6">
   <ListPageTemplate
     dataCoach="products-main"
     bind:view
@@ -302,7 +311,11 @@
                     </p>
                   </div>
                   <form class="flex flex-wrap items-end gap-2"
-                    onsubmit={(e) => saveConversion(c, e)}>
+                    onsubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget as HTMLFormElement);
+                      saveConversion(c, String(fd.get('canonical_unit') ?? ''), String(fd.get('conversion_factor') ?? ''));
+                    }}>
                     <div class="flex flex-col gap-1 min-w-[110px]">
                       <label class="label text-fg-3" for="conv-unit-{c.notificationId}">{$t('prod.conv.canonicalUnit')}</label>
                       <input id="conv-unit-{c.notificationId}" name="canonical_unit" required
