@@ -34,7 +34,7 @@ COPY --from=build /app/drizzle ./drizzle
 # blows past it and the body stream is killed with a 413 before the form action
 # ever runs. Keep this above MAX_UPLOAD_TOTAL_BYTES in src/lib/upload-formats.ts
 # (tests/upload-body-size-limit.test.ts holds the two in sync).
-ENV BODY_SIZE_LIMIT=64M
+ENV BODY_SIZE_LIMIT=128M
 
 # Mount point for the shared uploads volume (issue #285). Creating it here with
 # `node` ownership means Docker gives the named volume the same ownership when
