@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import { locale, t } from '$lib/i18n';
   import { fmtEur } from '$lib/formatters';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
@@ -38,6 +39,14 @@
 
   let search = $state('');
   let filterChange = $state<'all' | 'up' | 'down' | 'flat'>('all');
+  let supplierSheetOpen = $state(false);
+
+  function pickSupplier(id: number | null) {
+    supplierSheetOpen = false;
+    const url = new URL('/analytics/prices', window.location.origin);
+    if (id !== null) url.searchParams.set('supplier_id', String(id));
+    goto(url.pathname + url.search);
+  }
 
   const filtered = $derived(
     items.filter(p => {
@@ -95,21 +104,6 @@
     />
   </div>
 
-  <form method="get" action="/analytics/prices" style="padding: 0 18px 10px;">
-    <select
-      name="supplier_id"
-      class="input"
-      aria-label={$t('prices.allSuppliers')}
-      style="width: 100%; height: 40px; box-sizing: border-box;"
-      onchange={(e) => (e.currentTarget as HTMLSelectElement).form?.submit()}
-    >
-      <option value="">{$t('prices.allSuppliers')}</option>
-      {#each suppliers as s}
-        <option value={s.id} selected={selected_supplier === s.id}>{s.name}</option>
-      {/each}
-    </select>
-  </form>
-
   <ScrollStrip label={$t('anp.filterLabel')} extraStyle="flex-shrink:0;">
     {#each filterOptions as [val, label]}
       <button
@@ -117,7 +111,38 @@
         onclick={() => filterChange = val}
       >{label}</button>
     {/each}
+    <button
+      class="chip {selected_supplier !== null ? 'active' : ''}"
+      style="gap: 5px;"
+      aria-haspopup="dialog"
+      onclick={() => supplierSheetOpen = true}
+    >{$t('prices.filter.supplier')}</button>
   </ScrollStrip>
+
+  {#if supplierSheetOpen}
+    <button
+      type="button"
+      class="filter-sheet-backdrop"
+      aria-label={$t('minv.sheet.close')}
+      onclick={() => supplierSheetOpen = false}
+    ></button>
+    <div class="filter-sheet" role="dialog" aria-modal="true" aria-label={$t('prices.filter.supplier')}>
+      <div class="filter-sheet-head">
+        <span class="body-strong">{$t('prices.filter.supplier')}</span>
+        <button type="button" class="btn btn-ghost" onclick={() => supplierSheetOpen = false}>{$t('minv.sheet.close')}</button>
+      </div>
+      <div class="filter-sheet-list">
+        <button type="button" class="filter-sheet-option" aria-pressed={selected_supplier === null} onclick={() => pickSupplier(null)}>
+          <span>{$t('prices.allSuppliers')}</span>
+        </button>
+        {#each suppliers as s}
+          <button type="button" class="filter-sheet-option" aria-pressed={selected_supplier === s.id} onclick={() => pickSupplier(s.id)}>
+            <span>{s.name}</span>
+          </button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <div style="flex: 1; overflow: auto; padding: 0 18px 24px; display: flex; flex-direction: column; gap: 14px;">
 
