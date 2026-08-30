@@ -81,6 +81,10 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 **`const GET`**
 - `(app)` is a SvelteKit route group and never appears in real URLs, so the authenticated pages are listed by their served paths.
 
+### `src/routes/(admin)/admin/feature-flags/+page.server.ts`
+**`const actions.toggle`**
+- Flips a beta flag in `beta_feature_flags` via `setBetaFeatureEnabled` (`src/lib/server/feature-flags.ts`) after checking `key` against the live `BETA_FEATURE_FLAGS` registry — an admin can only toggle a flag the code still defines, never an arbitrary string. `load` falls back to all-disabled (`safe(...)`) if the table read fails, so a DB hiccup fails closed instead of reporting flags on. See `docs/03_features/feature_flags.md`.
+
 ### `src/lib/server/admin.ts`
 **`function isAdminUser`**
 - Admin allowlist check — `AUTH_ADMIN_EMAIL` is a comma-separated list. Used by the server hook (request-level guard for `/admin`) and the `(admin)` layout load, so the group is protected even when layout loads don't rerun.

@@ -94,3 +94,4 @@ concept, add it here before using it in specs.
 | **Onboarding** | First-invoice flow gating product surfaces until the first invoice is confirmed; `settings.has_completed_onboarding`. |
 | **i18n** | One string table (`src/lib/i18n.ts`), Spanish first, es/en (ADR-021). |
 | **Viewport variants** | Mobile and desktop Svelte components for the same screen, both rendered, CSS picks one (ADR-020). |
+| **Beta feature flag** | A site-wide on/off switch (default off) that freezes a built-but-not-MVP feature independent of plan tier; toggled from `/admin/feature-flags`. | `BetaFeatureKey`, `app_flags` |

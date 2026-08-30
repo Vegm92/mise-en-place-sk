@@ -95,6 +95,10 @@ plan and explicit human approval — it is never a silent convenience.
   `fail(403, {section, error})` shape so the error renders on the right field.
 - Anything reached off a request path — the invoice-save alert fan-out, worker
   jobs, cron — must check entitlement itself; the hook cannot see it.
+- Beta feature flags (`BETA_FEATURE_ROUTES` / `enforceFeatureFlag` in
+  `hooks.server.ts`) run before `entitlementHandle` in the handle sequence,
+  so a disabled flag wins over plan tier. This is additive to entitlement,
+  not a replacement — do not fold a flag check into `ROUTE_POLICY` (docs/03_features/feature_flags.md).
 
 ## DATABASE
 
