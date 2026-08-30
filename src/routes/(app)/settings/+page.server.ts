@@ -7,6 +7,7 @@ import { restaurants, settings, userRestaurants } from '$lib/server/schema';
 import { users } from '$lib/server/schema';
 import { asc, eq, sql } from 'drizzle-orm';
 import { applyTierSettings, BILLING_PARENT, TIERS } from '$lib/server/billing';
+import { isBetaFeatureEnabled } from '$lib/server/feature-flags';
 import { randomBytes } from 'node:crypto';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
@@ -54,7 +55,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('settings', async () => {
-		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences] = await Promise.all([
+		const [row, priceRow, restaurantRow, membership, locationRows, entitlements, whatsappContactRows, pairingCode, userRow, alertPreferences, multiLocationFlag] = await Promise.all([
 			db.select({ value: settings.value })
 				.from(settings)
 				.where(tdb.scope(settings.restaurantId, eq(settings.key, THRESHOLD_KEY))),
@@ -81,6 +82,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 				.where(eq(users.id, locals.user!.id))
 				.limit(1),
 			loadAlertPreferences(rid),
+			isBetaFeatureEnabled('multiLocation'),
 		]);
 
 		const features     = entitlements?.features     ?? TIERS.trial.features;
@@ -101,7 +103,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			restaurantName: restaurantRow[0]?.name ?? '',
 			canRenameRestaurant: membership[0]?.role === 'owner',
 			locations: locationRows.map(loc => ({ ...loc, locked: locals.lockedRestaurantIds.includes(loc.id) })),
-			multiLocation: features.multiLocation,
+			multiLocation: features.multiLocation && multiLocationFlag,
 			maxLocations,
 			activeRestaurantId: rid,
 			whatsappEnabled: WHATSAPP_ENABLED,
@@ -232,7 +234,7 @@ export const actions: Actions = {
 		const entitlements = await locals.entitlements();
 		const { billingRestaurantId: billingRid, tier, features, maxLocations } = entitlements
 			?? { billingRestaurantId: rid, tier: 'trial' as const, features: TIERS.trial.features, maxLocations: TIERS.trial.maxLocations };
-		if (!features.multiLocation) {
+		if (!features.multiLocation || !(await isBetaFeatureEnabled('multiLocation'))) {
 			return fail(403, { section: 'location', error: 'set.locations.err.notAvailable' });
 		}
 

@@ -102,6 +102,16 @@ Numeric stock/burn; unit strings through `canonicalizeUnit`; tenant scope.
 - Setting a conversion factor changes the converted quantity used downstream.
 - Tests: `tests/alert-engine.test.ts` (forecast), `tests/unit-bridge.test.ts`.
 
+## Beta status
+
+Frozen for the MVP private beta (2026-08-29 executive audit, PR #794): the
+`/api/stock-levels` endpoint is disabled site-wide unless the `stock` row in
+`app_flags` (`beta_feature_stock`, default disabled) is set to `'true'` — see
+`docs/03_features/feature_flags.md`. Gated in `hooks.server.ts`
+(`enforceFeatureFlag`), ahead of the existing `stockTracking` plan-tier check
+in `entitlementHandle`, so both must allow the request. Toggle from
+`/admin/feature-flags`.
+
 ## Code notes
 
 ### `src/routes/(app)/api/stock-levels/+server.ts`
