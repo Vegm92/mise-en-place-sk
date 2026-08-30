@@ -4,7 +4,7 @@ import { handleLoad } from '$lib/server/load-guard';
 import { db, forTenant } from '$lib/server/db';
 import { suppliers, invoices, supplierMetrics } from '$lib/server/schema';
 import { sql, eq, and } from 'drizzle-orm';
-import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES, periodToDate } from '$lib/constants';
+import { UNCATEGORIZED_CATEGORY, VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin } from '$lib/server/category-spend';
 import { parseSupplierListParams } from '$lib/supplier-list';
@@ -27,12 +27,11 @@ function stabilityFromCv(cv: number): 'stable' | 'moderate' | 'volatile' {
 	return 'volatile';
 }
 
-export const load: PageServerLoad = async ({ url, locals }) => {
+export const load: PageServerLoad = async ({ url, locals, parent }) => {
 	const rid = locals.restaurantId!;
 	const tdb = forTenant(rid);
 	return handleLoad('suppliers', async () => {
-		const period = url.searchParams.get('period') ?? '30d';
-		const periodStart = periodToDate(period).toISOString().slice(0, 10);
+		const { rangeFrom, rangeTo } = await parent();
 		const listParams = parseSupplierListParams(url.searchParams);
 		const today   = new Date().toISOString().slice(0, 10);
 		const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -77,7 +76,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				WHERE ili.unit_price IS NOT NULL
 				  AND ili.description IS NOT NULL AND ili.description != ''
 				  AND i.restaurant_id = ${rid}
-				  AND i.invoice_date >= (NOW() - INTERVAL '6 months')::date
+				  AND i.invoice_date >= ${rangeFrom} AND i.invoice_date <= ${rangeTo}
 				GROUP BY i.supplier_id, TO_CHAR(i.invoice_date, 'YYYY-MM')
 				ORDER BY i.supplier_id, month ASC
 			`),
@@ -94,7 +93,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 				WHERE i.restaurant_id = ${rid}
 				  AND i.deleted_at IS NULL
 				  AND ${describedLine()}
-				  AND i.invoice_date >= ${periodStart}
+				  AND i.invoice_date >= ${rangeFrom} AND i.invoice_date <= ${rangeTo}
 				GROUP BY DATE_TRUNC('month', i.invoice_date), ${lineCategoryExpr()}
 				ORDER BY DATE_TRUNC('month', i.invoice_date) ASC
 			`),
@@ -205,7 +204,6 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			suppliers: filteredList,
 			categories: orderedCategories,
 			categoryCounts,
-			period,
 			trendData,
 			sort: listParams.sort,
 			search: listParams.search,
