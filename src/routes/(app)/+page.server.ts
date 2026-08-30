@@ -86,9 +86,6 @@ export const actions: Actions = {
 		try {
 			formData = await request.formData();
 		} catch (err) {
-			// adapter-node errors the body stream with a 413 when the request
-			// exceeds BODY_SIZE_LIMIT, which surfaces here as a formData() rejection.
-			// "could not parse the form" would be a lie — say what actually happened.
 			if ((err as { status?: number }).status === 413) {
 				return fail(413, { error: 'upload.err.totalTooLarge', errorVars: { mb: MAX_UPLOAD_TOTAL_MB } });
 			}
