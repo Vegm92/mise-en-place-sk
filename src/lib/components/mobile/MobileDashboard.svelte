@@ -1,6 +1,6 @@
 <script lang="ts">
   import ArrowUpDown from '@lucide/svelte/icons/arrow-up-down';
-  import PeriodPicker from '$lib/components/mep/PeriodPicker.svelte';
+  import DateRangePicker from '$lib/components/mep/DateRangePicker.svelte';
   import Bullet from '$lib/components/mep/Bullet.svelte';
   import PaceChart from '$lib/components/mep/PaceChart.svelte';
   import RailBlock from '$lib/components/desktop/turno/RailBlock.svelte';
@@ -16,15 +16,13 @@
 
   let {
     data,
-    prevMonthUrl,
-    nextMonthUrl,
-    canGoForward,
+    rangeFrom,
+    rangeTo,
     currentPeriod,
   }: {
     data: DashboardData;
-    prevMonthUrl: string;
-    nextMonthUrl: string;
-    canGoForward: boolean;
+    rangeFrom: string;
+    rangeTo: string;
     currentPeriod: string;
   } = $props();
 
@@ -94,7 +92,7 @@
       <div style="font-size:13px;color:var(--mep-fg-3);min-width:0;">
         {$t(greeting)} · {dateStr}
       </div>
-      <PeriodPicker compact={true} prevUrl={prevMonthUrl} nextUrl={nextMonthUrl} canGoForward={canGoForward} label={currentPeriod} />
+      <DateRangePicker from={rangeFrom} to={rangeTo} baseUrl="/dashboard" />
     </div>
 
     <div class="card" style="padding: 16px;">
