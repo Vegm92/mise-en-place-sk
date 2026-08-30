@@ -25,6 +25,7 @@
   let catFilter      = $state('');
   let view           = $state<'list' | 'chart'>('list');
   let filtersOpen    = $state(false);
+  let showAddForm    = $state(false);
   let suggestionBusy = $state<Record<number, boolean>>({});
   let conversionBusy = $state<Record<number, boolean>>({});
   let conversionError = $state<Record<number, boolean>>({});
@@ -200,29 +201,41 @@
     {#snippet table()}
       {#if tab === 'catalog'}
         <div class="p-4 border-b border-divider">
-          <form method="post" action="?/create" class="flex flex-wrap items-end gap-2">
-            <div class="flex flex-col gap-1 min-w-[180px]">
-              <label class="label text-fg-3" for="prod-name">{$t('prod.new.name')}</label>
-              <input id="prod-name" name="canonicalName" required class="input" style="padding:0 8px;" />
-            </div>
-            <div class="flex flex-col gap-1 min-w-[160px]">
-              <label class="label text-fg-3" for="prod-cat">{$t('prod.new.category')}</label>
-              <select id="prod-cat" name="category" class="input" style="padding:0 8px;">
-                <option value="">—</option>
-                {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
-              </select>
-            </div>
-            <div class="flex flex-col gap-1 min-w-[100px]">
-              <label class="label text-fg-3" for="prod-unit">{$t('prod.new.unit')}</label>
-              <input id="prod-unit" name="canonicalUnit" class="input" style="padding:0 8px;" placeholder="kg" />
-            </div>
-            <button type="submit" class="btn btn-primary" style="font-size:12.5px;gap:5px;">
+          {#if !showAddForm}
+            <button type="button" class="btn btn-primary" style="font-size:12.5px;gap:5px;"
+              onclick={() => (showAddForm = true)}>
               <Plus size={13} />
               {$t('prod.new.add')}
             </button>
-          </form>
-          {#if form?.error}
-            <p class="body text-neg" style="font-size:12px;margin-top:6px;">{form.error}</p>
+          {:else}
+            <form method="post" action="?/create" class="flex flex-wrap items-end gap-2">
+              <div class="flex flex-col gap-1 min-w-[180px]">
+                <label class="label text-fg-3" for="prod-name">{$t('prod.new.name')}</label>
+                <input id="prod-name" name="canonicalName" required class="input" style="padding:0 8px;" />
+              </div>
+              <div class="flex flex-col gap-1 min-w-[160px]">
+                <label class="label text-fg-3" for="prod-cat">{$t('prod.new.category')}</label>
+                <select id="prod-cat" name="category" class="input" style="padding:0 8px;">
+                  <option value="">—</option>
+                  {#each categories as c}<option value={c}>{$tcat(c)}</option>{/each}
+                </select>
+              </div>
+              <div class="flex flex-col gap-1 min-w-[100px]">
+                <label class="label text-fg-3" for="prod-unit">{$t('prod.new.unit')}</label>
+                <input id="prod-unit" name="canonicalUnit" class="input" style="padding:0 8px;" placeholder="kg" />
+              </div>
+              <button type="submit" class="btn btn-primary" style="font-size:12.5px;gap:5px;">
+                <Plus size={13} />
+                {$t('prod.new.add')}
+              </button>
+              <button type="button" class="btn btn-ghost" style="font-size:12.5px;"
+                onclick={() => (showAddForm = false)}>
+                {$t('action.cancel')}
+              </button>
+            </form>
+            {#if form?.error}
+              <p class="body text-neg" style="font-size:12px;margin-top:6px;">{form.error}</p>
+            {/if}
           {/if}
         </div>
 
