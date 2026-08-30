@@ -198,7 +198,7 @@
         <div class="card" style="padding:28px 20px;text-align:center;">
           <div class="subtitle" style="margin-bottom:6px;">{$t('turno.empty.title')}</div>
           <div class="body" style="max-width:44ch;margin:0 auto 14px;">{$t('turno.empty.body')}</div>
-          <a href="/extract" class="btn btn-primary" style="height:30px;text-decoration:none;">{$t('turno.empty.action')}</a>
+          <a href="/" class="btn btn-primary" style="height:30px;text-decoration:none;">{$t('turno.empty.action')}</a>
         </div>
       {:else}
         {#each sortedWorklist as item, i (item.id)}
