@@ -158,9 +158,6 @@ export const actions: Actions = {
 			.set({ name, category: cat, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
 
-		// #831: the user just fixed the category by hand — the uncategorised
-		// nudge/suggestion this supplier was carrying no longer applies, even
-		// though it didn't come through the suggestion widget's own dismiss path.
 		if (cat != null) {
 			await resolveSupplierCategoryAlerts(rid, id).catch((err) =>
 				console.error('[suppliers/update] alert cleanup failed (non-fatal):', err));
