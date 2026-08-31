@@ -15,6 +15,10 @@
  * duplicate-risk warning. Without that line-item overlap it falls back to
  * the softer 'possible_duplicate_purchase' nudge and no link is persisted.
  *
+ * The link is a symmetric pairing: re-linking a document that was already
+ * paired clears the stale partner's back-reference, so no invoice is left
+ * pointing at a document that no longer points back.
+ *
  * DB-backed; the db singleton is swapped for the test client. Skipped without
  * DATABASE_URL.
  */
@@ -168,6 +172,41 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related
 		expect(await notificationsByType(factura.invoiceId, 'related_document_found')).toHaveLength(0);
 		expect(await linkedInvoiceId(factura.invoiceId)).toBeNull();
 		expect(await linkedInvoiceId(albaran.invoiceId)).toBeNull();
+	});
+
+	it('re-linking to a closer match clears the previous partner back-reference', async () => {
+		const supplier = '__inv_dupe_relink__';
+
+		const albaran = await saveReviewedInvoice(
+			fakeItem('albaran'),
+			form({ invoiceNumber: 'ALB-2024-040', invoiceDate: '2024-07-01', totalAmount: '100.00', supplier }),
+			rid,
+		);
+		expect(albaran.type).toBe('saved');
+		if (albaran.type !== 'saved') return;
+
+		const firstFactura = await saveReviewedInvoice(
+			fakeItem('factura'),
+			form({ invoiceNumber: 'FAC-2024-300', invoiceDate: '2024-07-05', totalAmount: '100.00', supplier }),
+			rid,
+		);
+		expect(firstFactura.type).toBe('saved');
+		if (firstFactura.type !== 'saved') return;
+
+		expect(await linkedInvoiceId(albaran.invoiceId)).toBe(firstFactura.invoiceId);
+		expect(await linkedInvoiceId(firstFactura.invoiceId)).toBe(albaran.invoiceId);
+
+		const secondFactura = await saveReviewedInvoice(
+			fakeItem('factura'),
+			form({ invoiceNumber: 'FAC-2024-301', invoiceDate: '2024-07-02', totalAmount: '100.00', supplier }),
+			rid,
+		);
+		expect(secondFactura.type).toBe('saved');
+		if (secondFactura.type !== 'saved') return;
+
+		expect(await linkedInvoiceId(secondFactura.invoiceId)).toBe(albaran.invoiceId);
+		expect(await linkedInvoiceId(albaran.invoiceId)).toBe(secondFactura.invoiceId);
+		expect(await linkedInvoiceId(firstFactura.invoiceId)).toBeNull();
 	});
 
 	it('does not flag when the amounts are far apart', async () => {
