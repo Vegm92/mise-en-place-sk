@@ -14,7 +14,7 @@
  * the table.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 const sentryMocks = vi.hoisted(() => ({
 	captureException: vi.fn(),

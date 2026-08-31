@@ -23,7 +23,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { translations, type Locale } from '../src/lib/i18n';
+import { translations, type Locale } from '../src/lib/i18n-messages';
 
 const ROOT = path.resolve(__dirname, '..');
 const PAGE_SRC = readFileSync(path.join(ROOT, 'src/lib/components/landing/LandingPage.svelte'), 'utf8');

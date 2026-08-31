@@ -15,7 +15,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { LANDING_VARIANTS, getLandingVariant, landingVariantSlugs, venueTypeForLandingVariant } from '../src/lib/landing-variants';
-import { translations, type Locale } from '../src/lib/i18n';
+import { translations, type Locale } from '../src/lib/i18n-messages';
 
 const LAUNCH_SLUGS = ['menu-del-dia', 'aceite-de-oliva', 'verifactu-2027', 'grupo-multi-local', 'pescado-fresco'];
 const LOCALES: Locale[] = ['es', 'en'];

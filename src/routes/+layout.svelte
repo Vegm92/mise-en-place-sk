@@ -3,12 +3,13 @@
   import { onMount, untrack } from 'svelte';
   import { toStore } from 'svelte/store';
   import { locale, initLocale, setMessages } from '$lib/i18n';
-  import { setLocaleContext } from '$lib/i18n-context';
+  import { setLocaleContext, setMessagesContext } from '$lib/i18n-context';
   import { registerPWA } from '$lib/pwa';
   const { data, children } = $props();
 
   untrack(() => setMessages('es', data.messages));
   setLocaleContext(toStore(() => data.locale));
+  setMessagesContext(toStore(() => data.contextMessages));
 
   onMount(() => {
     registerPWA();
