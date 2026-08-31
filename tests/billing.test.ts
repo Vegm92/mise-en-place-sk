@@ -9,7 +9,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
-import { locale, t } from '../src/lib/i18n';
+import { locale, t, loadAllMessages } from '../src/lib/i18n';
+
+await loadAllMessages();
 
 const originalEnv = { ...process.env };
 
