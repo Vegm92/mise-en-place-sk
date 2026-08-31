@@ -9,6 +9,7 @@ import { getOrCreateSupplierId } from '$lib/server/supplier';
 import { toMoneyString, moneyToNullableNumber } from '$lib/server/money';
 import { isBlankOrIsoDate, toIsoDate } from '$lib/server/dates';
 import { parseLineInputs, enrichLineItems, computeFormContentHash, linkProductsToInvoice, findInvalidMonetaryField } from '$lib/server/invoice-save';
+import { reevaluateInvoiceAlerts } from '$lib/server/alerts';
 import { requirePositiveIntId } from '$lib/server/route-params';
 import type { TaxBand } from '$lib/tax';
 
@@ -50,20 +51,21 @@ async function executeEditTransaction(
 	invoiceDate: string | null, dueDate: string | null, totalAmount: string | null,
 	notes: string | null, contentHash: string, expectedVersion: number,
 	enrichedLines: Awaited<ReturnType<typeof enrichLineItems>>,
-): Promise<{ conflict: EditConflict; savedSupplierId: number | null }> {
+): Promise<{ conflict: EditConflict; savedSupplierId: number | null; documentType: 'factura' | 'albaran' | null }> {
 	if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
-		return { conflict: null, savedSupplierId: null };
+		return { conflict: null, savedSupplierId: null, documentType: null };
 	}
 	const [preEditInvoice] = await tx.select().from(invoices)
 		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, id))).limit(1);
 	const preEditLines = await tx.select().from(invoiceLineItems)
 		.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)))
 		.orderBy(asc(invoiceLineItems.id));
+	const documentType = (preEditInvoice?.documentType as 'factura' | 'albaran' | null) ?? null;
 	let supplierId: number | null = null;
 	if (supplierName) supplierId = await getOrCreateSupplierId(rid, supplierName, tx);
 	if (await checkDuplicateInvoice(tx, tdb, id, supplierId, invoiceNumber, contentHash)) {
 		if (idemKey) await releaseRequest(idemKey, tx);
-		return { conflict: 'duplicate', savedSupplierId: null };
+		return { conflict: 'duplicate', savedSupplierId: null, documentType };
 	}
 	const updated = await tx.update(invoices)
 		.set({ supplierId, invoiceNumber, invoiceDate, dueDate, totalAmount, notes, contentHash, version: sql`${invoices.version} + 1` })
@@ -71,7 +73,7 @@ async function executeEditTransaction(
 		.returning({ id: invoices.id });
 	if (updated.length === 0) {
 		if (idemKey) await releaseRequest(idemKey, tx);
-		return { conflict: 'stale', savedSupplierId: null };
+		return { conflict: 'stale', savedSupplierId: null, documentType };
 	}
 	await tx.delete(invoiceLineItems)
 		.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, id)));
@@ -84,7 +86,7 @@ async function executeEditTransaction(
 		restaurantId: rid, invoiceId: id, action: 'edit', userId: uid,
 		snapshot: JSON.stringify({ invoice: preEditInvoice, lineItems: preEditLines }),
 	});
-	return { conflict: null, savedSupplierId: supplierId };
+	return { conflict: null, savedSupplierId: supplierId, documentType };
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -182,8 +184,9 @@ export const actions: Actions = {
 
 		let conflict: EditConflict = null;
 		let savedSupplierId: number | null = null;
+		let documentType: 'factura' | 'albaran' | null = null;
 		await db.transaction(async (tx) => {
-			({ conflict, savedSupplierId } = await executeEditTransaction(
+			({ conflict, savedSupplierId, documentType } = await executeEditTransaction(
 				tx, tdb, id, rid, uid, idemKey, supplierName, invoiceNumber,
 				invoiceDate, dueDate, totalAmount, notes, contentHash, expectedVersion, enrichedLines,
 			));
@@ -196,8 +199,28 @@ export const actions: Actions = {
 			return fail(409, { error: 'This invoice was changed elsewhere (another tab or user). Reload the page before saving.' });
 		}
 
-		if (savedSupplierId != null && enrichedLines.length > 0) {
-			await linkProductsToInvoice(id, savedSupplierId, rid, lineInputs);
+		if (savedSupplierId != null) {
+			let productByKey: Map<string, number> | undefined;
+			if (enrichedLines.length > 0) {
+				({ productByKey } = await linkProductsToInvoice(id, savedSupplierId, rid, lineInputs));
+			}
+
+			// #831: correcting the data that raised an alert (price, total, dates)
+			// should close it, not leave it pending forever — best-effort, mirrors
+			// the producers this mirrors (ADR-010).
+			await reevaluateInvoiceAlerts({
+				invoiceId: id,
+				restaurantId: rid,
+				supplierId: savedSupplierId,
+				supplierName,
+				invoiceNumber,
+				invoiceDate,
+				totalAmount,
+				documentType,
+				lineItems: enrichedLines.map((line) => line.item),
+				lineDescriptions: lineInputs.map((li) => li.desc),
+				productByKey,
+			});
 		}
 
 		redirect(303, '/invoices');
