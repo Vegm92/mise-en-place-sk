@@ -8,7 +8,7 @@
     unit,
     sub,
     info,
-    valueColor = 'var(--mep-fg)',
+    valueColor = 'text-fg',
     pill,
   }: {
     label: string;
@@ -30,7 +30,7 @@
     {#if pill}{@render pill()}{/if}
   </div>
   <div style="display:flex;align-items:baseline;gap:5px;">
-    <div class="num" style="font-size:26px;font-weight:600;color:{valueColor};letter-spacing:-0.6px;line-height:1.05;">
+    <div class="num {valueColor}" style="font-size:26px;font-weight:600;letter-spacing:-0.6px;line-height:1.05;">
       {value}
     </div>
     {#if unit}

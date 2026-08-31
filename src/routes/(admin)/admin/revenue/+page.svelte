@@ -19,11 +19,11 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
-  const HEALTH_COLOR: Record<Health, string> = {
-    good:    'var(--mep-pos)',
-    warn:    'var(--mep-warn)',
-    bad:     'var(--mep-neg)',
-    unknown: 'var(--mep-fg-3)',
+  const HEALTH_CLASS: Record<Health, string> = {
+    good:    'text-pos',
+    warn:    'text-warn',
+    bad:     'text-neg',
+    unknown: 'text-fg-3',
   };
 
   const SEVERITY_CLASS: Record<string, string> = {
@@ -103,7 +103,7 @@
       <AdminKpiCard label={$t('admin.rev.arpa')} value={eur2(o.arpaCents)} info={$t('admin.rev.arpa.info')} />
       <AdminKpiCard label={$t('admin.rev.acv')} value={eur(o.acvCents)} info={$t('admin.rev.acv.info')} />
       <AdminKpiCard label={$t('admin.rev.atRisk')} value={eur(o.atRiskMrrCents)}
-        valueColor={o.atRiskMrrCents > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'}
+        valueColor={o.atRiskMrrCents > 0 ? 'text-neg' : 'text-fg'}
         sub={$ti('admin.rev.atRiskSub', { n: o.atRiskCustomers })} info={$t('admin.rev.atRisk.info')} />
     </div>
   </div>
@@ -121,11 +121,11 @@
         sub={$ti('admin.rev.ltvBasis', { months: months(o.lifetimeMonths), margin: o.assumptions.grossMarginPct })}
         info={$t('admin.rev.ltv.info')} />
       <AdminKpiCard label={$t('admin.rev.ltvCac')} value={o.ltvCacRatio === null ? '—' : num(o.ltvCacRatio, 1) + '×'}
-        valueColor={HEALTH_COLOR[ratioHealth(o.ltvCacRatio)]}
+        valueColor={HEALTH_CLASS[ratioHealth(o.ltvCacRatio)]}
         sub={$ti('admin.rev.target', { n: HEALTHY_LTV_CAC_RATIO })}
         info={$t('admin.rev.ltvCac.info')} />
       <AdminKpiCard label={$t('admin.rev.payback')} value={months(o.paybackMonths)}
-        valueColor={HEALTH_COLOR[paybackHealth(o.paybackMonths)]}
+        valueColor={HEALTH_CLASS[paybackHealth(o.paybackMonths)]}
         sub={$t('admin.rev.monthsUnit')}
         info={$t('admin.rev.payback.info')} />
     </div>
@@ -137,11 +137,11 @@
       <InfoTooltip text={$t('admin.rev.section.retention.info')} />
     </div>
     <div class="grid gap-2.5 grid-cols-[repeat(auto-fill,minmax(170px,1fr))]">
-      <AdminKpiCard label={$t('admin.rev.nrrAnnual')} value={pct(o.nrrAnnual)} valueColor={HEALTH_COLOR[retentionHealth(o.nrrAnnual)]} info={$t('admin.rev.nrrAnnual.info')} />
-      <AdminKpiCard label={$t('admin.rev.nrrMonthly')} value={pct(o.nrrMonthly)} valueColor={HEALTH_COLOR[retentionHealth(o.nrrMonthly)]} info={$t('admin.rev.nrrMonthly.info')} />
+      <AdminKpiCard label={$t('admin.rev.nrrAnnual')} value={pct(o.nrrAnnual)} valueColor={HEALTH_CLASS[retentionHealth(o.nrrAnnual)]} info={$t('admin.rev.nrrAnnual.info')} />
+      <AdminKpiCard label={$t('admin.rev.nrrMonthly')} value={pct(o.nrrMonthly)} valueColor={HEALTH_CLASS[retentionHealth(o.nrrMonthly)]} info={$t('admin.rev.nrrMonthly.info')} />
       <AdminKpiCard label={$t('admin.rev.grr')} value={pct(o.grrMonthly)} info={$t('admin.rev.grr.info')} />
-      <AdminKpiCard label={$t('admin.rev.logoChurn')} value={pct(o.logoChurn)} valueColor={HEALTH_COLOR[churnHealth(o.logoChurn)]} info={$t('admin.rev.logoChurn.info')} />
-      <AdminKpiCard label={$t('admin.rev.revenueChurn')} value={pct(o.revenueChurn)} valueColor={HEALTH_COLOR[churnHealth(o.revenueChurn)]} info={$t('admin.rev.revenueChurn.info')} />
+      <AdminKpiCard label={$t('admin.rev.logoChurn')} value={pct(o.logoChurn)} valueColor={HEALTH_CLASS[churnHealth(o.logoChurn)]} info={$t('admin.rev.logoChurn.info')} />
+      <AdminKpiCard label={$t('admin.rev.revenueChurn')} value={pct(o.revenueChurn)} valueColor={HEALTH_CLASS[churnHealth(o.revenueChurn)]} info={$t('admin.rev.revenueChurn.info')} />
       <AdminKpiCard label={$t('admin.rev.avgChurn')} value={pct(o.avgMonthlyChurn)} info={$t('admin.rev.avgChurn.info')} />
     </div>
   </div>
