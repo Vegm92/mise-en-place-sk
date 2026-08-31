@@ -435,6 +435,13 @@
       "when": 1788175317784,
       "tag": "0061_extraction_results_corpus",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1788190245817,
+      "tag": "0062_product_alias_review_outcome",
+      "breakpoints": true
     }
   ]
 }

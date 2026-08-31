@@ -33,6 +33,7 @@ const ADMIN_ROUTES = [
 	'/admin/events',
 	'/admin/dead-letters',
 	'/admin/errors',
+	'/admin/learning',
 	'/admin/health',
 ];
 

@@ -542,8 +542,8 @@ async function insertAlias(
 ): Promise<void> {
 	const confirmedExpr = confirmedAt === 'now()' ? sql`now()` : sql`NULL`;
 	await tx.execute(sql`
-		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, supplier_sku, source, confirmed_at)
-		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${rawKey}, ${rawText}, ${supplierSku}, ${source}, ${confirmedExpr})
+		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, supplier_sku, source, original_source, confirmed_at)
+		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${rawKey}, ${rawText}, ${supplierSku}, ${source}, ${source}, ${confirmedExpr})
 		ON CONFLICT (restaurant_id, raw_key) DO NOTHING
 	`);
 }
@@ -697,10 +697,16 @@ export async function assignLineProduct(
 	if (owned.length === 0) return null;
 
 	await database.execute(sql`
-		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, source, confirmed_at)
-		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${key}, ${raw}, 'user', now())
+		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, source, original_source, confirmed_at)
+		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${key}, ${raw}, 'user', 'user', now())
 		ON CONFLICT (restaurant_id, raw_key)
-		DO UPDATE SET product_id = ${productId}, source = 'user', confirmed_at = now()
+		DO UPDATE SET
+			product_id = ${productId}, source = 'user', confirmed_at = now(),
+			review_outcome = CASE
+				WHEN product_aliases.original_source = 'fuzzy' AND product_aliases.review_outcome IS NULL
+					THEN (CASE WHEN product_aliases.product_id = ${productId} THEN 'confirmed' ELSE 'rejected' END)
+				ELSE product_aliases.review_outcome
+			END
 	`);
 
 	return { productId, productName: owned[0].canonical_name };
@@ -813,7 +819,11 @@ export async function confirmProductAlias(
 	const rawKey = normalizeProductKey(description);
 	const rows = await database.execute<{ product_id: number }>(sql`
 		UPDATE product_aliases
-		SET source = 'user', confirmed_at = COALESCE(confirmed_at, now())
+		SET source = 'user', confirmed_at = COALESCE(confirmed_at, now()),
+			review_outcome = CASE
+				WHEN original_source = 'fuzzy' AND review_outcome IS NULL THEN 'confirmed'
+				ELSE review_outcome
+			END
 		WHERE restaurant_id = ${restaurantId} AND raw_key = ${rawKey}
 		RETURNING product_id
 	`);
@@ -846,7 +856,11 @@ export async function rejectProductAlias(
 
 		await tx.execute(sql`
 			UPDATE product_aliases
-			SET product_id = ${newProductId}, source = 'user', confirmed_at = now()
+			SET product_id = ${newProductId}, source = 'user', confirmed_at = now(),
+				review_outcome = CASE
+					WHEN original_source = 'fuzzy' AND review_outcome IS NULL THEN 'rejected'
+					ELSE review_outcome
+				END
 			WHERE id = ${alias.id}
 		`);
 
@@ -887,7 +901,11 @@ export async function mergeIntoProduct(
 		if (oldProductId !== targetProductId) {
 			await tx.execute(sql`
 				UPDATE product_aliases
-				SET product_id = ${targetProductId}, source = 'user', confirmed_at = now()
+				SET product_id = ${targetProductId}, source = 'user', confirmed_at = now(),
+					review_outcome = CASE
+						WHEN original_source = 'fuzzy' AND review_outcome IS NULL THEN 'rejected'
+						ELSE review_outcome
+					END
 				WHERE id = ${alias.id}
 			`);
 			await tx.execute(sql`
@@ -905,7 +923,12 @@ export async function mergeIntoProduct(
 			`);
 		} else {
 			await tx.execute(sql`
-				UPDATE product_aliases SET source = 'user', confirmed_at = COALESCE(confirmed_at, now())
+				UPDATE product_aliases
+				SET source = 'user', confirmed_at = COALESCE(confirmed_at, now()),
+					review_outcome = CASE
+						WHEN original_source = 'fuzzy' AND review_outcome IS NULL THEN 'confirmed'
+						ELSE review_outcome
+					END
 				WHERE id = ${alias.id}
 			`);
 		}

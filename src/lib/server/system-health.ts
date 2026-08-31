@@ -1,6 +1,6 @@
 import { db } from './db';
-import { and, inArray, lt, sql } from 'drizzle-orm';
-import { batchItems } from './schema';
+import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { batchItems, restaurants } from './schema';
 import {
 	contactsPerTenant,
 	getNumberHealth,
@@ -353,6 +353,45 @@ export async function runSystemChecks(): Promise<SystemHealth> {
 		deadLetters: { pending: pendingDeadLetters },
 		checkedAt: new Date().toISOString(),
 	};
+}
+
+export interface StuckItem {
+	id: string;
+	restaurantId: string;
+	restaurantName: string | null;
+	displayName: string;
+	status: string;
+	queuedAt: string | null;
+	updatedAt: string;
+}
+
+export async function stuckBatchItems(limit = 25): Promise<StuckItem[]> {
+	const cutoff = new Date(Date.now() - STUCK_MINUTES * 60 * 1000);
+	// tenant-scope-ok: admin ops dashboard listing of every tenant's stalled
+	// extractions, same gate as the aggregate stuck count above.
+	const rows = await db
+		.select({
+			id: batchItems.id,
+			restaurantId: batchItems.restaurantId,
+			restaurantName: restaurants.name,
+			displayName: batchItems.displayName,
+			status: batchItems.status,
+			queuedAt: batchItems.queuedAt,
+			updatedAt: batchItems.updatedAt,
+		})
+		.from(batchItems)
+		.leftJoin(restaurants, eq(restaurants.id, batchItems.restaurantId))
+		.where(and(
+			inArray(batchItems.status, ['queued', 'extracting']),
+			lt(batchItems.updatedAt, cutoff),
+		))
+		.orderBy(asc(batchItems.updatedAt))
+		.limit(limit);
+	return rows.map(r => ({
+		...r,
+		queuedAt: r.queuedAt ? new Date(r.queuedAt).toISOString() : null,
+		updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : cutoff.toISOString(),
+	}));
 }
 
 export async function tableRowCounts(): Promise<Array<{ table: string; rows: number }>> {

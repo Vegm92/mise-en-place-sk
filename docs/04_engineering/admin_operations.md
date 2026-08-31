@@ -89,6 +89,13 @@ The ops console under `/admin` (dashboard, events, revenue, health), the public 
 **`function isAdminUser`**
 - Admin allowlist check — `AUTH_ADMIN_EMAIL` is a comma-separated list. Used by the server hook (request-level guard for `/admin`) and the `(admin)` layout load, so the group is protected even when layout loads don't rerun.
 
+### `src/lib/server/extraction-quality.ts`
+**`function fuzzyMatchOutcomes`**
+- `original_source` is set once at row creation on `product_aliases` and never overwritten, so it survives a human later confirming or rejecting the suggestion (which flips `source` to `'user'`); `review_outcome` records that first human decision (issue #827). Without this pair, `source`/`confirmed_at` alone cannot tell a still-pending fuzzy match apart from one a human already resolved, or say whether the resolution was a confirm or a reject.
+
+**`function correctionsByPromptVersion`**
+- Joins each confirmed invoice back to the corpus entry (#813, `extraction_results`) it was extracted from, via restaurant + file key — invoices carry no direct FK to `extraction_results`. `DISTINCT ON` picks the most recent live extraction for that file, since a retried extraction (e.g. the manual retry on `/admin/health`) can leave more than one corpus row behind for the same file.
+
 ### `src/lib/server/revenue-metrics.ts`
 **`const MRR_SNAPSHOT_CRON`**
 - MRR history must be captured; it can't be recovered later because `subscriptions` is a current-state table with no status log. Runs daily (`15 2 * * *`) so a missed run is harmless and the current month is always current.
