@@ -1,5 +1,6 @@
 import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { publicFormAction } from '$lib/server/public-form-action';
 import { logAuthEvent } from '$lib/server/auth-events';
@@ -10,9 +11,16 @@ import { sendEmail, resetPasswordEmail } from '$lib/server/email';
 
 export const load: PageServerLoad = async () => ({});
 
-function emailOf(form: FormData) {
-	return (form.get('email') as string)?.trim().toLowerCase() ?? '';
+const RawEmailField = v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase()));
+
+function emailOf(form: FormData): string {
+	const parsed = v.safeParse(RawEmailField, form.get('email') ?? undefined);
+	return (parsed.success ? parsed.output : undefined) ?? '';
 }
+
+const ForgotPasswordForm = v.object({
+	email: RawEmailField,
+});
 
 export const actions: Actions = {
 	default: publicFormAction(
@@ -25,9 +33,10 @@ export const actions: Actions = {
 				if (email) rules.push({ key: `recover:email:${email}`, max: 3, scope: 'email' });
 				return rules;
 			},
+			schema: ForgotPasswordForm,
 		},
-		async ({ form, ipHash, event }) => {
-			const email = emailOf(form);
+		async ({ data, ipHash, event }) => {
+			const email = data.email ?? '';
 			if (!email) return fail(422, { error: 'missing', email: '' });
 
 			const [user] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
