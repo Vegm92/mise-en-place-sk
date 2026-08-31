@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { GoogleGenAI, Type, type Schema } from '@google/genai';
-import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT_MS } from './env';
+import { Type, type Schema } from '@google/genai';
+import { GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { categoryGuideBlock } from './category-guide';
 import { parseJsonResponse } from './llm-json';
@@ -343,30 +343,10 @@ export type GenerateFn = (
 ) => Promise<string>;
 
 function getGenerateFn(): GenerateFn {
-	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
-	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+	const provider = createGeminiProvider();
 	return async (content, signal, systemInstruction, responseSchema) => {
-		const contents = typeof content === 'string'
-			? content
-			: [{ role: 'user', parts: content }];
-		const config: {
-			abortSignal?: AbortSignal;
-			systemInstruction?: string;
-			responseMimeType?: string;
-			responseSchema?: Schema;
-		} = {};
-		if (signal) config.abortSignal = signal;
-		if (systemInstruction) config.systemInstruction = systemInstruction;
-		if (responseSchema) {
-			config.responseMimeType = 'application/json';
-			config.responseSchema = responseSchema;
-		}
-		const response = await ai.models.generateContent({
-			model: GEMINI_MODEL,
-			contents,
-			config: Object.keys(config).length ? config : undefined,
-		});
-		return response.text ?? '';
+		const resp = await provider.generate(content, signal, systemInstruction, responseSchema);
+		return resp.text;
 	};
 }
 
