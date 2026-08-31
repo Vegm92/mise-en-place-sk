@@ -156,6 +156,14 @@ These comments were deliberately left in the code because a tool reads them.
   page; use `+server.ts` when a client API is required (chat, trend, uploads…).
 - Validate server-side (never trust the client); return `fail(status, data)`
   for recoverable errors and `redirect(303, ...)` for flows.
+- Public/unauthenticated form actions derive their typed input from a
+  `valibot` schema (`publicFormAction`'s `schema` option, or its `parseForm`
+  helper directly) rather than casting `form.get(...) as string` — that cast
+  bypasses validation, since `FormData.get()` genuinely returns `string |
+  File | null` (issue #844; `docs/04_engineering/security_rules.md`).
+  `pnpm lint:form-get-cast` bans a new occurrence of that cast in
+  `+page.server.ts`, ratcheted against a recorded allowlist of the routes
+  not yet converted (`scripts/lint-invariants.mjs`'s `FORM_GET_CAST_ALLOWLIST`).
 
 ## Rate limiting
 

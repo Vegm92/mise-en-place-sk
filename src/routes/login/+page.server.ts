@@ -1,6 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
-import { publicFormAction } from '$lib/server/public-form-action';
+import { publicFormAction, rawFormField } from '$lib/server/public-form-action';
+import { resendVerificationAction } from '$lib/server/resend-verification-action';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { checkLoginCredentials } from '$lib/server/auth-credentials';
 import { issueSessionCookie } from '$lib/server/auth-session';
@@ -9,8 +11,6 @@ import { safeRedirect } from '$lib/server/safe-redirect';
 import { safe } from '$lib/server/load-guard';
 import { countWaitlistEmails } from '$lib/server/waitlist-db';
 import { BETA_SEATS } from '$lib/constants';
-import { checkRateLimit } from '$lib/server/rate-limiter';
-import { sendVerificationEmail } from '$lib/server/verification-email';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
@@ -24,9 +24,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	};
 };
 
-function emailOf(form: FormData) {
-	return (form.get('email') as string)?.trim() ?? '';
+function emailOf(form: FormData): string {
+	return rawFormField(form, 'email');
 }
+
+const SignInForm = v.object({
+	password: v.optional(v.string()),
+	redirectTo: v.optional(v.string()),
+});
 
 export const actions: Actions = {
 	signIn: publicFormAction(
@@ -39,11 +44,12 @@ export const actions: Actions = {
 				if (email) rules.push({ key: `login:email:${email.toLowerCase()}`, max: 5, scope: 'email' });
 				return rules;
 			},
+			schema: SignInForm,
 		},
-		async ({ form, ipHash, event }) => {
+		async ({ data, form, ipHash, event }) => {
 			const email = emailOf(form);
-			const password = form.get('password') as string;
-			const redirectTo = safeRedirect(form.get('redirectTo') as string);
+			const password = data.password ?? '';
+			const redirectTo = safeRedirect(data.redirectTo);
 
 			if (!email || !password) return fail(422, { error: 'missing', email });
 
@@ -65,16 +71,9 @@ export const actions: Actions = {
 		},
 	),
 
-	resend: publicFormAction({}, async ({ form, ip, event }) => {
-		const email = (form.get('email') as string)?.trim().toLowerCase();
-		if (!email) return fail(422, { error: 'missing' });
-
-		if (!(await checkRateLimit(`login:resend:${ip}`, 3))) {
-			return { email, resent: false };
-		}
-
-		await sendVerificationEmail(event.url, email);
-		return { email, resent: true };
+	resend: resendVerificationAction({
+		keyPrefix: 'login',
+		result: (email, resent) => ({ email, resent }),
 	}),
 
 	signInWithGoogle: signIn,

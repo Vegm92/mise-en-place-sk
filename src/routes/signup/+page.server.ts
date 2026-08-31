@@ -1,10 +1,11 @@
 import { redirect, fail } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { recordConsent } from '$lib/server/consent';
-import { checkRateLimit } from '$lib/server/rate-limiter';
 import { publicFormAction } from '$lib/server/public-form-action';
+import { resendVerificationAction } from '$lib/server/resend-verification-action';
 import { passwordPolicyError } from '$lib/server/password-policy';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
@@ -18,17 +19,30 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {};
 };
 
+const SignUpForm = v.object({
+	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+	password: v.optional(v.string()),
+	terms: v.optional(v.string()),
+});
+
+async function isUnverifiedSignup(email: string): Promise<boolean> {
+	const [existing] = await db.select({ id: users.id, emailVerified: users.emailVerified })
+		.from(users).where(eq(users.email, email)).limit(1);
+	return Boolean(existing && !existing.emailVerified);
+}
+
 export const actions: Actions = {
 	signUp: publicFormAction(
 		{
 			rateLimitEvent: 'signup_rate_limited',
 			limits: ({ ip }) => [{ key: `signup:ip:${ip}`, max: 5 }],
 			turnstile: true,
+			schema: SignUpForm,
 		},
-		async ({ form, ipHash, event }) => {
-			const email    = (form.get('email')    as string)?.trim().toLowerCase();
-			const password = form.get('password')  as string;
-			const terms    = form.get('terms');
+		async ({ data, ipHash, event }) => {
+			const email    = data.email ?? '';
+			const password = data.password ?? '';
+			const terms    = data.terms ?? '';
 
 			if (!email || !password) return fail(422, { error: 'missing' });
 			const policyError = passwordPolicyError(password);
@@ -79,21 +93,10 @@ export const actions: Actions = {
 		},
 	),
 
-	resend: publicFormAction({}, async ({ form, ip, event }) => {
-		const email = (form.get('email') as string)?.trim().toLowerCase();
-		if (!email) return fail(422, { error: 'missing' });
-
-		if (!(await checkRateLimit(`signup:resend:${ip}`, 3))) {
-			return { success: true, email, resent: false };
-		}
-
-		const [existing] = await db.select({ id: users.id, emailVerified: users.emailVerified })
-			.from(users).where(eq(users.email, email)).limit(1);
-		if (existing && !existing.emailVerified) {
-			await sendVerificationEmail(event.url, email);
-		}
-
-		return { success: true, email, resent: true };
+	resend: resendVerificationAction({
+		keyPrefix: 'signup',
+		shouldSend: isUnverifiedSignup,
+		result: (email, resent) => ({ success: true, email, resent }),
 	}),
 
 	signUpWithGoogle: signIn,
