@@ -11,7 +11,9 @@
  * children it already created.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { segmentDocument, segmentKey, segmentDisplayName } from '../src/lib/server/document-segmentation';
+import {
+	COMPOSITE_QUOTA_ERROR, segmentDocument, segmentKey, segmentDisplayName,
+} from '../src/lib/server/document-segmentation';
 import { pdfPageCount, pdfPageTexts } from '../src/lib/server/pdf-pages';
 import { buildPdf, invoicePage, coverPage } from './helpers/pdf-fixture';
 
@@ -24,6 +26,8 @@ function deps(existing: string[] = []) {
 		addItems: vi.fn(async (files: Array<{ key: string; name: string }>) => files.map((f, i) => `item-${i}`)),
 		enqueue: vi.fn(async () => true),
 		discardSource: vi.fn(async () => true),
+		reserve: vi.fn(async () => ({ reserved: true, remaining: 0 })),
+		attribute: vi.fn(async () => {}),
 	};
 }
 
@@ -115,5 +119,63 @@ describe('segmentDocument', () => {
 	it('keys and names a multi-page segment by its range', () => {
 		expect(segmentKey('ns/scan_ab12cd.pdf', { start: 4, end: 6 })).toBe('ns/scan_ab12cd_p4-6.pdf');
 		expect(segmentDisplayName('scan.pdf', { start: 4, end: 6 })).toBe('scan (p4-6).pdf');
+	});
+});
+
+describe('segmentDocument — quota is settled before the packet is split', () => {
+	it('buys one slot per new document, before anything is written or queued', async () => {
+		const d = deps();
+
+		await run(d);
+
+		expect(d.reserve).toHaveBeenCalledWith(2);
+		expect(d.reserve.mock.invocationCallOrder[0])
+			.toBeLessThan(d.saveSegment.mock.invocationCallOrder[0]);
+	});
+
+	it('attributes the reservation to the children it paid for', async () => {
+		const d = deps();
+
+		const outcome = await run(d);
+
+		expect(outcome.action).toBe('split');
+		expect(d.attribute).toHaveBeenCalledWith(['item-0', 'item-1']);
+	});
+
+	it('splits nothing and queues nothing when the packet does not fit', async () => {
+		const d = deps();
+		d.reserve.mockResolvedValue({ reserved: false, remaining: 1 });
+
+		const outcome = await run(d);
+
+		expect(outcome).toMatchObject({
+			action: 'quota',
+			reason: COMPOSITE_QUOTA_ERROR,
+			found: 2,
+			remaining: 1,
+		});
+		expect(d.saveSegment).not.toHaveBeenCalled();
+		expect(d.addItems).not.toHaveBeenCalled();
+		expect(d.enqueue).not.toHaveBeenCalled();
+	});
+
+	it('keeps the source item so the user can see why, rather than discarding it', async () => {
+		const d = deps();
+		d.reserve.mockResolvedValue({ reserved: false, remaining: 0 });
+
+		await run(d);
+
+		expect(d.discardSource).not.toHaveBeenCalled();
+	});
+
+	it('only pays for documents a redelivery has not already created', async () => {
+		const first = deps();
+		await run(first);
+		const created = [...first.saved.keys()];
+
+		const second = deps(created);
+		await run(second);
+
+		expect(second.reserve).not.toHaveBeenCalled();
 	});
 });

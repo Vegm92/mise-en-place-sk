@@ -4,7 +4,7 @@ import {
 	restaurants, suppliers, invoices, invoiceLineItems, products, categoryBudgets,
 	systemNotifications, invoiceAuditLog, productAliases, supplierMetrics, settings,
 	unitConversions, stockLevels, extractionCorrections, extractionResults, chatSessions, chatMessages,
-	llmUsageLog, tenantLlmQuotas, monthlyUsage, idempotencyKeys, uploadBatches, batchItems,
+	llmUsageLog, tenantLlmQuotas, monthlyUsage, usageEvents, idempotencyKeys, uploadBatches, batchItems,
 	whatsappContacts, whatsappPairingCodes, subscriptions, mrrSnapshots, deadLetterQueue,
 	digestShares, recipes, recipeItems,
 } from './schema';
@@ -44,6 +44,7 @@ export const tenantDataMap: readonly TenantDataMapEntry[] = [
 	{ tableName: 'llm_usage_log', table: llmUsageLog, scopeColumn: llmUsageLog.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'tenant_llm_quotas', table: tenantLlmQuotas, scopeColumn: tenantLlmQuotas.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'monthly_usage', table: monthlyUsage, scopeColumn: monthlyUsage.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
+	{ tableName: 'usage_events', table: usageEvents, scopeColumn: usageEvents.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'idempotency_keys', table: idempotencyKeys, scopeColumn: idempotencyKeys.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'upload_batches', table: uploadBatches, scopeColumn: uploadBatches.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },
 	{ tableName: 'batch_items', table: batchItems, scopeColumn: batchItems.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },

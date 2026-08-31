@@ -335,6 +335,7 @@ function dupFakeItem(): BatchItem {
 		extractedData: { confidence: 1 },
 		conversionNotes: null,
 		extractError: null,
+		extractErrorVars: null,
 		queuedAt: null,
 		source: 'web',
 		sourceRef: null,

@@ -8,25 +8,13 @@ import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { trackEvent } from '$lib/server/events';
-import { db, forTenant } from '$lib/server/db';
-import { invoices } from '$lib/server/schema';
-import { and, isNull, sql } from 'drizzle-orm';
+import { getMonthlyUsage } from '$lib/server/llm-quota';
 import { MAX_UPLOAD_TOTAL_BYTES, MAX_ZIP_BYTES, uploadExtname } from '$lib/upload-formats';
 
 async function remainingMonthlyQuota(rid: string, limit: number | null): Promise<number | null> {
 	if (limit === null) return null;
 	try {
-		const tdb = forTenant(rid);
-
-		const [usedRow] = await db
-			.select({ cnt: sql<number>`COUNT(*)::int` })
-			.from(invoices)
-			.where(and(
-				tdb.scope(invoices.restaurantId),
-				isNull(invoices.deletedAt),
-				sql`TO_CHAR(${invoices.createdAt}, 'YYYY-MM') = TO_CHAR(NOW(), 'YYYY-MM')`,
-			));
-		return Math.max(0, limit - (usedRow?.cnt ?? 0));
+		return Math.max(0, limit - (await getMonthlyUsage(rid)));
 	} catch (err) {
 		console.error('[upload] quota check failed (allowing upload):', err);
 		return null;

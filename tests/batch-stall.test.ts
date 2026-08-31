@@ -28,6 +28,7 @@ function item(id: string, status: BatchItemStatus, queuedMsAgo: number | null, b
 		extractedData: null,
 		conversionNotes: null,
 		extractError: null,
+		extractErrorVars: null,
 		queuedAt: queuedMsAgo === null ? null : new Date(base - queuedMsAgo),
 		source: 'web',
 		sourceRef: null,

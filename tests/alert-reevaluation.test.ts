@@ -50,7 +50,7 @@ afterAll(async () => { if (hasDbEnv) { await cleanupTestRestaurant(rid); await c
 const BATCH_ITEM_DEFAULTS = {
 	id: 'item-1', batchId: 'batch-1', position: 0,
 	fileKey: 'fake.pdf', displayName: 'fake.pdf', status: 'done', source: 'web',
-	conversionNotes: null, extractError: null, queuedAt: null, sourceRef: null, jobCode: null, reviewStatus: null,
+	conversionNotes: null, extractError: null, extractErrorVars: null, queuedAt: null, sourceRef: null, jobCode: null, reviewStatus: null,
 } as const;
 
 function fakeItem(extractedData: Record<string, unknown> | null = { confidence: 1 }): BatchItem {

@@ -40,9 +40,23 @@ Full billing feature spec: `docs/03_features/billing.md`. Decision record:
 - `resolveMonthlyQuota(restaurantId)`: honored values — `settings.plan_quota`
   (incl. sentinel `'unlimited'`), legacy magic `99999`, else
   `TIERS[tier].monthlyInvoiceQuota`.
-- Quota is consumed per extraction via `monthly_usage` (unique
-  `(restaurant_id, month)`); `claimMonthlyExtraction` increments atomically with
-  `used < limit` guard. Releasing on failure (`releaseMonthlyExtraction`).
+- The metered unit is **a document sent to the extractor**, not an invoice
+  saved, and `monthly_usage` (unique `(restaurant_id, month)`) is the single
+  number behind every quota surface — the sidebar counter, the billing card,
+  the upload pre-check, the 80% warning email and the worker's gate all read it
+  through `getMonthlyUsage`. Sold and displayed as "documentos procesados".
+  See [ADR-036](../06_decisions/billing/ADR-036-one-metered-unit.md).
+- `claimMonthlyExtraction` increments atomically under a `used < limit` guard,
+  and counts for unlimited tenants too (it just never refuses them).
+  `releaseMonthlyExtraction` refunds a failed extraction, and a cancelled item
+  that never reached the model; never one already extracted.
+- `usage_events` is the append-only trail the counter is a sum of
+  (`SUM(delta) = used`). Claim and release are idempotent via a per-item
+  balance under an advisory lock, so a redelivered job charges once and a
+  double cancel refunds once — while a retried item can still claim again.
+- A composite document buys its whole packet at the structure stage, all or
+  nothing (`reserveMonthlyExtractions`): if 17 documents do not fit, none are
+  extracted and the item fails with `extract.err.quotaCompositeExceeded`.
 - `tenant_llm_quotas` can cap `monthlyExtractions` and `monthlyCostLimitUsd`
   (checked against `SUM(estimated_cost_usd)` from `llm_usage_log`).
 - Parent-aware: multi-location queries resolve quota from the parent restaurant

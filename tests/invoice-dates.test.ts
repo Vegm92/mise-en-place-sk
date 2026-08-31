@@ -82,6 +82,7 @@ function fakeItem(): BatchItem {
 		extractedData: null,
 		conversionNotes: null,
 		extractError: null,
+		extractErrorVars: null,
 		queuedAt: null,
 		source: 'web',
 		sourceRef: null,

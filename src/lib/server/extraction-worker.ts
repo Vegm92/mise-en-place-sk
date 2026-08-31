@@ -16,11 +16,15 @@ import {
 import { JsonShapeMismatchError } from './llm-json.js';
 import { createGeminiProvider, type LLMUsage } from './llm-provider.js';
 import {
-	isSegmentableDocument, segmentDocument, STRUCTURE_UNCLEAR_ERROR, type SegmentationOutcome,
+	COMPOSITE_QUOTA_ERROR, isSegmentableDocument, segmentDocument, STRUCTURE_UNCLEAR_ERROR,
+	type SegmentationOutcome,
 } from './document-segmentation.js';
 import { recordExtractionResult } from './extraction-corpus.js';
 import { annotateLineItems } from './products.js';
-import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
+import {
+	attributeReservation, checkExtractionQuota, claimMonthlyExtraction, recordLlmUsage,
+	releaseMonthlyExtraction, reserveMonthlyExtractions,
+} from './llm-quota.js';
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
@@ -86,7 +90,7 @@ async function claimExtractionAllowance(itemId: string, restaurantId: string): P
 		return false;
 	}
 
-	const claim = await claimMonthlyExtraction(restaurantId);
+	const claim = await claimMonthlyExtraction(restaurantId, itemId);
 	if (!claim.claimed) {
 		console.warn(`[worker] Monthly plan quota reached for tenant ${restaurantId} (limit ${claim.limit})`);
 		Sentry.captureMessage('extraction.quota_exhausted', {
@@ -130,7 +134,7 @@ async function reportExtractionFailure(
 		});
 	}
 	if (!willRetry) await markFailed(itemId, extractError);
-	if (attempt.claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
+	if (attempt.claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId, itemId, extractError);
 	return !willRetry;
 }
 
@@ -165,6 +169,7 @@ async function inspectDocumentStructure(
 	item: BatchItem,
 	filePath: string,
 	restaurantId: string,
+	claimedMonthlySlot: boolean,
 	generateOverride?: GenerateFn,
 ): Promise<SegmentationOutcome> {
 	const siblings = await getBatchItems(item.batchId);
@@ -192,6 +197,16 @@ async function inspectDocumentStructure(
 					return enqueueExtraction(segmentId, restaurantId);
 				},
 				discardSource: () => markDiscarded(item.id),
+				reserve: async (count) => {
+					if (claimedMonthlySlot) {
+						await releaseMonthlyExtraction(restaurantId, item.id, 'composite-source');
+					}
+					const outcome = await reserveMonthlyExtractions(restaurantId, count);
+					return outcome.reserved
+						? { reserved: true, remaining: 0 }
+						: { reserved: false, remaining: outcome.remaining };
+				},
+				attribute: (itemIds) => attributeReservation(restaurantId, itemIds),
 			},
 			{ generate },
 		);
@@ -200,27 +215,37 @@ async function inspectDocumentStructure(
 	}
 }
 
+type ExtractionRoute =
+	| { action: 'extract' | 'split' | 'review' }
+	| { action: 'quota'; found: number; remaining: number };
+
+function asRoute(outcome: SegmentationOutcome): ExtractionRoute {
+	return outcome.action === 'quota'
+		? { action: 'quota', found: outcome.found, remaining: outcome.remaining }
+		: { action: outcome.action };
+}
+
 async function routeCompositeDocument(
 	item: BatchItem,
 	filePath: string,
 	restaurantId: string,
+	claimedMonthlySlot: boolean,
 	generateOverride?: GenerateFn,
-): Promise<SegmentationOutcome['action']> {
-	if (!isSegmentableDocument(item.fileKey)) return 'extract';
+): Promise<ExtractionRoute> {
+	if (!isSegmentableDocument(item.fileKey)) return { action: 'extract' };
 
 	const slot = await acquireExtractionSlot();
-	let outcome: SegmentationOutcome;
 	try {
-		outcome = await inspectDocumentStructure(item, filePath, restaurantId, generateOverride);
+		return asRoute(
+			await inspectDocumentStructure(item, filePath, restaurantId, claimedMonthlySlot, generateOverride),
+		);
 	} catch (err) {
 		if (DEGRADATION_ERRORS.has(classifyExtractionError(err))) throw err;
 		console.warn(`[worker] Structure detection failed for item ${item.id} — extracting it as one document:`, err);
-		return 'extract';
+		return { action: 'extract' };
 	} finally {
 		await slot.release();
 	}
-
-	return outcome.action;
 }
 
 function removeTmpFile(tmpPath: string): void {
@@ -293,15 +318,25 @@ export async function processExtractionJob(
 	}
 
 	try {
-		const route = await routeCompositeDocument(item, filePath, restaurantId, generateOverride);
-		if (route !== 'extract') {
-			if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
-			if (route === 'review') {
+		const route = await routeCompositeDocument(item, filePath, restaurantId, claimedMonthlySlot, generateOverride);
+		if (route.action !== 'extract') {
+			if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId, itemId, route.action);
+			if (route.action === 'review') {
 				Sentry.captureMessage('extraction.structure_unclear', {
 					level: 'warning',
 					tags: { itemId, restaurantId },
 				});
 				await markFailed(itemId, STRUCTURE_UNCLEAR_ERROR);
+				await notifyWhatsAppIfSource(item, restaurantId);
+			}
+			if (route.action === 'quota') {
+				console.warn(`[worker] Item ${itemId} holds ${route.found} documents, ${route.remaining} left in plan — refusing the whole packet`);
+				Sentry.captureMessage('extraction.composite_quota_exhausted', {
+					level: 'warning',
+					tags: { itemId, restaurantId },
+					extra: { found: route.found, remaining: route.remaining },
+				});
+				await markFailed(itemId, COMPOSITE_QUOTA_ERROR, { found: route.found, remaining: route.remaining });
 				await notifyWhatsAppIfSource(item, restaurantId);
 			}
 			return 'completed';

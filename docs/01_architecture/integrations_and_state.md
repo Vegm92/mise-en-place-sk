@@ -108,19 +108,46 @@ guard: only apply `subscription.updated/deleted/paused/resumed` when
 
 - Reads the tenant's plan invoice quota; null = unlimited. Shared convention lives in billing.getMonthlyQuota (issue #295).
 
+**`function getMonthlyUsage`**
+
+- Documents this tenant put through extraction in the current month, and the only way to ask the question: the sidebar counter, the billing card, the upload pre-check, the 80% warning email and the worker's own gate all read it. Counting saved invoices instead — which three of those four did until [ADR-036](../06_decisions/billing/ADR-036-one-metered-unit.md) — answers a different question: it misses everything extracted and then discarded, and it moves on confirm rather than on the call that costs money.
+
+**`type Tx`, `function lockItem`**
+
+- A transaction-scoped `pg_advisory_xact_lock` on the item id serialises everything that touches one item's balance. Two deliveries of the same job, or a cancel racing the worker, would otherwise both read a balance of 1 and both refund it. Transaction-scoped, so it is released on commit or rollback with no unlock path to forget.
+
+**`function itemBalance`**
+
+- 0 = the item owes nothing, 1 = it is holding a slot. This is what makes claim and release idempotent, rather than a unique `(batch_item_id, kind)` index — an item that failed, was refunded and is then retried (the batch retry action, the admin dead-letter requeue) has to be able to claim a second time, and the index would have handed it a free extraction instead.
+
+**`function moveCounter`**
+
+- Moves `monthly_usage.used`, refusing if `guard` does not hold. The row is seeded at zero first so the guard is evaluated on every path: folding it into an upsert's `setWhere` — the shape this had before ADR-036 — silently skips it for the month's first event, when there is no row to conflict with and a 17-document packet could land straight past the limit.
+
 **`function claimMonthlyExtraction`**
 
-- Atomically claims one monthly extraction slot against the tenant's plan quota (issue #244). A single `INSERT … ON CONFLICT DO UPDATE … WHERE used < limit RETURNING` is race-safe: concurrent uploads serialise on the row, and only those under the cap get a row back. Empty return → quota exhausted, before any Gemini spend. No configured limit → always claimed. Seed at 1 on first insert; on conflict bump only while under the cap.
+- Claims one slot for one batch item against the tenant's plan quota (issue #244), writing the ledger row and moving the counter in one transaction. An item already holding a slot pays nothing — a redelivered job, or a child a composite reservation paid for up front. Refusal happens before any Gemini spend.
+- Counts for unlimited tenants too; it just never refuses them. Returning early on `limit === null` (the shape before ADR-036) left business-tier restaurants with no `monthly_usage` row at all, so every surface that reads the counter showed them a permanent zero.
+- drizzle implements `tx.rollback()` by throwing `TransactionRollbackError`; catching it is how the plan limit's refusal is distinguished from a genuine failure.
+
+**`function reserveMonthlyExtractions`**
+
+- Buys `count` slots in one atomic step, for a composite document whose size is known before any of it has been extracted. All or nothing on purpose: letting the children claim one by one is what made a 17-invoice packet extract the first few and then wall. Carries no item id — the children do not exist yet — so it lands as one bulk row.
+
+**`function attributeReservation`**
+
+- Re-keys a bulk reservation onto the children it paid for, so each child's own claim is a no-op and cancelling one refunds exactly one slot. The counter does not move here; the balancing negative row is what keeps `SUM(delta)` equal to the counter at every intermediate point, including when the children are then never extracted.
 
 **`function releaseMonthlyExtraction`**
 
-- Releases a previously claimed slot (extraction failed and shouldn't count against the quota). Never drops below zero. Best-effort — a lost decrement is self-correcting at month rollover.
+- Refunds the slot an item is holding, once: on a failed extraction, on a structure stage that decided the file was a container rather than a document, and on a user cancelling an item that never reached the model. Never for an item that was extracted — the money is spent at that point, which is the whole basis for metering on extraction rather than on save. Never drops below zero.
 
 ### `src/lib/server/quota-warning.ts`
 
 **`const QUOTA_WARNING_THRESHOLD`**
 
-- "Cuota próxima a agotarse" alert (issue #202): when a restaurant's monthly invoice usage crosses `QUOTA_WARNING_THRESHOLD` of its plan quota, email the owner once per calendar month. Called fire-and-forget after invoice saves — must never throw into the save path.
+- "Cuota próxima a agotarse" alert (issue #202): when a restaurant's monthly usage crosses `QUOTA_WARNING_THRESHOLD` of its plan quota, email the owner once per calendar month. Called fire-and-forget after invoice saves — must never throw into the save path.
+- Reads `getMonthlyUsage` — documents processed, the meter the plan is actually sold on (ADR-036). It counted saved invoices until then, so it missed every extraction the user discarded and warned late, or never.
 
 **`function maybeSendQuotaWarning`**
 
