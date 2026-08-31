@@ -8,7 +8,7 @@ import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { recipeSheetEmail, sendEmail } from '$lib/server/email';
 import { trackEvent } from '$lib/server/events';
 import { buildRecipeSheet } from '$lib/server/recipes-sheet';
-import { translations } from '$lib/i18n';
+import { translations } from '$lib/i18n-messages';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
 

@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { VALID_CATEGORIES, categorySlug } from '../src/lib/constants';
 import { CATEGORY_COLORS } from '../src/lib/colors';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 const canonical = new Set(VALID_CATEGORIES);
 
