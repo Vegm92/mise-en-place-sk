@@ -193,7 +193,7 @@ gates above. CI runs them all on every PR.
 
 ## Conventions at a glance
 
-- Drizzle schema is one file, `src/lib/server/schema.ts` (40 tables). All
+- Drizzle schema is one file, `src/lib/server/schema.ts` (44 tables). All
   business tables carry `restaurant_id`.
 - Statuses are `text` columns with app-level defaults — there are NO Postgres enums.
 - No inline comments in code — explanatory notes live in the per-subsystem `## Code notes` sections
