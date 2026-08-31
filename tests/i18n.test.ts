@@ -612,3 +612,28 @@ describe('issue #534 — analytics period/filter short labels', () => {
     }
   });
 });
+
+describe('issue #844 — /forgot-password and /reset-password error keys', () => {
+  // Both pages resolve `` `forgot.err.${form.error}` `` / `` `reset.err.${form.error}` ``
+  // at runtime (a dynamic key `lint:i18n` cannot check statically). Pins the
+  // keys the two actions' own business-logic error codes already resolve to
+  // in both locales. Deliberately excludes 'invalid': the honeypot check
+  // (publicFormAction) already returns it for forgot-password with no
+  // `forgot.err.invalid` key backing it — a pre-existing, silent gap (an
+  // untranslated bot only ever sees a raw key) that predates and is outside
+  // this issue; reset-password's own schema-parse-failure path was written
+  // to reuse the already-mapped 'expired' code specifically to avoid adding
+  // a second one (src/lib/i18n-messages.ts is owned by another workstream
+  // while #844 is in flight).
+  const forgotKeys = ['missing', 'rate_limited'].map(k => `forgot.err.${k}`);
+  const resetKeys = ['expired', 'tooShort', 'tooLong', 'mismatch', 'failed'].map(k => `reset.err.${k}`);
+
+  it('resolves every forgot-password and reset-password error key in both locales', () => {
+    const missing: string[] = [];
+    for (const lc of ['es', 'en'] as const) {
+      locale.set(lc);
+      for (const k of [...forgotKeys, ...resetKeys]) if (tr(k) === k) missing.push(`${lc}:${k}`);
+    }
+    expect(missing).toEqual([]);
+  });
+});

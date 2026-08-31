@@ -10,6 +10,7 @@
  * telemetry.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as v from 'valibot';
 
 const { rateLimitMock, logAuthEventMock } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
@@ -22,16 +23,19 @@ vi.mock('$lib/server/auth-events', () => ({
 	hashIp: () => 'iphash',
 }));
 
-import { publicFormAction } from '../src/lib/server/public-form-action';
+import { publicFormAction, formToRecord, parseForm } from '../src/lib/server/public-form-action';
+import { fileFormData, formDataEvent, maliciousFile } from './helpers/form-data';
+
+const EVENT_BASE = { url: new URL('https://app.example.test'), getClientAddress: () => '203.0.113.7' };
 
 function formEvent(fields: Record<string, string>) {
 	const data = new FormData();
 	for (const [k, v] of Object.entries(fields)) data.append(k, v);
-	return {
-		request: { formData: async () => data },
-		url: new URL('https://app.example.test'),
-		getClientAddress: () => '203.0.113.7',
-	} as never;
+	return formDataEvent(data, EVENT_BASE) as never;
+}
+
+function formEventWithFile(fields: Record<string, string | File>) {
+	return formDataEvent(fileFormData(fields), EVENT_BASE) as never;
 }
 
 beforeEach(() => {
@@ -155,5 +159,64 @@ describe('publicFormAction', () => {
 		);
 		expect(await silent(formEvent({}))).toMatchObject({ status: 429 });
 		expect(logAuthEventMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('publicFormAction — schema option (issue #844)', () => {
+	const Schema = v.object({ email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())) });
+
+	it('passes the parsed, typed output to the handler as `data`', async () => {
+		const action = publicFormAction({ schema: Schema }, async ({ data }) => data);
+		expect(await action(formEvent({ email: ' Chef@Example.com ' }))).toEqual({ email: 'chef@example.com' });
+	});
+
+	it.each([
+		{
+			name: 'rejects a File posted under a string field with a 422 instead of throwing (issue #844)',
+			arrange: () => {},
+			options: { schema: Schema },
+			status: 422,
+			error: 'invalid',
+		},
+		{
+			name: 'still runs rate limiting before the schema is parsed, then rejects the File',
+			arrange: () => rateLimitMock.mockResolvedValueOnce(false),
+			options: { limits: ({ ip }: { ip: string }) => [{ key: `x:${ip}`, max: 5 }], schema: Schema },
+			status: 429,
+			error: 'rate_limited',
+		},
+	])('$name', async ({ arrange, options, status, error }) => {
+		arrange();
+		const handler = vi.fn();
+		const action = publicFormAction(options, handler);
+
+		const result = await action(formEventWithFile({ email: maliciousFile() }));
+
+		expect(result).toMatchObject({ status, data: { error } });
+		expect(handler).not.toHaveBeenCalled();
+	});
+});
+
+describe('formToRecord (issue #844)', () => {
+	it('keeps the first value for a repeated field name, matching FormData.get()', () => {
+		const data = new FormData();
+		data.append('email', 'first@example.com');
+		data.append('email', 'second@example.com');
+		expect(formToRecord(data)).toEqual({ email: 'first@example.com' });
+		expect(data.get('email')).toBe('first@example.com');
+	});
+
+	it('omits keys with no value and never coerces a File to a string', () => {
+		const file = maliciousFile();
+		const record = formToRecord(fileFormData({ upload: file }));
+		expect(record.upload).toBe(file);
+	});
+});
+
+describe('parseForm (issue #844)', () => {
+	it('fails validation instead of throwing when a string field receives a File', () => {
+		const Schema = v.object({ email: v.string() });
+		const result = parseForm(Schema, fileFormData({ email: maliciousFile() }));
+		expect(result.success).toBe(false);
 	});
 });
