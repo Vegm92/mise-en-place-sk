@@ -14,6 +14,7 @@ import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
 import { EXTRACTION_QUEUE, enqueueWhatsAppNotify } from './queue.js';
 import { acquireExtractionSlot } from './rate-limiter.js';
+import { detectTotalMismatch, type TaxBand } from '$lib/tax';
 
 export interface ExtractionJobData {
 	itemId?: string;
@@ -218,6 +219,13 @@ export async function processExtractionJob(
 
 		const { enriched, conversionNotes } = await annotateLineItems(supplierName, lineItems, restaurantId);
 
+		const taxBands = Array.isArray(result.tax_breakdown) ? result.tax_breakdown as TaxBand[] : null;
+		const totalMismatch = detectTotalMismatch(
+			enriched.map((li) => li.totalPrice),
+			taxBands,
+			result.total_amount,
+		);
+
 		const extractedData: Record<string, unknown> = {
 			...result,
 			line_items: enriched.map((li) => ({
@@ -230,9 +238,13 @@ export async function processExtractionJob(
 				requires_unit_conversion: li.requiresUnitConversion,
 				confidence: (li as Record<string, unknown>).itemConfidence,
 			})),
+			total_mismatch: totalMismatch,
 		};
 
 		await markDone(itemId, extractedData, conversionNotes);
+		if (totalMismatch) {
+			console.warn(`[worker] Total mismatch detected for item ${itemId} (lines + tax vs. extracted total)`);
+		}
 		console.info(`[worker] Extraction done for item ${itemId}`);
 		await notifyWhatsAppIfSource(item, restaurantId);
 		return 'completed';

@@ -290,6 +290,7 @@ Quota, access, classification, JSON shape, error classification.
 **`function processExtractionJob`**
 
 - Returns `'completed' | 'failed'` instead of `void` (#520): `'failed'` only for the one case the DEGRADATION_ERRORS classification (#482) marks retryable with retries left. Every other outcome — success, a corrupt job already dead-lettered, a permanent classification, the final attempt of a transient one — reports `'completed'`, matching what silently not-throwing meant before this return value existed. Never throws for its own classified outcomes; a genuinely unexpected exception (a bug, not a classified extraction failure) still propagates.
+- Also runs the line-vs-total reconciliation (`detectTotalMismatch`, `$lib/tax`) against the raw extraction before `markDone` and persists it as `extracted_data.total_mismatch` (issue #808) — previously this check only ran inside `saveReviewedInvoice`, gated behind a human opening the review screen, so a misread invoice nobody ever reviewed could sit as `status: 'done'` with nothing flagging the discrepancy.
 
 **`function runExtractionJobForBoss`**
 

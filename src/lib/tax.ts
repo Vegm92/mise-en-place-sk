@@ -1,4 +1,4 @@
-import { toCents, fromCents, type MoneyInput } from './money';
+import { toCents, fromCents, sumCents, type MoneyInput } from './money';
 
 export type TaxType = 'iva' | 'rec';
 
@@ -100,6 +100,17 @@ export function lineRateFractions(lines: TaxedLine[]): number[] {
 		if (rate !== null) seen.add(rate);
 	}
 	return [...seen].sort((a, b) => b - a);
+}
+
+export function detectTotalMismatch(
+	lineTotals: Iterable<MoneyInput>,
+	taxBands: TaxBand[] | null,
+	totalAmount: MoneyInput,
+): boolean {
+	const totalCents = toCents(totalAmount);
+	if (totalCents === null || totalCents <= 0) return false;
+	const calcCents = sumCents(lineTotals) + (taxBands ? sumTaxCents(taxBands) : 0);
+	return Math.abs(calcCents - totalCents) > 1;
 }
 
 export function bandsFromLines(lines: TaxedLine[], type?: TaxType): TaxBand[] {
