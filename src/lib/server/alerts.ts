@@ -590,6 +590,17 @@ export interface DuplicatePurchaseResult {
 	linkedInvoiceId: number | null;
 }
 
+export interface DuplicatePurchaseInput {
+	invoiceId: number;
+	supplierId: number;
+	supplierName: string;
+	restaurantId: string;
+	documentType: 'factura' | 'albaran' | null;
+	invoiceDate: string | null;
+	totalAmount: string | null;
+	lineDescriptions?: string[];
+}
+
 async function lineOverlapRatio(
 	restaurantId: string,
 	matchedInvoiceId: number,
@@ -612,15 +623,12 @@ async function lineOverlapRatio(
 }
 
 export async function runPossibleDuplicatePurchase(
-	invoiceId: number,
-	supplierId: number,
-	supplierName: string,
-	restaurantId: string,
-	documentType: 'factura' | 'albaran' | null,
-	invoiceDate: string | null,
-	totalAmount: string | null,
-	lineDescriptions: string[] = [],
+	input: DuplicatePurchaseInput,
 ): Promise<DuplicatePurchaseResult> {
+	const {
+		invoiceId, supplierId, supplierName, restaurantId,
+		documentType, invoiceDate, totalAmount, lineDescriptions = [],
+	} = input;
 	if (!documentType || !invoiceDate || totalAmount == null) return { alerts: [], linkedInvoiceId: null };
 	const tdb = forTenant(restaurantId);
 	const otherType = documentType === 'factura' ? 'albaran' : 'factura';
