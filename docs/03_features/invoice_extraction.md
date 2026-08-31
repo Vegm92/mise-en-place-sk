@@ -54,7 +54,35 @@ parsed here and re-checked at save.
   semaphore capped at `MAX_CONCURRENT_EXTRACTIONS` (default 3). Backed by
   Upstash Redis when configured (distributed, lease/TTL guarded so a dead
   worker can't hold a slot forever), otherwise an in-process fallback.
-- **JSON**: fence-stripped and `JSON.parse`d; invalid → `notInvoice` error class.
+- **Output contract** (#842): the Gemini call sends `INVOICE_RESPONSE_SCHEMA`
+  (`extract.ts`) as `responseMimeType: 'application/json'` +
+  `responseSchema`, so the model is decoded against a schema instead of
+  producing free-text we repair by hand. The schema only declares fields the
+  app actually reads downstream (`ExtractedInvoice`'s documented fields).
+  Constrained decoding means the model can only ever emit keys the schema
+  declares, so `tax_inferred` — a debugging flag on the tax-fallback path
+  (step 4 of "Tax fallback" in `EXTRACTION_PROMPT`) that predates the
+  schema — was removed from both the prompt instruction and the
+  `ExtractedInvoice` interface rather than left as dead prose the model is
+  told to follow and structurally cannot; nothing read it, so nothing is
+  lost, and the prompt is a few tokens shorter. `JSON.parse` still runs
+  first — constrained decoding removes *format* errors, not semantic
+  ones — followed by a runtime shape guard (`isExtractedInvoice`) before the
+  result is trusted as `ExtractedInvoice`. A reply that is syntactically
+  valid JSON but the wrong shape (missing/mistyped required fields) is a
+  materially different failure from unparsable JSON — the document was
+  probably a real invoice the model correctly identified, not junk — so it
+  throws `JsonShapeMismatchError` (`llm-json.ts`) rather than the plain
+  `Error` a parse failure throws; `classifyExtractionError`
+  (`extraction-worker.ts`) checks `instanceof JsonShapeMismatchError` first
+  and files it as its own `extract.err.malformedResult` (not retried —
+  outside `DEGRADATION_ERRORS` — since a schema/guard mismatch is a code bug
+  a retry won't fix), distinct from `extract.err.notInvoice`'s "this doesn't
+  look like a supplier document" copy, which stays reserved for a genuine
+  parse failure. `stripJsonFence` (`llm-json.ts`) is kept, but demoted to a
+  fallback that only runs if the direct `JSON.parse` fails — a defensive net
+  for a markdown-fenced reply schema-constrained decoding is not supposed to
+  produce, not the primary path.
 - **Quota first**: `checkExtractionQuota` + `claimMonthlyExtraction` before
   `markExtracting`; release on failure. Errors: `trialExpired`,
   `subscriptionInactive`, `quotaExceeded`.
@@ -144,8 +172,12 @@ Quota, access, classification, JSON shape, error classification.
 - Quota/access failures (`trialExpired`, `subscriptionInactive`,
   `quotaExceeded`).
 - `rateLimited` / `unavailable` / `timeout` (retryable, not dead-lettered).
-- `notInvoice` (invalid JSON), `generic`, `corrupt.invalidJson`,
-  `corrupt.unknownEinvoiceFormat` (dead-lettered).
+- `notInvoice` (unparsable JSON — a genuine parse failure, usually a junk
+  upload), `malformedResult` (#842: syntactically valid JSON that failed the
+  `isExtractedInvoice` shape guard — a real document the model likely
+  identified correctly, so distinct copy from `notInvoice`), `generic`,
+  `corrupt.invalidJson`, `corrupt.unknownEinvoiceFormat` (all dead-lettered,
+  not retried).
 - `stalled` — written by the web process, not the worker: the item sat in
   `queued`/`extracting` past the hard timeout, so no extraction ever ran.
 - Corrupt job payload (missing `itemId`/`itemNotFound`) → dead-letter directly.
@@ -274,7 +306,15 @@ Quota, access, classification, JSON shape, error classification.
 
 **`type GenerateFn`**
 
-- Abstracted generate function — decoupled from the SDK so tests inject a mock.
+- Abstracted generate function — decoupled from the SDK so tests inject a mock. Fourth parameter (#842) is an optional `Schema` forwarded to the SDK as `responseMimeType`/`responseSchema`; both the raw-SDK path (`getGenerateFn`) and the provider path (`llm-provider.ts`'s `generate`) accept and forward it the same way, so `extractInvoice` and `extractWithProvider` — the two production call shapes — get identical constrained decoding.
+
+**`const INVOICE_RESPONSE_SCHEMA`**
+
+- The output contract (#842): declares every field `ExtractedInvoice` consumers actually read (grepped, not assumed) — the full prompt-requested field set, now that the unread `tax_inferred` flag has been dropped from both the prompt and the interface. `required` lists every property the prompt's JSON template always emits (nullable ones included, so the model must still supply the key with a `null` value) — that's what lets the runtime guard below assume the shape rather than re-derive it field by field.
+
+**`function isExtractedInvoice`**
+
+- Runtime type guard, not the schema in another form: the schema constrains what Gemini *can* emit; this constrains what the app *trusts* after `JSON.parse`, catching both a non-JSON reply and syntactically valid JSON of the wrong shape (the latter throws `JsonShapeMismatchError`, not a plain `Error` — see `parseJsonResponse`). Deliberately looser than the full `ExtractedInvoice` type on optional/e-invoice-only fields (`qr_url`, `supplier_nif`, …) — those are never fabricated by `sanitizeExtractedInvoice` when absent, so gating on them here would reject good replies for fields the model is allowed to omit. `isNullableString`/`isNullableNumber` also accept `undefined`, so a response missing a required key entirely still passes for that field even though `ExtractedInvoice` declares it non-optional — deliberately lenient (the schema's `required` list makes an outright-missing key unlikely from a real Gemini reply; a defensive guard being lenient on that edge is not a bug).
 
 **`function classifyPdf`**
 
@@ -282,7 +322,7 @@ Quota, access, classification, JSON shape, error classification.
 
 **`function callGemini`**
 
-- Never embed the raw response — customer invoice content (names, amounts, tax IDs) would ship to logs/Sentry (#254).
+- Never embed the raw response — customer invoice content (names, amounts, tax IDs) would ship to logs/Sentry (#254). Parses via `parseJsonResponse(rawText, isExtractedInvoice, 'Gemini')` (#842) instead of an unchecked `as ExtractedInvoice` cast — a JSON syntax failure keeps the plain `Error` with "invalid JSON" in the message (`classifyExtractionError`'s existing substring match still routes it to `notInvoice` unchanged), while a shape mismatch throws the distinct `JsonShapeMismatchError` the classifier files under `malformedResult` instead.
 
 **`function extractInvoice`**
 
@@ -290,7 +330,7 @@ Quota, access, classification, JSON shape, error classification.
 
 **`function callProvider`**
 
-- Provider-based path (production — returns token usage). Never embed the raw response (#254).
+- Provider-based path (production — returns token usage). Never embed the raw response (#254). Same `parseJsonResponse(..., 'LLM')` validation as `callGemini` (#842), and passes `INVOICE_RESPONSE_SCHEMA` through `provider.generate`'s fourth argument.
 
 **`function extractWithProvider`**
 
