@@ -68,10 +68,6 @@ export interface PromptVersionCorrections {
 	correctionRate: number | null;
 }
 
-// tenant-scope-ok: admin observability rollups across every tenant's extraction
-// corrections and product matching activity; reachable only from the (admin)
-// route group, which isAdminUser() already gates.
-
 export async function learningSummary(days = DEFAULT_WINDOW_DAYS): Promise<LearningSummary> {
 	const rows = await db.execute(sql`
 		SELECT
@@ -92,6 +88,8 @@ export async function learningSummary(days = DEFAULT_WINDOW_DAYS): Promise<Learn
 }
 
 export async function correctionsByField(days = DEFAULT_WINDOW_DAYS): Promise<FieldCorrectionRow[]> {
+	// tenant-scope-ok: admin rollup of correction volume by field across every
+	// tenant — the point is spotting which fields the model gets wrong most.
 	const rows = await db
 		.select({
 			fieldName: extractionCorrections.fieldName,
@@ -107,6 +105,8 @@ export async function correctionsByField(days = DEFAULT_WINDOW_DAYS): Promise<Fi
 }
 
 export async function correctionsBySupplier(days = DEFAULT_WINDOW_DAYS): Promise<SupplierCorrectionRow[]> {
+	// tenant-scope-ok: admin rollup of correction volume by supplier across
+	// every tenant — surfaces suppliers whose extractions need more fixing.
 	return db
 		.select({
 			supplierId: extractionCorrections.supplierId,
@@ -151,6 +151,8 @@ export async function correctionsByTenant(days = DEFAULT_WINDOW_DAYS): Promise<T
 
 export async function correctionsTrend(weeks = TREND_WEEKS): Promise<CorrectionTrendPoint[]> {
 	const weekExpr = sql<string>`date_trunc('week', ${extractionCorrections.correctedAt})::date`;
+	// tenant-scope-ok: admin rollup of correction volume over time across
+	// every tenant — a platform-wide trend, not a per-restaurant one.
 	return db
 		.select({ week: weekExpr, corrections: sql<number>`count(*)::int` })
 		.from(extractionCorrections)
@@ -160,6 +162,8 @@ export async function correctionsTrend(weeks = TREND_WEEKS): Promise<CorrectionT
 }
 
 export async function productMatchingStats(): Promise<AliasSourceStat[]> {
+	// tenant-scope-ok: admin rollup of alias-matching activity by source
+	// across every tenant — auto-merge accuracy is a platform-wide question.
 	return db
 		.select({
 			source: productAliases.source,
@@ -172,9 +176,6 @@ export async function productMatchingStats(): Promise<AliasSourceStat[]> {
 }
 
 export async function fuzzyMatchOutcomes(): Promise<FuzzyMatchOutcomes> {
-	// original_source is set once at row creation and never overwritten, so it
-	// survives a human later confirming/rejecting the suggestion (which flips
-	// `source` to 'user'); review_outcome records that first human decision.
 	const rows = await db.execute(sql`
 		SELECT
 			count(*) filter (where original_source = 'fuzzy')::int AS total,
@@ -193,11 +194,6 @@ export async function fuzzyMatchOutcomes(): Promise<FuzzyMatchOutcomes> {
 }
 
 export async function correctionsByPromptVersion(): Promise<PromptVersionCorrections[]> {
-	// Joins each confirmed invoice back to the corpus entry (#813,
-	// extraction_results) it was extracted from, via restaurant + file key —
-	// invoices have no direct FK to extraction_results. DISTINCT ON picks the
-	// most recent live extraction for that file, since a retried extraction
-	// can leave more than one corpus row behind for the same file.
 	const rows = await db.execute(sql`
 		WITH invoice_prompt AS (
 			SELECT DISTINCT ON (i.id) i.id AS invoice_id, er.prompt_version
@@ -231,6 +227,8 @@ export async function correctionsByPromptVersion(): Promise<PromptVersionCorrect
 }
 
 export async function pendingFuzzyMatches(limit = MAX_ROWS): Promise<PendingFuzzyMatch[]> {
+	// tenant-scope-ok: admin review queue of fuzzy auto-merges awaiting human
+	// confirmation across every tenant, capped to a small page of oldest rows.
 	const rows = await db
 		.select({
 			id: productAliases.id,
