@@ -607,12 +607,6 @@ async function linkRelatedDocuments(
 		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, linkedInvoiceId)));
 }
 
-/**
- * Runs a single non-fatal post-save effect. Each effect is independent of
- * the others' success — a save is already committed by the time these run,
- * so one throwing (a bad query, a downstream service hiccup) must not stop
- * the rest from attempting to run too.
- */
 async function isolated<T>(label: string, fallback: T, fn: () => Promise<T>): Promise<T> {
 	try {
 		return await fn();
@@ -871,10 +865,6 @@ export async function saveReviewedInvoice(
 			.returning({ id: invoices.id });
 
 		if (!insertedInvoice.length) {
-			// Lost a race against a concurrent save (same content or same
-			// supplier+number) that committed between our checks above and this
-			// insert. Re-check which unique constraint it was so the caller gets
-			// an accurate outcome instead of a generic one.
 			const raceHashDuplicateId = await findContentHashDuplicate(tx, tdb, contentHash);
 			duplicateOutcome = raceHashDuplicateId !== null
 				? { type: 'contentDuplicate', duplicateId: raceHashDuplicateId }

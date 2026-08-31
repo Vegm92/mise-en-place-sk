@@ -33,31 +33,43 @@ runs four independent guards in a fixed order. Each returns a distinct
 | # | Guard | Scope | When | Outcome |
 |---|---|---|---|---|
 | 1 | Low-confidence block | This submission | Pre-transaction | `lowConfidenceBlocked` |
-| 2 | Content hash | Tenant, all suppliers | Pre-transaction | `contentDuplicate` (+ the existing invoice id) |
-| 3 | Idempotency key | This request | **Inside** transaction | `replay` |
+| 2 | Idempotency key | This request | **Inside** transaction, first | `replay` |
+| 3 | Content hash | Tenant, all suppliers | **Inside** transaction | `contentDuplicate` (+ the existing invoice id) |
 | 4 | Invoice number | Tenant + supplier | **Inside** transaction | `numberDuplicate` |
 
 ### Why the ordering is what it is
 
-Guards 1 and 2 are read-only and run **before** the transaction opens, so the
-common rejection cases never take row locks.
+Guard 1 is read-only and runs **before** the transaction opens, so the most
+common rejection case never takes a row lock.
 
-Guards 3 and 4 run **inside** the transaction because both must be atomic with
-the insert. `claimRequest` inserts into `idempotency_keys` (`form-submit`
-scope since #389) with
-`ON CONFLICT DO NOTHING`; losing that insert means another request already claimed
-the key, so this one is a replay and returns without writing. Doing the same check
-before the transaction would leave a window for a genuine double-submit to pass
-both.
+Guards 2–4 all run **inside** the transaction because a duplicate submission
+racing itself must not be able to pass the same check twice. Content hash used
+to be a plain `SELECT` before the transaction opened (guard 2 at the time); two
+saves of the same document, submitted close enough together, could both read
+"no match" and both reach the insert — only the database's own unique index
+(the fifth, implicit guard below) caught the loser, and it was reported back as
+a generic `numberDuplicate` regardless of which constraint actually fired. The
+fix moved the content-hash check inside the transaction, ahead of the supplier
+upsert, so a duplicate submission also skips that work.
 
-Guard 4 releases the idempotency claim (`releaseRequest`) before returning, so a
-user who hits a number-duplicate can correct the number and resubmit with the same
-key. A claim is only permanent if it produced an invoice.
+`claimRequest` inserts into `idempotency_keys` (`form-submit` scope since #389)
+with `ON CONFLICT DO NOTHING`; losing that insert means another request already
+claimed the key, so this one is a replay and returns without writing. It runs
+first among the in-transaction guards since a replay should not up-front waste a
+content-hash lookup.
+
+Guards 3 and 4 release the idempotency claim (`releaseRequest`) before
+returning, so a user who hits a duplicate can correct the value and resubmit
+with the same key. A claim is only permanent if it produced an invoice.
 
 There is also a **fifth, implicit** guard: the `invoices` insert carries
-`onConflictDoNothing()`. If a unique constraint fires despite guards 2–4, an empty
-`RETURNING` is treated as `numberDuplicate` rather than crashing. The database is
-the last word.
+`onConflictDoNothing()`. If a unique constraint fires despite guards 2–4 (two
+transactions racing each other past their own pre-insert checks), an empty
+`RETURNING` triggers a follow-up content-hash lookup so the lost race is still
+attributed correctly — `contentDuplicate` when that constraint is what fired,
+`numberDuplicate` otherwise — rather than always guessing the latter. The
+database is the last word; this guard only decides how to describe what it
+already enforced.
 
 ### The content hash is over reviewed data, not extracted data
 
@@ -83,9 +95,19 @@ a *silent* save of fields the model was unsure about.
 ## Post-commit side effects are non-fatal by construction
 
 Everything after the transaction commits — product linking, all five alert rules,
-correction logging, analytics events, the onboarding flag, the quota warning — is
-wrapped in a single `try/catch` that logs and continues. The invoice is already
-durable at that point.
+correction logging, analytics events, the onboarding flag, the quota warning —
+runs through a small `isolated(label, fallback, fn)` helper, one call per effect.
+The invoice is already durable at that point, so no effect can undo the save; that
+part was always true.
+
+What changed is the granularity of the failure boundary. Originally every effect
+shared one `try/catch`: a throw partway through (say, `runBudgetCheck` hitting a
+bad query) silently skipped everything queued after it in the source, including
+`logExtractionCorrections` — the only signal behind the extraction-quality
+dashboard — and the first-invoice onboarding flag, with nothing but a
+`console.error` to show for it. Now each effect's failure is caught and logged
+independently, with its own fallback (an empty alert list, `false`, ...), so one
+effect failing no longer takes unrelated later effects down with it.
 
 This is the right trade in one direction only: a failed alert must never lose a
 saved invoice. The cost is that alerts are best-effort — a transient failure in
@@ -95,8 +117,9 @@ Accepted deliberately; see
 for alert coverage.
 
 `linkProductsToInvoice` carries its own inner `try/catch` for the same reason,
-one level finer: product-catalogue linking failing should not cost the invoice
-its alerts.
+one level finer still: the sub-steps of product-catalogue linking (a fuzzy-match
+suggestion, an allergen apply, a normalize/categorize enqueue) each fail on their
+own too, so one bad line doesn't cost the rest of the invoice its product links.
 
 ## Every correction is recorded
 
