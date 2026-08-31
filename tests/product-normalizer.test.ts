@@ -51,6 +51,9 @@ describe('parseNormalizeResponse', () => {
 	it('returns a safe default on garbage', () => {
 		expect(parseNormalizeResponse('not json', valid)).toEqual({ matchId: null, confidence: 0 });
 	});
+	it('returns a safe default on well-formed JSON of the wrong shape (issue #842)', () => {
+		expect(parseNormalizeResponse('[1, 2, 3]', valid)).toEqual({ matchId: null, confidence: 0 });
+	});
 });
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
@@ -134,5 +137,20 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
 		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
 		expect(count).toBe(1);
+	});
+
+	it('passes a JSON response schema to provider.generate (issue #842)', async () => {
+		await seedProducts();
+		const generate = vi.fn<LLMProvider['generate']>(async () => ({
+			text: '{"match_id": null, "confidence": 0}',
+			usage: { inputTokens: 1, outputTokens: 1, model: 'test-model' },
+		}));
+		await processNormalizeJob(
+			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
+			{ provider: { model: 'test-model', generate }, recordUsage: vi.fn(async () => {}) },
+		);
+		expect(generate).toHaveBeenCalledOnce();
+		const [, , , schema] = generate.mock.calls[0];
+		expect(schema).toMatchObject({ type: 'OBJECT' });
 	});
 });

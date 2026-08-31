@@ -91,6 +91,10 @@ describe('parseCategorizeResponse', () => {
 		expect(parseCategorizeResponse('{"category": null, "confidence": 0.9}')).toBeNull();
 		expect(parseCategorizeResponse('not json at all')).toBeNull();
 	});
+
+	it('returns null for well-formed JSON of the wrong shape (issue #842)', () => {
+		expect(parseCategorizeResponse('[1, 2, 3]')).toBeNull();
+	});
 });
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
@@ -198,5 +202,20 @@ describe.skipIf(!hasDbEnv)('processCategorizeJob', () => {
 
 		expect(recordFailure).toHaveBeenCalledOnce();
 		expect(await categoryOf(id)).toBeNull();
+	});
+
+	it('passes a JSON response schema to provider.generate (issue #842)', async () => {
+		const id = await seedProduct('Tomate pera', null);
+		const generate = vi.fn<LLMProvider['generate']>(async () => ({
+			text: '{"category": null, "confidence": 0}',
+			usage: { inputTokens: 1, outputTokens: 1, model: 'test-model' },
+		}));
+		await processCategorizeJob(
+			{ restaurantId: rid, productId: id, canonicalName: 'Tomate pera' },
+			{ provider: { model: 'test-model', generate }, recordUsage: vi.fn(async () => {}) },
+		);
+		expect(generate).toHaveBeenCalledOnce();
+		const [, , , schema] = generate.mock.calls[0];
+		expect(schema).toMatchObject({ type: 'OBJECT' });
 	});
 });
