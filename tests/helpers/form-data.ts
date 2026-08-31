@@ -15,3 +15,7 @@ export function fileFormData(fields: Record<string, string | File>): FormData {
 export function maliciousFile(content = 'payload', name = 'evil.txt'): File {
 	return new File([content], name, { type: 'text/plain' });
 }
+
+export function formDataEvent(data: FormData, extra: Record<string, unknown> = {}): unknown {
+	return { request: { formData: async () => data }, ...extra };
+}
