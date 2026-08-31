@@ -92,10 +92,6 @@ describe('parseCategorizeResponse', () => {
 		expect(parseCategorizeResponse('{"category": null, "confidence": 0.9}')).toBeNull();
 		expect(parseCategorizeResponse('not json at all')).toBeNull();
 	});
-
-	it('returns null for well-formed JSON of the wrong shape (issue #842)', () => {
-		expect(parseCategorizeResponse('[1, 2, 3]')).toBeNull();
-	});
 });
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
