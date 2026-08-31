@@ -6,6 +6,7 @@ import { invoices, invoiceLineItems, invoiceAuditLog, suppliers } from '$lib/ser
 import { asc, eq, and, isNull } from 'drizzle-orm';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { linkProductsToInvoice } from '$lib/server/invoice-save';
+import { orphanInvoiceAlerts, reevaluateBudgetAlertsForInvoice } from '$lib/server/alerts';
 import { parsePack } from '$lib/server/products';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { requirePositiveIntId } from '$lib/server/route-params';
@@ -141,6 +142,16 @@ export const actions: Actions = {
 			userId:       uid,
 			snapshot:     JSON.stringify(inv),
 		});
+
+		try {
+			await orphanInvoiceAlerts(id, rid);
+			if (inv.supplierId != null) {
+				await reevaluateBudgetAlertsForInvoice(id, inv.supplierId, rid);
+			}
+		} catch (err) {
+			console.error('[invoice/delete] alert cleanup failed (non-fatal):', err);
+		}
+
 		redirect(303, '/invoices');
 	},
 };

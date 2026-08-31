@@ -5,6 +5,7 @@ import { suppliers, invoices, supplierMetrics, unitConversions, invoiceLineItems
 import { eq, desc, and, isNull, or, sql } from 'drizzle-orm';
 import { VALID_CATEGORIES } from '$lib/constants';
 import { computeAndCacheReliabilityScore } from '$lib/server/supplier-reliability';
+import { resolveSupplierCategoryAlerts } from '$lib/server/alerts';
 import { toCents, moneyToNumber, moneyToNullableNumber } from '$lib/server/money';
 import { requirePositiveIntId } from '$lib/server/route-params';
 
@@ -156,6 +157,11 @@ export const actions: Actions = {
 		await db.update(suppliers)
 			.set({ name, category: cat, contactEmail, contactPhone, cif, address, deliveryDays, paymentTerms: paymentTermms, notes })
 			.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, id)));
+
+		if (cat != null) {
+			await resolveSupplierCategoryAlerts(rid, id).catch((err) =>
+				console.error('[suppliers/update] alert cleanup failed (non-fatal):', err));
+		}
 
 		redirect(303, `/suppliers/${id}`);
 	},
