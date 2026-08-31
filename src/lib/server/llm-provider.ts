@@ -1,5 +1,8 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, type Schema } from '@google/genai';
 import { GEMINI_API_KEY, GEMINI_MODEL } from './env';
+
+export type { Schema } from '@google/genai';
+export { Type } from '@google/genai';
 
 export interface LLMUsage {
 	inputTokens: number;
@@ -30,11 +33,25 @@ export function createGeminiProvider() {
 	const model = GEMINI_MODEL;
 	return {
 		model,
-		async generate(content: string | object[], signal?: AbortSignal, systemInstruction?: string) {
+		async generate(
+			content: string | object[],
+			signal?: AbortSignal,
+			systemInstruction?: string,
+			responseSchema?: Schema,
+		) {
 			const contents = (typeof content === 'string' ? content : [{ role: 'user', parts: content }]) as Parameters<typeof ai.models.generateContent>[0]['contents'];
-			const config: { abortSignal?: AbortSignal; systemInstruction?: string } = {};
+			const config: {
+				abortSignal?: AbortSignal;
+				systemInstruction?: string;
+				responseMimeType?: string;
+				responseSchema?: Schema;
+			} = {};
 			if (signal) config.abortSignal = signal;
 			if (systemInstruction) config.systemInstruction = systemInstruction;
+			if (responseSchema) {
+				config.responseMimeType = 'application/json';
+				config.responseSchema = responseSchema;
+			}
 			const response = await ai.models.generateContent({
 				model,
 				contents,
