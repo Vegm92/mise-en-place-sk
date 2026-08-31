@@ -1,0 +1,3 @@
+ALTER TABLE "invoices" ADD COLUMN "linked_invoice_id" integer;--> statement-breakpoint
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_linked_invoice_id_invoices_id_fk" FOREIGN KEY ("linked_invoice_id") REFERENCES "public"."invoices"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_invoices_linked_invoice_id" ON "invoices" USING btree ("linked_invoice_id") WHERE "invoices"."linked_invoice_id" IS NOT NULL;

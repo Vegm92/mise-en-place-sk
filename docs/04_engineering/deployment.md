@@ -42,7 +42,7 @@ complete inventory the app and worker actually read, grouped by area.
   `AUTH_ADMIN_RESTAURANT_NAME` (first-boot admin seed; prod refuses to start on
   the `@example.com`/`changeme` placeholders).
 - **AI** — `GEMINI_API_KEY` (required for extraction, chat and digest),
-  `GEMINI_MODEL` (default `gemini-2.5-flash`; bump when Google rotates models),
+  `GEMINI_MODEL` (default `gemini-3.1-flash-lite`; bump when Google rotates models),
   `GEMINI_TIMEOUT_MS` (default 120000 — aborts the in-flight request so it
   stops holding a Gemini concurrency slot).
 - **Storage** — `STORAGE_DRIVER` (`local` default / `railway`), `UPLOADS_DIR`

@@ -21,7 +21,7 @@ parsed here and re-checked at save.
 ## Inputs
 
 - `batch_items.id`, `fileKey`; file bytes from storage.
-- `GEMINI_MODEL` (default `gemini-2.5-flash`), provider config.
+- `GEMINI_MODEL` (default `gemini-3.1-flash-lite`), provider config.
 
 ## Outputs
 

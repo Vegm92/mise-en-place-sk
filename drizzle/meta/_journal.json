@@ -414,6 +414,13 @@
       "when": 1787975352830,
       "tag": "0058_recipe_items_unit_cost_positive",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1788141307270,
+      "tag": "0059_invoice_linked_document",
+      "breakpoints": true
     }
   ]
 }
