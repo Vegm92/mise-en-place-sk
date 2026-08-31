@@ -1,6 +1,7 @@
 import { redirect, fail } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { recordConsent } from '$lib/server/consent';
 import { checkRateLimit } from '$lib/server/rate-limiter';
@@ -18,17 +19,28 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {};
 };
 
+const SignUpForm = v.object({
+	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+	password: v.optional(v.string()),
+	terms: v.optional(v.string()),
+});
+
+const ResendForm = v.object({
+	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+});
+
 export const actions: Actions = {
 	signUp: publicFormAction(
 		{
 			rateLimitEvent: 'signup_rate_limited',
 			limits: ({ ip }) => [{ key: `signup:ip:${ip}`, max: 5 }],
 			turnstile: true,
+			schema: SignUpForm,
 		},
-		async ({ form, ipHash, event }) => {
-			const email    = (form.get('email')    as string)?.trim().toLowerCase();
-			const password = form.get('password')  as string;
-			const terms    = form.get('terms');
+		async ({ data, ipHash, event }) => {
+			const email    = data.email ?? '';
+			const password = data.password ?? '';
+			const terms    = data.terms ?? '';
 
 			if (!email || !password) return fail(422, { error: 'missing' });
 			const policyError = passwordPolicyError(password);
@@ -79,8 +91,8 @@ export const actions: Actions = {
 		},
 	),
 
-	resend: publicFormAction({}, async ({ form, ip, event }) => {
-		const email = (form.get('email') as string)?.trim().toLowerCase();
+	resend: publicFormAction({ schema: ResendForm }, async ({ data, ip, event }) => {
+		const email = data.email ?? '';
 		if (!email) return fail(422, { error: 'missing' });
 
 		if (!(await checkRateLimit(`signup:resend:${ip}`, 3))) {

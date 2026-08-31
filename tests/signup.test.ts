@@ -86,6 +86,20 @@ function signupEvent(fields: Record<string, string>, attrCookie?: string) {
 	} as never;
 }
 
+function signupEventWithFile(fields: Record<string, string | File>) {
+	const data = new FormData();
+	for (const [k, v] of Object.entries(fields)) {
+		if (typeof v === 'string') data.append(k, v);
+		else data.append(k, v, 'upload.bin');
+	}
+	return {
+		request: { formData: async () => data },
+		getClientAddress: () => '203.0.113.7',
+		url: new URL('https://app.example.test/signup'),
+		cookies: { get: () => undefined, set: vi.fn() },
+	} as never;
+}
+
 const GOOD_SIGNUP = { email: 'chef@example.com', password: 'correct-horse-battery', terms: 'on' };
 
 beforeEach(() => {
@@ -180,6 +194,17 @@ describe('signUp', () => {
 			.toMatchObject({ status: 422, data: { error: 'password_too_short' } });
 		expect(await actions.signUp(signupEvent({ ...GOOD_SIGNUP, terms: '' })))
 			.toMatchObject({ status: 422, data: { error: 'terms_required' } });
+		expect(insertedRows).toHaveLength(0);
+		expect(updatedRows).toHaveLength(0);
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	});
+
+	it('rejects a file part posted under the email field with a 422 instead of crashing (issue #844)', async () => {
+		const file = new File(['not an email'], 'evil.txt', { type: 'text/plain' });
+		const result = await actions.signUp(
+			signupEventWithFile({ email: file, password: GOOD_SIGNUP.password, terms: GOOD_SIGNUP.terms }),
+		);
+		expect(result).toMatchObject({ status: 422, data: { error: 'invalid' } });
 		expect(insertedRows).toHaveLength(0);
 		expect(updatedRows).toHaveLength(0);
 		expect(sendEmailMock).not.toHaveBeenCalled();

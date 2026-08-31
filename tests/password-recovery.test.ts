@@ -72,6 +72,20 @@ function formEvent(fields: Record<string, string>, extra: Record<string, unknown
 	} as never;
 }
 
+function formEventWithFile(fields: Record<string, string | File>) {
+	const data = new FormData();
+	for (const [k, v] of Object.entries(fields)) {
+		if (typeof v === 'string') data.append(k, v);
+		else data.append(k, v, 'upload.bin');
+	}
+	return {
+		request: { formData: async () => data },
+		url: new URL(ORIGIN),
+		getClientAddress: () => '203.0.113.7',
+		cookies: { delete: (name: string) => deletedCookies.push(name) },
+	} as never;
+}
+
 beforeEach(() => {
 	rateLimitMock.mockReset().mockResolvedValue(true);
 	logAuthEventMock.mockClear();
@@ -134,6 +148,15 @@ describe('/reset-password', () => {
 	it('refuses without email/token', async () => {
 		const result = await resetActions.default(formEvent({ password: 'longenough123', confirm: 'longenough123' }));
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
+	});
+
+	it('rejects a file part posted under the password field with a clean 400 instead of crashing (issue #844)', async () => {
+		const file = new File(['not a password'], 'evil.txt', { type: 'text/plain' });
+		const result = await resetActions.default(
+			formEventWithFile({ email: 'chef@example.com', token: 'abc', password: file, confirm: 'longenough123' }),
+		);
+		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
+		expect(updatedRows).toHaveLength(0);
 	});
 
 	it('rejects a password shorter than 8 characters', async () => {
