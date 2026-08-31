@@ -561,9 +561,10 @@ async function runPostSaveEffects(params: {
 		const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId, supplierId, rid);
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
-		const duplicatePurchase = await runPossibleDuplicatePurchase(
-			invoiceId, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount, lineDescriptions,
-		);
+		const duplicatePurchase = await runPossibleDuplicatePurchase({
+			invoiceId, supplierId, supplierName, restaurantId: rid,
+			documentType, invoiceDate, totalAmount, lineDescriptions,
+		});
 		const duplicatePurchaseAlerts = duplicatePurchase.alerts;
 		if (duplicatePurchase.linkedInvoiceId) {
 			await linkRelatedDocuments(tdb, invoiceId, duplicatePurchase.linkedInvoiceId);
