@@ -7,6 +7,7 @@ import { getStorage } from './storage';
 import { forTenant } from './tenant';
 import { db } from './db';
 import { EXTRACTION_STALL_TIMEOUT_MS, EXTRACTION_STALL_WARN_MS } from './env';
+import { archiveBatchExtractions, pruneExtractionCorpus } from './extraction-corpus';
 
 export interface BatchFileStorage {
 	delete(key: string): Promise<void>;
@@ -202,8 +203,10 @@ export function createBatchStore(db: BatchDb) {
 
 	async function cleanupStaleBatches(
 		storage: BatchFileStorage = getStorage(),
-	): Promise<{ batchesDeleted: number; filesDeleted: number; fileErrors: number }> {
+	): Promise<{ batchesDeleted: number; filesDeleted: number; fileErrors: number; extractionsArchived: number; corpusPruned: number }> {
 		const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+		const extractionsArchived = await archiveBatchExtractions(db);
 
 		// tenant-scope-ok: scheduled retention job, deliberately cross-tenant —
 		// deletes stale batches for every restaurant by age, not by owner.
@@ -230,7 +233,9 @@ export function createBatchStore(db: BatchDb) {
 			.where(lt(uploadBatches.createdAt, cutoff))
 			.returning({ id: uploadBatches.id });
 
-		return { batchesDeleted: deleted.length, filesDeleted, fileErrors };
+		const corpusPruned = await pruneExtractionCorpus(db);
+
+		return { batchesDeleted: deleted.length, filesDeleted, fileErrors, extractionsArchived, corpusPruned };
 	}
 
 	async function transition(

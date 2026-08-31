@@ -31,6 +31,8 @@ parsed here and re-checked at save.
   (`annotateLineItems`, `products.ts`).
 - On failure: `extractError`, `failed` state, dead-letter entry after retries.
 - `monthly_usage`/`llm_usage_log` rows (quota + cost).
+- `extraction_results` row — the durable corpus copy of the same raw JSON, with
+  its `prompt_version` and `model` (#813, ADR-034).
 
 ## Business rules
 
@@ -59,6 +61,19 @@ parsed here and re-checked at save.
 - **Classify errors**: `rateLimited` (429), `unavailable` (503), `timeout`
   (Gemini timeout), `notInvoice` (bad JSON), else `generic`. Degradation-class
   errors are NOT dead-lettered (retryable).
+- **Every result is archived** (#813, ADR-034): on `markDone` the worker writes
+  an `extraction_results` row — raw `extracted_data`, `field_confidences`,
+  `confidence`, `conversion_notes`, `total_mismatch`, `file_key`, `model`,
+  `prompt_version` — for every document, not only the confirmed ones. The write
+  is non-fatal: a corpus failure is logged, never fails the extraction.
+- **Prompt version**: `EXTRACTION_PROMPT_VERSION` = `v<revision>-<sha256[0:12]>`
+  of the prompt text, so any edit (the category guide included) changes it
+  without anyone remembering to bump a constant. XML e-invoices record
+  `einvoice-parser` — they never reach the model.
+- **Retention**: `batch_items` stays scratch (deleted by the 24 h sweep), the
+  corpus is kept for `EXTRACTION_CORPUS_RETENTION_DAYS` (730) and pruned by
+  `pruneExtractionCorpus` on the same sweep. `extraction_results.batch_item_id`
+  is `ON DELETE SET NULL`, so the sweep detaches rather than destroys.
 
 ## State transitions
 
@@ -285,12 +300,38 @@ Quota, access, classification, JSON shape, error classification.
 
 - The `supplier_*` fields all describe the *supplier*, never the buyer/restaurant; each optional because a document may simply not print it — leave null rather than fabricate.
 
+### `src/lib/server/extraction-corpus.ts`
+
+**`const EXTRACTION_CORPUS_RETENTION_DAYS`**
+
+- 730 days. The number is a data-protection decision, not a technical one (ADR-034): the corpus holds real supplier data and prices, so its storage limit is enforced in code — `cleanupStaleBatches` calls `pruneExtractionCorpus` on every sweep — rather than written down and forgotten.
+
+**`function recordExtractionResult`**
+
+- Plain insert, no upsert: the corpus is an append-only log of extraction runs, so a retry of the same item is a second row rather than a silent overwrite. `field_confidences` and `confidence` are lifted out of the raw JSON into their own columns so a prompt revision can be scored without unpacking jsonb in every query.
+
+**`function archiveBatchExtractions`**
+
+- The safety net that makes the sweep non-destructive: any `batch_items` row carrying `extracted_data` with no corpus row yet is copied before the delete runs. Tagged `UNRECORDED_PROMPT_VERSION`, never the current version — an old result attributed to today's prompt would be worse than an unattributed one, because it would silently skew the comparison the corpus exists for. Capped at 1000 rows per sweep; the next server start picks up any remainder.
+
+**`function diffExtractions`**
+
+- Compares the fields a prompt change can plausibly move, normalized first (text collapsed and lowercased, money rounded to cents) so a whitespace or casing difference does not read as a regression. Line items are compared through three derived fields — count, joined descriptions, summed totals — instead of a deep array diff: a reordered line is not a regression, a dropped one is, and this tells them apart.
+
+**`function anonymizeExtraction`**
+
+- Applied when corpus rows leave the tenant boundary (`corpus:replay --export`), masking supplier contact details and the VERI*FACTU QR URL. Not applied to the stored row: inside the boundary the corpus holds the same data `batch_items` and `invoices` already hold, and redacting `supplier_nif` in place would destroy a field whose extraction accuracy is exactly what the corpus measures.
+
 ### `src/lib/server/extraction-worker.ts`
 
 **`function processExtractionJob`**
 
 - Returns `'completed' | 'failed'` instead of `void` (#520): `'failed'` only for the one case the DEGRADATION_ERRORS classification (#482) marks retryable with retries left. Every other outcome — success, a corrupt job already dead-lettered, a permanent classification, the final attempt of a transient one — reports `'completed'`, matching what silently not-throwing meant before this return value existed. Never throws for its own classified outcomes; a genuinely unexpected exception (a bug, not a classified extraction failure) still propagates.
 - Also runs the line-vs-total reconciliation (`detectTotalMismatch`, `$lib/tax`) against the raw extraction before `markDone` and persists it as `extracted_data.total_mismatch` (issue #808) — previously this check only ran inside `saveReviewedInvoice`, gated behind a human opening the review screen, so a misread invoice nobody ever reviewed could sit as `status: 'done'` with nothing flagging the discrepancy.
+
+**`function archiveExtraction`**
+
+- Writes the corpus copy right after `markDone` (#813). Deliberately after, not inside, the guarded transition: the transition is the state machine's business and a corpus write must never be able to fail an extraction that already succeeded, so this catches and logs. `path.extname` decides the prompt version because the XML branch of `extractWithProvider` never calls the model.
 
 **`function runExtractionJobForBoss`**
 
