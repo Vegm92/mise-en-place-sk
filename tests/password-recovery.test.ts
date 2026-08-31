@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
-import { fileFormData, maliciousFile } from './helpers/form-data';
+import { fileFormData, formDataEvent, maliciousFile } from './helpers/form-data';
 
 const {
 	rateLimitMock, logAuthEventMock, createVerificationTokenMock, consumeVerificationTokenMock,
@@ -60,26 +60,20 @@ import { actions as forgotActions } from '../src/routes/forgot-password/+page.se
 import { actions as resetActions, load as resetLoad } from '../src/routes/reset-password/+page.server';
 
 const ORIGIN = 'https://app.example.test';
+const EVENT_BASE = () => ({
+	url: new URL(ORIGIN),
+	getClientAddress: () => '203.0.113.7',
+	cookies: { delete: (name: string) => deletedCookies.push(name) },
+});
 
 function formEvent(fields: Record<string, string>, extra: Record<string, unknown> = {}) {
 	const data = new FormData();
 	for (const [k, v] of Object.entries(fields)) data.append(k, v);
-	return {
-		request: { formData: async () => data },
-		url: new URL(ORIGIN),
-		getClientAddress: () => '203.0.113.7',
-		cookies: { delete: (name: string) => deletedCookies.push(name) },
-		...extra,
-	} as never;
+	return formDataEvent(data, { ...EVENT_BASE(), ...extra }) as never;
 }
 
 function formEventWithFile(fields: Record<string, string | File>) {
-	return {
-		request: { formData: async () => fileFormData(fields) },
-		url: new URL(ORIGIN),
-		getClientAddress: () => '203.0.113.7',
-		cookies: { delete: (name: string) => deletedCookies.push(name) },
-	} as never;
+	return formDataEvent(fileFormData(fields), EVENT_BASE()) as never;
 }
 
 beforeEach(() => {
