@@ -22,6 +22,8 @@ const REJECT_REPLY: Record<RejectReason, string> = {
 	tooLarge: `❌ El archivo es demasiado grande (máx. ${MAX_FILE_BYTES / (1024 * 1024)} MB).`,
 	tooSmall: `❌ El archivo es demasiado pequeño para ser una factura real (mín. ${MIN_FILE_BYTES} bytes).`,
 	contentMismatch: '❌ El archivo parece dañado o no es lo que dice ser. Vuelve a enviarlo.',
+	corrupt: '❌ El archivo parece dañado o no es lo que dice ser. Vuelve a enviarlo.',
+	tooManyEntries: '❌ Ese tipo de archivo no me sirve. Envíame una foto (JPG, PNG) o un PDF de la factura.',
 };
 
 export async function handleMediaUpload(
@@ -50,7 +52,8 @@ export async function handleMediaUpload(
 		throw err;
 	}
 
-	const rejection = validateBuffer(buffer, `.${extension}`);
+	const rejection: RejectReason | null =
+		extension.toLowerCase() === 'zip' ? 'unsupportedType' : validateBuffer(buffer, `.${extension}`);
 	if (rejection) {
 		await ctx.sendText(from, REJECT_REPLY[rejection]);
 		return;
