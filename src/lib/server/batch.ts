@@ -76,6 +76,10 @@ function asItem(row: Record<string, unknown>): BatchItem {
 	return row as unknown as BatchItem;
 }
 
+function originColumns(origin: BatchItemOrigin): { source: BatchItemSource; sourceRef: string | null } {
+	return { source: origin.source ?? 'web', sourceRef: origin.sourceRef ?? null };
+}
+
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isUuid(v: string): boolean {
 	return UUID_RE.test(v);
@@ -121,8 +125,7 @@ export function createBatchStore(db: BatchDb) {
 				position: i + 1,
 				fileKey: f.key,
 				displayName: f.name,
-				source: origin.source ?? 'web',
-				sourceRef: origin.sourceRef ?? null,
+				...originColumns(origin),
 				jobCode: i === 0 ? origin.jobCode ?? null : null,
 			})))
 			.returning({ id: batchItems.id, position: batchItems.position });
@@ -134,6 +137,7 @@ export function createBatchStore(db: BatchDb) {
 		batchId: string,
 		restaurantId: string,
 		files: Array<{ key: string; name: string }>,
+		origin: BatchItemOrigin = {},
 	): Promise<string[]> {
 		// tenant-scope-ok: internal store keyed by batchId; the caller owns the
 		// batch and passes restaurantId, which is written on every inserted row.
@@ -149,6 +153,7 @@ export function createBatchStore(db: BatchDb) {
 				position: Number(max) + i + 1,
 				fileKey: f.key,
 				displayName: f.name,
+				...originColumns(origin),
 			})))
 			.returning({ id: batchItems.id });
 		return rows.map(r => r.id);

@@ -154,6 +154,8 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 - `invoice-save.ts` — the single invoice write path (ADR-008)
 - `batch-core.ts` — batch/batch_item state machine (ADR-002, 015)
 - `extract.ts` / `extraction-worker.ts` — classification + Gemini extraction
+- `document-structure.ts` / `document-segmentation.ts` / `pdf-pages.ts` — composite-PDF
+  detection and splitting, before extraction (ADR-035)
 - `einvoice-parser.ts` — Facturae/UBL parsing without AI
 - `alerts.ts` (alias `alert-engine.ts`) — alert rules, fired on save
 - `alert-preferences.ts` — per-tenant, per-type alert toggles (#577)

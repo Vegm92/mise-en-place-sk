@@ -724,6 +724,7 @@ export default {
   'extract.err.rateLimited':       'The AI service is currently busy — please try again in a moment.',
   'extract.err.unavailable':       'The AI service is temporarily unavailable — please try again shortly.',
   'extract.err.notInvoice':        'This doesn\'t look like an invoice or delivery note — please upload a real supplier document.',
+  'extract.err.structureUnclear':  'This PDF looks like it holds several documents and we could not separate them safely. Split it into one document per file and upload it again.',
   'extract.err.malformedResult':   'The extraction returned an unexpected result — please try again, or contact support if the issue persists.',
   'extract.err.tooMany':              'The system is currently processing too many invoices. Please try again in a moment.',
   'extract.err.alreadyExtracting':    'This file is already being processed. Please wait for it to finish.',

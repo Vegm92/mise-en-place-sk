@@ -13,7 +13,8 @@
  * monthly-slot release — the part that costs a tenant real quota. This drives
  * the table.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'node:fs';
 import { translations } from '../src/lib/i18n-messages';
 import { JsonShapeMismatchError } from '../src/lib/server/llm-json';
 
@@ -31,9 +32,13 @@ const item = {
 
 const batchMocks = vi.hoisted(() => ({
 	getItem: vi.fn(),
+	getBatchItems: vi.fn(async () => []),
+	addItems: vi.fn(async () => []),
+	markQueued: vi.fn(async () => true),
 	markExtracting: vi.fn(),
 	markDone: vi.fn(),
 	markFailed: vi.fn(),
+	markDiscarded: vi.fn(async () => true),
 }));
 vi.mock('../src/lib/server/batch.js', () => batchMocks);
 
@@ -103,11 +108,19 @@ vi.mock('../src/lib/server/sessions.js', () => ({
 }));
 
 vi.mock('../src/lib/server/storage.js', () => ({
-	getStorage: () => ({ read: vi.fn() }),
+	getStorage: () => ({ read: vi.fn(), save: vi.fn() }),
 }));
+
+const segmentationMocks = vi.hoisted(() => ({
+	isSegmentableDocument: vi.fn(() => false),
+	segmentDocument: vi.fn(),
+	STRUCTURE_UNCLEAR_ERROR: 'extract.err.structureUnclear',
+}));
+vi.mock('../src/lib/server/document-segmentation.js', () => segmentationMocks);
 
 const queueMocks = vi.hoisted(() => ({
 	EXTRACTION_QUEUE: 'extract-invoice',
+	enqueueExtraction: vi.fn().mockResolvedValue(true),
 	enqueueWhatsAppNotify: vi.fn().mockResolvedValue(true),
 }));
 vi.mock('../src/lib/server/queue.js', () => queueMocks);
@@ -528,5 +541,96 @@ describe('processExtractionJob — total mismatch is detected at extraction time
 			expect.objectContaining({ total_mismatch: expected }),
 			expect.anything(),
 		);
+	});
+});
+
+/**
+ * Composite documents (docs/03_features/multi_invoice_document_detection.md).
+ *
+ * A supplier packet — one PDF holding a cover listing and seventeen facturas —
+ * used to reach the single-invoice extractor whole and come back as one
+ * invoice with one total. The worker now asks what the document IS before it
+ * asks what its fields are, and the answer decides the route: extract it,
+ * fan it out into one item per document, or stop and ask for a human. The
+ * quota accounting has to follow that route — a document the worker never
+ * extracted must not cost the tenant an extraction.
+ */
+describe('processExtractionJob — composite documents are separated before extraction', () => {
+	beforeEach(() => {
+		fs.mkdirSync('/tmp/uploads/ns', { recursive: true });
+		fs.writeFileSync('/tmp/uploads/ns/a.pdf', '%PDF-1.4');
+		batchMocks.markExtracting.mockResolvedValue(true);
+		segmentationMocks.isSegmentableDocument.mockReturnValue(true);
+	});
+
+	afterEach(() => {
+		segmentationMocks.isSegmentableDocument.mockReturnValue(false);
+	});
+
+	async function runRouted(structureResult: unknown, rejects = false) {
+		if (rejects) segmentationMocks.segmentDocument.mockRejectedValue(structureResult);
+		else segmentationMocks.segmentDocument.mockResolvedValue(structureResult);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: { supplier_name: 'Acme', line_items: [] },
+			usage: {},
+		});
+		await processExtractionJob(job, undefined, RETRIES_LEFT);
+	}
+
+	const SPLIT = { action: 'split', itemIds: ['child-1', 'child-2'] };
+	const REVIEW = { action: 'review', reason: 'extract.err.structureUnclear' };
+
+	it('extracts nothing itself once the document has been fanned out', async () => {
+		await runRouted(SPLIT);
+
+		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
+		expect(batchMocks.markDone).not.toHaveBeenCalled();
+		expect(batchMocks.markFailed).not.toHaveBeenCalled();
+	});
+
+	it('queues each new document it created, since a pending item is never claimed', async () => {
+		await runRouted(SPLIT);
+
+		const [, segmentDeps] = segmentationMocks.segmentDocument.mock.calls[0] as unknown as
+			[unknown, { enqueue: (id: string) => Promise<unknown> }];
+		await segmentDeps.enqueue('child-1');
+
+		expect(batchMocks.markQueued).toHaveBeenCalledWith('child-1');
+		expect(queueMocks.enqueueExtraction).toHaveBeenCalledWith('child-1', 'r1');
+	});
+
+	it.each([
+		{ label: 'fanned out into its own documents', outcome: SPLIT },
+		{ label: 'sent to review as unclear', outcome: REVIEW },
+	])('gives the tenant back the extraction slot of a document $label', async ({ outcome }) => {
+		await runRouted(outcome);
+
+		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1');
+		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
+	});
+
+	it('fails a document whose structure is unclear instead of extracting it as one invoice', async () => {
+		await runRouted(REVIEW);
+
+		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, 'extract.err.structureUnclear');
+		expect(translations.es['extract.err.structureUnclear']).toBeTruthy();
+		expect(translations.en['extract.err.structureUnclear']).toBeTruthy();
+	});
+
+	it.each([
+		{ label: 'the document holds exactly one invoice', result: { action: 'extract' }, rejects: false },
+		{ label: 'structure detection itself breaks', result: new Error('pdf parse failed'), rejects: true },
+	])('extracts as usual when $label', async ({ result, rejects }) => {
+		await runRouted(result, rejects);
+
+		expect(batchMocks.markDone).toHaveBeenCalledTimes(1);
+	});
+
+	it('retries instead of extracting when the classifier is rate limited', async () => {
+		await runRouted(rateLimited, true);
+
+		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
+		expect(batchMocks.markFailed).not.toHaveBeenCalled();
+		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1');
 	});
 });
