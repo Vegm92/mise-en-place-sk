@@ -79,6 +79,19 @@ afterAll(async () => {
 	await closeDb();
 });
 
+async function saveAndGetReviewState(
+	extractedData: Record<string, unknown> | null,
+	formOpts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string },
+): Promise<string> {
+	const out = await saveReviewedInvoice(fakeItem(extractedData), form(formOpts), rid);
+	expect(out.type).toBe('saved');
+	if (out.type !== 'saved') throw new Error('unreachable — asserted above');
+
+	const [invoiceRow] = await testSql`
+		SELECT review_state FROM invoices WHERE id = ${out.invoiceId}`;
+	return invoiceRow.review_state;
+}
+
 describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismatch signal (issue #808)', () => {
 	it('marks the invoice incidencia when the extraction flagged a mismatch, even though the unedited submission reconciles', async () => {
 		// The reviewer accepted the extraction as-is: the submitted line total
@@ -86,52 +99,31 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → extraction-time total_mismat
 		// recomputed only from the submission would pass — but the extraction
 		// step itself had already detected the raw lines didn't add up, e.g.
 		// because Gemini's own tax fallback force-reconciled the gap.
-		const item = fakeItem({ confidence: 1, total_mismatch: true });
-		const out = await saveReviewedInvoice(
-			item,
-			form({ invoiceNumber: 'FAC-808-001', totalAmount: '100.00', lineTotal: '100.00' }),
-			rid,
+		const reviewState = await saveAndGetReviewState(
+			{ confidence: 1, total_mismatch: true },
+			{ invoiceNumber: 'FAC-808-001', totalAmount: '100.00', lineTotal: '100.00' },
 		);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [invoiceRow] = await testSql`
-			SELECT review_state FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow.review_state).toBe('incidencia');
+		expect(reviewState).toBe('incidencia');
 	});
 
 	it('still marks incidencia when the reviewer submits a fresh mismatch, independent of the extraction-time flag', async () => {
-		const item = fakeItem({ confidence: 1, total_mismatch: false });
-		const out = await saveReviewedInvoice(
-			item,
-			form({ invoiceNumber: 'FAC-808-002', totalAmount: '100.00', lineTotal: '40.00' }),
-			rid,
+		const reviewState = await saveAndGetReviewState(
+			{ confidence: 1, total_mismatch: false },
+			{ invoiceNumber: 'FAC-808-002', totalAmount: '100.00', lineTotal: '40.00' },
 		);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [invoiceRow] = await testSql`
-			SELECT review_state FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow.review_state).toBe('incidencia');
+		expect(reviewState).toBe('incidencia');
 	});
 
 	it('is revisado when neither the extraction nor the submission show a mismatch', async () => {
-		const item = fakeItem({ confidence: 1, total_mismatch: false });
-		const out = await saveReviewedInvoice(
-			item,
-			form({
+		const reviewState = await saveAndGetReviewState(
+			{ confidence: 1, total_mismatch: false },
+			{
 				invoiceNumber: 'FAC-808-003',
 				totalAmount: '100.00',
 				lineTotal: '100.00',
 				supplier: '__inv_total_mismatch_sup_clean__',
-			}),
-			rid,
+			},
 		);
-		expect(out.type).toBe('saved');
-		if (out.type !== 'saved') return;
-
-		const [invoiceRow] = await testSql`
-			SELECT review_state FROM invoices WHERE id = ${out.invoiceId}`;
-		expect(invoiceRow.review_state).toBe('revisado');
+		expect(reviewState).toBe('revisado');
 	});
 });
