@@ -548,6 +548,164 @@ async function insertAlias(
 	`);
 }
 
+export type ProductMatchStatus = 'exact' | 'fuzzy' | 'new';
+
+export interface ProductMatch {
+	description: string;
+	productId: number | null;
+	productName: string;
+	status: ProductMatchStatus;
+	score: number | null;
+}
+
+export interface ProductMatchInput {
+	description: string;
+	supplierSku?: string | null;
+}
+
+export async function previewLineProducts(
+	database: Database,
+	restaurantId: string,
+	supplierId: number | null,
+	lines: ProductMatchInput[],
+): Promise<ProductMatch[]> {
+	const out: ProductMatch[] = [];
+	const seen = new Map<string, ProductMatch>();
+
+	for (const line of lines) {
+		const raw = (line.description ?? '').trim();
+		const key = normalizeProductKey(raw);
+		if (!key) {
+			out.push({ description: raw, productId: null, productName: raw, status: 'new', score: null });
+			continue;
+		}
+		const cached = seen.get(key);
+		if (cached) {
+			out.push({ ...cached, description: raw });
+			continue;
+		}
+		const match = await previewOne(database, restaurantId, supplierId, raw, key, line.supplierSku ?? null);
+		seen.set(key, match);
+		out.push(match);
+	}
+	return out;
+}
+
+async function previewOne(
+	database: Database,
+	restaurantId: string,
+	supplierId: number | null,
+	raw: string,
+	key: string,
+	supplierSku: string | null,
+): Promise<ProductMatch> {
+	const aliasRows = await database.execute<{ product_id: number; canonical_name: string }>(sql`
+		SELECT a.product_id, p.canonical_name
+		FROM product_aliases a
+		JOIN products p ON p.id = a.product_id AND p.restaurant_id = a.restaurant_id
+		WHERE a.restaurant_id = ${restaurantId}
+		  AND (
+		    a.raw_key = ${key}
+		    OR (${supplierSku}::text IS NOT NULL AND ${supplierId}::int IS NOT NULL
+		        AND a.supplier_id = ${supplierId} AND a.supplier_sku = ${supplierSku})
+		  )
+		ORDER BY (a.raw_key = ${key}) DESC
+		LIMIT 1
+	`);
+	if (aliasRows.length > 0) {
+		return {
+			description: raw,
+			productId: aliasRows[0].product_id,
+			productName: aliasRows[0].canonical_name,
+			status: 'exact',
+			score: null,
+		};
+	}
+
+	const expandedKey = normalizeProductKey(expandAbbreviations(raw));
+	const altKey = expandedKey && expandedKey !== key ? expandedKey : key;
+	const fuzzyRows = await database.execute<{ id: number; canonical_name: string; score: number }>(sql`
+		SELECT id, canonical_name,
+		       GREATEST(similarity(name_key, ${key}), similarity(name_key, ${altKey})) AS score
+		FROM products
+		WHERE restaurant_id = ${restaurantId}
+		  AND GREATEST(similarity(name_key, ${key}), similarity(name_key, ${altKey})) >= ${FUZZY_THRESHOLD}
+		ORDER BY score DESC
+		LIMIT 1
+	`);
+	if (fuzzyRows.length > 0) {
+		return {
+			description: raw,
+			productId: fuzzyRows[0].id,
+			productName: fuzzyRows[0].canonical_name,
+			status: 'fuzzy',
+			score: Number(fuzzyRows[0].score),
+		};
+	}
+
+	return { description: raw, productId: null, productName: raw, status: 'new', score: null };
+}
+
+export async function getProductName(
+	database: BatchDb,
+	restaurantId: string,
+	productId: number,
+): Promise<string | null> {
+	const rows = await database.execute<{ canonical_name: string }>(sql`
+		SELECT canonical_name FROM products
+		WHERE id = ${productId} AND restaurant_id = ${restaurantId}
+		LIMIT 1
+	`);
+	return rows[0]?.canonical_name ?? null;
+}
+
+export interface ProductOption {
+	id: number;
+	name: string;
+}
+
+export async function listProductOptions(
+	database: Database,
+	restaurantId: string,
+	limit = 500,
+): Promise<ProductOption[]> {
+	const rows = await database.execute<{ id: number; canonical_name: string }>(sql`
+		SELECT id, canonical_name FROM products
+		WHERE restaurant_id = ${restaurantId}
+		ORDER BY canonical_name
+		LIMIT ${limit}
+	`);
+	return rows.map((r) => ({ id: r.id, name: r.canonical_name }));
+}
+
+export async function assignLineProduct(
+	database: BatchDb,
+	restaurantId: string,
+	supplierId: number | null,
+	description: string,
+	productId: number,
+): Promise<{ productId: number; productName: string } | null> {
+	const raw = (description ?? '').trim();
+	const key = normalizeProductKey(raw);
+	if (!key) return null;
+
+	const owned = await database.execute<{ id: number; canonical_name: string }>(sql`
+		SELECT id, canonical_name FROM products
+		WHERE id = ${productId} AND restaurant_id = ${restaurantId}
+		LIMIT 1
+	`);
+	if (owned.length === 0) return null;
+
+	await database.execute(sql`
+		INSERT INTO product_aliases (restaurant_id, product_id, supplier_id, raw_key, raw_text, source, confirmed_at)
+		VALUES (${restaurantId}, ${productId}, ${supplierId}, ${key}, ${raw}, 'user', now())
+		ON CONFLICT (restaurant_id, raw_key)
+		DO UPDATE SET product_id = ${productId}, source = 'user', confirmed_at = now()
+	`);
+
+	return { productId, productName: owned[0].canonical_name };
+}
+
 export type AliasDecision =
 	| { ok: true; productId: number }
 	| { ok: false; reason: 'not_found' };
