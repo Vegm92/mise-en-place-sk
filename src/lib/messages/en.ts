@@ -498,6 +498,8 @@ export default {
   'upload.takePhoto': 'Take Photo',
   'upload.browseFiles':'Browse Files',
   'upload.browseFolder':'Upload Folder',
+  'upload.browseZip':'Upload ZIP',
+  'upload.folderZipHint':'Your mobile browser cannot pick folders — upload a .zip of the invoices, or select several files at once.',
   'confirm.title':     'Review Files',
   'confirm.filesInfo': 'file(s) uploaded.',
   'confirm.extract':   'Extract Invoice',

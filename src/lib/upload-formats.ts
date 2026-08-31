@@ -4,6 +4,12 @@ export type SupportedUploadExtension = (typeof SUPPORTED_UPLOAD_EXTENSIONS)[numb
 
 export const UPLOAD_ACCEPT = SUPPORTED_UPLOAD_EXTENSIONS.join(',');
 
+export const ZIP_UPLOAD_EXTENSION: SupportedUploadExtension = '.zip';
+
+export const ZIP_MIME_TYPES = ['application/zip', 'application/x-zip-compressed', 'multipart/x-zip'] as const;
+
+export const ZIP_UPLOAD_ACCEPT = [ZIP_UPLOAD_EXTENSION, ...ZIP_MIME_TYPES].join(',');
+
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export const MIN_UPLOAD_BYTES = 1024;
