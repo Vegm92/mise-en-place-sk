@@ -61,14 +61,14 @@ function fakeItem(documentType: 'factura' | 'albaran' | null): BatchItem {
 	};
 }
 
-function form(opts: { invoiceNumber: string; invoiceDate: string; totalAmount: string; supplier: string }): FormData {
+function form(opts: { invoiceNumber: string; invoiceDate: string; totalAmount: string; supplier: string; lineDescription?: string }): FormData {
 	const fd = new FormData();
 	fd.append('supplier_name', opts.supplier);
 	fd.append('invoice_number', opts.invoiceNumber);
 	fd.append('invoice_date', opts.invoiceDate);
 	fd.append('total_amount', opts.totalAmount);
 	fd.append('low_confidence_ack', 'true');
-	fd.append('line_descriptions', 'Producto de prueba');
+	fd.append('line_descriptions', opts.lineDescription ?? 'Producto de prueba');
 	fd.append('line_quantities', '1');
 	fd.append('line_units', 'ud');
 	fd.append('line_unit_prices', opts.totalAmount);
@@ -89,6 +89,7 @@ async function saveInvoice(opts: {
 	invoiceDate: string;
 	totalAmount: string;
 	supplier: string;
+	lineDescription?: string;
 }): Promise<number> {
 	const result = await saveReviewedInvoice(fakeItem(opts.documentType), form(opts), rid);
 	expect(result.type).toBe('saved');
@@ -259,11 +260,11 @@ describe.skipIf(!hasDbEnv)('a disabled type generates no notification end-to-end
 		const supplierOn = '__alert_pref_dupe_on__';
 		await saveInvoice({
 			documentType: 'albaran', invoiceNumber: 'PREF-ALB-1', invoiceDate: '2024-08-01',
-			totalAmount: '250.00', supplier: supplierOn,
+			totalAmount: '250.00', supplier: supplierOn, lineDescription: 'Tomates frescos',
 		});
 		const facturaOn = await saveInvoice({
 			documentType: 'factura', invoiceNumber: 'PREF-FAC-1', invoiceDate: '2024-08-10',
-			totalAmount: '255.00', supplier: supplierOn,
+			totalAmount: '255.00', supplier: supplierOn, lineDescription: 'Servicio de transporte',
 		});
 		expect(await notificationsOfType(facturaOn, 'possible_duplicate_purchase')).toHaveLength(1);
 
@@ -272,11 +273,11 @@ describe.skipIf(!hasDbEnv)('a disabled type generates no notification end-to-end
 		const supplierOff = '__alert_pref_dupe_off__';
 		await saveInvoice({
 			documentType: 'albaran', invoiceNumber: 'PREF-ALB-2', invoiceDate: '2024-09-01',
-			totalAmount: '250.00', supplier: supplierOff,
+			totalAmount: '250.00', supplier: supplierOff, lineDescription: 'Tomates frescos',
 		});
 		const facturaOff = await saveInvoice({
 			documentType: 'factura', invoiceNumber: 'PREF-FAC-2', invoiceDate: '2024-09-10',
-			totalAmount: '255.00', supplier: supplierOff,
+			totalAmount: '255.00', supplier: supplierOff, lineDescription: 'Servicio de transporte',
 		});
 		expect(await notificationsOfType(facturaOff, 'possible_duplicate_purchase')).toHaveLength(0);
 

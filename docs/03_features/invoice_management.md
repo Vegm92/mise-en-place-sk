@@ -143,6 +143,7 @@ Tenant scope on every read; version check on edit; status-transition guards.
 - Mobile and desktop variants both rendered; CSS picks (`md:hidden` / `hidden md:block`, ADR-020).
 - Two-column layout: doc viewer (44%) with filename header, zoom controls and source-file preview; details card + actions, line items, activity timeline.
 - The line-items card leads with the orphan-line warning and its re-link button when `unlinkedLineCount > 0`; the mobile variant carries the same pair above its line list.
+- When `invoices.linked_invoice_id` is set (issue #809 — factura↔albarán linking, `runPossibleDuplicatePurchase` in `alerts.ts`), the details card renders a "linked document" row with a link to `/invoice/{linked_invoice.id}`; the load in `+page.server.ts` fetches the linked invoice's id/number/document_type in a second query rather than a join, since it's a nullable self-reference. Mobile variant surfaces the same link as its own card.
 
 ### `src/routes/(app)/invoice/[id]/edit/+page.server.ts`
 
