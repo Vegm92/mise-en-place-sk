@@ -59,7 +59,7 @@ const ALLOWED = new Set([
 	'var(--mep-fg-2)'
 ]);
 
-const I18N_FILE = 'src/lib/i18n-messages.ts';
+const MESSAGE_FILES = { es: 'src/lib/messages/es.ts', en: 'src/lib/messages/en.ts' };
 
 const LABEL_PROPS = /^(label|title|text|placeholder|heading|subtitle|sub|msg|message|caption|tooltip)$/;
 const SPANISH = /[áéíóúüñ¿¡ÁÉÍÓÚÜÑ]/;
@@ -86,10 +86,14 @@ function isProse(text) {
 
 const violations = [];
 
-const localeTables = localeKeyTables(fs.readFileSync(path.join(ROOT, I18N_FILE), 'utf8'));
+const localeTables = localeKeyTables(
+	Object.fromEntries(
+		Object.entries(MESSAGE_FILES).map(([locale, rel]) => [locale, fs.readFileSync(path.join(ROOT, rel), 'utf8')]),
+	),
+);
 
 if (localeTables.size === 0) {
-	console.error(`check-i18n-strings: no locale tables found in ${I18N_FILE}`);
+	console.error(`check-i18n-strings: no locale tables found in ${Object.values(MESSAGE_FILES).join(', ')}`);
 	process.exit(1);
 }
 
@@ -220,7 +224,7 @@ if (unique.length > 0) {
 	console.error(
 		'\nUser-facing strings must come from the i18n table — use $t / $ti / $tp instead of literals,\n' +
 			'and every key they pass must exist ([missing-key:<locale>] below).\n' +
-			'Add the key to BOTH locales in src/lib/i18n-messages.ts. Language-neutral tokens can be\n' +
+			'Add the key to BOTH src/lib/messages/es.ts and src/lib/messages/en.ts. Language-neutral tokens can be\n' +
 			'allowlisted in scripts/check-i18n-strings.mjs.\n'
 	);
 	for (const v of unique) {

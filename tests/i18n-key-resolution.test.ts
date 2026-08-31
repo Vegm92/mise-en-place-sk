@@ -6,7 +6,10 @@ import { localeKeyTables, keyReferences, lookupKeys, missingKeyRefs } from '../s
 const ROOT = path.resolve(__dirname, '..');
 const SRC = path.join(ROOT, 'src');
 
-const tables = localeKeyTables(readFileSync(path.join(SRC, 'lib/i18n-messages.ts'), 'utf8'));
+const tables = localeKeyTables({
+  es: readFileSync(path.join(SRC, 'lib/messages/es.ts'), 'utf8'),
+  en: readFileSync(path.join(SRC, 'lib/messages/en.ts'), 'utf8'),
+});
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -18,19 +21,19 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 describe('localeKeyTables (keys read back off the real locale tables)', () => {
-  it('reads one table per locale straight from src/lib/i18n-messages.ts', () => {
+  it('reads one table per locale straight from src/lib/messages/{es,en}.ts', () => {
     expect([...tables.keys()].sort()).toEqual(['en', 'es']);
     expect(tables.get('es')!.size).toBeGreaterThan(1000);
     expect(tables.get('es')!.has('export.title')).toBe(true);
     expect(tables.get('en')!.has('export.title')).toBe(true);
   });
 
-  it('ignores everything that is not a locale table', () => {
-    const tiny = localeKeyTables(
-      `export const other = { es: { 'nope.key': 'x' } };\n` +
-        `export const translations = { es: { 'a.b': 'A' }, en: { 'a.b': 'A' } } satisfies X;`,
-    );
-    expect([...tables.keys()].sort()).toEqual(['en', 'es']);
+  it('ignores everything that is not the default-exported message table', () => {
+    const tiny = localeKeyTables({
+      es: `export const other = { 'nope.key': 'x' };\nexport default { 'a.b': 'A' } satisfies X;`,
+      en: `export default { 'a.b': 'A' } satisfies X;`,
+    });
+    expect([...tiny.keys()].sort()).toEqual(['en', 'es']);
     expect(tiny.get('es')!.has('nope.key')).toBe(false);
     expect(tiny.get('es')!.has('a.b')).toBe(true);
   });

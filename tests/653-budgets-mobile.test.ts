@@ -20,7 +20,8 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const PAGE = read('src/routes/(app)/budgets/+page.svelte');
-const I18N = read('src/lib/i18n-messages.ts');
+const ES_MESSAGES = read('src/lib/messages/es.ts');
+const EN_MESSAGES = read('src/lib/messages/en.ts');
 
 const mobileBlock = () => {
 	const at = PAGE.indexOf('md:hidden');
@@ -70,9 +71,7 @@ describe('budgets mobile disclosure (issue #653)', () => {
 	});
 
 	it('i18n defines the disclosure keys in both locales', () => {
-		const es = I18N.slice(I18N.indexOf('es: {'), I18N.indexOf('en: {'));
-		const en = I18N.slice(I18N.indexOf('en: {'));
-		for (const block of [es, en]) {
+		for (const block of [ES_MESSAGES, EN_MESSAGES]) {
 			expect(block).toMatch(/'bud\.showAllCategories':\s*'[^']*\{n\}[^']*'/);
 			expect(block).toMatch(/'bud\.hideAllCategories':\s*'[^']+'/);
 		}

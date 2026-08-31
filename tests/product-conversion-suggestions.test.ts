@@ -17,7 +17,10 @@ import {
 import {
 	loadConversionPrompts, defineUnitConversion, annotateLineItems,
 } from '../src/lib/server/products';
-import { locale, t, translations } from '../src/lib/i18n';
+import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
+
+await loadAllMessages();
 
 let ridA = '';
 let ridB = '';
