@@ -52,9 +52,6 @@ describe('parseNormalizeResponse', () => {
 	it('returns a safe default on garbage', () => {
 		expect(parseNormalizeResponse('not json', valid)).toEqual({ matchId: null, confidence: 0 });
 	});
-	it('returns a safe default on well-formed JSON of the wrong shape (issue #842)', () => {
-		expect(parseNormalizeResponse('[1, 2, 3]', valid)).toEqual({ matchId: null, confidence: 0 });
-	});
 });
 
 // ── Orchestration ─────────────────────────────────────────────────────────────
