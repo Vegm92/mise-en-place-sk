@@ -6,10 +6,10 @@ import * as schema from './schema';
 import { unitConversions, systemNotifications } from './schema';
 import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { categoryGuideBlock } from './category-guide';
-import { stripJsonFence } from './llm-json';
+import { parseJsonResponse } from './llm-json';
 import { UNCATEGORIZED_CATEGORY, resolveCategory } from '$lib/constants';
 import { GEMINI_API_KEY } from './env';
-import { createGeminiProvider } from './llm-provider';
+import { createGeminiProvider, Type, type Schema } from './llm-provider';
 import { recordLlmUsage } from './llm-quota';
 import { recordDeadLetter } from './dead-letter';
 import { CATEGORIZE_QUEUE, NORMALIZE_QUEUE } from './queue';
@@ -950,6 +950,19 @@ export interface Candidate { id: number; name: string }
 
 export interface NormalizeVerdict { matchId: number | null; confidence: number }
 
+const NORMALIZE_VERDICT_SCHEMA: Schema = {
+	type: Type.OBJECT,
+	properties: {
+		match_id: { type: Type.INTEGER, nullable: true },
+		confidence: { type: Type.NUMBER },
+	},
+	required: ['match_id', 'confidence'],
+};
+
+function isRawNormalizeVerdict(value: unknown): value is { match_id?: unknown; confidence?: unknown } {
+	return typeof value === 'object' && value !== null;
+}
+
 export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): string {
 	const list = candidates.map((c) => `${c.id}: ${c.name}`).join('\n');
 	return [
@@ -970,13 +983,12 @@ export function buildNormalizePrompt(rawText: string, candidates: Candidate[]): 
 }
 
 export function parseNormalizeResponse(text: string, validIds: Set<number>): NormalizeVerdict {
-	let parsed: unknown;
+	let obj: { match_id?: unknown; confidence?: unknown };
 	try {
-		parsed = JSON.parse(stripJsonFence(text));
+		obj = parseJsonResponse(text, isRawNormalizeVerdict, 'Normalize');
 	} catch {
 		return { matchId: null, confidence: 0 };
 	}
-	const obj = (parsed ?? {}) as { match_id?: unknown; confidence?: unknown };
 	const rawId = typeof obj.match_id === 'number' ? obj.match_id : null;
 	const matchId = rawId != null && validIds.has(rawId) ? rawId : null;
 	let confidence = typeof obj.confidence === 'number' ? obj.confidence : 0;
@@ -1028,7 +1040,7 @@ export async function processNormalizeJob(data: NormalizeJobData, deps: Normaliz
 		const candidates: Candidate[] = candRows.map((r) => ({ id: r.id, name: r.canonical_name }));
 		const validIds = new Set(candidates.map((c) => c.id));
 
-		const resp = await provider.generate(buildNormalizePrompt(rawText, candidates));
+		const resp = await provider.generate(buildNormalizePrompt(rawText, candidates), undefined, undefined, NORMALIZE_VERDICT_SCHEMA);
 		const recordUsage = deps.recordUsage ?? recordLlmUsage;
 		await recordUsage(restaurantId, resp.usage, 'normalize');
 
@@ -1107,14 +1119,26 @@ export function buildCategorizePrompt(canonicalName: string): string {
 	].join('\n');
 }
 
+const CATEGORIZE_VERDICT_SCHEMA: Schema = {
+	type: Type.OBJECT,
+	properties: {
+		category: { type: Type.STRING, nullable: true },
+		confidence: { type: Type.NUMBER },
+	},
+	required: ['category', 'confidence'],
+};
+
+function isRawCategorizeVerdict(value: unknown): value is { category?: unknown; confidence?: unknown } {
+	return typeof value === 'object' && value !== null;
+}
+
 export function parseCategorizeResponse(text: string): string | null {
-	let parsed: unknown;
+	let obj: { category?: unknown; confidence?: unknown };
 	try {
-		parsed = JSON.parse(stripJsonFence(text));
+		obj = parseJsonResponse(text, isRawCategorizeVerdict, 'Categorize');
 	} catch {
 		return null;
 	}
-	const obj = (parsed ?? {}) as { category?: unknown; confidence?: unknown };
 	const confidence = typeof obj.confidence === 'number' ? obj.confidence : undefined;
 	const resolved = resolveCategory(obj.category, confidence);
 	return resolved === UNCATEGORIZED_CATEGORY ? null : resolved;
@@ -1144,7 +1168,7 @@ export async function processCategorizeJob(
 		const provider = deps.provider ?? (GEMINI_API_KEY ? createGeminiProvider() : null);
 		if (!provider) return;
 
-		const resp = await provider.generate(buildCategorizePrompt(canonicalName));
+		const resp = await provider.generate(buildCategorizePrompt(canonicalName), undefined, undefined, CATEGORIZE_VERDICT_SCHEMA);
 		const recordUsage = deps.recordUsage ?? recordLlmUsage;
 		await recordUsage(restaurantId, resp.usage, 'categorize');
 
