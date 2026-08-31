@@ -40,7 +40,7 @@
     <AdminKpiCard
       label={$t('admin.learning.kpiPendingFuzzy')}
       value={data.fuzzyOutcomes.pending.toLocaleString('en-US')}
-      valueColor={data.fuzzyOutcomes.pending > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'}
+      valueColor={data.fuzzyOutcomes.pending > 0 ? 'text-warn' : 'text-fg'}
       sub={$t('admin.learning.kpiPendingFuzzySub')}
     />
     <AdminKpiCard
