@@ -40,7 +40,7 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
   is what carries the invoice to the panel. Payload carries `batchId`/`itemId`
   and the CTA deep-links to `/batch/[id]`.
 - **Storage**: `system_notifications(rid, invoiceId?, notificationType, message,
-  payload, status pending|sent)`; index `(rid, status, created_at)`.
+  payload, status pending|sent|resolved)`; index `(rid, status, created_at)`.
 - **Per-type preferences** (#577): each tenant can switch individual alert types
   off in Ajustes → Alertas. The toggleable set is `price_shock`,
   `budget_overage`, `possible_duplicate_purchase`, `supplier_uncategorized`,
@@ -71,7 +71,21 @@ consistent i18n rendering and actionable CTAs, plus the unified reminders hub.
 
 ## State transitions
 
-`pending → sent` (dismiss/action). Invoices: see `invoice_management.md`.
+`pending → sent` (dismiss/action). `pending → resolved` (#831): the data that
+raised the alert was corrected and the underlying condition no longer holds —
+a distinct outcome from the user's own dismissal, so the two can be told
+apart later (e.g. to measure how much alert volume was real vs. noise).
+Re-evaluated on invoice edit (`price_shock`, `budget_overage`,
+`possible_duplicate_purchase`/`related_document_found`,
+`verifactu_qr_mismatch`) and on invoice delete (same four, orphaned instead of
+re-checked since there is nothing left to compare against, except
+`budget_overage` which is re-evaluated against the category's remaining
+spend); `supplier_uncategorized`/`supplier_category_suggested` also resolve
+when the supplier's category is corrected directly on its profile, not only
+via the suggestion widget's own accept/dismiss. Both `sent` and `resolved`
+are terminal and excluded from every `status='pending'` read path (bell,
+badge, `/reminders`, dashboard), so nothing else needed to change to stop
+showing a resolved alert as pending. Invoices: see `invoice_management.md`.
 
 ## Data dependencies
 
@@ -132,9 +146,14 @@ Type ∈ known set; payload shape per type; tenant scope.
 - Every toggleable alert type has a switch in Ajustes → Alertas, grouped and
   labelled; preferences round-trip through the `settings` table; a disabled type
   generates no notification and no email.
+- Correcting the data that raised a re-evaluable alert (invoice price/total/
+  date, supplier category) resolves it without the user dismissing it by hand
+  (#831); deleting the invoice that raised it never leaves the alert pointing
+  at a gone invoice.
 - Tests: `tests/events.test.ts`, `tests/alert-engine.test.ts`,
   `tests/working-days.test.ts`, `tests/alert-preferences.test.ts`,
-  `tests/settings-alert-preferences.test.ts`, `tests/scheduler.test.ts`.
+  `tests/settings-alert-preferences.test.ts`, `tests/scheduler.test.ts`,
+  `tests/alert-reevaluation.test.ts`.
 
 ## Code notes
 
@@ -186,6 +205,34 @@ Type ∈ known set; payload shape per type; tenant scope.
 **`function runBudgetCheck`**
 
 - Supplier category (legacy NULL now falls into the 'Other' bucket instead of silently hiding spend from budget alerts — #301); warning threshold (0-100 in settings, default 80); monthly budget (current month); month spend; level = exceeded | warning | null; dedup one alert per category+level per calendar month.
+
+**`function reevaluateInvoiceAlerts`** (#831)
+
+- Called after the invoice edit action commits. Re-runs `runPriceShock`,
+  `runPossibleDuplicatePurchase`, the VERI\*FACTU check, and `runBudgetCheck`'s
+  comparison against the invoice's *current* (post-edit) data, and marks any
+  pending alert tied to this invoice whose condition no longer holds as
+  `resolved`. Best-effort per sub-check (one failing does not block the
+  others or the edit), mirroring the producers' own isolation in
+  `invoice-save.ts`.
+
+**`function orphanInvoiceAlerts`** (#831)
+
+- Called after an invoice is soft-deleted. Closes `price_shock`,
+  `possible_duplicate_purchase`, `related_document_found`, and
+  `verifactu_qr_mismatch` alerts tied to that invoice — there is nothing left
+  to re-compare, so they are marked `resolved` outright rather than orphaned
+  against a gone invoice. `budget_overage` is handled separately
+  (`reevaluateBudgetAlertsForInvoice`) since it is category-wide, not specific
+  to the deleted invoice.
+
+**`function resolveSupplierCategoryAlerts`** (#831)
+
+- Called from the supplier profile's `update` action when the category is set
+  directly (outside the suggestion widget). Closes
+  `supplier_uncategorized`/`supplier_category_suggested` for that supplier —
+  the same outcome `dismissSuggestion` gives when the correction instead comes
+  through `(app)/api/supplier-category`.
 ### `src/lib/server/email.ts`
 
 **`const apiKey`**
