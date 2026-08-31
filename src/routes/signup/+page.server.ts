@@ -4,8 +4,8 @@ import { eq } from 'drizzle-orm';
 import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { recordConsent } from '$lib/server/consent';
-import { checkRateLimit } from '$lib/server/rate-limiter';
 import { publicFormAction } from '$lib/server/public-form-action';
+import { resendVerificationAction } from '$lib/server/resend-verification-action';
 import { passwordPolicyError } from '$lib/server/password-policy';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
@@ -25,9 +25,11 @@ const SignUpForm = v.object({
 	terms: v.optional(v.string()),
 });
 
-const ResendForm = v.object({
-	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
-});
+async function isUnverifiedSignup(email: string): Promise<boolean> {
+	const [existing] = await db.select({ id: users.id, emailVerified: users.emailVerified })
+		.from(users).where(eq(users.email, email)).limit(1);
+	return Boolean(existing && !existing.emailVerified);
+}
 
 export const actions: Actions = {
 	signUp: publicFormAction(
@@ -91,21 +93,10 @@ export const actions: Actions = {
 		},
 	),
 
-	resend: publicFormAction({ schema: ResendForm }, async ({ data, ip, event }) => {
-		const email = data.email ?? '';
-		if (!email) return fail(422, { error: 'missing' });
-
-		if (!(await checkRateLimit(`signup:resend:${ip}`, 3))) {
-			return { success: true, email, resent: false };
-		}
-
-		const [existing] = await db.select({ id: users.id, emailVerified: users.emailVerified })
-			.from(users).where(eq(users.email, email)).limit(1);
-		if (existing && !existing.emailVerified) {
-			await sendVerificationEmail(event.url, email);
-		}
-
-		return { success: true, email, resent: true };
+	resend: resendVerificationAction({
+		keyPrefix: 'signup',
+		shouldSend: isUnverifiedSignup,
+		result: (email, resent) => ({ success: true, email, resent }),
 	}),
 
 	signUpWithGoogle: signIn,

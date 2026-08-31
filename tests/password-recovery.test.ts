@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
+import { fileFormData, maliciousFile } from './helpers/form-data';
 
 const {
 	rateLimitMock, logAuthEventMock, createVerificationTokenMock, consumeVerificationTokenMock,
@@ -73,13 +74,8 @@ function formEvent(fields: Record<string, string>, extra: Record<string, unknown
 }
 
 function formEventWithFile(fields: Record<string, string | File>) {
-	const data = new FormData();
-	for (const [k, v] of Object.entries(fields)) {
-		if (typeof v === 'string') data.append(k, v);
-		else data.append(k, v, 'upload.bin');
-	}
 	return {
-		request: { formData: async () => data },
+		request: { formData: async () => fileFormData(fields) },
 		url: new URL(ORIGIN),
 		getClientAddress: () => '203.0.113.7',
 		cookies: { delete: (name: string) => deletedCookies.push(name) },
@@ -151,9 +147,8 @@ describe('/reset-password', () => {
 	});
 
 	it('rejects a file part posted under the password field with a clean 400 instead of crashing (issue #844)', async () => {
-		const file = new File(['not a password'], 'evil.txt', { type: 'text/plain' });
 		const result = await resetActions.default(
-			formEventWithFile({ email: 'chef@example.com', token: 'abc', password: file, confirm: 'longenough123' }),
+			formEventWithFile({ email: 'chef@example.com', token: 'abc', password: maliciousFile('not a password'), confirm: 'longenough123' }),
 		);
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
 		expect(updatedRows).toHaveLength(0);

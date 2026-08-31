@@ -1,7 +1,8 @@
 import { fail, redirect } from '@sveltejs/kit';
 import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
-import { publicFormAction } from '$lib/server/public-form-action';
+import { publicFormAction, rawFormField } from '$lib/server/public-form-action';
+import { resendVerificationAction } from '$lib/server/resend-verification-action';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { checkLoginCredentials } from '$lib/server/auth-credentials';
 import { issueSessionCookie } from '$lib/server/auth-session';
@@ -10,8 +11,6 @@ import { safeRedirect } from '$lib/server/safe-redirect';
 import { safe } from '$lib/server/load-guard';
 import { countWaitlistEmails } from '$lib/server/waitlist-db';
 import { BETA_SEATS } from '$lib/constants';
-import { checkRateLimit } from '$lib/server/rate-limiter';
-import { sendVerificationEmail } from '$lib/server/verification-email';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (locals.user) redirect(303, safeRedirect(url.searchParams.get('redirectTo')));
@@ -25,20 +24,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	};
 };
 
-const RawEmailField = v.optional(v.pipe(v.string(), v.trim()));
-
 function emailOf(form: FormData): string {
-	const parsed = v.safeParse(RawEmailField, form.get('email') ?? undefined);
-	return (parsed.success ? parsed.output : undefined) ?? '';
+	return rawFormField(form, 'email');
 }
 
 const SignInForm = v.object({
 	password: v.optional(v.string()),
 	redirectTo: v.optional(v.string()),
-});
-
-const ResendForm = v.object({
-	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
 });
 
 export const actions: Actions = {
@@ -79,16 +71,9 @@ export const actions: Actions = {
 		},
 	),
 
-	resend: publicFormAction({ schema: ResendForm }, async ({ data, ip, event }) => {
-		const email = data.email ?? '';
-		if (!email) return fail(422, { error: 'missing' });
-
-		if (!(await checkRateLimit(`login:resend:${ip}`, 3))) {
-			return { email, resent: false };
-		}
-
-		await sendVerificationEmail(event.url, email);
-		return { email, resent: true };
+	resend: resendVerificationAction({
+		keyPrefix: 'login',
+		result: (email, resent) => ({ email, resent }),
 	}),
 
 	signInWithGoogle: signIn,
