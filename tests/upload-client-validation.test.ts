@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
-import { locale, t } from '../src/lib/i18n';
+import { locale, t, loadAllMessages } from '../src/lib/i18n';
 import {
 	SUPPORTED_UPLOAD_EXTENSIONS,
 	MAX_UPLOAD_BYTES,
@@ -29,6 +29,8 @@ import {
 	validateUploadFile,
 	type RejectReason,
 } from '../src/lib/upload-formats';
+
+await loadAllMessages();
 import { MAGIC_BYTES as SERVER_MAGIC_BYTES } from '../src/lib/server/sessions';
 
 /** Well-formed leading bytes for each supported type, padded past MIN_UPLOAD_BYTES. */
