@@ -1,5 +1,5 @@
 import type { PgBoss } from 'pg-boss';
-import { and, eq, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, sql, type SQL } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant, runAsSystem } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
@@ -12,6 +12,7 @@ import { parsePack, normalizedUnitPrice, type EnrichedLineItem } from './product
 import { moneyToNumber, moneyToNullableNumber } from './money';
 import { describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoinOn } from './category-spend';
 import { sendEmail, weeklyDigestEmail, incidenciaDigestEmail, trialExpiryEmail, trialExpiredEmail } from './email';
+import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { getOrGenerateWeeklyDigest, isoWeek } from './weekly-digest';
 import { TIERS, effectiveTier, ORPHAN_SUBSCRIPTIONS_CRON, ORPHAN_SUBSCRIPTIONS_QUEUE, runOrphanSubscriptionsJob } from './billing';
 import { getStorage } from './storage';
@@ -205,6 +206,20 @@ function evaluatePriceShock(
 	};
 }
 
+async function settingNumber(
+	tdb: ReturnType<typeof forTenant>,
+	key: string,
+	fallback: number,
+	parse: (raw: string) => number,
+): Promise<number> {
+	const rows = await db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(tdb.scope(settings.restaurantId, eq(settings.key, key)))
+		.limit(1);
+	return rows[0] ? parse(rows[0].value) : fallback;
+}
+
 export async function runPriceShock(
 	invoiceId: number,
 	supplierName: string,
@@ -214,12 +229,7 @@ export async function runPriceShock(
 ): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 
-	const thresholdRows = await db
-		.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'price_alert_threshold')))
-		.limit(1);
-	const threshold = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
+	const threshold = await settingNumber(tdb, 'price_alert_threshold', 0.15, parseFloat);
 
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
@@ -540,12 +550,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	);
 	if (budgets.size === 0) return [];
 
-	const thresholdRows = await db
-		.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'budget_warning_threshold')))
-		.limit(1);
-	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
+	const thresholdPct = await settingNumber(tdb, 'budget_warning_threshold', 80, (v) => parseInt(v, 10));
 	const thresholdFrac = thresholdPct / 100;
 
 	const spendByCategory = await monthlyCategorySpend(tdb, [...budgets.keys()]);
@@ -729,6 +734,214 @@ export async function saveAlerts(invoiceId: number | null, restaurantId: string,
 			});
 		}
 	});
+}
+
+async function safely(label: string, fn: () => Promise<void>): Promise<void> {
+	try {
+		await fn();
+	} catch (err) {
+		console.error(`[alerts] ${label} re-evaluation failed (non-fatal):`, err);
+	}
+}
+
+async function resolveNotifications(tdb: ReturnType<typeof forTenant>, ids: number[]): Promise<void> {
+	if (ids.length === 0) return;
+	await db.update(systemNotifications)
+		.set({ status: 'resolved' })
+		.where(tdb.scope(systemNotifications.restaurantId, inArray(systemNotifications.id, ids)));
+}
+
+function pendingAlertCondition(notificationType: string | string[], extra?: SQL) {
+	const typeCond = Array.isArray(notificationType)
+		? inArray(systemNotifications.notificationType, notificationType)
+		: eq(systemNotifications.notificationType, notificationType);
+	const base = and(typeCond, eq(systemNotifications.status, 'pending'))!;
+	return extra ? and(base, extra)! : base;
+}
+
+function selectPending<T extends Parameters<typeof db.select>[0]>(
+	tdb: ReturnType<typeof forTenant>,
+	columns: T,
+	notificationType: string | string[],
+	extra?: SQL,
+) {
+	return db.select(columns).from(systemNotifications)
+		.where(tdb.scope(systemNotifications.restaurantId, pendingAlertCondition(notificationType, extra)));
+}
+
+export async function reevaluatePriceShockAlerts(
+	invoiceId: number,
+	restaurantId: string,
+	supplierName: string,
+	lineItems: EnrichedLineItem[],
+	productByKey?: Map<string, number>,
+): Promise<void> {
+	const tdb = forTenant(restaurantId);
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id, payload: systemNotifications.payload },
+		'price_shock', eq(systemNotifications.invoiceId, invoiceId),
+	);
+	if (pending.length === 0) return;
+
+	const currentAlerts = await runPriceShock(invoiceId, supplierName, lineItems, restaurantId, productByKey);
+	const stillShocking = new Set(currentAlerts.map((a) => (a.payload as { ingredient?: string }).ingredient));
+
+	const toResolve = pending
+		.filter((row) => !stillShocking.has((row.payload as { ingredient?: string } | null)?.ingredient))
+		.map((row) => row.id);
+	await resolveNotifications(tdb, toResolve);
+}
+
+async function reevaluateBudgetAlerts(restaurantId: string, categories: string[]): Promise<void> {
+	if (categories.length === 0) return;
+	const tdb = forTenant(restaurantId);
+
+	const pending = await selectPending(tdb, { id: systemNotifications.id, payload: systemNotifications.payload }, 'budget_overage');
+	const relevant = pending.filter((row) => {
+		const category = (row.payload as { category?: string } | null)?.category;
+		return category != null && categories.includes(category);
+	});
+	if (relevant.length === 0) return;
+
+	const currentMonth = toMonthStr(new Date());
+	const budgetRows = await db
+		.select({ category: categoryBudgets.category, monthlyBudget: categoryBudgets.monthlyBudget })
+		.from(categoryBudgets)
+		.where(tdb.scope(categoryBudgets.restaurantId, and(
+			inArray(categoryBudgets.category, categories),
+			eq(categoryBudgets.month, currentMonth),
+		)));
+	const budgets = new Map(budgetRows.map((r): [string, number] => [r.category, moneyToNumber(r.monthlyBudget)]));
+
+	const thresholdFrac = (await settingNumber(tdb, 'budget_warning_threshold', 80, (v) => parseInt(v, 10))) / 100;
+
+	const spendByCategory = await monthlyCategorySpend(tdb, categories);
+
+	const toResolve: number[] = [];
+	for (const row of relevant) {
+		const payload = row.payload as { category: string; level?: 'exceeded' | 'warning' };
+		const budget = budgets.get(payload.category);
+		const spend = spendByCategory.get(payload.category) ?? 0;
+		const pctFrac = budget && budget > 0 ? spend / budget : 0;
+		const stillHolds = payload.level === 'exceeded' ? pctFrac >= 1.0 : pctFrac >= thresholdFrac;
+		if (!stillHolds) toResolve.push(row.id);
+	}
+	await resolveNotifications(tdb, toResolve);
+}
+
+export async function reevaluateBudgetAlertsForInvoice(
+	invoiceId: number,
+	supplierId: number,
+	restaurantId: string,
+): Promise<void> {
+	const tdb = forTenant(restaurantId);
+	const categories = await invoiceLineCategories(tdb, invoiceId, supplierId);
+	await reevaluateBudgetAlerts(restaurantId, categories);
+}
+
+async function reevaluateDuplicatePurchaseAlerts(input: DuplicatePurchaseInput): Promise<void> {
+	const { invoiceId, restaurantId } = input;
+	const tdb = forTenant(restaurantId);
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id, notificationType: systemNotifications.notificationType },
+		['possible_duplicate_purchase', 'related_document_found'], eq(systemNotifications.invoiceId, invoiceId),
+	);
+	if (pending.length === 0) return;
+
+	const result = await runPossibleDuplicatePurchase(input);
+	const currentType = result.alerts[0]?.notificationType ?? null;
+
+	const toResolve = pending.filter((row) => row.notificationType !== currentType).map((row) => row.id);
+	await resolveNotifications(tdb, toResolve);
+}
+
+async function reevaluateVerifactuAlerts(
+	invoiceId: number,
+	restaurantId: string,
+	invoiceNumber: string | null,
+	invoiceDate: string | null,
+	totalAmount: string | null,
+): Promise<void> {
+	const tdb = forTenant(restaurantId);
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id }, 'verifactu_qr_mismatch', eq(systemNotifications.invoiceId, invoiceId),
+	);
+	if (pending.length === 0) return;
+
+	const [inv] = await db
+		.select({ qrUrl: invoices.qrUrl })
+		.from(invoices)
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)))
+		.limit(1);
+	if (!inv?.qrUrl) return;
+
+	const mismatches = detectVerifactuMismatch(parseQrUrl(inv.qrUrl), {
+		invoice_number: invoiceNumber,
+		invoice_date: invoiceDate,
+		total_amount: totalAmount == null ? null : moneyToNumber(totalAmount),
+	});
+	if (mismatches.length > 0) return;
+
+	await resolveNotifications(tdb, pending.map((row) => row.id));
+	await db.update(invoices)
+		.set({ qrMismatch: false })
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)));
+}
+
+export interface InvoiceReevaluationInput {
+	invoiceId: number;
+	restaurantId: string;
+	supplierId: number;
+	supplierName: string;
+	invoiceNumber: string | null;
+	invoiceDate: string | null;
+	totalAmount: string | null;
+	documentType: 'factura' | 'albaran' | null;
+	lineItems: EnrichedLineItem[];
+	lineDescriptions: string[];
+	productByKey?: Map<string, number>;
+}
+
+export async function reevaluateInvoiceAlerts(input: InvoiceReevaluationInput): Promise<void> {
+	const {
+		invoiceId, restaurantId, supplierId, supplierName,
+		invoiceNumber, invoiceDate, totalAmount, documentType,
+		lineItems, lineDescriptions, productByKey,
+	} = input;
+
+	await safely('price shock', () =>
+		reevaluatePriceShockAlerts(invoiceId, restaurantId, supplierName, lineItems, productByKey));
+
+	await safely('possible duplicate purchase', () =>
+		reevaluateDuplicatePurchaseAlerts({
+			invoiceId, supplierId, supplierName, restaurantId,
+			documentType, invoiceDate, totalAmount, lineDescriptions,
+		}));
+
+	await safely('VERI*FACTU mismatch', () =>
+		reevaluateVerifactuAlerts(invoiceId, restaurantId, invoiceNumber, invoiceDate, totalAmount));
+
+	await safely('budget overage', () =>
+		reevaluateBudgetAlertsForInvoice(invoiceId, supplierId, restaurantId));
+}
+
+const INVOICE_BOUND_ALERT_TYPES = ['price_shock', 'possible_duplicate_purchase', 'related_document_found', 'verifactu_qr_mismatch'];
+
+export async function orphanInvoiceAlerts(invoiceId: number, restaurantId: string): Promise<void> {
+	const tdb = forTenant(restaurantId);
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id }, INVOICE_BOUND_ALERT_TYPES, eq(systemNotifications.invoiceId, invoiceId),
+	);
+	await resolveNotifications(tdb, pending.map((row) => row.id));
+}
+
+export async function resolveSupplierCategoryAlerts(restaurantId: string, supplierId: number): Promise<void> {
+	const tdb = forTenant(restaurantId);
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id }, ['supplier_uncategorized', 'supplier_category_suggested'],
+		sql`${systemNotifications.payload}->>'supplierId' = ${String(supplierId)}`,
+	);
+	await resolveNotifications(tdb, pending.map((row) => row.id));
 }
 
 export const DIGEST_QUEUE = 'scheduled-weekly-digest';

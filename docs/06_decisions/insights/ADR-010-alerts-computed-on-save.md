@@ -79,6 +79,26 @@ after crossing 80% would re-warn. The two levels escalate independently: crossin
   sweep. Setting a budget that is already exceeded raises nothing until the next
   invoice in that category arrives. This is a real gap and an accepted one — the
   rules are written as functions of a saved invoice.
+- **An alert whose condition is a function of editable data is re-checked, not
+  just raised, when that data changes** (#831). `price_shock`, `budget_overage`,
+  `possible_duplicate_purchase`/`related_document_found`, and
+  `verifactu_qr_mismatch` are all pure functions of fields the user can later
+  correct on the invoice edit screen (a mis-OCR'd price, a wrong total, a wrong
+  date). Editing the invoice re-runs the same rule that raised each of its
+  pending alerts and marks any whose condition no longer holds as `resolved` —
+  a status distinct from `sent` (the user's own dismissal), so the two outcomes
+  stay distinguishable. Deleting an invoice orphans (`resolved`) the alerts that
+  refer to it directly, since there is nothing left to re-compare; `budget_overage`
+  is instead re-evaluated against the category's remaining spend, since it is a
+  category-wide condition rather than one specific to the deleted invoice.
+  `categorization_nudge`/`category_suggestion` close the same way when the
+  supplier's category is corrected directly on its profile, not only when
+  accepted from the suggestion widget. This is still best-effort and inline
+  with the edit/delete request, not a background sweep — a budget set
+  already-exceeded still raises nothing until the next invoice, as above; only
+  a *previously-raised* alert gets the re-check. See
+  `src/lib/server/alerts.ts` (`reevaluateInvoiceAlerts`, `orphanInvoiceAlerts`,
+  `resolveSupplierCategoryAlerts`) and `docs/03_features/notifications.md`.
 - **Alert computation is best-effort.** It runs in
   [ADR-008](../invoicing/ADR-008-single-invoice-write-path.md)'s non-fatal
   post-commit block: a failure logs and the invoice still saves, with no alerts

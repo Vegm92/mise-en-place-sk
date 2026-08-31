@@ -44,7 +44,13 @@ notify the restaurant (in-app), before the change is "discovered" months later.
 ## State transitions
 
 `system_notifications: pending → sent` (dismiss = mark sent via
-`(app)/api/notifications`).
+`(app)/api/notifications`); `pending → resolved` (#831) when the invoice is
+edited and the corrected unit price no longer deviates by the threshold —
+`reevaluateInvoiceAlerts` (`alerts.ts`) re-runs `runPriceShock` against the
+post-edit line items and resolves any pending `price_shock` for that invoice
+whose ingredient no longer appears in the fresh result. Deleting the invoice
+resolves its `price_shock` rows outright (`orphanInvoiceAlerts`) — there is no
+invoice left to re-compare.
 
 ## Data dependencies
 
@@ -84,7 +90,9 @@ Same-supplier scope; unit-consistency guard before per-base-unit comparison.
 - Same product from two suppliers — history is per-supplier, so no cross-supplier
   false shock.
 - Threshold changed mid-month — new saves use the new value; existing alerts
-  persist.
+  persist (re-evaluation compares against the *current* threshold, so an
+  invoice edited after a threshold change is checked against the new value,
+  not the one in force when the alert was first raised).
 
 ## Security rules
 
@@ -106,5 +114,9 @@ Same-supplier scope; unit-consistency guard before per-base-unit comparison.
 - A ≥15% increase vs the same-supplier median raises exactly one `price_shock`.
 - Per-base-unit basis used when normalized prices match units.
 - Dismissing marks the row `sent` (badge stops counting it).
+- Correcting the line's unit price on `/invoice/[id]/edit` so it no longer
+  deviates by the threshold marks the alert `resolved` without a manual
+  dismissal; a correction that still deviates leaves it `pending`.
 - Tests: `tests/alert-engine.test.ts`, `tests/alert-engine-normalized.test.ts`,
-  `tests/alert-engine-packs.test.ts`, `tests/alert-engine-price-history.test.ts`.
+  `tests/alert-engine-packs.test.ts`, `tests/alert-engine-price-history.test.ts`,
+  `tests/alert-reevaluation.test.ts`.
