@@ -1,0 +1,1 @@
+ALTER TABLE "extraction_corrections" ADD COLUMN "field_confidence" real;
