@@ -108,4 +108,4 @@ export.
 
 - [ADR-002](../ingestion/ADR-002-durable-extraction-pipeline.md) — the state machine whose scratch tables the corpus deliberately outlives
 - [ADR-008](../invoicing/ADR-008-single-invoice-write-path.md) — why raw model output does not go on `invoices`
-- [ADR-003](../data/ADR-003-committed-migrations-are-canonical.md) — migration `0060_extraction_results_corpus`
+- [ADR-003](../data/ADR-003-committed-migrations-are-canonical.md) — migration `0061_extraction_results_corpus`
