@@ -81,6 +81,45 @@
     </AdminTableScroll>
   </SectionCard>
 
+  {#if data.stuckItems.length > 0}
+    <SectionCard title={$t('admin.health.stuckTitle')} sub={$t('admin.health.stuckSubtitle')} noPad>
+      <AdminTableScroll>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--mep-divider);">
+              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
+              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.health.colFile')}</th>
+              <th scope="col" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
+              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.health.colStuckSince')}</th>
+              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colActions')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each data.stuckItems as item (item.id)}
+              <tr style="border-bottom:1px solid var(--mep-divider);">
+                <td style="padding:9px 16px;color:var(--mep-fg);">{item.restaurantName ?? '—'}</td>
+                <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.displayName}</td>
+                <td style="padding:9px 16px;text-align:center;">
+                  <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);">{item.status}</code>
+                </td>
+                <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;white-space:nowrap;">
+                  {new Date(item.updatedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                </td>
+                <td style="padding:9px 16px;text-align:right;white-space:nowrap;">
+                  <form method="POST" action="?/retry" style="display:inline;">
+                    <input type="hidden" name="id" value={item.id} />
+                    <input type="hidden" name="restaurantId" value={item.restaurantId} />
+                    <button type="submit" class="btn btn-secondary" style="font-size:11px;padding:3px 8px;">{$t('admin.health.retry')}</button>
+                  </form>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </AdminTableScroll>
+    </SectionCard>
+  {/if}
+
   {#if data.whatsapp}
     <div>
       <div class="label" style="margin-bottom:10px;">{$t('admin.wa.numberHealth')}</div>

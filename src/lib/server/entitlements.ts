@@ -30,6 +30,7 @@ export const ROUTE_POLICY = {
 	'/(admin)/admin/events':             'open',
 	'/(admin)/admin/feature-flags':      'open',
 	'/(admin)/admin/health':             'open',
+	'/(admin)/admin/learning':           'open',
 	'/(admin)/admin/revenue':            'open',
 	'/(admin)/admin/whatsapp':           'open',
 	'/(app)':                            'open',
