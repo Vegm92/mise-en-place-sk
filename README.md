@@ -109,6 +109,6 @@ Facturae unit-of-measure codes; VERI*FACTU QR payloads are parsed by
 ## Project documents
 
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — environment variables and deployment runbook
-- [`PRODUCTION_SIGNOFF.md`](PRODUCTION_SIGNOFF.md) — the staging checks that gate a production release
-- [`GAP_ANALYSIS.md`](GAP_ANALYSIS.md) — pre-launch gap analysis; each item is tracked as a GitHub issue
+- [`docs/05_operations/beta_readiness_review_2026-08-27.md`](docs/05_operations/beta_readiness_review_2026-08-27.md) — hands-on QA pass gating private beta; a staging smoke pass with live keys (#785) is still outstanding before a full production release
+- [`docs/05_operations/ceo_audit_2026-08-29.md`](docs/05_operations/ceo_audit_2026-08-29.md) — cross-functional pre-launch gap analysis, prioritized P0–P2, each item tracked as a GitHub issue
 - [`docs/02_product/revenue_metrics.md`](docs/02_product/revenue_metrics.md) — the SaaS metrics behind `/admin/revenue` (MRR, CAC, LTV, NRR, cohorts, revenue leakage): formulas, data sources and caveats

@@ -60,5 +60,9 @@ Spanish first, bilingual (es/en).
 
 ## Current maturity
 
-Pre-launch. Open audit items and current task: `CONTEXT.md`. Gap analysis:
-`GAP_ANALYSIS.md`. Production gate checklist: `PRODUCTION_SIGNOFF.md`.
+Pre-launch. Open audit items and current task: `CONTEXT.md` (local Obsidian
+vault, gitignored — not in this repo). Gap analysis:
+`docs/05_operations/ceo_audit_2026-08-29.md`. Beta/production gate:
+`docs/05_operations/beta_readiness_review_2026-08-27.md` (private-beta
+go/no-go; a staging smoke pass with live keys, #785, is still outstanding
+before a full production release).
