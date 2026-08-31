@@ -574,6 +574,7 @@ describe('processExtractionJob — composite documents are separated before extr
 
 	async function runRouted(structureResult: unknown, rejects = false) {
 		if (rejects) segmentationMocks.segmentDocument.mockRejectedValue(structureResult);
+		else if (typeof structureResult === 'function') segmentationMocks.segmentDocument.mockImplementation(structureResult as (...args: unknown[]) => unknown);
 		else segmentationMocks.segmentDocument.mockResolvedValue(structureResult);
 		extractMocks.extractWithProvider.mockResolvedValue({
 			invoice: { supplier_name: 'Acme', line_items: [] },
@@ -614,32 +615,23 @@ describe('processExtractionJob — composite documents are separated before extr
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
 	});
 
-	it('refuses a packet larger than the plan allowance without extracting any of it', async () => {
-		await runRouted({ action: 'quota', reason: 'extract.err.quotaCompositeExceeded', found: 17, remaining: 8 });
+	const QUOTA_KEY = 'extract.err.quotaCompositeExceeded';
 
-		expect(batchMocks.markFailed).toHaveBeenCalledWith(
-			item.id,
-			'extract.err.quotaCompositeExceeded',
-			{ found: 17, remaining: 8 },
-		);
+	it('refuses a packet larger than the plan allowance without extracting any of it', async () => {
+		await runRouted({ action: 'quota', reason: QUOTA_KEY, found: 17, remaining: 8 });
+
+		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, QUOTA_KEY, { found: 17, remaining: 8 });
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
-		expect(translations.es['extract.err.quotaCompositeExceeded']).toContain('{found}');
-		expect(translations.es['extract.err.quotaCompositeExceeded']).toContain('{remaining}');
-		expect(translations.en['extract.err.quotaCompositeExceeded']).toBeTruthy();
+		expect(translations.es[QUOTA_KEY]).toContain('{found}');
+		expect(translations.es[QUOTA_KEY]).toContain('{remaining}');
+		expect(translations.en[QUOTA_KEY]).toBeTruthy();
 	});
 
 	it('hands back the container document\'s own slot before pricing the packet, so N left buys N', async () => {
-		segmentationMocks.segmentDocument.mockImplementation(async (_src: unknown, deps: {
-			reserve: (n: number) => Promise<{ reserved: boolean; remaining: number }>;
-		}) => {
+		await runRouted(async (_src: unknown, deps: { reserve: (n: number) => Promise<unknown> }) => {
 			await deps.reserve(3);
-			return { action: 'split', itemIds: ['child-1'] };
+			return SPLIT;
 		});
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: { supplier_name: 'Acme', line_items: [] }, usage: {},
-		});
-
-		await processExtractionJob(job, undefined, RETRIES_LEFT);
 
 		const releaseOrder = quotaMocks.releaseMonthlyExtraction.mock.invocationCallOrder[0];
 		const reserveOrder = quotaMocks.reserveMonthlyExtractions.mock.invocationCallOrder[0];

@@ -26,6 +26,7 @@ import {
 import { toIsoDate, isBlankOrIsoDate, toMonthKey } from '../src/lib/server/dates';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 describe('toIsoDate', () => {
 	it('accepts zero-padded ISO dates', () => {
@@ -71,24 +72,11 @@ describe('toMonthKey', () => {
 let rid = '';
 
 function fakeItem(): BatchItem {
-	return {
+	return fakeBatchItem({
 		id: 'item-dates-1',
 		batchId: 'batch-dates-1',
 		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData: null,
-		conversionNotes: null,
-		extractError: null,
-		extractErrorVars: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
+	});
 }
 
 function form(opts: { invoiceNumber: string; invoiceDate?: string; dueDate?: string }): FormData {

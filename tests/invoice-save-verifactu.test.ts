@@ -22,32 +22,15 @@ import {
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 
 const VALID_QR =
 	'https://www2.agenciatributaria.es/wlpl/TIKE-CONT/ValidarQR?nif=B12345678&numserie=FAC-2024-001&fecha=15-01-2024&importe=1250.00';
 
-function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
-	return {
-		id: 'item-1',
-		batchId: 'batch-1',
-		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData,
-		conversionNotes: null,
-		extractError: null,
-		extractErrorVars: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
-}
+const fakeItem = (extractedData: Record<string, unknown> | null): BatchItem =>
+	fakeBatchItem({ restaurantId: rid, extractedData });
 
 function form(opts: {
 	invoiceNumber: string;

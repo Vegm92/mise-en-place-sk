@@ -123,57 +123,36 @@ describe('segmentDocument', () => {
 });
 
 describe('segmentDocument — quota is settled before the packet is split', () => {
-	it('buys one slot per new document, before anything is written or queued', async () => {
+	it('buys one slot per new document before anything is written, then keys it to the children', async () => {
 		const d = deps();
-
-		await run(d);
+		const outcome = await run(d);
 
 		expect(d.reserve).toHaveBeenCalledWith(2);
 		expect(d.reserve.mock.invocationCallOrder[0])
 			.toBeLessThan(d.saveSegment.mock.invocationCallOrder[0]);
-	});
-
-	it('attributes the reservation to the children it paid for', async () => {
-		const d = deps();
-
-		const outcome = await run(d);
-
 		expect(outcome.action).toBe('split');
 		expect(d.attribute).toHaveBeenCalledWith(['item-0', 'item-1']);
 	});
 
-	it('splits nothing and queues nothing when the packet does not fit', async () => {
+	it('writes, queues and discards nothing when the packet does not fit', async () => {
 		const d = deps();
 		d.reserve.mockResolvedValue({ reserved: false, remaining: 1 });
 
 		const outcome = await run(d);
 
 		expect(outcome).toMatchObject({
-			action: 'quota',
-			reason: COMPOSITE_QUOTA_ERROR,
-			found: 2,
-			remaining: 1,
+			action: 'quota', reason: COMPOSITE_QUOTA_ERROR, found: 2, remaining: 1,
 		});
-		expect(d.saveSegment).not.toHaveBeenCalled();
-		expect(d.addItems).not.toHaveBeenCalled();
-		expect(d.enqueue).not.toHaveBeenCalled();
-	});
-
-	it('keeps the source item so the user can see why, rather than discarding it', async () => {
-		const d = deps();
-		d.reserve.mockResolvedValue({ reserved: false, remaining: 0 });
-
-		await run(d);
-
-		expect(d.discardSource).not.toHaveBeenCalled();
+		for (const fn of [d.saveSegment, d.addItems, d.enqueue, d.discardSource]) {
+			expect(fn).not.toHaveBeenCalled();
+		}
 	});
 
 	it('only pays for documents a redelivery has not already created', async () => {
 		const first = deps();
 		await run(first);
-		const created = [...first.saved.keys()];
 
-		const second = deps(created);
+		const second = deps([...first.saved.keys()]);
 		await run(second);
 
 		expect(second.reserve).not.toHaveBeenCalled();

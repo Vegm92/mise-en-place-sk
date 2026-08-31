@@ -13,11 +13,12 @@ import {
 	type BatchItem, type BatchItemStatus,
 } from '../src/lib/server/batch';
 import { EXTRACTION_STALL_WARN_MS, EXTRACTION_STALL_TIMEOUT_MS } from '../src/lib/server/env';
+import { fakeBatchItem } from './helpers/batch-item';
 
 const NOW = Date.UTC(2026, 0, 1, 12, 0, 0);
 
 function item(id: string, status: BatchItemStatus, queuedMsAgo: number | null, base = NOW): BatchItem {
-	return {
+	return fakeBatchItem({
 		id,
 		position: 1,
 		status,
@@ -25,16 +26,8 @@ function item(id: string, status: BatchItemStatus, queuedMsAgo: number | null, b
 		restaurantId: 'r',
 		fileKey: `b/${id}.pdf`,
 		displayName: `${id}.pdf`,
-		extractedData: null,
-		conversionNotes: null,
-		extractError: null,
-		extractErrorVars: null,
 		queuedAt: queuedMsAgo === null ? null : new Date(base - queuedMsAgo),
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
+	});
 }
 
 describe('stallLevel', () => {

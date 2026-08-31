@@ -19,6 +19,7 @@ import {
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 
@@ -39,24 +40,14 @@ function form(supplier: string, invoiceNumber: string): FormData {
 }
 
 function batchItem(extractedData: Record<string, unknown> | null): BatchItem {
-	return {
+	return fakeBatchItem({
 		id: 'test-item',
 		batchId: 'test-batch',
 		restaurantId: rid,
-		position: 0,
 		fileKey: 'test.pdf',
 		displayName: 'test.pdf',
-		status: 'done',
 		extractedData,
-		conversionNotes: null,
-		extractError: null,
-		extractErrorVars: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
+	});
 }
 
 async function supplierRow(name: string) {
