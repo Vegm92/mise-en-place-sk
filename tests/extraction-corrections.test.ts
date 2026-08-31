@@ -22,12 +22,18 @@ vi.mock('../src/lib/server/db', async () => {
 	return { db: testDb, forTenant };
 });
 
+vi.mock('../src/lib/server/alerts', async () => {
+	const actual = await vi.importActual<typeof import('../src/lib/server/alerts')>('../src/lib/server/alerts');
+	return { ...actual, runBudgetCheck: vi.fn(actual.runBudgetCheck) };
+});
+
 import {
 	testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
 import { saveReviewedInvoice, productCorrectionRows } from '../src/lib/server/invoice-save';
 import { previewLineProducts } from '../src/lib/server/products';
+import { runBudgetCheck } from '../src/lib/server/alerts';
 import { testDb } from './helpers/test-db';
 import type { BatchItem } from '../src/lib/server/batch';
 
@@ -217,5 +223,29 @@ describe.skipIf(!hasDbEnv)('extraction corrections (issue #812)', () => {
 			SELECT count(*)::int AS count FROM products WHERE restaurant_id = ${rid}
 		`;
 		expect(after[0].count).toBe(before[0].count);
+	});
+});
+
+describe.skipIf(!hasDbEnv)('runPostSaveEffects isolation', () => {
+	it('still logs extraction corrections when an earlier post-save effect throws', async () => {
+		vi.mocked(runBudgetCheck).mockRejectedValueOnce(new Error('boom: simulated budget check failure'));
+
+		const item = fakeItem({
+			supplier_name: '__inv_corr_sup__',
+			invoice_number: 'WRONG-ISO-1',
+			invoice_date: '2026-07-23',
+			total_amount: 12,
+			confidence: 0.95,
+			field_confidences: { invoice_number: 0.40 },
+		});
+		const fd = baseForm({ description: 'Tomate Pera' });
+		fd.set('invoice_number', 'RIGHT-ISO-1');
+
+		const out = await saveReviewedInvoice(item, fd, rid);
+		expect(out.type).toBe('saved');
+		if (out.type !== 'saved') return;
+
+		const rows = await correctionsFor(out.invoiceId);
+		expect(rows.some(r => r.field_name === 'invoice_number' && r.corrected_value === 'right-iso-1')).toBe(true);
 	});
 });
