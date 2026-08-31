@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { GoogleGenAI } from '@google/genai';
-import { GEMINI_API_KEY, GEMINI_MODEL, GEMINI_TIMEOUT_MS } from './env';
+import { Type, type Schema } from '@google/genai';
+import { GEMINI_TIMEOUT_MS } from './env';
 import { VALID_CATEGORIES, UNCATEGORIZED_CATEGORY } from '$lib/constants';
 import { categoryGuideBlock } from './category-guide';
-import { stripJsonFence } from './llm-json';
+import { parseJsonResponse } from './llm-json';
 import { createGeminiProvider, type LLMUsage } from './llm-provider';
 import { parseEinvoice } from './einvoice-parser';
 
@@ -84,8 +84,7 @@ Bottom totals table — scan this first: Spanish albaranes and facturas almost a
 Tax fallback — use arithmetic when OCR is uncertain: After reading all line items, compute line_sum = sum of all line_item total_price values (skip nulls). If line_sum > 0 AND total_amount > line_sum AND tax_breakdown is null or its tax_amount sum does not account for the gap:
   1. gap = round(total_amount − line_sum, 2). This gap is almost certainly tax.
   2. Derive rate = gap / line_sum. Snap to the nearest standard Spanish rate (0.04, 0.10, 0.21) if within 2%.
-  3. Emit a tax_breakdown entry: { rate, base: line_sum, tax_amount: gap, type: "iva" }.
-  4. Set that entry's implied confidence to 0.55 by adding "tax_inferred": true at the top level of the JSON — this signals the tax was calculated, not directly read. Do NOT lower the document-level confidence field for this reason alone.
+  3. Emit a tax_breakdown entry: { rate, base: line_sum, tax_amount: gap, type: "iva" }. Do NOT lower the document-level confidence field for this reason alone.
   Only skip this fallback when total_amount equals line_sum (no gap) or when total_amount is null.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
@@ -172,7 +171,115 @@ export interface ExtractedInvoice {
 	qr_url?: string | null;
 	qr_mismatch?: boolean;
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
-	tax_inferred?: boolean;
+}
+
+const TAX_BAND_SCHEMA: Schema = {
+	type: Type.OBJECT,
+	properties: {
+		rate: { type: Type.NUMBER },
+		base: { type: Type.NUMBER },
+		tax_amount: { type: Type.NUMBER },
+		type: { type: Type.STRING, enum: ['iva', 'rec'] },
+	},
+	required: ['rate', 'base', 'tax_amount'],
+};
+
+const LINE_ITEM_SCHEMA: Schema = {
+	type: Type.OBJECT,
+	properties: {
+		description: { type: Type.STRING },
+		product_code: { type: Type.STRING, nullable: true },
+		quantity: { type: Type.NUMBER, nullable: true },
+		unit: { type: Type.STRING, nullable: true },
+		unit_price: { type: Type.NUMBER, nullable: true },
+		total_price: { type: Type.NUMBER, nullable: true },
+		allergens: { type: Type.ARRAY, items: { type: Type.STRING }, nullable: true },
+		confidence: { type: Type.NUMBER },
+	},
+	required: ['description', 'quantity', 'unit', 'unit_price', 'total_price', 'confidence'],
+};
+
+const FIELD_CONFIDENCES_SCHEMA: Schema = {
+	type: Type.OBJECT,
+	properties: {
+		supplier_name: { type: Type.NUMBER },
+		supplier_category: { type: Type.NUMBER },
+		invoice_number: { type: Type.NUMBER },
+		document_type: { type: Type.NUMBER },
+		invoice_date: { type: Type.NUMBER },
+		due_date: { type: Type.NUMBER },
+		total_amount: { type: Type.NUMBER },
+	},
+	required: [
+		'supplier_name', 'supplier_category', 'invoice_number', 'document_type',
+		'invoice_date', 'due_date', 'total_amount',
+	],
+};
+
+export const INVOICE_RESPONSE_SCHEMA: Schema = {
+	type: Type.OBJECT,
+	properties: {
+		supplier_name: { type: Type.STRING, nullable: true },
+		supplier_category: { type: Type.STRING, nullable: true },
+		supplier_nif: { type: Type.STRING, nullable: true },
+		supplier_address: { type: Type.STRING, nullable: true },
+		supplier_email: { type: Type.STRING, nullable: true },
+		supplier_phone: { type: Type.STRING, nullable: true },
+		invoice_number: { type: Type.STRING, nullable: true },
+		document_type: { type: Type.STRING, enum: ['factura', 'albaran'], nullable: true },
+		invoice_date: { type: Type.STRING, nullable: true },
+		due_date: { type: Type.STRING, nullable: true },
+		total_amount: { type: Type.NUMBER, nullable: true },
+		currency: { type: Type.STRING, nullable: true },
+		tax_base: { type: Type.NUMBER, nullable: true },
+		tax_breakdown: { type: Type.ARRAY, items: TAX_BAND_SCHEMA, nullable: true },
+		outstanding_balance: { type: Type.NUMBER, nullable: true },
+		qr_url: { type: Type.STRING, nullable: true },
+		field_confidences: FIELD_CONFIDENCES_SCHEMA,
+		line_items: { type: Type.ARRAY, items: LINE_ITEM_SCHEMA },
+		confidence: { type: Type.NUMBER },
+	},
+	required: [
+		'supplier_name', 'supplier_category', 'supplier_nif', 'supplier_address', 'supplier_email',
+		'supplier_phone', 'invoice_number', 'document_type', 'invoice_date', 'due_date', 'total_amount',
+		'currency', 'tax_base', 'tax_breakdown', 'outstanding_balance', 'qr_url', 'field_confidences',
+		'line_items', 'confidence',
+	],
+};
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+	return value === null || value === undefined || typeof value === 'string';
+}
+
+function isNullableNumber(value: unknown): value is number | null {
+	return value === null || value === undefined || typeof value === 'number';
+}
+
+function isExtractedInvoiceLineItem(value: unknown): value is ExtractedInvoice['line_items'][number] {
+	if (!isPlainObject(value)) return false;
+	return isNullableString(value.description)
+		&& isNullableNumber(value.quantity)
+		&& isNullableString(value.unit)
+		&& isNullableNumber(value.unit_price)
+		&& isNullableNumber(value.total_price);
+}
+
+export function isExtractedInvoice(value: unknown): value is ExtractedInvoice {
+	if (!isPlainObject(value)) return false;
+	if (!isNullableString(value.supplier_name)) return false;
+	if (!isNullableString(value.invoice_number)) return false;
+	if (!isNullableString(value.invoice_date)) return false;
+	if (!isNullableString(value.due_date)) return false;
+	if (!isNullableNumber(value.total_amount)) return false;
+	if (!isNullableString(value.currency)) return false;
+	if (!isNullableNumber(value.tax_base)) return false;
+	if (typeof value.confidence !== 'number') return false;
+	if (!Array.isArray(value.line_items)) return false;
+	return value.line_items.every(isExtractedInvoiceLineItem);
 }
 
 const MAX_SUPPLIER_NAME_LENGTH = 200;
@@ -226,24 +333,18 @@ const IMAGE_MEDIA_TYPES: Record<string, 'image/jpeg' | 'image/png'> = {
 	png:  'image/png',
 };
 
-export type GenerateFn = (content: string | object[], signal?: AbortSignal, systemInstruction?: string) => Promise<string>;
+export type GenerateFn = (
+	content: string | object[],
+	signal?: AbortSignal,
+	systemInstruction?: string,
+	responseSchema?: Schema,
+) => Promise<string>;
 
 function getGenerateFn(): GenerateFn {
-	if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set');
-	const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-	return async (content, signal, systemInstruction) => {
-		const contents = typeof content === 'string'
-			? content
-			: [{ role: 'user', parts: content }];
-		const config: { abortSignal?: AbortSignal; systemInstruction?: string } = {};
-		if (signal) config.abortSignal = signal;
-		if (systemInstruction) config.systemInstruction = systemInstruction;
-		const response = await ai.models.generateContent({
-			model: GEMINI_MODEL,
-			contents,
-			config: Object.keys(config).length ? config : undefined,
-		});
-		return response.text ?? '';
+	const provider = createGeminiProvider();
+	return async (content, signal, systemInstruction, responseSchema) => {
+		const resp = await provider.generate(content, signal, systemInstruction, responseSchema);
+		return resp.text;
 	};
 }
 
@@ -280,6 +381,15 @@ export function classifyFile(filePath: string): Promise<ClassifiedFile> | Classi
 	throw new Error(`Unsupported file type: .${ext}`);
 }
 
+function imageMimeType(filePath: string): string {
+	const ext = path.extname(filePath).toLowerCase().replace('.', '');
+	return IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
+}
+
+function inlineFilePart(filePath: string, mimeType: string): object[] {
+	return [{ inlineData: { data: readFileSync(filePath).toString('base64'), mimeType } }];
+}
+
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 	const MAX_RETRIES = 3;
 	let lastError: unknown;
@@ -303,31 +413,17 @@ async function callGemini(
 	filePath: string,
 	signal?: AbortSignal,
 ): Promise<ExtractedInvoice> {
-	const generateWithRetry: GenerateFn = (content, sig, si) => withRetry(() => generate(content, sig, si));
+	const generateWithRetry: GenerateFn = (content, sig, si, schema) => withRetry(() => generate(content, sig, si, schema));
 	let rawText: string;
 
 	if (classified.type === 'text_pdf') {
-		rawText = await generateWithRetry(`INVOICE TEXT:\n${classified.text}`, signal, EXTRACTION_PROMPT);
-	} else if (classified.type === 'scanned_pdf') {
-		const pdfData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
-		], signal, EXTRACTION_PROMPT);
+		rawText = await generateWithRetry(`INVOICE TEXT:\n${classified.text}`, signal, EXTRACTION_PROMPT, INVOICE_RESPONSE_SCHEMA);
 	} else {
-		const ext = path.extname(filePath).toLowerCase().replace('.', '');
-		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
-		const imageData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: imageData, mimeType } },
-		], signal, EXTRACTION_PROMPT);
+		const mimeType = classified.type === 'scanned_pdf' ? 'application/pdf' : imageMimeType(filePath);
+		rawText = await generateWithRetry(inlineFilePart(filePath, mimeType), signal, EXTRACTION_PROMPT, INVOICE_RESPONSE_SCHEMA);
 	}
 
-	const raw = stripJsonFence(rawText);
-	try {
-		return JSON.parse(raw) as ExtractedInvoice;
-	} catch {
-		throw new Error(`Gemini returned invalid JSON (${raw.length} chars)`);
-	}
+	return parseJsonResponse(rawText, isExtractedInvoice, 'Gemini');
 }
 
 export async function extractInvoice(
@@ -373,7 +469,7 @@ async function callProvider(
 
 	const generateWithRetry = (content: string | object[]) =>
 		withRetry(async () => {
-			const resp = await provider.generate(content, signal, EXTRACTION_PROMPT);
+			const resp = await provider.generate(content, signal, EXTRACTION_PROMPT, INVOICE_RESPONSE_SCHEMA);
 			lastUsage = resp.usage;
 			return resp.text;
 		});
@@ -381,26 +477,12 @@ async function callProvider(
 	let rawText: string;
 	if (classified.type === 'text_pdf') {
 		rawText = await generateWithRetry(`INVOICE TEXT:\n${classified.text}`);
-	} else if (classified.type === 'scanned_pdf') {
-		const pdfData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
-		]);
 	} else {
-		const ext = path.extname(filePath).toLowerCase().replace('.', '');
-		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
-		const imageData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: imageData, mimeType } },
-		]);
+		const mimeType = classified.type === 'scanned_pdf' ? 'application/pdf' : imageMimeType(filePath);
+		rawText = await generateWithRetry(inlineFilePart(filePath, mimeType));
 	}
 
-	const raw = stripJsonFence(rawText);
-	try {
-		return { invoice: JSON.parse(raw) as ExtractedInvoice, usage: lastUsage };
-	} catch {
-		throw new Error(`LLM returned invalid JSON (${raw.length} chars)`);
-	}
+	return { invoice: parseJsonResponse(rawText, isExtractedInvoice, 'LLM'), usage: lastUsage };
 }
 
 export async function extractWithProvider(

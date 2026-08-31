@@ -4,8 +4,12 @@
  * so the pricing table and the arithmetic are pinned here.
  *
  * Pure function, no env or network required.
+ *
+ * generate() — issue #842: a response schema, when passed, must be forwarded
+ * to the SDK as responseMimeType + responseSchema so Gemini decodes against a
+ * contract instead of us repairing free-text JSON by hand.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { estimateCostUsd } from '../src/lib/server/llm-provider';
 
 describe('estimateCostUsd', () => {
@@ -56,5 +60,53 @@ describe('estimateCostUsd', () => {
 		const cost = estimateCostUsd('gemini-2.5-flash', 4000, 1000);
 		expect(cost).toBeGreaterThan(0);
 		expect(cost).toBeLessThan(0.01);
+	});
+});
+
+describe('createGeminiProvider().generate — response schema forwarding (issue #842)', () => {
+	afterEach(() => {
+		vi.unstubAllEnvs();
+		vi.resetModules();
+		vi.doUnmock('@google/genai');
+	});
+
+	type MockGenerateContentRequest = { config?: { responseMimeType?: string; responseSchema?: unknown } };
+
+	async function mockGeminiSdk(responseText: string) {
+		const generateContentMock = vi.fn(async (_req: MockGenerateContentRequest) => ({
+			text: responseText,
+			usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
+		}));
+		vi.doMock('@google/genai', () => ({
+			GoogleGenAI: vi.fn().mockImplementation(() => ({
+				models: { generateContent: generateContentMock },
+			})),
+			Type: { OBJECT: 'OBJECT', STRING: 'STRING', NUMBER: 'NUMBER' },
+		}));
+		vi.stubEnv('GEMINI_API_KEY', 'test-key');
+		vi.resetModules();
+		const { createGeminiProvider } = await import('../src/lib/server/llm-provider');
+		return { generateContentMock, createGeminiProvider };
+	}
+
+	it('forwards responseSchema as responseMimeType + responseSchema in the request config', async () => {
+		const { generateContentMock, createGeminiProvider } = await mockGeminiSdk('{}');
+		const schema = { type: 'OBJECT', properties: { a: { type: 'STRING' } } } as never;
+		const provider = createGeminiProvider();
+		await provider.generate('hello', undefined, undefined, schema);
+
+		expect(generateContentMock).toHaveBeenCalledOnce();
+		const call = generateContentMock.mock.calls[0][0];
+		expect(call.config?.responseMimeType).toBe('application/json');
+		expect(call.config?.responseSchema).toBe(schema);
+	});
+
+	it('omits responseMimeType/responseSchema entirely when no schema is passed', async () => {
+		const { generateContentMock, createGeminiProvider } = await mockGeminiSdk('plain text');
+		const provider = createGeminiProvider();
+		await provider.generate('hello');
+
+		const call = generateContentMock.mock.calls[0][0];
+		expect(call.config).toBeUndefined();
 	});
 });
