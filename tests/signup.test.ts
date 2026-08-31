@@ -14,6 +14,7 @@
  * Auth.js sign-in are mocked.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fileFormData, maliciousFile } from './helpers/form-data';
 
 const {
 	rateLimitMock, logAuthEventMock, recordConsentMock,
@@ -87,13 +88,8 @@ function signupEvent(fields: Record<string, string>, attrCookie?: string) {
 }
 
 function signupEventWithFile(fields: Record<string, string | File>) {
-	const data = new FormData();
-	for (const [k, v] of Object.entries(fields)) {
-		if (typeof v === 'string') data.append(k, v);
-		else data.append(k, v, 'upload.bin');
-	}
 	return {
-		request: { formData: async () => data },
+		request: { formData: async () => fileFormData(fields) },
 		getClientAddress: () => '203.0.113.7',
 		url: new URL('https://app.example.test/signup'),
 		cookies: { get: () => undefined, set: vi.fn() },
@@ -200,9 +196,8 @@ describe('signUp', () => {
 	});
 
 	it('rejects a file part posted under the email field with a 422 instead of crashing (issue #844)', async () => {
-		const file = new File(['not an email'], 'evil.txt', { type: 'text/plain' });
 		const result = await actions.signUp(
-			signupEventWithFile({ email: file, password: GOOD_SIGNUP.password, terms: GOOD_SIGNUP.terms }),
+			signupEventWithFile({ email: maliciousFile('not an email'), password: GOOD_SIGNUP.password, terms: GOOD_SIGNUP.terms }),
 		);
 		expect(result).toMatchObject({ status: 422, data: { error: 'invalid' } });
 		expect(insertedRows).toHaveLength(0);
