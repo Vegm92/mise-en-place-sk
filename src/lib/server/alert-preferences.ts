@@ -36,6 +36,7 @@ const NOTIFICATION_TYPE_PREFERENCE: Readonly<Record<string, AlertPreferenceType>
 	price_shock: 'price_shock',
 	budget_overage: 'budget_overage',
 	possible_duplicate_purchase: 'possible_duplicate_purchase',
+	related_document_found: 'possible_duplicate_purchase',
 	supplier_uncategorized: 'supplier_uncategorized',
 	supplier_category_suggested: 'supplier_uncategorized',
 	low_stock_forecast: 'low_stock_forecast',
