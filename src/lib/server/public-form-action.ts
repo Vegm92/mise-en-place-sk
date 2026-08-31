@@ -52,6 +52,18 @@ export function parseForm<TSchema extends v.GenericSchema>(
 	return v.safeParse(schema, formToRecord(form));
 }
 
+export function rawFormField(
+	form: FormData,
+	key: string,
+	options: { lowercase?: boolean } = {},
+): string {
+	const field = options.lowercase
+		? v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase()))
+		: v.optional(v.pipe(v.string(), v.trim()));
+	const parsed = v.safeParse(field, form.get(key) ?? undefined);
+	return (parsed.success ? parsed.output : undefined) ?? '';
+}
+
 export function publicFormAction<TSchema extends v.GenericSchema | undefined, T>(
 	options: PublicFormOptions<TSchema>,
 	handler: (ctx: PublicFormHandlerCtx<TSchema>) => Promise<T>,

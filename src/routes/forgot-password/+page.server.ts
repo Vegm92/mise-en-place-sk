@@ -2,7 +2,7 @@ import { fail } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
-import { publicFormAction } from '$lib/server/public-form-action';
+import { publicFormAction, rawFormField } from '$lib/server/public-form-action';
 import { logAuthEvent } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
@@ -11,15 +11,12 @@ import { sendEmail, resetPasswordEmail } from '$lib/server/email';
 
 export const load: PageServerLoad = async () => ({});
 
-const RawEmailField = v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase()));
-
 function emailOf(form: FormData): string {
-	const parsed = v.safeParse(RawEmailField, form.get('email') ?? undefined);
-	return (parsed.success ? parsed.output : undefined) ?? '';
+	return rawFormField(form, 'email', { lowercase: true });
 }
 
 const ForgotPasswordForm = v.object({
-	email: RawEmailField,
+	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
 });
 
 export const actions: Actions = {
