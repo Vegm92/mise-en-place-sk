@@ -82,6 +82,14 @@ jobs:
       - name: Lint — no explanatory comments in src (per-subsystem Code notes sections)
         run: pnpm lint:no-comments
 
+      - name: Lint — duplication on new code (approximates the SonarCloud gate)
+        run: |
+          BASE="origin/main"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.event.pull_request.base.ref }}"
+          fi
+          node scripts/check-duplication.mjs --base "$BASE"
+
       - name: Type check
         run: pnpm check
 
