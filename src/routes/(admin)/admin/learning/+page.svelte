@@ -24,9 +24,9 @@
 
 <AdminPageHead route="/admin/learning" title={$t('admin.learning.title')} subtitle={$ti('admin.learning.subtitle', { days: data.summary.windowDays })} />
 
-<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:16px;">
+<div class="px-3 md:px-6 pb-6 flex flex-col gap-4">
 
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">
+  <div class="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
     <AdminKpiCard
       label={$t('admin.learning.kpiCorrections')}
       value={data.summary.totalCorrections.toLocaleString('en-US')}
@@ -40,7 +40,7 @@
     <AdminKpiCard
       label={$t('admin.learning.kpiPendingFuzzy')}
       value={data.fuzzyOutcomes.pending.toLocaleString('en-US')}
-      valueColor={data.fuzzyOutcomes.pending > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'}
+      valueColor={data.fuzzyOutcomes.pending > 0 ? 'text-warn' : 'text-fg'}
       sub={$t('admin.learning.kpiPendingFuzzySub')}
     />
     <AdminKpiCard
@@ -57,23 +57,23 @@
 
   <SectionCard title={$t('admin.learning.byFieldTitle')} sub={$t('admin.learning.byFieldSub')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colField')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colCorrections')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colAvgConfidence')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colField')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colCorrections')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colAvgConfidence')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.byField as row}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;color:var(--mep-fg);font-family:var(--mep-fs-mono);">{row.fieldName}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{row.corrections.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);">{row.avgConfidence !== null ? row.avgConfidence.toFixed(2) : '—'}</td>
+            <tr class="border-b border-divider">
+              <td class="py-[9px] px-4 text-fg font-mono">{row.fieldName}</td>
+              <td class="num py-[9px] px-4 text-right text-fg">{row.corrections.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right text-fg-2">{row.avgConfidence !== null ? row.avgConfidence.toFixed(2) : '—'}</td>
             </tr>
           {:else}
-            <tr><td colspan="3" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.learning.empty')}</td></tr>
+            <tr><td colspan="3" class="py-6 px-4 text-center text-fg-4">{$t('admin.learning.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -82,23 +82,23 @@
 
   <SectionCard title={$t('admin.learning.bySupplierTitle')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colSupplier')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colCorrections')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colSupplier')}</th>
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colRestaurant')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colCorrections')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.bySupplier as row}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;color:var(--mep-fg);">{row.supplierName ?? '—'}</td>
-              <td style="padding:9px 16px;color:var(--mep-fg-2);">{row.restaurantName ?? '—'}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{row.corrections.toLocaleString('en-US')}</td>
+            <tr class="border-b border-divider">
+              <td class="py-[9px] px-4 text-fg">{row.supplierName ?? '—'}</td>
+              <td class="py-[9px] px-4 text-fg-2">{row.restaurantName ?? '—'}</td>
+              <td class="num py-[9px] px-4 text-right text-fg">{row.corrections.toLocaleString('en-US')}</td>
             </tr>
           {:else}
-            <tr><td colspan="3" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.learning.empty')}</td></tr>
+            <tr><td colspan="3" class="py-6 px-4 text-center text-fg-4">{$t('admin.learning.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -107,25 +107,25 @@
 
   <SectionCard title={$t('admin.learning.byTenantTitle')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colCorrections')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colInvoices')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colRate')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colRestaurant')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colCorrections')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colInvoices')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colRate')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.byTenant as row}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;color:var(--mep-fg);">{row.restaurantName}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{row.corrections.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);">{row.invoices.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:{row.rate !== null && row.rate > 0.5 ? 'var(--mep-neg)' : 'var(--mep-fg-2)'};">{pct(row.rate)}</td>
+            <tr class="border-b border-divider">
+              <td class="py-[9px] px-4 text-fg">{row.restaurantName}</td>
+              <td class="num py-[9px] px-4 text-right text-fg">{row.corrections.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right text-fg-2">{row.invoices.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right {row.rate !== null && row.rate > 0.5 ? 'text-neg' : 'text-fg-2'}">{pct(row.rate)}</td>
             </tr>
           {:else}
-            <tr><td colspan="4" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.learning.empty')}</td></tr>
+            <tr><td colspan="4" class="py-6 px-4 text-center text-fg-4">{$t('admin.learning.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -134,25 +134,25 @@
 
   <SectionCard title={$t('admin.learning.trendTitle')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colWeek')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colCorrections')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:left;width:45%;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;"></th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colWeek')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colCorrections')}</th>
+            <th scope="col" class="py-2.5 px-4 text-left w-[45%] text-[11px] font-semibold text-fg-3 uppercase tracking-wider"></th>
           </tr>
         </thead>
         <tbody>
           {#each data.trend as point}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td class="num" style="padding:9px 16px;color:var(--mep-fg-2);">{new Date(point.week).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{point.corrections.toLocaleString('en-US')}</td>
-              <td style="padding:9px 16px;">
-                <div style="height:8px;border-radius:4px;background:var(--mep-acc);width:{Math.max(2, (point.corrections / maxTrend) * 100)}%;"></div>
+            <tr class="border-b border-divider">
+              <td class="num py-[9px] px-4 text-fg-2">{new Date(point.week).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td>
+              <td class="num py-[9px] px-4 text-right text-fg">{point.corrections.toLocaleString('en-US')}</td>
+              <td class="py-[9px] px-4">
+                <div class="h-2 rounded bg-acc" style="width:{Math.max(2, (point.corrections / maxTrend) * 100)}%;"></div>
               </td>
             </tr>
           {:else}
-            <tr><td colspan="3" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.learning.empty')}</td></tr>
+            <tr><td colspan="3" class="py-6 px-4 text-center text-fg-4">{$t('admin.learning.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -161,33 +161,33 @@
 
   <SectionCard title={$t('admin.learning.promptVersionTitle')} sub={$t('admin.learning.promptVersionSub')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colPromptVersion')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colDocuments')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colAvgConfidence')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colMismatches')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colInvoices')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colCorrections')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colRate')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colLastSeen')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colPromptVersion')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colDocuments')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colAvgConfidence')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colMismatches')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colInvoices')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colCorrections')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colRate')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colLastSeen')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.byPromptVersion as row (row.promptVersion)}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;color:var(--mep-fg);font-family:var(--mep-fs-mono);">{row.promptVersion}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{row.documents.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);">{row.avgConfidence !== null ? row.avgConfidence.toFixed(2) : '—'}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:{row.totalMismatches > 0 ? 'var(--mep-warn)' : 'var(--mep-fg-2)'};">{row.totalMismatches.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);">{row.invoices.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-2);">{row.corrections.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:{row.correctionRate !== null && row.correctionRate > 0.5 ? 'var(--mep-neg)' : 'var(--mep-fg-2)'};">{pct(row.correctionRate)}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);white-space:nowrap;">{row.lastSeen ? new Date(row.lastSeen).toLocaleDateString('en-GB', { dateStyle: 'short' }) : '—'}</td>
+            <tr class="border-b border-divider">
+              <td class="py-[9px] px-4 text-fg font-mono">{row.promptVersion}</td>
+              <td class="num py-[9px] px-4 text-right text-fg">{row.documents.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right text-fg-2">{row.avgConfidence !== null ? row.avgConfidence.toFixed(2) : '—'}</td>
+              <td class="num py-[9px] px-4 text-right {row.totalMismatches > 0 ? 'text-warn' : 'text-fg-2'}">{row.totalMismatches.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right text-fg-2">{row.invoices.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right text-fg-2">{row.corrections.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right {row.correctionRate !== null && row.correctionRate > 0.5 ? 'text-neg' : 'text-fg-2'}">{pct(row.correctionRate)}</td>
+              <td class="num py-[9px] px-4 text-right text-fg-3 whitespace-nowrap">{row.lastSeen ? new Date(row.lastSeen).toLocaleDateString('en-GB', { dateStyle: 'short' }) : '—'}</td>
             </tr>
           {:else}
-            <tr><td colspan="8" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.learning.empty')}</td></tr>
+            <tr><td colspan="8" class="py-6 px-4 text-center text-fg-4">{$t('admin.learning.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -196,23 +196,23 @@
 
   <SectionCard title={$t('admin.learning.matchingTitle')} sub={$t('admin.learning.matchingSubtitle')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colSource')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colTotal')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colPending')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colSource')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colTotal')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colPending')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.aliasStats as row}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;color:var(--mep-fg);">{SOURCE_LABEL[row.source] ?? row.source}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{row.total.toLocaleString('en-US')}</td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:{row.pending > 0 ? 'var(--mep-warn)' : 'var(--mep-fg-2)'};">{row.pending.toLocaleString('en-US')}</td>
+            <tr class="border-b border-divider">
+              <td class="py-[9px] px-4 text-fg">{SOURCE_LABEL[row.source] ?? row.source}</td>
+              <td class="num py-[9px] px-4 text-right text-fg">{row.total.toLocaleString('en-US')}</td>
+              <td class="num py-[9px] px-4 text-right {row.pending > 0 ? 'text-warn' : 'text-fg-2'}">{row.pending.toLocaleString('en-US')}</td>
             </tr>
           {:else}
-            <tr><td colspan="3" style="padding:24px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.learning.empty')}</td></tr>
+            <tr><td colspan="3" class="py-6 px-4 text-center text-fg-4">{$t('admin.learning.empty')}</td></tr>
           {/each}
         </tbody>
       </table>
@@ -221,23 +221,23 @@
 
   <SectionCard title={$t('admin.learning.fuzzyOutcomesTitle')} sub={$t('admin.learning.fuzzyOutcomesSub')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colTotal')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colConfirmed')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colRejected')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colPending')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colAccuracy')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colTotal')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colConfirmed')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colRejected')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colPending')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colAccuracy')}</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{data.fuzzyOutcomes.total.toLocaleString('en-US')}</td>
-            <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-pos);">{data.fuzzyOutcomes.confirmed.toLocaleString('en-US')}</td>
-            <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-neg);">{data.fuzzyOutcomes.rejected.toLocaleString('en-US')}</td>
-            <td class="num" style="padding:9px 16px;text-align:right;color:{data.fuzzyOutcomes.pending > 0 ? 'var(--mep-warn)' : 'var(--mep-fg-2)'};">{data.fuzzyOutcomes.pending.toLocaleString('en-US')}</td>
-            <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg);">{pct(data.fuzzyOutcomes.accuracyRate)}</td>
+            <td class="num py-[9px] px-4 text-right text-fg">{data.fuzzyOutcomes.total.toLocaleString('en-US')}</td>
+            <td class="num py-[9px] px-4 text-right text-pos">{data.fuzzyOutcomes.confirmed.toLocaleString('en-US')}</td>
+            <td class="num py-[9px] px-4 text-right text-neg">{data.fuzzyOutcomes.rejected.toLocaleString('en-US')}</td>
+            <td class="num py-[9px] px-4 text-right {data.fuzzyOutcomes.pending > 0 ? 'text-warn' : 'text-fg-2'}">{data.fuzzyOutcomes.pending.toLocaleString('en-US')}</td>
+            <td class="num py-[9px] px-4 text-right text-fg">{pct(data.fuzzyOutcomes.accuracyRate)}</td>
           </tr>
         </tbody>
       </table>
@@ -247,22 +247,22 @@
   {#if data.pendingFuzzy.length > 0}
     <SectionCard title={$t('admin.learning.pendingFuzzyTitle')} noPad>
       <AdminTableScroll>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table class="w-full border-collapse text-[13px]">
           <thead>
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colProduct')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colRawText')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.learning.colCreated')}</th>
+            <tr class="border-b border-divider">
+              <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colRestaurant')}</th>
+              <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colProduct')}</th>
+              <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colRawText')}</th>
+              <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.learning.colCreated')}</th>
             </tr>
           </thead>
           <tbody>
             {#each data.pendingFuzzy as row (row.id)}
-              <tr style="border-bottom:1px solid var(--mep-divider);">
-                <td style="padding:9px 16px;color:var(--mep-fg-2);">{row.restaurantName ?? '—'}</td>
-                <td style="padding:9px 16px;color:var(--mep-fg);">{row.productName}</td>
-                <td style="padding:9px 16px;color:var(--mep-fg-2);">{row.rawText ?? '—'}</td>
-                <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);white-space:nowrap;">{new Date(row.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</td>
+              <tr class="border-b border-divider">
+                <td class="py-[9px] px-4 text-fg-2">{row.restaurantName ?? '—'}</td>
+                <td class="py-[9px] px-4 text-fg">{row.productName}</td>
+                <td class="py-[9px] px-4 text-fg-2">{row.rawText ?? '—'}</td>
+                <td class="num py-[9px] px-4 text-right text-fg-3 whitespace-nowrap">{new Date(row.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</td>
               </tr>
             {/each}
           </tbody>
@@ -271,6 +271,6 @@
     </SectionCard>
   {/if}
 
-  <a href="/admin" style="font-size:13px;color:var(--mep-acc);text-decoration:none;">{$t('admin.backToOverview')}</a>
+  <a href="/admin" class="text-[13px] text-acc no-underline">{$t('admin.backToOverview')}</a>
 
 </div>

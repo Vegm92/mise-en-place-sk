@@ -6,18 +6,13 @@
   import AdminTableScroll from '$lib/components/admin/AdminTableScroll.svelte';
   let { data }: { data: PageData } = $props();
 
-  const STATUS_COLOR: Record<string, string> = {
-    pending:   'var(--mep-neg)',
-    reviewed:  'var(--mep-warn)',
-    replayed:  'var(--mep-pos)',
-    discarded: 'var(--mep-fg-3)',
+  const STATUS_CLASS: Record<string, string> = {
+    pending:   'bg-neg-soft text-neg',
+    reviewed:  'bg-warn-soft text-warn',
+    replayed:  'bg-pos-soft text-pos',
+    discarded: 'bg-hover text-fg-3',
   };
-  const STATUS_BG: Record<string, string> = {
-    pending:   'var(--mep-neg-soft)',
-    reviewed:  'var(--mep-warn-soft)',
-    replayed:  'var(--mep-pos-soft)',
-    discarded: 'var(--mep-hover)',
-  };
+  const STATUS_CLASS_FALLBACK = 'bg-hover text-fg-3';
 
   const STATUS_FILTERS = ['pending', 'reviewed', 'replayed', 'discarded'];
 
@@ -36,6 +31,10 @@
       return String(payload);
     }
   }
+
+  function pillClass(active: boolean): string {
+    return `px-2.5 py-1 rounded text-xs no-underline border ${active ? 'border-acc bg-acc text-acc-fg' : 'border-border-strong bg-transparent text-fg-2'}`;
+  }
 </script>
 
 <AdminPageHead
@@ -44,39 +43,39 @@
   subtitle={$t('admin.dlq.subtitle')}
 >
   {#snippet right()}
-    <span class="num" style="font-size:13px;color:{data.pending > 0 ? 'var(--mep-neg)' : 'var(--mep-fg-3)'};">
+    <span class="num text-[13px] {data.pending > 0 ? 'text-neg' : 'text-fg-3'}">
       {$ti('admin.dlq.pendingSuffix', { n: data.pending.toLocaleString('en-US') })}
     </span>
   {/snippet}
 </AdminPageHead>
 
-<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:16px;">
+<div class="px-3 md:px-6 pb-6 flex flex-col gap-4">
 
-  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-    <span style="font-size:12px;color:var(--mep-fg-3);">{$t('admin.dlq.statusLabel')}</span>
+  <div class="flex gap-1.5 flex-wrap items-center">
+    <span class="text-xs text-fg-3">{$t('admin.dlq.statusLabel')}</span>
     <a
       href={buildUrl({ page: 1, queue: data.queue })}
-      style="padding:4px 10px;border-radius:4px;font-size:12px;text-decoration:none;border:1px solid {!data.status ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};background:{!data.status ? 'var(--mep-acc)' : 'transparent'};color:{!data.status ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};"
+      class={pillClass(!data.status)}
     >{$t('admin.all')}</a>
     {#each STATUS_FILTERS as s}
       <a
         href={buildUrl({ page: 1, status: s, queue: data.queue })}
-        style="padding:4px 10px;border-radius:4px;font-size:12px;text-decoration:none;border:1px solid {data.status === s ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};background:{data.status === s ? 'var(--mep-acc)' : 'transparent'};color:{data.status === s ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};"
+        class={pillClass(data.status === s)}
       >{$t(`admin.dlq.status.${s}`)}</a>
     {/each}
   </div>
 
   {#if data.breakdown.length > 0}
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-      <span style="font-size:12px;color:var(--mep-fg-3);">{$t('admin.dlq.queueLabel')}</span>
+    <div class="flex gap-1.5 flex-wrap items-center">
+      <span class="text-xs text-fg-3">{$t('admin.dlq.queueLabel')}</span>
       <a
         href={buildUrl({ page: 1, status: data.status })}
-        style="padding:4px 10px;border-radius:4px;font-size:12px;text-decoration:none;border:1px solid {!data.queue ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};background:{!data.queue ? 'var(--mep-acc)' : 'transparent'};color:{!data.queue ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};"
+        class={pillClass(!data.queue)}
       >{$t('admin.all')}</a>
       {#each data.breakdown as q}
         <a
           href={buildUrl({ page: 1, status: data.status, queue: q.queue })}
-          style="padding:4px 10px;border-radius:4px;font-size:12px;text-decoration:none;border:1px solid {data.queue === q.queue ? 'var(--mep-acc)' : 'var(--mep-border-strong)'};background:{data.queue === q.queue ? 'var(--mep-acc)' : 'transparent'};color:{data.queue === q.queue ? 'var(--mep-acc-fg)' : 'var(--mep-fg-2)'};"
+          class={pillClass(data.queue === q.queue)}
         >{q.queue} ({q.pending}/{q.total})</a>
       {/each}
     </div>
@@ -84,71 +83,71 @@
 
   <SectionCard title={$t('admin.dlq.title')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colQueue')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colError')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colOccurrences')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colLastSeen')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colActions')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colQueue')}</th>
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colError')}</th>
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colRestaurant')}</th>
+            <th scope="col" class="py-2.5 px-4 text-center text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colOccurrences')}</th>
+            <th scope="col" class="py-2.5 px-4 text-center text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colStatus')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colLastSeen')}</th>
+            <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colActions')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.entries as entry}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;">
-                <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);">{entry.queue}</code>
+            <tr class="border-b border-divider">
+              <td class="py-[9px] px-4">
+                <code class="text-[11px] bg-surface-2 px-1.5 py-0.5 rounded-[3px] text-fg-2">{entry.queue}</code>
               </td>
-              <td style="padding:9px 16px;max-width:340px;">
+              <td class="py-[9px] px-4 max-w-[340px]">
                 <button
                   type="button"
                   onclick={() => (expanded = expanded === entry.id ? null : entry.id)}
-                  style="all:unset;cursor:pointer;display:block;max-width:100%;"
+                  class="[all:unset] cursor-pointer block max-w-full"
                 >
-                  <code style="font-size:11px;color:var(--mep-neg);">{entry.errorClass}</code>
-                  <div style="color:var(--mep-fg-2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{entry.errorMessage}</div>
+                  <code class="text-[11px] text-neg">{entry.errorClass}</code>
+                  <div class="text-fg-2 text-xs overflow-hidden text-ellipsis whitespace-nowrap">{entry.errorMessage}</div>
                 </button>
               </td>
-              <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">{entry.restaurantName ?? '—'}</td>
-              <td class="num" style="padding:9px 16px;text-align:center;color:var(--mep-fg-2);font-size:12px;">{entry.occurrences}</td>
-              <td style="padding:9px 16px;text-align:center;">
-                <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:{STATUS_BG[entry.status] ?? 'var(--mep-hover)'};color:{STATUS_COLOR[entry.status] ?? 'var(--mep-fg-3)'};">
+              <td class="py-[9px] px-4 text-fg-2 text-xs">{entry.restaurantName ?? '—'}</td>
+              <td class="num py-[9px] px-4 text-center text-fg-2 text-xs">{entry.occurrences}</td>
+              <td class="py-[9px] px-4 text-center">
+                <span class="inline-block px-2 py-0.5 rounded-[10px] text-[11px] font-semibold {STATUS_CLASS[entry.status] ?? STATUS_CLASS_FALLBACK}">
                   {$t(`admin.dlq.status.${entry.status}`)}
                 </span>
               </td>
-              <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;white-space:nowrap;">
+              <td class="num py-[9px] px-4 text-right text-fg-3 text-xs whitespace-nowrap">
                 {new Date(entry.lastSeenAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
               </td>
-              <td style="padding:9px 16px;text-align:right;white-space:nowrap;">
-                <div style="display:inline-flex;gap:6px;">
+              <td class="py-[9px] px-4 text-right whitespace-nowrap">
+                <div class="inline-flex gap-1.5">
                   {#if entry.replayable && entry.status !== 'replayed'}
-                    <form method="POST" action="?/replay" style="display:inline;">
+                    <form method="POST" action="?/replay" class="inline">
                       <input type="hidden" name="id" value={entry.id} />
-                      <button type="submit" class="btn btn-secondary" style="font-size:11px;padding:3px 8px;">{$t('admin.dlq.replay')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.dlq.replay')}</button>
                     </form>
                   {/if}
                   {#if entry.status === 'pending'}
-                    <form method="POST" action="?/setStatus" style="display:inline;">
+                    <form method="POST" action="?/setStatus" class="inline">
                       <input type="hidden" name="id" value={entry.id} />
                       <input type="hidden" name="status" value="reviewed" />
-                      <button type="submit" class="btn btn-secondary" style="font-size:11px;padding:3px 8px;">{$t('admin.dlq.markReviewed')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.dlq.markReviewed')}</button>
                     </form>
-                    <form method="POST" action="?/setStatus" style="display:inline;">
+                    <form method="POST" action="?/setStatus" class="inline">
                       <input type="hidden" name="id" value={entry.id} />
                       <input type="hidden" name="status" value="discarded" />
-                      <button type="submit" class="btn btn-secondary" style="font-size:11px;padding:3px 8px;">{$t('admin.dlq.discard')}</button>
+                      <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.dlq.discard')}</button>
                     </form>
                   {/if}
                 </div>
               </td>
             </tr>
             {#if expanded === entry.id}
-              <tr style="border-bottom:1px solid var(--mep-divider);background:var(--mep-surface-2);">
-                <td colspan="7" style="padding:12px 16px;">
-                  <div class="num" style="font-size:11.5px;color:var(--mep-fg-2);margin-bottom:8px;">
+              <tr class="border-b border-divider bg-surface-2">
+                <td colspan="7" class="py-3 px-4">
+                  <div class="num text-[11.5px] text-fg-2 mb-2">
                     {$ti('admin.dlq.detailMeta', {
                       source: entry.sourceId ?? '—',
                       job: entry.jobId ?? '—',
@@ -156,14 +155,14 @@
                       first: new Date(entry.firstSeenAt).toLocaleString('en-GB'),
                     })}
                   </div>
-                  <div style="font-size:12px;color:var(--mep-fg);margin-bottom:8px;white-space:pre-wrap;word-break:break-word;">{entry.errorMessage}</div>
-                  <pre style="margin:0;font-size:11px;color:var(--mep-fg-2);background:var(--mep-surface);padding:10px;border-radius:4px;overflow:auto;max-height:280px;">{payloadText(entry.payload)}</pre>
+                  <div class="text-xs text-fg mb-2 whitespace-pre-wrap break-words">{entry.errorMessage}</div>
+                  <pre class="m-0 text-[11px] text-fg-2 bg-surface p-2.5 rounded-[4px] overflow-auto max-h-[280px]">{payloadText(entry.payload)}</pre>
                 </td>
               </tr>
             {/if}
           {:else}
             <tr>
-              <td colspan="7" style="padding:32px 16px;text-align:center;color:var(--mep-fg-4);">{$t('admin.dlq.empty')}</td>
+              <td colspan="7" class="py-8 px-4 text-center text-fg-4">{$t('admin.dlq.empty')}</td>
             </tr>
           {/each}
         </tbody>
@@ -172,13 +171,13 @@
   </SectionCard>
 
   {#if data.totalPages > 1}
-    <div style="display:flex;gap:6px;align-items:center;justify-content:center;">
+    <div class="flex gap-1.5 items-center justify-center">
       {#if data.page > 1}
-        <a href={buildUrl({ page: data.page - 1, status: data.status, queue: data.queue })} class="btn btn-secondary" style="text-decoration:none;">{$t('admin.prev')}</a>
+        <a href={buildUrl({ page: data.page - 1, status: data.status, queue: data.queue })} class="btn btn-secondary no-underline">{$t('admin.prev')}</a>
       {/if}
-      <span style="font-size:13px;color:var(--mep-fg-3);">{$ti('admin.pageOf', { page: data.page, total: data.totalPages })}</span>
+      <span class="text-[13px] text-fg-3">{$ti('admin.pageOf', { page: data.page, total: data.totalPages })}</span>
       {#if data.page < data.totalPages}
-        <a href={buildUrl({ page: data.page + 1, status: data.status, queue: data.queue })} class="btn btn-secondary" style="text-decoration:none;">{$t('admin.next')}</a>
+        <a href={buildUrl({ page: data.page + 1, status: data.status, queue: data.queue })} class="btn btn-secondary no-underline">{$t('admin.next')}</a>
       {/if}
     </div>
   {/if}
