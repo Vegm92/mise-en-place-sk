@@ -312,6 +312,7 @@
 
 @theme inline {
   --font-sans: 'Mona Sans', system-ui, sans-serif;
+  --font-mono: var(--mep-fs-mono);
 
   --color-bg:            var(--mep-bg);
   --color-surface:       var(--mep-surface);
