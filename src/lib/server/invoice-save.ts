@@ -607,6 +607,21 @@ async function linkRelatedDocuments(
 		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, linkedInvoiceId)));
 }
 
+/**
+ * Runs a single non-fatal post-save effect. Each effect is independent of
+ * the others' success — a save is already committed by the time these run,
+ * so one throwing (a bad query, a downstream service hiccup) must not stop
+ * the rest from attempting to run too.
+ */
+async function isolated<T>(label: string, fallback: T, fn: () => Promise<T>): Promise<T> {
+	try {
+		return await fn();
+	} catch (err) {
+		console.error(`[invoice-save] ${label} failed (non-fatal):`, err);
+		return fallback;
+	}
+}
+
 async function runPostSaveEffects(params: {
 	invoiceId: number;
 	supplierId: number;
@@ -633,69 +648,90 @@ async function runPostSaveEffects(params: {
 	tdb: ReturnType<typeof forTenant>;
 }): Promise<boolean> {
 	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb } = params;
-	let isFirstInvoice = false;
-	try {
-		const { productByKey, productCorrections } = await linkProductsToInvoice(
+
+	const { productByKey, productCorrections } = await isolated(
+		'product linking',
+		{ productByKey: new Map<string, number>(), productCorrections: [] as ProductCorrection[] },
+		() => linkProductsToInvoice(
 			invoiceId, supplierId, rid, lineInputs,
 			extractedAllergensByKey(extractedData as ExtractedInvoice | undefined),
-		);
+		),
+	);
 
-		const priceAlerts = await runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey);
+	const priceAlerts = await isolated('price shock alerts', [] as Alert[], () =>
+		runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey));
+
+	const stockAlerts = await isolated('stock forecast', [] as Alert[], async () => {
 		const { stockTracking } = await getTierFeatures(rid);
-		const stockAlerts = stockTracking ? await runStockForecast(savedItems, rid) : [];
-		const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
-		const categoryAlerts = await runCategorizationNudge(invoiceId, supplierId, rid);
-		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
+		return stockTracking ? runStockForecast(savedItems, rid) : [];
+	});
+
+	const budgetAlerts = await isolated('budget check', [] as Alert[], () =>
+		runBudgetCheck(invoiceId, supplierId, rid));
+
+	const categoryAlerts = await isolated('categorization nudge', [] as Alert[], () =>
+		runCategorizationNudge(invoiceId, supplierId, rid));
+
+	const categorySuggestions = await isolated('category suggestion', [] as Alert[], () =>
+		runCategorySuggestion(supplierId, rid, proposedCategory));
+
+	const duplicatePurchaseAlerts = await isolated('duplicate purchase detection', [] as Alert[], async () => {
 		const duplicatePurchase = await runPossibleDuplicatePurchase({
 			invoiceId, supplierId, supplierName, restaurantId: rid,
 			documentType, invoiceDate, totalAmount, lineDescriptions,
 		});
-		const duplicatePurchaseAlerts = duplicatePurchase.alerts;
 		if (duplicatePurchase.linkedInvoiceId) {
 			await linkRelatedDocuments(tdb, invoiceId, duplicatePurchase.linkedInvoiceId);
 		}
-		const verifactuVars = { fields: qrMismatches.map((m) => m.field).join(', ') };
-		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
-			notificationType: 'verifactu_qr_mismatch',
-			message: renderTemplate('es', 'notif.msg.verifactuMismatch', verifactuVars),
-			payload: {
-				invoiceNumber, mismatches: qrMismatches,
-				messageKey: 'notif.msg.verifactuMismatch',
-				messageVars: verifactuVars,
-			},
-		}] : [];
-		await saveAlerts(invoiceId, rid, [
-			...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
-		]);
+		return duplicatePurchase.alerts;
+	});
 
-		const hasDuplicateWarning = duplicatePurchaseAlerts.some((a) => a.notificationType === 'possible_duplicate_purchase');
-		if (reviewState !== 'incidencia' && hasDuplicateWarning) {
+	const verifactuVars = { fields: qrMismatches.map((m) => m.field).join(', ') };
+	const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
+		notificationType: 'verifactu_qr_mismatch',
+		message: renderTemplate('es', 'notif.msg.verifactuMismatch', verifactuVars),
+		payload: {
+			invoiceNumber, mismatches: qrMismatches,
+			messageKey: 'notif.msg.verifactuMismatch',
+			messageVars: verifactuVars,
+		},
+	}] : [];
+
+	await isolated('alert save', undefined, () => saveAlerts(invoiceId, rid, [
+		...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
+		...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
+	]));
+
+	const hasDuplicateWarning = duplicatePurchaseAlerts.some((a) => a.notificationType === 'possible_duplicate_purchase');
+	if (reviewState !== 'incidencia' && hasDuplicateWarning) {
+		await isolated('incidencia flip', undefined, async () => {
 			await db.update(invoices)
 				.set({ reviewState: 'incidencia' })
 				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)));
-		}
+		});
+	}
 
-		trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
+	trackEvent('invoice_saved', rid, { confidence: confidenceRaw, line_count: lineInputs.length }, invoiceId);
 
-		void maybeSendQuotaWarning(rid);
+	void maybeSendQuotaWarning(rid);
 
-		await logExtractionCorrections(
-			invoiceId,
-			supplierId,
-			rid,
-			extractedData,
-			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
-			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
-			productCorrections,
-		);
+	await isolated('extraction correction logging', undefined, () => logExtractionCorrections(
+		invoiceId,
+		supplierId,
+		rid,
+		extractedData,
+		{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
+		{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+		productCorrections,
+	));
 
+	return isolated('onboarding flag', false, async () => {
 		const onboardingRows = await db
 			.select({ value: settings.value })
 			.from(settings)
 			.where(tdb.scope(settings.restaurantId, eq(settings.key, 'has_completed_onboarding')))
 			.limit(1);
-		isFirstInvoice = onboardingRows[0]?.value !== 'true';
+		const isFirstInvoice = onboardingRows[0]?.value !== 'true';
 		if (isFirstInvoice) {
 			await db.insert(settings)
 				.values({ restaurantId: rid, key: 'has_completed_onboarding', value: 'true' })
@@ -704,10 +740,8 @@ async function runPostSaveEffects(params: {
 					set: { value: 'true' },
 				});
 		}
-	} catch (err) {
-		console.error('[invoice-save] post-commit side effects failed (non-fatal):', err);
-	}
-	return isFirstInvoice;
+		return isFirstInvoice;
+	});
 }
 
 export async function saveReviewedInvoice(
