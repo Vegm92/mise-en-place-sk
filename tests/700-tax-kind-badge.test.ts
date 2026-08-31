@@ -17,7 +17,8 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const PAGE = read('src/routes/(app)/batch/[id]/+page.svelte');
-const I18N = read('src/lib/i18n-messages.ts');
+const ES_MESSAGES = read('src/lib/messages/es.ts');
+const EN_MESSAGES = read('src/lib/messages/en.ts');
 
 const footer = () => {
 	const at = PAGE.indexOf('rev-foot-totals');
@@ -55,9 +56,7 @@ describe('review footer tax-kind badges (PR #700)', () => {
 	});
 
 	it('uses labels defined in both locales', () => {
-		const esBlock = I18N.split('export const translations')[1]?.split('\n  en: {')[0] ?? '';
-		const enBlock = I18N.split('\n  en: {')[1] ?? '';
-		for (const block of [esBlock, enBlock]) {
+		for (const block of [ES_MESSAGES, EN_MESSAGES]) {
 			expect(block).toMatch(/'review\.taxIva':\s*'[^']+'/);
 			expect(block).toMatch(/'review\.taxRec':\s*'[^']+'/);
 			expect(block).toMatch(/'review\.taxRecFull':\s*'[^']+'/);

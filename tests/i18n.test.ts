@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
-import { locale, t, ti, tp, tcat, tiv, translations } from '../src/lib/i18n';
+import { locale, t, ti, tp, tcat, tiv, translations, loadAllMessages } from '../src/lib/i18n';
+
+await loadAllMessages();
 
 // Resolve a key against the current locale via the derived `t` store.
 const tr = (key: string) => get(t)(key);
