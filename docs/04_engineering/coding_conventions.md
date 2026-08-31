@@ -84,6 +84,42 @@ directive.
 Both linters read the directive names from `scripts/lint-directives.mjs`, so the
 gate that requires them and the check that permits them cannot drift apart.
 
+## Duplication on new code
+
+SonarCloud's Quality Gate fails a PR whose new/changed lines are more than 3%
+duplicated against anything else in the codebase (`New Code Duplication`).
+It runs as Automatic Analysis (`.sonarcloud.properties`, not a CI step), so it
+only reports back after a push — a round trip that took five pushes to close
+out on PR #832, once for the actual gate finding and repeatedly for
+mis-diagnosing which lines it meant.
+
+`pnpm lint:duplication` (`scripts/check-duplication.mjs`) catches the common
+case before that round trip: it shells out to `jscpd` (an independent clone
+detector — not SonarSource's proprietary one) over `src/` and `tests/`, then
+intersects the reported clones with the lines the current branch actually
+added versus `--base` (default `origin/main`), the same "new code" definition
+SonarCloud uses. It's wired into CI as its own step, ahead of the type check,
+so a PR fails fast in the `ci` job instead of waiting on the separate
+SonarCloud check to come back red.
+
+It will not agree with SonarCloud's exact percentage — different detector,
+and it does not parse `.svelte` files the way it does `.ts`/`.js`. Treat a
+pass as "very likely fine", not a guarantee; a fail is real work to do, not a
+tool quirk to route around. The two lessons PR #832 actually cost:
+
+- **A brand-new test file duplicates whatever fixture boilerplate it
+  re-derives**, even from a file it never imports. `tests/` already carries
+  the same `fakeItem`/`vi.mock('.../db', …)` shape across a dozen files by
+  convention; a new test that needs the same shape should extend an existing
+  DB-backed test file (a new `describe` block, reusing its fixtures) rather
+  than starting a new file that reproduces them.
+- **Wrapping several different calls in the same small scaffold** (`try`/
+  `catch`, a retry wrapper, a per-effect isolation helper — see
+  [ADR-008](../06_decisions/invoicing/ADR-008-single-invoice-write-path.md))
+  turns previously-varied lines into near-identical ones; the fix was a data
+  table plus one loop, one call site instead of six near-duplicate ones —
+  which reads better regardless of the gate.
+
 ## Appendix — directives kept in source
 
 These comments were deliberately left in the code because a tool reads them.
