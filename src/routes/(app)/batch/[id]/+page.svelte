@@ -181,6 +181,67 @@
     product_code?: string | null;
   };
 
+  // svelte-ignore state_referenced_locally — the batch id in the route param never changes without a remount
+  const DRAFT_PREFIX = `mep-batch-draft:${data.batchId}:`;
+  function draftKey(itemId: string): string {
+    return `${DRAFT_PREFIX}${itemId}`;
+  }
+  type DraftPayload = {
+    supplierNameInput: string;
+    invoiceNumberInput: string;
+    documentTypeInput: string;
+    invoiceDateInput: string;
+    dueDateInput: string;
+    dueDateSuggested: boolean;
+    totalAmountInput: string;
+    notesInput: string;
+    lineItems: LineItem[];
+    taxBands: BandRow[];
+  };
+  function readDraft(itemId: string): DraftPayload | null {
+    try {
+      const raw = localStorage.getItem(draftKey(itemId));
+      return raw ? (JSON.parse(raw) as DraftPayload) : null;
+    } catch {
+      return null;
+    }
+  }
+  function writeDraft(itemId: string, payload: DraftPayload) {
+    try {
+      localStorage.setItem(draftKey(itemId), JSON.stringify(payload));
+    } catch {
+      return;
+    }
+    if (!draftItemIds.has(itemId)) {
+      const next = new Set(draftItemIds);
+      next.add(itemId);
+      draftItemIds = next;
+    }
+  }
+  function clearDraft(itemId: string) {
+    try {
+      localStorage.removeItem(draftKey(itemId));
+    } catch {
+    }
+    if (draftItemIds.has(itemId)) {
+      const next = new Set(draftItemIds);
+      next.delete(itemId);
+      draftItemIds = next;
+    }
+  }
+  let draftItemIds = $state<Set<string>>(new Set());
+  onMount(() => {
+    try {
+      const ids = new Set<string>();
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith(DRAFT_PREFIX)) ids.add(k.slice(DRAFT_PREFIX.length));
+      }
+      draftItemIds = ids;
+    } catch {
+    }
+  });
+
   let lineItems = $state<LineItem[]>([]);
   let lineItemsSource: unknown = null;
   let taxBandsSource: unknown = null;
@@ -188,7 +249,8 @@
     const raw = data.review?.data?.tax_breakdown;
     if (raw === taxBandsSource) return;
     taxBandsSource = raw;
-    taxBands = bandRowsFrom(raw);
+    const draft = data.review?.itemId ? readDraft(data.review.itemId) : null;
+    taxBands = draft?.taxBands ?? bandRowsFrom(raw);
   });
   function normalizeLine(item: LineItem): LineItem {
     return {
@@ -205,23 +267,27 @@
     const raw = data.review?.data?.line_items;
     if (raw === lineItemsSource) return;
     lineItemsSource = raw;
-    lineItems = Array.isArray(raw) ? (raw as LineItem[]).map(normalizeLine) : [];
+    const draft = data.review?.itemId ? readDraft(data.review.itemId) : null;
+    lineItems = draft?.lineItems ?? (Array.isArray(raw) ? (raw as LineItem[]).map(normalizeLine) : []);
   });
 
   // svelte-ignore state_referenced_locally — reading the initial value is the point
   let lowConfAckItemId: string | null = data.review?.itemId ?? null;
 
-  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let supplierNameInput = $state(str(data.review?.data?.supplier_name));
-  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let invoiceNumberInput = $state(str(data.review?.data?.invoice_number));
+  // svelte-ignore state_referenced_locally — a pending draft wins over the server's own extraction on first paint
+  const initialDraft: DraftPayload | null = data.review ? readDraft(data.review.itemId) : null;
+
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let supplierNameInput = $state(initialDraft?.supplierNameInput ?? str(data.review?.data?.supplier_name));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let invoiceNumberInput = $state(initialDraft?.invoiceNumberInput ?? str(data.review?.data?.invoice_number));
   function docTypeStr(v: unknown): 'factura' | 'albaran' | '' {
     return v === 'factura' || v === 'albaran' ? v : '';
   }
-  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once, user can correct it
-  let documentTypeInput = $state(docTypeStr(data.review?.data?.document_type));
-  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let invoiceDateInput = $state(str(data.review?.data?.invoice_date));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once, user can correct it
+  let documentTypeInput = $state(initialDraft?.documentTypeInput ?? docTypeStr(data.review?.data?.document_type));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let invoiceDateInput = $state(initialDraft?.invoiceDateInput ?? str(data.review?.data?.invoice_date));
   const NET_30_DAYS = 30;
   function addDays(dateStr: string, days: number): string {
     const d = new Date(`${dateStr}T00:00:00`);
@@ -236,15 +302,15 @@
     return addDays(invoiceDate, NET_30_DAYS);
   }
 
-  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let dueDateInput = $state(net30Suggestion(str(data.review?.data?.due_date), str(data.review?.data?.invoice_date)));
-  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let dueDateSuggested = $state(!str(data.review?.data?.due_date) && !!dueDateInput);
-  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
-  let totalAmountInput = $state(priceStr(str(data.review?.data?.total_amount)));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let dueDateInput = $state(initialDraft?.dueDateInput ?? net30Suggestion(str(data.review?.data?.due_date), str(data.review?.data?.invoice_date)));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let dueDateSuggested = $state(initialDraft ? initialDraft.dueDateSuggested : (!str(data.review?.data?.due_date) && !!dueDateInput));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let totalAmountInput = $state(initialDraft?.totalAmountInput ?? priceStr(str(data.review?.data?.total_amount)));
   // svelte-ignore state_referenced_locally — intentional: the extraction's own total, never edited
   let originalTotal = $state(priceStr(str(data.review?.data?.total_amount)));
-  let notesInput = $state('');
+  let notesInput = $state(initialDraft?.notesInput ?? '');
 
   $effect(() => {
     const id = data.review?.itemId ?? null;
@@ -260,18 +326,34 @@
     returnField = null;
     lastFocusedField = null;
     uncertainCursor = 0;
-    taxBands = bandRowsFrom(data.review?.data?.tax_breakdown);
     originalTotal = priceStr(str(data.review?.data?.total_amount));
     const rd = data.review?.data;
-    supplierNameInput = str(rd?.supplier_name);
-    invoiceNumberInput = str(rd?.invoice_number);
-    documentTypeInput = docTypeStr(rd?.document_type);
-    invoiceDateInput = str(rd?.invoice_date);
+    const draft = id ? readDraft(id) : null;
+    supplierNameInput = draft?.supplierNameInput ?? str(rd?.supplier_name);
+    invoiceNumberInput = draft?.invoiceNumberInput ?? str(rd?.invoice_number);
+    documentTypeInput = draft?.documentTypeInput ?? docTypeStr(rd?.document_type);
+    invoiceDateInput = draft?.invoiceDateInput ?? str(rd?.invoice_date);
     const rawDueDate = str(rd?.due_date);
-    dueDateInput = net30Suggestion(rawDueDate, invoiceDateInput);
-    dueDateSuggested = !rawDueDate && !!dueDateInput;
-    totalAmountInput = priceStr(str(rd?.total_amount));
-    notesInput = '';
+    dueDateInput = draft?.dueDateInput ?? net30Suggestion(rawDueDate, invoiceDateInput);
+    dueDateSuggested = draft ? draft.dueDateSuggested : (!rawDueDate && !!dueDateInput);
+    totalAmountInput = draft?.totalAmountInput ?? priceStr(str(rd?.total_amount));
+    notesInput = draft?.notesInput ?? '';
+  });
+
+  let lastAutosaveItemId: string | null = null;
+  $effect(() => {
+    const itemId = data.review?.itemId ?? null;
+    const snapshot: DraftPayload = {
+      supplierNameInput, invoiceNumberInput, documentTypeInput, invoiceDateInput,
+      dueDateInput, dueDateSuggested, totalAmountInput, notesInput, lineItems, taxBands,
+    };
+    if (!itemId) return;
+    if (itemId !== lastAutosaveItemId) {
+      lastAutosaveItemId = itemId;
+      return;
+    }
+    const timer = setTimeout(() => writeDraft(itemId, snapshot), 400);
+    return () => clearTimeout(timer);
   });
 
   function addRow() {
@@ -337,6 +419,20 @@
 
   function submitSave() {
     (document.getElementById('save-form') as HTMLFormElement | null)?.requestSubmit();
+  }
+
+  async function selectItem(itemId: string) {
+    if (itemId === data.review?.itemId) return;
+    await goto(`/batch/${data.batchId}?item=${itemId}`, { keepFocus: true, noScroll: true });
+  }
+
+  function clearDraftOnSuccess(itemId: string) {
+    return () => {
+      return async ({ result, update }: { result: { type: string }; update: () => Promise<void> }) => {
+        if (result.type === 'redirect') clearDraft(itemId);
+        await update();
+      };
+    };
   }
 
   function onWindowKeydown(e: KeyboardEvent) {
@@ -632,7 +728,7 @@
       </span>
       <span class="rev-strip-dots">
         {#each data.queue as q (q.id)}
-          <span class="rev-strip-dot" class:on={q.id === data.review?.itemId || q.status === 'extracting'} class:done={q.status === 'confirmed'}></span>
+          <span class="rev-strip-dot" class:on={q.id === data.review?.itemId || q.status === 'extracting'} class:done={q.status === 'confirmed'} class:draft={draftItemIds.has(q.id)}></span>
         {/each}
       </span>
       <span class="rev-tax-caret" class:open={docStripOpen}><ChevronsRight size={14} /></span>
@@ -641,7 +737,15 @@
     {#if docStripOpen}
       <div class="rev-strip-list">
         {#each data.queue as q (q.id)}
-          <div class="rev-strip-item" class:active={q.id === data.review?.itemId}>
+          {@const selectable = q.status === 'done' || q.status === 'failed'}
+          {@const hasDraft = draftItemIds.has(q.id)}
+          <button
+            type="button"
+            class="rev-strip-item"
+            class:active={q.id === data.review?.itemId}
+            disabled={!selectable}
+            onclick={() => { selectItem(q.id); docStripOpen = false; }}
+          >
             <FileTypeBadge
               kind={q.type === 'PDF' ? 'pdf' : 'other'}
               label={q.type}
@@ -653,6 +757,9 @@
                 {queueItemSubLabel(q)}
               </span>
             </span>
+            {#if hasDraft}
+              <span class="rev-draft-dot" title={$t('review.draftPending')} aria-label={$t('review.draftPending')}></span>
+            {/if}
             {#if q.id === data.review?.itemId}
               <span class="rev-strip-mark">{$t('review.reviewing')}</span>
             {:else if q.status === 'confirmed'}
@@ -660,7 +767,7 @@
             {:else if q.status === 'failed'}
               <span style="color:var(--mep-neg);display:inline-flex;"><AlertTriangle size={14} /></span>
             {/if}
-          </div>
+          </button>
         {/each}
         <div class="rev-strip-actions">
           <label class="rev-strip-action">
@@ -700,11 +807,17 @@
       <div class="rev-rail-list" style="flex:1;overflow-y:auto;min-height:0;padding:0 {queueOpen ? 6 : 5}px;">
         {#each data.queue as q (q.id)}
           {@const isActive = q.id === data.review?.itemId || q.status === 'extracting'}
-          <div
+          {@const selectable = q.status === 'done' || q.status === 'failed'}
+          {@const hasDraft = draftItemIds.has(q.id)}
+          <svelte:element
+            this={selectable ? 'button' : 'div'}
+            type={selectable ? 'button' : undefined}
+            role={selectable ? 'button' : undefined}
             class="rev-rail-btn"
             class:active={isActive}
             title={`${q.name} · ${q.type} · ${q.size}`}
             style={queueOpen ? '' : 'justify-content:center;padding:7px 0;'}
+            onclick={selectable ? () => selectItem(q.id) : undefined}
           >
             <FileTypeBadge
               kind={q.type === 'PDF' ? 'pdf' : 'other'}
@@ -720,6 +833,9 @@
               </div>
             {/if}
             <div style="flex-shrink:0;display:flex;align-items:center;gap:6px;{queueOpen ? '' : 'position:absolute;'}">
+              {#if hasDraft}
+                <span class="rev-draft-dot" title={$t('review.draftPending')} aria-label={$t('review.draftPending')}></span>
+              {/if}
               {#if q.status === 'confirmed'}
                 <div style="width:18px;height:18px;border-radius:var(--mep-r-pill);background:var(--mep-pos-soft);color:var(--mep-pos);display:flex;align-items:center;justify-content:center;"><Check size={11} /></div>
               {:else if q.status === 'done'}
@@ -746,7 +862,7 @@
                 </form>
               {/if}
             </div>
-          </div>
+          </svelte:element>
         {/each}
       </div>
 
@@ -796,7 +912,7 @@
     {#if review}
       {#key review.itemId}
 
-      <form id="discard-item-form" method="POST" action="?/discardItem" style="display:none;" use:enhance>
+      <form id="discard-item-form" method="POST" action="?/discardItem" style="display:none;" use:enhance={clearDraftOnSuccess(review.itemId)}>
         <input type="hidden" name="itemId" value={review.itemId} />
       </form>
 
@@ -855,7 +971,7 @@
         ></button>
       {/if}
 
-      <form id="save-form" method="POST" action="?/save" class="rev-col rev-col-fill" style="display:contents;" use:enhance>
+      <form id="save-form" method="POST" action="?/save" class="rev-col rev-col-fill" style="display:contents;" use:enhance={clearDraftOnSuccess(review.itemId)}>
         <input type="hidden" name="itemId" value={review.itemId} />
         <input type="hidden" name="idempotency_key" value={idempotencyKey} />
         <input type="hidden" name="confidence" value={str(confidence)} />

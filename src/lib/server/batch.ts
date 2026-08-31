@@ -96,8 +96,12 @@ export function pickStalledItem(items: BatchItem[], now = Date.now()): BatchItem
 	return stalled[0] ?? null;
 }
 
-export function pickActiveItem(items: BatchItem[]): BatchItem | null {
+export function pickActiveItem(items: BatchItem[], requestedId?: string | null): BatchItem | null {
 	const open = items.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
+	if (requestedId) {
+		const requested = open.find(i => i.id === requestedId && (i.status === 'done' || i.status === 'failed'));
+		if (requested) return requested;
+	}
 	return open.find(i => i.status === 'done') ?? open.find(i => i.status === 'failed') ?? null;
 }
 

@@ -168,6 +168,7 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 		const result = (await load({
 			params: { id: 'batch-1' },
 			locals: { restaurantId: RID_A },
+			url: new URL('http://x/batch/batch-1'),
 		} as never)) as { queue: unknown[] };
 
 		expect(result.queue).toHaveLength(1);
@@ -180,7 +181,7 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 		// Same redirect as a missing batch, so a foreign id is indistinguishable
 		// from one that does not exist.
 		await expect(
-			load({ params: { id: 'batch-1' }, locals: { restaurantId: RID_A } } as never)
+			load({ params: { id: 'batch-1' }, locals: { restaurantId: RID_A }, url: new URL('http://x/batch/batch-1') } as never)
 		).rejects.toSatisfy(isRedirect);
 	});
 
@@ -189,7 +190,7 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 		getBatchItemsMock.mockResolvedValue([batchItem(RID_A), batchItem(RID_B)]);
 
 		await expect(
-			load({ params: { id: 'batch-1' }, locals: { restaurantId: RID_A } } as never)
+			load({ params: { id: 'batch-1' }, locals: { restaurantId: RID_A }, url: new URL('http://x/batch/batch-1') } as never)
 		).rejects.toSatisfy(isRedirect);
 	});
 
@@ -198,7 +199,7 @@ describe('/batch/[id] — batch contents must belong to the caller', () => {
 		getBatchItemsMock.mockResolvedValue([batchItem(RID_B)]);
 
 		const outcome = await Promise.resolve(
-			load({ params: { id: 'batch-1' }, locals: { restaurantId: RID_A } } as never)
+			load({ params: { id: 'batch-1' }, locals: { restaurantId: RID_A }, url: new URL('http://x/batch/batch-1') } as never)
 		).catch((e: unknown) => e);
 
 		expect(JSON.stringify(outcome)).not.toContain('Proveedor Secreto');
