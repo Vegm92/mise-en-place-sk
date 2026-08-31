@@ -98,11 +98,11 @@
             {#each data.stuckItems as item (item.id)}
               <tr style="border-bottom:1px solid var(--mep-divider);">
                 <td style="padding:9px 16px;color:var(--mep-fg);">{item.restaurantName ?? '—'}</td>
-                <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.displayName}</td>
+                <td style="padding:9px 16px;color:var(--mep-fg-2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.displayName}</td>
                 <td style="padding:9px 16px;text-align:center;">
-                  <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:3px;color:var(--mep-fg-2);">{item.status}</code>
+                  <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:4px;color:var(--mep-fg-2);">{item.status}</code>
                 </td>
-                <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);font-size:12px;white-space:nowrap;">
+                <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);white-space:nowrap;">
                   {new Date(item.updatedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                 </td>
                 <td style="padding:9px 16px;text-align:right;white-space:nowrap;">

@@ -53,6 +53,21 @@ export interface PendingFuzzyMatch {
 	createdAt: string;
 }
 
+export interface FuzzyMatchOutcomes {
+	total: number;
+	confirmed: number;
+	rejected: number;
+	pending: number;
+	accuracyRate: number | null;
+}
+
+export interface PromptVersionCorrections {
+	promptVersion: string;
+	invoices: number;
+	corrections: number;
+	correctionRate: number | null;
+}
+
 // tenant-scope-ok: admin observability rollups across every tenant's extraction
 // corrections and product matching activity; reachable only from the (admin)
 // route group, which isAdminUser() already gates.
@@ -154,6 +169,65 @@ export async function productMatchingStats(): Promise<AliasSourceStat[]> {
 		.from(productAliases)
 		.groupBy(productAliases.source)
 		.orderBy(desc(sql`count(*)`));
+}
+
+export async function fuzzyMatchOutcomes(): Promise<FuzzyMatchOutcomes> {
+	// original_source is set once at row creation and never overwritten, so it
+	// survives a human later confirming/rejecting the suggestion (which flips
+	// `source` to 'user'); review_outcome records that first human decision.
+	const rows = await db.execute(sql`
+		SELECT
+			count(*) filter (where original_source = 'fuzzy')::int AS total,
+			count(*) filter (where original_source = 'fuzzy' and review_outcome = 'confirmed')::int AS confirmed,
+			count(*) filter (where original_source = 'fuzzy' and review_outcome = 'rejected')::int AS rejected,
+			count(*) filter (where original_source = 'fuzzy' and review_outcome is null)::int AS pending
+		FROM product_aliases
+	`) as unknown as Array<{ total: number; confirmed: number; rejected: number; pending: number }>;
+	const r = rows[0];
+	const total = Number(r?.total ?? 0);
+	const confirmed = Number(r?.confirmed ?? 0);
+	const rejected = Number(r?.rejected ?? 0);
+	const pending = Number(r?.pending ?? 0);
+	const reviewed = confirmed + rejected;
+	return { total, confirmed, rejected, pending, accuracyRate: reviewed > 0 ? confirmed / reviewed : null };
+}
+
+export async function correctionsByPromptVersion(): Promise<PromptVersionCorrections[]> {
+	// Joins each confirmed invoice back to the corpus entry (#813,
+	// extraction_results) it was extracted from, via restaurant + file key —
+	// invoices have no direct FK to extraction_results. DISTINCT ON picks the
+	// most recent live extraction for that file, since a retried extraction
+	// can leave more than one corpus row behind for the same file.
+	const rows = await db.execute(sql`
+		WITH invoice_prompt AS (
+			SELECT DISTINCT ON (i.id) i.id AS invoice_id, er.prompt_version
+			FROM invoices i
+			JOIN extraction_results er
+				ON er.restaurant_id = i.restaurant_id
+				AND er.file_key = i.source_file
+				AND er.run_kind = 'live'
+			WHERE i.source_file IS NOT NULL
+			ORDER BY i.id, er.created_at DESC
+		)
+		SELECT
+			ip.prompt_version,
+			count(DISTINCT ip.invoice_id)::int AS invoices,
+			count(ec.id)::int AS corrections
+		FROM invoice_prompt ip
+		LEFT JOIN extraction_corrections ec ON ec.invoice_id = ip.invoice_id
+		GROUP BY ip.prompt_version
+		ORDER BY ip.prompt_version DESC
+	`) as unknown as Array<{ prompt_version: string; invoices: number; corrections: number }>;
+	return rows.map(r => {
+		const invoicesCount = Number(r.invoices);
+		const corrections = Number(r.corrections);
+		return {
+			promptVersion: r.prompt_version,
+			invoices: invoicesCount,
+			corrections,
+			correctionRate: invoicesCount > 0 ? corrections / invoicesCount : null,
+		};
+	});
 }
 
 export async function pendingFuzzyMatches(limit = MAX_ROWS): Promise<PendingFuzzyMatch[]> {

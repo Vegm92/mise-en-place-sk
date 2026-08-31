@@ -134,23 +134,70 @@ async function main() {
 	}
 
 	for (const rid of restaurantIds) {
+		await sql`DELETE FROM extraction_corrections WHERE restaurant_id = ${rid}`;
+		await sql`DELETE FROM extraction_results WHERE restaurant_id = ${rid}`;
+		await sql`DELETE FROM product_aliases WHERE restaurant_id = ${rid}`;
+		await sql`DELETE FROM products WHERE restaurant_id = ${rid}`;
 		await sql`DELETE FROM invoices WHERE restaurant_id = ${rid}`;
 		await sql`DELETE FROM suppliers WHERE restaurant_id = ${rid}`;
 	}
+
+	const CORRECTION_FIELDS = ['totalAmount', 'invoiceDate', 'taxBase', 'supplierName'];
+	const PRODUCT_NAMES = ['Tomate pera', 'Aceite de oliva virgen extra', 'Patata gallega', 'Cebolla dulce'];
 
 	for (const [i, rid] of restaurantIds.entries()) {
 		const [supplier] = await sql`
 			INSERT INTO suppliers (restaurant_id, name, category, created_at)
 			VALUES (${rid}, ${`Distribuciones Alimentarias del Norte ${i + 1} SL`}, 'general', now() - interval '90 days')
 			RETURNING id`;
+		const invoiceIds = [];
 		for (let n = 0; n < 4; n++) {
-			await sql`
-				INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, total_amount, status, created_at)
+			const fileKey = `demo/${rid}/inv-${i}-${n}.pdf`;
+			const [invoice] = await sql`
+				INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, invoice_date, total_amount, status, source_file, created_at)
 				VALUES (${rid}, ${supplier.id}, ${`FRA-2026-${String(i * 10 + n).padStart(6, '0')}`},
-				        now()::date - ${n * 2}::int, ${(120 + n * 37.5).toFixed(2)}, 'saved',
-				        now() - ${`${n * 2 + i} days`}::interval)`;
+				        now()::date - ${n * 2}::int, ${(120 + n * 37.5).toFixed(2)}, 'saved', ${fileKey},
+				        now() - ${`${n * 2 + i} days`}::interval)
+				RETURNING id`;
+			invoiceIds.push(invoice.id);
+			await sql`
+				INSERT INTO extraction_results (restaurant_id, file_key, source, run_kind, prompt_version, model, extracted_data, confidence, created_at)
+				VALUES (${rid}, ${fileKey}, 'web', 'live', ${n % 3 === 0 ? 'v2-2026-07-01' : 'v3-2026-08-20'}, 'gemini-2.5-flash',
+				        '{}'::jsonb, ${(0.7 + n * 0.05).toFixed(2)}, now() - ${`${n * 2 + i} days`}::interval)`;
 		}
+
+		for (let n = 0; n < 3; n++) {
+			await sql`
+				INSERT INTO extraction_corrections
+					(restaurant_id, invoice_id, supplier_id, field_name, original_value, corrected_value, field_confidence, corrected_at)
+				VALUES (${rid}, ${invoiceIds[n % invoiceIds.length]}, ${supplier.id}, ${CORRECTION_FIELDS[n % CORRECTION_FIELDS.length]},
+				        'valor extraído', 'valor corregido', ${(0.5 + n * 0.1).toFixed(2)}, now() - ${`${n * 3 + i} days`}::interval)`;
+		}
+
+		const productIds = [];
+		for (const name of PRODUCT_NAMES) {
+			const [product] = await sql`
+				INSERT INTO products (restaurant_id, canonical_name, name_key)
+				VALUES (${rid}, ${name}, ${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')})
+				RETURNING id`;
+			productIds.push(product.id);
+		}
+		await sql`
+			INSERT INTO product_aliases
+				(restaurant_id, product_id, supplier_id, raw_key, raw_text, source, original_source, review_outcome, confirmed_at)
+			VALUES
+				(${rid}, ${productIds[0]}, ${supplier.id}, 'tomates pera caja 5kg', 'TOMATES PERA CAJA 5KG', 'exact', 'exact', NULL, now()),
+				(${rid}, ${productIds[1]}, ${supplier.id}, 'aceite oliva v.e. garrafa 5l', 'ACEITE OLIVA V.E. GARRAFA 5L', 'fuzzy', 'fuzzy', NULL, NULL),
+				(${rid}, ${productIds[2]}, ${supplier.id}, 'patatas gallegas saco 25kg', 'PATATAS GALLEGAS SACO 25KG', 'user', 'fuzzy', 'confirmed', now()),
+				(${rid}, ${productIds[3]}, ${supplier.id}, 'cebolla dulce malla 20kg', 'CEBOLLA DULCE MALLA 20KG', 'user', 'fuzzy', 'rejected', now())`;
 	}
+
+	const [demoBatch] = await sql`
+		INSERT INTO upload_batches (restaurant_id) VALUES (${restaurantIds[0]}) RETURNING id`;
+	await sql`
+		INSERT INTO batch_items (batch_id, restaurant_id, position, file_key, display_name, status, queued_at, updated_at)
+		VALUES (${demoBatch.id}, ${restaurantIds[0]}, 1, 'demo/stuck-invoice.pdf', 'factura-atascada-demo.pdf',
+		        'extracting', now() - interval '40 minutes', now() - interval '40 minutes')`;
 
 	for (let i = 0; i < 60; i++) {
 		const rid = restaurantIds[i % restaurantIds.length];
