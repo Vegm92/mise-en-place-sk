@@ -10,6 +10,7 @@ import {
 	extractInvoice, extractWithProvider, EXTRACTION_PROMPT_VERSION, EINVOICE_PARSER_VERSION,
 	type GenerateFn,
 } from './extract.js';
+import { JsonShapeMismatchError } from './llm-json.js';
 import { recordExtractionResult } from './extraction-corpus.js';
 import { annotateLineItems } from './products.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
@@ -52,6 +53,7 @@ function classifyExtractionError(err: unknown): string {
 		name === 'AbortError' ||
 		name === 'TimeoutError'
 	) return 'extract.err.timeout';
+	if (err instanceof JsonShapeMismatchError) return 'extract.err.malformedResult';
 	if (message.includes('invalid JSON') || message.includes('LLM returned invalid JSON')) return 'extract.err.notInvoice';
 	return 'extract.err.generic';
 }
