@@ -292,6 +292,7 @@ shapes, `low_confidence_ack` value.
 - The footer separates two comparisons that are easy to conflate: **Discrepancia** is the calculated total against the header total field (which the reviewer can edit), while **Extraído … ±Δ** is the calculated total against what the AI originally read off the document, which nothing can edit away. A reviewer correcting a genuine extraction error should see the second figure move and be sure the change was meant.
 - That totals row wraps (issue #658). It is `nowrap` by design so a figure never splits from its label, but on a phone the row measured 667px inside a 390px frame: **Extraído** was pushed off the right edge and the whole review shell scrolled sideways to reach it. `flex-wrap: wrap` on `.rev-foot-totals` breaks it between figures instead of past the frame, and the mobile override no longer spreads the wrapped rows apart.
 - Line-item inputs are bound to `lineItems` state. They were previously one-way `value={…}`, so `lineTotal`, `totalCalc` and the discrepancy indicator never moved when a reviewer corrected a price — the footer reported on the extraction, not on what was about to be saved.
+- A warning banner (`totalMismatch`, issue #808) shows whenever `extracted_data.total_mismatch` is set — independent of the live `hasDiscrepancy` check on the total field above, since the extraction-time flag reflects what Gemini originally handed back and doesn't clear as the reviewer edits.
 
 ### `src/routes/(app)/confirm/[id]/+page.server.ts`
 
@@ -319,6 +320,10 @@ shapes, `low_confidence_ack` value.
 **`function taxableBaseCents`**
 
 - Shared by the review page and `invoice-save.ts` so the base shown and the base stored are the same number. Lives outside `$lib/server` because the page needs it; `money.ts` moved to `$lib/money` for the same reason, with `$lib/server/money` left as a re-export so its existing importers are untouched.
+
+**`function detectTotalMismatch`**
+
+- Reconciliation arithmetic factored out of `invoice-save.ts` (issue #808) so it can run on raw extraction output as well as a submitted form: line totals + tax bands vs. the stated total, 1-cent rounding tolerance. `invoice-save.ts`'s own `detectTotalMismatch` is now a thin adapter over this that maps the save path's `LineFormInput[]` shape into plain money inputs.
 
 ### `src/lib/server/invoice-save.ts`
 
@@ -358,6 +363,7 @@ shapes, `low_confidence_ack` value.
 - Pack structure → €/base for cross-size comparison (issue #299); link step runs post-commit and is explicitly non-critical (#248/#298/#299). Unit resolutions are pre-computed outside the transaction (`type LineInput`).
 - Supplier contact fields (CIF/NIF, address, email, phone) are only trusted when the reviewed supplier name still matches extraction — retargeting to a different supplier must not overwrite its contacts.
 - VERI\*FACTU QR tamper check (issue #392): the QR is decoded off the document and never re-derived from reviewed/submitted fields; runs unconditionally before the insert so every invoice with a decodable AEAT QR gets it.
+- Total-mismatch signal is the OR of two checks (issue #808): the submitted form recomputed through `detectTotalMismatch`, and `extracted_data.total_mismatch` — a flag `extraction-worker.ts` stamps at extraction time so a batch item nobody ever opens for review can still land as `incidencia`, even when the (never-touched) submission happens to reconcile with itself.
 
 ### `src/lib/server/alerts.ts`
 
