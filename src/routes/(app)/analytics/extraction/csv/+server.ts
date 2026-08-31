@@ -47,9 +47,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 		rows.map((r) => [
 			r.corrected_at,
 			r.supplier_name,
-			r.invoice_id,
+			r.invoice_id == null ? null : String(r.invoice_id),
 			r.field_name,
-			r.line_item_index,
+			r.line_item_index == null ? null : String(r.line_item_index),
 			r.original_value,
 			r.corrected_value,
 			r.field_confidence == null ? null : Number(r.field_confidence),
