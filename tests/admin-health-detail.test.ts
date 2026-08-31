@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 
-const { runSystemChecksMock, tableRowCountsMock } = vi.hoisted(() => ({
+const { runSystemChecksMock, tableRowCountsMock, stuckBatchItemsMock } = vi.hoisted(() => ({
 	runSystemChecksMock: vi.fn().mockResolvedValue({
 		checks: [{ name: 'Database', status: 'ok', detail: 'Connection healthy' }],
 		overall: 'ok',
@@ -20,12 +20,17 @@ const { runSystemChecksMock, tableRowCountsMock } = vi.hoisted(() => ({
 		checkedAt: '2026-08-27T00:00:00.000Z',
 	}),
 	tableRowCountsMock: vi.fn().mockResolvedValue([{ table: 'invoices', rows: 42 }]),
+	stuckBatchItemsMock: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock('$lib/server/system-health', () => ({
 	runSystemChecks: runSystemChecksMock,
 	tableRowCounts: tableRowCountsMock,
+	stuckBatchItems: stuckBatchItemsMock,
 }));
+
+vi.mock('$lib/server/batch', () => ({ requeueStalled: vi.fn() }));
+vi.mock('$lib/server/queue', () => ({ enqueueExtraction: vi.fn() }));
 
 import { load } from '../src/routes/(admin)/admin/health/+page.server';
 
@@ -39,8 +44,10 @@ describe('#491 — /admin/health load keeps the full detail set', () => {
 			whatsapp: null,
 			checkedAt: '2026-08-27T00:00:00.000Z',
 			tableCounts: [{ table: 'invoices', rows: 42 }],
+			stuckItems: [],
 		});
 		expect(runSystemChecksMock).toHaveBeenCalledTimes(1);
 		expect(tableRowCountsMock).toHaveBeenCalledTimes(1);
+		expect(stuckBatchItemsMock).toHaveBeenCalledTimes(1);
 	});
 });

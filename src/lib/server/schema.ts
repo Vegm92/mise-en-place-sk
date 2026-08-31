@@ -239,12 +239,15 @@ export const productAliases = pgTable('product_aliases', {
 	rawText:      text('raw_text'),
 	supplierSku:  text('supplier_sku'),
 	source:       text('source').notNull().default('exact'),
+	originalSource: text('original_source'),
+	reviewOutcome:  text('review_outcome'),
 	confirmedAt:  timestamp('confirmed_at', { withTimezone: true }),
 	createdAt:    timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => [
 	uniqueIndex('product_aliases_restaurant_raw_key_unique').on(t.restaurantId, t.rawKey),
 	index('product_aliases_product_idx').on(t.restaurantId, t.productId),
 	index('product_aliases_pending_idx').on(t.restaurantId).where(sql`${t.confirmedAt} IS NULL`),
+	check('product_aliases_review_outcome_valid', sql`${t.reviewOutcome} IS NULL OR ${t.reviewOutcome} IN ('confirmed','rejected')`),
 ]);
 
 export const supplierMetrics = pgTable('supplier_metrics', {

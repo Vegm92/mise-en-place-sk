@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-24T15:36:22.818Z",
+  "generatedAt": "2026-08-31T15:46:07.179Z",
   "base": "http://127.0.0.1:5207",
   "viewport": {
     "width": 390,
@@ -7,8 +7,8 @@
   },
   "tag": "after",
   "totals": {
-    "routes": 7,
-    "tables": 17,
+    "routes": 8,
+    "tables": 26,
     "clipped": 0
   },
   "routes": [
@@ -19,9 +19,9 @@
           "index": 0,
           "label": "Actividad reciente",
           "columns": 2,
-          "renderedWidth": 681.5,
+          "renderedWidth": 677.4,
           "containerWidth": 364,
-          "overflowPx": 317.5,
+          "overflowPx": 313.4,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -136,9 +136,9 @@
           "index": 5,
           "label": "Inversión en captación",
           "columns": 5,
-          "renderedWidth": 450.6,
+          "renderedWidth": 453,
           "containerWidth": 364,
-          "overflowPx": 86.6,
+          "overflowPx": 89,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -196,9 +196,9 @@
           "index": 0,
           "label": "Issues sin resolver",
           "columns": 5,
-          "renderedWidth": 737.5,
+          "renderedWidth": 620.9,
           "containerWidth": 364,
-          "overflowPx": 373.5,
+          "overflowPx": 256.9,
           "containerKind": "scroller",
           "scrollable": true,
           "clipped": false
@@ -208,6 +208,103 @@
       "clippedCount": 0,
       "documentOverflowPx": 0,
       "screenshot": "shots/after-390-admin_errors.png"
+    },
+    {
+      "route": "/admin/learning",
+      "tables": [
+        {
+          "index": 0,
+          "label": "Correcciones por campo Qué campos falla más el modelo, y con",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 1,
+          "label": "Correcciones por proveedor",
+          "columns": 3,
+          "renderedWidth": 386.3,
+          "containerWidth": 364,
+          "overflowPx": 22.3,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 2,
+          "label": "Tasa de corrección por restaurante",
+          "columns": 4,
+          "renderedWidth": 435.5,
+          "containerWidth": 364,
+          "overflowPx": 71.5,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 3,
+          "label": "Tendencia semanal",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 4,
+          "label": "Correcciones por versión de prompt Corpus de evaluación de e",
+          "columns": 8,
+          "renderedWidth": 864.1,
+          "containerWidth": 364,
+          "overflowPx": 500.1,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 5,
+          "label": "Matching de productos Alias creados por origen: automáticos ",
+          "columns": 3,
+          "renderedWidth": 364,
+          "containerWidth": 364,
+          "overflowPx": 0,
+          "containerKind": "scroller",
+          "scrollable": false,
+          "clipped": false
+        },
+        {
+          "index": 6,
+          "label": "Auto-merges difusos: resultado De cada coincidencia difusa a",
+          "columns": 5,
+          "renderedWidth": 545.5,
+          "containerWidth": 364,
+          "overflowPx": 181.5,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 7,
+          "label": "Auto-merges difusos pendientes de revisión",
+          "columns": 4,
+          "renderedWidth": 471.8,
+          "containerWidth": 364,
+          "overflowPx": 107.8,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        }
+      ],
+      "tableCount": 8,
+      "clippedCount": 0,
+      "documentOverflowPx": 0,
+      "screenshot": "shots/after-390-admin_learning.png"
     },
     {
       "route": "/admin/health",
@@ -225,6 +322,17 @@
         },
         {
           "index": 1,
+          "label": "Extracciones atascadas En cola o extrayendo desde hace más d",
+          "columns": 5,
+          "renderedWidth": 683,
+          "containerWidth": 364,
+          "overflowPx": 319,
+          "containerKind": "scroller",
+          "scrollable": true,
+          "clipped": false
+        },
+        {
+          "index": 2,
           "label": "Cuándo / Evento / Gravedad / Calidad",
           "columns": 4,
           "renderedWidth": 692.9,
@@ -235,7 +343,7 @@
           "clipped": false
         },
         {
-          "index": 2,
+          "index": 3,
           "label": "",
           "columns": 2,
           "renderedWidth": 364,
@@ -246,7 +354,7 @@
           "clipped": false
         },
         {
-          "index": 3,
+          "index": 4,
           "label": "Recuento de filas por tabla",
           "columns": 2,
           "renderedWidth": 364,
@@ -257,7 +365,7 @@
           "clipped": false
         }
       ],
-      "tableCount": 4,
+      "tableCount": 5,
       "clippedCount": 0,
       "documentOverflowPx": 0,
       "screenshot": "shots/after-390-admin_health.png"
