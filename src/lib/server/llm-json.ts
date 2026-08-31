@@ -6,6 +6,8 @@ export function stripJsonFence(raw: string | null | undefined): string {
 	return lines.slice(1, end).join('\n').trim();
 }
 
+export class JsonShapeMismatchError extends Error {}
+
 export function parseJsonResponse<T>(
 	raw: string | null | undefined,
 	isValid: (value: unknown) => value is T,
@@ -24,7 +26,7 @@ export function parseJsonResponse<T>(
 		}
 	}
 	if (!isValid(parsed)) {
-		throw new Error(`${label} returned invalid JSON: response does not match the expected shape`);
+		throw new JsonShapeMismatchError(`${label} response parsed as JSON but does not match the expected shape`);
 	}
 	return parsed;
 }
