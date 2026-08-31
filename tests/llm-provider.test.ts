@@ -72,9 +72,9 @@ describe('createGeminiProvider().generate — response schema forwarding (issue 
 
 	type MockGenerateContentRequest = { config?: { responseMimeType?: string; responseSchema?: unknown } };
 
-	it('forwards responseSchema as responseMimeType + responseSchema in the request config', async () => {
+	async function mockGeminiSdk(responseText: string) {
 		const generateContentMock = vi.fn(async (_req: MockGenerateContentRequest) => ({
-			text: '{}',
+			text: responseText,
 			usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
 		}));
 		vi.doMock('@google/genai', () => ({
@@ -85,8 +85,12 @@ describe('createGeminiProvider().generate — response schema forwarding (issue 
 		}));
 		vi.stubEnv('GEMINI_API_KEY', 'test-key');
 		vi.resetModules();
-
 		const { createGeminiProvider } = await import('../src/lib/server/llm-provider');
+		return { generateContentMock, createGeminiProvider };
+	}
+
+	it('forwards responseSchema as responseMimeType + responseSchema in the request config', async () => {
+		const { generateContentMock, createGeminiProvider } = await mockGeminiSdk('{}');
 		const schema = { type: 'OBJECT', properties: { a: { type: 'STRING' } } } as never;
 		const provider = createGeminiProvider();
 		await provider.generate('hello', undefined, undefined, schema);
@@ -98,20 +102,7 @@ describe('createGeminiProvider().generate — response schema forwarding (issue 
 	});
 
 	it('omits responseMimeType/responseSchema entirely when no schema is passed', async () => {
-		const generateContentMock = vi.fn(async (_req: MockGenerateContentRequest) => ({
-			text: 'plain text',
-			usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1 },
-		}));
-		vi.doMock('@google/genai', () => ({
-			GoogleGenAI: vi.fn().mockImplementation(() => ({
-				models: { generateContent: generateContentMock },
-			})),
-			Type: { OBJECT: 'OBJECT', STRING: 'STRING', NUMBER: 'NUMBER' },
-		}));
-		vi.stubEnv('GEMINI_API_KEY', 'test-key');
-		vi.resetModules();
-
-		const { createGeminiProvider } = await import('../src/lib/server/llm-provider');
+		const { generateContentMock, createGeminiProvider } = await mockGeminiSdk('plain text');
 		const provider = createGeminiProvider();
 		await provider.generate('hello');
 
