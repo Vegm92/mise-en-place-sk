@@ -39,30 +39,10 @@ import {
 	testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
+import { fakeBatchItem } from './helpers/fake-batch-item';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
-import type { BatchItem } from '../src/lib/server/batch';
 
 let rid = '';
-
-function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
-	return {
-		id: 'item-1',
-		batchId: 'batch-1',
-		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData,
-		conversionNotes: null,
-		extractError: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
-}
 
 function baseForm(): FormData {
 	const fd = new FormData();
@@ -94,7 +74,7 @@ afterAll(async () => {
 
 describe.skipIf(!hasDbEnv)('runPostSaveEffects isolation', () => {
 	it('still logs extraction corrections and sets the onboarding flag when an earlier effect throws', async () => {
-		const item = fakeItem({
+		const item = fakeBatchItem(rid, {
 			supplier_name: '__post_save_isolation_sup__',
 			invoice_number: 'WRONG-1',
 			invoice_date: '2026-07-20',
