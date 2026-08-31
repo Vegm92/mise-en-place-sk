@@ -50,6 +50,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # Full history so `vitest --changed` can diff against the PR base branch below.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
 
@@ -89,7 +92,18 @@ jobs:
         run: pnpm db:migrate
 
       - name: Unit tests
-        run: pnpm test
+        run: |
+          BASE="origin/${{ github.event.pull_request.base.ref }}"
+          # On a PR, run only tests whose import graph touches the changed files —
+          # unless the diff itself touches something `--changed` can't reason
+          # about (deps, migrations, build/CI config), in which case fall back
+          # to the full suite. Pushes to main (no PR context) always run full.
+          if [ "${{ github.event_name }}" = "pull_request" ] && \
+             ! git diff --name-only "$BASE...HEAD" | grep -qE '^(package\.json|pnpm-lock\.yaml|drizzle/|vite\.config\.ts|vite\.worker\.config\.ts|tsconfig\.json|\.github/workflows/ci\.yml)'; then
+            pnpm exec vitest run --changed "$BASE"
+          else
+            pnpm test
+          fi
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
