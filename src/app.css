@@ -985,6 +985,9 @@
   .rev-rail-btn:disabled { cursor: default; }
   .rev-rail-btn:disabled:hover { background: transparent; }
   .rev-rail-btn.active:disabled:hover { background: var(--mep-acc-soft); }
+  div.rev-rail-btn { cursor: default; }
+  div.rev-rail-btn:hover { background: transparent; }
+  div.rev-rail-btn.active:hover { background: var(--mep-acc-soft); }
 
   /* Icon-only affordance used by every pane chrome control */
   .rev-icon-btn {
@@ -1310,16 +1313,34 @@
   .rev-strip-dot { width: 7px; height: 7px; border-radius: 4px; background: var(--mep-border-strong); }
   .rev-strip-dot.on { background: var(--mep-acc); }
   .rev-strip-dot.done { background: var(--mep-pos); }
+  .rev-strip-dot.draft { background: var(--mep-warn); }
   .rev-strip-list { border-top: 1px solid var(--mep-divider); padding: 4px 8px 8px; }
   .rev-strip-item {
+    font-family: inherit;
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
     padding: 9px 6px;
+    border: none;
     border-radius: 8px;
     min-height: 52px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
   }
+  .rev-strip-item:disabled { cursor: default; }
+  .rev-strip-item:disabled:hover { background: transparent; }
   .rev-strip-item.active { background: var(--mep-acc-soft); }
+  .rev-strip-item.active:disabled:hover { background: var(--mep-acc-soft); }
+  .rev-draft-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--mep-warn);
+    flex-shrink: 0;
+  }
   .rev-strip-mark { font-size: 10.5px; font-weight: 600; color: var(--mep-acc); flex-shrink: 0; }
   .rev-strip-actions { display: flex; gap: 8px; padding: 8px 6px 2px; }
   .rev-strip-action {

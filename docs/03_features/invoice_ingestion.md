@@ -171,6 +171,7 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 **`function pickActiveItem`**
 
 - The item a review UI should surface: first reviewable (`done`) open item, else first failed; null while everything is pending/in flight.
+- `requestedId` (issue #811) lets a caller override that default — the batch page passes the `item` query-string param so a reviewer can click any queued document instead of always landing on whatever the server would have picked. Only honored when the requested item is itself `done` or `failed` (the two states that actually render something); anything else — a foreign id, a still-pending item, one already confirmed — falls through to the same default as no request at all.
 
 **`function addItems`**
 
