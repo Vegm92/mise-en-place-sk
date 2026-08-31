@@ -38,7 +38,7 @@ import { MIN_CATEGORY_CONFIDENCE, VALID_CATEGORIES } from '../src/lib/constants'
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { makeSchemaCapturingGenerate } from './helpers/schema-capturing-generate';
+import { expectProviderSchemaForwarded } from './helpers/schema-capturing-generate';
 
 // ── Pure ──────────────────────────────────────────────────────────────────────
 
@@ -203,13 +203,10 @@ describe.skipIf(!hasDbEnv)('processCategorizeJob', () => {
 
 	it('passes a JSON response schema to provider.generate (issue #842)', async () => {
 		const id = await seedProduct('Tomate pera', null);
-		const generate = makeSchemaCapturingGenerate('{"category": null, "confidence": 0}');
-		await processCategorizeJob(
+		await expectProviderSchemaForwarded(
+			processCategorizeJob,
 			{ restaurantId: rid, productId: id, canonicalName: 'Tomate pera' },
-			{ provider: { model: 'test-model', generate }, recordUsage: vi.fn(async () => {}) },
+			'{"category": null, "confidence": 0}',
 		);
-		expect(generate).toHaveBeenCalledOnce();
-		const [, , , schema] = generate.mock.calls[0];
-		expect(schema).toMatchObject({ type: 'OBJECT' });
 	});
 });
