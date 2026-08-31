@@ -390,13 +390,18 @@ shapes, `low_confidence_ack` value.
 
 - Validates + persists a reviewed invoice. Does NOT transition the batch item on duplicates — callers decide. `onSaved` runs inside the same transaction so the confirm is atomic with the insert (issue #248).
 - Gate: block the save when any header field is low-confidence and unacknowledged.
-- Content-hash dedup: canonical hash over all user-confirmed fields; reject when a non-deleted invoice in the tenant already has it.
-- Idempotency claim inside the save transaction (issue #250): a replay finds the key and skips the save; the key is released so a corrected resubmit isn't skipped. `onConflictDoNothing` guards the concurrent-insert race.
+- Content-hash dedup: canonical hash over all user-confirmed fields; reject when a non-deleted invoice in the tenant already has it. Runs inside the save transaction (`findContentHashDuplicate(tx, ...)`), right after the idempotency claim and ahead of the supplier upsert — it used to be a plain `SELECT` before the transaction opened, which let two saves of the same document race each other past it; see ADR-008.
+- Idempotency claim inside the save transaction (issue #250): a replay finds the key and skips the save; the key is released so a corrected resubmit isn't skipped. `onConflictDoNothing` guards the concurrent-insert race — on an empty `RETURNING`, a follow-up content-hash lookup decides whether to report `contentDuplicate` or `numberDuplicate`, rather than assuming the latter.
 - Atomic supplier get-or-create (issue #238): concurrent saves converge on one row; supplier+number duplicate check runs too.
 - Pack structure → €/base for cross-size comparison (issue #299); link step runs post-commit and is explicitly non-critical (#248/#298/#299). Unit resolutions are pre-computed outside the transaction (`type LineInput`).
 - Supplier contact fields (CIF/NIF, address, email, phone) are only trusted when the reviewed supplier name still matches extraction — retargeting to a different supplier must not overwrite its contacts.
 - VERI\*FACTU QR tamper check (issue #392): the QR is decoded off the document and never re-derived from reviewed/submitted fields; runs unconditionally before the insert so every invoice with a decodable AEAT QR gets it.
 - Total-mismatch signal is the OR of two checks (issue #808): the submitted form recomputed through `detectTotalMismatch`, and `extracted_data.total_mismatch` — a flag `extraction-worker.ts` stamps at extraction time so a batch item nobody ever opens for review can still land as `incidencia`, even when the (never-touched) submission happens to reconcile with itself.
+
+**`function runPostSaveEffects`**
+
+- Runs after the save transaction commits; nothing here can undo the invoice. Each effect (product linking, the five alert rules, the incidencia flip, the `invoice_saved` event, correction logging, the onboarding flag) is wrapped independently through a small `isolated(label, fallback, fn)` helper, so one effect throwing degrades to its fallback and logs, rather than skipping every effect queued after it. See ADR-008 for why this replaced one shared `try/catch`.
+- `trackEvent` and `maybeSendQuotaWarning` are called bare (not through `isolated`) because both already self-isolate internally and are fire-and-forget by design.
 
 ### `src/lib/server/alerts.ts`
 
