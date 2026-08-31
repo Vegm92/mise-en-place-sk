@@ -652,33 +652,47 @@ async function runPostSaveEffects(params: {
 		),
 	);
 
-	const priceAlerts = await isolated('price shock alerts', [] as Alert[], () =>
-		runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey));
+	const alertEffects: Array<{ key: string; label: string; run: () => Promise<Alert[]> }> = [
+		{
+			key: 'priceShock', label: 'price shock alerts',
+			run: () => runPriceShock(invoiceId, supplierName, savedItems, rid, productByKey),
+		},
+		{
+			key: 'stockForecast', label: 'stock forecast',
+			run: async () => {
+				const { stockTracking } = await getTierFeatures(rid);
+				return stockTracking ? runStockForecast(savedItems, rid) : [];
+			},
+		},
+		{ key: 'budgetCheck', label: 'budget check', run: () => runBudgetCheck(invoiceId, supplierId, rid) },
+		{
+			key: 'categorizationNudge', label: 'categorization nudge',
+			run: () => runCategorizationNudge(invoiceId, supplierId, rid),
+		},
+		{
+			key: 'categorySuggestion', label: 'category suggestion',
+			run: () => runCategorySuggestion(supplierId, rid, proposedCategory),
+		},
+		{
+			key: 'duplicatePurchase', label: 'duplicate purchase detection',
+			run: async () => {
+				const duplicatePurchase = await runPossibleDuplicatePurchase({
+					invoiceId, supplierId, supplierName, restaurantId: rid,
+					documentType, invoiceDate, totalAmount, lineDescriptions,
+				});
+				if (duplicatePurchase.linkedInvoiceId) {
+					await linkRelatedDocuments(tdb, invoiceId, duplicatePurchase.linkedInvoiceId);
+				}
+				return duplicatePurchase.alerts;
+			},
+		},
+	];
 
-	const stockAlerts = await isolated('stock forecast', [] as Alert[], async () => {
-		const { stockTracking } = await getTierFeatures(rid);
-		return stockTracking ? runStockForecast(savedItems, rid) : [];
-	});
-
-	const budgetAlerts = await isolated('budget check', [] as Alert[], () =>
-		runBudgetCheck(invoiceId, supplierId, rid));
-
-	const categoryAlerts = await isolated('categorization nudge', [] as Alert[], () =>
-		runCategorizationNudge(invoiceId, supplierId, rid));
-
-	const categorySuggestions = await isolated('category suggestion', [] as Alert[], () =>
-		runCategorySuggestion(supplierId, rid, proposedCategory));
-
-	const duplicatePurchaseAlerts = await isolated('duplicate purchase detection', [] as Alert[], async () => {
-		const duplicatePurchase = await runPossibleDuplicatePurchase({
-			invoiceId, supplierId, supplierName, restaurantId: rid,
-			documentType, invoiceDate, totalAmount, lineDescriptions,
-		});
-		if (duplicatePurchase.linkedInvoiceId) {
-			await linkRelatedDocuments(tdb, invoiceId, duplicatePurchase.linkedInvoiceId);
-		}
-		return duplicatePurchase.alerts;
-	});
+	const alertResultsByKey: Record<string, Alert[]> = {};
+	for (const effect of alertEffects) {
+		alertResultsByKey[effect.key] = await isolated(effect.label, [] as Alert[], effect.run);
+	}
+	const duplicatePurchaseAlerts = alertResultsByKey.duplicatePurchase;
 
 	const verifactuVars = { fields: qrMismatches.map((m) => m.field).join(', ') };
 	const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
@@ -692,8 +706,7 @@ async function runPostSaveEffects(params: {
 	}] : [];
 
 	await isolated('alert save', undefined, () => saveAlerts(invoiceId, rid, [
-		...unitConversionAlerts, ...priceAlerts, ...stockAlerts, ...budgetAlerts,
-		...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
+		...unitConversionAlerts, ...Object.values(alertResultsByKey).flat(), ...verifactuAlerts,
 	]));
 
 	const hasDuplicateWarning = duplicatePurchaseAlerts.some((a) => a.notificationType === 'possible_duplicate_purchase');

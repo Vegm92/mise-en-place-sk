@@ -401,6 +401,7 @@ shapes, `low_confidence_ack` value.
 **`function runPostSaveEffects`**
 
 - Runs after the save transaction commits; nothing here can undo the invoice. Each effect (product linking, the five alert rules, the incidencia flip, the `invoice_saved` event, correction logging, the onboarding flag) is wrapped independently through a small `isolated(label, fallback, fn)` helper, so one effect throwing degrades to its fallback and logs, rather than skipping every effect queued after it. See ADR-008 for why this replaced one shared `try/catch`.
+- The six alert-producing effects (price shock, stock forecast, budget check, categorization nudge, category suggestion, duplicate-purchase detection) are declared as a small `{ key, label, run }` table and executed in a loop, one `isolated()` call site for all of them, rather than six near-identical statements — `duplicatePurchaseAlerts` (needed afterwards for the incidencia flip) is pulled back out of the results by key.
 - `trackEvent` and `maybeSendQuotaWarning` are called bare (not through `isolated`) because both already self-isolate internally and are fire-and-forget by design.
 
 ### `src/lib/server/alerts.ts`
