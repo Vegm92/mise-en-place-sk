@@ -71,7 +71,7 @@ describe('tenantDataMap (issue #390)', () => {
 		expect(exportableEntries().map((entry) => entry.exportKey)).toEqual([
 			'restaurants', 'suppliers', 'invoices', 'invoice_line_items', 'category_budgets',
 			'unit_conversions', 'chat_sessions', 'chat_messages', 'extraction_corrections',
-			'stock_levels', 'settings', 'recipes', 'recipe_items',
+			'extraction_results', 'stock_levels', 'settings', 'recipes', 'recipe_items',
 		]);
 	});
 

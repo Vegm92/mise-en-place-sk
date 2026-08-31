@@ -22,6 +22,7 @@ const EXPECTED_TABLES = [
 	'system_notifications',
 	'stock_levels',
 	'extraction_corrections',
+	'extraction_results',
 	'chat_sessions',
 	'chat_messages',
 	'llm_usage_log',

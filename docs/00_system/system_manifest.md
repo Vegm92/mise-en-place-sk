@@ -62,7 +62,7 @@ Full map with file locations: `docs/01_architecture/routing_and_navigation.md`.
 
 ## Database
 
-- Canonical schema: `src/lib/server/schema.ts`. 44 tables + 5 materialized
+- Canonical schema: `src/lib/server/schema.ts`. 45 tables + 5 materialized
   views.
 - Committed Drizzle migrations in `drizzle/` (latest `0058`) are canonical
   (ADR-003); `pnpm db:check-sync` fails CI on drift.
