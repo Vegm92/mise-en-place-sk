@@ -18,6 +18,7 @@ function mockPdfText(text: string) {
 }
 
 import { extractInvoice, extractWithProvider, classifyFile, sanitizeExtractedInvoice, INVOICE_RESPONSE_SCHEMA, type GenerateFn } from '../src/lib/server/extract';
+import { JsonShapeMismatchError } from '../src/lib/server/llm-json';
 import type { LLMUsage } from '../src/lib/server/llm-provider';
 
 const MOCK_INVOICE_DATA = {
@@ -211,18 +212,30 @@ describe('extractInvoice — response parsing', () => {
     expect(result.supplier_name).toBe('Proveedor Test S.L.');
   });
 
-  it('throws on invalid JSON from Gemini', async () => {
+  it('throws a plain (non-shape-mismatch) error on genuinely unparsable JSON from Gemini', async () => {
     mockPdfText('x'.repeat(100));
 
     const generate = makeGenerateFn('not valid json at all');
-    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+    let caught: unknown;
+    try {
+      await extractInvoice('/fake/invoice.pdf', generate);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toMatch(/invalid JSON/);
+    expect(caught).not.toBeInstanceOf(JsonShapeMismatchError);
   });
 });
 
 // Issue #842: constrained decoding (responseSchema) removes *format* errors,
 // but a reply that is syntactically valid JSON and still the wrong shape
 // (missing/mistyped required fields) must still be rejected by a runtime
-// check rather than cast straight to ExtractedInvoice.
+// check rather than cast straight to ExtractedInvoice. This is a distinct
+// failure — a genuine invoice the model decoded to the wrong shape, not a
+// junk upload — so it throws JsonShapeMismatchError rather than the plain
+// Error a parse failure throws, letting classifyExtractionError file the two
+// under different keys (extract.err.malformedResult vs extract.err.notInvoice).
 describe('extractInvoice — runtime shape validation (issue #842)', () => {
   const malformedReplies: Array<[string, unknown]> = [
     ['a JSON object that is not an invoice shape at all', { hello: 'world' }],
@@ -232,10 +245,10 @@ describe('extractInvoice — runtime shape validation (issue #842)', () => {
     ['a reply where line_items is not an array', { ...MOCK_INVOICE_DATA, line_items: 'none' }],
   ];
 
-  it.each(malformedReplies)('rejects %s', async (_label, payload) => {
+  it.each(malformedReplies)('rejects %s with JsonShapeMismatchError', async (_label, payload) => {
     mockPdfText('x'.repeat(100));
     const generate = makeGenerateFn(JSON.stringify(payload));
-    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toBeInstanceOf(JsonShapeMismatchError);
   });
 
   it('accepts a well-formed reply with all required fields correctly typed', async () => {
@@ -270,11 +283,11 @@ describe('response schema forwarding (issue #842)', () => {
 });
 
 describe('extractWithProvider — runtime shape validation (issue #842)', () => {
-  it('rejects a reply missing required fields', async () => {
+  it('rejects a reply missing required fields with JsonShapeMismatchError', async () => {
     mockPdfText('x'.repeat(100));
 
     const provider = makeMockProvider(JSON.stringify({ supplier_name: 'X' }));
-    await expect(extractWithProvider('/fake/invoice.pdf', provider)).rejects.toThrow(/invalid JSON/);
+    await expect(extractWithProvider('/fake/invoice.pdf', provider)).rejects.toBeInstanceOf(JsonShapeMismatchError);
   });
 
   it('rejects invalid JSON entirely', async () => {
