@@ -50,23 +50,37 @@ async function saveEntry(
 	return { filename, key };
 }
 
+function collectSaveResult(
+	result: { filename: string; key: string } | RejectedUpload,
+	saved: string[],
+	keys: string[],
+	errors: RejectedUpload[],
+	namePrefix?: string,
+): void {
+	if (!('reason' in result)) {
+		saved.push(result.filename);
+		keys.push(result.key);
+		return;
+	}
+	errors.push(namePrefix ? { ...result, name: `${namePrefix}/${result.name}` } : result);
+}
+
 async function saveZipEntries(
 	file: File,
 	namespace: string,
 	storage: ReturnType<typeof getStorage>,
-): Promise<{ saved: string[]; keys: string[]; errors: RejectedUpload[] }> {
-	const saved: string[] = [];
-	const keys: string[] = [];
-	const errors: RejectedUpload[] = [];
-
+	saved: string[],
+	keys: string[],
+	errors: RejectedUpload[],
+): Promise<void> {
 	if (file.size > MAX_ZIP_BYTES) {
 		errors.push({ name: file.name, reason: 'tooLarge' });
-		return { saved, keys, errors };
+		return;
 	}
 	const buf = Buffer.from(await file.arrayBuffer());
 	if (!MAGIC_BYTES['.zip']?.(buf)) {
 		errors.push({ name: file.name, reason: 'contentMismatch' });
-		return { saved, keys, errors };
+		return;
 	}
 
 	const extraction = await extractZip(buf);
@@ -75,15 +89,8 @@ async function saveZipEntries(
 	}
 	for (const entry of extraction.files) {
 		const result = await saveEntry(entry.name, entry.buffer.length, entry.buffer, namespace, storage);
-		if ('reason' in result) {
-			errors.push({ ...result, name: `${file.name}/${result.name}` });
-		} else {
-			saved.push(result.filename);
-			keys.push(result.key);
-		}
+		collectSaveResult(result, saved, keys, errors, file.name);
 	}
-
-	return { saved, keys, errors };
 }
 
 export async function saveUploadedFiles(
@@ -100,21 +107,13 @@ export async function saveUploadedFiles(
 		const ext = path.extname(file.name).toLowerCase();
 
 		if (ext === '.zip') {
-			const zipResult = await saveZipEntries(file, namespace, storage);
-			saved.push(...zipResult.saved);
-			keys.push(...zipResult.keys);
-			errors.push(...zipResult.errors);
+			await saveZipEntries(file, namespace, storage, saved, keys, errors);
 			continue;
 		}
 
 		const buf = Buffer.from(await file.arrayBuffer());
 		const result = await saveEntry(file.name, file.size, buf, namespace, storage);
-		if ('reason' in result) {
-			errors.push(result);
-		} else {
-			saved.push(result.filename);
-			keys.push(result.key);
-		}
+		collectSaveResult(result, saved, keys, errors);
 	}
 
 	return { saved, keys, errors };
