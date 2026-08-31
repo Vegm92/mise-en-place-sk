@@ -17,7 +17,7 @@ import {
 } from '../src/lib/attribution';
 
 function url(path: string): URL {
-	return new URL(`https://mise-en-place.app${path}`);
+	return new URL(`https://mise-place.com${path}`);
 }
 
 describe('parseAttribution — UTM parsing', () => {

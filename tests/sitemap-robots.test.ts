@@ -31,29 +31,29 @@ function fakeEvent(origin: string) {
 
 describe('sitemap.xml', () => {
 	it('lists every landing variant under /l/<slug>', async () => {
-		const res = await sitemapGet(fakeEvent('https://mise-en-place.app'));
+		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
 		const xml = await res.text();
 		const slugs = landingVariantSlugs();
 		expect(slugs.length).toBeGreaterThan(0);
 		for (const slug of slugs) {
-			expect(xml).toContain(`<loc>https://mise-en-place.app/l/${slug}</loc>`);
+			expect(xml).toContain(`<loc>https://mise-place.com/l/${slug}</loc>`);
 		}
 	});
 
 	it('lists /signup', async () => {
-		const res = await sitemapGet(fakeEvent('https://mise-en-place.app'));
+		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
 		const xml = await res.text();
-		expect(xml).toContain('<loc>https://mise-en-place.app/signup</loc>');
+		expect(xml).toContain('<loc>https://mise-place.com/signup</loc>');
 	});
 
 	it('still lists the base /waitlist page', async () => {
-		const res = await sitemapGet(fakeEvent('https://mise-en-place.app'));
+		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
 		const xml = await res.text();
-		expect(xml).toContain('<loc>https://mise-en-place.app/waitlist</loc>');
+		expect(xml).toContain('<loc>https://mise-place.com/waitlist</loc>');
 	});
 
 	it('produces exactly one <url> entry per registered route (no duplicates)', async () => {
-		const res = await sitemapGet(fakeEvent('https://mise-en-place.app'));
+		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
 		const xml = await res.text();
 		const urlCount = (xml.match(/<url>/g) ?? []).length;
 		const locCount = new Set(xml.match(/<loc>[^<]+<\/loc>/g)).size;
@@ -63,20 +63,20 @@ describe('sitemap.xml', () => {
 
 describe('robots.txt', () => {
 	it('explicitly allows /l/', async () => {
-		const res = await robotsGet({ url: new URL('https://mise-en-place.app/robots.txt') } as never);
+		const res = await robotsGet({ url: new URL('https://mise-place.com/robots.txt') } as never);
 		const body = await res.text();
 		expect(body).toContain('Allow: /l/');
 	});
 
 	it('still disallows the authenticated app surface', async () => {
-		const res = await robotsGet({ url: new URL('https://mise-en-place.app/robots.txt') } as never);
+		const res = await robotsGet({ url: new URL('https://mise-place.com/robots.txt') } as never);
 		const body = await res.text();
 		expect(body).toContain('Disallow: /dashboard');
 		expect(body).toContain('Disallow: /invoices');
 	});
 
 	it('disallows /s/ (issue #329 digest/alert share links) while keeping Allow: /l/', async () => {
-		const res = await robotsGet({ url: new URL('https://mise-en-place.app/robots.txt') } as never);
+		const res = await robotsGet({ url: new URL('https://mise-place.com/robots.txt') } as never);
 		const body = await res.text();
 		expect(body).toContain('Disallow: /s/');
 		expect(body).toContain('Allow: /l/');
@@ -86,13 +86,13 @@ describe('robots.txt', () => {
 
 describe('sitemap.xml lastmod is real, not request time', () => {
 	async function lastmods(): Promise<string[]> {
-		const res = await sitemapGet(fakeEvent('https://mise-en-place.app'));
+		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
 		const xml = await res.text();
 		return [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]);
 	}
 
 	it('emits one lastmod per url entry', async () => {
-		const res = await sitemapGet(fakeEvent('https://mise-en-place.app'));
+		const res = await sitemapGet(fakeEvent('https://mise-place.com'));
 		const xml = await res.text();
 		const urlCount = (xml.match(/<url>/g) ?? []).length;
 		expect((await lastmods()).length).toBe(urlCount);
@@ -113,7 +113,7 @@ describe('sitemap.xml lastmod is real, not request time', () => {
 
 describe('robots.txt keeps a single user-agent group', () => {
 	async function body(): Promise<string> {
-		const res = await robotsGet({ url: new URL('https://mise-en-place.app/robots.txt') } as never);
+		const res = await robotsGet({ url: new URL('https://mise-place.com/robots.txt') } as never);
 		return res.text();
 	}
 

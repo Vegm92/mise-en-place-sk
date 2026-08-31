@@ -16,7 +16,7 @@
 
       h1:           '1. Responsable del tratamiento',
       p1a:          'Mise en Place SL',
-      p1b:          ' (en adelante, "nosotros", "la Empresa") es el responsable del tratamiento de los datos personales recogidos a través de la plataforma Mise en Place (mise-en-place.app).',
+      p1b:          ' (en adelante, "nosotros", "la Empresa") es el responsable del tratamiento de los datos personales recogidos a través de la plataforma Mise en Place (mise-place.com).',
 
       h2:           '2. Datos que recopilamos',
       d2a1:         'Datos de cuenta:',
@@ -100,7 +100,7 @@
 
       h1:           '1. Data controller',
       p1a:          'Mise en Place SL',
-      p1b:          ' (hereinafter "we", "the Company") is the controller of the personal data collected through the Mise en Place platform (mise-en-place.app).',
+      p1b:          ' (hereinafter "we", "the Company") is the controller of the personal data collected through the Mise en Place platform (mise-place.com).',
 
       h2:           '2. Data we collect',
       d2a1:         'Account data:',
@@ -263,7 +263,7 @@
     </ul>
 
     <h2>{c.h7}</h2>
-    <p>{c.p7a}<a href="mailto:privacy@mise-en-place.app">privacy@mise-en-place.app</a>{c.p7b}</p>
+    <p>{c.p7a}<a href="mailto:privacy@mise-place.com">privacy@mise-place.com</a>{c.p7b}</p>
     <ul>
       <li><strong>{c.d7a1}</strong>{c.d7a2}<em>{c.d7aEm}</em>.</li>
       <li><strong>{c.d7b1}</strong>{c.d7b2}</li>
@@ -282,7 +282,7 @@
 
     <h2>{c.h10}</h2>
     <p>
-      {c.p10}<a href="mailto:privacy@mise-en-place.app">privacy@mise-en-place.app</a>
+      {c.p10}<a href="mailto:privacy@mise-place.com">privacy@mise-place.com</a>
     </p>
 
     <hr />
