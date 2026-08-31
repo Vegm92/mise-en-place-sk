@@ -36,9 +36,12 @@ feature booleans per tier:
 | `pro` | 300 | 1 | ✓ | ✓ | ✓ | — | ✓ |
 | `business` | unlimited (`null`) | 5 | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-`null` means unlimited, everywhere — in `TIERS`, in `getMonthlyQuota`, and in
-`claimMonthlyExtraction`, which skips the claim entirely on `null`. There is no
-sentinel large number in the live path. (`resolveMonthlyQuota` still maps a
+`null` means unlimited, everywhere — in `TIERS` and in `getMonthlyQuota`.
+`claimMonthlyExtraction` used to skip the claim entirely on `null`;
+[ADR-036](ADR-036-one-metered-unit.md) changed that to *count but never
+refuse*, because the counter is now what the tenant is shown and an unlimited
+tenant was otherwise displayed a permanent zero. There is no sentinel large
+number in the live path. (`resolveMonthlyQuota` still maps a
 legacy stored `99999` to `null` for tenants provisioned before that convention.)
 
 Price ids come from the environment, so tiers whose id is unset are simply not
@@ -103,7 +106,10 @@ customer is expensive to unpick by hand.
   webhook delivery is delayed leaves the tenant briefly on their old tier. The
   alternative — synchronous Stripe reads on the hot path — was judged worse.
 - **A failed extraction refunds its quota slot** (`releaseMonthlyExtraction`), so
-  provider outages do not consume a tenant's month.
+  provider outages do not consume a tenant's month. Since
+  [ADR-036](ADR-036-one-metered-unit.md) a cancelled item that never reached
+  the extractor is refunded too, the refund is idempotent, and every refund is
+  recorded in `usage_events`.
 - **Per-tenant overrides live in `settings.plan_quota`** and take precedence over
   the tier default, with `'unlimited'` as an explicit value. Support can grant an
   exception without a schema change or a new tier.
@@ -123,3 +129,4 @@ customer is expensive to unpick by hand.
 
 - [ADR-007](../extraction/ADR-007-llm-provider-seam.md) — how the quota claim is enforced
 - [ADR-011](../insights/ADR-011-scheduled-jobs-in-the-worker.md) — trial-expiry notices
+- [ADR-036](ADR-036-one-metered-unit.md) — what the quota counts, and the ledger behind it

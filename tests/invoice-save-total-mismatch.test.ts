@@ -32,7 +32,7 @@ let rid = '';
 function mismatchFakeItem(extractedData: Record<string, unknown> | null): BatchItem {
 	return {
 		reviewStatus: null, jobCode: null, sourceRef: null, source: 'web',
-		queuedAt: null, extractError: null, conversionNotes: null, extractedData,
+		queuedAt: null, extractError: null, extractErrorVars: null, conversionNotes: null, extractedData,
 		status: 'done', displayName: 'mismatch.pdf', fileKey: 'mismatch.pdf',
 		position: 0, restaurantId: rid, batchId: 'mismatch-batch-1', id: 'mismatch-item-1',
 	};

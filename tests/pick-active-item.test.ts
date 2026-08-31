@@ -9,7 +9,7 @@ function item(id: string, position: number, status: BatchItemStatus): BatchItem 
 		id, position, status,
 		batchId: 'b', restaurantId: 'r',
 		fileKey: `b/${id}.pdf`, displayName: `${id}.pdf`,
-		extractedData: null, conversionNotes: null, extractError: null,
+		extractedData: null, conversionNotes: null, extractError: null, extractErrorVars: null,
 		source: 'web', sourceRef: null, jobCode: null, reviewStatus: null, queuedAt: null,
 	};
 }

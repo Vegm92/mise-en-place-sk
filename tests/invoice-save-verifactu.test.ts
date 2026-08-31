@@ -40,6 +40,7 @@ function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
 		extractedData,
 		conversionNotes: null,
 		extractError: null,
+		extractErrorVars: null,
 		queuedAt: null,
 		source: 'web',
 		sourceRef: null,

@@ -77,6 +77,14 @@ beforeAll(async () => {
 			(${rid}, 'INV-6', 'incidencia',  now(),                        now())
 	`;
 
+	// The sidebar counter reads documents processed, not invoices saved
+	// (ADR-036), so the meter is seeded on its own rather than inferred from the
+	// invoices above — which is the whole point: the two numbers are allowed to
+	// differ, and only this one gates the plan.
+	await testSql`
+		INSERT INTO monthly_usage (restaurant_id, month, used)
+		VALUES (${rid}, to_char(now(), 'YYYY-MM'), 4)`;
+
 	await testSql`
 		INSERT INTO system_notifications (restaurant_id, notification_type, message, payload, status, created_at) VALUES
 			(${rid}, 'price_shock',     'Price shock on tomatoes', ${JSON.stringify({})},                 'pending',   now()),
@@ -104,9 +112,21 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		expect(data.reminderBadge).toBe(2);
 	});
 
-	it('reports quota usage as non-deleted invoices created this month', async () => {
+	it('reports quota usage as documents processed this month, not invoices saved', async () => {
 		const data = await runLoad();
 		expect(data.quotaUsed).toBe(4);
+	});
+
+	it('does not move the counter when an invoice is saved without an extraction', async () => {
+		await testSql`
+			INSERT INTO invoices (restaurant_id, invoice_number, review_state, created_at, deleted_at)
+			VALUES (${rid}, 'INV-MANUAL', 'revisado', now(), NULL)`;
+		try {
+			const data = await runLoad();
+			expect(data.quotaUsed).toBe(4);
+		} finally {
+			await testSql`DELETE FROM invoices WHERE restaurant_id = ${rid} AND invoice_number = 'INV-MANUAL'`;
+		}
 	});
 
 	it('returns only pending notifications with explicit columns, no leaked fields', async () => {
@@ -167,12 +187,15 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		expect(mine?.locked).toBe(false);
 	});
 
-	it("never counts another tenant's invoices or notifications", async () => {
+	it("never counts another tenant's invoices, notifications or usage", async () => {
 		const other = await createTestRestaurant('layout-load-other');
 		try {
 			await testSql`
 				INSERT INTO invoices (restaurant_id, invoice_number, review_state, created_at, deleted_at)
 				VALUES (${other.id}, 'OTHER-1', 'incidencia', now(), NULL)`;
+			await testSql`
+				INSERT INTO monthly_usage (restaurant_id, month, used)
+				VALUES (${other.id}, to_char(now(), 'YYYY-MM'), 99)`;
 			await testSql`
 				INSERT INTO system_notifications (restaurant_id, notification_type, message, payload, status, created_at)
 				VALUES (${other.id}, 'budget_overage', 'Other budget exceeded', ${JSON.stringify({ level: 'exceeded' })}, 'pending', now())`;

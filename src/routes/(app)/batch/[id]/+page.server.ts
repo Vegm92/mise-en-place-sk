@@ -7,7 +7,8 @@ import { localFilePath, saveUploadedFiles, deleteUploadFile } from '$lib/server/
 import {
 	getItem, getBatchItems, addItems, removeItem, deleteBatch, isBatchSettled,
 	markQueued, markDiscarded, pickActiveItem, pickStalledItem, requeueStalled,
-	failStalledItems, stallLevel,
+	failStalledItems, stallLevel, isRefundableOnCancel,
+	type BatchItem,
 } from '$lib/server/batch';
 import { enqueueExtraction } from '$lib/server/queue';
 import { enqueueBatchExtraction } from '$lib/server/extract-batch';
@@ -21,7 +22,13 @@ import { invoices, suppliers } from '$lib/server/schema';
 import { eq, and, isNull, isNotNull, gte, lte, sql } from 'drizzle-orm';
 import { findSimilarInvoice, isoDateOffset, SIMILAR_INVOICE_DATE_WINDOW_DAYS } from '$lib/server/dedup';
 import { previewLineProducts, listProductOptions } from '$lib/server/products';
+import { releaseMonthlyExtraction } from '$lib/server/llm-quota';
 import type { ProductMatch, ProductOption } from '$lib/server/products';
+
+async function refundIfNeverExtracted(item: BatchItem, reason: string): Promise<void> {
+	if (!isRefundableOnCancel(item.status)) return;
+	await releaseMonthlyExtraction(item.restaurantId, item.id, reason);
+}
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -165,6 +172,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 				type: fileType(path.extname(i.displayName)),
 				status: i.status,
 				error: i.extractError ?? null,
+				errorVars: i.extractErrorVars ?? null,
 			}));
 
 		const active = pickActiveItem(items, url.searchParams.get('item'));
@@ -218,7 +226,12 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 			queue,
 			review,
 			failedItem: active && active.status === 'failed'
-				? { itemId: active.id, name: active.displayName, error: active.extractError ?? 'extract.err.generic' }
+				? {
+					itemId: active.id,
+					name: active.displayName,
+					error: active.extractError ?? 'extract.err.generic',
+					errorVars: active.extractErrorVars ?? null,
+				}
 				: null,
 			anyInFlight,
 			stalled: stalledItem
@@ -308,6 +321,7 @@ export const actions: Actions = {
 			trackEvent('extraction_discarded', item.restaurantId, { files: [item.displayName] });
 			await getStorage().delete(item.fileKey);
 			await markDiscarded(item.id);
+			await refundIfNeverExtracted(item, 'discarded');
 			if (await isBatchSettled(params.id)) await settledRedirect(params.id);
 		}
 		redirect(303, `/batch/${params.id}`);
@@ -319,6 +333,7 @@ export const actions: Actions = {
 		trackEvent('extraction_discarded', rid, { files: items.map(i => i.displayName) });
 		for (const i of items) {
 			if (i.status !== 'confirmed') await deleteUploadFile(i.fileKey);
+			await refundIfNeverExtracted(i, 'discarded');
 		}
 		await deleteBatch(params.id, rid);
 		redirect(303, '/');
@@ -353,7 +368,10 @@ export const actions: Actions = {
 		const item = items.find(i => i.id === itemId);
 		if (item) {
 			const removed = await removeItem(item.id, rid);
-			if (removed) await deleteUploadFile(removed.fileKey);
+			if (removed) {
+				await deleteUploadFile(removed.fileKey);
+				await refundIfNeverExtracted(removed, 'removed');
+			}
 		}
 		const left = (await getBatchItems(params.id))
 			.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
