@@ -102,11 +102,6 @@ export function lineRateFractions(lines: TaxedLine[]): number[] {
 	return [...seen].sort((a, b) => b - a);
 }
 
-/**
- * Reconciles line totals (+ tax bands) against the invoice's stated total,
- * within a 1-cent rounding tolerance. Works on plain money inputs so it can
- * run against either raw extraction output or a reviewer-submitted form.
- */
 export function detectTotalMismatch(
 	lineTotals: Iterable<MoneyInput>,
 	taxBands: TaxBand[] | null,
