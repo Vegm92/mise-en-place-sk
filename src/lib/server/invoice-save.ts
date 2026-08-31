@@ -17,7 +17,7 @@ import type { ExtractedInvoice } from './extract';
 import type { BatchDb, BatchItem } from './batch';
 import { parseQrUrl, detectVerifactuMismatch } from './qr';
 import { toMoneyString, moneyToNumber, parseAmount } from './money';
-import { bandsFromInputs, sumTaxCents, taxableBaseMoney, type TaxBand } from '$lib/tax';
+import { bandsFromInputs, taxableBaseMoney, detectTotalMismatch as detectAmountMismatch, type TaxBand } from '$lib/tax';
 import { renderTemplate } from '$lib/i18n-messages';
 import { isBlankOrIsoDate, toIsoDate } from './dates';
 import type { ReviewState } from '$lib/status';
@@ -466,12 +466,7 @@ export function detectTotalMismatch(
 	taxBands: TaxBand[] | null,
 	totalAmount: string | null,
 ): boolean {
-	if (totalAmount == null) return false;
-	const totalCents = Math.round(moneyToNumber(totalAmount) * 100);
-	if (totalCents <= 0) return false;
-	const lineCents = Math.round(lineInputs.reduce((s, li) => s + (li.totalPriceVal ?? 0), 0) * 100);
-	const calcCents = lineCents + (taxBands ? sumTaxCents(taxBands) : 0);
-	return Math.abs(calcCents - totalCents) > 1;
+	return detectAmountMismatch(lineInputs.map((li) => li.totalPriceVal), taxBands, totalAmount);
 }
 
 export function resolveReviewState(signals: {
@@ -702,7 +697,7 @@ export async function saveReviewedInvoice(
 
 	const reviewState = resolveReviewState({
 		lowConfidenceAcked: formData.get('low_confidence_ack') === 'true',
-		totalMismatch: detectTotalMismatch(lineInputs, taxBands, totalAmount),
+		totalMismatch: detectTotalMismatch(lineInputs, taxBands, totalAmount) || extractedData?.total_mismatch === true,
 		conversionNeeded: enrichedLines.some((l) => l.requiresUnitConversion),
 		qrMismatch: qrMismatches.length > 0,
 	});

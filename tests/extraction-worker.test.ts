@@ -488,3 +488,43 @@ describe('runExtractionJobForBoss — the pg-boss redelivery pg-boss never got (
 		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledTimes(1);
 	});
 });
+
+/**
+ * Issue #808: the line-sum-vs-total reconciliation used to run only inside
+ * `saveReviewedInvoice`, gated behind a human opening the review screen and
+ * saving the form. A clean PDF whose lines Gemini misread could sit as
+ * `status: 'done'` with nothing marking it as an incidence. The worker now
+ * runs the same reconciliation on the raw extraction the moment it lands,
+ * before `markDone` — independent of whether anyone ever opens the review
+ * form.
+ */
+function invoiceFor(totalAmount: number | null, lineTotals: number[], taxBreakdown?: unknown[]) {
+	return {
+		supplier_name: 'Acme',
+		total_amount: totalAmount,
+		...(taxBreakdown ? { tax_breakdown: taxBreakdown } : {}),
+		line_items: lineTotals.map((total_price, i) => ({ description: String.fromCharCode(97 + i), total_price })),
+	};
+}
+
+const TOTAL_MISMATCH_CASES = [
+	{ label: 'the extracted lines do not sum to the extracted total', invoice: invoiceFor(100, [40, 30]), expected: true },
+	{ label: 'the extracted lines reconcile with the extracted total', invoice: invoiceFor(100, [60, 40]), expected: false },
+	{ label: 'a printed tax breakdown accounts for the gap', invoice: invoiceFor(121, [100], [{ rate: 0.21, base: 100, tax_amount: 21 }]), expected: false },
+	{ label: 'there is no usable extracted total to reconcile against', invoice: invoiceFor(null, [40]), expected: false },
+] as const;
+
+describe('processExtractionJob — total mismatch is detected at extraction time (#808)', () => {
+	it.each(TOTAL_MISMATCH_CASES)('total_mismatch is $expected when $label', async ({ invoice, expected }) => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({ invoice, usage: {} });
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({ total_mismatch: expected }),
+			expect.anything(),
+		);
+	});
+});

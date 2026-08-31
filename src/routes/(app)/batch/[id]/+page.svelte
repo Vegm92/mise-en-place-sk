@@ -288,6 +288,7 @@
   const newIdempotencyKeyFor = (_scope: unknown): string => crypto.randomUUID();
   const idempotencyKey = $derived(newIdempotencyKeyFor(review?.itemId));
   const fieldConf = $derived((review?.fieldConfidences ?? {}) as Record<string, number>);
+  const totalMismatch = $derived(review?.data?.total_mismatch === true);
 
   const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'] as const;
   const flagged = (field: string) => fieldConf[field] != null && fieldConf[field] < 0.85;
@@ -917,6 +918,12 @@
                   <a href="/invoice/{review.similarInvoiceId}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline;flex-shrink:0;">
                     {$t('batch.viewExisting')}
                   </a>
+                </div>
+              {/if}
+              {#if totalMismatch}
+                <div class="rev-note rev-note-neg">
+                  <AlertTriangle size={12} style="flex-shrink:0;" />
+                  <span style="flex:1;">{$t('batch.totalMismatchWarning')}</span>
                 </div>
               {/if}
               {#if uncertainCount > 0}
