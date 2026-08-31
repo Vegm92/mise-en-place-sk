@@ -25,7 +25,7 @@
         aria-pressed={p === active}
         aria-label={$t(`dateRangePicker.${p}`)}
         onclick={() => pick(p)}
-        style="font-size:12px;font-weight:600;padding:4px 8px;border-radius:4px;border:none;background:{p === active ? 'var(--mep-acc)' : 'transparent'};color:{p === active ? 'var(--mep-acc-fg)' : 'var(--mep-fg-3)'};cursor:pointer;white-space:nowrap;"
+        style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:4px;border:none;background:{p === active ? 'var(--mep-acc)' : 'transparent'};color:{p === active ? 'var(--mep-acc-fg)' : 'var(--mep-fg-3)'};cursor:pointer;white-space:nowrap;"
       >{p}</button>
     {/each}
   </div>
@@ -55,7 +55,7 @@
       <button
         type="button"
         onclick={() => pick(p)}
-        style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;font-size:14px;font-weight:{p === active ? '600' : '400'};padding:11px 14px;border-radius:8px;border:none;background:{p === active ? 'var(--mep-acc-soft)' : 'transparent'};color:{p === active ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};cursor:pointer;"
+        style="display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;font-size:13px;font-weight:{p === active ? '600' : '400'};padding:11px 14px;border-radius:var(--mep-r-input);border:none;background:{p === active ? 'var(--mep-acc-soft)' : 'transparent'};color:{p === active ? 'var(--mep-fg)' : 'var(--mep-fg-2)'};cursor:pointer;"
       >
         <span>{$t(`dateRangePicker.${p}`)}</span>
         {#if p === active}
