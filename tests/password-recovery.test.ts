@@ -11,6 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { isRedirect } from '@sveltejs/kit';
+import { fileFormData, formDataEvent, maliciousFile } from './helpers/form-data';
 
 const {
 	rateLimitMock, logAuthEventMock, createVerificationTokenMock, consumeVerificationTokenMock,
@@ -59,17 +60,20 @@ import { actions as forgotActions } from '../src/routes/forgot-password/+page.se
 import { actions as resetActions, load as resetLoad } from '../src/routes/reset-password/+page.server';
 
 const ORIGIN = 'https://app.example.test';
+const EVENT_BASE = () => ({
+	url: new URL(ORIGIN),
+	getClientAddress: () => '203.0.113.7',
+	cookies: { delete: (name: string) => deletedCookies.push(name) },
+});
 
 function formEvent(fields: Record<string, string>, extra: Record<string, unknown> = {}) {
 	const data = new FormData();
 	for (const [k, v] of Object.entries(fields)) data.append(k, v);
-	return {
-		request: { formData: async () => data },
-		url: new URL(ORIGIN),
-		getClientAddress: () => '203.0.113.7',
-		cookies: { delete: (name: string) => deletedCookies.push(name) },
-		...extra,
-	} as never;
+	return formDataEvent(data, { ...EVENT_BASE(), ...extra }) as never;
+}
+
+function formEventWithFile(fields: Record<string, string | File>) {
+	return formDataEvent(fileFormData(fields), EVENT_BASE()) as never;
 }
 
 beforeEach(() => {
@@ -134,6 +138,14 @@ describe('/reset-password', () => {
 	it('refuses without email/token', async () => {
 		const result = await resetActions.default(formEvent({ password: 'longenough123', confirm: 'longenough123' }));
 		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
+	});
+
+	it('rejects a file part posted under the password field with a clean 400 instead of crashing (issue #844)', async () => {
+		const result = await resetActions.default(
+			formEventWithFile({ email: 'chef@example.com', token: 'abc', password: maliciousFile('not a password'), confirm: 'longenough123' }),
+		);
+		expect(result).toMatchObject({ status: 400, data: { error: 'expired' } });
+		expect(updatedRows).toHaveLength(0);
 	});
 
 	it('rejects a password shorter than 8 characters', async () => {

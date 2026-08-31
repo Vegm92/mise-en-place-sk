@@ -14,6 +14,7 @@
  * Auth.js sign-in are mocked.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { fileFormData, maliciousFile } from './helpers/form-data';
 
 const {
 	rateLimitMock, logAuthEventMock, recordConsentMock,
@@ -83,6 +84,15 @@ function signupEvent(fields: Record<string, string>, attrCookie?: string) {
 			get: (name: string) => (name === 'mep_attr' ? attrCookie : undefined),
 			set: vi.fn(),
 		},
+	} as never;
+}
+
+function signupEventWithFile(fields: Record<string, string | File>) {
+	return {
+		request: { formData: async () => fileFormData(fields) },
+		getClientAddress: () => '203.0.113.7',
+		url: new URL('https://app.example.test/signup'),
+		cookies: { get: () => undefined, set: vi.fn() },
 	} as never;
 }
 
@@ -175,14 +185,26 @@ describe('signUp', () => {
 		expect(sendEmailMock).toHaveBeenCalledOnce();
 	});
 
+	function expectNothingWritten() {
+		expect(insertedRows).toHaveLength(0);
+		expect(updatedRows).toHaveLength(0);
+		expect(sendEmailMock).not.toHaveBeenCalled();
+	}
+
 	it('still validates password policy and terms before touching the database', async () => {
 		expect(await actions.signUp(signupEvent({ ...GOOD_SIGNUP, password: 'short' })))
 			.toMatchObject({ status: 422, data: { error: 'password_too_short' } });
 		expect(await actions.signUp(signupEvent({ ...GOOD_SIGNUP, terms: '' })))
 			.toMatchObject({ status: 422, data: { error: 'terms_required' } });
-		expect(insertedRows).toHaveLength(0);
-		expect(updatedRows).toHaveLength(0);
-		expect(sendEmailMock).not.toHaveBeenCalled();
+		expectNothingWritten();
+	});
+
+	it('rejects a file part posted under the email field with a 422 instead of crashing (issue #844)', async () => {
+		const result = await actions.signUp(
+			signupEventWithFile({ email: maliciousFile('not an email'), password: GOOD_SIGNUP.password, terms: GOOD_SIGNUP.terms }),
+		);
+		expect(result).toMatchObject({ status: 422, data: { error: 'invalid' } });
+		expectNothingWritten();
 	});
 });
 
