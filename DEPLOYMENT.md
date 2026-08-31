@@ -133,7 +133,7 @@ Set the OAuth client's authorized redirect URI to `{your-origin}/auth/callback/g
 | Variable | Required | Notes |
 |---|---|---|
 | `GEMINI_API_KEY` | Yes | From [Google AI Studio](https://aistudio.google.com/app/apikey). Boot logs a warning if missing; extraction fails without it. |
-| `GEMINI_MODEL` | Optional | Defaults to `gemini-2.5-flash`. Update when Google deprecates the model. |
+| `GEMINI_MODEL` | Optional | Defaults to `gemini-3.1-flash-lite`. Update when Google deprecates the model. |
 
 ### File storage
 
