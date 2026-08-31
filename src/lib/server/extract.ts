@@ -383,6 +383,15 @@ export function classifyFile(filePath: string): Promise<ClassifiedFile> | Classi
 	throw new Error(`Unsupported file type: .${ext}`);
 }
 
+function imageMimeType(filePath: string): string {
+	const ext = path.extname(filePath).toLowerCase().replace('.', '');
+	return IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
+}
+
+function inlineFilePart(filePath: string, mimeType: string): object[] {
+	return [{ inlineData: { data: readFileSync(filePath).toString('base64'), mimeType } }];
+}
+
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
 	const MAX_RETRIES = 3;
 	let lastError: unknown;
@@ -411,18 +420,9 @@ async function callGemini(
 
 	if (classified.type === 'text_pdf') {
 		rawText = await generateWithRetry(`INVOICE TEXT:\n${classified.text}`, signal, EXTRACTION_PROMPT, INVOICE_RESPONSE_SCHEMA);
-	} else if (classified.type === 'scanned_pdf') {
-		const pdfData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
-		], signal, EXTRACTION_PROMPT, INVOICE_RESPONSE_SCHEMA);
 	} else {
-		const ext = path.extname(filePath).toLowerCase().replace('.', '');
-		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
-		const imageData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: imageData, mimeType } },
-		], signal, EXTRACTION_PROMPT, INVOICE_RESPONSE_SCHEMA);
+		const mimeType = classified.type === 'scanned_pdf' ? 'application/pdf' : imageMimeType(filePath);
+		rawText = await generateWithRetry(inlineFilePart(filePath, mimeType), signal, EXTRACTION_PROMPT, INVOICE_RESPONSE_SCHEMA);
 	}
 
 	return parseJsonResponse(rawText, isExtractedInvoice, 'Gemini');
@@ -479,18 +479,9 @@ async function callProvider(
 	let rawText: string;
 	if (classified.type === 'text_pdf') {
 		rawText = await generateWithRetry(`INVOICE TEXT:\n${classified.text}`);
-	} else if (classified.type === 'scanned_pdf') {
-		const pdfData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: pdfData, mimeType: 'application/pdf' } },
-		]);
 	} else {
-		const ext = path.extname(filePath).toLowerCase().replace('.', '');
-		const mimeType = IMAGE_MEDIA_TYPES[ext] ?? 'image/jpeg';
-		const imageData = readFileSync(filePath).toString('base64');
-		rawText = await generateWithRetry([
-			{ inlineData: { data: imageData, mimeType } },
-		]);
+		const mimeType = classified.type === 'scanned_pdf' ? 'application/pdf' : imageMimeType(filePath);
+		rawText = await generateWithRetry(inlineFilePart(filePath, mimeType));
 	}
 
 	return { invoice: parseJsonResponse(rawText, isExtractedInvoice, 'LLM'), usage: lastUsage };
