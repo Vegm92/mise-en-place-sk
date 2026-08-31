@@ -1,5 +1,5 @@
 import type { PgBoss } from 'pg-boss';
-import { and, eq, inArray, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, sql, type SQL } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant, runAsSystem } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
@@ -206,6 +206,20 @@ function evaluatePriceShock(
 	};
 }
 
+async function settingNumber(
+	tdb: ReturnType<typeof forTenant>,
+	key: string,
+	fallback: number,
+	parse: (raw: string) => number,
+): Promise<number> {
+	const rows = await db
+		.select({ value: settings.value })
+		.from(settings)
+		.where(tdb.scope(settings.restaurantId, eq(settings.key, key)))
+		.limit(1);
+	return rows[0] ? parse(rows[0].value) : fallback;
+}
+
 export async function runPriceShock(
 	invoiceId: number,
 	supplierName: string,
@@ -215,12 +229,7 @@ export async function runPriceShock(
 ): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 
-	const thresholdRows = await db
-		.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'price_alert_threshold')))
-		.limit(1);
-	const threshold = thresholdRows[0] ? parseFloat(thresholdRows[0].value) : 0.15;
+	const threshold = await settingNumber(tdb, 'price_alert_threshold', 0.15, parseFloat);
 
 	const itemKeys = [...new Set(lineItems.map(i => normalizeProductKey(i.description ?? '')).filter(Boolean))];
 	if (itemKeys.length === 0) return [];
@@ -541,12 +550,7 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 	);
 	if (budgets.size === 0) return [];
 
-	const thresholdRows = await db
-		.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'budget_warning_threshold')))
-		.limit(1);
-	const thresholdPct = thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80;
+	const thresholdPct = await settingNumber(tdb, 'budget_warning_threshold', 80, (v) => parseInt(v, 10));
 	const thresholdFrac = thresholdPct / 100;
 
 	const spendByCategory = await monthlyCategorySpend(tdb, [...budgets.keys()]);
@@ -747,6 +751,24 @@ async function resolveNotifications(tdb: ReturnType<typeof forTenant>, ids: numb
 		.where(tdb.scope(systemNotifications.restaurantId, inArray(systemNotifications.id, ids)));
 }
 
+function pendingAlertCondition(notificationType: string | string[], extra?: SQL) {
+	const typeCond = Array.isArray(notificationType)
+		? inArray(systemNotifications.notificationType, notificationType)
+		: eq(systemNotifications.notificationType, notificationType);
+	const base = and(typeCond, eq(systemNotifications.status, 'pending'))!;
+	return extra ? and(base, extra)! : base;
+}
+
+function selectPending<T extends Parameters<typeof db.select>[0]>(
+	tdb: ReturnType<typeof forTenant>,
+	columns: T,
+	notificationType: string | string[],
+	extra?: SQL,
+) {
+	return db.select(columns).from(systemNotifications)
+		.where(tdb.scope(systemNotifications.restaurantId, pendingAlertCondition(notificationType, extra)));
+}
+
 export async function reevaluatePriceShockAlerts(
 	invoiceId: number,
 	restaurantId: string,
@@ -755,14 +777,10 @@ export async function reevaluatePriceShockAlerts(
 	productByKey?: Map<string, number>,
 ): Promise<void> {
 	const tdb = forTenant(restaurantId);
-	const pending = await db
-		.select({ id: systemNotifications.id, payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(tdb.scope(systemNotifications.restaurantId, and(
-			eq(systemNotifications.invoiceId, invoiceId),
-			eq(systemNotifications.notificationType, 'price_shock'),
-			eq(systemNotifications.status, 'pending'),
-		)));
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id, payload: systemNotifications.payload },
+		'price_shock', eq(systemNotifications.invoiceId, invoiceId),
+	);
 	if (pending.length === 0) return;
 
 	const currentAlerts = await runPriceShock(invoiceId, supplierName, lineItems, restaurantId, productByKey);
@@ -778,13 +796,7 @@ async function reevaluateBudgetAlerts(restaurantId: string, categories: string[]
 	if (categories.length === 0) return;
 	const tdb = forTenant(restaurantId);
 
-	const pending = await db
-		.select({ id: systemNotifications.id, payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(tdb.scope(systemNotifications.restaurantId, and(
-			eq(systemNotifications.notificationType, 'budget_overage'),
-			eq(systemNotifications.status, 'pending'),
-		)));
+	const pending = await selectPending(tdb, { id: systemNotifications.id, payload: systemNotifications.payload }, 'budget_overage');
 	const relevant = pending.filter((row) => {
 		const category = (row.payload as { category?: string } | null)?.category;
 		return category != null && categories.includes(category);
@@ -801,12 +813,7 @@ async function reevaluateBudgetAlerts(restaurantId: string, categories: string[]
 		)));
 	const budgets = new Map(budgetRows.map((r): [string, number] => [r.category, moneyToNumber(r.monthlyBudget)]));
 
-	const thresholdRows = await db
-		.select({ value: settings.value })
-		.from(settings)
-		.where(tdb.scope(settings.restaurantId, eq(settings.key, 'budget_warning_threshold')))
-		.limit(1);
-	const thresholdFrac = (thresholdRows[0] ? parseInt(thresholdRows[0].value, 10) : 80) / 100;
+	const thresholdFrac = (await settingNumber(tdb, 'budget_warning_threshold', 80, (v) => parseInt(v, 10))) / 100;
 
 	const spendByCategory = await monthlyCategorySpend(tdb, categories);
 
@@ -835,14 +842,10 @@ export async function reevaluateBudgetAlertsForInvoice(
 async function reevaluateDuplicatePurchaseAlerts(input: DuplicatePurchaseInput): Promise<void> {
 	const { invoiceId, restaurantId } = input;
 	const tdb = forTenant(restaurantId);
-	const pending = await db
-		.select({ id: systemNotifications.id, notificationType: systemNotifications.notificationType })
-		.from(systemNotifications)
-		.where(tdb.scope(systemNotifications.restaurantId, and(
-			eq(systemNotifications.invoiceId, invoiceId),
-			inArray(systemNotifications.notificationType, ['possible_duplicate_purchase', 'related_document_found']),
-			eq(systemNotifications.status, 'pending'),
-		)));
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id, notificationType: systemNotifications.notificationType },
+		['possible_duplicate_purchase', 'related_document_found'], eq(systemNotifications.invoiceId, invoiceId),
+	);
 	if (pending.length === 0) return;
 
 	const result = await runPossibleDuplicatePurchase(input);
@@ -860,14 +863,9 @@ async function reevaluateVerifactuAlerts(
 	totalAmount: string | null,
 ): Promise<void> {
 	const tdb = forTenant(restaurantId);
-	const pending = await db
-		.select({ id: systemNotifications.id })
-		.from(systemNotifications)
-		.where(tdb.scope(systemNotifications.restaurantId, and(
-			eq(systemNotifications.invoiceId, invoiceId),
-			eq(systemNotifications.notificationType, 'verifactu_qr_mismatch'),
-			eq(systemNotifications.status, 'pending'),
-		)));
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id }, 'verifactu_qr_mismatch', eq(systemNotifications.invoiceId, invoiceId),
+	);
 	if (pending.length === 0) return;
 
 	const [inv] = await db
@@ -931,27 +929,18 @@ const INVOICE_BOUND_ALERT_TYPES = ['price_shock', 'possible_duplicate_purchase',
 
 export async function orphanInvoiceAlerts(invoiceId: number, restaurantId: string): Promise<void> {
 	const tdb = forTenant(restaurantId);
-	const pending = await db
-		.select({ id: systemNotifications.id })
-		.from(systemNotifications)
-		.where(tdb.scope(systemNotifications.restaurantId, and(
-			eq(systemNotifications.invoiceId, invoiceId),
-			eq(systemNotifications.status, 'pending'),
-			inArray(systemNotifications.notificationType, INVOICE_BOUND_ALERT_TYPES),
-		)));
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id }, INVOICE_BOUND_ALERT_TYPES, eq(systemNotifications.invoiceId, invoiceId),
+	);
 	await resolveNotifications(tdb, pending.map((row) => row.id));
 }
 
 export async function resolveSupplierCategoryAlerts(restaurantId: string, supplierId: number): Promise<void> {
 	const tdb = forTenant(restaurantId);
-	const pending = await db
-		.select({ id: systemNotifications.id })
-		.from(systemNotifications)
-		.where(tdb.scope(systemNotifications.restaurantId, and(
-			inArray(systemNotifications.notificationType, ['supplier_uncategorized', 'supplier_category_suggested']),
-			eq(systemNotifications.status, 'pending'),
-			sql`${systemNotifications.payload}->>'supplierId' = ${String(supplierId)}`,
-		)));
+	const pending = await selectPending(
+		tdb, { id: systemNotifications.id }, ['supplier_uncategorized', 'supplier_category_suggested'],
+		sql`${systemNotifications.payload}->>'supplierId' = ${String(supplierId)}`,
+	);
 	await resolveNotifications(tdb, pending.map((row) => row.id));
 }
 
