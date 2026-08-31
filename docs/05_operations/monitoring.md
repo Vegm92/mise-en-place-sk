@@ -9,6 +9,12 @@ tables are the ground truth for jobs.
 - `@sentry/sveltekit` captures app + worker exceptions; PII scrubbed via
   `sentry-scrub.ts`; console transport in non-prod, `PROD_RELEASE` naming for
   prod deploys.
+- Performance traces are sampled, not error capture: `tracesSampleRate` is
+  `1.0` in development and `SENTRY_TRACES_SAMPLE_RATE` (server) /
+  `VITE_SENTRY_TRACES_SAMPLE_RATE` (client) in production, defaulting to `0.1`
+  when unset or invalid (`src/hooks.server.ts`, `src/hooks.client.ts`). Error
+  events (`handleError`, `beforeSend`) are always captured — this only trims
+  the volume of performance-trace spans sent to Sentry's quota.
 - Auth failures and webhook signature failures are logged, not thrown — check
   logs/Sentry for the strings.
 - **Deliberately loud paths** (do not silence): unknown Stripe price id
