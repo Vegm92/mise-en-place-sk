@@ -33,7 +33,7 @@ import {
 	isStoredInvoiceStatus,
 } from '../src/lib/status';
 import { invoiceReviewFilter } from '../src/lib/server/invoice-status';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 const ROOT = process.cwd();
 const es = translations.es as Record<string, string>;

@@ -12,7 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 const ROOT = path.resolve(__dirname, '..', 'src');
 

@@ -9,7 +9,7 @@
  * resolver (used by every UI surface that lists notifications).
  */
 import { describe, it, expect } from 'vitest';
-import { renderTemplate, translations, type Locale } from '../src/lib/i18n';
+import { renderTemplate, translations, type Locale } from '../src/lib/i18n-messages';
 import { notificationMessage } from '../src/lib/notification-display';
 
 /** Every `notif.msg.*` key an alert writer (alerts.ts and its siblings) uses. */
