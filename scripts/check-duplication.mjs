@@ -32,7 +32,12 @@ function arg(name, fallback) {
 	return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
+const BASE_PATTERN = /^[A-Za-z0-9._/-]+$/;
 const BASE = arg('base', 'origin/main');
+if (!BASE_PATTERN.test(BASE)) {
+	console.error(`check-duplication: --base "${BASE}" is not a plain ref (letters, digits, "._/-" only).`);
+	process.exit(2);
+}
 const THRESHOLD = Number(arg('threshold', '3'));
 const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs']);
 const SCANNED_DIRS = ['src', 'tests'];
