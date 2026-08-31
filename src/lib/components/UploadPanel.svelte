@@ -22,6 +22,7 @@
   import { deserialize } from '$app/forms';
   import type { ActionResult } from '@sveltejs/kit';
   import Upload from '@lucide/svelte/icons/upload';
+  import FolderUp from '@lucide/svelte/icons/folder-up';
   import Sparkle from '@lucide/svelte/icons/sparkle';
   import X from '@lucide/svelte/icons/x';
   import Check from '@lucide/svelte/icons/check';
@@ -88,6 +89,7 @@
   let isDragging = $state(false);
   let uploading = $state(false);
   let fileInputEl = $state<HTMLInputElement>();
+  let folderInputEl = $state<HTMLInputElement>();
   let cameraInputEl = $state<HTMLInputElement>();
   const MAX_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
   const MAX_TOTAL_MB = MAX_UPLOAD_TOTAL_BYTES / (1024 * 1024);
@@ -111,12 +113,20 @@
         showError($ti(`upload.reject.${reason}`, { name: f.name, ext: uploadExtname(f.name) }));
         continue;
       }
-      if (!files.some(e => e.name === f.name && e.size === f.size)) files = [...files, f];
+      const relPath = f.webkitRelativePath || f.name;
+      if (!files.some(e => e.name === f.name && e.size === f.size && (e.webkitRelativePath || e.name) === relPath)) {
+        files = [...files, f];
+      }
     }
   }
 
   function removeFile(idx: number) { files = files.filter((_, i) => i !== idx); }
-  function fileKind(name: string) { return name.split('.').pop()?.toLowerCase() === 'pdf' ? 'pdf' : 'img'; }
+  function fileKind(name: string): 'pdf' | 'zip' | 'img' {
+    const ext = name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (ext === 'zip') return 'zip';
+    return 'img';
+  }
 
   function openCamera() {
     if (trialExpired) return;
@@ -413,6 +423,15 @@
           >
             {$t('upload.browseFiles')}
           </button>
+          <button
+            type="button"
+            class="btn btn-ghost"
+            style="height:36px;padding:0 14px;pointer-events:auto;gap:6px;display:flex;align-items:center;"
+            onclick={(e) => { e.stopPropagation(); folderInputEl?.click(); }}
+          >
+            <FolderUp size={14} />
+            {$t('upload.browseFolder')}
+          </button>
         </div>
 
         <input
@@ -422,6 +441,15 @@
           accept={UPLOAD_ACCEPT}
           multiple
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
+        />
+
+        <input
+          bind:this={folderInputEl}
+          type="file"
+          class="hidden"
+          webkitdirectory
+          multiple
+          onchange={() => { addFiles(folderInputEl?.files ?? null); if (folderInputEl) folderInputEl.value = ''; }}
         />
 
       </div>
@@ -444,7 +472,7 @@
           {#each files as f, i}
             {@const kind = fileKind(f.name)}
             <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
-              <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : 'IMG'} size="sm" />
+              <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : kind === 'zip' ? 'ZIP' : 'IMG'} size="sm" />
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
@@ -600,14 +628,34 @@
           onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
         />
 
-        <button
-          type="button"
-          class="btn btn-primary"
-          style="height:36px;padding:0 14px;pointer-events:auto;"
-          onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
-        >
-          {$t('upload.browseFiles')}
-        </button>
+        <input
+          bind:this={folderInputEl}
+          type="file"
+          class="hidden"
+          webkitdirectory
+          multiple
+          onchange={() => { addFiles(folderInputEl?.files ?? null); if (folderInputEl) folderInputEl.value = ''; }}
+        />
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+          <button
+            type="button"
+            class="btn btn-primary"
+            style="height:36px;padding:0 14px;pointer-events:auto;"
+            onclick={(e) => { e.stopPropagation(); fileInputEl?.click(); }}
+          >
+            {$t('upload.browseFiles')}
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost"
+            style="height:36px;padding:0 14px;pointer-events:auto;gap:6px;display:flex;align-items:center;"
+            onclick={(e) => { e.stopPropagation(); folderInputEl?.click(); }}
+          >
+            <FolderUp size={14} />
+            {$t('upload.browseFolder')}
+          </button>
+        </div>
 
       </div>
       {/if}
@@ -629,7 +677,7 @@
           {#each files as f, i}
             {@const kind = fileKind(f.name)}
             <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--mep-divider);background:var(--mep-surface);">
-              <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : 'IMG'} size="lg" />
+              <FileTypeBadge kind={kind === 'pdf' ? 'pdf' : 'other'} label={kind === 'pdf' ? 'PDF' : kind === 'zip' ? 'ZIP' : 'IMG'} size="lg" />
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>

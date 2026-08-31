@@ -1,4 +1,4 @@
-export const SUPPORTED_UPLOAD_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.xml'] as const;
+export const SUPPORTED_UPLOAD_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.xml', '.zip'] as const;
 
 export type SupportedUploadExtension = (typeof SUPPORTED_UPLOAD_EXTENSIONS)[number];
 
@@ -9,6 +9,10 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 export const MIN_UPLOAD_BYTES = 1024;
 
 export const MAX_UPLOAD_TOTAL_BYTES = 100 * 1024 * 1024;
+
+export const MAX_ZIP_BYTES = MAX_UPLOAD_TOTAL_BYTES;
+
+export const MAX_ZIP_ENTRIES = 50;
 
 export function isSupportedUploadExtension(ext: string): ext is SupportedUploadExtension {
 	return (SUPPORTED_UPLOAD_EXTENSIONS as readonly string[]).includes(ext.toLowerCase());
@@ -42,9 +46,16 @@ export const MAGIC_BYTES: Record<string, (buf: Uint8Array) => boolean> = {
 	'.jpeg': (b) => b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF,
 	'.png':  (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47 && b[4] === 0x0D && b[5] === 0x0A && b[6] === 0x1A && b[7] === 0x0A,
 	'.xml':  looksLikeXml,
+	'.zip':  (b) => b[0] === 0x50 && b[1] === 0x4B && b[2] === 0x03 && b[3] === 0x04,
 };
 
-export type RejectReason = 'unsupportedType' | 'tooLarge' | 'tooSmall' | 'contentMismatch';
+export type RejectReason =
+	| 'unsupportedType'
+	| 'tooLarge'
+	| 'tooSmall'
+	| 'contentMismatch'
+	| 'corrupt'
+	| 'tooManyEntries';
 
 export function totalUploadBytes(files: readonly { size: number }[]): number {
 	return files.reduce((sum, f) => sum + f.size, 0);
@@ -54,9 +65,11 @@ export function exceedsUploadTotal(files: readonly { size: number }[]): boolean 
 	return totalUploadBytes(files) > MAX_UPLOAD_TOTAL_BYTES;
 }
 
-export function checkUploadSize(size: number): 'tooLarge' | 'tooSmall' | null {
-	if (size > MAX_UPLOAD_BYTES) return 'tooLarge';
-	if (size < MIN_UPLOAD_BYTES) return 'tooSmall';
+export function checkUploadSize(size: number, ext?: string): 'tooLarge' | 'tooSmall' | null {
+	const isZip = ext?.toLowerCase() === '.zip';
+	const max = isZip ? MAX_ZIP_BYTES : MAX_UPLOAD_BYTES;
+	if (size > max) return 'tooLarge';
+	if (!isZip && size < MIN_UPLOAD_BYTES) return 'tooSmall';
 	return null;
 }
 
@@ -75,7 +88,7 @@ export async function readUploadHeader(file: Blob, length = MAGIC_HEADER_BYTES):
 export async function validateUploadFile(file: File): Promise<RejectReason | null> {
 	const ext = uploadExtname(file.name);
 	if (!isSupportedUploadExtension(ext)) return 'unsupportedType';
-	const sizeReason = checkUploadSize(file.size);
+	const sizeReason = checkUploadSize(file.size, ext);
 	if (sizeReason) return sizeReason;
 	const header = await readUploadHeader(file);
 	return checkMagicBytes(header, ext) ? null : 'contentMismatch';

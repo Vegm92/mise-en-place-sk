@@ -11,7 +11,7 @@ import { trackEvent } from '$lib/server/events';
 import { db, forTenant } from '$lib/server/db';
 import { invoices } from '$lib/server/schema';
 import { and, isNull, sql } from 'drizzle-orm';
-import { MAX_UPLOAD_TOTAL_BYTES } from '$lib/upload-formats';
+import { MAX_UPLOAD_TOTAL_BYTES, MAX_ZIP_BYTES, uploadExtname } from '$lib/upload-formats';
 
 async function remainingMonthlyQuota(rid: string, limit: number | null): Promise<number | null> {
 	if (limit === null) return null;
@@ -40,7 +40,7 @@ function rejectInvalidFiles(files: File[]) {
 	if (files.length === 0) {
 		return fail(400, { error: 'upload.err.noValidFiles' });
 	}
-	const oversized = files.filter(f => f.size > MAX_UPLOAD_BYTES);
+	const oversized = files.filter(f => f.size > (uploadExtname(f.name) === '.zip' ? MAX_ZIP_BYTES : MAX_UPLOAD_BYTES));
 	if (oversized.length > 0) {
 		return fail(400, {
 			error: 'upload.err.tooLarge',
