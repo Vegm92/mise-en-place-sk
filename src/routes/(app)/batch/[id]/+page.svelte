@@ -978,9 +978,9 @@
                 {:else}
                   <div>
                     <label class="rev-field-label" for="field-due-date">{$t('extract.due')}</label>
-                    <div id="field-due-date" class="rev-input" style="display:flex;align-items:center;color:var(--mep-fg-4);">
-                      {$t('field.dueDate.notApplicable')}
-                    </div>
+                    <input id="field-due-date" type="text" class="rev-input" readonly
+                      value={$t('field.dueDate.notApplicable')}
+                      style="color:var(--mep-fg-4);" />
                     <input type="hidden" name="due_date" value="" />
                   </div>
                 {/if}
