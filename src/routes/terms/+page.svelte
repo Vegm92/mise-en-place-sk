@@ -213,7 +213,7 @@
 
     <h2>{c.h13}</h2>
     <p>
-      {c.p13}<a href="mailto:legal@mise-en-place.app">legal@mise-en-place.app</a>
+      {c.p13}<a href="mailto:legal@mise-place.com">legal@mise-place.com</a>
     </p>
 
     <hr />

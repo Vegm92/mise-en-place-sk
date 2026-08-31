@@ -40,22 +40,22 @@ beforeEach(resetWaitlistRouteMocks);
 
 describe('/l/[variant] load — variant resolution', () => {
 	it('resolves a known slug and returns its overrides', async () => {
-		const data = await load(loadEvent('menu-del-dia', 'https://mise-en-place.app/l/menu-del-dia')) as {
+		const data = await load(loadEvent('menu-del-dia', 'https://mise-place.com/l/menu-del-dia')) as {
 			canonicalUrl: string;
 			overrides: { es: Record<string, string> };
 		};
-		expect(data.canonicalUrl).toBe('https://mise-en-place.app/l/menu-del-dia');
+		expect(data.canonicalUrl).toBe('https://mise-place.com/l/menu-del-dia');
 		expect(data.overrides.es['waitlist.headline']).toBe('Tu menú vale 13 €. Tu aceite ya no.');
 	});
 
 	it('404s on an unknown slug', async () => {
-		await expect(load(loadEvent('not-a-real-variant', 'https://mise-en-place.app/l/not-a-real-variant')))
+		await expect(load(loadEvent('not-a-real-variant', 'https://mise-place.com/l/not-a-real-variant')))
 			.rejects.toMatchObject({ status: 404 });
 	});
 
 	it('uses the literal "Not Found" message so +error.svelte routes it through i18n (issue #747)', async () => {
 		try {
-			await load(loadEvent('not-a-real-variant', 'https://mise-en-place.app/l/not-a-real-variant'));
+			await load(loadEvent('not-a-real-variant', 'https://mise-place.com/l/not-a-real-variant'));
 			expect.unreachable();
 		} catch (e) {
 			expect((e as { body?: { message?: string } }).body?.message).toBe('Not Found');
@@ -66,7 +66,7 @@ describe('/l/[variant] load — variant resolution', () => {
 describe('/l/[variant] load — sets the mep_attr cookie with the slug as variant', () => {
 	it('stamps the slug into the cookie even with no query params', async () => {
 		const cookies = fakeCookies();
-		await load(loadEvent('menu-del-dia', 'https://mise-en-place.app/l/menu-del-dia', { cookies }));
+		await load(loadEvent('menu-del-dia', 'https://mise-place.com/l/menu-del-dia', { cookies }));
 
 		expect(cookies.set).toHaveBeenCalledOnce();
 		const [name, value] = cookies.set.mock.calls[0];
@@ -76,7 +76,7 @@ describe('/l/[variant] load — sets the mep_attr cookie with the slug as varian
 
 	it('the route slug wins over a ?variant= query param on the same request', async () => {
 		const cookies = fakeCookies();
-		await load(loadEvent('menu-del-dia', 'https://mise-en-place.app/l/menu-del-dia?variant=spoofed', { cookies }));
+		await load(loadEvent('menu-del-dia', 'https://mise-place.com/l/menu-del-dia?variant=spoofed', { cookies }));
 		const value = cookies.set.mock.calls[0][1];
 		expect(JSON.parse(value)).toMatchObject({ variant: 'menu-del-dia' });
 	});
@@ -85,7 +85,7 @@ describe('/l/[variant] load — sets the mep_attr cookie with the slug as varian
 		const cookies = fakeCookies();
 		await load(loadEvent(
 			'aceite-de-oliva',
-			'https://mise-en-place.app/l/aceite-de-oliva?utm_source=ig&utm_campaign=launch',
+			'https://mise-place.com/l/aceite-de-oliva?utm_source=ig&utm_campaign=launch',
 			{ cookies },
 		));
 		const value = cookies.set.mock.calls[0][1];
@@ -98,7 +98,7 @@ describe('/l/[variant] load — sets the mep_attr cookie with the slug as varian
 			referrer: null, landingPath: '/waitlist', referredBy: null,
 		});
 		const cookies = fakeCookies({ mep_attr: bare });
-		await load(loadEvent('pescado-fresco', 'https://mise-en-place.app/l/pescado-fresco', { cookies }));
+		await load(loadEvent('pescado-fresco', 'https://mise-place.com/l/pescado-fresco', { cookies }));
 		expect(cookies.set).toHaveBeenCalledOnce();
 		expect(JSON.parse(cookies.set.mock.calls[0][1])).toMatchObject({ variant: 'pescado-fresco' });
 	});

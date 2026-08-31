@@ -27,7 +27,7 @@ import { localeHref, otherLocale, parseLocale, requestedLocale, LOCALE_PARAM } f
 const ROOT = path.resolve(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 
-const url = (href: string) => new URL(href, 'https://miseenplace.app');
+const url = (href: string) => new URL(href, 'https://mise-place.com');
 
 describe('parseLocale / otherLocale', () => {
 	it('accepts only the two supported locales', () => {
@@ -65,7 +65,7 @@ describe('localeHref', () => {
 
 	it('keeps the rest of the query string, attribution included', () => {
 		const href = localeHref(url('/l/coste?ref=guia&utm_source=chatgpt.com'), 'en');
-		const params = new URL(href, 'https://miseenplace.app').searchParams;
+		const params = new URL(href, 'https://mise-place.com').searchParams;
 		expect(params.get('ref')).toBe('guia');
 		expect(params.get('utm_source')).toBe('chatgpt.com');
 		expect(params.get(LOCALE_PARAM)).toBe('en');
