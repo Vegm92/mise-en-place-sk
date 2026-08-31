@@ -24,24 +24,18 @@ vi.mock('$lib/server/auth-events', () => ({
 }));
 
 import { publicFormAction, formToRecord, parseForm } from '../src/lib/server/public-form-action';
-import { fileFormData, maliciousFile } from './helpers/form-data';
+import { fileFormData, formDataEvent, maliciousFile } from './helpers/form-data';
+
+const EVENT_BASE = { url: new URL('https://app.example.test'), getClientAddress: () => '203.0.113.7' };
 
 function formEvent(fields: Record<string, string>) {
 	const data = new FormData();
 	for (const [k, v] of Object.entries(fields)) data.append(k, v);
-	return {
-		request: { formData: async () => data },
-		url: new URL('https://app.example.test'),
-		getClientAddress: () => '203.0.113.7',
-	} as never;
+	return formDataEvent(data, EVENT_BASE) as never;
 }
 
 function formEventWithFile(fields: Record<string, string | File>) {
-	return {
-		request: { formData: async () => fileFormData(fields) },
-		url: new URL('https://app.example.test'),
-		getClientAddress: () => '203.0.113.7',
-	} as never;
+	return formDataEvent(fileFormData(fields), EVENT_BASE) as never;
 }
 
 beforeEach(() => {
