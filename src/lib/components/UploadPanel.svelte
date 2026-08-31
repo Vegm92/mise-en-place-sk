@@ -531,7 +531,7 @@
     </div>
   {/if}
 
-  <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1.6fr 1fr;gap:16px;">
+  <div style="flex:1;min-height:0;padding:16px 32px 24px;display:grid;grid-template-columns:1.6fr 1fr;grid-template-rows:minmax(0,1fr);gap:16px;">
 
     <div class="card" data-coach="upload-zone" style="padding:20px;display:flex;flex-direction:column;">
       {#if trialExpired}
@@ -613,7 +613,7 @@
       {/if}
     </div>
 
-    <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;">
+    <div class="card" style="padding:16px 16px 12px;display:flex;flex-direction:column;min-height:0;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
         <span class="subtitle">{$t('upload.queue')}</span>
         {#if files.length > 0}
