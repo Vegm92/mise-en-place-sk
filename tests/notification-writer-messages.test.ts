@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { runCategorizationNudge, runCategorySuggestion, runBudgetCheck } from '../src/lib/server/alerts';
 import { getOrCreateSupplierId } from '../src/lib/server/supplier';
 import { invoices, invoiceLineItems, categoryBudgets } from '../src/lib/server/schema';
-import { renderTemplate } from '../src/lib/i18n';
+import { renderTemplate } from '../src/lib/i18n-messages';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';
 import { testDb, createTestRestaurant, cleanupTestRestaurant, closeDb, hasDbEnv } from './helpers/test-db';
 

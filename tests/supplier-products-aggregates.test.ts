@@ -10,7 +10,9 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
-import { locale, t as tStore } from '../src/lib/i18n';
+import { locale, t as tStore, loadAllMessages } from '../src/lib/i18n';
+
+await loadAllMessages();
 
 vi.mock('../src/lib/server/db', async () => {
 	const { testDb } = await import('./helpers/test-db');

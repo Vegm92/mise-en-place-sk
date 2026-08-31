@@ -266,6 +266,12 @@ The locale a page **renders** is resolved per request; the locale a user
   a bare path would render the *other* language, so the "ES" link would not
   switch back.
 
+### `src/routes/+layout.ts`, `src/routes/+layout.svelte`, `src/routes/+layout.server.ts`
+
+- `+layout.server.ts` is unchanged by issue #841 — still `resolveLocale(url, cookies.get(LOCALE_COOKIE))`, returning `{ locale, explicit }` from the URL/cookie so SvelteKit re-runs it on every navigation (not `locals.locale`, which would only re-run on server-side navigations — `tests/ssr-locale.test.ts` pins this).
+- `+layout.ts` is new: a universal `load` that awaits `$lib/i18n`'s `es` message loader and merges its resolved table onto the server's `data` as `data.messages`, so the dynamic import that gives the client its per-locale chunk boundary is resolved *before* the layout renders rather than racing it. It always loads `es`, not `data.locale` — see `$lib/i18n.ts`'s code notes (`docs/04_engineering/coding_conventions.md`) for why: the module locale store stays Spanish through SSR regardless of the request's resolved locale (ADR-021), and feeding `messages` a different locale than `$locale` would desync currency/date formatting (`$locale`-driven) from prose (`messages`-driven) for the length of one SSR pass.
+- `+layout.svelte` seeds the `messages` store from `data.messages` synchronously at the top of the component (via `untrack`, since it is deliberately a one-time read, not a reactive one — `data.messages` does not change across client-side navigations, only `data.locale` does, which is why only that one stays wrapped in `toStore(() => …)` for `setLocaleContext`) — before `setLocaleContext` and before `onMount`'s `initLocale()` correction, so the very first render (SSR and the client's hydration pass) always has a populated table to read, never `messages = {}`.
+
 ### `src/lib/server/idempotency.ts`
 
 **`const UUID_RE`**
