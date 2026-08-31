@@ -12,7 +12,9 @@
  * - src/lib/server/rate-limiter.ts — checkRateLimit()'s own definition, not a call site
  * - src/lib/server/rate-limit-scope.ts — rateLimitScoped()'s own sanctioned internal call
  * - src/lib/server/public-form-action.ts — the #510 public-form wrapper; unauthenticated, ip-scoped
- * - src/routes/signup/+page.server.ts — the resend action is ip-keyed inside a publicFormAction handler
+ * - src/lib/server/resend-verification-action.ts — the shared resend-verification-email
+ *   action (issue #844; used by signup and login) is ip-keyed inside a publicFormAction
+ *   handler, same as the wrapper above
  * - src/routes/api/health/+server.ts — health:ip, an unauthenticated public endpoint
  * - src/hooks.server.ts — api-global falls back between user and ip identity; a blanket
  *   gateway guard, not a single tenant/user business action
@@ -22,8 +24,6 @@
  *   generate side, restaurant-keyed, is migrated to rateLimitScoped())
  * - src/routes/(app)/settings/+page.server.ts — email-change is deliberately dual-keyed
  *   (user AND address, #496); password-change in the same file is migrated
- * - src/routes/login/+page.server.ts — the resend-verification action (#743) is
- *   ip-keyed and unauthenticated: there is no session identity to scope by yet
  * - src/routes/s/[token]/+page.server.ts, src/routes/s/[token]/og.png/+server.ts —
  *   the public, no-auth digest-share view (#329) and its OG image; ip-keyed,
  *   no session exists to scope by
@@ -39,13 +39,12 @@ const DEFINITION_FILE = 'src/lib/server/rate-limiter.ts';
 const ALLOWED_DIRECT_CALL_FILES = new Set([
 	'src/lib/server/rate-limit-scope.ts',
 	'src/lib/server/public-form-action.ts',
-	'src/routes/signup/+page.server.ts',
+	'src/lib/server/resend-verification-action.ts',
 	'src/routes/api/health/+server.ts',
 	'src/hooks.server.ts',
 	'src/lib/server/integrations/whatsapp/message-handler.ts',
 	'src/lib/server/whatsapp-pairing.ts',
 	'src/routes/(app)/settings/+page.server.ts',
-	'src/routes/login/+page.server.ts',
 	'src/routes/s/[token]/+page.server.ts',
 	'src/routes/s/[token]/og.png/+server.ts',
 ]);

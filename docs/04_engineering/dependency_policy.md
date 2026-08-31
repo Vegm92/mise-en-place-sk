@@ -14,8 +14,16 @@ ones. Verify against `package.json` before assuming (dependencies evolve).
 - `pg-boss` (worker queues), `ioredis` (Upstash) optional, `@upstash/redis`
 - `stripe`, `resend`, `whatsapp` (Meta Cloud API client), `@sentry/sveltekit`
 - `aws-sdk` S3/S3Control (Railway Buckets driver, ADR-016)
-- `zod` is **not** in use — validation is hand-rolled (see
-  `docs/04_engineering/security_rules.md`)
+- `valibot` (issue #844) — Standard Schema v1 validator for the public/
+  unauthenticated form actions (`signup`, `login`, `forgot-password`,
+  `reset-password`, `waitlist`) reached through `publicFormAction`'s `schema`
+  option or its `parseForm` helper (`src/lib/server/public-form-action.ts`).
+  Chosen over `zod` for its tree-shakeable functional API (~1.5 KB for the
+  pipes these routes use) and native Standard Schema compliance, which is
+  also what `@sveltejs/kit`'s `form()`/`command()` remote functions accept
+  (issue #856). `zod` remains **not** in use. Everything *inside* the
+  authenticated `(app)` shell is still hand-rolled validation (see
+  `docs/04_engineering/security_rules.md`) — this migration did not touch it.
 - `xlsx`, `pdfjs-dist`, `sharp`, `qr-svg`, `mini-svg-data-uri`,
   `cookie`, `nanoid`, `uuid`, `lucide-svelte`, tailwindcss
 

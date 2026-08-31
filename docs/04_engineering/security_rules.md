@@ -33,8 +33,25 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 
 ## Input validation
 
-- Hand-rolled per endpoint: type casts, trim/lower, length caps, whitelist
-  checks. No zod — keep validation explicit and local.
+- Public/unauthenticated form actions (`signup`, `login`, `forgot-password`,
+  `reset-password`, `waitlist`) derive their typed input from a `valibot`
+  schema instead of casting `FormData.get()` with `as` (issue #844): `as
+  string` lies to the type checker — `FormData.get()` genuinely returns
+  `string | File | null`, and a client that posts a file part under a string
+  field name either throws (a string method called on a `File`) or flows the
+  `File` onward untyped. `publicFormAction`'s `schema` option
+  (`src/lib/server/public-form-action.ts`) parses the form and returns
+  `fail(422, { error: 'invalid' })` on a schema violation before the handler
+  ever runs; `parseForm()` is the same primitive for the one route that
+  doesn't go through `publicFormAction` (`reset-password`, which
+  deliberately carries no rate limit). `scripts/lint-invariants.mjs`'s
+  `form-get-cast` gate (`pnpm lint:form-get-cast`) bans new `form.get(...) as
+  `/`formData.get(...) as ` casts in `+page.server.ts` files, ratcheted by an
+  allowlist of the pre-existing offenders it does not yet cover — see that
+  gate's own comment for how to shrink the allowlist as more routes convert.
+- Everywhere else: hand-rolled per endpoint — type casts, trim/lower, length
+  caps, whitelist checks. No zod — keep validation explicit and local. This
+  migration did not touch the authenticated `(app)` shell's actions.
 - Open-redirect protection: `safeRedirect` rejects `//` and `/\` prefixes.
 - File upload: extension whitelist + magic-byte validation + 20 MB cap
   (ADR-016); path-traversal guards on every file read.
@@ -114,6 +131,12 @@ Immutable subset is in `docs/00_system/architectural_invariants.md`.
 - Upload has no file-level dedup (duplicates extracted twice).
 
 ## Code notes
+
+### `src/lib/server/password-policy.ts`
+
+**`function passwordPolicyError`**
+
+- Kept as a plain function, not reimplemented as a `valibot` pipe action, when the public-route form actions moved to schema-derived input (issue #844). Three reasons: (1) it is the single source of truth for `MIN_PASSWORD_LENGTH`/`MAX_PASSWORD_LENGTH` shared with a caller outside this issue's scope (settings' authenticated password-change action, per `security_plan.md`) — folding it into a route-local schema would fork that source; (2) the two call sites that use it return *different* error vocabularies for the same two outcomes — signup returns `password_too_short`/`password_too_long`, reset-password returns the policy's own `tooShort`/`tooLong` directly — which a shared schema-level rule would have to special-case per route anyway, so nothing is saved; (3) it is exercised by its own focused unit test (`tests/password-policy.test.ts`) independent of any route, which a schema-embedded rule would lose. The schema on each route still does its job — reject a `File` or a missing field before `passwordPolicyError` ever runs on untyped input.
 
 ### `src/routes/api/user/delete/+server.ts`
 
