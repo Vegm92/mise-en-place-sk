@@ -307,6 +307,7 @@ export const extractionCorrections = pgTable('extraction_corrections', {
 	originalValue:  text('original_value'),
 	correctedValue: text('corrected_value'),
 	lineItemIndex:  integer('line_item_index'),
+	fieldConfidence: real('field_confidence'),
 	correctedAt:    timestamp('corrected_at', { withTimezone: true }).defaultNow(),
 });
 

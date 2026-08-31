@@ -15,6 +15,9 @@ interface FieldRow extends Record<string, unknown> {
 	field_name: string;
 	corrections: number;
 	invoice_pct: number | null;
+	flagged_corrections: number;
+	silent_corrections: number;
+	flagged_pct: number | null;
 }
 
 interface SupplierRow extends Record<string, unknown> {
@@ -31,6 +34,8 @@ interface TrendRow extends Record<string, unknown> {
 	auto_confirmed: number;
 	auto_confirmed_rate: number | null;
 }
+
+const LOW_CONFIDENCE = 0.85;
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const rid = locals.restaurantId!;
@@ -71,7 +76,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 					ROUND(
 						(COUNT(DISTINCT ec.invoice_id)::float /
 						NULLIF((SELECT COUNT(*) FROM invoices WHERE restaurant_id = ${rid}), 0) * 100)::numeric, 1
-					) AS invoice_pct
+					) AS invoice_pct,
+					COUNT(*) FILTER (WHERE ec.field_confidence < ${LOW_CONFIDENCE}) AS flagged_corrections,
+					COUNT(*) FILTER (WHERE ec.field_confidence >= ${LOW_CONFIDENCE}) AS silent_corrections,
+					ROUND(
+						(COUNT(*) FILTER (WHERE ec.field_confidence < ${LOW_CONFIDENCE})::float /
+						NULLIF(COUNT(*) FILTER (WHERE ec.field_confidence IS NOT NULL), 0) * 100)::numeric, 1
+					) AS flagged_pct
 				FROM extraction_corrections ec
 				WHERE ec.restaurant_id = ${rid}
 				GROUP BY ec.field_name
@@ -140,6 +151,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 				field_name: String(r.field_name),
 				corrections: Number(r.corrections),
 				invoice_pct: r.invoice_pct != null ? Number(r.invoice_pct) : null,
+				flagged_corrections: Number(r.flagged_corrections),
+				silent_corrections: Number(r.silent_corrections),
+				flagged_pct: r.flagged_pct != null ? Number(r.flagged_pct) : null,
 			})),
 			supplier_accuracy: supplierRows.map(r => ({
 				supplier_name: String(r.supplier_name),

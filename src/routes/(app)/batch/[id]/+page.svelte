@@ -179,6 +179,16 @@
     tax_rate?: number | string | null;
     confidence?: number | null;
     product_code?: string | null;
+    product_name?: string | null;
+    product_status?: 'exact' | 'fuzzy' | 'new' | null;
+  };
+
+  type ProductMatch = {
+    description: string;
+    productId: number | null;
+    productName: string;
+    status: 'exact' | 'fuzzy' | 'new';
+    score: number | null;
   };
 
   // svelte-ignore state_referenced_locally — the batch id in the route param never changes without a remount
@@ -252,9 +262,11 @@
     const draft = data.review?.itemId ? readDraft(data.review.itemId) : null;
     taxBands = draft?.taxBands ?? bandRowsFrom(raw);
   });
-  function normalizeLine(item: LineItem): LineItem {
+  function normalizeLine(item: LineItem, match?: ProductMatch): LineItem {
     return {
       ...item,
+      product_name: match && match.status !== 'new' ? match.productName : '',
+      product_status: match?.status ?? null,
       description: str(item.description),
       quantity: str(item.quantity),
       unit: str(item.unit),
@@ -267,8 +279,11 @@
     const raw = data.review?.data?.line_items;
     if (raw === lineItemsSource) return;
     lineItemsSource = raw;
+    const matches = (data.review?.productMatches ?? []) as ProductMatch[];
     const draft = data.review?.itemId ? readDraft(data.review.itemId) : null;
-    lineItems = draft?.lineItems ?? (Array.isArray(raw) ? (raw as LineItem[]).map(normalizeLine) : []);
+    lineItems = draft?.lineItems
+      ? draft.lineItems.map((item, i) => (item.product_name === undefined ? normalizeLine(item, matches[i]) : item))
+      : (Array.isArray(raw) ? (raw as LineItem[]).map((item, i) => normalizeLine(item, matches[i])) : []);
   });
 
   // svelte-ignore state_referenced_locally — reading the initial value is the point
@@ -357,7 +372,7 @@
   });
 
   function addRow() {
-    lineItems = [...lineItems, { description: '', quantity: '', unit: '', unit_price: '', total_price: '' }];
+    lineItems = [...lineItems, { description: '', quantity: '', unit: '', unit_price: '', total_price: '', product_name: '', product_status: null }];
     openLine = lineItems.length - 1;
   }
   function removeRow(i: number) {
@@ -370,6 +385,14 @@
   const newIdempotencyKeyFor = (_scope: unknown): string => crypto.randomUUID();
   const idempotencyKey = $derived(newIdempotencyKeyFor(review?.itemId));
   const fieldConf = $derived((review?.fieldConfidences ?? {}) as Record<string, number>);
+  const productOptions = $derived((review?.productOptions ?? []) as Array<{ id: number; name: string }>);
+  const productIdByName = $derived(
+    new Map(productOptions.map(o => [o.name.trim().toLowerCase(), o.id] as const))
+  );
+  const productIdFor = (name: unknown): number | null =>
+    productIdByName.get(String(name ?? '').trim().toLowerCase()) ?? null;
+  const productUnmatched = (name: unknown): boolean =>
+    String(name ?? '').trim() !== '' && productIdFor(name) === null;
   const totalMismatch = $derived(review?.data?.total_mismatch === true);
 
   const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'] as const;
@@ -1168,6 +1191,21 @@
                           <label class="rev-field-label" for="line-desc-{i}">{$t('tbl.desc')} <ConfidenceDot confidence={itemConf} size={6} /></label>
                           <input id="line-desc-{i}" type="text" name="line_descriptions" bind:value={lineItems[i].description} class="rev-input" />
                         </div>
+                        <div>
+                          <label class="rev-field-label" for="line-product-{i}">
+                            {$t('review.productMatch')}
+                            {#if productUnmatched(item.product_name)}
+                              <span class="rev-product-chip warn">{$t('review.productUnknown')}</span>
+                            {:else if !str(item.product_name)}
+                              <span class="rev-product-chip">{$t('review.productNew')}</span>
+                            {:else if item.product_status === 'fuzzy'}
+                              <span class="rev-product-chip">{$t('review.productFuzzy')}</span>
+                            {/if}
+                          </label>
+                          <input id="line-product-{i}" type="text" list="mep-product-options"
+                            bind:value={lineItems[i].product_name} class="rev-input"
+                            placeholder={$t('review.productPh')} title={$t('review.productMatchHint')} />
+                        </div>
                         <div class="rev-card-grid3">
                           <div>
                             <label class="rev-field-label" for="line-qty-{i}">{$t('tbl.qty')}</label>
@@ -1205,6 +1243,7 @@
                     {/if}
                     <input type="hidden" name="line_tax_rates" value={percentToFraction(item.tax_rate) ?? ''} />
                     <input type="hidden" name="line_supplier_skus" value={str(item.product_code ?? '')} />
+                    <input type="hidden" name="line_product_ids" value={productIdFor(item.product_name) ?? ''} />
                   </div>
                 {/each}
               </div>
@@ -1235,6 +1274,20 @@
                             class="rev-cell" style="font-weight:500;" />
                           <ConfidenceDot confidence={itemConf} size={6} />
                         </div>
+                        <div class="rev-line-product">
+                          <span class="rev-line-product-label">{$t('review.productMatch')}</span>
+                          <input type="text" list="mep-product-options" bind:value={lineItems[i].product_name}
+                            aria-label={$ti('batch.aria.lineProduct', { row: i + 1 })}
+                            class="rev-cell rev-product-input" placeholder={$t('review.productPh')}
+                            title={$t('review.productMatchHint')} />
+                          {#if productUnmatched(item.product_name)}
+                            <span class="rev-product-chip warn">{$t('review.productUnknown')}</span>
+                          {:else if !str(item.product_name)}
+                            <span class="rev-product-chip">{$t('review.productNew')}</span>
+                          {:else if item.product_status === 'fuzzy'}
+                            <span class="rev-product-chip">{$t('review.productFuzzy')}</span>
+                          {/if}
+                        </div>
                       </td>
                       <td class="num">
                         <input type="text" name="line_quantities" bind:value={lineItems[i].quantity}
@@ -1263,6 +1316,7 @@
                       <td>
                         <input type="hidden" name="line_tax_rates" value={percentToFraction(item.tax_rate) ?? ''} />
                         <input type="hidden" name="line_supplier_skus" value={str(item.product_code ?? '')} />
+                        <input type="hidden" name="line_product_ids" value={productIdFor(item.product_name) ?? ''} />
                         <button type="button" class="rev-icon-btn" style="width:22px;height:22px;" title={$t('review.removeLine')} aria-label={$t('review.removeLine')} onclick={() => removeRow(i)}>
                           <Trash size={11} />
                         </button>
@@ -1273,6 +1327,11 @@
               </table>
             {/if}
 
+            <datalist id="mep-product-options">
+              {#each productOptions as option (option.id)}
+                <option value={option.name}></option>
+              {/each}
+            </datalist>
 
           </div>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PageData } from './$types';
-  import { t } from '$lib/i18n';
+  import { t, ti } from '$lib/i18n';
 
   let { data }: { data: PageData } = $props();
 
@@ -13,6 +13,10 @@
     if (n == null) return '—';
     return n.toFixed(2);
   }
+
+  const silentTotal = $derived(
+    data.field_corrections.reduce((sum, r) => sum + r.silent_corrections, 0)
+  );
 
   const maxCorrections = $derived(
     data.field_corrections.length ? data.field_corrections[0].corrections : 1
@@ -31,6 +35,13 @@
     <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.3px;">
       {$t('extract.acc.title')}
     </h2>
+    <span style="flex:1;"></span>
+    {#if data.hasData}
+      <a href="/analytics/extraction/csv" data-sveltekit-reload class="btn btn-ghost"
+        style="height:30px;font-size:13px;padding:0 10px;" title={$t('extract.acc.exportHint')}>
+        {$t('extract.acc.exportCsv')}
+      </a>
+    {/if}
   </div>
 
   {#if !data.hasData}
@@ -93,6 +104,7 @@
                 <th style="text-align:left;padding:4px 8px 8px 0;font-weight:500;color:var(--mep-fg-3);">{$t('extract.acc.colField')}</th>
                 <th style="text-align:right;padding:4px 0 8px;font-weight:500;color:var(--mep-fg-3);" class="num">{$t('extract.acc.colCorrections')}</th>
                 <th style="text-align:right;padding:4px 0 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num">{$t('extract.acc.colPctInvoices')}</th>
+                <th style="text-align:right;padding:4px 0 8px 8px;font-weight:500;color:var(--mep-fg-3);" class="num" title={$t('extract.acc.colFlaggedHint')}>{$t('extract.acc.colFlagged')}</th>
               </tr>
             </thead>
             <tbody>
@@ -108,10 +120,22 @@
                   </td>
                   <td class="num" data-label={$t('extract.acc.colCorrections')} style="padding:7px 0;text-align:right;color:var(--mep-fg);font-weight:500;">{row.corrections}</td>
                   <td class="num" data-label={$t('extract.acc.colPctInvoices')} style="padding:7px 0 7px 8px;text-align:right;color:var(--mep-fg-3);">{fmtPct(row.invoice_pct)}</td>
+                  <td class="num" data-label={$t('extract.acc.colFlagged')} style="padding:7px 0 7px 8px;text-align:right;color:var(--mep-fg-3);">
+                    {#if row.flagged_corrections + row.silent_corrections === 0}
+                      —
+                    {:else}
+                      <span style="color:{(row.flagged_pct ?? 0) < 50 ? 'var(--mep-warn)' : 'var(--mep-fg-3)'};">{fmtPct(row.flagged_pct)}</span>
+                    {/if}
+                  </td>
                 </tr>
               {/each}
             </tbody>
           </table>
+          {#if silentTotal > 0}
+            <p style="margin:12px 0 0;font-size:13px;color:var(--mep-fg-3);line-height:1.5;">
+              {$ti('extract.acc.silentNote', { count: silentTotal })}
+            </p>
+          {/if}
         {/if}
       </div>
 

@@ -20,13 +20,19 @@ gate. **This is THE invoice write path (ADR-008). Do not add another.**
 - Corrected header fields + line items from the review form.
 - `low_confidence_ack` flag when confidence < 0.85.
 - Optional `qr_url` when the source had a VERI\*FACTU QR.
+- Optional `line_product_ids` — one per submitted line, the catalogue product
+  the reviewer assigned that line to when the automatic match was wrong
+  (issue #812).
 
 ## Outputs
 
 - `invoices` + `invoice_line_items` rows (`status='pending'` unless accepted).
 - `batch_items` → `confirmed` (inside the same transaction).
 - `suppliers`/`products`/`product_aliases` upserts as needed.
-- `extraction_corrections` rows for user changes.
+- `extraction_corrections` rows for user changes, each carrying the model's own
+  confidence in that field (`fieldConfidence`) so a correction on a field the
+  model was sure about reads as a silent extraction failure. A manual product
+  reassignment is logged the same way, under `fieldName='line_item.product'`.
 - Post-commit: alerts (`alerts.ts`), product suggestions, VERI\*FACTU mismatch
   alert, onboarding flag.
 - Redirect: `/dashboard?first_invoice=1` or `/invoices?saved=`.
@@ -87,7 +93,8 @@ number-duplicate). `api/batch-status/[id]` for status.
 ## UI dependencies
 
 `batch/[id]/+page.svelte` (per-item review, low-confidence + duplicate modals,
-`duplicateOfId` exact pre-warning, `similarInvoiceId` fuzzy pre-warning).
+`duplicateOfId` exact pre-warning, `similarInvoiceId` fuzzy pre-warning,
+per-line product match + reassignment).
 Its three-pane workspace shape lives in the `.rev-*` component classes in
 `src/app.css`. Legacy `confirm/[id]`/`extract/[id]` redirect here.
 
@@ -140,8 +147,11 @@ shapes, `low_confidence_ack` value.
   item, and fires alerts.
 - A retry of the same request returns `replay` with no new rows.
 - Low-confidence without ack is blocked; with ack it saves.
+- A reviewer can reassign a line to a different catalogue product; the line, the
+  alias and an `extraction_corrections` row all reflect the choice.
 - Tests: `tests/invoice-save-category.test.ts`,
   `tests/invoice-save-products.test.ts`, `tests/invoice-save-verifactu.test.ts`,
+  `tests/extraction-corrections.test.ts`,
   `tests/dedup.test.ts`, `tests/idempotency.test.ts`, `tests/race-idempotency.test.ts`.
 
 ## Code notes
@@ -181,6 +191,11 @@ shapes, `low_confidence_ack` value.
 **`function reapedItems`**
 
 - Reaps only when an item actually looks expired, so the common read stays a single SELECT and the hard timeout costs nothing on healthy batches. Re-reads after a reap so the same request already renders the failed state.
+
+**`function loadProductMatches`**
+
+- Shows the reviewer which catalogue product each extracted line would be matched to *before* the save runs `resolveLineProducts`, which is the only moment the assignment is still correctable (issue #812). Read-only by construction (`previewLineProducts`) — the review screen must not create products or aliases for an invoice the user may still discard.
+- Non-fatal: a preview failure returns empty lists rather than 500-ing the review screen, since the match is decoration over the actual save path.
 
 **`const load`**
 
@@ -361,8 +376,15 @@ shapes, `low_confidence_ack` value.
 
 **`function linkProductsToInvoice`**
 
+- A reviewer's explicit choice (`line_product_ids`, issue #812) beats the automatic match: `assignLineProduct` re-points the alias at the chosen product with `source='user'`, so the next invoice from that supplier matches it without asking again, and the line is stamped with the chosen id. A reassigned line raises no `product_suggestion` and enqueues no normalize/categorize job — both exist to ask the human what the human just answered. Ownership is re-checked against `products` before the alias moves, so a forged product id from the form resolves to nothing and the automatic match stands.
+- The reassignment is returned as a `ProductCorrection` rather than written here, so it lands in `extraction_corrections` through the same `logExtractionCorrections` call as every value edit — one place decides what a correction is.
 - Resolves each saved line to a catalog product and stamps `product_id` (issue #298); fuzzy auto-links raise a `product_suggestion` the review UI can confirm/reject. Fully self-contained and error-swallowing — enrichment, never a reason to fail a save. When nothing deterministic matched, asks the LLM asynchronously (issue #300).
 - Category for a supplier we may be about to create comes from the stored extraction, never the form (issue #315): it's a machine guess about the supplier, dropped when the confirmed name no longer matches the classified one; `resolveCategory` buckets anything unrecognised.
+
+**`function correctionRows` / `function productCorrectionRows`**
+
+- Every logged correction carries `fieldConfidence`, the confidence the model reported for that field at extraction time (header fields from `field_confidences`, line fields from the line's own `confidence`) — issue #812. Without it the table could not distinguish the two cases that matter: the model flagged the field and was right to (the gate worked), versus the model was confident and still wrong (a silent failure, and the signal worth feeding back into the extraction prompt). `/analytics/extraction` splits the two on that column.
+- A product reassignment is a correction like any other, under `fieldName='line_item.product'`, with the auto-matched canonical name as `originalValue`. Normalized through the same `normalizeStr` as text fields, so a reassignment that lands on the same product is not logged.
 
 **`function saveReviewedInvoice`**
 

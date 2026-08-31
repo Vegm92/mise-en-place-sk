@@ -2,7 +2,7 @@ import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
 import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
-import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens } from './products';
+import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens, assignLineProduct, getProductName } from './products';
 import { enqueueCategorize, enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
 import { runPriceShock, runStockForecast, runBudgetCheck, runCategorizationNudge, runCategorySuggestion, runPossibleDuplicatePurchase, saveAlerts, type Alert } from './alerts';
@@ -79,7 +79,11 @@ function normalizeNum(v: unknown): string {
 }
 
 type CorrectionRow = typeof extractionCorrections.$inferInsert;
-type FieldComparison = { field: string; origRaw: unknown; submittedVal: string; numeric?: boolean };
+type FieldComparison = { field: string; origRaw: unknown; submittedVal: string; numeric?: boolean; confidence?: number | null };
+
+function numericOrNull(v: unknown): number | null {
+	return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
 
 function correctionRows(
 	comparisons: FieldComparison[],
@@ -87,14 +91,40 @@ function correctionRows(
 	lineItemIndex: number | null,
 ): CorrectionRow[] {
 	const rows: CorrectionRow[] = [];
-	for (const { field, origRaw, submittedVal, numeric } of comparisons) {
+	for (const { field, origRaw, submittedVal, numeric, confidence } of comparisons) {
 		const orig = numeric ? normalizeNum(origRaw) : normalizeStr(origRaw);
 		const sub  = numeric ? normalizeNum(submittedVal) : normalizeStr(submittedVal);
 		if (orig !== sub) {
-			rows.push({ ...target, fieldName: field, originalValue: orig || null, correctedValue: sub || null, lineItemIndex });
+			rows.push({
+				...target,
+				fieldName: field,
+				originalValue: orig || null,
+				correctedValue: sub || null,
+				lineItemIndex,
+				fieldConfidence: confidence ?? null,
+			});
 		}
 	}
 	return rows;
+}
+
+export function productCorrectionRows(
+	productCorrections: ProductCorrection[],
+	target: { invoiceId: number; supplierId: number; restaurantId: string },
+	originalLines: Array<Record<string, unknown>>,
+): CorrectionRow[] {
+	return productCorrections
+		.filter((c) => normalizeStr(c.originalName) !== normalizeStr(c.correctedName))
+		.map((c) => ({
+			...target,
+			fieldName: 'line_item.product',
+			originalValue: normalizeStr(c.originalName) || null,
+			correctedValue: normalizeStr(c.correctedName) || null,
+			lineItemIndex: c.lineItemIndex,
+			fieldConfidence: c.lineItemIndex == null
+				? null
+				: numericOrNull(originalLines[c.lineItemIndex]?.confidence),
+		}));
 }
 
 async function logExtractionCorrections(
@@ -104,23 +134,26 @@ async function logExtractionCorrections(
 	originalData: Record<string, unknown> | undefined,
 	submitted: HeaderSnapshot,
 	submittedLines: LineSnapshot,
+	productCorrections: ProductCorrection[] = [],
 ) {
-	if (!originalData) return;
+	if (!originalData && productCorrections.length === 0) return;
 
 	const target = { invoiceId, supplierId, restaurantId };
 	const rows: CorrectionRow[] = [];
+	const fieldConfs = (originalData?.field_confidences as Record<string, unknown> | undefined) ?? {};
+	const headerConf = (field: string) => numericOrNull(fieldConfs[field]);
 
-	const headerComparisons: FieldComparison[] = [
-		{ field: 'supplier_name',  origRaw: originalData.supplier_name,  submittedVal: submitted.supplierName },
-		{ field: 'invoice_number', origRaw: originalData.invoice_number, submittedVal: submitted.invoiceNumber },
-		{ field: 'invoice_date',   origRaw: originalData.invoice_date,   submittedVal: submitted.invoiceDate ?? '' },
-		{ field: 'due_date',       origRaw: originalData.due_date,       submittedVal: submitted.dueDate ?? '' },
-		{ field: 'total_amount',   origRaw: originalData.total_amount,   submittedVal: String(submitted.totalAmount ?? ''), numeric: true },
-	];
+	const headerComparisons: FieldComparison[] = originalData ? [
+		{ field: 'supplier_name',  origRaw: originalData.supplier_name,  submittedVal: submitted.supplierName, confidence: headerConf('supplier_name') },
+		{ field: 'invoice_number', origRaw: originalData.invoice_number, submittedVal: submitted.invoiceNumber, confidence: headerConf('invoice_number') },
+		{ field: 'invoice_date',   origRaw: originalData.invoice_date,   submittedVal: submitted.invoiceDate ?? '', confidence: headerConf('invoice_date') },
+		{ field: 'due_date',       origRaw: originalData.due_date,       submittedVal: submitted.dueDate ?? '', confidence: headerConf('due_date') },
+		{ field: 'total_amount',   origRaw: originalData.total_amount,   submittedVal: String(submitted.totalAmount ?? ''), numeric: true, confidence: headerConf('total_amount') },
+	] : [];
 
 	rows.push(...correctionRows(headerComparisons, target, null));
 
-	const originalLines = Array.isArray(originalData.line_items)
+	const originalLines = Array.isArray(originalData?.line_items)
 		? (originalData.line_items as Array<Record<string, unknown>>)
 		: [];
 
@@ -129,15 +162,18 @@ async function logExtractionCorrections(
 
 	for (let i = 0; i < compareCount; i++) {
 		const orig = originalLines[i];
+		const lineConf = numericOrNull(orig.confidence);
 		const lineFields: FieldComparison[] = [
-			{ field: 'line_item.description', origRaw: orig.description, submittedVal: lineDescriptions[i] ?? '' },
-			{ field: 'line_item.quantity',    origRaw: orig.quantity,    submittedVal: lineQuantities[i] ?? '',    numeric: true },
-			{ field: 'line_item.unit',        origRaw: orig.unit,        submittedVal: lineUnits[i] ?? '' },
-			{ field: 'line_item.unit_price',  origRaw: orig.unit_price,  submittedVal: lineUnitPrices[i] ?? '',   numeric: true },
-			{ field: 'line_item.total_price', origRaw: orig.total_price, submittedVal: lineTotalPrices[i] ?? '',  numeric: true },
+			{ field: 'line_item.description', origRaw: orig.description, submittedVal: lineDescriptions[i] ?? '', confidence: lineConf },
+			{ field: 'line_item.quantity',    origRaw: orig.quantity,    submittedVal: lineQuantities[i] ?? '',    numeric: true, confidence: lineConf },
+			{ field: 'line_item.unit',        origRaw: orig.unit,        submittedVal: lineUnits[i] ?? '', confidence: lineConf },
+			{ field: 'line_item.unit_price',  origRaw: orig.unit_price,  submittedVal: lineUnitPrices[i] ?? '',   numeric: true, confidence: lineConf },
+			{ field: 'line_item.total_price', origRaw: orig.total_price, submittedVal: lineTotalPrices[i] ?? '',  numeric: true, confidence: lineConf },
 		];
 		rows.push(...correctionRows(lineFields, target, i));
 	}
+
+	rows.push(...productCorrectionRows(productCorrections, target, originalLines));
 
 	if (rows.length > 0) {
 		await db.insert(extractionCorrections).values(rows);
@@ -206,6 +242,8 @@ export type LineFormInput = {
 	taxRateVal: number | null;
 	pack: PackInfo | null;
 	supplierSku: string | null;
+	productId?: number | null;
+	formIndex?: number;
 };
 
 export type EnrichedLine = {
@@ -292,12 +330,14 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 	const totalPrices  = formData.getAll('line_total_prices').map(String);
 	const taxRates     = formData.getAll('line_tax_rates').map(String);
 	const supplierSkus = formData.getAll('line_supplier_skus').map(String);
+	const productIds   = formData.getAll('line_product_ids').map(String);
 
 	const out: LineFormInput[] = [];
 	for (let i = 0; i < descriptions.length; i++) {
 		const desc = descriptions[i].trim();
 		if (!desc) continue;
 		const unitVal = units[i]?.trim() || null;
+		const productId = Number.parseInt(productIds[i] ?? '', 10);
 		out.push({
 			desc,
 			qtyFloat: parseAmount(quantities[i]),
@@ -307,6 +347,8 @@ export function parseLineInputs(formData: FormData): LineFormInput[] {
 			taxRateVal: parseAmount(taxRates[i]),
 			pack: parsePack(desc, unitVal),
 			supplierSku: supplierSkus[i]?.trim() || null,
+			productId: Number.isInteger(productId) && productId > 0 ? productId : null,
+			formIndex: i,
 		});
 	}
 	return out;
@@ -378,14 +420,27 @@ export function extractedAllergensByKey(
 	return out;
 }
 
+export type ProductCorrection = {
+	lineItemIndex: number | null;
+	originalName: string | null;
+	correctedName: string;
+};
+
 export async function linkProductsToInvoice(
 	invoiceId: number,
 	supplierId: number,
 	rid: string,
-	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null; supplierSku: string | null }>,
+	lineInputs: Array<{ desc: string; unitVal: string | null; pack: PackInfo | null; supplierSku: string | null; productId?: number | null; formIndex?: number }>,
 	allergensByKey: Map<string, string[]> = new Map(),
-): Promise<Map<string, number>> {
+): Promise<{ productByKey: Map<string, number>; productCorrections: ProductCorrection[] }> {
 	const productByKey = new Map<string, number>();
+	const productCorrections: ProductCorrection[] = [];
+	const overrideByKey = new Map<string, { productId: number; lineItemIndex: number | null }>();
+	for (const [i, li] of lineInputs.entries()) {
+		const key = normalizeProductKey(li.desc);
+		if (!key || li.productId == null || overrideByKey.has(key)) continue;
+		overrideByKey.set(key, { productId: li.productId, lineItemIndex: li.formIndex ?? i });
+	}
 	try {
 		const resolved = await resolveLineProducts(
 			db, rid, supplierId,
@@ -401,19 +456,36 @@ export async function linkProductsToInvoice(
 
 		const suggestions: Alert[] = [];
 		for (const [desc, r] of resolved) {
+			const descKey = normalizeProductKey(desc);
+			const override = overrideByKey.get(descKey);
+			let productId = r.productId;
+			let reassigned = false;
+
+			if (override && override.productId !== r.productId) {
+				const assigned = await assignLineProduct(db, rid, supplierId, desc, override.productId);
+				if (assigned) {
+					productCorrections.push({
+						lineItemIndex: override.lineItemIndex,
+						originalName: r.suggestion?.candidateName ?? await getProductName(db, rid, r.productId),
+						correctedName: assigned.productName,
+					});
+					productId = assigned.productId;
+					reassigned = true;
+				}
+			}
+
 			await db.update(invoiceLineItems)
-				.set({ productId: r.productId })
+				.set({ productId })
 				.where(and(
 					forTenant(rid).scope(invoiceLineItems.restaurantId),
 					eq(invoiceLineItems.invoiceId, invoiceId),
 					eq(invoiceLineItems.description, desc),
 				));
-			const descKey = normalizeProductKey(desc);
-			productByKey.set(descKey, r.productId);
+			productByKey.set(descKey, productId);
 
 			const codes = allergensByKey.get(descKey);
 			if (codes && codes.length > 0) {
-				const applied = await applyExtractedAllergens(rid, r.productId, codes)
+				const applied = await applyExtractedAllergens(rid, productId, codes)
 					.catch((e) => {
 						console.error('[invoice-save] allergen apply failed (non-fatal):', e);
 						return false;
@@ -424,7 +496,7 @@ export async function linkProductsToInvoice(
 						message: `product_allergens_suggested: ${desc}`,
 						payload: {
 							description: desc,
-							productId: r.productId,
+							productId,
 							allergens: codes,
 							messageKey: 'notif.msg.productAllergens',
 							messageVars: { description: desc },
@@ -433,7 +505,7 @@ export async function linkProductsToInvoice(
 				}
 			}
 
-			if (r.status === 'fuzzy' && r.suggestion) {
+			if (r.status === 'fuzzy' && r.suggestion && !reassigned) {
 				const productSuggestionVars = { description: desc, candidateName: r.suggestion.candidateName };
 				suggestions.push({
 					notificationType: 'product_suggestion',
@@ -447,10 +519,10 @@ export async function linkProductsToInvoice(
 						messageVars: productSuggestionVars,
 					},
 				});
-			} else if (r.status === 'created') {
-				await enqueueNormalize(rid, r.productId, desc).catch((e) =>
+			} else if (r.status === 'created' && !reassigned) {
+				await enqueueNormalize(rid, productId, desc).catch((e) =>
 					console.error('[invoice-save] normalize enqueue failed (non-fatal):', e));
-				await enqueueCategorize(rid, r.productId, desc).catch((e) =>
+				await enqueueCategorize(rid, productId, desc).catch((e) =>
 					console.error('[invoice-save] categorize enqueue failed (non-fatal):', e));
 			}
 		}
@@ -458,7 +530,7 @@ export async function linkProductsToInvoice(
 	} catch (err) {
 		console.error('[invoice-save] product linking failed (non-fatal):', err);
 	}
-	return productByKey;
+	return { productByKey, productCorrections };
 }
 
 export function detectTotalMismatch(
@@ -550,7 +622,7 @@ async function runPostSaveEffects(params: {
 	const { invoiceId, supplierId, rid, supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount, documentType, confidenceRaw, lineInputs, savedItems, unitConversionAlerts, qrMismatches, extractedData, lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices, proposedCategory, reviewState, tdb } = params;
 	let isFirstInvoice = false;
 	try {
-		const productByKey = await linkProductsToInvoice(
+		const { productByKey, productCorrections } = await linkProductsToInvoice(
 			invoiceId, supplierId, rid, lineInputs,
 			extractedAllergensByKey(extractedData as ExtractedInvoice | undefined),
 		);
@@ -602,6 +674,7 @@ async function runPostSaveEffects(params: {
 			extractedData,
 			{ supplierName, invoiceNumber, invoiceDate, dueDate, totalAmount },
 			{ lineDescriptions, lineQuantities, lineUnits, lineUnitPrices, lineTotalPrices },
+			productCorrections,
 		);
 
 		const onboardingRows = await db
