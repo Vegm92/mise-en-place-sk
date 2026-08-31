@@ -488,3 +488,101 @@ describe('runExtractionJobForBoss — the pg-boss redelivery pg-boss never got (
 		expect(deadLetterMocks.recordDeadLetter).toHaveBeenCalledTimes(1);
 	});
 });
+
+/**
+ * Issue #808: the line-sum-vs-total reconciliation used to run only inside
+ * `saveReviewedInvoice`, gated behind a human opening the review screen and
+ * saving the form. A clean PDF whose lines Gemini misread could sit as
+ * `status: 'done'` with nothing marking it as an incidence. The worker now
+ * runs the same reconciliation on the raw extraction the moment it lands,
+ * before `markDone` — independent of whether anyone ever opens the review
+ * form.
+ */
+describe('processExtractionJob — total mismatch is detected at extraction time (#808)', () => {
+	it('flags total_mismatch when the extracted lines do not sum to the extracted total', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: {
+				supplier_name: 'Acme',
+				total_amount: 100,
+				line_items: [
+					{ description: 'a', total_price: 40 },
+					{ description: 'b', total_price: 30 },
+				],
+			},
+			usage: {},
+		});
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({ total_mismatch: true }),
+			expect.anything(),
+		);
+	});
+
+	it('does not flag total_mismatch when the extracted lines reconcile with the extracted total', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: {
+				supplier_name: 'Acme',
+				total_amount: 100,
+				line_items: [
+					{ description: 'a', total_price: 60 },
+					{ description: 'b', total_price: 40 },
+				],
+			},
+			usage: {},
+		});
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({ total_mismatch: false }),
+			expect.anything(),
+		);
+	});
+
+	it('accounts for a printed tax breakdown before flagging a mismatch', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: {
+				supplier_name: 'Acme',
+				total_amount: 121,
+				tax_breakdown: [{ rate: 0.21, base: 100, tax_amount: 21 }],
+				line_items: [{ description: 'a', total_price: 100 }],
+			},
+			usage: {},
+		});
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({ total_mismatch: false }),
+			expect.anything(),
+		);
+	});
+
+	it('does not flag total_mismatch when there is no usable extracted total to reconcile against', async () => {
+		batchMocks.markExtracting.mockResolvedValue(true);
+		extractMocks.extractWithProvider.mockResolvedValue({
+			invoice: {
+				supplier_name: 'Acme',
+				total_amount: null,
+				line_items: [{ description: 'a', total_price: 40 }],
+			},
+			usage: {},
+		});
+
+		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
+
+		expect(batchMocks.markDone).toHaveBeenCalledWith(
+			item.id,
+			expect.objectContaining({ total_mismatch: false }),
+			expect.anything(),
+		);
+	});
+});

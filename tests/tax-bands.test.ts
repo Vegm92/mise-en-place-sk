@@ -10,6 +10,7 @@ import {
   taxableBaseMoney,
   lineRateFractions,
   bandsFromLines,
+  detectTotalMismatch,
 } from '../src/lib/tax';
 import { resolveTaxBreakdown } from '../src/lib/server/invoice-save';
 
@@ -217,6 +218,41 @@ describe('bandsFromLines (different products, different rates)', () => {
   it('returns nothing when no line carries a rate', () => {
     expect(bandsFromLines([{ totalPrice: '100.00', rate: null }])).toEqual([]);
     expect(lineRateFractions([{ totalPrice: '100.00', rate: null }])).toEqual([]);
+  });
+});
+
+describe('detectTotalMismatch (issue #808 — the reconciliation check itself)', () => {
+  it('passes when the lines plus tax bands add up to the total', () => {
+    const bands = bandsFromInputs([{ rate: '10', type: 'iva', base: '100.00', amount: '10.00' }]);
+    expect(detectTotalMismatch(['100.00'], bands, '110.00')).toBe(false);
+  });
+
+  it('flags a line sum that does not reconcile with the total, with no tax involved', () => {
+    expect(detectTotalMismatch(['80.00', '10.00'], null, '100.00')).toBe(true);
+  });
+
+  it('flags a mismatch even when tax bands are present but do not close the gap', () => {
+    const bands = bandsFromInputs([{ rate: '21', type: 'iva', base: '100.00', amount: '21.00' }]);
+    expect(detectTotalMismatch(['90.00'], bands, '121.00')).toBe(true);
+  });
+
+  it('tolerates a 1-cent rounding difference', () => {
+    expect(detectTotalMismatch(['33.33', '33.33', '33.34'], null, '100.00')).toBe(false);
+    expect(detectTotalMismatch(['33.33', '33.33', '33.33'], null, '100.00')).toBe(false);
+  });
+
+  it('flags a gap bigger than the rounding tolerance', () => {
+    expect(detectTotalMismatch(['33.33', '33.33', '33.33'], null, '100.05')).toBe(true);
+  });
+
+  it('never flags when there is no usable total to compare against', () => {
+    expect(detectTotalMismatch(['80.00'], null, null)).toBe(false);
+    expect(detectTotalMismatch(['80.00'], null, '0')).toBe(false);
+    expect(detectTotalMismatch(['80.00'], null, '-10.00')).toBe(false);
+  });
+
+  it('treats a missing line total as zero rather than throwing', () => {
+    expect(detectTotalMismatch([null, '50.00'], null, '50.00')).toBe(false);
   });
 });
 
