@@ -95,11 +95,11 @@
         sub={deltaPct === null
           ? $ti('admin.prevPeriod', { n: data.invoicesPrev7d })
           : $ti('admin.vsPrevPct', { pct: (deltaPct > 0 ? '+' : '') + deltaPct })}
-        valueColor={delta < 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'} />
+        valueColor={delta < 0 ? 'text-warn' : 'text-fg'} />
       <AdminKpiCard label={$t('admin.activeRestaurants')} value={fmt(data.activeRestaurants7d)}
         sub={$ti('admin.ofTotal', { n: data.totalRestaurants })} />
       <AdminKpiCard label={$t('admin.pendingExtractions')} value={fmt(data.pendingExtractions)}
-        valueColor={data.pendingExtractions > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'} />
+        valueColor={data.pendingExtractions > 0 ? 'text-warn' : 'text-fg'} />
     </div>
   </div>
 
