@@ -39,7 +39,7 @@ beforeEach(resetWaitlistRouteMocks);
 describe('/waitlist load — sets the mep_attr cookie', () => {
 	it('sets mep_attr with source + campaign from utm_source / utm_campaign', async () => {
 		const cookies = fakeCookies();
-		await load(loadEvent('https://mise-en-place.app/waitlist?utm_source=x&utm_campaign=y', { cookies }));
+		await load(loadEvent('https://mise-place.com/waitlist?utm_source=x&utm_campaign=y', { cookies }));
 
 		expect(cookies.set).toHaveBeenCalledOnce();
 		const [name, value, opts] = cookies.set.mock.calls[0];
@@ -50,7 +50,7 @@ describe('/waitlist load — sets the mep_attr cookie', () => {
 
 	it('still sets a baseline cookie on a first, UTM-less visit', async () => {
 		const cookies = fakeCookies();
-		await load(loadEvent('https://mise-en-place.app/waitlist', { cookies }));
+		await load(loadEvent('https://mise-place.com/waitlist', { cookies }));
 		expect(cookies.set).toHaveBeenCalledOnce();
 	});
 
@@ -60,7 +60,7 @@ describe('/waitlist load — sets the mep_attr cookie', () => {
 			referrer: null, landingPath: '/waitlist', referredBy: null,
 		});
 		const cookies = fakeCookies({ mep_attr: existing });
-		await load(loadEvent('https://mise-en-place.app/waitlist', { cookies }));
+		await load(loadEvent('https://mise-place.com/waitlist', { cookies }));
 		expect(cookies.set).not.toHaveBeenCalled();
 	});
 
@@ -70,7 +70,7 @@ describe('/waitlist load — sets the mep_attr cookie', () => {
 			referrer: null, landingPath: '/waitlist', referredBy: null,
 		});
 		const cookies = fakeCookies({ mep_attr: existing });
-		await load(loadEvent('https://mise-en-place.app/waitlist?utm_source=facebook', { cookies }));
+		await load(loadEvent('https://mise-place.com/waitlist?utm_source=facebook', { cookies }));
 		expect(cookies.set).toHaveBeenCalledOnce();
 		const value = cookies.set.mock.calls[0][1];
 		expect(JSON.parse(value)).toMatchObject({ source: 'facebook' });
