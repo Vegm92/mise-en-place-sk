@@ -25,7 +25,7 @@ import {
 	testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 import {
 	ALERT_PREFERENCE_TYPES,
 	ALERT_PREFERENCE_GROUPS,

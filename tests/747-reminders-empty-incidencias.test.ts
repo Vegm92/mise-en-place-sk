@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 const DESKTOP = path.resolve(__dirname, '..', 'src', 'routes', '(app)', 'reminders', '+page.svelte');
 const MOBILE = path.resolve(__dirname, '..', 'src', 'lib', 'components', 'mobile', 'MobileAlerts.svelte');

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
-import { locale, t, ti, tp, tcat, tiv, translations, loadAllMessages } from '../src/lib/i18n';
+import { locale, t, ti, tp, tcat, tiv, loadAllMessages } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 await loadAllMessages();
 

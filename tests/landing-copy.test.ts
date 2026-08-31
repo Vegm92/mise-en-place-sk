@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { overrideFor, interpolate, type LandingOverrides } from '../src/lib/landing-copy';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 const OVERRIDES: LandingOverrides = {
 	es: { 'waitlist.headline': 'Titular ES override' },

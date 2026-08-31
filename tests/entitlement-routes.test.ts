@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROUTE_POLICY, UPGRADE_SLUG, type RoutePolicy } from '../src/lib/server/entitlements';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 
 const ROUTES_DIR = path.join(process.cwd(), 'src', 'routes');
 

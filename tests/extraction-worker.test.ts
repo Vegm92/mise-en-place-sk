@@ -14,7 +14,7 @@
  * the table.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 import { JsonShapeMismatchError } from '../src/lib/server/llm-json';
 
 const sentryMocks = vi.hoisted(() => ({

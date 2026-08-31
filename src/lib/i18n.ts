@@ -5,7 +5,7 @@ import type { Locale } from './i18n-messages';
 const LOCALE_COOKIE = 'mep-locale';
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
-export { translations, renderTemplate, type Locale, type TranslationKey, type WaitlistKey } from './i18n-messages';
+export type { Locale, TranslationKey, WaitlistKey } from './i18n-messages';
 
 export const messageLoaders: Record<Locale, () => Promise<{ default: Record<string, string> }>> = {
   es: () => import('./messages/es'),
