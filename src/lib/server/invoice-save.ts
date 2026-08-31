@@ -233,6 +233,19 @@ async function invoiceNumberTaken(
 	return dup.length > 0;
 }
 
+async function findContentHashDuplicate(
+	tx: BatchDb,
+	tdb: TenantScope,
+	contentHash: string,
+): Promise<number | null> {
+	const dup = await tx
+		.select({ id: invoices.id })
+		.from(invoices)
+		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
+		.limit(1);
+	return dup.length > 0 ? dup[0].id : null;
+}
+
 export type LineFormInput = {
 	desc: string;
 	qtyFloat: number | null;
@@ -743,16 +756,6 @@ export async function saveReviewedInvoice(
 		taxBands,
 	);
 
-	const hashMatch = await db
-		.select({ id: invoices.id })
-		.from(invoices)
-		.where(and(tdb.scope(invoices.restaurantId), eq(invoices.contentHash, contentHash), isNull(invoices.deletedAt)))
-		.limit(1);
-
-	if (hashMatch.length > 0) {
-		return { type: 'contentDuplicate', duplicateId: hashMatch[0].id };
-	}
-
 	const extractedData = item?.extractedData ?? undefined;
 	const rawDocumentType = formData.has('document_type') ? formData.get('document_type') : extractedData?.document_type;
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
@@ -778,7 +781,7 @@ export async function saveReviewedInvoice(
 
 	let supplierId = 0;
 	let invoiceId: number | null = null;
-	let isDuplicate = false;
+	let duplicateOutcome: Extract<SaveOutcome, { type: 'contentDuplicate' | 'numberDuplicate' }> | null = null;
 	let isReplay = false;
 	const savedItems: EnrichedLineItem[] = [];
 	const unitConversionAlerts: Alert[] = [];
@@ -786,6 +789,13 @@ export async function saveReviewedInvoice(
 	await db.transaction(async (tx) => {
 		if (idemKey && !(await claimRequest(idemKey, rid, tx))) {
 			isReplay = true;
+			return;
+		}
+
+		const hashDuplicateId = await findContentHashDuplicate(tx, tdb, contentHash);
+		if (hashDuplicateId !== null) {
+			duplicateOutcome = { type: 'contentDuplicate', duplicateId: hashDuplicateId };
+			if (idemKey) await releaseRequest(idemKey, tx);
 			return;
 		}
 
@@ -797,7 +807,7 @@ export async function saveReviewedInvoice(
 		}
 
 		if (invoiceNumber.trim() && await invoiceNumberTaken(tx, tdb, supplierId, invoiceNumber.trim())) {
-			isDuplicate = true;
+			duplicateOutcome = { type: 'numberDuplicate' };
 			if (idemKey) await releaseRequest(idemKey, tx);
 			return;
 		}
@@ -827,7 +837,14 @@ export async function saveReviewedInvoice(
 			.returning({ id: invoices.id });
 
 		if (!insertedInvoice.length) {
-			isDuplicate = true;
+			// Lost a race against a concurrent save (same content or same
+			// supplier+number) that committed between our checks above and this
+			// insert. Re-check which unique constraint it was so the caller gets
+			// an accurate outcome instead of a generic one.
+			const raceHashDuplicateId = await findContentHashDuplicate(tx, tdb, contentHash);
+			duplicateOutcome = raceHashDuplicateId !== null
+				? { type: 'contentDuplicate', duplicateId: raceHashDuplicateId }
+				: { type: 'numberDuplicate' };
 			if (idemKey) await releaseRequest(idemKey, tx);
 			return;
 		}
@@ -840,9 +857,9 @@ export async function saveReviewedInvoice(
 
 	if (isReplay) return { type: 'replay' };
 
-	if (isDuplicate) {
+	if (duplicateOutcome) {
 		trackEvent('duplicate_detected', rid, { supplier: supplierName, amount: totalAmount });
-		return { type: 'numberDuplicate' };
+		return duplicateOutcome;
 	}
 
 	const isFirstInvoice = await runPostSaveEffects({
