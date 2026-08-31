@@ -17,7 +17,7 @@ function mockPdfText(text: string) {
   extractTextMock.mockResolvedValue({ text, totalPages: 1 });
 }
 
-import { extractInvoice, extractWithProvider, classifyFile, sanitizeExtractedInvoice, type GenerateFn } from '../src/lib/server/extract';
+import { extractInvoice, extractWithProvider, classifyFile, sanitizeExtractedInvoice, INVOICE_RESPONSE_SCHEMA, type GenerateFn } from '../src/lib/server/extract';
 import type { LLMUsage } from '../src/lib/server/llm-provider';
 
 const MOCK_INVOICE_DATA = {
@@ -42,7 +42,12 @@ function makeGenerateFn(responseText: string): GenerateFn {
 
 function makeMockProvider(responseText: string) {
   const usage: LLMUsage = { inputTokens: 10, outputTokens: 5, model: 'gemini-2.5-flash' };
-  const generate = vi.fn(async (_content: string | object[], _signal?: AbortSignal, _systemInstruction?: string) => ({
+  const generate = vi.fn(async (
+    _content: string | object[],
+    _signal?: AbortSignal,
+    _systemInstruction?: string,
+    _responseSchema?: object,
+  ) => ({
     text: responseText,
     usage,
   }));
@@ -210,7 +215,97 @@ describe('extractInvoice — response parsing', () => {
     mockPdfText('x'.repeat(100));
 
     const generate = makeGenerateFn('not valid json at all');
-    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow();
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+  });
+});
+
+// Issue #842: constrained decoding (responseSchema) removes *format* errors,
+// but a reply that is syntactically valid JSON and still the wrong shape
+// (missing/mistyped required fields) must still be rejected by a runtime
+// check rather than cast straight to ExtractedInvoice.
+describe('extractInvoice — runtime shape validation (issue #842)', () => {
+  it('rejects well-formed JSON that is not an invoice shape at all', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const generate = makeGenerateFn(JSON.stringify({ hello: 'world' }));
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+  });
+
+  it('rejects a JSON array instead of an object', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const generate = makeGenerateFn(JSON.stringify([1, 2, 3]));
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+  });
+
+  it('rejects a reply missing required fields (confidence, line_items)', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const incomplete = { supplier_name: 'Proveedor Test S.L.', invoice_number: 'FAC-1' };
+    const generate = makeGenerateFn(JSON.stringify(incomplete));
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+  });
+
+  it('rejects a reply where confidence has the wrong type', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const wrongType = { ...MOCK_INVOICE_DATA, confidence: 'high' };
+    const generate = makeGenerateFn(JSON.stringify(wrongType));
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+  });
+
+  it('rejects a reply where line_items is not an array', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const wrongLineItems = { ...MOCK_INVOICE_DATA, line_items: 'none' };
+    const generate = makeGenerateFn(JSON.stringify(wrongLineItems));
+    await expect(extractInvoice('/fake/invoice.pdf', generate)).rejects.toThrow(/invalid JSON/);
+  });
+
+  it('accepts a well-formed reply with all required fields correctly typed', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    const result = await extractInvoice('/fake/invoice.pdf', generate);
+    expect(result.supplier_name).toBe('Proveedor Test S.L.');
+  });
+});
+
+describe('response schema forwarding (issue #842)', () => {
+  it('extractInvoice passes INVOICE_RESPONSE_SCHEMA to the generate function', async () => {
+    mockPdfText('FACTURA\nProveedor Test S.L.\n'.repeat(5));
+
+    const generate = makeGenerateFn(JSON.stringify(MOCK_INVOICE_DATA));
+    await extractInvoice('/fake/invoice.pdf', generate);
+
+    const [, , , schema] = vi.mocked(generate).mock.calls[0];
+    expect(schema).toBe(INVOICE_RESPONSE_SCHEMA);
+  });
+
+  it('extractWithProvider passes INVOICE_RESPONSE_SCHEMA to provider.generate', async () => {
+    mockPdfText('FACTURA\nProveedor Test S.L.\n'.repeat(5));
+
+    const provider = makeMockProvider(JSON.stringify(MOCK_INVOICE_DATA));
+    await extractWithProvider('/fake/invoice.pdf', provider);
+
+    const [, , , schema] = provider.generate.mock.calls[0];
+    expect(schema).toBe(INVOICE_RESPONSE_SCHEMA);
+  });
+});
+
+describe('extractWithProvider — runtime shape validation (issue #842)', () => {
+  it('rejects a reply missing required fields', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const provider = makeMockProvider(JSON.stringify({ supplier_name: 'X' }));
+    await expect(extractWithProvider('/fake/invoice.pdf', provider)).rejects.toThrow(/invalid JSON/);
+  });
+
+  it('rejects invalid JSON entirely', async () => {
+    mockPdfText('x'.repeat(100));
+
+    const provider = makeMockProvider('not json');
+    await expect(extractWithProvider('/fake/invoice.pdf', provider)).rejects.toThrow(/invalid JSON/);
   });
 });
 
