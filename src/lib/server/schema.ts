@@ -73,10 +73,14 @@ export const invoices = pgTable('invoices', {
 	rejectedAt:      timestamp('rejected_at', { withTimezone: true }),
 	paidAt:          timestamp('paid_at', { withTimezone: true }),
 	version:         integer('version').notNull().default(1),
+	linkedInvoiceId: integer('linked_invoice_id').references((): AnyPgColumn => invoices.id, { onDelete: 'set null' }),
 }, (t) => [
 	uniqueIndex('uq_invoices_rid_supplier_number')
 		.on(t.restaurantId, t.supplierId, t.invoiceNumber)
 		.where(sql`${t.invoiceNumber} IS NOT NULL`),
+	index('idx_invoices_linked_invoice_id')
+		.on(t.linkedInvoiceId)
+		.where(sql`${t.linkedInvoiceId} IS NOT NULL`),
 	index('idx_invoices_deleted_at')
 		.on(t.restaurantId)
 		.where(sql`${t.deletedAt} IS NULL`),
