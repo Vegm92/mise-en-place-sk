@@ -34,7 +34,7 @@ files are vestigial. They are not:
   raw SQL, not part of `schema.ts` — `db:push` diffs against `schema.ts` only, so it **cannot**
   apply or re-apply them.
 - `ci.yml` already runs `pnpm db:migrate` to bootstrap the ephemeral CI Postgres before tests.
-- `DEPLOYMENT.md` and `PRODUCTION_SIGNOFF.md` document `pnpm db:migrate` as the staging/production
+- `DEPLOYMENT.md` documents `pnpm db:migrate` as the staging/production
   deploy step, with an explicit post-migrate check that the RLS policies landed.
 
 So the committed migrations were already the real source of truth for CI, staging, and prod.
