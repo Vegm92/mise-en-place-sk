@@ -1,16 +1,53 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { categorySlug } from './constants';
-import { translations, type Locale } from './i18n-messages';
+import type { Locale } from './i18n-messages';
 
 const LOCALE_COOKIE = 'mep-locale';
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export { translations, renderTemplate, type Locale, type TranslationKey, type WaitlistKey } from './i18n-messages';
 
-export const locale = writable<Locale>('es');
+export const messageLoaders: Record<Locale, () => Promise<{ default: Record<string, string> }>> = {
+  es: () => import('./messages/es'),
+  en: () => import('./messages/en'),
+};
 
-export const t = derived(locale, ($locale) => (key: string): string => {
-  return (translations[$locale] as Record<string, string>)[key] ?? key;
+const messageCache: Partial<Record<Locale, Record<string, string>>> = {};
+
+export const locale = writable<Locale>('es');
+const messages = writable<Record<string, string>>({});
+
+export function setMessages(loc: Locale, table: Record<string, string>) {
+  messageCache[loc] = table;
+  messages.set(table);
+}
+
+function applyLocale(loc: Locale) {
+  const cached = messageCache[loc];
+  if (cached) {
+    messages.set(cached);
+    return;
+  }
+  messageLoaders[loc]().then((mod) => {
+    messageCache[loc] = mod.default;
+    if (get(locale) === loc) messages.set(mod.default);
+  });
+}
+
+locale.subscribe(applyLocale);
+
+export function loadAllMessages(): Promise<void> {
+  return Promise.all(
+    (Object.keys(messageLoaders) as Locale[]).map((loc) =>
+      messageLoaders[loc]().then((mod) => {
+        messageCache[loc] = mod.default;
+      }),
+    ),
+  ).then(() => undefined);
+}
+
+export const t = derived([locale, messages], ([, $messages]) => (key: string): string => {
+  return $messages[key] ?? key;
 });
 
 export const ti = derived(
