@@ -16,6 +16,7 @@ import { memoizeEntitlements } from '$lib/server/billing';
 import { memberLocations, type MemberLocation } from '$lib/server/locations';
 import { eq } from 'drizzle-orm';
 import { scrubSentryEvent } from '$lib/sentry-scrub';
+import { resolveTracesSampleRate } from '$lib/sentry-sample-rate';
 import { withTimeout } from '$lib/server/with-timeout';
 import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
 import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } from '$lib/server/config';
@@ -33,12 +34,13 @@ const API_RATE_LIMIT_EXEMPT = new Set(['/api/health', '/api/stripe-webhook', '/a
 const SYSTEM_CONTEXT_PATHS = new Set(['/api/stripe-webhook', '/api/whatsapp/webhook']);
 const SENTRY_DSN = process.env.SENTRY_DSN ?? '';
 const SENTRY_RELEASE = process.env.SENTRY_RELEASE || undefined;
+const IS_PRODUCTION = NODE_ENV === 'production';
 
 Sentry.init({
 	dsn: SENTRY_DSN,
 	release: SENTRY_RELEASE,
-	environment: NODE_ENV === 'production' ? 'production' : 'development',
-	tracesSampleRate: 1.0,
+	environment: IS_PRODUCTION ? 'production' : 'development',
+	tracesSampleRate: resolveTracesSampleRate(process.env.SENTRY_TRACES_SAMPLE_RATE, IS_PRODUCTION),
 	sendDefaultPii: false,
 	integrations: integrations => integrations.filter(i => i.name !== 'Http'),
 	beforeSend(event) {
