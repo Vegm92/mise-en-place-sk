@@ -722,6 +722,7 @@ export default {
   'extract.err.rateLimited':       'El servicio de IA está ocupado — inténtalo de nuevo en un momento.',
   'extract.err.unavailable':       'El servicio de IA no está disponible temporalmente — inténtalo en breve.',
   'extract.err.notInvoice':        'Esto no parece un albarán — sube un documento de proveedor real.',
+  'extract.err.structureUnclear':  'Este PDF parece contener varios documentos y no hemos podido separarlos con seguridad. Divídelo en archivos de un documento cada uno y vuelve a subirlo.',
   'extract.err.malformedResult':   'La extracción devolvió un resultado con un formato inesperado — inténtalo de nuevo o contacta con soporte si el problema persiste.',
   'extract.err.tooMany':              'El sistema está procesando demasiados albaranes. Inténtalo de nuevo en un momento.',
   'extract.err.alreadyExtracting':    'Este archivo ya se está procesando. Por favor, espera a que termine.',

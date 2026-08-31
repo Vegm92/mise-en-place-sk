@@ -1,10 +1,16 @@
 # Finding: Multi-Invoice and Composite PDF Detection
 
-Status: OPEN
+Status: IMPLEMENTED (v1) — see section 28
 Priority: HIGH
 Category: Invoice Ingestion / Document Classification
 Severity: HIGH
 Detected: 2026-08-14
+Implemented: 2026-08-31 (ADR-035)
+
+Sections 1–27 are the original finding and remain the specification. Section 28
+describes what was actually built, section 29 answers the open questions from
+section 26 against the real architecture, and section 30 is the per-file code
+note.
 
 ---
 
@@ -783,3 +789,179 @@ Document Segmentation
 Invoice Extractor
 
 This should be treated as an ingestion architecture improvement rather than an invoice extraction feature.
+
+---
+
+# 28. Implementation (v1, 2026-08-31)
+
+Decision record: [ADR-035](../06_decisions/ingestion/ADR-035-document-structure-before-extraction.md).
+
+The structure stage runs **in the worker**, between claiming the extraction
+allowance and calling the extractor, for every batch item whose file is a PDF:
+
+```
+batch item (.pdf)
+        ↓
+detectDocumentStructure()          document-structure.ts
+        ↓
+   ┌────┴──────────────────────────────────────────────┐
+   │ single    → extractWithProvider() as before        │
+   │ composite → segmentDocument() fans the batch out   │
+   │ unclear   → markFailed('extract.err.structureUnclear')
+   └────────────────────────────────────────────────────┘
+```
+
+## 28.1 What each classification means
+
+| Kind | When | What happens |
+|---|---|---|
+| `single` | one page, or one segment covering every page (a multi-page single invoice) | the original file goes to the extractor untouched — unchanged behaviour |
+| `composite` | more than one segment, or a cover page to drop | one new batch item per segment, each queued for extraction; the source item becomes `discarded` and its file is kept |
+| `unclear` | no text layer and no classifier, a page map that does not cover every page, low classifier confidence, no segment at all, or a document past the size/page bounds | the item fails with `extract.err.structureUnclear`; the user is asked to split the file |
+
+## 28.2 Detection routes
+
+- **Text route (free).** Every page has ≥ `MIN_PAGE_TEXT_CHARS` (80) of text:
+  page roles come from the text alone — a cover keyword plus ≥3 date-like rows
+  marks a cover; a repeated document number, a `página N de M` marker or a page
+  with no document header marks a continuation; a new document number starts a
+  new segment.
+- **Vision route (one LLM call).** Scanned pages have no text, so the whole PDF
+  goes through the provider seam with `STRUCTURE_PROMPT` and a page-map response
+  schema: one `{page, role, document_ref, confidence}` per page, no invoice
+  fields. Usage is metered as `document-structure`.
+- **Bounds.** `MAX_STRUCTURE_PAGES` = 40 pages, `MAX_STRUCTURE_BYTES` = 15 MB.
+  Past either bound the classifier is never called and the answer is `unclear`.
+- **Threshold.** `MIN_VISION_CONFIDENCE` = 0.7 is provisional (§15 asks for
+  evidence): the lowest per-page confidence below it downgrades a composite
+  answer to `unclear`. Re-derive it from the extraction corpus once real
+  composite documents have accumulated.
+
+## 28.3 Fan-out
+
+`segmentDocument()` (`document-segmentation.ts`) writes each segment with
+`splitPdfRanges()`, saves it through the storage seam, adds one batch item per
+segment via `addItems()` — inheriting the source item's `source`/`sourceRef` so
+a WhatsApp packet still replies per invoice — queues each one, and marks the
+source item `discarded`.
+
+Segment keys are derived from the source key
+(`ns/packet_ab12cd.pdf` → `ns/packet_ab12cd_p2.pdf`, display name
+`packet (p2).pdf`), so a redelivered job skips the children it already created
+instead of duplicating them. The monthly extraction slot claimed for the source
+item is released when the document is split or sent to review — a document the
+worker never extracted must not cost the tenant an extraction.
+
+## 28.4 Acceptance criteria (section 20)
+
+| Case | Status |
+|---|---|
+| A — single invoice | covered: `single` route, unchanged behaviour |
+| B — multi-page invoice | covered: repeated document number / continuation markers keep the pages in one segment |
+| C — multiple invoices | covered: one batch item per segment |
+| D — index + invoices | covered: cover pages are excluded from every segment |
+| E — ambiguous document | covered: `extract.err.structureUnclear`, never a silent single-invoice extraction |
+| F — failure recovery | covered: segments fail independently; the source PDF is preserved |
+
+## 28.5 Not yet implemented
+
+- The per-document metrics of §23 (only worker logs plus an
+  `extraction.structure_unclear` Sentry warning exist).
+- Manual override of detected boundaries (§15, §26 Q12): `unclear` currently
+  means "split it yourself and re-upload".
+- Document/segment state persistence beyond the existing batch item statuses
+  (§13, §14): a segment *is* a batch item, and no new table was added.
+- The upload-time quota pre-check still counts files, not the documents a file
+  will fan out into.
+- No explicit UI notice that a document was separated: on the batch page the
+  source file's row is replaced by one row per document (`packet (p2).pdf`,
+  `packet (p3).pdf`, …), which is the only signal the user gets.
+
+---
+
+# 29. The open questions (section 26), answered
+
+1. **Can ingestion inspect page-level text/images before extraction?** Yes —
+   `pdfPageTexts()` (unpdf, `mergePages: false`) returns text per page.
+2. **Can the OCR layer provide page-level text?** There is no separate OCR
+   layer; scanned pages are read by Gemini. Hence the vision page-map route.
+3. **Is there a document classification component?** There was not; there is
+   now (`document-structure.ts`). `classifyFile()` in `extract.ts` classifies
+   *file kinds*, not document structure.
+4. **Is there a splitting abstraction?** There was not; `pdf-pages.ts` is it.
+   `zip-extract.ts` was the closest precedent (one upload → many items).
+5. **Where are segments persisted?** As ordinary `batch_items` rows in the same
+   batch. No new table.
+6. **Can extraction accept page ranges?** No — it takes a file path, so each
+   segment is materialised as its own PDF file.
+7. **Can the extractor process several pages of one invoice?** Yes, that is
+   already the `single` route: the whole file goes to Gemini.
+8. **How are failed extractions handled?** `markFailed` + error class, with the
+   dead-letter queue for non-degradation classes (ADR-002).
+9. **How are uploaded PDFs stored?** Through the storage seam (ADR-016),
+   local disk or Railway bucket, keyed `namespace/filename`.
+10. **Deterministic, AI-based or hybrid?** Hybrid: deterministic when there is
+    a text layer, AI only for scans.
+11. **Confidence threshold for automatic routing?** `MIN_VISION_CONFIDENCE`
+    = 0.7, provisional (see §28.2).
+12. **Manual override of boundaries?** Not in v1.
+13. **Is the original always preserved?** Yes — the source item is `discarded`,
+    not deleted, and its file stays until the normal 24h batch cleanup.
+14. **Non-invoice documents?** Cover/index/statement pages are dropped; a file
+    that is *only* such pages ends as `unclear` → review.
+
+---
+
+# 30. Code notes
+
+### `src/lib/server/pdf-pages.ts`
+
+**`function pdfPageTexts`**
+
+- Per-page text, deliberately not merged: `extract.ts`'s `classifyPdf()` merges pages to decide text-vs-scan, and that merge is exactly what hides document boundaries. Both callers need different things from the same source.
+
+**`function splitPdfRanges`**
+
+- `pdf-lib` writes, `unpdf`/pdf.js only reads — hence the extra dependency. The source document is loaded once and copied from for every range. `ignoreEncryption` keeps a permissions-flagged (but readable) supplier PDF from failing the whole split.
+
+**`function rangeSuffix`**
+
+- The suffix is part of the storage key, so it must be stable: the same range always produces the same key, which is what makes a redelivered fan-out idempotent.
+
+### `src/lib/server/document-structure.ts`
+
+**`const NUMBER_RE`**
+
+- Anchored on the *label* (factura / albarán / fra. / invoice), not on any digit run: an invoice page is full of numbers, and a bare digit match would make every page look like a new document.
+
+**`const COVER_RE` / `MIN_COVER_ROWS`**
+
+- A cover keyword alone is not enough — a real invoice can print "estado de cuenta". A listing also carries rows of dates, so ≥3 date-like matches are required before a page is dropped as a cover.
+
+**`function pageSignalsFromText`**
+
+- Returns `null` when any page falls under `MIN_PAGE_TEXT_CHARS`, which routes a scanned or mixed document to the classifier instead of segmenting on a half-readable text layer.
+
+**`function structureFromSignals`**
+
+- `single` means one segment covering *every* page, so a document with a cover page is composite even when it holds a single invoice — the cover must not reach the extractor.
+
+**`const STRUCTURE_PROMPT`**
+
+- Deliberately asks for page roles and nothing else. Asking the same call for invoice fields would recreate the coupling this stage exists to break, and a page map is small enough to stay cheap on a 40-page scan.
+
+### `src/lib/server/document-segmentation.ts`
+
+**`function segmentKey`**
+
+- Derived from the source key rather than randomised: worker jobs are redelivered, and a random key would fan the same packet out twice.
+
+**`function segmentDocument`**
+
+- Order matters on a crash: files are written, then items are added, then the source is discarded. A crash before the discard leaves the already-created children visible to the retry through `existingKeys`.
+
+### `src/lib/server/extraction-worker.ts`
+
+**`function routeCompositeDocument`**
+
+- A structure-detection failure is not a reason to lose an invoice: a transient provider error (429/503/timeout) is rethrown into the normal retry policy, anything else falls back to extracting the document as one, which is the pre-ADR-035 behaviour.

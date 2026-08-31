@@ -45,6 +45,15 @@ the front door of the pipeline (web and WhatsApp converge here).
 - `enqueueBatchExtraction` walks items: `pending|failed → markQueued + enqueue`;
   `queued → enqueue` only (idempotent). Per-file rejects do not fail the batch.
 - Billing gate + quota compare happen before storage (fail fast).
+- **One uploaded file is not always one document.** A ZIP is exploded into one
+  item per entry at upload; a composite PDF (several facturas printed or
+  scanned into one file, with or without a cover listing) is split in the
+  worker into one item per document, keyed
+  `{namespace}/{stem}_{3-hex-suffix}_p{range}{ext}` — ADR-035 and
+  `multi_invoice_document_detection.md`. The source item is then `discarded`,
+  its file preserved. The upload-time quota compare counts files, so a packet
+  that fans out past the tenant's allowance produces items that fail
+  individually with `extract.err.quotaExceeded`.
 
 ## State transitions
 

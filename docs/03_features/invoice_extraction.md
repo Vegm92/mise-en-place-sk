@@ -17,6 +17,11 @@ parsed here and re-checked at save.
 - Batch item `queued` (claimed by `markExtracting`).
 - Storage reachable (file pulled to temp for non-local drivers).
 - Quota claimable (`claimMonthlyExtraction`, `checkExtractionQuota`).
+- The item holds **one** document. A PDF is checked first by the structure stage
+  (ADR-035, `docs/03_features/multi_invoice_document_detection.md`): a composite
+  packet is split into one batch item per document and this item never reaches
+  the extractor, and a document whose structure is unclear fails with
+  `extract.err.structureUnclear` instead of being extracted as one invoice.
 
 ## Inputs
 

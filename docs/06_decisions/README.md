@@ -31,6 +31,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 | [015](./ingestion/ADR-015-batches-replace-single-file-sessions.md) | Multi-document batches replace single-file upload sessions | Active |
 | [016](./ingestion/ADR-016-storage-driver-and-upload-validation.md) | Two-driver storage seam; uploads validated by magic bytes | Active |
 | [017](./ingestion/ADR-017-offline-first-upload-queue.md) | Offline uploads queued in IndexedDB and replayed automatically | Active |
+| [035](./ingestion/ADR-035-document-structure-before-extraction.md) | Document structure is detected and composite PDFs are split before extraction | Active |
 
 ### [`extraction/`](./extraction) — AI document understanding
 
@@ -156,7 +157,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **035**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **036**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original

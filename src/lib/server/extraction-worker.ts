@@ -3,7 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import * as Sentry from '@sentry/sveltekit';
 import { uploadsDir } from './sessions.js';
-import { getItem, markExtracting, markDone, markFailed, type BatchItem } from './batch.js';
+import {
+	getItem, getBatchItems, addItems, markQueued, markExtracting, markDone, markFailed, markDiscarded,
+	type BatchItem,
+} from './batch.js';
 import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
 import {
@@ -11,13 +14,17 @@ import {
 	type GenerateFn,
 } from './extract.js';
 import { JsonShapeMismatchError } from './llm-json.js';
+import { createGeminiProvider, type LLMUsage } from './llm-provider.js';
+import {
+	isSegmentableDocument, segmentDocument, STRUCTURE_UNCLEAR_ERROR, type SegmentationOutcome,
+} from './document-segmentation.js';
 import { recordExtractionResult } from './extraction-corpus.js';
 import { annotateLineItems } from './products.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 import { getAccessState } from './billing.js';
 import { isLocationLocked } from './locations.js';
 import { deadLetterRefFromJob, recordDeadLetter, runWithDeadLetter } from './dead-letter.js';
-import { EXTRACTION_QUEUE, enqueueWhatsAppNotify } from './queue.js';
+import { EXTRACTION_QUEUE, enqueueExtraction, enqueueWhatsAppNotify } from './queue.js';
 import { acquireExtractionSlot } from './rate-limiter.js';
 import { detectTotalMismatch, type TaxBand } from '$lib/tax';
 
@@ -154,6 +161,68 @@ async function archiveExtraction(
 	}
 }
 
+async function inspectDocumentStructure(
+	item: BatchItem,
+	filePath: string,
+	restaurantId: string,
+	generateOverride?: GenerateFn,
+): Promise<SegmentationOutcome> {
+	const siblings = await getBatchItems(item.batchId);
+	const storage = getStorage();
+	let usage: LLMUsage | null = null;
+
+	const generate: GenerateFn = generateOverride ?? (async (content, signal, systemInstruction, schema) => {
+		const response = await createGeminiProvider().generate(content, signal, systemInstruction, schema);
+		usage = response.usage;
+		return response.text;
+	});
+
+	try {
+		return await segmentDocument(
+			{ fileKey: item.fileKey, displayName: item.displayName, buffer: fs.readFileSync(filePath) },
+			{
+				existingKeys: new Set(siblings.map((s) => s.fileKey)),
+				saveSegment: (key, buf) => storage.save(key, buf),
+				addItems: (files) => addItems(item.batchId, restaurantId, files, {
+					source: item.source,
+					sourceRef: item.sourceRef,
+				}),
+				enqueue: async (segmentId) => {
+					await markQueued(segmentId);
+					return enqueueExtraction(segmentId, restaurantId);
+				},
+				discardSource: () => markDiscarded(item.id),
+			},
+			{ generate },
+		);
+	} finally {
+		if (usage) await recordLlmUsage(restaurantId, usage, 'document-structure');
+	}
+}
+
+async function routeCompositeDocument(
+	item: BatchItem,
+	filePath: string,
+	restaurantId: string,
+	generateOverride?: GenerateFn,
+): Promise<SegmentationOutcome['action']> {
+	if (!isSegmentableDocument(item.fileKey)) return 'extract';
+
+	const slot = await acquireExtractionSlot();
+	let outcome: SegmentationOutcome;
+	try {
+		outcome = await inspectDocumentStructure(item, filePath, restaurantId, generateOverride);
+	} catch (err) {
+		if (DEGRADATION_ERRORS.has(classifyExtractionError(err))) throw err;
+		console.warn(`[worker] Structure detection failed for item ${item.id} — extracting it as one document:`, err);
+		return 'extract';
+	} finally {
+		await slot.release();
+	}
+
+	return outcome.action;
+}
+
 function removeTmpFile(tmpPath: string): void {
 	try { fs.unlinkSync(tmpPath); } catch { }
 }
@@ -224,6 +293,20 @@ export async function processExtractionJob(
 	}
 
 	try {
+		const route = await routeCompositeDocument(item, filePath, restaurantId, generateOverride);
+		if (route !== 'extract') {
+			if (claimedMonthlySlot) await releaseMonthlyExtraction(restaurantId);
+			if (route === 'review') {
+				Sentry.captureMessage('extraction.structure_unclear', {
+					level: 'warning',
+					tags: { itemId, restaurantId },
+				});
+				await markFailed(itemId, STRUCTURE_UNCLEAR_ERROR);
+				await notifyWhatsAppIfSource(item, restaurantId);
+			}
+			return 'completed';
+		}
+
 		let result;
 		let model: string | null = null;
 		const slot = await acquireExtractionSlot();

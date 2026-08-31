@@ -24,6 +24,9 @@ ones. Verify against `package.json` before assuming (dependencies evolve).
   (issue #856). `zod` remains **not** in use. Everything *inside* the
   authenticated `(app)` shell is still hand-rolled validation (see
   `docs/04_engineering/security_rules.md`) — this migration did not touch it.
+- `pdf-lib` (ADR-035) — writes PDFs, which `unpdf`/pdf.js cannot: composite
+  supplier packets are split into one file per invoice before extraction.
+  Read-only PDF work stays on `unpdf`.
 - `xlsx`, `pdfjs-dist`, `sharp`, `qr-svg`, `mini-svg-data-uri`,
   `cookie`, `nanoid`, `uuid`, `lucide-svelte`, tailwindcss
 

@@ -20,6 +20,12 @@ Web upload (routes/(app)/+page.server.ts)           WhatsApp upload (whatsapp-bo
                               ▼
      extraction-worker.ts  (worker process, batchSize = MAX_CONCURRENT_EXTRACTIONS, default 3)
                               │
+                              ▼
+   document-structure.ts (page roles: text layer, else Gemini page map)  ── ADR-035
+   document-segmentation.ts / pdf-pages.ts (split composite PDFs)
+                              │
+     single ──────────────────┤ composite → one new batch_item per document (back to queue.ts)
+                              │ unclear   → batch_items: failed (extract.err.structureUnclear)
               ┌───────────────┴───────────────┐
               ▼                               ▼
    extract.ts (classify → Gemini)     einvoice-parser.ts (XML, no AI)
