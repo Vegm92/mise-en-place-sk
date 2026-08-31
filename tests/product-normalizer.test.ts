@@ -21,7 +21,7 @@ type LLMProvider = ReturnType<typeof createGeminiProvider>;
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { makeSchemaCapturingGenerate } from './helpers/schema-capturing-generate';
+import { expectProviderSchemaForwarded } from './helpers/schema-capturing-generate';
 
 // ── Pure ──────────────────────────────────────────────────────────────────────
 
@@ -139,13 +139,10 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 
 	it('passes a JSON response schema to provider.generate (issue #842)', async () => {
 		await seedProducts();
-		const generate = makeSchemaCapturingGenerate('{"match_id": null, "confidence": 0}');
-		await processNormalizeJob(
+		await expectProviderSchemaForwarded(
+			processNormalizeJob,
 			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
-			{ provider: { model: 'test-model', generate }, recordUsage: vi.fn(async () => {}) },
+			'{"match_id": null, "confidence": 0}',
 		);
-		expect(generate).toHaveBeenCalledOnce();
-		const [, , , schema] = generate.mock.calls[0];
-		expect(schema).toMatchObject({ type: 'OBJECT' });
 	});
 });
