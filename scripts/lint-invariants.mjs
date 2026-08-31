@@ -8,6 +8,27 @@ const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: '
 
 const SCOPE_OK = new RegExp(`(?:${PROJECT_DIRECTIVES.join('|')}):`);
 
+/**
+ * Ratcheting allowlist for the `form-get-cast` gate below (issue #844): the
+ * `+page.server.ts` files that still cast `form.get(...)`/`formData.get(...)`
+ * with `as` instead of deriving their input from a schema. `form.get()`
+ * genuinely returns `string | File | null` — the cast lies to the type
+ * checker, and a client that posts a file part under that field name either
+ * throws (a string method called on a `File`) or flows the `File` onward
+ * untyped. New occurrences outside this list fail the gate; an existing
+ * offender is removed from the list in the same PR that converts it (see
+ * src/lib/server/public-form-action.ts's `schema` option + `parseForm`, and
+ * src/routes/signup/+page.server.ts for the converted shape). Do not add a
+ * file here to silence a *new* cast — the allowlist is for the offenders
+ * that predate this gate, not an escape hatch.
+ */
+const FORM_GET_CAST_ALLOWLIST = new Set([
+	'src/routes/(app)/billing/+page.server.ts',
+	'src/routes/(app)/batch/[id]/+page.server.ts',
+	'src/routes/(admin)/admin/health/+page.server.ts',
+	'src/routes/(admin)/admin/dead-letters/+page.server.ts',
+]);
+
 const GATES = {
 	'no-sql-raw': {
 		roots: ['src'],
@@ -21,6 +42,19 @@ const GATES = {
 		pattern: /eq\([a-zA-Z]*\.restaurantId,/,
 		exclude: (filePath) => filePath.includes(`${path.sep}admin${path.sep}`) || path.basename(filePath) === 'tenant.ts',
 		message: 'raw eq(*.restaurantId,...) found — use forTenant().scope() instead (ADR-001 / issue #138)'
+	},
+	'form-get-cast': {
+		roots: ['src/routes'],
+		extensions: ['.ts'],
+		pattern: /\bform(?:Data)?\.get\([^)]*\)\s*as\s+/,
+		exclude: (filePath) => path.basename(filePath) !== '+page.server.ts',
+		allowlist: FORM_GET_CAST_ALLOWLIST,
+		message: 'form.get(...)/formData.get(...) cast with `as` bypasses validation — FormData.get() returns\n' +
+			'  string | File | null, so a client that posts a file part under that field name either throws or\n' +
+			'  flows a File through untyped. Derive the input from a schema instead: add `schema:` to the\n' +
+			'  publicFormAction() options (src/lib/server/public-form-action.ts) or call its `parseForm()`\n' +
+			'  directly, following src/routes/signup/+page.server.ts (issue #844). To shrink the allowlist,\n' +
+			'  convert one of its files and remove that file\'s entry from FORM_GET_CAST_ALLOWLIST above.'
 	}
 };
 
@@ -311,18 +345,26 @@ function walk(dir, extensions) {
 
 function runGate(name, gate) {
 	const violations = [];
+	const allowed = [];
 	for (const root of gate.roots) {
 		const absRoot = path.join(ROOT, root);
 		if (!fs.existsSync(absRoot)) continue;
 		for (const file of walk(absRoot, gate.extensions)) {
 			if (gate.exclude?.(file)) continue;
+			const rel = path.relative(ROOT, file).split(path.sep).join('/');
+			const isAllowlisted = gate.allowlist?.has(rel) ?? false;
 			const lines = fs.readFileSync(file, 'utf8').split('\n');
 			lines.forEach((line, i) => {
 				if (gate.pattern.test(line)) {
-					violations.push(`${path.relative(ROOT, file)}:${i + 1}: ${line.trim()}`);
+					const entry = `${rel}:${i + 1}: ${line.trim()}`;
+					(isAllowlisted ? allowed : violations).push(entry);
 				}
 			});
 		}
+	}
+	if (allowed.length > 0) {
+		console.warn(`Note: ${gate.message}\n  (allowlisted — not failing the build; see FORM_GET_CAST_ALLOWLIST)`);
+		for (const v of allowed) console.warn(`  ${v}`);
 	}
 	if (violations.length > 0) {
 		console.error(`Error: ${gate.message}`);
