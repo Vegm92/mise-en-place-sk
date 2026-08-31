@@ -21,6 +21,7 @@ type LLMProvider = ReturnType<typeof createGeminiProvider>;
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
+import { expectProviderSchemaForwarded } from './helpers/schema-capturing-generate';
 
 // ── Pure ──────────────────────────────────────────────────────────────────────
 
@@ -134,5 +135,14 @@ describe.skipIf(!hasDbEnv)('processNormalizeJob', () => {
 		await processNormalizeJob({ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' }, deps);
 		const [{ count }] = await testSql`SELECT COUNT(*)::int AS count FROM system_notifications WHERE restaurant_id = ${rid}`;
 		expect(count).toBe(1);
+	});
+
+	it('passes a JSON response schema to provider.generate (issue #842)', async () => {
+		await seedProducts();
+		await expectProviderSchemaForwarded(
+			processNormalizeJob,
+			{ restaurantId: rid, productId: throwawayId, rawText: 'MERL. GRANDE' },
+			'{"match_id": null, "confidence": 0}',
+		);
 	});
 });
