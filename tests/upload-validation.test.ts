@@ -12,6 +12,8 @@
  * DB, or external storage dependency.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { buildZip } from './helpers/zip';
+import { MAX_ZIP_BYTES } from '../src/lib/upload-formats';
 
 const { store } = vi.hoisted(() => ({ store: new Map<string, Buffer>() }));
 
@@ -111,5 +113,98 @@ describe('saveUploadedFiles — rejects invalid files', () => {
 		expect(errors).toHaveLength(1);
 		expect(errors[0]).toMatchObject({ name: 'spoof.png', reason: 'contentMismatch' });
 		expect(store.size).toBe(2);
+	});
+});
+
+/**
+ * ZIP upload support (issue #824): a .zip is not stored as-is, it is unpacked
+ * server-side and every extracted entry runs through the same saveEntry gate
+ * as a directly uploaded file, so a bad entry is reported without blocking
+ * the rest of the batch — same "mixed batch" behavior as above.
+ */
+function zipFile(name: string, buf: Buffer): File {
+	return new File([new Uint8Array(buf)], name);
+}
+
+describe('saveUploadedFiles — unpacking a well-formed .zip', () => {
+	it('saves every well-formed entry inside, flattening any folder structure to basenames', async () => {
+		const buf = await buildZip([
+			{ name: 'factura1.pdf', bytes: MAGIC.pdf },
+			{ name: 'proveedores/enero/factura2.jpg', bytes: MAGIC.jpg },
+		]);
+
+		const { saved, keys, errors } = await saveUploadedFiles([zipFile('lote.zip', buf)], 'ns');
+
+		expect(errors).toEqual([]);
+		expect(saved).toHaveLength(2);
+		expect(keys).toEqual(saved.map((n) => `ns/${n}`));
+		expect(store.size).toBe(2);
+		expect(saved.some((n) => /^factura2_[0-9a-f]{6}\.jpg$/.test(n))).toBe(true);
+	});
+
+	it('does not store the zip container itself, only its entries', async () => {
+		const buf = await buildZip([{ name: 'factura.pdf', bytes: MAGIC.pdf }]);
+
+		const { saved } = await saveUploadedFiles([zipFile('lote.zip', buf)], 'ns');
+
+		expect(saved.every((n) => !n.endsWith('.zip'))).toBe(true);
+	});
+});
+
+describe.each([
+	['an unsupported entry type', 'readme.txt', [0x00], { reason: 'unsupportedType', ext: '.txt' }],
+	['a spoofed entry (wrong content for its extension)', 'spoof.pdf', MAGIC.jpg, { reason: 'contentMismatch' }],
+	['an entry under the minimum size floor', 'stub.pdf', [0x25, 0x50, 0x44, 0x46, 0x2d], { reason: 'tooSmall' }],
+] as const)('saveUploadedFiles — %s does not block the rest of the zip batch', (_label, badName, badBytes, expected) => {
+	it(`reports it and still saves the good entries`, async () => {
+		const buf = await buildZip([
+			{ name: 'good.pdf', bytes: MAGIC.pdf },
+			{ name: badName, bytes: [...badBytes] },
+		]);
+
+		const { saved, errors } = await saveUploadedFiles([zipFile('lote.zip', buf)], 'ns');
+
+		expect(saved).toHaveLength(1);
+		expect(errors).toEqual([{ name: `lote.zip/${badName}`, ...expected }]);
+	});
+});
+
+describe('saveUploadedFiles — a bad zip container is rejected, direct files still work', () => {
+	it('rejects a corrupt archive as a single error, not a crash', async () => {
+		const bad = zipFile('roto.zip', Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00]));
+
+		const { saved, errors } = await saveUploadedFiles([bad], 'ns');
+
+		expect(saved).toEqual([]);
+		expect(errors).toEqual([{ name: 'roto.zip', reason: 'corrupt' }]);
+	});
+
+	it('rejects a file wearing a .zip extension whose content is not a real zip (spoofed)', async () => {
+		const fake = zipFile('fake.zip', Buffer.from(MAGIC.pdf));
+
+		const { saved, errors } = await saveUploadedFiles([fake], 'ns');
+
+		expect(saved).toEqual([]);
+		expect(errors).toEqual([{ name: 'fake.zip', reason: 'contentMismatch' }]);
+	});
+
+	it('rejects a zip over the container size cap without attempting to parse it', async () => {
+		const big = zipFile('grande.zip', Buffer.from([0x50, 0x4b, 0x03, 0x04]));
+		Object.defineProperty(big, 'size', { value: MAX_ZIP_BYTES + 1 });
+
+		const { saved, errors } = await saveUploadedFiles([big], 'ns');
+
+		expect(saved).toEqual([]);
+		expect(errors).toEqual([{ name: 'grande.zip', reason: 'tooLarge' }]);
+	});
+
+	it('processes a zip alongside a directly uploaded file in the same batch', async () => {
+		const buf = await buildZip([{ name: 'inzip.pdf', bytes: MAGIC.pdf }]);
+		const direct = zipFile('directo.jpg', Buffer.from(MAGIC.jpg));
+
+		const { saved, errors } = await saveUploadedFiles([zipFile('lote.zip', buf), direct], 'ns');
+
+		expect(errors).toEqual([]);
+		expect(saved).toHaveLength(2);
 	});
 });

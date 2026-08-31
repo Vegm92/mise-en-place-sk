@@ -5,31 +5,18 @@ import { buildZip } from './helpers/zip';
 import { MAX_UPLOAD_BYTES, MAX_ZIP_ENTRIES } from '../src/lib/upload-formats';
 
 describe('extractZip — unpacking a ZIP upload (issue #824)', () => {
-	it('extracts every entry with its content intact', async () => {
+	it('extracts every entry with its content intact, flattening folder paths to basenames', async () => {
 		const buf = await buildZip([
 			{ name: 'factura1.pdf', bytes: [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31] },
-			{ name: 'factura2.jpg', bytes: [0xff, 0xd8, 0xff, 0xe0] },
+			{ name: 'proveedores/2024/enero/factura2.jpg', bytes: [0xff, 0xd8, 0xff, 0xe0] },
 		]);
 
 		const result = await extractZip(buf);
 
 		expect(result.errors).toEqual([]);
-		expect(result.files).toHaveLength(2);
 		expect(result.files.map((f) => f.name).sort()).toEqual(['factura1.pdf', 'factura2.jpg']);
 		const f1 = result.files.find((f) => f.name === 'factura1.pdf');
 		expect([...f1!.buffer]).toEqual([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
-	});
-
-	it('flattens a folder tree to basenames, same as multi-select today', async () => {
-		const buf = await buildZip([
-			{ name: 'proveedores/2024/enero/factura.pdf', bytes: [0x01, 0x02, 0x03] },
-			{ name: 'factura.jpg', bytes: [0x04, 0x05, 0x06] },
-		]);
-
-		const result = await extractZip(buf);
-
-		expect(result.errors).toEqual([]);
-		expect(result.files.map((f) => f.name).sort()).toEqual(['factura.jpg', 'factura.pdf']);
 	});
 
 	it('skips directory entries without producing a file or an error', async () => {
