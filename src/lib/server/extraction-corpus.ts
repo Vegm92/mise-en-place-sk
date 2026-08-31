@@ -223,8 +223,8 @@ export async function promptVersionStats(dbc: CorpusDb = db): Promise<PromptVers
 			documents: sql<number>`count(*)`,
 			avgConfidence: sql<number | null>`avg(${extractionResults.confidence})`,
 			totalMismatches: sql<number>`count(*) filter (where ${extractionResults.totalMismatch})`,
-			firstSeen: sql<Date | null>`min(${extractionResults.createdAt})`,
-			lastSeen: sql<Date | null>`max(${extractionResults.createdAt})`,
+			firstSeen: sql<string | null>`min(${extractionResults.createdAt})`,
+			lastSeen: sql<string | null>`max(${extractionResults.createdAt})`,
 		})
 		.from(extractionResults)
 		.groupBy(extractionResults.promptVersion, extractionResults.runKind)
@@ -236,8 +236,8 @@ export async function promptVersionStats(dbc: CorpusDb = db): Promise<PromptVers
 		documents: Number(r.documents),
 		avgConfidence: r.avgConfidence == null ? null : Number(r.avgConfidence),
 		totalMismatches: Number(r.totalMismatches),
-		firstSeen: r.firstSeen ?? null,
-		lastSeen: r.lastSeen ?? null,
+		firstSeen: r.firstSeen ? new Date(r.firstSeen) : null,
+		lastSeen: r.lastSeen ? new Date(r.lastSeen) : null,
 	}));
 }
 
