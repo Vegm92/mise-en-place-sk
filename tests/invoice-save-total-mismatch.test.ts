@@ -23,47 +23,36 @@ vi.mock('../src/lib/server/db', async () => {
 	return { db: testDb, forTenant };
 });
 
-import {
-	testSql, closeDb,
-	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
 
 let rid = '';
 
-function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
+function mismatchFakeItem(extractedData: Record<string, unknown> | null): BatchItem {
 	return {
-		id: 'item-1',
-		batchId: 'batch-1',
-		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData,
-		conversionNotes: null,
-		extractError: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
+		reviewStatus: null, jobCode: null, sourceRef: null, source: 'web',
+		queuedAt: null, extractError: null, conversionNotes: null, extractedData,
+		status: 'done', displayName: 'mismatch.pdf', fileKey: 'mismatch.pdf',
+		position: 0, restaurantId: rid, batchId: 'mismatch-batch-1', id: 'mismatch-item-1',
 	};
 }
 
-function form(opts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string }): FormData {
+function mismatchForm(opts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string }): FormData {
 	const fd = new FormData();
-	fd.append('supplier_name', opts.supplier ?? '__inv_total_mismatch_sup__');
-	fd.append('invoice_number', opts.invoiceNumber);
-	fd.append('invoice_date', '2024-03-01');
-	fd.append('total_amount', opts.totalAmount);
-	fd.append('line_descriptions', 'Producto de prueba');
-	fd.append('line_quantities', '1');
-	fd.append('line_units', 'ud');
-	fd.append('line_unit_prices', opts.lineTotal);
-	fd.append('line_total_prices', opts.lineTotal);
-	fd.append('line_tax_rates', '');
+	const fields = {
+		supplier_name: opts.supplier ?? '__inv_total_mismatch_sup__',
+		invoice_number: opts.invoiceNumber,
+		invoice_date: '2024-03-01',
+		total_amount: opts.totalAmount,
+		line_descriptions: 'Producto de prueba',
+		line_quantities: '1',
+		line_units: 'ud',
+		line_unit_prices: opts.lineTotal,
+		line_total_prices: opts.lineTotal,
+		line_tax_rates: '',
+	};
+	for (const [key, value] of Object.entries(fields)) fd.append(key, value);
 	return fd;
 }
 
@@ -83,7 +72,7 @@ async function saveAndGetReviewState(
 	extractedData: Record<string, unknown> | null,
 	formOpts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string },
 ): Promise<string> {
-	const out = await saveReviewedInvoice(fakeItem(extractedData), form(formOpts), rid);
+	const out = await saveReviewedInvoice(mismatchFakeItem(extractedData), mismatchForm(formOpts), rid);
 	expect(out.type).toBe('saved');
 	if (out.type !== 'saved') throw new Error('unreachable — asserted above');
 
