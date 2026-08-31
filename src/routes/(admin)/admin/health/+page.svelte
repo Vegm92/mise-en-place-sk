@@ -11,8 +11,8 @@
 
   const isOk = $derived(data.overallStatus === 'ok');
 
-  const QUALITY_COLOR: Record<string, string> = {
-    GREEN: 'var(--mep-pos)', YELLOW: 'var(--mep-warn)', RED: 'var(--mep-neg)',
+  const QUALITY_TEXT_CLASS: Record<string, string> = {
+    GREEN: 'text-pos', YELLOW: 'text-warn', RED: 'text-neg',
   };
 
   type Severity = 'info' | 'warning' | 'critical';
@@ -23,55 +23,46 @@
 
 <AdminPageHead route="/admin/health" title={$t('admin.systemHealth')} subtitle={$t('admin.healthSubtitle')} />
 
-<div class="px-3 md:px-6" style="padding-bottom:24px;display:flex;flex-direction:column;gap:14px;">
+<div class="px-3 md:px-6 pb-6 flex flex-col gap-3.5">
 
-  <div class="card" style="
-    padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
-    background:{isOk ? 'var(--mep-pos-soft)' : 'var(--mep-neg-soft)'};
-    border-color:{isOk ? 'var(--mep-pos-soft)' : 'var(--mep-neg-soft)'};
-  ">
-    <div style="display:flex;align-items:center;gap:16px;min-width:0;">
-      <div style="
-        width:44px;height:44px;border-radius:22px;flex-shrink:0;
-        background:{isOk ? 'var(--mep-pos)' : 'var(--mep-neg)'};color:{isOk ? 'var(--mep-pos-fg)' : 'var(--mep-neg-fg)'};
-        display:flex;align-items:center;justify-content:center;
-        box-shadow:0 0 0 6px {isOk ? 'var(--mep-pos-soft)' : 'var(--mep-neg-soft)'};
-      ">
+  <div class="card py-5 px-[22px] flex items-center justify-between gap-[18px] flex-wrap {isOk ? 'bg-pos-soft border-pos-soft' : 'bg-neg-soft border-neg-soft'}">
+    <div class="flex items-center gap-4 min-w-0">
+      <div class="w-11 h-11 rounded-full shrink-0 flex items-center justify-center ring-[6px] {isOk ? 'bg-pos text-pos-fg ring-pos-soft' : 'bg-neg text-neg-fg ring-neg-soft'}">
         {#if isOk}<Check size={22} />{:else}<AlertTriangle size={20} />{/if}
       </div>
       <div>
-        <div class="num" style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{isOk ? 'var(--mep-pos)' : 'var(--mep-neg)'};margin-bottom:4px;">
+        <div class="num text-[11px] font-medium tracking-[0.08em] uppercase mb-1 {isOk ? 'text-pos' : 'text-neg'}">
           {$t('admin.status')}
         </div>
-        <div style="font-size:32px;font-weight:600;color:{isOk ? 'var(--mep-pos)' : 'var(--mep-neg)'};letter-spacing:-0.6px;line-height:1;">
+        <div class="text-[32px] font-semibold tracking-[-0.6px] leading-none {isOk ? 'text-pos' : 'text-neg'}">
           {data.overallStatus.toUpperCase()}
         </div>
       </div>
     </div>
-    <div class="num" style="font-size:11.5px;color:var(--mep-fg-2);text-align:right;line-height:1.55;">
+    <div class="num text-[11.5px] text-fg-2 text-right leading-[1.55]">
       {$ti('admin.checkedAt', { time: new Date(data.checkedAt).toLocaleString('en-GB') })}
     </div>
   </div>
 
   <SectionCard title={$t('admin.checksTitle')} noPad>
     <AdminTableScroll>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <table class="w-full border-collapse text-[13px]">
         <thead>
-          <tr style="border-bottom:1px solid var(--mep-divider);">
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colCheck')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
-            <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colDetail')}</th>
+          <tr class="border-b border-divider">
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colCheck')}</th>
+            <th scope="col" class="py-2.5 px-4 text-center text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colStatus')}</th>
+            <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colDetail')}</th>
           </tr>
         </thead>
         <tbody>
           {#each data.checks as check}
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <td style="padding:9px 16px;font-weight:500;color:var(--mep-fg);">{check.name}</td>
-              <td style="padding:9px 16px;text-align:center;"><AdminStatusBadge status={check.status} /></td>
-              <td style="padding:9px 16px;color:var(--mep-fg-2);font-size:12px;">
+            <tr class="border-b border-divider">
+              <td class="py-[9px] px-4 font-medium text-fg">{check.name}</td>
+              <td class="py-[9px] px-4 text-center"><AdminStatusBadge status={check.status} /></td>
+              <td class="py-[9px] px-4 text-fg-2 text-xs">
                 {check.detail}
                 {#if check.href}
-                  <a href={check.href} style="color:var(--mep-acc);text-decoration:none;margin-left:6px;">{check.href}</a>
+                  <a href={check.href} class="text-acc no-underline ml-1.5">{check.href}</a>
                 {/if}
               </td>
             </tr>
@@ -84,32 +75,32 @@
   {#if data.stuckItems.length > 0}
     <SectionCard title={$t('admin.health.stuckTitle')} sub={$t('admin.health.stuckSubtitle')} noPad>
       <AdminTableScroll>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table class="w-full border-collapse text-[13px]">
           <thead>
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRestaurant')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.health.colFile')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colStatus')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.health.colStuckSince')}</th>
-              <th scope="col" style="padding:10px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.dlq.colActions')}</th>
+            <tr class="border-b border-divider">
+              <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colRestaurant')}</th>
+              <th scope="col" class="py-2.5 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.health.colFile')}</th>
+              <th scope="col" class="py-2.5 px-4 text-center text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colStatus')}</th>
+              <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.health.colStuckSince')}</th>
+              <th scope="col" class="py-2.5 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.dlq.colActions')}</th>
             </tr>
           </thead>
           <tbody>
             {#each data.stuckItems as item (item.id)}
-              <tr style="border-bottom:1px solid var(--mep-divider);">
-                <td style="padding:9px 16px;color:var(--mep-fg);">{item.restaurantName ?? '—'}</td>
-                <td style="padding:9px 16px;color:var(--mep-fg-2);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{item.displayName}</td>
-                <td style="padding:9px 16px;text-align:center;">
-                  <code style="font-size:11px;background:var(--mep-surface-2);padding:2px 6px;border-radius:4px;color:var(--mep-fg-2);">{item.status}</code>
+              <tr class="border-b border-divider">
+                <td class="py-[9px] px-4 text-fg">{item.restaurantName ?? '—'}</td>
+                <td class="py-[9px] px-4 text-fg-2 max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap">{item.displayName}</td>
+                <td class="py-[9px] px-4 text-center">
+                  <code class="text-[11px] bg-surface-2 px-1.5 py-0.5 rounded text-fg-2">{item.status}</code>
                 </td>
-                <td class="num" style="padding:9px 16px;text-align:right;color:var(--mep-fg-3);white-space:nowrap;">
+                <td class="num py-[9px] px-4 text-right text-fg-3 whitespace-nowrap">
                   {new Date(item.updatedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                 </td>
-                <td style="padding:9px 16px;text-align:right;white-space:nowrap;">
-                  <form method="POST" action="?/retry" style="display:inline;">
+                <td class="py-[9px] px-4 text-right whitespace-nowrap">
+                  <form method="POST" action="?/retry" class="inline">
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="restaurantId" value={item.restaurantId} />
-                    <button type="submit" class="btn btn-secondary" style="font-size:11px;padding:3px 8px;">{$t('admin.health.retry')}</button>
+                    <button type="submit" class="btn btn-secondary text-[11px] px-2 py-[3px]">{$t('admin.health.retry')}</button>
                   </form>
                 </td>
               </tr>
@@ -122,54 +113,54 @@
 
   {#if data.whatsapp}
     <div>
-      <div class="label" style="margin-bottom:10px;">{$t('admin.wa.numberHealth')}</div>
+      <div class="label mb-2.5">{$t('admin.wa.numberHealth')}</div>
 
       {#if !data.whatsapp.health.everReported}
-        <div class="card" style="padding:14px 16px;font-size:13px;color:var(--mep-fg-2);">
+        <div class="card py-3.5 px-4 text-[13px] text-fg-2">
           {$ti('admin.wa.noEvents', { fields: 'account_update / phone_number_quality_update' })}
         </div>
       {:else}
-        <div class="card" style="padding:14px 16px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px;">
+        <div class="card py-3.5 px-4 flex gap-6 flex-wrap text-[13px]">
           <div>
-            <div class="label" style="margin-bottom:2px;">{$t('admin.wa.quality')}</div>
-            <div style="font-weight:600;color:{QUALITY_COLOR[data.whatsapp.health.qualityRating ?? ''] ?? 'var(--mep-fg)'};">
+            <div class="label mb-0.5">{$t('admin.wa.quality')}</div>
+            <div class="font-semibold {QUALITY_TEXT_CLASS[data.whatsapp.health.qualityRating ?? ''] ?? 'text-fg'}">
               {data.whatsapp.health.qualityRating ?? 'unknown'}
             </div>
           </div>
           <div>
-            <div class="label" style="margin-bottom:2px;">{$t('admin.wa.messagingLimit')}</div>
-            <div style="font-weight:600;color:var(--mep-fg);">{data.whatsapp.health.messagingLimit ?? 'unknown'}</div>
+            <div class="label mb-0.5">{$t('admin.wa.messagingLimit')}</div>
+            <div class="font-semibold text-fg">{data.whatsapp.health.messagingLimit ?? 'unknown'}</div>
           </div>
           <div>
-            <div class="label" style="margin-bottom:2px;">{$t('admin.wa.worst30d')}</div>
+            <div class="label mb-0.5">{$t('admin.wa.worst30d')}</div>
             <div><AdminStatusBadge status={SEVERITY_STATUS[data.whatsapp.health.severity]} /></div>
           </div>
         </div>
       {/if}
 
       {#if data.whatsapp.events.length > 0}
-        <div class="card" style="overflow:hidden;padding:0;margin-top:10px;">
+        <div class="card overflow-hidden p-0 mt-2.5">
           <AdminTableScroll>
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <table class="w-full border-collapse text-[13px]">
               <thead>
-                <tr style="border-bottom:1px solid var(--mep-divider);">
-                  <th scope="col" style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colWhen')}</th>
-                  <th scope="col" style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colEvent')}</th>
-                  <th scope="col" style="padding:8px 16px;text-align:center;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.colSeverity')}</th>
-                  <th scope="col" style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.wa.quality')}</th>
+                <tr class="border-b border-divider">
+                  <th scope="col" class="py-2 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.wa.colWhen')}</th>
+                  <th scope="col" class="py-2 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.wa.colEvent')}</th>
+                  <th scope="col" class="py-2 px-4 text-center text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.wa.colSeverity')}</th>
+                  <th scope="col" class="py-2 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.wa.quality')}</th>
                 </tr>
               </thead>
               <tbody>
                 {#each data.whatsapp.events as evt (evt.id)}
-                  <tr style="border-bottom:1px solid var(--mep-divider);">
-                    <td style="padding:7px 16px;color:var(--mep-fg-2);font-size:12px;white-space:nowrap;">
+                  <tr class="border-b border-divider">
+                    <td class="py-[7px] px-4 text-fg-2 text-xs whitespace-nowrap">
                       {evt.receivedAt ? new Date(evt.receivedAt).toLocaleString('en-GB') : '—'}
                     </td>
-                    <td style="padding:7px 16px;font-family:var(--mep-fs-mono);font-size:12px;color:var(--mep-fg);">
+                    <td class="py-[7px] px-4 font-mono text-xs text-fg">
                       {evt.field}/{evt.event ?? 'unknown'}
                     </td>
-                    <td style="padding:7px 16px;text-align:center;"><AdminStatusBadge status={SEVERITY_STATUS[evt.severity as Severity]} /></td>
-                    <td style="padding:7px 16px;color:var(--mep-fg-2);font-size:12px;">{evt.qualityRating ?? '—'}</td>
+                    <td class="py-[7px] px-4 text-center"><AdminStatusBadge status={SEVERITY_STATUS[evt.severity as Severity]} /></td>
+                    <td class="py-[7px] px-4 text-fg-2 text-xs">{evt.qualityRating ?? '—'}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -179,15 +170,15 @@
       {/if}
 
       {#if data.whatsapp.tenants.length > 0}
-        <div class="label" style="margin:16px 0 10px;">{$t('admin.wa.tenantSenders')}</div>
-        <div class="card" style="overflow:hidden;padding:0;">
+        <div class="label mt-4 mb-2.5">{$t('admin.wa.tenantSenders')}</div>
+        <div class="card overflow-hidden p-0">
           <AdminTableScroll>
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <table class="w-full border-collapse text-[13px]">
               <tbody>
                 {#each data.whatsapp.tenants as tenant (tenant.restaurantId)}
-                  <tr style="border-bottom:1px solid var(--mep-divider);">
-                    <td style="padding:7px 16px;color:var(--mep-fg);">{tenant.name}</td>
-                    <td style="padding:7px 16px;text-align:right;color:var(--mep-fg-2);" class="num">{tenant.contacts}</td>
+                  <tr class="border-b border-divider">
+                    <td class="py-[7px] px-4 text-fg">{tenant.name}</td>
+                    <td class="num py-[7px] px-4 text-right text-fg-2">{tenant.contacts}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -201,18 +192,18 @@
   {#if data.tableCounts.length > 0}
     <SectionCard title={$t('admin.tableRowCounts')} noPad>
       <AdminTableScroll>
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table class="w-full border-collapse text-[13px]">
           <thead>
-            <tr style="border-bottom:1px solid var(--mep-divider);">
-              <th scope="col" style="padding:8px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colTable')}</th>
-              <th scope="col" style="padding:8px 16px;text-align:right;font-size:11px;font-weight:600;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.05em;">{$t('admin.colRowsEst')}</th>
+            <tr class="border-b border-divider">
+              <th scope="col" class="py-2 px-4 text-left text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colTable')}</th>
+              <th scope="col" class="py-2 px-4 text-right text-[11px] font-semibold text-fg-3 uppercase tracking-wider">{$t('admin.colRowsEst')}</th>
             </tr>
           </thead>
           <tbody>
             {#each data.tableCounts as row}
-              <tr style="border-bottom:1px solid var(--mep-divider);">
-                <td style="padding:7px 16px;font-family:var(--mep-fs-mono);font-size:12px;color:var(--mep-fg-2);">{row.table}</td>
-                <td style="padding:7px 16px;text-align:right;color:var(--mep-fg);" class="num">{row.rows.toLocaleString('en-US')}</td>
+              <tr class="border-b border-divider">
+                <td class="py-[7px] px-4 font-mono text-xs text-fg-2">{row.table}</td>
+                <td class="num py-[7px] px-4 text-right text-fg">{row.rows.toLocaleString('en-US')}</td>
               </tr>
             {/each}
           </tbody>
@@ -221,6 +212,6 @@
     </SectionCard>
   {/if}
 
-  <a href="/admin" style="font-size:13px;color:var(--mep-acc);text-decoration:none;">{$t('admin.backToOverview')}</a>
+  <a href="/admin" class="text-[13px] text-acc no-underline">{$t('admin.backToOverview')}</a>
 
 </div>
