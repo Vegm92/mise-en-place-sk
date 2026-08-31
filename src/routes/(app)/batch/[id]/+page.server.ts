@@ -20,6 +20,8 @@ import { db, forTenant } from '$lib/server/db';
 import { invoices, suppliers } from '$lib/server/schema';
 import { eq, and, isNull, isNotNull, gte, lte, sql } from 'drizzle-orm';
 import { findSimilarInvoice, isoDateOffset, SIMILAR_INVOICE_DATE_WINDOW_DAYS } from '$lib/server/dedup';
+import { previewLineProducts, listProductOptions } from '$lib/server/products';
+import type { ProductMatch, ProductOption } from '$lib/server/products';
 
 function humanSize(bytes: number): string {
 	if (bytes < 1024) return `${bytes} B`;
@@ -46,6 +48,17 @@ function confidenceLevel(confidence: number): 'high' | 'medium' | 'low' {
 	if (confidence >= 0.85) return 'high';
 	if (confidence >= 0.6) return 'medium';
 	return 'low';
+}
+
+async function supplierIdByName(rid: string, supplierName: string): Promise<number | null> {
+	const name = supplierName.trim();
+	if (!name) return null;
+	const rows = await db
+		.select({ id: suppliers.id })
+		.from(suppliers)
+		.where(and(forTenant(rid).scope(suppliers.restaurantId), sql`lower(${suppliers.name}) = lower(${name})`))
+		.limit(1);
+	return rows[0]?.id ?? null;
 }
 
 async function findDuplicateInvoiceId(rid: string, supplierName: string, invoiceNumber: string): Promise<number | null> {
@@ -110,6 +123,32 @@ async function reapedItems(batchId: string, locals: App.Locals) {
 	return (await failStalledItems(batchId)) > 0 ? getBatchItems(batchId) : items;
 }
 
+async function loadProductMatches(
+	rid: string,
+	supplierName: string,
+	extractedLines: Array<Record<string, unknown>>,
+): Promise<{ productMatches: ProductMatch[]; productOptions: ProductOption[] }> {
+	try {
+		const supplierId = await supplierIdByName(rid, supplierName);
+		const [productMatches, productOptions] = await Promise.all([
+			previewLineProducts(
+				db,
+				rid,
+				supplierId,
+				extractedLines.map((l) => ({
+					description: String(l.description ?? ''),
+					supplierSku: l.product_code == null ? null : String(l.product_code),
+				})),
+			),
+			listProductOptions(db, rid),
+		]);
+		return { productMatches, productOptions };
+	} catch (err) {
+		console.error('[batch] product match preview failed (non-fatal):', err);
+		return { productMatches: [], productOptions: [] };
+	}
+}
+
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	return handleLoad('batch', async () => {
 		const items = await reapedItems(params.id, locals);
@@ -151,6 +190,14 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 				invoiceDateStr,
 				totalAmountNum,
 			);
+			const extractedLines = Array.isArray(extractedData.line_items)
+				? (extractedData.line_items as Array<Record<string, unknown>>)
+				: [];
+			const { productMatches, productOptions } = await loadProductMatches(
+				locals.restaurantId!,
+				supplierNameStr,
+				extractedLines,
+			);
 			review = {
 				itemId: active.id,
 				filename: active.displayName,
@@ -160,6 +207,8 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 				conversionNotes: active.conversionNotes ?? [],
 				duplicateOfId,
 				similarInvoiceId,
+				productMatches,
+				productOptions,
 			};
 		}
 

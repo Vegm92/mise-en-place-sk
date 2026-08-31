@@ -35,6 +35,7 @@ export const ROUTE_POLICY = {
 	'/(app)':                            'open',
 	'/(app)/analytics':                  'open',
 	'/(app)/analytics/extraction':       'open',
+	'/(app)/analytics/extraction/csv':   'open',
 	'/(app)/analytics/prices':           { feature: 'supplierScores' },
 	'/(app)/analytics/spend':            'open',
 	'/(app)/api':                        'open',

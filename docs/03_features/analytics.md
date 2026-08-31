@@ -27,6 +27,8 @@ buckets shared by the dashboard.
   `supplierScores`).
 - `/analytics/extraction` (quality from `mv_extraction_stats` +
   `extraction_corrections`).
+- `/analytics/extraction/csv` (the raw corrections, newest first, capped at
+  5000 rows — the seed for an extraction eval/regression set, issue #812).
 - `/api/trend` bucket JSON.
 
 ## Business rules
@@ -48,7 +50,10 @@ buckets shared by the dashboard.
 - **Gating**: `/analytics/prices` redirects `?upgrade=prices` without
   `supplierScores`.
 - **Extraction quality**: confidence distributions + user corrections
-  (`extraction_corrections`) aggregated.
+  (`extraction_corrections`) aggregated. The most-corrected-fields table splits
+  each field's corrections by the model's own confidence at extraction time
+  (`field_confidence < 0.85` = the model flagged it; at or above = a silent
+  failure), because only the second kind says the extraction prompt is wrong.
 - Numbers from SQL aggregates are wrapped in `Number(...)` (postgres.js returns
   strings for numeric types).
 
@@ -126,11 +131,19 @@ Range/granularity normalization; tenant scope on every MV read.
 
 **`const load`**
 - kpisRows, supplierRows, trendRows read from `mv_extraction_stats` (pre-aggregated); fieldRows still queries `extraction_corrections` directly — no rollup needed for the small table.
+- `flagged_pct` divides by the corrections that *have* a confidence, not by all of them: rows written before `field_confidence` existed (migration 0060) would otherwise read as silent failures they were never measured to be.
+
+### `src/routes/(app)/analytics/extraction/csv/+server.ts`
+
+**`const GET`**
+- The corrections table was write-only until issue #812 — filled on every save, read by nobody, so nothing it recorded could improve the extraction. This is the export half of the fix: one row per correction with the original value, the human's value and the model's confidence, which is the shape an eval set for `extract.ts` needs. The aggregate view answers "which field fails most"; this answers "on which documents, and how".
+- Capped at `MAX_ROWS` so a long-lived tenant cannot turn a download into an unbounded scan.
 
 ### `src/routes/(app)/analytics/extraction/+page.svelte`
 
 **`markup`**
-- Header, empty state, KPI row, middle row (most-corrected fields + accuracy trend), accuracy-by-supplier card.
+- Header (with the corrections CSV export), empty state, KPI row, middle row (most-corrected fields + accuracy trend), accuracy-by-supplier card.
+- The export link carries `data-sveltekit-reload`: it is a file download, not a page the client router can render.
 
 ### `src/routes/(app)/analytics/prices/+page.server.ts`
 
