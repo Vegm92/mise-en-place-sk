@@ -83,10 +83,12 @@ jobs:
         run: pnpm lint:no-comments
 
       - name: Lint — duplication on new code (approximates the SonarCloud gate)
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           BASE="origin/main"
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="origin/${{ github.event.pull_request.base.ref }}"
+            BASE="origin/$PR_BASE_REF"
           fi
           node scripts/check-duplication.mjs --base "$BASE"
 
