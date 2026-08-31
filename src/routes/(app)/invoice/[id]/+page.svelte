@@ -135,6 +135,22 @@
             <span class="body" style="line-height:1.5;">{invoice.notes}</span>
           </div>
         {/if}
+
+        {#if invoice.linked_invoice}
+          <div class="divider"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span class="label">{$t('inv.detail.linkedDocument')}</span>
+              <span class="body-strong">
+                {invoice.linked_invoice.document_type ? $t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
+                {invoice.linked_invoice.invoice_number ?? `#${invoice.linked_invoice.id}`}
+              </span>
+            </div>
+            <a href="/invoice/{invoice.linked_invoice.id}" class="btn btn-ghost" style="height:30px;font-size:13px;">
+              {$t('inv.detail.viewLinked')}
+            </a>
+          </div>
+        {/if}
       </div>
 
       <div style="display:flex;gap:8px;flex-wrap:wrap;">

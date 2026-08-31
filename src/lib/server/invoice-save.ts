@@ -1,7 +1,7 @@
 import { computeInvoiceContentHash } from './dedup';
 import { db, forTenant } from './db';
 import { invoices, invoiceLineItems, extractionCorrections, settings, suppliers } from './schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, inArray, notInArray } from 'drizzle-orm';
 import { resolveUnit, resolveLineProducts, parsePack, normalizedUnitPrice, applyExtractedAllergens } from './products';
 import { enqueueCategorize, enqueueNormalize } from './queue';
 import { normalizeProductKey, isSameSupplierName } from './normalize';
@@ -507,6 +507,26 @@ function resolveSupplierInfo(extracted: ExtractedInvoice | undefined, supplierNa
 	};
 }
 
+async function linkRelatedDocuments(
+	tdb: ReturnType<typeof forTenant>,
+	invoiceId: number,
+	linkedInvoiceId: number,
+): Promise<void> {
+	const pair = [invoiceId, linkedInvoiceId];
+	await db.update(invoices)
+		.set({ linkedInvoiceId: null })
+		.where(tdb.scope(invoices.restaurantId, and(
+			inArray(invoices.linkedInvoiceId, pair),
+			notInArray(invoices.id, pair),
+		)!));
+	await db.update(invoices)
+		.set({ linkedInvoiceId })
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)));
+	await db.update(invoices)
+		.set({ linkedInvoiceId: invoiceId })
+		.where(tdb.scope(invoices.restaurantId, eq(invoices.id, linkedInvoiceId)));
+}
+
 async function runPostSaveEffects(params: {
 	invoiceId: number;
 	supplierId: number;
@@ -546,9 +566,13 @@ async function runPostSaveEffects(params: {
 		const budgetAlerts = await runBudgetCheck(invoiceId, supplierId, rid);
 		const categoryAlerts = await runCategorizationNudge(invoiceId, supplierId, rid);
 		const categorySuggestions = await runCategorySuggestion(supplierId, rid, proposedCategory);
-		const duplicatePurchaseAlerts = await runPossibleDuplicatePurchase(
-			invoiceId, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount,
+		const duplicatePurchase = await runPossibleDuplicatePurchase(
+			invoiceId, supplierId, supplierName, rid, documentType, invoiceDate, totalAmount, lineDescriptions,
 		);
+		const duplicatePurchaseAlerts = duplicatePurchase.alerts;
+		if (duplicatePurchase.linkedInvoiceId) {
+			await linkRelatedDocuments(tdb, invoiceId, duplicatePurchase.linkedInvoiceId);
+		}
 		const verifactuVars = { fields: qrMismatches.map((m) => m.field).join(', ') };
 		const verifactuAlerts: Alert[] = qrMismatches.length > 0 ? [{
 			notificationType: 'verifactu_qr_mismatch',
@@ -564,7 +588,8 @@ async function runPostSaveEffects(params: {
 			...categoryAlerts, ...categorySuggestions, ...duplicatePurchaseAlerts, ...verifactuAlerts,
 		]);
 
-		if (reviewState !== 'incidencia' && duplicatePurchaseAlerts.length > 0) {
+		const hasDuplicateWarning = duplicatePurchaseAlerts.some((a) => a.notificationType === 'possible_duplicate_purchase');
+		if (reviewState !== 'incidencia' && hasDuplicateWarning) {
 			await db.update(invoices)
 				.set({ reviewState: 'incidencia' })
 				.where(tdb.scope(invoices.restaurantId, eq(invoices.id, invoiceId)));
@@ -660,7 +685,7 @@ export async function saveReviewedInvoice(
 	}
 
 	const extractedData = item?.extractedData ?? undefined;
-	const rawDocumentType = extractedData?.document_type;
+	const rawDocumentType = formData.has('document_type') ? formData.get('document_type') : extractedData?.document_type;
 	const documentType = rawDocumentType === 'factura' || rawDocumentType === 'albaran' ? rawDocumentType : null;
 	const primaryFile = item?.fileKey ?? null;
 

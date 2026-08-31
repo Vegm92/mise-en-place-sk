@@ -583,6 +583,33 @@ export async function runBudgetCheck(invoiceId: number, supplierId: number, rest
 
 const DUPLICATE_DATE_WINDOW_DAYS = 21;
 const DUPLICATE_AMOUNT_TOLERANCE = 0.10;
+const CONFIDENT_LINE_OVERLAP_RATIO = 0.5;
+
+export interface DuplicatePurchaseResult {
+	alerts: Alert[];
+	linkedInvoiceId: number | null;
+}
+
+async function lineOverlapRatio(
+	restaurantId: string,
+	matchedInvoiceId: number,
+	newLineDescriptions: string[],
+): Promise<number> {
+	const newKeys = new Set(newLineDescriptions.map(normalizeProductKey).filter(Boolean));
+	if (newKeys.size === 0) return 0;
+
+	const tdb = forTenant(restaurantId);
+	const matchedLines = await db
+		.select({ description: invoiceLineItems.description })
+		.from(invoiceLineItems)
+		.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.invoiceId, matchedInvoiceId)));
+	const matchedKeys = new Set(matchedLines.map((l) => normalizeProductKey(l.description ?? '')).filter(Boolean));
+	if (matchedKeys.size === 0) return 0;
+
+	let overlap = 0;
+	for (const key of newKeys) if (matchedKeys.has(key)) overlap += 1;
+	return overlap / Math.min(newKeys.size, matchedKeys.size);
+}
 
 export async function runPossibleDuplicatePurchase(
 	invoiceId: number,
@@ -592,8 +619,9 @@ export async function runPossibleDuplicatePurchase(
 	documentType: 'factura' | 'albaran' | null,
 	invoiceDate: string | null,
 	totalAmount: string | null,
-): Promise<Alert[]> {
-	if (!documentType || !invoiceDate || totalAmount == null) return [];
+	lineDescriptions: string[] = [],
+): Promise<DuplicatePurchaseResult> {
+	if (!documentType || !invoiceDate || totalAmount == null) return { alerts: [], linkedInvoiceId: null };
 	const tdb = forTenant(restaurantId);
 	const otherType = documentType === 'factura' ? 'albaran' : 'factura';
 
@@ -619,29 +647,62 @@ export async function runPossibleDuplicatePurchase(
 		.orderBy(sql`ABS(${invoices.invoiceDate} - ${invoiceDate}::date) ASC`)
 		.limit(1);
 
-	if (matches.length === 0) return [];
+	if (matches.length === 0) return { alerts: [], linkedInvoiceId: null };
 	const match = matches[0];
+
+	const overlapRatio = await lineOverlapRatio(restaurantId, match.id, lineDescriptions);
+	const isConfidentLink = overlapRatio >= CONFIDENT_LINE_OVERLAP_RATIO;
+	const otherTypeLabel = otherType === 'factura' ? 'factura' : 'albarán';
+
+	if (isConfidentLink) {
+		const relatedVars = {
+			supplier: supplierName,
+			otherType: otherTypeLabel,
+			matchedNumber: match.invoiceNumber ?? `#${match.id}`,
+		};
+		return {
+			alerts: [{
+				notificationType: 'related_document_found',
+				message: renderTemplate('es', 'notif.msg.relatedDocumentFound', relatedVars),
+				payload: {
+					supplierId, supplierName, documentType, otherDocumentType: otherType,
+					matchedInvoiceId: match.id,
+					matchedInvoiceNumber: match.invoiceNumber,
+					matchedInvoiceDate: match.invoiceDate,
+					matchedTotalAmount: match.totalAmount,
+					totalAmount,
+					lineOverlapRatio: overlapRatio,
+					messageKey: 'notif.msg.relatedDocumentFound',
+					messageVars: relatedVars,
+				},
+			}],
+			linkedInvoiceId: match.id,
+		};
+	}
 
 	const duplicateVars = {
 		supplier: supplierName,
 		amount: totalAmount,
-		otherType: otherType === 'factura' ? 'factura' : 'albarán',
+		otherType: otherTypeLabel,
 		matchedNumber: match.invoiceNumber ?? `#${match.id}`,
 	};
-	return [{
-		notificationType: 'possible_duplicate_purchase',
-		message: renderTemplate('es', 'notif.msg.possibleDuplicate', duplicateVars),
-		payload: {
-			supplierId, supplierName, documentType, otherDocumentType: otherType,
-			matchedInvoiceId: match.id,
-			matchedInvoiceNumber: match.invoiceNumber,
-			matchedInvoiceDate: match.invoiceDate,
-			matchedTotalAmount: match.totalAmount,
-			totalAmount,
-			messageKey: 'notif.msg.possibleDuplicate',
-			messageVars: duplicateVars,
-		},
-	}];
+	return {
+		alerts: [{
+			notificationType: 'possible_duplicate_purchase',
+			message: renderTemplate('es', 'notif.msg.possibleDuplicate', duplicateVars),
+			payload: {
+				supplierId, supplierName, documentType, otherDocumentType: otherType,
+				matchedInvoiceId: match.id,
+				matchedInvoiceNumber: match.invoiceNumber,
+				matchedInvoiceDate: match.invoiceDate,
+				matchedTotalAmount: match.totalAmount,
+				totalAmount,
+				messageKey: 'notif.msg.possibleDuplicate',
+				messageVars: duplicateVars,
+			},
+		}],
+		linkedInvoiceId: null,
+	};
 }
 
 export async function saveAlerts(invoiceId: number | null, restaurantId: string, alerts: Alert[]): Promise<void> {
