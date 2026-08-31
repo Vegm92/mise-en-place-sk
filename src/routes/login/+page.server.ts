@@ -1,4 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { publicFormAction } from '$lib/server/public-form-action';
 import { logAuthEvent } from '$lib/server/auth-events';
@@ -24,9 +25,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	};
 };
 
-function emailOf(form: FormData) {
-	return (form.get('email') as string)?.trim() ?? '';
+const RawEmailField = v.optional(v.pipe(v.string(), v.trim()));
+
+function emailOf(form: FormData): string {
+	const parsed = v.safeParse(RawEmailField, form.get('email') ?? undefined);
+	return (parsed.success ? parsed.output : undefined) ?? '';
 }
+
+const SignInForm = v.object({
+	password: v.optional(v.string()),
+	redirectTo: v.optional(v.string()),
+});
+
+const ResendForm = v.object({
+	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+});
 
 export const actions: Actions = {
 	signIn: publicFormAction(
@@ -39,11 +52,12 @@ export const actions: Actions = {
 				if (email) rules.push({ key: `login:email:${email.toLowerCase()}`, max: 5, scope: 'email' });
 				return rules;
 			},
+			schema: SignInForm,
 		},
-		async ({ form, ipHash, event }) => {
+		async ({ data, form, ipHash, event }) => {
 			const email = emailOf(form);
-			const password = form.get('password') as string;
-			const redirectTo = safeRedirect(form.get('redirectTo') as string);
+			const password = data.password ?? '';
+			const redirectTo = safeRedirect(data.redirectTo);
 
 			if (!email || !password) return fail(422, { error: 'missing', email });
 
@@ -65,8 +79,8 @@ export const actions: Actions = {
 		},
 	),
 
-	resend: publicFormAction({}, async ({ form, ip, event }) => {
-		const email = (form.get('email') as string)?.trim().toLowerCase();
+	resend: publicFormAction({ schema: ResendForm }, async ({ data, ip, event }) => {
+		const email = data.email ?? '';
 		if (!email) return fail(422, { error: 'missing' });
 
 		if (!(await checkRateLimit(`login:resend:${ip}`, 3))) {

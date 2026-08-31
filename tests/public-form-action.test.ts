@@ -10,6 +10,7 @@
  * telemetry.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as v from 'valibot';
 
 const { rateLimitMock, logAuthEventMock } = vi.hoisted(() => ({
 	rateLimitMock: vi.fn().mockResolvedValue(true),
@@ -22,11 +23,24 @@ vi.mock('$lib/server/auth-events', () => ({
 	hashIp: () => 'iphash',
 }));
 
-import { publicFormAction } from '../src/lib/server/public-form-action';
+import { publicFormAction, formToRecord, parseForm } from '../src/lib/server/public-form-action';
 
 function formEvent(fields: Record<string, string>) {
 	const data = new FormData();
 	for (const [k, v] of Object.entries(fields)) data.append(k, v);
+	return {
+		request: { formData: async () => data },
+		url: new URL('https://app.example.test'),
+		getClientAddress: () => '203.0.113.7',
+	} as never;
+}
+
+function formEventWithFile(fields: Record<string, string | File>) {
+	const data = new FormData();
+	for (const [k, v] of Object.entries(fields)) {
+		if (typeof v === 'string') data.append(k, v);
+		else data.append(k, v, 'upload.bin');
+	}
 	return {
 		request: { formData: async () => data },
 		url: new URL('https://app.example.test'),
@@ -155,5 +169,68 @@ describe('publicFormAction', () => {
 		);
 		expect(await silent(formEvent({}))).toMatchObject({ status: 429 });
 		expect(logAuthEventMock).not.toHaveBeenCalled();
+	});
+});
+
+describe('publicFormAction — schema option (issue #844)', () => {
+	const Schema = v.object({ email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())) });
+
+	it('passes the parsed, typed output to the handler as `data`', async () => {
+		const action = publicFormAction({ schema: Schema }, async ({ data }) => data);
+		expect(await action(formEvent({ email: ' Chef@Example.com ' }))).toEqual({ email: 'chef@example.com' });
+	});
+
+	it('rejects a File posted under a string field with a 422 instead of throwing (issue #844)', async () => {
+		const handler = vi.fn();
+		const action = publicFormAction({ schema: Schema }, handler);
+
+		const file = new File(['payload'], 'evil.txt', { type: 'text/plain' });
+		const result = await action(formEventWithFile({ email: file }));
+
+		expect(result).toMatchObject({ status: 422, data: { error: 'invalid' } });
+		expect(handler).not.toHaveBeenCalled();
+	});
+
+	it('still runs rate limiting before the schema is parsed', async () => {
+		rateLimitMock.mockResolvedValueOnce(false);
+		const handler = vi.fn();
+		const action = publicFormAction(
+			{ limits: ({ ip }) => [{ key: `x:${ip}`, max: 5 }], schema: Schema },
+			handler,
+		);
+
+		const file = new File(['payload'], 'evil.txt', { type: 'text/plain' });
+		const result = await action(formEventWithFile({ email: file }));
+
+		expect(result).toMatchObject({ status: 429, data: { error: 'rate_limited' } });
+		expect(handler).not.toHaveBeenCalled();
+	});
+});
+
+describe('formToRecord (issue #844)', () => {
+	it('keeps the first value for a repeated field name, matching FormData.get()', () => {
+		const data = new FormData();
+		data.append('email', 'first@example.com');
+		data.append('email', 'second@example.com');
+		expect(formToRecord(data)).toEqual({ email: 'first@example.com' });
+		expect(data.get('email')).toBe('first@example.com');
+	});
+
+	it('omits keys with no value and never coerces a File to a string', () => {
+		const file = new File(['x'], 'a.txt');
+		const data = new FormData();
+		data.append('upload', file);
+		const record = formToRecord(data);
+		expect(record.upload).toBe(file);
+	});
+});
+
+describe('parseForm (issue #844)', () => {
+	it('fails validation instead of throwing when a string field receives a File', () => {
+		const Schema = v.object({ email: v.string() });
+		const data = new FormData();
+		data.append('email', new File(['x'], 'a.txt'));
+		const result = parseForm(Schema, data);
+		expect(result.success).toBe(false);
 	});
 });

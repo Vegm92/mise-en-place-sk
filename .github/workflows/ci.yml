@@ -76,6 +76,9 @@ jobs:
       - name: Lint — form actions have an authorization check (ADR-001 / #517)
         run: pnpm lint:action-authz
 
+      - name: Lint — no new form.get()/formData.get() `as` casts (issue #844)
+        run: pnpm lint:form-get-cast
+
       - name: Lint — no hardcoded user-facing strings
         run: pnpm lint:i18n
 

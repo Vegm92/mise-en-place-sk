@@ -1,12 +1,14 @@
 import { fail, redirect } from '@sveltejs/kit';
 import bcrypt from 'bcryptjs';
 import { eq, sql } from 'drizzle-orm';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { logAuthEvent, hashIp } from '$lib/server/auth-events';
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/schema';
 import { consumeVerificationToken } from '$lib/server/verification-token';
 import { passwordPolicyError } from '$lib/server/password-policy';
+import { parseForm } from '$lib/server/public-form-action';
 
 export const load: PageServerLoad = async ({ url }) => {
 	const email = url.searchParams.get('email')?.trim().toLowerCase() ?? '';
@@ -14,16 +16,26 @@ export const load: PageServerLoad = async ({ url }) => {
 	return { email, token, hasToken: Boolean(email && token) };
 };
 
+const ResetPasswordForm = v.object({
+	email: v.optional(v.pipe(v.string(), v.trim(), v.toLowerCase())),
+	token: v.optional(v.string()),
+	password: v.optional(v.string()),
+	confirm: v.optional(v.string()),
+});
+
 export const actions: Actions = {
 	default: async ({ request, cookies, getClientAddress }) => {
 		const form = await request.formData();
-		const email    = (form.get('email') as string)?.trim().toLowerCase();
-		const token    = form.get('token') as string;
-		const password = form.get('password') as string;
-		const confirm  = form.get('confirm') as string;
+		const parsed = parseForm(ResetPasswordForm, form);
+		if (!parsed.success) return fail(400, { error: 'expired' });
+
+		const email    = parsed.output.email ?? '';
+		const token    = parsed.output.token ?? '';
+		const password = parsed.output.password ?? '';
+		const confirm  = parsed.output.confirm ?? '';
 
 		if (!email || !token) return fail(400, { error: 'expired' });
-		const policyError = passwordPolicyError(password ?? '');
+		const policyError = passwordPolicyError(password);
 		if (policyError) return fail(422, { error: policyError });
 		if (password !== confirm) return fail(422, { error: 'mismatch' });
 
