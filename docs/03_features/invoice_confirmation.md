@@ -185,6 +185,7 @@ shapes, `low_confidence_ack` value.
 **`const load`**
 
 - `getBatchItems()` keys off `batchId` alone, so ownership is checked here; a foreign batch id gets the same redirect as an empty one, keeping the two indistinguishable to callers.
+- Forwards `url.searchParams.get('item')` into `pickActiveItem` (issue #811) so a reviewer can navigate straight to any already-extracted document instead of the queue being a strictly server-picked, one-way sequence.
 
 **`property stalled`**
 
@@ -214,7 +215,12 @@ shapes, `low_confidence_ack` value.
 
 - Synced from server data (not initialized once) — the active review item changes in place as invoices are confirmed.
 
-**`const lowConfAckItemId`**
+**`function readDraft`, `function writeDraft`, `function selectItem`**
+
+- Client-side draft cache (issue #811): unsaved edits are debounced into `localStorage` under `mep-batch-draft:<batchId>:<itemId>`, so leaving an item half-edited to review another one and coming back later restores exactly what was typed, not the server's original extraction. Deliberately client-only rather than a `batch_items` column — the edits are provisional by definition (nothing is "saved" until the confirm action runs) and this avoids a write on every keystroke.
+- The autosave effect skips its first run after switching to an item — those are the just-seeded values (server data or a restored draft), not a fresh edit — so merely visiting a document never manufactures a draft out of nothing; `draftItemIds` (and the queue's dot/pill indicators) only grows once a real edit lands.
+- A draft is cleared on the item's own successful `?/save` or `?/discardItem` redirect (via each form's `use:enhance`), never on a validation failure — a rejected save keeps the edit around to fix and resubmit.
+- `selectItem` is the click-to-select navigation (issue #811): it `goto`s to `?item=<id>`, which `+page.server.ts`'s `load` forwards into `pickActiveItem`. Only queue rows whose status is `done`/`failed` render as buttons — those are the only states with something to show — everything else stays inert, matching what was already true of the polling/queue-status UI.
 
 - The active review item changes in place (same component across batch items — the next invoice is a redirect back to this route, not a remount). Seeded with the current item, not null, so a fresh mount doesn't read as "item changed" and clobber the modal the effect just opened. A stale ack would silently bypass the server's low-confidence gate.
 

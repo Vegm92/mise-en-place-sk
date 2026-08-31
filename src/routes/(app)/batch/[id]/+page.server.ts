@@ -110,7 +110,7 @@ async function reapedItems(batchId: string, locals: App.Locals) {
 	return (await failStalledItems(batchId)) > 0 ? getBatchItems(batchId) : items;
 }
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	return handleLoad('batch', async () => {
 		const items = await reapedItems(params.id, locals);
 
@@ -128,7 +128,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 				error: i.extractError ?? null,
 			}));
 
-		const active = pickActiveItem(items);
+		const active = pickActiveItem(items, url.searchParams.get('item'));
 		const anyInFlight = open.some(i => i.status === 'queued' || i.status === 'extracting');
 		const allPending = open.every(i => i.status === 'pending');
 		const stalledItem = pickStalledItem(open);
