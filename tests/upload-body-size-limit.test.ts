@@ -23,13 +23,15 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
-import { locale, t, ti } from '../src/lib/i18n';
+import { locale, t, ti, loadAllMessages } from '../src/lib/i18n';
 import {
 	MAX_UPLOAD_BYTES,
 	MAX_UPLOAD_TOTAL_BYTES,
 	totalUploadBytes,
 	exceedsUploadTotal,
 } from '../src/lib/upload-formats';
+
+await loadAllMessages();
 
 const DOCKERFILE = readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
 const UPLOAD_PANEL = readFileSync(

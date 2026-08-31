@@ -19,9 +19,11 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { get } from 'svelte/store';
-import { locale, t, translations } from '../src/lib/i18n';
+import { locale, t, translations, loadAllMessages } from '../src/lib/i18n';
 import { HELP_STEPS, HELP_TIPS, HELP_FAQ, helpContentKeys } from '../src/lib/help-content';
 import { ROUTE_POLICY } from '../src/lib/server/entitlements';
+
+await loadAllMessages();
 
 const ROOT = path.resolve(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
