@@ -25,7 +25,30 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
+/**
+ * Resolves `name` to an absolute path by walking PATH ourselves, once, so
+ * every later execFileSync call passes an absolute path instead of a bare
+ * command name (SonarCloud S4036 — a bare name re-resolves against PATH on
+ * every call, which a writable/tampered PATH entry earlier in the list
+ * could hijack; resolving once up front and reusing the absolute path closes
+ * that window for the rest of this process).
+ */
+function resolveExecutable(name) {
+	for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
+		if (!dir) continue;
+		const candidate = path.join(dir, name);
+		try {
+			fs.accessSync(candidate, fs.constants.X_OK);
+			return candidate;
+		} catch {
+			continue;
+		}
+	}
+	throw new Error(`check-duplication: "${name}" not found on PATH.`);
+}
+
+const GIT = resolveExecutable('git');
+const ROOT = execFileSync(GIT, ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).trim();
 
 function arg(name, fallback) {
 	const i = process.argv.indexOf(`--${name}`);
@@ -43,7 +66,7 @@ const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs']);
 const SCANNED_DIRS = ['src', 'tests'];
 
 function git(args) {
-	return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' });
+	return execFileSync(GIT, args, { cwd: ROOT, encoding: 'utf8' });
 }
 
 /** Line numbers this branch added in `file` (in the new file's numbering), relative to BASE. */
