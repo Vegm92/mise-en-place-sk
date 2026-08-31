@@ -143,11 +143,6 @@ export const actions: Actions = {
 			snapshot:     JSON.stringify(inv),
 		});
 
-		// #831: a deleted invoice can no longer be the subject of an alert
-		// re-check (there's nothing left to re-compare), so close alerts
-		// bound to it directly rather than leave them pointing at a gone
-		// invoice. budget_overage is category-wide, so it's re-evaluated
-		// instead of closed outright — best-effort, does not block the delete.
 		try {
 			await orphanInvoiceAlerts(id, rid);
 			if (inv.supplierId != null) {

@@ -732,14 +732,6 @@ export async function saveAlerts(invoiceId: number | null, restaurantId: string,
 	});
 }
 
-/**
- * Alert re-evaluation (#831) — a subset of alert types are pure functions of
- * data the user can later correct (invoice price/date/total, a supplier's
- * category). When that data is corrected, re-run the same check that raised
- * the alert and close it if the condition no longer holds. `resolved` is a
- * distinct status from `sent` (user dismissal) so the two can be told apart.
- */
-
 async function safely(label: string, fn: () => Promise<void>): Promise<void> {
 	try {
 		await fn();
@@ -912,13 +904,6 @@ export interface InvoiceReevaluationInput {
 	productByKey?: Map<string, number>;
 }
 
-/**
- * Re-runs the re-evaluable alert rules (price shock, budget overage, possible
- * duplicate purchase, VERI*FACTU mismatch) for one invoice after it was
- * edited, and marks any pending alert whose condition no longer holds as
- * `resolved`. Called after the edit transaction commits — best-effort, like
- * the producers it mirrors (ADR-010).
- */
 export async function reevaluateInvoiceAlerts(input: InvoiceReevaluationInput): Promise<void> {
 	const {
 		invoiceId, restaurantId, supplierId, supplierName,
@@ -944,14 +929,6 @@ export async function reevaluateInvoiceAlerts(input: InvoiceReevaluationInput): 
 
 const INVOICE_BOUND_ALERT_TYPES = ['price_shock', 'possible_duplicate_purchase', 'related_document_found', 'verifactu_qr_mismatch'];
 
-/**
- * Deleting an invoice invalidates any alert whose condition can only be
- * checked against that invoice's own data (a price shock on its lines, a
- * duplicate-purchase match, a QR mismatch) — there is nothing left to
- * re-compare, so close them rather than leave them pointing at a gone
- * invoice. `budget_overage` is handled separately (`reevaluateBudgetAlertsForInvoice`)
- * since it is a category-wide condition, not specific to this invoice.
- */
 export async function orphanInvoiceAlerts(invoiceId: number, restaurantId: string): Promise<void> {
 	const tdb = forTenant(restaurantId);
 	const pending = await db
@@ -965,12 +942,6 @@ export async function orphanInvoiceAlerts(invoiceId: number, restaurantId: strin
 	await resolveNotifications(tdb, pending.map((row) => row.id));
 }
 
-/**
- * Closes `supplier_uncategorized`/`supplier_category_suggested` alerts when
- * the supplier's category is corrected directly on its profile — the same
- * outcome `dismissSuggestion` gives when the correction instead comes
- * through the suggestion widget (#831).
- */
 export async function resolveSupplierCategoryAlerts(restaurantId: string, supplierId: number): Promise<void> {
 	const tdb = forTenant(restaurantId);
 	const pending = await db

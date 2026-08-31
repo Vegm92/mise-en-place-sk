@@ -205,9 +205,6 @@ export const actions: Actions = {
 				({ productByKey } = await linkProductsToInvoice(id, savedSupplierId, rid, lineInputs));
 			}
 
-			// #831: correcting the data that raised an alert (price, total, dates)
-			// should close it, not leave it pending forever — best-effort, mirrors
-			// the producers this mirrors (ADR-010).
 			await reevaluateInvoiceAlerts({
 				invoiceId: id,
 				restaurantId: rid,
