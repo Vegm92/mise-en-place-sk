@@ -1,8 +1,8 @@
 # Data Schemas and Relations
 
 Source of truth: `src/lib/server/schema.ts` + committed migrations in
-`drizzle/` (ADR-003). 44 tables + 5 materialized views, latest migration
-`0058`. Statuses are `text` with app-level
+`drizzle/` (ADR-003). 45 tables + 5 materialized views, latest migration
+`0061`. Statuses are `text` with app-level
 defaults — **there are no Postgres enums**. All business tables carry
 `restaurant_id uuid NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE`.
 
@@ -35,6 +35,7 @@ For per-feature rules see `docs/03_features/`; for change procedure see
 | `invoice_line_items` | Invoice lines | `invoiceId`, `description`, `quantity`, `unit`, `unitPrice`, `totalPrice`, `taxRate`, `productId` (SET NULL), `requiresUnitConversion`, `canonicalUnit`, `unitsPerPack`, `unitSize`, `sizeUnit`, `baseUnit`, `normalizedUnitPrice` | Indexes on invoiceId, `(rid, description)`, partial `(rid, product_id)` |
 | `invoice_audit_log` | Immutable history | `invoiceId`, `action`, `userId`, `reason`, `snapshot` jsonb | No FK — rows survive invoice deletion |
 | `extraction_corrections` | User edits vs extraction | `invoiceId`, `fieldName`, `originalValue`, `correctedValue`, `lineItemIndex`, `fieldConfidence` | Feeds `/analytics/extraction` (+ its CSV export); `fieldConfidence` is the model's own confidence in that field at extraction time, so a correction on a confident field reads as a silent failure. `fieldName='line_item.product'` records a manual product reassignment, not a value edit |
+| `extraction_results` | Durable corpus: one row per extraction run | `batchItemId` (SET NULL), `fileKey`, `promptVersion`, `model`, `runKind` `live\|replay`, `extracted_data` jsonb, `field_confidences` jsonb, `confidence`, `conversion_notes`, `total_mismatch` | Survives the 24 h batch sweep (#813, ADR-034); pruned at 730 days; join to the invoice via `invoices.source_file = file_key` |
 
 ## Suppliers and products
 

@@ -3,7 +3,7 @@ import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
 import {
 	restaurants, suppliers, invoices, invoiceLineItems, products, categoryBudgets,
 	systemNotifications, invoiceAuditLog, productAliases, supplierMetrics, settings,
-	unitConversions, stockLevels, extractionCorrections, chatSessions, chatMessages,
+	unitConversions, stockLevels, extractionCorrections, extractionResults, chatSessions, chatMessages,
 	llmUsageLog, tenantLlmQuotas, monthlyUsage, idempotencyKeys, uploadBatches, batchItems,
 	whatsappContacts, whatsappPairingCodes, subscriptions, mrrSnapshots, deadLetterQueue,
 	digestShares, recipes, recipeItems,
@@ -33,6 +33,7 @@ export const tenantDataMap: readonly TenantDataMapEntry[] = [
 	{ tableName: 'chat_sessions', table: chatSessions, scopeColumn: chatSessions.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'chat_sessions' },
 	{ tableName: 'chat_messages', table: chatMessages, scopeColumn: chatMessages.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'chat_messages' },
 	{ tableName: 'extraction_corrections', table: extractionCorrections, scopeColumn: extractionCorrections.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'extraction_corrections' },
+	{ tableName: 'extraction_results', table: extractionResults, scopeColumn: extractionResults.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'extraction_results' },
 	{ tableName: 'stock_levels', table: stockLevels, scopeColumn: stockLevels.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'stock_levels' },
 	{ tableName: 'settings', table: settings, scopeColumn: settings.restaurantId, deletion: 'cascade-via-restaurants', exportKey: 'settings' },
 	{ tableName: 'products', table: products, scopeColumn: products.restaurantId, deletion: 'cascade-via-restaurants', exportKey: null },

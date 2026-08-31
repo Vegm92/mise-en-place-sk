@@ -428,6 +428,13 @@
       "when": 1788146588917,
       "tag": "0060_correction_field_confidence",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1788175317784,
+      "tag": "0061_extraction_results_corpus",
+      "breakpoints": true
     }
   ]
 }
