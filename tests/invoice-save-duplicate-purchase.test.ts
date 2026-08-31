@@ -36,29 +36,12 @@ import {
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 
-function fakeItem(documentType: 'factura' | 'albaran' | null): BatchItem {
-	return {
-		id: 'item-1',
-		batchId: 'batch-1',
-		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData: { document_type: documentType, confidence: 1 },
-		conversionNotes: null,
-		extractError: null,
-		extractErrorVars: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
-}
+const fakeItem = (documentType: 'factura' | 'albaran' | null): BatchItem =>
+	fakeBatchItem({ restaurantId: rid, extractedData: { document_type: documentType, confidence: 1 } });
 
 function form(opts: {
 	invoiceNumber: string;

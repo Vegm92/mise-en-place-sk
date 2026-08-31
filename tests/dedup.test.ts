@@ -33,6 +33,7 @@ import type { BatchItem } from '../src/lib/server/batch';
 import {
 	closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
+import { fakeBatchItem } from './helpers/batch-item';
 
 type Fields = Parameters<typeof computeInvoiceContentHash>[0];
 
@@ -324,24 +325,14 @@ describe('computeFormContentHash — blank line alignment (issue #494)', () => {
 let dupRid = '';
 
 function dupFakeItem(): BatchItem {
-	return {
+	return fakeBatchItem({
 		id: 'item-494',
 		batchId: 'batch-494',
 		restaurantId: dupRid,
-		position: 0,
 		fileKey: 'fake-494.pdf',
 		displayName: 'fake-494.pdf',
-		status: 'done',
 		extractedData: { confidence: 1 },
-		conversionNotes: null,
-		extractError: null,
-		extractErrorVars: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
+	});
 }
 
 function dupHeaderFields(fd: FormData, invoiceNumber: string): void {

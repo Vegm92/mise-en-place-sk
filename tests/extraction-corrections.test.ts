@@ -36,29 +36,12 @@ import { previewLineProducts } from '../src/lib/server/products';
 import { runBudgetCheck } from '../src/lib/server/alerts';
 import { testDb } from './helpers/test-db';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 
-function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
-	return {
-		id: 'item-1',
-		batchId: 'batch-1',
-		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData,
-		conversionNotes: null,
-		extractError: null,
-		extractErrorVars: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
-}
+const fakeItem = (extractedData: Record<string, unknown> | null): BatchItem =>
+	fakeBatchItem({ restaurantId: rid, extractedData });
 
 function baseForm(opts: { description: string; productId?: number }): FormData {
 	const fd = new FormData();

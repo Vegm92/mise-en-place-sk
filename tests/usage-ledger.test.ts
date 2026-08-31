@@ -12,16 +12,7 @@
  */
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
 
-vi.mock('../src/lib/server/db', async () => {
-	const { testDb } = await import('./helpers/test-db');
-	const { forTenant } = await import('../src/lib/server/tenant');
-	return {
-		db: testDb,
-		forTenant,
-		runAsSystem: (fn: () => unknown) => fn(),
-		runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
-	};
-});
+vi.mock('../src/lib/server/db', async () => (await import('./helpers/db-suite')).testDbModule());
 
 // The plan limit is the one thing these tests vary; billing itself is covered
 // by tests/billing.test.ts.
@@ -30,9 +21,7 @@ vi.mock('../src/lib/server/billing', () => ({
 	getMonthlyQuota: async () => planLimit.value,
 }));
 
-import {
-	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
-} from './helpers/test-db';
+import { testSql, cleanupTestRestaurant, createTestRestaurant, hasDbEnv } from './helpers/test-db';
 import {
 	attributeReservation, claimMonthlyExtraction, getMonthlyUsage,
 	releaseMonthlyExtraction, reserveMonthlyExtractions,
@@ -65,9 +54,7 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-	if (!hasDbEnv) return;
-	if (rid) await cleanupTestRestaurant(rid);
-	await closeDb();
+	if (hasDbEnv) await (await import('./helpers/test-db')).closeDb();
 });
 
 describe.skipIf(!hasDbEnv)('claiming a slot', () => {
