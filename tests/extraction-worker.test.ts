@@ -498,90 +498,62 @@ describe('runExtractionJobForBoss — the pg-boss redelivery pg-boss never got (
  * before `markDone` — independent of whether anyone ever opens the review
  * form.
  */
+const TOTAL_MISMATCH_CASES = [
+	{
+		label: 'the extracted lines do not sum to the extracted total',
+		invoice: {
+			supplier_name: 'Acme',
+			total_amount: 100,
+			line_items: [
+				{ description: 'a', total_price: 40 },
+				{ description: 'b', total_price: 30 },
+			],
+		},
+		expected: true,
+	},
+	{
+		label: 'the extracted lines reconcile with the extracted total',
+		invoice: {
+			supplier_name: 'Acme',
+			total_amount: 100,
+			line_items: [
+				{ description: 'a', total_price: 60 },
+				{ description: 'b', total_price: 40 },
+			],
+		},
+		expected: false,
+	},
+	{
+		label: 'a printed tax breakdown accounts for the gap',
+		invoice: {
+			supplier_name: 'Acme',
+			total_amount: 121,
+			tax_breakdown: [{ rate: 0.21, base: 100, tax_amount: 21 }],
+			line_items: [{ description: 'a', total_price: 100 }],
+		},
+		expected: false,
+	},
+	{
+		label: 'there is no usable extracted total to reconcile against',
+		invoice: {
+			supplier_name: 'Acme',
+			total_amount: null,
+			line_items: [{ description: 'a', total_price: 40 }],
+		},
+		expected: false,
+	},
+] as const;
+
 describe('processExtractionJob — total mismatch is detected at extraction time (#808)', () => {
-	it('flags total_mismatch when the extracted lines do not sum to the extracted total', async () => {
+	it.each(TOTAL_MISMATCH_CASES)('total_mismatch is $expected when $label', async ({ invoice, expected }) => {
 		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: {
-				supplier_name: 'Acme',
-				total_amount: 100,
-				line_items: [
-					{ description: 'a', total_price: 40 },
-					{ description: 'b', total_price: 30 },
-				],
-			},
-			usage: {},
-		});
+		extractMocks.extractWithProvider.mockResolvedValue({ invoice, usage: {} });
 
 		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
 
 		expect(batchMocks.markDone).toHaveBeenCalledWith(
 			item.id,
-			expect.objectContaining({ total_mismatch: true }),
-			expect.anything(),
-		);
-	});
-
-	it('does not flag total_mismatch when the extracted lines reconcile with the extracted total', async () => {
-		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: {
-				supplier_name: 'Acme',
-				total_amount: 100,
-				line_items: [
-					{ description: 'a', total_price: 60 },
-					{ description: 'b', total_price: 40 },
-				],
-			},
-			usage: {},
-		});
-
-		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
-
-		expect(batchMocks.markDone).toHaveBeenCalledWith(
-			item.id,
-			expect.objectContaining({ total_mismatch: false }),
-			expect.anything(),
-		);
-	});
-
-	it('accounts for a printed tax breakdown before flagging a mismatch', async () => {
-		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: {
-				supplier_name: 'Acme',
-				total_amount: 121,
-				tax_breakdown: [{ rate: 0.21, base: 100, tax_amount: 21 }],
-				line_items: [{ description: 'a', total_price: 100 }],
-			},
-			usage: {},
-		});
-
-		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
-
-		expect(batchMocks.markDone).toHaveBeenCalledWith(
-			item.id,
-			expect.objectContaining({ total_mismatch: false }),
-			expect.anything(),
-		);
-	});
-
-	it('does not flag total_mismatch when there is no usable extracted total to reconcile against', async () => {
-		batchMocks.markExtracting.mockResolvedValue(true);
-		extractMocks.extractWithProvider.mockResolvedValue({
-			invoice: {
-				supplier_name: 'Acme',
-				total_amount: null,
-				line_items: [{ description: 'a', total_price: 40 }],
-			},
-			usage: {},
-		});
-
-		await processExtractionJob({ itemId: item.id, restaurantId: 'r1' }, undefined, { retryCount: 0, retryLimit: 2 });
-
-		expect(batchMocks.markDone).toHaveBeenCalledWith(
-			item.id,
-			expect.objectContaining({ total_mismatch: false }),
+			expect.objectContaining({ total_mismatch: expected }),
 			expect.anything(),
 		);
 	});
