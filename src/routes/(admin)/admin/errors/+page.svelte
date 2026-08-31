@@ -24,9 +24,9 @@
   {:else}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;">
       <AdminKpiCard label={$t('admin.errorsUnresolved')} value={data.summary?.unresolvedCount ?? 0}
-        valueColor={(data.summary?.unresolvedCount ?? 0) > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'} />
+        valueColor={(data.summary?.unresolvedCount ?? 0) > 0 ? 'text-warn' : 'text-fg'} />
       <AdminKpiCard label={$t('admin.errorsCritical')} value={data.summary?.criticalCount ?? 0}
-        valueColor={(data.summary?.criticalCount ?? 0) > 0 ? 'var(--mep-neg)' : 'var(--mep-fg)'} />
+        valueColor={(data.summary?.criticalCount ?? 0) > 0 ? 'text-neg' : 'text-fg'} />
       <AdminKpiCard label={$t('admin.errorsUsersAffected')} value={data.summary?.usersAffected ?? 0} />
     </div>
 
