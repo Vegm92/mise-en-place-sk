@@ -363,9 +363,11 @@ shapes, `low_confidence_ack` value.
 
 **`function runPossibleDuplicatePurchase`**
 
-- Soft, non-blocking heuristic for issue #449. The dedup gates above only catch the same document uploaded twice (content hash) or a repeated supplier+invoice_number pair. Neither can tell that an albarán captured at delivery and the factura fiscal for that same delivery, arriving weeks later, are the same real-world purchase — they carry different numbers by construction, and fiscally both can legitimately exist.
-- Looks for an already-saved invoice from the same supplier, of the opposite `document_type`, within `DUPLICATE_DATE_WINDOW_DAYS` (21) and `DUPLICATE_AMOUNT_TOLERANCE` (10%) of the new one, and raises a review nudge instead of blocking the save.
+- Soft, non-blocking heuristic for issue #449, extended in #809 to a real factura↔albarán link. The dedup gates above only catch the same document uploaded twice (content hash) or a repeated supplier+invoice_number pair. Neither can tell that an albarán captured at delivery and the factura fiscal for that same delivery, arriving weeks later, are the same real-world purchase — they carry different numbers by construction, and fiscally both can legitimately exist.
+- Looks for an already-saved invoice from the same supplier, of the opposite `document_type`, within `DUPLICATE_DATE_WINDOW_DAYS` (21) and `DUPLICATE_AMOUNT_TOLERANCE` (10%) of the new one.
+- Beyond supplier+date+amount, compares line-item descriptions between the two documents (accent/case-insensitive via `normalizeProductKey`). When the overlap ratio reaches `CONFIDENT_LINE_OVERLAP_RATIO` (0.5, relative to the smaller line count), the two are treated as the *same delivery*: returns a `related_document_found` alert (not a duplicate-risk warning) plus `linkedInvoiceId`, which `saveReviewedInvoice` persists on `invoices.linked_invoice_id` on both rows — a real, queryable link, not just a one-off notification payload. Below that threshold it falls back to the original `possible_duplicate_purchase` nudge and no link is persisted; only that weaker case still flips `reviewState` to `incidencia`.
 - Requires `document_type`, `invoice_date` and `total_amount` on both sides, so an albarán with no printed prices can't be matched this way — a known gap (see #461), not a bug.
+- `documentType` itself can now be corrected by the reviewer in the batch review form (`document_type` form field) rather than only trusting Gemini's classification; `saveReviewedInvoice` prefers that override when present.
 
 ### `src/lib/server/money.ts`
 

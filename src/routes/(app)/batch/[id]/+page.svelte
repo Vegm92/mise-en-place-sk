@@ -215,6 +215,11 @@
   let supplierNameInput = $state(str(data.review?.data?.supplier_name));
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let invoiceNumberInput = $state(str(data.review?.data?.invoice_number));
+  function docTypeStr(v: unknown): 'factura' | 'albaran' | '' {
+    return v === 'factura' || v === 'albaran' ? v : '';
+  }
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once, user can correct it
+  let documentTypeInput = $state(docTypeStr(data.review?.data?.document_type));
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data once
   let invoiceDateInput = $state(str(data.review?.data?.invoice_date));
   const NET_30_DAYS = 30;
@@ -260,6 +265,7 @@
     const rd = data.review?.data;
     supplierNameInput = str(rd?.supplier_name);
     invoiceNumberInput = str(rd?.invoice_number);
+    documentTypeInput = docTypeStr(rd?.document_type);
     invoiceDateInput = str(rd?.invoice_date);
     const rawDueDate = str(rd?.due_date);
     dueDateInput = net30Suggestion(rawDueDate, invoiceDateInput);
@@ -933,14 +939,20 @@
                   <label class="rev-field-label" for="field-invoice-number">
                     {$t('field.invoiceNum')}
                     <ConfidenceDot confidence={fieldConf.invoice_number} />
-                    {#if review?.data?.document_type === 'factura' || review?.data?.document_type === 'albaran'}
-                      <span style="font-size:11px;font-weight:600;text-transform:none;letter-spacing:0;padding:1px 6px;border-radius:8px;background:var(--mep-surface-2);color:var(--mep-fg-3);">
-                        {$t(`field.documentType.${review.data.document_type}`)}
-                      </span>
-                    {/if}
                   </label>
                   <input id="field-invoice-number" type="text" name="invoice_number" bind:value={invoiceNumberInput}
                     class="rev-input num" class:flagged={flagged('invoice_number')} />
+                </div>
+                <div>
+                  <label class="rev-field-label" for="field-document-type">
+                    {$t('field.documentType')}
+                    <ConfidenceDot confidence={fieldConf.document_type} />
+                  </label>
+                  <select id="field-document-type" name="document_type" bind:value={documentTypeInput} class="rev-input">
+                    <option value="">{$t('field.documentType.unknown')}</option>
+                    <option value="factura">{$t('field.documentType.factura')}</option>
+                    <option value="albaran">{$t('field.documentType.albaran')}</option>
+                  </select>
                 </div>
                 <div>
                   <label class="rev-field-label" for="field-invoice-date">
@@ -950,18 +962,28 @@
                   <input id="field-invoice-date" type="text" name="invoice_date" bind:value={invoiceDateInput} placeholder="YYYY-MM-DD"
                     class="rev-input num" class:flagged={flagged('invoice_date')} />
                 </div>
-                <div>
-                  <label class="rev-field-label" for="field-due-date">
-                    {$t('extract.due')}
-                    <ConfidenceDot confidence={fieldConf.due_date} />
-                  </label>
-                  <input id="field-due-date" type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD"
-                    oninput={() => { dueDateSuggested = false; }}
-                    class="rev-input num" class:flagged={flagged('due_date')} />
-                  {#if dueDateSuggested}
-                    <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('field.dueDateSuggested')}</div>
-                  {/if}
-                </div>
+                {#if documentTypeInput !== 'albaran'}
+                  <div>
+                    <label class="rev-field-label" for="field-due-date">
+                      {$t('extract.due')}
+                      <ConfidenceDot confidence={fieldConf.due_date} />
+                    </label>
+                    <input id="field-due-date" type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD"
+                      oninput={() => { dueDateSuggested = false; }}
+                      class="rev-input num" class:flagged={flagged('due_date')} />
+                    {#if dueDateSuggested}
+                      <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('field.dueDateSuggested')}</div>
+                    {/if}
+                  </div>
+                {:else}
+                  <div>
+                    <label class="rev-field-label" for="field-due-date">{$t('extract.due')}</label>
+                    <div id="field-due-date" class="rev-input" style="display:flex;align-items:center;color:var(--mep-fg-4);">
+                      {$t('field.dueDate.notApplicable')}
+                    </div>
+                    <input type="hidden" name="due_date" value="" />
+                  </div>
+                {/if}
                 <div class="rev-field-wide">
                   <label class="rev-field-label" for="field-total-amount">
                     {$t('tbl.total')}
@@ -1243,6 +1265,9 @@
                 aria-expanded={taxPanelOpen}
                 title={taxPanelOpen ? $t('review.hideTaxes') : $t('review.showTaxes')}>
                 {$t('extract.vat')} <span class="num">{fmt(taxTotal)}</span>
+                {#if documentTypeInput === 'albaran' && taxBands.length === 0}
+                  <span style="text-transform:none;letter-spacing:0;color:var(--mep-fg-3);">{$t('extract.optional')}</span>
+                {/if}
                 {#if showBandKinds}
                   {#each bandKinds as kind}
                     <span class="badge {kind === 'rec' ? 'badge-pending' : 'badge-exported'}"

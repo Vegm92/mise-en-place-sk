@@ -18,18 +18,19 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
 		const [rows, lineItems] = await Promise.all([
 			db.select({
-				id:             invoices.id,
-				supplier_id:    invoices.supplierId,
-				supplier_name:  suppliers.name,
-				invoice_number: invoices.invoiceNumber,
-				document_type:  invoices.documentType,
-				invoice_date:   invoices.invoiceDate,
-				due_date:       invoices.dueDate,
-				total_amount:   invoices.totalAmount,
-				review_state:   invoices.reviewState,
-				source_file:    invoices.sourceFile,
-				notes:          invoices.notes,
-				created_at:     invoices.createdAt,
+				id:               invoices.id,
+				supplier_id:      invoices.supplierId,
+				supplier_name:    suppliers.name,
+				invoice_number:   invoices.invoiceNumber,
+				document_type:    invoices.documentType,
+				invoice_date:     invoices.invoiceDate,
+				due_date:         invoices.dueDate,
+				total_amount:     invoices.totalAmount,
+				review_state:     invoices.reviewState,
+				source_file:      invoices.sourceFile,
+				notes:            invoices.notes,
+				created_at:       invoices.createdAt,
+				linked_invoice_id: invoices.linkedInvoiceId,
 			})
 				.from(invoices)
 				.leftJoin(suppliers, eq(suppliers.id, invoices.supplierId))
@@ -53,10 +54,21 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 		const row = rows[0];
 		if (!row) redirect(303, '/invoices');
 
+		const linkedInvoice = row.linked_invoice_id
+			? (await db.select({
+				id:             invoices.id,
+				invoice_number: invoices.invoiceNumber,
+				document_type:  invoices.documentType,
+			})
+				.from(invoices)
+				.where(and(tdb.scope(invoices.restaurantId), eq(invoices.id, row.linked_invoice_id), isNull(invoices.deletedAt)))
+				.limit(1))[0] ?? null
+			: null;
+
 		return {
 			title: 'inv.detail.pageTitle',
 			titleParams: { number: row.invoice_number ?? row.id },
-			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount) },
+			invoice: { ...row, total_amount: moneyToNullableNumber(row.total_amount), linked_invoice: linkedInvoice },
 			unlinkedLineCount: lineItems.filter(li => li.product_id == null && (li.description ?? '').trim() !== '').length,
 			lineItems: lineItems.map(li => ({
 				...li,

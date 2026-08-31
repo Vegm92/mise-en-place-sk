@@ -19,6 +19,12 @@
     total_price: number | null;
   }
 
+  interface LinkedInvoice {
+    id: number;
+    invoice_number: string | null;
+    document_type: string | null;
+  }
+
   interface Invoice {
     id: number;
     invoice_number: string | null;
@@ -31,6 +37,7 @@
     invoice_date: Date | string | null;
     due_date: Date | string | null;
     source_file: string | null;
+    linked_invoice?: LinkedInvoice | null;
   }
 
   let {
@@ -154,6 +161,19 @@
           </a>
         </div>
       </div>
+    {/if}
+
+    {#if invoice.linked_invoice}
+      <a href="/invoice/{invoice.linked_invoice.id}" class="card" style="padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-decoration: none;">
+        <div>
+          <div class="label" style="margin-bottom: 2px;">{$t('inv.detail.linkedDocument')}</div>
+          <div class="body-strong">
+            {invoice.linked_invoice.document_type ? $t(`field.documentType.${invoice.linked_invoice.document_type}`) : ''}
+            {invoice.linked_invoice.invoice_number ?? `#${invoice.linked_invoice.id}`}
+          </div>
+        </div>
+        <span class="body" style="color: var(--mep-acc); font-weight: 500;">{$t('inv.detail.viewLinked')}</span>
+      </a>
     {/if}
 
     {#if unlinkedLineCount > 0}

@@ -1,15 +1,19 @@
 /**
- * End-to-end wiring test for issue #449 (Hallazgo 2): the dedup gate only
- * catches the same file uploaded twice (content hash) or a repeated
- * supplier+invoice_number pair — it cannot tell that an albarán captured at
- * delivery and the factura fiscal for that same delivery, arriving weeks
- * later, are the same real-world purchase, since the two documents carry
- * different numbers by construction.
+ * End-to-end wiring test for issue #449 (Hallazgo 2) and issue #809: the
+ * dedup gate only catches the same file uploaded twice (content hash) or a
+ * repeated supplier+invoice_number pair — it cannot tell that an albarán
+ * captured at delivery and the factura fiscal for that same delivery,
+ * arriving weeks later, are the same real-world purchase, since the two
+ * documents carry different numbers by construction.
  *
  * This exercises runPossibleDuplicatePurchase (src/lib/server/alerts.ts) as
- * wired into saveReviewedInvoice: a soft, non-blocking review nudge — never
- * a save failure — raised only when a same-supplier invoice of the *opposite*
- * document_type exists close in date and similar in amount.
+ * wired into saveReviewedInvoice: when a same-supplier invoice of the
+ * *opposite* document_type exists close in date and similar in amount, AND
+ * their line items overlap enough to be confident, the two invoices are
+ * linked (invoices.linked_invoice_id, bidirectional) and a
+ * 'related_document_found' notification is raised instead of a bare
+ * duplicate-risk warning. Without that line-item overlap it falls back to
+ * the softer 'possible_duplicate_purchase' nudge and no link is persisted.
  *
  * DB-backed; the db singleton is swapped for the test client. Skipped without
  * DATABASE_URL.
@@ -56,6 +60,7 @@ function form(opts: {
 	invoiceDate: string;
 	totalAmount: string;
 	supplier: string;
+	lineDescription?: string;
 }): FormData {
 	const fd = new FormData();
 	fd.append('supplier_name', opts.supplier);
@@ -63,7 +68,7 @@ function form(opts: {
 	fd.append('invoice_date', opts.invoiceDate);
 	fd.append('total_amount', opts.totalAmount);
 	fd.append('low_confidence_ack', 'true');
-	fd.append('line_descriptions', 'Producto de prueba');
+	fd.append('line_descriptions', opts.lineDescription ?? 'Producto de prueba');
 	fd.append('line_quantities', '1');
 	fd.append('line_units', 'ud');
 	fd.append('line_unit_prices', opts.totalAmount);
@@ -72,11 +77,20 @@ function form(opts: {
 	return fd;
 }
 
-async function duplicateNotifications(invoiceId: number) {
+async function notificationsByType(invoiceId: number, notificationType: string) {
 	return testSql`
 		SELECT payload FROM system_notifications
 		WHERE restaurant_id = ${rid} AND invoice_id = ${invoiceId}
-			AND notification_type = 'possible_duplicate_purchase'`;
+			AND notification_type = ${notificationType}`;
+}
+
+async function duplicateNotifications(invoiceId: number) {
+	return notificationsByType(invoiceId, 'possible_duplicate_purchase');
+}
+
+async function linkedInvoiceId(invoiceId: number): Promise<number | null> {
+	const rows = await testSql`SELECT linked_invoice_id FROM invoices WHERE id = ${invoiceId}`;
+	return rows[0]?.linked_invoice_id ?? null;
 }
 
 beforeAll(async () => {
@@ -91,8 +105,8 @@ afterAll(async () => {
 	await closeDb();
 });
 
-describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate purchase nudge (issue #449)', () => {
-	it('flags a factura arriving weeks after an albarán from the same supplier, similar amount', async () => {
+describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate / related document linking (issues #449, #809)', () => {
+	it('links a factura to its albarán when supplier, date, amount and line items all match', async () => {
 		const supplier = '__inv_dupe_a__';
 
 		const albaran = await saveReviewedInvoice(
@@ -111,11 +125,49 @@ describe.skipIf(!hasDbEnv)('saveReviewedInvoice → possible duplicate purchase 
 		expect(factura.type).toBe('saved');
 		if (factura.type !== 'saved') return;
 
-		const notifications = await duplicateNotifications(factura.invoiceId);
-		expect(notifications).toHaveLength(1);
-		const payload = notifications[0].payload;
+		const related = await notificationsByType(factura.invoiceId, 'related_document_found');
+		expect(related).toHaveLength(1);
+		const payload = related[0].payload;
 		expect(payload.matchedInvoiceId).toBe(albaran.invoiceId);
 		expect(payload.otherDocumentType).toBe('albaran');
+
+		expect(await duplicateNotifications(factura.invoiceId)).toHaveLength(0);
+		expect(await linkedInvoiceId(factura.invoiceId)).toBe(albaran.invoiceId);
+		expect(await linkedInvoiceId(albaran.invoiceId)).toBe(factura.invoiceId);
+	});
+
+	it('falls back to a duplicate-risk warning (no link) when line items do not overlap', async () => {
+		const supplier = '__inv_dupe_lines__';
+
+		const albaran = await saveReviewedInvoice(
+			fakeItem('albaran'),
+			form({
+				invoiceNumber: 'ALB-2024-005', invoiceDate: '2024-01-15', totalAmount: '90.00', supplier,
+				lineDescription: 'Tomates frescos',
+			}),
+			rid,
+		);
+		expect(albaran.type).toBe('saved');
+		if (albaran.type !== 'saved') return;
+
+		const factura = await saveReviewedInvoice(
+			fakeItem('factura'),
+			form({
+				invoiceNumber: 'FAC-2024-105', invoiceDate: '2024-01-18', totalAmount: '92.00', supplier,
+				lineDescription: 'Servicio de transporte',
+			}),
+			rid,
+		);
+		expect(factura.type).toBe('saved');
+		if (factura.type !== 'saved') return;
+
+		const notifications = await duplicateNotifications(factura.invoiceId);
+		expect(notifications).toHaveLength(1);
+		expect(notifications[0].payload.matchedInvoiceId).toBe(albaran.invoiceId);
+
+		expect(await notificationsByType(factura.invoiceId, 'related_document_found')).toHaveLength(0);
+		expect(await linkedInvoiceId(factura.invoiceId)).toBeNull();
+		expect(await linkedInvoiceId(albaran.invoiceId)).toBeNull();
 	});
 
 	it('does not flag when the amounts are far apart', async () => {
