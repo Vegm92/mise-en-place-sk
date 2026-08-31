@@ -17,6 +17,7 @@ import { locale, t } from '../src/lib/i18n';
 import {
 	SUPPORTED_UPLOAD_EXTENSIONS,
 	MAX_UPLOAD_BYTES,
+	MAX_ZIP_BYTES,
 	MIN_UPLOAD_BYTES,
 	MAGIC_BYTES,
 	isSupportedUploadExtension,
@@ -41,6 +42,7 @@ const SAMPLE: Record<string, number[]> = {
 	'.jpeg': padToMinSize([0xff, 0xd8, 0xff, 0xe0]),
 	'.png':  padToMinSize([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
 	'.xml':  padToMinSize([...Buffer.from('<?xml version="1.0"?><Facturae/>')]),
+	'.zip':  padToMinSize([0x50, 0x4b, 0x03, 0x04]),
 };
 
 function fileWith(name: string, bytes: number[]): File {
@@ -78,6 +80,24 @@ describe('checkUploadSize', () => {
 
 	it('rejects one byte over the ceiling as tooLarge', () => {
 		expect(checkUploadSize(MAX_UPLOAD_BYTES + 1)).toBe('tooLarge');
+	});
+});
+
+describe('checkUploadSize — a .zip container uses the larger batch ceiling (issue #824)', () => {
+	it('accepts a zip well over the normal 20 MB single-file cap', () => {
+		expect(checkUploadSize(MAX_UPLOAD_BYTES + 1, '.zip')).toBeNull();
+	});
+
+	it('rejects a zip over the zip-specific ceiling', () => {
+		expect(checkUploadSize(MAX_ZIP_BYTES + 1, '.zip')).toBe('tooLarge');
+	});
+
+	it('has no minimum-size floor for a zip container — a well-compressed archive can be tiny', () => {
+		expect(checkUploadSize(1, '.zip')).toBeNull();
+	});
+
+	it('still enforces the floor for every non-zip type', () => {
+		expect(checkUploadSize(MIN_UPLOAD_BYTES - 1, '.pdf')).toBe('tooSmall');
 	});
 });
 

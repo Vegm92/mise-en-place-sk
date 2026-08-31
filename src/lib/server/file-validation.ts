@@ -1,6 +1,8 @@
 import {
 	MAGIC_BYTES,
 	MAX_UPLOAD_BYTES,
+	MAX_ZIP_BYTES,
+	MAX_ZIP_ENTRIES,
 	MIN_UPLOAD_BYTES,
 	SUPPORTED_UPLOAD_EXTENSIONS,
 	type RejectReason,
@@ -9,6 +11,7 @@ import {
 export const ALLOWED_EXTENSIONS: ReadonlySet<string> = new Set(SUPPORTED_UPLOAD_EXTENSIONS);
 export const MAX_FILE_BYTES = MAX_UPLOAD_BYTES;
 export const MIN_FILE_BYTES = MIN_UPLOAD_BYTES;
+export { MAX_ZIP_BYTES, MAX_ZIP_ENTRIES };
 
 export { MAGIC_BYTES };
 export type { RejectReason };

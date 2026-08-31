@@ -19,10 +19,11 @@
  * prove agreement end to end: whatever the picker offers, the guard saves and
  * extraction can classify.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { buildZip } from './helpers/zip';
 
 const { store } = vi.hoisted(() => ({ store: new Map<string, Buffer>() }));
 
@@ -60,8 +61,26 @@ const SAMPLE: Record<string, number[]> = {
 	'.xml':  padToMinSize([...Buffer.from('<?xml version="1.0"?><Facturae/>')]),
 };
 
+/**
+ * .zip is a container, not a document — its sample is a real archive with
+ * one well-formed .pdf entry inside, built lazily in beforeAll below since
+ * zip encoding is async.
+ */
+beforeAll(async () => {
+	const zip = await buildZip([{ name: 'factura.pdf', bytes: SAMPLE['.pdf'] }]);
+	SAMPLE['.zip'] = [...zip];
+});
+
 /** Types a picker must not offer, each rejected by at least one gate today. */
 const UNSUPPORTED = ['.heic', '.xlsx', '.docx', '.gif', '.webp'];
+
+/**
+ * .zip is admitted by the guard (which unpacks it) but is never itself
+ * handed to extraction — saveUploadedFiles always expands it into its
+ * constituent entries first, so classifyFile only ever sees the extracted
+ * documents, never the raw archive.
+ */
+const CLASSIFIABLE_EXTENSIONS = SUPPORTED_UPLOAD_EXTENSIONS.filter((ext) => ext !== '.zip');
 
 function walkSvelte(dir: string, out: string[] = []): string[] {
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -186,7 +205,7 @@ describe('extraction can read everything the guard admits', () => {
 		return fp;
 	};
 
-	it.each(SUPPORTED_UPLOAD_EXTENSIONS)('classifyFile handles %s', async (ext) => {
+	it.each(CLASSIFIABLE_EXTENSIONS)('classifyFile handles %s', async (ext) => {
 		const classified = await classifyFile(write(`factura${ext}`, SAMPLE[ext]));
 
 		expect(classified.type).toBeTruthy();
@@ -195,5 +214,10 @@ describe('extraction can read everything the guard admits', () => {
 	it.each(UNSUPPORTED)('classifyFile refuses %s', (ext) => {
 		expect(() => classifyFile(write(`factura${ext}`, [0x00])))
 			.toThrow(`Unsupported file type: ${ext}`);
+	});
+
+	it('classifyFile never sees a raw .zip — saveUploadedFiles always expands it first', () => {
+		expect(() => classifyFile(write('factura.zip', [0x50, 0x4b, 0x03, 0x04])))
+			.toThrow('Unsupported file type: .zip');
 	});
 });
