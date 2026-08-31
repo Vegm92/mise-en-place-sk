@@ -187,6 +187,8 @@ describe.skipIf(!hasDbEnv)('corpus persistence', () => {
 		const stats = await promptVersionStats(testDb);
 		const fixture = stats.find(s => s.promptVersion === 'v9-replayfixture' && s.runKind === 'replay');
 		expect(fixture?.documents).toBeGreaterThanOrEqual(1);
+		expect(fixture!.lastSeen).toBeInstanceOf(Date);
+		expect(fixture!.avgConfidence).toBeCloseTo(0.91, 5);
 	});
 
 	it('prunes corpus rows past the retention window, and keeps the ones inside it', async () => {
