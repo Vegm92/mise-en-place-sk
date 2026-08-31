@@ -41,6 +41,7 @@ the front door of the pipeline (web and WhatsApp converge here).
   `UploadPanel.svelte` before a file is queued, off the identical
   `MAGIC_BYTES`/`MAX_UPLOAD_BYTES`/`MIN_UPLOAD_BYTES` constants in
   `upload-formats.ts` — a rejection is never silent (issue #541).
+- Folder upload is desktop-only, and the panel says so instead of pretending: `webkitdirectory` exists on the input element in every browser, including iOS Safari and Android Chrome, but no mobile browser can return a directory through it, so the button opened a plain file picker on a phone. `upload-capabilities.ts` feature-detects the real thing (attribute present **and** not a touch-first device, iPadOS' desktop-class UA included) and where it cannot work the same button offers a `.zip` instead — the one path that already carries a whole folder end to end, since `extractZip` expands it server-side.
 - File keys `{namespace}/{stem}_{3-hex-suffix}{ext}`; namespace is random hex.
 - `enqueueBatchExtraction` walks items: `pending|failed → markQueued + enqueue`;
   `queued → enqueue` only (idempotent). Per-file rejects do not fail the batch.
@@ -70,7 +71,8 @@ Guarded `UPDATE ... WHERE status IN (...)` — a web/worker race is a no-op
 ## UI dependencies
 
 `(app)/+page.svelte` (upload dropzone + progress), `UploadPanel.svelte`,
-`batch/[id]/+page.svelte`.
+`batch/[id]/+page.svelte`. `upload-capabilities.ts` decides whether the panel
+offers a folder picker or the zip fallback.
 
 ## Background dependencies
 
@@ -234,6 +236,16 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 - The exports at the bottom are `createBatchStore(db)` bound to the app connection. The store is a DI factory rather than a set of bare functions so the guarded SQL runs for real against the test database instead of being mocked.
 
+### `src/lib/upload-capabilities.ts`
+
+**`function supportsDirectoryPicker`**
+
+- Pure over `{ hasWebkitDirectory, userAgent, maxTouchPoints }` so the decision is testable without a browser; `detectDirectoryPickerSupport` is the thin browser wrapper. The touch-first check carries iPadOS: since iPadOS 13 Safari reports a `Macintosh` UA, so the UA regex alone reads an iPad as a desktop — `maxTouchPoints > 1` on a Mac UA is what separates them. A real Mac with a touch display would be misread; there is no such Mac.
+
+**`const ZIP_UPLOAD_ACCEPT`**
+
+- Lives in `upload-formats.ts` with `UPLOAD_ACCEPT`, not here, so `tests/supported-file-types.test.ts` still sees every picker reading a shared constant rather than its own extension list (#520). It names the MIME types as well as `.zip` because Android's document picker filters on MIME and ignores a bare extension.
+
 ### `src/lib/server/sessions.ts`
 
 **`const ALLOWED_EXTENSIONS`**
@@ -294,6 +306,10 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 - File helpers.
 
+**`function openFolderPicker`**
+
+- One button, two pickers. `canPickFolder` starts `true` so a desktop render never flashes the zip label, then an effect replaces it with `detectDirectoryPickerSupport()` on mount; on a phone the button becomes "Subir ZIP" and a line of copy explains why (`upload.folderZipHint`). Detection cannot be `'webkitdirectory' in input` alone — a Playwright sweep of emulated iPhone/Pixel/iPad contexts shows the attribute present on all of them — so `upload-capabilities.ts` pairs it with a touch-first device check. `tests/upload-folder-mobile.test.ts` pins both halves.
+
 **`function openCamera`**
 
 - Camera opens straight away — the framing tip used to be a blocking bottom sheet before the first capture, the worst moment to read it; it now rides as a caption on the photo-confirm overlay where "retake" is a real option (#230).
@@ -314,4 +330,4 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 **`markup`**
 
-- Mobile + desktop variants (md breakpoint); 3-step indicator shared with /batch/[id] (#232); alerts; offline banner; upload zone; camera + browse buttons; hidden file input; file queue; sticky extract button; camera input always in DOM. Mobile overlays: preview + framing tip folded in from the old pre-capture sheet (#230).
+- Mobile + desktop variants (md breakpoint); 3-step indicator shared with /batch/[id] (#232); alerts; offline banner; upload zone; camera + browse buttons; file queue; sticky extract button. The hidden inputs (files, folder, zip, camera) sit **outside** both variants, once each: ADR-020 renders both layouts, so an input inside them existed twice with the same `bind:this` and only the second copy was ever the one clicked. Mobile overlays: preview + framing tip folded in from the old pre-capture sheet (#230).

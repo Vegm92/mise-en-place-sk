@@ -38,6 +38,9 @@ vi.mock('../src/lib/server/storage', () => ({
 import {
 	SUPPORTED_UPLOAD_EXTENSIONS,
 	UPLOAD_ACCEPT,
+	ZIP_UPLOAD_ACCEPT,
+	ZIP_UPLOAD_EXTENSION,
+	ZIP_MIME_TYPES,
 	MAX_UPLOAD_BYTES,
 	isSupportedUploadExtension,
 	isHeicUpload,
@@ -117,11 +120,16 @@ describe('every file picker offers exactly the supported list', () => {
 	});
 
 	it.each(acceptAttrs.filter((a) => a.expression).map((a) => `${a.file}:${a.expression}`))(
-		'%s reads the shared constant',
+		'%s reads a shared constant',
 		(entry) => {
-			expect(entry.split(':').at(-1)).toBe('UPLOAD_ACCEPT');
+			expect(['UPLOAD_ACCEPT', 'ZIP_UPLOAD_ACCEPT']).toContain(entry.split(':').at(-1));
 		}
 	);
+
+	it('the single-type zip picker offers a type the guard already admits', () => {
+		expect(SUPPORTED_UPLOAD_EXTENSIONS).toContain(ZIP_UPLOAD_EXTENSION);
+		expect(ZIP_UPLOAD_ACCEPT.split(',')).toEqual([ZIP_UPLOAD_EXTENSION, ...ZIP_MIME_TYPES]);
+	});
 
 	it('builds the accept attribute from the supported extensions', () => {
 		expect(UPLOAD_ACCEPT.split(',')).toEqual([...SUPPORTED_UPLOAD_EXTENSIONS]);
