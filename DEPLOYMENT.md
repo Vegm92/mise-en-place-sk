@@ -224,7 +224,7 @@ directly internet-facing.
 | Variable | Required | Notes |
 |---|---|---|
 | `RESEND_API_KEY` | Recommended | `re_…` from [Resend Dashboard](https://resend.com). If absent, emails are no-ops (logged to console). |
-| `EMAIL_FROM` | Optional | Sender address. Defaults to `Mise en Place <noreply@miseenplace.app>`. Must match a verified domain in Resend. |
+| `EMAIL_FROM` | Optional | Sender address. Defaults to `Mise en Place <noreply@mise-place.com>`. Must match a verified domain in Resend. |
 
 ### Observability
 

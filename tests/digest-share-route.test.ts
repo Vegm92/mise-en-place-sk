@@ -29,7 +29,7 @@ const DISTINCTIVE_AMOUNT = '6421.09';
 function requestEvent(token: string, ip = '203.0.113.50') {
 	return {
 		params: { token },
-		url: new URL(`https://mise-en-place.app/s/${token}`),
+		url: new URL(`https://mise-place.com/s/${token}`),
 		getClientAddress: () => ip,
 	} as never;
 }
