@@ -228,6 +228,7 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 **`function cleanupStaleBatches`**
 
 - Only non-confirmed items' files are ours to delete — a confirmed item's file becomes the invoice's `source_file` and must survive until the invoice's own retention purge (`runFilePurgeJob`).
+- The sweep archives before it deletes (#813): `archiveBatchExtractions` copies any still-unarchived `extracted_data` into `extraction_results` first, so the cascade from `upload_batches` can no longer destroy the raw extraction of a document — confirmed or not — 24 h after upload. It also prunes the corpus past its retention window on the same pass, which keeps the storage limit next to the sweep that enforces every other retention rule here.
 
 **_module level_**
 

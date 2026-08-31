@@ -6,7 +6,11 @@ import { uploadsDir } from './sessions.js';
 import { getItem, markExtracting, markDone, markFailed, type BatchItem } from './batch.js';
 import { getStorage } from './storage.js';
 import { STORAGE_DRIVER } from './env.js';
-import { extractInvoice, extractWithProvider, type GenerateFn } from './extract.js';
+import {
+	extractInvoice, extractWithProvider, EXTRACTION_PROMPT_VERSION, EINVOICE_PARSER_VERSION,
+	type GenerateFn,
+} from './extract.js';
+import { recordExtractionResult } from './extraction-corpus.js';
 import { annotateLineItems } from './products.js';
 import { checkExtractionQuota, claimMonthlyExtraction, releaseMonthlyExtraction, recordLlmUsage } from './llm-quota.js';
 import { getAccessState } from './billing.js';
@@ -121,6 +125,33 @@ async function reportExtractionFailure(
 	return !willRetry;
 }
 
+async function archiveExtraction(
+	item: BatchItem,
+	restaurantId: string,
+	filePath: string,
+	model: string | null,
+	extractedData: Record<string, unknown>,
+	conversionNotes: string[],
+): Promise<void> {
+	const isXml = path.extname(filePath).toLowerCase() === '.xml';
+	try {
+		await recordExtractionResult({
+			restaurantId,
+			batchItemId: item.id,
+			fileKey: item.fileKey,
+			displayName: item.displayName,
+			source: item.source,
+			runKind: 'live',
+			promptVersion: isXml ? EINVOICE_PARSER_VERSION : EXTRACTION_PROMPT_VERSION,
+			model,
+			extractedData,
+			conversionNotes,
+		});
+	} catch (err) {
+		console.error(`[worker] extraction corpus write failed for item ${item.id} (continuing):`, err);
+	}
+}
+
 function removeTmpFile(tmpPath: string): void {
 	try { fs.unlinkSync(tmpPath); } catch { }
 }
@@ -192,6 +223,7 @@ export async function processExtractionJob(
 
 	try {
 		let result;
+		let model: string | null = null;
 		const slot = await acquireExtractionSlot();
 		try {
 			if (generateOverride) {
@@ -200,6 +232,7 @@ export async function processExtractionJob(
 			} else {
 				const { invoice, usage } = await extractWithProvider(filePath);
 				result = invoice;
+				model = usage.model;
 				await recordLlmUsage(restaurantId, usage, 'extraction-worker');
 			}
 		} finally {
@@ -242,6 +275,7 @@ export async function processExtractionJob(
 		};
 
 		await markDone(itemId, extractedData, conversionNotes);
+		await archiveExtraction(item, restaurantId, filePath, model, extractedData, conversionNotes);
 		if (totalMismatch) {
 			console.warn(`[worker] Total mismatch detected for item ${itemId} (lines + tax vs. extracted total)`);
 		}

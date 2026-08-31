@@ -356,6 +356,13 @@ Not symmetrical, and worth knowing before deciding how urgent a restart is:
 - One-off backfill: link products + compute pack fields on existing line items (follow-up to #298/#299). Run once after deploying the catalog/pack features: `pnpm db:backfill-products`. Deterministic and idempotent — safe to re-run. Uses the same env as the web process / worker (DATABASE_URL etc.); dotenv loads .env in dev.
 - One-off backfill: recompute `invoices.content_hash` after the tax breakdown became part of the hash. Run once after deploying that change: `pnpm db:backfill-content-hash`. Deterministic and idempotent — safe to re-run; rows whose new hash is already taken keep the old one and are reported as `collided`. Without it, invoices saved earlier can no longer be recognised as duplicates of a re-upload.
 
+### `src/extraction-replay.ts`
+
+**`function main`**
+
+- Operator tool, not a job: `pnpm corpus:replay` re-extracts documents already in the corpus with the *current* prompt and prints per-field agreement against the stored baseline (#813, ADR-034). This is the mechanism for telling a prompt improvement from a regression, since it compares two prompt revisions over the same real documents. `--stats` (corpus by prompt version), `--dry-run` (selection only, no model calls), `--export <file>` (anonymized JSONL), `--limit` (default 10), `--restaurant`, `--prompt-version`.
+- Replay rows are stored with `run_kind = 'replay'` so they never mix with the live extraction a tenant actually reviewed. Replays spend Gemini quota and are deliberately not recorded in `llm_usage_log`/`monthly_usage` — a replay is the operator's cost, not the tenant's.
+
 ### `src/worker.ts`
 
 **`property dsn`**

@@ -38,6 +38,7 @@ For *how the code works*, see the per-subsystem `## Code notes` sections (`docs/
 |---|---|---|
 | [006](./extraction/ADR-006-file-classification-routes-extraction.md) | File class decides the extraction route (text PDF / vision / XML) | Active |
 | [007](./extraction/ADR-007-llm-provider-seam.md) | A one-method provider seam plus per-tenant usage accounting | Active |
+| [034](./extraction/ADR-034-extraction-corpus-is-durable-and-prompt-versioned.md) | Every extraction is kept in a durable, prompt-versioned corpus outside the batch tables | Active |
 
 ### [`invoicing/`](./invoicing) — the invoice write path
 
@@ -155,7 +156,7 @@ layers), not decisions.
 - Read the ADRs that touch an area *before* changing it — they are referenced by
   `docs/00_system/architectural_invariants.md` and the affected feature spec.
 - The operating workflow lives in `docs/07_ai/agent_workflow.md`; classify a
-  change with `docs/07_ai/change_protocol.md` (next ADR number: **034**).
+  change with `docs/07_ai/change_protocol.md` (next ADR number: **035**).
 
 **ADRs are amended, not rewritten.** When reality moves, add a dated amendment
 block at the top and strike through what is no longer true, leaving the original

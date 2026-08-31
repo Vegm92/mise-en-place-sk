@@ -30,7 +30,7 @@ const EXPECTED_KEYS = [
 	'exported_at', 'user', 'memberships',
 	'restaurants', 'suppliers', 'invoices', 'invoice_line_items', 'category_budgets',
 	'unit_conversions', 'chat_sessions', 'chat_messages', 'extraction_corrections',
-	'stock_levels', 'settings', 'recipes', 'recipe_items',
+	'extraction_results', 'stock_levels', 'settings', 'recipes', 'recipe_items',
 ];
 
 async function makeUser(suffix: string) {

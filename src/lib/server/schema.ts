@@ -426,6 +426,29 @@ export const batchItems = pgTable('batch_items', {
 	index('batch_items_source_ref_idx').on(t.sourceRef),
 ]);
 
+export const extractionResults = pgTable('extraction_results', {
+	id:               uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+	restaurantId:     uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	batchItemId:      uuid('batch_item_id').references(() => batchItems.id, { onDelete: 'set null' }),
+	fileKey:          text('file_key').notNull(),
+	displayName:      text('display_name'),
+	source:           text('source').notNull().default('web'),
+	runKind:          text('run_kind').notNull().default('live'),
+	promptVersion:    text('prompt_version').notNull(),
+	model:            text('model'),
+	extractedData:    jsonb('extracted_data').$type<Record<string, unknown>>().notNull(),
+	fieldConfidences: jsonb('field_confidences').$type<Record<string, number>>(),
+	confidence:       real('confidence'),
+	conversionNotes:  jsonb('conversion_notes').$type<string[]>(),
+	totalMismatch:    boolean('total_mismatch').notNull().default(false),
+	createdAt:        timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('extraction_results_restaurant_created_idx').on(t.restaurantId, t.createdAt),
+	index('extraction_results_file_key_idx').on(t.restaurantId, t.fileKey),
+	index('extraction_results_prompt_version_idx').on(t.promptVersion, t.createdAt),
+	index('extraction_results_batch_item_idx').on(t.batchItemId),
+]);
+
 export const whatsappSession = pgTable('whatsapp_session', {
 	id:        text('id').primaryKey(),
 	data:      jsonb('data').notNull(),
