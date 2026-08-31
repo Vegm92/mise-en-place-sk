@@ -30,7 +30,7 @@ import {
 	parseSupplierListParams,
 	type SupplierSortKey,
 } from '../src/lib/supplier-list';
-import { translations } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 import { VALID_CATEGORIES } from '../src/lib/constants';
 
 // ── Param parsing (pure — runs without a database) ────────────────────────────

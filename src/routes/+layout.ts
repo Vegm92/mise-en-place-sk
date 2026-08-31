@@ -3,5 +3,7 @@ import type { LayoutLoad } from './$types';
 
 export const load: LayoutLoad = async ({ data }) => {
   const es = await messageLoaders.es();
-  return { ...data, messages: es.default };
+  const contextMessages =
+    data.locale === 'es' ? es.default : (await messageLoaders[data.locale]()).default;
+  return { ...data, messages: es.default, contextMessages };
 };

@@ -22,7 +22,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { get } from 'svelte/store';
-import { locale, t, translations, loadAllMessages } from '../src/lib/i18n';
+import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { translations } from '../src/lib/i18n-messages';
 import { TOUR_PAGES, TOUR_FEATURE_REQUIREMENT, tourPageAccessible } from '../src/lib/tour-gating';
 import { HELP_TIPS } from '../src/lib/help-content';
 
