@@ -15,6 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { translations } from '../src/lib/i18n';
+import { JsonShapeMismatchError } from '../src/lib/server/llm-json';
 
 const sentryMocks = vi.hoisted(() => ({
 	captureException: vi.fn(),
@@ -170,6 +171,7 @@ const ERROR_CLASSES = [
 	{ label: 'ETIMEDOUT',           err: Object.assign(new Error('slow'),         { code: 'ETIMEDOUT' }), key: 'extract.err.timeout',     transient: true  },
 	{ label: 'AbortError',          err: Object.assign(new Error('aborted'),      { name: 'AbortError' }), key: 'extract.err.timeout',    transient: true  },
 	{ label: 'invalid JSON',        err: new Error('LLM returned invalid JSON'),                          key: 'extract.err.notInvoice',  transient: false },
+	{ label: 'JSON shape mismatch', err: new JsonShapeMismatchError('LLM response parsed as JSON but does not match the expected shape'), key: 'extract.err.malformedResult', transient: false },
 	{ label: 'an unclassed error',  err: new Error('boom'),                                               key: 'extract.err.generic',     transient: false },
 ] as const;
 

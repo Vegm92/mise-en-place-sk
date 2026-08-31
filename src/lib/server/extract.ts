@@ -84,8 +84,7 @@ Bottom totals table — scan this first: Spanish albaranes and facturas almost a
 Tax fallback — use arithmetic when OCR is uncertain: After reading all line items, compute line_sum = sum of all line_item total_price values (skip nulls). If line_sum > 0 AND total_amount > line_sum AND tax_breakdown is null or its tax_amount sum does not account for the gap:
   1. gap = round(total_amount − line_sum, 2). This gap is almost certainly tax.
   2. Derive rate = gap / line_sum. Snap to the nearest standard Spanish rate (0.04, 0.10, 0.21) if within 2%.
-  3. Emit a tax_breakdown entry: { rate, base: line_sum, tax_amount: gap, type: "iva" }.
-  4. Set that entry's implied confidence to 0.55 by adding "tax_inferred": true at the top level of the JSON — this signals the tax was calculated, not directly read. Do NOT lower the document-level confidence field for this reason alone.
+  3. Emit a tax_breakdown entry: { rate, base: line_sum, tax_amount: gap, type: "iva" }. Do NOT lower the document-level confidence field for this reason alone.
   Only skip this fallback when total_amount equals line_sum (no gap) or when total_amount is null.
 - Normalise unit values to lowercase abbreviations (kg, L, ud, caja, etc.).
 - Do not invent values — use null for any field not clearly present.
@@ -172,7 +171,6 @@ export interface ExtractedInvoice {
 	qr_url?: string | null;
 	qr_mismatch?: boolean;
 	e_invoice_format?: 'facturae_322' | 'ubl_21' | null;
-	tax_inferred?: boolean;
 }
 
 const TAX_BAND_SCHEMA: Schema = {
