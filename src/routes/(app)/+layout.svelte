@@ -418,12 +418,22 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
       {mobileOpen ? 'translate-x-0' : '-translate-x-full'}
     "
   >
-    <div style="display:flex;align-items:center;gap:10px;padding:0 10px 22px;{collapsed ? 'justify-content:center;' : ''}">
+    <div style="display:flex;align-items:center;gap:6px;padding:0 6px 22px 10px;{collapsed ? 'flex-direction:column;justify-content:center;padding:0 0 22px;' : 'justify-content:space-between;'}">
       {#if collapsed}
         <Logo size={22} />
       {:else}
         <Logo size={20} wordmark />
       {/if}
+      <button
+        type="button"
+        class="btn btn-ghost btn-icon hidden md:flex"
+        onclick={toggleSidebar}
+        title={collapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
+        aria-label={collapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
+        style="width:28px;height:28px;padding:0;justify-content:center;flex-shrink:0;{collapsed ? 'margin-top:6px;' : ''}"
+      >
+        {#if collapsed}<PanelLeftOpen size={16} />{:else}<PanelLeftClose size={16} />{/if}
+      </button>
     </div>
 
     {#if !collapsed && data.locations && data.locations.length > 1}
@@ -767,16 +777,6 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
       </div>
     {/if}
   </aside>
-
-  <button
-    class="btn btn-ghost hidden md:flex"
-    style="position:absolute;top:50%;right:-17px;transform:translateY(-50%);width:34px;height:34px;padding:0;justify-content:center;border-radius:9999px;box-shadow:0 1px 3px rgba(0,0,0,0.15);"
-    onclick={toggleSidebar}
-    title={collapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
-    aria-label={collapsed ? $t('action.expandSidebar') : $t('action.collapseSidebar')}
-  >
-    {#if collapsed}<PanelLeftOpen size={16} />{:else}<PanelLeftClose size={16} />{/if}
-  </button>
   </div>
   {:else}
     <div style="width:232px;flex-shrink:0;display:flex;flex-direction:column;"></div>
