@@ -24,7 +24,7 @@ Spanish-first, bilingual (es/en). Product definition:
   backstop was added on top (ADR-030, #222), scoped to the `mep_runtime` role
 - Auth.js (`@auth/sveltekit` + `@auth/drizzle-adapter`), JWT sessions,
   Credentials + Google OAuth (migrated off Supabase Auth, #369/#372/#370)
-- Gemini (`@google/genai`, default `gemini-2.5-flash`) via provider seam
+- Gemini (`@google/genai`, default `gemini-3.1-flash-lite`) via provider seam
 - pg-boss background jobs in a separate worker process
 - Baileys (`@whiskeysockets/baileys`) — unofficial WhatsApp client, worker-side,
   behind the transport seam in `src/lib/server/integrations/whatsapp/` (ADR-025)
