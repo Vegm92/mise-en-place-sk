@@ -27,10 +27,15 @@ vi.mock('../src/lib/server/db', () => ({
 import {
 	REVIEW_STATES,
 	STORED_INVOICE_STATUSES,
+	INCIDENCE_KINDS,
 	badgeClass,
 	statusKey,
 	isReviewState,
 	isStoredInvoiceStatus,
+	isIncidenceKind,
+	incidenceKindBadgeClass,
+	incidenceKindKey,
+	incidenceKindHintKey,
 } from '../src/lib/status';
 import { invoiceReviewFilter } from '../src/lib/server/invoice-status';
 import { translations } from '../src/lib/i18n-messages';
@@ -182,6 +187,12 @@ describe('no source file compares an invoices state column against a foreign wor
 			.map((s) => `${path.relative(ROOT, file)} → '${s}'`)
 	);
 
+	const incidenceKindOffenders = SOURCE_FILES.flatMap((file) =>
+		[...columnLiteralsIn(fs.readFileSync(file, 'utf8'), 'incidenceKind', 'incidence_kind')]
+			.filter((s) => !isIncidenceKind(s))
+			.map((s) => `${path.relative(ROOT, file)} → '${s}'`)
+	);
+
 	it('finds files referencing review_state at all', () => {
 		const referencing = SOURCE_FILES.filter(
 			(f) => columnLiteralsIn(fs.readFileSync(f, 'utf8'), 'reviewState', 'review_state').size > 0
@@ -196,5 +207,49 @@ describe('no source file compares an invoices state column against a foreign wor
 	it('has no legacy status reference outside the stored vocabulary', () => {
 		expect(STORED_INVOICE_STATUSES.length).toBeGreaterThan(0);
 		expect(statusOffenders).toEqual([]);
+	});
+
+	it('has no incidence_kind reference outside the vocabulary', () => {
+		expect(incidenceKindOffenders).toEqual([]);
+	});
+});
+
+/**
+ * Issue #879: an extraction/read problem ('lectura') is not the same as a
+ * real problem with the document ('documento') — the review state alone
+ * ('incidencia') cannot tell them apart, so `invoices.incidence_kind` is a
+ * second, closed axis with the same guarantees as the review-state vocabulary
+ * above: every kind has a badge class, an i18n key, and a hint key in both
+ * locales, and an unknown kind falls back to neutral rather than rendering.
+ */
+describe('the incidence-kind vocabulary is a second, closed axis (issue #879)', () => {
+	it.each(INCIDENCE_KINDS)('%s has a badge class defined in app.css', (kind) => {
+		const cls = incidenceKindBadgeClass(kind);
+		expect(cls).not.toBe('badge badge-neutral');
+
+		const modifier = cls.split(' ').at(-1)!;
+		expect(read('src/app.css'), `.${modifier} is not declared in app.css`).toContain(`.${modifier}`);
+	});
+
+	it.each(INCIDENCE_KINDS)('%s has a label and a hint key in both locales', (kind) => {
+		const key = incidenceKindKey(kind);
+		const hintKey = incidenceKindHintKey(kind);
+
+		expect(key).toBe(`inv.review.kind.${kind}`);
+		expect(hintKey).toBe(`inv.review.kind.${kind}.hint`);
+		expect(es[key], `${key} missing from es`).toBeTruthy();
+		expect(en[key], `${key} missing from en`).toBeTruthy();
+		expect(es[hintKey], `${hintKey} missing from es`).toBeTruthy();
+		expect(en[hintKey], `${hintKey} missing from en`).toBeTruthy();
+	});
+
+	it('falls back to a neutral badge and the raw value for an unknown kind', () => {
+		expect(incidenceKindBadgeClass('something-new')).toBe('badge badge-neutral');
+		expect(incidenceKindKey('something-new')).toBe('something-new');
+		expect(isIncidenceKind('something-new')).toBe(false);
+	});
+
+	it('lectura and documento render with visually distinct badge classes', () => {
+		expect(incidenceKindBadgeClass('lectura')).not.toBe(incidenceKindBadgeClass('documento'));
 	});
 });
