@@ -302,6 +302,35 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	return alerts;
 }
 
+async function fetchUncategorizedEligibleSupplier(
+	tdb: ReturnType<typeof forTenant>,
+	supplierId: number,
+): Promise<{ name: string; category: string | null } | null> {
+	const [supplier] = await db
+		.select({ name: suppliers.name, category: suppliers.category })
+		.from(suppliers)
+		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
+		.limit(1);
+	if (!supplier) return null;
+	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return null;
+	return supplier;
+}
+
+async function hasExistingNotificationForSupplier(
+	tdb: ReturnType<typeof forTenant>,
+	notificationType: string,
+	supplierId: number,
+): Promise<boolean> {
+	const existing = await db
+		.select({ payload: systemNotifications.payload })
+		.from(systemNotifications)
+		.where(and(
+			tdb.scope(systemNotifications.restaurantId),
+			eq(systemNotifications.notificationType, notificationType),
+		));
+	return existing.some((row) => (row.payload as { supplierId?: number } | null)?.supplierId === supplierId);
+}
+
 export async function runCategorizationNudge(
 	invoiceId: number,
 	supplierId: number,
@@ -309,13 +338,8 @@ export async function runCategorizationNudge(
 ): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 
-	const [supplier] = await db
-		.select({ name: suppliers.name, category: suppliers.category })
-		.from(suppliers)
-		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
-		.limit(1);
+	const supplier = await fetchUncategorizedEligibleSupplier(tdb, supplierId);
 	if (!supplier) return [];
-	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
 
 	const cnt = await db.$count(invoices, tdb.scope(invoices.restaurantId, and(
 		eq(invoices.supplierId, supplierId),
@@ -323,16 +347,7 @@ export async function runCategorizationNudge(
 	)));
 	if (cnt > 1) return [];
 
-	const existing = await db
-		.select({ payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(and(
-			tdb.scope(systemNotifications.restaurantId),
-			eq(systemNotifications.notificationType, 'supplier_uncategorized'),
-		));
-	for (const row of existing) {
-		if ((row.payload as { supplierId?: number } | null)?.supplierId === supplierId) return [];
-	}
+	if (await hasExistingNotificationForSupplier(tdb, 'supplier_uncategorized', supplierId)) return [];
 
 	const uncategorizedVars = { supplier: supplier.name };
 	return [{
@@ -392,13 +407,8 @@ export async function runCategorySuggestion(
 ): Promise<Alert[]> {
 	const tdb = forTenant(restaurantId);
 
-	const [supplier] = await db
-		.select({ name: suppliers.name, category: suppliers.category })
-		.from(suppliers)
-		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
-		.limit(1);
+	const supplier = await fetchUncategorizedEligibleSupplier(tdb, supplierId);
 	if (!supplier) return [];
-	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
 
 	const fromExtraction = Boolean(proposedCategory)
 		&& proposedCategory !== UNCATEGORIZED_CATEGORY
@@ -408,16 +418,7 @@ export async function runCategorySuggestion(
 		: await dominantSupplierLineCategory(supplierId, restaurantId);
 	if (!category) return [];
 
-	const existing = await db
-		.select({ payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(and(
-			tdb.scope(systemNotifications.restaurantId),
-			eq(systemNotifications.notificationType, 'supplier_category_suggested'),
-		));
-	for (const row of existing) {
-		if ((row.payload as { supplierId?: number } | null)?.supplierId === supplierId) return [];
-	}
+	if (await hasExistingNotificationForSupplier(tdb, 'supplier_category_suggested', supplierId)) return [];
 
 	await db
 		.update(systemNotifications)
