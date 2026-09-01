@@ -51,7 +51,8 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          # Full history so `vitest --changed` can diff against the PR base branch below.
+          # Full history so the duplication-on-new-code check below can diff
+          # against the PR base branch.
           fetch-depth: 0
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
@@ -106,18 +107,17 @@ jobs:
         run: pnpm db:migrate
 
       - name: Unit tests
-        run: |
-          BASE="origin/${{ github.event.pull_request.base.ref }}"
-          # On a PR, run only tests whose import graph touches the changed files —
-          # unless the diff itself touches something `--changed` can't reason
-          # about (deps, migrations, build/CI config), in which case fall back
-          # to the full suite. Pushes to main (no PR context) always run full.
-          if [ "${{ github.event_name }}" = "pull_request" ] && \
-             ! git diff --name-only "$BASE...HEAD" | grep -qE '^(package\.json|pnpm-lock\.yaml|drizzle/|vite\.config\.ts|vite\.worker\.config\.ts|tsconfig\.json|\.github/workflows/ci\.yml)'; then
-            pnpm exec vitest run --changed "$BASE"
-          else
-            pnpm test
-          fi
+        # Always run the full suite, on PRs and on pushes to main alike.
+        # `vitest run --changed <base>` used to gate PRs here, selecting only
+        # test files whose *import graph* touches the changed files — but a
+        # large share of tests/ (58 files and counting) instead grep .svelte
+        # or other source files with readFileSync and import nothing from
+        # them, so a source change never triggers those tests under
+        # `--changed`. That let a real regression merge through a green PR
+        # and only surface once it landed on main (see the source-grep test
+        # fixes in this commit). The full suite takes ~2.5 minutes, which is
+        # cheap next to a red main.
+        run: pnpm test
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
