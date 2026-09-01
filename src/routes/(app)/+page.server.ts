@@ -9,6 +9,7 @@ import { enqueueBatchExtraction } from '$lib/server/extract-batch';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import { trackEvent } from '$lib/server/events';
 import { getMonthlyUsage } from '$lib/server/llm-quota';
+import { findExistingFilenames } from '$lib/server/invoice-save';
 import { MAX_UPLOAD_TOTAL_BYTES, MAX_ZIP_BYTES, uploadExtname } from '$lib/upload-formats';
 
 async function remainingMonthlyQuota(rid: string, limit: number | null): Promise<number | null> {
@@ -47,8 +48,9 @@ function rejectSavedNothing(errors: Awaited<ReturnType<typeof saveUploadedFiles>
 	});
 }
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async ({ url, locals }) => {
 	const remaining = Number(url.searchParams.get('remaining'));
+	const rid = locals.restaurantId;
 	return {
 		title: 'upload.title',
 		error: url.searchParams.get('error') ?? null,
@@ -56,6 +58,7 @@ export const load: PageServerLoad = async ({ url }) => {
 		saved: url.searchParams.get('saved') === '1',
 		duplicate: url.searchParams.get('duplicate_inv') === '1',
 		upgradeUrl: url.searchParams.get('upgrade') === '1' ? '/billing' : null,
+		existingFilenames: rid ? [...(await findExistingFilenames(rid))] : [],
 	};
 };
 
