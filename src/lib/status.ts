@@ -18,6 +18,36 @@ export function isReviewState(s: string): s is ReviewState {
 	return s in REVIEW_BADGE_CLASS;
 }
 
+export const INCIDENCE_KINDS = ['lectura', 'documento'] as const;
+
+export type IncidenceKind = (typeof INCIDENCE_KINDS)[number];
+
+const INCIDENCE_KIND_BADGE_CLASS: Record<IncidenceKind, string> = {
+	lectura:   'badge badge-pending',
+	documento: 'badge badge-overdue',
+};
+
+const INCIDENCE_KIND_KEY: Record<IncidenceKind, string> = {
+	lectura:   'inv.review.kind.lectura',
+	documento: 'inv.review.kind.documento',
+};
+
+export function isIncidenceKind(s: string): s is IncidenceKind {
+	return s in INCIDENCE_KIND_BADGE_CLASS;
+}
+
+export function incidenceKindBadgeClass(s: string): string {
+	return isIncidenceKind(s) ? INCIDENCE_KIND_BADGE_CLASS[s] : 'badge badge-neutral';
+}
+
+export function incidenceKindKey(s: string): string {
+	return isIncidenceKind(s) ? INCIDENCE_KIND_KEY[s] : s;
+}
+
+export function incidenceKindHintKey(s: string): string {
+	return isIncidenceKind(s) ? `${INCIDENCE_KIND_KEY[s]}.hint` : s;
+}
+
 export const STORED_INVOICE_STATUSES = ['pending', 'accepted', 'rejected', 'paid'] as const;
 
 export const DERIVED_INVOICE_STATUSES = ['overdue'] as const;
