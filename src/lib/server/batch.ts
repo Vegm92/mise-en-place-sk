@@ -373,3 +373,24 @@ export const {
 	markQueued, markExtracting, markDone, markFailed, markConfirmed, markDiscarded,
 	requeueStalled, failStalledItems, isBatchSettled,
 } = createBatchStore(db);
+
+export async function getOpenBatchesForRestaurant(
+	restaurantId: string,
+): Promise<Array<{ batchId: string; itemCount: number; createdAt: Date | null }>> {
+	const tdb = forTenant(restaurantId);
+	const rows = await db
+		.select({
+			batchId: batchItems.batchId,
+			itemCount: sql<number>`count(*)::int`,
+			createdAt: uploadBatches.createdAt,
+		})
+		.from(batchItems)
+		.innerJoin(uploadBatches, eq(batchItems.batchId, uploadBatches.id))
+		.where(tdb.scope(
+			batchItems.restaurantId,
+			and(ne(batchItems.status, 'confirmed'), ne(batchItems.status, 'discarded')),
+		))
+		.groupBy(batchItems.batchId, uploadBatches.createdAt)
+		.orderBy(asc(uploadBatches.createdAt));
+	return rows;
+}
