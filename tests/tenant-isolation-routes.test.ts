@@ -121,6 +121,7 @@ const fakeRequest = (fields: Record<string, string>) => ({
 	formData: async () => ({
 		get: (k: string) => fields[k] ?? null,
 		getAll: (_k: string) => [] as unknown[],
+		keys: () => Object.keys(fields)[Symbol.iterator](),
 	}),
 });
 

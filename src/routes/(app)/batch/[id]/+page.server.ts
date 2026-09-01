@@ -1,5 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { handleLoad } from '$lib/server/load-guard';
+import { parseForm } from '$lib/server/public-form-action';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
@@ -244,6 +246,23 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	});
 };
 
+const ItemIdForm = v.object({
+	itemId: v.optional(v.pipe(v.string(), v.trim())),
+});
+
+function itemIdFrom(formData: FormData): string {
+	const parsed = parseForm(ItemIdForm, formData);
+	return (parsed.success ? parsed.output.itemId : undefined) ?? '';
+}
+
+async function resolveFormItem(batchId: string, locals: App.Locals, request: Request) {
+	const formData = await request.formData();
+	const itemId = itemIdFrom(formData);
+	const items = await requireOwnedBatch(batchId, locals);
+	const item = items.find(i => i.id === itemId);
+	return { formData, items, item };
+}
+
 async function settledRedirect(batchId: string): Promise<never> {
 	const items = await getBatchItems(batchId);
 	const confirmed = items.some(i => i.status === 'confirmed');
@@ -265,10 +284,7 @@ export const actions: Actions = {
 	},
 
 	retry: async ({ params, request, locals }) => {
-		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
-		const items = await requireOwnedBatch(params.id, locals);
-		const item = items.find(i => i.id === itemId);
+		const { item } = await resolveFormItem(params.id, locals, request);
 		if (item) {
 			const requeued = item.status === 'queued' || item.status === 'extracting'
 				? await requeueStalled(item.id)
@@ -279,12 +295,8 @@ export const actions: Actions = {
 	},
 
 	save: async ({ params, request, locals }) => {
-		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
 		const rid = locals.restaurantId!;
-
-		const items = await requireOwnedBatch(params.id, locals);
-		const item = items.find(i => i.id === itemId);
+		const { formData, item } = await resolveFormItem(params.id, locals, request);
 		if (!item) {
 			redirect(303, `/batch/${params.id}`);
 		}
@@ -313,10 +325,7 @@ export const actions: Actions = {
 	},
 
 	discardItem: async ({ params, request, locals }) => {
-		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
-		const items = await requireOwnedBatch(params.id, locals);
-		const item = items.find(i => i.id === itemId);
+		const { item } = await resolveFormItem(params.id, locals, request);
 		if (item) {
 			trackEvent('extraction_discarded', item.restaurantId, { files: [item.displayName] });
 			await getStorage().delete(item.fileKey);
@@ -361,11 +370,8 @@ export const actions: Actions = {
 	},
 
 	remove: async ({ params, request, locals }) => {
-		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
 		const rid = locals.restaurantId!;
-		const items = await requireOwnedBatch(params.id, locals);
-		const item = items.find(i => i.id === itemId);
+		const { item } = await resolveFormItem(params.id, locals, request);
 		if (item) {
 			const removed = await removeItem(item.id, rid);
 			if (removed) {

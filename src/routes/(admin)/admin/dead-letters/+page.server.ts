@@ -1,6 +1,8 @@
 import { fail } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
 import { handleLoad } from '$lib/server/load-guard';
+import { parseForm } from '$lib/server/public-form-action';
 import {
 	DEAD_LETTER_STATUSES,
 	countDeadLetters,
@@ -62,15 +64,23 @@ export const load: PageServerLoad = async ({ url }) => {
 	});
 };
 
+const DeadLetterActionForm = v.object({
+	id: v.optional(v.pipe(v.string(), v.trim())),
+	status: v.optional(v.pipe(v.string(), v.trim())),
+});
+
 function entryId(formData: FormData): number {
-	return parseInt((formData.get('id') as string) ?? '', 10);
+	const parsed = parseForm(DeadLetterActionForm, formData);
+	return parseInt((parsed.success ? parsed.output.id : undefined) ?? '', 10);
 }
 
 export const actions: Actions = {
 	setStatus: async ({ request, locals }) => {
 		const formData = await request.formData();
-		const id = entryId(formData);
-		const status = formData.get('status') as string;
+		const parsed = parseForm(DeadLetterActionForm, formData);
+		if (!parsed.success) return fail(400, { error: 'invalidRequest' });
+		const id = parseInt(parsed.output.id ?? '', 10);
+		const status = parsed.output.status ?? '';
 		if (!Number.isInteger(id) || !(DEAD_LETTER_STATUSES as readonly string[]).includes(status)) {
 			return fail(400, { error: 'invalidRequest' });
 		}
