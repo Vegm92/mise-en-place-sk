@@ -27,6 +27,12 @@ Job `ci` (postgres:17 service, `REQUIRE_DB_TESTS=1`):
    → 7. `pnpm check` → 8. `db:check-sync` (ADR-003) → 9. `db:migrate`
    → 10. unit tests → 11. build.
 
+Step 10 runs the **full** `pnpm test` suite on every PR, not a `--changed`-filtered
+subset: many suites (`tests/*.test.ts` grepping a `.svelte`/`.ts` source with
+`readFileSync`) import nothing from the file they assert against, so a
+source-only change is invisible to `vitest --changed` and such a regression
+could merge through a green PR.
+
 ## When to run what
 
 | Change size | Run |
