@@ -22,6 +22,7 @@ const describeDb = hasDbEnv ? describe : describe.skip;
 type LoadResult = {
 	top_items: Array<{ description: string }>;
 	category_spend: Array<{ category: string }>;
+	monthly_spend: Array<{ month: string; total: number }>;
 	has_invoices: boolean;
 	invoices_outside_range: number;
 };
@@ -103,5 +104,26 @@ describeDb('/analytics/spend load() — no data vs none in range (issue #539)', 
 		const res = await loadSpend(ridOutOfRange, 'period=6m');
 		expect(res.top_items.length).toBeGreaterThan(0);
 		expect(res.invoices_outside_range).toBe(0);
+	});
+
+	it('monthly_spend always covers the last 12 months, current month included, independent of the period filter (issue #882)', async () => {
+		const short = await loadSpend(ridOutOfRange);
+		const wide = await loadSpend(ridOutOfRange, 'period=all');
+		expect(short.monthly_spend).toHaveLength(12);
+		expect(wide.monthly_spend).toEqual(short.monthly_spend);
+
+		const now = new Date();
+		const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+		expect(short.monthly_spend[short.monthly_spend.length - 1].month).toBe(currentMonth);
+
+		const oldMonth = oldDate.slice(0, 7);
+		const oldMonthRow = short.monthly_spend.find(m => m.month === oldMonth);
+		expect(oldMonthRow?.total).toBeCloseTo(270, 2);
+	});
+
+	it('an empty tenant still gets 12 zero-valued months, not an empty array (issue #882)', async () => {
+		const res = await loadSpend(ridEmpty);
+		expect(res.monthly_spend).toHaveLength(12);
+		expect(res.monthly_spend.every(m => m.total === 0)).toBe(true);
 	});
 });

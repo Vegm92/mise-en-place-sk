@@ -1,8 +1,11 @@
 <script lang="ts">
   import { locale, t, tcat, tp } from '$lib/i18n';
-  import { fmtEurCompact } from '$lib/formatters';
+  import { fmtEurCompact, fmtMonthShort } from '$lib/formatters';
 
   import { categoryColor, seriesColor, SERIES_OTHER } from '$lib/colors';
+  import { computeDonutSlices } from '$lib/donut-math';
+  import DonutChart from '$lib/components/mep/DonutChart.svelte';
+  import TrendLineChart from '$lib/components/mep/TrendLineChart.svelte';
   interface Kpis {
     total_items_spend: number | null;
     total_line_items: number | null;
@@ -23,12 +26,17 @@
     total: number;
     pct: number;
   }
+  interface MonthlySpend {
+    month: string;
+    total: number;
+  }
 
   let {
     period,
     kpis,
     top_items,
     category_spend,
+    monthly_spend,
     has_invoices,
     invoices_outside_range,
   }: {
@@ -36,6 +44,7 @@
     kpis: Kpis;
     top_items: TopItem[];
     category_spend: CategorySpend[];
+    monthly_spend: MonthlySpend[];
     has_invoices: boolean;
     invoices_outside_range: number;
   } = $props();
@@ -51,29 +60,29 @@
     return fmtEurCompact(n ?? 0, $locale);
   }
 
-  const spendDonut = $derived((() => {
-    const ranked = [...top_items].sort((a, b) => b.total_spend - a.total_spend);
-    const total = ranked.reduce((a, p) => a + p.total_spend, 0);
-    if (total <= 0) return { slices: [], total: 0 };
+  const DONUT_RADIUS = 60;
 
+  const topItemInputs = $derived((() => {
+    const ranked = [...top_items].sort((a, b) => b.total_spend - a.total_spend);
     const top = ranked.slice(0, 5);
     const rest = ranked.slice(5);
     const restSpend = rest.reduce((a, p) => a + p.total_spend, 0);
 
-    const entries = top.map((p, i) => ({ label: p.description, spend: p.total_spend, color: seriesColor(i) }));
-    if (restSpend > 0) entries.push({ label: $t('spend.other'), spend: restSpend, color: SERIES_OTHER });
-
-    let cursor = 0;
-    const CIRC = 2 * Math.PI * 60;
-    const slices = entries.map(e => {
-      const pct = e.spend / total;
-      const dash = pct * CIRC;
-      const slice = { ...e, pct, dash, offset: cursor };
-      cursor += dash;
-      return slice;
-    });
-    return { slices, total };
+    const entries = top.map((p, i) => ({ label: p.description, value: p.total_spend, color: seriesColor(i) }));
+    if (restSpend > 0) entries.push({ label: $t('spend.other'), value: restSpend, color: SERIES_OTHER });
+    return entries;
   })());
+  const spendDonut = $derived(computeDonutSlices(topItemInputs, DONUT_RADIUS));
+
+  const categoryInputs = $derived(category_spend.map(cat => ({
+    key: cat.category, label: $tcat(cat.category), value: cat.total, color: categoryColor(cat.category),
+  })));
+  const categoryDonut = $derived(computeDonutSlices(categoryInputs, DONUT_RADIUS));
+
+  const yearlyLabels = $derived(monthly_spend.map(m => fmtMonthShort(m.month, $locale)));
+  const yearlySeries = $derived([
+    { key: 'spend', label: $t('spend.yearly.series'), color: seriesColor(0), values: monthly_spend.map(m => m.total) },
+  ]);
 </script>
 
 <div style="height: 100%; display: flex; flex-direction: column; overflow: hidden;">
@@ -130,31 +139,23 @@
           <a href="/" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.uploadFirst')}</a>
         </div>
       {:else}
-        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;">
-          <div style="position: relative; width: 156px; height: 156px;">
-            <svg width="156" height="156" viewBox="0 0 156 156" style="overflow:visible;transform:rotate(-90deg);">
-              {#each spendDonut.slices as slice}
-                {@const CIRC = 2 * Math.PI * 60}
-                {@const GAP = spendDonut.slices.length > 1 ? 2 : 0}
-                <circle cx="78" cy="78" r="60" fill="none"
-                  stroke={slice.color} stroke-width="22"
-                  stroke-dasharray="{Math.max(slice.dash - GAP, 0)} {CIRC - slice.dash + GAP}"
-                  stroke-dashoffset={-slice.offset}
-                  role="img" aria-label="{slice.label}: {fmtEur(slice.spend)} ({(slice.pct * 100).toFixed(0)}%)" />
-              {/each}
-            </svg>
-            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-              <span class="num" style="font-size: 14px; font-weight: 600; color: var(--mep-fg);">{fmtEur(spendDonut.total)}</span>
-              <span style="font-size: 11px; color: var(--mep-fg-3);">{$t('spend.totalSpend')}</span>
-            </div>
-          </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px;" role="group" aria-label={$t('spend.donut.topItemsAria')}>
+          <DonutChart
+            slices={topItemInputs}
+            radius={DONUT_RADIUS}
+            size={156}
+            strokeWidth={22}
+            hoverStrokeWidth={22}
+            centerLabel={$t('spend.totalSpend')}
+            valueFormatter={fmtEur}
+          />
           <div style="display: flex; flex-direction: column; gap: 7px; width: 100%;">
             {#each spendDonut.slices as slice}
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="width: 9px; height: 9px; border-radius: 2px; background: {slice.color}; flex-shrink: 0;"></span>
-                <span style="font-size: 12px; color: var(--mep-fg-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{slice.label}</span>
-                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{(slice.pct * 100).toFixed(0)}%</span>
-                <span class="num" style="font-size: 12px; font-weight: 500; color: var(--mep-fg); flex-shrink: 0; width: 70px; text-align: right;">{fmtEur(slice.spend)}</span>
+                <span class="body" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{slice.label}</span>
+                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{Math.round(slice.pct * 100)}%</span>
+                <span class="num body-strong" style="flex-shrink: 0; width: 70px; text-align: right;">{fmtEur(slice.value)}</span>
               </div>
             {/each}
           </div>
@@ -171,23 +172,39 @@
           <a href="/suppliers" style="font-size: 13px; color: var(--mep-acc); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px;">{$t('spend.viewSuppliers')}</a>
         </div>
       {:else}
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          {#each category_spend as cat}
-            <div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--mep-fg-2);">
-                  <span style="width: 10px; height: 10px; border-radius: 2px; background: {categoryColor(cat.category)}; display: inline-block; flex-shrink: 0;"></span>
-                  {$tcat(cat.category)}
-                </span>
-                <span class="num" style="font-size: 12.5px; font-weight: 500; color: var(--mep-fg);">{fmtEur(cat.total)}</span>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 14px; padding-bottom: 6px;" role="group" aria-label={$t('spend.donut.categoryAria')}>
+          <DonutChart
+            slices={categoryInputs}
+            radius={DONUT_RADIUS}
+            size={156}
+            strokeWidth={22}
+            hoverStrokeWidth={22}
+            centerLabel={$t('spend.totalSpend')}
+            valueFormatter={fmtEur}
+          />
+          <div style="display: flex; flex-direction: column; gap: 7px; width: 100%;">
+            {#each categoryDonut.slices as slice}
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 9px; height: 9px; border-radius: 2px; background: {slice.color}; flex-shrink: 0;"></span>
+                <span class="body" style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{slice.label}</span>
+                <span class="num" style="font-size: 11px; color: var(--mep-fg-3); flex-shrink: 0;">{Math.round(slice.pct * 100)}%</span>
+                <span class="num body-strong" style="flex-shrink: 0; width: 70px; text-align: right;">{fmtEur(slice.value)}</span>
               </div>
-              <div style="height: 6px; border-radius: 3px; background: var(--mep-surface-2); overflow: hidden;">
-                <div style="width: {cat.pct}%; height: 100%; background: {categoryColor(cat.category)}; border-radius: 3px;"></div>
-              </div>
-            </div>
-          {/each}
+            {/each}
+          </div>
         </div>
       {/if}
+    </div>
+
+    <div class="card" style="padding: 14px;">
+      <div class="subtitle" style="font-size: 15px; margin-bottom: 2px;">{$t('spend.yearly.title')}</div>
+      <div style="font-size: 11px; color: var(--mep-fg-3); margin-bottom: 10px;">{$t('spend.yearly.sub')}</div>
+      <TrendLineChart
+        xLabels={yearlyLabels}
+        series={yearlySeries}
+        valueFormatter={(n) => fmtEur(n)}
+        emptyLabel={$t('spend.yearly.empty')}
+      />
     </div>
 
   </div>
