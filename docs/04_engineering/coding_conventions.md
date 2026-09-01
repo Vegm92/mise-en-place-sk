@@ -277,6 +277,10 @@ These comments were deliberately left in the code because a tool reads them.
 
 - Total over `DISPLAY_INVOICE_STATUSES`; an unrecognised value gets a neutral badge and renders its raw text rather than being painted as confirmed. `tests/invoice-status-vocabulary.test.ts` asserts every member has a class in app.css and a key in both locales.
 
+**`const INCIDENCE_KINDS` / `function incidenceKindBadgeClass` / `function incidenceKindKey` / `function incidenceKindHintKey`**
+
+- Issue #879: a second, closed vocabulary orthogonal to `ReviewState` — `lectura | documento` — distinguishing an extraction/read problem (wrong OCR, mismatched totals) from a real problem with the document itself (a duplicate purchase). Only meaningful when `reviewState === 'incidencia'`; `invoices.incidence_kind` is null otherwise. Follows the exact `badgeClass`/`statusKey` shape (a `Record` per axis, a lookup function, a neutral/raw fallback for an unrecognised value) rather than folding into the existing maps, because the two axes are independent — an `incidencia` review state always has a kind, but a kind is never a `ReviewState` value. `incidenceKindHintKey` appends `.hint` to the label key for the one-line "what to do" text shown on the invoice detail views. `tests/invoice-status-vocabulary.test.ts` extends the same closed-vocabulary guarantees (badge class in app.css, label + hint key in both locales, neutral fallback) to this axis.
+
 **`function confColor`**
 
 - Confidence score → CSS colour variable.

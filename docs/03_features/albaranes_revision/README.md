@@ -34,6 +34,19 @@ compra de la semana.
    (`src/lib/invoice-filters.ts`) y su endpoint en
    `src/routes/(app)/api/supplier-category/+server.ts`. Esto es renombrar y
    quitar, no migrar.
+
+   *Actualización (issue #879):* esto ya no es del todo cierto. Dentro de
+   «Incidencia» hace falta un segundo eje — no es lo mismo un fallo de lectura
+   (el IVA sumado dos veces, el envío fuera del total) que un problema real
+   del documento (falta una línea, la cantidad no cuadra): la acción del
+   usuario es distinta en cada caso (revisar el escaneo vs. avisar al
+   proveedor), así que sí hay una columna nueva —
+   `invoices.incidence_kind` (`lectura | documento`, nulo fuera de
+   incidencia) — documentada en `docs/03_features/invoice_management.md` y
+   en el `## Code notes` de `src/lib/status.ts`
+   (`docs/04_engineering/coding_conventions.md`). Los tres estados de
+   `invoices.review_state` siguen siendo los tres de siempre; el eje nuevo
+   vive aparte, no dentro de `review_state`.
 2. **La categoría es del proveedor, no del albarán.** Corregirla desde una fila
    afecta a todos los albaranes de ese proveedor — el menú lo avisa y en la
    lámina se ve en marcha. Donde se rompe es con los proveedores que venden de
