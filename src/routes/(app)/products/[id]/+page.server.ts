@@ -7,11 +7,12 @@ import { VALID_CATEGORIES } from '$lib/constants';
 import { rateLimitScoped } from '$lib/server/rate-limit-scope';
 import {
 	getLinkedSuppliers, unlinkSupplier as unlinkSupplierFromProduct,
-	deleteProduct, resolveUnitConversionAlerts,
+	deleteProduct, resolveUnitConversionAlerts, loadProductYearlyPrices,
 } from '$lib/server/products';
 import { moneyToNullableNumber } from '$lib/server/money';
 import { requirePositiveIntId } from '$lib/server/route-params';
 import { EU_ALLERGENS, parseDecimal, toAllergenList } from '$lib/recipes';
+import { pairYearlyPrices } from '$lib/price-yoy';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
 	const id = requirePositiveIntId(params.id, 'product');
@@ -25,7 +26,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const product = productRows[0];
 	if (!product) error(404, 'Product not found');
 
-	const [linkedSuppliers, aliases, priceHistory] = await Promise.all([
+	const [linkedSuppliers, aliases, priceHistory, yearlyPrices] = await Promise.all([
 		getLinkedSuppliers(db, rid, id),
 
 		db.select({
@@ -56,6 +57,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			.where(tdb.scope(invoiceLineItems.restaurantId, eq(invoiceLineItems.productId, id)))
 			.orderBy(desc(invoices.invoiceDate))
 			.limit(50),
+
+		loadProductYearlyPrices(db, rid, id),
 	]);
 
 	return {
@@ -68,6 +71,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			unitPrice: moneyToNullableNumber(p.unitPrice),
 			normalizedUnitPrice: moneyToNullableNumber(p.normalizedUnitPrice),
 		})),
+		priceByYear: pairYearlyPrices(yearlyPrices),
 		categories: VALID_CATEGORIES,
 		allergens: EU_ALLERGENS,
 	};

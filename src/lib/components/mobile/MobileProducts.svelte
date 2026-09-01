@@ -5,6 +5,8 @@
   import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
   import ScrollStrip from '$lib/components/mep/ScrollStrip.svelte';
   import type { ConversionPrompt } from '$lib/server/products';
+  import { PRODUCT_SORT_KEYS, type ProductSortKey } from '$lib/product-filters';
+  import { formatYoyPct } from '$lib/price-yoy';
 
   interface Product {
     id: number;
@@ -12,6 +14,7 @@
     category: string | null;
     supplierCount: number;
     needsConversion: boolean;
+    yoyChangePct: number | null;
   }
   interface Suggestion { id: number; message: string; description: string }
 
@@ -23,6 +26,8 @@
     suggestions,
     conversionPrompts,
     categories,
+    sort,
+    onSortChange,
     onRespondSuggestion,
     onSaveConversion,
   }: {
@@ -30,6 +35,8 @@
     suggestions: Suggestion[];
     conversionPrompts: ConversionPrompt[];
     categories: string[];
+    sort: ProductSortKey;
+    onSortChange?: (next: string) => void;
     onRespondSuggestion?: (id: number, action: 'confirm' | 'reject', description: string) => void;
     onSaveConversion?: (prompt: ConversionPrompt, canonicalUnit: string, factor: string) => void;
   } = $props();
@@ -105,6 +112,20 @@
       />
     </div>
 
+    <div style="padding: 0 18px 10px;">
+      <select
+        class="input"
+        style="width: 100%; height: 36px;"
+        aria-label={$t('prod.sort.label')}
+        value={sort}
+        onchange={(e) => onSortChange?.((e.target as HTMLSelectElement).value)}
+      >
+        {#each PRODUCT_SORT_KEYS as key}
+          <option value={key}>{$t(`prod.sort.${key}`)}</option>
+        {/each}
+      </select>
+    </div>
+
     <ScrollStrip label={$t('prod.col.category')} extraStyle="flex-shrink:0;">
       <button class={chipClass(!catFilter)} onclick={() => catFilter = ''}>{$t('sup.allChip')}</button>
       <button class={chipClass(catFilter === UNCATEGORIZED_FILTER)} onclick={() => catFilter = catFilter === UNCATEGORIZED_FILTER ? '' : UNCATEGORIZED_FILTER}>
@@ -164,6 +185,12 @@
               </div>
               <div style="font-size: 11px; color: var(--mep-fg-3); margin-top: 2px;">
                 {p.category ? $tcat(p.category) : $t('prod.uncategorized')} · {p.supplierCount} {$t('prod.suppliersSuffix')}
+                {#if p.yoyChangePct != null}
+                  · <span
+                    class:text-neg={p.yoyChangePct > 0}
+                    class:text-pos={p.yoyChangePct < 0}
+                  >{$t('prod.col.yoy')} {formatYoyPct(p.yoyChangePct)}</span>
+                {/if}
               </div>
             </div>
             {#if p.needsConversion}
