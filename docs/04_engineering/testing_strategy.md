@@ -23,8 +23,9 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 Job `ci` (postgres:17 service, `REQUIRE_DB_TESTS=1`):
 
 1. `lint:no-sql-raw` → 2. `lint:tenant-scope` → 3. `lint:unscoped-query`
-   → 4. `lint:i18n` → 5. `lint:no-comments` → 6. `pnpm check`
-   → 7. `db:check-sync` (ADR-003) → 8. `db:migrate` → 9. unit tests → 10. build.
+   → 4. `lint:i18n` → 5. `lint:no-comments` → 6. `lint:duplication`
+   → 7. `pnpm check` → 8. `db:check-sync` (ADR-003) → 9. `db:migrate`
+   → 10. unit tests → 11. build.
 
 ## When to run what
 
