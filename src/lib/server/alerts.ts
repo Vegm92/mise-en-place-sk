@@ -1056,21 +1056,18 @@ export async function sendOverdueReminder(data: OverdueReminderJobData): Promise
 	if (!(await isAlertEnabled(data.restaurantId, 'invoice_reminders'))) return false;
 
 	const tdb = forTenant(data.restaurantId);
-	const tenantFilter = tdb.scope(invoices.restaurantId, and(
+	const tenantWhere = and(
 		isNull(invoices.deletedAt),
 		eq(invoices.reviewState, 'incidencia'),
-	));
-	const cnt = await db.$count(invoices, tenantFilter);
+	);
+	const cnt = await db.$count(invoices, tdb.scope(invoices.restaurantId, tenantWhere));
 	if (cnt === 0) return false;
 
 	const [{ total: totalAmount }] = await db.select({
 		total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
 	})
 		.from(invoices)
-		.where(tdb.scope(invoices.restaurantId, and(
-			isNull(invoices.deletedAt),
-			eq(invoices.reviewState, 'incidencia'),
-		)));
+		.where(tdb.scope(invoices.restaurantId, tenantWhere));
 
 	if (!(await claimOnce(data.restaurantId, 'incidencia_digest_sent_day', data.day))) return false;
 
