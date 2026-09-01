@@ -119,7 +119,7 @@ async function findSimilarInvoiceId(
 async function requireOwnedBatch(batchId: string, locals: App.Locals) {
 	const items = await getBatchItems(batchId);
 	if (!items.length || items.some(i => i.restaurantId !== locals.restaurantId)) {
-		redirect(303, '/?error=Session+not+found');
+		redirect(303, '/?error=upload.err.sessionNotFound');
 	}
 	return items;
 }
