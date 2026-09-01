@@ -33,7 +33,7 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
   import MessageCircle from '@lucide/svelte/icons/message-circle';
   import Newspaper from '@lucide/svelte/icons/newspaper';
   import Sparkles from '@lucide/svelte/icons/sparkles';
-  import { locale, t, initLocale, ti } from '$lib/i18n';
+  import { locale, t, initLocale, ti, tp } from '$lib/i18n';
   import DateRangePicker from '$lib/components/mep/DateRangePicker.svelte';
   import ChatFab from '$lib/components/mep/ChatFab.svelte';
   import NotificationBell from '$lib/components/mep/NotificationBell.svelte';
@@ -901,6 +901,15 @@ import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
         <span style="flex:1;min-width:200px;font-size:13px;color:var(--mep-neg);">{$t('billing.trialExpiredMsg')}</span>
         <a href="/billing?upgrade=trial" class="btn btn-primary" style="height:34px;padding:0 14px;text-decoration:none;flex-shrink:0;">
           {$t('billing.subscribeNow')}
+        </a>
+      </div>
+    {/if}
+
+    {#if data.openBatches?.length > 0 && !is('/batch')}
+      <div style="flex-shrink:0;padding:10px 20px;background:var(--mep-warn-soft);border-bottom:1px solid var(--mep-warn);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span style="flex:1;min-width:200px;font-size:13px;color:var(--mep-warn);">{$tp('upload.openBatches.warning', data.openBatches.length)}</span>
+        <a href="/batch/{data.openBatches[0].batchId}" class="btn btn-primary" style="height:34px;padding:0 14px;text-decoration:none;flex-shrink:0;">
+          {$t('upload.openBatches.resume')}
         </a>
       </div>
     {/if}

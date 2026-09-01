@@ -344,6 +344,27 @@ export function createBatchStore(db: BatchDb) {
 		);
 	}
 
+	async function getOpenBatchesForRestaurant(
+		restaurantId: string,
+	): Promise<Array<{ batchId: string; itemCount: number; createdAt: Date | null }>> {
+		const tdb = forTenant(restaurantId);
+		const rows = await db
+			.select({
+				batchId: batchItems.batchId,
+				itemCount: sql<number>`count(*)::int`,
+				createdAt: uploadBatches.createdAt,
+			})
+			.from(batchItems)
+			.innerJoin(uploadBatches, eq(batchItems.batchId, uploadBatches.id))
+			.where(tdb.scope(
+				batchItems.restaurantId,
+				and(ne(batchItems.status, 'confirmed'), ne(batchItems.status, 'discarded')),
+			))
+			.groupBy(batchItems.batchId, uploadBatches.createdAt)
+			.orderBy(asc(uploadBatches.createdAt));
+		return rows;
+	}
+
 	async function isBatchSettled(batchId: string): Promise<boolean> {
 		// tenant-scope-ok: existence check on a batch the caller already owns;
 		// returns only a boolean, no row data.
@@ -361,7 +382,7 @@ export function createBatchStore(db: BatchDb) {
 
 	return {
 		createBatch, addItems, getItem, getBatchItems, nextReviewableItem,
-		removeItem, deleteBatch, cleanupStaleBatches,
+		removeItem, deleteBatch, cleanupStaleBatches, getOpenBatchesForRestaurant,
 		markQueued, markExtracting, markDone, markFailed, markConfirmed, markDiscarded,
 		requeueStalled, failStalledItems, isBatchSettled,
 	};
@@ -369,7 +390,7 @@ export function createBatchStore(db: BatchDb) {
 
 export const {
 	createBatch, addItems, getItem, getBatchItems, nextReviewableItem,
-	removeItem, deleteBatch, cleanupStaleBatches,
+	removeItem, deleteBatch, cleanupStaleBatches, getOpenBatchesForRestaurant,
 	markQueued, markExtracting, markDone, markFailed, markConfirmed, markDiscarded,
 	requeueStalled, failStalledItems, isBatchSettled,
 } = createBatchStore(db);
