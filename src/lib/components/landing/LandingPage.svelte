@@ -253,33 +253,20 @@
   }).replace(/</g, '\\u003c')}</script>`}
 </svelte:head>
 
-<div class="mep" data-accent="tinta"
-  style="width:100%;min-height:100vh;background:var(--mep-bg);color:var(--mep-fg);font-family:inherit;">
+<div class="mep w-full min-h-screen bg-bg text-fg font-[inherit]" data-accent="tinta">
 
-  <nav class="mep-nav" style="display:flex;align-items:center;gap:14px;padding:16px 32px;
-              border-bottom:1px solid var(--mep-divider);">
+  <nav class="mep-nav flex items-center gap-3.5 px-8 py-4 border-b border-divider">
     <div style="display:flex;align-items:center;gap:10px;">
       <Logo size={20} wordmark />
     </div>
-    <span style="font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
-                 color:var(--mep-acc);padding:2px 7px;border-radius:4px;
-                 background:var(--mep-acc-soft);font-family:var(--mep-fs-mono);">{$t('waitlist.betaBadge')}</span>
+    <span class="text-[11px] font-semibold tracking-[0.12em] uppercase text-acc px-[7px] py-0.5 rounded font-mono bg-acc-soft">{$t('waitlist.betaBadge')}</span>
     <div style="flex:1;"></div>
-    <button onclick={toggleTheme} aria-label={$t('waitlist.themeToggleLabel')} style="width:28px;height:28px;flex-shrink:0;
-                border-radius:999px;border:1px solid var(--mep-border);background:var(--mep-surface);
-                display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--mep-fg-2);">
+    <button onclick={toggleTheme} aria-label={$t('waitlist.themeToggleLabel')} class="w-[28px] h-[28px] shrink-0 rounded-full border border-border bg-surface flex items-center justify-center cursor-pointer text-fg-2">
       {#if theme === 'dark'}<Sun size={14} />{:else}<Moon size={14} />{/if}
     </button>
-    <div style="display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;
-                border:1px solid var(--mep-border);background:var(--mep-surface);
-                font-size:11.5px;font-weight:600;letter-spacing:0.06em;color:var(--mep-fg-2);
-                font-family:var(--mep-fs-mono);gap:8px;">
+    <div class="inline-flex items-center px-2.5 py-1 rounded-full border border-border bg-surface text-[11.5px] font-semibold tracking-[0.06em] text-fg-2 font-mono gap-2">
       <a href={alternateHref} hreflang={alternate} lang={alternate} rel="alternate"
-         onclick={rememberLocale} style="background:transparent;border:none;cursor:pointer;
-                                         padding:0;font-family:inherit;font-size:inherit;
-                                         font-weight:inherit;letter-spacing:inherit;
-                                         text-decoration:none;
-                                         color:var(--mep-fg-2);">{$locale === 'es' ? 'EN' : 'ES'}</a>
+         onclick={rememberLocale} class="bg-transparent border-0 cursor-pointer p-0 font-[inherit] text-[inherit] font-[inherit] tracking-[inherit] no-underline text-fg-2">{$locale === 'es' ? 'EN' : 'ES'}</a>
     </div>
     <div class="mep-nav-signin" style="display:flex;align-items:center;gap:8px;">
       <a href="/login" class="btn btn-secondary" style="padding:0 14px;font-size:13px;
@@ -299,12 +286,10 @@
           <div class="mep-eyebrow" style="margin-bottom:26px;">
             {$t('waitlist.eyebrow')}
           </div>
-          <h1 style="margin:0;font-size:clamp(40px,5.6vw,59.5px);font-weight:600;color:var(--mep-fg);
-                     letter-spacing:-0.035em;line-height:1.08;text-wrap:balance;">
+          <h1 class="m-0 text-[clamp(40px,5.6vw,59.5px)] font-semibold text-fg tracking-[-0.035em] leading-[1.08] text-balance">
             {$t('waitlist.headline')}
           </h1>
-          <p style="margin:22px auto 0;max-width:560px;font-size:18.5px;line-height:1.6;
-                    color:var(--mep-fg-2);text-wrap:pretty;">
+          <p class="mt-[22px] mx-auto mb-0 max-w-[560px] text-[18.5px] leading-[1.6] text-fg-2 text-pretty">
             {$t('waitlist.sub')}
           </p>
         </div>
@@ -312,19 +297,15 @@
         <div style="max-width:460px;margin:40px auto 0;" id="join">
           <EmailForm big={true} {form} copy={emailFormCopy} />
         </div>
-        <div class="mep-spotbar" style="max-width:460px;margin:18px auto 0;display:flex;align-items:center;gap:14px;
-                    padding:10px 14px;border-radius:10px;background:var(--mep-surface);
-                    border:1px solid var(--mep-divider);">
+        <div class="mep-spotbar max-w-[460px] mt-[18px] mx-auto mb-0 flex items-center gap-3.5 py-2.5 px-3.5 rounded-[10px] bg-surface border border-divider">
           <div style="display:flex;align-items:baseline;gap:6px;">
-            <span style="font-size:24px;font-weight:700;color:var(--mep-acc);letter-spacing:-0.6px;
-                         line-height:1;font-family:var(--mep-fs-mono);">{data.spotTaken}</span>
-            <span style="font-size:15px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">/ {SPOT_TOTAL}</span>
+            <span class="text-2xl font-bold text-acc tracking-[-0.6px] leading-none font-mono">{data.spotTaken}</span>
+            <span class="text-[15px] text-fg-3 font-mono">/ {SPOT_TOTAL}</span>
           </div>
           <div style="flex:1;min-width:120px;">
-            <div style="font-size:12px;color:var(--mep-fg-3);text-transform:uppercase;letter-spacing:0.06em;
-                        font-weight:500;margin-bottom:5px;font-family:var(--mep-fs-mono);">{$t('waitlist.spotLabel')}</div>
-            <div style="width:100%;height:5px;border-radius:3px;background:var(--mep-hover);overflow:hidden;">
-              <div style="width:{spotPct}%;height:100%;background:var(--mep-acc);border-radius:3px;"></div>
+            <div class="text-xs text-fg-3 uppercase tracking-[0.06em] font-medium mb-[5px] font-mono">{$t('waitlist.spotLabel')}</div>
+            <div class="w-full h-[5px] rounded-[3px] bg-hover overflow-hidden">
+              <div class="h-full bg-acc rounded-[3px]" style="width:{spotPct}%;"></div>
             </div>
           </div>
         </div>
@@ -342,16 +323,13 @@
       <h2 class="mep-h2">{$t('waitlist.painHead')}</h2>
       <div class="mep-grid-3" style="margin-top:44px;">
         {#each painItems as p}
-          <div style="padding-top:20px;border-top:1px solid var(--mep-border);">
+          <div class="pt-5 border-t border-border">
             <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:14px;">
-              <span style="font-size:44px;font-weight:700;color:var(--mep-fg);letter-spacing:-0.04em;
-                           line-height:1;font-family:var(--mep-fs-mono);">{p.stat}</span>
-              <span style="font-size:11.5px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;
-                           color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{p.label}</span>
+              <span class="text-[44px] font-bold text-fg tracking-[-0.04em] leading-none font-mono">{p.stat}</span>
+              <span class="text-[11.5px] font-medium tracking-[0.08em] uppercase text-fg-3 font-mono">{p.label}</span>
             </div>
-            <div style="font-size:17px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.02em;
-                        line-height:1.3;margin-bottom:10px;">{p.title}</div>
-            <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.6;">{p.body}</div>
+            <div class="text-[17px] font-semibold text-fg tracking-[-0.02em] leading-[1.3] mb-2.5">{p.title}</div>
+            <div class="text-sm text-fg-2 leading-[1.6]">{p.body}</div>
           </div>
         {/each}
       </div>
@@ -360,43 +338,33 @@
 
   <section class="mep-section" style="padding:76px 72px;">
     <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.compareEyebrow')}</div>
-      <h2 style="margin:0;max-width:640px;font-size:32px;font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.compareHead')}</h2>
+      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{$t('waitlist.compareEyebrow')}</div>
+      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{$t('waitlist.compareHead')}</h2>
 
       <div class="mep-compare-grid" style="margin-top:44px;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        <div style="border-radius:var(--mep-r-card);border:1px solid var(--mep-neg);
-                    background:var(--mep-neg-soft);padding:28px;">
-          <div style="font-size:16px;font-weight:600;color:var(--mep-neg);letter-spacing:-0.01em;
-                      margin-bottom:20px;">{$t('waitlist.compare.without.title')}</div>
+        <div class="rounded-card border border-neg bg-neg-soft p-7">
+          <div class="text-base font-semibold text-neg tracking-[-0.01em] mb-5">{$t('waitlist.compare.without.title')}</div>
           <div style="display:flex;flex-direction:column;gap:16px;">
             {#each compareWithoutItems as item}
               <div style="display:flex;gap:12px;align-items:flex-start;">
-                <div style="width:22px;height:22px;border-radius:999px;flex-shrink:0;
-                            background:var(--mep-neg);color:var(--mep-neg-fg);
-                            display:flex;align-items:center;justify-content:center;">
+                <div class="w-[22px] h-[22px] rounded-full shrink-0 bg-neg text-neg-fg flex items-center justify-center">
                   <X size={13} />
                 </div>
-                <span style="font-size:13px;line-height:1.5;color:var(--mep-fg-2);padding-top:2px;">{item}</span>
+                <span class="text-[13px] leading-[1.5] text-fg-2 pt-0.5">{item}</span>
               </div>
             {/each}
           </div>
         </div>
 
-        <div style="border-radius:var(--mep-r-card);border:1px solid var(--mep-pos);
-                    background:var(--mep-pos-soft);padding:28px;">
-          <div style="font-size:16px;font-weight:600;color:var(--mep-pos);letter-spacing:-0.01em;
-                      margin-bottom:20px;">{$t('waitlist.compare.with.title')}</div>
+        <div class="rounded-card border border-pos bg-pos-soft p-7">
+          <div class="text-base font-semibold text-pos tracking-[-0.01em] mb-5">{$t('waitlist.compare.with.title')}</div>
           <div style="display:flex;flex-direction:column;gap:16px;">
             {#each compareWithItems as item}
               <div style="display:flex;gap:12px;align-items:flex-start;">
-                <div style="width:22px;height:22px;border-radius:999px;flex-shrink:0;
-                            background:var(--mep-pos);color:var(--mep-pos-fg);
-                            display:flex;align-items:center;justify-content:center;">
+                <div class="w-[22px] h-[22px] rounded-full shrink-0 bg-pos text-pos-fg flex items-center justify-center">
                   <Check size={13} />
                 </div>
-                <span style="font-size:13px;line-height:1.5;color:var(--mep-fg);padding-top:2px;">{item}</span>
+                <span class="text-[13px] leading-[1.5] text-fg pt-0.5">{item}</span>
               </div>
             {/each}
           </div>
@@ -414,16 +382,12 @@
         {#each stepItems as step, i}
           <div class="mep-how-row" style="display:grid;grid-template-columns:360px 1fr;gap:56px;align-items:center;">
             <div>
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;
-                          font-size:12px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                          color:var(--mep-acc);font-family:var(--mep-fs-mono);">
-                <span style="width:28px;height:20px;border-radius:4px;background:var(--mep-acc-soft);
-                             display:flex;align-items:center;justify-content:center;">{step.num}</span>
+              <div class="flex items-center gap-2.5 mb-4 text-xs font-semibold tracking-[0.2em] uppercase text-acc font-mono">
+                <span class="w-7 h-5 rounded bg-acc-soft flex items-center justify-center">{step.num}</span>
                 <span>{step.tag}</span>
               </div>
-              <h3 style="margin:0;font-size:24px;font-weight:600;color:var(--mep-fg);
-                         letter-spacing:-0.01em;line-height:1.25;">{step.title}</h3>
-              <p style="margin:12px 0 0;font-size:15px;line-height:1.65;color:var(--mep-fg-2);">{step.body}</p>
+              <h3 class="m-0 text-2xl font-semibold text-fg tracking-[-0.01em] leading-[1.25]">{step.title}</h3>
+              <p class="mt-3 mb-0 text-[15px] leading-[1.65] text-fg-2">{step.body}</p>
             </div>
             <div>
               {#if i === 0}
@@ -443,23 +407,23 @@
   <section class="mep-section mep-tinted" style="padding:76px 72px;">
     <div class="mep-container">
       <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.testimonialsEyebrow')}</div>
-      <p style="margin:0 0 34px;font-size:13px;line-height:1.55;color:var(--mep-fg-3);max-width:620px;">
+      <p class="mt-0 mx-0 mb-[34px] text-[13px] leading-[1.55] text-fg-3 max-w-[620px]">
         {$t('waitlist.testimonialsDisclaimer')}
       </p>
       <div class="mep-grid-3">
         {#each testimonialItems as item}
-          <div style="padding-top:22px;border-top:1px solid var(--mep-border);">
-            <p style="margin:0;font-size:17px;line-height:1.6;color:var(--mep-fg);letter-spacing:-0.005em;">
+          <div class="pt-[22px] border-t border-border">
+            <p class="m-0 text-[17px] leading-[1.6] text-fg tracking-[-0.005em]">
               &ldquo;{item.quote}&rdquo;
             </p>
-            <div style="margin-top:18px;font-size:13.5px;color:var(--mep-fg-2);">
-              <span style="font-weight:600;color:var(--mep-fg);">{item.name}</span>
+            <div class="mt-[18px] text-[13.5px] text-fg-2">
+              <span class="font-semibold text-fg">{item.name}</span>
             </div>
             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px;">
               {#if item.venueType}
                 <span class="badge badge-neutral">{item.venueType}</span>
               {/if}
-              <span style="font-size:12.5px;color:var(--mep-fg-3);">{item.roleLine}</span>
+              <span class="text-[12.5px] text-fg-3">{item.roleLine}</span>
             </div>
           </div>
         {/each}
@@ -468,23 +432,17 @@
   </section>
 
   <section class="mep-section" style="padding:76px 72px;">
-    <div class="mep-founder-card" style="max-width:860px;margin:0 auto;display:flex;gap:24px;align-items:flex-start;
-                padding:32px 36px;border-radius:16px;background:var(--mep-surface);border:1px solid var(--mep-divider);">
-      <div style="width:92px;height:92px;border-radius:50%;flex-shrink:0;
-                  background:linear-gradient(135deg,var(--mep-acc-soft) 0%,var(--mep-acc) 200%);
-                  color:var(--mep-acc-fg);display:flex;align-items:center;justify-content:center;
-                  font-size:31px;font-weight:700;font-family:var(--mep-fs-mono);letter-spacing:-1px;
-                  border:1px solid var(--mep-border);">{$t('waitlist.founderInitials')}</div>
+    <div class="mep-founder-card max-w-[860px] mx-auto flex gap-6 items-start py-8 px-9 rounded-2xl bg-surface border border-divider">
+      <div class="w-[92px] h-[92px] rounded-full shrink-0 bg-[linear-gradient(135deg,var(--mep-acc-soft)_0%,var(--mep-acc)_200%)] text-acc-fg flex items-center justify-center text-[31px] font-bold font-mono tracking-[-1px] border border-border">{$t('waitlist.founderInitials')}</div>
       <div style="flex:1;">
-        <div style="font-size:11.5px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;
-                    color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:10px;">{$t('waitlist.founderEyebrow')}</div>
-        <p style="margin:0;font-size:19px;line-height:1.55;color:var(--mep-fg);letter-spacing:-0.005em;">
+        <div class="text-[11.5px] font-semibold tracking-[0.14em] uppercase text-acc font-mono mb-2.5">{$t('waitlist.founderEyebrow')}</div>
+        <p class="m-0 text-[19px] leading-[1.55] text-fg tracking-[-0.005em]">
           &ldquo;{$t('waitlist.founderBody')}&rdquo;
         </p>
-        <div style="margin-top:14px;font-size:13px;color:var(--mep-fg-2);">
-          <span style="font-weight:600;color:var(--mep-fg);">{$t('waitlist.founderName')}</span>
+        <div class="mt-3.5 text-[13px] text-fg-2">
+          <span class="font-semibold text-fg">{$t('waitlist.founderName')}</span>
           {' · '}
-          <span style="color:var(--mep-fg-3);">{$t('waitlist.founderRole')}</span>
+          <span class="text-fg-3">{$t('waitlist.founderRole')}</span>
         </div>
       </div>
     </div>
@@ -494,51 +452,45 @@
     <div style="max-width:1080px;margin:0 auto;">
       <div class="mep-eyebrow" style="margin-bottom:14px;">{$t('waitlist.pricingEyebrow')}</div>
       <h2 class="mep-h2">{$t('waitlist.pricingTitle')}</h2>
-      <p style="margin:14px 0 0;max-width:620px;font-size:15px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{$t('waitlist.pricingSub')}</p>
+      <p class="mt-3.5 mx-0 mb-0 max-w-[620px] text-[15px] leading-[1.6] text-fg-2 text-pretty">{$t('waitlist.pricingSub')}</p>
 
       <div class="mep-grid-4" style="margin-top:44px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch;">
-        <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;
-                    background:transparent;border-style:dashed;box-shadow:none;">
-          <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{$t('billing.tier.trial.name')}</div>
+        <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 bg-transparent border-dashed shadow-none">
+          <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{$t('billing.tier.trial.name')}</div>
           <div>
-            <div class="num" style="font-size:35px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);line-height:1.1;">{$t('waitlist.pricingTrialPrice')}</div>
-            <div style="margin-top:8px;font-size:12.5px;color:var(--mep-fg-3);">{$t('waitlist.pricingTrialLimit')}</div>
+            <div class="num text-[35px] font-semibold tracking-[-0.025em] text-fg leading-[1.1]">{$t('waitlist.pricingTrialPrice')}</div>
+            <div class="mt-2 text-[12.5px] text-fg-3">{$t('waitlist.pricingTrialLimit')}</div>
           </div>
-          <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{$t('billing.tier.trial.tagline')}</div>
+          <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{$t('billing.tier.trial.tagline')}</div>
           <a href="#join" class="btn btn-secondary" style="height:36px;justify-content:center;text-decoration:none;">{$t('waitlist.form.submitShort')}</a>
         </div>
 
         {#each PAID_TIERS as tier}
-          <div class="card" style="padding:20px 20px 22px;display:flex;flex-direction:column;gap:14px;position:relative;
-                      border-color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-border)'};
-                      box-shadow:{tier.recommended ? '0 0 0 1px var(--mep-acc), var(--mep-shadow-card)' : 'var(--mep-shadow-card)'};">
+          <div class="card p-[20px_20px_22px] flex flex-col gap-3.5 relative shadow-card {tier.recommended ? 'border-acc ring-1 ring-acc' : 'border-border'}">
             <div style="display:flex;align-items:center;gap:8px;">
-              <div style="font-size:18px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;">{$t(`billing.plan.${tier.id}`)}</div>
+              <div class="text-lg font-semibold text-fg tracking-[-0.01em]">{$t(`billing.plan.${tier.id}`)}</div>
               {#if tier.recommended}
-                <span style="background:var(--mep-acc);color:var(--mep-acc-fg);font-size:12px;font-weight:500;padding:2px 7px;border-radius:var(--mep-r-tag);">{$t('billing.recommended')}</span>
+                <span class="bg-acc text-acc-fg text-xs font-medium py-0.5 px-[7px] rounded-tag">{$t('billing.recommended')}</span>
               {/if}
             </div>
             <div>
               <div style="display:flex;align-items:baseline;gap:6px;">
-                <span class="num" style="font-size:35px;font-weight:600;letter-spacing:-0.025em;color:var(--mep-fg);
-                  border-bottom:2px dotted var(--mep-border-strong);line-height:1.1;">{tier.price} €</span>
-                <span style="font-size:14px;color:var(--mep-fg-3);">{$t('waitlist.pricingPerMonth')}</span>
+                <span class="num text-[35px] font-semibold tracking-[-0.025em] text-fg border-b-2 border-dotted border-b-border-strong leading-[1.1]">{tier.price} €</span>
+                <span class="text-sm text-fg-3">{$t('waitlist.pricingPerMonth')}</span>
               </div>
               <div style="margin-top:8px;">
-                <span style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:500;
-                  letter-spacing:0.02em;text-transform:uppercase;color:var(--mep-fg-3);
-                  border:1px dashed var(--mep-border-strong);border-radius:4px;padding:1px 5px;">
+                <span class="inline-flex items-center gap-1 text-[11.5px] font-medium tracking-[0.02em] uppercase text-fg-3 border border-dashed border-border-strong rounded px-[5px] py-px">
                   {$t('billing.provisional')}
                 </span>
               </div>
             </div>
-            <div style="font-size:14px;color:var(--mep-fg-2);line-height:1.45;min-height:34px;">{$t(`billing.tier.${tier.id}.tagline`)}</div>
+            <div class="text-sm text-fg-2 leading-[1.45] min-h-[34px]">{$t(`billing.tier.${tier.id}.tagline`)}</div>
             <a href="#join" class={tier.recommended ? 'btn btn-primary' : 'btn btn-secondary'} style="height:36px;justify-content:center;text-decoration:none;">{$t('waitlist.form.submitShort')}</a>
-            <div style="height:1px;background:var(--mep-divider);"></div>
+            <div class="h-px bg-divider"></div>
             <div style="display:flex;flex-direction:column;gap:8px;">
               {#each TIER_COPY[tier.id].bullets(tier.quota) as bullet}
-                <div style="display:flex;gap:8px;align-items:flex-start;font-size:14px;color:var(--mep-fg-2);">
-                  <span style="color:{tier.recommended ? 'var(--mep-acc)' : 'var(--mep-fg-3)'};margin-top:1px;flex-shrink:0;">
+                <div class="flex gap-2 items-start text-sm text-fg-2">
+                  <span class="mt-px shrink-0 {tier.recommended ? 'text-acc' : 'text-fg-3'}">
                     <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5l3.5 3.5L16 5.5"/></svg>
                   </span>
                   <span style="line-height:1.4;">{bullet.interpolate ? $ti(bullet.key, bullet.interpolate) : $t(bullet.key)}</span>
@@ -549,27 +501,22 @@
         {/each}
       </div>
 
-      <p style="margin:32px 0 0;font-size:13.5px;color:var(--mep-fg-3);line-height:1.6;max-width:780px;text-wrap:pretty;">{$t('waitlist.pricingFoot')}</p>
+      <p class="mt-8 mx-0 mb-0 text-[13.5px] text-fg-3 leading-[1.6] max-w-[780px] text-pretty">{$t('waitlist.pricingFoot')}</p>
     </div>
   </section>
 
   <section class="mep-section" style="padding:76px 72px;">
     <div style="max-width:1000px;margin:0 auto;">
-      <div style="font-size:11px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;
-                  color:var(--mep-acc);font-family:var(--mep-fs-mono);margin-bottom:14px;">{$t('waitlist.foundingEyebrow')}</div>
-      <h2 style="margin:0;max-width:640px;font-size:32px;font-weight:600;
-                 color:var(--mep-fg);letter-spacing:-0.025em;line-height:1.15;">{$t('waitlist.foundingHead')}</h2>
-      <p style="margin:14px 0 0;max-width:640px;font-size:16px;line-height:1.6;color:var(--mep-fg-2);text-wrap:pretty;">{$t('waitlist.foundingSub')}</p>
+      <div class="text-[11px] font-semibold tracking-[0.2em] uppercase text-acc font-mono mb-3.5">{$t('waitlist.foundingEyebrow')}</div>
+      <h2 class="m-0 max-w-[640px] text-[32px] font-semibold text-fg tracking-[-0.025em] leading-[1.15]">{$t('waitlist.foundingHead')}</h2>
+      <p class="mt-3.5 mx-0 mb-0 max-w-[640px] text-base leading-[1.6] text-fg-2 text-pretty">{$t('waitlist.foundingSub')}</p>
 
       <div class="mep-grid-3" style="margin-top:44px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px;">
         {#each foundingItems as item, i}
-          <div style="border-radius:var(--mep-r-card);border:1px solid var(--mep-border);
-                      background:var(--mep-surface);padding:24px;">
-            <div style="width:30px;height:30px;border-radius:999px;background:var(--mep-acc-soft);
-                        color:var(--mep-acc);display:flex;align-items:center;justify-content:center;
-                        font-size:13px;font-weight:700;font-family:var(--mep-fs-mono);margin-bottom:16px;">0{i + 1}</div>
-            <div style="font-size:16px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.01em;margin-bottom:8px;">{item.title}</div>
-            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.6;">{item.body}</div>
+          <div class="rounded-card border border-border bg-surface p-6">
+            <div class="w-[30px] h-[30px] rounded-full bg-acc-soft text-acc flex items-center justify-center text-[13px] font-bold font-mono mb-4">0{i + 1}</div>
+            <div class="text-base font-semibold text-fg tracking-[-0.01em] mb-2">{item.title}</div>
+            <div class="text-[13px] text-fg-2 leading-[1.6]">{item.body}</div>
           </div>
         {/each}
       </div>
@@ -582,17 +529,14 @@
       <div>
         {#each faqItems as row, i}
           {@const isOpen = openFaq === i}
-          <div style="border-top:1px solid var(--mep-divider);
-                      {i === faqItems.length - 1 ? 'border-bottom:1px solid var(--mep-divider);' : ''}">
+          <div class="border-t border-divider {i === faqItems.length - 1 ? 'border-b border-divider' : ''}">
             <button onclick={() => { openFaq = isOpen ? -1 : i; }}
               style="width:100%;background:transparent;border:0;cursor:pointer;padding:18px 4px;
                      display:flex;align-items:center;gap:16px;font-family:inherit;text-align:left;">
-              <span style="font-size:13px;font-family:var(--mep-fs-mono);color:var(--mep-acc);
-                           font-weight:600;width:30px;flex-shrink:0;">0{i + 1}</span>
-              <span style="flex:1;font-size:17px;font-weight:500;color:var(--mep-fg);letter-spacing:-0.01em;">{row.q}</span>
-              <span style="width:24px;height:24px;border-radius:50%;border:1px solid var(--mep-border);
-                           display:flex;align-items:center;justify-content:center;color:var(--mep-fg-2);
-                           transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;flex-shrink:0;">
+              <span class="text-[13px] font-mono text-acc font-semibold w-[30px] shrink-0">0{i + 1}</span>
+              <span class="flex-1 text-[17px] font-medium text-fg tracking-[-0.01em]">{row.q}</span>
+              <span class="w-6 h-6 rounded-full border border-border flex items-center justify-center text-fg-2 shrink-0"
+                style="transform:rotate({isOpen ? '45deg' : '0'});transition:transform 180ms;">
                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                   <path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
                 </svg>
@@ -600,7 +544,7 @@
             </button>
             {#if isOpen}
               <div transition:slide={{ duration: 280, easing: cubicOut }}
-                style="padding:0 4px 18px 50px;font-size:14.5px;line-height:1.65;color:var(--mep-fg-2);">
+                class="pt-0 pr-1 pb-[18px] pl-[50px] text-[14.5px] leading-[1.65] text-fg-2">
                 {row.a}
               </div>
             {/if}
@@ -611,15 +555,11 @@
   </section>
 
   <section class="mep-section" style="padding:0 72px 56px;">
-    <div class="mep-trust-bar" role="list" aria-label={$t('waitlist.trustBarLabel')}
-      style="max-width:940px;margin:0 auto;display:flex;border:1px solid var(--mep-divider);
-             border-radius:var(--mep-r-card);background:var(--mep-surface);overflow:hidden;">
+    <div class="mep-trust-bar max-w-[940px] mx-auto flex border border-divider rounded-card bg-surface overflow-hidden" role="list" aria-label={$t('waitlist.trustBarLabel')}>
       {#each trustBarItems as item, i}
         <div class="mep-trust-bar-item" role="listitem"
           style="flex:1;display:flex;gap:12px;align-items:flex-start;padding:20px 22px;">
-          <div style="width:30px;height:30px;border-radius:999px;flex-shrink:0;
-                      background:var(--mep-acc-soft);color:var(--mep-acc);
-                      display:flex;align-items:center;justify-content:center;">
+          <div class="w-[30px] h-[30px] rounded-full shrink-0 bg-acc-soft text-acc flex items-center justify-center">
             {#if i === 0}
               <Clock size={15} />
             {:else if i === 1}
@@ -629,8 +569,8 @@
             {/if}
           </div>
           <div>
-            <div style="font-size:13px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.005em;margin-bottom:3px;">{item.label}</div>
-            <div style="font-size:13px;color:var(--mep-fg-2);line-height:1.45;">{item.body}</div>
+            <div class="text-[13px] font-semibold text-fg tracking-[-0.005em] mb-[3px]">{item.label}</div>
+            <div class="text-[13px] text-fg-2 leading-[1.45]">{item.body}</div>
           </div>
         </div>
       {/each}
@@ -641,9 +581,8 @@
     <div class="mep-close-grid" style="max-width:940px;margin:0 auto;display:grid;grid-template-columns:1fr 420px;
                 gap:64px;align-items:center;">
       <div>
-        <h2 style="margin:0;font-size:clamp(31px,4vw,40px);font-weight:600;color:var(--mep-fg);
-                   letter-spacing:-0.025em;line-height:1.15;text-wrap:balance;">{$t('waitlist.closeHead')}</h2>
-        <p style="margin:14px 0 0;font-size:17px;line-height:1.6;color:var(--mep-fg-2);max-width:420px;">{$t('waitlist.closeSub')}</p>
+        <h2 class="m-0 text-[clamp(31px,4vw,40px)] font-semibold text-fg tracking-[-0.025em] leading-[1.15] text-balance">{$t('waitlist.closeHead')}</h2>
+        <p class="mt-3.5 mx-0 mb-0 text-[17px] leading-[1.6] text-fg-2 max-w-[420px]">{$t('waitlist.closeSub')}</p>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;">
         <EmailForm big={true} {form} copy={emailFormCopy} />
@@ -651,12 +590,11 @@
     </div>
   </section>
 
-  <footer class="mep-footer mep-section" style="padding:28px 72px;border-top:1px solid var(--mep-divider);
-                 display:flex;align-items:center;justify-content:space-between;gap:20px;">
+  <footer class="mep-footer mep-section py-7 px-[72px] border-t border-divider flex items-center justify-between gap-5">
     <div style="display:flex;align-items:center;gap:10px;">
       <Logo size={20} wordmark />
     </div>
-    <div style="font-size:12.5px;color:var(--mep-fg-3);font-family:var(--mep-fs-mono);">{$t('waitlist.footerNote')}</div>
+    <div class="text-[12.5px] text-fg-3 font-mono">{$t('waitlist.footerNote')}</div>
   </footer>
 
 </div>
