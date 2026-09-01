@@ -22,7 +22,11 @@ buckets shared by the dashboard.
 
 ## Outputs
 
-- `/analytics/spend` (per supplier/item/category monthly spend from MVs).
+- `/analytics/spend` (per supplier/item/category monthly spend from MVs; top
+  items and spend-by-category both render as a donut via the shared
+  `DonutChart.svelte`, plus a "Gasto a lo largo del año" card with monthly
+  totals for the trailing 12 months, independent of the period selector,
+  issue #882).
 - `/analytics/prices` (price evolution from `mv_price_snapshots`, gated on
   `supplierScores`).
 - `/analytics/extraction` (quality from `mv_extraction_stats` +
@@ -56,6 +60,12 @@ buckets shared by the dashboard.
   failure), because only the second kind says the extraction prompt is wrong.
 - Numbers from SQL aggregates are wrapped in `Number(...)` (postgres.js returns
   strings for numeric types).
+- **Yearly spend chart** (issue #882): `/analytics/spend` load also returns
+  `monthly_spend` — one `{month, total}` row per calendar month for the
+  trailing 12 months (current month included), zero-filled via
+  `generate_series` LEFT JOINed to `mv_category_monthly_spend` summed across
+  categories. It always covers the same 12 months regardless of the page's
+  period selector.
 
 ## State transitions
 
@@ -73,8 +83,8 @@ n/a (read-only + nightly refresh).
 ## UI dependencies
 
 `MobileAnalyticsSpend.svelte`, `MobileAnalyticsPrices.svelte`,
-`analytics/*/+page.svelte`, `TrendChart.svelte`, `Sparkline.svelte`,
-`PriceTrendSparkline.svelte`, `Delta.svelte`.
+`analytics/*/+page.svelte`, `TrendLineChart.svelte`, `DonutChart.svelte`,
+`Sparkline.svelte`, `PriceTrendSparkline.svelte`, `Delta.svelte`.
 
 ## Background dependencies
 
@@ -117,8 +127,12 @@ Range/granularity normalization; tenant scope on every MV read.
 
 - Spend/prices/extraction pages render from MV data within tenant scope.
 - Trend buckets match local calendar weeks/months.
+- `/analytics/spend` renders spend-by-category as a donut (with a legend
+  carrying every category's name/amount/percentage) and a yearly
+  spend-by-volume chart, on both desktop and mobile (issue #882).
 - Tests: `tests/trend-categories.test.ts`, `tests/db-schema.test.ts`,
-  `tests/db-crud.test.ts`.
+  `tests/db-crud.test.ts`, `tests/539-analytics-spend-empty-state.test.ts`,
+  `tests/882-donut-math.test.ts`, `tests/882-spend-donut-usage.test.ts`.
 
 ## Code notes
 
@@ -162,14 +176,24 @@ Range/granularity normalization; tenant scope on every MV read.
 
 **`const load`**
 - topItems, categorySpend, itemTrendRows read from pre-aggregated views; kpisRows still queries raw tables (one simple aggregate, no CTEs/window functions).
+- `monthlySpendRows` (issue #882) is deliberately outside `{monthFrom, monthTo}`: it always spans `CURRENT_DATE - 11 months` through the current month via `generate_series`, so the yearly chart does not move when the page's period picker changes. The `LEFT JOIN` keeps a month with zero spend in the series instead of collapsing the x-axis.
 
 ### `src/routes/(app)/analytics/spend/+page.svelte`
 
-**`const SERIES_COLORS`**
-- Spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
-
 **`markup`**
-- Mobile/desktop variants; header + period picker, KPI row, charts row (top items + donut/legend), by-category card.
+- Mobile/desktop variants; header + period picker, KPI row, charts row (top items donut + legend, category donut + legend), yearly spend card.
+- Top items and category both build a `{label, value, color}[]` input array, then call `computeDonutSlices()` once for the legend's own `pct`/ordering — the same pure function `DonutChart.svelte` calls internally for the arcs, so the two never disagree on which slice is which.
+- `seriesColor()` covers top items (issue-free categorical hue), `categoryColor()` covers the category donut — never a locally-declared color array (`design-tokens-accent-discipline.test.ts` bans that).
+
+### `src/lib/components/mep/DonutChart.svelte` / `src/lib/donut-math.ts`
+
+**`DonutChart.svelte`** (issue #882)
+- Single donut-ring implementation, used by both the desktop spend page (top items, spend-by-category) and `MobileAnalyticsSpend.svelte` — previously each hand-drew its own `<svg>`/`stroke-dasharray` ring, twice per file. Props: `slices` (`{label, value, color}[]`), optional `total` override, optional `centerLabel`, a `valueFormatter`, and a `hovered` bindable so the host page can keep its legend rows and the ring in sync.
+- `--mep-cat-*` reads as text or a small swatch but not as a large fill (`docs/03_features/albaranes_revision/README.md`) — 17 tokens, several within ΔE ~5–7 of each other. The mitigation here is a literal `var(--mep-surface)` separator line drawn at each slice boundary (`donutSeparatorAngleRad`/`donutSeparatorPoint`), plus the legend carrying every label in text, not color alone.
+
+**`donut-math.ts`**
+- `computeDonutSlices()` is generic over the slice type so callers (e.g. the top-items donut) can carry extra fields — `itemCount`, `avgPrice`, `supplierName` — through to the legend without a second pass. Zero/negative-value slices are dropped rather than drawn as a zero-length arc. Pure and DOM-free, tested directly in `tests/882-donut-math.test.ts`.
+- `donutSeparatorAngleRad`/`donutSeparatorPoint` compute the boundary point for the separator line in the same pre-rotation coordinate space as the arcs (`DonutChart` rotates the whole `<svg>` -90° after the fact) — angle 0 is 3 o'clock, increasing clockwise, matching `stroke-dasharray` traversal.
 
 ### `src/lib/server/trend.ts`
 
@@ -195,8 +219,5 @@ Range/granularity normalization; tenant scope on every MV read.
 
 ### `src/lib/components/mobile/MobileAnalyticsSpend.svelte`
 
-**`const SERIES_COLORS`**
-- Spend donut — top 5 + "Other", fixed categorical hue order (never cycled).
-
 **`markup`**
-- Period picker chips, KPI 2-col grid, top items, by category.
+- Period picker chips, KPI 2-col grid, top items donut + legend, category donut + legend, yearly spend card — same `DonutChart`/`TrendLineChart` components and `computeDonutSlices()` call pattern as the desktop page (issue #882), sized down (`size=156`, `radius=60`) for the narrower column.
