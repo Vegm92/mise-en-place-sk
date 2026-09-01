@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
 import type { PostgresJsDatabase, PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as schema from './schema';
@@ -220,7 +220,7 @@ export async function promptVersionStats(dbc: CorpusDb = db): Promise<PromptVers
 		.select({
 			promptVersion: extractionResults.promptVersion,
 			runKind: extractionResults.runKind,
-			documents: sql<number>`count(*)`,
+			documents: count(),
 			avgConfidence: sql<number | null>`avg(${extractionResults.confidence})`,
 			totalMismatches: sql<number>`count(*) filter (where ${extractionResults.totalMismatch})`,
 			firstSeen: sql<string | null>`min(${extractionResults.createdAt})`,

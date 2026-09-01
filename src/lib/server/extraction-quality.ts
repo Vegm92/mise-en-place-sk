@@ -1,5 +1,5 @@
 import { db } from './db';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, sql } from 'drizzle-orm';
 import { extractionCorrections, suppliers, restaurants, productAliases, products } from './schema';
 
 const DEFAULT_WINDOW_DAYS = 30;
@@ -93,13 +93,13 @@ export async function correctionsByField(days = DEFAULT_WINDOW_DAYS): Promise<Fi
 	const rows = await db
 		.select({
 			fieldName: extractionCorrections.fieldName,
-			corrections: sql<number>`count(*)::int`,
+			corrections: count(),
 			avgConfidence: sql<number | null>`avg(${extractionCorrections.fieldConfidence})`,
 		})
 		.from(extractionCorrections)
 		.where(sql`${extractionCorrections.correctedAt} > now() - (${days} * interval '1 day')`)
 		.groupBy(extractionCorrections.fieldName)
-		.orderBy(desc(sql`count(*)`))
+		.orderBy(desc(count()))
 		.limit(MAX_ROWS);
 	return rows.map(r => ({ ...r, avgConfidence: r.avgConfidence !== null ? Number(r.avgConfidence) : null }));
 }
@@ -112,14 +112,14 @@ export async function correctionsBySupplier(days = DEFAULT_WINDOW_DAYS): Promise
 			supplierId: extractionCorrections.supplierId,
 			supplierName: suppliers.name,
 			restaurantName: restaurants.name,
-			corrections: sql<number>`count(*)::int`,
+			corrections: count(),
 		})
 		.from(extractionCorrections)
 		.leftJoin(suppliers, eq(suppliers.id, extractionCorrections.supplierId))
 		.leftJoin(restaurants, eq(restaurants.id, extractionCorrections.restaurantId))
 		.where(sql`${extractionCorrections.correctedAt} > now() - (${days} * interval '1 day')`)
 		.groupBy(extractionCorrections.supplierId, suppliers.name, restaurants.name)
-		.orderBy(desc(sql`count(*)`))
+		.orderBy(desc(count()))
 		.limit(MAX_ROWS);
 }
 
@@ -154,7 +154,7 @@ export async function correctionsTrend(weeks = TREND_WEEKS): Promise<CorrectionT
 	// tenant-scope-ok: admin rollup of correction volume over time across
 	// every tenant — a platform-wide trend, not a per-restaurant one.
 	return db
-		.select({ week: weekExpr, corrections: sql<number>`count(*)::int` })
+		.select({ week: weekExpr, corrections: count() })
 		.from(extractionCorrections)
 		.where(sql`${extractionCorrections.correctedAt} > now() - (${weeks} * interval '1 week')`)
 		.groupBy(weekExpr)
@@ -167,12 +167,12 @@ export async function productMatchingStats(): Promise<AliasSourceStat[]> {
 	return db
 		.select({
 			source: productAliases.source,
-			total: sql<number>`count(*)::int`,
+			total: count(),
 			pending: sql<number>`count(*) filter (where ${productAliases.confirmedAt} is null)::int`,
 		})
 		.from(productAliases)
 		.groupBy(productAliases.source)
-		.orderBy(desc(sql`count(*)`));
+		.orderBy(desc(count()));
 }
 
 export async function fuzzyMatchOutcomes(): Promise<FuzzyMatchOutcomes> {

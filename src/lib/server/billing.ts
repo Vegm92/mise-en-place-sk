@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { error } from '@sveltejs/kit';
 import * as Sentry from '@sentry/sveltekit';
-import { and, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 
 const NODE_ENV: string = process.env.NODE_ENV ?? 'development';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? '';
@@ -281,10 +281,7 @@ export async function getMonthlyQuota(restaurantId: string): Promise<number | nu
 }
 
 export async function countGroupLocations(billingRestaurantId: string): Promise<number> {
-	const [row] = await runAsSystem(() => db.select({ cnt: sql<number>`count(*)::int` })
-		.from(restaurants)
-		.where(eq(BILLING_PARENT, billingRestaurantId)));
-	return row?.cnt ?? 0;
+	return runAsSystem(() => db.$count(restaurants, eq(BILLING_PARENT, billingRestaurantId)));
 }
 
 export async function notifyLocationsLocked(billingRestaurantId: string, tier: PlanTier): Promise<void> {
