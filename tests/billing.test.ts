@@ -39,7 +39,7 @@ vi.mock('../src/lib/server/db', () => {
 		return p;
 	};
 	return {
-		db: { select: chain, update: chain, insert: chain },
+		db: { select: chain, update: chain, insert: chain, $count: () => Promise.resolve(0) },
 		forTenant: () => ({ scope: () => ({}) }),
 		runAsSystem: (fn: () => unknown) => fn(),
 		runWithTenantContext: (_rid: unknown, fn: () => unknown) => fn(),
