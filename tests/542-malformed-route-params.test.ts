@@ -292,7 +292,7 @@ describe('malformed route params — issue #542', () => {
 });
 
 describe('/batch/[id] — malformed id stays a redirect, never a raw db error (issue #542)', () => {
-	const GUARD_LOCATION = '/?error=Session+not+found';
+	const GUARD_LOCATION = '/?error=upload.err.sessionNotFound';
 
 	it.each(['not-a-uuid', "1' OR '1'='1", 'abc', '../etc/passwd'])(
 		'redirects instead of 500ing for batchId=%j',
