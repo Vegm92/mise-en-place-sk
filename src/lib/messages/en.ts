@@ -219,6 +219,8 @@ export default {
   'inv.selected':        'selected',
   'inv.markReviewed':    'Mark reviewed',
   'inv.delete':          'Delete',
+  'inv.export.selected.button':  'Download selected',
+  'inv.export.selected.tooltip': 'Download a .zip with the data (Excel) and the original images/PDFs of the selected invoices',
   'inv.confirm.reviewed':'Mark {n} invoice(s) as reviewed?',
   'inv.confirm.delete':  'Delete {n} invoice(s)? This cannot be undone.',
   'inv.confirm.del1':    'Delete this invoice? This cannot be undone.',
