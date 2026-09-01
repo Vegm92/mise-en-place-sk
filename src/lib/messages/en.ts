@@ -737,6 +737,7 @@ export default {
   'upload.err.noValidFiles':   'No valid files received. Please select a PDF, JPG or PNG.',
   'upload.err.tooLarge':       'These files exceed the 20 MB limit: {names}',
   'upload.err.noRestaurant':   'No active restaurant.',
+  'upload.err.sessionNotFound': 'Session not found. Please upload your files again.',
   'upload.err.rateLimited':    'Too many uploads — please wait a moment and try again.',
   'upload.err.saveFailed':     'Could not save the file. Please try again.',
   'upload.err.quotaExhausted': "You've reached your plan's processed-document limit for this month. Upgrade to keep uploading documents.",
