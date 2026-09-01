@@ -7,6 +7,7 @@ import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/bi
 import { getBetaFeatureFlags } from '$lib/server/feature-flags';
 import { getMonthlyUsage } from '$lib/server/llm-quota';
 import { periodRange } from '$lib/server/period-range';
+import { getOpenBatchesForRestaurant } from '$lib/server/batch';
 
 const LAYOUT_SETTINGS_KEYS = ['has_completed_onboarding', 'tutorial_step', 'sidebar_collapsed'] as const;
 
@@ -30,7 +31,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const quotaUsedPromise = getMonthlyUsage(rid);
 
-	const [rawNotifs, invoiceBadgeRows, settingsRows, locationRows, entitlements, betaFeatures] = await Promise.all([
+	const [rawNotifs, invoiceBadgeRows, settingsRows, locationRows, entitlements, betaFeatures, openBatches] = await Promise.all([
 		db.select({
 			id:               systemNotifications.id,
 			notificationType: systemNotifications.notificationType,
@@ -68,6 +69,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			.orderBy(asc(restaurants.name))),
 		locals.entitlements(),
 		getBetaFeatureFlags(),
+		getOpenBatchesForRestaurant(rid),
 	]);
 
 	const quotaUsed = await quotaUsedPromise;
@@ -109,6 +111,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		planTier,
 		features: tierConfig.features,
 		betaFeatures: { recipes: betaFeatures.recipes, budgets: betaFeatures.budgets },
+		openBatches: openBatches.map(b => ({ batchId: b.batchId, itemCount: b.itemCount })),
 		trialExpired:       entitlements?.access.trialExpired ?? false,
 		subscriptionStatus: subscription?.status ?? null,
 		cancelAtPeriodEnd:  subscription?.cancelAtPeriodEnd ?? false,
