@@ -80,6 +80,12 @@ vi.mock('$lib/server/db', () => {
 	const db = {
 		select: () => chain(() => []),
 		execute: executeMock,
+		$count: (table: never) => {
+			const name = getTableName(table);
+			const val = state.rows[name];
+			const rows = typeof val === 'function' ? (val as () => unknown[])() : (val ?? []);
+			return Promise.resolve((rows[0] as { count?: number } | undefined)?.count ?? 0);
+		},
 		insert: (table: never) => ({
 			values: (values: Record<string, unknown>) => insertValues(getTableName(table), values),
 		}),

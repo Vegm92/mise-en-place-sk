@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/sveltekit';
-import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import { db, forTenant, runAsSystem, runWithTenantContext } from './db';
 import { deadLetterQueue, restaurants } from './schema';
 
@@ -337,11 +337,7 @@ export async function listDeadLetters(
 
 export async function countDeadLetters(filter: DeadLetterFilter = {}): Promise<number> {
 	// tenant-scope-ok: admin audit counter across every tenant, same gate as listDeadLetters.
-	const [row] = await db
-		.select({ n: sql<number>`count(*)::int` })
-		.from(deadLetterQueue)
-		.where(filterClause(filter));
-	return row?.n ?? 0;
+	return db.$count(deadLetterQueue, filterClause(filter));
 }
 
 export async function deadLetterQueueBreakdown(): Promise<Array<{ queue: string; pending: number; total: number }>> {
