@@ -51,6 +51,12 @@ function read(rel: string): string {
 	return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
+function expectBadgeClassRegisteredInAppCss(cls: string): void {
+	expect(cls).not.toBe('badge badge-neutral');
+	const modifier = cls.split(' ').at(-1)!;
+	expect(read('src/app.css'), `.${modifier} is not declared in app.css`).toContain(`.${modifier}`);
+}
+
 function walk(dir: string, out: string[] = []): string[] {
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 		const full = path.join(dir, entry.name);
@@ -117,11 +123,7 @@ describe('the review vocabulary is what the transition module writes', () => {
 
 describe('every review state renders', () => {
 	it.each(REVIEW_STATES)('%s has a badge class defined in app.css', (state) => {
-		const cls = badgeClass(state);
-		expect(cls).not.toBe('badge badge-neutral');
-
-		const modifier = cls.split(' ').at(-1)!;
-		expect(read('src/app.css'), `.${modifier} is not declared in app.css`).toContain(`.${modifier}`);
+		expectBadgeClassRegisteredInAppCss(badgeClass(state));
 	});
 
 	it.each(REVIEW_STATES)('%s has an i18n key in both locales', (state) => {
@@ -224,11 +226,7 @@ describe('no source file compares an invoices state column against a foreign wor
  */
 describe('the incidence-kind vocabulary is a second, closed axis (issue #879)', () => {
 	it.each(INCIDENCE_KINDS)('%s has a badge class defined in app.css', (kind) => {
-		const cls = incidenceKindBadgeClass(kind);
-		expect(cls).not.toBe('badge badge-neutral');
-
-		const modifier = cls.split(' ').at(-1)!;
-		expect(read('src/app.css'), `.${modifier} is not declared in app.css`).toContain(`.${modifier}`);
+		expectBadgeClassRegisteredInAppCss(incidenceKindBadgeClass(kind));
 	});
 
 	it.each(INCIDENCE_KINDS)('%s has a label and a hint key in both locales', (kind) => {
