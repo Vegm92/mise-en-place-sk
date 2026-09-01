@@ -21,7 +21,7 @@ import { withTimeout } from '$lib/server/with-timeout';
 import { applyPrivateCacheHeaders } from '$lib/server/response-cache';
 import { assertProductionEnv, addressHeaderWarning, validateAdminSeedConfig } from '$lib/server/config';
 import { checkRateLimit } from '$lib/server/rate-limiter';
-import { resolveLocale, rememberLocale, LOCALE_COOKIE } from '$lib/server/locale';
+import { currentLocale, rememberCurrentLocale } from '$lib/server/locale';
 import { requestedLocale } from '$lib/locale-url';
 
 assertProductionEnv();
@@ -263,9 +263,9 @@ function applySecurityHeaders(path: string, response: Response, event: RequestEv
 }
 
 function applyLocale(event: RequestEvent): void {
-	const { locale } = resolveLocale(event.url, event.cookies.get(LOCALE_COOKIE));
+	const { locale } = currentLocale();
 	event.locals.locale = locale;
-	if (requestedLocale(event.url)) rememberLocale(event.cookies, locale);
+	if (requestedLocale(event.url)) rememberCurrentLocale(locale);
 }
 
 const appHandle: Handle = async ({ event, resolve }) => {

@@ -1,3 +1,4 @@
+import { getRequestEvent } from '$app/server';
 import type { Cookies } from '@sveltejs/kit';
 import { DEFAULT_LOCALE, parseLocale, requestedLocale } from '$lib/locale-url';
 import type { Locale } from '$lib/i18n-messages';
@@ -26,4 +27,14 @@ export function rememberLocale(cookies: Cookies, locale: Locale): void {
 		secure: process.env.NODE_ENV === 'production',
 		maxAge: LOCALE_COOKIE_MAX_AGE,
 	});
+}
+
+export function currentLocale(): ResolvedLocale {
+	const { cookies, url } = getRequestEvent();
+	return resolveLocale(url, cookies.get(LOCALE_COOKIE));
+}
+
+export function rememberCurrentLocale(locale: Locale): void {
+	const { cookies } = getRequestEvent();
+	rememberLocale(cookies, locale);
 }
