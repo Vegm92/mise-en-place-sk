@@ -1,0 +1,3 @@
+ALTER TABLE "invoices" ADD COLUMN "incidence_kind" text;--> statement-breakpoint
+CREATE INDEX "idx_invoices_rid_incidence_kind" ON "invoices" USING btree ("restaurant_id","incidence_kind") WHERE "invoices"."incidence_kind" IS NOT NULL;--> statement-breakpoint
+ALTER TABLE "invoices" ADD CONSTRAINT "invoices_incidence_kind_valid" CHECK ("invoices"."incidence_kind" IS NULL OR "invoices"."incidence_kind" IN ('lectura','documento'));
