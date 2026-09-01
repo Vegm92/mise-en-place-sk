@@ -396,8 +396,9 @@
   const totalMismatch = $derived(review?.data?.total_mismatch === true);
 
   const HEADER_FIELDS = ['supplier_name', 'invoice_number', 'invoice_date', 'due_date', 'total_amount'] as const;
+  const fieldVisible = $derived(data.fieldVisibility as Record<string, boolean>);
   const flagged = (field: string) => fieldConf[field] != null && fieldConf[field] < 0.85;
-  const uncertainHeaderFields = $derived(HEADER_FIELDS.filter(f => flagged(f)));
+  const uncertainHeaderFields = $derived(HEADER_FIELDS.filter(f => (fieldVisible[f] ?? true) && flagged(f)));
   const uncertainLineIndexes = $derived(
     lineItems.map((item, i) => (item.confidence != null && item.confidence < 0.85 ? i : -1)).filter(i => i >= 0)
   );
@@ -1108,27 +1109,31 @@
                   <input id="field-invoice-date" type="text" name="invoice_date" bind:value={invoiceDateInput} placeholder="YYYY-MM-DD"
                     class="rev-input num" class:flagged={flagged('invoice_date')} />
                 </div>
-                {#if documentTypeInput !== 'albaran'}
-                  <div>
-                    <label class="rev-field-label" for="field-due-date">
-                      {$t('extract.due')}
-                      <ConfidenceDot confidence={fieldConf.due_date} />
-                    </label>
-                    <input id="field-due-date" type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD"
-                      oninput={() => { dueDateSuggested = false; }}
-                      class="rev-input num" class:flagged={flagged('due_date')} />
-                    {#if dueDateSuggested}
-                      <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('field.dueDateSuggested')}</div>
-                    {/if}
-                  </div>
+                {#if fieldVisible.due_date}
+                  {#if documentTypeInput !== 'albaran'}
+                    <div>
+                      <label class="rev-field-label" for="field-due-date">
+                        {$t('extract.due')}
+                        <ConfidenceDot confidence={fieldConf.due_date} />
+                      </label>
+                      <input id="field-due-date" type="text" name="due_date" bind:value={dueDateInput} placeholder="YYYY-MM-DD"
+                        oninput={() => { dueDateSuggested = false; }}
+                        class="rev-input num" class:flagged={flagged('due_date')} />
+                      {#if dueDateSuggested}
+                        <div style="font-size:11px;color:var(--mep-fg-3);margin-top:4px;">{$t('field.dueDateSuggested')}</div>
+                      {/if}
+                    </div>
+                  {:else}
+                    <div>
+                      <label class="rev-field-label" for="field-due-date">{$t('extract.due')}</label>
+                      <input id="field-due-date" type="text" class="rev-input" readonly
+                        value={$t('field.dueDate.notApplicable')}
+                        style="color:var(--mep-fg-4);" />
+                      <input type="hidden" name="due_date" value="" />
+                    </div>
+                  {/if}
                 {:else}
-                  <div>
-                    <label class="rev-field-label" for="field-due-date">{$t('extract.due')}</label>
-                    <input id="field-due-date" type="text" class="rev-input" readonly
-                      value={$t('field.dueDate.notApplicable')}
-                      style="color:var(--mep-fg-4);" />
-                    <input type="hidden" name="due_date" value="" />
-                  </div>
+                  <input type="hidden" name="due_date" value={documentTypeInput !== 'albaran' ? dueDateInput : ''} />
                 {/if}
                 <div class="rev-field-wide">
                   <label class="rev-field-label" for="field-total-amount">
@@ -1144,11 +1149,15 @@
                     </div>
                   {/if}
                 </div>
-                <div class="rev-grid-wide">
-                  <label class="rev-field-label" for="field-notes">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></label>
-                  <textarea id="field-notes" name="notes" maxlength={250} rows={2} bind:value={notesInput}
-                    placeholder={$t('extract.notesPh')} class="rev-input"></textarea>
-                </div>
+                {#if fieldVisible.notes}
+                  <div class="rev-grid-wide">
+                    <label class="rev-field-label" for="field-notes">{$t('extract.notesInternal')} <span style="text-transform:none;letter-spacing:0;">{$t('extract.optional')}</span></label>
+                    <textarea id="field-notes" name="notes" maxlength={250} rows={2} bind:value={notesInput}
+                      placeholder={$t('extract.notesPh')} class="rev-input"></textarea>
+                  </div>
+                {:else}
+                  <input type="hidden" name="notes" value={notesInput} />
+                {/if}
               </div>
             </div>
 

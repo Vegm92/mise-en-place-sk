@@ -62,6 +62,13 @@ diseño está anotado abajo.
   merece una consulta más.
 - La tarjeta de perfil que encabezaba la lista en móvil tampoco está, por lo
   mismo: mostraba el plan, que esta página no carga.
+- **Sección "Campos de la revisión" (issue #880), no está en las láminas.**
+  Se añadió después de sembrar el lienzo: un interruptor por campo opcional
+  de `batch/[id]` (fecha de vencimiento, notas), con el mismo patrón visual
+  que "Tipos de alerta" (`alert-toggle`). Los campos obligatorios —proveedor,
+  número, fecha del documento, importe— no aparecen aquí porque nunca se
+  pueden ocultar. Quien vuelva a sembrar `Main.dc.html`/`Movil.dc.html`
+  desde el editor debe añadirla a mano si quiere que las láminas la reflejen.
 
 ## Dónde vive el código
 
@@ -69,6 +76,7 @@ diseño está anotado abajo.
 |---|---|
 | Pantalla de ajustes | `src/routes/(app)/settings/+page.svelte` |
 | Carga y acciones | `src/routes/(app)/settings/+page.server.ts` |
+| Visibilidad de campos opcionales (issue #880) | `src/lib/server/field-visibility.ts` |
 | Centro de ayuda | `src/routes/(app)/help/+page.svelte` |
 | Contenido de la ayuda | `src/lib/help-content.ts` |
 | Textos | `src/lib/i18n.ts` (claves `set.*` y `help.*`) |
