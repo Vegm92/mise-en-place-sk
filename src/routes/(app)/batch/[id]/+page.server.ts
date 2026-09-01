@@ -26,6 +26,7 @@ import { findSimilarInvoice, isoDateOffset, SIMILAR_INVOICE_DATE_WINDOW_DAYS } f
 import { previewLineProducts, listProductOptions } from '$lib/server/products';
 import { releaseMonthlyExtraction } from '$lib/server/llm-quota';
 import type { ProductMatch, ProductOption } from '$lib/server/products';
+import { loadFieldVisibility } from '$lib/server/field-visibility';
 
 async function refundIfNeverExtracted(item: BatchItem, reason: string): Promise<void> {
 	if (!isRefundableOnCancel(item.status)) return;
@@ -161,6 +162,7 @@ async function loadProductMatches(
 export const load: PageServerLoad = async ({ params, locals, url }) => {
 	return handleLoad('batch', async () => {
 		const items = await reapedItems(params.id, locals);
+		const fieldVisibility = await loadFieldVisibility(locals.restaurantId!);
 
 		const open = items.filter(i => i.status !== 'confirmed' && i.status !== 'discarded');
 		if (!open.length) redirect(303, '/');
@@ -225,6 +227,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 		return {
 			title: 'inv.title',
 			batchId: params.id,
+			fieldVisibility,
 			queue,
 			review,
 			failedItem: active && active.status === 'failed'
