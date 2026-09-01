@@ -4,6 +4,8 @@
 
 Spanish-first, bilingual (es/en). Built for independent restaurants and small groups.
 
+**Production:** [mise-place.com](https://mise-place.com)
+
 ## Product surface
 
 | Area | What it does |
