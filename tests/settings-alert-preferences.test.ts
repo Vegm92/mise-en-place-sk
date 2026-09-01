@@ -86,6 +86,15 @@ async function runFieldVisAction(body: FormData) {
 	});
 }
 
+async function withOtherRestaurant<T>(suffix: string, fn: (otherId: string) => Promise<T>): Promise<T> {
+	const other = await createTestRestaurant(suffix);
+	try {
+		return await fn(other.id);
+	} finally {
+		await cleanupTestRestaurant(other.id);
+	}
+}
+
 beforeAll(async () => {
 	if (!hasDbEnv) return;
 	const r = await createTestRestaurant('settings-alert-prefs');
@@ -153,20 +162,16 @@ describe.skipIf(!hasDbEnv)('saveAlertPreferences action (issue #577)', () => {
 		for (const type of ALERT_PREFERENCE_TYPES) expect(prefs[type]).toBe(true);
 	});
 
-	it("never writes another tenant's preferences", async () => {
-		const other = await createTestRestaurant('settings-alert-prefs-other');
-		try {
+	it("never writes another tenant's preferences", () =>
+		withOtherRestaurant('settings-alert-prefs-other', async (otherId) => {
 			const body = new FormData();
 			const thrown = await runAction(body);
 			expect(thrown?.status).toBe(303);
 
 			const rows = await testSql`
-				SELECT key FROM settings WHERE restaurant_id = ${other.id} AND key LIKE 'alert_pref_%'`;
+				SELECT key FROM settings WHERE restaurant_id = ${otherId} AND key LIKE 'alert_pref_%'`;
 			expect(rows).toHaveLength(0);
-		} finally {
-			await cleanupTestRestaurant(other.id);
-		}
-	});
+		}));
 });
 
 describe('settings alerts pane renders a grouped toggle per alert type (issue #577)', () => {
@@ -224,33 +229,25 @@ describe('defaultFieldVisibility (issue #880)', () => {
 });
 
 describe.skipIf(!hasDbEnv)('field visibility load/save round-trip, isolated per tenant (issue #880)', () => {
-	it('loads all-visible defaults for a restaurant that never saved anything', async () => {
-		const other = await createTestRestaurant('settings-field-vis-fresh');
-		try {
-			const prefs = await loadFieldVisibility(other.id);
+	it('loads all-visible defaults for a restaurant that never saved anything', () =>
+		withOtherRestaurant('settings-field-vis-fresh', async (otherId) => {
+			const prefs = await loadFieldVisibility(otherId);
 			for (const field of OPTIONAL_FIELDS) expect(prefs[field]).toBe(true);
-		} finally {
-			await cleanupTestRestaurant(other.id);
-		}
-	});
+		}));
 
-	it('persists a hidden field and leaves the other tenant untouched', async () => {
-		const other = await createTestRestaurant('settings-field-vis-other');
-		try {
+	it('persists a hidden field and leaves the other tenant untouched', () =>
+		withOtherRestaurant('settings-field-vis-other', async (otherId) => {
 			await saveFieldVisibility(rid, { due_date: false });
 
 			const mine = await loadFieldVisibility(rid);
 			expect(mine.due_date).toBe(false);
 			expect(mine.notes).toBe(true);
 
-			const theirs = await loadFieldVisibility(other.id);
+			const theirs = await loadFieldVisibility(otherId);
 			expect(theirs.due_date).toBe(true);
 
 			await saveFieldVisibility(rid, { due_date: true });
-		} finally {
-			await cleanupTestRestaurant(other.id);
-		}
-	});
+		}));
 
 	it('the settings load exposes the stored visibility and the optional field list', async () => {
 		await saveFieldVisibility(rid, { notes: false });
@@ -283,19 +280,15 @@ describe.skipIf(!hasDbEnv)('saveFieldVisibility action (issue #880)', () => {
 		await saveFieldVisibility(rid, { due_date: true });
 	});
 
-	it("never writes another tenant's visibility", async () => {
-		const other = await createTestRestaurant('settings-field-vis-write-other');
-		try {
+	it("never writes another tenant's visibility", () =>
+		withOtherRestaurant('settings-field-vis-write-other', async (otherId) => {
 			const body = new FormData();
 			await runFieldVisAction(body);
 
 			const rows = await testSql`
-				SELECT key FROM settings WHERE restaurant_id = ${other.id} AND key LIKE 'field_visible_%'`;
+				SELECT key FROM settings WHERE restaurant_id = ${otherId} AND key LIKE 'field_visible_%'`;
 			expect(rows).toHaveLength(0);
-		} finally {
-			await cleanupTestRestaurant(other.id);
-		}
-	});
+		}));
 });
 
 describe('settings page renders a toggle per optional field (issue #880)', () => {
