@@ -46,6 +46,8 @@ function tr(loc: Locale, key: string): string {
 	return (translations[loc] as Record<string, string>)[key];
 }
 
+import { assertSectionUsesTokens } from './helpers/extract-section';
+
 describe('waitlist.trustBar* keys exist in both locales (issue #404)', () => {
 	for (const key of TRUST_BAR_KEYS) {
 		it(`defines ${key} in es and en, non-empty`, () => {
@@ -88,13 +90,7 @@ describe('LandingPage.svelte renders the trust bar between the FAQ and the final
 	});
 
 	it('uses design-system tokens for color and radius, not hex literals', () => {
-		const startIdx = PAGE_SRC.indexOf("aria-label={$t('waitlist.trustBarLabel')}");
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', startIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', startIdx);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
-		expect(section).toContain('var(--mep-r-card)');
-		expect(section).toContain('var(--mep-divider)');
-		expect(section).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+		assertSectionUsesTokens(PAGE_SRC, "aria-label={$t('waitlist.trustBarLabel')}", ['rounded-card', 'border-divider']);
 	});
 
 	it('marks the bar up as a list for assistive tech (role="list" / role="listitem")', () => {
