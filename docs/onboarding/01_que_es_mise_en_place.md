@@ -78,10 +78,11 @@ marketing que escribas:
 1. **Dolor económico récord.** Inflación alimentaria de dos dígitos por producto
    (el café subió un 54 % en 2025; el aceite de oliva se duplicó y se desplomó),
    con la rentabilidad del sector cayendo pese a facturar más.
-2. **Obligación legal inminente.** Entre 2027 y 2028 todos los restaurantes
-   españoles tendrán que usar facturación certificada (**VERI\*FACTU**) y
-   recibir factura electrónica estructurada de sus proveedores. Digitalizar la
-   factura deja de ser opcional. *Nosotros montamos la ola; no la creamos.*
+2. **Obligación legal inminente.** VERI\*FACTU ya tiene fecha firme (2027):
+   todos los restaurantes españoles tendrán que usar facturación certificada.
+   La factura electrónica estructurada de proveedores (Ley Crea y Crece) está
+   en camino, sin fecha cerrada todavía. Digitalizar la factura deja de ser
+   opcional. *Nosotros montamos la ola; no la creamos.*
 3. **Salto tecnológico.** Los modelos multimodales leen un albarán arrugado
    fotografiado en una cocina por menos de un céntimo. Con el OCR clásico
    (el "escáner de texto" de hace diez años) esto era imposible, y por eso la
