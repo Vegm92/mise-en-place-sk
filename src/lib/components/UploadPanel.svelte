@@ -43,7 +43,7 @@
     data: {
       saved: boolean; duplicate: boolean; error: string | null;
       errorVars?: ErrorVars; hasCompletedOnboarding: boolean; upgradeUrl?: string | null;
-      trialExpired?: boolean;
+      trialExpired?: boolean; existingFilenames?: string[];
     };
     form: { error?: string; errorVars?: ErrorVars; upgradeUrl?: string } | null;
   }
@@ -87,6 +87,8 @@
   const errorMsg = $derived(localError ?? serverError);
   const upgradeUrl = $derived(form?.upgradeUrl ?? data.upgradeUrl ?? null);
   const trialExpired = $derived(!!data.trialExpired);
+  const existingFilenames = $derived(new Set(data.existingFilenames ?? []));
+  function isLikelyDuplicate(name: string) { return existingFilenames.has(name.toLowerCase()); }
 
   let files = $state<File[]>([]);
   let isDragging = $state(false);
@@ -246,23 +248,23 @@
     }
   }
 
-  function onUploadClick() {
-    if (!files.length || uploading || trialExpired) return;
-    if (typeof localStorage !== 'undefined' && localStorage.getItem(SKIP_QUOTA_WARNING_KEY)) {
-      doUpload();
-      return;
-    }
-    showQuotaConfirm = true;
-  }
+  let quotaAcknowledged = false;
 
   function confirmUpload() {
     if (skipQuotaWarning && typeof localStorage !== 'undefined') {
       localStorage.setItem(SKIP_QUOTA_WARNING_KEY, '1');
     }
+    quotaAcknowledged = true;
     doUpload();
   }
 
   async function doUpload() {
+    if (!files.length || uploading || trialExpired) return;
+    if (!quotaAcknowledged && !(typeof localStorage !== 'undefined' && localStorage.getItem(SKIP_QUOTA_WARNING_KEY))) {
+      showQuotaConfirm = true;
+      return;
+    }
+    quotaAcknowledged = false;
     dismissError();
     if (exceedsUploadTotal(files)) {
       showError($ti('upload.err.totalTooLarge', { mb: MAX_TOTAL_MB }));
@@ -498,6 +500,9 @@
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
+                {#if isLikelyDuplicate(f.name)}
+                  <div style="font-size:11px;color:var(--mep-neg);">{$t('upload.possibleDuplicate')}</div>
+                {/if}
               </div>
               <button type="button" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;" onclick={() => removeFile(i)}>
                 <X size={13} />
@@ -525,7 +530,7 @@
       class="btn btn-primary"
       style="width:100%;height:44px;justify-content:center;font-weight:500;gap:6px;font-size:14px;"
       disabled={files.length===0||uploading||trialExpired}
-      onclick={onUploadClick}
+      onclick={doUpload}
     >
       {#if uploading}
         <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
@@ -691,6 +696,9 @@
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
+                {#if isLikelyDuplicate(f.name)}
+                  <div style="font-size:11px;color:var(--mep-neg);">{$t('upload.possibleDuplicate')}</div>
+                {/if}
               </div>
               <button type="button" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;" onclick={() => removeFile(i)}>
                 <X size={13} />
@@ -713,7 +721,7 @@
           class="btn btn-primary"
           style="width:100%;height:38px;justify-content:center;font-weight:500;gap:6px;"
           disabled={files.length === 0 || uploading || trialExpired}
-          onclick={onUploadClick}
+          onclick={doUpload}
         >
           {#if uploading}
             <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
