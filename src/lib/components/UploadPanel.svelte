@@ -43,7 +43,7 @@
     data: {
       saved: boolean; duplicate: boolean; error: string | null;
       errorVars?: ErrorVars; hasCompletedOnboarding: boolean; upgradeUrl?: string | null;
-      trialExpired?: boolean;
+      trialExpired?: boolean; existingFilenames?: string[];
     };
     form: { error?: string; errorVars?: ErrorVars; upgradeUrl?: string } | null;
   }
@@ -87,6 +87,8 @@
   const errorMsg = $derived(localError ?? serverError);
   const upgradeUrl = $derived(form?.upgradeUrl ?? data.upgradeUrl ?? null);
   const trialExpired = $derived(!!data.trialExpired);
+  const existingFilenames = $derived(new Set(data.existingFilenames ?? []));
+  function isLikelyDuplicate(name: string) { return existingFilenames.has(name.toLowerCase()); }
 
   let files = $state<File[]>([]);
   let isDragging = $state(false);
@@ -498,6 +500,9 @@
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
+                {#if isLikelyDuplicate(f.name)}
+                  <div style="font-size:11px;color:var(--mep-neg);">{$t('upload.possibleDuplicate')}</div>
+                {/if}
               </div>
               <button type="button" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;" onclick={() => removeFile(i)}>
                 <X size={13} />
@@ -691,6 +696,9 @@
               <div style="flex:1;min-width:0;">
                 <div style="font-size:12.5px;font-weight:500;color:var(--mep-fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{f.name}</div>
                 <div class="num" style="font-size:11px;color:var(--mep-fg-3);">{fmtSize(f.size)}</div>
+                {#if isLikelyDuplicate(f.name)}
+                  <div style="font-size:11px;color:var(--mep-neg);">{$t('upload.possibleDuplicate')}</div>
+                {/if}
               </div>
               <button type="button" class="btn btn-ghost" style="width:24px;height:24px;padding:0;justify-content:center;" onclick={() => removeFile(i)}>
                 <X size={13} />
