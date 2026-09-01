@@ -81,9 +81,9 @@ hoy en la landing.
 
 ## El ángulo regulatorio
 
-Merece tratamiento aparte porque tiene fechas y genera búsquedas: entre 2027 y
-2028 el restaurante estará obligado a recibir facturas electrónicas
-estructuradas y a usar facturación certificada.
+Merece tratamiento aparte porque tiene fechas y genera búsquedas: VERI\*FACTU
+ya tiene fecha firme (2027) para usar facturación certificada; la factura
+electrónica B2B está en camino, sin fecha cerrada todavía.
 
 Nuestro papel es la **capa de inteligencia sobre una obligación que llega
 igual**. Otros lo venderán como cumplimiento; nosotros, como aprovechamiento:

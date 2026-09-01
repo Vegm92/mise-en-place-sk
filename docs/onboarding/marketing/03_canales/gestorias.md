@@ -37,7 +37,8 @@ Holded, que llevan años captando por ahí.
 
 - Menos horas de tecleo, que es trabajo que no puede facturar caro.
 - Menos persecución del cliente en marzo pidiendo papeles.
-- Un argumento para sus clientes de cara a la normativa de 2027–2028.
+- Un argumento para sus clientes de cara a VERI\*FACTU en 2027 y la e-factura
+  B2B después, sin fecha firme todavía.
 - Un servicio nuevo que ofrecer sin desarrollarlo él.
 
 ## Por qué podría no querer

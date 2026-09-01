@@ -12,11 +12,12 @@ related: "[[CONTEXT]]"
 
 ## Contexto
 
-Entre 2027 y 2028 los restaurantes españoles quedan obligados por dos normas
-distintas: **VERI\*FACTU**, que exige usar un programa de facturación
-certificado e inalterable para las facturas que el negocio **emite**; y la
-**factura electrónica B2B** de la Ley Crea y Crece, que obliga a emitir y
-**recibir** facturas estructuradas.
+Los restaurantes españoles van a quedar obligados por dos normas distintas:
+**VERI\*FACTU**, con fecha firme en 2027, que exige usar un programa de
+facturación certificado e inalterable para las facturas que el negocio
+**emite**; y la **factura electrónica B2B** de la Ley Crea y Crece, sin fecha
+cerrada todavía (el reglamento técnico sigue sin publicarse), que obligará a
+emitir y **recibir** facturas estructuradas.
 
 Es el mejor gancho comercial que tenemos: tiene fechas, genera búsquedas y crea
 urgencia sin que haya que evangelizar a nadie. La tentación de decir «cumple con
