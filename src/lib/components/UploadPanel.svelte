@@ -8,7 +8,9 @@
     isHeicUpload,
     uploadExtname,
     validateUploadFile,
+    ZIP_UPLOAD_ACCEPT,
   } from '$lib/upload-formats';
+  import { detectDirectoryPickerSupport } from '$lib/upload-capabilities';
   import {
     OFFLINE_QUEUE_MAX_ITEMS,
     createIndexedDbOfflineQueueStorage,
@@ -90,7 +92,9 @@
   let uploading = $state(false);
   let fileInputEl = $state<HTMLInputElement>();
   let folderInputEl = $state<HTMLInputElement>();
+  let zipInputEl = $state<HTMLInputElement>();
   let cameraInputEl = $state<HTMLInputElement>();
+  let canPickFolder = $state(true);
   const MAX_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
   const MAX_TOTAL_MB = MAX_UPLOAD_TOTAL_BYTES / (1024 * 1024);
 
@@ -126,6 +130,12 @@
     if (ext === 'pdf') return 'pdf';
     if (ext === 'zip') return 'zip';
     return 'img';
+  }
+
+  function openFolderPicker() {
+    if (trialExpired) return;
+    if (canPickFolder) folderInputEl?.click();
+    else zipInputEl?.click();
   }
 
   function openCamera() {
@@ -272,6 +282,10 @@
     if (trialExpired) return;
     addFiles(e.dataTransfer?.files ?? null);
   }
+
+  $effect(() => {
+    canPickFolder = detectDirectoryPickerSupport();
+  });
 
   $effect(() => {
     sweepExpiredEntries(queueStorage).then((result) => {
@@ -427,30 +441,18 @@
             type="button"
             class="btn btn-ghost"
             style="height:36px;padding:0 14px;pointer-events:auto;gap:6px;display:flex;align-items:center;"
-            onclick={(e) => { e.stopPropagation(); folderInputEl?.click(); }}
+            onclick={(e) => { e.stopPropagation(); openFolderPicker(); }}
           >
             <FolderUp size={14} />
-            {$t('upload.browseFolder')}
+            {canPickFolder ? $t('upload.browseFolder') : $t('upload.browseZip')}
           </button>
         </div>
 
-        <input
-          bind:this={fileInputEl}
-          type="file"
-          class="hidden"
-          accept={UPLOAD_ACCEPT}
-          multiple
-          onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
-        />
-
-        <input
-          bind:this={folderInputEl}
-          type="file"
-          class="hidden"
-          webkitdirectory
-          multiple
-          onchange={() => { addFiles(folderInputEl?.files ?? null); if (folderInputEl) folderInputEl.value = ''; }}
-        />
+        {#if !canPickFolder}
+          <div style="font-size:11px;color:var(--mep-fg-3);margin-top:10px;text-align:center;max-width:300px;line-height:1.45;">
+            {$t('upload.folderZipHint')}
+          </div>
+        {/if}
 
       </div>
       {/if}
@@ -619,24 +621,6 @@
           {/if}
         </div>
 
-        <input
-          bind:this={fileInputEl}
-          type="file"
-          class="hidden"
-          accept={UPLOAD_ACCEPT}
-          multiple
-          onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
-        />
-
-        <input
-          bind:this={folderInputEl}
-          type="file"
-          class="hidden"
-          webkitdirectory
-          multiple
-          onchange={() => { addFiles(folderInputEl?.files ?? null); if (folderInputEl) folderInputEl.value = ''; }}
-        />
-
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
           <button
             type="button"
@@ -650,12 +634,18 @@
             type="button"
             class="btn btn-ghost"
             style="height:36px;padding:0 14px;pointer-events:auto;gap:6px;display:flex;align-items:center;"
-            onclick={(e) => { e.stopPropagation(); folderInputEl?.click(); }}
+            onclick={(e) => { e.stopPropagation(); openFolderPicker(); }}
           >
             <FolderUp size={14} />
-            {$t('upload.browseFolder')}
+            {canPickFolder ? $t('upload.browseFolder') : $t('upload.browseZip')}
           </button>
         </div>
+
+        {#if !canPickFolder}
+          <div style="font-size:11px;color:var(--mep-fg-3);margin-top:10px;text-align:center;max-width:300px;line-height:1.45;">
+            {$t('upload.folderZipHint')}
+          </div>
+        {/if}
 
       </div>
       {/if}
@@ -721,6 +711,32 @@
 
   </div>
 </div>
+
+<input
+  bind:this={fileInputEl}
+  type="file"
+  class="hidden"
+  accept={UPLOAD_ACCEPT}
+  multiple
+  onchange={() => { addFiles(fileInputEl?.files ?? null); if (fileInputEl) fileInputEl.value = ''; }}
+/>
+
+<input
+  bind:this={folderInputEl}
+  type="file"
+  class="hidden"
+  webkitdirectory
+  multiple
+  onchange={() => { addFiles(folderInputEl?.files ?? null); if (folderInputEl) folderInputEl.value = ''; }}
+/>
+
+<input
+  bind:this={zipInputEl}
+  type="file"
+  class="hidden"
+  accept={ZIP_UPLOAD_ACCEPT}
+  onchange={() => { addFiles(zipInputEl?.files ?? null); if (zipInputEl) zipInputEl.value = ''; }}
+/>
 
 <input
   bind:this={cameraInputEl}

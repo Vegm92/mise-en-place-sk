@@ -496,6 +496,8 @@ export default {
   'upload.takePhoto': 'Tomar foto',
   'upload.browseFiles':'Buscar archivos',
   'upload.browseFolder':'Subir carpeta',
+  'upload.browseZip':'Subir ZIP',
+  'upload.folderZipHint':'Tu navegador móvil no permite elegir carpetas: sube un .zip con los albaranes o selecciona varios archivos a la vez.',
   'confirm.title':     'Revisar archivos',
   'confirm.filesInfo': 'archivo(s) subido(s).',
   'confirm.extract':   'Extraer albarán',
