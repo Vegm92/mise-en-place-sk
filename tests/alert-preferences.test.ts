@@ -40,26 +40,13 @@ import {
 import { saveAlerts } from '../src/lib/server/alerts';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 let ridOther = '';
 
-function fakeItem(documentType: 'factura' | 'albaran' | null): BatchItem {
-	return {
-		id: 'item-1',
-		batchId: 'batch-1',
-		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData: { document_type: documentType, confidence: 1 },
-		conversionNotes: null,
-		extractError: null,
-		queuedAt: null,
-		source: 'web', sourceRef: null, jobCode: null, reviewStatus: null,
-	};
-}
+const fakeItem = (documentType: 'factura' | 'albaran' | null): BatchItem =>
+	fakeBatchItem({ restaurantId: rid, extractedData: { document_type: documentType, confidence: 1 } });
 
 function form(opts: { invoiceNumber: string; invoiceDate: string; totalAmount: string; supplier: string; lineDescription?: string }): FormData {
 	const fd = new FormData();

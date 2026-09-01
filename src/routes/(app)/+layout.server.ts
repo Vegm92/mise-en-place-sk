@@ -5,6 +5,7 @@ import { systemNotifications, invoices, settings, restaurants, userRestaurants }
 import { asc, eq, desc, and, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { TIERS, syncSubscriptionFromStripe, type PlanTier } from '$lib/server/billing';
 import { getBetaFeatureFlags } from '$lib/server/feature-flags';
+import { getMonthlyUsage } from '$lib/server/llm-quota';
 import { periodRange } from '$lib/server/period-range';
 
 const LAYOUT_SETTINGS_KEYS = ['has_completed_onboarding', 'tutorial_step', 'sidebar_collapsed'] as const;
@@ -27,7 +28,9 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	const tdb = forTenant(rid);
 
-	const [rawNotifs, invoiceBadgeRows, quotaUsedRow, settingsRows, locationRows, entitlements, betaFeatures] = await Promise.all([
+	const quotaUsedPromise = getMonthlyUsage(rid);
+
+	const [rawNotifs, invoiceBadgeRows, settingsRows, locationRows, entitlements, betaFeatures] = await Promise.all([
 		db.select({
 			id:               systemNotifications.id,
 			notificationType: systemNotifications.notificationType,
@@ -54,13 +57,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 			WHERE ${invoices.restaurantId} = ${tdb.rid} AND ${invoices.deletedAt} IS NULL
 		`),
 
-		db.select({ cnt: sql<number>`COUNT(*)::int` })
-			.from(invoices)
-			.where(tdb.scope(invoices.restaurantId, and(
-				isNull(invoices.deletedAt),
-				gte(invoices.createdAt, sql`date_trunc('month', now())`)
-			))),
-
 		db.select({ key: settings.key, value: settings.value })
 			.from(settings)
 			.where(tdb.scope(settings.restaurantId, inArray(settings.key, LAYOUT_SETTINGS_KEYS))),
@@ -74,6 +70,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		getBetaFeatureFlags(),
 	]);
 
+	const quotaUsed = await quotaUsedPromise;
 	const invoiceBadgeCounts = invoiceBadgeRows[0] as InvoiceBadgeCounts | undefined;
 	const settingsMap = new Map(settingsRows.map(row => [row.key, row.value]));
 	const hasCompletedOnboarding = settingsMap.get('has_completed_onboarding') === 'true';
@@ -101,7 +98,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		notifications,
 		invoiceBadge:            Number(invoiceBadgeCounts?.invoice_badge ?? 0),
 		reminderBadge:           Number(invoiceBadgeCounts?.incidencia_badge ?? 0) + Number(invoiceBadgeCounts?.budget_exceeded_badge ?? 0),
-		quotaUsed:               Number(quotaUsedRow[0]?.cnt ?? 0),
+		quotaUsed:               quotaUsed,
 		quotaLimit:              usable ? entitlements?.monthlyQuota ?? null : TIERS.trial.monthlyInvoiceQuota ?? 0,
 		planNameKey:             usable ? tierConfig.nameKey : TIERS.trial.nameKey,
 		restaurantName:          currentLocation?.name ?? '',

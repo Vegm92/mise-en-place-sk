@@ -51,6 +51,8 @@ const quotaMocks = vi.hoisted(() => ({
 	checkExtractionQuota: vi.fn(),
 	claimMonthlyExtraction: vi.fn(),
 	releaseMonthlyExtraction: vi.fn(),
+	reserveMonthlyExtractions: vi.fn(),
+	attributeReservation: vi.fn(),
 	recordLlmUsage: vi.fn(),
 }));
 vi.mock('../src/lib/server/llm-quota.js', () => quotaMocks);
@@ -115,6 +117,7 @@ const segmentationMocks = vi.hoisted(() => ({
 	isSegmentableDocument: vi.fn(() => false),
 	segmentDocument: vi.fn(),
 	STRUCTURE_UNCLEAR_ERROR: 'extract.err.structureUnclear',
+	COMPOSITE_QUOTA_ERROR: 'extract.err.quotaCompositeExceeded',
 }));
 vi.mock('../src/lib/server/document-segmentation.js', () => segmentationMocks);
 
@@ -136,6 +139,8 @@ beforeEach(() => {
 	billingMocks.getAccessState.mockResolvedValue({ allowed: true, trialExpired: false });
 	quotaMocks.checkExtractionQuota.mockResolvedValue({ allowed: true });
 	quotaMocks.claimMonthlyExtraction.mockResolvedValue({ claimed: true, limit: 100 });
+	quotaMocks.reserveMonthlyExtractions.mockResolvedValue({ reserved: true });
+	quotaMocks.attributeReservation.mockResolvedValue(undefined);
 });
 
 describe('processExtractionJob retry policy (#482)', () => {
@@ -235,8 +240,8 @@ describe('processExtractionJob — a failed attempt must not cost the tenant quo
 	it.each(ERROR_CLASSES)('$label releases the monthly slot it claimed', async ({ err }) => {
 		await runFailing(err, RETRIES_LEFT);
 
-		expect(quotaMocks.claimMonthlyExtraction).toHaveBeenCalledTimes(1);
-		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1');
+		expect(quotaMocks.claimMonthlyExtraction).toHaveBeenCalledWith('r1', item.id);
+		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1', item.id, expect.any(String));
 	});
 
 	it('releases the slot on every attempt of a retried job, not just the last', async () => {
@@ -569,6 +574,7 @@ describe('processExtractionJob — composite documents are separated before extr
 
 	async function runRouted(structureResult: unknown, rejects = false) {
 		if (rejects) segmentationMocks.segmentDocument.mockRejectedValue(structureResult);
+		else if (typeof structureResult === 'function') segmentationMocks.segmentDocument.mockImplementation(structureResult as (...args: unknown[]) => unknown);
 		else segmentationMocks.segmentDocument.mockResolvedValue(structureResult);
 		extractMocks.extractWithProvider.mockResolvedValue({
 			invoice: { supplier_name: 'Acme', line_items: [] },
@@ -605,8 +611,32 @@ describe('processExtractionJob — composite documents are separated before extr
 	])('gives the tenant back the extraction slot of a document $label', async ({ outcome }) => {
 		await runRouted(outcome);
 
-		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1');
+		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1', item.id, expect.any(String));
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
+	});
+
+	const QUOTA_KEY = 'extract.err.quotaCompositeExceeded';
+
+	it('refuses a packet larger than the plan allowance without extracting any of it', async () => {
+		await runRouted({ action: 'quota', reason: QUOTA_KEY, found: 17, remaining: 8 });
+
+		expect(batchMocks.markFailed).toHaveBeenCalledWith(item.id, QUOTA_KEY, { found: 17, remaining: 8 });
+		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
+		expect(translations.es[QUOTA_KEY]).toContain('{found}');
+		expect(translations.es[QUOTA_KEY]).toContain('{remaining}');
+		expect(translations.en[QUOTA_KEY]).toBeTruthy();
+	});
+
+	it('hands back the container document\'s own slot before pricing the packet, so N left buys N', async () => {
+		await runRouted(async (_src: unknown, deps: { reserve: (n: number) => Promise<unknown> }) => {
+			await deps.reserve(3);
+			return SPLIT;
+		});
+
+		const releaseOrder = quotaMocks.releaseMonthlyExtraction.mock.invocationCallOrder[0];
+		const reserveOrder = quotaMocks.reserveMonthlyExtractions.mock.invocationCallOrder[0];
+		expect(releaseOrder).toBeLessThan(reserveOrder);
+		expect(quotaMocks.reserveMonthlyExtractions).toHaveBeenCalledWith('r1', 3);
 	});
 
 	it('fails a document whose structure is unclear instead of extracting it as one invoice', async () => {
@@ -631,6 +661,6 @@ describe('processExtractionJob — composite documents are separated before extr
 
 		expect(extractMocks.extractWithProvider).not.toHaveBeenCalled();
 		expect(batchMocks.markFailed).not.toHaveBeenCalled();
-		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1');
+		expect(quotaMocks.releaseMonthlyExtraction).toHaveBeenCalledWith('r1', item.id, expect.any(String));
 	});
 });

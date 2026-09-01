@@ -7,6 +7,10 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 
 ### `src/routes/(app)/+layout.server.ts`
 
+**`const quotaUsedPromise`**
+
+- The sidebar counter reads documents processed this month, not invoices saved — the same number the worker gates on, so the counter and the limit cannot disagree ([ADR-036](../06_decisions/billing/ADR-036-one-metered-unit.md)). Started outside the `Promise.all` below, whose tuple inference collapses when a plain promise sits among the drizzle query builders.
+
 **`const load`**
 - Every restaurant this user belongs to, for the location switcher (issue #290). One row for almost everyone; the switcher only renders when there is something to switch to.
 - For existing users who never got a tutorial row, skip the tour silently.
@@ -59,6 +63,10 @@ shared UI/library/worker-support code they are built on. Condensed per-file note
 - The dialog takes ConfirmDialog's anatomy — icon + title on one row, copy left, actions right at 36px — rather than the centred, 50/50-button shape it had. Every value is a token: `--mep-overlay` for the surface (not `--mep-bg`, which is the page behind it), `--mep-scrim`, `--mep-shadow-pop`, `--mep-r-card`, `--mep-row-h` for the rows. It renders inside the `.mep` container for the same reason the tour chrome does — `--mep-acc` and `--mep-row-h` are scoped there, not to `:root`.
 
 ### `src/routes/(app)/+page.server.ts`
+
+**`function remainingMonthlyQuota`**
+
+- Counts documents processed, not invoices saved (ADR-036). This is only the door check: it compares `files.length` against what is left and cannot see that one file holds seventeen documents — the worker settles that at the structure stage. Fails open on a DB error, deliberately; the worker's gate is the one that must fail closed.
 
 **`function remainingMonthlyQuota`**
 - Returns the number of invoices the tenant can still add this calendar month, or null when no plan quota is configured (treated as unlimited). Best-effort: never blocks the upload path on a DB error. Shared quota convention (issue #295) — null means unlimited.

@@ -35,29 +35,21 @@ import { saveReviewedInvoice, computeFormContentHash, findInvalidMonetaryField }
 import { computeInvoiceContentHash } from '../src/lib/server/dedup';
 import { createBatchStore } from '../src/lib/server/batch';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 const USER_ID = 'user-508';
 const SUPPLIER = '__inv_amount_sup__';
 
 function fakeItem(): BatchItem {
-	return {
+	return fakeBatchItem({
 		id: 'item-508',
 		batchId: 'batch-508',
 		restaurantId: rid,
-		position: 0,
 		fileKey: 'fake-508.pdf',
 		displayName: 'fake-508.pdf',
-		status: 'done',
 		extractedData: { confidence: 1 },
-		conversionNotes: null,
-		extractError: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
+	});
 }
 
 function headerFields(fd: FormData, invoiceNumber: string, total: string): void {

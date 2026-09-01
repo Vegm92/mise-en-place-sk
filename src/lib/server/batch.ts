@@ -41,11 +41,18 @@ export interface BatchItem {
 	extractedData: Record<string, unknown> | null;
 	conversionNotes: string[] | null;
 	extractError: string | null;
+	extractErrorVars: Record<string, string | number> | null;
 	queuedAt: Date | null;
 	source: BatchItemSource;
 	sourceRef: string | null;
 	jobCode: string | null;
 	reviewStatus: BatchItemReviewStatus | null;
+}
+
+const REFUNDABLE_ON_CANCEL: readonly BatchItemStatus[] = ['pending', 'queued', 'failed'];
+
+export function isRefundableOnCancel(status: BatchItemStatus): boolean {
+	return REFUNDABLE_ON_CANCEL.includes(status);
 }
 
 export const STALL_ERROR = 'extract.err.stalled';
@@ -65,6 +72,7 @@ const itemColumns = {
 	extractedData: batchItems.extractedData,
 	conversionNotes: batchItems.conversionNotes,
 	extractError: batchItems.extractError,
+	extractErrorVars: batchItems.extractErrorVars,
 	queuedAt: batchItems.queuedAt,
 	source: batchItems.source,
 	sourceRef: batchItems.sourceRef,
@@ -260,12 +268,13 @@ export function createBatchStore(db: BatchDb) {
 		return transition(itemId, ['pending', 'failed'], {
 			status: 'queued',
 			extractError: null,
+			extractErrorVars: null,
 			queuedAt: new Date(),
 		});
 	}
 
 	async function requeueStalled(itemId: string): Promise<boolean> {
-		if (!(await transition(itemId, IN_FLIGHT, { status: 'failed', extractError: STALL_ERROR }))) {
+		if (!(await transition(itemId, IN_FLIGHT, { status: 'failed', extractError: STALL_ERROR, extractErrorVars: null }))) {
 			return false;
 		}
 		return markQueued(itemId);
@@ -307,11 +316,20 @@ export function createBatchStore(db: BatchDb) {
 			extractedData,
 			conversionNotes,
 			extractError: null,
+			extractErrorVars: null,
 		});
 	}
 
-	function markFailed(itemId: string, extractError: string): Promise<boolean> {
-		return transition(itemId, ['queued', 'extracting'], { status: 'failed', extractError });
+	function markFailed(
+		itemId: string,
+		extractError: string,
+		extractErrorVars?: Record<string, string | number>,
+	): Promise<boolean> {
+		return transition(itemId, ['queued', 'extracting'], {
+			status: 'failed',
+			extractError,
+			extractErrorVars: extractErrorVars ?? null,
+		});
 	}
 
 	function markConfirmed(itemId: string): Promise<boolean> {

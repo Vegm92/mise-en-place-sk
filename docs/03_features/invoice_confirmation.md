@@ -158,6 +158,14 @@ shapes, `low_confidence_ack` value.
 
 ### `src/routes/(app)/batch/[id]/+page.server.ts`
 
+**`function refundIfNeverExtracted`**
+
+- Called from `discardItem`, `discardBatch` and `remove`. Gives the plan slot back for an item that never reached the extractor, and never for one already extracted — see `isRefundableOnCancel` in `batch.ts` and [ADR-036](../06_decisions/billing/ADR-036-one-metered-unit.md). Until then no cancel path released anything, so `monthly_usage.used` kept every slot a discarded extraction had taken.
+
+**`const load` — `failedItem.errorVars`**
+
+- Carries `extractErrorVars` through so the page can interpolate a failure message that names numbers — "este archivo contiene 17 documentos y solo te quedan 8 este mes".
+
 **`function statSize`**
 
 - Stat errors are ignored — size stays '—'.

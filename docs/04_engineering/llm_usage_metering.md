@@ -16,9 +16,13 @@ accounting"). As a result:
 - `checkExtractionQuota` (`tenant_llm_quotas.monthly_extractions` /
   `monthly_cost_limit_usd`) does **not** see chat/digest usage → the cost limit
   is not enforced on those surfaces.
-- `monthly_usage` (plan quota, `claimMonthlyExtraction`) tracks only extractions,
-  so a Pro/Business tenant's AI spend per month is unbounded from the app's
-  perspective.
+- `monthly_usage` (plan quota, `claimMonthlyExtraction`) tracks only extractions
+  — deliberately, since that is the unit the plan is sold on (ADR-036) — so a
+  Pro/Business tenant's AI spend on chat and digests per month is unbounded
+  from the app's perspective. Document-structure detection is metered in
+  `llm_usage_log` as `document-structure` but is likewise off the plan counter:
+  it is the system deciding what a file is, not a document the customer asked
+  to have processed.
 - `/admin/revenue` and any future unit-economics (`estimated_cost_usd` sums)
   silently miss this spend; the MRR-vs-COGS picture is optimistic.
 
@@ -31,9 +35,9 @@ chat and digest work, they are just invisible to metering.
 |---|---|---|
 | Provider seam | `src/lib/server/llm-provider.ts` | `LLMProvider.generate(content)` returns `{ text, usage: { inputTokens, outputTokens, model } }`; `estimateCostUsd(model, in, out)` prices via the `COST_PER_MILLION` table. Seam selected by `LLM_PROVIDER` env (only `gemini` today). This is the ADR-007 seam |
 | Usage accounting | `src/lib/server/llm-quota.ts` | `recordLlmUsage(restaurantId, usage, callerContext?)` inserts into `llm_usage_log` (cost computed + stored as `estimated_cost_usd`, `caller_context` labels the caller); non-fatal on failure. `checkExtractionQuota` enforces `tenant_llm_quotas` (count + cost) |
-| Plan quota | `src/lib/server/llm-quota.ts` | `claimMonthlyExtraction` / `releaseMonthlyExtraction` gate the monthly invoice/plan quota on `monthly_usage` |
-| Storage | `src/lib/server/schema/extensions.ts:121-147` | `llm_usage_log` (indexed `(restaurant_id, created_at)`), `tenant_llm_quotas` (per-tenant custom caps), `monthly_usage` (plan counter) |
-| Warning email | `src/lib/server/quota-warning.ts` | `maybeSendQuotaWarning(restaurantId)` — sends one quota warning per month when `monthly_usage` crosses the plan limit (already used by the extraction path) |
+| Plan quota | `src/lib/server/llm-quota.ts` | `claimMonthlyExtraction` / `releaseMonthlyExtraction` / `reserveMonthlyExtractions` gate the plan quota on `monthly_usage`; `getMonthlyUsage` is the single read every surface uses (ADR-036) |
+| Storage | `src/lib/server/schema/extensions.ts:121-147` | `llm_usage_log` (indexed `(restaurant_id, created_at)`), `tenant_llm_quotas` (per-tenant custom caps), `monthly_usage` (plan counter), `usage_events` (append-only trail the counter sums to) |
+| Warning email | `src/lib/server/quota-warning.ts` | `maybeSendQuotaWarning(restaurantId)` — sends one quota warning per month when `monthly_usage` crosses the plan limit (it counted saved invoices until ADR-036, so it warned late or never) |
 
 **Currently-metered paths** (how the seam is used correctly today):
 - Extraction: `src/lib/server/extraction-worker.ts:80` calls `checkExtractionQuota`,

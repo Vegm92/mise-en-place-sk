@@ -11,7 +11,9 @@
  * children it already created.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { segmentDocument, segmentKey, segmentDisplayName } from '../src/lib/server/document-segmentation';
+import {
+	COMPOSITE_QUOTA_ERROR, segmentDocument, segmentKey, segmentDisplayName,
+} from '../src/lib/server/document-segmentation';
 import { pdfPageCount, pdfPageTexts } from '../src/lib/server/pdf-pages';
 import { buildPdf, invoicePage, coverPage } from './helpers/pdf-fixture';
 
@@ -24,6 +26,8 @@ function deps(existing: string[] = []) {
 		addItems: vi.fn(async (files: Array<{ key: string; name: string }>) => files.map((f, i) => `item-${i}`)),
 		enqueue: vi.fn(async () => true),
 		discardSource: vi.fn(async () => true),
+		reserve: vi.fn(async () => ({ reserved: true, remaining: 0 })),
+		attribute: vi.fn(async () => {}),
 	};
 }
 
@@ -115,5 +119,42 @@ describe('segmentDocument', () => {
 	it('keys and names a multi-page segment by its range', () => {
 		expect(segmentKey('ns/scan_ab12cd.pdf', { start: 4, end: 6 })).toBe('ns/scan_ab12cd_p4-6.pdf');
 		expect(segmentDisplayName('scan.pdf', { start: 4, end: 6 })).toBe('scan (p4-6).pdf');
+	});
+});
+
+describe('segmentDocument — quota is settled before the packet is split', () => {
+	it('buys one slot per new document before anything is written, then keys it to the children', async () => {
+		const d = deps();
+		const outcome = await run(d);
+
+		expect(d.reserve).toHaveBeenCalledWith(2);
+		expect(d.reserve.mock.invocationCallOrder[0])
+			.toBeLessThan(d.saveSegment.mock.invocationCallOrder[0]);
+		expect(outcome.action).toBe('split');
+		expect(d.attribute).toHaveBeenCalledWith(['item-0', 'item-1']);
+	});
+
+	it('writes, queues and discards nothing when the packet does not fit', async () => {
+		const d = deps();
+		d.reserve.mockResolvedValue({ reserved: false, remaining: 1 });
+
+		const outcome = await run(d);
+
+		expect(outcome).toMatchObject({
+			action: 'quota', reason: COMPOSITE_QUOTA_ERROR, found: 2, remaining: 1,
+		});
+		for (const fn of [d.saveSegment, d.addItems, d.enqueue, d.discardSource]) {
+			expect(fn).not.toHaveBeenCalled();
+		}
+	});
+
+	it('only pays for documents a redelivery has not already created', async () => {
+		const first = deps();
+		await run(first);
+
+		const second = deps([...first.saved.keys()]);
+		await run(second);
+
+		expect(second.reserve).not.toHaveBeenCalled();
 	});
 });

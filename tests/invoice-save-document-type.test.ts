@@ -21,28 +21,12 @@ import {
 } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 
-function fakeItem(extractedData: Record<string, unknown> | null): BatchItem {
-	return {
-		id: 'item-1',
-		batchId: 'batch-1',
-		restaurantId: rid,
-		position: 0,
-		fileKey: 'fake.pdf',
-		displayName: 'fake.pdf',
-		status: 'done',
-		extractedData,
-		conversionNotes: null,
-		extractError: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
-}
+const fakeItem = (extractedData: Record<string, unknown> | null): BatchItem =>
+	fakeBatchItem({ restaurantId: rid, extractedData });
 
 function form(opts: { invoiceNumber: string; supplier?: string; totalAmount?: string }): FormData {
 	const fd = new FormData();

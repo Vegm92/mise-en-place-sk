@@ -364,6 +364,22 @@ export const monthlyUsage = pgTable('monthly_usage', {
 	check('monthly_usage_month_format', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
 ]);
 
+export const usageEvents = pgTable('usage_events', {
+	id:           serial('id').primaryKey(),
+	restaurantId: uuid('restaurant_id').notNull().references(() => restaurants.id, { onDelete: 'cascade' }),
+	month:        text('month').notNull(),
+	batchItemId:  uuid('batch_item_id'),
+	kind:         text('kind').notNull(),
+	delta:        integer('delta').notNull(),
+	reason:       text('reason'),
+	createdAt:    timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+	index('usage_events_item_idx').on(t.batchItemId).where(sql`${t.batchItemId} is not null`),
+	index('usage_events_restaurant_month_idx').on(t.restaurantId, t.month),
+	check('usage_events_month_format', sql`${t.month} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+	check('usage_events_kind_valid', sql`${t.kind} in ('claim', 'release')`),
+]);
+
 export const idempotencyKeys = pgTable('idempotency_keys', {
 	scope:        text('scope').notNull(),
 	key:          text('key').notNull(),
@@ -413,6 +429,7 @@ export const batchItems = pgTable('batch_items', {
 	extractedData:   jsonb('extracted_data'),
 	conversionNotes: jsonb('conversion_notes'),
 	extractError:    text('extract_error'),
+	extractErrorVars: jsonb('extract_error_vars').$type<Record<string, string | number>>(),
 	queuedAt:        timestamp('queued_at', { withTimezone: true }),
 	source:          text('source').notNull().default('web'),
 	sourceRef:       text('source_ref'),
