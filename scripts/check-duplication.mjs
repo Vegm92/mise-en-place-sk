@@ -34,14 +34,17 @@ import path from 'node:path';
  * that window for the rest of this process).
  */
 function resolveExecutable(name) {
+	const exts = process.platform === 'win32' ? ['', '.exe', '.cmd', '.bat'] : [''];
 	for (const dir of (process.env.PATH ?? '').split(path.delimiter)) {
 		if (!dir) continue;
-		const candidate = path.join(dir, name);
-		try {
-			fs.accessSync(candidate, fs.constants.X_OK);
-			return candidate;
-		} catch {
-			continue;
+		for (const ext of exts) {
+			const candidate = path.join(dir, name + ext);
+			try {
+				fs.accessSync(candidate, fs.constants.X_OK);
+				return candidate;
+			} catch {
+				continue;
+			}
 		}
 	}
 	throw new Error(`check-duplication: "${name}" not found on PATH.`);
@@ -113,7 +116,8 @@ function changedScannedFiles() {
 }
 
 function runJscpd(outDir) {
-	const jscpdBin = path.join(ROOT, 'node_modules', '.bin', 'jscpd');
+	const binName = process.platform === 'win32' ? 'jscpd.cmd' : 'jscpd';
+	const jscpdBin = path.join(ROOT, 'node_modules', '.bin', binName);
 	const extGlob = [...SCANNED_EXTENSIONS].map((e) => e.slice(1)).join(',');
 	execFileSync(jscpdBin, [
 		// No positional PATH: jscpd reports file names relative to each given
@@ -127,7 +131,7 @@ function runJscpd(outDir) {
 		'--reporters', 'json',
 		'--output', outDir,
 		'--silent',
-	], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
+	], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'], shell: process.platform === 'win32' });
 	return JSON.parse(fs.readFileSync(path.join(outDir, 'jscpd-report.json'), 'utf8'));
 }
 
@@ -151,7 +155,10 @@ try {
 const newDuplicatedByFile = new Map();
 for (const clone of report.duplicates ?? []) {
 	for (const side of [clone.firstFile, clone.secondFile]) {
-		const file = side.name;
+		// jscpd reports paths with the OS-native separator; git diff (and our
+		// addedByFile keys) always uses "/", even on Windows — normalize so the
+		// lookup below actually matches instead of silently missing every hit.
+		const file = side.name.replaceAll('\\', '/');
 		const added = addedByFile.get(file);
 		if (!added) continue;
 		const hit = [];

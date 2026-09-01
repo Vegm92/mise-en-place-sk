@@ -1,5 +1,5 @@
 import { db } from './db';
-import { and, asc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, lt, sql } from 'drizzle-orm';
 import { batchItems, restaurants } from './schema';
 import {
 	contactsPerTenant,
@@ -96,14 +96,10 @@ async function checkExtractionQueue(): Promise<{ checks: HealthCheck[]; stuck: n
 		const cutoff = new Date(Date.now() - STUCK_MINUTES * 60 * 1000);
 		// tenant-scope-ok: platform-wide queue health for the admin ops dashboard —
 		// a per-tenant count would hide a stalled worker. Returns a bare count, no rows.
-		const [stuckRow] = await db
-			.select({ n: sql<number>`count(*)::int` })
-			.from(batchItems)
-			.where(and(
-				inArray(batchItems.status, ['queued', 'extracting']),
-				lt(batchItems.updatedAt, cutoff),
-			));
-		const stuck = stuckRow?.n ?? 0;
+		const stuck = await db.$count(batchItems, and(
+			inArray(batchItems.status, ['queued', 'extracting']),
+			lt(batchItems.updatedAt, cutoff),
+		));
 
 		// tenant-scope-ok: platform-wide liveness probe for the admin ops dashboard,
 		// same gate as the stuck-item count. Returns a timestamp, no tenant rows.

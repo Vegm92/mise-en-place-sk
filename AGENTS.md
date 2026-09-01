@@ -165,6 +165,7 @@ pnpm lint:action-authz      # every (app) form action that mutates a tenant tabl
 pnpm lint:no-sql-raw        # no sql.raw()
 pnpm lint:i18n              # no hardcoded user-facing strings
 pnpm lint:no-comments       # no inline code comments (explanations live in the per-subsystem `## Code notes` sections)
+pnpm lint:duplication       # duplication on new code (approximates the SonarCloud gate, needs jscpd on PATH)
 pnpm build          # app + worker build
 pnpm pr:overlap     # is another open PR already editing these files?
 ```

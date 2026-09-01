@@ -1,5 +1,5 @@
 import type { PgBoss } from 'pg-boss';
-import { and, eq, inArray, isNotNull, isNull, lt, ne, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, isNull, lt, ne, sql, type SQL } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant, runAsSystem } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
@@ -302,48 +302,67 @@ export async function runStockForecast(lineItems: EnrichedLineItem[], restaurant
 	return alerts;
 }
 
-export async function runCategorizationNudge(
-	invoiceId: number,
-	supplierId: number,
+async function fetchUncategorizedEligibleSupplier(
 	restaurantId: string,
-): Promise<Alert[]> {
+	supplierId: number,
+): Promise<{ tdb: ReturnType<typeof forTenant>; supplier: { name: string; category: string | null } } | null> {
 	const tdb = forTenant(restaurantId);
-
 	const [supplier] = await db
 		.select({ name: suppliers.name, category: suppliers.category })
 		.from(suppliers)
 		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
 		.limit(1);
-	if (!supplier) return [];
-	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
+	if (!supplier) return null;
+	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return null;
+	return { tdb, supplier };
+}
 
-	const [countRow] = await db
-		.select({ cnt: sql<number>`COUNT(*)::int` })
-		.from(invoices)
-		.where(tdb.scope(invoices.restaurantId, and(
-			eq(invoices.supplierId, supplierId),
-			isNull(invoices.deletedAt),
-		)));
-	if ((countRow?.cnt ?? 0) > 1) return [];
-
-	const existing = await db
+function notificationsForType(
+	tdb: ReturnType<typeof forTenant>,
+	notificationType: string,
+	...extra: (SQL | undefined)[]
+) {
+	return db
 		.select({ payload: systemNotifications.payload })
 		.from(systemNotifications)
 		.where(and(
 			tdb.scope(systemNotifications.restaurantId),
-			eq(systemNotifications.notificationType, 'supplier_uncategorized'),
+			eq(systemNotifications.notificationType, notificationType),
+			...extra,
 		));
-	for (const row of existing) {
-		if ((row.payload as { supplierId?: number } | null)?.supplierId === supplierId) return [];
-	}
+}
 
-	const uncategorizedVars = { supplier: supplier.name };
+async function hasExistingNotificationForSupplier(
+	tdb: ReturnType<typeof forTenant>,
+	notificationType: string,
+	supplierId: number,
+): Promise<boolean> {
+	const existing = await notificationsForType(tdb, notificationType);
+	return existing.some((row) => (row.payload as { supplierId?: number } | null)?.supplierId === supplierId);
+}
+
+export async function runCategorizationNudge(
+	invoiceId: number,
+	supplierId: number,
+	restaurantId: string,
+): Promise<Alert[]> {
+	const found = await fetchUncategorizedEligibleSupplier(restaurantId, supplierId);
+	if (!found) return [];
+	const cnt = await db.$count(invoices, found.tdb.scope(invoices.restaurantId, and(
+		eq(invoices.supplierId, supplierId),
+		isNull(invoices.deletedAt),
+	)));
+	if (cnt > 1) return [];
+
+	if (await hasExistingNotificationForSupplier(found.tdb, 'supplier_uncategorized', supplierId)) return [];
+
+	const uncategorizedVars = { supplier: found.supplier.name };
 	return [{
 		notificationType: 'supplier_uncategorized',
 		message: renderTemplate('es', 'notif.msg.uncategorized', uncategorizedVars),
 		payload: {
 			supplierId,
-			supplierName: supplier.name,
+			supplierName: found.supplier.name,
 			messageKey: 'notif.msg.uncategorized',
 			messageVars: uncategorizedVars,
 		},
@@ -393,16 +412,9 @@ export async function runCategorySuggestion(
 	restaurantId: string,
 	proposedCategory: string,
 ): Promise<Alert[]> {
-	const tdb = forTenant(restaurantId);
-
-	const [supplier] = await db
-		.select({ name: suppliers.name, category: suppliers.category })
-		.from(suppliers)
-		.where(tdb.scope(suppliers.restaurantId, eq(suppliers.id, supplierId)))
-		.limit(1);
-	if (!supplier) return [];
-	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
-
+	const found = await fetchUncategorizedEligibleSupplier(restaurantId, supplierId);
+	if (!found) return [];
+	const { tdb, supplier } = found;
 	const fromExtraction = Boolean(proposedCategory)
 		&& proposedCategory !== UNCATEGORIZED_CATEGORY
 		&& VALID_CATEGORIES.includes(proposedCategory);
@@ -411,16 +423,7 @@ export async function runCategorySuggestion(
 		: await dominantSupplierLineCategory(supplierId, restaurantId);
 	if (!category) return [];
 
-	const existing = await db
-		.select({ payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(and(
-			tdb.scope(systemNotifications.restaurantId),
-			eq(systemNotifications.notificationType, 'supplier_category_suggested'),
-		));
-	for (const row of existing) {
-		if ((row.payload as { supplierId?: number } | null)?.supplierId === supplierId) return [];
-	}
+	if (await hasExistingNotificationForSupplier(tdb, 'supplier_category_suggested', supplierId)) return [];
 
 	await db
 		.update(systemNotifications)
@@ -514,14 +517,10 @@ async function monthlyCategorySpend(
 
 async function sentOveragesThisMonth(tdb: ReturnType<typeof forTenant>): Promise<Set<string>> {
 	const monthPrefix = new Date().toISOString().slice(0, 7);
-	const rows = await db
-		.select({ payload: systemNotifications.payload })
-		.from(systemNotifications)
-		.where(and(
-			tdb.scope(systemNotifications.restaurantId),
-			eq(systemNotifications.notificationType, 'budget_overage'),
-			sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`
-		));
+	const rows = await notificationsForType(
+		tdb, 'budget_overage',
+		sql`TO_CHAR(${systemNotifications.createdAt}, 'YYYY-MM') = ${monthPrefix}`,
+	);
 	const sent = new Set<string>();
 	for (const row of rows) {
 		const p = row.payload as { category?: string; level?: string } | null;
@@ -1059,26 +1058,26 @@ export async function sendOverdueReminder(data: OverdueReminderJobData): Promise
 	if (!(await isAlertEnabled(data.restaurantId, 'invoice_reminders'))) return false;
 
 	const tdb = forTenant(data.restaurantId);
-	const [row] = await db.select({
-		count: sql<number>`COUNT(*)::int`,
+	const tenantWhere = and(
+		isNull(invoices.deletedAt),
+		eq(invoices.reviewState, 'incidencia'),
+	);
+	const cnt = await db.$count(invoices, tdb.scope(invoices.restaurantId, tenantWhere));
+	if (cnt === 0) return false;
+
+	const [{ total: totalAmount }] = await db.select({
 		total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
 	})
 		.from(invoices)
-		.where(tdb.scope(invoices.restaurantId, and(
-			isNull(invoices.deletedAt),
-			eq(invoices.reviewState, 'incidencia'),
-		)));
-
-	const count = Number(row?.count ?? 0);
-	if (count === 0) return false;
+		.where(tdb.scope(invoices.restaurantId, tenantWhere));
 
 	if (!(await claimOnce(data.restaurantId, 'incidencia_digest_sent_day', data.day))) return false;
 
 	const email = await ownerEmail(data.restaurantId);
 	if (!email) return false;
 
-	const total = `${Number(row?.total ?? 0).toFixed(2)} €`;
-	await sendEmail(incidenciaDigestEmail(email, data.name, count, total));
+	const total = `${Number(totalAmount ?? 0).toFixed(2)} €`;
+	await sendEmail(incidenciaDigestEmail(email, data.name, cnt, total));
 	return true;
 }
 
