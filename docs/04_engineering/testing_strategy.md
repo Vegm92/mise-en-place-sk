@@ -14,7 +14,7 @@ missing. A change is "verified" when the relevant tests + the gates below pass.
 | Invariant sweeps | Vitest over source | one vocabulary per concept — entitlement policy per route, invoice status, supported upload types (see below) |
 | Migration sync | `pnpm db:check-sync` (`scripts/check-drizzle-sync.mjs`) | schema.ts vs committed migrations drift |
 | Build | `pnpm build` | app + worker bundles |
-| Coverage | v8 | ≥ 80% lines on 7 core modules (vite.config.ts) |
+| Coverage | v8 | ≥ 75% lines across `src/**/*.ts` (global), ≥ 80% on the 7 core modules (`vite.config.ts`) |
 | E2E-ish | manual via `.claude/skills/verify/SKILL.md` | local Postgres + Auth.js credentials login flow |
 | Browser sweep | `pnpm qa:sweep` (`scripts/qa-browser-sweep.mjs`) | headless Chromium pass over every route: load health, security headers, a11y, i18n key leakage, responsive, malformed route params — see [browser_qa_sweep.md](browser_qa_sweep.md) |
 
