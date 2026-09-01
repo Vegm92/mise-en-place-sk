@@ -60,6 +60,7 @@ export const invoices = pgTable('invoices', {
 	taxBreakdown:    text('tax_breakdown'),
 	status:          text('status').default('pending'),
 	reviewState:     text('review_state').notNull().default('revisado'),
+	incidenceKind:   text('incidence_kind'),
 	sourceFile:      text('source_file'),
 	confidence:      real('confidence'),
 	contentHash:     text('content_hash'),
@@ -89,7 +90,9 @@ export const invoices = pgTable('invoices', {
 		.where(sql`${t.contentHash} IS NOT NULL AND ${t.deletedAt} IS NULL`),
 	index('idx_invoices_rid_status').on(t.restaurantId, t.status),
 	index('idx_invoices_rid_review_state').on(t.restaurantId, t.reviewState),
+	index('idx_invoices_rid_incidence_kind').on(t.restaurantId, t.incidenceKind).where(sql`${t.incidenceKind} IS NOT NULL`),
 	index('idx_invoices_rid_created_at').on(t.restaurantId, t.createdAt),
+	check('invoices_incidence_kind_valid', sql`${t.incidenceKind} IS NULL OR ${t.incidenceKind} IN ('lectura','documento')`),
 ]);
 
 export const invoiceLineItems = pgTable('invoice_line_items', {
