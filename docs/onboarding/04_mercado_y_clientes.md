@@ -60,9 +60,13 @@ timeline
     2026 : Abril. RD 238/2026 entra en vigor
     2027 : Enero. VERI*FACTU obligatorio para sociedades
          : Julio. VERI*FACTU obligatorio para el resto, autónomos incluidos
-         : Octubre. Prevista la e-factura B2B para empresas de más de 8 M €
-    2028 : Octubre. Prevista la e-factura B2B para todas las pymes
+         : Octubre. Prevista (no confirmada) la e-factura B2B para empresas de más de 8 M €
+    2028 : Octubre. Prevista (no confirmada) la e-factura B2B para todas las pymes
 ```
+
+Las fechas de VERI\*FACTU son firmes (RDL 15/2025). Las de la e-factura B2B son
+una previsión: el reglamento técnico que las fija (RD 238/2026, art. 12) sigue
+sin publicarse, así que "2027" y "2028" pueden moverse.
 
 - **VERI\*FACTU**: obliga a usar un programa de facturación certificado e
   inalterable, con código QR. Afecta a lo que el restaurante **emite**.
@@ -143,7 +147,8 @@ Nada de esto está asignado; es para que veas dónde puede aterrizar tu rol:
 - **Investigación primaria**: hablar con hosteleros y validar la estimación de
   200–400 documentos al mes por local, que hoy es una cifra sectorial sin
   contrastar por nosotros.
-- **Contenido regulatorio**: las fechas de 2027–2028 se prestan a guías
+- **Contenido regulatorio**: el calendario 2027 de VERI\*FACTU (firme) y la
+  previsión 2027–2028 de la e-factura B2B (no confirmada) se prestan a guías
   prácticas ("qué te va a pedir la ley y cuándo") que atraen tráfico cualificado
   y no dependen de que el producto esté lanzado.
 - **Canal gestorías**: mapear despachos, entender qué necesitan recibir del
