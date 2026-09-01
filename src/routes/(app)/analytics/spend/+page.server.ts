@@ -17,8 +17,9 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		type KpisRow = { total_items_spend: string | null; total_line_items: number; unique_items: number; avg_invoice_items: number | null };
 		type ItemTrendRow = { item_key: string; month: string; avg_price: string };
 		type RangeCountRow = { total: string; in_range: string };
+		type MonthlySpendRow = { month: string; total: string };
 
-		const [topItems, categorySpend, kpisRows, itemTrendRows, rangeCountRows] = await Promise.all([
+		const [topItems, categorySpend, kpisRows, itemTrendRows, rangeCountRows, monthlySpendRows] = await Promise.all([
 			db.execute<TopItem>(sql`
 				SELECT
 					MAX(m.description)    AS description,
@@ -78,6 +79,21 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				FROM invoices i
 				WHERE i.restaurant_id = ${rid} AND i.deleted_at IS NULL
 			`),
+
+			db.execute<MonthlySpendRow>(sql`
+				SELECT
+					TO_CHAR(gs.month, 'YYYY-MM') AS month,
+					COALESCE(SUM(c.total_spend), 0) AS total
+				FROM generate_series(
+					DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months',
+					DATE_TRUNC('month', CURRENT_DATE),
+					INTERVAL '1 month'
+				) AS gs(month)
+				LEFT JOIN mv_category_monthly_spend c
+					ON c.restaurant_id = ${rid} AND c.month = TO_CHAR(gs.month, 'YYYY-MM')
+				GROUP BY gs.month
+				ORDER BY gs.month ASC
+			`),
 		]);
 
 		const itemTrendMap = new Map<string, number[]>();
@@ -119,8 +135,13 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 		const totalInvoices = Number(rangeCountRows[0]?.total ?? 0);
 		const invoicesInRange = Number(rangeCountRows[0]?.in_range ?? 0);
 
+		const monthly_spend = monthlySpendRows.map(row => ({
+			month: String(row.month),
+			total: moneyToNumber(row.total),
+		}));
+
 		return {
-			title: 'spend.pageTitle', top_items, category_spend, kpis,
+			title: 'spend.pageTitle', top_items, category_spend, kpis, monthly_spend,
 			has_invoices: totalInvoices > 0,
 			invoices_outside_range: Math.max(totalInvoices - invoicesInRange, 0),
 		};
