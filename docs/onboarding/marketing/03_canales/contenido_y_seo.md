@@ -13,9 +13,10 @@ hay.
 
 Tres razones específicas de este negocio:
 
-1. **La ley crea búsquedas con fecha.** Entre 2026 y 2028 decenas de miles de
-   hosteleros van a buscar qué les obliga la normativa. Ese tráfico existirá
-   tanto si el producto está lanzado como si no.
+1. **La ley crea búsquedas con fecha.** VERI\*FACTU en 2027 y la e-factura B2B
+   después, sin fecha firme todavía, van a hacer que decenas de miles de
+   hosteleros busquen qué les obliga la normativa. Ese tráfico existirá tanto
+   si el producto está lanzado como si no.
 2. **El sector está mal atendido en español.** Casi todo lo que hay sobre
    control de coste en hostelería está en inglés o escrito por consultoras.
 3. **No depende del lanzamiento.** Se puede construir audiencia mientras el

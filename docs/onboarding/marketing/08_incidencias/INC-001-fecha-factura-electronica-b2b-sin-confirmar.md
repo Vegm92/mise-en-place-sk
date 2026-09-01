@@ -43,13 +43,18 @@ credibilidad justo en el argumento que más la necesita.
 
 ## Qué hay que hacer
 
-- [ ] Cambiar "entre 2027 y 2028" por algo que no comprometa una fecha fija
+- [x] Cambiar "entre 2027 y 2028" por algo que no comprometa una fecha fija
       para la parte B2B — por ejemplo: "VERI\*FACTU ya tiene fecha (2027); la
       factura electrónica B2B está en camino, sin fecha cerrada todavía."
-- [ ] Revisar si `docs/PLAN_DE_NEGOCIO.md` cita una fuente para el "2028" y,
-      si es antigua, actualizarla.
+- [x] Revisar si `docs/02_product/plan_de_negocio.md` cita una fuente para el
+      "2028" y, si es antigua, actualizarla. (Cita RD 238/2026 y lo marca como
+      "previsto ... pendiente de orden ministerial"; se ha ajustado la frase
+      del resumen ejecutivo para no afirmar la fecha como firme.)
 - [ ] Si se decide una redacción permanente para esto, pasa a ser una MDR, no
       una incidencia.
+
+**Estado:** redacción corregida el 2026-09-01 (issue #563); pendiente
+convertir en MDR si se fija una redacción permanente.
 
 ## Fuentes
 
