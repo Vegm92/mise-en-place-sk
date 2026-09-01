@@ -19,18 +19,12 @@
  *    and wrong in the other, which is exactly what nobody notices in review.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { get } from 'svelte/store';
-import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { locale, t } from '../src/lib/i18n';
 import { translations } from '../src/lib/i18n-messages';
 import { TOUR_PAGES, TOUR_FEATURE_REQUIREMENT, tourPageAccessible } from '../src/lib/tour-gating';
 import { HELP_TIPS } from '../src/lib/help-content';
-
-await loadAllMessages();
-
-const ROOT = path.resolve(__dirname, '..');
-const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
+import { read } from './helpers/i18n-setup';
 
 const COACH = read('src/lib/components/mep/CoachMark.svelte');
 const SHELL = read('src/routes/(app)/+layout.svelte');
