@@ -161,9 +161,9 @@ These comments were deliberately left in the code because a tool reads them.
   helper directly) rather than casting `form.get(...) as string` — that cast
   bypasses validation, since `FormData.get()` genuinely returns `string |
   File | null` (issue #844; `docs/04_engineering/security_rules.md`).
-  `pnpm lint:form-get-cast` bans a new occurrence of that cast in
-  `+page.server.ts`, ratcheted against a recorded allowlist of the routes
-  not yet converted (`scripts/lint-invariants.mjs`'s `FORM_GET_CAST_ALLOWLIST`).
+  `pnpm lint:form-get-cast` bans any occurrence of that cast in
+  `+page.server.ts` (`scripts/lint-invariants.mjs`'s `FORM_GET_CAST_ALLOWLIST`
+  is now empty — every route is converted).
 
 ## Rate limiting
 
