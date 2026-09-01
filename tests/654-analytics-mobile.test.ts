@@ -24,6 +24,7 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf8');
 
 const SPEND_MOBILE = read('src/lib/components/mobile/MobileAnalyticsSpend.svelte');
+const SPEND_DESKTOP = read('src/routes/(app)/analytics/spend/+page.svelte');
 const PRICES_MOBILE = read('src/lib/components/mobile/MobileAnalyticsPrices.svelte');
 const PRICES_PAGE = read('src/routes/(app)/analytics/prices/+page.svelte');
 const EXTRACTION = read('src/routes/(app)/analytics/extraction/+page.svelte');
@@ -94,6 +95,35 @@ describe('analytics mobile parity (issue #654)', () => {
 			expect(EXTRACTION).toMatch(/data-label=\{\$t\('extract\.acc\.colInvoices'\)\}/);
 			expect(EXTRACTION).toMatch(/data-label=\{\$t\('extract\.acc\.colAutoConfirmed'\)\}/);
 			expect(EXTRACTION).toMatch(/data-label=\{\$t\('extract\.acc\.colAvgCorr'\)\}/);
+		});
+	});
+
+	describe('DonutChart is the single source of the spend donut markup (issue #882)', () => {
+		it('the desktop spend page imports and uses DonutChart for both donuts', () => {
+			expect(SPEND_DESKTOP).toMatch(/import DonutChart from '\$lib\/components\/mep\/DonutChart\.svelte'/);
+			expect(SPEND_DESKTOP.match(/<DonutChart\b/g) ?? []).toHaveLength(2);
+		});
+
+		it('the mobile spend component imports and uses DonutChart for both donuts', () => {
+			expect(SPEND_MOBILE).toMatch(/import DonutChart from '\$lib\/components\/mep\/DonutChart\.svelte'/);
+			expect(SPEND_MOBILE.match(/<DonutChart\b/g) ?? []).toHaveLength(2);
+		});
+
+		it('neither page hand-draws its own donut circle with stroke-dasharray any more', () => {
+			expect(SPEND_DESKTOP).not.toMatch(/stroke-dasharray/);
+			expect(SPEND_MOBILE).not.toMatch(/stroke-dasharray/);
+		});
+
+		it('both pages render a yearly spend-by-volume chart via TrendLineChart', () => {
+			expect(SPEND_DESKTOP).toMatch(/import TrendLineChart from '\$lib\/components\/mep\/TrendLineChart\.svelte'/);
+			expect(SPEND_DESKTOP).toContain("$t('spend.yearly.title')");
+			expect(SPEND_MOBILE).toMatch(/import TrendLineChart from '\$lib\/components\/mep\/TrendLineChart\.svelte'/);
+			expect(SPEND_MOBILE).toContain("$t('spend.yearly.title')");
+		});
+
+		it('the category panel renders a donut, not a category-colored bar fill', () => {
+			expect(SPEND_DESKTOP).not.toMatch(/background:\{categoryColor\(cat\.category\)\};border-radius:4px/);
+			expect(SPEND_MOBILE).not.toMatch(/background: \{categoryColor\(cat\.category\)\}; border-radius: 3px/);
 		});
 	});
 });
