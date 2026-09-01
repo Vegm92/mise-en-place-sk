@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { VALID_CATEGORIES } from '$lib/constants';
   import { categoryColor, categoryTint, seriesColor, SERIES_OTHER } from '$lib/colors';
   import { fmtEur, fmtDate, fmtDateShort, fmtMonthShort, initials } from '$lib/formatters';
@@ -127,7 +127,7 @@
     const restSpend = rest.reduce((a, p) => a + p.spend, 0);
 
     const entries = top.map((p, i) => ({
-      label: p.description ?? 'â€”', spend: p.spend, color: seriesColor(i),
+      label: p.description ?? '—', spend: p.spend, color: seriesColor(i),
       unit: p.unit, totalQty: p.totalQty, avgPrice: p.avgPrice, lastDate: p.lastDate,
     }));
     if (restSpend > 0) {
@@ -166,12 +166,12 @@
 
     <div style="padding:18px 24px 0;flex-shrink:0;">
 
-      <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mep-fg-3);margin-bottom:12px;">
-        <a href="/suppliers" style="color:var(--mep-fg-3);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+      <div class="flex items-center gap-1.5 text-xs text-fg-3 mb-3">
+        <a href="/suppliers" class="text-fg-3 no-underline inline-flex items-center gap-1">
           <ArrowLeft size={12} /> {$t('nav.suppliers')}
         </a>
         <ChevronRight size={11} />
-        <span style="color:var(--mep-fg-2);">{s.name}</span>
+        <span class="text-fg-2">{s.name}</span>
       </div>
 
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
@@ -182,8 +182,8 @@
           font-size:16px;font-weight:700;
         ">{initials(s.name)}</div>
         <div style="flex:1;min-width:0;">
-          <h1 style="margin:0 0 4px;font-size:22px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;">{s.name}</h1>
-          <div style="display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--mep-fg-3);">
+          <h1 class="mb-1 text-[22px] font-semibold text-fg tracking-[-0.4px]">{s.name}</h1>
+          <div class="flex items-center gap-3 text-[12.5px] text-fg-3">
             {#if s.category}
               <span style="display:inline-flex;align-items:center;gap:5px;">
                 <span class="swatch" style="background:{color};"></span>
@@ -193,7 +193,7 @@
               <span style="font-style:italic;">{$t('sup.noCategory')}</span>
             {/if}
             {#if s.contactEmail}
-              <span>Â· {s.contactEmail}</span>
+              <span>· {s.contactEmail}</span>
             {/if}
           </div>
         </div>
@@ -209,7 +209,7 @@
               onclick={() => { editing = true; confirmDelete = false; }}>
               <Pencil size={13} /> {$t('action.edit')}
             </button>
-            <button class="btn" style="font-size:12.5px;color:var(--mep-neg);border-color:var(--mep-neg);display:inline-flex;align-items:center;gap:6px;"
+            <button class="btn text-[12.5px] text-neg border-neg inline-flex items-center gap-1.5"
               onclick={() => { confirmDelete = !confirmDelete; }}>
               <Trash2 size={13} /> {$t('action.delete')}
             </button>
@@ -218,14 +218,14 @@
       </div>
 
       {#if confirmDelete}
-        <div class="card" style="padding:14px;border-left:3px solid var(--mep-neg);margin-bottom:14px;">
-          <p class="body-strong" style="color:var(--mep-neg);margin-bottom:8px;">{$t('sup.confirmDelete.title')}</p>
-          <p class="body" style="color:var(--mep-fg-3);font-size:12px;margin-bottom:12px;">
+        <div class="card p-3.5 border-l-[3px] border-l-neg mb-3.5">
+          <p class="body-strong text-neg mb-2">{$t('sup.confirmDelete.title')}</p>
+          <p class="body text-fg-3 text-xs mb-3">
             {$tp('sup.confirmDelete.body', invoices.length)}
           </p>
           <div style="display:flex;gap:8px;">
             <form method="post" action="?/delete">
-              <button type="submit" class="btn" style="background:var(--mep-neg);color:var(--mep-neg-fg);border-color:var(--mep-neg);height:30px;font-size:12px;">
+              <button type="submit" class="btn bg-neg text-neg-fg border-neg h-[30px] text-xs">
                 {$t('sup.confirmDelete.yes')}
               </button>
             </form>
@@ -290,7 +290,7 @@
         </div>
       {/if}
 
-      <div style="display:flex;gap:0;border-bottom:1px solid var(--mep-divider);">
+      <div class="flex gap-0 border-b border-divider">
         {#each [
           { id: 'resumen',      label: $t('sup.tab.resumen') },
           { id: 'albaranes',     label: $t('nav.invoices'),    count: invoices.length },
@@ -298,19 +298,11 @@
           { id: 'conversiones', label: $t('sup.tab.conversiones') },
         ] as tabItem}
           <button
-            style="
-              border:0;background:transparent;cursor:pointer;font-family:inherit;
-              padding:10px 16px;margin-bottom:-1px;
-              border-bottom:{tab === tabItem.id ? '2px solid var(--mep-acc)' : '2px solid transparent'};
-              font-size:13px;font-weight:{tab === tabItem.id ? '600' : '500'};
-              color:{tab === tabItem.id ? 'var(--mep-fg)' : 'var(--mep-fg-3)'};
-              display:inline-flex;align-items:center;gap:6px;
-            "
+            class="border-0 bg-transparent cursor-pointer font-[inherit] px-4 py-2.5 -mb-px text-[13px] inline-flex items-center gap-1.5 {tab === tabItem.id ? 'border-b-2 border-b-acc font-semibold text-fg' : 'border-b-2 border-b-transparent font-medium text-fg-3'}"
             onclick={() => tab = tabItem.id as typeof tab}>
             {tabItem.label}
             {#if tabItem.count !== undefined}
-              <span style="font-size:11px;font-weight:500;padding:1px 6px;border-radius:999px;
-                background:var(--mep-surface-2);color:var(--mep-fg-3);">{tabItem.count}</span>
+              <span class="text-[11px] font-medium px-1.5 py-px rounded-full bg-surface-2 text-fg-3">{tabItem.count}</span>
             {/if}
           </button>
         {/each}
@@ -328,12 +320,12 @@
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
                 <div>
                   <div class="subtitle">{$t('sup.monthlySpend')}</div>
-                  <div style="font-size:12px;color:var(--mep-fg-3);margin-top:2px;">{$t('sup.last7months')}</div>
+                  <div class="text-xs text-fg-3 mt-0.5">{$t('sup.last7months')}</div>
                 </div>
                 {#if chartAvg > 0}
                   <div style="display:flex;align-items:baseline;gap:8px;">
-                    <span class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;">{fmtEur(chartAvg, $locale)}</span>
-                    <span style="font-size:11.5px;color:var(--mep-fg-3);">{$t('sup.monthlyAvg')}</span>
+                    <span class="num text-xl font-semibold text-fg tracking-[-0.4px]">{fmtEur(chartAvg, $locale)}</span>
+                    <span class="text-[11.5px] text-fg-3">{$t('sup.monthlyAvg')}</span>
                   </div>
                 {/if}
               </div>
@@ -371,26 +363,24 @@
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{$t('sup.avgInvoice')}</div>
-                <div class="num" style="font-size:20px;font-weight:600;color:var(--mep-fg);letter-spacing:-0.4px;line-height:1.1;">
+                <div class="num text-xl font-semibold text-fg tracking-[-0.4px] leading-[1.1]">
                   {fmtEur(avgInvoice, $locale)}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$tp('misc.invoice', invoices.length)}</div>
+                <div class="text-[11.5px] text-fg-3 mt-1.5">{$tp('misc.invoice', invoices.length)}</div>
               </div>
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{$t('sup.openInvoices')}</div>
-                <div class="num" style="font-size:20px;font-weight:600;
-                  color:{openCount > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">
+                <div class="num text-xl font-semibold tracking-[-0.4px] leading-[1.1] {openCount > 0 ? 'text-warn' : 'text-fg'}">
                   {openCount}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{paidCount} {$t('sup.paid')}</div>
+                <div class="text-[11.5px] text-fg-3 mt-1.5">{paidCount} {$t('sup.paid')}</div>
               </div>
               <div class="card" style="padding:14px;">
                 <div class="label" style="margin-bottom:6px;">{$t('sup.pendingPayment')}</div>
-                <div class="num" style="font-size:20px;font-weight:600;
-                  color:{pendingAmt > 0 ? 'var(--mep-warn)' : 'var(--mep-fg)'};letter-spacing:-0.4px;line-height:1.1;">
+                <div class="num text-xl font-semibold tracking-[-0.4px] leading-[1.1] {pendingAmt > 0 ? 'text-warn' : 'text-fg'}">
                   {fmtEur(pendingAmt, $locale)}
                 </div>
-                <div style="font-size:11.5px;color:var(--mep-fg-3);margin-top:6px;">{$t('sup.openAmount')}</div>
+                <div class="text-[11.5px] text-fg-3 mt-1.5">{$t('sup.openAmount')}</div>
               </div>
             </div>
 
@@ -399,7 +389,7 @@
                 <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
                   <div>
                     <div class="subtitle" style="margin-bottom:2px;">{$t('sup.reliability')}</div>
-                    <div style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.reliability.sub')}</div>
+                    <div class="text-[11px] text-fg-3">{$t('sup.reliability.sub')}</div>
                   </div>
                   <div style="flex:1;"></div>
                   <div style="
@@ -408,42 +398,42 @@
                     display:flex;align-items:center;justify-content:center;flex-direction:column;
                   ">
                     <span style="font-size:15px;font-weight:700;color:{getScoreColor(m.score)};line-height:1;">{m.score}</span>
-                    <span style="font-size:11px;color:var(--mep-fg-3);">/100</span>
+                    <span class="text-[11px] text-fg-3">/100</span>
                   </div>
                   <span style="font-size:12px;font-weight:600;color:{getScoreColor(m.score)};">{$t(scoreLabelKey(m.score))}</span>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
-                  <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
+                  <div class="p-2.5 bg-surface-2 rounded-lg">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.prices')}</span>
                       <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.priceStabilityScore * 3)};">{m.priceStabilityScore}/33</span>
                     </div>
-                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">
+                    <p class="text-[11px] text-fg-3 m-0">
                       {#if m.priceStabilityCv !== null}CV: {m.priceStabilityCv.toFixed(1)}%{:else}{$t('sup.score.noData')}{/if}
                     </p>
                   </div>
-                  <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
+                  <div class="p-2.5 bg-surface-2 rounded-lg">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.regularity')}</span>
                       <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.frequencyScore * 3)};">{m.frequencyScore}/33</span>
                     </div>
-                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.historical')}</p>
+                    <p class="text-[11px] text-fg-3 m-0">{$t('sup.score.historical')}</p>
                   </div>
-                  <div style="padding:10px;background:var(--mep-surface-2);border-radius:8px;">
+                  <div class="p-2.5 bg-surface-2 rounded-lg">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                       <span class="label">{$t('sup.score.punctuality')}</span>
                       <span style="font-size:12px;font-weight:700;color:{getScoreColor(m.timelinessScore * 2.9)};">{m.timelinessScore}/34</span>
                     </div>
-                    <p style="font-size:11px;color:var(--mep-fg-3);margin:0;">{$t('sup.score.timeliness')}</p>
+                    <p class="text-[11px] text-fg-3 m-0">{$t('sup.score.timeliness')}</p>
                   </div>
                 </div>
               </div>
             {:else if invoices.length < 3}
               <div class="card" style="padding:16px;display:flex;align-items:center;gap:10px;">
-                <span style="font-size:20px;opacity:0.4;">ðŸ“Š</span>
+                <span style="font-size:20px;opacity:0.4;">📊</span>
                 <div>
-                  <p class="body-strong" style="color:var(--mep-fg-2);">{$t('sup.insufficient')}</p>
-                  <p style="font-size:12px;color:var(--mep-fg-3);">{$t('sup.insufficient.desc')}</p>
+                  <p class="body-strong text-fg-2">{$t('sup.insufficient')}</p>
+                  <p class="text-xs text-fg-3">{$t('sup.insufficient.desc')}</p>
                 </div>
               </div>
             {/if}
@@ -455,7 +445,7 @@
             <div class="card" style="padding:16px;">
               <div class="subtitle" style="margin-bottom:10px;">{$t('sup.info')}</div>
               {#if !s.contactEmail && !s.contactPhone && !s.cif && !s.address && !s.deliveryDays && !s.paymentTerms && !s.notes && !s.alias}
-                <p style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{$t('sup.noContact')}</p>
+                <p class="text-[12.5px] text-fg-3 italic">{$t('sup.noContact')}</p>
                 <button class="btn btn-secondary" style="height:28px;font-size:12px;margin-top:8px;"
                   onclick={() => { editing = true; confirmDelete = false; }}>
                   <Pencil size={11} /> {$t('sup.addData')}
@@ -463,46 +453,46 @@
               {:else}
                 <div style="display:flex;flex-direction:column;gap:10px;">
                   {#if s.contactEmail}
-                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
-                      <Mail size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                      <a href="mailto:{s.contactEmail}" style="color:var(--mep-fg-2);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{s.contactEmail}</a>
+                    <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
+                      <Mail size={14} class="text-fg-3 shrink-0" />
+                      <a href="mailto:{s.contactEmail}" class="text-fg-2 no-underline overflow-hidden text-ellipsis whitespace-nowrap">{s.contactEmail}</a>
                     </div>
                   {/if}
                   {#if s.contactPhone}
-                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
-                      <Phone size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
-                      <a href="tel:{s.contactPhone}" style="color:var(--mep-fg-2);text-decoration:none;">{s.contactPhone}</a>
+                    <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
+                      <Phone size={14} class="text-fg-3 shrink-0" />
+                      <a href="tel:{s.contactPhone}" class="text-fg-2 no-underline">{s.contactPhone}</a>
                     </div>
                   {/if}
                   {#if s.cif}
-                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
-                      <CreditCard size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                    <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
+                      <CreditCard size={14} class="text-fg-3 shrink-0" />
                       <span>{$t('sup.field.cif')}: {s.cif}</span>
                     </div>
                   {/if}
                   {#if s.address}
-                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
-                      <MapPin size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                    <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
+                      <MapPin size={14} class="text-fg-3 shrink-0" />
                       <span>{s.address}</span>
                     </div>
                   {/if}
                   {#if s.deliveryDays}
-                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
-                      <Truck size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                    <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
+                      <Truck size={14} class="text-fg-3 shrink-0" />
                       <span>{$t('sup.deliveryPrefix')}: {s.deliveryDays}</span>
                     </div>
                   {/if}
                   {#if s.paymentTerms}
-                    <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--mep-fg-2);">
-                      <CreditCard size={14} style="color:var(--mep-fg-3);flex-shrink:0;" />
+                    <div class="flex items-center gap-2.5 text-[12.5px] text-fg-2">
+                      <CreditCard size={14} class="text-fg-3 shrink-0" />
                       <span>{$t('sup.paymentPrefix')}: {s.paymentTerms}</span>
                     </div>
                   {/if}
                   {#if s.alias}
-                    <div style="font-size:12.5px;color:var(--mep-fg-3);">{$t('sup.aliasPrefix')}: {s.alias}</div>
+                    <div class="text-[12.5px] text-fg-3">{$t('sup.aliasPrefix')}: {s.alias}</div>
                   {/if}
                   {#if s.notes}
-                    <div style="font-size:12.5px;color:var(--mep-fg-3);font-style:italic;">{s.notes}</div>
+                    <div class="text-[12.5px] text-fg-3 italic">{s.notes}</div>
                   {/if}
                 </div>
               {/if}
@@ -512,7 +502,7 @@
               <div style="padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between;">
                 <div class="subtitle">{$t('dash.invoices')}</div>
                 {#if invoices.length > 5}
-                  <button style="font-size:12.5px;color:var(--mep-acc);font-weight:500;background:none;border:0;cursor:pointer;padding:0;"
+                  <button class="text-[12.5px] text-acc font-medium bg-none border-0 cursor-pointer p-0"
                     onclick={() => tab = 'albaranes'}>
                     {$ti('sup.viewAll', { n: invoices.length })}
                   </button>
@@ -520,19 +510,18 @@
               </div>
               {#if !invoices.length}
                 <div style="padding:16px 16px 20px;text-align:center;">
-                  <p style="font-size:12.5px;color:var(--mep-fg-3);">{$t('sup.noInvoices')}</p>
+                  <p class="text-[12.5px] text-fg-3">{$t('sup.noInvoices')}</p>
                 </div>
               {:else}
                 {#each invoices.slice(0, 5) as inv (inv.id)}
-                  <a href="/invoice/{inv.id}" style="padding:10px 16px;display:flex;align-items:center;gap:10px;
-                    border-top:1px solid var(--mep-divider);text-decoration:none;color:inherit;">
+                  <a href="/invoice/{inv.id}" class="px-4 py-2.5 flex items-center gap-2.5 border-t border-divider no-underline text-inherit">
                     <div style="flex:1;min-width:0;">
-                      <div class="num" style="font-size:12.5px;font-weight:500;color:var(--mep-fg);">
-                        {inv.invoiceNumber ?? 'â€”'}
+                      <div class="num text-[12.5px] font-medium text-fg">
+                        {inv.invoiceNumber ?? '—'}
                       </div>
-                      <div style="font-size:11px;color:var(--mep-fg-3);">{fmtDateShort(inv.invoiceDate, $locale)}</div>
+                      <div class="text-[11px] text-fg-3">{fmtDateShort(inv.invoiceDate, $locale)}</div>
                     </div>
-                    <div class="num" style="font-size:13px;font-weight:500;color:var(--mep-fg);">
+                    <div class="num text-[13px] font-medium text-fg">
                       {fmtEur(inv.totalAmount ?? 0, $locale)}
                     </div>
                     <StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:1px 5px;" />
@@ -547,7 +536,7 @@
       {:else if tab === 'albaranes'}
         {#if !invoices.length}
           <div style="text-align:center;padding:48px 24px;">
-            <p style="font-size:13px;color:var(--mep-fg-3);">{$t('sup.noInvoices')}</p>
+            <p class="text-[13px] text-fg-3">{$t('sup.noInvoices')}</p>
           </div>
         {:else}
           <div class="card" style="padding:0;overflow:hidden;">
@@ -564,9 +553,9 @@
               <tbody>
                 {#each invoices as inv (inv.id)}
                   <tr class="row" onclick={() => location.replace(`/invoice/${inv.id}`)} style="cursor:pointer;">
-                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{inv.invoiceNumber ?? 'â€”'}</td>
+                    <td class="text-[12.5px] text-fg-2">{inv.invoiceNumber ?? '—'}</td>
                     <td style="font-size:12.5px;">{fmtDate(inv.invoiceDate, $locale)}</td>
-                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{fmtDate(inv.dueDate, $locale)}</td>
+                    <td class="text-[12.5px] text-fg-2">{fmtDate(inv.dueDate, $locale)}</td>
                     <td class="num" style="font-weight:500;">{fmtEur(inv.totalAmount ?? 0, $locale)}</td>
                     <td><StatusBadge status={invoiceStatus(inv)} style="font-size:11px;padding:2px 7px;" /></td>
                   </tr>
@@ -579,8 +568,8 @@
       {:else if tab === 'productos'}
         {#if products.length === 0}
           <div class="card" style="padding:24px;display:flex;align-items:center;gap:10px;">
-            <span style="font-size:22px;opacity:0.35;">ðŸ“¦</span>
-            <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.products.empty')}</p>
+            <span style="font-size:22px;opacity:0.35;">📦</span>
+            <p class="text-[12.5px] text-fg-3 m-0">{$t('sup.products.empty')}</p>
           </div>
         {:else}
           <div class="card" style="padding:16px;margin-bottom:14px;">
@@ -606,31 +595,30 @@
                 </svg>
                 <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
                   {#if hoveredSlice !== null && productDonut.slices[hoveredSlice]}
-                    <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{(productDonut.slices[hoveredSlice].pct * 100).toFixed(0)}%</span>
-                    <span style="font-size:11px;color:var(--mep-fg-3);max-width:100px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{productDonut.slices[hoveredSlice].label}</span>
+                    <span class="num text-[15px] font-semibold text-fg">{(productDonut.slices[hoveredSlice].pct * 100).toFixed(0)}%</span>
+                    <span class="text-[11px] text-fg-3 max-w-[100px] text-center overflow-hidden text-ellipsis whitespace-nowrap">{productDonut.slices[hoveredSlice].label}</span>
                   {:else}
-                    <span class="num" style="font-size:15px;font-weight:600;color:var(--mep-fg);">{fmtEur(productDonut.total, $locale)}</span>
-                    <span style="font-size:11px;color:var(--mep-fg-3);">{$t('sup.products.totalSpend')}</span>
+                    <span class="num text-[15px] font-semibold text-fg">{fmtEur(productDonut.total, $locale)}</span>
+                    <span class="text-[11px] text-fg-3">{$t('sup.products.totalSpend')}</span>
                   {/if}
                 </div>
               </div>
 
               <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;">
                 {#each productDonut.slices as slice, i}
-                  <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:6px;cursor:default;
-                    background:{hoveredSlice === i ? 'var(--mep-surface-2)' : 'transparent'};"
+                  <div class="flex items-center gap-2 px-1.5 py-1 rounded-md cursor-default {hoveredSlice === i ? 'bg-surface-2' : 'bg-transparent'}"
                     role="group" aria-label={slice.label}
                     onmouseenter={() => hoveredSlice = i} onmouseleave={() => hoveredSlice = null}>
                     <span style="width:9px;height:9px;border-radius:2px;background:{slice.color};flex-shrink:0;"></span>
-                    <span style="font-size:12px;color:var(--mep-fg-2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title={slice.label}>
+                    <span class="text-xs text-fg-2 flex-1 min-w-0 overflow-hidden text-ellipsis whitespace-nowrap" title={slice.label}>
                       {slice.label}
                     </span>
-                    <span class="num" style="font-size:11.5px;color:var(--mep-fg-3);flex-shrink:0;width:34px;text-align:right;">{(slice.pct * 100).toFixed(0)}%</span>
-                    <span class="num" style="font-size:12px;font-weight:500;color:var(--mep-fg);flex-shrink:0;width:80px;text-align:right;">{fmtEur(slice.spend, $locale)}</span>
+                    <span class="num text-[11.5px] text-fg-3 shrink-0 w-[34px] text-right">{(slice.pct * 100).toFixed(0)}%</span>
+                    <span class="num text-xs font-medium text-fg shrink-0 w-20 text-right">{fmtEur(slice.spend, $locale)}</span>
                   </div>
                   {#if slice.totalQty != null}
-                    <div class="sup-product-detail" class:is-visible={hoveredSlice === i}
-                      style="margin:-2px 0 2px 23px;font-size:11px;color:var(--mep-fg-3);">
+                    <div class="sup-product-detail text-[11px] text-fg-3" class:is-visible={hoveredSlice === i}
+                      style="margin-top:-2px;margin-right:0;margin-bottom:2px;margin-left:23px;">
                       {slice.totalQty.toFixed(2)} {slice.unit ?? ''} · {$t('sup.products.avgPrice')} {fmtEur(slice.avgPrice ?? 0, $locale)}{slice.lastDate ? ` · ${fmtDateShort(slice.lastDate, $locale)}` : ''}
                     </div>
                   {/if}
@@ -653,12 +641,12 @@
               <tbody>
                 {#each products as p (p.description + '|' + p.unit)}
                   <tr>
-                    <td style="font-size:12.5px;">{p.description ?? 'â€”'}</td>
-                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.unit ?? 'â€”'}</td>
-                    <td class="num" style="font-size:12.5px;">{p.avgPrice != null ? fmtEur(p.avgPrice, $locale) : 'â€”'}</td>
-                    <td class="num" style="font-size:12.5px;">{p.totalSpend != null ? fmtEur(p.totalSpend, $locale) : 'â€”'}</td>
-                    <td class="num" style="font-size:12.5px;">{p.totalQty != null ? p.totalQty.toFixed(2) : 'â€”'}</td>
-                    <td style="font-size:12.5px;color:var(--mep-fg-2);">{p.lastDate ? fmtDateShort(p.lastDate, $locale) : 'â€”'}</td>
+                    <td style="font-size:12.5px;">{p.description ?? '—'}</td>
+                    <td class="text-[12.5px] text-fg-2">{p.unit ?? '—'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.avgPrice != null ? fmtEur(p.avgPrice, $locale) : '—'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.totalSpend != null ? fmtEur(p.totalSpend, $locale) : '—'}</td>
+                    <td class="num" style="font-size:12.5px;">{p.totalQty != null ? p.totalQty.toFixed(2) : '—'}</td>
+                    <td class="text-[12.5px] text-fg-2">{p.lastDate ? fmtDateShort(p.lastDate, $locale) : '—'}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -685,14 +673,13 @@
                   {#each conversions as conv (conv.id)}
                     <tr>
                       <td style="font-size:12.5px;">{conv.ingredient}</td>
-                      <td style="font-size:12.5px;color:var(--mep-fg-2);">{conv.purchaseUnit}</td>
-                      <td style="font-size:12.5px;color:var(--mep-fg-2);">{conv.canonicalUnit}</td>
+                      <td class="text-[12.5px] text-fg-2">{conv.purchaseUnit}</td>
+                      <td class="text-[12.5px] text-fg-2">{conv.canonicalUnit}</td>
                       <td class="num" style="font-size:12.5px;">{conv.conversionFactor}</td>
                       <td>
                         <form method="post" action="?/deleteConversion" style="margin:0;">
                           <input type="hidden" name="conversion_id" value={conv.id} />
-                          <button type="submit" class="btn"
-                            style="height:26px;font-size:11px;color:var(--mep-neg);border-color:var(--mep-neg);padding:0 8px;">
+                          <button type="submit" class="btn h-[26px] text-[11px] text-neg border-neg px-2 py-0">
                             {$t('sup.conv.delete')}
                           </button>
                         </form>
@@ -704,8 +691,8 @@
             </div>
           {:else}
             <div class="card" style="padding:20px;display:flex;align-items:center;gap:10px;">
-              <span style="font-size:22px;opacity:0.35;">âš–ï¸</span>
-              <p style="font-size:12.5px;color:var(--mep-fg-3);margin:0;">{$t('sup.conv.empty')}</p>
+              <span style="font-size:22px;opacity:0.35;">⚖️</span>
+              <p class="text-[12.5px] text-fg-3 m-0">{$t('sup.conv.empty')}</p>
             </div>
           {/if}
 
@@ -764,4 +751,3 @@
     }
   }
 </style>
-
