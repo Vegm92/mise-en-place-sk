@@ -243,6 +243,7 @@
 
   async function doUpload() {
     if (!files.length || uploading || trialExpired) return;
+    if (!confirm($tp('upload.confirmExtract', files.length))) return;
     dismissError();
     if (exceedsUploadTotal(files)) {
       showError($ti('upload.err.totalTooLarge', { mb: MAX_TOTAL_MB }));

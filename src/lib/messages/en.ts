@@ -1055,6 +1055,8 @@ export default {
   'upload.extractData.zero':      'Extract data',
   'upload.extractData.one':       'Extract 1 invoice',
   'upload.extractData.other':     'Extract {n} invoices',
+  'upload.confirmExtract.one':    'This will use 1 document from your quota. Make sure it is the one you want to process before continuing.',
+  'upload.confirmExtract.other':  'This will use {n} documents from your quota. Make sure they are the ones you want to process before continuing.',
   'upload.offlineExpired.one':    '1 offline-saved invoice was discarded (expired after 7 days).',
   'upload.offlineExpired.other':  '{n} offline-saved invoices were discarded (expired after 7 days).',
   'upload.offlineDropped.one':    '1 invoice could not be sent after repeated attempts and was discarded.',
