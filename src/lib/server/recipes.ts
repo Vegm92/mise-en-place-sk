@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { products, recipeItems, recipes } from './schema';
 import {
@@ -639,11 +639,7 @@ export async function recipeParents(
 
 export async function countRecipes(rid: string): Promise<number> {
 	const tdb = forTenant(rid);
-	const rows = await db
-		.select({ n: sql<number>`count(*)` })
-		.from(recipes)
-		.where(tdb.scope(recipes.restaurantId, sql`${recipes.status} <> 'archived'`));
-	return Number(rows[0]?.n ?? 0);
+	return db.$count(recipes, tdb.scope(recipes.restaurantId, sql`${recipes.status} <> 'archived'`));
 }
 
 export async function linkableProducts(rid: string) {

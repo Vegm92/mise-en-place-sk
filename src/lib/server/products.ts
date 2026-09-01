@@ -3,7 +3,7 @@ import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import { db, forTenant } from './db';
 import type { BatchDb } from './batch';
 import * as schema from './schema';
-import { unitConversions, systemNotifications } from './schema';
+import { unitConversions, systemNotifications, invoiceLineItems, productAliases } from './schema';
 import { normalizeProductKey, canonicalizeUnit } from './normalize';
 import { categoryGuideBlock } from './category-guide';
 import { parseJsonResponse } from './llm-json';
@@ -774,15 +774,16 @@ export async function deleteProduct(
 	`);
 	if (existing.length === 0) return { ok: false, reason: 'not_found' };
 
-	const linkedLineItems = await database.execute<{ count: number }>(sql`
-		SELECT count(*)::int AS count FROM invoice_line_items
-		WHERE restaurant_id = ${restaurantId} AND product_id = ${productId}
-	`);
-	const linkedAliases = await database.execute<{ count: number }>(sql`
-		SELECT count(*)::int AS count FROM product_aliases
-		WHERE restaurant_id = ${restaurantId} AND product_id = ${productId}
-	`);
-	if (linkedLineItems[0].count > 0 || linkedAliases[0].count > 0) {
+	const tdb = forTenant(restaurantId);
+	const linkedLineItems = await database.$count(invoiceLineItems, tdb.scope(
+		invoiceLineItems.restaurantId,
+		eq(invoiceLineItems.productId, productId),
+	));
+	const linkedAliases = await database.$count(productAliases, tdb.scope(
+		productAliases.restaurantId,
+		eq(productAliases.productId, productId),
+	));
+	if (linkedLineItems > 0 || linkedAliases > 0) {
 		return { ok: false, reason: 'linked', suppliers: await getLinkedSuppliers(database, restaurantId, productId) };
 	}
 

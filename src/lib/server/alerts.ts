@@ -1,5 +1,5 @@
 import type { PgBoss } from 'pg-boss';
-import { and, eq, inArray, isNotNull, isNull, lt, ne, sql, type SQL } from 'drizzle-orm';
+import { and, count, eq, inArray, isNotNull, isNull, lt, ne, sql, type SQL } from 'drizzle-orm';
 import * as Sentry from '@sentry/sveltekit';
 import { db, forTenant, runAsSystem } from './db';
 import { invoiceLineItems, invoices, products, suppliers, stockLevels, categoryBudgets, settings, systemNotifications, userRestaurants } from './schema';
@@ -317,14 +317,11 @@ export async function runCategorizationNudge(
 	if (!supplier) return [];
 	if (supplier.category && supplier.category !== UNCATEGORIZED_CATEGORY) return [];
 
-	const [countRow] = await db
-		.select({ cnt: sql<number>`COUNT(*)::int` })
-		.from(invoices)
-		.where(tdb.scope(invoices.restaurantId, and(
-			eq(invoices.supplierId, supplierId),
-			isNull(invoices.deletedAt),
-		)));
-	if ((countRow?.cnt ?? 0) > 1) return [];
+	const cnt = await db.$count(invoices, tdb.scope(invoices.restaurantId, and(
+		eq(invoices.supplierId, supplierId),
+		isNull(invoices.deletedAt),
+	)));
+	if (cnt > 1) return [];
 
 	const existing = await db
 		.select({ payload: systemNotifications.payload })
@@ -1059,8 +1056,14 @@ export async function sendOverdueReminder(data: OverdueReminderJobData): Promise
 	if (!(await isAlertEnabled(data.restaurantId, 'invoice_reminders'))) return false;
 
 	const tdb = forTenant(data.restaurantId);
-	const [row] = await db.select({
-		count: sql<number>`COUNT(*)::int`,
+	const tenantFilter = tdb.scope(invoices.restaurantId, and(
+		isNull(invoices.deletedAt),
+		eq(invoices.reviewState, 'incidencia'),
+	));
+	const cnt = await db.$count(invoices, tenantFilter);
+	if (cnt === 0) return false;
+
+	const [{ total: totalAmount }] = await db.select({
 		total: sql<number>`COALESCE(SUM(${invoices.totalAmount}), 0)::float8`,
 	})
 		.from(invoices)
@@ -1069,16 +1072,13 @@ export async function sendOverdueReminder(data: OverdueReminderJobData): Promise
 			eq(invoices.reviewState, 'incidencia'),
 		)));
 
-	const count = Number(row?.count ?? 0);
-	if (count === 0) return false;
-
 	if (!(await claimOnce(data.restaurantId, 'incidencia_digest_sent_day', data.day))) return false;
 
 	const email = await ownerEmail(data.restaurantId);
 	if (!email) return false;
 
-	const total = `${Number(row?.total ?? 0).toFixed(2)} €`;
-	await sendEmail(incidenciaDigestEmail(email, data.name, count, total));
+	const total = `${Number(totalAmount ?? 0).toFixed(2)} €`;
+	await sendEmail(incidenciaDigestEmail(email, data.name, cnt, total));
 	return true;
 }
 

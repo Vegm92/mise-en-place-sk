@@ -1,4 +1,4 @@
-import { and, eq, gte, sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
+import { and, count, eq, gte, sql, TransactionRollbackError, type SQL } from 'drizzle-orm';
 import { db, forTenant } from './db';
 import { llmUsageLog, monthlyUsage, tenantLlmQuotas, usageEvents } from './schema';
 import { estimateCostUsd, type LLMUsage } from './llm-provider';
@@ -196,14 +196,10 @@ export async function checkExtractionQuota(restaurantId: string): Promise<QuotaR
 		monthStart.setUTCHours(0, 0, 0, 0);
 
 		if (quota.monthlyExtractions != null) {
-			const [row] = await db
-				.select({ count: sql<number>`count(*)::int` })
-				.from(llmUsageLog)
-				.where(and(
-					tdb.scope(llmUsageLog.restaurantId),
-					gte(llmUsageLog.createdAt, monthStart),
-				));
-			const used = row?.count ?? 0;
+			const used = await db.$count(llmUsageLog, and(
+				tdb.scope(llmUsageLog.restaurantId),
+				gte(llmUsageLog.createdAt, monthStart),
+			));
 			if (used >= quota.monthlyExtractions) {
 				return { allowed: false, reason: 'monthly_extraction_limit', limit: quota.monthlyExtractions, used };
 			}
