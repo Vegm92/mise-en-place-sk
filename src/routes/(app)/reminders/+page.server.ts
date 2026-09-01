@@ -17,6 +17,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				supplier_name:  suppliers.name,
 				invoice_number: invoices.invoiceNumber,
 				invoice_date:   invoices.invoiceDate,
+				incidence_kind: invoices.incidenceKind,
 				display_amount: sql<string>`COALESCE(${invoices.totalAmount}, 0)`,
 				created_at:     invoices.createdAt,
 			})

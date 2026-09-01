@@ -4,6 +4,7 @@
   import SectionCard from '$lib/components/mep/SectionCard.svelte';
   import NotificationItem from '$lib/components/mep/NotificationItem.svelte';
   import MobileAlerts from '$lib/components/mobile/MobileAlerts.svelte';
+  import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import Check from '@lucide/svelte/icons/check';
   import { groupNotifications, type Notif } from '$lib/notification-display';
 
@@ -129,7 +130,10 @@
             </div>
             <p class="num font-semibold text-right" style="font-size:13px;">{Math.round(r.display_amount)} EUR</p>
             <p class="body text-fg-3 text-right" style="font-size:12px;">{r.invoice_date ?? '—'}</p>
-            <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
+            <span class="flex items-center gap-1.5">
+              <span class="badge badge-overdue">{$t('inv.review.incidencia')}</span>
+              <IncidenceKindBadge kind={r.incidence_kind} />
+            </span>
             </a>
             <form method="post" action="?/markReviewed">
               <input type="hidden" name="invoiceId" value={r.id} />
