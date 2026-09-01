@@ -34,6 +34,7 @@
   import { t, ti, tp } from '$lib/i18n';
   import FlowSteps from '$lib/components/mep/FlowSteps.svelte';
   import FileTypeBadge from '$lib/components/FileTypeBadge.svelte';
+  import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
 
   type ErrorVars = Record<string, string | number>;
   type UploadFailure = { error?: string; errorVars?: ErrorVars };
@@ -97,6 +98,10 @@
   let canPickFolder = $state(true);
   const MAX_MB = MAX_UPLOAD_BYTES / (1024 * 1024);
   const MAX_TOTAL_MB = MAX_UPLOAD_TOTAL_BYTES / (1024 * 1024);
+
+  const SKIP_QUOTA_WARNING_KEY = 'mep-skip-quota-warning';
+  let showQuotaConfirm = $state(false);
+  let skipQuotaWarning = $state(false);
 
   let previewUrl = $state<string | null>(null);
   let previewFile = $state<File | null>(null);
@@ -241,8 +246,23 @@
     }
   }
 
-  async function doUpload() {
+  function onUploadClick() {
     if (!files.length || uploading || trialExpired) return;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem(SKIP_QUOTA_WARNING_KEY)) {
+      doUpload();
+      return;
+    }
+    showQuotaConfirm = true;
+  }
+
+  function confirmUpload() {
+    if (skipQuotaWarning && typeof localStorage !== 'undefined') {
+      localStorage.setItem(SKIP_QUOTA_WARNING_KEY, '1');
+    }
+    doUpload();
+  }
+
+  async function doUpload() {
     dismissError();
     if (exceedsUploadTotal(files)) {
       showError($ti('upload.err.totalTooLarge', { mb: MAX_TOTAL_MB }));
@@ -505,7 +525,7 @@
       class="btn btn-primary"
       style="width:100%;height:44px;justify-content:center;font-weight:500;gap:6px;font-size:14px;"
       disabled={files.length===0||uploading||trialExpired}
-      onclick={doUpload}
+      onclick={onUploadClick}
     >
       {#if uploading}
         <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
@@ -693,7 +713,7 @@
           class="btn btn-primary"
           style="width:100%;height:38px;justify-content:center;font-weight:500;gap:6px;"
           disabled={files.length === 0 || uploading || trialExpired}
-          onclick={doUpload}
+          onclick={onUploadClick}
         >
           {#if uploading}
             <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
@@ -745,6 +765,14 @@
   accept="image/*"
   capture="environment"
   onchange={onCameraCapture}
+/>
+
+<ConfirmDialog
+  bind:open={showQuotaConfirm}
+  bind:checkboxChecked={skipQuotaWarning}
+  message={$tp('upload.confirmExtract', files.length)}
+  checkboxLabel={$t('upload.confirmExtract.dontAskAgain')}
+  onconfirm={confirmUpload}
 />
 
 {#if previewUrl}
