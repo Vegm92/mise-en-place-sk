@@ -1,5 +1,7 @@
 import { redirect, error, fail } from '@sveltejs/kit';
+import * as v from 'valibot';
 import type { Actions, PageServerLoad } from './$types';
+import { parseForm } from '$lib/server/public-form-action';
 import { stripe, billingRestaurantId, countGroupLocations, createCheckoutSession, createPortalSession, getOrCreateCustomer, isAccessAllowed, isTierAvailable, ownedActiveSubscriptions, switchTier, StaleCustomerError, TIERS, type PlanTier } from '$lib/server/billing';
 import { db, forTenant } from '$lib/server/db';
 import { subscriptions, restaurants } from '$lib/server/schema';
@@ -71,6 +73,11 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 			})),
 	};
 };
+
+const TierForm = v.object({
+	tier: v.optional(v.pipe(v.string(), v.trim())),
+	idempotency_key: v.optional(v.string()),
+});
 
 async function getPortalOrBillingUrl(customerId: string | null | undefined, origin: string): Promise<string> {
 	if (customerId) return createPortalSession(customerId, `${origin}/billing`);
@@ -148,7 +155,8 @@ export const actions: Actions = {
 		const email = locals.user.email ?? '';
 
 		const formData = await request.formData();
-		const tierParam = (formData.get('tier') as string | null) ?? 'starter';
+		const parsedForm = parseForm(TierForm, formData);
+		const tierParam = (parsedForm.success ? parsedForm.output.tier : undefined) ?? 'starter';
 		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : 'starter') as PlanTier;
 
 		if (!isTierAvailable(tier)) {
@@ -181,7 +189,7 @@ export const actions: Actions = {
 			redirect(303, await getPortalOrBillingUrl(currentActive.stripeCustomerId, url.origin));
 		}
 
-		const idemKeyRaw = formData.get('idempotency_key');
+		const idemKeyRaw = parsedForm.success ? parsedForm.output.idempotency_key : undefined;
 		const idemKey = isValidKey(idemKeyRaw) ? idemKeyRaw : null;
 		if (idemKey && !(await claimRequest(idemKey, rid))) {
 			redirect(303, '/billing');
@@ -259,7 +267,8 @@ export const actions: Actions = {
 		const tdb = forTenant(rid);
 
 		const formData = await request.formData();
-		const tierParam = (formData.get('tier') as string | null) ?? '';
+		const parsedForm = parseForm(TierForm, formData);
+		const tierParam = (parsedForm.success ? parsedForm.output.tier : undefined) ?? '';
 		const tier = (tierParam in TIERS && tierParam !== 'trial' ? tierParam : null) as PlanTier | null;
 		if (!tier || !isTierAvailable(tier)) return fail(400, { error: 'billing.err.tierUnavailable' });
 

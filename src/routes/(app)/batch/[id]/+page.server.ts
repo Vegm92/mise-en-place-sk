@@ -1,5 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
+import * as v from 'valibot';
 import { handleLoad } from '$lib/server/load-guard';
+import { parseForm } from '$lib/server/public-form-action';
 import type { Actions, PageServerLoad } from './$types';
 import fs from 'fs';
 import path from 'path';
@@ -244,6 +246,15 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 	});
 };
 
+const ItemIdForm = v.object({
+	itemId: v.optional(v.pipe(v.string(), v.trim())),
+});
+
+function itemIdFrom(formData: FormData): string {
+	const parsed = parseForm(ItemIdForm, formData);
+	return (parsed.success ? parsed.output.itemId : undefined) ?? '';
+}
+
 async function settledRedirect(batchId: string): Promise<never> {
 	const items = await getBatchItems(batchId);
 	const confirmed = items.some(i => i.status === 'confirmed');
@@ -266,7 +277,7 @@ export const actions: Actions = {
 
 	retry: async ({ params, request, locals }) => {
 		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
+		const itemId = itemIdFrom(formData);
 		const items = await requireOwnedBatch(params.id, locals);
 		const item = items.find(i => i.id === itemId);
 		if (item) {
@@ -280,7 +291,7 @@ export const actions: Actions = {
 
 	save: async ({ params, request, locals }) => {
 		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
+		const itemId = itemIdFrom(formData);
 		const rid = locals.restaurantId!;
 
 		const items = await requireOwnedBatch(params.id, locals);
@@ -314,7 +325,7 @@ export const actions: Actions = {
 
 	discardItem: async ({ params, request, locals }) => {
 		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
+		const itemId = itemIdFrom(formData);
 		const items = await requireOwnedBatch(params.id, locals);
 		const item = items.find(i => i.id === itemId);
 		if (item) {
@@ -362,7 +373,7 @@ export const actions: Actions = {
 
 	remove: async ({ params, request, locals }) => {
 		const formData = await request.formData();
-		const itemId = (formData.get('itemId') as string) ?? '';
+		const itemId = itemIdFrom(formData);
 		const rid = locals.restaurantId!;
 		const items = await requireOwnedBatch(params.id, locals);
 		const item = items.find(i => i.id === itemId);

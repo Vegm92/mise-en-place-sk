@@ -22,12 +22,7 @@ const SCOPE_OK = new RegExp(`(?:${PROJECT_DIRECTIVES.join('|')}):`);
  * file here to silence a *new* cast — the allowlist is for the offenders
  * that predate this gate, not an escape hatch.
  */
-const FORM_GET_CAST_ALLOWLIST = new Set([
-	'src/routes/(app)/billing/+page.server.ts',
-	'src/routes/(app)/batch/[id]/+page.server.ts',
-	'src/routes/(admin)/admin/health/+page.server.ts',
-	'src/routes/(admin)/admin/dead-letters/+page.server.ts',
-]);
+const FORM_GET_CAST_ALLOWLIST = new Set([]);
 
 const GATES = {
 	'no-sql-raw': {
