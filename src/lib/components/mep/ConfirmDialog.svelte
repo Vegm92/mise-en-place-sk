@@ -57,7 +57,7 @@
       {/if}
       <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">{message}</p>
       {#if checkboxLabel}
-        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mep-fg-2);margin:-8px 0 20px;cursor:pointer;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mep-fg-2);margin:-8px 0 20px;cursor:pointer;">
           <input type="checkbox" bind:checked={checkboxChecked} />
           {checkboxLabel}
         </label>
