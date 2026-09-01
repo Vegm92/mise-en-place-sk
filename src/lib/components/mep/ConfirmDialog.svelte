@@ -8,6 +8,8 @@
     danger = false,
     confirmLabel = '',
     cancelLabel = '',
+    checkboxLabel = '',
+    checkboxChecked = $bindable(false),
     onconfirm,
     oncancel,
   }: {
@@ -16,6 +18,8 @@
     danger?: boolean;
     confirmLabel?: string;
     cancelLabel?: string;
+    checkboxLabel?: string;
+    checkboxChecked?: boolean;
     onconfirm?: () => void;
     oncancel?: () => void;
   } = $props();
@@ -52,6 +56,12 @@
         </div>
       {/if}
       <p style="font-size:13.5px;color:var(--mep-fg-2);line-height:1.6;margin:0 0 20px;">{message}</p>
+      {#if checkboxLabel}
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--mep-fg-2);margin:-8px 0 20px;cursor:pointer;">
+          <input type="checkbox" bind:checked={checkboxChecked} />
+          {checkboxLabel}
+        </label>
+      {/if}
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button type="button" class="btn btn-secondary" style="height:36px;font-size:13px;"
           onclick={handleCancel}>
