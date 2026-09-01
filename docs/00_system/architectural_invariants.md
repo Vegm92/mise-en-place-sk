@@ -164,7 +164,7 @@ plan and explicit human approval — it is never a silent convenience.
 2. `pnpm db:check-sync` — schema vs migrations.
 3. `pnpm test` — unit/integration (DB-backed suites need local Postgres).
 4. `pnpm lint:tenant-scope` + `pnpm lint:unscoped-query` — tenancy.
-5. `pnpm lint:no-sql-raw`, `pnpm lint:i18n`, `pnpm lint:no-comments`.
+5. `pnpm lint:no-sql-raw`, `pnpm lint:i18n`, `pnpm lint:no-comments`, `pnpm lint:duplication`.
 6. Confirm no new service/queue/table was added without considering the worker,
    migrations and this list.
 7. Confirm the affected feature spec (`docs/03_features/`) was updated.

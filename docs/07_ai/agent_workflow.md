@@ -70,7 +70,7 @@ Run the relevant gates (see `docs/04_engineering/testing_strategy.md`):
 pnpm check
 pnpm test                 # DB suites need local Postgres (DATABASE_TEST_URL)
 pnpm db:check-sync        # if schema touched
-pnpm lint:tenant-scope && pnpm lint:unscoped-query && pnpm lint:no-sql-raw && pnpm lint:i18n && pnpm lint:no-comments
+pnpm lint:tenant-scope && pnpm lint:unscoped-query && pnpm lint:no-sql-raw && pnpm lint:i18n && pnpm lint:no-comments && pnpm lint:duplication
 pnpm build
 pnpm pr:overlap           # no other open PR touches these files
 ```
