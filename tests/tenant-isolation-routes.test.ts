@@ -218,7 +218,7 @@ const runAction = (name: string, event: unknown) =>
 	(batchActions as Record<string, (e: never) => Promise<unknown>>)[name](event as never);
 
 /** The redirect requireOwnedBatch() itself throws, as opposed to any redirect. */
-const GUARD_LOCATION = '/?error=Session+not+found';
+const GUARD_LOCATION = '/?error=upload.err.sessionNotFound';
 
 const eventFor = (restaurantId: string) => ({
 	params: { id: 'batch-1' },
