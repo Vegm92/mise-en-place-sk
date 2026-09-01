@@ -246,10 +246,10 @@
     }
   }
 
-  function doUpload() {
+  function onUploadClick() {
     if (!files.length || uploading || trialExpired) return;
     if (typeof localStorage !== 'undefined' && localStorage.getItem(SKIP_QUOTA_WARNING_KEY)) {
-      runUpload();
+      doUpload();
       return;
     }
     showQuotaConfirm = true;
@@ -259,10 +259,10 @@
     if (skipQuotaWarning && typeof localStorage !== 'undefined') {
       localStorage.setItem(SKIP_QUOTA_WARNING_KEY, '1');
     }
-    runUpload();
+    doUpload();
   }
 
-  async function runUpload() {
+  async function doUpload() {
     dismissError();
     if (exceedsUploadTotal(files)) {
       showError($ti('upload.err.totalTooLarge', { mb: MAX_TOTAL_MB }));
@@ -525,7 +525,7 @@
       class="btn btn-primary"
       style="width:100%;height:44px;justify-content:center;font-weight:500;gap:6px;font-size:14px;"
       disabled={files.length===0||uploading||trialExpired}
-      onclick={doUpload}
+      onclick={onUploadClick}
     >
       {#if uploading}
         <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
@@ -713,7 +713,7 @@
           class="btn btn-primary"
           style="width:100%;height:38px;justify-content:center;font-weight:500;gap:6px;"
           disabled={files.length === 0 || uploading || trialExpired}
-          onclick={doUpload}
+          onclick={onUploadClick}
         >
           {#if uploading}
             <svg width="14" height="14" viewBox="0 0 16 16" style="animation:mepspin 1.1s linear infinite;flex-shrink:0;">
