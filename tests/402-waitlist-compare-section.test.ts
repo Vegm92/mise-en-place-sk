@@ -36,6 +36,8 @@ const COMPARE_KEYS = [
 	'waitlist.compare.with.3',
 ];
 
+import { assertSectionUsesTokens } from './helpers/extract-section';
+
 describe('waitlist.compare.* keys exist in both locales (issue #402)', () => {
 	for (const key of COMPARE_KEYS) {
 		it(`defines ${key} in es and en, non-empty`, () => {
@@ -83,20 +85,10 @@ describe('LandingPage.svelte renders the comparison section between pain and how
 	});
 
 	it('uses the established pos/neg design tokens, not new or hardcoded colors', () => {
-		const compareIdx = PAGE_SRC.indexOf("$t('waitlist.compareEyebrow')");
-		expect(compareIdx, 'waitlist.compareEyebrow not found').toBeGreaterThan(-1);
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', compareIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', compareIdx);
-		expect(sectionStart).toBeGreaterThan(-1);
-		expect(sectionEnd).toBeGreaterThan(-1);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
-		expect(section).toContain('var(--mep-neg)');
-		expect(section).toContain('var(--mep-neg-soft)');
-		expect(section).toContain('var(--mep-neg-fg)');
-		expect(section).toContain('var(--mep-pos)');
-		expect(section).toContain('var(--mep-pos-soft)');
-		expect(section).toContain('var(--mep-pos-fg)');
-		expect(section).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+		assertSectionUsesTokens(PAGE_SRC, "$t('waitlist.compareEyebrow')", [
+			'border-neg', 'bg-neg-soft', 'text-neg', 'bg-neg', 'text-neg-fg',
+			'border-pos', 'bg-pos-soft', 'text-pos', 'bg-pos', 'text-pos-fg',
+		]);
 	});
 
 	it('collapses to a single column on mobile via the shared .mep-compare-grid breakpoint rule', () => {
