@@ -7,9 +7,10 @@
   import ConfirmDialog from '$lib/components/mep/ConfirmDialog.svelte';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import Trash2 from '@lucide/svelte/icons/trash-2';
+  import { formatYoyPct } from '$lib/price-yoy';
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
-  const { product, linkedSuppliers, aliases, priceHistory, categories } = $derived(data);
+  const { product, linkedSuppliers, aliases, priceHistory, priceByYear, categories } = $derived(data);
 
   type BlockedSupplier = { supplierId: number; supplierName: string };
   const blockedSuppliers = $derived(
@@ -172,6 +173,36 @@
               <td class="body text-fg-3" style="font-size:12px;">{a.supplierName ?? '—'}</td>
               <td class="body text-fg-3" style="font-size:12px;">{a.supplierSku ?? '—'}</td>
               <td class="body text-fg-3" style="font-size:12px;">{a.source}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
+  </SectionCard>
+
+  <SectionCard title={$t('prod.yoy.title')} noPad>
+    {#if priceByYear.length === 0}
+      <p class="body text-center py-10">{$t('prod.yoy.empty')}</p>
+    {:else}
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>{$t('prod.yoy.year')}</th>
+            <th class="num">{$t('prod.yoy.price')}</th>
+            <th class="num">{$t('prod.yoy.prevPrice')}</th>
+            <th class="num">{$t('prod.yoy.change')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each priceByYear as row (row.year)}
+            <tr class="row">
+              <td>{row.year}</td>
+              <td class="num">{row.price != null ? fmt(row.price) : '—'}</td>
+              <td class="num">{row.prevPrice != null ? fmt(row.prevPrice) : '—'}</td>
+              <td class="num" class:text-neg={row.changePct != null && row.changePct > 0}
+                class:text-pos={row.changePct != null && row.changePct < 0}>
+                {formatYoyPct(row.changePct)}
+              </td>
             </tr>
           {/each}
         </tbody>
