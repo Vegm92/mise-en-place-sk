@@ -13,17 +13,13 @@
  * which `sessions.ts` expands server-side into the individual invoices.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { get } from 'svelte/store';
-import { locale, t, loadAllMessages } from '../src/lib/i18n';
+import { locale, t } from '../src/lib/i18n';
 import { isTouchFirstDevice, supportsDirectoryPicker } from '../src/lib/upload-capabilities';
 import { SUPPORTED_UPLOAD_EXTENSIONS, ZIP_UPLOAD_ACCEPT } from '../src/lib/upload-formats';
+import { read } from './helpers/i18n-setup';
 
-await loadAllMessages();
-
-const ROOT = path.resolve(__dirname, '..');
-const PANEL = readFileSync(path.join(ROOT, 'src/lib/components/UploadPanel.svelte'), 'utf8');
+const PANEL = read('src/lib/components/UploadPanel.svelte');
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 const IPAD_LEGACY = 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
