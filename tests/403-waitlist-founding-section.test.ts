@@ -34,6 +34,8 @@ const FOUNDING_KEYS = [
 	'waitlist.founding.2.body',
 ];
 
+import { assertSectionUsesTokens } from './helpers/extract-section';
+
 const BARE_PRICE = /\b(29|59|129)\b/;
 
 describe('waitlist.founding* keys exist in both locales (issue #403)', () => {
@@ -98,13 +100,7 @@ describe('LandingPage.svelte renders the founding section between pricing and FA
 	});
 
 	it('uses design-system tokens for color and radius, not hex literals', () => {
-		const startIdx = PAGE_SRC.indexOf("$t('waitlist.foundingEyebrow')");
-		const sectionStart = PAGE_SRC.lastIndexOf('<section', startIdx);
-		const sectionEnd = PAGE_SRC.indexOf('</section>', startIdx);
-		const section = PAGE_SRC.slice(sectionStart, sectionEnd);
-		expect(section).toContain('var(--mep-acc)');
-		expect(section).toContain('var(--mep-r-card)');
-		expect(section).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+		assertSectionUsesTokens(PAGE_SRC, "$t('waitlist.foundingEyebrow')", ['text-acc', 'rounded-card']);
 	});
 
 	it('reuses the shared .mep-grid-3 class, which already collapses to one column on mobile', () => {

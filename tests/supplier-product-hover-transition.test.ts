@@ -13,7 +13,9 @@ const mobileSupplierPage = readFileSync(
 describe('supplier products hover-reveal transition (issue #568)', () => {
 	it('the product legend detail row is always mounted and toggled via a visibility class, not #if-gated on hover', () => {
 		expect(desktopDetail).toContain('{#if slice.totalQty != null}');
-		expect(desktopDetail).toContain('class="sup-product-detail" class:is-visible={hoveredSlice === i}');
+		expect(desktopDetail).toContain(
+			'class="sup-product-detail text-[11px] text-fg-3" class:is-visible={hoveredSlice === i}',
+		);
 	});
 
 	it('the hidden state starts at opacity 0 and translateY(4px)', () => {
