@@ -217,6 +217,8 @@ export default {
   'inv.selected':        'seleccionadas',
   'inv.markReviewed':    'Marcar revisado',
   'inv.delete':          'Eliminar',
+  'inv.export.selected.button':  'Descargar seleccionados',
+  'inv.export.selected.tooltip': 'Descarga un .zip con los datos (Excel) y las imágenes/PDF originales de los albaranes seleccionados',
   'inv.confirm.reviewed':'¿Marcar {n} albarán(es) como revisado(s)?',
   'inv.confirm.delete':  '¿Eliminar {n} albarán(es)? Esta acción no se puede deshacer.',
   'inv.confirm.del1':    '¿Eliminar este albarán? Esta acción no se puede deshacer.',

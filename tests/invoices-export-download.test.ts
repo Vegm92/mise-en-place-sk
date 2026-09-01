@@ -14,6 +14,7 @@
  */
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import ExcelJS from 'exceljs';
+import { extractZip } from '../src/lib/server/zip-extract';
 import {
 	testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
@@ -29,6 +30,15 @@ vi.mock('$lib/server/db', async () => {
 	const { forTenant } = await import('../src/lib/server/tenant');
 	return { db: testDb, forTenant };
 });
+
+vi.mock('$lib/server/storage', () => ({
+	getStorage: () => ({
+		read: async (key: string) => {
+			if (key.includes('missing')) throw new Error('not found');
+			return Buffer.from(`stub-bytes:${key}`);
+		},
+	}),
+}));
 
 // Lets a single test lower EXPORT_ROW_CAP without inserting 10k fixture rows.
 // A getter (not a fixed value) so the override applies through Vite's
@@ -80,6 +90,24 @@ async function insertInvoices(n: number) {
 			(10 + g)::numeric, 'pending'
 		FROM generate_series(1, ${n}) AS g
 	`;
+}
+
+async function insertInvoice(rest: {
+	invoiceNumber?: string;
+	taxBase?: string;
+	totalAmount?: string;
+	sourceFile?: string;
+	restaurantId?: string;
+}): Promise<number> {
+	const targetRid = rest.restaurantId ?? rid;
+	const [row] = await testSql`
+		INSERT INTO invoices (restaurant_id, supplier_id, invoice_number, tax_base, total_amount, source_file, status)
+		VALUES (
+			${targetRid}, ${supplierId}, ${rest.invoiceNumber ?? null},
+			${rest.taxBase ?? null}, ${rest.totalAmount ?? null}, ${rest.sourceFile ?? null}, 'pending'
+		) RETURNING id
+	`;
+	return row.id;
 }
 
 async function runGet(qs: string) {
@@ -184,5 +212,89 @@ describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #493', () => {
 		const res = await runGet('');
 		const sheet = await parseSheet(res);
 		expect(sheet.rowCount).toBe(5); // header + 4 data rows, no marker
+	});
+});
+
+describe.skipIf(!hasDbEnv)('/invoices/export/download — issue #883 taxable base + selected download', () => {
+	it('includes the tax_base column right before total_amount, header "Base imponible (€)"', async () => {
+		await insertInvoice({ invoiceNumber: 'INV-883-1', taxBase: '82.50', totalAmount: '99.83' });
+
+		const sheet = await parseSheet(await runGet(''));
+		expect(sheet.getRow(1).getCell(6).value).toBe('Base imponible (€)');
+		expect(sheet.getRow(1).getCell(7).value).toBe('Importe (€)');
+		expect(sheet.getRow(2).getCell(6).value).toBeCloseTo(82.5);
+		expect(sheet.getRow(2).getCell(7).value).toBeCloseTo(99.83);
+	});
+
+	it('leaves the tax_base cell null-safe when the invoice has no tax_base', async () => {
+		await insertInvoice({ invoiceNumber: 'INV-883-2', totalAmount: '10.00' });
+
+		const sheet = await parseSheet(await runGet(''));
+		expect(sheet.getRow(2).getCell(6).value).toBeNull();
+	});
+
+	it('ids= returns only the selected invoices, replacing the status/supplier/date filters', async () => {
+		const a = await insertInvoice({ invoiceNumber: 'INV-883-A' });
+		await insertInvoice({ invoiceNumber: 'INV-883-B' });
+		const c = await insertInvoice({ invoiceNumber: 'INV-883-C' });
+
+		const sheet = await parseSheet(await runGet(`?ids=${a},${c}&status=incidencia`));
+		expect(sheet.rowCount).toBe(3);
+		const numbers = [sheet.getRow(2).getCell(3).value, sheet.getRow(3).getCell(3).value];
+		expect(numbers.sort()).toEqual(['INV-883-A', 'INV-883-C']);
+	});
+
+	it('silently excludes an id belonging to another tenant (ADR-001)', async () => {
+		const mine = await insertInvoice({ invoiceNumber: 'INV-883-MINE' });
+		const other = await createTestRestaurant('export883-other');
+		const [foreign] = await testSql`
+			INSERT INTO invoices (restaurant_id, invoice_number, status) VALUES (${other.id}, 'INV-883-FOREIGN', 'pending') RETURNING id
+		`;
+
+		const sheet = await parseSheet(await runGet(`?ids=${mine},${foreign.id}`));
+		expect(sheet.rowCount).toBe(2);
+		expect(sheet.getRow(2).getCell(3).value).toBe('INV-883-MINE');
+
+		await cleanupTestRestaurant(other.id);
+	});
+
+	it('rejects a non-numeric ids entry with 400', async () => {
+		expect(await statusOf(runGet('?ids=1,abc'))).toBe(400);
+	});
+
+	it('treats an empty ids= as no id filter at all (falls back to the normal listing)', async () => {
+		expect(await statusOf(runGet('?ids='))).toBe(200);
+	});
+
+	it('rejects more than 500 ids with 400', async () => {
+		const many = Array.from({ length: 501 }, (_, i) => i + 1).join(',');
+		expect(await statusOf(runGet(`?ids=${many}`))).toBe(400);
+	});
+
+	it('format=zip returns a zip containing facturas.xlsx and each invoice\'s source file', async () => {
+		const withFile = await insertInvoice({ invoiceNumber: 'INV-883-Z1', sourceFile: 'ns/inv-z1.pdf' });
+		const noFile = await insertInvoice({ invoiceNumber: 'INV-883-Z2' });
+
+		const res = await runGet(`?ids=${withFile},${noFile}&format=zip`);
+		expect(res.status).toBe(200);
+		expect(res.headers.get('Content-Type')).toBe('application/zip');
+		expect(res.headers.get('Content-Disposition')).toContain('facturas.zip');
+
+		const buf = Buffer.from(await res.arrayBuffer());
+		const { files, errors } = await extractZip(buf);
+		expect(errors).toEqual([]);
+		const names = files.map((f) => f.name).sort();
+		expect(names).toEqual(['INV-883-Z1.pdf', 'facturas.xlsx']);
+
+		const dataFile = files.find((f) => f.name === 'INV-883-Z1.pdf')!;
+		expect(dataFile.buffer.toString()).toBe('stub-bytes:ns/inv-z1.pdf');
+	});
+
+	it('skips an invoice whose stored file cannot be read', async () => {
+		const withMissingFile = await insertInvoice({ invoiceNumber: 'INV-883-Z3', sourceFile: 'ns/missing.pdf' });
+
+		const res = await runGet(`?ids=${withMissingFile}&format=zip`);
+		const { files } = await extractZip(Buffer.from(await res.arrayBuffer()));
+		expect(files.map((f) => f.name)).toEqual(['facturas.xlsx']);
 	});
 });
