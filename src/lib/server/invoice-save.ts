@@ -233,6 +233,15 @@ async function invoiceNumberTaken(
 	return dup.length > 0;
 }
 
+export async function findExistingFilenames(restaurantId: string): Promise<Set<string>> {
+	const tdb = forTenant(restaurantId);
+	const rows = await db
+		.select({ sourceFile: invoices.sourceFile })
+		.from(invoices)
+		.where(and(tdb.scope(invoices.restaurantId), isNull(invoices.deletedAt)));
+	return new Set(rows.map((r) => r.sourceFile?.toLowerCase()).filter((n): n is string => !!n));
+}
+
 async function findContentHashDuplicate(
 	tx: BatchDb,
 	tdb: TenantScope,

@@ -1056,6 +1056,7 @@ export default {
   'upload.confirmExtract.one':    'Vas a usar 1 documento de tu cuota. Comprueba que es el que quieres procesar antes de continuar.',
   'upload.confirmExtract.other':  'Vas a usar {n} documentos de tu cuota. Comprueba que son los que quieres procesar antes de continuar.',
   'upload.confirmExtract.dontAskAgain': 'No volver a mostrar este aviso',
+  'upload.possibleDuplicate':    'Ya existe un documento con este nombre',
   'upload.offlineExpired.one':    'Se descartó 1 albarán guardado sin conexión (caducado tras 7 días).',
   'upload.offlineExpired.other':  'Se descartaron {n} albaranes guardados sin conexión (caducados tras 7 días).',
   'upload.offlineDropped.one':    'No se pudo subir 1 albarán tras varios intentos y se ha descartado.',
