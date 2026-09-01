@@ -155,7 +155,10 @@ try {
 const newDuplicatedByFile = new Map();
 for (const clone of report.duplicates ?? []) {
 	for (const side of [clone.firstFile, clone.secondFile]) {
-		const file = side.name;
+		// jscpd reports paths with the OS-native separator; git diff (and our
+		// addedByFile keys) always uses "/", even on Windows — normalize so the
+		// lookup below actually matches instead of silently missing every hit.
+		const file = side.name.replaceAll('\\', '/');
 		const added = addedByFile.get(file);
 		if (!added) continue;
 		const hit = [];
