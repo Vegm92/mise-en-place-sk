@@ -735,6 +735,7 @@ export default {
   'upload.err.noValidFiles':   'No se ha recibido ningún archivo válido. Selecciona un PDF, JPG o PNG.',
   'upload.err.tooLarge':       'Estos archivos superan el límite de 20 MB: {names}',
   'upload.err.noRestaurant':   'No hay ningún restaurante activo.',
+  'upload.err.sessionNotFound': 'Sesión no encontrada. Vuelve a subir tus archivos.',
   'upload.err.rateLimited':    'Demasiadas subidas — espera un momento y vuelve a intentarlo.',
   'upload.err.saveFailed':     'No se pudo guardar el archivo. Inténtalo de nuevo.',
   'upload.err.quotaExhausted': 'Has alcanzado el límite de documentos procesados de tu plan este mes. Mejora tu plan para seguir subiendo documentos.',
