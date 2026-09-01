@@ -5,6 +5,7 @@
   import { uploadExtname } from '$lib/upload-formats';
   import MobileInvoiceDetail from '$lib/components/mobile/MobileInvoiceDetail.svelte';
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
 
   const PREVIEWABLE_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 
@@ -95,7 +96,10 @@
       <div class="card p-4" style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
           <span class="title" style="font-size:18px;">{invoice.invoice_number ?? `Invoice #${invoice.id}`}</span>
-          <StatusBadge status={invoice.review_state ?? 'revisado'} />
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <StatusBadge status={invoice.review_state ?? 'revisado'} />
+            <IncidenceKindBadge kind={invoice.incidence_kind} hint />
+          </div>
         </div>
 
         <div class="divider"></div>

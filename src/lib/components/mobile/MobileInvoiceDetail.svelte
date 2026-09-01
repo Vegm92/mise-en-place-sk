@@ -1,5 +1,6 @@
 <script lang="ts">
   import StatusBadge from '$lib/components/mep/StatusBadge.svelte';
+  import IncidenceKindBadge from '$lib/components/mep/IncidenceKindBadge.svelte';
   import ChevronLeft from '@lucide/svelte/icons/chevron-left';
   import MoreHorizontal from '@lucide/svelte/icons/more-horizontal';
   import FileText from '@lucide/svelte/icons/file-text';
@@ -34,6 +35,7 @@
     total_amount: number | null;
     display_amount?: number | null;
     review_state: string | null;
+    incidence_kind: string | null;
     invoice_date: Date | string | null;
     due_date: Date | string | null;
     source_file: string | null;
@@ -123,7 +125,10 @@
             {fmt(invoice.display_amount ?? invoice.total_amount)}
           </div>
         </div>
-        <StatusBadge status={invoice.review_state ?? 'revisado'} />
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+          <StatusBadge status={invoice.review_state ?? 'revisado'} />
+          <IncidenceKindBadge kind={invoice.incidence_kind} hint />
+        </div>
       </div>
       <div style="
         margin-top: 12px; padding-top: 12px;

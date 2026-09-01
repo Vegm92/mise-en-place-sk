@@ -68,6 +68,7 @@ export const load: PageServerLoad = async ({ url, locals, parent }) => {
 				due_date:       invoices.dueDate,
 				total_amount:   invoices.totalAmount,
 				review_state:   invoices.reviewState,
+				incidence_kind: invoices.incidenceKind,
 				confidence:     invoices.confidence,
 				source_file:    invoices.sourceFile,
 				created_at:     invoices.createdAt,
