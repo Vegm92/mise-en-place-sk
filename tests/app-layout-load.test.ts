@@ -77,6 +77,10 @@ beforeAll(async () => {
 			(${rid}, 'INV-6', 'incidencia',  now(),                        now())
 	`;
 
+	// Deliberately not the invoice count above: the counter reads documents
+	// processed (ADR-036), so a matching number would prove nothing.
+	await testSql`INSERT INTO monthly_usage (restaurant_id, month, used) VALUES (${rid}, to_char(now(), 'YYYY-MM'), 7)`;
+
 	await testSql`
 		INSERT INTO system_notifications (restaurant_id, notification_type, message, payload, status, created_at) VALUES
 			(${rid}, 'price_shock',     'Price shock on tomatoes', ${JSON.stringify({})},                 'pending',   now()),
@@ -104,9 +108,9 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		expect(data.reminderBadge).toBe(2);
 	});
 
-	it('reports quota usage as non-deleted invoices created this month', async () => {
+	it('reports quota usage as documents processed this month, not invoices saved', async () => {
 		const data = await runLoad();
-		expect(data.quotaUsed).toBe(4);
+		expect(data.quotaUsed).toBe(7);
 	});
 
 	it('returns only pending notifications with explicit columns, no leaked fields', async () => {
@@ -167,12 +171,13 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 		expect(mine?.locked).toBe(false);
 	});
 
-	it("never counts another tenant's invoices or notifications", async () => {
+	it("never counts another tenant's invoices, notifications or usage", async () => {
 		const other = await createTestRestaurant('layout-load-other');
 		try {
 			await testSql`
 				INSERT INTO invoices (restaurant_id, invoice_number, review_state, created_at, deleted_at)
 				VALUES (${other.id}, 'OTHER-1', 'incidencia', now(), NULL)`;
+			await testSql`INSERT INTO monthly_usage (restaurant_id, month, used) VALUES (${other.id}, to_char(now(), 'YYYY-MM'), 99)`;
 			await testSql`
 				INSERT INTO system_notifications (restaurant_id, notification_type, message, payload, status, created_at)
 				VALUES (${other.id}, 'budget_overage', 'Other budget exceeded', ${JSON.stringify({ level: 'exceeded' })}, 'pending', now())`;
@@ -180,7 +185,7 @@ describe.skipIf(!hasDbEnv)('(app) layout load — behavior-preserving after the 
 			const data = await runLoad();
 			expect(data.invoiceBadge).toBe(3);
 			expect(data.reminderBadge).toBe(2);
-			expect(data.quotaUsed).toBe(4);
+			expect(data.quotaUsed).toBe(7);
 		} finally {
 			await cleanupTestRestaurant(other.id);
 		}

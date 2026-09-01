@@ -4,6 +4,7 @@ import { invoices, restaurants, settings, userRestaurants } from './schema';
 import { users } from './schema';
 import { sendEmail, quotaWarningEmail } from './email';
 import { getMonthlyQuota } from './billing';
+import { getMonthlyUsage } from './llm-quota';
 
 export const QUOTA_WARNING_THRESHOLD = 0.8;
 
@@ -17,13 +18,7 @@ export async function maybeSendQuotaWarning(restaurantId: string): Promise<void>
 		const limit = await getMonthlyQuota(restaurantId);
 		if (limit === null) return;
 
-		const [usedRow] = await db.select({ cnt: sql<number>`count(*)::int` })
-			.from(invoices)
-			.where(tdb.scope(invoices.restaurantId, and(
-				isNull(invoices.deletedAt),
-				sql`TO_CHAR(${invoices.createdAt}, 'YYYY-MM') = ${currentMonth}`,
-			)));
-		const used = usedRow?.cnt ?? 0;
+		const used = await getMonthlyUsage(restaurantId);
 		if (used < Math.ceil(limit * QUOTA_WARNING_THRESHOLD)) return;
 
 		const claimed = await db.insert(settings)

@@ -171,6 +171,15 @@ directly at write time. Source of the trend/analytics pages.
 
 ### `src/lib/server/schema.ts`
 
+**`const usageEvents`**
+
+- Append-only audit trail behind `monthly_usage.used` ([ADR-036](../06_decisions/billing/ADR-036-one-metered-unit.md)): for any tenant and month, `SUM(delta)` equals the counter. An item's balance — `SUM(delta)` over its own rows — is 0 (owes nothing) or 1 (holds a slot), and that is what makes claim and release idempotent: a redelivered job finds 1 and claims nothing, a double cancel finds 0 and refunds nothing. A balance rather than a unique `(batch_item_id, kind)` index, because a failed item that is retried has to be able to claim a second time.
+- `batch_item_id` is nullable and deliberately not a foreign key: the ledger outlives the item it describes (the batch `remove` action hard-deletes rows), a composite reservation exists before its children do, and migration 0063's opening-balance row belongs to no item at all.
+
+**`const batchItems.extractErrorVars`**
+
+- Interpolation values for `extractError`, when the message needs to name numbers the translation key alone cannot carry — `extract.err.quotaCompositeExceeded` has to say "contiene 17 documentos y te quedan 8". Encoding counts into the key string would put data in an i18n identifier.
+
 **`const restaurants`**
 
 - Drizzle schema — PostgreSQL (Railway). Single source of truth.

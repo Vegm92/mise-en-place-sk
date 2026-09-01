@@ -3,15 +3,14 @@
  */
 import { describe, it, expect } from 'vitest';
 import { pickActiveItem, type BatchItem, type BatchItemStatus } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 function item(id: string, position: number, status: BatchItemStatus): BatchItem {
-	return {
+	return fakeBatchItem({
 		id, position, status,
 		batchId: 'b', restaurantId: 'r',
 		fileKey: `b/${id}.pdf`, displayName: `${id}.pdf`,
-		extractedData: null, conversionNotes: null, extractError: null,
-		source: 'web', sourceRef: null, jobCode: null, reviewStatus: null, queuedAt: null,
-	};
+	});
 }
 
 describe('pickActiveItem', () => {

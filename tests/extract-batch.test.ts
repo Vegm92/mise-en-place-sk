@@ -6,25 +6,16 @@
 import { describe, it, expect, vi } from 'vitest';
 import { enqueueBatchExtraction, type BatchEnqueueDeps } from '../src/lib/server/extract-batch';
 import type { BatchItem, BatchItemStatus } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 function makeItem(id: string, position: number, status: BatchItemStatus): BatchItem {
-	return {
+	return fakeBatchItem({
 		id,
-		batchId: 'batch-1',
-		restaurantId: 'rid-1',
 		position,
+		status,
 		fileKey: `batch-1/${id}.pdf`,
 		displayName: `${id}.pdf`,
-		status,
-		extractedData: null,
-		conversionNotes: null,
-		extractError: null,
-		queuedAt: null,
-		source: 'web',
-		sourceRef: null,
-		jobCode: null,
-		reviewStatus: null,
-	};
+	});
 }
 
 function makeDeps(items: BatchItem[]) {

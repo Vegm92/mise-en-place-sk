@@ -281,6 +281,39 @@ const POST_GEO0_FAQ: Record<Locale, Record<number, string>> = {
 	},
 };
 
+/**
+ * ADR-036 — one metered unit.
+ *
+ * The plan allowance is sold and displayed as "documentos procesados", not
+ * "albaranes". A single upload can hold albaranes and facturas alike — the
+ * structure stage does not know which until after it has looked — and the
+ * meter moves when a document is extracted, not when an invoice is saved. The
+ * waitlist pricing copy follows the billing page rather than drifting from it.
+ */
+const POST_ADR036_TRIAL_LIMIT: Record<Locale, string> = {
+	es: '14 días o 20 documentos procesados · sin tarjeta',
+	en: '14 days or 20 documents processed · no card',
+};
+
+const POST_ADR036_KPI_SHORT: Record<Locale, string> = {
+	es: 'documentos procesados',
+	en: 'documents processed',
+};
+
+/** The quota bullet of each paid tier, keyed by the tier name in the copy. */
+const POST_ADR036_QUOTA_BULLET: Record<Locale, Record<string, string>> = {
+	es: {
+		Starter: '100 documentos procesados al mes',
+		Pro: '300 documentos procesados al mes',
+		Business: 'Documentos procesados ilimitados',
+	},
+	en: {
+		Starter: '100 documents processed per month',
+		Pro: '300 documents processed per month',
+		Business: 'Unlimited documents processed',
+	},
+};
+
 describe('waitlist copy migration is byte-identical to the pre-migration inline object (issue #407)', () => {
 	it('the pinned pre-migration git blob still contains the expected copy object', () => {
 		expect(Object.keys(PRE_MIGRATION_COPY)).toEqual(['es', 'en']);
@@ -290,6 +323,8 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 	for (const loc of ['es', 'en'] as const) {
 		it(`renders identical ${loc} copy via $t/$ti against the shared i18n table, aside from documented later changes`, () => {
 			const expected = { ...PRE_MIGRATION_COPY[loc], ...POST_407_INTENTIONAL_CHANGES[loc] };
+			expected.pricingTrialLimit = POST_ADR036_TRIAL_LIMIT[loc];
+			expected.mockKpiInvoicesShort = POST_ADR036_KPI_SHORT[loc];
 			const preMigrationFaq = expected.faq as { q: string; a: string }[];
 			expected.faq = preMigrationFaq.map((row, i) => {
 				if (i === 4) return { ...row, a: POST_333_FAQ_4_A[loc] };
@@ -300,6 +335,11 @@ describe('waitlist copy migration is byte-identical to the pre-migration inline 
 			expected.steps = preMigrationSteps.map((row, i) =>
 				i === 2 ? { ...row, body: POST_GEO0_STEPS_2_BODY[loc] } : row
 			);
+			const preMigrationTiers = expected.pricingTiers as { name: string; bullets: string[] }[];
+			expected.pricingTiers = preMigrationTiers.map((tier) => {
+				const bullet = POST_ADR036_QUOTA_BULLET[loc][tier.name];
+				return bullet ? { ...tier, bullets: [bullet, ...tier.bullets.slice(1)] } : tier;
+			});
 			expect(buildMigratedCopy(loc)).toEqual(expected);
 		});
 	}

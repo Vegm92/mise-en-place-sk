@@ -6,10 +6,16 @@ import {
 } from './document-structure';
 
 export const STRUCTURE_UNCLEAR_ERROR = 'extract.err.structureUnclear';
+export const COMPOSITE_QUOTA_ERROR = 'extract.err.quotaCompositeExceeded';
 
 export interface SegmentFile {
 	key: string;
 	name: string;
+}
+
+export interface ReservationOutcome {
+	reserved: boolean;
+	remaining: number;
 }
 
 export interface SegmentationDeps {
@@ -18,12 +24,15 @@ export interface SegmentationDeps {
 	addItems(files: SegmentFile[]): Promise<string[]>;
 	enqueue(itemId: string): Promise<unknown>;
 	discardSource(): Promise<unknown>;
+	reserve?(count: number): Promise<ReservationOutcome>;
+	attribute?(itemIds: string[]): Promise<void>;
 }
 
 export type SegmentationOutcome =
 	| { action: 'extract'; structure: DocumentStructure }
 	| { action: 'split'; structure: DocumentStructure; itemIds: string[]; files: SegmentFile[] }
-	| { action: 'review'; structure: DocumentStructure; reason: string };
+	| { action: 'review'; structure: DocumentStructure; reason: string }
+	| { action: 'quota'; structure: DocumentStructure; reason: string; found: number; remaining: number };
 
 export function segmentKey(fileKey: string, range: PageRange): string {
 	const ext = path.extname(fileKey);
@@ -67,12 +76,27 @@ export async function segmentDocument(
 		.map((file, index) => ({ file, range: structure.segments[index] }))
 		.filter(({ file }) => !deps.existingKeys.has(file.key));
 
+	if (deps.reserve && fresh.length > 0) {
+		const reservation = await deps.reserve(fresh.length);
+		if (!reservation.reserved) {
+			console.warn(`[segmentation] ${source.displayName}: ${fresh.length} document(s) found, ${reservation.remaining} left in plan — not splitting`);
+			return {
+				action: 'quota',
+				structure,
+				reason: COMPOSITE_QUOTA_ERROR,
+				found: fresh.length,
+				remaining: reservation.remaining,
+			};
+		}
+	}
+
 	const buffers = fresh.length ? await splitPdfRanges(source.buffer, fresh.map((f) => f.range)) : [];
 	for (const [index, { file }] of fresh.entries()) {
 		await deps.saveSegment(file.key, buffers[index]);
 	}
 
 	const itemIds = fresh.length ? await deps.addItems(fresh.map((f) => f.file)) : [];
+	if (deps.attribute && itemIds.length) await deps.attribute(itemIds);
 	for (const itemId of itemIds) await deps.enqueue(itemId);
 	await deps.discardSource();
 

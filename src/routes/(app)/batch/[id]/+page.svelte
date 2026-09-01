@@ -1481,7 +1481,7 @@
       <div class="rev-col rev-col-fill" style="display:flex;flex-direction:column;gap:12px;max-width:560px;overflow:visible;">
         <div class="card p-4" style="background:var(--mep-neg-soft);border-color:var(--mep-neg);">
           <strong class="body-strong" style="color:var(--mep-neg);display:block;margin-bottom:6px;">{$t('extract.error')} · {data.failedItem.name}</strong>
-          <p style="font-size:13px;color:var(--mep-neg);">{$t(data.failedItem.error)}</p>
+          <p style="font-size:13px;color:var(--mep-neg);">{data.failedItem.errorVars ? $ti(data.failedItem.error, data.failedItem.errorVars) : $t(data.failedItem.error)}</p>
         </div>
         <div style="display:flex;gap:8px;">
           <form method="POST" action="?/retry">

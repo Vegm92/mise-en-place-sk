@@ -26,16 +26,16 @@ vi.mock('../src/lib/server/db', async () => {
 import { testSql, closeDb, createTestRestaurant, cleanupTestRestaurant, hasDbEnv } from './helpers/test-db';
 import { saveReviewedInvoice } from '../src/lib/server/invoice-save';
 import type { BatchItem } from '../src/lib/server/batch';
+import { fakeBatchItem } from './helpers/batch-item';
 
 let rid = '';
 
 function mismatchFakeItem(extractedData: Record<string, unknown> | null): BatchItem {
-	return {
-		reviewStatus: null, jobCode: null, sourceRef: null, source: 'web',
-		queuedAt: null, extractError: null, conversionNotes: null, extractedData,
-		status: 'done', displayName: 'mismatch.pdf', fileKey: 'mismatch.pdf',
-		position: 0, restaurantId: rid, batchId: 'mismatch-batch-1', id: 'mismatch-item-1',
-	};
+	return fakeBatchItem({
+		extractedData,
+		displayName: 'mismatch.pdf', fileKey: 'mismatch.pdf',
+		restaurantId: rid, batchId: 'mismatch-batch-1', id: 'mismatch-item-1',
+	});
 }
 
 function mismatchForm(opts: { invoiceNumber: string; totalAmount: string; lineTotal: string; supplier?: string }): FormData {

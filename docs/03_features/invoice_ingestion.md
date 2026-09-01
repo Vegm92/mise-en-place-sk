@@ -154,6 +154,10 @@ Extension, size, magic bytes, quota, rate limit, tenant access.
 
 ### `src/lib/server/batch.ts`
 
+**`const REFUNDABLE_ON_CANCEL`, `function isRefundableOnCancel`**
+
+- Statuses whose item never reached the extractor, so cancelling one gives the plan slot back ([ADR-036](../06_decisions/billing/ADR-036-one-metered-unit.md)). `done` and `confirmed` are deliberately absent: the model has run and the money is spent, which is the line the metering draws — consumption is the extraction call, not the save. `failed` is included because the worker's own refund is idempotent, so a second one is free. `extracting` is excluded because that item is in flight and the worker still owns its outcome.
+
 **`type BatchDb`**
 
 - Batch data layer — the single owner of batch_items state. Every transition is a guarded UPDATE (`WHERE status IN (…)`) reporting whether it fired; stale/duplicate requests become no-ops, never lost updates; callers never read-modify-write.

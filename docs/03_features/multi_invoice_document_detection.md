@@ -952,6 +952,15 @@ worker never extracted must not cost the tenant an extraction.
 
 ### `src/lib/server/document-segmentation.ts`
 
+**`interface SegmentationDeps` — `reserve` / `attribute`**
+
+- `reserve` buys quota for the whole packet before any of it is split, all or nothing; `attribute` re-keys that reservation onto the children once they have ids. Both are optional so callers that do not meter (tests, replays) can omit them. See [ADR-036](../06_decisions/billing/ADR-036-one-metered-unit.md).
+
+**`function segmentDocument` — the reservation point**
+
+- Quota is settled between detection and splitting: the one moment the packet's true size is known and nothing has been spent on it. A partial reservation is deliberately not offered — extracting the first few pages of a 17-invoice packet and then walling is the failure this replaces. Already-created siblings were paid for on the delivery that created them, so only `fresh` is bought.
+- A packet that does not fit returns `action: 'quota'` carrying `found` and `remaining`, and nothing is written, queued or discarded: the source item stays so the user can see why.
+
 **`function segmentKey`**
 
 - Derived from the source key rather than randomised: worker jobs are redelivered, and a random key would fan the same packet out twice.
@@ -961,6 +970,18 @@ worker never extracted must not cost the tenant an extraction.
 - Order matters on a crash: files are written, then items are added, then the source is discarded. A crash before the discard leaves the already-created children visible to the retry through `existingKeys`.
 
 ### `src/lib/server/extraction-worker.ts`
+
+**`function inspectDocumentStructure` — `reserve`**
+
+- Hands back the source item's own slot before pricing the packet. It is the container, not one of the documents; leaving it held would make a packet of N need N+1 free and refuse a tenant with exactly N left. Release is idempotent, so the later release on this path is a no-op.
+
+**`type ExtractionRoute`, `function asRoute`**
+
+- What the worker does next, without the structure detail it has no use for. Only the `quota` route carries data (`found`, `remaining`), which becomes `extractErrorVars` on the failed item.
+
+**`function processExtractionJob` — the non-extract routes**
+
+- The source item is a container the worker never sent to the extractor, so its slot goes back whichever way the route went. `quota` fails it with `extract.err.quotaCompositeExceeded` and the two counts; `review` fails it with `extract.err.structureUnclear`.
 
 **`function routeCompositeDocument`**
 
