@@ -10,8 +10,6 @@ const MIME: Record<string, string> = {
 	'.jpg':  'image/jpeg',
 	'.jpeg': 'image/jpeg',
 	'.png':  'image/png',
-	'.webp': 'image/webp',
-	'.xml':  'application/xml',
 };
 
 export const GET: RequestHandler = async ({ params, locals }) => {
