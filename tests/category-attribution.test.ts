@@ -36,7 +36,7 @@ import {
 	describedLine, lineAmountExpr, lineCategoryExpr, lineProductJoin,
 } from '../src/lib/server/category-spend';
 import { getTrendDataByRange } from '../src/lib/server/trend';
-import { runBudgetCheck } from '../src/lib/server/alert-engine';
+import { runBudgetCheck } from '../src/lib/server/alerts';
 import { categoryBudgets } from '../src/lib/server/schema';
 import { toMonthStr } from '../src/lib/formatters';
 import { UNCATEGORIZED_CATEGORY } from '../src/lib/constants';

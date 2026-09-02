@@ -122,13 +122,12 @@ import {
 	sendWeeklyDigest,
 	runFilePurgeJob,
 	runAnalyticsRefreshJob,
-	runOrphanSubscriptionsJob,
-	reconcileOrphanSubscriptions,
 	DIGEST_TENANT_QUEUE,
 	REMINDERS_TENANT_QUEUE,
 	TRIAL_TENANT_QUEUE,
 	DELETED_FILE_RETENTION_DAYS,
-} from '../src/lib/server/scheduler';
+} from '../src/lib/server/alerts';
+import { runOrphanSubscriptionsJob, reconcileOrphanSubscriptions } from '../src/lib/server/billing';
 
 const DAY = 86_400_000;
 

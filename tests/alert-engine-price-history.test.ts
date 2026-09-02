@@ -20,7 +20,7 @@ import {
 	testSql, closeDb,
 	createTestRestaurant, cleanupTestRestaurant, hasDbEnv,
 } from './helpers/test-db';
-import { runPriceShock } from '../src/lib/server/alert-engine';
+import { runPriceShock } from '../src/lib/server/alerts';
 import type { EnrichedLineItem } from '../src/lib/server/products';
 
 const SUPPLIER = '__price_history_test_supplier__';
