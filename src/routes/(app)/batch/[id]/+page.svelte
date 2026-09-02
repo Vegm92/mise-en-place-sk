@@ -213,6 +213,11 @@
     notesInput: string;
     paymentMethodInput: string;
     paymentTermsInput: string;
+    purchaseOrderInput: string;
+    sellerNameInput: string;
+    deliveryDateInput: string;
+    deliveryAddressInput: string;
+    printedNotesInput: string;
     lineItems: LineItem[];
     taxBands: BandRow[];
   };
@@ -346,6 +351,16 @@
   let paymentMethodInput = $state(initialDraft?.paymentMethodInput ?? str(data.review?.data?.payment_method));
   // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
   let paymentTermsInput = $state(initialDraft?.paymentTermsInput ?? str(data.review?.data?.payment_terms));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let purchaseOrderInput = $state(initialDraft?.purchaseOrderInput ?? str(data.review?.data?.purchase_order));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let sellerNameInput = $state(initialDraft?.sellerNameInput ?? str(data.review?.data?.seller_name));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let deliveryDateInput = $state(initialDraft?.deliveryDateInput ?? str(data.review?.data?.delivery_date));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let deliveryAddressInput = $state(initialDraft?.deliveryAddressInput ?? str(data.review?.data?.delivery_address));
+  // svelte-ignore state_referenced_locally — intentional: seed from server-loaded data (or a pending draft) once
+  let printedNotesInput = $state(initialDraft?.printedNotesInput ?? str(data.review?.data?.printed_notes));
 
   $effect(() => {
     const id = data.review?.itemId ?? null;
@@ -379,6 +394,11 @@
     notesInput = draft?.notesInput ?? '';
     paymentMethodInput = draft?.paymentMethodInput ?? str(rd?.payment_method);
     paymentTermsInput = draft?.paymentTermsInput ?? str(rd?.payment_terms);
+    purchaseOrderInput = draft?.purchaseOrderInput ?? str(rd?.purchase_order);
+    sellerNameInput = draft?.sellerNameInput ?? str(rd?.seller_name);
+    deliveryDateInput = draft?.deliveryDateInput ?? str(rd?.delivery_date);
+    deliveryAddressInput = draft?.deliveryAddressInput ?? str(rd?.delivery_address);
+    printedNotesInput = draft?.printedNotesInput ?? str(rd?.printed_notes);
   });
 
   let lastAutosaveItemId: string | null = null;
@@ -388,6 +408,7 @@
       supplierNameInput, invoiceNumberInput, documentTypeInput, invoiceDateInput,
       dueDateInput, dueDateSuggested, totalAmountInput, notesInput, lineItems, taxBands,
       paymentMethodInput, paymentTermsInput,
+      purchaseOrderInput, sellerNameInput, deliveryDateInput, deliveryAddressInput, printedNotesInput,
       grossAmountInput, discountAmountInput, retentionRateInput, retentionAmountInput,
     };
     if (!itemId) return;
@@ -1194,6 +1215,31 @@
                   <label class="rev-field-label" for="field-payment-terms">{$t('field.paymentTerms')}</label>
                   <input id="field-payment-terms" type="text" name="payment_terms" bind:value={paymentTermsInput}
                     maxlength={100} class="rev-input" />
+                </div>
+                <div>
+                  <label class="rev-field-label" for="field-purchase-order">{$t('field.purchaseOrder')}</label>
+                  <input id="field-purchase-order" type="text" name="purchase_order" bind:value={purchaseOrderInput}
+                    maxlength={100} class="rev-input" />
+                </div>
+                <div>
+                  <label class="rev-field-label" for="field-seller-name">{$t('field.sellerName')}</label>
+                  <input id="field-seller-name" type="text" name="seller_name" bind:value={sellerNameInput}
+                    maxlength={200} class="rev-input" />
+                </div>
+                <div>
+                  <label class="rev-field-label" for="field-delivery-date">{$t('field.deliveryDate')}</label>
+                  <input id="field-delivery-date" type="text" name="delivery_date" bind:value={deliveryDateInput}
+                    placeholder="YYYY-MM-DD" class="rev-input num" />
+                </div>
+                <div class="rev-field-wide">
+                  <label class="rev-field-label" for="field-delivery-address">{$t('field.deliveryAddress')}</label>
+                  <input id="field-delivery-address" type="text" name="delivery_address" bind:value={deliveryAddressInput}
+                    maxlength={300} class="rev-input" />
+                </div>
+                <div class="rev-grid-wide">
+                  <label class="rev-field-label" for="field-printed-notes">{$t('field.printedNotes')}</label>
+                  <textarea id="field-printed-notes" name="printed_notes" maxlength={500} rows={2}
+                    bind:value={printedNotesInput} class="rev-input"></textarea>
                 </div>
                 {#if str(review?.data?.iban)}
                   <div>
