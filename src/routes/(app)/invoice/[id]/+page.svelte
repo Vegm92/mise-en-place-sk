@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { PageData } from './$types';
+  import type { PageData, ActionData } from './$types';
+  import { enhance } from '$app/forms';
   import { locale, t, ti } from '$lib/i18n';
   import { fmtEur } from '$lib/formatters';
   import { uploadExtname } from '$lib/upload-formats';
@@ -9,10 +10,11 @@
 
   const PREVIEWABLE_EXTENSIONS = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 
-  let { data }: { data: PageData } = $props();
-  const { invoice, lineItems, unlinkedLineCount } = $derived(data);
+  let { data, form }: { data: PageData; form: ActionData } = $props();
+  const { invoice, lineItems, unlinkedLineCount, claim } = $derived(data);
 
   let confirmDelete = $state(false);
+  let claimOpen = $state(false);
 
   const sourceExt = $derived(invoice.source_file ? uploadExtname(invoice.source_file) : '');
   const isPreviewable = $derived(PREVIEWABLE_EXTENSIONS.has(sourceExt));
@@ -41,7 +43,7 @@
 </script>
 
 <div class="md:hidden" style="height:100%;overflow:hidden;">
-  <MobileInvoiceDetail {invoice} {lineItems} {unlinkedLineCount} />
+  <MobileInvoiceDetail {invoice} {lineItems} {unlinkedLineCount} {claim} {form} />
 </div>
 
 <div class="hidden md:block">
@@ -197,6 +199,43 @@
       </div>
     </div>
   </div>
+
+  {#if claim.sentAt}
+    <div class="card p-4">
+      <span class="body-strong">{$ti('inv.claim.sentLine', { date: String(fmtDate(claim.sentAt)) })}</span>
+    </div>
+  {:else if claim.eligible}
+    <div class="card p-4 flex flex-col gap-3">
+      {#if !claimOpen}
+        <button type="button" class="btn btn-primary self-start" onclick={() => claimOpen = true}>
+          {$t('inv.claim.button')}
+        </button>
+      {:else}
+        <form method="post" action="?/requestCorrection" use:enhance class="flex flex-col gap-3">
+          {#if form?.claim}
+            <span class="body text-neg">{$t(`inv.claim.error.${form.claim}`)}</span>
+          {/if}
+          <div class="flex flex-col gap-1">
+            <span class="label">{$t('inv.claim.form.to')}</span>
+            <span class="body-strong">{claim.to}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="label" for="claim-subject">{$t('inv.claim.form.subject')}</label>
+            <input id="claim-subject" name="subject" class="input" value={claim.subject} maxlength={200} required />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="label" for="claim-body">{$t('inv.claim.form.body')}</label>
+            <textarea id="claim-body" name="body" class="input min-h-32 resize-y" maxlength={4000} required>{claim.body}</textarea>
+          </div>
+          <span class="body text-fg-3">{$t('inv.claim.form.hint')}</span>
+          <div class="flex gap-2">
+            <button type="submit" class="btn btn-primary">{$t('inv.claim.form.submit')}</button>
+            <button type="button" class="btn btn-ghost" onclick={() => claimOpen = false}>{$t('edit.cancel')}</button>
+          </div>
+        </form>
+      {/if}
+    </div>
+  {/if}
 
   {#if lineItems.length > 0}
     <div class="card" style="overflow:hidden;">
