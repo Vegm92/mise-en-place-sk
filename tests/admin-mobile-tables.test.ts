@@ -24,7 +24,7 @@ import path from 'node:path';
 
 const ROOT = path.resolve(__dirname, '..');
 const ADMIN_DIR = path.join(ROOT, 'src/routes/(admin)');
-const REPORT_PATH = path.join(ROOT, 'shots/admin-mobile-audit.json');
+const REPORT_PATH = path.join(ROOT, 'tests/fixtures/admin-mobile-audit.json');
 
 const ADMIN_ROUTES = [
 	'/admin',
@@ -118,7 +118,7 @@ describe('admin console tables at 390px', () => {
 	it('has a committed 390px audit report covering every admin route', () => {
 		expect(
 			existsSync(REPORT_PATH),
-			'shots/admin-mobile-audit.json is missing — re-run scripts/admin-mobile-audit.mjs.',
+			'tests/fixtures/admin-mobile-audit.json is missing — re-run scripts/admin-mobile-audit.mjs.',
 		).toBe(true);
 
 		const report = JSON.parse(readFileSync(REPORT_PATH, 'utf8')) as Report;
