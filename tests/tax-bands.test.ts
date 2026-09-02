@@ -329,24 +329,35 @@ describe('resolveTaxBreakdown (the form is authoritative once it posts bands)', 
 });
 
 describe('resolveTotalsBreakdown (gross/discount/retention, issue #916)', () => {
+  const extracted = {
+    gross_amount: 1000, discount_amount: 50, retention_rate: 0.15, retention_amount: 142.5,
+  };
+
+  it.each([
+    ['carries none of these fields', { tax_base: 500 }],
+    ['there is no extraction at all', undefined],
+  ])('yields nulls when the extraction %s', (_label, extractedData) => {
+    expect(resolveTotalsBreakdown(new FormData(), extractedData)).toEqual({
+      grossAmount: null, discountAmount: null, retentionRate: null, retentionAmount: null,
+    });
+  });
+
   it('reads gross, discount and retention straight from the extraction', () => {
-    const extracted = {
-      gross_amount: 1000, discount_amount: 50, retention_rate: 0.15, retention_amount: 142.5,
-    };
-    expect(resolveTotalsBreakdown(extracted)).toEqual({
+    expect(resolveTotalsBreakdown(new FormData(), extracted)).toEqual({
       grossAmount: '1000.00', discountAmount: '50.00', retentionRate: 0.15, retentionAmount: '142.50',
     });
   });
 
-  it('yields nulls when the extraction carries none of these fields', () => {
-    expect(resolveTotalsBreakdown({ tax_base: 500 })).toEqual({
-      grossAmount: null, discountAmount: null, retentionRate: null, retentionAmount: null,
-    });
-  });
-
-  it('yields nulls when there is no extraction at all', () => {
-    expect(resolveTotalsBreakdown(undefined)).toEqual({
-      grossAmount: null, discountAmount: null, retentionRate: null, retentionAmount: null,
+  it.each([
+    ['a reviewer-submitted correction over the extraction (issue #916 review fix)', extracted, '1000.00'],
+    ['a manually-entered invoice with no extraction at all', undefined, null],
+  ])('prefers %s', (_label, extractedData, expectedGross) => {
+    const fd = new FormData();
+    fd.append('discount_amount', '75.00');
+    fd.append('retention_rate', '0.19');
+    fd.append('retention_amount', '190.00');
+    expect(resolveTotalsBreakdown(fd, extractedData)).toEqual({
+      grossAmount: expectedGross, discountAmount: '75.00', retentionRate: 0.19, retentionAmount: '190.00',
     });
   });
 });

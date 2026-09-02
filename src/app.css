@@ -1207,6 +1207,19 @@
     color: var(--mep-fg-3);
     opacity: 0.6;
   }
+  .rev-totals-chain-input {
+    width: 56px;
+    font: inherit;
+    text-align: right;
+    color: var(--mep-fg);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 1px 3px;
+  }
+  .rev-totals-chain-input:hover { border-color: var(--mep-divider); }
+  .rev-totals-chain-input:focus { border-color: var(--mep-acc); background: var(--mep-surface); outline: none; }
+  .rev-totals-chain-input-rate { width: 32px; }
   .rev-tax-stale {
     display: inline-flex;
     align-items: center;
