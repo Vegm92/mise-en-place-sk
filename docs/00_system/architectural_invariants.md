@@ -1,3 +1,8 @@
+---
+tags: [mep, system]
+related: "[[CONTEXT]]"
+---
+
 # Architectural Invariants — Rules AI Agents Must Preserve
 
 Immutable rules derived from the actual implementation, its ADRs, and the

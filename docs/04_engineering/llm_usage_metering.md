@@ -1,3 +1,8 @@
+---
+tags: [mep, engineering]
+related: "[[CONTEXT]]"
+---
+
 # LLM Usage Metering — issue doc for later adoption
 
 Status: **Open gap** (documented 2026-08-13). No code change made; this doc is

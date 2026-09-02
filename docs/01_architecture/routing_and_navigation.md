@@ -1,3 +1,8 @@
+---
+tags: [mep, architecture]
+related: "[[CONTEXT]]"
+---
+
 # Routing and Navigation
 
 All SvelteKit routes under `src/routes/`. The `(app)` and `(admin)` route groups

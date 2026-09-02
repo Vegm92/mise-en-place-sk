@@ -1,3 +1,8 @@
+---
+tags: [mep, operations]
+related: "[[CONTEXT]]"
+---
+
 # Stripe branding
 
 Stripe-facing surfaces (Checkout, the customer portal, receipts and invoice

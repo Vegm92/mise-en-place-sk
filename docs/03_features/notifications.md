@@ -1,3 +1,8 @@
+---
+tags: [mep, features]
+related: "[[CONTEXT]]"
+---
+
 # Feature Spec — Notifications (in-app alerts, bell, badge, reminders hub)
 
 ## Purpose

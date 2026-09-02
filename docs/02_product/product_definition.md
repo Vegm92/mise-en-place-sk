@@ -1,3 +1,8 @@
+---
+tags: [mep, product]
+related: "[[CONTEXT]]"
+---
+
 # Product Definition
 
 Source: `README.md`, `docs/02_product/plan_de_negocio.md`, `docs/SPAIN_MARKET_RESEARCH.md`,
