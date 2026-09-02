@@ -229,8 +229,8 @@
               </div>
             {/if}
             {#if s.iban}
-              <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--mep-fg-2);">
-                <CreditCard size={13} style="color:var(--mep-fg-3);flex-shrink:0;" />
+              <div class="text-fg-2" style="display:flex;align-items:center;gap:10px;font-size:11px;">
+                <CreditCard size={13} class="text-fg-3 shrink-0" />
                 <span>{$t('sup.field.iban')}: {s.iban}</span>
               </div>
             {/if}
