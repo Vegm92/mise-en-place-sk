@@ -7,6 +7,7 @@
   import Edit from '@lucide/svelte/icons/edit';
   import Download from '@lucide/svelte/icons/download';
   import Truck from '@lucide/svelte/icons/truck';
+  import { enhance } from '$app/forms';
   import { locale, t, ti } from '$lib/i18n';
   import { fmtEur } from '$lib/formatters';
   import { uploadExtname } from '$lib/upload-formats';
@@ -24,6 +25,14 @@
     id: number;
     invoice_number: string | null;
     document_type: string | null;
+  }
+
+  interface Claim {
+    eligible: boolean;
+    to: string | null;
+    sentAt: string | null;
+    subject: string;
+    body: string;
   }
 
   interface Invoice {
@@ -46,11 +55,17 @@
     invoice,
     lineItems,
     unlinkedLineCount = 0,
+    claim,
+    form,
   }: {
     invoice: Invoice;
     lineItems: LineItem[];
     unlinkedLineCount?: number;
+    claim: Claim;
+    form: { claim?: string } | null;
   } = $props();
+
+  let claimOpen = $state(false);
 
   function fmt(n: number | null | undefined) {
     if (n == null) return '—';
@@ -179,6 +194,47 @@
         </div>
         <span class="body" style="color: var(--mep-acc); font-weight: 500;">{$t('inv.detail.viewLinked')}</span>
       </a>
+    {/if}
+
+    {#if claim.sentAt}
+      <div class="card p-3">
+        <span class="body-strong">{$ti('inv.claim.sentLine', { date: fmtDate(claim.sentAt) })}</span>
+      </div>
+    {:else if claim.eligible}
+      <div class="card p-3 flex flex-col gap-3">
+        {#if !claimOpen}
+          <button
+            type="button"
+            class="btn btn-primary min-h-11"
+            onclick={() => claimOpen = true}
+          >
+            {$t('inv.claim.button')}
+          </button>
+        {:else}
+          <form method="post" action="/invoice/{invoice.id}?/requestCorrection" use:enhance class="flex flex-col gap-3">
+            {#if form?.claim}
+              <span class="body text-neg">{$t(`inv.claim.error.${form.claim}`)}</span>
+            {/if}
+            <div class="flex flex-col gap-1">
+              <span class="label">{$t('inv.claim.form.to')}</span>
+              <span class="body-strong">{claim.to}</span>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="label" for="mid-claim-subject">{$t('inv.claim.form.subject')}</label>
+              <input id="mid-claim-subject" name="subject" class="input min-h-11" value={claim.subject} maxlength={200} required />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="label" for="mid-claim-body">{$t('inv.claim.form.body')}</label>
+              <textarea id="mid-claim-body" name="body" class="input min-h-32 resize-y" maxlength={4000} required>{claim.body}</textarea>
+            </div>
+            <span class="body text-fg-3">{$t('inv.claim.form.hint')}</span>
+            <div class="flex gap-2">
+              <button type="submit" class="btn btn-primary min-h-11 flex-1">{$t('inv.claim.form.submit')}</button>
+              <button type="button" class="btn btn-ghost min-h-11" onclick={() => claimOpen = false}>{$t('edit.cancel')}</button>
+            </div>
+          </form>
+        {/if}
+      </div>
     {/if}
 
     {#if unlinkedLineCount > 0}
