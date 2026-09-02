@@ -63,3 +63,30 @@ export async function cleanupTestRestaurant(id: string) {
 export async function cleanupAllTestRestaurants() {
 	await testSql`DELETE FROM restaurants WHERE slug LIKE 'test-vitest-%'`;
 }
+
+const DEADLOCK_SQLSTATE = '40P01';
+
+function isDeadlock(err: unknown): boolean {
+	const e = err as { code?: string; message?: string; stderr?: Buffer | string };
+	return e?.code === DEADLOCK_SQLSTATE
+		|| String(e?.message ?? '').includes('deadlock detected')
+		|| String(e?.stderr ?? '').includes('deadlock detected');
+}
+
+/**
+ * Role-provisioning DDL (CREATE ROLE, GRANT ... ON ALL TABLES, DROP OWNED BY)
+ * locks every table in the schema, so under a parallel `pnpm test` run it can
+ * deadlock against another file's cascading DELETE. Postgres aborts one side
+ * with SQLSTATE 40P01; the statement is safe to retry once the other side has
+ * committed. Only 40P01 is retried — every other error still fails the suite.
+ */
+export async function retryOnDeadlock<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return await fn();
+		} catch (err) {
+			if (!isDeadlock(err) || attempt >= attempts) throw err;
+			await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+		}
+	}
+}
